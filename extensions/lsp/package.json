@@ -1,0 +1,11 @@
+{
+  "name": "pi-lsp-extension",
+  "private": true,
+  "dependencies": {
+    "vscode-jsonrpc": "^8.2.0",
+    "vscode-languageserver-protocol": "^3.17.0"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}
