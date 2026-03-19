@@ -1,0 +1,12 @@
+{
+  "name": "mlegls-pi",
+  "version": "0.1.0",
+  "description": "Personal pi package for mlegls",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"],
+    "prompts": ["./prompts"],
+    "themes": ["./themes"]
+  }
+}
