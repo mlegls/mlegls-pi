@@ -1,0 +1,49 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"type": "object",
+	"required": ["servers"],
+	"properties": {
+		"servers": {
+			"type": "array",
+			"description": "LSP server configurations",
+			"items": {
+				"type": "object",
+				"required": ["name", "command", "args", "detectFiles", "fileExtensions", "languageIds"],
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "Unique name for this server"
+					},
+					"command": {
+						"type": "string",
+						"description": "Executable command to spawn"
+					},
+					"args": {
+						"type": "array",
+						"items": { "type": "string" },
+						"description": "Command-line arguments"
+					},
+					"resolveCommand": {
+						"type": "string",
+						"description": "Shell command that prints the resolved binary path. Used when the binary isn't on PATH or needs special resolution (e.g. tsgo native binary). Falls back to finding 'command' on PATH if not set or if resolution fails."
+					},
+					"detectFiles": {
+						"type": "array",
+						"items": { "type": "string" },
+						"description": "If any of these files exist in the project root, auto-start this server"
+					},
+					"fileExtensions": {
+						"type": "array",
+						"items": { "type": "string" },
+						"description": "File extensions this server handles (e.g. '.ts', '.rs')"
+					},
+					"languageIds": {
+						"type": "object",
+						"additionalProperties": { "type": "string" },
+						"description": "Map of file extension to LSP languageId (e.g. { '.ts': 'typescript' })"
+					}
+				}
+			}
+		}
+	}
+}

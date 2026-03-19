@@ -1,0 +1,89 @@
+{
+	"$schema": "./servers.schema.json",
+	"servers": [
+		{
+			"name": "tsgo",
+			"command": "tsgo",
+			"args": ["--lsp", "--stdio"],
+			"resolveCommand": "node -e \"const f=require('fs'),p=require('path'),pkg='@typescript/native-preview-'+process.platform+'-'+process.arch,bin=p.join('lib','tsgo');for(const d of[p.join('node_modules',pkg,bin),...(process.env.HOME?['.cache/.bun/install/global','.npm/global','.yarn/global'].map(g=>p.join(process.env.HOME,g,'node_modules',pkg,bin)):[])]){if(f.existsSync(d)){console.log(p.resolve(d));process.exit(0)}}process.exit(1)\"",
+			"detectFiles": ["tsconfig.json"],
+			"fileExtensions": [".ts", ".tsx", ".js", ".jsx"],
+			"languageIds": {
+				".ts": "typescript",
+				".tsx": "typescriptreact",
+				".js": "javascript",
+				".jsx": "javascriptreact"
+			}
+		},
+		{
+			"name": "typescript",
+			"command": "typescript-language-server",
+			"args": ["--stdio"],
+			"detectFiles": ["tsconfig.json", "package.json"],
+			"fileExtensions": [".ts", ".tsx", ".js", ".jsx"],
+			"languageIds": {
+				".ts": "typescript",
+				".tsx": "typescriptreact",
+				".js": "javascript",
+				".jsx": "javascriptreact"
+			}
+		},
+		{
+			"name": "biome",
+			"command": "biome",
+			"args": ["lsp-proxy"],
+			"detectFiles": ["biome.json", "biome.jsonc", "package.json"],
+			"fileExtensions": [".ts", ".tsx", ".js", ".jsx", ".json", ".css"],
+			"languageIds": {
+				".ts": "typescript",
+				".tsx": "typescriptreact",
+				".js": "javascript",
+				".jsx": "javascriptreact",
+				".json": "json",
+				".css": "css"
+			}
+		},
+		{
+			"name": "rust-analyzer",
+			"command": "rust-analyzer",
+			"args": [],
+			"detectFiles": ["Cargo.toml"],
+			"fileExtensions": [".rs"],
+			"languageIds": {
+				".rs": "rust"
+			}
+		},
+		{
+			"name": "gopls",
+			"command": "gopls",
+			"args": ["serve"],
+			"detectFiles": ["go.mod"],
+			"fileExtensions": [".go"],
+			"languageIds": {
+				".go": "go"
+			}
+		},
+		{
+			"name": "ty",
+			"command": "ty",
+			"args": ["server"],
+			"detectFiles": ["pyproject.toml", "setup.py", "requirements.txt", "ty.toml"],
+			"fileExtensions": [".py", ".pyi"],
+			"languageIds": {
+				".py": "python",
+				".pyi": "python"
+			}
+		},
+		{
+			"name": "ruff",
+			"command": "ruff",
+			"args": ["server"],
+			"detectFiles": ["pyproject.toml", "setup.py", "requirements.txt", "ruff.toml"],
+			"fileExtensions": [".py", ".pyi"],
+			"languageIds": {
+				".py": "python",
+				".pyi": "python"
+			}
+		}
+	]
+}
