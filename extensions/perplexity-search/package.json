@@ -1,0 +1,9 @@
+{
+  "name": "pi-perplexity-search-extension",
+  "private": true,
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
