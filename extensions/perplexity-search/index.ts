@@ -52,7 +52,8 @@ export default function (pi: ExtensionAPI) {
 			"Use for current events, documentation lookups, factual questions, or any query requiring up-to-date web information.",
 		promptSnippet: "Search the web for current information using Perplexity AI (requires PERPLEXITY_API_KEY)",
 		promptGuidelines: [
-			"Use perplexity_search when you need up-to-date information from the web, such as current docs, recent events, or facts you're unsure about.",
+			"Use perplexity_search for quick factual answers, 'what is X?', or current events — it returns a synthesized answer, not raw pages.",
+			"Prefer perplexity_search over firecrawl_search when you want a direct answer rather than a list of pages to read.",
 			"Prefer 'concise' detail level for quick factual lookups; use 'detailed' for research or complex topics.",
 		],
 		parameters: SearchParams,
