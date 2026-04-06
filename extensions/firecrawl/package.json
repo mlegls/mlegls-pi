@@ -1,0 +1,10 @@
+{
+  "name": "firecrawl-extension",
+  "private": true,
+  "dependencies": {
+    "@mendable/firecrawl-js": "^4"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}
