@@ -130,7 +130,7 @@ export default function (pi: ExtensionAPI) {
 			"Scrape a web page to markdown via Firecrawl (requires FIRECRAWL_API_KEY)",
 		promptGuidelines: [
 			"Use firecrawl_scrape for web pages — it handles JS rendering, SPAs, and anti-bot protection. Use curl for APIs, JSON endpoints, and raw HTTP requests.",
-			"After scraping, use firecrawl_interact if you need to click buttons, fill forms, or navigate the page.",
+			"Firecrawl escalation: search (no URL yet) → scrape (have URL) → map+scrape (need a specific subpage on a large site) → crawl (need many pages) → interact (need clicks/forms/login). Start with the simplest tool that fits.",
 		],
 		parameters: Type.Object({
 			url: Type.String({ description: "URL to scrape" }),
