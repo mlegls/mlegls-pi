@@ -7,6 +7,29 @@ function documentationPaths(prompt: string): string[] {
 	});
 }
 
+function escapeXml(value: string): string {
+	return value.replace(/[&<>"']/g, (character) => ({
+		"&": "&amp;",
+		"<": "&lt;",
+		">": "&gt;",
+		'"': "&quot;",
+		"'": "&apos;",
+	})[character]!);
+}
+
+function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
+	const skills = options.skills?.filter((skill) => !skill.disableModelInvocation);
+	if (!skills?.length) return undefined;
+	const entries = skills.map((skill) => [
+		"  <skill>",
+		`    <name>${escapeXml(skill.name)}</name>`,
+		`    <description>${escapeXml(skill.description)}</description>`,
+		`    <location>${escapeXml(skill.filePath)}</location>`,
+		"  </skill>",
+	].join("\n")).join("\n");
+	return `Skills provide task-specific instructions. Read a matching skill file before using it.\n\n<available_skills>\n${entries}\n</available_skills>`;
+}
+
 function buildPrompt(options: BuildSystemPromptOptions, originalPrompt: string): string {
 	const parts: string[] = [];
 	parts.push(options.customPrompt?.trim() || [
@@ -24,6 +47,9 @@ function buildPrompt(options: BuildSystemPromptOptions, originalPrompt: string):
 		).join("\n\n");
 		parts.push(`<project_context>\n\nProject-specific instructions and guidelines:\n\n${files}\n\n</project_context>`);
 	}
+
+	const skills = visibleSkills(options);
+	if (skills) parts.push(skills);
 
 	const date = new Date().toISOString().slice(0, 10);
 	parts.push(`Current date: ${date}\nCurrent working directory: ${options.cwd.replace(/\\/g, "/")}`);

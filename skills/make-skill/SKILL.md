@@ -1,5 +1,7 @@
 ---
+name: make-skill
 description: Create a new pi skill in this repo's skills/ directory.
+disable-model-invocation: true
 ---
 
 Create `skills/<name>/SKILL.md` with frontmatter (`name`, `description`) and a body specifying intent and special constraints. Read sibling skills for reference on format and tone.
