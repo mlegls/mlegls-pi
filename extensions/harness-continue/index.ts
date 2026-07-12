@@ -31,7 +31,7 @@ export default function (pi: PiLike) {
   pi.on("agent_settled", async (_event, ctx) => {
     const result = await gateStop({
       cwd: ctx.cwd,
-      sessionId: ctx.sessionManager.getSessionId(),
+      sessionKey: `pi-${ctx.sessionManager.getSessionId()}`,
       cli: "hc",
     }).catch(() => null); // gate errors must never wedge the session
     if (!result || result.action !== "block") return;
