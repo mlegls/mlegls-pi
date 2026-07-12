@@ -217,7 +217,7 @@ export default function (pi: ExtensionAPI) {
 
 			let text = theme.fg("success", "✓");
 			if (details.title) {
-				text += ` ${theme.fg("fg", details.title)}`;
+				text += ` ${theme.fg("text", details.title)}`;
 			}
 			if (details.wordCount) {
 				text += theme.fg(
@@ -231,7 +231,7 @@ export default function (pi: ExtensionAPI) {
 				if (content?.type === "text") {
 					const lines = content.text.split("\n").slice(0, 40);
 					for (const line of lines) {
-						text += `\n${theme.fg("fg", line)}`;
+						text += `\n${theme.fg("text", line)}`;
 					}
 					const totalLines = content.text.split("\n").length;
 					if (totalLines > 40) {
@@ -303,14 +303,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			const result = await client.search(params.query, searchParams);
-
-			if (!result.success) {
-				throw new Error(
-					`Firecrawl search failed: ${(result as any).error || "unknown error"}`,
-				);
-			}
-
-			const webResults = (result as any).data ?? [];
+			const webResults = result.web ?? [];
 
 			let resultText = `# Search: "${params.query}"\n\nResults: ${webResults.length}\n`;
 
@@ -384,7 +377,7 @@ export default function (pi: ExtensionAPI) {
 						} else if (line.startsWith("**URL:**")) {
 							text += `\n${theme.fg("dim", line)}`;
 						} else {
-							text += `\n${theme.fg("fg", line)}`;
+							text += `\n${theme.fg("text", line)}`;
 						}
 					}
 					const totalLines = content.text.split("\n").length;
@@ -499,7 +492,7 @@ export default function (pi: ExtensionAPI) {
 						if (line.startsWith("http")) {
 							text += `\n${theme.fg("accent", line)}`;
 						} else {
-							text += `\n${theme.fg("fg", line)}`;
+							text += `\n${theme.fg("text", line)}`;
 						}
 					}
 					const totalLines = content.text.split("\n").length;
@@ -651,7 +644,7 @@ export default function (pi: ExtensionAPI) {
 						} else if (line.startsWith("**URL:**")) {
 							text += `\n${theme.fg("dim", line)}`;
 						} else {
-							text += `\n${theme.fg("fg", line)}`;
+							text += `\n${theme.fg("text", line)}`;
 						}
 					}
 					const totalLines = content.text.split("\n").length;
@@ -811,7 +804,7 @@ export default function (pi: ExtensionAPI) {
 				if (content?.type === "text") {
 					const lines = content.text.split("\n").slice(0, 50);
 					for (const line of lines) {
-						text += `\n${theme.fg("fg", line)}`;
+						text += `\n${theme.fg("text", line)}`;
 					}
 					const totalLines = content.text.split("\n").length;
 					if (totalLines > 50) {
@@ -1015,7 +1008,7 @@ export default function (pi: ExtensionAPI) {
 				if (content?.type === "text") {
 					const lines = content.text.split("\n").slice(0, 30);
 					for (const line of lines) {
-						text += `\n${theme.fg("fg", line)}`;
+						text += `\n${theme.fg("text", line)}`;
 					}
 					const totalLines = content.text.split("\n").length;
 					if (totalLines > 30) {
