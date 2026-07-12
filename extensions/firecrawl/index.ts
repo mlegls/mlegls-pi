@@ -121,17 +121,8 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "firecrawl_scrape",
 		label: "Firecrawl Scrape",
-		description:
-			"Scrape a single web page and return its content as markdown. " +
-			"Handles JavaScript-rendered pages, anti-bot protection, and dynamic content. " +
-			"Use for reading documentation, articles, or any web page. " +
-			"Returns a scrape ID that can be used with firecrawl_interact for page interaction.",
-		promptSnippet:
-			"Scrape a web page to markdown via Firecrawl (requires FIRECRAWL_API_KEY)",
-		promptGuidelines: [
-			"Use firecrawl_scrape for web pages — it handles JS rendering, SPAs, and anti-bot protection. Use curl for APIs, JSON endpoints, and raw HTTP requests.",
-			"Firecrawl escalation: search (no URL yet) → scrape (have URL) → map+scrape (need a specific subpage on a large site) → crawl (need many pages) → interact (need clicks/forms/login). Start with the simplest tool that fits.",
-		],
+		description: "Scrape one web page to markdown, including JavaScript-rendered content. Returns an ID for interaction.",
+		promptSnippet: "Scrape a web page to markdown via Firecrawl.",
 		parameters: Type.Object({
 			url: Type.String({ description: "URL to scrape" }),
 			onlyMainContent: Type.Optional(
@@ -249,18 +240,8 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "firecrawl_search",
 		label: "Firecrawl Search",
-		description:
-			"Search the web and optionally scrape full page content from results. " +
-			"Returns search results with titles, URLs, and descriptions. " +
-			"With scrape enabled, also returns full markdown content for each result. " +
-			"Use when you don't have a specific URL yet and need to find pages.",
-		promptSnippet:
-			"Web search with optional full-page content via Firecrawl (requires FIRECRAWL_API_KEY)",
-		promptGuidelines: [
-			"Use firecrawl_search when you need to find pages or current information on the web.",
-			"Enable scrape option to get full page content with search results — avoids needing separate firecrawl_scrape calls.",
-			"For searching within a specific site, use firecrawl_map with search parameter instead.",
-		],
+		description: "Search the web, optionally including full markdown from result pages.",
+		promptSnippet: "Search the web via Firecrawl.",
 		parameters: Type.Object({
 			query: Type.String({ description: "Search query" }),
 			limit: Type.Optional(
@@ -396,17 +377,8 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "firecrawl_map",
 		label: "Firecrawl Map",
-		description:
-			"Discover URLs on a website. Returns a list of pages found via sitemap and crawling. " +
-			"Use to understand site structure before scraping specific pages, or to find " +
-			"a specific page on a large site using the search parameter.",
-		promptSnippet:
-			"Discover URLs on a website via Firecrawl (requires FIRECRAWL_API_KEY)",
-		promptGuidelines: [
-			"Use firecrawl_map to discover pages on a site before deciding which to scrape.",
-			"Use the search parameter to find specific pages within a large site.",
-			"Combine firecrawl_map with firecrawl_scrape: map first to find relevant URLs, then scrape them.",
-		],
+		description: "List or search URLs found on a website.",
+		promptSnippet: "Discover website URLs via Firecrawl.",
 		parameters: Type.Object({
 			url: Type.String({ description: "Base URL or domain to map" }),
 			search: Type.Optional(
@@ -511,17 +483,8 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "firecrawl_crawl",
 		label: "Firecrawl Crawl",
-		description:
-			"Crawl a website starting from a URL, following links to scrape multiple pages. " +
-			"Returns markdown content for each page. Use for ingesting documentation sites or " +
-			"multi-page content. The SDK handles async polling automatically.",
-		promptSnippet:
-			"Crawl multiple pages from a website via Firecrawl (requires FIRECRAWL_API_KEY)",
-		promptGuidelines: [
-			"Use firecrawl_crawl for multi-page ingestion (e.g. docs sites). For single pages, prefer firecrawl_scrape.",
-			"firecrawl_crawl may take time for large sites. Set a reasonable limit to avoid very long waits.",
-			"Use includePaths to scope the crawl — don't crawl an entire site when you only need one section.",
-		],
+		description: "Crawl and return markdown from multiple linked pages.",
+		promptSnippet: "Crawl multiple pages via Firecrawl.",
 		parameters: Type.Object({
 			url: Type.String({ description: "Starting URL to crawl from" }),
 			limit: Type.Optional(
@@ -663,20 +626,8 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "firecrawl_extract",
 		label: "Firecrawl Extract",
-		description:
-			"AI-powered autonomous data extraction. The agent navigates sites and extracts " +
-			"structured data as JSON. Use when you need structured data from complex multi-page " +
-			"sites, or when manual scraping would require navigating many pages. " +
-			"More powerful than simple scraping for multi-page structured extraction. " +
-			"Takes 2-5 minutes for complex extractions.",
-		promptSnippet:
-			"AI-powered structured data extraction via Firecrawl agent (requires FIRECRAWL_API_KEY)",
-		promptGuidelines: [
-			"Use firecrawl_extract for structured data extraction from complex sites (pricing tables, product listings, etc.).",
-			"Provide a JSON schema for predictable, structured output. Without it, the agent returns freeform data.",
-			"For simple single-page extraction, prefer firecrawl_scrape — it's faster and cheaper.",
-			"Agent runs consume more credits than simple scrapes. Set maxCredits to cap spending.",
-		],
+		description: "Extract structured data from one or more websites using a Firecrawl agent.",
+		promptSnippet: "Extract structured web data via Firecrawl.",
 		parameters: Type.Object({
 			prompt: Type.String({
 				description:
@@ -822,21 +773,8 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "firecrawl_interact",
 		label: "Firecrawl Interact",
-		description:
-			"Interact with a previously scraped page in a live browser session. " +
-			"Click buttons, fill forms, navigate flows, scroll, and extract data " +
-			"using natural language prompts or code. Requires a prior firecrawl_scrape call. " +
-			"Use when content requires interaction: clicks, form fills, pagination, login, " +
-			"or when scrape failed to get all content. " +
-			"Call with action 'stop' to end the session when done.",
-		promptSnippet:
-			"Interact with a scraped page via Firecrawl browser session (requires FIRECRAWL_API_KEY)",
-		promptGuidelines: [
-			"Always firecrawl_scrape first — firecrawl_interact requires a scrape ID from a previous scrape.",
-			"Use firecrawl_interact when scrape can't get the content (behind clicks, forms, pagination, login).",
-			"Use action 'stop' to free resources when done interacting with a page.",
-			"Never use firecrawl_interact for web searches — use firecrawl_search instead.",
-		],
+		description: "Interact with a scraped page by prompt or code. Use stop when finished.",
+		promptSnippet: "Interact with a Firecrawl browser session.",
 		parameters: Type.Object({
 			action: StringEnum(
 				["prompt", "code", "stop"] as const,
