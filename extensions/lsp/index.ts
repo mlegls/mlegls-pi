@@ -296,30 +296,6 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	// === Inject current diagnostics into context before agent starts ===
-	pi.on("before_agent_start", async () => {
-		if (!lsp.isRunning()) return;
-
-		const diagnostics = await lsp.getDiagnostics();
-		if (diagnostics.length > 0) {
-			const summary =
-				`Current LSP diagnostics (${diagnostics.length} issues):\n` +
-				diagnostics
-					.slice(0, 20)
-					.map((d) => `  ${d.file}:${d.line} [${d.severity}] (${d.source}) ${d.message}`)
-					.join("\n") +
-				(diagnostics.length > 20 ? `\n  ... and ${diagnostics.length - 20} more` : "");
-
-			return {
-				message: {
-					customType: "lsp-diagnostics",
-					content: summary,
-					display: false,
-				},
-			};
-		}
-	});
-
 	// === /lsp command for manual control ===
 	pi.registerCommand("lsp", {
 		description: "Manage LSP servers: /lsp [status|start|stop|restart|list]",

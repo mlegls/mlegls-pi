@@ -257,7 +257,7 @@ export default function (pi: ExtensionAPI) {
 		promptSnippet:
 			"Web search with optional full-page content via Firecrawl (requires FIRECRAWL_API_KEY)",
 		promptGuidelines: [
-			"Use firecrawl_search when you need to find specific pages or sources to work with. Use perplexity_search when you just want a quick answer.",
+			"Use firecrawl_search when you need to find pages or current information on the web.",
 			"Enable scrape option to get full page content with search results — avoids needing separate firecrawl_scrape calls.",
 			"For searching within a specific site, use firecrawl_map with search parameter instead.",
 		],
