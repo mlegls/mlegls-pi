@@ -14,6 +14,10 @@ import type {
 	CompletionList,
 	CompletionItem,
 	Position,
+	Range,
+	WorkspaceEdit,
+	CodeAction,
+	Command,
 } from "vscode-languageserver-protocol";
 import { CompletionItemKind } from "vscode-languageserver-protocol";
 import * as fs from "node:fs";
@@ -41,6 +45,21 @@ export interface CompletionEntry {
 	label: string;
 	kind: string;
 	detail?: string;
+}
+
+export interface CodeActionEntry {
+	title: string;
+	kind?: string;
+	preferred?: boolean;
+	disabled?: string;
+	hasEdit: boolean;
+	hasCommand: boolean;
+}
+
+export interface CodeActionResult {
+	actions: CodeActionEntry[];
+	edit?: WorkspaceEdit;
+	selectedTitle?: string;
 }
 
 export interface ServerConfig {
@@ -180,10 +199,12 @@ export class LspClientManager {
 			const req = conn.connection.sendRequest("shutdown").catch(() => {});
 			await Promise.race([req, new Promise((r) => setTimeout(r, 3000))]);
 			try { conn.connection.sendNotification("exit"); } catch {}
+			await new Promise((resolve) => setTimeout(resolve, 100));
 		} catch {
 			/* ignore */
 		}
-		conn.process.kill();
+		if (conn.process.exitCode === null) conn.process.kill();
+		conn.connection.dispose();
 		this.connections.delete(name);
 		return true;
 	}
@@ -292,6 +313,14 @@ export class LspClientManager {
 							hover: { contentFormat: ["plaintext", "markdown"] },
 							definition: {},
 							references: {},
+							rename: { prepareSupport: false },
+							codeAction: {
+								codeActionLiteralSupport: {
+									codeActionKind: {
+										valueSet: ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports", "source.fixAll"],
+									},
+								},
+							},
 							publishDiagnostics: { relatedInformation: true },
 						},
 						workspace: {
@@ -420,6 +449,76 @@ export class LspClientManager {
 		return null;
 	}
 
+	async getRenameEdit(filePath: string, line: number, col: number, newName: string): Promise<WorkspaceEdit | null> {
+		const conns = this.getConnectionsForFile(filePath);
+		if (conns.length === 0) return null;
+
+		const textDocument = { uri: fileUri(path.resolve(this.rootPath, filePath)) };
+		for (const conn of conns) {
+			try {
+				const result: WorkspaceEdit | null = await conn.connection.sendRequest("textDocument/rename", {
+					textDocument,
+					position: { line, character: col },
+					newName,
+				});
+				if (result) return result;
+			} catch {
+				continue;
+			}
+		}
+		return null;
+	}
+
+	async getCodeActions(
+		filePath: string,
+		range: Range,
+		selectedTitle?: string,
+	): Promise<CodeActionResult> {
+		const conns = this.getConnectionsForFile(filePath);
+		if (conns.length === 0) return { actions: [] };
+
+		const resolvedPath = path.resolve(this.rootPath, filePath);
+		const uri = fileUri(resolvedPath);
+		for (const conn of conns) {
+			try {
+				const diagnostics = conn.diagnostics.get(uri) ?? [];
+				const result: Array<Command | CodeAction> | null = await conn.connection.sendRequest(
+					"textDocument/codeAction",
+					{ textDocument: { uri }, range, context: { diagnostics } },
+				);
+				if (!result?.length) continue;
+
+				const actions = result.map((item) => {
+					const action = item as CodeAction;
+					return {
+						title: item.title,
+						kind: action.kind,
+						preferred: action.isPreferred,
+						disabled: action.disabled?.reason,
+						hasEdit: !!action.edit,
+						hasCommand: "command" in item || !!action.command,
+					};
+				});
+
+				if (!selectedTitle) return { actions };
+				const matches = result.filter((item) => item.title === selectedTitle);
+				if (matches.length !== 1) return { actions };
+				let selected = matches[0] as CodeAction;
+				if (!selected.edit && selected.data !== undefined) {
+					try {
+						selected = await conn.connection.sendRequest("codeAction/resolve", selected);
+					} catch {
+						// Some servers return commands rather than resolvable edits.
+					}
+				}
+				return { actions, edit: selected.edit, selectedTitle };
+			} catch {
+				continue;
+			}
+		}
+		return { actions: [] };
+	}
+
 	async getCompletions(filePath: string, line: number, col: number): Promise<CompletionEntry[]> {
 		const conns = this.getConnectionsForFile(filePath);
 		if (conns.length === 0) return [];
@@ -507,10 +606,12 @@ export class LspClientManager {
 				const req = connection.sendRequest("shutdown").catch(() => {});
 				await Promise.race([req, new Promise((r) => setTimeout(r, 3000))]);
 				try { connection.sendNotification("exit"); } catch {}
+				await new Promise((resolve) => setTimeout(resolve, 100));
 			} catch {
 				/* ignore */
 			}
-			proc.kill("SIGTERM");
+			if (proc.exitCode === null) proc.kill("SIGTERM");
+			connection.dispose();
 			// Force kill after 2s
 			setTimeout(() => {
 				if (!proc.killed) proc.kill("SIGKILL");
