@@ -4,10 +4,11 @@ import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-const PRESETS: Record<string, string> = {
-	small: "openai-codex/gpt-5.4-mini",
-	medium: "openai-codex/gpt-5.6-luna",
-	large: "openai-codex/gpt-5.6-sol",
+const PRESETS: Record<string, { model: string; effort: string }> = {
+	tiny: { model: "openai-codex/gpt-5.6-luna", effort: "medium" },
+	small: { model: "openai-codex/gpt-5.6-terra", effort: "medium" },
+	medium: { model: "openai-codex/gpt-5.6-sol", effort: "medium" },
+	large: { model: "openai-codex/gpt-5.6-sol", effort: "high" },
 };
 const MAX_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -35,9 +36,14 @@ function piInvocation(args: string[]): { command: string; args: string[] } {
 		: { command: process.execPath, args };
 }
 
-function resolveModel(value: string | undefined): string {
-	if (!value) return PRESETS.small;
-	return PRESETS[value] ?? value;
+function resolveModel(value: string | undefined, effort: string | undefined): { model: string; effort: string } {
+	const selection = value ?? "small";
+	const preset = PRESETS[selection];
+	if (preset) return { model: preset.model, effort: effort ?? preset.effort };
+	if (!selection.startsWith("custom:") || !selection.slice(7).includes("/")) {
+		throw new Error('model must be "tiny", "small", "medium", "large", or custom:provider/model');
+	}
+	return { model: selection.slice(7), effort: effort ?? "medium" };
 }
 
 async function runTask(task: string, cwd: string, model: string, signal?: AbortSignal): Promise<TaskResult> {
@@ -99,8 +105,17 @@ const Parameters = Type.Object({
 		cwd: Type.Optional(Type.String()),
 	}), { minItems: 1, maxItems: MAX_TASKS }),
 	model: Type.Optional(Type.String({
-		description: "small, medium, large, or provider/model. Defaults to small.",
+		description: "tiny, small, medium, large, or custom:provider/model. Defaults to small.",
 	})),
+	effort: Type.Optional(Type.Union([
+		Type.Literal("off"),
+		Type.Literal("minimal"),
+		Type.Literal("low"),
+		Type.Literal("medium"),
+		Type.Literal("high"),
+		Type.Literal("xhigh"),
+		Type.Literal("max"),
+	], { description: "Override the preset's thinking effort." })),
 });
 
 export default function (pi: ExtensionAPI) {
@@ -110,10 +125,8 @@ export default function (pi: ExtensionAPI) {
 		description: "Run independent read-only exploration tasks in isolated contexts, in parallel when useful.",
 		parameters: Parameters,
 		async execute(_id, params, signal, onUpdate, ctx) {
-			const model = resolveModel(params.model);
-			if (!PRESETS[params.model ?? ""] && params.model && !params.model.includes("/")) {
-				throw new Error('model must be "small", "medium", "large", or provider/model');
-			}
+			const selection = resolveModel(params.model, params.effort);
+			const model = `${selection.model}:${selection.effort}`;
 			let completed = 0;
 			const tasks = params.tasks as DelegatedTask[];
 			const results = await mapLimit(tasks, MAX_CONCURRENCY, async ({ task, cwd }) => {
