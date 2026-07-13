@@ -2,6 +2,9 @@
   "name": "mlegls-pi",
   "version": "0.1.0",
   "description": "Personal pi package for mlegls",
+  "scripts": {
+    "test:session": "bun test extensions/session"
+  },
   "keywords": ["pi-package"],
   "pi": {
     "extensions": ["./extensions"],
