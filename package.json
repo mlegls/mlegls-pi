@@ -4,7 +4,8 @@
   "description": "Personal pi package for mlegls",
   "scripts": {
     "test:lsp": "bun test extensions/lsp",
-    "test:session": "bun test extensions/session"
+    "test:session": "bun test extensions/session",
+    "test:workspace": "bun test extensions/workspace"
   },
   "keywords": ["pi-package"],
   "pi": {
