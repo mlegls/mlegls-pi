@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Personal pi package for mlegls",
   "scripts": {
+    "test:lsp": "bun test extensions/lsp",
     "test:session": "bun test extensions/session"
   },
   "keywords": ["pi-package"],

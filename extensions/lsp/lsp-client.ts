@@ -75,9 +75,16 @@ export interface ServerConfig {
 
 interface ServerConnection {
 	config: ServerConfig;
+	rootPath: string;
 	process: ChildProcess;
 	connection: MessageConnection;
 	diagnostics: Map<string, Diagnostic[]>;
+	documents: Map<string, number>;
+}
+
+export interface RunningServer {
+	name: string;
+	rootPath: string;
 }
 
 /** Extra paths to search for commands beyond $PATH */
@@ -103,12 +110,12 @@ function which(cmd: string): string | undefined {
 	return undefined;
 }
 
-function resolveCommand(config: ServerConfig): string | undefined {
+function resolveCommand(config: ServerConfig, cwd?: string): string | undefined {
 	// If resolveCommand is set, run it to get the actual binary path
 	if (config.resolveCommand) {
 		try {
 			const { execSync } = require("node:child_process");
-			const resolved = execSync(config.resolveCommand, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+			const resolved = execSync(config.resolveCommand, { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
 			if (resolved && fs.existsSync(resolved)) return resolved;
 		} catch {}
 	}
@@ -138,6 +145,28 @@ function timeoutPromise<T>(promise: Promise<T>, ms: number, label: string): Prom
 	});
 }
 
+export function isPathInside(rootPath: string, filePath: string): boolean {
+	const relative = path.relative(path.resolve(rootPath), path.resolve(filePath));
+	return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
+}
+
+/** Find the nearest project marker by walking from a file toward the workspace root. */
+export function findProjectRoot(filePath: string, workspaceRoot: string, detectFiles: string[]): string | undefined {
+	const boundary = path.resolve(workspaceRoot);
+	const resolvedFile = path.resolve(filePath);
+	if (!isPathInside(boundary, resolvedFile)) return undefined;
+
+	let directory = path.dirname(resolvedFile);
+	while (isPathInside(boundary, directory)) {
+		if (detectFiles.some((file) => fs.existsSync(path.join(directory, file)))) return directory;
+		if (directory === boundary) break;
+		const parent = path.dirname(directory);
+		if (parent === directory) break;
+		directory = parent;
+	}
+	return undefined;
+}
+
 export function loadServerConfigs(configPath: string): ServerConfig[] {
 	try {
 		const raw = fs.readFileSync(configPath, "utf-8");
@@ -150,7 +179,8 @@ export function loadServerConfigs(configPath: string): ServerConfig[] {
 
 export class LspClientManager {
 	private connections = new Map<string, ServerConnection>();
-	private rootPath = "";
+	private pendingStarts = new Map<string, Promise<void>>();
+	private workspaceRoot = "";
 	private serverConfigs: ServerConfig[] = [];
 
 	constructor(configs?: ServerConfig[]) {
@@ -168,33 +198,48 @@ export class LspClientManager {
 	}
 
 	async autoDetectAndStart(cwd: string) {
-		this.rootPath = cwd;
+		this.workspaceRoot = path.resolve(cwd);
 
 		for (const config of this.serverConfigs) {
-			const detected = config.detectFiles.some((f) => fs.existsSync(path.join(cwd, f)));
-			if (detected) {
-				await this.startServer(config, cwd);
-			}
+			const detected = config.detectFiles.some((f) => fs.existsSync(path.join(this.workspaceRoot, f)));
+			if (detected) await this.startServer(config, this.workspaceRoot);
 		}
 	}
 
 	async startByName(name: string, cwd?: string): Promise<boolean> {
-		const rootPath = cwd ?? this.rootPath;
+		const rootPath = path.resolve(cwd ?? this.workspaceRoot);
 		if (!rootPath) return false;
-		this.rootPath = rootPath;
+		if (!this.workspaceRoot) this.workspaceRoot = rootPath;
 
 		const config = this.serverConfigs.find((c) => c.name === name);
 		if (!config) return false;
-		if (this.connections.has(name)) return true;
 
 		await this.startServer(config, rootPath);
-		return this.connections.has(name);
+		return this.connections.has(this.connectionKey(config.name, rootPath));
 	}
 
 	async stopByName(name: string): Promise<boolean> {
-		const conn = this.connections.get(name);
-		if (!conn) return false;
+		const matches = [...this.connections.entries()].filter(([, conn]) => conn.config.name === name);
+		if (matches.length === 0) return false;
+		await Promise.all(matches.map(([key, conn]) => this.stopConnection(key, conn)));
+		return true;
+	}
 
+	getRunningNames(): string[] {
+		return [...new Set([...this.connections.values()].map((conn) => conn.config.name))];
+	}
+
+	getRunningServers(): RunningServer[] {
+		return [...this.connections.values()]
+			.map((conn) => ({ name: conn.config.name, rootPath: conn.rootPath }))
+			.sort((a, b) => a.name.localeCompare(b.name) || a.rootPath.localeCompare(b.rootPath));
+	}
+
+	private connectionKey(name: string, rootPath: string): string {
+		return `${name}\0${path.resolve(rootPath)}`;
+	}
+
+	private async stopConnection(key: string, conn: ServerConnection): Promise<void> {
 		try {
 			const req = conn.connection.sendRequest("shutdown").catch(() => {});
 			await Promise.race([req, new Promise((r) => setTimeout(r, 3000))]);
@@ -205,18 +250,28 @@ export class LspClientManager {
 		}
 		if (conn.process.exitCode === null) conn.process.kill();
 		conn.connection.dispose();
-		this.connections.delete(name);
-		return true;
-	}
-
-	getRunningNames(): string[] {
-		return [...this.connections.keys()];
+		this.connections.delete(key);
 	}
 
 	private async startServer(config: ServerConfig, rootPath: string) {
-		if (this.connections.has(config.name)) return;
+		rootPath = path.resolve(rootPath);
+		const key = this.connectionKey(config.name, rootPath);
+		if (this.connections.has(key)) return;
+		const pending = this.pendingStarts.get(key);
+		if (pending) return pending;
 
-		const cmd = resolveCommand(config);
+		const start = this.startServerOnce(config, rootPath, key);
+		this.pendingStarts.set(key, start);
+		try {
+			await start;
+		} finally {
+			this.pendingStarts.delete(key);
+		}
+	}
+
+	private async startServerOnce(config: ServerConfig, rootPath: string, key: string) {
+
+		const cmd = resolveCommand(config, rootPath);
 		if (!cmd) return; // Command not found, skip silently
 
 		let proc: ChildProcess;
@@ -282,7 +337,7 @@ export class LspClientManager {
 		});
 
 		connection.onClose(() => {
-			this.connections.delete(config.name);
+			this.connections.delete(key);
 		});
 
 		connection.onNotification("textDocument/publishDiagnostics", (params: PublishDiagnosticsParams) => {
@@ -292,11 +347,11 @@ export class LspClientManager {
 		connection.listen();
 
 		proc.on("error", () => {
-			this.connections.delete(config.name);
+			this.connections.delete(key);
 		});
 
 		proc.on("exit", () => {
-			this.connections.delete(config.name);
+			this.connections.delete(key);
 		});
 
 		try {
@@ -334,11 +389,13 @@ export class LspClientManager {
 
 			connection.sendNotification("initialized", {});
 
-			this.connections.set(config.name, {
+			this.connections.set(key, {
 				config,
+				rootPath,
 				process: proc,
 				connection,
 				diagnostics: diagnosticsMap,
+				documents: new Map(),
 			});
 		} catch {
 			proc.kill();
@@ -351,27 +408,26 @@ export class LspClientManager {
 
 	getStatus(): string {
 		if (!this.isRunning()) return "No LSP servers running";
-		return `Running: ${[...this.connections.keys()].join(", ")}`;
+		return `Running: ${this.getRunningServers().map(({ name, rootPath }) => `${name} (${rootPath})`).join(", ")}`;
 	}
 
 	getFooter(): string {
 		if (!this.isRunning()) return "LSP ✗";
-		const names = [...this.connections.keys()];
-		return `LSP: ${names.join(", ")}`;
+		const counts = new Map<string, number>();
+		for (const { name } of this.getRunningServers()) counts.set(name, (counts.get(name) ?? 0) + 1);
+		const labels = [...counts].map(([name, count]) => count > 1 ? `${name}×${count}` : name);
+		return `LSP: ${labels.join(", ")}`;
 	}
 
 	async getDiagnostics(filePath?: string): Promise<DiagnosticEntry[]> {
 		const results: DiagnosticEntry[] = [];
+		const resolvedFilter = filePath ? this.resolveFilePath(filePath) : undefined;
+		if (filePath) await this.getConnectionsForFile(filePath);
 
-		for (const [serverName, { diagnostics }] of this.connections) {
+		for (const { config, diagnostics } of this.connections.values()) {
 			for (const [uri, diags] of diagnostics) {
 				const diagPath = uriToPath(uri);
-				if (filePath) {
-					const resolvedPath = path.resolve(this.rootPath, filePath);
-					if (diagPath !== resolvedPath && !diagPath.endsWith(filePath)) {
-						continue;
-					}
-				}
+				if (resolvedFilter && diagPath !== resolvedFilter) continue;
 				for (const d of diags) {
 					results.push({
 						file: diagPath,
@@ -379,7 +435,7 @@ export class LspClientManager {
 						col: d.range.start.character + 1,
 						severity: d.severity === 1 ? "error" : d.severity === 2 ? "warning" : "info",
 						message: d.message,
-						source: d.source ?? serverName,
+						source: d.source ?? config.name,
 					});
 				}
 			}
@@ -388,10 +444,10 @@ export class LspClientManager {
 	}
 
 	async lookup(filePath: string, line: number, col: number, action: string): Promise<LookupResult | null> {
-		const conns = this.getConnectionsForFile(filePath);
+		const conns = await this.getConnectionsForFile(filePath);
 		if (conns.length === 0) return null;
 
-		const uri = fileUri(path.resolve(this.rootPath, filePath));
+		const uri = fileUri(this.resolveFilePath(filePath));
 		const position: Position = { line, character: col };
 		const textDocument = { uri };
 
@@ -450,10 +506,10 @@ export class LspClientManager {
 	}
 
 	async getRenameEdit(filePath: string, line: number, col: number, newName: string): Promise<WorkspaceEdit | null> {
-		const conns = this.getConnectionsForFile(filePath);
+		const conns = await this.getConnectionsForFile(filePath);
 		if (conns.length === 0) return null;
 
-		const textDocument = { uri: fileUri(path.resolve(this.rootPath, filePath)) };
+		const textDocument = { uri: fileUri(this.resolveFilePath(filePath)) };
 		for (const conn of conns) {
 			try {
 				const result: WorkspaceEdit | null = await conn.connection.sendRequest("textDocument/rename", {
@@ -474,10 +530,10 @@ export class LspClientManager {
 		range: Range,
 		selectedTitle?: string,
 	): Promise<CodeActionResult> {
-		const conns = this.getConnectionsForFile(filePath);
+		const conns = await this.getConnectionsForFile(filePath);
 		if (conns.length === 0) return { actions: [] };
 
-		const resolvedPath = path.resolve(this.rootPath, filePath);
+		const resolvedPath = this.resolveFilePath(filePath);
 		const uri = fileUri(resolvedPath);
 		for (const conn of conns) {
 			try {
@@ -520,7 +576,7 @@ export class LspClientManager {
 	}
 
 	async getCompletions(filePath: string, line: number, col: number): Promise<CompletionEntry[]> {
-		const conns = this.getConnectionsForFile(filePath);
+		const conns = await this.getConnectionsForFile(filePath);
 		if (conns.length === 0) return [];
 
 		const allItems: CompletionEntry[] = [];
@@ -528,7 +584,7 @@ export class LspClientManager {
 		for (const conn of conns) {
 			try {
 				const result: CompletionList | CompletionItem[] | null = await conn.connection.sendRequest("textDocument/completion", {
-					textDocument: { uri: fileUri(path.resolve(this.rootPath, filePath)) },
+					textDocument: { uri: fileUri(this.resolveFilePath(filePath)) },
 					position: { line, character: col },
 				});
 
@@ -549,30 +605,7 @@ export class LspClientManager {
 	}
 
 	async notifyFileChanged(filePath: string) {
-		const conns = this.getConnectionsForFile(filePath);
-		if (conns.length === 0) return;
-
-		const resolvedPath = path.resolve(this.rootPath, filePath);
-		const uri = fileUri(resolvedPath);
-
-		let content: string;
-		try {
-			content = fs.readFileSync(resolvedPath, "utf-8");
-		} catch {
-			return;
-		}
-
-		const langId = this.getLanguageId(filePath);
-
-		for (const conn of conns) {
-			try {
-				conn.connection.sendNotification("textDocument/didOpen", {
-					textDocument: { uri, languageId: langId, version: Date.now(), text: content },
-				});
-			} catch {
-				// Ignore notification failures
-			}
-		}
+		await this.getConnectionsForFile(filePath);
 	}
 
 	private getLanguageId(filePath: string): string {
@@ -587,17 +620,63 @@ export class LspClientManager {
 		return "plaintext";
 	}
 
-	private getConnectionsForFile(filePath: string): ServerConnection[] {
-		const ext = path.extname(filePath);
-		const matches: ServerConnection[] = [];
+	private resolveFilePath(filePath: string): string {
+		return path.resolve(this.workspaceRoot, filePath);
+	}
 
-		for (const [, conn] of this.connections) {
-			if (conn.config.fileExtensions.includes(ext)) {
-				matches.push(conn);
-			}
+	private async getConnectionsForFile(filePath: string): Promise<ServerConnection[]> {
+		if (!this.workspaceRoot) return [];
+		const resolvedPath = this.resolveFilePath(filePath);
+		if (!isPathInside(this.workspaceRoot, resolvedPath)) return [];
+
+		const ext = path.extname(resolvedPath);
+		const configs = this.serverConfigs.filter((config) => config.fileExtensions.includes(ext));
+		for (const config of configs) {
+			const projectRoot = findProjectRoot(resolvedPath, this.workspaceRoot, config.detectFiles);
+			if (projectRoot) await this.startServer(config, projectRoot);
 		}
 
+		const matches: ServerConnection[] = [];
+		for (const config of configs) {
+			const candidates = [...this.connections.values()]
+				.filter((conn) => conn.config.name === config.name && isPathInside(conn.rootPath, resolvedPath))
+				.sort((a, b) => b.rootPath.length - a.rootPath.length);
+			if (candidates[0]) matches.push(candidates[0]);
+		}
+
+		await this.synchronizeDocument(resolvedPath, matches);
 		return matches;
+	}
+
+	private async synchronizeDocument(resolvedPath: string, conns: ServerConnection[]): Promise<void> {
+		let content: string;
+		try {
+			content = await fs.promises.readFile(resolvedPath, "utf-8");
+		} catch {
+			return;
+		}
+
+		const uri = fileUri(resolvedPath);
+		const languageId = this.getLanguageId(resolvedPath);
+		for (const conn of conns) {
+			try {
+				const previousVersion = conn.documents.get(uri);
+				const version = (previousVersion ?? 0) + 1;
+				if (previousVersion === undefined) {
+					conn.connection.sendNotification("textDocument/didOpen", {
+						textDocument: { uri, languageId, version, text: content },
+					});
+				} else {
+					conn.connection.sendNotification("textDocument/didChange", {
+						textDocument: { uri, version },
+						contentChanges: [{ text: content }],
+					});
+				}
+				conn.documents.set(uri, version);
+			} catch {
+				// Ignore notification failures.
+			}
+		}
 	}
 
 	async shutdown() {

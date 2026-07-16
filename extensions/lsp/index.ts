@@ -116,9 +116,10 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({
 			path: Type.Optional(Type.String({ description: "File path (omit for all open files)" })),
 		}),
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const filePath = params.path?.replace(/^@/, "");
 			const diagnostics = await lsp.getDiagnostics(filePath);
+			ctx.ui.setStatus("lsp", lsp.getFooter());
 
 			if (diagnostics.length === 0) {
 				return {
@@ -152,9 +153,10 @@ export default function (pi: ExtensionAPI) {
 				description: "What to look up",
 			}),
 		}),
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const filePath = params.path.replace(/^@/, "");
 			const result = await lsp.lookup(filePath, params.line - 1, params.column - 1, params.action);
+			ctx.ui.setStatus("lsp", lsp.getFooter());
 
 			if (!result) {
 				return {
@@ -181,9 +183,10 @@ export default function (pi: ExtensionAPI) {
 			line: Type.Number({ description: "Line number (1-indexed)" }),
 			column: Type.Number({ description: "Column number (1-indexed)" }),
 		}),
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const filePath = params.path.replace(/^@/, "");
 			const items = await lsp.getCompletions(filePath, params.line - 1, params.column - 1);
+			ctx.ui.setStatus("lsp", lsp.getFooter());
 
 			if (items.length === 0) {
 				return {
@@ -224,6 +227,7 @@ export default function (pi: ExtensionAPI) {
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const filePath = params.path.replace(/^@/, "");
 			const edit = await lsp.getRenameEdit(filePath, params.line - 1, params.column - 1, params.newName);
+			ctx.ui.setStatus("lsp", lsp.getFooter());
 			if (!edit) throw new Error("The language server did not return a rename edit");
 
 			const files = await applyWorkspaceEdit(edit, ctx.cwd);
@@ -264,6 +268,7 @@ export default function (pi: ExtensionAPI) {
 					character: (params.endColumn ?? params.column) - 1,
 				},
 			}, params.action === "apply" ? params.title : undefined);
+			ctx.ui.setStatus("lsp", lsp.getFooter());
 
 			if (params.action === "list") {
 				if (result.actions.length === 0) return { content: [{ type: "text" as const, text: "No code actions available." }], details: { actions: [] } };
@@ -286,12 +291,13 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// === Notify LSP when files are written/edited ===
-	pi.on("tool_result", async (event) => {
-		if ((event.toolName === "write" || event.toolName === "edit") && lsp.isRunning()) {
+	// Lazily discover project roots and open files after successful file access.
+	pi.on("tool_result", async (event, ctx) => {
+		if (!event.isError && (event.toolName === "read" || event.toolName === "write" || event.toolName === "edit")) {
 			const filePath = (event.input as any)?.path;
 			if (filePath) {
 				await lsp.notifyFileChanged(filePath);
+				ctx.ui.setStatus("lsp", lsp.getFooter());
 			}
 		}
 	});
@@ -343,15 +349,11 @@ export default function (pi: ExtensionAPI) {
 
 			switch (sub) {
 				case "status": {
-					const running = lsp.getRunningNames();
-					const configs = lsp.getConfigs();
+					const running = lsp.getRunningServers();
 					if (running.length === 0) {
 						ctx.ui.notify("No LSP servers running", "info");
 					} else {
-						const lines = configs.map((c) => {
-							const active = running.includes(c.name);
-							return `  ${active ? "●" : "○"} ${c.name} (${c.command})`;
-						});
+						const lines = running.map(({ name, rootPath }) => `  ● ${name} (${rootPath})`);
 						ctx.ui.notify(`LSP servers:\n${lines.join("\n")}`, "info");
 					}
 					break;
@@ -399,10 +401,12 @@ export default function (pi: ExtensionAPI) {
 				}
 				case "list": {
 					const configs = lsp.getConfigs();
-					const running = new Set(lsp.getRunningNames());
+					const running = lsp.getRunningServers();
 					const lines = configs.map((c) => {
-						const status = running.has(c.name) ? "●" : "○";
-						return `  ${status} ${c.name}: ${c.command} ${c.args.join(" ")} [${c.fileExtensions.join(", ")}]`;
+						const roots = running.filter((server) => server.name === c.name).map((server) => server.rootPath);
+						const status = roots.length > 0 ? "●" : "○";
+						const suffix = roots.length > 0 ? ` — ${roots.join(", ")}` : "";
+						return `  ${status} ${c.name}: ${c.command} ${c.args.join(" ")} [${c.fileExtensions.join(", ")}]${suffix}`;
 					});
 					ctx.ui.notify(`Configured servers:\n${lines.join("\n")}`, "info");
 					break;
