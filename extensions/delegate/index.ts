@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
 const PRESETS: Record<string, { model: string; effort: string }> = {
@@ -14,11 +15,13 @@ const MAX_TASKS = 8;
 const MAX_CONCURRENCY = 4;
 
 interface DelegatedTask {
+	summary: string;
 	task: string;
 	cwd?: string;
 }
 
 interface TaskResult {
+	summary: string;
 	task: string;
 	model: string;
 	output: string;
@@ -46,7 +49,7 @@ function resolveModel(value: string | undefined, effort: string | undefined): { 
 	return { model: selection.slice(7), effort: effort ?? "medium" };
 }
 
-async function runTask(task: string, cwd: string, model: string, signal?: AbortSignal): Promise<TaskResult> {
+async function runTask(summary: string, task: string, cwd: string, model: string, signal?: AbortSignal): Promise<TaskResult> {
 	const args = [
 		"-p",
 		"--no-session",
@@ -70,8 +73,9 @@ async function runTask(task: string, cwd: string, model: string, signal?: AbortS
 		let aborted = false;
 		child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
 		child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-		child.on("error", (error) => resolve({ task, model, output: "", error: error.message }));
+		child.on("error", (error) => resolve({ summary, task, model, output: "", error: error.message }));
 		child.on("close", (code) => resolve({
+			summary,
 			task,
 			model,
 			output: stdout.trim(),
@@ -101,6 +105,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 
 const Parameters = Type.Object({
 	tasks: Type.Array(Type.Object({
+		summary: Type.String({ description: "Short UI label for this task." }),
 		task: Type.String(),
 		cwd: Type.Optional(Type.String()),
 	}), { minItems: 1, maxItems: MAX_TASKS }),
@@ -129,17 +134,23 @@ export default function (pi: ExtensionAPI) {
 			const model = `${selection.model}:${selection.effort}`;
 			let completed = 0;
 			const tasks = params.tasks as DelegatedTask[];
-			const results = await mapLimit(tasks, MAX_CONCURRENCY, async ({ task, cwd }) => {
-				const result = await runTask(task, cwd ?? ctx.cwd, model, signal);
+			const results = await mapLimit(tasks, MAX_CONCURRENCY, async ({ summary, task, cwd }) => {
+				const result = await runTask(summary, task, cwd ?? ctx.cwd, model, signal);
 				completed++;
-				onUpdate?.({ content: [{ type: "text", text: `${completed}/${tasks.length} tasks complete` }] });
+				onUpdate?.({ content: [{ type: "text", text: `${completed}/${tasks.length} complete: ${summary}` }] });
 				return result;
 			});
-			const text = results.map((result, index) => {
+			const text = results.map((result) => {
 				const status = result.error ? `failed: ${result.error}` : "completed";
-				return `### Task ${index + 1} (${status}, ${result.model})\n\n${result.output || "(no output)"}`;
+				return `### ${result.summary} (${status}, ${result.model})\n\n${result.output || "(no output)"}`;
 			}).join("\n\n---\n\n");
 			return { content: [{ type: "text", text }], details: { results } };
+		},
+		renderCall(args, theme) {
+			const tasks = (args.tasks ?? []) as DelegatedTask[];
+			let text = theme.fg("toolTitle", theme.bold("delegate ")) + theme.fg("accent", `${tasks.length} tasks`);
+			for (const task of tasks) text += `\n  ${theme.fg("dim", "•")} ${theme.fg("text", task.summary)}`;
+			return new Text(text, 0, 0);
 		},
 	});
 }
