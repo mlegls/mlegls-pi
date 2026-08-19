@@ -58,6 +58,24 @@ interface ViewOptions {
 	signal?: AbortSignal;
 }
 
+export type WaitMode = "any" | "all";
+
+export interface WaitResult {
+	mode: WaitMode;
+	snapshots: TerminalSnapshot[];
+	changed: string[];
+	timedOut?: boolean;
+}
+
+interface WaitManyOptions {
+	ids: string[];
+	mode: WaitMode;
+	cursors?: Record<string, string>;
+	waitMs?: number;
+	lines?: number;
+	signal?: AbortSignal;
+}
+
 function cleanField(value: string | undefined): string {
 	return value ?? "";
 }
@@ -253,6 +271,35 @@ export class TmuxTerminalManager {
 			if (current.cursor !== baseline || current.status === "exited") return current;
 		}
 		return { ...current, timedOut: true };
+	}
+
+	async waitMany(options: WaitManyOptions): Promise<WaitResult> {
+		const ids = [...new Set(options.ids)];
+		if (ids.length === 0) throw new Error("ids must contain at least one terminal id");
+		const lines = options.lines ?? DEFAULT_LINES;
+		const snapshotAll = () => Promise.all(ids.map((id) => this.snapshot(id, lines)));
+
+		let current = await snapshotAll();
+		const baselines = new Map(current.map((snapshot) => [snapshot.id, options.cursors?.[snapshot.id] ?? snapshot.cursor]));
+		const changed = (snapshots: TerminalSnapshot[]) =>
+			snapshots.filter((s) => s.status === "exited" || s.cursor !== baselines.get(s.id)).map((s) => s.id);
+		const satisfied = (snapshots: TerminalSnapshot[]) =>
+			options.mode === "all"
+				? snapshots.every((s) => s.status === "exited")
+				: changed(snapshots).length > 0;
+
+		const waitMs = Math.max(0, Math.min(MAX_WAIT_MS, Math.floor(options.waitMs ?? MAX_WAIT_MS)));
+		const deadline = Date.now() + waitMs;
+		while (!satisfied(current) && Date.now() < deadline) {
+			await wait(Math.min(POLL_MS, deadline - Date.now()), options.signal);
+			current = await snapshotAll();
+		}
+		return {
+			mode: options.mode,
+			snapshots: current,
+			changed: changed(current),
+			...(satisfied(current) ? {} : { timedOut: true }),
+		};
 	}
 
 	async send(id: string, text: string, submit = true, signal?: AbortSignal): Promise<TerminalSnapshot> {

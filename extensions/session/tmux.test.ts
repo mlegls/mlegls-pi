@@ -64,6 +64,69 @@ describe.skipIf(!tmuxAvailable())("TmuxTerminalManager", () => {
 		expect(changed.output).toContain("changed");
 	});
 
+	test("wait any returns the first terminal to exit", async () => {
+		const instance = manager();
+		const cwd = await mkdtemp(join(tmpdir(), "pi-terminal-test-"));
+		await instance.spawn({ command: "sleep 30", cwd, name: "slow" });
+		await instance.spawn({ command: "sleep 0.2; echo fast done", cwd, name: "fast" });
+		const result = await instance.waitMany({ ids: ["slow", "fast"], mode: "any", waitMs: 5_000 });
+
+		expect(result.timedOut).not.toBe(true);
+		expect(result.changed).toEqual(["fast"]);
+		const fast = result.snapshots.find((snapshot) => snapshot.id === "fast");
+		expect(fast?.status).toBe("exited");
+		expect(fast?.output).toContain("fast done");
+		expect(result.snapshots.find((snapshot) => snapshot.id === "slow")?.status).toBe("running");
+	});
+
+	test("wait any detects output changes from provided cursors", async () => {
+		const instance = manager();
+		const cwd = await mkdtemp(join(tmpdir(), "pi-terminal-test-"));
+		const quiet = await instance.spawn({ command: "sh", cwd, name: "quiet" });
+		const noisy = await instance.spawn({ command: "sh", cwd, name: "noisy" });
+		const send = new Promise<void>((resolveSend, reject) => {
+			setTimeout(() => {
+				instance.send("noisy", "echo changed").then(() => resolveSend(), reject);
+			}, 150);
+		});
+		const result = await instance.waitMany({
+			ids: ["quiet", "noisy"],
+			mode: "any",
+			cursors: { quiet: quiet.cursor, noisy: noisy.cursor },
+			waitMs: 5_000,
+		});
+		await send;
+
+		expect(result.timedOut).not.toBe(true);
+		expect(result.changed).toEqual(["noisy"]);
+		expect(result.snapshots.find((snapshot) => snapshot.id === "noisy")?.output).toContain("changed");
+	});
+
+	test("wait all returns once every terminal has exited", async () => {
+		const instance = manager();
+		const cwd = await mkdtemp(join(tmpdir(), "pi-terminal-test-"));
+		await instance.spawn({ command: "sleep 0.2; echo one", cwd, name: "one" });
+		await instance.spawn({ command: "sleep 0.4; echo two", cwd, name: "two" });
+		const result = await instance.waitMany({ ids: ["one", "two"], mode: "all", waitMs: 5_000 });
+
+		expect(result.timedOut).not.toBe(true);
+		expect(result.changed.sort()).toEqual(["one", "two"]);
+		for (const snapshot of result.snapshots) {
+			expect(snapshot.status).toBe("exited");
+			expect(snapshot.exitCode).toBe(0);
+		}
+	});
+
+	test("wait times out when nothing changes", async () => {
+		const instance = manager();
+		const cwd = await mkdtemp(join(tmpdir(), "pi-terminal-test-"));
+		await instance.spawn({ command: "sleep 30", cwd, name: "idle" });
+		const result = await instance.waitMany({ ids: ["idle"], mode: "any", waitMs: 300 });
+
+		expect(result.timedOut).toBe(true);
+		expect(result.changed).toEqual([]);
+	});
+
 	test("sends control keys and ends sessions", async () => {
 		const instance = manager();
 		const cwd = await mkdtemp(join(tmpdir(), "pi-terminal-test-"));
