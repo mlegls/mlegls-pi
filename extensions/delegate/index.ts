@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
@@ -13,6 +14,13 @@ const PRESETS: Record<string, { model: string; effort: string }> = {
 };
 const MAX_TASKS = 8;
 const MAX_CONCURRENCY = 4;
+
+const FIRECRAWL_EXTENSION = fileURLToPath(new URL("../firecrawl/index.ts", import.meta.url));
+const FIRECRAWL_TOOLS = ["firecrawl_search", "firecrawl_scrape", "firecrawl_map", "firecrawl_extract"];
+
+function firecrawlAvailable(): boolean {
+	return Boolean(process.env.FIRECRAWL_API_KEY) && existsSync(FIRECRAWL_EXTENSION);
+}
 
 interface DelegatedTask {
 	summary: string;
@@ -50,18 +58,23 @@ function resolveModel(value: string | undefined, effort: string | undefined): { 
 }
 
 async function runTask(summary: string, task: string, cwd: string, model: string, signal?: AbortSignal): Promise<TaskResult> {
+	const web = firecrawlAvailable();
+	const tools = ["read", "grep", "find", "ls", "bash", ...(web ? FIRECRAWL_TOOLS : [])];
 	const args = [
 		"-p",
 		"--no-session",
 		"--no-extensions",
 		"--no-skills",
 		"--no-prompt-templates",
+		...(web ? ["--extension", FIRECRAWL_EXTENSION] : []),
 		"--model",
 		model,
 		"--tools",
-		"read,grep,find,ls,bash",
+		tools.join(","),
 		"--append-system-prompt",
-		"You are a read-only exploration subagent. Investigate the task and return concise findings with relevant file paths. Do not edit files.",
+		"You are a read-only exploration subagent. Investigate the task and return concise findings with relevant file paths."
+			+ (web ? " Use the firecrawl tools when the task needs web search or page content." : "")
+			+ " Do not edit files.",
 		`Task: ${task}`,
 	];
 	const invocation = piInvocation(args);
@@ -127,7 +140,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "delegate",
 		label: "Delegate",
-		description: "Run independent read-only exploration tasks in isolated contexts, in parallel when useful.",
+		description: "Run independent read-only exploration tasks (code and web research) in isolated contexts, in parallel when useful.",
 		parameters: Parameters,
 		async execute(_id, params, signal, onUpdate, ctx) {
 			const selection = resolveModel(params.model, params.effort);
