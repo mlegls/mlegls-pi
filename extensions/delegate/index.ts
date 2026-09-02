@@ -15,11 +15,11 @@ const PRESETS: Record<string, { model: string; effort: string }> = {
 const MAX_TASKS = 8;
 const MAX_CONCURRENCY = 4;
 
-const FIRECRAWL_EXTENSION = fileURLToPath(new URL("../firecrawl/index.ts", import.meta.url));
-const FIRECRAWL_TOOLS = ["firecrawl_search", "firecrawl_scrape", "firecrawl_map", "firecrawl_extract"];
+const EXA_EXTENSION = fileURLToPath(new URL("../exa/index.ts", import.meta.url));
+const EXA_TOOLS = ["exa_search", "exa_contents"];
 
-function firecrawlAvailable(): boolean {
-	return Boolean(process.env.FIRECRAWL_API_KEY) && existsSync(FIRECRAWL_EXTENSION);
+function exaAvailable(): boolean {
+	return Boolean(process.env.EXA_API_KEY) && existsSync(EXA_EXTENSION);
 }
 
 interface DelegatedTask {
@@ -58,22 +58,22 @@ function resolveModel(value: string | undefined, effort: string | undefined): { 
 }
 
 async function runTask(summary: string, task: string, cwd: string, model: string, signal?: AbortSignal): Promise<TaskResult> {
-	const web = firecrawlAvailable();
-	const tools = ["read", "grep", "find", "ls", "bash", ...(web ? FIRECRAWL_TOOLS : [])];
+	const web = exaAvailable();
+	const tools = ["read", "grep", "find", "ls", "bash", ...(web ? EXA_TOOLS : [])];
 	const args = [
 		"-p",
 		"--no-session",
 		"--no-extensions",
 		"--no-skills",
 		"--no-prompt-templates",
-		...(web ? ["--extension", FIRECRAWL_EXTENSION] : []),
+		...(web ? ["--extension", EXA_EXTENSION] : []),
 		"--model",
 		model,
 		"--tools",
 		tools.join(","),
 		"--append-system-prompt",
 		"You are a read-only exploration subagent. Investigate the task and return concise findings with relevant file paths."
-			+ (web ? " Use the firecrawl tools when the task needs web search or page content." : "")
+			+ (web ? " Use the Exa tools when the task needs web search or page content." : "")
 			+ " Do not edit files.",
 		`Task: ${task}`,
 	];

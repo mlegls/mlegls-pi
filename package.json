@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Personal pi package for mlegls",
   "scripts": {
+    "test:exa": "bun test extensions/exa",
     "test:lsp": "bun test extensions/lsp",
     "test:session": "bun test extensions/session",
     "test:workspace": "bun test extensions/workspace"
@@ -13,5 +14,17 @@
     "skills": ["./skills"],
     "prompts": ["./prompts"],
     "themes": ["./themes"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "0.84.4",
+    "@earendil-works/pi-coding-agent": "0.84.4",
+    "@earendil-works/pi-tui": "0.84.4",
+    "typebox": "1.3.7"
   }
 }
