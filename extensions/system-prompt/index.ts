@@ -40,7 +40,12 @@ function buildPrompt(options: BuildSystemPromptOptions, originalPrompt: string):
 	].join("\n\n"));
 
 	const docs = documentationPaths(originalPrompt);
-	if (docs.length > 0) parts.push(`Pi documentation:\n${docs.join("\n")}`);
+	if (docs.length > 0) parts.push([
+		"Pi documentation:",
+		...docs,
+		"- When reading pi docs or examples, resolve docs/... under Additional docs and examples/... under Examples, not the current working directory",
+		"- When working on pi topics, read the docs and examples, and follow .md cross-references before implementing",
+	].join("\n"));
 	if (options.appendSystemPrompt?.trim()) parts.push(options.appendSystemPrompt.trim());
 
 	if (options.contextFiles?.length) {

@@ -7,7 +7,7 @@ type BeforeAgentStartHandler = (event: {
 	systemPromptOptions: BuildSystemPromptOptions;
 }) => { systemPrompt: string };
 
-function buildPrompt(options: BuildSystemPromptOptions): string {
+function buildPrompt(options: BuildSystemPromptOptions, systemPrompt = ""): string {
 	let handler: BeforeAgentStartHandler | undefined;
 	systemPromptExtension({
 		on(event, candidate) {
@@ -15,7 +15,7 @@ function buildPrompt(options: BuildSystemPromptOptions): string {
 		},
 	} as ExtensionAPI);
 	if (!handler) throw new Error("before_agent_start handler was not registered");
-	return handler({ systemPrompt: "", systemPromptOptions: options }).systemPrompt;
+	return handler({ systemPrompt, systemPromptOptions: options }).systemPrompt;
 }
 
 const skill = {
@@ -32,5 +32,17 @@ describe("system prompt extension", () => {
 
 		expect(withoutRead).not.toContain("<available_skills>");
 		expect(withRead).toContain("<available_skills>");
+	});
+
+	test("retains Pi documentation usage instructions", () => {
+		const originalPrompt = [
+			"- Main documentation: /pi/README.md",
+			"- Additional docs: /pi/docs",
+			"- Examples: /pi/examples (extensions, custom tools, SDK)",
+		].join("\n");
+		const prompt = buildPrompt({ cwd: "/work" }, originalPrompt);
+
+		expect(prompt).toContain("resolve docs/... under Additional docs and examples/... under Examples");
+		expect(prompt).toContain("read the docs and examples, and follow .md cross-references before implementing");
 	});
 });
