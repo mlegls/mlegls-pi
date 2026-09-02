@@ -6,6 +6,7 @@
     "test:exa": "bun test extensions/exa",
     "test:lsp": "bun test extensions/lsp",
     "test:session": "bun test extensions/session",
+    "test:system-prompt": "bun test extensions/system-prompt",
     "test:workspace": "bun test extensions/workspace"
   },
   "keywords": ["pi-package"],
