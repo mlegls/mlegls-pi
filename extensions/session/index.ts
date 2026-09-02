@@ -11,6 +11,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { SessionAlertMonitor, type SessionAlert } from "./alerts";
 import {
 	terminalServerName,
 	tmuxAvailable,
@@ -28,6 +29,11 @@ const Parameters = Type.Object({
 	command: Type.Optional(Type.String({ description: "spawn: shell command to run inside the terminal." })),
 	cwd: Type.Optional(Type.String({ description: "spawn: working directory, relative to the current workspace by default." })),
 	name: Type.Optional(Type.String({ description: "spawn: memorable id using letters, numbers, underscore, or hyphen." })),
+	notifyOnExit: Type.Optional(Type.Boolean({ description: "spawn: wake the agent once when the process exits." })),
+	notifyOnOutput: Type.Optional(Type.String({
+		description: "spawn: wake the agent once when recent rendered terminal output contains this case-sensitive literal.",
+		minLength: 1,
+	})),
 	text: Type.Optional(Type.String({ description: "send: literal text to paste into the terminal." })),
 	submit: Type.Optional(Type.Boolean({ description: "send: press Enter after pasting. Defaults to true." })),
 	keys: Type.Optional(Type.Array(Type.String(), {
@@ -76,6 +82,37 @@ function summarize(snapshot: TerminalSnapshot): string {
 	return `${snapshot.id}: ${state}`;
 }
 
+function summarizeArmedAlerts(terminal: Pick<TerminalSummary, "alerts">): string {
+	const alerts: string[] = [];
+	if (terminal.alerts?.exit?.state === "armed") alerts.push("exit");
+	if (terminal.alerts?.output?.state === "armed") alerts.push(`output ${JSON.stringify(terminal.alerts.output.literal)}`);
+	return alerts.length > 0 ? `\nAlerts: ${alerts.join(", ")}` : "";
+}
+
+function sendSessionAlert(pi: ExtensionAPI, alert: SessionAlert): void {
+	const tail = truncateTail(alert.snapshot.output, { maxLines: 50, maxBytes: 5_000 });
+	const heading = alert.kind === "exit"
+		? `${summarize(alert.snapshot)}.`
+		: `${alert.snapshot.id}: output matched ${JSON.stringify(alert.literal)}.`;
+	const matched = alert.matchedLine ? `\nMatched line: ${alert.matchedLine.slice(0, 1_000)}` : "";
+	const output = tail.content ? `\n\nRecent terminal output:\n${tail.content}` : "";
+	const truncated = tail.truncated ? "\n[Output truncated.]" : "";
+	pi.sendMessage({
+		customType: "session-alert",
+		content: `${heading}${matched}${output}${truncated}`,
+		display: true,
+		details: {
+			kind: alert.kind,
+			id: alert.snapshot.id,
+			literal: alert.literal,
+			exitCode: alert.snapshot.exitCode,
+			command: alert.snapshot.command,
+			cwd: alert.snapshot.cwd,
+			cursor: alert.snapshot.cursor,
+		},
+	}, { triggerTurn: true, deliverAs: "followUp" });
+}
+
 async function renderOutput(snapshot: TerminalSnapshot): Promise<{
 	output: string;
 	preview: string;
@@ -105,7 +142,7 @@ async function presentSnapshot(op: typeof Operations[number], snapshot: Terminal
 }> {
 	const { output, preview, fullOutputPath, truncated } = await renderOutput(snapshot);
 	const timeout = snapshot.timedOut ? "\nNo change before the wait timeout." : "";
-	const text = `${summarize(snapshot)}\nCursor: ${snapshot.cursor}${timeout}\n\n${output}`;
+	const text = `${summarize(snapshot)}${summarizeArmedAlerts(snapshot)}\nCursor: ${snapshot.cursor}${timeout}\n\n${output}`;
 	const { output: _fullOutput, ...metadata } = snapshot;
 	return {
 		content: [{ type: "text", text }],
@@ -166,19 +203,37 @@ function formatList(sessions: TerminalSummary[]): string {
 		const status = session.status === "running"
 			? `running${session.pid ? `, pid ${session.pid}` : ""}`
 			: `exited${session.exitCode === undefined ? "" : `, code ${session.exitCode}`}`;
-		return `- ${session.id} (${status})\n  command: ${session.command || "(unknown)"}\n  cwd: ${session.cwd || "(unknown)"}`;
+		const alerts = summarizeArmedAlerts(session);
+		return `- ${session.id} (${status})\n  command: ${session.command || "(unknown)"}\n  cwd: ${session.cwd || "(unknown)"}${alerts}`;
 	}).join("\n");
 }
 
 export default function (pi: ExtensionAPI) {
+	let alertMonitor: SessionAlertMonitor | undefined;
+
+	pi.on("session_start", (_event, ctx) => {
+		alertMonitor?.stop();
+		alertMonitor = undefined;
+		if (!tmuxAvailable()) return;
+		const manager = new TmuxTerminalManager(terminalServerName(ctx.sessionManager.getSessionId()));
+		alertMonitor = new SessionAlertMonitor(manager, (alert) => sendSessionAlert(pi, alert));
+		alertMonitor.start();
+	});
+
+	pi.on("session_shutdown", () => {
+		alertMonitor?.stop();
+		alertMonitor = undefined;
+	});
+
 	pi.registerTool({
 		name: "session",
 		label: "Terminal Session",
-		description: `Manage persistent interactive terminals backed by an isolated tmux server. Use spawn for long-running commands, servers, shells, and REPLs; view for bounded output/status; wait to block on several terminals at once (mode any returns on the first change or exit, mode all once every terminal has exited); send to paste normal text; send_raw only for control or navigation keys; end to terminate; list to rediscover ids. Prefer bash for short non-interactive commands. Captured output is limited to ${DEFAULT_MAX_LINES} lines and ${formatSize(DEFAULT_MAX_BYTES)}.`,
+		description: `Manage persistent interactive terminals backed by an isolated tmux server. Use spawn for long-running commands, servers, shells, and REPLs; notifyOnExit to wake the agent when a spawned process ends; notifyOnOutput to wake once when recent rendered output contains a case-sensitive literal; view for bounded output/status; wait to block on several terminals at once (mode any returns on the first change or exit, mode all once every terminal has exited); send to paste normal text; send_raw only for control or navigation keys; end to terminate; list to rediscover ids. Prefer bash for short non-interactive commands. Captured output is limited to ${DEFAULT_MAX_LINES} lines and ${formatSize(DEFAULT_MAX_BYTES)}.`,
 		promptSnippet: "Manage persistent terminal processes, shells, and REPLs",
 		promptGuidelines: [
 			"Use session for long-running or interactive terminal processes; use bash for short commands that exit normally.",
 			"Use session send for normal text and session send_raw only for control or navigation keys.",
+			"Use notifyOnExit or notifyOnOutput when a spawned terminal should wake the agent later without blocking the current turn.",
 			"Use session wait to watch several terminals concurrently instead of polling them one by one.",
 		],
 		parameters: Parameters,
@@ -191,8 +246,11 @@ export default function (pi: ExtensionAPI) {
 						command: requireString(params.command, "command"),
 						cwd: resolve(ctx.cwd, params.cwd ?? "."),
 						name: params.name,
+						notifyOnExit: params.notifyOnExit,
+						notifyOnOutput: params.notifyOnOutput,
 						signal,
 					});
+					if (params.notifyOnExit || params.notifyOnOutput !== undefined) alertMonitor?.start();
 					return await presentSnapshot("spawn", snapshot);
 				}
 				case "view": {

@@ -9,20 +9,18 @@ const MAX_WAIT_MS = 30_000;
 const POLL_MS = 100;
 const SESSION_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const SAFE_KEY = /^(?:Enter|Escape|Tab|BSpace|Space|Up|Down|Left|Right|Home|End|PPage|NPage|DC|IC|F(?:[1-9]|1[0-2])|C-[A-Za-z@\[\\\]^_?]|M-[A-Za-z0-9])$/;
+const SUMMARY_FORMAT = [
+	"#{session_name}", "#{@pi_name}", "#{@pi_command}", "#{@pi_cwd}", "#{@pi_started_at}",
+	"#{pane_dead}", "#{pane_dead_status}", "#{pane_pid}", "#{pane_current_command}", "#{@pi_alerts}",
+].join("\t");
 
-export interface TerminalSnapshot {
-	id: string;
-	name: string;
-	command: string;
-	cwd: string;
-	startedAt: string;
-	status: "running" | "exited";
-	exitCode?: number;
-	pid?: number;
-	currentCommand?: string;
-	output: string;
-	cursor: string;
-	timedOut?: boolean;
+export type TerminalAlertKind = "exit" | "output";
+export type TerminalAlertState = "armed" | "fired" | "suppressed";
+
+export interface TerminalAlerts {
+	version: 1;
+	exit?: { state: TerminalAlertState };
+	output?: { literal: string; state: TerminalAlertState };
 }
 
 export interface TerminalSummary {
@@ -35,6 +33,13 @@ export interface TerminalSummary {
 	exitCode?: number;
 	pid?: number;
 	currentCommand?: string;
+	alerts?: TerminalAlerts;
+}
+
+export interface TerminalSnapshot extends TerminalSummary {
+	output: string;
+	cursor: string;
+	timedOut?: boolean;
 }
 
 interface CommandResult {
@@ -47,6 +52,8 @@ interface SpawnOptions {
 	command: string;
 	cwd: string;
 	name?: string;
+	notifyOnExit?: boolean;
+	notifyOnOutput?: string;
 	signal?: AbortSignal;
 }
 
@@ -97,6 +104,55 @@ function parseOptionalNumber(value: string | undefined): number | undefined {
 	if (!value) return undefined;
 	const parsed = Number(value);
 	return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function isAlertState(value: unknown): value is TerminalAlertState {
+	return value === "armed" || value === "fired" || value === "suppressed";
+}
+
+function decodeAlerts(value: string | undefined): TerminalAlerts | undefined {
+	if (!value) return undefined;
+	try {
+		const parsed: unknown = JSON.parse(decodeMetadata(value));
+		if (!parsed || typeof parsed !== "object") return undefined;
+		const record = parsed as Record<string, unknown>;
+		if (record.version !== 1) return undefined;
+		const alerts: TerminalAlerts = { version: 1 };
+
+		if (record.exit !== undefined) {
+			if (!record.exit || typeof record.exit !== "object") return undefined;
+			const state = (record.exit as Record<string, unknown>).state;
+			if (!isAlertState(state)) return undefined;
+			alerts.exit = { state };
+		}
+		if (record.output !== undefined) {
+			if (!record.output || typeof record.output !== "object") return undefined;
+			const output = record.output as Record<string, unknown>;
+			const { literal, state } = output;
+			if (typeof literal !== "string" || !isAlertState(state)) return undefined;
+			alerts.output = { literal, state };
+		}
+		return alerts;
+	} catch {
+		return undefined;
+	}
+}
+
+function parseSummary(line: string, fallbackId = ""): TerminalSummary {
+	const fields = line.trimEnd().split("\t").map(cleanField);
+	const dead = fields[5] === "1";
+	return {
+		id: fields[0] || fallbackId,
+		name: fields[1] || fields[0] || fallbackId,
+		command: decodeMetadata(fields[2]),
+		cwd: decodeMetadata(fields[3]),
+		startedAt: decodeMetadata(fields[4]),
+		status: dead ? "exited" : "running",
+		...(dead ? { exitCode: parseOptionalNumber(fields[6]) } : {}),
+		pid: parseOptionalNumber(fields[7]),
+		currentCommand: fields[8] || undefined,
+		alerts: decodeAlerts(fields[9]),
+	};
 }
 
 function trimCapturedPane(output: string): string {
@@ -195,6 +251,9 @@ export class TmuxTerminalManager {
 		const name = options.name?.trim() || `term-${randomUUID().slice(0, 8)}`;
 		this.validateId(name);
 		if (!options.command.trim()) throw new Error("command is required");
+		if (options.notifyOnOutput !== undefined && options.notifyOnOutput.length === 0) {
+			throw new Error("notifyOnOutput must not be empty");
+		}
 		const cwd = resolve(options.cwd);
 		const cwdStat = await stat(cwd).catch(() => null);
 		if (!cwdStat?.isDirectory()) throw new Error(`Working directory does not exist: ${cwd}`);
@@ -208,11 +267,22 @@ export class TmuxTerminalManager {
 		], { signal: options.signal });
 
 		const startedAt = new Date().toISOString();
+		let alerts: TerminalAlerts | undefined;
+		if (options.notifyOnExit || options.notifyOnOutput !== undefined) {
+			alerts = { version: 1 };
+			if (options.notifyOnExit) alerts.exit = { state: "armed" };
+			if (options.notifyOnOutput !== undefined) {
+				alerts.output = { literal: options.notifyOnOutput, state: "armed" };
+			}
+		}
 		await Promise.all([
 			this.requireTmux(["set-option", "-t", name, "@pi_name", name]),
 			this.requireTmux(["set-option", "-t", name, "@pi_command", encodeMetadata(options.command)]),
 			this.requireTmux(["set-option", "-t", name, "@pi_cwd", encodeMetadata(cwd)]),
 			this.requireTmux(["set-option", "-t", name, "@pi_started_at", encodeMetadata(startedAt)]),
+			...(alerts
+				? [this.requireTmux(["set-option", "-t", name, "@pi_alerts", encodeMetadata(JSON.stringify(alerts))])]
+				: []),
 		]);
 
 		await wait(50, options.signal);
@@ -221,25 +291,9 @@ export class TmuxTerminalManager {
 
 	private async metadata(id: string): Promise<TerminalSummary> {
 		this.validateId(id);
-		const format = [
-			"#{session_name}", "#{@pi_name}", "#{@pi_command}", "#{@pi_cwd}", "#{@pi_started_at}",
-			"#{pane_dead}", "#{pane_dead_status}", "#{pane_pid}", "#{pane_current_command}",
-		].join("\t");
-		const result = await this.tmux(["display-message", "-p", "-t", id, format]);
+		const result = await this.tmux(["display-message", "-p", "-t", id, SUMMARY_FORMAT]);
 		if (result.code !== 0) throw new Error(`Unknown terminal session: ${id}`);
-		const fields = result.stdout.trimEnd().split("\t").map(cleanField);
-		const dead = fields[5] === "1";
-		return {
-			id: fields[0] || id,
-			name: fields[1] || fields[0] || id,
-			command: decodeMetadata(fields[2]),
-			cwd: decodeMetadata(fields[3]),
-			startedAt: decodeMetadata(fields[4]),
-			status: dead ? "exited" : "running",
-			...(dead ? { exitCode: parseOptionalNumber(fields[6]) } : {}),
-			pid: parseOptionalNumber(fields[7]),
-			currentCommand: fields[8] || undefined,
-		};
+		return parseSummary(result.stdout, id);
 	}
 
 	private async snapshot(id: string, requestedLines: number): Promise<TerminalSnapshot> {
@@ -324,34 +378,53 @@ export class TmuxTerminalManager {
 		return await this.snapshot(id, DEFAULT_LINES);
 	}
 
+	private async readAlerts(id: string): Promise<TerminalAlerts | undefined> {
+		const result = await this.tmux(["show-option", "-qv", "-t", id, "@pi_alerts"]);
+		return result.code === 0 ? decodeAlerts(result.stdout.trim()) : undefined;
+	}
+
+	private async writeAlerts(id: string, alerts: TerminalAlerts): Promise<void> {
+		await this.requireTmux(["set-option", "-t", id, "@pi_alerts", encodeMetadata(JSON.stringify(alerts))]);
+	}
+
+	private async transitionAlert(
+		id: string,
+		kind: TerminalAlertKind,
+		from: TerminalAlertState,
+		to: TerminalAlertState,
+	): Promise<boolean> {
+		this.validateId(id);
+		const alerts = await this.readAlerts(id);
+		const alert = kind === "exit" ? alerts?.exit : alerts?.output;
+		if (!alerts || !alert || alert.state !== from) return false;
+		alert.state = to;
+		await this.writeAlerts(id, alerts);
+		return true;
+	}
+
+	async claimAlert(id: string, kind: TerminalAlertKind): Promise<boolean> {
+		return await this.transitionAlert(id, kind, "armed", "fired");
+	}
+
+	async rearmAlert(id: string, kind: TerminalAlertKind): Promise<boolean> {
+		return await this.transitionAlert(id, kind, "fired", "armed");
+	}
+
 	async end(id: string, signal?: AbortSignal): Promise<TerminalSummary> {
 		const summary = await this.metadata(id);
+		const alerts = await this.readAlerts(id);
+		if (alerts?.exit?.state === "armed") {
+			alerts.exit.state = "suppressed";
+			await this.writeAlerts(id, alerts);
+		}
 		await this.requireTmux(["kill-session", "-t", id], { signal });
 		return summary;
 	}
 
 	async list(): Promise<TerminalSummary[]> {
-		const format = [
-			"#{session_name}", "#{@pi_name}", "#{@pi_command}", "#{@pi_cwd}", "#{@pi_started_at}",
-			"#{pane_dead}", "#{pane_dead_status}", "#{pane_pid}", "#{pane_current_command}",
-		].join("\t");
-		const result = await this.tmux(["list-sessions", "-F", format]);
+		const result = await this.tmux(["list-sessions", "-F", SUMMARY_FORMAT]);
 		if (result.code !== 0) return [];
-		return result.stdout.split("\n").filter(Boolean).map((line) => {
-			const fields = line.split("\t").map(cleanField);
-			const dead = fields[5] === "1";
-			return {
-				id: fields[0],
-				name: fields[1] || fields[0],
-				command: decodeMetadata(fields[2]),
-				cwd: decodeMetadata(fields[3]),
-				startedAt: decodeMetadata(fields[4]),
-				status: dead ? "exited" as const : "running" as const,
-				...(dead ? { exitCode: parseOptionalNumber(fields[6]) } : {}),
-				pid: parseOptionalNumber(fields[7]),
-				currentCommand: fields[8] || undefined,
-			};
-		});
+		return result.stdout.split("\n").filter(Boolean).map((line) => parseSummary(line));
 	}
 
 	async killServer(): Promise<void> {
