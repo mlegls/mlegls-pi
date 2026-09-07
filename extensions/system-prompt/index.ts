@@ -1,12 +1,5 @@
 import type { BuildSystemPromptOptions, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-function documentationPaths(prompt: string): string[] {
-	return ["Main documentation", "Additional docs", "Examples"].flatMap((label) => {
-		const match = prompt.match(new RegExp(`^- ${label}: (.+)$`, "m"));
-		return match ? [`- ${label}: ${match[1]}`] : [];
-	});
-}
-
 function escapeXml(value: string): string {
 	return value.replace(/[&<>"']/g, (character) => ({
 		"&": "&amp;",
@@ -32,20 +25,13 @@ function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
 	return `Skills provide task-specific instructions. Read a matching skill file before using it.\n\n<available_skills>\n${entries}\n</available_skills>`;
 }
 
-function buildPrompt(options: BuildSystemPromptOptions, originalPrompt: string): string {
+function buildPrompt(options: BuildSystemPromptOptions): string {
 	const parts: string[] = [];
 	parts.push(options.customPrompt?.trim() || [
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
 		"Be concise and show file paths clearly when working with files.",
 	].join("\n\n"));
 
-	const docs = documentationPaths(originalPrompt);
-	if (docs.length > 0) parts.push([
-		"Pi documentation:",
-		...docs,
-		"- When reading pi docs or examples, resolve docs/... under Additional docs and examples/... under Examples, not the current working directory",
-		"- When working on pi topics, read the docs and examples, and follow .md cross-references before implementing",
-	].join("\n"));
 	if (options.appendSystemPrompt?.trim()) parts.push(options.appendSystemPrompt.trim());
 
 	if (options.contextFiles?.length) {
@@ -65,6 +51,6 @@ function buildPrompt(options: BuildSystemPromptOptions, originalPrompt: string):
 
 export default function (pi: ExtensionAPI) {
 	pi.on("before_agent_start", (event) => ({
-		systemPrompt: buildPrompt(event.systemPromptOptions, event.systemPrompt),
+		systemPrompt: buildPrompt(event.systemPromptOptions),
 	}));
 }

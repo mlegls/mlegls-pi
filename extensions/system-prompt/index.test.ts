@@ -34,7 +34,7 @@ describe("system prompt extension", () => {
 		expect(withRead).toContain("<available_skills>");
 	});
 
-	test("retains Pi documentation usage instructions", () => {
+	test("retains pi identity but omits documentation guidance from the default prompt", () => {
 		const originalPrompt = [
 			"- Main documentation: /pi/README.md",
 			"- Additional docs: /pi/docs",
@@ -42,7 +42,24 @@ describe("system prompt extension", () => {
 		].join("\n");
 		const prompt = buildPrompt({ cwd: "/work" }, originalPrompt);
 
-		expect(prompt).toContain("resolve docs/... under Additional docs and examples/... under Examples");
-		expect(prompt).toContain("read the docs and examples, and follow .md cross-references before implementing");
+		expect(prompt).toContain("You are an expert coding assistant operating inside pi, a coding agent harness.");
+		expect(prompt).toContain("Be concise and show file paths clearly when working with files.");
+		expect(prompt).not.toContain("Pi documentation:");
+		expect(prompt).not.toContain("/pi/");
+		expect(prompt).not.toContain("cross-references");
+	});
+
+	test("preserves custom prompts, appended instructions, and project context", () => {
+		const prompt = buildPrompt({
+			cwd: "/work",
+			customPrompt: "Custom pi instructions",
+			appendSystemPrompt: "Appended instructions",
+			contextFiles: [{ path: "/work/AGENTS.md", content: "Project instructions" }],
+		});
+
+		expect(prompt).toStartWith("Custom pi instructions");
+		expect(prompt).toContain("Appended instructions");
+		expect(prompt).toContain('<project_instructions path="/work/AGENTS.md">\nProject instructions');
+		expect(prompt).toContain("Current working directory: /work");
 	});
 });
