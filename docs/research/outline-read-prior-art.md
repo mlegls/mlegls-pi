@@ -56,7 +56,7 @@ retrieve token; Shi et al. 2024 "NL Outlines" is the academic reference.
    language special cases only when needed.
 2. Outline by default above a configurable line threshold (200).
 3. Fallback outline from `pi -p` with no extensions, model
-   `openai-codex/chatgpt-5.6-luna:medium`, cached by content hash.
+   `openai-codex/gpt-5.6-luna:medium`, cached by content hash.
 4. Outline sources implement one interface returning
    `{name, kind, startLine, endLine, children}` so LSP `documentSymbol` or
    others can be added.

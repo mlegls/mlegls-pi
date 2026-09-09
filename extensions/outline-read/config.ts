@@ -21,7 +21,7 @@ export const DEFAULT_CONFIG: OutlineReadConfig = {
 	thresholdLines: 200,
 	minBodyLines: 3,
 	budgetTokens: 10_000,
-	fallbackModel: "openai-codex/chatgpt-5.6-luna:medium",
+	fallbackModel: "openai-codex/gpt-5.6-luna:medium",
 	maxLines: 2000,
 	maxBytes: 50 * 1024,
 };

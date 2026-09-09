@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { outlineMarkdown } from "./outline/markdown";
+import { parseOutlineJson } from "./outline/model";
 import { planElisions, renderOutline } from "./outline/render";
 import { outlineWithTreeSitter } from "./outline/treesitter";
 import { nest, type OutlineNode } from "./outline/types";
@@ -121,5 +122,29 @@ describe("tree-sitter", () => {
 		const roots = await outlineWithTreeSitter("python", "def f(a):\n    return a\n\ndef g(): return 1\n");
 		expect(roots[0].body).toEqual({ startLine: 2, endLine: 2 });
 		expect(roots[1].body).toBeUndefined();
+	});
+});
+
+describe("model outline parsing", () => {
+	test("start lines become ranges and bodies, prose around JSON ignored", () => {
+		const output = 'Here:\n```json\n[{"name":"a","kind":"section","startLine":1,"children":[{"name":"a1","startLine":3},{"name":"a2","startLine":6}]},{"name":"b","startLine":10}]\n```';
+		const nodes = parseOutlineJson(output, 20)!;
+		expect(nodes.map((n) => [n.name, n.startLine, n.endLine])).toEqual([
+			["a", 1, 9],
+			["b", 10, 20],
+		]);
+		expect(nodes[0].body).toEqual({ startLine: 2, endLine: 9 });
+		expect(nodes[0].children.map((n) => [n.name, n.kind, n.startLine, n.endLine])).toEqual([
+			["a1", "section", 3, 5],
+			["a2", "section", 6, 9],
+		]);
+	});
+	test("drops out-of-range, duplicate, and malformed entries", () => {
+		const nodes = parseOutlineJson('[{"name":"x","startLine":0},{"name":"y","startLine":5},{"name":"y2","startLine":5},{"startLine":7},{"name":"z","startLine":99}]', 10)!;
+		expect(nodes.map((n) => n.name)).toEqual(["y"]);
+	});
+	test("non-JSON output is null", () => {
+		expect(parseOutlineJson("no idea", 10)).toBeNull();
+		expect(parseOutlineJson("[oops", 10)).toBeNull();
 	});
 });
