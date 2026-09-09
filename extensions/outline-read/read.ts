@@ -5,6 +5,8 @@ import { Type } from "typebox";
 import { loadConfig, type OutlineReadConfig } from "./config";
 import { renderOutline, type Elision } from "./outline/render";
 import type { OutlineNode, OutlineSource } from "./outline/types";
+import { formatRow } from "./anchors";
+import type { Ledger } from "./ledger";
 import { formatRanges, normalizeRanges, splitSelector, type Selector } from "./selector";
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"]);
@@ -19,41 +21,34 @@ const parameters = Type.Object({
 });
 
 export interface ReadDeps {
+	ledger: Ledger;
+	persist: (path: string) => void;
 	sources: OutlineSource[];
 	/** Outline for files no source supports; null to give up and return the file. */
 	fallback?: (path: string, text: string, config: OutlineReadConfig, signal?: AbortSignal) => Promise<OutlineNode[] | null>;
 }
 
-function gutterWidth(totalLines: number): number {
-	return String(totalLines).length;
-}
-
-function formatLine(width: number, lineNumber: number, text: string): string {
-	return `${String(lineNumber).padStart(width)}│${text}`;
-}
-
-function formatElision(width: number, elision: Elision): string {
+function formatElision(elision: Elision): string {
 	const range = elision.startLine === elision.endLine ? `${elision.startLine}` : `${elision.startLine}-${elision.endLine}`;
 	const children = elision.children ? ` (${elision.children} definitions)` : "";
-	return `${" ".repeat(width)}⋯ ${range}${children}`;
+	return `    ⋯ ${range}${children}`;
 }
 
 
-/** Emit numbered lines for ranges, stopping at the line/byte caps. */
+/** Emit anchored rows for ranges, stopping at the line/byte caps. */
 function renderRanges(
-	lines: string[],
+	rows: (lineNumber: number) => string,
 	ranges: Array<{ start: number; end: number }>,
 	config: OutlineReadConfig,
 ): { text: string; truncatedAt?: number } {
-	const width = gutterWidth(lines.length);
 	const parts: string[] = [];
 	let bytes = 0;
 	let count = 0;
 	for (let r = 0; r < ranges.length; r++) {
 		const range = ranges[r];
-		if (r > 0) parts.push(`${" ".repeat(width)}⋯`);
+		if (r > 0) parts.push("    ⋯");
 		for (let n = range.start; n <= range.end; n++) {
-			const line = formatLine(width, n, lines[n - 1]);
+			const line = rows(n);
 			bytes += Buffer.byteLength(line) + 1;
 			count++;
 			if (count > config.maxLines || bytes > config.maxBytes) {
@@ -72,7 +67,7 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 		description:
 			"Read a file. Files over a size threshold come back as an outline: definitions and headings are shown with their line numbers, bodies are replaced by `⋯ start-end` markers. " +
 			"Re-read only the ranges you need by appending a selector to the path (`file:50-200`, `file:5-16,40-80`), or `file:all` for the whole file. " +
-			"Small files are returned in full. Line numbers are prefixed as `N│`.",
+			"Small files are returned in full. Every line is prefixed with its anchor as `abcd│`; anchors are what the edit tool takes.",
 		promptSnippet: "Read files; large files return an outline with line ranges to read on demand",
 		promptGuidelines: [
 			"Use read to examine files instead of cat or sed.",
@@ -116,14 +111,18 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 			if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
 			const text = lines.join("\n");
 			const total = lines.length;
+			const { ledger, changed } = deps.ledger.sync(absolutePath, lines);
+			if (changed) deps.persist(absolutePath);
+			const row = (n: number) => formatRow(ledger.lines[n - 1].anchor, lines[n - 1]);
 
 			const header = (note: string) => `${shown} (${total} lines)${note ? ` ${note}` : ""}`;
 
 			const emitRanges = (ranges: Array<{ start: number; end: number }>) => {
-				const { text: body, truncatedAt } = renderRanges(lines, ranges, config);
+				const { text: body, truncatedAt } = renderRanges(row, ranges, config);
 				const notes: string[] = [];
 				if (truncatedAt !== undefined) notes.push(`[output capped; continue with ${shown}:${truncatedAt}-]`);
-				return { content: [{ type: "text" as const, text: [header(""), body, ...notes].join("\n") }], details: undefined };
+				const label = ranges.length === 1 && ranges[0].start === 1 && ranges[0].end === total ? "" : `lines ${formatRanges(ranges)}`;
+				return { content: [{ type: "text" as const, text: [header(label), body, ...notes].join("\n") }], details: undefined };
 			};
 
 			if (selector?.kind === "all") return emitRanges([{ start: 1, end: total }]);
@@ -156,14 +155,7 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 			}
 			if (!nodes || !nodes.length) return emitRanges([{ start: 1, end: total }]);
 
-			const width = gutterWidth(total);
-			const rendered = renderOutline(
-				lines,
-				nodes,
-				{ minBodyLines: config.minBodyLines, budgetTokens: config.budgetTokens },
-				(n, line) => formatLine(width, n, line),
-				(elision) => formatElision(width, elision),
-			);
+			const rendered = renderOutline(lines, nodes, { minBodyLines: config.minBodyLines, budgetTokens: config.budgetTokens }, row, formatElision);
 			if (!rendered.elisions.length) return emitRanges([{ start: 1, end: total }]);
 
 			const example = formatRanges(rendered.elisions.slice(0, 2).map((e) => ({ start: e.startLine, end: e.endLine })));

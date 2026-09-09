@@ -1,8 +1,7 @@
 {
   "name": "pi-outline-read-extension",
-  "private": true,
-  "type": "module",
   "dependencies": {
+    "diff": "^8",
     "tree-sitter-go": "^0.25.0",
     "tree-sitter-java": "^0.23.5",
     "tree-sitter-javascript": "^0.25.0",
@@ -13,5 +12,7 @@
   },
   "pi": {
     "extensions": ["./index.ts"]
-  }
+  },
+  "private": true,
+  "type": "module"
 }
