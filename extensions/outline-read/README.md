@@ -1,6 +1,6 @@
 # outline-read
 
-Overrides pi's `read` and `edit`.
+Overrides pi's `read`, `edit`, and `grep`.
 
 - `read` returns files over a line threshold as an outline: definitions and
   headings are shown, bodies are replaced by `⋯ start-end` markers, and the
@@ -8,6 +8,9 @@ Overrides pi's `read` and `edit`.
 - Every served line is prefixed with a 4-character anchor (`abcd│text`).
   `edit` addresses lines by anchor. Anchors stay valid across edits made in
   the session and across resume; a line that changes on disk gets a new one.
+
+- `grep` groups matches by file and enclosing definition or heading, and
+  every shown line carries its anchor, so grep → edit needs no read.
 
 Outline sources, tried in order: tree-sitter (JS, TS, TSX, Python, Go, Rust,
 Java), markdown headings, then a model-generated outline for anything else.
@@ -42,6 +45,24 @@ Unknown anchors reject the whole call; if the file changed on disk, the
 changed lines are returned with their current anchors so the retry needs no
 read. Pasted `abcd│` prefixes in `lines` are stripped with a warning.
 
+## Grep
+
+Same parameters as the built-in (`pattern`, `path`, `glob`, `ignoreCase`,
+`literal`, `context`, `limit`). Output:
+
+```
+src/lsp-client.ts
+  LspClientManager.stopConnection (242-254)
+    >  248 k7pd│    const conn = this.connections.get(key);
+       249 m2xa│    if (!conn) return;
+  fileUri (126-128)
+       127 8iqi│	return 'x';
+```
+
+`>` marks match lines when `context` is set. The definition chain comes from
+the tree-sitter or markdown source; the model fallback is never used by grep.
+Files beyond `grepAnchorFiles` are listed as `path:line:` only.
+
 ## Configuration
 
 `~/.pi/agent/outline-read.json`, overridden per project by
@@ -55,6 +76,7 @@ merged one level deeper. All keys are optional.
   "budgetTokens": 10000,
   "maxLines": 2000,
   "maxBytes": 51200,
+  "grepAnchorFiles": 30,
   "fallback": {
     "enabled": true,
     "model": "openai-codex/gpt-5.6-luna",
@@ -69,6 +91,7 @@ merged one level deeper. All keys are optional.
 | `minBodyLines` | `3` | Bodies shorter than this stay inline instead of being elided. |
 | `budgetTokens` | `10000` | Estimated token budget for an outline. Level 0 elides leaf bodies; level 1 also elides class-like bodies except nested definitions; level 2 keeps only top-level definitions with child counts. The level rises until the outline fits. |
 | `maxLines`, `maxBytes` | `2000`, `51200` | Caps per response for full and ranged reads; the response says how to continue. |
+| `grepAnchorFiles` | `30` | Files per grep call that are read, anchored, and outlined; the rest are listed as `path:line:`. |
 | `fallback.enabled` | `true` | Ask a model for an outline when no structural source supports the file. When `false`, such files are returned in full (subject to the caps). |
 | `fallback.model` | `openai-codex/gpt-5.6-luna` | Passed to `pi --model`. |
 | `fallback.thinking` | `medium` | Passed to `pi --thinking`: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. |

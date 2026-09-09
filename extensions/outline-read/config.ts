@@ -9,6 +9,8 @@ export interface OutlineReadConfig {
 	minBodyLines: number;
 	/** Outline level rises until the output is under this many tokens. */
 	budgetTokens: number;
+	/** Files per grep call that get anchors and definition context; the rest are listed as path:line. */
+	grepAnchorFiles: number;
 	/** Model-generated outline for files no structural source supports. */
 	fallback: {
 		enabled: boolean;
@@ -27,6 +29,7 @@ export const DEFAULT_CONFIG: OutlineReadConfig = {
 	thresholdLines: 200,
 	minBodyLines: 3,
 	budgetTokens: 10_000,
+	grepAnchorFiles: 30,
 	fallback: { enabled: true, model: "openai-codex/gpt-5.6-luna", thinking: "medium" },
 	maxLines: 2000,
 	maxBytes: 50 * 1024,

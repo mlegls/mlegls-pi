@@ -5,6 +5,7 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerEditTool } from "./edit";
+import { registerGrepTool } from "./grep";
 import { Ledger, type LedgerEntry } from "./ledger";
 import { markdownSource } from "./outline/markdown";
 import { outlineWithModel } from "./outline/model";
@@ -35,4 +36,5 @@ export default function (pi: ExtensionAPI) {
 		fallback: (path, text, config, signal) => (config.fallback.enabled ? outlineWithModel(path, text, config.fallback, signal) : Promise.resolve(null)),
 	});
 	registerEditTool(pi, { ledger, persist });
+	registerGrepTool(pi, { ledger, persist, sources: [treeSitterSource, markdownSource] });
 }
