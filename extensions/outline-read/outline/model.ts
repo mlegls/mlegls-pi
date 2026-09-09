@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import type { OutlineReadConfig } from "../config";
 import type { OutlineNode } from "./types";
 
 const SYSTEM_PROMPT = "You produce structural outlines of files for a code-reading tool. Output only JSON.";
@@ -69,10 +70,11 @@ export function parseOutlineJson(output: string, totalLines: number): OutlineNod
 	return convert(raw, 0, totalLines);
 }
 
-function cachePath(model: string, text: string): string {
+function cachePath(model: string, thinking: string, text: string): string {
 	const dir = join(getAgentDir(), "outline-read-cache");
 	mkdirSync(dir, { recursive: true });
-	return join(dir, `${createHash("sha256").update(model).update("\0").update(text).digest("hex")}.json`);
+	const key = createHash("sha256").update(`${model}:${thinking}`).update("\0").update(text).digest("hex");
+	return join(dir, `${key}.json`);
 }
 
 function runPi(args: string[], stdin: string, signal?: AbortSignal): Promise<string> {
@@ -99,11 +101,11 @@ function runPi(args: string[], stdin: string, signal?: AbortSignal): Promise<str
 export async function outlineWithModel(
 	path: string,
 	text: string,
-	model: string,
+	{ model, thinking }: OutlineReadConfig["fallback"],
 	signal?: AbortSignal,
 ): Promise<OutlineNode[] | null> {
 	const lines = text.split("\n");
-	const cache = cachePath(model, text);
+	const cache = cachePath(model, thinking, text);
 	try {
 		return JSON.parse(readFileSync(cache, "utf8"));
 	} catch {}
@@ -120,6 +122,8 @@ export async function outlineWithModel(
 		"--no-tools",
 		"--model",
 		model,
+		"--thinking",
+		thinking,
 		"--system-prompt",
 		SYSTEM_PROMPT,
 		prompt(basename(path)),

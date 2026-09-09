@@ -55,10 +55,13 @@ retrieve token; Shi et al. 2024 "NL Outlines" is the academic reference.
 1. Generic tree-sitter extractor driven by each grammar's `tags.scm`, with
    language special cases only when needed.
 2. Outline by default above a configurable line threshold (200).
-3. Fallback outline from `pi -p` with no extensions, model
-   `openai-codex/gpt-5.6-luna:medium`, cached by content hash.
+3. Fallback outline from `pi -p` with no extensions (default
+   `openai-codex/gpt-5.6-luna`, medium thinking; configurable or disabled),
+   cached by content hash.
 4. Outline sources implement one interface returning
    `{name, kind, startLine, endLine, children}` so LSP `documentSymbol` or
    others can be added.
 5. Anchors: 4 chars, unambiguous lowercase alphanumerics, content hash with
-   in-file collision bumping; served record per session; own `edit` tool.
+   in-file collision bumping; per-file ledger persisted as pi session entries
+   (branch-aware, survives resume); own `edit` tool. omp's `[path#TAG]` +
+   line numbers was rejected because any edit invalidates every reference.

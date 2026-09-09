@@ -32,7 +32,7 @@ export default function (pi: ExtensionAPI) {
 		ledger,
 		persist,
 		sources: [treeSitterSource, markdownSource],
-		fallback: (path, text, config, signal) => outlineWithModel(path, text, config.fallbackModel, signal),
+		fallback: (path, text, config, signal) => (config.fallback.enabled ? outlineWithModel(path, text, config.fallback, signal) : Promise.resolve(null)),
 	});
 	registerEditTool(pi, { ledger, persist });
 }

@@ -148,3 +148,19 @@ describe("model outline parsing", () => {
 		expect(parseOutlineJson("[oops", 10)).toBeNull();
 	});
 });
+
+describe("config", () => {
+	test("nested fallback keys merge over defaults", async () => {
+		const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+		const { tmpdir } = await import("node:os");
+		const { join } = await import("node:path");
+		const { loadConfig, DEFAULT_CONFIG } = await import("./config");
+		const dir = mkdtempSync(join(tmpdir(), "outline-read-cfg-"));
+		mkdirSync(join(dir, ".pi"));
+		writeFileSync(join(dir, ".pi", "outline-read.json"), JSON.stringify({ thresholdLines: 50, fallback: { enabled: false } }));
+		const config = loadConfig(dir);
+		expect(config.thresholdLines).toBe(50);
+		expect(config.fallback).toEqual({ ...DEFAULT_CONFIG.fallback, enabled: false });
+		expect(config.minBodyLines).toBe(DEFAULT_CONFIG.minBodyLines);
+	});
+});

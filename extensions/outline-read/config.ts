@@ -9,8 +9,14 @@ export interface OutlineReadConfig {
 	minBodyLines: number;
 	/** Outline level rises until the output is under this many tokens. */
 	budgetTokens: number;
-	/** Model for the fallback outline, as `provider/id[:thinking]`. */
-	fallbackModel: string;
+	/** Model-generated outline for files no structural source supports. */
+	fallback: {
+		enabled: boolean;
+		/** `provider/id` as accepted by `pi --model`. */
+		model: string;
+		/** Thinking level as accepted by `pi --thinking`. */
+		thinking: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+	};
 	/** Max lines per response for full or ranged reads. */
 	maxLines: number;
 	/** Max bytes per response for full or ranged reads. */
@@ -21,7 +27,7 @@ export const DEFAULT_CONFIG: OutlineReadConfig = {
 	thresholdLines: 200,
 	minBodyLines: 3,
 	budgetTokens: 10_000,
-	fallbackModel: "openai-codex/gpt-5.6-luna:medium",
+	fallback: { enabled: true, model: "openai-codex/gpt-5.6-luna", thinking: "medium" },
 	maxLines: 2000,
 	maxBytes: 50 * 1024,
 };
@@ -40,9 +46,9 @@ function readJson(path: string): Partial<OutlineReadConfig> {
 
 /** Global `~/.pi/agent/outline-read.json` overridden by `<cwd>/.pi/outline-read.json`. */
 export function loadConfig(cwd: string): OutlineReadConfig {
-	return {
-		...DEFAULT_CONFIG,
-		...readJson(join(getAgentDir(), FILE_NAME)),
-		...readJson(join(cwd, ".pi", FILE_NAME)),
-	};
+	const layers = [readJson(join(getAgentDir(), FILE_NAME)), readJson(join(cwd, ".pi", FILE_NAME))];
+	return layers.reduce<OutlineReadConfig>(
+		(config, layer) => ({ ...config, ...layer, fallback: { ...config.fallback, ...layer.fallback } }),
+		DEFAULT_CONFIG,
+	);
 }

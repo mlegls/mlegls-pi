@@ -1,0 +1,89 @@
+# outline-read
+
+Overrides pi's `read` and `edit`.
+
+- `read` returns files over a line threshold as an outline: definitions and
+  headings are shown, bodies are replaced by `⋯ start-end` markers, and the
+  model reads the ranges it needs with a selector on the path.
+- Every served line is prefixed with a 4-character anchor (`abcd│text`).
+  `edit` addresses lines by anchor. Anchors stay valid across edits made in
+  the session and across resume; a line that changes on disk gets a new one.
+
+Outline sources, tried in order: tree-sitter (JS, TS, TSX, Python, Go, Rust,
+Java), markdown headings, then a model-generated outline for anything else.
+
+## Read selectors
+
+| Path | Returns |
+| --- | --- |
+| `src/a.ts` | full file if at most `thresholdLines` lines, otherwise the outline |
+| `src/a.ts:50-200` | lines 50 to 200 |
+| `src/a.ts:50+30` | 30 lines from 50 |
+| `src/a.ts:50-` | from 50 to the end |
+| `src/a.ts:5-16,40-80` | several ranges in one call, merged when adjacent |
+| `src/a.ts:all` | whole file regardless of size, capped at `maxLines` / `maxBytes` |
+
+`offset` and `limit` parameters are accepted as an alternative to a selector.
+A literal filename containing `:` wins over the selector reading when it exists.
+
+## Edit
+
+```json
+{ "path": "src/a.ts", "edits": [
+  { "from": "k7pd", "to": "m2xa", "lines": ["replacement", "lines"] },
+  { "from": "q9rt", "lines": [] },
+  { "after": "b4nn", "lines": ["inserted after b4nn"] },
+  { "before": "b4nn", "lines": ["inserted before b4nn"] }
+] }
+```
+
+Entries apply together against the file as last read and must not overlap.
+Unknown anchors reject the whole call; if the file changed on disk, the
+changed lines are returned with their current anchors so the retry needs no
+read. Pasted `abcd│` prefixes in `lines` are stripped with a warning.
+
+## Configuration
+
+`~/.pi/agent/outline-read.json`, overridden per project by
+`<project>/.pi/outline-read.json`. Keys are shallow-merged; `fallback` is
+merged one level deeper. All keys are optional.
+
+```json
+{
+  "thresholdLines": 200,
+  "minBodyLines": 3,
+  "budgetTokens": 10000,
+  "maxLines": 2000,
+  "maxBytes": 51200,
+  "fallback": {
+    "enabled": true,
+    "model": "openai-codex/gpt-5.6-luna",
+    "thinking": "medium"
+  }
+}
+```
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `thresholdLines` | `200` | Files with at most this many lines are returned in full. |
+| `minBodyLines` | `3` | Bodies shorter than this stay inline instead of being elided. |
+| `budgetTokens` | `10000` | Estimated token budget for an outline. Level 0 elides leaf bodies; level 1 also elides class-like bodies except nested definitions; level 2 keeps only top-level definitions with child counts. The level rises until the outline fits. |
+| `maxLines`, `maxBytes` | `2000`, `51200` | Caps per response for full and ranged reads; the response says how to continue. |
+| `fallback.enabled` | `true` | Ask a model for an outline when no structural source supports the file. When `false`, such files are returned in full (subject to the caps). |
+| `fallback.model` | `openai-codex/gpt-5.6-luna` | Passed to `pi --model`. |
+| `fallback.thinking` | `medium` | Passed to `pi --thinking`: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. |
+
+The fallback runs `pi -p` with no extensions, skills, or context files, and
+caches results in `~/.pi/agent/outline-read-cache/` keyed by model, thinking
+level, and file content. The first outline of a file blocks the tool call for
+as long as the model takes; later reads of unchanged content are instant.
+
+## Anchors and the ledger
+
+Anchors are derived from a content hash so an unchanged file gets the same
+names in every session, bumped when two lines in a file would collide. A
+per-file ledger tracks anchored lines; on every read or edit it is
+reconciled with the file by line diff, so unchanged lines keep their anchors
+and new lines get fresh ones. The ledger is stored as `outline-read` custom
+entries in the pi session (anchors plus a content hash), which makes it
+branch-aware and restores it on resume when the file is byte-identical.
