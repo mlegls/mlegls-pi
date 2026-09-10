@@ -1,13 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setSystemTime, test } from "bun:test";
 import type { BuildSystemPromptOptions, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import systemPromptExtension from "./index";
+
+type GetHeader = () => { timestamp: string } | null;
 
 type BeforeAgentStartHandler = (event: {
 	systemPrompt: string;
 	systemPromptOptions: BuildSystemPromptOptions;
-}) => { systemPrompt: string };
+}, ctx: { sessionManager: { getHeader: GetHeader } }) => { systemPrompt: string };
 
-function buildPrompt(options: BuildSystemPromptOptions, systemPrompt = ""): string {
+function promptBuilder(getHeader: GetHeader = () => null) {
 	let handler: BeforeAgentStartHandler | undefined;
 	systemPromptExtension({
 		on(event, candidate) {
@@ -15,8 +17,13 @@ function buildPrompt(options: BuildSystemPromptOptions, systemPrompt = ""): stri
 		},
 	} as ExtensionAPI);
 	if (!handler) throw new Error("before_agent_start handler was not registered");
-	return handler({ systemPrompt, systemPromptOptions: options }).systemPrompt;
+	return (options: BuildSystemPromptOptions, systemPrompt = "") => handler(
+		{ systemPrompt, systemPromptOptions: options },
+		{ sessionManager: { getHeader } },
+	).systemPrompt;
 }
+
+const buildPrompt = promptBuilder();
 
 const skill = {
 	name: "example",
@@ -26,6 +33,37 @@ const skill = {
 };
 
 describe("system prompt extension", () => {
+	test("keeps the session date across midnight and extension reloads", () => {
+		const getHeader = () => ({ timestamp: "2026-09-10T23:59:00.000Z" });
+		const prompt = promptBuilder(getHeader);
+		try {
+			setSystemTime(new Date("2026-09-10T23:59:30.000Z"));
+			const before = prompt({ cwd: "/work" });
+			expect(before).toContain("Session started: 2026-09-10");
+			expect(before).not.toContain("Current date:");
+
+			setSystemTime(new Date("2026-09-11T00:01:00.000Z"));
+			expect(prompt({ cwd: "/work" })).toBe(before);
+			expect(promptBuilder(getHeader)({ cwd: "/work" })).toBe(before);
+		} finally {
+			setSystemTime();
+		}
+	});
+
+	test("uses the active session header when switching sessions", () => {
+		let timestamp = "2026-09-10T23:59:00.000Z";
+		const prompt = promptBuilder(() => ({ timestamp }));
+		expect(prompt({ cwd: "/work" })).toContain("Session started: 2026-09-10");
+		timestamp = "2026-09-08T12:00:00.000Z";
+		expect(prompt({ cwd: "/work" })).toContain("Session started: 2026-09-08");
+	});
+
+	test("omits the date when no session header is available", () => {
+		const prompt = buildPrompt({ cwd: "/work" });
+		expect(prompt).not.toContain("Session started:");
+		expect(prompt).not.toContain("Current date:");
+	});
+
 	test("only advertises skills when read is available", () => {
 		const withoutRead = buildPrompt({ cwd: "/work", selectedTools: ["bash"], skills: [skill] } as BuildSystemPromptOptions);
 		const withRead = buildPrompt({ cwd: "/work", selectedTools: ["read"], skills: [skill] } as BuildSystemPromptOptions);

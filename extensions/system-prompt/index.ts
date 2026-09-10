@@ -25,7 +25,7 @@ function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
 	return `Skills provide task-specific instructions. Read a matching skill file before using it.\n\n<available_skills>\n${entries}\n</available_skills>`;
 }
 
-function buildPrompt(options: BuildSystemPromptOptions): string {
+function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: string): string {
 	const parts: string[] = [];
 	parts.push(options.customPrompt?.trim() || [
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
@@ -44,13 +44,13 @@ function buildPrompt(options: BuildSystemPromptOptions): string {
 	const skills = visibleSkills(options);
 	if (skills) parts.push(skills);
 
-	const date = new Date().toISOString().slice(0, 10);
-	parts.push(`Current date: ${date}\nCurrent working directory: ${options.cwd.replace(/\\/g, "/")}`);
+	if (sessionTimestamp) parts.push(`Session started: ${sessionTimestamp.slice(0, 10)}`);
+	parts.push(`Current working directory: ${options.cwd.replace(/\\/g, "/")}`);
 	return parts.join("\n\n");
 }
 
 export default function (pi: ExtensionAPI) {
-	pi.on("before_agent_start", (event) => ({
-		systemPrompt: buildPrompt(event.systemPromptOptions),
+	pi.on("before_agent_start", (event, ctx) => ({
+		systemPrompt: buildPrompt(event.systemPromptOptions, ctx.sessionManager.getHeader()?.timestamp),
 	}));
 }
