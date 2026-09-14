@@ -102,8 +102,8 @@ export function parseRange(spec: string, total: number): [number, number] {
 	return [start, m[3] ? Number(m[3]) : total];
 }
 
-/** Like `read`, but also reports how many older matches the limit dropped. */
-export function query(options: ReadOptions): { messages: Numbered[]; omitted: number } {
+/** Filter the log; `omitted` is how many older matches the limit dropped. */
+export function read(options: ReadOptions): { messages: Numbered[]; omitted: number } {
 	const match = compileQuery(options);
 	const all = readAll();
 	let messages = all.filter((m) => match(m.topic, m.tags));
@@ -123,10 +123,6 @@ export function query(options: ReadOptions): { messages: Numbered[]; omitted: nu
 	const limit = options.limit ?? (options.range ? Infinity : 20);
 	const omitted = Math.max(0, messages.length - limit);
 	return { messages: omitted ? messages.slice(-limit) : messages, omitted };
-}
-
-export function read(options: ReadOptions): Numbered[] {
-	return query(options).messages;
 }
 
 export interface TopicSummary {

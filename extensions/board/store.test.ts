@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { logSize, query, read, readFrom, send, topics, waitFor } from "./store";
+import { logSize, read, readFrom, send, topics, waitFor } from "./store";
 
 let dir: string;
 beforeEach(() => {
@@ -21,12 +21,12 @@ test("send then read round-trips with query and since", () => {
 	const b = send({ topic: "c/u1", tags: ["done"], body: "ok", data: { verdict: "ok" }, from });
 	send({ topic: "r/x", tags: ["done"], body: "other", from });
 
-	expect(read({}).map((m) => m.id)).toEqual([a.id, b.id, expect.any(String)]);
-	expect(read({}).map((m) => m.line)).toEqual([1, 2, 3]);
-	expect(read({ topic: "c/*", tags: "done" })).toEqual([{ ...b, line: 2 }]);
-	expect(read({ topic: "c/*", since: a.id })).toEqual([{ ...b, line: 2 }]);
-	expect(read({ since: b.ts })).toHaveLength(1);
-	expect(read({ limit: 1 })[0]!.topic).toBe("r/x");
+	expect(read({}).messages.map((m) => m.id)).toEqual([a.id, b.id, expect.any(String)]);
+	expect(read({}).messages.map((m) => m.line)).toEqual([1, 2, 3]);
+	expect(read({ topic: "c/*", tags: "done" }).messages).toEqual([{ ...b, line: 2 }]);
+	expect(read({ topic: "c/*", since: a.id }).messages).toEqual([{ ...b, line: 2 }]);
+	expect(read({ since: b.ts }).messages).toHaveLength(1);
+	expect(read({ limit: 1 }).messages[0]!.topic).toBe("r/x");
 });
 
 test("readFrom is incremental by byte offset", () => {
@@ -60,14 +60,14 @@ test("grep is smart-case over body and topic", () => {
 	send({ topic: "a", tags: [], body: "Deploy failed", from });
 	send({ topic: "b/deploy", tags: [], body: "fine", from });
 	send({ topic: "c", tags: [], body: "unrelated", from });
-	expect(read({ grep: "deploy" }).map((m) => m.topic)).toEqual(["a", "b/deploy"]);
-	expect(read({ grep: "Deploy" }).map((m) => m.topic)).toEqual(["a"]);
-	expect(read({ grep: "fail|fine" })).toHaveLength(2);
+	expect(read({ grep: "deploy" }).messages.map((m) => m.topic)).toEqual(["a", "b/deploy"]);
+	expect(read({ grep: "Deploy" }).messages.map((m) => m.topic)).toEqual(["a"]);
+	expect(read({ grep: "fail|fine" }).messages).toHaveLength(2);
 });
 
 test("range addresses log line numbers and lifts the default limit", () => {
 	for (let i = 1; i <= 30; i++) send({ topic: i % 2 ? "odd" : "even", tags: [], body: String(i), from });
-	const lines = (o: Parameters<typeof read>[0]) => read(o).map((m) => m.line);
+	const lines = (o: Parameters<typeof read>[0]) => read(o).messages.map((m) => m.line);
 	expect(lines({ range: "3-5" })).toEqual([3, 4, 5]);
 	expect(lines({ range: "28-" })).toEqual([28, 29, 30]);
 	expect(lines({ range: "10+2" })).toEqual([10, 11, 12]);
@@ -80,8 +80,8 @@ test("range addresses log line numbers and lifts the default limit", () => {
 
 test("query reports what the limit dropped", () => {
 	for (let i = 0; i < 5; i++) send({ topic: "t", tags: [], body: String(i), from });
-	const { messages, omitted } = query({ limit: 2 });
+	const { messages, omitted } = read({ limit: 2 });
 	expect(messages.map((m) => m.body)).toEqual(["3", "4"]);
 	expect(omitted).toBe(3);
-	expect(query({ range: "1-" }).omitted).toBe(0);
+	expect(read({ range: "1-" }).omitted).toBe(0);
 });

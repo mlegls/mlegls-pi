@@ -11,7 +11,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { compileQuery, parseTags } from "./query";
-import { logSize, query, readFrom, send, topics, type Message, type Numbered } from "./store";
+import { logSize, read, readFrom, send, topics, type Message, type Numbered } from "./store";
 
 interface Subscription {
 	topic: string;
@@ -193,7 +193,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id, params) {
 			parseTags(params.tags); // validate early for a clean error
-			const { messages, omitted } = query(params);
+			const { messages, omitted } = read(params);
 			let text = messages.length ? (params.grep ? messages.map(formatBrief).join("\n") : renderFull(messages)) : "(no messages)";
 			if (omitted) text += `\n(+${omitted} earlier matches; raise limit or use range)`;
 			return { content: [{ type: "text", text }], details: { count: messages.length, omitted, messages } };
