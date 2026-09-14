@@ -5,6 +5,9 @@
 // into the session; `wake` subscriptions also start a turn, so an idle parent
 // hears its children finish and a session hears decisions that touch its area.
 // Everything else is pull: read/list never wake anyone.
+//
+// Other extensions subscribe this session through the event bus:
+//   pi.events.emit("board:subscribe", { topic, tags?, wake? })
 
 import { spawnSync } from "node:child_process";
 import { basename } from "node:path";
@@ -96,6 +99,22 @@ export default function (pi: ExtensionAPI) {
 	function persistSubs() {
 		pi.appendEntry(SUBS_ENTRY, subs);
 	}
+
+	/** Add (or with remove, drop) a subscription; returns the resulting entry. Idempotent on topic×tags. */
+	function subscribe(params: { topic: string; tags?: string; wake?: boolean; remove?: boolean }): Subscription {
+		parseTags(params.tags);
+		const sub: Subscription = { topic: params.topic, tags: params.tags || undefined, wake: params.wake ?? true };
+		const key = subKey(sub);
+		subs = subs.filter((s) => subKey(s) !== key);
+		if (!params.remove) subs.push(sub);
+		rebuildMatchers();
+		persistSubs();
+		return sub;
+	}
+
+	pi.events.on("board:subscribe", (params: Parameters<typeof subscribe>[0]) => {
+		subscribe(params);
+	});
 
 	function deliver(m: Message, wake: boolean) {
 		pi.sendMessage(
@@ -254,14 +273,8 @@ export default function (pi: ExtensionAPI) {
 			remove: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_id, params) {
-			parseTags(params.tags);
-			const sub: Subscription = { topic: params.topic, tags: params.tags || undefined, wake: params.wake ?? true };
-			const key = subKey(sub);
-			subs = subs.filter((s) => subKey(s) !== key);
-			if (!params.remove) subs.push(sub);
-			rebuildMatchers();
-			persistSubs();
-			const text = `${params.remove ? "unsubscribed" : "subscribed"} ${sub.wake ? "wake" : "quiet"} ${key}\n${subs.length} active`;
+			const sub = subscribe(params);
+			const text = `${params.remove ? "unsubscribed" : "subscribed"} ${sub.wake ? "wake" : "quiet"} ${subKey(sub)}\n${subs.length} active`;
 			return { content: [{ type: "text", text }], details: { subscriptions: subs } };
 		},
 	});
