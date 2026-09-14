@@ -32,28 +32,28 @@ A literal filename containing `:` wins over the selector reading when it exists.
 
 ## Edit
 
-One string, hunks separated by a blank line; a hunk is a header of anchors
-then the new lines. Anchors are unique across the session's files, so there
-is no path and one call can touch several files.
+One string, hunks separated by a blank line; a hunk is a header line, then
+the new lines. Anchors are unique across the session's files, so there is no
+path and one call can touch several files.
 
 ```
-k7pd m2xa
+=k7pd m2xa
 replacement
 lines
 
-q9rt
+-q9rt
 
-b4nn+
+>b4nn
 inserted after b4nn
 
-+b4nn
+<b4nn
 inserted before b4nn
 ```
 
-`abcd` replaces one line, `abcd wxyz` a range (the end anchor may also stand
-alone on the next line), an empty body deletes. A pasted read row
-(`abcd│text`) works as a header. A blank line inside a body is content unless
-the line after it is a header of known anchors.
+`=` replaces a line or an inclusive range, `-` deletes one (no body), `>`
+inserts after, `<` before. A pasted read row (`=abcd│text`) works as a
+header. A blank line inside a body is content unless the line after it is a
+header of known anchors.
 
 Hunks apply together per file and must not overlap. Unknown anchors reject
 the whole call; if a file changed on disk, the changed lines are returned

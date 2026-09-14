@@ -6,11 +6,12 @@ import { Type } from "typebox";
 import { ANCHOR_LENGTH, ALPHABET, formatRow, stripPastedPrefix } from "./anchors";
 import type { Ledger } from "./ledger";
 
-const GRAMMAR = `Hunks separated by one blank line. A hunk is a header line of anchors, then the new lines (none to delete):
-  abcd          replace line abcd
-  abcd wxyz     replace abcd..wxyz inclusive (the end anchor may also sit alone on the next line)
-  abcd+         insert after abcd
-  +abcd         insert before abcd`;
+const GRAMMAR = `Hunks separated by one blank line. A hunk is a header line, then the new lines:
+  =abcd         replace line abcd
+  =abcd wxyz    replace abcd..wxyz inclusive
+  -abcd wxyz    delete abcd..wxyz (no body)
+  >abcd         insert after abcd
+  <abcd         insert before abcd`;
 
 const parameters = Type.Object({
 	edits: Type.String({ description: GRAMMAR }),
@@ -26,7 +27,7 @@ interface Hunk {
 	header: string;
 	from: string;
 	to?: string;
-	mode: "replace" | "after" | "before";
+	mode: "replace" | "delete" | "after" | "before";
 	lines: string[];
 }
 
@@ -38,28 +39,19 @@ interface ResolvedEdit {
 	header: string;
 }
 
-const TOKEN = new RegExp(`^(\\+)?([${ALPHABET}]{${ANCHOR_LENGTH}})(\\+)?$`);
+const ANCHOR = new RegExp(`^[${ALPHABET}]{${ANCHOR_LENGTH}}$`);
+const SIGILS: Record<string, Hunk["mode"]> = { "=": "replace", "-": "delete", ">": "after", "<": "before" };
 
-/** A pasted read row `abcd│text` names its anchor; anything after the bar is dropped. */
-function headerTokens(line: string): string[] {
-	const bar = line.indexOf("│");
-	return (bar >= 0 ? line.slice(0, bar) : line).trim().split(/\s+/).filter(Boolean);
-}
-
-/** Parse a header line; `known` decides whether a 4-letter word is an anchor or text. */
+/** Parse a header line; `known` decides whether a word is an anchor. A pasted read row `abcd│text` is cut at the bar. */
 function parseHeader(line: string, known: (a: string) => boolean): Omit<Hunk, "lines"> | undefined {
-	const tokens = headerTokens(line);
-	if (tokens.length === 0 || tokens.length > 2) return undefined;
-	const parsed = tokens.map((t) => TOKEN.exec(t));
-	if (parsed.some((m) => !m)) return undefined;
-	const [a, b] = parsed as RegExpExecArray[];
-	if (!known(a[2]) || (b && !known(b[2]))) return undefined;
-	if (b) {
-		if (a[1] || a[3] || b[1] || b[3]) return undefined;
-		return { header: line.trim(), from: a[2], to: b[2], mode: "replace" };
-	}
-	if (a[1] && a[3]) return undefined;
-	return { header: line.trim(), from: a[2], mode: a[1] ? "before" : a[3] ? "after" : "replace" };
+	const bar = line.indexOf("│");
+	const head = (bar >= 0 ? line.slice(0, bar) : line).trim();
+	const mode = SIGILS[head[0]];
+	if (!mode) return undefined;
+	const tokens = head.slice(1).trim().split(/\s+/).filter(Boolean);
+	if (tokens.length === 0 || tokens.length > 2 || !tokens.every((t) => ANCHOR.test(t) && known(t))) return undefined;
+	if (tokens.length === 2 && (mode === "after" || mode === "before")) return undefined;
+	return { header: head, from: tokens[0], to: tokens[1], mode };
 }
 
 export function parseHunks(text: string, known: (a: string) => boolean): Hunk[] {
@@ -72,20 +64,7 @@ export function parseHunks(text: string, known: (a: string) => boolean): Hunk[] 
 	const first = parseHeader(lines[i], known);
 	if (!first) throw new Error(`Line 1 is not a hunk header of known anchors: "${lines[i].slice(0, 40)}".\n${GRAMMAR}`);
 	let current: Hunk = { ...first, lines: [] };
-	i++;
-	// A bare end anchor on the line after a single-anchor replace header.
-	const takeEnd = () => {
-		if (current.mode !== "replace" || current.to || i >= lines.length) return;
-		const tokens = headerTokens(lines[i]);
-		const m = tokens.length === 1 ? TOKEN.exec(tokens[0]) : null;
-		if (m && !m[1] && !m[3] && known(m[2]) && m[2] !== current.from) {
-			current.to = m[2];
-			current.header += ` ${m[2]}`;
-			i++;
-		}
-	};
-	takeEnd();
-	for (; i < lines.length; i++) {
+	for (i++; i < lines.length; i++) {
 		const line = lines[i];
 		if (line.trim() === "" && i + 1 < lines.length) {
 			const next = parseHeader(lines[i + 1], known);
@@ -93,13 +72,16 @@ export function parseHunks(text: string, known: (a: string) => boolean): Hunk[] 
 				hunks.push(current);
 				current = { ...next, lines: [] };
 				i++;
-				takeEnd();
 				continue;
 			}
 		}
 		current.lines.push(line);
 	}
 	hunks.push(current);
+	for (const h of hunks) {
+		if (h.mode === "delete" && h.lines.length) throw new Error(`"${h.header}": a delete takes no lines. Nothing was modified.`);
+		if (h.mode !== "delete" && h.lines.length === 0) throw new Error(`"${h.header}": no lines given; use -${h.header.slice(1)} to delete. Nothing was modified.`);
+	}
 	return hunks;
 }
 
@@ -108,7 +90,7 @@ export function registerEditTool(pi: ExtensionAPI, deps: EditDeps): void {
 		name: "edit",
 		label: "edit",
 		description:
-			"Edit files by line anchors from read/grep output (`abcd│text`). Anchors are unique across files, so no path is needed; one call may touch several files. " +
+			"Edit files by line anchors from read/grep output (`abcd│text`). Anchors are unique across files, so no path is needed; one call may touch several files.\n" +
 			GRAMMAR +
 			"\nAnchors survive your own edits and edits elsewhere in the file; a line that changed on disk gets a new anchor and the old one is rejected.",
 		promptSnippet: "Edit files by anchor: replace an anchored line or range, or insert next to one; many hunks and files per call",
@@ -187,8 +169,7 @@ async function applyToFile(deps: EditDeps, absolutePath: string, shown: string, 
 				if (stripped !== line) warnings.push(`Stripped a pasted anchor prefix from "${line.slice(0, 20)}".`);
 				return stripped;
 			});
-			if (h.mode !== "replace") {
-				if (newLines.length === 0) throw new Error(`"${h.header}": nothing to insert. Nothing was modified.`);
+			if (h.mode === "after" || h.mode === "before") {
 				const index = at(h.from);
 				if (index < 0) continue;
 				const start = h.mode === "after" ? index + 1 : index;

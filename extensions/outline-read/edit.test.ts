@@ -52,22 +52,24 @@ describe("ledger", () => {
 describe("parseHunks", () => {
 	const known = (a: string) => ["aaaa", "bbbb", "cccc"].includes(a);
 	test("forms", () => {
-		expect(parseHunks("aaaa\nx", known)).toEqual([{ header: "aaaa", from: "aaaa", mode: "replace", lines: ["x"] }]);
-		expect(parseHunks("aaaa bbbb\nx\ny", known)[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x", "y"] });
-		expect(parseHunks("aaaa\nbbbb\nx", known)[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x"] });
-		expect(parseHunks("aaaa+\nx", known)[0]).toMatchObject({ mode: "after" });
-		expect(parseHunks("+aaaa\nx", known)[0]).toMatchObject({ mode: "before" });
-		expect(parseHunks("aaaa│old text\nx", known)[0]).toMatchObject({ from: "aaaa", lines: ["x"] });
+		expect(parseHunks("=aaaa\nx", known)).toEqual([{ header: "=aaaa", from: "aaaa", to: undefined, mode: "replace", lines: ["x"] }]);
+		expect(parseHunks("=aaaa bbbb\nx\ny", known)[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x", "y"] });
+		expect(parseHunks("-aaaa bbbb", known)[0]).toMatchObject({ mode: "delete", lines: [] });
+		expect(parseHunks(">aaaa\nx", known)[0]).toMatchObject({ mode: "after" });
+		expect(parseHunks("<aaaa\nx", known)[0]).toMatchObject({ mode: "before" });
+		expect(parseHunks("=aaaa│old text\nx", known)[0]).toMatchObject({ from: "aaaa", lines: ["x"] });
 	});
-	test("blank lines: separator before a header, content otherwise; empty body deletes", () => {
-		const h = parseHunks("aaaa\n\nbbbb\nx\n\nnot a header\n\ncccc+\ny\n", known);
-		expect(h.map((x) => x.header)).toEqual(["aaaa", "bbbb", "cccc+"]);
-		expect(h[0].lines).toEqual([]);
+	test("blank lines: separator before a header, content otherwise", () => {
+		const h = parseHunks("-aaaa\n\n=bbbb\nx\n\nnot a header\n\n>cccc\ny\n", known);
+		expect(h.map((x) => x.header)).toEqual(["-aaaa", "=bbbb", ">cccc"]);
 		expect(h[1].lines).toEqual(["x", "", "not a header"]);
 	});
-	test("unknown words are text", () => {
-		expect(parseHunks("aaaa\nzzzz\n\nzzzz", known)[0].lines).toEqual(["zzzz", "", "zzzz"]);
-		expect(() => parseHunks("zzzz\nx", known)).toThrow(/not a hunk header/);
+	test("bare words and unknown anchors are text; bodies must fit the sigil", () => {
+		expect(parseHunks("=aaaa\nbbbb\n\nzzzz\n\n=zzzz", known)[0].lines).toEqual(["bbbb", "", "zzzz", "", "=zzzz"]);
+		expect(() => parseHunks("aaaa\nx", known)).toThrow(/not a hunk header/);
+		expect(() => parseHunks("=aaaa", known)).toThrow(/use -aaaa to delete/);
+		expect(() => parseHunks("-aaaa\nx", known)).toThrow(/takes no lines/);
+		expect(() => parseHunks(">aaaa bbbb\nx", known)).toThrow(/not a hunk header/);
 	});
 });
 
@@ -95,9 +97,9 @@ describe("edit tool", () => {
 	test("replace, insert, and anchors surviving earlier edits", async () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
-		await edit(`${rows[5]}\n  return 22;\n  // more\n\n${rows[2]}+\n\nconst X = 1;`);
+		await edit(`=${rows[5]}\n  return 22;\n  // more\n\n>${rows[2]}\n\nconst X = 1;`);
 		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 1;\n}\n\nconst X = 1;\n\nfunction b() {\n  return 22;\n  // more\n}\n");
-		const r = await edit(`${rows[1]}\n  return 11;`);
+		const r = await edit(`=${rows[1]}\n  return 11;`);
 		expect(r.content[0].text).toContain("-  return 1;");
 		expect(readFileSync(file, "utf8")).toContain("  return 11;\n}");
 	});
@@ -105,9 +107,9 @@ describe("edit tool", () => {
 	test("delete and no-op", async () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
-		await edit(`${rows[3]} ${rows[6]}`);
+		await edit(`-${rows[3]} ${rows[6]}`);
 		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 1;\n}\n");
-		const r = await edit(`${rows[1]}\n  return 1;`);
+		const r = await edit(`=${rows[1]}\n  return 1;`);
 		expect(r.content[0].text).toContain("no changes");
 	});
 
@@ -116,22 +118,21 @@ describe("edit tool", () => {
 		writeFileSync(join(dir, "g.ts"), "const g = 1;\n");
 		const f = await read();
 		const g = await read("g.ts");
-		const r = await edit(`${g[0]}\nconst g = 2;\n\n${f[1]}\n  return g;`);
+		const r = await edit(`=${g[0]}\nconst g = 2;\n\n=${f[1]}\n  return g;`);
 		expect(r.content[0].text).toContain("g.ts: 1 edit");
 		expect(r.content[0].text).toContain("f.ts: 1 edit");
 		expect(readFileSync(join(dir, "g.ts"), "utf8")).toBe("const g = 2;\n");
 		expect(readFileSync(file, "utf8")).toContain("  return g;");
 		const g2 = await read("g.ts");
-		await expect(edit(`${f[0]} ${g2[0]}`)).rejects.toThrow(/different files/);
+		await expect(edit(`-${f[0]} ${g2[0]}`)).rejects.toThrow(/different files/);
 	});
 
-	test("rejects unknown anchors, overlaps, empty inserts; strips pasted prefixes", async () => {
+	test("rejects unknown anchors, overlaps; strips pasted prefixes", async () => {
 		const { file, read, edit } = setup();
-		await expect(edit("abcd\nx")).rejects.toThrow(/not a hunk header/);
+		await expect(edit("=abcd\nx")).rejects.toThrow(/not a hunk header/);
 		const rows = await read();
-		await expect(edit(`${rows[0]} ${rows[2]}\n\n${rows[1]}`)).rejects.toThrow(/overlap/);
-		await expect(edit(`${rows[1]}+`)).rejects.toThrow(/nothing to insert/);
-		await edit(`${rows[1]}\n${rows[1]}│  return 3;`);
+		await expect(edit(`-${rows[0]} ${rows[2]}\n\n-${rows[1]}`)).rejects.toThrow(/overlap/);
+		await edit(`=${rows[1]}\n${rows[1]}│  return 3;`);
 		expect(readFileSync(file, "utf8")).toContain("  return 3;");
 	});
 
@@ -139,9 +140,9 @@ describe("edit tool", () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
 		writeFileSync(file, readFileSync(file, "utf8").replace("return 2", "return 9"));
-		const r = await edit(`${rows[1]}\n  return 0;`);
+		const r = await edit(`=${rows[1]}\n  return 0;`);
 		expect(r.content[0].text).toContain("File changed on disk");
-		await expect(edit(`${rows[5]}\nx`)).rejects.toThrow(/not a hunk header/);
+		await expect(edit(`=${rows[5]}\nx`)).rejects.toThrow(/not a hunk header/);
 		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 0;\n}\n\nfunction b() {\n  return 9;\n}\n");
 	});
 });
