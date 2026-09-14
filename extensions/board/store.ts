@@ -16,6 +16,9 @@ export interface Message {
 	data?: unknown;
 }
 
+/** A message with its 1-indexed position in the log; stable across reads, so it addresses `range`. */
+export type Numbered = Message & { line: number };
+
 export function boardDir(): string {
 	return process.env.PI_BOARD_DIR
 		?? join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "pi-board");
@@ -71,8 +74,8 @@ export function readFrom(offset: number): { messages: Message[]; offset: number 
 	}
 }
 
-export function readAll(): Message[] {
-	return readFrom(0).messages;
+export function readAll(): Numbered[] {
+	return readFrom(0).messages.map((m, i) => ({ ...m, line: i + 1 }));
 }
 
 export function logSize(): number {
@@ -83,18 +86,40 @@ export function logSize(): number {
 export interface ReadOptions extends Query {
 	/** Message id or ISO timestamp; only messages after it. */
 	since?: string;
+	/** Regex over body and topic. Smart case: case-insensitive unless the pattern has an uppercase letter. */
+	grep?: string;
+	/** Log line numbers: `50-200`, `50-`, `50+30`, `-20` (last 20). No default limit when set. */
+	range?: string;
 	limit?: number;
 }
 
-export function read(options: ReadOptions): Message[] {
+export function parseRange(spec: string, total: number): [number, number] {
+	const m = /^(?:(\d+)(?:([-+])(\d*))?|-(\d+))$/.exec(spec.trim());
+	if (!m) throw new Error(`bad range: ${spec} (expected n-m, n+k, n-, or -k)`);
+	if (m[4]) return [Math.max(1, total - Number(m[4]) + 1), total];
+	const start = Number(m[1]);
+	if (m[2] === "+") return [start, start + Number(m[3] || 0)];
+	return [start, m[3] ? Number(m[3]) : total];
+}
+
+export function read(options: ReadOptions): Numbered[] {
 	const match = compileQuery(options);
-	let messages = readAll().filter((m) => match(m.topic, m.tags));
+	const all = readAll();
+	let messages = all.filter((m) => match(m.topic, m.tags));
 	if (options.since) {
 		const byId = messages.findIndex((m) => m.id === options.since);
 		if (byId >= 0) messages = messages.slice(byId + 1);
 		else messages = messages.filter((m) => m.ts > options.since!);
 	}
-	const limit = options.limit ?? 20;
+	if (options.grep) {
+		const re = new RegExp(options.grep, /[A-Z]/.test(options.grep) ? "" : "i");
+		messages = messages.filter((m) => re.test(m.body) || re.test(m.topic));
+	}
+	if (options.range) {
+		const [lo, hi] = parseRange(options.range, all.length);
+		messages = messages.filter((m) => m.line >= lo && m.line <= hi);
+	}
+	const limit = options.limit ?? (options.range ? Infinity : 20);
 	return messages.length > limit ? messages.slice(-limit) : messages;
 }
 

@@ -22,8 +22,9 @@ test("send then read round-trips with query and since", () => {
 	send({ topic: "r/x", tags: ["done"], body: "other", from });
 
 	expect(read({}).map((m) => m.id)).toEqual([a.id, b.id, expect.any(String)]);
-	expect(read({ topic: "c/*", tags: "done" })).toEqual([b]);
-	expect(read({ topic: "c/*", since: a.id })).toEqual([b]);
+	expect(read({}).map((m) => m.line)).toEqual([1, 2, 3]);
+	expect(read({ topic: "c/*", tags: "done" })).toEqual([{ ...b, line: 2 }]);
+	expect(read({ topic: "c/*", since: a.id })).toEqual([{ ...b, line: 2 }]);
 	expect(read({ since: b.ts })).toHaveLength(1);
 	expect(read({ limit: 1 })[0]!.topic).toBe("r/x");
 });
@@ -53,4 +54,26 @@ test("waitFor resolves on a matching message and times out otherwise", async () 
 	send({ topic: "w", tags: ["done"], body: "fin", from });
 	expect((await pending)?.body).toBe("fin");
 	expect(await waitFor({ topic: "never" }, { timeoutMs: 600 })).toBeUndefined();
+});
+
+test("grep is smart-case over body and topic", () => {
+	send({ topic: "a", tags: [], body: "Deploy failed", from });
+	send({ topic: "b/deploy", tags: [], body: "fine", from });
+	send({ topic: "c", tags: [], body: "unrelated", from });
+	expect(read({ grep: "deploy" }).map((m) => m.topic)).toEqual(["a", "b/deploy"]);
+	expect(read({ grep: "Deploy" }).map((m) => m.topic)).toEqual(["a"]);
+	expect(read({ grep: "fail|fine" })).toHaveLength(2);
+});
+
+test("range addresses log line numbers and lifts the default limit", () => {
+	for (let i = 1; i <= 30; i++) send({ topic: i % 2 ? "odd" : "even", tags: [], body: String(i), from });
+	const lines = (o: Parameters<typeof read>[0]) => read(o).map((m) => m.line);
+	expect(lines({ range: "3-5" })).toEqual([3, 4, 5]);
+	expect(lines({ range: "28-" })).toEqual([28, 29, 30]);
+	expect(lines({ range: "10+2" })).toEqual([10, 11, 12]);
+	expect(lines({ range: "-3" })).toEqual([28, 29, 30]);
+	expect(lines({ range: "1-" })).toHaveLength(30);
+	expect(lines({ range: "1-10", topic: "odd" })).toEqual([1, 3, 5, 7, 9]);
+	expect(lines({ range: "1-", limit: 2 })).toEqual([29, 30]);
+	expect(() => read({ range: "x" })).toThrow(/bad range/);
 });

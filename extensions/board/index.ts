@@ -23,10 +23,11 @@ const SUBS_ENTRY = "board-subs";
 const CURSOR_ENTRY = "board-cursor";
 const POLL_MS = 1000;
 
-function formatMessage(m: Message, options: { data?: boolean } = { data: true }): string {
+function formatMessage(m: Message & { line?: number }, options: { data?: boolean } = { data: true }): string {
 	const tags = m.tags.length ? ` [${m.tags.join(" ")}]` : "";
 	const from = m.from.name ? ` <${m.from.name}>` : "";
-	const head = `${m.id} ${m.ts.slice(11, 19)} ${m.topic}${tags}${from}`;
+	const line = m.line !== undefined ? `#${m.line} ` : "";
+	const head = `${line}${m.id} ${m.ts.slice(11, 19)} ${m.topic}${tags}${from}`;
 	const data = options.data && m.data !== undefined ? `\n${JSON.stringify(m.data)}` : "";
 	return `${head}\n${m.body}${data}`;
 }
@@ -154,13 +155,15 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "board_read",
 		label: "Board Read",
-		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. `since` takes a message id or ISO timestamp.",
+		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. `since` takes a message id or ISO timestamp. Each message is prefixed `#n`, its log line number, which `range` addresses.",
 		promptSnippet: "Read board messages",
 		parameters: Type.Object({
 			topic: TopicParam,
 			tags: TagsParam,
 			since: Type.Optional(Type.String()),
-			limit: Type.Optional(Type.Number({ description: "Default 20; the newest are kept." })),
+			grep: Type.Optional(Type.String({ description: "Regex over body and topic. Smart case: insensitive unless the pattern has an uppercase letter." })),
+			range: Type.Optional(Type.String({ description: "Log line numbers: `50-200`, `50-`, `50+30`, `-20` (last 20). Disables the default limit." })),
+			limit: Type.Optional(Type.Number({ description: "Default 20 (unbounded with `range`); the newest are kept." })),
 		}),
 		async execute(_id, params) {
 			parseTags(params.tags); // validate early for a clean error
