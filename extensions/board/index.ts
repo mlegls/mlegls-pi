@@ -6,8 +6,9 @@
 // hears its children finish and a session hears decisions that touch its area.
 // Everything else is pull: read/list never wake anyone.
 
+import { spawnSync } from "node:child_process";
 import { basename } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { truncateHead, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { compileQuery, parseTags } from "./query";
@@ -42,7 +43,7 @@ function formatBrief(m: Numbered): string {
 	return `${formatHead(m)}  ${m.body.split("\n")[0]!.slice(0, 120)}`;
 }
 
-/** Render newest-first-priority: keep the tail within the byte budget and say how to fetch the rest. */
+/** Full render, newest kept within the byte budget; says how many older ones were cut. */
 function renderFull(messages: Numbered[]): string {
 	const parts: string[] = [];
 	let bytes = 0;
@@ -54,8 +55,22 @@ function renderFull(messages: Numbered[]): string {
 		parts.unshift(part);
 		i--;
 	}
-	if (i > 0) parts.unshift(`[${i} earlier messages omitted; range:"${messages[0]!.line}-${messages[i - 1]!.line}"]`);
+	if (i > 0) parts.unshift(`[${i} earlier messages (#${messages[0]!.line}-#${messages[i - 1]!.line}) cut for size; use mode:json with a pipe]`);
 	return parts.join("\n\n");
+}
+
+function render(messages: Numbered[], mode: "full" | "brief" | "json"): string {
+	if (mode === "json") return messages.map((m) => JSON.stringify(m)).join("\n");
+	if (mode === "brief") return messages.map(formatBrief).join("\n");
+	return renderFull(messages);
+}
+
+function pipe(text: string, command: string, cwd: string): string {
+	const r = spawnSync("bash", ["-c", command], { input: text, cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 30_000 });
+	if (r.error) throw r.error;
+	if (r.status !== 0) throw new Error(`pipe exited ${r.status}: ${r.stderr.trim()}`);
+	const t = truncateHead(r.stdout, { maxBytes: MAX_BYTES, maxLines: Number.MAX_SAFE_INTEGER });
+	return t.truncated ? `${t.content}\n[pipe output truncated: ${t.outputLines} of ${t.totalLines} lines]` : t.content;
 }
 
 function subKey(s: Subscription): string {
@@ -181,23 +196,23 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "board_read",
 		label: "Board Read",
-		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. Each message is prefixed `#n`, its log line number; `range` endpoints are line numbers, ids, or ISO timestamps. `grep` implies `brief`: one line per hit, then zoom with `range`. Full output is capped at 50KB, newest kept.",
+		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. Each message carries `line`, its position in the log (shown as `#n`). `mode` picks full (default), brief (one line each), or json (one object per line); `pipe` runs the rendered text through a bash command, e.g. `jq -c 'select(.line > 400)'` or `rg deploy`. Output is capped at 50KB.",
 		promptSnippet: "Read board messages",
 		parameters: Type.Object({
 			topic: TopicParam,
 			tags: TagsParam,
-			since: Type.Optional(Type.String()),
-			grep: Type.Optional(Type.String({ description: "Regex over body and topic. Smart case: insensitive unless the pattern has an uppercase letter." })),
-			range: Type.Optional(Type.String({ description: "`a-b`, `a-`, `a+k`, or `-k` (last k). Endpoints: line number, message id, or ISO timestamp (UTC). Disables the default limit." })),
-			brief: Type.Optional(Type.Boolean({ description: "One line per message (head + first body line)." })),
-			limit: Type.Optional(Type.Number({ description: "Default 20 (unbounded with `range`); the newest are kept." })),
+			mode: Type.Optional(Type.Union([Type.Literal("full"), Type.Literal("brief"), Type.Literal("json")], { description: "Default full." })),
+			pipe: Type.Optional(Type.String({ description: "bash command; rendered messages on stdin. Lifts the default limit." })),
+			limit: Type.Optional(Type.Number({ description: "Default 20 (unbounded with pipe); the newest are kept." })),
 		}),
 		async execute(_id, params) {
 			parseTags(params.tags); // validate early for a clean error
-			const { messages, omitted } = read(params);
-			let text = messages.length ? (params.brief || params.grep ? messages.map(formatBrief).join("\n") : renderFull(messages)) : "(no messages)";
-			if (omitted) text += `\n(+${omitted} earlier matches; raise limit or use range)`;
-			return { content: [{ type: "text", text }], details: { count: messages.length, omitted, messages } };
+			const { messages, omitted } = read({ ...params, limit: params.limit ?? (params.pipe ? Infinity : 20) });
+			let text = messages.length ? render(messages, params.mode ?? "full") : "";
+			if (params.pipe) text = pipe(text, params.pipe, cwd);
+			if (!text) text = "(no messages)";
+			if (omitted) text += `\n(+${omitted} earlier; raise limit)`;
+			return { content: [{ type: "text", text }], details: { count: messages.length, omitted, messages: params.pipe ? undefined : messages } };
 		},
 	});
 

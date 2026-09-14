@@ -16,7 +16,7 @@ afterEach(() => {
 
 const from = { session: "s1", name: "t" };
 
-test("send then read round-trips with query and since", () => {
+test("send then read round-trips with query", () => {
 	const a = send({ topic: "c/u1", tags: ["progress"], body: "half", from });
 	const b = send({ topic: "c/u1", tags: ["done"], body: "ok", data: { verdict: "ok" }, from });
 	send({ topic: "r/x", tags: ["done"], body: "other", from });
@@ -24,8 +24,6 @@ test("send then read round-trips with query and since", () => {
 	expect(read({}).messages.map((m) => m.id)).toEqual([a.id, b.id, expect.any(String)]);
 	expect(read({}).messages.map((m) => m.line)).toEqual([1, 2, 3]);
 	expect(read({ topic: "c/*", tags: "done" }).messages).toEqual([{ ...b, line: 2 }]);
-	expect(read({ topic: "c/*", since: a.id }).messages).toEqual([{ ...b, line: 2 }]);
-	expect(read({ since: b.ts }).messages).toHaveLength(1);
 	expect(read({ limit: 1 }).messages[0]!.topic).toBe("r/x");
 });
 
@@ -56,47 +54,13 @@ test("waitFor resolves on a matching message and times out otherwise", async () 
 	expect(await waitFor({ topic: "never" }, { timeoutMs: 600 })).toBeUndefined();
 });
 
-test("grep is smart-case over body and topic", () => {
-	send({ topic: "a", tags: [], body: "Deploy failed", from });
-	send({ topic: "b/deploy", tags: [], body: "fine", from });
-	send({ topic: "c", tags: [], body: "unrelated", from });
-	expect(read({ grep: "deploy" }).messages.map((m) => m.topic)).toEqual(["a", "b/deploy"]);
-	expect(read({ grep: "Deploy" }).messages.map((m) => m.topic)).toEqual(["a"]);
-	expect(read({ grep: "fail|fine" }).messages).toHaveLength(2);
-});
 
-test("range addresses log line numbers and lifts the default limit", () => {
-	for (let i = 1; i <= 30; i++) send({ topic: i % 2 ? "odd" : "even", tags: [], body: String(i), from });
-	const lines = (o: Parameters<typeof read>[0]) => read(o).messages.map((m) => m.line);
-	expect(lines({ range: "3-5" })).toEqual([3, 4, 5]);
-	expect(lines({ range: "28-" })).toEqual([28, 29, 30]);
-	expect(lines({ range: "10+2" })).toEqual([10, 11, 12]);
-	expect(lines({ range: "-3" })).toEqual([28, 29, 30]);
-	expect(lines({ range: "1-" })).toHaveLength(30);
-	expect(lines({ range: "1-10", topic: "odd" })).toEqual([1, 3, 5, 7, 9]);
-	expect(lines({ range: "1-", limit: 2 })).toEqual([29, 30]);
-	expect(() => read({ range: "x" })).toThrow(/bad range/);
-});
 
 test("query reports what the limit dropped", () => {
 	for (let i = 0; i < 5; i++) send({ topic: "t", tags: [], body: String(i), from });
 	const { messages, omitted } = read({ limit: 2 });
 	expect(messages.map((m) => m.body)).toEqual(["3", "4"]);
 	expect(omitted).toBe(3);
-	expect(read({ range: "1-" }).omitted).toBe(0);
+	expect(read({ limit: Infinity }).omitted).toBe(0);
 });
 
-test("range endpoints may be ids or ISO timestamps", () => {
-	const ms: ReturnType<typeof send>[] = [];
-	for (let i = 1; i <= 6; i++) ms.push(send({ topic: "t", tags: [], body: String(i), from }));
-	const lines = (range: string) => read({ range }).messages.map((m) => m.line);
-	expect(lines(`${ms[1]!.id}-${ms[3]!.id}`)).toEqual([2, 3, 4]);
-	expect(lines(`${ms[4]!.id}-`)).toEqual([5, 6]);
-	expect(lines(`${ms[1]!.id}+1`)).toEqual([2, 3]);
-	expect(lines(`${ms[2]!.ts}-`)).toEqual([3, 4, 5, 6]);
-	expect(lines(`${ms[1]!.ts}-${ms[2]!.ts}`)).toEqual([2, 3]);
-	expect(lines(`2-${ms[4]!.ts}`)).toEqual([2, 3, 4, 5]);
-	expect(lines(`${ms[2]!.ts.slice(0, 10)}-`)).toEqual([1, 2, 3, 4, 5, 6]); // date-only snaps to midnight
-	expect(lines("2999-01-01T00:00:00Z-")).toEqual([]);
-	expect(() => read({ range: "zzzz-zzzzzz-" })).toThrow(/no message/);
-});
