@@ -13,7 +13,7 @@
 //
 // CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status|agents ...
 
-import { $ } from "bun";
+import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
@@ -38,6 +38,22 @@ const TERMINAL = ["done", "blocked", "needs-input"] as const;
 const IDLE_GRACE_MS = 8_000;
 const POLL_MS = 1_000;
 const SHELLS = new Set(["zsh", "bash", "fish", "sh", "nu"]);
+
+interface Result {
+	exitCode: number;
+	stdout: string;
+	stderr: string;
+}
+
+/** Run a command without a shell; never throws, the exit code says. */
+function sh(cmd: string, args: string[], cwd?: string): Promise<Result> {
+	return new Promise((res) => {
+		execFile(cmd, args, { cwd, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+			const code = err && "code" in err && typeof err.code === "number" ? err.code : err ? 1 : 0;
+			res({ exitCode: code, stdout: String(stdout), stderr: String(stderr) });
+		});
+	});
+}
 
 export const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
 
@@ -91,26 +107,26 @@ interface StatusEntry {
 }
 
 async function workmuxStatus(cwd: string): Promise<StatusEntry[]> {
-	const out = await $`workmux status --json`.cwd(cwd).quiet().nothrow();
+	const out = await sh("workmux", ["status", "--json"], cwd);
 	if (out.exitCode !== 0) return [];
 	try {
-		return JSON.parse(out.stdout.toString()).agents ?? [];
+		return JSON.parse(out.stdout).agents ?? [];
 	} catch {
 		return [];
 	}
 }
 
 async function livePanes(): Promise<Map<string, string>> {
-	const out = await $`tmux list-panes -a -F "#{pane_id} #{pane_current_command}"`.quiet().nothrow();
+	const out = await sh("tmux", ["list-panes", "-a", "-F", "#{pane_id} #{pane_current_command}"]);
 	const map = new Map<string, string>();
-	for (const line of out.stdout.toString().split("\n")) {
+	for (const line of out.stdout.split("\n")) {
 		const [id, cmd] = line.split(" ");
 		if (id) map.set(id, cmd ?? "");
 	}
 	return map;
 }
 
-/** One poller per process: board cursor + workmux status, fanned out to workers. */
+/** One poller per process: board cursor + workmux status, fanned out to workers. Ticks only while some worker is awaited. */
 class Poller {
 	private workers = new Set<Worker>();
 	private cursor = logSize();
@@ -119,13 +135,13 @@ class Poller {
 
 	add(w: Worker) {
 		this.workers.add(w);
-		this.schedule();
 	}
 	remove(w: Worker) {
 		this.workers.delete(w);
 	}
-	private schedule() {
-		if (this.timer || this.workers.size === 0) return;
+	/** @internal called when a worker gains a waiter or listener */
+	schedule() {
+		if (this.timer || ![...this.workers].some((w) => w.awaited)) return;
 		this.timer = setTimeout(() => {
 			this.timer = undefined;
 			void this.tick().finally(() => this.schedule());
@@ -163,6 +179,10 @@ export class Worker {
 	paneId?: string;
 	private listeners = new Set<(o: Outcome) => void>();
 	private waiters: Array<(o: Outcome) => void> = [];
+	/** @internal */
+	get awaited() {
+		return this.waiters.length > 0 || this.listeners.size > 0;
+	}
 	private ended?: Outcome;
 	private idleSince?: number;
 	private reportedAfterIdle = false;
@@ -230,7 +250,10 @@ export class Worker {
 	/** Next event of any kind. After exit, always the exit outcome. */
 	next(): Promise<Outcome> {
 		if (this.ended) return Promise.resolve(this.ended);
-		return new Promise((resolve) => this.waiters.push(resolve));
+		return new Promise((resolve) => {
+			this.waiters.push(resolve);
+			poller.schedule();
+		});
 	}
 
 	/** Every event, as a fresh iterator per access. Ends after `exited`. */
@@ -242,6 +265,7 @@ export class Worker {
 			wake?.();
 		};
 		this.listeners.add(listener);
+		poller.schedule();
 		const self = this;
 		return (async function* () {
 			try {
@@ -275,18 +299,19 @@ export class Worker {
 	async send(text: string) {
 		this.idleSince = undefined;
 		this.reportedAfterIdle = false;
-		await $`workmux send ${this.handle} ${text}`.cwd(this.cwd).quiet();
+		const r = await sh("workmux", ["send", this.handle, text], this.cwd);
+		if (r.exitCode !== 0) throw new Error(`workmux send ${this.handle} failed:\n${r.stderr || r.stdout}`);
 	}
 
 	async capture(lines = 50): Promise<string> {
 		if (!this.paneId) return "";
-		const out = await $`tmux capture-pane -p -t ${this.paneId}`.quiet().nothrow();
-		const all = out.stdout.toString().replace(/\s+$/, "").split("\n");
+		const out = await sh("tmux", ["capture-pane", "-p", "-t", this.paneId]);
+		const all = out.stdout.replace(/\s+$/, "").split("\n");
 		return all.slice(-lines).join("\n");
 	}
 
 	async exec(cmd: string[]) {
-		return await $`workmux run ${this.handle} -- ${cmd}`.cwd(this.cwd).nothrow();
+		return await sh("workmux", ["run", this.handle, "--", ...cmd], this.cwd);
 	}
 
 	async status(): Promise<string | undefined> {
@@ -297,7 +322,7 @@ export class Worker {
 	async close(keepBranch = false) {
 		poller.remove(this);
 		this.ended ??= { kind: "exited", tail: "" };
-		await $`workmux rm ${this.handle} -f ${keepBranch ? ["-k"] : []}`.cwd(this.cwd).quiet().nothrow();
+		await sh("workmux", ["rm", this.handle, "-f", ...(keepBranch ? ["-k"] : [])], this.cwd);
 	}
 
 	toJSON() {
@@ -318,15 +343,18 @@ export class MergeConflict extends Error {
 }
 
 async function ensureSession(name: string, cwd: string) {
-	const has = await $`tmux has-session -t ${name}`.quiet().nothrow();
-	if (has.exitCode !== 0) await $`tmux new-session -d -s ${name} -c ${cwd}`.quiet();
+	const has = await sh("tmux", ["has-session", "-t", name]);
+	if (has.exitCode !== 0) {
+		const r = await sh("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
+		if (r.exitCode !== 0) throw new Error(`tmux new-session ${name} failed:\n${r.stderr}`);
+	}
 }
 
 /** Workers write scratch under `.wm/<handle>/`; keep it out of every worktree's status without touching .gitignore. */
 async function excludeWm(cwd: string) {
-	const r = await $`git rev-parse --git-common-dir`.cwd(cwd).quiet().nothrow();
+	const r = await sh("git", ["rev-parse", "--git-common-dir"], cwd);
 	if (r.exitCode !== 0) return;
-	const file = resolve(cwd, r.stdout.toString().trim(), "info", "exclude");
+	const file = resolve(cwd, r.stdout.trim(), "info", "exclude");
 	const cur = existsSync(file) ? readFileSync(file, "utf8") : "";
 	if (cur.split("\n").includes(".wm/")) return;
 	const { mkdirSync, appendFileSync } = await import("node:fs");
@@ -345,21 +373,21 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	// The board extension reads these: the worker's sender name, and the topic it starts subscribed to.
 	if (cmd) args.push("-a", `PI_BOARD_NAME=${o.handle} PI_BOARD_TOPIC=${o.run}/${o.handle} ${cmd}`);
 	if (o.base) args.push("--base", o.base);
-	const out = await $`workmux ${args}`.cwd(cwd).quiet().nothrow();
-	if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr.toString() || out.stdout.toString()}`);
-	const dir = /Worktree:\s+(\S+)/.exec(out.stdout.toString())?.[1] ?? resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle);
+	const out = await sh("workmux", args, cwd);
+	if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr || out.stdout}`);
+	const dir = /Worktree:\s+(\S+)/.exec(out.stdout)?.[1] ?? resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle);
 	return new Worker(o.run, o.handle, cwd, session, dir);
 }
 
 /** Merge the worker's branch into `into` (default: current branch of cwd) with plain git. */
 export async function merge(w: Worker, opts: { into?: string; mode?: "merge" | "rebase" } = {}) {
 	const mode = opts.mode ?? "merge";
-	const git = (...a: string[]) => $`git ${a}`.cwd(w.cwd).quiet().nothrow();
+	const git = (...a: string[]) => sh("git", a, w.cwd);
 	if (opts.into) await git("checkout", opts.into);
 	if (mode === "rebase") {
-		const r = await $`git rebase ${opts.into ?? "HEAD"}`.cwd(w.dir).quiet().nothrow();
+		const r = await sh("git", ["rebase", opts.into ?? "HEAD"], w.dir);
 		if (r.exitCode !== 0) {
-			await $`git rebase --abort`.cwd(w.dir).quiet().nothrow();
+			await sh("git", ["rebase", "--abort"], w.dir);
 			throw new MergeConflict(w, await conflictedFiles(w.dir));
 		}
 		const ff = await git("merge", "--ff-only", w.branch);
@@ -375,8 +403,8 @@ export async function merge(w: Worker, opts: { into?: string; mode?: "merge" | "
 }
 
 async function conflictedFiles(dir: string): Promise<string[]> {
-	const out = await $`git diff --name-only --diff-filter=U`.cwd(dir).quiet().nothrow();
-	return out.stdout.toString().split("\n").filter(Boolean);
+	const out = await sh("git", ["diff", "--name-only", "--diff-filter=U"], dir);
+	return out.stdout.split("\n").filter(Boolean);
 }
 
 if (import.meta.main) {
@@ -396,7 +424,7 @@ if (import.meta.main) {
 	switch (cmd) {
 		case "spawn": {
 			const promptFile = opt("prompt-file");
-			const prompt = promptFile ? await Bun.file(promptFile).text() : need(opt("prompt"), "prompt");
+			const prompt = promptFile ? readFileSync(promptFile, "utf8") : need(opt("prompt"), "prompt");
 			const w = await spawn({ run: need(opt("run"), "run"), handle: need(pos[0], "handle"), prompt, agent: opt("agent"), base: opt("base"), session: opt("session") });
 			print(w);
 			process.exit(0);
