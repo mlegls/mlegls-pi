@@ -1,6 +1,7 @@
 // wm: spawn interactive pi workers in workmux worktrees and hear back through the board.
 //
-// A worker is one workmux worktree + tmux window running pi. Its `handle` is the
+// A worker is one workmux worktree + tmux window running an agent (an AGENTS_DIR/<name>.md
+// with a `runCommand`, or a raw command). Its `handle` is the
 // branch, the worktree dir, the window, and the board sender name; it reports on
 // board topic `<run>/<handle>` with tags done | blocked | needs-input. The tmux
 // session is named after the run, so every worker of a run sits in one session.
@@ -10,10 +11,12 @@
 //   for await (const o of w.events) { ... }        // every event, incl. blocked/idle
 //   await merge(w); await w.close();
 //
-// CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status ...
+// CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status|agents ...
 
 import { $ } from "bun";
-import { basename, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, join, resolve } from "node:path";
 import { logSize, readFrom, type Message } from "../extensions/board/store";
 
 export type Outcome =
@@ -25,7 +28,7 @@ export interface SpawnOptions {
 	run: string; // board topic prefix, e.g. compile/1726 or orch/rework-auth
 	handle: string;
 	prompt: string;
-	agent?: string; // workmux agent name
+	agent?: string; // name of an agent file in AGENTS_DIR, else a raw command for workmux -a
 	base?: string; // git ref to branch from
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // tmux session; default slug of run
@@ -36,16 +39,37 @@ const IDLE_GRACE_MS = 8_000;
 const POLL_MS = 1_000;
 const SHELLS = new Set(["zsh", "bash", "fish", "sh", "nu"]);
 
-export function contract(run: string, handle: string): string {
-	return [
-		"",
-		"---",
-		`Report on board topic \`${run}/${handle}\` with board_send:`,
-		"- tag `done` when finished (put any requested structured result in `data`);",
-		"- tag `blocked` if you cannot proceed, then stop;",
-		"- tag `needs-input` if you need a decision from the caller, then stop and wait for a follow-up.",
-		"Only these three tags end a wait; progress notes may use other tags.",
-	].join("\n");
+export const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
+
+export interface Agent {
+	name: string;
+	runCommand?: string;
+	body: string;
+}
+
+/** Parse `AGENTS_DIR/<name>.md`: yaml-ish frontmatter (flat `key: value`) + body. */
+export function agent(name: string): Agent | undefined {
+	const file = join(AGENTS_DIR, `${name}.md`);
+	if (!existsSync(file)) return undefined;
+	const text = readFileSync(file, "utf8");
+	const m = /^---\n([\s\S]*?)\n---\n?/.exec(text);
+	const fm: Record<string, string> = {};
+	for (const line of m?.[1].split("\n") ?? []) {
+		const i = line.indexOf(":");
+		if (i > 0) fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+	}
+	return { name, runCommand: fm.runCommand, body: (m ? text.slice(m[0].length) : text).trim() };
+}
+
+/** The board/reporting preamble every worker gets: `AGENTS_DIR/_common.md` with {{run}} {{handle}} {{topic}} filled. */
+export function common(run: string, handle: string): string {
+	const file = join(AGENTS_DIR, "_common.md");
+	const text = existsSync(file) ? readFileSync(file, "utf8") : "report on board topic {{topic}}: tag done, blocked, or needs-input.";
+	return text.replaceAll("{{run}}", run).replaceAll("{{handle}}", handle).replaceAll("{{topic}}", `${run}/${handle}`).trim();
+}
+
+export function prompt(o: { run: string; handle: string; prompt: string; agent?: Agent }): string {
+	return [o.agent?.body, o.prompt, common(o.run, o.handle)].filter(Boolean).join("\n\n---\n\n");
 }
 
 function slug(s: string): string {
@@ -298,8 +322,10 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const cwd = resolve(o.cwd ?? process.cwd());
 	const session = o.session ?? slug(o.run);
 	await ensureSession(session, cwd);
-	const args = ["add", o.handle, "-b", "--parent-session", session, "-p", o.prompt + contract(o.run, o.handle)];
-	if (o.agent) args.push("-a", o.agent);
+	const a = o.agent ? agent(o.agent) : undefined;
+	const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
+	const cmd = a ? a.runCommand : o.agent;
+	if (cmd) args.push("-a", cmd);
 	if (o.base) args.push("--base", o.base);
 	const out = await $`workmux ${args}`.cwd(cwd).quiet().nothrow();
 	if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr.toString() || out.stdout.toString()}`);
@@ -387,8 +413,13 @@ if (import.meta.main) {
 			print(await workmuxStatus(process.cwd()));
 			process.exit(0);
 		}
+		case "agents": {
+			const { readdirSync } = await import("node:fs");
+			for (const f of readdirSync(AGENTS_DIR)) if (f.endsWith(".md") && !f.startsWith("_")) console.log(f.slice(0, -3));
+			process.exit(0);
+		}
 		default:
-			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) [--agent A] [--base B]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status");
+			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) [--agent A] [--base B]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status | agents");
 			process.exit(2);
 	}
 }
