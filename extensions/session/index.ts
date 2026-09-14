@@ -233,7 +233,7 @@ export default function (pi: ExtensionAPI) {
 		promptGuidelines: [
 			"Use session for long-running or interactive terminal processes; use bash for short commands that exit normally.",
 			"Use session send for normal text and session send_raw only for control or navigation keys.",
-			"Use notifyOnExit or notifyOnOutput when a spawned terminal should wake the agent later without blocking the current turn.",
+			"Use session notifyOnExit or notifyOnOutput only when continuing unrelated work. When waiting for readiness or completion in the current task, use session view/wait instead; notifications queue a follow-up turn and may arrive after the terminal is stopped.",
 			"Use session wait to watch several terminals concurrently instead of polling them one by one.",
 		],
 		parameters: Parameters,
