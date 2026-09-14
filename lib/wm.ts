@@ -106,7 +106,7 @@ interface StatusEntry {
 	updated_ts: number;
 }
 
-async function workmuxStatus(cwd: string): Promise<StatusEntry[]> {
+export async function workmuxStatus(cwd: string): Promise<StatusEntry[]> {
 	const out = await sh("workmux", ["status", "--json"], cwd);
 	if (out.exitCode !== 0) return [];
 	try {
@@ -379,6 +379,11 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	return new Worker(o.run, o.handle, cwd, session, dir);
 }
 
+/** A Worker for a handle spawned elsewhere (another process, or before a resume). Assumes workmux's default worktree layout. */
+export function attach(run: string, handle: string, cwd = process.cwd(), session = slug(run)): Worker {
+	return new Worker(run, handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, handle));
+}
+
 /** Merge the worker's branch into `into` (default: current branch of cwd) with plain git. */
 export async function merge(w: Worker, opts: { into?: string; mode?: "merge" | "rebase" } = {}) {
 	const mode = opts.mode ?? "merge";
@@ -418,8 +423,7 @@ if (import.meta.main) {
 		if (!v) throw new Error(`--${n} required`);
 		return v;
 	};
-	const attach = (run: string, handle: string) =>
-		new Worker(run, handle, process.cwd(), opt("session") ?? slug(run), resolve(process.cwd(), "..", `${basename(process.cwd())}__worktrees`, handle));
+	const at = (run: string, handle: string) => attach(run, handle, process.cwd(), opt("session"));
 	const print = (v: unknown) => console.log(JSON.stringify(v, null, 2));
 	switch (cmd) {
 		case "spawn": {
@@ -431,28 +435,28 @@ if (import.meta.main) {
 		}
 		case "next":
 		case "done": {
-			const w = attach(need(opt("run"), "run"), need(pos[0], "handle"));
+			const w = at(need(opt("run"), "run"), need(pos[0], "handle"));
 			print(cmd === "next" ? await w.next() : await w.done);
 			process.exit(0);
 		}
 		case "send": {
-			const w = attach(need(opt("run"), "run"), need(pos[0], "handle"));
+			const w = at(need(opt("run"), "run"), need(pos[0], "handle"));
 			await w.send(need(pos[1], "text"));
 			process.exit(0);
 		}
 		case "capture": {
-			const w = attach(need(opt("run"), "run"), need(pos[0], "handle"));
+			const w = at(need(opt("run"), "run"), need(pos[0], "handle"));
 			await w.observe((await workmuxStatus(w.cwd)).find((e) => e.worktree === w.handle), await livePanes());
 			console.log(await w.capture(Number(opt("lines") ?? 50)));
 			process.exit(0);
 		}
 		case "merge": {
-			const w = attach(need(opt("run"), "run"), need(pos[0], "handle"));
+			const w = at(need(opt("run"), "run"), need(pos[0], "handle"));
 			await merge(w, { into: opt("into"), mode: opt("mode") as "merge" | "rebase" | undefined });
 			process.exit(0);
 		}
 		case "close": {
-			await attach(need(opt("run"), "run"), need(pos[0], "handle")).close(rest.includes("--keep-branch"));
+			await at(need(opt("run"), "run"), need(pos[0], "handle")).close(rest.includes("--keep-branch"));
 			process.exit(0);
 		}
 		case "status": {
