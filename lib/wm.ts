@@ -64,12 +64,16 @@ export function agent(name: string): Agent | undefined {
 /** The board/reporting preamble every worker gets: `AGENTS_DIR/_common.md` with {{run}} {{handle}} {{topic}} filled. */
 export function common(run: string, handle: string): string {
 	const file = join(AGENTS_DIR, "_common.md");
-	const text = existsSync(file) ? readFileSync(file, "utf8") : "report on board topic {{topic}}: tag done, blocked, or needs-input.";
+	return fill(existsSync(file) ? readFileSync(file, "utf8") : "report on board topic {{topic}}: tag done, blocked, or needs-input.", run, handle);
+}
+
+/** {{run}} {{handle}} {{topic}} in agent bodies and _common. */
+function fill(text: string, run: string, handle: string): string {
 	return text.replaceAll("{{run}}", run).replaceAll("{{handle}}", handle).replaceAll("{{topic}}", `${run}/${handle}`).trim();
 }
 
 export function prompt(o: { run: string; handle: string; prompt: string; agent?: Agent }): string {
-	return [o.agent?.body, o.prompt, common(o.run, o.handle)].filter(Boolean).join("\n\n---\n\n");
+	return [o.agent && fill(o.agent.body, o.run, o.handle), o.prompt, common(o.run, o.handle)].filter(Boolean).join("\n\n---\n\n");
 }
 
 function slug(s: string): string {
