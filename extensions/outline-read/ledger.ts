@@ -1,5 +1,7 @@
 /**
  * Per-session anchor ledger: for each file, the anchored lines as last seen.
+ * Anchors are unique across every file in the session, so one names a line
+ * of the codebase without a path.
  * Syncing against the current file keeps anchors for unchanged lines (by
  * line diff), allocates fresh ones for new lines, and frees the rest.
  * Persisted as session entries holding anchors plus a content hash, so a
@@ -16,7 +18,6 @@ export interface AnchoredLine {
 
 export interface FileLedger {
 	lines: AnchoredLine[];
-	taken: Set<string>;
 }
 
 export interface LedgerEntry {
@@ -31,12 +32,29 @@ export function contentHash(lines: string[]): string {
 
 export class Ledger {
 	private files = new Map<string, FileLedger>();
+	/** Anchors in use across all files. */
+	private taken = new Set<string>();
 	/** Entries restored from the session, applied lazily on first sync. */
 	private pending = new Map<string, LedgerEntry>();
 
 	reset(): void {
 		this.files.clear();
+		this.taken.clear();
 		this.pending.clear();
+	}
+
+	/** File and 0-indexed position of an anchor, in any synced file. */
+	find(anchor: string): { path: string; index: number } | undefined {
+		for (const [path, ledger] of this.files) {
+			const index = ledger.lines.findIndex((line) => line.anchor === anchor);
+			if (index >= 0) return { path, index };
+		}
+		return undefined;
+	}
+
+	/** Paths with restored-but-unsynced anchors. */
+	pendingPaths(): string[] {
+		return [...this.pending.keys()];
 	}
 
 	restore(entry: LedgerEntry): void {
@@ -61,15 +79,19 @@ export class Ledger {
 		const pending = this.pending.get(path);
 		if (!ledger && pending) {
 			this.pending.delete(path);
-			if (pending.hash === contentHash(current) && pending.anchors.length === current.length) {
-				ledger = { lines: current.map((text, i) => ({ anchor: pending.anchors[i], text })), taken: new Set(pending.anchors) };
+			if (
+				pending.hash === contentHash(current) &&
+				pending.anchors.length === current.length &&
+				!pending.anchors.some((a) => this.taken.has(a))
+			) {
+				for (const a of pending.anchors) this.taken.add(a);
+				ledger = { lines: current.map((text, i) => ({ anchor: pending.anchors[i], text })) };
 				this.files.set(path, ledger);
 				return { ledger, changed: false, fresh: [] };
 			}
 		}
 		if (!ledger) {
-			const taken = new Set<string>();
-			ledger = { lines: current.map((text) => ({ anchor: allocateAnchor(text, taken), text })), taken };
+			ledger = { lines: current.map((text) => ({ anchor: allocateAnchor(text, this.taken), text })) };
 			this.files.set(path, ledger);
 			return { ledger, changed: true, fresh: current.map((_, i) => i) };
 		}
@@ -82,12 +104,12 @@ export class Ledger {
 		let index = 0;
 		for (const part of diffArrays(previous, current)) {
 			if (part.removed) {
-				for (const line of ledger.lines.slice(index, index + part.value.length)) ledger.taken.delete(line.anchor);
+				for (const line of ledger.lines.slice(index, index + part.value.length)) this.taken.delete(line.anchor);
 				index += part.value.length;
 			} else if (part.added) {
 				for (const text of part.value) {
 					fresh.push(next.length);
-					next.push({ anchor: allocateAnchor(text, ledger.taken), text });
+					next.push({ anchor: allocateAnchor(text, this.taken), text });
 				}
 			} else {
 				next.push(...ledger.lines.slice(index, index + part.value.length));

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { allocateAnchor, isAnchor, stripPastedPrefix } from "./anchors";
-import { registerEditTool } from "./edit";
+import { parseHunks, registerEditTool } from "./edit";
 import { Ledger } from "./ledger";
 import { registerReadTool } from "./read";
 
@@ -24,14 +24,17 @@ describe("anchors", () => {
 });
 
 describe("ledger", () => {
-	test("unchanged lines keep anchors across edits; removed anchors are freed", () => {
+	test("unchanged lines keep anchors across edits; removed anchors are freed; unique across files", () => {
 		const ledger = new Ledger();
 		const first = ledger.sync("/f", ["a", "b", "c"]).ledger.lines.map((l) => l.anchor);
+		const other = ledger.sync("/g", ["a", "b"]).ledger.lines.map((l) => l.anchor);
+		expect(new Set([...first, ...other]).size).toBe(5);
+		expect(ledger.find(other[1])).toEqual({ path: "/g", index: 1 });
 		const { ledger: after, fresh } = ledger.sync("/f", ["a", "new", "c", "d"]);
 		expect(after.lines.map((l) => l.anchor)[0]).toBe(first[0]);
 		expect(after.lines.map((l) => l.anchor)[2]).toBe(first[2]);
 		expect(fresh).toEqual([1, 3]);
-		expect(after.taken.has(first[1])).toBe(false);
+		expect(ledger.find(first[1])).toBeUndefined();
 	});
 	test("restore from entry only when content hash matches", () => {
 		const ledger = new Ledger();
@@ -43,6 +46,28 @@ describe("ledger", () => {
 		const stale = new Ledger();
 		stale.restore(entry);
 		expect(stale.sync("/f", ["x", "z"]).changed).toBe(true);
+	});
+});
+
+describe("parseHunks", () => {
+	const known = (a: string) => ["aaaa", "bbbb", "cccc"].includes(a);
+	test("forms", () => {
+		expect(parseHunks("aaaa\nx", known)).toEqual([{ header: "aaaa", from: "aaaa", mode: "replace", lines: ["x"] }]);
+		expect(parseHunks("aaaa bbbb\nx\ny", known)[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x", "y"] });
+		expect(parseHunks("aaaa\nbbbb\nx", known)[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x"] });
+		expect(parseHunks("aaaa+\nx", known)[0]).toMatchObject({ mode: "after" });
+		expect(parseHunks("+aaaa\nx", known)[0]).toMatchObject({ mode: "before" });
+		expect(parseHunks("aaaa│old text\nx", known)[0]).toMatchObject({ from: "aaaa", lines: ["x"] });
+	});
+	test("blank lines: separator before a header, content otherwise; empty body deletes", () => {
+		const h = parseHunks("aaaa\n\nbbbb\nx\n\nnot a header\n\ncccc+\ny\n", known);
+		expect(h.map((x) => x.header)).toEqual(["aaaa", "bbbb", "cccc+"]);
+		expect(h[0].lines).toEqual([]);
+		expect(h[1].lines).toEqual(["x", "", "not a header"]);
+	});
+	test("unknown words are text", () => {
+		expect(parseHunks("aaaa\nzzzz\n\nzzzz", known)[0].lines).toEqual(["zzzz", "", "zzzz"]);
+		expect(() => parseHunks("zzzz\nx", known)).toThrow(/not a hunk header/);
 	});
 });
 
@@ -63,16 +88,16 @@ describe("edit tool", () => {
 			const r = await tools.read.execute("r", { path }, undefined, undefined, ctx);
 			return r.content[0].text.split("\n").slice(1).map((l: string) => l.slice(0, 4));
 		};
-		const edit = (edits: any[]) => tools.edit.execute("e", { path: "f.ts", edits }, undefined, undefined, ctx);
-		return { file, read, edit, persisted };
+		const edit = (edits: string) => tools.edit.execute("e", { edits }, undefined, undefined, ctx);
+		return { dir, file, read, edit, persisted };
 	};
 
 	test("replace, insert, and anchors surviving earlier edits", async () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
-		await edit([{ from: rows[5], lines: ["  return 22;", "  // more"] }, { after: rows[2], lines: ["", "const X = 1;"] }]);
+		await edit(`${rows[5]}\n  return 22;\n  // more\n\n${rows[2]}+\n\nconst X = 1;`);
 		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 1;\n}\n\nconst X = 1;\n\nfunction b() {\n  return 22;\n  // more\n}\n");
-		const r = await edit([{ from: rows[1], lines: ["  return 11;"] }]);
+		const r = await edit(`${rows[1]}\n  return 11;`);
 		expect(r.content[0].text).toContain("-  return 1;");
 		expect(readFileSync(file, "utf8")).toContain("  return 11;\n}");
 	});
@@ -80,19 +105,33 @@ describe("edit tool", () => {
 	test("delete and no-op", async () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
-		await edit([{ from: rows[3], to: rows[6], lines: [] }]);
+		await edit(`${rows[3]} ${rows[6]}`);
 		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 1;\n}\n");
-		const r = await edit([{ from: rows[1], lines: ["  return 1;"] }]);
-		expect(r.content[0].text).toStartWith("No changes");
+		const r = await edit(`${rows[1]}\n  return 1;`);
+		expect(r.content[0].text).toContain("no changes");
 	});
 
-	test("rejects unread files, unknown anchors, overlaps; strips pasted prefixes", async () => {
+	test("two files in one call", async () => {
+		const { dir, file, read, edit } = setup();
+		writeFileSync(join(dir, "g.ts"), "const g = 1;\n");
+		const f = await read();
+		const g = await read("g.ts");
+		const r = await edit(`${g[0]}\nconst g = 2;\n\n${f[1]}\n  return g;`);
+		expect(r.content[0].text).toContain("g.ts: 1 edit");
+		expect(r.content[0].text).toContain("f.ts: 1 edit");
+		expect(readFileSync(join(dir, "g.ts"), "utf8")).toBe("const g = 2;\n");
+		expect(readFileSync(file, "utf8")).toContain("  return g;");
+		const g2 = await read("g.ts");
+		await expect(edit(`${f[0]} ${g2[0]}`)).rejects.toThrow(/different files/);
+	});
+
+	test("rejects unknown anchors, overlaps, empty inserts; strips pasted prefixes", async () => {
 		const { file, read, edit } = setup();
-		await expect(edit([{ from: "abcd", lines: [] }])).rejects.toThrow(/Read it first/);
+		await expect(edit("abcd\nx")).rejects.toThrow(/not a hunk header/);
 		const rows = await read();
-		await expect(edit([{ from: "zzzz", lines: [] }])).rejects.toThrow(/Unknown anchors: zzzz/);
-		await expect(edit([{ from: rows[0], to: rows[2], lines: [] }, { from: rows[1], lines: [] }])).rejects.toThrow(/overlap/);
-		await edit([{ from: rows[1], lines: [`${rows[1]}│  return 3;`] }]);
+		await expect(edit(`${rows[0]} ${rows[2]}\n\n${rows[1]}`)).rejects.toThrow(/overlap/);
+		await expect(edit(`${rows[1]}+`)).rejects.toThrow(/nothing to insert/);
+		await edit(`${rows[1]}\n${rows[1]}│  return 3;`);
 		expect(readFileSync(file, "utf8")).toContain("  return 3;");
 	});
 
@@ -100,11 +139,9 @@ describe("edit tool", () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
 		writeFileSync(file, readFileSync(file, "utf8").replace("return 2", "return 9"));
-		const r = await edit([{ from: rows[1], lines: ["  return 0;"] }]);
+		const r = await edit(`${rows[1]}\n  return 0;`);
 		expect(r.content[0].text).toContain("File changed on disk");
-		await expect(edit([{ from: rows[5], lines: ["x"] }])).rejects.toThrow(/Unknown anchors: [a-z2-9]{4}\./);
-		writeFileSync(file, readFileSync(file, "utf8").replace("return 9", "return 8"));
-		await expect(edit([{ from: rows[5], lines: ["x"] }])).rejects.toThrow(/current anchors:\n[a-z2-9]{4}│  return 8;/);
-		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 0;\n}\n\nfunction b() {\n  return 8;\n}\n");
+		await expect(edit(`${rows[5]}\nx`)).rejects.toThrow(/not a hunk header/);
+		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 0;\n}\n\nfunction b() {\n  return 9;\n}\n");
 	});
 });

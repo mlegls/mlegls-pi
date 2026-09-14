@@ -6,8 +6,9 @@ Overrides pi's `read`, `edit`, and `grep`.
   headings are shown, bodies are replaced by `⋯ start-end` markers, and the
   model reads the ranges it needs with a selector on the path.
 - Every served line is prefixed with a 4-character anchor (`abcd│text`).
-  `edit` addresses lines by anchor. Anchors stay valid across edits made in
-  the session and across resume; a line that changes on disk gets a new one.
+  `edit` addresses lines by anchor, without a path: anchors are unique across
+  files. They stay valid across edits made in the session and across resume;
+  a line that changes on disk gets a new one.
 
 - `grep` groups matches by file and enclosing definition or heading, and
   every shown line carries its anchor, so grep → edit needs no read.
@@ -31,19 +32,33 @@ A literal filename containing `:` wins over the selector reading when it exists.
 
 ## Edit
 
-```json
-{ "path": "src/a.ts", "edits": [
-  { "from": "k7pd", "to": "m2xa", "lines": ["replacement", "lines"] },
-  { "from": "q9rt", "lines": [] },
-  { "after": "b4nn", "lines": ["inserted after b4nn"] },
-  { "before": "b4nn", "lines": ["inserted before b4nn"] }
-] }
+One string, hunks separated by a blank line; a hunk is a header of anchors
+then the new lines. Anchors are unique across the session's files, so there
+is no path and one call can touch several files.
+
+```
+k7pd m2xa
+replacement
+lines
+
+q9rt
+
+b4nn+
+inserted after b4nn
+
++b4nn
+inserted before b4nn
 ```
 
-Entries apply together against the file as last read and must not overlap.
-Unknown anchors reject the whole call; if the file changed on disk, the
-changed lines are returned with their current anchors so the retry needs no
-read. Pasted `abcd│` prefixes in `lines` are stripped with a warning.
+`abcd` replaces one line, `abcd wxyz` a range (the end anchor may also stand
+alone on the next line), an empty body deletes. A pasted read row
+(`abcd│text`) works as a header. A blank line inside a body is content unless
+the line after it is a header of known anchors.
+
+Hunks apply together per file and must not overlap. Unknown anchors reject
+the whole call; if a file changed on disk, the changed lines are returned
+with their current anchors so the retry needs no read. Pasted `abcd│`
+prefixes in body lines are stripped with a warning.
 
 ## Grep
 

@@ -31,7 +31,7 @@ describe("grep", () => {
 		expect(text).toContain("f.ts\n  A.m (2-4)\n");
 		expect(text).toContain("\n  g (7-9)\n");
 		const anchor = text.match(/>\s+3 ([a-z2-9]{4})│/)![1];
-		await tools.edit.execute("e", { path: "f.ts", edits: [{ from: anchor, lines: ["    return this.y;"] }] }, undefined, undefined, ctx);
+		await tools.edit.execute("e", { edits: `${anchor}\n    return this.y;` }, undefined, undefined, ctx);
 		expect(readFileSync(file, "utf8")).toContain("  m() {\n    return this.y;\n  }");
 		const none = await tools.grep.execute("g", { pattern: "nothing-here" }, undefined, undefined, ctx);
 		expect(none.content[0].text).toBe("No matches found");
