@@ -1,5 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
-import { extname, resolve } from "node:path";
+import { basename, extname, resolve } from "node:path";
 import { createReadToolDefinition, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { loadConfig, type OutlineReadConfig } from "./config";
@@ -104,6 +104,8 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 
 			const info = await stat(absolutePath).catch(() => null);
 			if (!info?.isFile() || IMAGE_EXTENSIONS.has(extname(absolutePath).toLowerCase())) return builtin();
+			// Skill loaders post-process the read result (dynamic shell placeholders, refs); anchors would corrupt it.
+			if (basename(absolutePath) === "SKILL.md") return builtin();
 			const raw = await readFile(absolutePath, "utf8");
 			if (raw.includes("\0")) return builtin();
 

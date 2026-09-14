@@ -432,7 +432,11 @@ if (import.meta.main) {
 		}
 		case "agents": {
 			const { readdirSync } = await import("node:fs");
-			for (const f of readdirSync(AGENTS_DIR)) if (f.endsWith(".md") && !f.startsWith("_")) console.log(f.slice(0, -3));
+			for (const f of readdirSync(AGENTS_DIR).sort()) {
+				if (!f.endsWith(".md") || f.startsWith("_")) continue;
+				const d = /^description:\s*(.*)$/m.exec(readFileSync(join(AGENTS_DIR, f), "utf8"))?.[1] ?? "";
+				console.log(`- \`${f.slice(0, -3)}\`: ${d}`);
+			}
 			process.exit(0);
 		}
 		default:
