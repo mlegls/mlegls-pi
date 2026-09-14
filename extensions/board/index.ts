@@ -90,13 +90,18 @@ export default function (pi: ExtensionAPI) {
 		cwd = ctx.cwd;
 		name = process.env.PI_BOARD_NAME ?? basename(ctx.cwd);
 		let restoredCursor: number | undefined;
+		let restoredSubs: Subscription[] | undefined;
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type !== "custom") continue;
-			if (entry.customType === SUBS_ENTRY) subs = (entry.data as Subscription[]) ?? [];
+			if (entry.customType === SUBS_ENTRY) restoredSubs = (entry.data as Subscription[]) ?? [];
 			if (entry.customType === CURSOR_ENTRY) restoredCursor = entry.data as number;
 		}
 		// A resumed session catches up on what it missed; a new one starts at the tail.
 		cursor = restoredCursor ?? logSize();
+		// A spawned worker (PI_BOARD_TOPIC set by its parent) starts subscribed with wake to its own
+		// topic, so the parent's follow-ups and needs-input answers reach it without it asking.
+		subs = restoredSubs ?? (process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []);
+		if (!restoredSubs && subs.length) persistSubs();
 		rebuildMatchers();
 	}
 

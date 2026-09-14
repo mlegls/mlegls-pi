@@ -342,7 +342,8 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const a = o.agent ? agent(o.agent) : undefined;
 	const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
 	const cmd = a ? a.runCommand : o.agent;
-	if (cmd) args.push("-a", cmd);
+	// The board extension reads these: the worker's sender name, and the topic it starts subscribed to.
+	if (cmd) args.push("-a", `PI_BOARD_NAME=${o.handle} PI_BOARD_TOPIC=${o.run}/${o.handle} ${cmd}`);
 	if (o.base) args.push("--base", o.base);
 	const out = await $`workmux ${args}`.cwd(cwd).quiet().nothrow();
 	if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr.toString() || out.stdout.toString()}`);
