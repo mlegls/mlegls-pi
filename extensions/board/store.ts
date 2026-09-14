@@ -88,18 +88,35 @@ export interface ReadOptions extends Query {
 	since?: string;
 	/** Regex over body and topic. Smart case: case-insensitive unless the pattern has an uppercase letter. */
 	grep?: string;
-	/** Log line numbers: `50-200`, `50-`, `50+30`, `-20` (last 20). No default limit when set. */
+	/** Line numbers, ids, or ISO timestamps: `50-200`, `50-`, `50+30`, `-20` (last 20), `m2k3x-ab12cd+5`, `2026-09-14T10:00:00Z-`. No default limit when set. */
 	range?: string;
 	limit?: number;
 }
 
-export function parseRange(spec: string, total: number): [number, number] {
-	const m = /^(?:(\d+)(?:([-+])(\d*))?|-(\d+))$/.exec(spec.trim());
-	if (!m) throw new Error(`bad range: ${spec} (expected n-m, n+k, n-, or -k)`);
-	if (m[4]) return [Math.max(1, total - Number(m[4]) + 1), total];
-	const start = Number(m[1]);
-	if (m[2] === "+") return [start, start + Number(m[3] || 0)];
-	return [start, m[3] ? Number(m[3]) : total];
+// A range endpoint is a log line number, a message id, or an ISO timestamp (UTC / `Z` only;
+// a `+hh:mm` offset would collide with the `+k` form).
+const ENDPOINT = String.raw`\d{4}-\d\d-\d\d(?:T[\d:.]*Z?)?|[0-9a-z]+-[0-9a-z]{6}|\d+`;
+const RANGE = new RegExp(String.raw`^(${ENDPOINT})(?:([-+])(${ENDPOINT})?)?$|^-(\d+)$`);
+
+/** Resolve an endpoint to a line. A timestamp snaps inward: to the first line at/after it (`lo`) or the last at/before it (`hi`). */
+function resolveEndpoint(e: string, side: "lo" | "hi", all: Numbered[]): number {
+	if (/^\d+$/.test(e)) return Number(e);
+	if (/^\d{4}-/.test(e)) {
+		if (side === "lo") return all.find((m) => m.ts >= e)?.line ?? all.length + 1;
+		return all.findLast((m) => m.ts <= e)?.line ?? 0;
+	}
+	const hit = all.find((m) => m.id === e);
+	if (!hit) throw new Error(`no message with id ${e}`);
+	return hit.line;
+}
+
+export function parseRange(spec: string, all: Numbered[]): [number, number] {
+	const m = RANGE.exec(spec.trim());
+	if (!m) throw new Error(`bad range: ${spec} (expected a-b, a+k, a-, or -k; endpoints are line numbers, ids, or ISO timestamps)`);
+	if (m[4]) return [Math.max(1, all.length - Number(m[4]) + 1), all.length];
+	const lo = resolveEndpoint(m[1]!, "lo", all);
+	if (m[2] === "+") return [lo, lo + Number(m[3] || 0)];
+	return [lo, m[3] ? resolveEndpoint(m[3], "hi", all) : all.length];
 }
 
 /** Filter the log; `omitted` is how many older matches the limit dropped. */
@@ -117,7 +134,7 @@ export function read(options: ReadOptions): { messages: Numbered[]; omitted: num
 		messages = messages.filter((m) => re.test(m.body) || re.test(m.topic));
 	}
 	if (options.range) {
-		const [lo, hi] = parseRange(options.range, all.length);
+		const [lo, hi] = parseRange(options.range, all);
 		messages = messages.filter((m) => m.line >= lo && m.line <= hi);
 	}
 	const limit = options.limit ?? (options.range ? Infinity : 20);

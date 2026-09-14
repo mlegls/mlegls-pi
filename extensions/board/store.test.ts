@@ -85,3 +85,18 @@ test("query reports what the limit dropped", () => {
 	expect(omitted).toBe(3);
 	expect(read({ range: "1-" }).omitted).toBe(0);
 });
+
+test("range endpoints may be ids or ISO timestamps", () => {
+	const ms: ReturnType<typeof send>[] = [];
+	for (let i = 1; i <= 6; i++) ms.push(send({ topic: "t", tags: [], body: String(i), from }));
+	const lines = (range: string) => read({ range }).messages.map((m) => m.line);
+	expect(lines(`${ms[1]!.id}-${ms[3]!.id}`)).toEqual([2, 3, 4]);
+	expect(lines(`${ms[4]!.id}-`)).toEqual([5, 6]);
+	expect(lines(`${ms[1]!.id}+1`)).toEqual([2, 3]);
+	expect(lines(`${ms[2]!.ts}-`)).toEqual([3, 4, 5, 6]);
+	expect(lines(`${ms[1]!.ts}-${ms[2]!.ts}`)).toEqual([2, 3]);
+	expect(lines(`2-${ms[4]!.ts}`)).toEqual([2, 3, 4, 5]);
+	expect(lines(`${ms[2]!.ts.slice(0, 10)}-`)).toEqual([1, 2, 3, 4, 5, 6]); // date-only snaps to midnight
+	expect(lines("2999-01-01T00:00:00Z-")).toEqual([]);
+	expect(() => read({ range: "zzzz-zzzzzz-" })).toThrow(/no message/);
+});

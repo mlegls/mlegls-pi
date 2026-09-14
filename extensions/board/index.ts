@@ -181,20 +181,21 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "board_read",
 		label: "Board Read",
-		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. `since` takes a message id or ISO timestamp. Each message is prefixed `#n`, its log line number, which `range` addresses. With `grep`, hits are one line each (scan, then zoom with `range`). Full output is capped at 50KB, newest kept.",
+		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. Each message is prefixed `#n`, its log line number; `range` endpoints are line numbers, ids, or ISO timestamps. `grep` implies `brief`: one line per hit, then zoom with `range`. Full output is capped at 50KB, newest kept.",
 		promptSnippet: "Read board messages",
 		parameters: Type.Object({
 			topic: TopicParam,
 			tags: TagsParam,
 			since: Type.Optional(Type.String()),
 			grep: Type.Optional(Type.String({ description: "Regex over body and topic. Smart case: insensitive unless the pattern has an uppercase letter." })),
-			range: Type.Optional(Type.String({ description: "Log line numbers: `50-200`, `50-`, `50+30`, `-20` (last 20). Disables the default limit." })),
+			range: Type.Optional(Type.String({ description: "`a-b`, `a-`, `a+k`, or `-k` (last k). Endpoints: line number, message id, or ISO timestamp (UTC). Disables the default limit." })),
+			brief: Type.Optional(Type.Boolean({ description: "One line per message (head + first body line)." })),
 			limit: Type.Optional(Type.Number({ description: "Default 20 (unbounded with `range`); the newest are kept." })),
 		}),
 		async execute(_id, params) {
 			parseTags(params.tags); // validate early for a clean error
 			const { messages, omitted } = read(params);
-			let text = messages.length ? (params.grep ? messages.map(formatBrief).join("\n") : renderFull(messages)) : "(no messages)";
+			let text = messages.length ? (params.brief || params.grep ? messages.map(formatBrief).join("\n") : renderFull(messages)) : "(no messages)";
 			if (omitted) text += `\n(+${omitted} earlier matches; raise limit or use range)`;
 			return { content: [{ type: "text", text }], details: { count: messages.length, omitted, messages } };
 		},
