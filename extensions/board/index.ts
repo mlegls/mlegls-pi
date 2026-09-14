@@ -11,7 +11,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { compileQuery, parseTags } from "./query";
-import { logSize, read, readFrom, send, topics, type Message } from "./store";
+import { logSize, query, readFrom, send, topics, type Message, type Numbered } from "./store";
 
 interface Subscription {
 	topic: string;
@@ -23,13 +23,39 @@ const SUBS_ENTRY = "board-subs";
 const CURSOR_ENTRY = "board-cursor";
 const POLL_MS = 1000;
 
-function formatMessage(m: Message & { line?: number }, options: { data?: boolean } = { data: true }): string {
+const MAX_BYTES = 50_000;
+
+function formatHead(m: Message & { line?: number }): string {
 	const tags = m.tags.length ? ` [${m.tags.join(" ")}]` : "";
 	const from = m.from.name ? ` <${m.from.name}>` : "";
 	const line = m.line !== undefined ? `#${m.line} ` : "";
-	const head = `${line}${m.id} ${m.ts.slice(11, 19)} ${m.topic}${tags}${from}`;
+	return `${line}${m.id} ${m.ts.slice(11, 19)} ${m.topic}${tags}${from}`;
+}
+
+function formatMessage(m: Message & { line?: number }, options: { data?: boolean } = { data: true }): string {
 	const data = options.data && m.data !== undefined ? `\n${JSON.stringify(m.data)}` : "";
-	return `${head}\n${m.body}${data}`;
+	return `${formatHead(m)}\n${m.body}${data}`;
+}
+
+/** One line per message: head, then the first line of the body. */
+function formatBrief(m: Numbered): string {
+	return `${formatHead(m)}  ${m.body.split("\n")[0]!.slice(0, 120)}`;
+}
+
+/** Render newest-first-priority: keep the tail within the byte budget and say how to fetch the rest. */
+function renderFull(messages: Numbered[]): string {
+	const parts: string[] = [];
+	let bytes = 0;
+	let i = messages.length;
+	while (i > 0) {
+		const part = formatMessage(messages[i - 1]!);
+		bytes += Buffer.byteLength(part) + 2;
+		if (bytes > MAX_BYTES && parts.length) break;
+		parts.unshift(part);
+		i--;
+	}
+	if (i > 0) parts.unshift(`[${i} earlier messages omitted; range:"${messages[0]!.line}-${messages[i - 1]!.line}"]`);
+	return parts.join("\n\n");
 }
 
 function subKey(s: Subscription): string {
@@ -155,7 +181,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "board_read",
 		label: "Board Read",
-		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. `since` takes a message id or ISO timestamp. Each message is prefixed `#n`, its log line number, which `range` addresses.",
+		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. `since` takes a message id or ISO timestamp. Each message is prefixed `#n`, its log line number, which `range` addresses. With `grep`, hits are one line each (scan, then zoom with `range`). Full output is capped at 50KB, newest kept.",
 		promptSnippet: "Read board messages",
 		parameters: Type.Object({
 			topic: TopicParam,
@@ -167,9 +193,10 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id, params) {
 			parseTags(params.tags); // validate early for a clean error
-			const messages = read(params);
-			const text = messages.length ? messages.map((m) => formatMessage(m)).join("\n\n") : "(no messages)";
-			return { content: [{ type: "text", text }], details: { count: messages.length, messages } };
+			const { messages, omitted } = query(params);
+			let text = messages.length ? (params.grep ? messages.map(formatBrief).join("\n") : renderFull(messages)) : "(no messages)";
+			if (omitted) text += `\n(+${omitted} earlier matches; raise limit or use range)`;
+			return { content: [{ type: "text", text }], details: { count: messages.length, omitted, messages } };
 		},
 	});
 

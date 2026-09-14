@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { logSize, read, readFrom, send, topics, waitFor } from "./store";
+import { logSize, query, read, readFrom, send, topics, waitFor } from "./store";
 
 let dir: string;
 beforeEach(() => {
@@ -76,4 +76,12 @@ test("range addresses log line numbers and lifts the default limit", () => {
 	expect(lines({ range: "1-10", topic: "odd" })).toEqual([1, 3, 5, 7, 9]);
 	expect(lines({ range: "1-", limit: 2 })).toEqual([29, 30]);
 	expect(() => read({ range: "x" })).toThrow(/bad range/);
+});
+
+test("query reports what the limit dropped", () => {
+	for (let i = 0; i < 5; i++) send({ topic: "t", tags: [], body: String(i), from });
+	const { messages, omitted } = query({ limit: 2 });
+	expect(messages.map((m) => m.body)).toEqual(["3", "4"]);
+	expect(omitted).toBe(3);
+	expect(query({ range: "1-" }).omitted).toBe(0);
 });
