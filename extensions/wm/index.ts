@@ -1,7 +1,7 @@
 // wm: the interactive face of lib/wm.ts. Spawn pi workers in workmux worktrees from a
 // session and hear back through the board without polling: `spawn` subscribes this
 // session (wake) to the worker's topic `<run>/<handle>` the moment it exists, so the
-// worker's done / blocked / needs-input lands as a turn. The rest (send, capture,
+// worker's done / blocked / needs-input / checkpoint lands as a turn. The rest (send, capture,
 // merge, close) is what you'd do to a worker after that.
 //
 // `run` is remembered per session after the first spawn; `bun lib/wm.ts` remains the
@@ -71,10 +71,10 @@ export default function (pi: ExtensionAPI) {
 		name: "wm",
 		label: "Workers",
 		description:
-			"Spawn and steer pi workers in workmux worktrees. spawn creates branch + worktree + tmux window running an agent with your prompt, and subscribes this session to the worker's board topic so its done/blocked/needs-input reaches you. send types into the worker's prompt; capture shows its pane; merge brings its branch in (conflicts are returned, the merge aborted); close removes worktree, window, and branch; status lists the repo's workers.",
+			"Spawn and steer pi workers in workmux worktrees. spawn creates branch + worktree + tmux window running an agent with your prompt, and subscribes this session to the worker's board topic so its done/blocked/needs-input/checkpoint reaches you. send types into the worker's prompt; capture shows its pane; merge brings its branch in (conflicts are returned, the merge aborted); close removes worktree, window, and branch; status lists the repo's workers.",
 		promptSnippet: "Spawn and steer pi workers in worktrees",
 		promptGuidelines: [
-			"Delegate tasks with wm spawn. It subscribes this session to the worker's done, blocked, and needs-input reports, with wake enabled by default.",
+			"Delegate tasks with wm spawn. It subscribes this session to the worker's done, blocked, needs-input, and checkpoint reports, with wake enabled by default.",
 			"Steer workers with wm send. Use board_send to the worker's topic when the message belongs in the shared record.",
 		],
 		parameters: Parameters,
@@ -91,9 +91,9 @@ export default function (pi: ExtensionAPI) {
 							pi.appendEntry(RUN_ENTRY, run);
 						}
 						const wake = p.wake ?? true;
-						pi.events.emit("board:subscribe", { topic: w.topic, tags: "done | blocked | needs-input", wake });
+						pi.events.emit("board:subscribe", { topic: w.topic, tags: "done | blocked | needs-input | checkpoint", wake });
 						details.worker = w.toJSON();
-						return `spawned ${w.handle} in ${w.dir}\nsubscribed ${wake ? "wake" : "quiet"} ${w.topic} :: done | blocked | needs-input`;
+						return `spawned ${w.handle} in ${w.dir}\nsubscribed ${wake ? "wake" : "quiet"} ${w.topic} :: done | blocked | needs-input | checkpoint`;
 					}
 					case "send": {
 						const w = worker(need(p.handle, "handle"), p.run);
@@ -125,7 +125,7 @@ export default function (pi: ExtensionAPI) {
 						const w = worker(need(p.handle, "handle"), p.run);
 						await w.close(p.keepBranch ?? false);
 						workers.delete(w.topic);
-						pi.events.emit("board:subscribe", { topic: w.topic, tags: "done | blocked | needs-input", remove: true });
+						pi.events.emit("board:subscribe", { topic: w.topic, tags: "done | blocked | needs-input | checkpoint", remove: true });
 						return `closed ${w.handle}${p.keepBranch ? " (branch kept)" : ""}`;
 					}
 					case "status": {

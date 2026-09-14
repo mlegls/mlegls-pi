@@ -3,7 +3,7 @@
 // A worker is one workmux worktree + tmux window running an agent (an AGENTS_DIR/<name>.md
 // with a `runCommand`, or a raw command). Its `handle` is the
 // branch, the worktree dir, the window, and the board sender name; it reports on
-// board topic `<run>/<handle>` with tags done | blocked | needs-input. The tmux
+// board topic `<run>/<handle>` with tags done | blocked | needs-input | checkpoint. The tmux
 // session is named after the run, so every worker of a run sits in one session.
 //
 //   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt });
@@ -20,7 +20,7 @@ import { basename, join, resolve } from "node:path";
 import { logSize, readFrom, type Message } from "../extensions/board/store";
 
 export type Outcome =
-	| { kind: "done" | "blocked" | "needs-input"; message: Message }
+	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: Message } // checkpoint: fenced on context; paused for a follow-up like needs-input
 	| { kind: "idle"; tail: string } // agent finished a turn without reporting
 	| { kind: "exited"; tail: string }; // pi process gone
 
@@ -34,7 +34,7 @@ export interface SpawnOptions {
 	session?: string; // tmux session; default slug of run
 }
 
-const TERMINAL = ["done", "blocked", "needs-input"] as const;
+const TERMINAL = ["done", "blocked", "needs-input", "checkpoint"] as const;
 const IDLE_GRACE_MS = 8_000;
 const POLL_MS = 1_000;
 const SHELLS = new Set(["zsh", "bash", "fish", "sh", "nu"]);
@@ -60,6 +60,7 @@ export const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "a
 export interface Agent {
 	name: string;
 	runCommand?: string;
+	checkpoint?: string; // context ratio at which the fence extension fires; see extensions/fence
 	body: string;
 }
 
@@ -74,7 +75,7 @@ export function agent(name: string): Agent | undefined {
 		const i = line.indexOf(":");
 		if (i > 0) fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
 	}
-	return { name, runCommand: fm.runCommand, body: (m ? text.slice(m[0].length) : text).trim() };
+	return { name, runCommand: fm.runCommand, checkpoint: fm.checkpoint, body: (m ? text.slice(m[0].length) : text).trim() };
 }
 
 /** The board/reporting preamble every worker gets: `AGENTS_DIR/_common.md` with {{run}} {{handle}} {{topic}} filled. */
@@ -370,8 +371,9 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const a = o.agent ? agent(o.agent) : undefined;
 	const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
 	const cmd = a ? a.runCommand : o.agent;
-	// The board extension reads these: the worker's sender name, and the topic it starts subscribed to.
-	if (cmd) args.push("-a", `PI_BOARD_NAME=${o.handle} PI_BOARD_TOPIC=${o.run}/${o.handle} ${cmd}`);
+	// The board extension reads the first two (sender name, starting subscription); fence reads the third.
+	const env = [`PI_BOARD_NAME=${o.handle}`, `PI_BOARD_TOPIC=${o.run}/${o.handle}`, a?.checkpoint && `PI_CHECKPOINT=${a.checkpoint}`].filter(Boolean);
+	if (cmd) args.push("-a", `${env.join(" ")} ${cmd}`);
 	if (o.base) args.push("--base", o.base);
 	const out = await sh("workmux", args, cwd);
 	if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr || out.stdout}`);
