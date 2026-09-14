@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Personal pi package for mlegls",
   "scripts": {
+    "test:board": "bun test extensions/board",
     "test:exa": "bun test extensions/exa",
     "test:lsp": "bun test extensions/lsp",
     "test:outline-read": "bun test extensions/outline-read",
