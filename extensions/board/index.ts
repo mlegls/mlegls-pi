@@ -201,7 +201,9 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({
 			topic: TopicParam,
 			tags: TagsParam,
-			mode: Type.Optional(Type.Union([Type.Literal("full"), Type.Literal("brief"), Type.Literal("json")], { description: "Default full." })),
+			mode: Type.Optional(Type.Union([Type.Literal("full"), Type.Literal("brief"), Type.Literal("json")], {
+				description: "Default full. json: one object per line, {line, id, ts (ISO), topic, tags: string[], from: {name, session, cwd}, body, data?}.",
+			})),
 			pipe: Type.Optional(Type.String({ description: "bash command; rendered messages on stdin. Lifts the default limit." })),
 			limit: Type.Optional(Type.Number({ description: "Default 20 (unbounded with pipe); the newest are kept." })),
 		}),
