@@ -112,8 +112,8 @@ export default function (pi: ExtensionAPI) {
 		return sub;
 	}
 
-	pi.events.on("board:subscribe", (params: Parameters<typeof subscribe>[0]) => {
-		subscribe(params);
+	pi.events.on("board:subscribe", (params) => {
+		subscribe(params as Parameters<typeof subscribe>[0]);
 	});
 
 	function deliver(m: Message, wake: boolean) {
