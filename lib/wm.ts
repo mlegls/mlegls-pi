@@ -322,10 +322,23 @@ async function ensureSession(name: string, cwd: string) {
 	if (has.exitCode !== 0) await $`tmux new-session -d -s ${name} -c ${cwd}`.quiet();
 }
 
+/** Workers write scratch under `.wm/<handle>/`; keep it out of every worktree's status without touching .gitignore. */
+async function excludeWm(cwd: string) {
+	const r = await $`git rev-parse --git-common-dir`.cwd(cwd).quiet().nothrow();
+	if (r.exitCode !== 0) return;
+	const file = resolve(cwd, r.stdout.toString().trim(), "info", "exclude");
+	const cur = existsSync(file) ? readFileSync(file, "utf8") : "";
+	if (cur.split("\n").includes(".wm/")) return;
+	const { mkdirSync, appendFileSync } = await import("node:fs");
+	mkdirSync(resolve(file, ".."), { recursive: true });
+	appendFileSync(file, `${cur.endsWith("\n") || cur === "" ? "" : "\n"}.wm/\n`);
+}
+
 export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const cwd = resolve(o.cwd ?? process.cwd());
 	const session = o.session ?? slug(o.run);
 	await ensureSession(session, cwd);
+	await excludeWm(cwd);
 	const a = o.agent ? agent(o.agent) : undefined;
 	const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
 	const cmd = a ? a.runCommand : o.agent;
