@@ -74,8 +74,8 @@ export default function (pi: ExtensionAPI) {
 			"Spawn and steer pi workers in workmux worktrees. spawn creates branch + worktree + tmux window running an agent with your prompt, and subscribes this session to the worker's board topic so its done/blocked/needs-input reaches you. send types into the worker's prompt; capture shows its pane; merge brings its branch in (conflicts are returned, the merge aborted); close removes worktree, window, and branch; status lists the repo's workers.",
 		promptSnippet: "Spawn and steer pi workers in worktrees",
 		promptGuidelines: [
-			"Delegate with wm spawn rather than running bun lib/wm.ts through bash: only the tool can subscribe this session, so only the tool lets you go idle and be woken by the worker's report.",
-			"After a needs-input or blocked report, answer with wm send; the worker is subscribed to its own topic too, so board_send to it works when you want the answer on the record.",
+			"Delegate tasks with wm spawn. It subscribes this session to the worker's done, blocked, and needs-input reports, with wake enabled by default.",
+			"Steer workers with wm send. Use board_send to the worker's topic when the message belongs in the shared record.",
 		],
 		parameters: Parameters,
 		async execute(_id, p) {
