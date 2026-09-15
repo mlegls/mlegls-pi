@@ -77,6 +77,12 @@ export class SourceSelection implements Iterable<SourceRow> {
 		this.rows = Object.freeze([...new Map(rows.map(r => [`${r.path}\0${r.anchor}`, r])).values()]);
 	}
 	[Symbol.iterator]() { return this.rows[Symbol.iterator](); }
+	filter(predicate: (row: SourceRow, index: number) => boolean): SourceSelection {
+		return new SourceSelection(this.rows.filter(predicate), this.files, this.complete);
+	}
+	slice(start?: number, end?: number): SourceSelection {
+		return new SourceSelection(this.rows.slice(start, end), this.files, this.complete);
+	}
 	context(n: number): SourceSelection {
 		if (!Number.isInteger(n) || n < 0) throw new Error("Context must be a nonnegative integer");
 		const rows = this.rows.flatMap(r => this.files.get(r.path)!.rows.slice(Math.max(0, r.line - n - 1), r.line + n));
