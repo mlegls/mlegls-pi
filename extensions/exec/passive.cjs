@@ -26,7 +26,8 @@ function format(value, limit = 16 * 1024) {
  }
  const full = () => used >= limit || ++visited > Math.max(32, limit);
  if (kind === "source") {
-  const rows = field(value, "rows"), count = field(rows, "length");
+  const rows = field(value, "rows"), length = field(rows, "length");
+  const count = typeof length === "number" && Number.isSafeInteger(length) && length >= 0 ? length : 0;
   let path, line = 0;
   for (let i = 0; i < count; i++) {
    if (full()) { truncated = true; break; }
