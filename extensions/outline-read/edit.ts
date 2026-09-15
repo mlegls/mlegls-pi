@@ -23,7 +23,7 @@ export interface EditDeps {
 	persist: (path: string) => void;
 }
 
-interface Hunk {
+export interface Hunk {
 	/** Header as written, for messages. */
 	header: string;
 	from: string;
@@ -104,42 +104,7 @@ export function registerEditTool(pi: ExtensionAPI, deps: EditDeps): void {
 		],
 		parameters,
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			// Make restored (resumed-session) files addressable before parsing.
-			for (const path of deps.ledger.pendingPaths()) {
-				const raw = await readFile(path, "utf8").catch(() => undefined);
-				if (raw !== undefined) deps.ledger.sync(path, splitLines(raw).lines);
-			}
-			const known = (a: string) => deps.ledger.find(a) !== undefined;
-			const hunks = parseHunks(params.edits, known);
-
-			// Group by file; unknown anchors are impossible here (parseHeader checked), but the file may have changed since.
-			const byFile = new Map<string, Hunk[]>();
-			for (const h of hunks) {
-				const path = deps.ledger.find(h.from)!.path;
-				const toPath = h.to && deps.ledger.find(h.to)!.path;
-				if (toPath && toPath !== path) throw new Error(`"${h.header}": anchors are in different files. Nothing was modified.`);
-				if (h.path !== undefined && resolve(ctx.cwd, h.path) !== path) {
-					throw new Error(`"${h.header}": anchor ${h.from} is in ${relative(ctx.cwd, path)}, not ${h.path}. Nothing was modified.`);
-				}
-				(byFile.get(path) ?? byFile.set(path, []).get(path)!).push(h);
-			}
-
-			const reports: string[] = [];
-			const patches: string[] = [];
-			const diffs: string[] = [];
-			let firstChangedLine: number | undefined;
-			for (const [absolutePath, fileHunks] of byFile) {
-				const shown = relative(ctx.cwd, absolutePath).startsWith("..") ? absolutePath : relative(ctx.cwd, absolutePath);
-				const r = await applyToFile(deps, absolutePath, shown, fileHunks);
-				reports.push(r.text);
-				if (r.patch) patches.push(r.patch);
-				if (r.diff) diffs.push(r.diff);
-				if (r.firstChangedLine !== undefined && firstChangedLine === undefined) firstChangedLine = r.firstChangedLine;
-			}
-			return {
-				content: [{ type: "text" as const, text: reports.join("\n\n") }],
-				details: patches.length ? { diff: diffs.join("\n"), patch: patches.join("\n"), firstChangedLine } : undefined,
-			};
+			return executeEdits(deps, ctx.cwd, params.edits);
 		},
 	});
 }
@@ -240,4 +205,51 @@ async function applyToFile(deps: EditDeps, absolutePath: string, shown: string, 
 			firstChangedLine: resolved[0].start + 1,
 		};
 	});
+}
+
+/** Execute the same anchor DSL used by the edit tool. */
+export async function executeEdits(deps: EditDeps, cwd: string, text: string) {
+	// Make restored (resumed-session) files addressable before parsing.
+	for (const path of deps.ledger.pendingPaths()) {
+		const raw = await readFile(path, "utf8").catch(() => undefined);
+		if (raw !== undefined) deps.ledger.sync(path, splitLines(raw).lines);
+	}
+	const known = (a: string) => deps.ledger.find(a) !== undefined;
+	const hunks = parseHunks(text, known);
+	return executeHunks(deps, cwd, hunks);
+}
+
+/** Apply structured hunks without interpreting replacement text as DSL headers. */
+export async function executeHunks(deps: EditDeps, cwd: string, hunks: Hunk[]) {
+
+	// Group by file; unknown anchors are impossible here (parseHeader checked), but the file may have changed since.
+	const byFile = new Map<string, Hunk[]>();
+	for (const h of hunks) {
+		const from = deps.ledger.find(h.from);
+		if (!from || (h.to && !deps.ledger.find(h.to))) throw new Error(`"${h.header}": unknown anchors; read the file again. Nothing was modified.`);
+		const path = from.path;
+		const toPath = h.to && deps.ledger.find(h.to)!.path;
+		if (toPath && toPath !== path) throw new Error(`"${h.header}": anchors are in different files. Nothing was modified.`);
+		if (h.path !== undefined && resolve(cwd, h.path) !== path) {
+			throw new Error(`"${h.header}": anchor ${h.from} is in ${relative(cwd, path)}, not ${h.path}. Nothing was modified.`);
+		}
+		(byFile.get(path) ?? byFile.set(path, []).get(path)!).push(h);
+	}
+
+	const reports: string[] = [];
+	const patches: string[] = [];
+	const diffs: string[] = [];
+	let firstChangedLine: number | undefined;
+	for (const [absolutePath, fileHunks] of byFile) {
+		const shown = relative(cwd, absolutePath).startsWith("..") ? absolutePath : relative(cwd, absolutePath);
+		const r = await applyToFile(deps, absolutePath, shown, fileHunks);
+		reports.push(r.text);
+		if (r.patch) patches.push(r.patch);
+		if (r.diff) diffs.push(r.diff);
+		if (r.firstChangedLine !== undefined && firstChangedLine === undefined) firstChangedLine = r.firstChangedLine;
+	}
+	return {
+		content: [{ type: "text" as const, text: reports.join("\n\n") }],
+		details: patches.length ? { diff: diffs.join("\n"), patch: patches.join("\n"), firstChangedLine } : undefined,
+	};
 }
