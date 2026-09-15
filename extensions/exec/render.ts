@@ -26,7 +26,7 @@ export const renderCall: NonNullable<Renderer["renderCall"]> = (_args, theme, co
 		// The host invokes the call hook before the result hook. Read shared state
 		// at component render time so the header uses this update's trace.
 		const summary = context.state.execSummary ?? (context.executionStarted ? "…" : "queued");
-		return [truncateToWidth(theme.fg("toolTitle", theme.bold("exec")) + " " + summary, width, "")];
+		return [truncateToWidth(theme.fg("toolTitle", theme.bold("exec")) + " " + summary, width, "…")];
 	},
 });
 
