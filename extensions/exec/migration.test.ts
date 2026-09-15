@@ -110,7 +110,7 @@ test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled
 			const all = JSON.parse((await cell(kernel, 'show(JSON.stringify(await term.wait({ids:["left","right"],mode:"all",waitMs:5000})));')).output);
 			expect(all.timedOut).not.toBe(true);
 			expect(all.snapshots.map((s: any) => [s.id, s.status, s.exitCode]).sort()).toEqual([["left", "exited", 3], ["right", "exited", 4]]);
-			expect((await cell(kernel, 'await term.end("left"); await term.end("right"); show((await term.list()).length);')).output).toBe("0\n");
+			expect((await cell(kernel, 'const ended = await term.end("left"); show(ended.id, ended.ended); await term.end("right"); show((await term.list()).length);')).output).toBe("left true\n0\n");
 		}, ({ namespace, method, args, signal }) => {
 			if (namespace !== "term") throw new Error("Unexpected namespace " + namespace);
 			if (method === "wait") {
