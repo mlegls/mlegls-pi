@@ -5,9 +5,11 @@ const { mkdir, writeFile } = require("node:fs/promises");
 const { dirname, resolve } = require("node:path");
 const { stripTypeScriptTypes } = require("node:module");
 const { PassThrough, Writable } = require("node:stream");
-const { inspect, types } = require("node:util");
+const { inspect } = require("node:util");
 const repl = require("node:repl");
 const { createTrace } = require("./trace.cjs");
+const { register, format } = require("./passive.cjs");
+const { createSkillLoader } = require("./skill-loader.cjs");
 const DEFAULT_MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"];
 let modules = new Set(DEFAULT_MODULES);
 
@@ -21,7 +23,6 @@ function traced(name, fn) {
 const OUTPUT_LIMIT = 16 * 1024;
 const LARGE_OUTPUT_LIMIT = 50 * 1024;
 const SHELL_LIMIT = 1024 * 1024;
-const shellResults = new WeakSet();
 const TRUNCATED = "\n[output truncated]\n";
 const scope = new AsyncLocalStorage();
 let server;
@@ -58,26 +59,16 @@ function rpc(namespace, method, args) {
 	});
 }
 
-const terminalResults = new WeakSet();
 async function termCall(method, args) {
 	const result = await rpc("term", method, args);
 	const mark = (value) => {
 		if (!value || typeof value !== "object") return;
-		terminalResults.add(value);
+		register(value, "terminal");
 		if (Array.isArray(value)) value.forEach(mark);
 		else if (value.snapshots) value.snapshots.forEach(mark);
 	};
 	mark(result);
 	return result;
-}
-function renderTerminal(value) {
-	if (Array.isArray(value)) return value.map(renderTerminal).join("\n\n") || "(no terminals)";
-	if (value.snapshots) return inspect({ mode: value.mode, changed: value.changed, timedOut: value.timedOut }) + "\n" + renderTerminal(value.snapshots);
-	if (typeof value.output !== "string") return inspect(value, { colors: false });
-	const fields = [value.id, value.status, "cursor=" + value.cursor];
-	if (value.exitCode !== undefined) fields.push("exitCode=" + value.exitCode);
-	if (value.timedOut) fields.push("timedOut=true");
-	return "[" + fields.join(" ") + "]\n" + value.output;
 }
 const uiHelpResults = new WeakSet();
 async function uiHelp(method) {
@@ -113,6 +104,7 @@ const services = {
 		contents: (urls, options) => rpc("exa", "contents", { urls, ...(options ?? {}) }),
 	},
 	board: {
+		help: (method) => rpc("board", "help", { method }),
 		send: (input) => rpc("board", "send", input),
 		read: (options) => rpc("board", "read", options ?? {}),
 		list: (options) => rpc("board", "list", options ?? {}),
@@ -120,6 +112,7 @@ const services = {
 		ack: (ids) => rpc("board", "ack", { ids }),
 	},
 	wm: {
+		help: (method) => rpc("wm", "help", { method }),
 		spawn: (options) => rpc("wm", "spawn", options),
 		wait: (options) => rpc("wm", "wait", options ?? {}),
 		send: (handle, text, options) => rpc("wm", "send", { handle, text, ...(options ?? {}) }),
@@ -180,20 +173,12 @@ function bounded(text, limit = OUTPUT_LIMIT) {
 function render(value) {
 	if (typeof value === "string") return value;
 	if (uiHelpResults.has(value)) return JSON.stringify(value, null, 2);
-	if (terminalResults.has(value)) return renderTerminal(value);
-	if (shellResults.has(value)) {
-		const metadata = [`exitCode=${value.exitCode}`];
-		for (const stream of ["stdout", "stderr"]) if (value[`${stream}Truncated`]) metadata.push(`${stream}Truncated=true`);
-		let text = `[${metadata.join(" ")}]`;
-		for (const stream of ["stdout", "stderr"]) {
-			if (value[stream]) text += `\n${stream}:\n${value[stream]}`;
-		}
-		return text;
-	}
 	if (value && typeof value.render === "function") {
 		const rendered = value.render();
 		return isPromise(rendered) ? Promise.resolve(rendered).then(String) : String(rendered);
 	}
+	const passive = format(value, Infinity);
+	if (passive) return passive.text;
 	return inspect(value, { depth: 5, maxArrayLength: 100, maxStringLength: 10_000, getters: false, colors: false });
 }
 
@@ -280,13 +265,20 @@ function errorText(error) {
 
 /** Shell captures are independent of displayed output and never receive anchors. */
 function sh(command, ...values) {
-	if (Array.isArray(command) && Object.hasOwn(command, "raw")) {
-		command = command.reduce((text, part, i) => text + (i ? String(values[i - 1]) : "") + part, "");
-	}
+	return runShell(template(command, values));
+}
+
+function template(input, values, raw = false) {
+	if (raw && !(Array.isArray(input) && Object.hasOwn(input, "raw"))) throw new TypeError("raw expects a tagged template");
+	if (Array.isArray(input) && Object.hasOwn(input, "raw")) return (raw ? input.raw : input).reduce((text, part, i) => text + (i ? String(values[i - 1]) : "") + part, "");
+	return input;
+}
+
+function runShell(command, options = {}) {
 	if (typeof command !== "string") throw new TypeError("sh expects a command string or tagged template");
 	const promise = new Promise((resolve, reject) => {
 		// Inherit the kernel process group so reset kills shells and their children.
-		const child = spawn("bash", ["-c", command], { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] });
+		const child = spawn("bash", ["-c", command], { cwd: process.cwd(), ...options, stdio: ["ignore", "pipe", "pipe"] });
 		const stdout = capture(child.stdout);
 		const stderr = capture(child.stderr);
 		child.once("error", reject);
@@ -297,7 +289,7 @@ function sh(command, ...values) {
 				stdoutTruncated: stdout.truncated(), stderrTruncated: stderr.truncated(),
 				exitCode: code ?? (signal ? 128 + (require("node:os").constants.signals[signal] || 0) : 1),
 			};
-			shellResults.add(result);
+			register(result, "shell");
 			resolve(result);
 		});
 	});
@@ -374,8 +366,15 @@ async function initialize(message) {
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
 	Object.assign(server.context, { show, notify });
-	if (modules.has("fs")) for (const [name, fn] of Object.entries({ ...api, write })) server.context[name] = traced(name, fn);
-	if (modules.has("sh")) server.context.sh = traced("sh", sh);
+	if (modules.has("fs")) {
+		const loadSkill = createSkillLoader(message.cwd, runShell, register);
+		for (const [name, fn] of Object.entries({ ...api, write, loadSkill })) server.context[name] = traced(name, fn);
+		server.context.edit.raw = traced("edit.raw", (input, ...values) => api.edit(template(input, values, true)));
+	}
+	if (modules.has("sh")) {
+		server.context.sh = traced("sh", sh);
+		server.context.sh.raw = traced("sh.raw", (input, ...values) => runShell(template(input, values, true)));
+	}
 	for (const [namespace, methods] of Object.entries(services)) {
 		if (namespace !== "host" && !modules.has(namespace)) continue;
 		server.context[namespace] = Object.fromEntries(Object.entries(methods).map(([method, fn]) => [method, traced(namespace + "." + method, fn)]));
@@ -388,52 +387,6 @@ async function initialize(message) {
 		cell?.finish(error);
 	});
 	send({ type: "ready" });
-}
-
-// Only known operation results receive textual previews; no render/content methods run.
-function traceResult(name, value, limit) {
-	const field = (object, key) => {
-		if (!object || typeof object !== "object" || types.isProxy(object)) return undefined;
-		const descriptor = Object.getOwnPropertyDescriptor(object, key);
-		return descriptor && "value" in descriptor ? descriptor.value : undefined;
-	};
-	let text = "", truncated = false;
-	const add = (part) => {
-		if (typeof part !== "string") return;
-		const remaining = Math.max(0, limit - text.length);
-		text += part.slice(0, remaining);
-		if (part.length > remaining) truncated = true;
-	};
-	if (shellResults.has(value)) {
-		const code = field(value, "exitCode");
-		add("[exitCode=" + (typeof code === "number" ? code : "?") + "]");
-		for (const stream of ["stdout", "stderr"]) {
-			const body = field(value, stream);
-			if (typeof body === "string" && body) { add("\n" + stream + ":\n"); add(body); }
-			if (field(value, stream + "Truncated") === true) { add("\n[" + stream + " truncated]"); truncated = true; }
-		}
-	} else if (name === "edit" || name === "replace") {
-		const body = field(value, "text");
-		if (typeof body !== "string") return;
-		add(body);
-	} else if (name === "read" || name === "grep") {
-		const rows = field(value, "rows");
-		if (!Array.isArray(rows) || types.isProxy(rows)) return;
-		const length = field(rows, "length");
-		let path;
-		for (let i = 0; i < Math.min(length, 32); i++) {
-			if (text.length >= limit) { truncated = true; break; }
-			const row = field(rows, String(i));
-			const nextPath = field(row, "path"), anchor = field(row, "anchor"), line = field(row, "line"), body = field(row, "text");
-			if (typeof nextPath !== "string" || typeof anchor !== "string" || typeof line !== "number" || typeof body !== "string") continue;
-			if (path !== nextPath) { if (text) add("\n"); add(nextPath); add(":\n"); path = nextPath; }
-			add(String(line) + " " + anchor.slice(0, 80) + "│"); add(body); add("\n");
-		}
-		if (length > 32) truncated = true;
-		if (!length) add("(no matches)");
-		if (field(value, "complete") === false) add("\n[incomplete: explicit search limit reached]");
-	} else return;
-	return { text: text + (truncated ? "\n[preview truncated]" : ""), truncated };
 }
 
 function execute(message) {
@@ -452,7 +405,7 @@ function execute(message) {
 			send({ type: "done", id: cell.id, ...(error ? { error: errorText(error) } : {}) });
 		},
 	};
-	cell.trace = createTrace(cell, send, traceResult);
+	cell.trace = createTrace(cell, send);
 	active = cell;
 	scope.run(cell, () => {
 		try {
