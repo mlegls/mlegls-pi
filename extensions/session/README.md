@@ -21,7 +21,7 @@ serialized through the kernel. Results contain plain data, never tool text:
 | `term.view(id, {cursor?, waitMs?, lines?}?)` | `TerminalSnapshot` |
 | `term.send(id, text, {submit?}?)` | `TerminalSnapshot` |
 | `term.sendRaw(id, keys)` | `TerminalSnapshot` |
-| `term.end(id)` | `TerminalSummary` |
+| `term.end(id)` | `{id, ended:true}` |
 | `term.list()` | `TerminalSummary[]` |
 
 Types live in `tmux.ts`. Snapshots include rendered `output`, status, and cursor.

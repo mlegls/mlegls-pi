@@ -67,6 +67,13 @@ function renderTerminal(value) {
 	if (value.timedOut) fields.push("timedOut=true");
 	return "[" + fields.join(" ") + "]\n" + value.output;
 }
+const uiHelpResults = new WeakSet();
+async function uiHelp(method) {
+	const result = await rpc("ui", "help", method ? { method } : {});
+	uiHelpResults.add(result);
+	for (const item of result) uiHelpResults.add(item);
+	return result;
+}
 const contentErrors = new WeakMap();
 class UIResult {
 	#blocks;
@@ -128,7 +135,7 @@ const services = {
 		act: (args) => uiCall("act", args),
 		readText: (args) => uiCall("readText", args),
 		waitFor: (args) => uiCall("waitFor", args),
-		help: (method) => rpc("ui", "help", method ? { method } : {}),
+		help: uiHelp,
 	},
 	// Escape hatch for namespaces not yet given a typed surface.
 	host: { call: (namespace, method, args) => rpc(namespace, method, args) },
@@ -160,6 +167,7 @@ function bounded(text, limit = OUTPUT_LIMIT) {
 
 function render(value) {
 	if (typeof value === "string") return value;
+	if (uiHelpResults.has(value)) return JSON.stringify(value, null, 2);
 	if (terminalResults.has(value)) return renderTerminal(value);
 	if (shellResults.has(value)) {
 		const metadata = [`exitCode=${value.exitCode}`];
