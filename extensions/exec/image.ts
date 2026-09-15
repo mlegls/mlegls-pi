@@ -44,7 +44,8 @@ export async function detectImageMimeType(path: string): Promise<string | null> 
 /**
  * A read image, ready for a tool result: pi-normalized, resized to the inline
  * provider limits, and rendered as a note. The base64 payload is private, so
- * `inspect`, `console.log`, and `notify` only ever see the note.
+ * ordinary object inspection does not expose it. content() deliberately emits
+ * the payload for show() and completion notifications.
  */
 export class ImageFile implements ContentValue {
 	#data: string;

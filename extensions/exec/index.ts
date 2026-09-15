@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { LedgerEntry } from "../outline-read/ledger";
@@ -21,13 +22,14 @@ API:
   await show(value, ...) renders bounded output; await show(source.outline()) for large files, source.lines(40,80) for a range. Read/search values are not display-truncated.
   show accepts values/promises and content() blocks in order. Text is capped at 50 KiB; images bypass that cap, max 8 images / 20 MiB base64 per cell (visible warning; retained values stay intact).
   exa.search(query, options?), exa.contents(urls, options?) -> structured responses.
-  board.send({topic,body,tags?,data?}), board.read({topic?,tags?,limit?}?), board.list({topic?}?), board.subscribe({topic,tags?,wake?,remove?}), board.ack(ids). Reads do not acknowledge; ack only selected message IDs.
+  board.send({topic,body,tags?,data?}), board.read({topic?,tags?,limit?}?) -> {messages,omitted}, board.list({topic?}?), board.subscribe({topic,tags?,wake?,remove?}), board.ack(ids). Reads and wm.wait do not acknowledge; ack only handled message IDs.
   wm.spawn({run?,workers:[{handle,prompt,agent?,base?}],wake?,wait?}), wm.wait({handles?,run?,mode?:"any"|"all",timeoutMs?}?), wm.send(handle,text,{run?}?), wm.capture(handle,{run?,lines?}?), wm.merge(handles,{run?,into?,mode?}?), wm.close(handles,{run?,keepBranch?}?), wm.status(), wm.agents().
   host.call(namespace, method, args) calls the same exa/board/wm services.
   notify(promise, label?) requests a one-shot completion/error alert with actual content (same text/image bounds) and returns the original promise. Keep a binding to await its result later.
 
 Example: const hits = await grep("TODO", await find("src/**/*.ts")); await show(hits.context(2));
-SKILL.md reads are RAW source here: dynamic shell placeholders are NOT executed and skill-relative paths are NOT rewritten. Use explicit paths; execute needed placeholders explicitly with PI_SKILL_DIR and PI_WORKSPACE set. Do not assume the external read-tool skill hooks have run.
+SKILL.md snapshots are RAW source; inner calls do not fire read/bash hooks. Outer middleware may still rewrite displayed output (even mangle anchored shell blocks). Use explicit paths and deliberately execute needed placeholders with PI_SKILL_DIR/PI_WORKSPACE; transformed displays do not prove setup succeeded.
+Full API reference: ${fileURLToPath(new URL("./README.md", import.meta.url))}
 Bindings are lost on reload, session switch/fork/tree navigation, interruption, or /exec-reset. File anchors persist with the session; code is never replayed.`;
 
 export default function (pi: ExtensionAPI) {

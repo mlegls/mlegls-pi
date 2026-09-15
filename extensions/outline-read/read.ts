@@ -15,7 +15,7 @@ const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bm
 const parameters = Type.Object({
 	path: Type.String({
 		description:
-			"One or more file paths, whitespace-separated (quote a path containing spaces), each with an optional line selector: `src/a.ts:50-200`, `:50+30`, `:5-16,40-80` (several ranges), `:all` (whole file). e.g. `lib/wm.ts extensions/wm/index.ts:1-60 README.md:all`.",
+			"One or more file paths, whitespace-separated (quote a path containing spaces), each with an optional line selector: `src/a.ts:50-200`, `:50+30`, `:5-16,40-80` (several ranges), `:all` (whole file). e.g. `lib/wm.ts extensions/exec/index.ts:1-60 README.md:all`.",
 	}),
 	offset: Type.Optional(Type.Number({ description: "Alternative to a selector (single path): 1-indexed start line." })),
 	limit: Type.Optional(Type.Number({ description: "Alternative to a selector (single path): number of lines from offset." })),
