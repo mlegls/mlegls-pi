@@ -69,8 +69,7 @@ export class SourceFile {
 			{ minBodyLines: 3, budgetTokens: Infinity },
 			n => `${n} ${formatRow(this.rows[n - 1].anchor, this.rows[n - 1].text)}`,
 			e => `    ⋯ ${e.startLine}-${e.endLine}`);
-		const text = `${this.path} (${this.rows.length} lines) outline\n${rendered.text}`;
-		return register({ path: this.path, nodes, ...rendered, text, render: () => text }, "text");
+		return { path: this.path, nodes, ...rendered, render: () => `${this.path} (${this.rows.length} lines) outline\n${rendered.text}` };
 	}
 	render(): string { return format(this, Infinity)!.text; }
 }
