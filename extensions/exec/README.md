@@ -428,6 +428,10 @@ owns expansion; ordinary `read`/`grep` stay raw and editable. This contract requ
 the companion pi-better-skills patch (local dependency commit `a87cfcc` on
 1.3.2); stock 1.3.2 does not recognize it. Retain/reapply that patch when updating
 the dependency until it is supported upstream.
+The portable patch is `patches/pi-better-skills-explicit-output.patch` at the
+repository root. On an unpatched 1.3.2 checkout, apply its two commits with
+`git -C <better-skills-checkout> am <absolute-path-to-patch>`; do not reapply it
+to an already patched checkout. Setup does not silently mutate external packages.
 Other middleware may still transform output; tool-specific approval and monitoring
 extensions need exec-aware integration.
 
