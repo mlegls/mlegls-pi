@@ -79,9 +79,12 @@ test("retained jobs, operation errors, and interruption remain distinct", () => 
 
 // Want: observing arguments is bounded and never executes user presentation hooks.
 test("trace previews are passive, byte-bounded, and omit image payloads", () => fixture(async kernel => {
-	const passive = await kernel.execute('let touched = 0; const probe = { get secret() { touched++; throw Error("getter invoked"); }, content() { touched++; throw Error("content invoked"); }, [Symbol.for("nodejs.util.inspect.custom")]() { touched++; throw Error("inspect invoked"); } }; await sh("printf passive", probe); show(touched);');
+	const passive = await kernel.execute('let touched = 0; const probe = { get secret() { touched++; throw Error("getter invoked"); }, content() { touched++; throw Error("content invoked"); }, [Symbol.for("nodejs.util.inspect.custom")]() { touched++; throw Error("inspect invoked"); } }; const pattern = /visible/gim; for (const key of ["source", "flags", "global"]) Object.defineProperty(pattern, key, { get() { touched++; throw Error("regexp getter invoked"); } }); await sh("printf passive", probe, pattern); await grep(/visible/gi, "sample.ts"); show(touched);');
 	expect(passive.error).toBeUndefined();
 	expect(passive.output).toBe("0\n");
+	expect(entries(passive)[0].args).toContain("/visible/gim");
+	expect(entries(passive)[1].args).toContain("/visible/gi");
+	expect(entries(passive)[1].result).toMatch(/1 [a-z0-9]+│\/\/ visible/);
 	const image = await kernel.execute('const image = await read("pixel.png");');
 	expect(image.error).toBeUndefined();
 	expect(image.content).toEqual([]);
@@ -94,6 +97,12 @@ test("trace previews are passive, byte-bounded, and omit image payloads", () => 
 	expect(Buffer.byteLength(JSON.stringify(large.trace))).toBeLessThanOrEqual(64 * 1024);
 	for (const entry of entries(large)) for (const preview of [entry.args, entry.result, entry.error]) if (preview) expect(Buffer.byteLength(preview)).toBeLessThanOrEqual(4096);
 	expect(large.output).toBe("");
+	const burstUpdates: KernelTrace[] = [];
+	const burst = await kernel.execute('for (let i=0;i<1000;i++) { try { sh(null); } catch {} }', undefined, t => burstUpdates.push(t));
+	expect(entries(burst)).toHaveLength(64);
+	expect(burst.trace!.omitted).toBe(936);
+	expect(burstUpdates.length).toBeLessThan(64);
+	expect(burstUpdates.at(-1)).toEqual(burst.trace);
 }), 20000);
 
 // Want: selected capabilities disappear, including the generic RPC route, across reset.
