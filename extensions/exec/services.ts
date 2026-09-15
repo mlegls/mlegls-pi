@@ -5,12 +5,12 @@
 // structured and untruncated. The child renders with `show`; nothing is
 // flattened here.
 //
-// Session ownership stays singular. Subscriptions and acknowledgments are
-// emitted on the board extension's event bus (`board:subscribe`, `board:seen`),
-// so the board extension keeps the only subscription/pending/seen state.
-// Worktree workers are attached per session and report into lib/wm's single
-// poller; the remembered run reuses the `wm-run` session entry the `wm` tool
-// writes, so the legacy tool and exec agree on the run.
+// Board subscriptions and acknowledgments have one owner: the board extension,
+// reached via board:subscribe / board:seen. Workers use lib/wm's single poller,
+// but this adapter's worker map is separate from the hidden legacy wm tool's
+// compatibility map. Both restore the wm-run entry; they do not share live state.
+// The bridge retains this factory on kernel reset, replaces it on session change,
+// and aborts old RPC signals before either reset.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -104,25 +104,29 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 		pi.appendEntry(RUN_ENTRY, run);
 	}
 
-	/** Wait on workers, mark delivered reports seen on the board, and report who is still pending. */
+	/** Return structured reports without acknowledging them; callers use board.ack(ids). */
 	async function waitOn(ws: Worker[], opts: { mode: "any" | "all"; timeoutMs?: number; signal?: AbortSignal }): Promise<{ outcomes: OutcomeJSON[]; pending: string[]; aborted: boolean }> {
 		const got = await wait(ws, opts);
-		const ids: string[] = [];
+		opts.signal?.throwIfAborted();
 		const outcomes: OutcomeJSON[] = [];
 		for (const [w, o] of got) {
 			if (o.kind === "idle" || o.kind === "exited") outcomes.push({ handle: w.handle, kind: o.kind, tail: o.tail });
 			else {
-				ids.push(o.message.id);
 				outcomes.push({ handle: w.handle, kind: o.kind, message: o.message });
 			}
 		}
-		if (ids.length) pi.events.emit("board:seen", { ids });
 		return { outcomes, pending: ws.filter((w) => !got.has(w)).map((w) => w.handle), aborted: opts.signal?.aborted ?? false };
 	}
 
 	async function exa(method: string, args: unknown, signal: AbortSignal): Promise<unknown> {
 		switch (method) {
-			case "search": return await exaSearch(object(args) as unknown as ExaSearchOptions, signal);
+			case "search": {
+				const a = object(args) as unknown as ExaSearchOptions;
+				if (!Array.isArray(a.query)) return await exaSearch(a, signal);
+				return { responses: await Promise.all(a.query.map(async (query: string) => ({
+					query, ...await exaSearch({ ...a, query }, signal),
+				}))) };
+			}
 			case "contents": return await exaContents(object(args) as unknown as ExaContentsOptions, signal);
 			default: throw new Error(`unknown exa method: ${method}`);
 		}
@@ -172,13 +176,25 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 				const r = need((a.run as string | undefined) ?? run, "run");
 				const specs = (a.workers as Array<{ handle: string; prompt: string; agent?: string; base?: string }> | undefined) ?? [];
 				if (!specs.length) throw new Error("workers required");
-				const ws = await Promise.all(specs.map((o) => spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd })));
-				remember(r);
 				const wake = (a.wake as boolean | undefined) ?? true;
-				for (const w of ws) {
+				const settled = await Promise.allSettled(specs.map(async (o) => {
+					const w = await spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd });
+					// Keep successful workers recoverable even if a sibling fails or RPC aborts.
+					// This map belongs only to the captured session, never a replacement factory.
 					workers.set(w.topic, w);
+					signal.throwIfAborted();
+					remember(r);
 					pi.events.emit("board:subscribe", { topic: w.topic, tags: REPORT_TAGS, wake });
-				}
+					return w;
+				}));
+				signal.throwIfAborted();
+				const ws: Worker[] = [];
+				const failures: string[] = [];
+				settled.forEach((result, i) => {
+					if (result.status === "fulfilled") ws.push(result.value);
+					else failures.push(specs[i].handle + ": " + String(result.reason));
+				});
+				if (failures.length) throw new Error("wm.spawn partial failure (run " + r + "); started handles: " + (ws.map((w) => w.handle).join(", ") || "none") + "; failed: " + failures.join("; "));
 				const spawned = { workers: ws.map((w) => w.toJSON()), subscribed: { run: r, wake, tags: REPORT_TAGS } };
 				if (!(a.wait as boolean | undefined)) return spawned;
 				return { ...spawned, ...(await waitOn(ws, { mode: "all", signal })) };
@@ -194,14 +210,17 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 				const a = object(args);
 				const w = worker(need(a.handle as string | undefined, "handle"), a.run as string | undefined);
 				await w.send(need(a.text as string | undefined, "text"));
+				signal.throwIfAborted();
 				return { handle: w.handle };
 			}
 			case "capture": {
 				const a = object(args);
 				const w = worker(need(a.handle as string | undefined, "handle"), a.run as string | undefined);
 				const entry = (await workmuxStatus(cwd)).find((e) => e.worktree === w.handle);
+				signal.throwIfAborted();
 				if (entry?.pane_id) w.paneId = entry.pane_id;
 				const text = await w.capture((a.lines as number | undefined) ?? 50);
+				signal.throwIfAborted();
 				return { handle: w.handle, paneId: w.paneId, text };
 			}
 			case "merge": {
@@ -213,8 +232,10 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 				for (const w of handles.map((h) => worker(h, a.run as string | undefined))) {
 					try {
 						await merge(w, { into, mode });
+						signal.throwIfAborted();
 						merged.push(w.branch);
 					} catch (e) {
+						signal.throwIfAborted();
 						if (e instanceof MergeConflict) return { merged, conflict: { handle: w.handle, files: e.files }, into, mode };
 						throw e;
 					}
@@ -227,6 +248,7 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 				const ws = handles.map((h) => worker(h, a.run as string | undefined));
 				for (const w of ws) {
 					await w.close((a.keepBranch as boolean | undefined) ?? false);
+					signal.throwIfAborted();
 					workers.delete(w.topic);
 					pi.events.emit("board:subscribe", { topic: w.topic, tags: REPORT_TAGS, remove: true });
 				}
@@ -246,12 +268,16 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 
 	return {
 		async call(request: ExecServiceRequest): Promise<unknown> {
+			request.signal.throwIfAborted();
+			let result: unknown;
 			switch (request.namespace) {
-				case "exa": return await exa(request.method, request.args, request.signal);
-				case "board": return board(request.method, request.args);
-				case "wm": return await wm(request.method, request.args, request.signal);
-				default: throw new Error(`unknown exec service namespace: ${request.namespace}`);
+				case "exa": result = await exa(request.method, request.args, request.signal); break;
+				case "board": result = board(request.method, request.args); break;
+				case "wm": result = await wm(request.method, request.args, request.signal); break;
+				default: throw new Error("unknown exec service namespace: " + request.namespace);
 			}
+			request.signal.throwIfAborted();
+			return result;
 		},
 	};
 }
