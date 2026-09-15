@@ -82,6 +82,7 @@ class UIResult {
 	#blocks;
 	constructor(result) {
 		this.details = result.details;
+		this.capture = result.capture;
 		this.isError = Boolean(result.isError);
 		this.#blocks = result.content;
 	}
