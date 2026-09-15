@@ -60,7 +60,7 @@ configuration error rather than silently enabling everything.
 
 | Module | Functions |
 | --- | --- |
-| `fs` | `read`, `write`, `find`, `grep`, `edit`, `replace` (including image reads) |
+| `fs` | `read`, `write`, `find`, `grep`, `edit`, `replace`, `loadSkill` (including image reads) |
 | `sh` | `sh` |
 | `exa` | `exa.*` |
 | `board` | `board.*` |
@@ -89,6 +89,25 @@ limits the supplied API, **not** filesystem/process permissions: arbitrary
 imports and enabled shell commands can still access underlying capabilities.
 The full reference below describes all modules; each session advertises only its
 selected surface.
+
+
+## Recovering shadowed capabilities
+
+Convenient names are ordinary REPL bindings: `const read = ...` may shadow the
+provided reader. The frozen `__exec` registry keeps the original enabled
+capabilities, including `show`, `notify`, and module namespaces.
+
+```ts
+const read = (x: string) => x.toUpperCase();
+await __exec.show(await __exec.read("README.md"));
+```
+
+If `__exec` itself is shadowed, use `globalThis.__exec`. That global property
+cannot be assigned or deleted. The registry and supplied API wrappers are frozen;
+returned values are not. A shadowing `const` cannot be reassigned or removed: use
+the registry or another name rather than resetting and losing useful bindings.
+Disabled modules remain absent and host calls remain gated. This is recovery
+from accidental shadowing, not protection against deliberate runtime tampering.
 
 ## Read, select, display
 

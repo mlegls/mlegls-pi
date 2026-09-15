@@ -60,6 +60,7 @@ export function describeModules(modules: readonly ExecModule[]): string {
 	return [
 		"Persistent TypeScript REPL. Top-level await and bindings survive calls; only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",
+		"__exec holds the original enabled capabilities if a common name is shadowed (e.g. __exec.read / __exec.show). Registry and API namespaces are frozen; globalThis.__exec is the non-writable recovery property if __exec itself is shadowed. This does not remove lexical bindings or bypass module selection.",
 		"",
 		"API:",
 		...modules.flatMap(name => API[name]),
