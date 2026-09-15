@@ -96,10 +96,12 @@ test("discovery honors ignores but explicit reads work; limited search reports i
 	await writeFile(join(cwd, ".ignore"), "ignored.ts\n");
 	await writeFile(join(cwd, "ignored.ts"), "// needle hidden\n");
 	await writeFile(join(cwd, "example.ts"), "// needle one\n// needle two\n");
-	expect(await cell(kernel, 'show((await find("*.ts")).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
+	expect(await cell(kernel, 'show((await find()).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
 	expect(await cell(kernel, 'const visible = await grep("needle"); show(visible.rows.length, visible.complete);')).toBe("2 true\n");
 	expect(await cell(kernel, 'show((await read("ignored.ts")).text); show((await grep("needle", "ignored.ts")).rows.length);')).toContain("needle hidden");
 	expect(await cell(kernel, 'const limited = await grep("needle", "example.ts", {limit: 1}); show(limited.rows.length, limited.complete); await show(limited);')).toContain("1 false\n");
 	expect(await cell(kernel, 'await show(limited);')).toContain("[incomplete:");
 	expect(await cell(kernel, 'const zero = await grep("needle", "example.ts", {limit: 0}); show(zero.rows.length, zero.complete);')).toBe("0 false\n");
+	expect(await cell(kernel, 'show((await grep("needle", "ignored.ts")).rows.length);')).toBe("1\n");
+	expect(await cell(kernel, 'show((await find("*.ts")).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
 }), 15000);
