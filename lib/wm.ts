@@ -391,7 +391,9 @@ async function ensureSession(name: string, cwd: string) {
 	const has = await sh("tmux", ["has-session", "-t", name]);
 	if (has.exitCode !== 0) {
 		const r = await sh("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
-		if (r.exitCode !== 0) throw new Error(`tmux new-session ${name} failed:\n${r.stderr}`);
+		// Another worker in the same batch may have created it after our check.
+		if (r.exitCode !== 0 && (await sh("tmux", ["has-session", "-t", name])).exitCode !== 0)
+			throw new Error(`tmux new-session ${name} failed:\n${r.stderr}`);
 	}
 }
 
