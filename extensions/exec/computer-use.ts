@@ -69,7 +69,13 @@ export async function createComputerUseBridge(
 		}
 	}
 	const tools = new Map<string, Omit<ToolDefinition<any, any>, "renderCall" | "renderResult">>();
-	const outlines = new Map<string, any>();
+	// Match pi-computer-use 0.5.1's StateStore insertion bound, without importing it.
+	const outlines = new Map<string, { outline: any }>();
+	function rememberOutline(stateId: string, outline: any) {
+		outlines.delete(stateId);
+		outlines.set(stateId, { outline });
+		if (outlines.size > 128) outlines.delete(outlines.keys().next().value!);
+	}
 	let generation = 0;
 	let acceptingCalls = false;
 	let sessionId: string | undefined;
@@ -92,7 +98,7 @@ export async function createComputerUseBridge(
 			outlines.clear();
 			if (startEvent) for (const entry of replayContext(ctx).sessionManager.getBranch() as any[]) {
 				const d = entry.message?.details;
-				if (d?.outline?.root && d.capture?.stateId) outlines.set(d.capture.stateId, d);
+				if (d?.outline?.root && d.capture?.stateId) rememberOutline(d.capture.stateId, d.outline);
 			}
 			if (startEvent) for (const handler of starts) await handler(startEvent, replayContext(ctx));
 			if (current !== generation) return;
@@ -132,7 +138,7 @@ export async function createComputerUseBridge(
 				return Object.entries(computerUseTools).filter(([method]) => requested === undefined || method === requested).map(([method, name]) => {
 					const tool = tools.get(name);
 					if (!tool) throw new Error("Installed pi-computer-use did not register " + name);
-					return { ...(method === "search" ? { discovery: { subrole: "Exact AX-normalized subrole", unlabeled: "Filter empty labels", limit: "1..1000, default 50; enables cached-outline discovery", semantics: "Requires stateId from an observed outline. Exact role/subrole/capability, substring text. complete=false for omitted matches or truncated nodes; no native OCR escalation." } } : {}), method, name, description: tool.description, parameters: tool.parameters, promptSnippet: tool.promptSnippet, promptGuidelines: tool.promptGuidelines };
+					return { ...(method === "search" ? { discovery: { subrole: "Exact AX-normalized subrole", unlabeled: "Filter empty labels", limit: "1..1000, default 50; enables cached-outline discovery", semantics: "Requires stateId from an observed outline; retains the most recent 128 outlines (insertion order, including branch replay). Re-observe evicted states. Exact role/subrole/capability, substring text. complete=false for omitted matches or truncated nodes; no native OCR escalation." } } : {}), method, name, description: tool.description, parameters: tool.parameters, promptSnippet: tool.promptSnippet, promptGuidelines: tool.promptGuidelines };
 				});
 			}
 			const current = generation;
@@ -148,7 +154,7 @@ export async function createComputerUseBridge(
 			if (method === "search" && discoveryRequested(args)) {
 				const query = args as any;
 				const snapshot = outlines.get(query.stateId);
-				if (!snapshot) throw new Error("ui.search discovery needs stateId from an observed full outline; observe again");
+				if (!snapshot) throw new Error("ui.search discovery needs a cached full outline (most recent 128 states); state unavailable or evicted, observe again");
 				const result = discover(snapshot, query);
 				// Let the original executor enforce live state/epoch fences, even for cached reads.
 				const verified = await this.call("inspect", { stateId: query.stateId, ref: snapshot.outline.root.ref }, ctx, signal) as any;
@@ -172,8 +178,14 @@ export async function createComputerUseBridge(
 				if (record) pi.appendEntry(STATE_ENTRY, record);
 				const d = result.details as any;
 				const stateId = d?.capture?.stateId ?? d?.stateId;
-				if (stateId && d?.outline?.root) outlines.set(stateId, d);
-				return { ...result, capture: captureSummary(d) };
+				if (stateId && d?.outline?.root) rememberOutline(stateId, d.outline);
+				const capture = captureSummary(d);
+				if (!result.isError && !record && (method === "observe" || d?.capture)) {
+					return { ...result, capture: { ...capture, warning: d?.kind === "browser_page"
+						? "Browser-page restoration is unsupported by the upstream session adapter; re-observe after a branch/session reload."
+						: "Desktop restoration compatibility: unsupported capture details for adapter v1 (pi-computer-use 0.5.1); this state was not journaled. Re-observe after a branch/session reload." } };
+				}
+				return { ...result, capture };
 			} finally {
 				pending.delete(operation);
 			}
