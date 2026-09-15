@@ -46,9 +46,47 @@ function rpc(namespace, method, args) {
 	});
 }
 
+const terminalResults = new WeakSet();
+async function termCall(method, args) {
+	const result = await rpc("term", method, args);
+	const mark = (value) => {
+		if (!value || typeof value !== "object") return;
+		terminalResults.add(value);
+		if (Array.isArray(value)) value.forEach(mark);
+		else if (value.snapshots) value.snapshots.forEach(mark);
+	};
+	mark(result);
+	return result;
+}
+function renderTerminal(value) {
+	if (Array.isArray(value)) return value.map(renderTerminal).join("\n\n") || "(no terminals)";
+	if (value.snapshots) return inspect({ mode: value.mode, changed: value.changed, timedOut: value.timedOut }) + "\n" + renderTerminal(value.snapshots);
+	if (typeof value.output !== "string") return inspect(value, { colors: false });
+	const fields = [value.id, value.status, "cursor=" + value.cursor];
+	if (value.exitCode !== undefined) fields.push("exitCode=" + value.exitCode);
+	if (value.timedOut) fields.push("timedOut=true");
+	return "[" + fields.join(" ") + "]\n" + value.output;
+}
+const contentErrors = new WeakMap();
+class UIResult {
+	#blocks;
+	constructor(result) {
+		this.details = result.details;
+		this.isError = Boolean(result.isError);
+		this.#blocks = result.content;
+	}
+	content() {
+		const blocks = this.#blocks.slice();
+		if (this.isError) contentErrors.set(blocks, new Error("UI operation failed"));
+		return blocks;
+	}
+}
+async function uiCall(method, args) {
+	return new UIResult(await rpc("ui", method, args ?? {}));
+}
 /**
- * The model-facing service surface. Host adapters receive flat single objects, so
- * positional conveniences are bundled here (see extensions/exec/services.ts).
+ * The model-facing service surface. Most host adapters receive flat objects;
+ * terminals retain positional argument arrays. Both cross IPC as JSON.
  */
 const services = {
 	exa: {
@@ -71,6 +109,26 @@ const services = {
 		close: (handles, options) => rpc("wm", "close", { handles, ...(options ?? {}) }),
 		status: () => rpc("wm", "status", {}),
 		agents: () => rpc("wm", "agents", {}),
+	},
+	term: {
+		spawn: (options) => termCall("spawn", [options]),
+		wait: (options) => termCall("wait", [options]),
+		view: (id, options) => termCall("view", [id, options]),
+		send: (id, text, options) => termCall("send", [id, text, options]),
+		sendRaw: (id, keys) => termCall("sendRaw", [id, keys]),
+		end: (id) => termCall("end", [id]),
+		list: () => termCall("list", []),
+	},
+	ui: {
+		findRoots: (args) => uiCall("findRoots", args),
+		observe: (args) => uiCall("observe", args),
+		search: (args) => uiCall("search", args),
+		expand: (args) => uiCall("expand", args),
+		inspect: (args) => uiCall("inspect", args),
+		act: (args) => uiCall("act", args),
+		readText: (args) => uiCall("readText", args),
+		waitFor: (args) => uiCall("waitFor", args),
+		help: (method) => rpc("ui", "help", method ? { method } : {}),
 	},
 	// Escape hatch for namespaces not yet given a typed surface.
 	host: { call: (namespace, method, args) => rpc(namespace, method, args) },
@@ -102,6 +160,7 @@ function bounded(text, limit = OUTPUT_LIMIT) {
 
 function render(value) {
 	if (typeof value === "string") return value;
+	if (terminalResults.has(value)) return renderTerminal(value);
 	if (shellResults.has(value)) {
 		const metadata = [`exitCode=${value.exitCode}`];
 		for (const stream of ["stdout", "stderr"]) if (value[`${stream}Truncated`]) metadata.push(`${stream}Truncated=true`);
@@ -133,6 +192,7 @@ function emitValues(cell, values) {
 	for (const value of values) {
 		if (!Array.isArray(value)) { texts.push(value); continue; }
 		flush();
+		cell.renderError ??= contentErrors.get(value);
 		for (const block of value) {
 			if (block.type === "text") emit(cell, block.text + "\n");
 			else if (block.type === "image" && !cell.finished) {
@@ -250,6 +310,7 @@ function notify(promise, label) {
 				const displayed = await display(value);
 				if (Array.isArray(displayed)) emitValues(cell, [displayed]);
 				else emit(cell, displayed);
+				if (cell.renderError) error = errorText(cell.renderError);
 			} catch (e) { error = errorText(e); }
 			send({ type: "notification", event: { label, output, content, ...(error ? { error } : {}) } });
 		},

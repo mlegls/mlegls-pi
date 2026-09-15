@@ -14,6 +14,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ComputerUseBridge } from "./computer-use";
 import { contents as exaContents, search as exaSearch, type ExaContentsOptions, type ExaSearchOptions } from "../exa/client";
 import { parseTags } from "../board/query";
 import { read as readBoard, send as sendBoard, topics as boardTopics, type Message } from "../board/store";
@@ -66,7 +67,7 @@ function need<T>(value: T | undefined, what: string): T {
 	return value;
 }
 
-export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): ExecServices {
+export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adapters: { ui?: ComputerUseBridge } = {}): ExecServices {
 	const cwd = ctx.cwd;
 	const sessionId = ctx.sessionManager.getSessionId();
 	const name = process.env.PI_BOARD_NAME ?? basename(cwd);
@@ -265,6 +266,13 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 		}
 	}
 
+	function term(method: string, args: unknown, signal: AbortSignal): Promise<unknown> {
+		return new Promise((resolve, reject) => {
+			const request = { method, args, signal, resolve, reject, handled: false };
+			pi.events.emit("term:request", request);
+			if (!request.handled) reject(new Error("Terminal service unavailable: enable the session extension"));
+		});
+	}
 	return {
 		async call(request: ExecServiceRequest): Promise<unknown> {
 			request.signal.throwIfAborted();
@@ -273,6 +281,11 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext): Exe
 				case "exa": result = await exa(request.method, request.args, request.signal); break;
 				case "board": result = board(request.method, request.args); break;
 				case "wm": result = await wm(request.method, request.args, request.signal); break;
+				case "term": result = await term(request.method, request.args, request.signal); break;
+				case "ui":
+					if (!adapters.ui) throw new Error("Computer use is unavailable in this host");
+					result = await adapters.ui.call(request.method, request.args, ctx, request.signal);
+					break;
 				default: throw new Error("unknown exec service namespace: " + request.namespace);
 			}
 			request.signal.throwIfAborted();

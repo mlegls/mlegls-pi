@@ -4,9 +4,10 @@ import { Type } from "typebox";
 import type { LedgerEntry } from "../outline-read/ledger";
 import { Kernel } from "./kernel";
 import { createExecServices, type ExecServices } from "./services";
+import { createComputerUseBridge } from "./computer-use";
 
 const ENTRY_TYPE = "outline-read";
-const REPLACED = new Set(["bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
+const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
 
 const API = `Persistent TypeScript REPL. Top-level await and bindings survive calls; only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its subprocesses.
 
@@ -32,7 +33,8 @@ SKILL.md snapshots are RAW source; inner calls do not fire read/bash hooks. Oute
 Full API reference: ${fileURLToPath(new URL("./README.md", import.meta.url))}
 Bindings are lost on reload, session switch/fork/tree navigation, interruption, or /exec-reset. File anchors persist with the session; code is never replayed.`;
 
-export default function (pi: ExtensionAPI) {
+export default async function (pi: ExtensionAPI) {
+	const ui = await createComputerUseBridge(pi);
 	let kernel: Kernel | undefined;
 	let services: ExecServices | undefined;
 	let generation = 0;
@@ -44,7 +46,7 @@ export default function (pi: ExtensionAPI) {
 		await old?.dispose();
 		if (session) services = undefined;
 		if (!ctx) return;
-		services ??= createExecServices(pi, ctx);
+		services ??= createExecServices(pi, ctx, { ui });
 		const current = generation;
 		const ledger: LedgerEntry[] = [];
 		for (const entry of ctx.sessionManager.getBranch()) {
