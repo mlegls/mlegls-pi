@@ -115,3 +115,14 @@ anchored source**, dynamic placeholders have not run, and relative paths are not
 rewritten. Execute needed placeholders explicitly with `PI_SKILL_DIR` and
 `PI_WORKSPACE` set, and use explicit paths for bundled skill files. Tool-specific
 approval or monitoring extensions likewise need an exec-aware integration.
+
+## Dogfooding
+
+Use exec while developing or verifying it. Report concrete friction: the operation
+attempted, what actually happened, the workaround, and a simpler interaction if
+one is apparent. Record unresolved observations in `docs/frictions.md`; workers
+should include them in their board report so the coordinating session can
+consolidate duplicates. Distinguish observations from proposed improvements.
+
+Worker profiles with an explicit `--tools` allowlist must include `exec`.
+Hiding the old file tools does not override that allowlist.
