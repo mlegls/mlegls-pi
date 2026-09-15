@@ -5,7 +5,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionAlertMonitor, type SessionAlert } from "./alerts";
-import sessionExtension from "./index";
+import sessionExtension, { type TerminalRequest } from "./index";
 import { terminalServerName, TmuxTerminalManager, tmuxAvailable } from "./tmux";
 
 const managers: TmuxTerminalManager[] = [];
@@ -32,16 +32,6 @@ afterEach(async () => {
 	await Promise.all(managers.splice(0).map((instance) => instance.killServer()));
 });
 
-interface RegisteredSessionTool {
-	name: string;
-	execute: (
-		toolCallId: string,
-		params: { terminals: Array<{ command: string; name: string; notifyOnExit: boolean }> },
-		signal: AbortSignal,
-		onUpdate: undefined,
-		ctx: unknown,
-	) => Promise<unknown>;
-}
 
 interface SentMessage {
 	message: { customType: string; content: string; details: Record<string, unknown> };
@@ -118,13 +108,15 @@ describe.skipIf(!tmuxAvailable())("SessionAlertMonitor", () => {
 		managers.push(instance);
 		const handlers = new Map<string, unknown>();
 		const messages: SentMessage[] = [];
-		let tool: RegisteredSessionTool | undefined;
+		let requestTerminal: ((request: TerminalRequest) => void) | undefined;
 		sessionExtension({
 			on(event: string, handler: unknown) {
 				handlers.set(event, handler);
 			},
-			registerTool(candidate: RegisteredSessionTool) {
-				if (candidate.name === "session_spawn") tool = candidate;
+			events: {
+				on(event: string, handler: typeof requestTerminal) {
+					if (event === "term:request") requestTerminal = handler;
+				},
 			},
 			sendMessage(message: SentMessage["message"], options: SentMessage["options"]) {
 				messages.push({ message, options });
@@ -138,12 +130,20 @@ describe.skipIf(!tmuxAvailable())("SessionAlertMonitor", () => {
 		const shutdown = handlers.get("session_shutdown") as (() => void) | undefined;
 		expect(start).toBeDefined();
 		expect(shutdown).toBeDefined();
-		expect(tool).toBeDefined();
+		expect(requestTerminal).toBeDefined();
 		start?.({}, ctx);
 
-		await tool?.execute("call-1", {
-			terminals: [{ command: "sleep 0.2; printf 'complete\\n'", name: "extension-alert", notifyOnExit: true }],
-		}, new AbortController().signal, undefined, ctx);
+		await new Promise((resolve, reject) => {
+			const request = {
+				method: "spawn",
+				args: [{ terminals: [{ command: "sleep 0.2; printf 'complete\n'", name: "extension-alert", notifyOnExit: true }] }],
+				signal: new AbortController().signal,
+				handled: false,
+				resolve, reject,
+			};
+			requestTerminal!(request);
+			expect(request.handled).toBe(true);
+		});
 		expect(messages).toHaveLength(0);
 		await waitFor(() => messages.length === 1);
 		shutdown?.();

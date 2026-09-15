@@ -72,8 +72,11 @@ export default function (pi: ExtensionAPI) {
 	let context: ExtensionContext | undefined;
 	let manager: TmuxTerminalManager | undefined;
 	let alertMonitor: SessionAlertMonitor | undefined;
+	let generation = new AbortController();
 
 	pi.on("session_start", (_event, ctx) => {
+		generation.abort();
+		generation = new AbortController();
 		alertMonitor?.stop();
 		alertMonitor = undefined;
 		manager = undefined;
@@ -85,6 +88,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", () => {
+		generation.abort();
 		alertMonitor?.stop();
 		alertMonitor = undefined;
 		manager = undefined;
@@ -92,7 +96,14 @@ export default function (pi: ExtensionAPI) {
 		// Do not kill the server: terminal ids, processes and alert state survive restoration.
 	});
 
+	pi.on("session_tree", (_event, ctx) => {
+		generation.abort();
+		generation = new AbortController();
+		context = ctx;
+	});
+
 	async function call(method: string, args: unknown[], signal?: AbortSignal): Promise<TerminalResult> {
+		signal = signal ? AbortSignal.any([signal, generation.signal]) : generation.signal;
 		signal?.throwIfAborted();
 		if (!context) throw new Error("Terminal service has no active Pi session");
 		if (!manager) throw new Error("tmux is required for term but was not found on PATH");

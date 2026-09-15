@@ -38,3 +38,5 @@ it does not kill tmux. Exec reset must not stop or recreate this extension;
 terminal ids, subprocesses, cursors, and alert state remain host-owned. Cancelling
 a request stops waiting/command transport, not already-created terminals. Use
 `end` to terminate explicitly (and suppress their pending alerts).
+Session start, shutdown, and tree navigation abort outstanding requests; tree
+navigation refreshes the active context without replacing the tmux server.
