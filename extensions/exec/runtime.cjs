@@ -24,14 +24,37 @@ function bounded(text, limit = OUTPUT_LIMIT) {
 
 function render(value) {
 	if (typeof value === "string") return value;
-	if (value && typeof value.render === "function") return String(value.render());
+	if (value && typeof value.render === "function") {
+		const rendered = value.render();
+		return isPromise(rendered) ? Promise.resolve(rendered).then(String) : String(rendered);
+	}
 	return inspect(value, { depth: 5, maxArrayLength: 100, maxStringLength: 10_000, getters: false, colors: false });
+}
+
+function isPromise(value) {
+	return value != null && typeof value.then === "function";
 }
 
 function show(...values) {
 	const cell = scope.getStore();
-	if (!cell || cell.finished || cell.truncated) return;
-	const bytes = Buffer.from(values.map(render).join(" ") + "\n");
+	if (!cell || cell.finished || cell.truncated) return Promise.resolve();
+	const rendered = values.map((value) => isPromise(value) ? Promise.resolve(value).then(render) : render(value));
+	if (!rendered.some(isPromise)) {
+		emit(cell, rendered.join(" ") + "\n");
+		return Promise.resolve();
+	}
+	const pending = Promise.all(rendered).then((texts) => emit(cell, texts.join(" ") + "\n"));
+	cell.pending.add(pending);
+	pending.then(
+		() => cell.pending.delete(pending),
+		(error) => { cell.pending.delete(pending); cell.renderError ??= error; },
+	);
+	return pending;
+}
+
+function emit(cell, value) {
+	if (cell.finished || cell.truncated) return;
+	const bytes = Buffer.from(value);
 	const remaining = OUTPUT_LIMIT - cell.bytes;
 	let text = bytes.subarray(0, remaining).toString();
 	cell.bytes += Math.min(bytes.length, remaining);
@@ -85,9 +108,9 @@ function capture(stream) {
 function notify(promise, label) {
 	if (label !== undefined && typeof label !== "string") throw new TypeError("notify label must be a string");
 	Promise.resolve(promise).then(
-		(value) => {
+		async (value) => {
 			let output;
-			try { output = bounded(render(value)); } catch (error) { output = errorText(error); }
+			try { output = bounded(await render(value)); } catch (error) { output = errorText(error); }
 			send({ type: "notification", event: { label, output } });
 		},
 		(error) => send({ type: "notification", event: { label, output: "", error: errorText(error) } }),
@@ -127,11 +150,15 @@ async function initialize(message) {
 
 function execute(message) {
 	const cell = {
-		id: message.id, bytes: 0, truncated: false, finished: false,
-		finish(error) {
-			if (cell.finished) return;
+		id: message.id, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
+		async finish(error) {
+			if (cell.finished || cell.finishing) return;
+			cell.finishing = true;
+			// Flush promised views even when show() was not explicitly awaited.
+			while (cell.pending.size) await Promise.allSettled([...cell.pending]);
 			cell.finished = true;
 			if (active === cell) active = undefined;
+			error ??= cell.renderError;
 			send({ type: "done", id: cell.id, ...(error ? { error: errorText(error) } : {}) });
 		},
 	};
