@@ -263,7 +263,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "board_read",
 		label: "Board Read",
-		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. Each message carries `line`, its position in the log (shown as `#n`). `mode` picks full (default), brief (one line each), or json (one object per line); `pipe` runs the rendered text through a bash command, e.g. `jq -c 'select(.line > 400)'` or `rg deploy`. Output is capped at 50KB.",
+		description: "Pull messages from the board by topic glob and tag expression. Never wakes anyone. Full, unpiped reads acknowledge displayed reports. Each message carries `line`, its position in the log (shown as `#n`). `mode` picks full (default), brief (one line each), or json (one object per line); `pipe` runs the rendered text through a bash command, e.g. `jq -c 'select(.line > 400)'` or `rg deploy`. Output is capped at 50KB.",
 		promptSnippet: "Read board messages",
 		parameters: Type.Object({
 			topic: TopicParam,
