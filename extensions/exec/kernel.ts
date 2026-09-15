@@ -2,8 +2,10 @@ import { fork, spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import type { LedgerEntry } from "../outline-read/ledger";
+import type { ContentBlock } from "./image";
 
 export interface KernelResult {
+	content: ContentBlock[];
 	output: string;
 	error?: string;
 }
@@ -45,7 +47,7 @@ export class Kernel {
 	private persistenceError?: string;
 	private entries = new Map<string, LedgerEntry>();
 	private calls = new Set<AbortController>();
-	private active?: { id: number; output: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
+	private active?: { id: number; content: ContentBlock[]; output: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
 	private sequence = 0;
 	private disposed = false;
 
@@ -59,17 +61,22 @@ export class Kernel {
 		return run;
 	}
 
-	private append(text: string): void {
+	private append(text: string, warning = false): void {
 		const active = this.active;
-		if (!active || active.truncated) return;
+		if (!active || (active.truncated && !warning)) return;
+		const before = active.output.length;
 		const bytes = Buffer.from(text);
-		const remaining = LIMIT - active.bytes;
+		const remaining = warning ? bytes.length : LIMIT - active.bytes;
 		active.output += bytes.subarray(0, remaining).toString();
-		active.bytes += Math.min(bytes.length, remaining);
+		if (!warning) active.bytes += Math.min(bytes.length, remaining);
 		if (bytes.length > remaining) {
 			active.truncated = true;
 			active.output += TRUNCATED;
 		}
+		const added = active.output.slice(before);
+		const last = active.content.at(-1);
+		if (last?.type === "text") last.text += added;
+		else if (added) active.content.push({ type: "text", text: added });
 	}
 
 	private start(): Promise<void> {
@@ -97,7 +104,8 @@ export class Kernel {
 				if (this.child !== child) return;
 				switch (message.type) {
 					case "ready": clearTimeout(timer); resolve(); break;
-					case "output": if (message.id === this.active?.id) this.append(message.text); break;
+					case "output": if (message.id === this.active?.id) this.append(message.text, message.warning); break;
+					case "image": if (message.id === this.active?.id) this.active?.content.push({ type: "image", data: message.data, mimeType: message.mimeType }); break;
 					case "done": if (message.id === this.active?.id) this.active?.finish(message.error); break;
 					case "request": void this.handleRequest(child, message); break;
 					case "persist": {
@@ -164,8 +172,8 @@ export class Kernel {
 	}
 
 	private async run(code: string, signal?: AbortSignal): Promise<KernelResult> {
-		if (this.disposed) return { output: "", error: "Kernel is disposed" };
-		if (signal?.aborted) return { output: "", error: "Execution cancelled" };
+		if (this.disposed) return { content: [], output: "", error: "Kernel is disposed" };
+		if (signal?.aborted) return { content: [], output: "", error: "Execution cancelled" };
 		return new Promise<KernelResult>((resolve) => {
 			let finished = false;
 			const id = ++this.sequence;
@@ -174,15 +182,16 @@ export class Kernel {
 				finished = true;
 				signal?.removeEventListener("abort", abort);
 				const output = this.active?.output ?? "";
+				const content = this.active?.content ?? [];
 				this.active = undefined;
 				void this.persistence.then(() => {
 					const errors = [error, this.persistenceError].filter(Boolean);
 					this.persistenceError = undefined;
-					resolve({ output, ...(errors.length ? { error: errors.join("\n") } : {}) });
+					resolve({ output, content, ...(errors.length ? { error: errors.join("\n") } : {}) });
 				});
 			};
 			const abort = () => { void this.stop("Execution cancelled; kernel bindings were reset"); };
-			this.active = { id, output: "", bytes: 0, truncated: false, finish };
+			this.active = { id, content: [], output: "", bytes: 0, truncated: false, finish };
 			signal?.addEventListener("abort", abort, { once: true });
 			try {
 				void this.start().then(() => {

@@ -110,15 +110,47 @@ function isPromise(value) {
 	return value != null && typeof value.then === "function";
 }
 
+function display(value) {
+	if (isPromise(value)) return Promise.resolve(value).then(display);
+	return value && typeof value.content === "function" ? value.content() : render(value);
+}
+
+function emitValues(cell, values) {
+	let texts = [];
+	const flush = () => { if (texts.length) { emit(cell, texts.join(" ") + "\n"); texts = []; } };
+	for (const value of values) {
+		if (!Array.isArray(value)) { texts.push(value); continue; }
+		flush();
+		for (const block of value) {
+			if (block.type === "text") emit(cell, block.text + "\n");
+			else if (block.type === "image" && !cell.finished) {
+				const bytes = Buffer.byteLength(block.data);
+				if (cell.images >= 8 || cell.imageBytes + bytes > 20 * 1024 * 1024) {
+					if (!cell.imageWarning) {
+						cell.imageWarning = true;
+						cell.deliver({ type: "output", id: cell.id, text: "\n[image limit reached: max 8 images / 20 MiB base64; retained values can be displayed later]\n", warning: true });
+					}
+				} else {
+					cell.images++; cell.imageBytes += bytes;
+					cell.deliver({ type: "image", id: cell.id, data: block.data, mimeType: block.mimeType });
+				}
+			}
+		}
+	}
+	flush();
+}
+
 function show(...values) {
 	const cell = scope.getStore();
-	if (!cell || cell.finished || cell.truncated) return Promise.resolve();
-	const rendered = values.map((value) => isPromise(value) ? Promise.resolve(value).then(render) : render(value));
-	if (!rendered.some(isPromise)) {
-		emit(cell, rendered.join(" ") + "\n");
+	if (!cell || cell.finished) return Promise.resolve();
+	const rendered = values.map(display);
+	if (!cell.tail && !rendered.some(isPromise)) {
+		emitValues(cell, rendered.length ? rendered : [""]);
 		return Promise.resolve();
 	}
-	const pending = Promise.all(rendered).then((texts) => emit(cell, texts.join(" ") + "\n"));
+	const resolved = Promise.all(rendered);
+	const pending = Promise.all([cell.tail, resolved]).then(([, values]) => emitValues(cell, values.length ? values : [""]));
+	cell.tail = pending.catch(() => {});
 	cell.pending.add(pending);
 	pending.then(
 		() => cell.pending.delete(pending),
@@ -134,7 +166,7 @@ function emit(cell, value) {
 	let text = bytes.subarray(0, remaining).toString();
 	cell.bytes += Math.min(bytes.length, remaining);
 	if (bytes.length > remaining) { text += TRUNCATED; cell.truncated = true; }
-	send({ type: "output", id: cell.id, text });
+	cell.deliver({ type: "output", id: cell.id, text });
 }
 
 function errorText(error) {
@@ -184,11 +216,20 @@ function notify(promise, label) {
 	if (label !== undefined && typeof label !== "string") throw new TypeError("notify label must be a string");
 	Promise.resolve(promise).then(
 		async (value) => {
-			let output;
-			try { output = bounded(await render(value)); } catch (error) { output = errorText(error); }
-			send({ type: "notification", event: { label, output } });
+			const content = [];
+			let output = "", error;
+			const cell = { bytes: 0, images: 0, imageBytes: 0, deliver(message) {
+				if (message.type === "image") content.push({ type: "image", data: message.data, mimeType: message.mimeType });
+				else { output += message.text; const last = content.at(-1); if (last?.type === "text") last.text += message.text; else content.push({ type: "text", text: message.text }); }
+			} };
+			try {
+				const displayed = await display(value);
+				if (Array.isArray(displayed)) emitValues(cell, [displayed]);
+				else emit(cell, displayed);
+			} catch (e) { error = errorText(e); }
+			send({ type: "notification", event: { label, output, content, ...(error ? { error } : {}) } });
 		},
-		(error) => send({ type: "notification", event: { label, output: "", error: errorText(error) } }),
+		(error) => send({ type: "notification", event: { label, output: "", content: [], error: errorText(error) } }),
 	);
 	return promise;
 }
@@ -225,7 +266,7 @@ async function initialize(message) {
 
 function execute(message) {
 	const cell = {
-		id: message.id, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
+		id: message.id, images: 0, imageBytes: 0, deliver: send, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
 		async finish(error) {
 			if (cell.finished || cell.finishing) return;
 			cell.finishing = true;
