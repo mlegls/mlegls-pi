@@ -28,15 +28,18 @@ function preview(value) {
 		}
 		return out;
 	}
-	try { return inspect(plain(value), { depth: 5, colors: false, customInspect: false, getters: false, maxStringLength: 4096, breakLength: 120 }).replace(/\[Object: null prototype\] /g, ""); }
+	try { if (typeof value === "string") return plain(value); return inspect(plain(value), { depth: 5, colors: false, customInspect: false, getters: false, maxStringLength: 4096, breakLength: 120 }).replace(/\[Object: null prototype\] /g, ""); }
 	catch { return "[preview unavailable]"; }
 }
 
-function createTrace(cell, send) {
+function createTrace(cell, send, formatResult) {
 	const trace = { entries: [], omitted: 0, truncated: false, finished: false };
 	let bytes = 0;
-	function bounded(value) {
-		const text = preview(value);
+	function bounded(value, name, args = false) {
+		let formatted;
+		try { if (name) formatted = formatResult?.(name, value, PREVIEW_BYTES); } catch { /* Passive fallback only. */ }
+		if (formatted?.truncated || (typeof value === "string" && value.length > PREVIEW_BYTES) || (args && (value.length > 12 || value.some(v => typeof v === "string" && v.length > PREVIEW_BYTES)))) trace.truncated = true;
+		const text = formatted ? preview(formatted.text) : args ? value.slice(0, 12).map(preview).join(", ") + (value.length > 12 ? ", …" : "") : preview(value);
 		const limit = Math.min(PREVIEW_BYTES, TOTAL_PREVIEW_BYTES - bytes);
 		// JSON escaping, not just UTF-8 text, counts against the snapshot budget.
 		let result = text;
@@ -53,22 +56,31 @@ function createTrace(cell, send) {
 		bytes += Buffer.byteLength(JSON.stringify(result));
 		return result;
 	}
-	function update() { send({ type: "trace", id: cell.id, trace }); }
+	let timer, lastSent = 0;
+	function flush() {
+		clearTimeout(timer); timer = undefined;
+		lastSent = Date.now();
+		send({ type: "trace", id: cell.id, trace });
+	}
+	function update() {
+		if (Date.now() - lastSent >= 30) flush();
+		else if (!timer) timer = setTimeout(flush, 30).unref();
+	}
 	return {
-		finish() { trace.finished = true; update(); },
+		finish() { trace.finished = true; flush(); },
 		wrap(name, fn) {
 			return function (...args) {
 				// Retained work belongs to its original cell, even during a later execution.
 				if (trace.finished) return Reflect.apply(fn, this, args);
 				if (trace.entries.length >= MAX_ENTRIES) { trace.omitted++; trace.truncated = true; update(); return Reflect.apply(fn, this, args); }
-				const entry = { id: trace.entries.length + 1, name, args: bounded(args), state: "pending", startedAt: Date.now() };
+				const entry = { id: trace.entries.length + 1, name, args: bounded(args, undefined, true), state: "pending", startedAt: Date.now() };
 				trace.entries.push(entry);
 				update();
 				function settle(state, value) {
 					if (trace.finished) return;
 					entry.state = state;
 					entry.durationMs = Date.now() - entry.startedAt;
-					entry[state === "error" ? "error" : "result"] = bounded(value);
+					entry[state === "error" ? "error" : "result"] = bounded(value, state === "ok" ? name : undefined);
 					update();
 				}
 				try {
