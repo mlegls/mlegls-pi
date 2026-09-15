@@ -4,7 +4,28 @@ import { fileURLToPath } from "node:url";
 import type { LedgerEntry } from "../outline-read/ledger";
 import type { ContentBlock } from "./image";
 
+export interface KernelTraceEntry {
+	id: number;
+	name: string;
+	args: string;
+	state: "pending" | "ok" | "error" | "interrupted";
+	startedAt: number;
+	durationMs?: number;
+	result?: string;
+	error?: string;
+}
+
+/** UI-only observations; never included in model-visible content/output. */
+export interface KernelTrace {
+	entries: KernelTraceEntry[];
+	omitted: number;
+	truncated: boolean;
+	/** Pending entries in a finished trace were not awaited by the cell. */
+	finished: boolean;
+}
+
 export interface KernelResult {
+	trace?: KernelTrace;
 	content: ContentBlock[];
 	output: string;
 	error?: string;
@@ -23,6 +44,7 @@ export interface KernelRequest {
 }
 
 export interface KernelOptions {
+	modules?: readonly string[];
 	cwd: string;
 	ledger: LedgerEntry[];
 	persist: (entry: LedgerEntry) => void | Promise<void>;
@@ -30,6 +52,8 @@ export interface KernelOptions {
 	/** Host-side implementation of the `exa` / `board` / `wm` namespaces. Must resolve JSON-serializable values. */
 	call?: (request: KernelRequest) => Promise<unknown>;
 }
+
+const DEFAULT_MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"];
 
 const LIMIT = 50 * 1024;
 const TRUNCATED = "\n[output truncated]\n";
@@ -47,7 +71,7 @@ export class Kernel {
 	private persistenceError?: string;
 	private entries = new Map<string, LedgerEntry>();
 	private calls = new Set<AbortController>();
-	private active?: { id: number; content: ContentBlock[]; output: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
+	private active?: { trace: KernelTrace; onUpdate?: (trace: KernelTrace) => void; id: number; content: ContentBlock[]; output: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
 	private sequence = 0;
 	private disposed = false;
 
@@ -55,8 +79,8 @@ export class Kernel {
 		for (const entry of options.ledger) this.entries.set(entry.path, entry);
 	}
 
-	execute(code: string, signal?: AbortSignal): Promise<KernelResult> {
-		const run = this.queue.then(() => this.run(code, signal));
+	execute(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void): Promise<KernelResult> {
+		const run = this.queue.then(() => this.run(code, signal, onUpdate));
 		this.queue = run.catch(() => {});
 		return run;
 	}
@@ -106,6 +130,12 @@ export class Kernel {
 					case "ready": clearTimeout(timer); resolve(); break;
 					case "output": if (message.id === this.active?.id) this.append(message.text, message.warning); break;
 					case "image": if (message.id === this.active?.id) this.active?.content.push({ type: "image", data: message.data, mimeType: message.mimeType }); break;
+					case "trace":
+						if (message.id === this.active?.id) {
+							this.active.trace = message.trace;
+							this.updateTrace();
+						}
+						break;
 					case "done": if (message.id === this.active?.id) this.active?.finish(message.error); break;
 					case "request": void this.handleRequest(child, message); break;
 					case "persist": {
@@ -134,7 +164,7 @@ export class Kernel {
 				reject(new Error(error));
 				if (this.child === child) void this.stop(error);
 			});
-			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], loader });
+			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], loader, modules: this.options.modules });
 		});
 		return this.ready;
 	}
@@ -145,6 +175,10 @@ export class Kernel {
 	 */
 	private async handleRequest(child: ChildProcess, message: any): Promise<void> {
 		const id = message.id;
+		if (!(this.options.modules ?? DEFAULT_MODULES).includes(message.namespace)) {
+			this.respond(child, id, { ok: false, error: `Exec module ${String(message.namespace)} is disabled` });
+			return;
+		}
 		const call = this.options.call;
 		if (!call) {
 			this.respond(child, id, { ok: false, error: `Host service ${message.namespace}.${message.method} is unavailable` });
@@ -171,7 +205,7 @@ export class Kernel {
 		}
 	}
 
-	private async run(code: string, signal?: AbortSignal): Promise<KernelResult> {
+	private async run(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void): Promise<KernelResult> {
 		if (this.disposed) return { content: [], output: "", error: "Kernel is disposed" };
 		if (signal?.aborted) return { content: [], output: "", error: "Execution cancelled" };
 		return new Promise<KernelResult>((resolve) => {
@@ -181,17 +215,19 @@ export class Kernel {
 				if (finished) return;
 				finished = true;
 				signal?.removeEventListener("abort", abort);
+				const trace = this.active?.trace;
+				if (trace) trace.finished = true;
 				const output = this.active?.output ?? "";
 				const content = this.active?.content ?? [];
 				this.active = undefined;
 				void this.persistence.then(() => {
 					const errors = [error, this.persistenceError].filter(Boolean);
 					this.persistenceError = undefined;
-					resolve({ output, content, ...(errors.length ? { error: errors.join("\n") } : {}) });
+					resolve({ output, content, trace, ...(errors.length ? { error: errors.join("\n") } : {}) });
 				});
 			};
 			const abort = () => { void this.stop("Execution cancelled; kernel bindings were reset"); };
-			this.active = { id, content: [], output: "", bytes: 0, truncated: false, finish };
+			this.active = { id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate, content: [], output: "", bytes: 0, truncated: false, finish };
 			signal?.addEventListener("abort", abort, { once: true });
 			try {
 				void this.start().then(() => {
@@ -202,6 +238,12 @@ export class Kernel {
 				}, (error) => finish(String(error)));
 			} catch (error) { finish(String(error)); }
 		});
+	}
+
+	private updateTrace(): void {
+		const active = this.active;
+		if (!active?.onUpdate) return;
+		try { active.onUpdate(structuredClone(active.trace)); } catch { /* Presentation cannot affect execution. */ }
 	}
 
 	/** Abort every in-flight host service call; its promise must settle so host work unwinds. */
@@ -215,6 +257,16 @@ export class Kernel {
 		this.child = undefined;
 		this.ready = undefined;
 		this.abortCalls();
+		if (this.active) {
+			this.active.trace = structuredClone(this.active.trace);
+			this.active.trace.finished = true;
+			for (const entry of this.active.trace.entries) if (entry.state === "pending") {
+				entry.state = "interrupted";
+				entry.durationMs = Date.now() - entry.startedAt;
+				entry.error = "Kernel stopped before completion";
+			}
+			this.updateTrace();
+		}
 		this.active?.finish(error);
 		if (!child?.pid) return;
 		const exited = child.exitCode !== null || child.signalCode !== null;
