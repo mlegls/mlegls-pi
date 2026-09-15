@@ -66,7 +66,7 @@ export class Kernel {
 		const child = fork(fileURLToPath(new URL("./runtime.cjs", import.meta.url)), [], {
 			cwd: this.options.cwd,
 			execPath: process.versions.bun ? "node" : process.execPath,
-			execArgv: [],
+			execArgv: ["--disable-warning=ExperimentalWarning"],
 			detached: process.platform !== "win32",
 			stdio: ["ignore", "pipe", "pipe", "ipc"],
 		});

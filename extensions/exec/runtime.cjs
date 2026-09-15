@@ -2,7 +2,7 @@
 const { AsyncLocalStorage } = require("node:async_hooks");
 const { spawn } = require("node:child_process");
 const { stripTypeScriptTypes } = require("node:module");
-const { PassThrough } = require("node:stream");
+const { PassThrough, Writable } = require("node:stream");
 const { inspect } = require("node:util");
 const repl = require("node:repl");
 
@@ -57,7 +57,9 @@ function sh(command, ...values) {
 		child.once("error", reject);
 		// 'close', not 'exit': drain both pipes before exposing a result.
 		child.once("close", (code, signal) => resolve({
-			stdout: stdout(), stderr: stderr(), exitCode: code ?? (signal ? 128 + (require("node:os").constants.signals[signal] || 0) : 1),
+			stdout: stdout.text(), stderr: stderr.text(),
+			stdoutTruncated: stdout.truncated(), stderrTruncated: stderr.truncated(),
+			exitCode: code ?? (signal ? 128 + (require("node:os").constants.signals[signal] || 0) : 1),
 		}));
 	});
 	// A retained, not-yet-awaited shell promise must not crash the kernel.
@@ -74,7 +76,10 @@ function capture(stream) {
 		if (chunk.length > remaining) truncated = true;
 		if (remaining > 0) { chunks.push(chunk.subarray(0, remaining)); size += Math.min(chunk.length, remaining); }
 	});
-	return () => Buffer.concat(chunks).toString() + (truncated ? TRUNCATED : "");
+	return {
+		text: () => Buffer.concat(chunks).toString() + (truncated ? TRUNCATED : ""),
+		truncated: () => truncated,
+	};
 }
 
 function notify(promise, label) {
@@ -107,7 +112,8 @@ async function initialize(message) {
 			if (entry) send({ type: "persist", entry });
 		},
 	});
-	server = repl.start({ input: new PassThrough(), output: new PassThrough(), terminal: false, useGlobal: false, ignoreUndefined: true });
+	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
+	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
 	Object.assign(server.context, api, { show, sh, notify });
 	server.context.console = { ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show };
 	// Node's default REPL evaluator reports thrown errors through its domain,
