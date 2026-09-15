@@ -8,7 +8,6 @@ import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import sessionExtension from "../session";
 import { TmuxTerminalManager, terminalServerName, tmuxAvailable } from "../session/tmux";
-import { Type } from "typebox";
 import { createComputerUseBridge } from "./computer-use";
 import { createExecServices, type ExecServices } from "./services";
 
@@ -137,7 +136,7 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 	const lifecycle = new Map<string, (...args: any[]) => any>();
 	let releaseLate: (() => void) | undefined, lateSettled = false;
 	const pi = {
-		registerTool() {},
+		registerTool() { throw new Error("Direct runtime must not register tools"); },
 		on: (name: string, handler: (...args: any[]) => any) => lifecycle.set(name, handler),
 		appendEntry: (customType: string, data: unknown) => {
 			const entry = { type: "custom", customType, data, id: String(saved.length), timestamp: new Date().toISOString() };
@@ -145,20 +144,15 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		},
 	} as any;
 	let services: ExecServices;
-	const bridge = await createComputerUseBridge(pi, async pi => {
-		pi.on("session_shutdown", () => { backendState = undefined; });
-		pi.on("session_start", (_event, ctx) => {
-			backendState = undefined;
-			for (const entry of ctx.sessionManager.getBranch() as any[]) {
-				if (entry.type === "message" && entry.message.role === "toolResult") backendState = entry.message.details?.capture?.stateId;
-			}
-		});
-		const register = (name: string, parameters: any, execute: (args: any) => any) => pi.registerTool({
-			name, label: name, description: name, parameters,
-			async execute(_id: string, args: unknown) { requests.push({ name, args }); return execute(args); },
-		});
+	const bridge = await createComputerUseBridge(pi, () => {
+		const methods: Record<string, (args: any) => any> = {};
+		let dirty = false;
+		const register = (name: string, execute: (args: any) => any) => {
+			methods[name] = async (args: any) => { requests.push({ name, args }); return execute(args); };
+		};
 		// The desktop backend is the only substituted boundary; no image or display mock.
-		register("observe_ui", Type.Object({ root: Type.String(), mode: Type.String() }), () => {
+		register("observe_ui", () => {
+			dirty = true;
 			backendState = "3c0c1d71-f059-4c97-b436-4cadb5aa752c";
 			return {
 			content: [
@@ -171,19 +165,33 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 			details: desktopObservation,
 			};
 		});
-		register("inspect_ui", Type.Object({ ref: Type.String(), stateId: Type.String() }), ({ ref, stateId }) => {
+		register("inspect_ui", ({ ref, stateId }) => {
 			if (stateId !== backendState) throw new Error("UI state unavailable; observe again");
 			if (ref === "@delayed") return new Promise(resolve => {
-				releaseLate = () => resolve({ content: [{ type: "text", text: "late completion" }], details: { ...desktopObservation, capture: { ...desktopObservation.capture, stateId: "late-state" } } });
+				releaseLate = () => { backendState = "late-state"; dirty = true; resolve({ content: [{ type: "text", text: "late completion" }], details: { ...desktopObservation, capture: { ...desktopObservation.capture, stateId: "late-state" } } }); };
 			});
 			if (ref === "@missing") throw new Error("UI ref @missing expired; observe again");
 			return { content: [{ type: "text", text: "Save is enabled" }], details: { stateId: "3c0c1d71-f059-4c97-b436-4cadb5aa752c", ref } };
 		});
-		register("act_ui", Type.Object({ stateId: Type.String(), actions: Type.Array(Type.Object({ ref: Type.String(), action: Type.String() })) }), () => ({
+		register("act_ui", () => ({
 			isError: true,
 			content: [{ type: "text", text: "Action refused: stale state" }, { type: "image", data: pixel, mimeType: "image/png" }],
 			details: { stateId: "desktop-2" },
 		}));
+		return {
+			observe: methods.observe_ui, inspect: methods.inspect_ui, act: methods.act_ui,
+			help: () => [],
+			exportSnapshot(options: { incremental?: boolean } = {}) {
+				expect(options.incremental).toBe(true);
+				if (!dirty) return { version: 1, incremental: true };
+				dirty = false;
+				// An opaque backend payload: the adapter must round-trip it without interpretation.
+				return { version: 1, incremental: true, observation: { ...desktopObservation, capture: { ...desktopObservation.capture, stateId: backendState } } };
+			},
+			async restoreSnapshot(snapshot: any) { if (snapshot.observation) backendState = snapshot.observation.capture.stateId; },
+			async reset() { backendState = undefined; dirty = false; },
+			async close() { backendState = undefined; },
+		} as any;
 	});
 	await fixture(async (kernel, cwd) => {
 		const ctx = { cwd, sessionManager: { getSessionId: () => "ui-migration", getBranch: () => branch } } as any;
@@ -214,9 +222,10 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		expect(refused.content.filter(c => c.type === "image")).toHaveLength(1);
 		expect((await cell(kernel, 'show(typeof ui.navigate, typeof ui.evaluate, typeof ui.launchBrowser);')).output).toBe("undefined undefined undefined\n");
 		expect(JSON.stringify(saved)).not.toContain(pixel);
-		expect(saved).toHaveLength(1);
-		expect(saved[0].data.details.capture.stateId).toBe(desktopObservation.capture.stateId);
-		expect(saved[0].data.details.outline.root).toEqual(desktopObservation.outline.root);
+		expect(saved).toHaveLength(3); // Observation, cached inspect, and refused action each export a delta.
+		expect(saved.filter(entry => entry.data.snapshot.observation)).toHaveLength(1);
+		expect(saved[0].data.snapshot.observation.capture.stateId).toBe(desktopObservation.capture.stateId);
+		expect(saved[0].data.snapshot.observation.outline.root).toEqual(desktopObservation.outline.root);
 
 		// Restore the real earlier journal after an interrupted backend finishes late.
 		const beforeLate = saved.length;
