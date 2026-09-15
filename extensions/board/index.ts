@@ -156,9 +156,11 @@ export default function (pi: ExtensionAPI) {
 
 	function takePending(wakeOnly = false): Message[] {
 		// Recheck subscriptions: a closed worker's queued report no longer needs a wake.
+		const size = pending.size;
 		for (const [id, m] of pending) {
 			if (seen.has(id) || !matchers.some((match) => match(m))) pending.delete(id);
 		}
+		if (pending.size !== size) persistDelivery();
 		const messages = [...pending.values()];
 		if (wakeOnly && !messages.some((m) => matchers.some((match, i) => subs[i]!.wake && match(m)))) return [];
 		acknowledge(messages.map((m) => m.id));
