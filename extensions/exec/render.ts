@@ -46,7 +46,7 @@ export const renderResult: NonNullable<Renderer["renderResult"]> = (result, { ex
 	if (!operations.length) operations.push(trace ? (hasOutput ? "output" : "no operations") : "trace unavailable");
 	if (trace?.omitted) operations.push("+" + trace.omitted + " omitted");
 	if (failed) operations.push(failed + " failed");
-	if (pending) operations.push(pending + " pending" + (trace?.finished ? " after cell" : ""));
+	if (pending) operations.push(pending + " pending" + (trace?.finished ? " at cell end" : ""));
 	if (images) operations.push(images + (images === 1 ? " image" : " images"));
 	context.state.execSummary = status + " " + operations.join(" · ");
 
@@ -57,7 +57,7 @@ export const renderResult: NonNullable<Renderer["renderResult"]> = (result, { ex
 	if (entries.length) {
 		heading("Operations (automatic trace)");
 		for (const entry of entries) {
-			const state = entry.state === "pending" && trace?.finished ? "pending after cell" : entry.state;
+			const state = entry.state === "pending" && trace?.finished ? "pending at cell end" : entry.state;
 			const duration = entry.durationMs === undefined ? "" : " · " + Math.round(entry.durationMs) + "ms";
 			add(theme.fg(entry.state === "error" || entry.state === "interrupted" ? "error" : "accent", plain(entry.id + ". " + entry.name + " · " + state + duration)));
 			if (entry.args) add("args: " + plain(entry.args));

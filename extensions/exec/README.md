@@ -20,7 +20,11 @@ Expand the row with pi's tool-expansion key to see calls in invocation order,
 their arguments, bounded result previews, durations, and pending/error states.
 Explicit `show` output has its own section; the original TypeScript follows.
 Concurrent calls retain invocation order rather than completion order. A retained
-job can still be pending when its cell ends; tracing does not wait for it.
+job can still be pending when its cell ends; tracing does not wait for it. Traces
+freeze at cell completion; a pending entry is historical, not a live task monitor.
+Use retained promises or `notify` to observe later completion. Previews are capped
+at 64 operations and 4 KiB per field, within a 64 KiB trace; source previews show
+at most 32 rows. Truncation is explicit and does not truncate retained values.
 
 The trace is presentation-only, stored in tool-result details in the session log.
 It adds nothing to model-visible output and does not replace `show`. Arguments
@@ -65,6 +69,8 @@ name: focused-worker
 runCommand: pi --tools exec --exec-modules fs,sh,board
 ---
 ```
+
+Keep `board` enabled when using the standard workmux worker reporting preamble.
 
 No separate frontmatter parser or worker-specific configuration is needed. This
 limits the supplied API, **not** filesystem/process permissions: arbitrary
