@@ -97,7 +97,7 @@ export default async function (pi: ExtensionAPI) {
 				if (!content.length) content.push({ type: "text", text: "(no output)" });
 				return {
 					content,
-					details: { trace: result.trace, ...(result.error ? { error: result.error } : {}) },
+					details: { piBetterSkills: { version: 1, handling: "explicit" }, trace: result.trace, ...(result.error ? { error: result.error } : {}) },
 				};
 			},
 		});
