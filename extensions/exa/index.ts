@@ -8,6 +8,7 @@ import {
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { pipe, PipeParam } from "../../lib/pipe";
 
 const DEFAULT_API_URL = "https://api.exa.ai";
 
@@ -93,10 +94,15 @@ function formatResult(result: ExaResult, index: number): string {
 	return lines.join("\n");
 }
 
-function formatResponse(title: string, response: ExaResponse): string {
+/** `seen`: URLs already rendered in this call; a repeat is listed by title only. */
+function formatResponse(title: string, response: ExaResponse, seen?: Set<string>): string {
 	const results = response.results ?? [];
 	const sections = [`# ${title}`, `Results: ${results.length}`];
-	if (results.length) sections.push("", results.map(formatResult).join("\n\n"));
+	const fresh = results.filter((r) => !r.url || !seen?.has(r.url));
+	const repeats = results.filter((r) => r.url && seen?.has(r.url));
+	for (const r of fresh) if (r.url) seen?.add(r.url);
+	if (fresh.length) sections.push("", fresh.map(formatResult).join("\n\n"));
+	if (repeats.length) sections.push("", `Also (shown above): ${repeats.map((r) => r.title || r.url).join("; ")}`);
 	const failures = (response.statuses ?? []).filter((status) => status.status === "error");
 	if (failures.length) {
 		sections.push("", "## Failed URLs", ...failures.map((failure) => {
@@ -105,7 +111,7 @@ function formatResponse(title: string, response: ExaResponse): string {
 		}));
 	}
 	if (response.costDollars?.total !== undefined) sections.push("", `Cost: $${response.costDollars.total}`);
-	return truncateOutput(sections.join("\n"));
+	return sections.join("\n");
 }
 
 function details(response: ExaResponse): ToolDetails {
@@ -117,7 +123,9 @@ function details(response: ExaResponse): ToolDetails {
 }
 
 const SearchParameters = Type.Object({
-	query: Type.String({ description: "Natural-language web search query." }),
+	query: Type.Union([Type.String(), Type.Array(Type.String(), { minItems: 1, maxItems: 20 })], {
+		description: "Natural-language web search query, or several to run in parallel (one section each; a URL already shown under an earlier query is only named again).",
+	}),
 	numResults: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, description: "Number of results. Defaults to 10." })),
 	type: Type.Optional(StringEnum(["instant", "fast", "auto", "deep-lite", "deep", "deep-reasoning"] as const, {
 		description: "Search mode. Defaults to auto.",
@@ -132,6 +140,7 @@ const SearchParameters = Type.Object({
 	})),
 	maxCharacters: Type.Optional(Type.Integer({ minimum: 1, maximum: 10000, description: "Maximum content characters per result." })),
 	maxAgeHours: Type.Optional(Type.Integer({ minimum: -1, maximum: 720, description: "Maximum cache age. Use 0 for a fresh crawl or -1 for cache only." })),
+	pipe: PipeParam,
 });
 
 const PageSections = ["header", "navigation", "banner", "body", "sidebar", "footer", "metadata"] as const;
@@ -144,17 +153,20 @@ const ContentsParameters = Type.Object({
 	includeSections: Type.Optional(Type.Array(StringEnum(PageSections), { description: "Only include these semantic page sections." })),
 	excludeSections: Type.Optional(Type.Array(StringEnum(PageSections), { description: "Exclude these semantic page sections." })),
 	maxAgeHours: Type.Optional(Type.Integer({ minimum: -1, maximum: 720, description: "Maximum cache age. Use 0 for a fresh crawl or -1 for cache only." })),
+	pipe: PipeParam,
 });
 
 export default function exaExtension(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "exa_search",
 		label: "Exa Search",
-		description: "Search the web with Exa. Returns source metadata and query-relevant highlights by default.",
-		promptSnippet: "Search the web via Exa.",
+		description: "Search the web with Exa; `query` may be one query or a list run in parallel. Returns source metadata and query-relevant highlights by default. `pipe` post-processes the rendered output through bash.",
+		promptSnippet: "Search the web via Exa (several queries per call).",
+		promptGuidelines: ["When researching from several angles, put all the queries in one exa_search call rather than one call each."],
 		parameters: SearchParameters,
-		async execute(_id, params, signal, onUpdate) {
-			onUpdate?.({ content: [{ type: "text", text: `Searching Exa for “${params.query}”…` }] });
+		async execute(_id, params, signal, onUpdate, ctx) {
+			const queries = Array.isArray(params.query) ? params.query : [params.query];
+			onUpdate?.({ content: [{ type: "text", text: `Searching Exa for ${queries.map((q) => `“${q}”`).join(", ")}…` }], details: undefined });
 			const content = params.content ?? "highlights";
 			const contentOptions = content === "none"
 				? undefined
@@ -164,8 +176,8 @@ export default function exaExtension(pi: ExtensionAPI) {
 						: { maxCharacters: params.maxCharacters },
 					maxAgeHours: params.maxAgeHours,
 				});
-			const response = await exaRequest("/search", compactObject({
-				query: params.query,
+			const responses = await Promise.all(queries.map((query) => exaRequest("/search", compactObject({
+				query,
 				numResults: params.numResults ?? 10,
 				type: params.type ?? "auto",
 				category: params.category,
@@ -174,25 +186,30 @@ export default function exaExtension(pi: ExtensionAPI) {
 				startPublishedDate: params.startPublishedDate,
 				endPublishedDate: params.endPublishedDate,
 				contents: contentOptions,
-			}), signal);
-			return {
-				content: [{ type: "text", text: formatResponse(`Search: “${params.query}”`, response) }],
-				details: details(response),
-			};
+			}), signal)));
+			const seen = new Set<string>();
+			let text = responses.map((r, i) => formatResponse(`Search: “${queries[i]}”`, r, seen)).join("\n\n");
+			text = params.pipe ? pipe(text, params.pipe, ctx.cwd) : truncateOutput(text);
+			const all = responses.reduce<ToolDetails>((d, r) => {
+				const x = details(r);
+				return { requestId: d.requestId ?? x.requestId, resultCount: d.resultCount + x.resultCount, costDollars: (d.costDollars ?? 0) + (x.costDollars ?? 0) };
+			}, { resultCount: 0 });
+			return { content: [{ type: "text", text }], details: all };
 		},
 		renderCall(args, theme) {
-			return new Text(`${theme.fg("toolTitle", theme.bold("Exa search "))}${theme.fg("accent", `“${args.query}”`)}`, 0, 0);
+			const qs = Array.isArray(args.query) ? args.query : [args.query];
+			return new Text(`${theme.fg("toolTitle", theme.bold("Exa search "))}${qs.map((q: string) => theme.fg("accent", `“${q}”`)).join(theme.fg("muted", " · "))}`, 0, 0);
 		},
 	});
 
 	pi.registerTool({
 		name: "exa_contents",
 		label: "Exa Contents",
-		description: "Retrieve clean page text and metadata for one or more URLs with Exa's Contents API.",
+		description: "Retrieve clean page text and metadata for one or more URLs with Exa's Contents API. `pipe` post-processes the rendered output through bash (e.g. `rg -i -C2 pricing`).",
 		promptSnippet: "Retrieve or scrape web page contents via Exa.",
 		parameters: ContentsParameters,
-		async execute(_id, params, signal, onUpdate) {
-			onUpdate?.({ content: [{ type: "text", text: `Retrieving ${params.urls.length} URL${params.urls.length === 1 ? "" : "s"} with Exa…` }] });
+		async execute(_id, params, signal, onUpdate, ctx) {
+			onUpdate?.({ content: [{ type: "text", text: `Retrieving ${params.urls.length} URL${params.urls.length === 1 ? "" : "s"} with Exa…` }], details: undefined });
 			const response = await exaRequest("/contents", compactObject({
 				urls: params.urls,
 				text: compactObject({
@@ -203,8 +220,9 @@ export default function exaExtension(pi: ExtensionAPI) {
 				}),
 				maxAgeHours: params.maxAgeHours,
 			}), signal);
+			const text = formatResponse("Page contents", response);
 			return {
-				content: [{ type: "text", text: formatResponse("Page contents", response) }],
+				content: [{ type: "text", text: params.pipe ? pipe(text, params.pipe, ctx.cwd) : truncateOutput(text) }],
 				details: details(response),
 			};
 		},
