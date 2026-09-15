@@ -131,7 +131,7 @@ export class Kernel {
 					case "output": if (message.id === this.active?.id) this.append(message.text, message.warning); break;
 					case "image": if (message.id === this.active?.id) this.active?.content.push({ type: "image", data: message.data, mimeType: message.mimeType }); break;
 					case "trace":
-						if (message.id === this.active?.id) {
+						if (this.active && message.id === this.active.id) {
 							this.active.trace = message.trace;
 							this.updateTrace();
 						}

@@ -5,7 +5,7 @@ const { mkdir, writeFile } = require("node:fs/promises");
 const { dirname, resolve } = require("node:path");
 const { stripTypeScriptTypes } = require("node:module");
 const { PassThrough, Writable } = require("node:stream");
-const { inspect } = require("node:util");
+const { inspect, types } = require("node:util");
 const repl = require("node:repl");
 const { createTrace } = require("./trace.cjs");
 const DEFAULT_MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"];
@@ -375,6 +375,52 @@ async function initialize(message) {
 	send({ type: "ready" });
 }
 
+// Only known operation results receive textual previews; no render/content methods run.
+function traceResult(name, value, limit) {
+	const field = (object, key) => {
+		if (!object || typeof object !== "object" || types.isProxy(object)) return undefined;
+		const descriptor = Object.getOwnPropertyDescriptor(object, key);
+		return descriptor && "value" in descriptor ? descriptor.value : undefined;
+	};
+	let text = "", truncated = false;
+	const add = (part) => {
+		if (typeof part !== "string") return;
+		const remaining = Math.max(0, limit - text.length);
+		text += part.slice(0, remaining);
+		if (part.length > remaining) truncated = true;
+	};
+	if (shellResults.has(value)) {
+		const code = field(value, "exitCode");
+		add("[exitCode=" + (typeof code === "number" ? code : "?") + "]");
+		for (const stream of ["stdout", "stderr"]) {
+			const body = field(value, stream);
+			if (typeof body === "string" && body) { add("\n" + stream + ":\n"); add(body); }
+			if (field(value, stream + "Truncated") === true) { add("\n[" + stream + " truncated]"); truncated = true; }
+		}
+	} else if (name === "edit" || name === "replace") {
+		const body = field(value, "text");
+		if (typeof body !== "string") return;
+		add(body);
+	} else if (name === "read" || name === "grep") {
+		const rows = field(value, "rows");
+		if (!Array.isArray(rows) || types.isProxy(rows)) return;
+		const length = field(rows, "length");
+		let path;
+		for (let i = 0; i < Math.min(length, 32); i++) {
+			if (text.length >= limit) { truncated = true; break; }
+			const row = field(rows, String(i));
+			const nextPath = field(row, "path"), anchor = field(row, "anchor"), line = field(row, "line"), body = field(row, "text");
+			if (typeof nextPath !== "string" || typeof anchor !== "string" || typeof line !== "number" || typeof body !== "string") continue;
+			if (path !== nextPath) { if (text) add("\n"); add(nextPath); add(":\n"); path = nextPath; }
+			add(String(line) + " " + anchor.slice(0, 80) + "│"); add(body); add("\n");
+		}
+		if (length > 32) truncated = true;
+		if (!length) add("(no matches)");
+		if (field(value, "complete") === false) add("\n[incomplete: explicit search limit reached]");
+	} else return;
+	return { text: text + (truncated ? "\n[preview truncated]" : ""), truncated };
+}
+
 function execute(message) {
 	const cell = {
 		id: message.id, images: 0, imageBytes: 0, deliver: send, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
@@ -390,7 +436,7 @@ function execute(message) {
 			send({ type: "done", id: cell.id, ...(error ? { error: errorText(error) } : {}) });
 		},
 	};
-	cell.trace = createTrace(cell, send);
+	cell.trace = createTrace(cell, send, traceResult);
 	active = cell;
 	scope.run(cell, () => {
 		try {
