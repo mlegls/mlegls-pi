@@ -180,7 +180,7 @@ export async function createComputerUseBridge(
 				const stateId = d?.capture?.stateId ?? d?.stateId;
 				if (stateId && d?.outline?.root) rememberOutline(stateId, d.outline);
 				const capture = captureSummary(d);
-				if (!result.isError && !record && (method === "observe" || d?.capture)) {
+				if (!("isError" in result && result.isError) && !record && (method === "observe" || d?.capture)) {
 					return { ...result, capture: { ...capture, warning: d?.kind === "browser_page"
 						? "Browser-page restoration is unsupported by the upstream session adapter; re-observe after a branch/session reload."
 						: "Desktop restoration compatibility: unsupported capture details for adapter v1 (pi-computer-use 0.5.1); this state was not journaled. Re-observe after a branch/session reload." } };
