@@ -106,13 +106,11 @@ export class Kernel {
 	private start(): Promise<void> {
 		if (this.ready) return this.ready;
 		const require = createRequire(import.meta.url);
-		let loader: string;
-		try { loader = require.resolve("jiti"); }
-		catch { loader = createRequire(require.resolve("@earendil-works/pi-coding-agent")).resolve("jiti"); }
+		const loader = require.resolve("tsx");
 		const child = fork(fileURLToPath(new URL("./runtime.cjs", import.meta.url)), [], {
 			cwd: this.options.cwd,
 			execPath: process.versions.bun ? "node" : process.execPath,
-			execArgv: ["--disable-warning=ExperimentalWarning"],
+			execArgv: ["--disable-warning=ExperimentalWarning", "--import", loader],
 			detached: process.platform !== "win32",
 			stdio: ["ignore", "pipe", "pipe", "ipc"],
 		});
@@ -164,7 +162,7 @@ export class Kernel {
 				reject(new Error(error));
 				if (this.child === child) void this.stop(error);
 			});
-			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], loader, modules: this.options.modules });
+			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], modules: this.options.modules });
 		});
 		return this.ready;
 	}

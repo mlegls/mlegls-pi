@@ -349,10 +349,8 @@ function notify(promise, label) {
 async function initialize(message) {
 	modules = new Set(message.modules ?? DEFAULT_MODULES);
 	if (typeof stripTypeScriptTypes !== "function") throw new Error("exec requires Node >= 22.13 for TypeScript transpilation");
-	const { createJiti } = require(message.loader);
-	const jiti = createJiti(__filename, { interopDefault: true });
 	const [{ createSourceAPI }, { Ledger }] = await Promise.all([
-		jiti.import("./source.ts"), jiti.import("../outline-read/ledger.ts"),
+		import("./source.ts"), import("../outline-read/ledger.ts"),
 	]);
 	const ledger = new Ledger();
 	for (const entry of message.ledger) ledger.restore(entry);
