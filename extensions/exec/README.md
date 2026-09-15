@@ -180,7 +180,7 @@ await board.ack(chosen.map(m => m.id));
   `conflict: {handle, files}` on conflict; the conflicting merge is aborted.
 - `wm.close(handles, {run?, keepBranch?}?)` closes workers and unsubscribes;
   returns `{closed}`.
-- `wm.status()` returns structured status rows; `wm.agents()` lists agents and
+- `wm.status()` returns structured status rows (`worktree` is the handle); `wm.agents()` lists agents and
   descriptions.
 
 A failed batch spawn names both failures and successfully started handles; those
