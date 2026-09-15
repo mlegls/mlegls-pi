@@ -124,7 +124,7 @@ export async function createComputerUseBridge(
 	// all cached states/output refs even when the destination branch is empty.
 	pi.on("session_tree", (_event, ctx) => lifecycle(ctx, { reason: "reload" }, { reason: "reload" }));
 	return {
-		async call(method, args, ctx, signal) {
+		async call(this: ComputerUseBridge, method, args, ctx, signal) {
 			signal.throwIfAborted();
 			if (method === "help") {
 				const requested = (args as { method?: string } | undefined)?.method;
