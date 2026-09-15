@@ -41,10 +41,10 @@ const API: Record<ExecModule, string[]> = {
 		"exa.search(query, options?), exa.contents(urls, options?) -> structured responses."
 	],
 	"board": [
-		"board.send({topic,body,tags?,data?}), board.read({topic?,tags?,limit?}?) -> {messages,omitted}, board.list({topic?}?), board.subscribe({topic,tags?,wake?,remove?}), board.ack(ids). Reads and wm.wait do not acknowledge; ack only handled message IDs."
+		"board.send({topic,body,tags?,data?}), board.read({topic?,tags?,limit?}?) -> {messages,omitted}, board.list({topic?}?), board.subscribe({topic,tags?,wake?,remove?}), board.ack(ids). Reads do not acknowledge; ack only handled message IDs."
 	],
 	"wm": [
-		"wm.spawn({run?,workers:[{handle,prompt,agent?,base?}],wake?,wait?}), wm.wait({handles?,run?,mode?:\"any\"|\"all\",timeoutMs?}?), wm.send(handle,text,{run?}?), wm.capture(handle,{run?,lines?}?), wm.merge(handles,{run?,into?,mode?}?), wm.close(handles,{run?,keepBranch?}?), wm.status(), wm.agents()."
+		"wm.spawn({run?,workers:[{handle,prompt,agent?,base?}],wake?,wait?}), wm.wait({handles?,run?,mode?:\"any\"|\"all\",timeoutMs?}?), wm.send(handle,text,{run?}?), wm.capture(handle,{run?,lines?}?), wm.merge(handles,{run?,into?,mode?}?), wm.close(handles,{run?,keepBranch?}?), wm.status(), wm.agents(). Waits do not acknowledge reports."
 	],
 	"term": [
 		"term.spawn({terminals:[{command,cwd?,name?,notifyOnExit?,notifyOnOutput?}]}), term.view(id,{lines?,cursor?,waitMs?}?), term.send(id,text,{submit?}?), term.sendRaw(id,keys), term.end(id), term.list().",
