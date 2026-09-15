@@ -19,7 +19,7 @@ async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => 
 	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, {} as any);
 	const sent: any[] = [], errors: any[] = [];
 	let idle = true;
-	let active = ["read", "bash", "write", "exa_search", "board_read", "wm_spawn", "exec"];
+	let active = ["read", "bash", "write", "exa_search", "board_read", "wm_spawn", "session_spawn", "session_wait", "session", "observe_ui", "act_ui", "launch_browser", "navigate_browser", "evaluate_browser", "exec"];
 	runner.onError(error => errors.push(error));
 	runner.bindCore({
 		appendEntry: (kind: string, data: unknown) => manager.appendCustomEntry(kind, data),
@@ -55,7 +55,7 @@ async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => 
 const text = (r: any) => r.content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n");
 
 test("read silently retains image; show emits model image, including before a later cell error", () => session(async ({ exec, active }) => {
-	expect(active()).toEqual(["write", "exec"]);
+	expect(active()).toEqual(["exec"]);
 	const read = await exec('const image = await read("pixel.png");');
 	expect(read.content.some((c: any) => c.type === "image")).toBe(false);
 	const shown = await exec('await show(image);');
