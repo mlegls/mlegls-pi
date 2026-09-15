@@ -234,7 +234,8 @@ await show(skill.commands); // command, status, stdout/stderr, capture flags
 
 `loadSkill` is in the fs module. It reads raw source, adds path context, and runs
 original inline/fenced dynamic shell placeholders sequentially with workspace cwd
-and `PI_SKILL_DIR`/`PI_WORKSPACE` set. Each explicit load executes them once;
+and `PI_SKILL_DIR`/`PI_WORKSPACE` set. This is per-command environment, not
+a change to the REPL’s ambient environment. Each explicit load executes them once;
 showing the retained value again does not. Generated output is not scanned for
 more commands. Failures are visible in the expanded text and command outcomes.
 The result retains `{path, text, commands, content()}` without editable anchors.
@@ -383,6 +384,9 @@ the whole captured outline before applying the result limit, retaining original
 refs. Results report `totalMatches`, `hasMore`, `complete`, `truncatedNodes`, and
 `scope: "cached-outline"`; completeness does not imply uncaptured UI is known.
 Native inspection checks state validity before returning cached results.
+The host retains the most recent 128 outlines, including branch replay, matching
+the upstream state-cache bound. Re-observe evicted states. Successful captures
+with unsupported restoration data expose `capture.warning`.
 `ui.help(method?)` returns original descriptions, schemas, and prompt guidelines.
 Refs remain tied to their returned `stateId`; browser and native state checks are
 not bypassed. Results retain `details` and `isError`; image bytes stay private
