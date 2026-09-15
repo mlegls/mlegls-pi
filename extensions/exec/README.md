@@ -7,6 +7,71 @@ Requires Node 22.13+ and ripgrep (`rg` on PATH or pi's installed copy).
 Reload pi (`/reload`) to enable it. Use `/exec-reset` to stop the kernel and
 its subprocesses and clear bindings without discarding file anchors.
 
+## Pi presentation
+
+Collapsed exec rows summarize the operations actually invoked, not the first
+printed lines or a guess from the TypeScript:
+
+```text
+exec  ✓ sh · read ×2 · edit · board.send
+```
+
+Expand the row with pi's tool-expansion key to see calls in invocation order,
+their arguments, bounded result previews, durations, and pending/error states.
+Explicit `show` output has its own section; the original TypeScript follows.
+Concurrent calls retain invocation order rather than completion order. A retained
+job can still be pending when its cell ends; tracing does not wait for it.
+
+The trace is presentation-only, stored in tool-result details in the session log.
+It adds nothing to model-visible output and does not replace `show`. Arguments
+and results can contain sensitive data even when not explicitly shown; traces are
+not a credential-redaction mechanism. Image payloads are excluded from previews.
+
+## Module selection
+
+All modules are enabled by default. Select a surface with CLI flags:
+
+```sh
+pi --tools exec --exec-modules fs,sh,board
+pi --exec-deny-modules ui,wm
+pi --exec-modules '*' --exec-deny-modules term,ui
+pi --exec-modules none
+```
+
+Both flags take comma-separated module names. `*` means all; `none` or an empty
+string means none. The denylist wins, and unknown names produce an explicit
+configuration error rather than silently enabling everything.
+
+| Module | Functions |
+| --- | --- |
+| `fs` | `read`, `write`, `find`, `grep`, `edit`, `replace` (including image reads) |
+| `sh` | `sh` |
+| `exa` | `exa.*` |
+| `board` | `board.*` |
+| `wm` | `wm.*` |
+| `term` | `term.*` |
+| `ui` | `ui.*` |
+
+`fs` is a configuration group, not a new REPL namespace. Existing function names
+are unchanged. `show`, `notify`, and `console` are always available. Disabled
+module globals and API documentation are omitted; `host.call` also rejects
+excluded namespaces. Selection survives kernel resets and session navigation.
+
+Use the same flags in a workmux agent's existing frontmatter:
+
+```yaml
+---
+name: focused-worker
+runCommand: pi --tools exec --exec-modules fs,sh,board
+---
+```
+
+No separate frontmatter parser or worker-specific configuration is needed. This
+limits the supplied API, **not** filesystem/process permissions: arbitrary
+imports and enabled shell commands can still access underlying capabilities.
+The full reference below describes all modules; each session advertises only its
+selected surface.
+
 ## Read, select, display
 
 Each tool call has one parameter, `code`. Bindings and promises survive calls.

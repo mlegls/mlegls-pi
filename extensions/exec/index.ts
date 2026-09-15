@@ -5,6 +5,7 @@ import { Kernel } from "./kernel";
 import { createExecServices, type ExecServices } from "./services";
 import { createComputerUseBridge } from "./computer-use";
 import { MODULES, resolveModules, describeModules, type ExecModule } from "./modules";
+import { renderCall, renderResult } from "./render";
 
 const ENTRY_TYPE = "outline-read";
 const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
@@ -83,18 +84,20 @@ export default async function (pi: ExtensionAPI) {
 		pi.registerTool({
 			name: "exec",
 			label: "exec",
+			renderCall,
+			renderResult,
 			description: describeModules(modules) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
 			parameters: Type.Object({ code: Type.String({ description: "TypeScript to evaluate in the persistent kernel. Use show(...) to emit results." }) }),
-			async execute(_id, { code }, signal, _onUpdate, ctx) {
+			async execute(_id, { code }, signal, onUpdate, ctx) {
 				if (configurationError) throw new Error(configurationError);
 				if (!kernel) await reset(ctx);
-				const result = await kernel!.execute(code, signal);
+				const result = await kernel!.execute(code, signal, trace => onUpdate?.({ content: [], details: { trace } }));
 				const content = [...result.content];
 				if (result.error) content.push({ type: "text", text: result.error });
 				if (!content.length) content.push({ type: "text", text: "(no output)" });
 				return {
 					content,
-					details: result.error ? { error: result.error } : {},
+					details: { trace: result.trace, ...(result.error ? { error: result.error } : {}) },
 				};
 			},
 		});
