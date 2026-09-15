@@ -36,7 +36,7 @@ interface RegisteredSessionTool {
 	name: string;
 	execute: (
 		toolCallId: string,
-		params: { op: "spawn"; command: string; name: string; notifyOnExit: boolean },
+		params: { terminals: Array<{ command: string; name: string; notifyOnExit: boolean }> },
 		signal: AbortSignal,
 		onUpdate: undefined,
 		ctx: unknown,
@@ -124,7 +124,7 @@ describe.skipIf(!tmuxAvailable())("SessionAlertMonitor", () => {
 				handlers.set(event, handler);
 			},
 			registerTool(candidate: RegisteredSessionTool) {
-				tool = candidate;
+				if (candidate.name === "session_spawn") tool = candidate;
 			},
 			sendMessage(message: SentMessage["message"], options: SentMessage["options"]) {
 				messages.push({ message, options });
@@ -142,10 +142,7 @@ describe.skipIf(!tmuxAvailable())("SessionAlertMonitor", () => {
 		start?.({}, ctx);
 
 		await tool?.execute("call-1", {
-			op: "spawn",
-			command: "sleep 0.2; printf 'complete\\n'",
-			name: "extension-alert",
-			notifyOnExit: true,
+			terminals: [{ command: "sleep 0.2; printf 'complete\\n'", name: "extension-alert", notifyOnExit: true }],
 		}, new AbortController().signal, undefined, ctx);
 		expect(messages).toHaveLength(0);
 		await waitFor(() => messages.length === 1);
