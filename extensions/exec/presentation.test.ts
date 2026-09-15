@@ -30,7 +30,7 @@ async function fixture(run: (kernel: Kernel, cwd: string) => Promise<void>, opti
 test("live invocation order is independent of completion order; explicit show remains a filter", () => fixture(async kernel => {
 	const updates: KernelTrace[] = [];
 	let complete = false;
-	const work = kernel.execute('const slow = sh("sleep .25; printf slow"); const fast = sh("printf fast"); const source = await read("sample.ts"); await Promise.all([slow, fast]);', undefined, t => updates.push(t)).then(r => { complete = true; return r; });
+	const work = kernel.execute('const slow = sh("sleep .25; echo slow; echo second"); const fast = sh(`printf fast\nprintf tail`); const source = await read("sample.ts"); await Promise.all([slow, fast]);', undefined, t => updates.push(t)).then(r => { complete = true; return r; });
 	await until(() => updates.some(t => t.entries.some(e => e.state === "pending")));
 	expect(complete).toBe(false);
 	const saved = JSON.stringify(updates[0]);
@@ -38,7 +38,14 @@ test("live invocation order is independent of completion order; explicit show re
 	expect(result.error).toBeUndefined();
 	expect(entries(result).map(e => e.name)).toEqual(["sh", "sh", "read"]);
 	expect(entries(result)[0].args).toContain("sleep .25");
-	expect(entries(result)[0].result).toContain("slow");
+	expect(entries(result)[0].result).toContain("slow\nsecond");
+	expect(entries(result)[0].result).toContain("[exitCode=0]\nstdout:\n");
+	expect(entries(result)[1].args).toBe("printf fast\nprintf tail");
+	const sourcePreview = entries(result)[2].result!;
+	expect(sourcePreview).toContain("sample.ts:\n");
+	expect(sourcePreview).toMatch(/1 [a-z0-9]+│\/\/ visible\n/);
+	expect(sourcePreview.match(/\/\/ visible/g)).toHaveLength(1);
+	expect(sourcePreview).not.toContain("rows:");
 	expect(entries(result)[1].result).toContain("fast");
 	expect(updates.some(t => t.entries[0]?.state === "pending" && t.entries[1]?.state === "ok")).toBe(true);
 	expect(JSON.stringify(updates[0])).toBe(saved);
