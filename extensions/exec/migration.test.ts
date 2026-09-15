@@ -110,7 +110,7 @@ test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled
 			const all = JSON.parse((await cell(kernel, 'show(JSON.stringify(await term.wait({ids:["left","right"],mode:"all",waitMs:5000})));')).output);
 			expect(all.timedOut).not.toBe(true);
 			expect(all.snapshots.map((s: any) => [s.id, s.status, s.exitCode]).sort()).toEqual([["left", "exited", 3], ["right", "exited", 4]]);
-			expect((await cell(kernel, 'await term.end("left"); await term.end("right"); show((await term.list()).length);')).output).toBe("0\n");
+			expect((await cell(kernel, 'const ended = await term.end("left"); show(ended.id, ended.ended); await term.end("right"); show((await term.list()).length);')).output).toBe("left true\n0\n");
 		}, ({ namespace, method, args, signal }) => {
 			if (namespace !== "term") throw new Error("Unexpected namespace " + namespace);
 			if (method === "wait") {
@@ -129,16 +129,35 @@ const pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR4AQEFAPr/A
 
 test("UI observations cross real Kernel RPC with ordered images, reusable refs and state, and visible errors", async () => {
 	const requests: Array<{ name: string; args: unknown }> = [];
-	const saved: unknown[] = [];
-	const pi = { registerTool() {}, appendEntry: (_kind: string, data: unknown) => saved.push(data) } as any;
+	const saved: any[] = [];
+	let branch: any[] = [], backendState: string | undefined;
+	const lifecycle = new Map<string, (...args: any[]) => any>();
+	let releaseLate: (() => void) | undefined, lateSettled = false;
+	const pi = {
+		registerTool() {},
+		on: (name: string, handler: (...args: any[]) => any) => lifecycle.set(name, handler),
+		appendEntry: (customType: string, data: unknown) => {
+			const entry = { type: "custom", customType, data, id: String(saved.length), timestamp: new Date().toISOString() };
+			saved.push(entry); branch.push(entry);
+		},
+	} as any;
 	let services: ExecServices;
 	const bridge = await createComputerUseBridge(pi, async pi => {
+		pi.on("session_shutdown", () => { backendState = undefined; });
+		pi.on("session_start", (_event, ctx) => {
+			backendState = undefined;
+			for (const entry of ctx.sessionManager.getBranch() as any[]) {
+				if (entry.type === "message" && entry.message.role === "toolResult") backendState = entry.message.details?.stateId;
+			}
+		});
 		const register = (name: string, parameters: any, execute: (args: any) => any) => pi.registerTool({
 			name, label: name, description: name, parameters,
 			async execute(_id: string, args: unknown) { requests.push({ name, args }); return execute(args); },
 		});
 		// The desktop backend is the only substituted boundary; no image or display mock.
-		register("observe_ui", Type.Object({ root: Type.String(), mode: Type.String() }), () => ({
+		register("observe_ui", Type.Object({ root: Type.String(), mode: Type.String() }), () => {
+			backendState = "desktop-1";
+			return {
 			content: [
 				{ type: "text", text: "state: desktop-1\n@e7 button Save" },
 				{ type: "image", data: pixel, mimeType: "image/png" },
@@ -147,8 +166,13 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 				{ type: "text", text: "end observation" },
 			],
 			details: { stateId: "desktop-1", ref: "@e7", root: "@r2" },
-		}));
-		register("inspect_ui", Type.Object({ ref: Type.String(), stateId: Type.String() }), ({ ref }) => {
+			};
+		});
+		register("inspect_ui", Type.Object({ ref: Type.String(), stateId: Type.String() }), ({ ref, stateId }) => {
+			if (stateId !== backendState) throw new Error("UI state unavailable; observe again");
+			if (ref === "@delayed") return new Promise(resolve => {
+				releaseLate = () => resolve({ content: [{ type: "text", text: "late completion" }], details: { stateId: "late-state" } });
+			});
 			if (ref === "@missing") throw new Error("UI ref @missing expired; observe again");
 			return { content: [{ type: "text", text: "Save is enabled" }], details: { stateId: "desktop-1", ref } };
 		});
@@ -159,7 +183,9 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		}));
 	});
 	await fixture(async (kernel, cwd) => {
-		services = createExecServices(pi, { cwd, sessionManager: { getSessionId: () => "ui-migration", getBranch: () => [] } } as any, { ui: bridge });
+		const ctx = { cwd, sessionManager: { getSessionId: () => "ui-migration", getBranch: () => branch } } as any;
+		services = createExecServices(pi, ctx, { ui: bridge });
+		await lifecycle.get("session_start")!({}, ctx);
 		expect((await cell(kernel, 'const observation = await ui.observe({root:"@r2",mode:"visual"});')).content).toEqual([]);
 		const shown = await cell(kernel, 'await show(observation);');
 		expect(shown.content.map(c => c.type)).toEqual(["text", "image", "text", "image", "text"]);
@@ -185,8 +211,27 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		expect(refused.content.filter(c => c.type === "image")).toHaveLength(1);
 		expect((await cell(kernel, 'show(typeof ui.navigate, typeof ui.evaluate, typeof ui.launchBrowser);')).output).toBe("undefined undefined undefined\n");
 		expect(JSON.stringify(saved)).not.toContain(pixel);
+
+		// Restore the real earlier journal after an interrupted backend finishes late.
+		const beforeLate = saved.length;
+		const controller = new AbortController();
+		const pending = kernel.execute('await ui.inspect({stateId:"desktop-1",ref:"@delayed"});', controller.signal);
+		await until(() => releaseLate !== undefined);
+		controller.abort();
+		expect((await pending).error).toMatch(/cancel/i);
+		branch = saved.slice(0, 1);
+		const restored = lifecycle.get("session_tree")!({}, ctx);
+		releaseLate!();
+		await restored;
+		await until(() => lateSettled);
+		expect(saved).toHaveLength(beforeLate);
+		expect((await cell(kernel, 'show(typeof observation); await show(await ui.inspect({stateId:"desktop-1",ref:"@e7"}));')).output).toContain("undefined\nSave is enabled");
+		branch = [];
+		await lifecycle.get("session_tree")!({}, ctx);
+		expect((await kernel.execute('await ui.inspect({stateId:"desktop-1",ref:"@e7"});')).error).toContain("UI state unavailable");
+		await lifecycle.get("session_shutdown")!({}, ctx);
 	}, ({ namespace, method, args, signal }) => {
 		if (namespace !== "ui") throw new Error("Unexpected namespace " + namespace);
-		return services.call({ namespace, method, args, signal });
+		return services.call({ namespace, method, args, signal }).finally(() => { if (signal.aborted) lateSettled = true; });
 	});
 }, 20000);
