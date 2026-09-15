@@ -43,6 +43,17 @@ It adds nothing to model-visible output and does not replace `show`. Arguments
 and results can contain sensitive data even when not explicitly shown; traces are
 not a credential-redaction mechanism. Image payloads are excluded from previews.
 
+## TypeScript execution
+
+Cells use Node’s TypeScript transform before evaluation in the persistent REPL.
+The child process preloads `tsx` for ordinary and transitive TypeScript imports,
+including the kernel’s own source bootstrap. Parameter properties and other
+syntax requiring emitted JavaScript therefore work in imported `.ts` files;
+there is no custom module transformer. Use `await import(...)` in cells.
+Neither path type-checks code. Imported modules are cached for the kernel’s
+lifetime; reset starts a fresh process. Project import/tsconfig handling belongs
+to `tsx`, not a separately maintained exec implementation.
+
 ## Module selection
 
 All modules are enabled by default. Select a surface with CLI flags:
