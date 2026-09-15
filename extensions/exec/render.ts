@@ -25,7 +25,7 @@ export const renderCall: NonNullable<Renderer["renderCall"]> = (_args, theme, co
 		if (width < 1) return [];
 		// The host invokes the call hook before the result hook. Read shared state
 		// at component render time so the header uses this update's trace.
-		const summary = context.state.execSummary ?? (context.executionStarted ? "…" : "queued");
+		const summary = context.state.execSummary ?? (context.executionStarted ? "… running" : context.argsComplete ? "queued" : "receiving code…");
 		return [truncateToWidth(theme.fg("toolTitle", theme.bold("exec")) + " " + summary, width, "…")];
 	},
 });
@@ -43,7 +43,7 @@ export const renderResult: NonNullable<Renderer["renderResult"]> = (result, { ex
 	const status = isPartial ? theme.fg("warning", "…") : error ? theme.fg("error", "✗") : theme.fg("success", "✓");
 	const images = result.content.filter((block) => block.type === "image").length;
 	const hasOutput = result.content.some((block) => block.type === "text" && block.text !== "(no output)" && block.text !== details?.error) || images > 0;
-	if (!operations.length) operations.push(trace ? (hasOutput ? "output" : "no operations") : "trace unavailable");
+	if (!operations.length) operations.push(trace ? (hasOutput ? "output" : isPartial ? "running" : "no operations") : "trace unavailable");
 	if (trace?.omitted) operations.push("+" + trace.omitted + " omitted");
 	if (failed) operations.push(failed + " failed");
 	if (pending) operations.push(pending + " pending" + (trace?.finished ? " at cell end" : ""));
@@ -51,7 +51,33 @@ export const renderResult: NonNullable<Renderer["renderResult"]> = (result, { ex
 	context.state.execSummary = status + " " + operations.join(" · ");
 
 	const container = new Container();
-	if (!expanded) return container;
+	if (!expanded) {
+		container.addChild({
+			invalidate() {},
+			render(width: number) {
+				if (width < 1) return [];
+				const lines: string[] = [];
+				const line = (text: string) => lines.push(truncateToWidth(plain(text), width, "…"));
+				const preview = (text: string) => {
+					const rows = plain(text).trimEnd().split("\n");
+					for (const row of rows.slice(0, 2)) line("  " + row);
+					if (rows.length > 3) line("  … " + (rows.length - 3) + " more preview lines");
+				};
+				for (const entry of entries.slice(0, 8)) {
+					const state = entry.state === "ok" ? "✓" : entry.state === "pending" ? "…" : "✗";
+					line(state + " " + entry.name + "  " + (entry.args ?? "").replace(/\s+/g, " "));
+					if (entry.error || entry.result) preview(entry.error || entry.result!);
+				}
+				if (entries.length > 8 || trace?.omitted) line("… " + (Math.max(0, entries.length - 8) + (trace?.omitted ?? 0)) + " more operations; expand");
+				if (details?.error) preview(details.error);
+				if (!entries.length) for (const block of result.content) {
+					if (block.type === "text" && block.text !== "(no output)") { preview(block.text); break; }
+				}
+				return lines;
+			},
+		});
+		return container;
+	}
 	const add = (text: string) => container.addChild(new SafeText(text, 0, 0));
 	const heading = (text: string) => add(theme.fg("muted", text));
 	if (entries.length) {

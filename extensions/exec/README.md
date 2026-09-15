@@ -9,13 +9,21 @@ its subprocesses and clear bindings without discarding file anchors.
 
 ## Pi presentation
 
-Collapsed exec rows summarize the operations actually invoked, not the first
-printed lines or a guess from the TypeScript:
+Collapsed exec rows list the operations actually invoked with one line of arguments
+and three result-preview lines per operation, clipped to terminal width:
 
 ```text
-exec  ✓ sh · read ×2 · edit · board.send
+exec ✓ read · grep
+✓ read  extensions/exec/runtime.cjs
+  extensions/exec/runtime.cjs:
+  1 abcd│const …
+  … more preview lines
+✓ grep  /OUTPUT_LIMIT/  runtime.cjs
+  21 efgh│const OUTPUT_LIMIT = 16 * 1024;
 ```
 
+At most eight operations appear collapsed; additional operations have an omission
+count. These are previews of the bounded trace, not complete returned values.
 Expand the row with pi's tool-expansion key to see calls in invocation order,
 their arguments, bounded result previews, durations, and pending/error states.
 Explicit `show` output has its own section; the original TypeScript follows.
@@ -111,6 +119,13 @@ await show(source.lines(40, 80)); // 1-based, inclusive
   source references; slice uses ordinary zero-based, end-exclusive array indices.
   A row is `{anchor, text, path, line}`. Context and enclosing definitions refer
   to the original snapshot, not a fresh version of the file.
+- Text display has a **16 KiB per-cell** budget. `await show.large(value, ...)`
+  explicitly raises that cell’s budget to **50 KiB**, including other show/console
+  output in that cell. It does not replay text already omitted. An end-of-cell
+  notice counts omitted rendered UTF-8 bytes; retain values and retry in a new
+  cell with `show.large`, or select smaller slices. Notification text uses 16 KiB.
+  Budgets exclude the short omission notice and image payloads. Object inspection
+  and source/trace previews retain their own formatting limits.
 - Display is bounded; source values are not display-truncated. An explicit search
   limit can make `complete` false. Check it before treating results as exhaustive.
 
@@ -125,7 +140,7 @@ base64 text. PNG, JPEG, GIF, WebP, and BMP follow pi's detection, conversion, an
 resizing pipeline (up to 2000×2000 pixels and 4.5 MB base64 per image). Unsupported
 image formats and other binary files fail clearly. Each cell or notification emits
 at most 8 images / 20 MiB base64, with a visible warning if that limit is reached;
-this is independent of the 50 KiB text cap.
+this is independent of the text cap.
 
 An image value exposes `path`, `mimeType`, `width`, `height`, and `note`, but no
 editable anchors or text-source methods. Its payload stays private during ordinary

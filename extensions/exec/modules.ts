@@ -62,7 +62,7 @@ export function describeModules(modules: readonly ExecModule[]): string {
 		"",
 		"API:",
 		...modules.flatMap(name => API[name]),
-		"await show(value, ...) renders bounded output; values/promises and content() blocks preserve order. Text is capped at 50 KiB; images bypass that cap, max 8 images / 20 MiB base64 per cell (visible warning; retained values stay intact).",
+		"await show(value, ...) renders bounded output; values/promises and content() blocks preserve order. Text is capped at 16 KiB per cell; show.large(value, ...) raises that cell to a 50 KiB ceiling. Omission notices count rendered UTF-8 bytes and suggest slicing/retrying; images bypass that cap, max 8 images / 20 MiB base64 per cell (visible warning; retained values stay intact).",
 		"notify(promise, label?) requests a one-shot completion/error alert with actual content (same text/image bounds) and returns the original promise. Keep a binding to await its result later.",
 		...(modules.some(name => name !== "fs" && name !== "sh") ? ["host.call(namespace, method, args) calls enabled host services only (term args are positional arrays; other namespaces use objects)."] : []),
 		...(modules.includes("fs") ? ["Read/search values are not display-truncated. Example: const hits = await grep(\"TODO\", await find(\"src/**/*.ts\")); await show(hits.context(2));", "SKILL.md snapshots are RAW source; inner calls do not fire read/bash hooks. Outer tool-result middleware may still rewrite displayed output. Use explicit paths and deliberately execute required placeholders with PI_SKILL_DIR/PI_WORKSPACE; transformed displays do not prove setup succeeded."] : []),

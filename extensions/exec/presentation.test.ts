@@ -189,7 +189,7 @@ test("real tool result renders narrow/wide and expanded/collapsed without guessi
 				expect(summary).not.toContain("exa");
 				expect(summary).toContain("image");
 			}
-			if (!expanded) expect(lines).toEqual([]);
+			if (!expanded) expect(lines.length).toBeGreaterThan(0);
 			if (expanded && width === 100) {
 				const display = stripVTControlCharacters(lines.join("\n"));
 				expect(display).toContain("args:");

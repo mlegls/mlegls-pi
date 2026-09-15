@@ -18,7 +18,8 @@ function traced(name, fn) {
 	};
 }
 
-const OUTPUT_LIMIT = 50 * 1024;
+const OUTPUT_LIMIT = 16 * 1024;
+const LARGE_OUTPUT_LIMIT = 50 * 1024;
 const SHELL_LIMIT = 1024 * 1024;
 const shellResults = new WeakSet();
 const TRUNCATED = "\n[output truncated]\n";
@@ -250,14 +251,27 @@ function show(...values) {
 	return pending;
 }
 
+show.large = (...values) => {
+	const cell = scope.getStore();
+	if (cell) cell.outputLimit = LARGE_OUTPUT_LIMIT;
+	return show(...values);
+};
+
+function outputWarning(cell) {
+	if (!cell.omittedBytes) return;
+	cell.deliver({ type: "output", id: cell.id, warning: true, text: `\n[output truncated] ${cell.omittedBytes} UTF-8 bytes omitted; retained values unchanged. Select a smaller slice or use show.large(value) in a new cell (50 KiB ceiling).\n` });
+}
+
 function emit(cell, value) {
-	if (cell.finished || cell.truncated) return;
+	if (cell.finished) return;
 	const bytes = Buffer.from(value);
-	const remaining = OUTPUT_LIMIT - cell.bytes;
-	let text = bytes.subarray(0, remaining).toString();
-	cell.bytes += Math.min(bytes.length, remaining);
-	if (bytes.length > remaining) { text += TRUNCATED; cell.truncated = true; }
-	cell.deliver({ type: "output", id: cell.id, text });
+	const remaining = Math.max(0, (cell.outputLimit ?? OUTPUT_LIMIT) - cell.bytes);
+	let end = Math.min(bytes.length, remaining);
+	while (end > 0 && end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--;
+	const text = bytes.subarray(0, end).toString();
+	cell.bytes += end;
+	cell.omittedBytes = (cell.omittedBytes ?? 0) + bytes.length - end;
+	if (text) cell.deliver({ type: "output", id: cell.id, text });
 }
 
 function errorText(error) {
@@ -331,6 +345,7 @@ function notify(promise, label) {
 				else emit(cell, displayed);
 				if (cell.renderError) error = errorText(cell.renderError);
 			} catch (e) { error = errorText(e); }
+			outputWarning(cell);
 			send({ type: "notification", event: { label, output, content, ...(error ? { error } : {}) } });
 		},
 		(error) => send({ type: "notification", event: { label, output: "", content: [], error: errorText(error) } }),
@@ -429,6 +444,7 @@ function execute(message) {
 			cell.finishing = true;
 			// Flush promised views even when show() was not explicitly awaited.
 			while (cell.pending.size) await Promise.allSettled([...cell.pending]);
+			outputWarning(cell);
 			cell.finished = true;
 			cell.trace.finish();
 			if (active === cell) active = undefined;

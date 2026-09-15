@@ -228,6 +228,7 @@ export class Kernel {
 			};
 			const abort = () => { void this.stop("Execution cancelled; kernel bindings were reset"); };
 			this.active = { id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate, content: [], output: "", bytes: 0, truncated: false, finish };
+			this.updateTrace();
 			signal?.addEventListener("abort", abort, { once: true });
 			try {
 				void this.start().then(() => {
