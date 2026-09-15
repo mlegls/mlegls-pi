@@ -78,10 +78,11 @@ export default function (pi: ExtensionAPI) {
 		async execute(_id, { code }, signal, _onUpdate, ctx) {
 			if (!kernel) await reset(ctx);
 			const result = await kernel!.execute(code, signal);
+			const text = [result.output, result.error].filter(Boolean).join("\n") || "(no output)";
+			if (result.error) throw new Error(text);
 			return {
-				content: [{ type: "text", text: [result.output, result.error].filter(Boolean).join("\n") || "(no output)" }],
-				details: { error: result.error },
-				...(result.error ? { isError: true } : {}),
+				content: [{ type: "text", text }],
+				details: {},
 			};
 		},
 	});
