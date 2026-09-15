@@ -211,9 +211,7 @@ export default function (pi: ExtensionAPI) {
 		timer.unref?.();
 	});
 
-	pi.on("session_switch", (_event, ctx) => restore(ctx));
 	pi.on("session_tree", (_event, ctx) => restore(ctx));
-	pi.on("session_fork", (_event, ctx) => restore(ctx));
 
 	pi.on("before_agent_start", () => {
 		collect();
