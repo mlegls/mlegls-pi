@@ -8,6 +8,7 @@
     "test:lsp": "bun test extensions/lsp",
     "test:outline-read": "bun test extensions/outline-read",
     "test:session": "bun test extensions/session",
+    "test:wm": "bun test lib/wm.test.ts",
     "test:system-prompt": "bun test extensions/system-prompt",
     "test:workspace": "bun test extensions/workspace"
   },

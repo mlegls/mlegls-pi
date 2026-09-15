@@ -8,6 +8,8 @@
 //
 // Other extensions subscribe this session through the event bus:
 //   pi.events.emit("board:subscribe", { topic, tags?, wake? })
+// and mark messages they already put in front of the model, so a subscription doesn't repeat them:
+//   pi.events.emit("board:seen", { ids: string[] })
 
 import { spawnSync } from "node:child_process";
 import { basename } from "node:path";
@@ -116,6 +118,11 @@ export default function (pi: ExtensionAPI) {
 		subscribe(params as Parameters<typeof subscribe>[0]);
 	});
 
+	const seen = new Set<string>();
+	pi.events.on("board:seen", (params) => {
+		for (const id of (params as { ids: string[] }).ids) seen.add(id);
+	});
+
 	function deliver(m: Message, wake: boolean) {
 		pi.sendMessage(
 			{
@@ -135,6 +142,7 @@ export default function (pi: ExtensionAPI) {
 		pi.appendEntry(CURSOR_ENTRY, cursor);
 		for (const m of result.messages) {
 			if (m.from.session === sessionId) continue;
+			if (seen.delete(m.id)) continue;
 			let wake = false;
 			let hit = false;
 			matchers.forEach((match, i) => {

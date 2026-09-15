@@ -9,6 +9,7 @@
 //   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt });
 //   const o = await w.done;                        // resolves on done, rejects on exit
 //   for await (const o of w.events) { ... }        // every event, incl. blocked/idle
+//   const got = await wait([a, b], { mode: "all" }); // Map<Worker, Outcome> across several
 //   await merge(w); await w.close();
 //
 // CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status|agents ...
@@ -180,6 +181,7 @@ export class Worker {
 	paneId?: string;
 	private listeners = new Set<(o: Outcome) => void>();
 	private waiters: Array<(o: Outcome) => void> = [];
+	private unread: Outcome[] = []; // events that arrived while nobody was listening; the next `next()` takes them first
 	/** @internal */
 	get awaited() {
 		return this.waiters.length > 0 || this.listeners.size > 0;
@@ -217,6 +219,7 @@ export class Worker {
 			this.ended = o;
 			poller.remove(this);
 		}
+		if (!this.awaited) this.unread.push(o);
 		for (const resolve of this.waiters.splice(0)) resolve(o);
 		for (const l of this.listeners) l(o);
 	}
@@ -248,11 +251,21 @@ export class Worker {
 		}
 	}
 
-	/** Next event of any kind. After exit, always the exit outcome. */
-	next(): Promise<Outcome> {
+	/** Next event of any kind. After exit, always the exit outcome. Aborting the signal withdraws the wait without consuming anything. */
+	next(signal?: AbortSignal): Promise<Outcome> {
+		if (this.unread.length) return Promise.resolve(this.unread.shift()!);
 		if (this.ended) return Promise.resolve(this.ended);
-		return new Promise((resolve) => {
-			this.waiters.push(resolve);
+		return new Promise((resolve, reject) => {
+			const done = (o: Outcome) => {
+				signal?.removeEventListener("abort", abort);
+				resolve(o);
+			};
+			const abort = () => {
+				this.waiters = this.waiters.filter((w) => w !== done);
+				reject(signal!.reason ?? new Error("aborted"));
+			};
+			signal?.addEventListener("abort", abort, { once: true });
+			this.waiters.push(done);
 			poller.schedule();
 		});
 	}
@@ -335,6 +348,37 @@ export class WorkerExited extends Error {
 	constructor(readonly worker: Worker, readonly outcome: Outcome) {
 		super(`${worker.handle} exited without reporting`);
 	}
+}
+
+export interface WaitOptions {
+	mode?: "any" | "all"; // any: the first event among them; all: one event per worker
+	timeoutMs?: number;
+	signal?: AbortSignal;
+}
+
+/** Wait on several workers at once. Returns the outcomes that arrived, keyed by worker; the missing ones are still pending. */
+export async function wait(workers: Worker[], opts: WaitOptions = {}): Promise<Map<Worker, Outcome>> {
+	const mode = opts.mode ?? "any";
+	const got = new Map<Worker, Outcome>();
+	if (!workers.length) return got;
+	const ac = new AbortController();
+	const stop = () => ac.abort();
+	const timer = opts.timeoutMs !== undefined ? setTimeout(stop, opts.timeoutMs) : undefined;
+	opts.signal?.addEventListener("abort", stop, { once: true });
+	await Promise.all(
+		workers.map((w) =>
+			w.next(ac.signal).then(
+				(o) => {
+					got.set(w, o);
+					if (mode === "any" || got.size === workers.length) stop();
+				},
+				() => {}, // withdrawn: still pending
+			),
+		),
+	);
+	clearTimeout(timer);
+	opts.signal?.removeEventListener("abort", stop);
+	return got;
 }
 
 export class MergeConflict extends Error {
