@@ -6,9 +6,8 @@
 // flattened here.
 //
 // Board subscriptions and acknowledgments have one owner: the board extension,
-// reached via board:subscribe / board:seen. Workers use lib/wm's single poller,
-// but this adapter's worker map is separate from the hidden legacy wm tool's
-// compatibility map. Both restore the wm-run entry; they do not share live state.
+// reached via board:subscribe / board:seen. This adapter owns the session's worker
+// map and remembered wm-run; workers use lib/wm's shared poller.
 // The bridge retains this factory on kernel reset, replaces it on session change,
 // and aborts old RPC signals before either reset.
 
