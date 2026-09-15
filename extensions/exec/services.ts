@@ -62,6 +62,53 @@ function object(value: unknown): Args {
 	return value && typeof value === "object" ? value as Args : {};
 }
 
+/** Filter arrays mean all listed tags; strings retain the boolean query language. */
+function tagFilter(value: unknown): string | undefined {
+	if (value === undefined) return undefined;
+	if (Array.isArray(value)) {
+		if (!value.every((tag) => typeof tag === "string" && /^[A-Za-z0-9_:./@-]+$/.test(tag)))
+			throw new Error("tags filter array must contain tag names ([A-Za-z0-9_:./@-]+), not expressions");
+		value = value.join(" & ");
+	}
+	if (typeof value !== "string") throw new Error("tags filter must be an expression string or an array of tag names (all required)");
+	parseTags(value);
+	return value || undefined;
+}
+
+function strings(value: unknown, what: string): string[] {
+	if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) throw new Error(`${what} must be an array of strings`);
+	return value;
+}
+
+// Public signatures travel with the service behavior.
+const SERVICE_HELP = {
+	board: {
+		send: { signature: "send({topic, body?, tags?: string[], data?})", returns: "Message", notes: "tags assigns literal tags, not a filter expression." },
+		read: { signature: "read({topic?, tags?: string | string[], limit?}?)", returns: "{messages, omitted}", notes: "Newest 20 matches by default. Does not acknowledge. Arrays require ALL tags; [] matches everything. Array items must match [A-Za-z0-9_:./@-]+, not expressions. Strings support !, &, |, parentheses; comma means AND." },
+		list: { signature: "list({topic?}?)", returns: "{topics, subscriptions}" },
+		subscribe: { signature: "subscribe({topic, tags?: string | string[], wake?, remove?})", returns: "{topic, tags?, wake, remove: false} | {topic, tags?, remove: true}", notes: "Same filters as read. Arrays normalize to an AND expression. wake defaults true. remove=true removes exact topic + normalized tags regardless of wake. Reads do not acknowledge; use ack." },
+		ack: { signature: "ack(ids: string[])", returns: "{acknowledged}", notes: "Marks only these IDs handled, suppressing their pending delivery/wake." },
+	},
+	wm: {
+		spawn: { signature: "spawn({run?, workers: {handle, prompt, agent?, base?}[], wake?, wait?})", returns: "{workers, subscribed, outcomes?, pending?, aborted?}", notes: "run required until remembered by successful spawn. Subscribes to worker reports; wake defaults true. wait=true waits for all." },
+		wait: { signature: "wait({handles?, run?, mode?: \"any\" | \"all\", timeoutMs?}?)", returns: "{outcomes, pending, aborted}", notes: "Defaults to remembered workers and mode=any. Reports remain unacknowledged; use board.ack(message IDs)." },
+		send: { signature: "send(handle, text, {run?}?)", returns: "{handle}" },
+		capture: { signature: "capture(handle, {run?, lines?}?)", returns: "{handle, paneId, text}", notes: "Defaults to 50 lines." },
+		merge: { signature: "merge(handles, {run?, into?, mode?: \"merge\" | \"rebase\"}?)", returns: "{merged, into?, mode, conflict?: {handle, files}}", notes: "merged contains branch names." },
+		close: { signature: "close(handles, {run?, keepBranch?}?)", returns: "{closed}", notes: "Removes report subscriptions for closed workers." },
+		status: { signature: "status()", returns: "{handle, branch, status, paneId, dir, session, updatedTs}[]", notes: "handle is accepted by worker operations. dir is the worktree directory. Live project status, not limited to remembered workers." },
+		agents: { signature: "agents()", returns: "{name, description}[]" },
+	},
+};
+
+function serviceHelp(namespace: keyof typeof SERVICE_HELP, args: unknown): unknown {
+	const methods: Record<string, object> = SERVICE_HELP[namespace];
+	const method = object(args).method;
+	if (method === undefined) return { namespace, methods, help: "help(method?) returns all methods or one signature, result shape, and notes" };
+	if (typeof method !== "string" || !Object.hasOwn(methods, method)) throw new Error(`unknown ${namespace} help method: ${String(method)}; available: ${Object.keys(methods).join(", ")}`);
+	return { namespace, method, ...methods[method] };
+}
+
 function need<T>(value: T | undefined, what: string): T {
 	if (value === undefined || value === null || value === "") throw new Error(`${what} required`);
 	return value;
@@ -134,19 +181,20 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 
 	function board(method: string, args: unknown): unknown {
 		switch (method) {
+			case "help": return serviceHelp("board", args);
 			case "send": {
 				const a = object(args);
 				return sendBoard({
 					topic: need(a.topic as string | undefined, "topic"),
 					body: (a.body as string) ?? "",
-					tags: (a.tags as string[]) ?? [],
+					tags: strings(a.tags ?? [], "board.send tags"),
 					data: a.data,
 					from: { session: sessionId, name, cwd },
 				});
 			}
 			case "read": {
 				const a = object(args);
-				const { messages, omitted } = readBoard({ topic: a.topic as string | undefined, tags: a.tags as string | undefined, limit: a.limit as number | undefined });
+				const { messages, omitted } = readBoard({ topic: a.topic as string | undefined, tags: tagFilter(a.tags), limit: a.limit as number | undefined });
 				return { messages, omitted };
 			}
 			case "list": {
@@ -155,13 +203,12 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 			}
 			case "subscribe": {
 				const a = object(args);
-				const sub: Subscription = { topic: need(a.topic as string | undefined, "topic"), tags: (a.tags as string | undefined) || undefined, wake: (a.wake as boolean | undefined) ?? true };
-				parseTags(sub.tags); // fail before the board extension swallows anything
+				const sub: Subscription = { topic: need(a.topic as string | undefined, "topic"), tags: tagFilter(a.tags), wake: (a.wake as boolean | undefined) ?? true };
 				pi.events.emit("board:subscribe", { ...sub, remove: a.remove ?? false });
-				return { topic: sub.topic, tags: sub.tags, wake: sub.wake, remove: a.remove ?? false };
+				return a.remove ? { topic: sub.topic, tags: sub.tags, remove: true } : { ...sub, remove: false };
 			}
 			case "ack": {
-				const ids = (object(args).ids as string[] | undefined) ?? [];
+				const ids = strings(object(args).ids ?? [], "board.ack ids");
 				if (ids.length) pi.events.emit("board:seen", { ids });
 				return { acknowledged: ids };
 			}
@@ -171,6 +218,7 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 
 	async function wm(method: string, args: unknown, signal: AbortSignal): Promise<unknown> {
 		switch (method) {
+			case "help": return serviceHelp("wm", args);
 			case "spawn": {
 				const a = object(args);
 				const r = need((a.run as string | undefined) ?? run, "run");
@@ -255,7 +303,9 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 				return { closed: ws.map((w) => w.handle) };
 			}
 			case "status":
-				return await workmuxStatus(cwd);
+				return (await workmuxStatus(cwd)).map(({ worktree, pane_id, workdir, updated_ts, ...entry }) => ({
+					...entry, handle: worktree, paneId: pane_id, dir: workdir, updatedTs: updated_ts,
+				}));
 			case "agents":
 				return readdirSync(AGENTS_DIR)
 					.filter((f) => f.endsWith(".md") && !f.startsWith("_"))
