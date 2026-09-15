@@ -7,6 +7,16 @@ const { stripTypeScriptTypes } = require("node:module");
 const { PassThrough, Writable } = require("node:stream");
 const { inspect } = require("node:util");
 const repl = require("node:repl");
+const { createTrace } = require("./trace.cjs");
+const DEFAULT_MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"];
+let modules = new Set(DEFAULT_MODULES);
+
+function traced(name, fn) {
+	return function (...args) {
+		const trace = scope.getStore()?.trace;
+		return trace ? Reflect.apply(trace.wrap(name, fn), this, args) : Reflect.apply(fn, this, args);
+	};
+}
 
 const OUTPUT_LIMIT = 50 * 1024;
 const SHELL_LIMIT = 1024 * 1024;
@@ -25,6 +35,7 @@ function send(message) {
 }
 
 function rpc(namespace, method, args) {
+	if (!modules.has(namespace)) return Promise.reject(new Error(`Exec module ${namespace} is disabled`));
 	return new Promise((resolve, reject) => {
 		const id = ++requestSequence;
 		pending.set(id, { resolve, reject });
@@ -328,6 +339,7 @@ function notify(promise, label) {
 }
 
 async function initialize(message) {
+	modules = new Set(message.modules ?? DEFAULT_MODULES);
 	if (typeof stripTypeScriptTypes !== "function") throw new Error("exec requires Node >= 22.13 for TypeScript transpilation");
 	const { createJiti } = require(message.loader);
 	const jiti = createJiti(__filename, { interopDefault: true });
@@ -346,7 +358,13 @@ async function initialize(message) {
 	});
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
-	Object.assign(server.context, api, services, { show, sh, write, notify });
+	Object.assign(server.context, { show, notify });
+	if (modules.has("fs")) for (const [name, fn] of Object.entries({ ...api, write })) server.context[name] = traced(name, fn);
+	if (modules.has("sh")) server.context.sh = traced("sh", sh);
+	for (const [namespace, methods] of Object.entries(services)) {
+		if (namespace !== "host" && !modules.has(namespace)) continue;
+		server.context[namespace] = Object.fromEntries(Object.entries(methods).map(([method, fn]) => [method, traced(namespace + "." + method, fn)]));
+	}
 	server.context.console = { ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show };
 	// Node's default REPL evaluator reports thrown errors through its domain,
 	// rather than the eval callback. Keep partial explicit output in either case.
@@ -366,11 +384,13 @@ function execute(message) {
 			// Flush promised views even when show() was not explicitly awaited.
 			while (cell.pending.size) await Promise.allSettled([...cell.pending]);
 			cell.finished = true;
+			cell.trace.finish();
 			if (active === cell) active = undefined;
 			error ??= cell.renderError;
 			send({ type: "done", id: cell.id, ...(error ? { error: errorText(error) } : {}) });
 		},
 	};
+	cell.trace = createTrace(cell, send);
 	active = cell;
 	scope.run(cell, () => {
 		try {
