@@ -10,9 +10,6 @@
     "tree-sitter-typescript": "^0.23.2",
     "web-tree-sitter": "^0.26.10"
   },
-  "pi": {
-    "extensions": ["./index.ts"]
-  },
   "private": true,
   "type": "module"
 }

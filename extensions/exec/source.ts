@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { basename, isAbsolute, join, matchesGlob, relative, resolve } from "node:path";
 import { types } from "node:util";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { formatRow } from "../outline-read/anchors";
@@ -154,11 +154,11 @@ export function createSourceAPI(deps: SourceDeps) {
 	}
 	async function find(glob?: string, options: FindOptions = {}): Promise<string[]> {
 		check();
+		const pattern = glob && (isAbsolute(glob) ? relative(cwd, glob) : glob.replace(/^\.\//, ""));
 		const local = join(getAgentDir(), "bin", "rg");
 		const paths = typeof options.paths === "string" ? [options.paths] : options.paths ?? ["."];
 		if (!paths.length) return [];
 		const args = ["--files", "--null", "--sort", "path"];
-		if (glob) args.push("--glob", glob);
 		if (options.hidden) args.push("--hidden");
 		args.push("--", ...paths.map(p => resolve(cwd, p)));
 		return new Promise((yes, no) => {
@@ -170,7 +170,9 @@ export function createSourceAPI(deps: SourceDeps) {
 			child.on("close", code => {
 				try { check(); } catch (e) { no(e); return; }
 				if (code !== 0 && code !== 1) { no(new Error(Buffer.concat(err).toString() || `rg exited ${code}`)); return; }
-				yes(Buffer.concat(out).toString().split("\0").filter(Boolean).map(p => resolve(cwd, p)));
+				const files = Buffer.concat(out).toString().split("\0").filter(Boolean).map(p => resolve(cwd, p));
+				// rg --glob overrides ignore rules; filter only after ignore-aware enumeration.
+				yes(pattern ? files.filter(path => matchesGlob(pattern.includes("/") ? relative(cwd, path) : basename(path), pattern)) : files);
 			});
 		});
 	}
