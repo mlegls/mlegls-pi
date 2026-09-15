@@ -12,15 +12,29 @@ export interface KernelNotification extends KernelResult {
 	label?: string;
 }
 
+/** One child→host service call. `signal` aborts when the kernel stops or is disposed. */
+export interface KernelRequest {
+	namespace: string;
+	method: string;
+	args: unknown;
+	signal: AbortSignal;
+}
+
 export interface KernelOptions {
 	cwd: string;
 	ledger: LedgerEntry[];
 	persist: (entry: LedgerEntry) => void | Promise<void>;
 	onNotification?: (event: KernelNotification) => void;
+	/** Host-side implementation of the `exa` / `board` / `wm` namespaces. Must resolve JSON-serializable values. */
+	call?: (request: KernelRequest) => Promise<unknown>;
 }
 
 const LIMIT = 50 * 1024;
 const TRUNCATED = "\n[output truncated]\n";
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
 
 /** Persistent lexical scope in a disposable Node process. Not a security sandbox. */
 export class Kernel {
@@ -30,6 +44,7 @@ export class Kernel {
 	private persistence: Promise<void> = Promise.resolve();
 	private persistenceError?: string;
 	private entries = new Map<string, LedgerEntry>();
+	private calls = new Set<AbortController>();
 	private active?: { id: number; output: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
 	private sequence = 0;
 	private disposed = false;
@@ -84,6 +99,7 @@ export class Kernel {
 					case "ready": clearTimeout(timer); resolve(); break;
 					case "output": if (message.id === this.active?.id) this.append(message.text); break;
 					case "done": if (message.id === this.active?.id) this.active?.finish(message.error); break;
+					case "request": void this.handleRequest(child, message); break;
 					case "persist": {
 						const entry = message.entry as LedgerEntry;
 						this.entries.set(entry.path, entry);
@@ -113,6 +129,38 @@ export class Kernel {
 			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], loader });
 		});
 		return this.ready;
+	}
+
+	/**
+	 * Route one child service call to the host. Each call owns an AbortSignal so a
+	 * retained promise (and its host work) unwinds when the kernel stops.
+	 */
+	private async handleRequest(child: ChildProcess, message: any): Promise<void> {
+		const id = message.id;
+		const call = this.options.call;
+		if (!call) {
+			this.respond(child, id, { ok: false, error: `Host service ${message.namespace}.${message.method} is unavailable` });
+			return;
+		}
+		const controller = new AbortController();
+		this.calls.add(controller);
+		try {
+			const value = await call({ namespace: String(message.namespace), method: String(message.method), args: message.args, signal: controller.signal });
+			if (this.child === child && !controller.signal.aborted) this.respond(child, id, { ok: true, value: value ?? null });
+		} catch (error) {
+			if (this.child === child && !controller.signal.aborted) this.respond(child, id, { ok: false, error: errorMessage(error) });
+		} finally {
+			this.calls.delete(controller);
+		}
+	}
+
+	/** A service result must be JSON-serializable; a bad one reports to the cell, never kills the kernel. */
+	private respond(child: ChildProcess, id: unknown, payload: { ok: boolean; value?: unknown; error?: string }): void {
+		try {
+			child.send({ type: "response", id, ...payload }, () => {});
+		} catch (error) {
+			try { child.send({ type: "response", id, ok: false, error: `Host result could not be serialized: ${errorMessage(error)}` }, () => {}); } catch { /* channel gone; exit handler cleans up */ }
+		}
 	}
 
 	private async run(code: string, signal?: AbortSignal): Promise<KernelResult> {
@@ -147,10 +195,17 @@ export class Kernel {
 		});
 	}
 
+	/** Abort every in-flight host service call; its promise must settle so host work unwinds. */
+	private abortCalls(): void {
+		for (const controller of this.calls) controller.abort();
+		this.calls.clear();
+	}
+
 	private async stop(error: string): Promise<void> {
 		const child = this.child;
 		this.child = undefined;
 		this.ready = undefined;
+		this.abortCalls();
 		this.active?.finish(error);
 		if (!child?.pid) return;
 		const exited = child.exitCode !== null || child.signalCode !== null;
