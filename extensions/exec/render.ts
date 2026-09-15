@@ -79,7 +79,7 @@ export const renderResult: NonNullable<Renderer["renderResult"]> = (result, { ex
 		// ToolExecutionComponent appends native images independently of these hooks.
 		if (block.type === "image") heading("[image: " + plain(block.mimeType) + "; native preview below when enabled]");
 	}
-	const code = context.args?.code;
+	const code = (context.args as { code?: unknown } | undefined)?.code;
 	if (typeof code === "string" && code) {
 		heading("Source TypeScript");
 		add(highlightCode(plain(code), "typescript").join("\n"));
