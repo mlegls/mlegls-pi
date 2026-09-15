@@ -15,13 +15,13 @@ test("structured host results can be filtered before display; saved jobs notify 
 	let started = false, aborted = false;
 	const kernel = new Kernel({
 		cwd: process.cwd(), ledger: [], persist() {}, onNotification: n => notices.push(n),
-		call: async ({ method, signal }: any) => {
+		call: async ({ method, signal }) => {
 			if (method === "search") return { results: [{ title: "discard", text: "x".repeat(100_000) }, { title: "keep", text: "needle" }], costDollars: { total: 0.007 } };
 			if (method === "status") { started = true; return new Promise(resolve => { release = resolve; }); }
 			if (method === "wait") return new Promise((_, reject) => signal.addEventListener("abort", () => { aborted = true; reject(new Error("cancelled")); }, { once: true }));
 			throw new Error("host unavailable");
 		},
-	} as any);
+	});
 	try {
 		const fetched = await kernel.execute('const response = await exa.search("query");');
 		expect(fetched.error).toBeUndefined();
