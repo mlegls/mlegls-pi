@@ -18,3 +18,5 @@ Disabled Firecrawl and MCP packages are optional and not required by the suite;
 install their dependencies separately if enabling them.
 
 See [exec](extensions/exec/README.md) for the persistent TypeScript tool API.
+
+See [Featherless](extensions/featherless/README.md) for automatic model discovery.
