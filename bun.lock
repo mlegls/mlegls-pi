@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "mlegls-pi",
+      "dependencies": {
+        "jiti": "^2.7.0",
+      },
       "devDependencies": {
         "@earendil-works/pi-ai": "0.84.4",
         "@earendil-works/pi-coding-agent": "0.84.4",

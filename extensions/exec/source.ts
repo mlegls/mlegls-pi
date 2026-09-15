@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { types } from "node:util";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { formatRow } from "../outline-read/anchors";
 import { executeEdits, executeHunks, type Hunk } from "../outline-read/edit";
@@ -176,8 +177,9 @@ export function createSourceAPI(deps: SourceDeps) {
 	async function grep(pattern: string | RegExp, paths?: string | string[], options: GrepOptions = {}): Promise<SourceSelection> {
 		check();
 		if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 0)) throw new Error("Limit must be a nonnegative integer");
-		const flags = pattern instanceof RegExp ? pattern.flags.replace(/[gy]/g, "") : "";
-		const source = pattern instanceof RegExp ? pattern.source : options.literal ? pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : pattern;
+		const isRegex = types.isRegExp(pattern);
+		const flags = isRegex ? pattern.flags.replace(/[gy]/g, "") : "";
+		const source = isRegex ? pattern.source : options.literal ? pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : pattern;
 		const regex = new RegExp(source, flags + (options.ignoreCase && !flags.includes("i") ? "i" : ""));
 		const requested = typeof paths === "string" ? [paths] : paths ?? ["."];
 		// rg --files does not enumerate explicit file arguments on every rg version.
