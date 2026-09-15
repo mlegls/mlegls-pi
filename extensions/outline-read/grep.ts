@@ -5,6 +5,7 @@ import { basename, join, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { getAgentDir, truncateHead, truncateLine, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { pipe, PipeParam, words } from "../../lib/pipe";
 import { formatRow } from "./anchors";
 import { loadConfig } from "./config";
 import type { Ledger } from "./ledger";
@@ -12,12 +13,13 @@ import type { OutlineNode, OutlineSource } from "./outline/types";
 
 const parameters = Type.Object({
 	pattern: Type.String({ description: "Search pattern (regex or literal string)" }),
-	path: Type.Optional(Type.String({ description: "Directory or file to search (default: current directory)" })),
+	path: Type.Optional(Type.String({ description: "Directories or files to search, whitespace-separated (default: current directory)" })),
 	glob: Type.Optional(Type.String({ description: "Filter files by glob pattern, e.g. '*.ts' or '**/*.spec.ts'" })),
 	ignoreCase: Type.Optional(Type.Boolean({ description: "Case-insensitive search (default: false)" })),
 	literal: Type.Optional(Type.Boolean({ description: "Treat pattern as literal string instead of regex (default: false)" })),
 	context: Type.Optional(Type.Number({ description: "Number of lines to show before and after each match (default: 0)" })),
 	limit: Type.Optional(Type.Number({ description: "Maximum number of matches to return (default: 100)" })),
+	pipe: PipeParam,
 });
 
 const DEFAULT_LIMIT = 100;
@@ -108,7 +110,7 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 		description:
 			`Search file contents for a pattern (ripgrep; respects .gitignore). Matches are grouped by file and by the enclosing definition or heading, ` +
 			`shown as \`line anchor│text\`; the anchors work directly with edit, so grep → edit needs no read in between. ` +
-			`Output is truncated to ${DEFAULT_LIMIT} matches or 50KB.`,
+			`Output is truncated to ${DEFAULT_LIMIT} matches or 50KB. \`pipe\` runs the rendered output through bash (limit lifted).`,
 		promptSnippet: "Search file contents for patterns; results carry line anchors usable by edit",
 		promptGuidelines: [
 			"Grep results show the enclosing definition and its line range; read that range if you need the full body.",
@@ -116,13 +118,18 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 		parameters,
 		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
 			const config = loadConfig(ctx.cwd);
-			const searchPath = resolve(ctx.cwd, params.path || ".");
-			const info = await stat(searchPath).catch(() => null);
-			if (!info) throw new Error(`Path not found: ${searchPath}`);
-			const isDirectory = info.isDirectory();
+			const roots = (params.path ? words(params.path) : ["."]).map((p) => resolve(ctx.cwd, p));
+			const dirs: string[] = [];
+			for (const root of roots) {
+				const info = await stat(root).catch(() => null);
+				if (!info) throw new Error(`Path not found: ${root}`);
+				if (info.isDirectory()) dirs.push(root);
+			}
+			// One root: paths relative to it, as before. Several: relative to cwd, so they're unambiguous.
+			const base = roots.length === 1 ? dirs[0] : ctx.cwd;
 			const display = (file: string) => {
-				if (isDirectory) {
-					const rel = relative(searchPath, file);
+				if (base) {
+					const rel = relative(base, file);
 					if (rel && !rel.startsWith("..")) return rel.replace(/\\/g, "/");
 				}
 				return basename(file);
@@ -132,8 +139,8 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 			if (params.ignoreCase) args.push("--ignore-case");
 			if (params.literal) args.push("--fixed-strings");
 			if (params.glob) args.push("--glob", params.glob);
-			args.push("--", params.pattern, searchPath);
-			const limit = Math.max(1, params.limit ?? DEFAULT_LIMIT);
+			args.push("--", params.pattern, ...roots);
+			const limit = Math.max(1, params.limit ?? (params.pipe ? 10_000 : DEFAULT_LIMIT));
 			const { matches, limited } = await search(args, limit, signal);
 			if (!matches.length) return { content: [{ type: "text" as const, text: "No matches found" }], details: undefined };
 
@@ -190,6 +197,7 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 				sections.push(out.join("\n"));
 			}
 
+			if (params.pipe) return { content: [{ type: "text" as const, text: pipe(sections.join("\n\n"), params.pipe, ctx.cwd) }], details: undefined };
 			const truncation = truncateHead(sections.join("\n\n"), { maxLines: Number.MAX_SAFE_INTEGER });
 			let output = truncation.content;
 			const notices: string[] = [];

@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { relative } from "node:path";
+import { relative, resolve } from "node:path";
 import { withFileMutationQueue, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createTwoFilesPatch } from "diff";
 import { Type } from "typebox";
@@ -11,7 +11,8 @@ const GRAMMAR = `Hunks separated by one blank line. A hunk is a header line, the
   =abcd wxyz    replace abcd..wxyz inclusive
   -abcd wxyz    delete abcd..wxyz (no body)
   >abcd         insert after abcd
-  <abcd         insert before abcd`;
+  <abcd         insert before abcd
+A header may end with @path to assert which file the anchors belong to; a mismatch rejects the call.`;
 
 const parameters = Type.Object({
 	edits: Type.String({ description: GRAMMAR }),
@@ -27,6 +28,8 @@ interface Hunk {
 	header: string;
 	from: string;
 	to?: string;
+	/** `@path` assertion, if given. */
+	path?: string;
 	mode: "replace" | "delete" | "after" | "before";
 	lines: string[];
 }
@@ -49,9 +52,10 @@ function parseHeader(line: string, known: (a: string) => boolean): Omit<Hunk, "l
 	const mode = SIGILS[head[0]];
 	if (!mode) return undefined;
 	const tokens = head.slice(1).trim().split(/\s+/).filter(Boolean);
+	const path = tokens[tokens.length - 1]?.startsWith("@") ? tokens.pop()!.slice(1) : undefined;
 	if (tokens.length === 0 || tokens.length > 2 || !tokens.every((t) => ANCHOR.test(t) && known(t))) return undefined;
 	if (tokens.length === 2 && (mode === "after" || mode === "before")) return undefined;
-	return { header: head, from: tokens[0], to: tokens[1], mode };
+	return { header: head, from: tokens[0], to: tokens[1], mode, path };
 }
 
 export function parseHunks(text: string, known: (a: string) => boolean): Hunk[] {
@@ -90,7 +94,7 @@ export function registerEditTool(pi: ExtensionAPI, deps: EditDeps): void {
 		name: "edit",
 		label: "edit",
 		description:
-			"Edit files by line anchors from read/grep output (`abcd│text`). Anchors are unique across files, so no path is needed; one call may touch several files.\n" +
+			"Edit files by line anchors from read/grep output (`abcd│text`). Anchors are unique across files, so no path is needed; one call may touch several files. A file's anchors share their first character.\n" +
 			GRAMMAR +
 			"\nAnchors survive your own edits and edits elsewhere in the file; a line that changed on disk gets a new anchor and the old one is rejected.",
 		promptSnippet: "Edit files by anchor: replace an anchored line or range, or insert next to one; many hunks and files per call",
@@ -114,6 +118,9 @@ export function registerEditTool(pi: ExtensionAPI, deps: EditDeps): void {
 				const path = deps.ledger.find(h.from)!.path;
 				const toPath = h.to && deps.ledger.find(h.to)!.path;
 				if (toPath && toPath !== path) throw new Error(`"${h.header}": anchors are in different files. Nothing was modified.`);
+				if (h.path !== undefined && resolve(ctx.cwd, h.path) !== path) {
+					throw new Error(`"${h.header}": anchor ${h.from} is in ${relative(ctx.cwd, path)}, not ${h.path}. Nothing was modified.`);
+				}
 				(byFile.get(path) ?? byFile.set(path, []).get(path)!).push(h);
 			}
 

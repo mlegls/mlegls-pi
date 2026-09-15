@@ -91,7 +91,7 @@ export class Ledger {
 			}
 		}
 		if (!ledger) {
-			ledger = { lines: current.map((text) => ({ anchor: allocateAnchor(text, this.taken), text })) };
+			ledger = { lines: current.map((text) => ({ anchor: allocateAnchor(text, this.taken, path), text })) };
 			this.files.set(path, ledger);
 			return { ledger, changed: true, fresh: current.map((_, i) => i) };
 		}
@@ -109,7 +109,7 @@ export class Ledger {
 			} else if (part.added) {
 				for (const text of part.value) {
 					fresh.push(next.length);
-					next.push({ anchor: allocateAnchor(text, this.taken), text });
+					next.push({ anchor: allocateAnchor(text, this.taken, path), text });
 				}
 			} else {
 				next.push(...ledger.lines.slice(index, index + part.value.length));

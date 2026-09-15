@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { allocateAnchor, isAnchor, stripPastedPrefix } from "./anchors";
+import { allocateAnchor, isAnchor, scent, stripPastedPrefix } from "./anchors";
 import { parseHunks, registerEditTool } from "./edit";
 import { Ledger } from "./ledger";
 import { registerReadTool } from "./read";
@@ -15,6 +15,12 @@ describe("anchors", () => {
 		expect(a).not.toBe(b);
 		expect(isAnchor(a)).toBe(true);
 		expect(allocateAnchor("}", new Set())).toBe(a);
+	});
+	test("anchors of one file share its scent", () => {
+		const taken = new Set<string>();
+		const xs = ["a", "b", "c"].map((t) => allocateAnchor(t, taken, "/x.ts"));
+		expect(new Set(xs.map((a) => a[0])).size).toBe(1);
+		expect(xs[0]![0]).toBe(scent("/x.ts"));
 	});
 	test("strip pasted prefixes", () => {
 		expect(stripPastedPrefix("ab3f│x")).toBe("x");
@@ -52,7 +58,8 @@ describe("ledger", () => {
 describe("parseHunks", () => {
 	const known = (a: string) => ["aaaa", "bbbb", "cccc"].includes(a);
 	test("forms", () => {
-		expect(parseHunks("=aaaa\nx", known)).toEqual([{ header: "=aaaa", from: "aaaa", to: undefined, mode: "replace", lines: ["x"] }]);
+		expect(parseHunks("=aaaa\nx", known)).toEqual([{ header: "=aaaa", from: "aaaa", to: undefined, mode: "replace", path: undefined, lines: ["x"] }]);
+		expect(parseHunks("=aaaa @src/a.ts\nx", known)[0]).toMatchObject({ from: "aaaa", path: "src/a.ts" });
 		expect(parseHunks("=aaaa bbbb\nx\ny", known)[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x", "y"] });
 		expect(parseHunks("-aaaa bbbb", known)[0]).toMatchObject({ mode: "delete", lines: [] });
 		expect(parseHunks(">aaaa\nx", known)[0]).toMatchObject({ mode: "after" });

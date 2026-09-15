@@ -56,7 +56,9 @@ inserted before b4nn
 ```
 
 `=` replaces a line or an inclusive range, `-` deletes one (no body), `>`
-inserts after, `<` before. A pasted read row (`=abcd│text`) works as a
+inserts after, `<` before. A header may end with `@path` to assert which
+file the anchors belong to. A file's anchors all start with the same
+character (a hash of its path), so one from the wrong file looks wrong. A pasted read row (`=abcd│text`) works as a
 header. A blank line inside a body is content unless the line after it is a
 header of known anchors.
 
@@ -68,7 +70,8 @@ prefixes in body lines are stripped with a warning.
 ## Grep
 
 Same parameters as the built-in (`pattern`, `path`, `glob`, `ignoreCase`,
-`literal`, `context`, `limit`). Output:
+`literal`, `context`, `limit`), plus `pipe`. `path` may name several roots,
+whitespace-separated; with more than one, shown paths are relative to cwd. Output:
 
 ```
 src/lsp-client.ts
