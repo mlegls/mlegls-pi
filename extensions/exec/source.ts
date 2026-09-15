@@ -11,6 +11,7 @@ import { markdownSource } from "../outline-read/outline/markdown";
 import { treeSitterSource } from "../outline-read/outline/treesitter";
 import { renderOutline } from "../outline-read/outline/render";
 import type { OutlineNode } from "../outline-read/outline/types";
+import { createImageFile, detectImageMimeType, looksLikeImageFile, type ImageFile } from "./image";
 
 function sourceLines(raw: string): string[] {
 	const lines = raw.split("\n");
@@ -138,10 +139,17 @@ function editResult(result: Awaited<ReturnType<typeof executeEdits>>): SourceEdi
 export function createSourceAPI(deps: SourceDeps) {
 	const cwd = resolve(deps.cwd);
 	const check = () => deps.signal?.throwIfAborted();
-	async function read(path: string): Promise<SourceFile> {
+	async function read(path: string): Promise<SourceFile | ImageFile> {
 		check();
 		path = resolve(cwd, path);
-		const raw = await readFile(path, { encoding: "utf8", signal: deps.signal });
+		const bytes = await readFile(path, { signal: deps.signal });
+		if (looksLikeImageFile(bytes)) {
+			check();
+			const mimeType = await detectImageMimeType(path);
+			if (!mimeType) throw new Error(`${path}: unsupported image format (animated or unrecognized image containers are not readable)`);
+			return createImageFile(path, bytes, mimeType);
+		}
+		const raw = bytes.toString("utf8");
 		if (raw.includes("\0")) throw new Error(`${path}: binary files are not source`);
 		return capture(path, raw);
 	}
