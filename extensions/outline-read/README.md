@@ -26,6 +26,11 @@ Java), markdown headings, then a model-generated outline for anything else.
 | `src/a.ts:50-` | from 50 to the end |
 | `src/a.ts:5-16,40-80` | several ranges in one call, merged when adjacent |
 | `src/a.ts:all` | whole file regardless of size, capped at `maxLines` / `maxBytes` |
+| `src/a.ts lib/b.ts:1-40 "c d.md"` | several files (and selectors) in one call, a blank line between them |
+
+`pipe` runs the anchored output through `bash -c`; lines that survive keep
+their anchors, so `path:all` + `pipe: rg -n TODO` is a grep whose hits are
+directly editable.
 
 `offset` and `limit` parameters are accepted as an alternative to a selector.
 A literal filename containing `:` wins over the selector reading when it exists.

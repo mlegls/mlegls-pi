@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"strict": true,
+		"noEmit": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"target": "esnext",
+		"types": ["bun-types"],
+		"skipLibCheck": true,
+		"allowImportingTsExtensions": true
+	},
+	"include": ["lib", "extensions"],
+	"exclude": ["**/node_modules", "extensions/disabled"]
+}

@@ -11,11 +11,11 @@
 // and mark messages they already put in front of the model, so a subscription doesn't repeat them:
 //   pi.events.emit("board:seen", { ids: string[] })
 
-import { spawnSync } from "node:child_process";
 import { basename } from "node:path";
-import { truncateHead, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { pipe, PipeParam } from "../../lib/pipe";
 import { compileQuery, parseTags } from "./query";
 import { logSize, read, readFrom, send, topics, type Message, type Numbered } from "./store";
 
@@ -68,14 +68,6 @@ function render(messages: Numbered[], mode: "full" | "brief" | "json"): string {
 	if (mode === "json") return messages.map((m) => JSON.stringify(m)).join("\n");
 	if (mode === "brief") return messages.map(formatBrief).join("\n");
 	return renderFull(messages);
-}
-
-function pipe(text: string, command: string, cwd: string): string {
-	const r = spawnSync("bash", ["-c", command], { input: text, cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 30_000 });
-	if (r.error) throw r.error;
-	if (r.status !== 0) throw new Error(`pipe exited ${r.status}: ${r.stderr.trim()}`);
-	const t = truncateHead(r.stdout, { maxBytes: MAX_BYTES, maxLines: Number.MAX_SAFE_INTEGER });
-	return t.truncated ? `${t.content}\n[pipe output truncated: ${t.outputLines} of ${t.totalLines} lines]` : t.content;
 }
 
 function subKey(s: Subscription): string {
@@ -231,7 +223,7 @@ export default function (pi: ExtensionAPI) {
 			mode: Type.Optional(Type.Union([Type.Literal("full"), Type.Literal("brief"), Type.Literal("json")], {
 				description: "Default full. json: one object per line, {line, id, ts (ISO), topic, tags: string[], from: {name, session, cwd}, body, data?}.",
 			})),
-			pipe: Type.Optional(Type.String({ description: "bash command; rendered messages on stdin. Lifts the default limit." })),
+			pipe: PipeParam,
 			limit: Type.Optional(Type.Number({ description: "Default 20 (unbounded with pipe); the newest are kept." })),
 		}),
 		async execute(_id, params) {
