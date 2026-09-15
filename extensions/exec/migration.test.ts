@@ -127,6 +127,207 @@ test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled
 
 const pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR4AQEFAPr/AP8AAP8FAAH/+lyI0QAAAABJRU5ErkJggg==";
 
+// Captured from pi-computer-use 0.5.1 observe_ui on Zed, 2026-09-15.
+// Keep the native restoration payload; content below independently exercises transport ordering.
+const desktopObservation = {
+	"tool": "observe_ui",
+	"target": {
+		"app": "Zed",
+		"bundleId": "dev.zed.Zed",
+		"pid": 38018,
+		"windowTitle": "system-config — SKILL.md",
+		"windowId": 66706,
+		"windowRef": "@r3",
+		"nativeWindowRef": "w224"
+	},
+	"capture": {
+		"stateId": "3c0c1d71-f059-4c97-b436-4cadb5aa752c",
+		"width": 900,
+		"height": 561,
+		"scaleFactor": 1,
+		"timestamp": 1789475403417,
+		"coordinateSpace": "window-relative-screenshot-pixels"
+	},
+	"outline": {
+		"lookId": "look_4",
+		"root": {
+			"ref": "@e1",
+			"wireRef": "e234",
+			"role": "AXWindow",
+			"subrole": "AXStandardWindow",
+			"identifier": "",
+			"title": "system-config — SKILL.md",
+			"description": "",
+			"value": "",
+			"actions": [
+				"AXRaise"
+			],
+			"canPress": false,
+			"canFocus": false,
+			"canSetValue": false,
+			"canScroll": false,
+			"canIncrement": false,
+			"canDecrement": false,
+			"isTextInput": false,
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 900,
+				"h": 561
+			},
+			"focused": true,
+			"offscreen": false,
+			"pictureOnly": false,
+			"truncated": false,
+			"text": [],
+			"children": [
+				{
+					"ref": "@e2",
+					"wireRef": "e235",
+					"role": "AXButton",
+					"subrole": "AXCloseButton",
+					"identifier": "",
+					"title": "",
+					"description": "",
+					"value": "",
+					"actions": [
+						"AXPress"
+					],
+					"canPress": true,
+					"canFocus": false,
+					"canSetValue": false,
+					"canScroll": false,
+					"canIncrement": false,
+					"canDecrement": false,
+					"isTextInput": false,
+					"rect": {
+						"x": 4.761904761904762,
+						"y": 5.348516949152542,
+						"w": 9.523809523809522,
+						"h": 9.508474576271187
+					},
+					"focused": false,
+					"offscreen": false,
+					"pictureOnly": false,
+					"truncated": false,
+					"text": [],
+					"children": []
+				},
+				{
+					"ref": "@e3",
+					"wireRef": "e236",
+					"role": "AXButton",
+					"subrole": "AXFullScreenButton",
+					"identifier": "",
+					"title": "",
+					"description": "",
+					"value": "",
+					"actions": [
+						"AXPress",
+						"AXZoomWindow",
+						"AXShowMenu"
+					],
+					"canPress": true,
+					"canFocus": false,
+					"canSetValue": false,
+					"canScroll": false,
+					"canIncrement": false,
+					"canDecrement": false,
+					"isTextInput": false,
+					"rect": {
+						"x": 28.57142857142857,
+						"y": 5.348516949152542,
+						"w": 9.523809523809526,
+						"h": 9.508474576271187
+					},
+					"focused": false,
+					"offscreen": false,
+					"pictureOnly": false,
+					"truncated": false,
+					"text": [],
+					"children": [
+						{
+							"ref": "@e5",
+							"wireRef": "e238",
+							"role": "AXGroup",
+							"subrole": "",
+							"identifier": "",
+							"title": "",
+							"description": "",
+							"value": "",
+							"actions": [],
+							"canPress": false,
+							"canFocus": false,
+							"canSetValue": false,
+							"canScroll": false,
+							"canIncrement": false,
+							"canDecrement": false,
+							"isTextInput": false,
+							"rect": {
+								"x": 29.166666666666668,
+								"y": 5.348516949152542,
+								"w": 8.333333333333332,
+								"h": 9.508474576271187
+							},
+							"focused": false,
+							"offscreen": false,
+							"pictureOnly": false,
+							"truncated": false,
+							"text": [],
+							"children": []
+						}
+					]
+				},
+				{
+					"ref": "@e4",
+					"wireRef": "e237",
+					"role": "AXButton",
+					"subrole": "AXMinimizeButton",
+					"identifier": "",
+					"title": "",
+					"description": "",
+					"value": "",
+					"actions": [
+						"AXPress"
+					],
+					"canPress": true,
+					"canFocus": false,
+					"canSetValue": false,
+					"canScroll": false,
+					"canIncrement": false,
+					"canDecrement": false,
+					"isTextInput": false,
+					"rect": {
+						"x": 16.666666666666668,
+						"y": 5.348516949152542,
+						"w": 9.523809523809522,
+						"h": 9.508474576271187
+					},
+					"focused": false,
+					"offscreen": false,
+					"pictureOnly": false,
+					"truncated": false,
+					"text": [],
+					"children": []
+				}
+			]
+		}
+	},
+	"note": {
+		"windowRef": "@r3",
+		"title": "system-config — SKILL.md",
+		"pairing": "exact",
+		"lastLookId": "look_4",
+		"regions": [
+			{
+				"key": "AXButton:axbutton",
+				"label": "axbutton",
+				"status": "seen"
+			}
+		]
+	}
+};
+
 test("UI observations cross real Kernel RPC with ordered images, reusable refs and state, and visible errors", async () => {
 	const requests: Array<{ name: string; args: unknown }> = [];
 	const saved: any[] = [];
@@ -147,7 +348,7 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		pi.on("session_start", (_event, ctx) => {
 			backendState = undefined;
 			for (const entry of ctx.sessionManager.getBranch() as any[]) {
-				if (entry.type === "message" && entry.message.role === "toolResult") backendState = entry.message.details?.stateId;
+				if (entry.type === "message" && entry.message.role === "toolResult") backendState = entry.message.details?.capture?.stateId;
 			}
 		});
 		const register = (name: string, parameters: any, execute: (args: any) => any) => pi.registerTool({
@@ -156,25 +357,25 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		});
 		// The desktop backend is the only substituted boundary; no image or display mock.
 		register("observe_ui", Type.Object({ root: Type.String(), mode: Type.String() }), () => {
-			backendState = "desktop-1";
+			backendState = "3c0c1d71-f059-4c97-b436-4cadb5aa752c";
 			return {
 			content: [
-				{ type: "text", text: "state: desktop-1\n@e7 button Save" },
+				{ type: "text", text: "state: 3c0c1d71-f059-4c97-b436-4cadb5aa752c\n@e2 button Save" },
 				{ type: "image", data: pixel, mimeType: "image/png" },
 				{ type: "text", text: "detail crop" },
 				{ type: "image", data: pixel, mimeType: "image/png" },
 				{ type: "text", text: "end observation" },
 			],
-			details: { stateId: "desktop-1", ref: "@e7", root: "@r2" },
+			details: desktopObservation,
 			};
 		});
 		register("inspect_ui", Type.Object({ ref: Type.String(), stateId: Type.String() }), ({ ref, stateId }) => {
 			if (stateId !== backendState) throw new Error("UI state unavailable; observe again");
 			if (ref === "@delayed") return new Promise(resolve => {
-				releaseLate = () => resolve({ content: [{ type: "text", text: "late completion" }], details: { stateId: "late-state" } });
+				releaseLate = () => resolve({ content: [{ type: "text", text: "late completion" }], details: { ...desktopObservation, capture: { ...desktopObservation.capture, stateId: "late-state" } } });
 			});
 			if (ref === "@missing") throw new Error("UI ref @missing expired; observe again");
-			return { content: [{ type: "text", text: "Save is enabled" }], details: { stateId: "desktop-1", ref } };
+			return { content: [{ type: "text", text: "Save is enabled" }], details: { stateId: "3c0c1d71-f059-4c97-b436-4cadb5aa752c", ref } };
 		});
 		register("act_ui", Type.Object({ stateId: Type.String(), actions: Type.Array(Type.Object({ ref: Type.String(), action: Type.String() })) }), () => ({
 			isError: true,
@@ -186,36 +387,39 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		const ctx = { cwd, sessionManager: { getSessionId: () => "ui-migration", getBranch: () => branch } } as any;
 		services = createExecServices(pi, ctx, { ui: bridge });
 		await lifecycle.get("session_start")!({}, ctx);
-		expect((await cell(kernel, 'const observation = await ui.observe({root:"@r2",mode:"visual"});')).content).toEqual([]);
+		expect((await cell(kernel, 'const observation = await ui.observe({root:"@r3",mode:"visual"});')).content).toEqual([]);
 		const shown = await cell(kernel, 'await show(observation);');
 		expect(shown.content.map(c => c.type)).toEqual(["text", "image", "text", "image", "text"]);
-		expect(shown.content.filter(c => c.type === "text").map(c => c.text.trim())).toEqual(["state: desktop-1\n@e7 button Save", "detail crop", "end observation"]);
+		expect(shown.content.filter(c => c.type === "text").map(c => c.text.trim())).toEqual(["state: 3c0c1d71-f059-4c97-b436-4cadb5aa752c\n@e2 button Save", "detail crop", "end observation"]);
 		expect(shown.content.filter(c => c.type === "image")).toEqual([{ type: "image", data: pixel, mimeType: "image/png" }, { type: "image", data: pixel, mimeType: "image/png" }]);
 		const inspected = (await cell(kernel, 'show(JSON.stringify(observation)); show({...observation});')).output;
 		expect(inspected).not.toContain(pixel);
-		expect(inspected).toContain("desktop-1");
-		expect(inspected).toContain("@e7");
+		expect(inspected).toContain("3c0c1d71-f059-4c97-b436-4cadb5aa752c");
+		expect(inspected).toContain("@e2");
 		expect(shown.output).not.toContain(pixel);
-		await cell(kernel, 'const inspectedRef = await ui.inspect({stateId:observation.details.stateId,ref:observation.details.ref}); await show(inspectedRef);');
+		await cell(kernel, 'const inspectedRef = await ui.inspect({stateId:observation.capture.stateId,ref:observation.details.outline.root.children[0].ref}); await show(inspectedRef);');
 		expect(requests.slice(0, 2)).toEqual([
-			{ name: "observe_ui", args: { root: "@r2", mode: "visual" } },
-			{ name: "inspect_ui", args: { stateId: "desktop-1", ref: "@e7" } },
+			{ name: "observe_ui", args: { root: "@r3", mode: "visual" } },
+			{ name: "inspect_ui", args: { stateId: "3c0c1d71-f059-4c97-b436-4cadb5aa752c", ref: "@e2" } },
 		]);
-		const failed = await kernel.execute('await show(observation); await ui.inspect({stateId:observation.details.stateId,ref:"@missing"});');
+		const failed = await kernel.execute('await show(observation); await ui.inspect({stateId:observation.capture.stateId,ref:"@missing"});');
 		expect(failed.error).toContain("UI ref @missing expired; observe again");
 		expect(failed.content.filter(c => c.type === "image")).toHaveLength(2);
-		const refused = await kernel.execute('const refused = await ui.act({stateId:observation.details.stateId,actions:[{ref:observation.details.ref,action:"press"}]}); show(refused.isError, refused.details.stateId); await show(refused);');
+		const refused = await kernel.execute('const refused = await ui.act({stateId:observation.capture.stateId,actions:[{ref:observation.details.outline.root.children[0].ref,action:"press"}]}); show(refused.isError, refused.details.stateId); await show(refused);');
 		expect(refused.error).toContain("UI operation failed");
 		expect(refused.output).toContain("true desktop-2");
 		expect(refused.output).toContain("Action refused: stale state");
 		expect(refused.content.filter(c => c.type === "image")).toHaveLength(1);
 		expect((await cell(kernel, 'show(typeof ui.navigate, typeof ui.evaluate, typeof ui.launchBrowser);')).output).toBe("undefined undefined undefined\n");
 		expect(JSON.stringify(saved)).not.toContain(pixel);
+		expect(saved).toHaveLength(1);
+		expect(saved[0].data.details.capture.stateId).toBe(desktopObservation.capture.stateId);
+		expect(saved[0].data.details.outline.root).toEqual(desktopObservation.outline.root);
 
 		// Restore the real earlier journal after an interrupted backend finishes late.
 		const beforeLate = saved.length;
 		const controller = new AbortController();
-		const pending = kernel.execute('await ui.inspect({stateId:"desktop-1",ref:"@delayed"});', controller.signal);
+		const pending = kernel.execute('await ui.inspect({stateId:"3c0c1d71-f059-4c97-b436-4cadb5aa752c",ref:"@delayed"});', controller.signal);
 		await until(() => releaseLate !== undefined);
 		controller.abort();
 		expect((await pending).error).toMatch(/cancel/i);
@@ -225,10 +429,10 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		await restored;
 		await until(() => lateSettled);
 		expect(saved).toHaveLength(beforeLate);
-		expect((await cell(kernel, 'show(typeof observation); await show(await ui.inspect({stateId:"desktop-1",ref:"@e7"}));')).output).toContain("undefined\nSave is enabled");
+		expect((await cell(kernel, 'show(typeof observation); await show(await ui.inspect({stateId:"3c0c1d71-f059-4c97-b436-4cadb5aa752c",ref:"@e2"}));')).output).toContain("undefined\nSave is enabled");
 		branch = [];
 		await lifecycle.get("session_tree")!({}, ctx);
-		expect((await kernel.execute('await ui.inspect({stateId:"desktop-1",ref:"@e7"});')).error).toContain("UI state unavailable");
+		expect((await kernel.execute('await ui.inspect({stateId:"3c0c1d71-f059-4c97-b436-4cadb5aa752c",ref:"@e2"});')).error).toContain("UI state unavailable");
 		await lifecycle.get("session_shutdown")!({}, ctx);
 	}, ({ namespace, method, args, signal }) => {
 		if (namespace !== "ui") throw new Error("Unexpected namespace " + namespace);
