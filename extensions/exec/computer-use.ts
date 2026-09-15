@@ -151,8 +151,9 @@ export async function createComputerUseBridge(
 				if (!snapshot) throw new Error("ui.search discovery needs stateId from an observed full outline; observe again");
 				const result = discover(snapshot, query);
 				// Let the original executor enforce live state/epoch fences, even for cached reads.
-				await this.call("inspect", { stateId: query.stateId, ref: snapshot.outline.root.ref }, ctx, signal);
+				const verified = await this.call("inspect", { stateId: query.stateId, ref: snapshot.outline.root.ref }, ctx, signal) as any;
 				checkCurrent();
+				if (verified.isError) return verified;
 				return result;
 			}
 			const name = computerUseTools[method as keyof typeof computerUseTools];
