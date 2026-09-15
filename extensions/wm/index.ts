@@ -13,6 +13,7 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { pipe, PipeParam } from "../../lib/pipe";
 import { attach, MergeConflict, merge, spawn, wait, workmuxStatus, type Outcome, type Worker } from "../../lib/wm";
 
 const Operations = ["send", "capture", "merge", "close", "status"] as const;
@@ -46,13 +47,15 @@ const WaitParameters = Type.Object({
 
 const Parameters = Type.Object({
 	op: StringEnum(Operations, { description: "Operation to perform." }),
-	handle: Type.Optional(Type.String({ description: "Worker handle. Required except for status." })),
+	handle: Type.Optional(Type.String({ description: "Worker handle. send/capture take one; merge/close take one or, via handles, several. status takes none." })),
+	handles: Type.Optional(Type.Array(Type.String(), { description: "merge/close: several workers, in order." })),
 	run: RunParam,
 	text: Type.Optional(Type.String({ description: "send: text to type into the worker's pi prompt." })),
 	lines: Type.Optional(Type.Number({ description: "capture: trailing pane lines. Default 50." })),
 	into: Type.Optional(Type.String({ description: "merge: branch to merge into. Default: the current branch." })),
 	mode: Type.Optional(StringEnum(["merge", "rebase"] as const, { description: "merge: --no-ff merge (default) or rebase the worker onto `into` then fast-forward." })),
-	keepBranch: Type.Optional(Type.Boolean({ description: "close: keep the branch after removing worktree and branch." })),
+	keepBranch: Type.Optional(Type.Boolean({ description: "close: keep the branch after removing worktree and window." })),
+	pipe: PipeParam,
 });
 
 type WorkerJSON = ReturnType<Worker["toJSON"]>;
@@ -222,7 +225,7 @@ export default function (pi: ExtensionAPI) {
 		name: "wm",
 		label: "Workers",
 		description:
-			"Steer pi workers spawned with wm_spawn. send types into the worker's prompt; capture shows its pane; merge brings its branch in (conflicts are returned, the merge aborted); close removes worktree, window, and branch; status lists the repo's workers.",
+			"Steer pi workers spawned with wm_spawn. send types into the worker's prompt; capture shows its pane (pipe to filter); merge brings its branch in (conflicts are returned, the merge aborted); close removes worktree, window, and branch. merge and close take several handles; status lists the repo's workers.",
 		promptSnippet: "Steer, merge, and close pi workers",
 		promptGuidelines: [
 			"Steer workers with wm send. Use board_send to the worker's topic when the message belongs in the shared record.",
@@ -230,6 +233,7 @@ export default function (pi: ExtensionAPI) {
 		parameters: Parameters,
 		async execute(_id, p) {
 			const details: Details = { op: p.op };
+			const each = (): Worker[] => (p.handles?.length ? p.handles : [need(p.handle, "handle or handles")]).map((h) => worker(h, p.run));
 			const text = async (): Promise<string> => {
 				switch (p.op) {
 					case "send": {
@@ -243,32 +247,42 @@ export default function (pi: ExtensionAPI) {
 						const entry = (await workmuxStatus(w.cwd)).find((e) => e.worktree === w.handle);
 						if (entry?.pane_id) w.paneId = entry.pane_id;
 						details.workers = [w.toJSON()];
-						const out = await w.capture(p.lines ?? 50);
-						return out || `(no pane for ${w.handle}; status: ${entry?.status ?? "unknown"})`;
+						const out = await w.capture(p.pipe ? 2000 : (p.lines ?? 50));
+						if (!out) return `(no pane for ${w.handle}; status: ${entry?.status ?? "unknown"})`;
+						return p.pipe ? pipe(out, p.pipe, cwd) : out;
 					}
 					case "merge": {
-						const w = worker(need(p.handle, "handle"), p.run);
-						details.workers = [w.toJSON()];
-						try {
-							await merge(w, { into: p.into, mode: p.mode });
-						} catch (e) {
-							if (!(e instanceof MergeConflict)) throw e;
-							details.conflicts = e.files;
-							throw new Error(`merge of ${w.branch} aborted, conflicts in:\n${e.files.join("\n")}\nsend the worker the list to resolve, or resolve in its worktree ${w.dir}`);
+						// In order; a conflict stops the sequence, and the message says which landed.
+						const ws = each();
+						details.workers = ws.map((w) => w.toJSON());
+						const done: string[] = [];
+						for (const w of ws) {
+							try {
+								await merge(w, { into: p.into, mode: p.mode });
+								done.push(w.branch);
+							} catch (e) {
+								if (!(e instanceof MergeConflict)) throw e;
+								details.conflicts = e.files;
+								const before = done.length ? `merged ${done.join(", ")}; ` : "";
+								throw new Error(`${before}merge of ${w.branch} aborted, conflicts in:\n${e.files.join("\n")}\nsend the worker the list to resolve, or resolve in its worktree ${w.dir}`);
+							}
 						}
-						return `merged ${w.branch}${p.into ? ` into ${p.into}` : ""} (${p.mode ?? "merge"})`;
+						return `merged ${done.join(", ")}${p.into ? ` into ${p.into}` : ""} (${p.mode ?? "merge"})`;
 					}
 					case "close": {
-						const w = worker(need(p.handle, "handle"), p.run);
-						await w.close(p.keepBranch ?? false);
-						workers.delete(w.topic);
-						pi.events.emit("board:subscribe", { topic: w.topic, tags: REPORT_TAGS, remove: true });
-						return `closed ${w.handle}${p.keepBranch ? " (branch kept)" : ""}`;
+						const ws = each();
+						for (const w of ws) {
+							await w.close(p.keepBranch ?? false);
+							workers.delete(w.topic);
+							pi.events.emit("board:subscribe", { topic: w.topic, tags: REPORT_TAGS, remove: true });
+						}
+						return `closed ${ws.map((w) => w.handle).join(", ")}${p.keepBranch ? " (branches kept)" : ""}`;
 					}
 					case "status": {
 						const entries = await workmuxStatus(cwd);
 						if (!entries.length) return "(no workers)";
-						return entries.map((e) => `${e.worktree}  ${e.status}  ${e.branch}  ${e.pane_id}`).join("\n");
+						const text = entries.map((e) => `${e.worktree}  ${e.status}  ${e.branch}  ${e.pane_id}`).join("\n");
+						return p.pipe ? pipe(text, p.pipe, cwd) : text;
 					}
 				}
 			};
@@ -276,7 +290,8 @@ export default function (pi: ExtensionAPI) {
 		},
 		renderCall(args, theme) {
 			let text = theme.fg("toolTitle", theme.bold("wm ")) + theme.fg("accent", args.op);
-			if (args.handle) text += ` ${theme.fg("muted", args.handle)}`;
+			const who = args.handles?.length ? args.handles.join(", ") : args.handle;
+			if (who) text += ` ${theme.fg("muted", who)}`;
 			if (args.op === "send" && args.text) text += `\n  ${theme.fg("dim", args.text.split("\n")[0]!.slice(0, 120))}`;
 			return new Text(text, 0, 0);
 		},
