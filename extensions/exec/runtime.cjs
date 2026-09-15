@@ -282,7 +282,7 @@ function execute(message) {
 	scope.run(cell, () => {
 		try {
 			const code = stripTypeScriptTypes(message.code, { mode: "transform", sourceUrl: "exec.ts" });
-			server.eval(code + "\n", server.context, "exec.ts", (error) => cell.finish(error));
+			server.eval(";\n" + code + "\n", server.context, "exec.ts", (error) => cell.finish(error));
 		} catch (error) { cell.finish(error); }
 	});
 }
