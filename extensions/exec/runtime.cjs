@@ -13,8 +13,83 @@ const scope = new AsyncLocalStorage();
 let server;
 let active;
 
+// Child→host service calls. Responses arrive on the same IPC channel as control messages.
+let requestSequence = 0;
+const pending = new Map();
+
 function send(message) {
 	if (process.connected) process.send(message, () => {});
+}
+
+function rpc(namespace, method, args) {
+	return new Promise((resolve, reject) => {
+		const id = ++requestSequence;
+		pending.set(id, { resolve, reject });
+		if (!process.connected) {
+			pending.delete(id);
+			reject(new Error(`Host service ${namespace}.${method} is unavailable: the kernel host is disconnected`));
+			return;
+		}
+		try {
+			process.send({ type: "request", id, namespace, method, args }, (error) => {
+				if (!error) return;
+				pending.delete(id);
+				reject(new Error(String(error)));
+			});
+		} catch (error) {
+			pending.delete(id);
+			reject(error instanceof Error ? error : new Error(String(error)));
+		}
+	});
+}
+
+/**
+ * The model-facing service surface. Host adapters receive flat single objects, so
+ * positional conveniences are bundled here (see extensions/exec/services.ts).
+ */
+const services = {
+	exa: {
+		search: (query, options) => rpc("exa", "search", { query, ...(options ?? {}) }),
+		contents: (urls, options) => rpc("exa", "contents", { urls, ...(options ?? {}) }),
+	},
+	board: {
+		send: (input) => rpc("board", "send", input),
+		read: (options) => rpc("board", "read", options ?? {}),
+		list: (options) => rpc("board", "list", options ?? {}),
+		subscribe: (options) => rpc("board", "subscribe", options),
+		ack: (ids) => rpc("board", "ack", { ids }),
+	},
+	wm: {
+		spawn: (options) => rpc("wm", "spawn", options),
+		wait: (options) => rpc("wm", "wait", options ?? {}),
+		send: (handle, text, options) => rpc("wm", "send", { handle, text, ...(options ?? {}) }),
+		capture: (handle, options) => rpc("wm", "capture", { handle, ...(options ?? {}) }),
+		merge: (handles, options) => rpc("wm", "merge", { handles, ...(options ?? {}) }),
+		close: (handles, options) => rpc("wm", "close", { handles, ...(options ?? {}) }),
+		status: () => rpc("wm", "status", {}),
+		agents: () => rpc("wm", "agents", {}),
+	},
+	// Escape hatch for namespaces not yet given a typed surface.
+	host: { call: (namespace, method, args) => rpc(namespace, method, args) },
+};
+
+function resolveMessage(message) {
+	const entry = pending.get(message.id);
+	if (!entry) return;
+	pending.delete(message.id);
+	if (message.ok) {
+		entry.resolve(message.value);
+		return;
+	}
+	const error = new Error(message.error || "host service call failed");
+	error.name = "HostServiceError";
+	entry.reject(error);
+}
+
+function rejectPending(reason) {
+	const error = new Error(reason);
+	for (const entry of pending.values()) entry.reject(error);
+	pending.clear();
 }
 
 function bounded(text, limit = OUTPUT_LIMIT) {
@@ -137,7 +212,7 @@ async function initialize(message) {
 	});
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
-	Object.assign(server.context, api, { show, sh, notify });
+	Object.assign(server.context, api, services, { show, sh, notify });
 	server.context.console = { ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show };
 	// Node's default REPL evaluator reports thrown errors through its domain,
 	// rather than the eval callback. Keep partial explicit output in either case.
@@ -174,10 +249,12 @@ function execute(message) {
 process.on("message", (message) => {
 	if (message.type === "init") initialize(message).catch((error) => send({ type: "fatal", error: errorText(error) }));
 	else if (message.type === "execute") execute(message);
+	else if (message.type === "response") resolveMessage(message);
 });
 
 // Parent crashes should not leave ordinary shell descendants behind.
 process.on("disconnect", () => {
+	rejectPending("The kernel host disconnected");
 	if (process.platform !== "win32") {
 		try { process.kill(-process.pid, "SIGKILL"); } catch { process.exit(0); }
 	} else process.exit(0);
