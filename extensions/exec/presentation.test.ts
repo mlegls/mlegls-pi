@@ -116,14 +116,14 @@ async function session(flags: Record<string, string>, run: (s: any) => Promise<v
 	let active = ["exec"];
 	const errors: unknown[] = [];
 	runner.onError(error => errors.push(error));
-	runner.bindCore({ appendEntry: (kind: string, data: unknown) => manager.appendCustomEntry(kind, data), sendMessage() {}, getActiveTools: () => active, setActiveTools: (names: string[]) => { active = names; }, getAllTools: () => runner.getAllRegisteredTools().map(t => t.definition) } as any, { getModel: () => undefined, getScopedModels: () => [], isIdle: () => true, isProjectTrusted: () => true, getSignal: () => undefined, hasPendingMessages: () => false, getContextUsage: () => undefined, getSystemPrompt: () => "" } as any);
+	runner.bindCore({ refreshTools() {}, appendEntry: (kind: string, data: unknown) => manager.appendCustomEntry(kind, data), sendMessage() {}, getActiveTools: () => active, setActiveTools: (names: string[]) => { active = names; }, getAllTools: () => runner.getAllRegisteredTools().map(t => t.definition) } as any, { getModel: () => undefined, getScopedModels: () => [], isIdle: () => true, isProjectTrusted: () => true, getSignal: () => undefined, hasPendingMessages: () => false, getContextUsage: () => undefined, getSystemPrompt: () => "" } as any);
 	try {
 		await runner.emit({ type: "session_start" } as any);
 		const definition = () => runner.getAllRegisteredTools().find(t => t.definition.name === "exec")!.definition;
 		let id = 0;
 		const exec = (code: string, onUpdate?: any) => wrapRegisteredTools(runner.getAllRegisteredTools(), runner).find(t => t.name === "exec")!.execute(String(++id), { code }, undefined, onUpdate);
 		await writeFile(join(cwd, "pixel.png"), Buffer.from(png, "base64"));
-		await run({ exec, runner, definition });
+		await run({ exec, runner, definition, cwd });
 		expect(errors).toEqual([]);
 	} finally { await runner.emit({ type: "session_shutdown" } as any); await rm(cwd, { recursive: true, force: true }); }
 }
@@ -133,7 +133,7 @@ test("loader-applied flags update advertised API and survive session tree and co
 		expect(text(await exec('show(typeof read,typeof sh,typeof board,typeof exa,typeof wm,typeof term,typeof ui);'))).toBe("function undefined undefined undefined undefined undefined undefined\n");
 		const description = definition().description;
 		expect(description).toContain("read(");
-		for (const api of ["await sh", "board.send(", "exa.search(", "wm.spawn(", "term.spawn(", "ui.findRoots"]) expect(description).not.toContain(api);
+		for (const api of ["await sh`", "board.send(", "exa.search(", "wm.spawn(", "term.spawn(", "ui.findRoots"]) expect(description).not.toContain(api);
 		expect(description).toContain("show(");
 		expect(description).toContain("notify(");
 	};
@@ -185,5 +185,25 @@ test("real tool result renders narrow/wide and expanded/collapsed without guessi
 				expect(display).toContain("not invoked");
 			}
 		}
+	}
+}), 20000);
+
+
+// Want: a selected real host module stays usable without advertising or exposing its peers.
+test("board-only RPC retains complete results while show selects model-visible content", () => session({ "exec-modules": "board" }, async ({ exec, definition, cwd }) => {
+	const previous = process.env.PI_BOARD_DIR;
+	process.env.PI_BOARD_DIR = join(cwd, "board");
+	try {
+		const result = await exec('await board.send({topic:"audit",body:"selected"}); await board.send({topic:"audit",body:"unshown"}); const messages = await board.read({topic:"audit"}); show(messages.messages.filter(m=>m.body==="selected").map(m=>m.body));');
+		expect(result.details.error).toBeUndefined();
+		expect(result.details.trace.entries.map((e: any) => e.name)).toEqual(["board.send", "board.send", "board.read"]);
+		expect(result.details.trace.entries[2].result).toContain("unshown");
+		expect(text(result)).toContain("selected");
+		expect(text(result)).not.toContain("unshown");
+		const excluded = await exec('await host.call("exa", "search", {query:"never sent"});');
+		expect(excluded.details.error).toMatch(/disabled|excluded|not enabled/i);
+		expect(definition().description).not.toContain("wm.");
+	} finally {
+		if (previous === undefined) delete process.env.PI_BOARD_DIR; else process.env.PI_BOARD_DIR = previous;
 	}
 }), 20000);

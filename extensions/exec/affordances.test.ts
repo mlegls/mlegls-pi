@@ -22,6 +22,7 @@ async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => 
 	let active = ["read", "bash", "write", "exa_search", "board_read", "wm_spawn", "session_spawn", "session_wait", "session", "observe_ui", "act_ui", "launch_browser", "navigate_browser", "evaluate_browser", "exec"];
 	runner.onError(error => errors.push(error));
 	runner.bindCore({
+		refreshTools() {},
 		appendEntry: (kind: string, data: unknown) => manager.appendCustomEntry(kind, data),
 		sendMessage: (message: unknown, options: unknown) => sent.push({ message, options }),
 		getActiveTools: () => active,
