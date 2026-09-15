@@ -1,6 +1,10 @@
 # outline-read
 
-Overrides pi's `read`, `edit`, and `grep`.
+Shared anchor ledger, edit engine, and outline sources used by
+[`exec`](../exec/README.md). The standalone tool adapters remain available
+for tests and embedding but are no longer registered by this package.
+The sections below describe those legacy adapters; the exec API uses
+structured selections instead of path selectors and `pipe` parameters.
 
 - `read` returns files over a line threshold as an outline: definitions and
   headings are shown, bodies are replaced by `⋯ start-end` markers, and the
