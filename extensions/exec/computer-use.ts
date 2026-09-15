@@ -1,3 +1,5 @@
+import { STATE_ENTRY, journal, replayContext } from "./desktop-restore";
+import { captureSummary, discover, discoveryRequested } from "./desktop-discovery";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { join } from "node:path";
@@ -22,28 +24,7 @@ export interface ComputerUseBridge {
 	call(method: string, args: unknown, ctx: ExtensionContext, signal: AbortSignal): Promise<unknown>;
 }
 
-const STATE_ENTRY = "exec-computer-use";
 
-// Upstream restores only native toolResult entries. Project our image-free custom
-// journal into that view without changing the actual conversation or session tree.
-function replayContext(ctx: ExtensionContext): ExtensionContext {
-	const sessionManager = new Proxy(ctx.sessionManager, {
-		get(target, key) {
-			if (key === "getBranch") return () => target.getBranch().map((entry) => {
-				if (entry.type !== "custom" || entry.customType !== STATE_ENTRY) return entry;
-				const data = entry.data as { toolName: string; details: unknown };
-				return { ...entry, type: "message", message: {
-					role: "toolResult", toolName: data.toolName, toolCallId: entry.id,
-					content: [], details: data.details, isError: false,
-					timestamp: Date.parse(entry.timestamp),
-				} };
-			});
-			const value = Reflect.get(target, key, target);
-			return typeof value === "function" ? value.bind(target) : value;
-		},
-	});
-	return new Proxy(ctx, { get: (target, key) => key === "sessionManager" ? sessionManager : Reflect.get(target, key, target) });
-}
 
 /** Resolve the installed extension entry, never a second copy of its stateful bridge internals. */
 export async function loadComputerUseFactory(): Promise<ExtensionFactory> {
@@ -88,6 +69,7 @@ export async function createComputerUseBridge(
 		}
 	}
 	const tools = new Map<string, Omit<ToolDefinition<any, any>, "renderCall" | "renderResult">>();
+	const outlines = new Map<string, any>();
 	let generation = 0;
 	let acceptingCalls = false;
 	let sessionId: string | undefined;
@@ -107,6 +89,11 @@ export async function createComputerUseBridge(
 			await Promise.allSettled([...pending]);
 			if (stopEvent) for (const handler of stops) await handler(stopEvent, ctx);
 			if (current !== generation) return;
+			outlines.clear();
+			if (startEvent) for (const entry of replayContext(ctx).sessionManager.getBranch() as any[]) {
+				const d = entry.message?.details;
+				if (d?.outline?.root && d.capture?.stateId) outlines.set(d.capture.stateId, d);
+			}
 			if (startEvent) for (const handler of starts) await handler(startEvent, replayContext(ctx));
 			if (current !== generation) return;
 			sessionId = ctx.sessionManager.getSessionId();
@@ -145,7 +132,7 @@ export async function createComputerUseBridge(
 				return Object.entries(computerUseTools).filter(([method]) => requested === undefined || method === requested).map(([method, name]) => {
 					const tool = tools.get(name);
 					if (!tool) throw new Error("Installed pi-computer-use did not register " + name);
-					return { method, name, description: tool.description, parameters: tool.parameters, promptSnippet: tool.promptSnippet, promptGuidelines: tool.promptGuidelines };
+					return { ...(method === "search" ? { discovery: { subrole: "Exact AX-normalized subrole", unlabeled: "Filter empty labels", limit: "1..1000, default 50; enables cached-outline discovery", semantics: "Requires stateId from an observed outline. Exact role/subrole/capability, substring text. complete=false for omitted matches or truncated nodes; no native OCR escalation." } } : {}), method, name, description: tool.description, parameters: tool.parameters, promptSnippet: tool.promptSnippet, promptGuidelines: tool.promptGuidelines };
 				});
 			}
 			const current = generation;
@@ -158,6 +145,17 @@ export async function createComputerUseBridge(
 			}
 			checkCurrent();
 			if (!Object.hasOwn(computerUseTools, method)) throw new Error(`Unknown ui method: ${method}`);
+			if (method === "search" && discoveryRequested(args)) {
+				const query = args as any;
+				const snapshot = outlines.get(query.stateId);
+				if (!snapshot) throw new Error("ui.search discovery needs stateId from an observed full outline; observe again");
+				const result = discover(snapshot, query);
+				// Let the original executor enforce live state/epoch fences, even for cached reads.
+				const verified = await this.call("inspect", { stateId: query.stateId, ref: snapshot.outline.root.ref }, ctx, signal) as any;
+				checkCurrent();
+				if (verified.isError) return verified;
+				return result;
+			}
 			const name = computerUseTools[method as keyof typeof computerUseTools];
 			const tool = tools.get(name);
 			if (!tool) throw new Error(`Installed pi-computer-use did not register ${name}`);
@@ -170,8 +168,12 @@ export async function createComputerUseBridge(
 			try {
 				const result = await operation;
 				checkCurrent();
-				pi.appendEntry(STATE_ENTRY, { toolName: name, details: result.details });
-				return result;
+				const record = journal(name, result.details);
+				if (record) pi.appendEntry(STATE_ENTRY, record);
+				const d = result.details as any;
+				const stateId = d?.capture?.stateId ?? d?.stateId;
+				if (stateId && d?.outline?.root) outlines.set(stateId, d);
+				return { ...result, capture: captureSummary(d) };
 			} finally {
 				pending.delete(operation);
 			}
