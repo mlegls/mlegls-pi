@@ -9,9 +9,9 @@ const REPLACED = new Set(["bash", "sh", "read", "edit", "grep", "find"]);
 const API = `Persistent TypeScript REPL. Top-level await and bindings survive calls; only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its subprocesses.
 
 API:
-  await sh\`command\` or sh(command) -> {stdout, stderr, exitCode}; shell output has no editable anchors.
+  await sh\`command\` or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors.
   await find(glob?, {paths?, hidden?}?) -> string[] (ignore-aware).
-  await read(path) -> source {path, text, rows, lines(start?,end?), outline()}.
+  await read(path) -> text-only source {path, text, rows, lines(start?,end?), outline()}.
   await grep(pattern: string|RegExp, paths?: string|string[], {glob?,ignoreCase?,literal?,limit?}?) -> selection.
   selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.context(n), await selection.enclosing(), selection.complete.
   await edit\`=abcd\nreplacement\` replaces a line; =abcd wxyz replaces an inclusive range; -abcd deletes; >abcd / <abcd insert after/before. Separate hunks with a blank line. Anchors are unique across files and reject stale targets.
