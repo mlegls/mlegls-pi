@@ -291,7 +291,7 @@ export class TmuxTerminalManager {
 
 	private async metadata(id: string): Promise<TerminalSummary> {
 		this.validateId(id);
-		const result = await this.tmux(["display-message", "-p", "-t", id, SUMMARY_FORMAT]);
+		const result = await this.tmux(["display-message", "-p", "-t", id + ":", SUMMARY_FORMAT]);
 		if (result.code !== 0) throw new Error(`Unknown terminal session: ${id}`);
 		return parseSummary(result.stdout, id);
 	}
@@ -300,7 +300,7 @@ export class TmuxTerminalManager {
 		const lines = Math.max(1, Math.min(MAX_LINES, Math.floor(requestedLines || DEFAULT_LINES)));
 		const [summary, capture] = await Promise.all([
 			this.metadata(id),
-			this.requireTmux(["capture-pane", "-p", "-J", "-S", `-${lines}`, "-t", id]),
+			this.requireTmux(["capture-pane", "-p", "-J", "-S", `-${lines}`, "-t", id + ":"]),
 		]);
 		const output = trimCapturedPane(capture);
 		const cursor = createHash("sha256")
@@ -361,8 +361,8 @@ export class TmuxTerminalManager {
 		if (before.status === "exited") throw new Error(`Terminal session has exited: ${id}`);
 		const buffer = `pi-${randomUUID().slice(0, 12)}`;
 		await this.requireTmux(["load-buffer", "-b", buffer, "-"], { input: text, signal });
-		await this.requireTmux(["paste-buffer", "-b", buffer, "-d", "-t", id], { signal });
-		if (submit) await this.requireTmux(["send-keys", "-t", id, "--", "Enter"], { signal });
+		await this.requireTmux(["paste-buffer", "-b", buffer, "-d", "-t", id + ":"], { signal });
+		if (submit) await this.requireTmux(["send-keys", "-t", id + ":", "--", "Enter"], { signal });
 		await wait(50, signal);
 		return await this.snapshot(id, DEFAULT_LINES);
 	}
@@ -373,7 +373,7 @@ export class TmuxTerminalManager {
 		if (keys.length === 0 || keys.length > 32) throw new Error("keys must contain between 1 and 32 key names");
 		const invalid = keys.find((key) => !SAFE_KEY.test(key));
 		if (invalid) throw new Error(`Unsupported raw key: ${invalid}`);
-		await this.requireTmux(["send-keys", "-t", id, "--", ...keys], { signal });
+		await this.requireTmux(["send-keys", "-t", id + ":", "--", ...keys], { signal });
 		await wait(50, signal);
 		return await this.snapshot(id, DEFAULT_LINES);
 	}

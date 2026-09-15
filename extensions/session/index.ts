@@ -3,7 +3,7 @@ import { truncateTail, type ExtensionAPI, type ExtensionContext } from "@earendi
 import { SessionAlertMonitor, type SessionAlert } from "./alerts";
 import { terminalServerName, tmuxAvailable, TmuxTerminalManager, type TerminalSnapshot, type TerminalSummary, type WaitResult } from "./tmux";
 
-export type TerminalResult = TerminalSnapshot | TerminalSnapshot[] | TerminalSummary | TerminalSummary[] | WaitResult;
+export type TerminalResult = TerminalSnapshot | TerminalSnapshot[] | TerminalSummary | TerminalSummary[] | WaitResult | { id: string; ended: true };
 
 /** Host-only event bus seam. args are the positional arguments of term[method](...). */
 export interface TerminalRequest {
@@ -162,7 +162,10 @@ export default function (pi: ExtensionAPI) {
 				return await currentManager.send(string(args[0], "id"), args[1], optional(options.submit, "submit", "boolean") ?? true, signal);
 			}
 			case "sendRaw": return await currentManager.sendRaw(string(args[0], "id"), strings(args[1], "keys", 32), signal);
-			case "end": return await currentManager.end(string(args[0], "id"), signal);
+			case "end": {
+				const previous = await currentManager.end(string(args[0], "id"), signal);
+				return { id: previous.id, ended: true };
+			}
 			case "list": return await currentManager.list();
 			default: throw new Error(`${method} is not a terminal method`);
 		}
