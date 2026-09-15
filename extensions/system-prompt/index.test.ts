@@ -64,12 +64,15 @@ describe("system prompt extension", () => {
 		expect(prompt).not.toContain("Current date:");
 	});
 
-	test("only advertises skills when read is available", () => {
+	test("only advertises skills when a source-reading tool is available", () => {
 		const withoutRead = buildPrompt({ cwd: "/work", selectedTools: ["bash"], skills: [skill] } as BuildSystemPromptOptions);
 		const withRead = buildPrompt({ cwd: "/work", selectedTools: ["read"], skills: [skill] } as BuildSystemPromptOptions);
 
 		expect(withoutRead).not.toContain("<available_skills>");
 		expect(withRead).toContain("<available_skills>");
+		const withExec = buildPrompt({ cwd: "/work", selectedTools: ["exec"], skills: [skill] } as BuildSystemPromptOptions);
+		expect(withExec).toContain("<available_skills>");
+		expect(withExec).toContain(skill.filePath);
 	});
 
 	test("retains pi identity but omits documentation guidance from the default prompt", () => {

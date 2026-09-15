@@ -67,3 +67,39 @@ test("interrupt kills looping kernel and shell descendants; fresh kernel restore
 	await cell(kernel, `await edit(${JSON.stringify("=" + anchor + "\nexport function restoredEdit() {")});`);
 	expect(await readFile(join(cwd, "example.ts"), "utf8")).toContain("function restoredEdit()");
 }), 15000);
+
+
+test("filtered source references retain snapshot context, replace only selected rows, and reject external changes", () => fixture(async (kernel, cwd) => {
+	const path = join(cwd, "example.ts");
+	const original = "// TODO keep\nexport function task() {\n  // TODO change\n  return 42;\n}\n";
+	await writeFile(path, original);
+	await cell(kernel, 'const snapshot = await read("example.ts"); const todos = await grep(/TODO/g, "example.ts"); const chosen = todos.filter(row => row.text.includes("change"));');
+	const context = await cell(kernel, 'await show(chosen.context(1)); show(chosen.rows[0].anchor === snapshot.rows[2].anchor);');
+	expect(context).toContain("export function task()");
+	expect(context).toContain("return 42");
+	expect(context).toContain("true");
+	await cell(kernel, 'await show(await replace(chosen, async (text, row) => text.replace("TODO", "DONE") + " line=" + row.line));');
+	expect(await readFile(path, "utf8")).toBe(original.replace("  // TODO change", "  // DONE change line=3"));
+	const savedContext = await cell(kernel, 'await show(chosen.context(1));');
+	expect(savedContext).toContain("TODO change");
+	expect(savedContext).not.toContain("DONE");
+	await cell(kernel, 'const current = await grep("DONE", "example.ts");');
+	const external = original.replace("TODO change", "externally changed");
+	await writeFile(path, external);
+	const stale = await kernel.execute('await show(await replace(current, () => "must not overwrite"));');
+	expect(stale.error ?? stale.output).toMatch(/stale|changed|read.*again/i);
+	expect(await readFile(path, "utf8")).toBe(external);
+}), 15000);
+
+
+test("discovery honors ignores but explicit reads work; limited search reports incompleteness", () => fixture(async (kernel, cwd) => {
+	await writeFile(join(cwd, ".ignore"), "ignored.ts\n");
+	await writeFile(join(cwd, "ignored.ts"), "// needle hidden\n");
+	await writeFile(join(cwd, "example.ts"), "// needle one\n// needle two\n");
+	expect(await cell(kernel, 'show((await find("*.ts")).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
+	expect(await cell(kernel, 'const visible = await grep("needle"); show(visible.rows.length, visible.complete);')).toBe("2 true\n");
+	expect(await cell(kernel, 'show((await read("ignored.ts")).text); show((await grep("needle", "ignored.ts")).rows.length);')).toContain("needle hidden");
+	expect(await cell(kernel, 'const limited = await grep("needle", "example.ts", {limit: 1}); show(limited.rows.length, limited.complete); await show(limited);')).toContain("1 false\n");
+	expect(await cell(kernel, 'await show(limited);')).toContain("[incomplete:");
+	expect(await cell(kernel, 'const zero = await grep("needle", "example.ts", {limit: 0}); show(zero.rows.length, zero.complete);')).toBe("0 false\n");
+}), 15000);
