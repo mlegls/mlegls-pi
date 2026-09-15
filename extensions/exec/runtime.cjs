@@ -1,6 +1,8 @@
 // Child-only runtime. IPC is the control channel; REPL output is never echoed.
 const { AsyncLocalStorage } = require("node:async_hooks");
 const { spawn } = require("node:child_process");
+const { mkdir, writeFile } = require("node:fs/promises");
+const { dirname, resolve } = require("node:path");
 const { stripTypeScriptTypes } = require("node:module");
 const { PassThrough, Writable } = require("node:stream");
 const { inspect } = require("node:util");
@@ -8,6 +10,7 @@ const repl = require("node:repl");
 
 const OUTPUT_LIMIT = 50 * 1024;
 const SHELL_LIMIT = 1024 * 1024;
+const shellResults = new WeakSet();
 const TRUNCATED = "\n[output truncated]\n";
 const scope = new AsyncLocalStorage();
 let server;
@@ -99,6 +102,15 @@ function bounded(text, limit = OUTPUT_LIMIT) {
 
 function render(value) {
 	if (typeof value === "string") return value;
+	if (shellResults.has(value)) {
+		const metadata = [`exitCode=${value.exitCode}`];
+		for (const stream of ["stdout", "stderr"]) if (value[`${stream}Truncated`]) metadata.push(`${stream}Truncated=true`);
+		let text = `[${metadata.join(" ")}]`;
+		for (const stream of ["stdout", "stderr"]) {
+			if (value[stream]) text += `\n${stream}:\n${value[stream]}`;
+		}
+		return text;
+	}
 	if (value && typeof value.render === "function") {
 		const rendered = value.render();
 		return isPromise(rendered) ? Promise.resolve(rendered).then(String) : String(rendered);
@@ -186,11 +198,15 @@ function sh(command, ...values) {
 		const stderr = capture(child.stderr);
 		child.once("error", reject);
 		// 'close', not 'exit': drain both pipes before exposing a result.
-		child.once("close", (code, signal) => resolve({
-			stdout: stdout.text(), stderr: stderr.text(),
-			stdoutTruncated: stdout.truncated(), stderrTruncated: stderr.truncated(),
-			exitCode: code ?? (signal ? 128 + (require("node:os").constants.signals[signal] || 0) : 1),
-		}));
+		child.once("close", (code, signal) => {
+			const result = {
+				stdout: stdout.text(), stderr: stderr.text(),
+				stdoutTruncated: stdout.truncated(), stderrTruncated: stderr.truncated(),
+				exitCode: code ?? (signal ? 128 + (require("node:os").constants.signals[signal] || 0) : 1),
+			};
+			shellResults.add(result);
+			resolve(result);
+		});
 	});
 	// A retained, not-yet-awaited shell promise must not crash the kernel.
 	promise.catch(() => {});
@@ -210,6 +226,14 @@ function capture(stream) {
 		text: () => Buffer.concat(chunks).toString() + (truncated ? TRUNCATED : ""),
 		truncated: () => truncated,
 	};
+}
+
+async function write(path, content) {
+	if (typeof path !== "string" || typeof content !== "string") throw new TypeError("write expects a path string and UTF-8 text string");
+	path = resolve(process.cwd(), path);
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, content, "utf8");
+	return { path, bytes: Buffer.byteLength(content, "utf8") };
 }
 
 function notify(promise, label) {
@@ -253,7 +277,7 @@ async function initialize(message) {
 	});
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
-	Object.assign(server.context, api, services, { show, sh, notify });
+	Object.assign(server.context, api, services, { show, sh, write, notify });
 	server.context.console = { ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show };
 	// Node's default REPL evaluator reports thrown errors through its domain,
 	// rather than the eval callback. Keep partial explicit output in either case.
