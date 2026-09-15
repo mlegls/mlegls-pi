@@ -11,6 +11,12 @@ import { treeSitterSource } from "../outline-read/outline/treesitter";
 import { renderOutline } from "../outline-read/outline/render";
 import type { OutlineNode } from "../outline-read/outline/types";
 
+function sourceLines(raw: string): string[] {
+	const lines = raw.split("\n");
+	if (lines.length > 1 && lines.at(-1) === "") lines.pop();
+	return lines;
+}
+
 export interface SourceDeps {
 	cwd: string;
 	ledger: Ledger;
@@ -86,7 +92,7 @@ export class SourceSelection implements Iterable<SourceRow> {
 			};
 			for (const row of this.rows.filter(r => r.path === path)) {
 				const node = innermost(nodes, row.line);
-				rows.push(...(node ? file.rows.slice(node.startLine - 1, node.endLine) : [row]));
+				for (const selected of node ? file.rows.slice(node.startLine - 1, node.endLine) : [row]) rows.push(selected);
 			}
 		}
 		return this.expanded(rows);
@@ -133,8 +139,7 @@ export function createSourceAPI(deps: SourceDeps) {
 		return capture(path, raw);
 	}
 	function capture(path: string, raw: string): SourceFile {
-		const lines = raw.split("\n");
-		if (lines.length > 1 && lines.at(-1) === "") lines.pop();
+		const lines = sourceLines(raw);
 		check();
 		const { ledger, changed } = deps.ledger.sync(path, lines);
 		if (changed) deps.persist(path);
@@ -174,7 +179,7 @@ export function createSourceAPI(deps: SourceDeps) {
 		for (const path of requested) {
 			const absolute = resolve(cwd, path);
 			if (!options.glob && (await stat(absolute)).isFile()) candidates.push(absolute);
-			else candidates.push(...await find(options.glob, { paths: [path] }));
+			else for (const candidate of await find(options.glob, { paths: [path] })) candidates.push(candidate);
 		}
 		const files = new Map<string, SourceFile>(), rows: SourceRow[] = [];
 		for (const path of new Set(candidates)) {
@@ -182,13 +187,15 @@ export function createSourceAPI(deps: SourceDeps) {
 			// Binary files are omitted, just as in ordinary textual grep.
 			const raw = await readFile(path, { encoding: "utf8", signal: deps.signal });
 			if (raw.includes("\0")) continue;
-			const file = capture(path, raw);
-			for (const row of file.rows) {
-				if (!regex.test(row.text)) continue;
-				if (rows.length === options.limit) return new SourceSelection(rows, files, false);
+			const matches = sourceLines(raw).flatMap((text, index) => regex.test(text) ? [index] : []);
+			if (!matches.length) continue;
+			const remaining = options.limit === undefined ? matches.length : options.limit - rows.length;
+			if (remaining > 0) {
+				const file = capture(path, raw);
 				files.set(path, file);
-				rows.push(row);
+				for (const index of matches.slice(0, remaining)) rows.push(file.rows[index]);
 			}
+			if (matches.length > remaining) return new SourceSelection(rows, files, false);
 		}
 		return new SourceSelection(rows, files);
 	}

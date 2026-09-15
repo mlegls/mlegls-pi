@@ -221,8 +221,7 @@ export async function executeEdits(deps: EditDeps, cwd: string, text: string) {
 
 /** Apply structured hunks without interpreting replacement text as DSL headers. */
 export async function executeHunks(deps: EditDeps, cwd: string, hunks: Hunk[]) {
-
-	// Group by file; unknown anchors are impossible here (parseHeader checked), but the file may have changed since.
+	// Validate every file assertion before applying any edits.
 	const byFile = new Map<string, Hunk[]>();
 	for (const h of hunks) {
 		const from = deps.ledger.find(h.from);
@@ -249,7 +248,7 @@ export async function executeHunks(deps: EditDeps, cwd: string, hunks: Hunk[]) {
 		if (r.firstChangedLine !== undefined && firstChangedLine === undefined) firstChangedLine = r.firstChangedLine;
 	}
 	return {
-		content: [{ type: "text" as const, text: reports.join("\n\n") }],
+		content: [{ type: "text" as const, text: reports.join("\n\n") || "No changes." }],
 		details: patches.length ? { diff: diffs.join("\n"), patch: patches.join("\n"), firstChangedLine } : undefined,
 	};
 }
