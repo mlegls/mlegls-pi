@@ -1,3 +1,4 @@
+import { register } from "./passive.cjs";
 import { convertToPng, detectSupportedImageMimeTypeFromFile, formatDimensionNote, resizeImage } from "@earendil-works/pi-coding-agent";
 
 /** A model-visible content block, matching the shape pi tools return from `execute`. */
@@ -62,6 +63,7 @@ export class ImageFile implements ContentValue {
 		this.note = note;
 		this.width = width;
 		this.height = height;
+		register(this, "image");
 	}
 	render(): string { return this.note; }
 	content(): ContentBlock[] {

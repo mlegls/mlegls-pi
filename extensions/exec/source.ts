@@ -1,3 +1,4 @@
+import { register, format } from "./passive.cjs";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
@@ -48,6 +49,7 @@ export class SourceFile {
 	readonly rows: readonly SourceRow[];
 	constructor(readonly path: string, readonly text: string, anchors: readonly { anchor: string; text: string }[]) {
 		this.rows = Object.freeze(anchors.map((row, i) => Object.freeze({ ...row, path, line: i + 1 })));
+		register(this, "source");
 	}
 	lines(start = 1, end = this.rows.length): SourceSelection {
 		if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) throw new Error("Expected a one-based inclusive line range");
@@ -67,9 +69,10 @@ export class SourceFile {
 			{ minBodyLines: 3, budgetTokens: Infinity },
 			n => `${n} ${formatRow(this.rows[n - 1].anchor, this.rows[n - 1].text)}`,
 			e => `    ⋯ ${e.startLine}-${e.endLine}`);
-		return { path: this.path, nodes, ...rendered, render: () => `${this.path} (${this.rows.length} lines) outline\n${rendered.text}` };
+		const text = `${this.path} (${this.rows.length} lines) outline\n${rendered.text}`;
+		return register({ path: this.path, nodes, ...rendered, text, render: () => text }, "text");
 	}
-	render(): string { return this.lines().render(); }
+	render(): string { return format(this, Infinity)!.text; }
 }
 
 /** Rows and expansions refer to captured file snapshots, never to a later disk read. */
@@ -77,6 +80,7 @@ export class SourceSelection implements Iterable<SourceRow> {
 	readonly rows: readonly SourceRow[];
 	constructor(rows: readonly SourceRow[], private readonly files: ReadonlyMap<string, SourceFile>, readonly complete = true) {
 		this.rows = Object.freeze([...new Map(rows.map(r => [`${r.path}\0${r.anchor}`, r])).values()]);
+		register(this, "source");
 	}
 	[Symbol.iterator]() { return this.rows[Symbol.iterator](); }
 	filter(predicate: (row: SourceRow, index: number) => boolean): SourceSelection {
@@ -110,19 +114,7 @@ export class SourceSelection implements Iterable<SourceRow> {
 		rows.sort((a, b) => order.indexOf(a.path) - order.indexOf(b.path) || a.line - b.line);
 		return new SourceSelection(rows, this.files, this.complete);
 	}
-	render(): string {
-		const parts: string[] = [];
-		let path: string | undefined;
-		let line = 0;
-		for (const row of this.rows) {
-			if (row.path !== path) { parts.push(`${row.path}:`); path = row.path; line = 0; }
-			if (line && row.line > line + 1) parts.push("    ⋯");
-			parts.push(`${row.line} ${formatRow(row.anchor, row.text)}`);
-			line = row.line;
-		}
-		if (!this.complete) parts.push("[incomplete: explicit search limit reached]");
-		return parts.join("\n") || "(no matches)";
-	}
+	render(): string { return format(this, Infinity)!.text; }
 }
 
 export interface SourceEditResult {
@@ -132,7 +124,7 @@ export interface SourceEditResult {
 }
 function editResult(result: Awaited<ReturnType<typeof executeEdits>>): SourceEditResult {
 	const text = result.content.map(c => c.text).join("\n");
-	return { text, details: result.details, render: () => text };
+	return register({ text, details: result.details, render: () => text }, "text");
 }
 
 /** All anchors originate from file bytes reconciled through the session ledger. */

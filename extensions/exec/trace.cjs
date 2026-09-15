@@ -1,42 +1,11 @@
 // UI-only invocation observations. Never render values or follow user accessors.
-const { inspect, types } = require("node:util");
-const regexpSource = Object.getOwnPropertyDescriptor(RegExp.prototype, "source").get;
-const regexpFlags = [["hasIndices", "d"], ["global", "g"], ["ignoreCase", "i"], ["multiline", "m"], ["dotAll", "s"], ["unicode", "u"], ["unicodeSets", "v"], ["sticky", "y"]]
-	.map(([key, flag]) => [Object.getOwnPropertyDescriptor(RegExp.prototype, key)?.get, flag]);
+const { types } = require("node:util");
+const { format, preview } = require("./passive.cjs");
 const MAX_ENTRIES = 64;
 const PREVIEW_BYTES = 4096;
 const TOTAL_PREVIEW_BYTES = 48 * 1024; // Leave room for entry metadata in a 64 KiB snapshot.
 
-function preview(value) {
-	let nodes = 0;
-	const seen = new WeakSet();
-	function plain(value, depth = 0) {
-		if (typeof value === "string") return value.slice(0, 4096).replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g, "[image data omitted]").replace(/[A-Za-z0-9+/]{128,}={0,2}/g, "[base64 omitted]") + (value.length > 4096 ? "…" : "");
-		if (typeof value === "function") return "[Function]";
-		if (!value || typeof value !== "object") return value;
-		if (types.isProxy(value)) return "[Proxy]";
-		if (types.isPromise(value)) return "[Promise]";
-		if (types.isRegExp(value)) return "/" + plain(regexpSource.call(value)) + "/" + regexpFlags.filter(([get]) => get?.call(value)).map(([, flag]) => flag).join("");
-		if (ArrayBuffer.isView(value) || types.isAnyArrayBuffer(value)) return "[binary data omitted]";
-		if (seen.has(value)) return "[Circular]";
-		if (depth >= 3 || ++nodes > 80) return "[…]";
-		seen.add(value);
-		const out = Array.isArray(value) ? [] : Object.create(null);
-		let count = 0;
-		for (const key of Object.getOwnPropertyNames(value)) {
-			if (Array.isArray(out) && key === "length") continue;
-			if (++count > 12) { out["…"] = "more fields"; break; }
-			const descriptor = Object.getOwnPropertyDescriptor(value, key);
-			const label = key.slice(0, 80);
-			out[label] = /^(data|base64)$/i.test(key) ? "[data omitted]" : descriptor && "value" in descriptor ? plain(descriptor.value, depth + 1) : "[Accessor]";
-		}
-		return out;
-	}
-	try { if (typeof value === "string" || types.isRegExp(value)) return plain(value); return inspect(plain(value), { depth: 5, colors: false, customInspect: false, getters: false, maxStringLength: 4096, breakLength: 120 }).replace(/\[Object: null prototype\] /g, ""); }
-	catch { return "[preview unavailable]"; }
-}
-
-function createTrace(cell, send, formatResult) {
+function createTrace(cell, send, formatResult = (_name, value, limit) => format(value, limit)) {
 	const trace = { entries: [], omitted: 0, truncated: false, finished: false };
 	let bytes = 0;
 	function bounded(value, name, args = false) {
