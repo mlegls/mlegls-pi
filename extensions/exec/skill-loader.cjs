@@ -2,8 +2,8 @@ const { readFile, stat } = require("node:fs/promises");
 const { resolve, dirname, join } = require("node:path");
 
 // Match only the original source. Replacement output is never parsed as instructions.
-const placeholders = /^[ \t]*```![^\S\r\n]*\r?\n([\s\S]*?)^[ \t]*```[ \t]*\r?$/gm;
-const inline = /!`([^`\r\n]+)`/g;
+const placeholders = /```!\s*\n?([\s\S]*?)\n?```/g;
+const inline = /(?<!\S)!`([^`]+)`/g;
 
 function createSkillLoader(workspace, runShell, register) {
  workspace = resolve(workspace);
