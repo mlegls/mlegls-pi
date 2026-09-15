@@ -364,21 +364,29 @@ async function initialize(message) {
 	});
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
-	Object.assign(server.context, { show, notify });
+	const capabilities = { show, notify };
 	if (modules.has("fs")) {
 		const loadSkill = createSkillLoader(message.cwd, runShell, register);
-		for (const [name, fn] of Object.entries({ ...api, write, loadSkill })) server.context[name] = traced(name, fn);
-		server.context.edit.raw = traced("edit.raw", (input, ...values) => api.edit(template(input, values, true)));
+		for (const [name, fn] of Object.entries({ ...api, write, loadSkill })) capabilities[name] = traced(name, fn);
+		capabilities.edit.raw = traced("edit.raw", (input, ...values) => api.edit(template(input, values, true)));
 	}
 	if (modules.has("sh")) {
-		server.context.sh = traced("sh", sh);
-		server.context.sh.raw = traced("sh.raw", (input, ...values) => runShell(template(input, values, true)));
+		capabilities.sh = traced("sh", sh);
+		capabilities.sh.raw = traced("sh.raw", (input, ...values) => runShell(template(input, values, true)));
 	}
 	for (const [namespace, methods] of Object.entries(services)) {
 		if (namespace !== "host" && !modules.has(namespace)) continue;
-		server.context[namespace] = Object.fromEntries(Object.entries(methods).map(([method, fn]) => [method, traced(namespace + "." + method, fn)]));
+		capabilities[namespace] = Object.freeze(Object.fromEntries(Object.entries(methods).map(([method, fn]) => [method, Object.freeze(traced(namespace + "." + method, fn))])));
 	}
-	server.context.console = { ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show };
+	// Freeze owned API wrappers, not returned values or Node's console internals.
+	for (const value of Object.values(capabilities)) {
+		if (typeof value !== "function") continue;
+		for (const method of Object.values(value)) if (typeof method === "function") Object.freeze(method);
+		Object.freeze(value);
+	}
+	capabilities.console = Object.freeze({ ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show });
+	Object.assign(server.context, capabilities);
+	Object.defineProperty(server.context, "__exec", { value: Object.freeze(capabilities), writable: false, configurable: false });
 	// Node's default REPL evaluator reports thrown errors through its domain,
 	// rather than the eval callback. Keep partial explicit output in either case.
 	server._domain.on("error", (error) => {
