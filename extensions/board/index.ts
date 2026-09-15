@@ -27,6 +27,7 @@ interface Subscription {
 
 const SUBS_ENTRY = "board-subs";
 const CURSOR_ENTRY = "board-cursor";
+const SEEN_ENTRY = "board-seen";
 const POLL_MS = 1000;
 
 const MAX_BYTES = 50_000;
@@ -77,6 +78,8 @@ function subKey(s: Subscription): string {
 export default function (pi: ExtensionAPI) {
 	let subs: Subscription[] = [];
 	let cursor = 0; // byte offset into the log
+	let context: ExtensionContext | undefined;
+	const pending = new Map<string, Message>();
 	let sessionId = "";
 	let name = "";
 	let cwd = "";
@@ -111,42 +114,70 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	const seen = new Set<string>();
-	pi.events.on("board:seen", (params) => {
-		for (const id of (params as { ids: string[] }).ids) seen.add(id);
-	});
 
-	function deliver(m: Message, wake: boolean) {
-		pi.sendMessage(
-			{
-				customType: "board",
-				content: `[board] ${formatMessage(m)}`,
-				display: true,
-				details: m,
-			},
-			{ triggerTurn: wake, deliverAs: "followUp" },
-		);
+	function persistDelivery() {
+		pi.appendEntry(CURSOR_ENTRY, { offset: cursor, pending: [...pending.values()] });
 	}
 
-	function poll() {
+	function acknowledge(ids: string[]) {
+		const fresh = ids.filter((id) => !seen.has(id));
+		if (!fresh.length) return;
+		for (const id of fresh) {
+			seen.add(id);
+			pending.delete(id);
+		}
+		pi.appendEntry(SEEN_ENTRY, fresh);
+		persistDelivery();
+	}
+
+	pi.events.on("board:seen", (params) => {
+		acknowledge((params as { ids: string[] }).ids);
+	});
+
+	function notification(messages: Message[]) {
+		return {
+			customType: "board",
+			content: messages.map((m) => `[board] ${formatMessage(m)}`).join("\n\n"),
+			display: true,
+			details: { messages },
+		};
+	}
+
+	function collect() {
 		const result = readFrom(cursor);
 		if (result.offset === cursor) return;
 		cursor = result.offset;
-		pi.appendEntry(CURSOR_ENTRY, cursor);
 		for (const m of result.messages) {
-			if (m.from.session === sessionId) continue;
-			if (seen.delete(m.id)) continue;
-			let wake = false;
-			let hit = false;
-			matchers.forEach((match, i) => {
-				if (!match(m)) return;
-				hit = true;
-				if (subs[i]!.wake) wake = true;
-			});
-			if (hit) deliver(m, wake);
+			if (m.from.session === sessionId || seen.has(m.id)) continue;
+			if (matchers.some((match) => match(m))) pending.set(m.id, m);
 		}
+		persistDelivery();
+	}
+
+	function takePending(wakeOnly = false): Message[] {
+		// Recheck subscriptions: a closed worker's queued report no longer needs a wake.
+		for (const [id, m] of pending) {
+			if (seen.has(id) || !matchers.some((match) => match(m))) pending.delete(id);
+		}
+		const messages = [...pending.values()];
+		if (wakeOnly && !messages.some((m) => matchers.some((match, i) => subs[i]!.wake && match(m)))) return [];
+		acknowledge(messages.map((m) => m.id));
+		return messages;
+	}
+
+	function poll() {
+		collect();
+		// Keep busy-session notifications cancellable by board_read / wm_wait. Pi's
+		// follow-up queue cannot retract a report the model has since read through a tool.
+		if (!context?.isIdle()) return;
+		const messages = takePending(true);
+		if (messages.length) pi.sendMessage(notification(messages), { triggerTurn: true, deliverAs: "followUp" });
 	}
 
 	function restore(ctx: ExtensionContext) {
+		context = ctx;
+		pending.clear();
+		seen.clear();
 		sessionId = ctx.sessionManager.getSessionId();
 		cwd = ctx.cwd;
 		name = process.env.PI_BOARD_NAME ?? basename(ctx.cwd);
@@ -155,7 +186,13 @@ export default function (pi: ExtensionAPI) {
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type !== "custom") continue;
 			if (entry.customType === SUBS_ENTRY) restoredSubs = (entry.data as Subscription[]) ?? [];
-			if (entry.customType === CURSOR_ENTRY) restoredCursor = entry.data as number;
+			if (entry.customType === CURSOR_ENTRY) {
+				const data = entry.data as number | { offset: number; pending: Message[] };
+				restoredCursor = typeof data === "number" ? data : data.offset;
+				pending.clear();
+				if (typeof data !== "number") for (const m of data.pending) pending.set(m.id, m);
+			}
+			if (entry.customType === SEEN_ENTRY) for (const id of entry.data as string[]) seen.add(id);
 		}
 		// A resumed session catches up on what it missed; a new one starts at the tail.
 		cursor = restoredCursor ?? logSize();
@@ -163,6 +200,7 @@ export default function (pi: ExtensionAPI) {
 		// topic, so the parent's follow-ups and needs-input answers reach it without it asking.
 		subs = restoredSubs ?? (process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []);
 		if (!restoredSubs && subs.length) persistSubs();
+		for (const id of seen) pending.delete(id);
 		rebuildMatchers();
 	}
 
@@ -171,6 +209,16 @@ export default function (pi: ExtensionAPI) {
 		clearInterval(timer);
 		timer = setInterval(poll, POLL_MS);
 		timer.unref?.();
+	});
+
+	pi.on("session_switch", (_event, ctx) => restore(ctx));
+	pi.on("session_tree", (_event, ctx) => restore(ctx));
+	pi.on("session_fork", (_event, ctx) => restore(ctx));
+
+	pi.on("before_agent_start", () => {
+		collect();
+		const messages = takePending();
+		if (messages.length) return { message: notification(messages) };
 	});
 
 	pi.on("session_shutdown", () => {
@@ -233,6 +281,10 @@ export default function (pi: ExtensionAPI) {
 			if (params.pipe) text = pipe(text, params.pipe, cwd);
 			if (!text) text = "(no messages)";
 			if (omitted) text += `\n(+${omitted} earlier; raise limit)`;
+			// A brief listing or arbitrary pipe is not evidence that the report was read.
+			if (!params.pipe && params.mode !== "brief") {
+				acknowledge(messages.filter((m) => text.includes(params.mode === "json" ? JSON.stringify(m) : formatMessage(m))).map((m) => m.id));
+			}
 			return { content: [{ type: "text", text }], details: { count: messages.length, omitted, messages: params.pipe ? undefined : messages } };
 		},
 	});
@@ -289,10 +341,13 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerMessageRenderer("board", (message, { expanded }, theme) => {
-		const m = message.details as Message | undefined;
-		if (!m) return new Text(message.content as string, 0, 0);
-		const head = theme.fg("accent", `board ${m.topic}`) + (m.tags.length ? theme.fg("muted", ` [${m.tags.join(" ")}]`) : "") + (m.from.name ? theme.fg("muted", ` <${m.from.name}>`) : "");
-		const body = expanded ? formatMessage(m) : m.body.split("\n")[0]!.slice(0, 120);
-		return new Text(`${head}\n${body}`, 0, 0);
+		const details = message.details as Message | { messages: Message[] } | undefined;
+		if (!details) return new Text(message.content as string, 0, 0);
+		const messages = "messages" in details ? details.messages : [details];
+		return new Text(messages.map((m) => {
+			const head = theme.fg("accent", `board ${m.topic}`) + (m.tags.length ? theme.fg("muted", ` [${m.tags.join(" ")}]`) : "") + (m.from.name ? theme.fg("muted", ` <${m.from.name}>`) : "");
+			const body = expanded ? formatMessage(m) : m.body.split("\n")[0]!.slice(0, 120);
+			return `${head}\n${body}`;
+		}).join("\n\n"), 0, 0);
 	});
 }
