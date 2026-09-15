@@ -31,8 +31,12 @@ Concurrent calls retain invocation order rather than completion order. A retaine
 job can still be pending when its cell ends; tracing does not wait for it. Traces
 freeze at cell completion; a pending entry is historical, not a live task monitor.
 Use retained promises or `notify` to observe later completion. Previews are capped
-at 64 operations and 4 KiB per field, within a 64 KiB trace; source previews show
-at most 32 rows. Truncation is explicit and does not truncate retained values.
+at 64 operations and 4 KiB per field, within a 64 KiB trace. Source previews use
+the same byte budget. Truncation is explicit and does not truncate retained values.
+Source, shell, and terminal values share a trusted passive formatter between
+trace previews and explicit display. Traces never call user render/content methods;
+explicit show still can. Transformations on returned selections are not traced—
+show their result or select their provenance-bearing rows explicitly.
 
 The trace is presentation-only, stored in tool-result details in the session log.
 It adds nothing to model-visible output and does not replace `show`. Arguments
@@ -204,6 +208,38 @@ into a new object opts back into normal object inspection.
 text/image content on completion. Plain detached promises do not request a turn;
 `notify` does.
 
+## Literal templates
+
+`sh.raw` and `edit.raw` preserve backslashes in template segments; existing
+`sh`/`edit` tags remain cooked for compatibility. Substitutions are still literal,
+not shell-quoted. JSON encoding and JavaScript template delimiters still apply.
+
+```ts
+await show(await sh.raw`printf 'one\ntwo\n'`);
+await edit.raw`=abcd
+const pattern = /\d+/;`;
+```
+
+Use `grep(/pattern/, paths)` instead of nesting a regex in shell quoting, and
+`replace(selection, fn)` when source-preserving transformations avoid rebuilding
+a hunk. Ordinary `sh(string)`/`edit(string)` remain useful for assembled input.
+
+## Loading skills
+
+```ts
+const skill = await loadSkill("/path/to/skill/SKILL.md"); // directory also accepted
+await show(skill);
+await show(skill.commands); // command, status, stdout/stderr, capture flags
+```
+
+`loadSkill` is in the fs module. It reads raw source, adds path context, and runs
+original inline/fenced dynamic shell placeholders sequentially with workspace cwd
+and `PI_SKILL_DIR`/`PI_WORKSPACE` set. Each explicit load executes them once;
+showing the retained value again does not. Generated output is not scanned for
+more commands. Failures are visible in the expanded text and command outcomes.
+The result retains `{path, text, commands, content()}` without editable anchors.
+Use `read` or `grep` to inspect/edit a skill without activating its placeholders.
+
 ## Writing files
 
 `await write(path, content)` creates parent directories and overwrites UTF-8 text.
@@ -246,7 +282,14 @@ configuration are unchanged: `EXA_API_KEY` and optional `EXA_API_URL`.
 - `board.list({topic?}?)` returns `{topics, subscriptions}`.
 - `board.subscribe({topic, tags?, wake?, remove?})` changes this session's
   subscription. Wake defaults to true; subscriptions survive session restoration.
+  Removal returns `{topic, tags?, remove:true}`, without irrelevant wake settings.
 - `board.ack(ids)` acknowledges specific messages already handled.
+- `board.help(method?)` returns signatures and filter/acknowledgment semantics.
+
+Read/subscribe filters accept tag expressions (`"done | blocked"`) or arrays
+(`tags: ["done", "verified"]` means **all** those tags; `[]` means no filter).
+Send tags remain arrays of literal tag names. Invalid types and malformed
+expressions fail at the service boundary with an actionable error.
 
 Reading values does **not** acknowledge them. Neither does `wm.wait`. This keeps
 filtered-away reports eligible for later delivery. Acknowledge the particular
@@ -277,8 +320,9 @@ await board.ack(chosen.map(m => m.id));
   `conflict: {handle, files}` on conflict; the conflicting merge is aborted.
 - `wm.close(handles, {run?, keepBranch?}?)` closes workers and unsubscribes;
   returns `{closed}`.
-- `wm.status()` returns structured status rows (`worktree` is the handle); `wm.agents()` lists agents and
+- `wm.status()` returns status rows using `handle` and `paneId`; `wm.agents()` lists agents and
   descriptions.
+- `wm.help(method?)` returns method signatures and worker lifecycle semantics.
 
 A failed batch spawn names both failures and successfully started handles; those
 workers remain tracked. Cancellation does not undo created workers or git changes.
@@ -325,11 +369,20 @@ await show(await ui.help("act")); // original schema and guidelines
 await show(await ui.findRoots({app: "TextEdit"}));
 const view = await ui.observe({root: "@r1", mode: "visual"}); // use a returned ref
 await show(view); // original text and actual screenshot images
-await show(view.details.capture); // concise state/capture metadata
+await show(view.capture); // concise state/capture metadata; full .details retained
+await show(await ui.search({stateId: view.capture.stateId, subrole: "CloseButton", unlabeled: true}));
 ```
 
 Methods: `findRoots`, `observe`, `search`, `expand`, `inspect`, `act`,
-`readText`, and `waitFor`. Each takes the upstream argument object.
+`readText`, and `waitFor`. Native operations take the upstream argument object.
+`search` additionally accepts `subrole`, `unlabeled`, and `limit` (1–1000, default
+50). Any of these opts into **cached-outline discovery**, not native ranked
+search: provide a captured `stateId`; roles/subroles/capabilities match exactly
+(case-insensitive, ignoring AX prefixes), and text matches substrings. It walks
+the whole captured outline before applying the result limit, retaining original
+refs. Results report `totalMatches`, `hasMore`, `complete`, `truncatedNodes`, and
+`scope: "cached-outline"`; completeness does not imply uncaptured UI is known.
+Native inspection checks state validity before returning cached results.
 `ui.help(method?)` returns original descriptions, schemas, and prompt guidelines.
 Refs remain tied to their returned `stateId`; browser and native state checks are
 not bypassed. Results retain `details` and `isError`; image bytes stay private
@@ -345,9 +398,13 @@ there is one owner, not two. In Pi's package settings:
 
 The wrapper imports the public extension factory and captures registrations;
 `/computer-use` remains available. Missing installation disables only `ui`,
-not the rest of exec. Image-free operation details are journaled for upstream
-session reconstruction; reconstruction has upstream's limits, not an unlimited
-cache of prior observations.
+not the rest of exec. A versioned adapter journals only
+image-free restoration fields (windows or target/capture/outline/note), validating
+the pi-computer-use 0.5.1 contract and migrating legacy unversioned records when
+read. Unsupported shapes/versions are not replayed. The synthetic tool-result
+projection is isolated, **not eliminated**: upstream still needs a public
+export/import restoration API on its factory-owned manager. There is no private
+upstream import or second native state owner.
 
 ## Lifetime and boundaries
 
@@ -363,13 +420,16 @@ workers and completed git operations are not rolled back.
 
 Outlines use tree-sitter and Markdown, not the legacy model fallback.
 
-Inner operations do not fire individual pi tool events. SKILL.md snapshots are
-raw anchored source: use explicit paths for bundled skill files, and execute needed
-placeholders deliberately with `PI_SKILL_DIR` and `PI_WORKSPACE` set. Outer
-middleware can still transform exec's displayed output; current skill expansion
-hooks can mistake anchored lines for shell commands. Do not treat those transformed
-displays as proof that skill setup ran successfully. Tool-specific approval and
-monitoring extensions need exec-aware integration.
+Inner operations do not fire individual pi tool events. Exec marks final result
+details with `piBetterSkills: {version: 1, handling: "explicit"}`. Compatible
+pi-better-skills middleware leaves marked results alone—no heuristic skill reads,
+glob injection, frontmatter overrides, or dynamic execution. Explicit `loadSkill`
+owns expansion; ordinary `read`/`grep` stay raw and editable. This contract requires
+the companion pi-better-skills patch (local dependency commit `a87cfcc` on
+1.3.2); stock 1.3.2 does not recognize it. Retain/reapply that patch when updating
+the dependency until it is supported upstream.
+Other middleware may still transform output; tool-specific approval and monitoring
+extensions need exec-aware integration.
 
 ## Dogfooding
 
