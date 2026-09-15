@@ -125,10 +125,14 @@ export async function createComputerUseBridge(pi: ExtensionAPI, factory?: Comput
    pending.add(operation);
    try {
     const result = await operation;
+    return { ...result, capture: captureSummary(result.details) };
+   } finally {
+    pending.delete(operation);
+    // Rejected native writes can still advance resource epochs. Never journal
+    // a cancelled caller or an operation from a departed session/branch.
     checkCurrent();
     pi.appendEntry(STATE_ENTRY, journal(runtime.exportSnapshot({ incremental: true })));
-    return { ...result, capture: captureSummary(result.details) };
-   } finally { pending.delete(operation); }
+   }
   },
  };
 }
