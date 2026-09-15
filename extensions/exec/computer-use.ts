@@ -88,6 +88,32 @@ export async function createComputerUseBridge(
 		}
 	}
 	const tools = new Map<string, Omit<ToolDefinition<any, any>, "renderCall" | "renderResult">>();
+	let generation = 0;
+	let acceptingCalls = false;
+	let sessionId: string | undefined;
+	let lifecycleAbort = new AbortController();
+	let lifecycleWork = Promise.resolve();
+	const pending = new Set<Promise<unknown>>();
+	type LifecycleHandler = (event: any, ctx: ExtensionContext) => unknown;
+	const starts: LifecycleHandler[] = [];
+	const stops: LifecycleHandler[] = [];
+
+	async function lifecycle(ctx: ExtensionContext, stopEvent?: unknown, startEvent?: unknown) {
+		const current = ++generation;
+		acceptingCalls = false;
+		lifecycleAbort.abort(new Error("Computer-use session or branch changed"));
+		lifecycleAbort = new AbortController();
+		lifecycleWork = lifecycleWork.catch(() => {}).then(async () => {
+			await Promise.allSettled([...pending]);
+			if (stopEvent) for (const handler of stops) await handler(stopEvent, ctx);
+			if (current !== generation) return;
+			if (startEvent) for (const handler of starts) await handler(startEvent, replayContext(ctx));
+			if (current !== generation) return;
+			sessionId = ctx.sessionManager.getSessionId();
+			acceptingCalls = startEvent !== undefined;
+		});
+		return lifecycleWork;
+	}
 	const names = new Set<string>(Object.values(computerUseTools));
 	const registerTool: ExtensionAPI["registerTool"] = (tool) => {
 		pi.registerTool(tool);
@@ -97,14 +123,19 @@ export async function createComputerUseBridge(
 		get(target, key) {
 			if (key === "registerTool") return registerTool;
 			if (key === "on") return (event: string, handler: (...args: any[]) => any) => {
-				return pi.on(event as "session_start", event === "session_start"
-					? (event, ctx) => handler(event, replayContext(ctx))
-					: handler);
+				if (event === "session_start") { starts.push(handler); return; }
+				if (event === "session_shutdown") { stops.push(handler); return; }
+				return pi.on(event as "session_start", handler);
 			};
 			const value = Reflect.get(target, key, target);
 			return typeof value === "function" ? value.bind(target) : value;
 		},
 	}));
+	pi.on("session_start", (event, ctx) => lifecycle(ctx, undefined, event));
+	pi.on("session_shutdown", (event, ctx) => lifecycle(ctx, event));
+	// Upstream has no tree hook. Its shutdown clears resources; its start clears
+	// all cached states/output refs even when the destination branch is empty.
+	pi.on("session_tree", (_event, ctx) => lifecycle(ctx, { reason: "reload" }, { reason: "reload" }));
 	return {
 		async call(method, args, ctx, signal) {
 			signal.throwIfAborted();
@@ -117,6 +148,15 @@ export async function createComputerUseBridge(
 					return { method, name, description: tool.description, parameters: tool.parameters, promptSnippet: tool.promptSnippet, promptGuidelines: tool.promptGuidelines };
 				});
 			}
+			const current = generation;
+			const callerSessionId = ctx.sessionManager.getSessionId();
+			signal = AbortSignal.any([signal, lifecycleAbort.signal]);
+			function checkCurrent() {
+				signal.throwIfAborted();
+				if (!acceptingCalls || current !== generation || callerSessionId !== ctx.sessionManager.getSessionId()
+					|| (sessionId !== undefined && callerSessionId !== sessionId)) throw new Error("Computer-use session or branch changed");
+			}
+			checkCurrent();
 			if (!Object.hasOwn(computerUseTools, method)) throw new Error(`Unknown ui method: ${method}`);
 			const name = computerUseTools[method as keyof typeof computerUseTools];
 			const tool = tools.get(name);
@@ -125,9 +165,16 @@ export async function createComputerUseBridge(
 			if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error(`ui.${method} expects an argument object`);
 			const id = `exec-ui-${randomUUID()}`;
 			const params = validateToolArguments(tool, { type: "toolCall", id, name, arguments: input });
-			const result = await tool.execute(id, params, signal, undefined, ctx);
-			pi.appendEntry(STATE_ENTRY, { toolName: name, details: result.details });
-			return result;
+			const operation = tool.execute(id, params, signal, undefined, ctx);
+			pending.add(operation);
+			try {
+				const result = await operation;
+				checkCurrent();
+				pi.appendEntry(STATE_ENTRY, { toolName: name, details: result.details });
+				return result;
+			} finally {
+				pending.delete(operation);
+			}
 		},
 	};
 }
