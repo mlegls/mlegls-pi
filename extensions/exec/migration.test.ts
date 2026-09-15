@@ -222,7 +222,7 @@ test("UI observations cross real Kernel RPC with ordered images, reusable refs a
 		expect(refused.content.filter(c => c.type === "image")).toHaveLength(1);
 		expect((await cell(kernel, 'show(typeof ui.navigate, typeof ui.evaluate, typeof ui.launchBrowser);')).output).toBe("undefined undefined undefined\n");
 		expect(JSON.stringify(saved)).not.toContain(pixel);
-		expect(saved).toHaveLength(3); // Observation, cached inspect, and refused action each export a delta.
+		expect(saved).toHaveLength(4); // Observation, cached inspect, expired-ref rejection, and refused action export deltas.
 		expect(saved.filter(entry => entry.data.snapshot.observation)).toHaveLength(1);
 		expect(saved[0].data.snapshot.observation.capture.stateId).toBe(desktopObservation.capture.stateId);
 		expect(saved[0].data.snapshot.observation.outline.root).toEqual(desktopObservation.outline.root);
