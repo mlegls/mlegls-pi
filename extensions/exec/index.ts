@@ -9,12 +9,13 @@ import { createComputerUseBridge } from "./computer-use";
 const ENTRY_TYPE = "outline-read";
 const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
 
-const API = `Persistent TypeScript REPL. Top-level await and bindings survive calls; only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its subprocesses.
+const API = `Persistent TypeScript REPL. Top-level await and bindings survive calls; only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.
 
 API:
   await sh\`command\` or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors.
   await find(glob?, {paths?, hidden?}?) -> string[] (ignore-aware).
   await read(path) -> source {path, text, rows, lines(start?,end?), outline()}.
+  await write(path, content) -> {path,bytes}; creates parents and overwrites UTF-8 text.
   read(imagePath) -> retained ImageFile; show(image) emits actual image content.
   await grep(pattern: string|RegExp, paths?: string|string[], {glob?,ignoreCase?,literal?,limit?}?) -> selection.
   selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.context(n), await selection.enclosing(), selection.complete.
@@ -25,7 +26,10 @@ API:
   exa.search(query, options?), exa.contents(urls, options?) -> structured responses.
   board.send({topic,body,tags?,data?}), board.read({topic?,tags?,limit?}?) -> {messages,omitted}, board.list({topic?}?), board.subscribe({topic,tags?,wake?,remove?}), board.ack(ids). Reads and wm.wait do not acknowledge; ack only handled message IDs.
   wm.spawn({run?,workers:[{handle,prompt,agent?,base?}],wake?,wait?}), wm.wait({handles?,run?,mode?:"any"|"all",timeoutMs?}?), wm.send(handle,text,{run?}?), wm.capture(handle,{run?,lines?}?), wm.merge(handles,{run?,into?,mode?}?), wm.close(handles,{run?,keepBranch?}?), wm.status(), wm.agents().
-  host.call(namespace, method, args) calls the same exa/board/wm services.
+  term.spawn({terminals:[{command,cwd?,name?,notifyOnExit?,notifyOnOutput?}]}), term.view(id,{lines?,cursor?,waitMs?}?), term.send(id,text,{submit?}?), term.sendRaw(id,keys), term.end(id), term.list().
+  term.wait({ids,mode?:"any"|"all",cursors?,waitMs?,lines?}); snapshots and waits stay structured, show renders readable terminal output. Terminals survive kernel reset.
+  ui.findRoots/observe/search/expand/inspect/act/readText/waitFor(args); await show(await ui.observe()) emits text/images; .details retains state/ref metadata. ui.help(method?) returns upstream schemas and guidelines. Use chrome-devtools-axi through sh for browser automation.
+  host.call(namespace, method, args) calls the same host services (term args are positional arrays; other namespaces use objects).
   notify(promise, label?) requests a one-shot completion/error alert with actual content (same text/image bounds) and returns the original promise. Keep a binding to await its result later.
 
 Example: const hits = await grep("TODO", await find("src/**/*.ts")); await show(hits.context(2));
