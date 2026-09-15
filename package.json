@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Personal pi package for mlegls",
   "scripts": {
-    "setup": "bun install --frozen-lockfile && bun install --cwd extensions/outline-read --frozen-lockfile && bun install --cwd extensions/disabled/lsp --frozen-lockfile",
+    "setup": "bun install --frozen-lockfile --ignore-scripts && bun install --cwd extensions/outline-read --frozen-lockfile && bun install --cwd extensions/disabled/lsp --frozen-lockfile",
     "test:board": "bun test extensions/board",
     "test:exa": "bun test extensions/exa",
     "test:lsp": "bun test extensions/lsp",
@@ -47,5 +47,8 @@
     "jiti": "^2.7.0",
     "tsx": "^4.23.13"
   },
-  "type": "module"
+  "type": "module",
+  "optionalDependencies": {
+    "@injaneity/pi-computer-use": "github:mlegls/pi-computer-use#6772738c32a6c58e97233b33708c5c2430a5c5fc"
+  }
 }
