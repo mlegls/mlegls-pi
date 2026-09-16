@@ -87,11 +87,14 @@ export default async function (pi: ExtensionAPI) {
 			renderCall,
 			renderResult,
 			description: describeModules(modules) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
-			parameters: Type.Object({ code: Type.String({ description: "TypeScript to evaluate in the persistent kernel. Use show(...) to emit results." }) }),
-			async execute(_id, { code }, signal, onUpdate, ctx) {
+			parameters: Type.Object({
+				code: Type.String({ description: "TypeScript to evaluate in the persistent kernel. Use show(...) to emit results." }),
+				timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 2_147_483_647, description: "Host-enforced deadline for this call only, in milliseconds (default 30000). Timeout clears kernel state and stops shell subprocesses; side effects may remain." })),
+			}),
+			async execute(_id, { code, timeoutMs }, signal, onUpdate, ctx) {
 				if (configurationError) throw new Error(configurationError);
 				if (!kernel) await reset(ctx);
-				const result = await kernel!.execute(code, signal, trace => onUpdate?.({ content: [], details: { trace } }));
+				const result = await kernel!.execute(code, signal, trace => onUpdate?.({ content: [], details: { trace } }), timeoutMs);
 				const content = [...result.content];
 				if (result.error) content.push({ type: "text", text: result.error });
 				if (!content.length) content.push({ type: "text", text: "(no output)" });

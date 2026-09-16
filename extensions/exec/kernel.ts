@@ -79,8 +79,11 @@ export class Kernel {
 		for (const entry of options.ledger) this.entries.set(entry.path, entry);
 	}
 
-	execute(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void): Promise<KernelResult> {
-		const run = this.queue.then(() => this.run(code, signal, onUpdate));
+	execute(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void, timeoutMs = 30_000): Promise<KernelResult> {
+		if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647) {
+			return Promise.resolve({ content: [], output: "", error: "timeoutMs must be an integer between 1 and 2147483647" });
+		}
+		const run = this.queue.then(() => this.run(code, signal, onUpdate, timeoutMs));
 		this.queue = run.catch(() => {});
 		return run;
 	}
@@ -203,15 +206,17 @@ export class Kernel {
 		}
 	}
 
-	private async run(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void): Promise<KernelResult> {
+	private async run(code: string, signal: AbortSignal | undefined, onUpdate: ((trace: KernelTrace) => void) | undefined, timeoutMs: number): Promise<KernelResult> {
 		if (this.disposed) return { content: [], output: "", error: "Kernel is disposed" };
 		if (signal?.aborted) return { content: [], output: "", error: "Execution cancelled" };
 		return new Promise<KernelResult>((resolve) => {
 			let finished = false;
+			let timer: ReturnType<typeof setTimeout> | undefined;
 			const id = ++this.sequence;
 			const finish = (error?: string) => {
 				if (finished) return;
 				finished = true;
+				clearTimeout(timer);
 				signal?.removeEventListener("abort", abort);
 				const trace = this.active?.trace;
 				if (trace) trace.finished = true;
@@ -228,6 +233,9 @@ export class Kernel {
 			this.active = { id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate, content: [], output: "", bytes: 0, truncated: false, finish };
 			this.updateTrace();
 			signal?.addEventListener("abort", abort, { once: true });
+			timer = setTimeout(() => {
+				void this.stop(`Execution timed out after ${timeoutMs}ms; kernel state was cleared and shell subprocesses stopped. Side effects may remain; do not blindly retry. Set timeoutMs explicitly on this call for longer work, or use term / retained promises.`);
+			}, timeoutMs);
 			try {
 				void this.start().then(() => {
 					if (finished) return;

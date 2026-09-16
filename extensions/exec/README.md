@@ -8,6 +8,23 @@ Requires Node 22.13+ and ripgrep (`rg` on PATH or pi's installed copy).
 Reload pi (`/reload`) to enable it. Use `/exec-reset` to stop the kernel and
 its subprocesses and clear retained state without discarding file anchors.
 
+## Cell deadline
+
+Cells have a **30s host-enforced deadline**, including kernel startup but excluding
+queue wait. Override explicitly on the current tool call:
+
+```json
+{"code":"await show(await sh`bun test`)","timeoutMs":120000}
+```
+
+`timeoutMs` is a positive integer in milliseconds (maximum 2147483647); it never
+carries over to later calls. The host enforces it even if the kernel is in a
+synchronous loop. Timeout preserves captured output, clears retained state, kills
+the kernel and its shell process group, and aborts in-flight host calls. File
+anchors and host-owned terminals survive. Filesystem and external side effects
+are not rolled back: inspect before retrying. For long-running work, use `term`
+or retain a promise in `state` and return from the cell without awaiting it.
+
 ## Pi presentation
 
 Collapsed exec rows list the operations actually invoked with one line of arguments

@@ -59,6 +59,7 @@ const API: Record<ExecModule, string[]> = {
 export function describeModules(modules: readonly ExecModule[]): string {
 	return [
 		"TypeScript execution with fresh scope per call and a persistent kernel. const/let/var and function declarations are cell-local and reusable next call. Retain values/promises explicitly with state.name = value; inspect Object.keys(state), delete state.name to release. Only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects and state writes survive a later error. Never blindly retry a failed cell. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
+		"Cells have a 30s host-enforced deadline. Pass timeoutMs on the exec call to override for that call only (positive integer milliseconds). Timeout clears kernel state, kills shell subprocesses, and aborts host calls; captured output is preserved, side effects may remain. Use term or retained promises for long-running work.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",
 		"Enabled API names, state, and __exec are reserved at cell top level: redeclarations fail before execution. Nested scopes may shadow them. __exec holds the enabled capabilities; registry and API namespaces are frozen. state is a mutable null-prototype object; its binding cannot be reassigned. Module selection is not a security sandbox.",
 		"",
