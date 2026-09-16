@@ -84,7 +84,10 @@ export function parseHunks(text: string, known: (a: string) => boolean): Hunk[] 
 	hunks.push(current);
 	for (const h of hunks) {
 		if (h.mode === "delete" && h.lines.length) throw new Error(`"${h.header}": a delete takes no lines. Nothing was modified.`);
-		if (h.mode !== "delete" && h.lines.length === 0) throw new Error(`"${h.header}": no lines given; use -${h.header.slice(1)} to delete. Nothing was modified.`);
+		if (h.mode !== "delete" && h.lines.length === 0) {
+			if (h.mode === "after" || h.mode === "before") h.lines = [""];
+			else throw new Error(`"${h.header}": no lines given; use -${h.header.slice(1)} to delete. Nothing was modified.`);
+		}
 	}
 	return hunks;
 }
