@@ -41,6 +41,13 @@ describe("parseTags / evalTags", () => {
 		expect(has("kind:decision, path:src/x.ts", ["kind:decision", "path:src/x.ts"])).toBe(true);
 		expect(has("kind:decision, path:src/x.ts", ["kind:decision"])).toBe(false);
 	});
+	test("tag-name array is AND; empty is unrestricted", () => {
+		expect(evalTags(parseTags(["done"]), ["done"])).toBe(true);
+		expect(evalTags(parseTags(["done", "verified"]), ["done"])).toBe(false);
+		expect(evalTags(parseTags(["done", "verified"]), ["done", "verified"])).toBe(true);
+		expect(evalTags(parseTags([]), ["x"])).toBe(true);
+		expect(() => parseTags(["done | blocked"])).toThrow();
+	});
 	test("errors", () => {
 		expect(() => parseTags("a &")).toThrow();
 		expect(() => parseTags("(a")).toThrow();
