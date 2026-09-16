@@ -17,6 +17,8 @@ Plain git worktrees and existing worktrees use `bun run setup` explicitly.
 Disabled Firecrawl and MCP packages are optional and not required by the suite;
 install their dependencies separately if enabling them.
 
-See [exec](extensions/exec/README.md) for the persistent TypeScript tool API.
+See [exec](extensions/exec/README.md) for the TypeScript cell API.
+Other harnesses can use the shared board through `bun lib/board.ts`; see
+[Board outside pi](extensions/exec/README.md#board-outside-pi).
 
 See [Featherless](extensions/featherless/README.md) for automatic model discovery.

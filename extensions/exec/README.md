@@ -276,7 +276,9 @@ text/image content on completion. Plain detached promises do not request a turn;
 **Prefer `sh.raw` for shell snippets and `edit.raw` for source containing
 backslashes.** `sh.raw` and `edit.raw` preserve backslashes in template segments; existing
 `sh`/`edit` tags remain cooked for compatibility. Substitutions are still literal,
-not shell-quoted. JSON encoding and JavaScript template delimiters still apply.
+not shell-quoted. JSON encoding and JavaScript template delimiters still apply:
+`raw` does not disable `${...}` interpolation or make unescaped backticks literal.
+Use `write(path, text)` or the string form of `edit` for already assembled text.
 
 ```ts
 await show(await sh.raw`printf 'one\ntwo\n'`);
@@ -340,10 +342,14 @@ configuration are unchanged: `EXA_API_KEY` and optional `EXA_API_URL`.
 ### Board
 
 - `board.send({topic, body, tags?, data?})` returns the stored message.
-- `board.read({topic?, tags?, limit?}?)` returns `{messages, omitted}`. The default
-  selection is the newest 20 matches, returned in log order. Each message has
-  its stable `line` number. `omitted` counts older matching messages excluded by
-  the query limit; this is separate from display truncation.
+- `board.read({topic?, tags?, limit?, fields?, bodyChars?}?)` returns
+  `{messages, omitted, total}`. The default selection is the newest 20 matches,
+  returned in log order. Each message has its stable `line` number. `omitted`
+  counts older matches excluded by the query limit; pass `limit: total` to
+  include all current matches. This is separate from display truncation.
+  Use `fields: "meta"` for compact previews: no `data`, and at most `bodyChars`
+  characters of body (default 120; 0 omits it). Shortened bodies carry
+  `bodyTruncated: true`. The default `fields: "full"` preserves whole messages.
 - `board.list({topic?}?)` returns `{topics, subscriptions}`.
 - `board.subscribe({topic, tags?, wake?, remove?})` changes this session's
   subscription. Wake defaults to true; subscriptions survive session restoration.
@@ -366,6 +372,25 @@ const chosen = batch.messages.filter(m => m.tags.includes("needs-input"));
 await show(chosen);
 await board.ack(chosen.map(m => m.id));
 ```
+
+### Board outside pi
+
+The same board is available to other harnesses through `bun lib/board.ts`
+(use the script’s absolute path when outside this checkout):
+
+```sh
+bun lib/board.ts read --topic "review/**" --fields meta --body-chars 80
+bun lib/board.ts send review/unit --tag done --body "Verified"
+bun lib/board.ts cursor  # {"offset": ...}; capture BEFORE starting workers
+bun lib/board.ts wait --topic "review/**" --tags done --from-offset 123 --timeout 30000
+```
+
+CLI output is JSON. `wait` requires the captured byte offset so reports arriving
+during startup are not lost; replace `123` with that cursor. Timeout exits 1.
+The importable `waitFor` keeps its from-now default: pass `fromOffset` explicitly
+for the same guarantee. Neither CLI reads nor waits acknowledge messages.
+`PI_BOARD_DIR` selects an isolated log; `PI_BOARD_NAME` sets the CLI sender name.
+This script does not replace any unrelated `board` executable on PATH.
 
 ### Workmux
 
