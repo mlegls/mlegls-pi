@@ -464,9 +464,13 @@ details with `piBetterSkills: {version: 1, handling: "explicit"}`. Compatible
 pi-better-skills middleware leaves marked results alone—no heuristic skill reads,
 glob injection, frontmatter overrides, or dynamic execution. Explicit `loadSkill`
 owns expansion; ordinary `read`/`grep` stay raw and editable. This contract requires
-the companion pi-better-skills patch (local dependency commit `a87cfcc` on
-1.3.2); stock 1.3.2 does not recognize it. Retain/reapply that patch when updating
-the dependency until it is supported upstream.
+the companion pi-better-skills patch; stock 1.3.2 does not recognize it. The
+patched fork is `mlegls/pi-better-skills`, branch `explicit-skill-ownership`,
+pinned in the local pi configuration as
+`git:github.com/mlegls/pi-better-skills@a87cfcc94bf2683c89a96377f86fdf6cade82e89`.
+Upstream proposal: https://github.com/edxeth/pi-better-skills/pull/4.
+Keep updates explicit: retain the ownership patch and check that raw reads stay
+raw and explicit loads expand once before advancing the pin.
 The portable patch is `patches/pi-better-skills-explicit-output.patch` at the
 repository root. On an unpatched 1.3.2 checkout, apply its two commits with
 `git -C <better-skills-checkout> am <absolute-path-to-patch>`; do not reapply it
