@@ -19,6 +19,19 @@ export interface Message {
 /** A message with its 1-indexed position in the log; stable across reads, so it addresses `range`. */
 export type Numbered = Message & { line: number };
 
+/** Compact projection for listing: no data, body sliced to bodyChars (0 drops body). bodyTruncated is set when the snippet is shorter than the original. */
+export type Meta = Pick<Numbered, "id" | "line" | "ts" | "topic" | "tags" | "from"> & { body?: string; bodyTruncated?: true };
+
+export function meta(m: Numbered, bodyChars = 120): Meta {
+	if (!Number.isInteger(bodyChars) || bodyChars < 0) throw new Error("bodyChars must be a nonnegative integer");
+	const out: Meta = { id: m.id, line: m.line, ts: m.ts, topic: m.topic, tags: m.tags, from: m.from };
+	if (bodyChars > 0) {
+		out.body = m.body.slice(0, bodyChars);
+		if (m.body.length > bodyChars) out.bodyTruncated = true;
+	}
+	return out;
+}
+
 export function boardDir(): string {
 	return process.env.PI_BOARD_DIR
 		?? join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "pi-board");
@@ -88,13 +101,15 @@ export interface ReadOptions extends Query {
 	limit?: number;
 }
 
-/** Filter the log; `omitted` is how many older matches the limit dropped. */
-export function read(options: ReadOptions): { messages: Numbered[]; omitted: number } {
+/** Filter the log; `omitted` is how many older matches the limit dropped; `total` is the match count before limit. */
+export function read(options: ReadOptions): { messages: Numbered[]; omitted: number; total: number } {
 	const match = compileQuery(options);
 	const messages = readAll().filter((m) => match(m.topic, m.tags));
 	const limit = options.limit ?? 20;
-	const omitted = Math.max(0, messages.length - limit);
-	return { messages: omitted ? messages.slice(-limit) : messages, omitted };
+	if (limit !== Infinity && (!Number.isInteger(limit) || limit < 0)) throw new Error("limit must be a nonnegative integer or Infinity");
+	const total = messages.length;
+	const kept = limit === Infinity || limit >= total ? messages : messages.slice(total - limit);
+	return { messages: kept, omitted: total - kept.length, total };
 }
 
 export interface TopicSummary {
@@ -123,7 +138,7 @@ export function topics(pattern?: string): TopicSummary[] {
 	return [...summary.values()].sort((a, b) => (a.lastTs < b.lastTs ? 1 : -1));
 }
 
-/** Block until a message matching `query` arrives (for scripts; the extension uses its own watcher). */
+/** Block until a matching message is appended after `fromOffset`. Default is logSize() at call time, so snapshot before spawn and pass that cursor or mid-spawn reports are missed. */
 export async function waitFor(query: Query, options: { timeoutMs?: number; fromOffset?: number; signal?: AbortSignal } = {}): Promise<Message | undefined> {
 	const match = compileQuery(query);
 	let offset = options.fromOffset ?? logSize();

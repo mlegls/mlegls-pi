@@ -6,7 +6,7 @@
 // tags: boolean expression over tag names. `done | (blocked & !retry)`.
 // Operators by precedence: `!` > `&` > `|`. `,` is an alias for `&`.
 // Tag names may contain `[A-Za-z0-9_:./@-]`, so `kind:decision` is one tag.
-// Empty expression matches everything.
+// Empty expression matches everything. A tag-name array means AND; `[]` is unrestricted.
 
 export type TagExpr =
 	| { op: "tag"; name: string }
@@ -44,7 +44,14 @@ function tokenize(source: string): Token[] {
 	return tokens;
 }
 
-export function parseTags(source: string | undefined): TagExpr {
+export function parseTags(source: string | readonly string[] | undefined): TagExpr {
+	if (Array.isArray(source)) {
+		if (!source.length) return { op: "all" };
+		if (!source.every((tag) => typeof tag === "string" && /^[A-Za-z0-9_:./@-]+$/.test(tag)))
+			throw new Error("tag query: array items must be tag names ([A-Za-z0-9_:./@-]+), not expressions");
+		const exprs = source.map((name) => ({ op: "tag" as const, name }));
+		return exprs.length === 1 ? exprs[0]! : { op: "and", exprs };
+	}
 	if (!source || source.trim() === "") return { op: "all" };
 	const tokens = tokenize(source);
 	let pos = 0;
@@ -126,7 +133,7 @@ export function matchTopic(pattern: string | undefined, topic: string): boolean 
 
 export interface Query {
 	topic?: string;
-	tags?: string;
+	tags?: string | readonly string[];
 }
 
 export function compileQuery(query: Query): (topic: string, tags: readonly string[]) => boolean {

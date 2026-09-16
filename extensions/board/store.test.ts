@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { logSize, read, readFrom, send, topics, waitFor } from "./store";
+import { logSize, meta, read, readFrom, send, topics, waitFor } from "./store";
 
 let dir: string;
 beforeEach(() => {
@@ -24,6 +24,7 @@ test("send then read round-trips with query", () => {
 	expect(read({}).messages.map((m) => m.id)).toEqual([a.id, b.id, expect.any(String)]);
 	expect(read({}).messages.map((m) => m.line)).toEqual([1, 2, 3]);
 	expect(read({ topic: "c/*", tags: "done" }).messages).toEqual([{ ...b, line: 2 }]);
+	expect(read({ topic: "c/*", tags: ["done"] }).messages).toEqual([{ ...b, line: 2 }]);
 	expect(read({ limit: 1 }).messages[0]!.topic).toBe("r/x");
 });
 
@@ -54,13 +55,31 @@ test("waitFor resolves on a matching message and times out otherwise", async () 
 	expect(await waitFor({ topic: "never" }, { timeoutMs: 600 })).toBeUndefined();
 });
 
+test("waitFor fromOffset sees messages already logged", async () => {
+	const fromOffset = logSize();
+	send({ topic: "w", tags: ["done"], body: "early", from });
+	expect((await waitFor({ topic: "w", tags: "done" }, { fromOffset, timeoutMs: 1000 }))?.body).toBe("early");
+});
+
+test("meta drops data and slices body", () => {
+	send({ topic: "t", tags: ["x"], body: "abcdef", data: { n: 1 }, from });
+	const m = read({ topic: "t", limit: 1 }).messages[0]!;
+	expect(meta(m, 4)).toEqual({ id: m.id, line: m.line, ts: m.ts, topic: m.topic, tags: m.tags, from: m.from, body: "abcd", bodyTruncated: true });
+	expect(meta(m, 0)).toEqual({ id: m.id, line: m.line, ts: m.ts, topic: m.topic, tags: m.tags, from: m.from });
+	expect(meta(m, 6).bodyTruncated).toBeUndefined();
+	expect(() => meta(m, NaN)).toThrow();
+	expect(() => meta(m, 1.5)).toThrow();
+});
+
 
 
 test("query reports what the limit dropped", () => {
 	for (let i = 0; i < 5; i++) send({ topic: "t", tags: [], body: String(i), from });
-	const { messages, omitted } = read({ limit: 2 });
+	const { messages, omitted, total } = read({ limit: 2 });
 	expect(messages.map((m) => m.body)).toEqual(["3", "4"]);
 	expect(omitted).toBe(3);
+	expect(total).toBe(5);
 	expect(read({ limit: Infinity }).omitted).toBe(0);
+	expect(read({ limit: 0 })).toEqual({ messages: [], omitted: 5, total: 5 });
 });
 

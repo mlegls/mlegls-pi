@@ -17,7 +17,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { ComputerUseBridge } from "./computer-use";
 import { contents as exaContents, search as exaSearch, type ExaContentsOptions, type ExaSearchOptions } from "../exa/client";
 import { parseTags } from "../board/query";
-import { read as readBoard, send as sendBoard, topics as boardTopics, type Message } from "../board/store";
+import { meta as boardMeta, read as readBoard, send as sendBoard, topics as boardTopics, type Message } from "../board/store";
 import { AGENTS_DIR, MergeConflict, attach, merge, spawn, wait, workmuxStatus, type Outcome, type Worker } from "../../lib/wm";
 
 const REPORT_TAGS = "done | blocked | needs-input | checkpoint";
@@ -84,7 +84,7 @@ function strings(value: unknown, what: string): string[] {
 const SERVICE_HELP = {
 	board: {
 		send: { signature: "send({topic, body?, tags?: string[], data?})", returns: "Message", notes: "tags assigns literal tags, not a filter expression." },
-		read: { signature: "read({topic?, tags?: string | string[], limit?}?)", returns: "{messages, omitted}", notes: "Newest 20 matches by default. Does not acknowledge. Arrays require ALL tags; [] matches everything. Array items must match [A-Za-z0-9_:./@-]+, not expressions. Strings support !, &, |, parentheses; comma means AND." },
+		read: { signature: "read({topic?, tags?: string | string[], limit?, fields?: \"full\" | \"meta\", bodyChars?}?)", returns: "{messages, omitted, total}", notes: "Newest 20 matches by default. Does not acknowledge. fields meta drops data and slices body to bodyChars (default 120, 0 omits body). total is the match count before limit; pass limit: total to include omitted older matches. Arrays require ALL tags; [] matches everything. Array items must match [A-Za-z0-9_:./@-]+, not expressions. Strings support !, &, |, parentheses; comma means AND." },
 		list: { signature: "list({topic?}?)", returns: "{topics, subscriptions}" },
 		subscribe: { signature: "subscribe({topic, tags?: string | string[], wake?, remove?})", returns: "{topic, tags?, wake, remove: false} | {topic, tags?, remove: true}", notes: "Same filters as read. Arrays normalize to an AND expression. wake defaults true. remove=true removes exact topic + normalized tags regardless of wake. Reads do not acknowledge; use ack." },
 		ack: { signature: "ack(ids: string[])", returns: "{acknowledged}", notes: "Marks only these IDs handled, suppressing their pending delivery/wake." },
@@ -194,8 +194,15 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 			}
 			case "read": {
 				const a = object(args);
-				const { messages, omitted } = readBoard({ topic: a.topic as string | undefined, tags: tagFilter(a.tags), limit: a.limit as number | undefined });
-				return { messages, omitted };
+				const fields = a.fields;
+				if (fields !== undefined && fields !== "full" && fields !== "meta") throw new Error("fields must be \"full\" or \"meta\"");
+				if (a.bodyChars !== undefined && (!Number.isInteger(a.bodyChars) || a.bodyChars < 0)) throw new Error("bodyChars must be a nonnegative integer");
+				const { messages, omitted, total } = readBoard({ topic: a.topic as string | undefined, tags: tagFilter(a.tags), limit: a.limit as number | undefined });
+				return {
+					messages: fields === "meta" ? messages.map((m) => boardMeta(m, typeof a.bodyChars === "number" ? a.bodyChars : 120)) : messages,
+					omitted,
+					total,
+				};
 			}
 			case "list": {
 				const a = object(args);

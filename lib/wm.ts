@@ -177,7 +177,7 @@ const poller = new Poller();
 
 export class Worker {
 	readonly topic: string;
-	readonly dir: string;
+	dir: string;
 	paneId?: string;
 	private listeners = new Set<(o: Outcome) => void>();
 	private waiters: Array<(o: Outcome) => void> = [];
@@ -202,6 +202,11 @@ export class Worker {
 		this.topic = `${run}/${handle}`;
 		this.dir = dir;
 		poller.add(this);
+	}
+
+	/** @internal spawn failed; detach without closing a worktree. */
+	drop() {
+		poller.remove(this);
 	}
 
 	get branch() {
@@ -414,17 +419,25 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const session = o.session ?? slug(o.run);
 	await ensureSession(session, cwd);
 	await excludeWm(cwd);
-	const a = o.agent ? agent(o.agent) : undefined;
-	const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
-	const cmd = a ? a.runCommand : o.agent;
-	// The board extension reads the first two (sender name, starting subscription); fence reads the third.
-	const env = [`PI_BOARD_NAME=${o.handle}`, `PI_BOARD_TOPIC=${o.run}/${o.handle}`, a?.checkpoint && `PI_CHECKPOINT=${a.checkpoint}`].filter(Boolean);
-	if (cmd) args.push("-a", `${env.join(" ")} ${cmd}`);
-	if (o.base) args.push("--base", o.base);
-	const out = await sh("workmux", args, cwd);
-	if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr || out.stdout}`);
-	const dir = /Worktree:\s+(\S+)/.exec(out.stdout)?.[1] ?? resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle);
-	return new Worker(o.run, o.handle, cwd, session, dir);
+	// Own the board window before workmux starts the agent, or a fast report is consumed by a ticking poller against nobody.
+	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
+	try {
+		const a = o.agent ? agent(o.agent) : undefined;
+		const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
+		const cmd = a ? a.runCommand : o.agent;
+		// The board extension reads the first two (sender name, starting subscription); fence reads the third.
+		const env = [`PI_BOARD_NAME=${o.handle}`, `PI_BOARD_TOPIC=${o.run}/${o.handle}`, a?.checkpoint && `PI_CHECKPOINT=${a.checkpoint}`].filter(Boolean);
+		if (cmd) args.push("-a", `${env.join(" ")} ${cmd}`);
+		if (o.base) args.push("--base", o.base);
+		const out = await sh("workmux", args, cwd);
+		if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr || out.stdout}`);
+		const dir = /Worktree:\s+(\S+)/.exec(out.stdout)?.[1];
+		if (dir) w.dir = dir;
+		return w;
+	} catch (err) {
+		w.drop();
+		throw err;
+	}
 }
 
 /** A Worker for a handle spawned elsewhere (another process, or before a resume). Assumes workmux's default worktree layout. */
