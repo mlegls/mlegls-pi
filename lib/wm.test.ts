@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { send } from "../extensions/board/store";
 import { Worker, wait, type Outcome } from "./wm";
 
 const done = (body: string): Outcome => ({
@@ -57,3 +61,23 @@ describe("wait", () => {
 		expect((await wait([a], { timeoutMs: 20 })).size).toBe(1);
 	});
 });
+
+test("poller delivers a report posted after the worker is registered", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "wm-race-"));
+	const old = process.env.PI_BOARD_DIR;
+	process.env.PI_BOARD_DIR = dir;
+	const run = "race-" + process.pid + "-" + Date.now();
+	const w = new Worker(run, "b", dir, run, dir);
+	try {
+		const pending = w.next();
+		send({ topic: run + "/b", tags: ["done"], body: "mid-spawn", from: { name: "b" } });
+		const o = await pending;
+		expect(o.kind).toBe("done");
+		if (o.kind === "done") expect(o.message.body).toBe("mid-spawn");
+	} finally {
+		w.emit({ kind: "exited", tail: "" });
+		if (old === undefined) delete process.env.PI_BOARD_DIR;
+		else process.env.PI_BOARD_DIR = old;
+		rmSync(dir, { recursive: true, force: true });
+	}
+}, 5000);

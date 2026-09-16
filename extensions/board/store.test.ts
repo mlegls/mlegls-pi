@@ -64,8 +64,11 @@ test("waitFor fromOffset sees messages already logged", async () => {
 test("meta drops data and slices body", () => {
 	send({ topic: "t", tags: ["x"], body: "abcdef", data: { n: 1 }, from });
 	const m = read({ topic: "t", limit: 1 }).messages[0]!;
-	expect(meta(m, 4)).toEqual({ id: m.id, line: m.line, ts: m.ts, topic: m.topic, tags: m.tags, from: m.from, body: "abcd" });
+	expect(meta(m, 4)).toEqual({ id: m.id, line: m.line, ts: m.ts, topic: m.topic, tags: m.tags, from: m.from, body: "abcd", bodyTruncated: true });
 	expect(meta(m, 0)).toEqual({ id: m.id, line: m.line, ts: m.ts, topic: m.topic, tags: m.tags, from: m.from });
+	expect(meta(m, 6).bodyTruncated).toBeUndefined();
+	expect(() => meta(m, NaN)).toThrow();
+	expect(() => meta(m, 1.5)).toThrow();
 });
 
 
@@ -77,5 +80,6 @@ test("query reports what the limit dropped", () => {
 	expect(omitted).toBe(3);
 	expect(total).toBe(5);
 	expect(read({ limit: Infinity }).omitted).toBe(0);
+	expect(read({ limit: 0 })).toEqual({ messages: [], omitted: 5, total: 5 });
 });
 

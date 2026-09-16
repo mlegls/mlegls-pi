@@ -19,12 +19,16 @@ export interface Message {
 /** A message with its 1-indexed position in the log; stable across reads, so it addresses `range`. */
 export type Numbered = Message & { line: number };
 
-/** Compact projection for listing: no data, body sliced to bodyChars (0 drops body). */
-export type Meta = Pick<Numbered, "id" | "line" | "ts" | "topic" | "tags" | "from"> & { body?: string };
+/** Compact projection for listing: no data, body sliced to bodyChars (0 drops body). bodyTruncated is set when the snippet is shorter than the original. */
+export type Meta = Pick<Numbered, "id" | "line" | "ts" | "topic" | "tags" | "from"> & { body?: string; bodyTruncated?: true };
 
 export function meta(m: Numbered, bodyChars = 120): Meta {
+	if (!Number.isInteger(bodyChars) || bodyChars < 0) throw new Error("bodyChars must be a nonnegative integer");
 	const out: Meta = { id: m.id, line: m.line, ts: m.ts, topic: m.topic, tags: m.tags, from: m.from };
-	if (bodyChars > 0) out.body = m.body.slice(0, bodyChars);
+	if (bodyChars > 0) {
+		out.body = m.body.slice(0, bodyChars);
+		if (m.body.length > bodyChars) out.bodyTruncated = true;
+	}
 	return out;
 }
 
@@ -102,9 +106,10 @@ export function read(options: ReadOptions): { messages: Numbered[]; omitted: num
 	const match = compileQuery(options);
 	const messages = readAll().filter((m) => match(m.topic, m.tags));
 	const limit = options.limit ?? 20;
+	if (limit !== Infinity && (!Number.isInteger(limit) || limit < 0)) throw new Error("limit must be a nonnegative integer or Infinity");
 	const total = messages.length;
-	const omitted = Math.max(0, total - limit);
-	return { messages: omitted ? messages.slice(-limit) : messages, omitted, total };
+	const kept = limit === Infinity || limit >= total ? messages : messages.slice(total - limit);
+	return { messages: kept, omitted: total - kept.length, total };
 }
 
 export interface TopicSummary {

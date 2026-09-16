@@ -25,7 +25,7 @@ test("cli send then meta-read round-trips json", () => {
 	expect(listed.code).toBe(0);
 	const batch = JSON.parse(listed.stdout);
 	expect(batch).toMatchObject({ omitted: 0, total: 1 });
-	expect(batch.messages[0]).toMatchObject({ topic: "c/u1", tags: ["done"], body: "ok" });
+	expect(batch.messages[0]).toMatchObject({ topic: "c/u1", tags: ["done"], body: "ok", bodyTruncated: true });
 	expect(batch.messages[0].data).toBeUndefined();
 });
 
@@ -33,4 +33,12 @@ test("cli wait requires from-offset", () => {
 	const r = run(["wait", "--topic", "x"]);
 	expect(r.code).not.toBe(0);
 	expect(r.stderr).toContain("from-offset");
+});
+
+test("cli rejects non-integer numeric flags", () => {
+	expect(run(["wait", "--topic", "x", "--from-offset", "nope"]).stderr).toContain("from-offset");
+	expect(run(["wait", "--topic", "x", "--from-offset", "-1"]).stderr).toContain("from-offset");
+	expect(run(["read", "--limit", "1.5"]).stderr).toContain("limit");
+	expect(run(["read", "--fields", "meta", "--body-chars", "NaN"]).stderr).toContain("body-chars");
+	expect(run(["wait", "--topic", "x", "--from-offset", "0", "--timeout", "-2"]).stderr).toContain("timeout");
 });

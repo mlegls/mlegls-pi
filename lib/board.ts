@@ -22,6 +22,11 @@ if (import.meta.main) {
 		return out;
 	};
 	const opt = (name: string) => flags(name)[0];
+	const nat = (name: string, raw: string | undefined): number | undefined => {
+		if (raw === undefined) return undefined;
+		if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) throw new Error(`--${name} must be a nonnegative integer`);
+		return Number(raw);
+	};
 	const pos = rest.filter((a, i) => !a.startsWith("--") && !rest[i - 1]?.startsWith("--"));
 	const need = (v: string | undefined, n: string) => {
 		if (!v) throw new Error(`${n} required`);
@@ -47,14 +52,14 @@ if (import.meta.main) {
 		case "read": {
 			const fields = opt("fields") ?? "full";
 			if (fields !== "full" && fields !== "meta") throw new Error("fields must be full or meta");
-			const bodyChars = opt("body-chars");
+			const bodyChars = nat("body-chars", opt("body-chars"));
 			const { messages, omitted, total } = read({
 				topic: opt("topic"),
 				tags: opt("tags"),
-				limit: opt("limit") !== undefined ? Number(opt("limit")) : undefined,
+				limit: nat("limit", opt("limit")),
 			});
 			print({
-				messages: fields === "meta" ? messages.map((m) => meta(m, bodyChars !== undefined ? Number(bodyChars) : 120)) : messages,
+				messages: fields === "meta" ? messages.map((m) => meta(m, bodyChars ?? 120)) : messages,
 				omitted,
 				total,
 			});
@@ -64,12 +69,11 @@ if (import.meta.main) {
 			print({ topics: topics(opt("topic")) });
 			break;
 		case "wait": {
-			const fromOffset = opt("from-offset");
+			const fromOffset = nat("from-offset", opt("from-offset"));
 			if (fromOffset === undefined) throw new Error("--from-offset required (bun lib/board.ts cursor before spawn)");
-			const timeout = opt("timeout");
 			const hit = await waitFor(
 				{ topic: need(opt("topic"), "topic"), tags: opt("tags") },
-				{ fromOffset: Number(fromOffset), timeoutMs: timeout !== undefined ? Number(timeout) : undefined },
+				{ fromOffset, timeoutMs: nat("timeout", opt("timeout")) },
 			);
 			if (!hit) process.exit(1);
 			print(hit);
