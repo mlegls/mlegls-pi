@@ -62,7 +62,7 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-/** Persistent lexical scope in a disposable Node process. Not a security sandbox. */
+/** Persistent explicit state with cell-local scope in a disposable Node process. Not a security sandbox. */
 export class Kernel {
 	private child?: ChildProcess;
 	private ready?: Promise<void>;
@@ -158,7 +158,7 @@ export class Kernel {
 			});
 			child.once("exit", (code, signal) => {
 				clearTimeout(timer);
-				const error = `Kernel exited (${signal ?? code}); bindings were reset`;
+				const error = `Kernel exited (${signal ?? code}); state was cleared`;
 				reject(new Error(error));
 				if (this.child === child) void this.stop(error);
 			});
@@ -224,7 +224,7 @@ export class Kernel {
 					resolve({ output, content, trace, ...(errors.length ? { error: errors.join("\n") } : {}) });
 				});
 			};
-			const abort = () => { void this.stop("Execution cancelled; kernel bindings were reset"); };
+			const abort = () => { void this.stop("Execution cancelled; kernel state was cleared"); };
 			this.active = { id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate, content: [], output: "", bytes: 0, truncated: false, finish };
 			this.updateTrace();
 			signal?.addEventListener("abort", abort, { once: true });
@@ -281,7 +281,7 @@ export class Kernel {
 
 	async dispose(): Promise<void> {
 		this.disposed = true;
-		await this.stop("Kernel disposed; bindings were reset");
+		await this.stop("Kernel disposed; state was cleared");
 		await this.persistence;
 	}
 }

@@ -69,10 +69,10 @@ export default async function (pi: ExtensionAPI) {
 	pi.on("session_shutdown", async () => { await reset(undefined, true); });
 
 	pi.registerCommand("exec-reset", {
-		description: "Stop exec subprocesses and clear REPL bindings (keep file anchors)",
+		description: "Stop exec subprocesses and clear retained state (keep file anchors)",
 		handler: async (_args, ctx) => {
 			await reset(ctx);
-			ctx.ui.notify("Exec kernel reset; bindings cleared, file anchors retained.", "info");
+			ctx.ui.notify("Exec kernel reset; state cleared, file anchors retained.", "info");
 		},
 	});
 
