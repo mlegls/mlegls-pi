@@ -57,19 +57,19 @@ const text = (r: any) => r.content.filter((c: any) => c.type === "text").map((c:
 
 test("read silently retains image; show emits model image, including before a later cell error", () => session(async ({ exec, active }) => {
 	expect(active()).toEqual(["exec"]);
-	const read = await exec('const image = await read("pixel.png");');
+	const read = await exec('state.image = await read("pixel.png");');
 	expect(read.content.some((c: any) => c.type === "image")).toBe(false);
-	const shown = await exec('await show(image);');
+	const shown = await exec('await show(state.image);');
 	expect(shown.content.find((c: any) => c.type === "image")).toMatchObject({ mimeType: "image/png" });
 	expect(text(shown)).not.toContain(png);
-	const failed = await exec('await show(image); throw new Error("after image");');
+	const failed = await exec('await show(state.image); throw new Error("after image");');
 	expect(failed.isError).toBe(true);
 	expect(text(failed)).toContain("after image");
 	expect(failed.content.some((c: any) => c.type === "image")).toBe(true);
-	const bounded = await exec('for (let i=0;i<10;i++) await show(image);');
+	const bounded = await exec('for (let i=0;i<10;i++) await show(state.image);');
 	expect(bounded.content.filter((c: any) => c.type === "image").length).toBeLessThanOrEqual(8);
 	expect(text(bounded)).toMatch(/image.*(limit|truncat)|(?:limit|truncat).*image/i);
-	expect((await exec('await show(image);')).content.filter((c: any) => c.type === "image")).toHaveLength(1);
+	expect((await exec('await show(state.image);')).content.filter((c: any) => c.type === "image")).toHaveLength(1);
 }), 20000);
 
 async function until(predicate: () => boolean) {
@@ -117,10 +117,10 @@ test("Exa response stays structured across host RPC, filtering large bodies befo
 	process.env.EXA_API_URL = `http://127.0.0.1:${server.port}`;
 	try {
 		await session(async ({ exec }) => {
-			const fetched = await exec('const search = await exa.search("evidence", {numResults: 2});');
+			const fetched = await exec('state.search = await exa.search("evidence", {numResults: 2});');
 			expect(fetched.isError).toBe(false);
 			expect(text(fetched)).not.toContain("discard");
-			const filtered = await exec('show(search.results.filter(r => r.title === "keep").map(r => r.text)); show(search.requestId, search.costDollars.total);');
+			const filtered = await exec('show(state.search.results.filter(r => r.title === "keep").map(r => r.text)); show(state.search.requestId, state.search.costDollars.total);');
 			expect(text(filtered)).toContain("evidence");
 			expect(text(filtered)).toContain("fixture-request");
 			expect(text(filtered)).toContain("0.007");

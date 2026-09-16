@@ -30,7 +30,7 @@ async function fixture(run: (kernel: Kernel, cwd: string) => Promise<void>, opti
 test("live invocation order is independent of completion order; explicit show remains a filter", () => fixture(async kernel => {
 	const updates: KernelTrace[] = [];
 	let complete = false;
-	const work = kernel.execute('const slow = sh("sleep .25; echo slow; echo second"); const fast = sh(`printf fast\nprintf tail`); const source = await read("sample.ts"); await Promise.all([slow, fast]);', undefined, t => updates.push(t)).then(r => { complete = true; return r; });
+	const work = kernel.execute('const slow = sh("sleep .25; echo slow; echo second"); const fast = sh(`printf fast\nprintf tail`); state.source = await read("sample.ts"); await Promise.all([slow, fast]);', undefined, t => updates.push(t)).then(r => { complete = true; return r; });
 	await until(() => updates.some(t => t.entries.some(e => e.state === "pending")));
 	expect(complete).toBe(false);
 	const saved = JSON.stringify(updates[0]);
@@ -51,17 +51,17 @@ test("live invocation order is independent of completion order; explicit show re
 	expect(JSON.stringify(updates[0])).toBe(saved);
 	expect(result.content).toEqual([]);
 	expect(result.output).toBe("");
-	const shown = await kernel.execute('await show(source.lines(1,1));');
+	const shown = await kernel.execute('await show(state.source.lines(1,1));');
 	expect(shown.output).toContain("visible");
 	expect(shown.output).not.toContain("hidden-retained");
 }), 20000);
 
 // Want: a returned cell must not falsely report that its retained work finished.
 test("retained jobs, operation errors, and interruption remain distinct", () => fixture(async kernel => {
-	const pending = await kernel.execute('const job = sh("sleep .2; printf retained");');
+	const pending = await kernel.execute('state.job = sh("sleep .2; printf retained");');
 	expect(pending.trace!.finished).toBe(true);
 	expect(entries(pending)[0].state).toBe("pending");
-	expect((await kernel.execute('await show(await job);')).output).toContain("retained");
+	expect((await kernel.execute('await show(await state.job);')).output).toContain("retained");
 	const failed = await kernel.execute('await read("absent.ts");');
 	expect(failed.error).toBeTruthy();
 	expect(entries(failed)[0].state).toBe("error");
@@ -74,7 +74,7 @@ test("retained jobs, operation errors, and interruption remain distinct", () => 
 	const interrupted = await work;
 	expect(interrupted.error).toMatch(/cancel|interrupt/i);
 	expect(entries(interrupted)[0].state).toBe("interrupted");
-	expect((await kernel.execute('show(typeof job);')).output).toBe("undefined\n");
+	expect((await kernel.execute('show(typeof state.job);')).output).toBe("undefined\n");
 }), 20000);
 
 // Want: observing arguments is bounded and never executes user presentation hooks.

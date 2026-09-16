@@ -23,25 +23,25 @@ test("structured host results can be filtered before display; saved jobs notify 
 		},
 	});
 	try {
-		const fetched = await kernel.execute('const response = await exa.search("query");');
+		const fetched = await kernel.execute('state.response = await exa.search("query");');
 		expect(fetched.error).toBeUndefined();
 		expect(fetched.output).toBe("");
-		const filtered = await kernel.execute('show(response.results.filter(r => r.title === "keep")); show(response.costDollars.total);');
+		const filtered = await kernel.execute('show(state.response.results.filter(r => r.title === "keep")); show(state.response.costDollars.total);');
 		expect(filtered.output).toContain("needle");
 		expect(filtered.output).toContain("0.007");
 		expect(filtered.output).not.toContain("discard");
-		await kernel.execute('const job = wm.status(); notify(job, "workers");');
+		await kernel.execute('state.job = wm.status(); notify(state.job, "workers");');
 		await until(() => started);
 		release([{ handle: "worker", status: "done" }]);
 		await until(() => notices.length === 1);
 		expect(notices[0].label).toBe("workers");
-		expect((await kernel.execute('show((await job)[0].handle);')).output).toContain("worker");
+		expect((await kernel.execute('show((await state.job)[0].handle);')).output).toContain("worker");
 		const controller = new AbortController();
 		const waiting = kernel.execute('await wm.wait({ timeoutMs: 60000 });', controller.signal);
 		const timer = setTimeout(() => controller.abort(), 150);
 		try { expect((await waiting).error).toMatch(/cancel/i); } finally { clearTimeout(timer); }
 		await until(() => aborted);
-		expect((await kernel.execute('show(typeof response);')).output).toBe("undefined\n");
+		expect((await kernel.execute('show(typeof state.response);')).output).toBe("undefined\n");
 		const failed = await kernel.execute('show("before"); await board.list();');
 		expect(failed.output).toBe("before\n");
 		expect(failed.error).toContain("host unavailable");

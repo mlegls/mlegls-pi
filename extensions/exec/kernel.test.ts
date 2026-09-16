@@ -27,11 +27,11 @@ async function until(predicate: () => boolean | Promise<boolean>) {
 	}
 }
 
-test("read selections and typed bindings survive calls; promised outlines render and short refs edit", () => fixture(async (kernel, cwd) => {
-	await cell(kernel, 'const count: number = 41; const source = await read("example.ts"); const hits = await grep(/oldName/, ["example.ts"]);');
-	expect(await cell(kernel, 'show(count + 1); await show(source.outline());')).toContain("oldName");
-	expect(await cell(kernel, 'show(count + 1);')).toBe("42\n");
-	await cell(kernel, 'await edit("=" + hits.rows[0].anchor + "\\nexport function newName() {");');
+test("explicitly retained read selections and typed values survive calls; promised outlines render and short refs edit", () => fixture(async (kernel, cwd) => {
+	await cell(kernel, 'const count: number = 41; state.count = count; state.source = await read("example.ts"); state.hits = await grep(/oldName/, ["example.ts"]);');
+	expect(await cell(kernel, 'show(state.count + 1); await show(state.source.outline());')).toContain("oldName");
+	expect(await cell(kernel, 'show(state.count + 1);')).toBe("42\n");
+	await cell(kernel, 'await edit("=" + state.hits.rows[0].anchor + "\\nexport function newName() {");');
 	expect(await readFile(join(cwd, "example.ts"), "utf8")).toContain("function newName()");
 	const failed = await kernel.execute('show("before failure"); throw new Error("intentional");');
 	expect(failed.output).toBe("before failure\n");
@@ -39,17 +39,17 @@ test("read selections and typed bindings survive calls; promised outlines render
 }), 15000);
 
 test("saved shell promises notify the host after the originating call and remain awaitable", () => fixture(async (kernel, _cwd, _entries, notifications) => {
-	await cell(kernel, 'const job = sh("sleep 0.2; printf finished; exit 7"); notify(job, "job");');
+	await cell(kernel, 'state.job = sh("sleep 0.2; printf finished; exit 7"); notify(state.job, "job");');
 	expect(notifications).toHaveLength(0);
 	await until(() => notifications.length === 1);
 	expect(notifications[0].label).toBe("job");
 	expect(notifications[0].output).toContain("finished");
-	expect(await cell(kernel, 'const result = await job; show(result.stdout, result.exitCode);')).toBe("finished 7\n");
+	expect(await cell(kernel, 'const result = await state.job; show(result.stdout, result.exitCode);')).toBe("finished 7\n");
 }), 15000);
 
 test("interrupt kills looping kernel and shell descendants; fresh kernel restores latest edited anchors", () => fixture(async (kernel, cwd, entries) => {
-	await cell(kernel, 'const first = await read("example.ts"); await edit("=" + first.rows[0].anchor + "\\nexport function latest() {"); const latest = await read("example.ts");');
-	const anchor = (await cell(kernel, 'show(latest.rows[0].anchor);')).trim();
+	await cell(kernel, 'const first = await read("example.ts"); await edit("=" + first.rows[0].anchor + "\\nexport function latest() {"); state.latest = await read("example.ts");');
+	const anchor = (await cell(kernel, 'show(state.latest.rows[0].anchor);')).trim();
 	expect(entries.length).toBeGreaterThan(1);
 	await cell(kernel, 'const child = sh("sleep 60 & echo $! > child.pid; wait");');
 	let pid = 0;
@@ -63,7 +63,7 @@ test("interrupt kills looping kernel and shell descendants; fresh kernel restore
 		expect(result.output).toContain("looping");
 	} finally { clearTimeout(timer); }
 	await until(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
-	expect(await cell(kernel, 'show(typeof latest); const restored = await read("example.ts"); show(restored.rows[0].anchor);')).toBe(`undefined\n${anchor}\n`);
+	expect(await cell(kernel, 'show(typeof state.latest); const restored = await read("example.ts"); show(restored.rows[0].anchor);')).toBe(`undefined\n${anchor}\n`);
 	await cell(kernel, `await edit(${JSON.stringify("=" + anchor + "\nexport function restoredEdit() {")});`);
 	expect(await readFile(join(cwd, "example.ts"), "utf8")).toContain("function restoredEdit()");
 }), 15000);
@@ -73,20 +73,20 @@ test("filtered source references retain snapshot context, replace only selected 
 	const path = join(cwd, "example.ts");
 	const original = "// TODO keep\nexport function task() {\n  // TODO change\n  return 42;\n}\n";
 	await writeFile(path, original);
-	await cell(kernel, 'const snapshot = await read("example.ts"); const todos = await grep(/TODO/g, "example.ts"); const chosen = todos.filter(row => row.text.includes("change"));');
-	const context = await cell(kernel, 'await show(chosen.context(1)); show(chosen.rows[0].anchor === snapshot.rows[2].anchor);');
+	await cell(kernel, 'state.snapshot = await read("example.ts"); const todos = await grep(/TODO/g, "example.ts"); state.chosen = todos.filter(row => row.text.includes("change"));');
+	const context = await cell(kernel, 'await show(state.chosen.context(1)); show(state.chosen.rows[0].anchor === state.snapshot.rows[2].anchor);');
 	expect(context).toContain("export function task()");
 	expect(context).toContain("return 42");
 	expect(context).toContain("true");
-	await cell(kernel, 'await show(await replace(chosen, async (text, row) => text.replace("TODO", "DONE") + " line=" + row.line));');
+	await cell(kernel, 'await show(await replace(state.chosen, async (text, row) => text.replace("TODO", "DONE") + " line=" + row.line));');
 	expect(await readFile(path, "utf8")).toBe(original.replace("  // TODO change", "  // DONE change line=3"));
-	const savedContext = await cell(kernel, 'await show(chosen.context(1));');
+	const savedContext = await cell(kernel, 'await show(state.chosen.context(1));');
 	expect(savedContext).toContain("TODO change");
 	expect(savedContext).not.toContain("DONE");
-	await cell(kernel, 'const current = await grep("DONE", "example.ts");');
+	await cell(kernel, 'state.current = await grep("DONE", "example.ts");');
 	const external = original.replace("TODO change", "externally changed");
 	await writeFile(path, external);
-	const stale = await kernel.execute('await show(await replace(current, () => "must not overwrite"));');
+	const stale = await kernel.execute('await show(await replace(state.current, () => "must not overwrite"));');
 	expect(stale.error ?? stale.output).toMatch(/stale|changed|read.*again/i);
 	expect(await readFile(path, "utf8")).toBe(external);
 }), 15000);
@@ -99,8 +99,8 @@ test("discovery honors ignores but explicit reads work; limited search reports i
 	expect(await cell(kernel, 'show((await find()).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
 	expect(await cell(kernel, 'const visible = await grep("needle"); show(visible.rows.length, visible.complete);')).toBe("2 true\n");
 	expect(await cell(kernel, 'show((await read("ignored.ts")).text); show((await grep("needle", "ignored.ts")).rows.length);')).toContain("needle hidden");
-	expect(await cell(kernel, 'const limited = await grep("needle", "example.ts", {limit: 1}); show(limited.rows.length, limited.complete); await show(limited);')).toContain("1 false\n");
-	expect(await cell(kernel, 'await show(limited);')).toContain("[incomplete:");
+	expect(await cell(kernel, 'state.limited = await grep("needle", "example.ts", {limit: 1}); show(state.limited.rows.length, state.limited.complete); await show(state.limited);')).toContain("1 false\n");
+	expect(await cell(kernel, 'await show(state.limited);')).toContain("[incomplete:");
 	expect(await cell(kernel, 'const zero = await grep("needle", "example.ts", {limit: 0}); show(zero.rows.length, zero.complete);')).toBe("0 false\n");
 	expect(await cell(kernel, 'show((await grep("needle", "ignored.ts")).rows.length);')).toBe("1\n");
 	expect(await cell(kernel, 'show((await find("*.ts")).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
