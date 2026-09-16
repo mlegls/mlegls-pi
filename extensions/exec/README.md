@@ -1,6 +1,7 @@
 # exec
 
-One tool for TypeScript cells with fresh local scope and persistent explicit state. Replaces the advertised file/shell,
+One tool for TypeScript cells with fresh local scope and persistent explicit state.
+Replaces the advertised file/shell,
 Exa, workmux, board, terminal, and desktop-control tools with composable functions.
 Requires Node 22.13+ and ripgrep (`rg` on PATH or pi's installed copy).
 
@@ -148,10 +149,10 @@ promises or asynchronous renderers.
 
 ```ts
 const paths = await find("extensions/**/*.ts");
-const hits = await grep("registerTool", paths);
-await show(hits);
-await show(hits.context(3));
-await show(hits.enclosing());
+state.hits = await grep("registerTool", paths);
+await show(state.hits);
+await show(state.hits.context(3));
+await show(state.hits.enclosing());
 ```
 
 ```ts
@@ -223,7 +224,7 @@ file. Separate hunks with a blank line.
 Computed replacements use the same checked engine:
 
 ```ts
-await show(await replace(hits, (text, row) => text.replace("oldName", "newName")));
+await show(await replace(state.hits, (text, row) => text.replace("oldName", "newName")));
 ```
 
 Changed targets reject stale references. Edits are not transactions across
