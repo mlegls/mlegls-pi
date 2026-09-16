@@ -71,6 +71,12 @@ describe("parseHunks", () => {
 		expect(h.map((x) => x.header)).toEqual(["-aaaa", "=bbbb", ">cccc"]);
 		expect(h[1].lines).toEqual(["x", "", "not a header"]);
 	});
+	test("empty insert is a blank line", () => {
+		expect(parseHunks(">aaaa", known)[0].lines).toEqual([""]);
+		expect(parseHunks(">aaaa\n\n=bbbb\nx", known).map(h => h.lines)).toEqual([[""], ["x"]]);
+		expect(() => parseHunks("=aaaa", known)).toThrow(/use -aaaa to delete/);
+	});
+
 	test("bare words and unknown anchors are text; bodies must fit the sigil", () => {
 		expect(parseHunks("=aaaa\nbbbb\n\nzzzz\n\n=zzzz", known)[0].lines).toEqual(["bbbb", "", "zzzz", "", "=zzzz"]);
 		expect(() => parseHunks("aaaa\nx", known)).toThrow(/not a hunk header/);
@@ -100,6 +106,13 @@ describe("edit tool", () => {
 		const edit = (edits: string) => tools.edit.execute("e", { edits }, undefined, undefined, ctx);
 		return { dir, file, read, edit, persisted };
 	};
+
+	test("insert a blank line after an anchor", async () => {
+		const { file, read, edit } = setup();
+		const rows = await read();
+		await edit(">" + rows[2]);
+		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 1;\n}\n\n\nfunction b() {\n  return 2;\n}\n");
+	});
 
 	test("replace, insert, and anchors surviving earlier edits", async () => {
 		const { file, read, edit } = setup();

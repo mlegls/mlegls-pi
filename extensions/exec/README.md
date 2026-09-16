@@ -1,11 +1,12 @@
 # exec
 
-One tool for a persistent TypeScript REPL. Replaces the advertised file/shell,
+One tool for TypeScript cells with fresh local scope and persistent explicit state.
+Replaces the advertised file/shell,
 Exa, workmux, board, terminal, and desktop-control tools with composable functions.
 Requires Node 22.13+ and ripgrep (`rg` on PATH or pi's installed copy).
 
 Reload pi (`/reload`) to enable it. Use `/exec-reset` to stop the kernel and
-its subprocesses and clear bindings without discarding file anchors.
+its subprocesses and clear retained state without discarding file anchors.
 
 ## Pi presentation
 
@@ -45,7 +46,7 @@ not a credential-redaction mechanism. Image payloads are excluded from previews.
 
 ## TypeScript execution
 
-Cells use Node’s TypeScript transform before evaluation in the persistent REPL.
+Cells use Node’s TypeScript transform before evaluation in a fresh async function.
 The child process preloads `tsx` for ordinary and transitive TypeScript imports,
 including the kernel’s own source bootstrap. Parameter properties and other
 syntax requiring emitted JavaScript therefore work in imported `.ts` files;
@@ -102,36 +103,56 @@ The full reference below describes all modules; each session advertises only its
 selected surface.
 
 
-## Recovering shadowed capabilities
+## Cell scope and retained state
 
-Convenient names are ordinary REPL bindings: `const read = ...` may shadow the
-provided reader. The frozen `__exec` registry keeps the original enabled
-capabilities, including `show`, `notify`, and module namespaces.
+Each call has fresh scope: ordinary `const`, `let`, `var`, and function
+names can be reused in the next call. No extra block is needed:
 
 ```ts
-const read = (x: string) => x.toUpperCase();
-await __exec.show(await __exec.read("README.md"));
+const result = await sh.raw`git status --short`;
+await show(result);
 ```
 
-If `__exec` itself is shadowed, use `globalThis.__exec`. That global property
-cannot be assigned or deleted. The registry and supplied API wrappers are frozen;
-returned values are not. A shadowing `const` cannot be reassigned or removed: use
-the registry or another name rather than resetting and losing useful bindings.
-Disabled modules remain absent and host calls remain gated. This is recovery
-from accidental shadowing, not protection against deliberate runtime tampering.
+Retain values or promises explicitly in the mutable, null-prototype `state` object:
+
+```ts
+state.hits = await grep("TODO", "src");
+```
+
+In a later call:
+
+```ts
+await show(state.hits.context(3));
+await show(Object.keys(state));
+delete state.hits; // release a retained value
+```
+
+The kernel, imports, and asynchronous work persist. Local declarations do not.
+State writes and other side effects survive a later error; calls are not
+transactions and failed code must not be blindly replayed. Reset clears state.
+
+## Reserved API names
+
+Enabled API names, `state`, and `__exec` are reserved at cell top level.
+Declaring one there is a syntax error before any code runs; assigning to one
+fails at runtime. Nested scopes can shadow names without affecting other cells.
+The frozen `__exec` registry exposes the enabled capabilities, also available
+as non-writable `globalThis.__exec`. API wrappers and namespaces are frozen;
+returned values and `state` contents are not. This is accident prevention,
+not a security sandbox.
 
 ## Read, select, display
 
-Each tool call has one parameter, `code`. Bindings and promises survive calls.
+Each tool call has one parameter, `code`. Values saved in `state` survive calls.
 Only `show(...)` / `console.log(...)` emit output. Await `show` when displaying
 promises or asynchronous renderers.
 
 ```ts
 const paths = await find("extensions/**/*.ts");
-const hits = await grep("registerTool", paths);
-await show(hits);
-await show(hits.context(3));
-await show(hits.enclosing());
+state.hits = await grep("registerTool", paths);
+await show(state.hits);
+await show(state.hits.context(3));
+await show(state.hits.enclosing());
 ```
 
 ```ts
@@ -141,16 +162,23 @@ await show(source.lines(40, 80)); // 1-based, inclusive
 ```
 
 - `find(glob?, {paths?: string|string[], hidden?: boolean}?)` returns paths,
-  respecting ignore files. Explicit file reads/searches may name ignored files.
+  respecting ignore files; brace globs are supported. Ignored trees such as
+  `node_modules` are not searched from the project root; name the ignored tree
+  explicitly in `{paths: "node_modules"}` to enumerate it. Explicit file
+  reads/searches may name ignored files.
 - `read(path)` returns a source snapshot with `path`, `text`, `rows`,
   `lines(start?, end?)`, and `outline()`.
 - `grep(pattern: string|RegExp, paths?: string|string[], options?)` returns a
-  selection. Options: `glob`, `ignoreCase`, `literal`, `limit`. Matching uses
+  selection. Paths also accept a `read()` result or a selection: their **files**
+  are searched afresh, not just the selected rows. With paths omitted, options
+  may be the second argument: `grep("TODO", {glob: "*.ts"})`. Options: `glob`,
+  `ignoreCase`, `literal`, `limit`. Matching uses
   JavaScript regular expressions against the same snapshots that supply anchors;
   ripgrep enumerates files rather than matching their contents.
 - Selections expose `rows`, iteration, `filter(fn)`, `slice(start?, end?)`,
-  `context(n)`, `enclosing()`, and `complete`. Filtering and slicing preserve
-  source references; slice uses ordinary zero-based, end-exclusive array indices.
+  `context(n)`, `enclosing()`, and `complete`. `map(rowFn)` returns an ordinary
+  array; `join(separator = "\n")` joins row text without anchors.
+  Filtering and slicing preserve source references; slice uses ordinary zero-based, end-exclusive array indices.
   A row is `{anchor, text, path, line}`. Context and enclosing definitions refer
   to the original snapshot, not a fresh version of the file.
 - Text display has a **16 KiB per-cell** budget. `await show.large(value, ...)`
@@ -178,7 +206,7 @@ this is independent of the text cap.
 
 An image value exposes `path`, `mimeType`, `width`, `height`, and `note`, but no
 editable anchors or text-source methods. Its payload stays private during ordinary
-object inspection. Keep the value in a binding to display it again without rereading.
+object inspection. Save the value in `state` to display it again without rereading.
 
 `show` also accepts values with a `content()` method returning ordered pi text/image
 blocks; `render()` remains the text-only rendering convention.
@@ -200,10 +228,15 @@ range, `-a` / `-a b` delete, `>a` inserts after, `<a` before. Here `a` and `b`
 stand for actual four-character anchors. An optional `@path` asserts the target
 file. Separate hunks with a blank line.
 
+Empty `>anchor` / `<anchor` insertion bodies insert one blank line. Range
+replacement is inclusive and literal: do not include text outside the selected
+range in its replacement. Empty replacement bodies still require explicit
+`-anchor` deletion.
+
 Computed replacements use the same checked engine:
 
 ```ts
-await show(await replace(hits, (text, row) => text.replace("oldName", "newName")));
+await show(await replace(state.hits, (text, row) => text.replace("oldName", "newName")));
 ```
 
 Changed targets reject stale references. Edits are not transactions across
@@ -213,14 +246,14 @@ Do not blindly replay a failed cell.
 ## Shells and promises
 
 ```ts
-const checks = sh`bun test`;
-notify(checks, "tests"); // one completion/error notification, even after this cell
+state.checks = sh`bun test`;
+notify(state.checks, "tests"); // one completion/error notification, even after this cell
 ```
 
 Later:
 
 ```ts
-const result = await checks;
+const result = await state.checks;
 await show(result);
 ```
 
@@ -240,7 +273,8 @@ text/image content on completion. Plain detached promises do not request a turn;
 
 ## Literal templates
 
-`sh.raw` and `edit.raw` preserve backslashes in template segments; existing
+**Prefer `sh.raw` for shell snippets and `edit.raw` for source containing
+backslashes.** `sh.raw` and `edit.raw` preserve backslashes in template segments; existing
 `sh`/`edit` tags remain cooked for compatibility. Substitutions are still literal,
 not shell-quoted. JSON encoding and JavaScript template delimiters still apply.
 
@@ -450,7 +484,7 @@ without preventing the rest of exec from starting.
 The kernel is a separate process, not a security sandbox. Code has the user's
 machine permissions, but no raw pi extension host object. Interrupting a cell
 kills the kernel and its subprocesses. Reload, session changes, tree navigation,
-and reset discard bindings; code is never replayed. Anchors persist in session
+and reset discard state; code is never replayed. Anchors persist in session
 entries and can be restored when the corresponding content still matches.
 The host service instance and tracked workers survive kernel-only interruption or
 reset. Actual session changes recreate it. Outstanding host RPCs are cancelled;

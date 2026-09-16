@@ -20,6 +20,21 @@ function sourceLines(raw: string): string[] {
 	return lines;
 }
 
+function shownPath(path: string): string {
+	if (path.length <= 160) return path;
+	return path.slice(0, 96) + "…[" + path.length + " chars]";
+}
+function fsError(path: string, err: unknown): Error {
+	const code = err && typeof err === "object" && "code" in err ? String((err as { code?: unknown }).code) : undefined;
+	const shown = shownPath(path);
+	if (code === "EISDIR") return new Error(shown + " is a directory; use find() or read a file");
+	if (code === "ENAMETOOLONG") return new Error(shown + ": ENAMETOOLONG; pass a file path or a read() result, not file contents");
+	if (code === "ENOENT") return new Error(shown + ": not found");
+	const raw = err instanceof Error ? err.message : String(err);
+	const detail = raw.length > 240 ? raw.slice(0, 160) + "…[" + raw.length + " chars]" : raw;
+	return new Error(shown + ": " + detail);
+}
+
 export interface SourceDeps {
 	cwd: string;
 	ledger: Ledger;
@@ -88,6 +103,8 @@ export class SourceSelection implements Iterable<SourceRow> {
 	slice(start?: number, end?: number): SourceSelection {
 		return new SourceSelection(this.rows.slice(start, end), this.files, this.complete);
 	}
+	map<T>(fn: (row: SourceRow, index: number) => T): T[] { return this.rows.map(fn); }
+	join(separator = "\n"): string { return this.rows.map(row => row.text).join(separator); }
 	context(n: number): SourceSelection {
 		if (!Number.isInteger(n) || n < 0) throw new Error("Context must be a nonnegative integer");
 		const rows = this.rows.flatMap(r => this.files.get(r.path)!.rows.slice(Math.max(0, r.line - n - 1), r.line + n));
@@ -116,6 +133,30 @@ export class SourceSelection implements Iterable<SourceRow> {
 	render(): string { return format(this, Infinity)!.text; }
 }
 
+function isGrepOptions(value: unknown): value is GrepOptions {
+	return !!value && typeof value === "object" && !Array.isArray(value)
+		&& !(value instanceof SourceFile)
+		&& !(value instanceof SourceSelection)
+		&& typeof (value as { path?: unknown }).path !== "string";
+}
+function grepPaths(value: unknown): string[] | undefined {
+	if (value == null) return undefined;
+	if (typeof value === "string") return [value];
+	if (value instanceof SourceFile) return [value.path];
+	if (value instanceof SourceSelection) return [...new Set(value.rows.map(row => row.path))];
+	if (Array.isArray(value)) {
+		const out: string[] = [];
+		for (const item of value) {
+			const part = grepPaths(item);
+			if (!part) throw new Error("grep paths must be strings or read results");
+			out.push(...part);
+		}
+		return out;
+	}
+	if (typeof value === "object" && typeof (value as { path?: unknown }).path === "string") return [(value as { path: string }).path];
+	return undefined;
+}
+
 export interface SourceEditResult {
 	text: string;
 	details: Awaited<ReturnType<typeof executeEdits>>["details"];
@@ -133,15 +174,24 @@ export function createSourceAPI(deps: SourceDeps) {
 	async function read(path: string): Promise<SourceFile | ImageFile> {
 		check();
 		path = resolve(cwd, path);
-		const bytes = await readFile(path, { signal: deps.signal });
+		let bytes: Buffer;
+		try {
+			const info = await stat(path);
+			if (info.isDirectory()) throw fsError(path, { code: "EISDIR" });
+			bytes = await readFile(path, { signal: deps.signal });
+		} catch (err) {
+			if (err && typeof err === "object" && (err as { name?: string }).name === "AbortError") throw err;
+			if (err && typeof err === "object" && "code" in err) throw fsError(path, err);
+			throw err;
+		}
 		if (looksLikeImageFile(bytes)) {
 			check();
 			const mimeType = await detectImageMimeType(path);
-			if (!mimeType) throw new Error(`${path}: unsupported image format (animated or unrecognized image containers are not readable)`);
+			if (!mimeType) throw new Error(shownPath(path) + ": unsupported image format (animated or unrecognized image containers are not readable)");
 			return createImageFile(path, bytes, mimeType);
 		}
 		const raw = bytes.toString("utf8");
-		if (raw.includes("\0")) throw new Error(`${path}: binary files are not source`);
+		if (raw.includes("\0")) throw new Error(shownPath(path) + ": binary files are not source");
 		return capture(path, raw);
 	}
 	function capture(path: string, raw: string): SourceFile {
@@ -175,20 +225,30 @@ export function createSourceAPI(deps: SourceDeps) {
 			});
 		});
 	}
-	async function grep(pattern: string | RegExp, paths?: string | string[], options: GrepOptions = {}): Promise<SourceSelection> {
+	async function grep(pattern: string | RegExp, paths?: string | string[] | SourceFile | SourceSelection | GrepOptions, options: GrepOptions = {}): Promise<SourceSelection> {
 		check();
+		let requested = grepPaths(paths);
+		if (!requested) {
+			if (isGrepOptions(paths)) options = { ...paths, ...options };
+			else if (paths != null) throw new Error("grep paths must be strings or read results");
+			requested = ["."];
+		}
 		if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 0)) throw new Error("Limit must be a nonnegative integer");
 		const isRegex = types.isRegExp(pattern);
 		const flags = isRegex ? pattern.flags.replace(/[gy]/g, "") : "";
 		const source = isRegex ? pattern.source : options.literal ? pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : pattern;
 		const regex = new RegExp(source, flags + (options.ignoreCase && !flags.includes("i") ? "i" : ""));
-		const requested = typeof paths === "string" ? [paths] : paths ?? ["."];
 		// rg --files does not enumerate explicit file arguments on every rg version.
 		const candidates: string[] = [];
 		for (const path of requested) {
 			const absolute = resolve(cwd, path);
-			if (!options.glob && (await stat(absolute)).isFile()) candidates.push(absolute);
-			else for (const candidate of await find(options.glob, { paths: [path] })) candidates.push(candidate);
+			try {
+				if (!options.glob && (await stat(absolute)).isFile()) candidates.push(absolute);
+				else for (const candidate of await find(options.glob, { paths: [path] })) candidates.push(candidate);
+			} catch (err) {
+				if (err && typeof err === "object" && "code" in err) throw fsError(absolute, err);
+				throw err;
+			}
 		}
 		const files = new Map<string, SourceFile>(), rows: SourceRow[] = [];
 		for (const path of new Set(candidates)) {

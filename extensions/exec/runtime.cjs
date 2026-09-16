@@ -385,7 +385,10 @@ async function initialize(message) {
 		Object.freeze(value);
 	}
 	capabilities.console = Object.freeze({ ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show });
-	Object.assign(server.context, capabilities);
+	capabilities.state = Object.create(null);
+	for (const [name, value] of Object.entries(capabilities)) {
+		Object.defineProperty(server.context, name, { value, writable: false, configurable: false });
+	}
 	Object.defineProperty(server.context, "__exec", { value: Object.freeze(capabilities), writable: false, configurable: false });
 	// Node's default REPL evaluator reports thrown errors through its domain,
 	// rather than the eval callback. Keep partial explicit output in either case.
@@ -417,7 +420,10 @@ function execute(message) {
 	scope.run(cell, () => {
 		try {
 			const code = stripTypeScriptTypes(message.code, { mode: "transform", sourceUrl: "exec.ts" });
-			server.eval(";\n" + code + "\n", server.context, "exec.ts", (error) => cell.finish(error));
+			// Same-scope const declarations reserve API names before any cell code runs.
+			// The async function also keeps var/function declarations local to this call.
+			const names = Object.keys(server.context.__exec).join(", ");
+			server.eval('await (async () => { "use strict"; const __exec = globalThis.__exec; const { ' + names + ' } = __exec;\n' + code + '\n})()\n', server.context, "exec.ts", (error) => cell.finish(error));
 		} catch (error) { cell.finish(error); }
 	});
 }

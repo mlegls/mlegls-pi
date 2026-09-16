@@ -30,13 +30,13 @@ const API: Record<ExecModule, string[]> = {
 		"await loadSkill(path) -> retained {path,text,commands,content()}; explicit non-anchored skill loading, expands original dynamic shell placeholders once per call with PI_SKILL_DIR/PI_WORKSPACE. show() never reruns them.",
 		"await write(path, content) -> {path,bytes}; creates parents and overwrites UTF-8 text.",
 		"read(imagePath) -> retained ImageFile; show(image) emits actual image content.",
-		"await grep(pattern: string|RegExp, paths?: string|string[], {glob?,ignoreCase?,literal?,limit?}?) -> selection.",
-		"selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.context(n), await selection.enclosing(), selection.complete.",
-		"await edit`=abcd\nreplacement` replaces a line; =abcd wxyz replaces an inclusive range; -abcd deletes; >abcd / <abcd insert after/before. Separate hunks with a blank line. edit.raw`...` preserves raw template segments; default edit tags remain cooked. Anchors are unique across files and reject stale targets.",
+		"await grep(pattern: string|RegExp, paths?: string|string[]|source|selection, {glob?,ignoreCase?,literal?,limit?}?) -> selection; options may be second argument when paths are omitted. Sources/selections select files, not row ranges.",
+		"selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.map(rowFn) -> array, selection.join(separator=\"\\n\") -> row text, selection.context(n), await selection.enclosing(), selection.complete.",
+		"await edit`=abcd\nreplacement` replaces a line; =abcd wxyz replaces an inclusive range; -abcd deletes; >abcd / <abcd insert after/before (empty body inserts a blank line). Separate hunks with a blank line. edit.raw`...` preserves raw template segments; default edit tags remain cooked. Anchors are unique across files and reject stale targets.",
 		"await replace(selection, (text,row) => newText) uses the same checked edit engine."
 	],
 	"sh": [
-		"await sh`command` or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. sh.raw`...` preserves backslashes in template segments; default sh tags remain cooked. Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors."
+		"await sh.raw`command` (preferred for shell backslashes/regex/heredocs), sh`command`, or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. sh.raw`...` preserves backslashes in template segments; sh`...` cooks JS escapes (e.g. \\n becomes a newline). Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors."
 	],
 	"exa": [
 		"exa.search(query, options?), exa.contents(urls, options?) -> structured responses."
@@ -58,17 +58,17 @@ const API: Record<ExecModule, string[]> = {
 
 export function describeModules(modules: readonly ExecModule[]): string {
 	return [
-		"Persistent TypeScript REPL. Top-level await and bindings survive calls; only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
+		"TypeScript execution with fresh scope per call and a persistent kernel. const/let/var and function declarations are cell-local and reusable next call. Retain values/promises explicitly with state.name = value; inspect Object.keys(state), delete state.name to release. Only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects and state writes survive a later error. Never blindly retry a failed cell. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",
-		"__exec holds the original enabled capabilities if a common name is shadowed (e.g. __exec.read / __exec.show). Registry and API namespaces are frozen; globalThis.__exec is the non-writable recovery property if __exec itself is shadowed. This does not remove lexical bindings or bypass module selection.",
+		"Enabled API names, state, and __exec are reserved at cell top level: redeclarations fail before execution. Nested scopes may shadow them. __exec holds the enabled capabilities; registry and API namespaces are frozen. state is a mutable null-prototype object; its binding cannot be reassigned. Module selection is not a security sandbox.",
 		"",
 		"API:",
 		...modules.flatMap(name => API[name]),
 		"await show(value, ...) renders bounded output; values/promises and content() blocks preserve order. Text is capped at 16 KiB per cell; show.large(value, ...) raises that cell to a 50 KiB ceiling. Omission notices count rendered UTF-8 bytes and suggest slicing/retrying; images bypass that cap, max 8 images / 20 MiB base64 per cell (visible warning; retained values stay intact).",
-		"notify(promise, label?) requests a one-shot completion/error alert with actual content (same text/image bounds) and returns the original promise. Keep a binding to await its result later.",
+		"notify(promise, label?) requests a one-shot completion/error alert with actual content (same text/image bounds) and returns the original promise. Save it in state to await its result in a later call.",
 		...(modules.some(name => name !== "fs" && name !== "sh") ? ["host.call(namespace, method, args) calls enabled host services only (term args are positional arrays; other namespaces use objects)."] : []),
 		...(modules.includes("fs") ? ["Read/search values are not display-truncated. Example: const hits = await grep(\"TODO\", await find(\"src/**/*.ts\")); await show(hits.context(2));", "read/grep SKILL.md snapshots are RAW editable source; use loadSkill(path) to activate dynamic shell blocks explicitly. Exec-owned results opt out of compatible pi-better-skills middleware; inner calls do not fire read/bash hooks."] : []),
 		"Full API reference: " + fileURLToPath(new URL("./README.md", import.meta.url)),
-		"Bindings are lost on reload, session switch/fork/tree navigation, interruption, or /exec-reset. File anchors persist with the session; code is never replayed.",
+		"state is cleared on reload, session switch/fork/tree navigation, interruption, or /exec-reset. File anchors persist with the session; code is never replayed.",
 	].join("\n");
 }
