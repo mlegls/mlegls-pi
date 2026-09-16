@@ -102,6 +102,22 @@ The full reference below describes all modules; each session advertises only its
 selected surface.
 
 
+## Scratch cells and retained bindings
+
+Use a block for one-off work; its names can be reused in the next call:
+
+```ts
+{
+  const result = await sh.raw`git status --short`;
+  await show(result);
+}
+```
+
+Leave a declaration at top level only when later calls need the binding. A
+repeated top-level `const`/`let` declaration is a JavaScript syntax error: none
+of that cell runs, even statements before the declaration. A block can still
+read retained bindings; it does not roll back side effects or cancel promises.
+
 ## Recovering shadowed capabilities
 
 Convenient names are ordinary REPL bindings: `const read = ...` may shadow the
@@ -240,7 +256,8 @@ text/image content on completion. Plain detached promises do not request a turn;
 
 ## Literal templates
 
-`sh.raw` and `edit.raw` preserve backslashes in template segments; existing
+**Prefer `sh.raw` for shell snippets and `edit.raw` for source containing
+backslashes.** `sh.raw` and `edit.raw` preserve backslashes in template segments; existing
 `sh`/`edit` tags remain cooked for compatibility. Substitutions are still literal,
 not shell-quoted. JSON encoding and JavaScript template delimiters still apply.
 

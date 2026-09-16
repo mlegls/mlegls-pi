@@ -36,7 +36,7 @@ const API: Record<ExecModule, string[]> = {
 		"await replace(selection, (text,row) => newText) uses the same checked edit engine."
 	],
 	"sh": [
-		"await sh`command` or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. sh.raw`...` preserves backslashes in template segments; default sh tags remain cooked. Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors."
+		"await sh.raw`command` (preferred for shell backslashes/regex/heredocs), sh`command`, or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. sh.raw`...` preserves backslashes in template segments; sh`...` cooks JS escapes (e.g. \\n becomes a newline). Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors."
 	],
 	"exa": [
 		"exa.search(query, options?), exa.contents(urls, options?) -> structured responses."
@@ -58,7 +58,7 @@ const API: Record<ExecModule, string[]> = {
 
 export function describeModules(modules: readonly ExecModule[]): string {
 	return [
-		"Persistent TypeScript REPL. Top-level await and bindings survive calls; only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
+		"Persistent TypeScript REPL. Use { ... } blocks for throwaway work: top-level const/let bindings persist and cannot be redeclared. Leave bindings top-level only when you intend to retain them. Only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects survive a later error. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",
 		"__exec holds the original enabled capabilities if a common name is shadowed (e.g. __exec.read / __exec.show). Registry and API namespaces are frozen; globalThis.__exec is the non-writable recovery property if __exec itself is shadowed. This does not remove lexical bindings or bypass module selection.",
 		"",
