@@ -196,7 +196,7 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 				const a = object(args);
 				const fields = a.fields;
 				if (fields !== undefined && fields !== "full" && fields !== "meta") throw new Error("fields must be \"full\" or \"meta\"");
-				if (a.bodyChars !== undefined && (!Number.isInteger(a.bodyChars) || a.bodyChars < 0)) throw new Error("bodyChars must be a nonnegative integer");
+				if (a.bodyChars !== undefined && (typeof a.bodyChars !== "number" || !Number.isInteger(a.bodyChars) || a.bodyChars < 0)) throw new Error("bodyChars must be a nonnegative integer");
 				const { messages, omitted, total } = readBoard({ topic: a.topic as string | undefined, tags: tagFilter(a.tags), limit: a.limit as number | undefined });
 				return {
 					messages: fields === "meta" ? messages.map((m) => boardMeta(m, typeof a.bodyChars === "number" ? a.bodyChars : 120)) : messages,

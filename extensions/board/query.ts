@@ -52,7 +52,9 @@ export function parseTags(source: string | readonly string[] | undefined): TagEx
 		const exprs = source.map((name) => ({ op: "tag" as const, name }));
 		return exprs.length === 1 ? exprs[0]! : { op: "and", exprs };
 	}
-	if (!source || source.trim() === "") return { op: "all" };
+	if (source === undefined) return { op: "all" };
+	if (typeof source !== "string") throw new Error("tag query: expected a string or tag-name array");
+	if (source.trim() === "") return { op: "all" };
 	const tokens = tokenize(source);
 	let pos = 0;
 	const peek = () => tokens[pos];
