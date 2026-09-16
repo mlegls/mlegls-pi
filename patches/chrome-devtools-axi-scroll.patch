@@ -1,0 +1,159 @@
+From da94d49f9a54ee03c8fd64d76686eeccaad5a9ad Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E7=96=92=E5=A5=80?= <yz@mmon.co>
+Date: Wed, 16 Sep 2026 13:07:59 +0800
+Subject: [PATCH] Fix callable script payloads for scroll and run helpers
+
+---
+ src/cli.ts       | 10 +++++-----
+ src/run.ts       | 35 ++++++++++++++---------------------
+ test/run.test.ts |  4 ++--
+ 3 files changed, 21 insertions(+), 28 deletions(-)
+
+diff --git a/src/cli.ts b/src/cli.ts
+index 72bc397..6ab9c09 100644
+--- a/src/cli.ts
++++ b/src/cli.ts
+@@ -1041,10 +1041,10 @@ async function callWithSnapshot(
+ }
+ 
+ const SCROLL_FUNCTIONS: Record<string, string> = {
+-  up: "window.scrollBy(0, -500)",
+-  down: "window.scrollBy(0, 500)",
+-  top: "window.scrollTo(0, 0)",
+-  bottom: "window.scrollTo(0, document.body.scrollHeight)",
++  up: "() => window.scrollBy(0, -500)",
++  down: "() => window.scrollBy(0, 500)",
++  top: "() => window.scrollTo(0, 0)",
++  bottom: "() => window.scrollTo(0, document.body.scrollHeight)",
+ };
+ 
+ async function handleOpen(args: string[], full: boolean): Promise<string> {
+@@ -1186,7 +1186,7 @@ async function handleWait(args: string[]): Promise<string> {
+   const isNumeric = /^\d+$/.test(target);
+   if (isNumeric) {
+     await callTool("evaluate_script", {
+-      function: `new Promise(r => setTimeout(r, ${target}))`,
++      function: wrapJsExpression(`new Promise(r => setTimeout(r, ${target}))`),
+     });
+   } else {
+     await callTool("wait_for", { text: [target] });
+diff --git a/src/run.ts b/src/run.ts
+index 9007bb7..f6f284d 100644
+--- a/src/run.ts
++++ b/src/run.ts
+@@ -166,10 +166,14 @@ export interface PageHelper {
+ }
+ 
+ export function createPageHelper(callTool: CallTool): PageHelper {
++  // evaluate_script requires a callable, not its result.
++  function callFunction(code: string): Promise<string> {
++    return callTool("evaluate_script", { function: wrapJsExpression(code) });
++  }
++
+   /** Run JS in the page and return the parsed value. */
+   async function evalJs(code: string): Promise<unknown> {
+-    const output = await callTool("evaluate_script", { function: code });
+-    return parseEvalOutput(output);
++    return parseEvalOutput(await callFunction(code));
+   }
+ 
+   return {
+@@ -198,23 +202,17 @@ export function createPageHelper(callTool: CallTool): PageHelper {
+     async eval(
+       jsOrFn: string | ((...args: unknown[]) => unknown),
+     ): Promise<unknown> {
+-      const fn =
+-        typeof jsOrFn === "function"
+-          ? String(jsOrFn)
+-          : wrapJsExpression(jsOrFn);
++      const fn = typeof jsOrFn === "function" ? String(jsOrFn) : jsOrFn;
+       return evalJs(fn);
+     },
+ 
+     async wait(msOrSelector: number | string, timeout?: number): Promise<void> {
+       if (typeof msOrSelector === "number") {
+-        await callTool("evaluate_script", {
+-          function: `new Promise(r => setTimeout(r, ${msOrSelector}))`,
+-        });
++        await callFunction(`new Promise(r => setTimeout(r, ${msOrSelector}))`);
+       } else {
+         const ms = timeout ?? DEFAULT_WAIT_TIMEOUT;
+         const sel = JSON.stringify(msOrSelector);
+-        await callTool("evaluate_script", {
+-          function: `new Promise((resolve, reject) => {
++        await callFunction(`new Promise((resolve, reject) => {
+   const sel = ${sel};
+   if (document.querySelector(sel)) { resolve(); return; }
+   const observer = new MutationObserver(() => {
+@@ -229,8 +227,7 @@ export function createPageHelper(callTool: CallTool): PageHelper {
+     reject(new Error('Timeout waiting for: ' + sel));
+   }, ${ms});
+   observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+-})`,
+-        });
++})`);
+       }
+     },
+ 
+@@ -247,14 +244,12 @@ export function createPageHelper(callTool: CallTool): PageHelper {
+         });
+       } else {
+         const sel = JSON.stringify(refOrSelector);
+-        await callTool("evaluate_script", {
+-          function: `(() => {
++        await callFunction(`() => {
+   const el = document.querySelector(${sel});
+   if (!el) throw new Error('Element not found: ' + ${sel});
+   el.scrollIntoView({ block: 'center' });
+   el.click();
+-})()`,
+-        });
++}`);
+       }
+     },
+ 
+@@ -267,8 +262,7 @@ export function createPageHelper(callTool: CallTool): PageHelper {
+       } else {
+         const sel = JSON.stringify(refOrSelector);
+         const val = JSON.stringify(text);
+-        await callTool("evaluate_script", {
+-          function: `(() => {
++        await callFunction(`() => {
+   const el = document.querySelector(${sel});
+   if (!el) throw new Error('Element not found: ' + ${sel});
+   el.focus();
+@@ -278,8 +272,7 @@ export function createPageHelper(callTool: CallTool): PageHelper {
+   Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${val});
+   el.dispatchEvent(new Event('input', { bubbles: true }));
+   el.dispatchEvent(new Event('change', { bubbles: true }));
+-})()`,
+-        });
++}`);
+       }
+     },
+ 
+diff --git a/test/run.test.ts b/test/run.test.ts
+index 865704e..c96ce83 100644
+--- a/test/run.test.ts
++++ b/test/run.test.ts
+@@ -270,7 +270,7 @@ describe("createPageHelper", () => {
+     await page.wait(500);
+ 
+     expect(callTool).toHaveBeenCalledWith("evaluate_script", {
+-      function: "new Promise(r => setTimeout(r, 500))",
++      function: "() => (new Promise(r => setTimeout(r, 500)))",
+     });
+   });
+ 
+@@ -454,7 +454,7 @@ describe("createPageHelper", () => {
+         },
+       });
+       current = element;
+-      new Function(fn)();
++      new Function(`return (${fn})`)()();
+       expect(element.currentValue).toBe("query");
+       expect(element.events).toEqual(["input", "change"]);
+       expect(element.observedExternalValues).toEqual([true]);
+-- 
+2.55.0
+
