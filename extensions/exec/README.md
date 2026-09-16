@@ -191,8 +191,10 @@ await show(source.lines(40, 80)); // 1-based, inclusive
 - Display is bounded; source values are not display-truncated. An explicit search
   limit can make `complete` false. Check it before treating results as exhaustive.
 
-All source views share the existing four-character anchor ledger. Slicing or
-expanding a selection preserves provenance. Arbitrary strings and shell output
+All source views share the four-character anchor ledger. Allocation prefers a
+file-specific initial character, then spills into other prefixes when full;
+the session-wide limit is 1,048,576 live anchors, with an explicit capacity error.
+Slicing or expanding a selection preserves provenance. Arbitrary strings and shell output
 are not editable source references.
 
 ## Images
