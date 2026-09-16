@@ -162,16 +162,23 @@ await show(source.lines(40, 80)); // 1-based, inclusive
 ```
 
 - `find(glob?, {paths?: string|string[], hidden?: boolean}?)` returns paths,
-  respecting ignore files. Explicit file reads/searches may name ignored files.
+  respecting ignore files; brace globs are supported. Ignored trees such as
+  `node_modules` are not searched from the project root; name the ignored tree
+  explicitly in `{paths: "node_modules"}` to enumerate it. Explicit file
+  reads/searches may name ignored files.
 - `read(path)` returns a source snapshot with `path`, `text`, `rows`,
   `lines(start?, end?)`, and `outline()`.
 - `grep(pattern: string|RegExp, paths?: string|string[], options?)` returns a
-  selection. Options: `glob`, `ignoreCase`, `literal`, `limit`. Matching uses
+  selection. Paths also accept a `read()` result or a selection: their **files**
+  are searched afresh, not just the selected rows. With paths omitted, options
+  may be the second argument: `grep("TODO", {glob: "*.ts"})`. Options: `glob`,
+  `ignoreCase`, `literal`, `limit`. Matching uses
   JavaScript regular expressions against the same snapshots that supply anchors;
   ripgrep enumerates files rather than matching their contents.
 - Selections expose `rows`, iteration, `filter(fn)`, `slice(start?, end?)`,
-  `context(n)`, `enclosing()`, and `complete`. Filtering and slicing preserve
-  source references; slice uses ordinary zero-based, end-exclusive array indices.
+  `context(n)`, `enclosing()`, and `complete`. `map(rowFn)` returns an ordinary
+  array; `join(separator = "\n")` joins row text without anchors.
+  Filtering and slicing preserve source references; slice uses ordinary zero-based, end-exclusive array indices.
   A row is `{anchor, text, path, line}`. Context and enclosing definitions refer
   to the original snapshot, not a fresh version of the file.
 - Text display has a **16 KiB per-cell** budget. `await show.large(value, ...)`
@@ -220,6 +227,11 @@ The existing DSL is unchanged: `=a` replaces one line, `=a b` an inclusive
 range, `-a` / `-a b` delete, `>a` inserts after, `<a` before. Here `a` and `b`
 stand for actual four-character anchors. An optional `@path` asserts the target
 file. Separate hunks with a blank line.
+
+Empty `>anchor` / `<anchor` insertion bodies insert one blank line. Range
+replacement is inclusive and literal: do not include text outside the selected
+range in its replacement. Empty replacement bodies still require explicit
+`-anchor` deletion.
 
 Computed replacements use the same checked engine:
 

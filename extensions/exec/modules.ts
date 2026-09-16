@@ -30,9 +30,9 @@ const API: Record<ExecModule, string[]> = {
 		"await loadSkill(path) -> retained {path,text,commands,content()}; explicit non-anchored skill loading, expands original dynamic shell placeholders once per call with PI_SKILL_DIR/PI_WORKSPACE. show() never reruns them.",
 		"await write(path, content) -> {path,bytes}; creates parents and overwrites UTF-8 text.",
 		"read(imagePath) -> retained ImageFile; show(image) emits actual image content.",
-		"await grep(pattern: string|RegExp, paths?: string|string[], {glob?,ignoreCase?,literal?,limit?}?) -> selection.",
-		"selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.context(n), await selection.enclosing(), selection.complete.",
-		"await edit`=abcd\nreplacement` replaces a line; =abcd wxyz replaces an inclusive range; -abcd deletes; >abcd / <abcd insert after/before. Separate hunks with a blank line. edit.raw`...` preserves raw template segments; default edit tags remain cooked. Anchors are unique across files and reject stale targets.",
+		"await grep(pattern: string|RegExp, paths?: string|string[]|source|selection, {glob?,ignoreCase?,literal?,limit?}?) -> selection; options may be second argument when paths are omitted. Sources/selections select files, not row ranges.",
+		"selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.map(rowFn) -> array, selection.join(separator=\"\\n\") -> row text, selection.context(n), await selection.enclosing(), selection.complete.",
+		"await edit`=abcd\nreplacement` replaces a line; =abcd wxyz replaces an inclusive range; -abcd deletes; >abcd / <abcd insert after/before (empty body inserts a blank line). Separate hunks with a blank line. edit.raw`...` preserves raw template segments; default edit tags remain cooked. Anchors are unique across files and reject stale targets.",
 		"await replace(selection, (text,row) => newText) uses the same checked edit engine."
 	],
 	"sh": [
