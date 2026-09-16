@@ -41,7 +41,8 @@ allocator fix; an old anchor may follow another text-identical row.
 
 ## Browser CLI (external dependency)
 
-Installed `chrome-devtools-axi@0.1.34` remains unchanged.
+Initial verification used installed `chrome-devtools-axi@0.1.34`; the later
+installation follow-up below replaces it with the pinned fork.
 
 - **Confirmed:** scroll, numeric waits, and scripted selector actions send
   expressions/IIFEs where MCP requires callable functions. Actions can execute
@@ -57,9 +58,20 @@ Installed `chrome-devtools-axi@0.1.34` remains unchanged.
   220ms “Sending…” state. This provides text evidence without a CLI round trip;
   timed screenshot capture was not verified or added.
 
-Do not apply the source patch directly to installed dist files. Until an upstream
-release or deliberately pinned installation, explicit callable eval is the
-workaround for affected operations.
+Do not apply the source patch directly to installed dist files.
+
+### Installation follow-up
+
+Global mise now pins `mlegls/chrome-devtools-axi#2386fcf0fc3e20f818f546db9aab019c1ad21edd`
+(`0.1.34-mlegls.1`). This packaging commit builds the tested `da94d49` source and
+includes dist on the separate `installable-callable-browser-scripts` fork branch;
+the upstream PR stays source-only. The pin is tracked in system-config.
+
+Build and all 631 upstream tests passed again. Smoke through the installed command
+verified a 500px scroll, CLI numeric wait, selector click exactly once, fill, and
+immediate/delayed selector waits. The isolated smoke session was stopped. A fresh
+login shell resolves the fork; already-running processes keep their old PATH
+until restarted, or can invoke `mise exec -- chrome-devtools-axi`.
 
 ## Final checks
 
