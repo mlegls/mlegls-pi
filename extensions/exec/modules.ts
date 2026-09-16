@@ -32,7 +32,8 @@ const API: Record<ExecModule, string[]> = {
 		"read(imagePath) -> retained ImageFile; show(image) emits actual image content.",
 		"await grep(pattern: string|RegExp, paths?: string|string[]|source|selection, {glob?,ignoreCase?,literal?,limit?}?) -> selection; options may be second argument when paths are omitted. Sources/selections select files, not row ranges.",
 		"selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.map(rowFn) -> array, selection.join(separator=\"\\n\") -> row text, selection.context(n), await selection.enclosing(), selection.complete.",
-		"await edit`=abcd\nreplacement` replaces a line; =abcd wxyz replaces an inclusive range; -abcd deletes; >abcd / <abcd insert after/before (empty body inserts a blank line). Separate hunks with a blank line. edit.raw`...` preserves raw template segments; default edit tags remain cooked. Anchors are unique across files and reject stale targets.",
+		"await edit`=abcd\nreplacement` replaces a line; =abcd wxyz replaces an inclusive range; -abcd deletes; >abcd / <abcd insert after/before (empty body inserts a blank line). Separate hunks with a blank line. edit.raw`...` preserves raw template segments; default edit tags remain cooked. Copy anchors from abcd│text, not line numbers. Use a separate @path token: =abcd wxyz @src/file.ts. Escape literal header-like body lines with a backslash. Anchors are unique across files and reject stale targets.",
+		"await edit([{replace: rowOrAnchorOrPair, text}, {delete: rowOrAnchorOrPair}, {before: rowOrAnchor, text}, {after: rowOrAnchor, text}]) uses the same checked engine with literal text; pairs are [first,last] inclusive. Rejections throw; partial failures name files already changed.",
 		"await replace(selection, (text,row) => newText) uses the same checked edit engine."
 	],
 	"sh": [

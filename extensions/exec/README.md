@@ -242,15 +242,39 @@ inserted after
 `);
 ```
 
-The existing DSL is unchanged: `=a` replaces one line, `=a b` an inclusive
+The DSL: `=a` replaces one line, `=a b` an inclusive
 range, `-a` / `-a b` delete, `>a` inserts after, `<a` before. Here `a` and `b`
-stand for actual four-character anchors. An optional `@path` asserts the target
-file. Separate hunks with a blank line.
+stand for actual four-character anchors. A separate `@path` token asserts the target
+file: `=abcd wxyz @src/file.ts`. Attached forms such as `wxyz@src/file.ts`
+are invalid. Copy anchors from `abcd│text`, not displayed line numbers.
+Separate hunks with a blank line. Header recognition does not depend on whether
+the anchor is current: unknown targets reject rather than becoming body text.
+To include a literal header-like body line, prefix it with `\` in the DSL
+(`\=abcd`); double that escape to retain a leading backslash. JavaScript string
+escaping still applies.
 
 Empty `>anchor` / `<anchor` insertion bodies insert one blank line. Range
 replacement is inclusive and literal: do not include text outside the selected
 range in its replacement. Empty replacement bodies still require explicit
 `-anchor` deletion.
+
+Structured edits use the same checked engine, without parsing payload text:
+
+````ts
+const { rows } = await read("notes.md");
+await show(await edit([
+  { before: rows[0], text: "# Notes" },
+  { replace: [rows[1], rows[2]], text: "```ts\nconst x = 1;\n```" },
+  { delete: [rows[3], rows[4]] },
+  { after: rows[5].anchor, text: "Done." },
+]));
+````
+
+Targets are source rows or anchor strings. `replace` and `delete` accept a
+single target or `[first, last]` inclusive; `before` and `after` take one target.
+`text` is required except for `delete`, which forbids it. Empty text is one
+blank line, not deletion. Structured text is literal, including header-like
+lines, pasted-anchor-looking prefixes, and trailing blank lines.
 
 Computed replacements use the same checked engine:
 
@@ -260,6 +284,8 @@ await show(await replace(state.hits, (text, row) => text.replace("oldName", "new
 
 Changed targets reject stale references. Edits are not transactions across
 files, and a cell is not a transaction: earlier writes survive a later error.
+Edit rejection throws and stops an awaited cell; multi-file failures name files
+already changed by that call. Earlier cell operations are not rolled back.
 Do not blindly replay a failed cell.
 
 ## Shells and promises

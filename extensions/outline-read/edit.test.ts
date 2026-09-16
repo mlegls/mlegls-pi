@@ -56,33 +56,32 @@ describe("ledger", () => {
 });
 
 describe("parseHunks", () => {
-	const known = (a: string) => ["aaaa", "bbbb", "cccc"].includes(a);
 	test("forms", () => {
-		expect(parseHunks("=aaaa\nx", known)).toEqual([{ header: "=aaaa", from: "aaaa", to: undefined, mode: "replace", path: undefined, lines: ["x"] }]);
-		expect(parseHunks("=aaaa @src/a.ts\nx", known)[0]).toMatchObject({ from: "aaaa", path: "src/a.ts" });
-		expect(parseHunks("=aaaa bbbb\nx\ny", known)[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x", "y"] });
-		expect(parseHunks("-aaaa bbbb", known)[0]).toMatchObject({ mode: "delete", lines: [] });
-		expect(parseHunks(">aaaa\nx", known)[0]).toMatchObject({ mode: "after" });
-		expect(parseHunks("<aaaa\nx", known)[0]).toMatchObject({ mode: "before" });
-		expect(parseHunks("=aaaa│old text\nx", known)[0]).toMatchObject({ from: "aaaa", lines: ["x"] });
+		expect(parseHunks("=aaaa\nx")).toEqual([{ header: "=aaaa", from: "aaaa", to: undefined, mode: "replace", path: undefined, lines: ["x"] }]);
+		expect(parseHunks("=aaaa @src/a.ts\nx")[0]).toMatchObject({ from: "aaaa", path: "src/a.ts" });
+		expect(parseHunks("=aaaa bbbb\nx\ny")[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x", "y"] });
+		expect(parseHunks("-aaaa bbbb")[0]).toMatchObject({ mode: "delete", lines: [] });
+		expect(parseHunks(">aaaa\nx")[0]).toMatchObject({ mode: "after" });
+		expect(parseHunks("<aaaa\nx")[0]).toMatchObject({ mode: "before" });
+		expect(parseHunks("=aaaa│old text\nx")[0]).toMatchObject({ from: "aaaa", lines: ["x"] });
 	});
 	test("blank lines: separator before a header, content otherwise", () => {
-		const h = parseHunks("-aaaa\n\n=bbbb\nx\n\nnot a header\n\n>cccc\ny\n", known);
+		const h = parseHunks("-aaaa\n\n=bbbb\nx\n\nnot a header\n\n>cccc\ny\n");
 		expect(h.map((x) => x.header)).toEqual(["-aaaa", "=bbbb", ">cccc"]);
 		expect(h[1].lines).toEqual(["x", "", "not a header"]);
 	});
 	test("empty insert is a blank line", () => {
-		expect(parseHunks(">aaaa", known)[0].lines).toEqual([""]);
-		expect(parseHunks(">aaaa\n\n=bbbb\nx", known).map(h => h.lines)).toEqual([[""], ["x"]]);
-		expect(() => parseHunks("=aaaa", known)).toThrow(/use -aaaa to delete/);
+		expect(parseHunks(">aaaa")[0].lines).toEqual([""]);
+		expect(parseHunks(">aaaa\n\n=bbbb\nx").map(h => h.lines)).toEqual([[""], ["x"]]);
+		expect(() => parseHunks("=aaaa")).toThrow(/use -aaaa to delete/);
 	});
 
-	test("bare words and unknown anchors are text; bodies must fit the sigil", () => {
-		expect(parseHunks("=aaaa\nbbbb\n\nzzzz\n\n=zzzz", known)[0].lines).toEqual(["bbbb", "", "zzzz", "", "=zzzz"]);
-		expect(() => parseHunks("aaaa\nx", known)).toThrow(/not a hunk header/);
-		expect(() => parseHunks("=aaaa", known)).toThrow(/use -aaaa to delete/);
-		expect(() => parseHunks("-aaaa\nx", known)).toThrow(/takes no lines/);
-		expect(() => parseHunks(">aaaa bbbb\nx", known)).toThrow(/not a hunk header/);
+	test("bare words and escaped headers are text; bodies must fit the sigil", () => {
+		expect(parseHunks("=aaaa\nbbbb\n\nzzzz\n\n\\=zzzz")[0].lines).toEqual(["bbbb", "", "zzzz", "", "=zzzz"]);
+		expect(() => parseHunks("aaaa\nx")).toThrow(/not a hunk header/);
+		expect(() => parseHunks("=aaaa")).toThrow(/use -aaaa to delete/);
+		expect(() => parseHunks("-aaaa\nx")).toThrow(/takes no lines/);
+		expect(() => parseHunks(">aaaa bbbb\nx")).toThrow(/not a hunk header/);
 	});
 });
 
@@ -149,7 +148,7 @@ describe("edit tool", () => {
 
 	test("rejects unknown anchors, overlaps; strips pasted prefixes", async () => {
 		const { file, read, edit } = setup();
-		await expect(edit("=abcd\nx")).rejects.toThrow(/not a hunk header/);
+		await expect(edit("=abcd\nx")).rejects.toThrow(/unknown anchors/);
 		const rows = await read();
 		await expect(edit(`-${rows[0]} ${rows[2]}\n\n-${rows[1]}`)).rejects.toThrow(/overlap/);
 		await edit(`=${rows[1]}\n${rows[1]}│  return 3;`);
@@ -162,7 +161,7 @@ describe("edit tool", () => {
 		writeFileSync(file, readFileSync(file, "utf8").replace("return 2", "return 9"));
 		const r = await edit(`=${rows[1]}\n  return 0;`);
 		expect(r.content[0].text).toContain("File changed on disk");
-		await expect(edit(`=${rows[5]}\nx`)).rejects.toThrow(/not a hunk header/);
+		await expect(edit(`=${rows[5]}\nx`)).rejects.toThrow(/unknown anchors/);
 		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 0;\n}\n\nfunction b() {\n  return 9;\n}\n");
 	});
 });

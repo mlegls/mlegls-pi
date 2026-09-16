@@ -12,7 +12,9 @@ const GRAMMAR = `Hunks separated by one blank line. A hunk is a header line, the
   -abcd wxyz    delete abcd..wxyz (no body)
   >abcd         insert after abcd
   <abcd         insert before abcd
-A header may end with @path to assert which file the anchors belong to; a mismatch rejects the call.`;
+Copy anchors from read/grep: abcd│text → =abcd (not a line number).
+A header may end with a separate @path token: =abcd wxyz @src/file.ts.
+Escape literal header-like body lines with a backslash; double it to retain it.`;
 
 const parameters = Type.Object({
 	edits: Type.String({ description: GRAMMAR }),
@@ -32,6 +34,8 @@ export interface Hunk {
 	path?: string;
 	mode: "replace" | "delete" | "after" | "before";
 	lines: string[];
+	/** Structured payloads bypass pasted-prefix cleanup. */
+	literal?: boolean;
 }
 
 interface ResolvedEdit {
@@ -45,33 +49,37 @@ interface ResolvedEdit {
 const ANCHOR = new RegExp(`^[${ALPHABET}]{${ANCHOR_LENGTH}}$`);
 const SIGILS: Record<string, Hunk["mode"]> = { "=": "replace", "-": "delete", ">": "after", "<": "before" };
 
-/** Parse a header line; `known` decides whether a word is an anchor. A pasted read row `abcd│text` is cut at the bar. */
-function parseHeader(line: string, known: (a: string) => boolean): Omit<Hunk, "lines"> | undefined {
+/** Recognize syntax independently of ledger state. */
+function parseHeader(line: string): Omit<Hunk, "lines"> | undefined {
 	const bar = line.indexOf("│");
 	const head = (bar >= 0 ? line.slice(0, bar) : line).trim();
 	const mode = SIGILS[head[0]];
 	if (!mode) return undefined;
 	const tokens = head.slice(1).trim().split(/\s+/).filter(Boolean);
 	const path = tokens[tokens.length - 1]?.startsWith("@") ? tokens.pop()!.slice(1) : undefined;
-	if (tokens.length === 0 || tokens.length > 2 || !tokens.every((t) => ANCHOR.test(t) && known(t))) return undefined;
+	if (tokens.length === 0 || tokens.length > 2 || !tokens.every((t) => ANCHOR.test(t))) return undefined;
 	if (tokens.length === 2 && (mode === "after" || mode === "before")) return undefined;
 	return { header: head, from: tokens[0], to: tokens[1], mode, path };
 }
 
-export function parseHunks(text: string, known: (a: string) => boolean): Hunk[] {
+export function parseHunks(text: string): Hunk[] {
 	const lines = text.replace(/\r\n/g, "\n").split("\n");
 	while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
 	const hunks: Hunk[] = [];
 	let i = 0;
 	while (i < lines.length && lines[i].trim() === "") i++;
 	if (i >= lines.length) throw new Error("No edits given.");
-	const first = parseHeader(lines[i], known);
-	if (!first) throw new Error(`Line 1 is not a hunk header of known anchors: "${lines[i].slice(0, 40)}".\n${GRAMMAR}`);
+	const first = parseHeader(lines[i]);
+	if (!first) throw new Error(`Line 1 is not a hunk header: "${lines[i].slice(0, 40)}".\n${GRAMMAR}`);
 	let current: Hunk = { ...first, lines: [] };
 	for (i++; i < lines.length; i++) {
 		const line = lines[i];
 		if (line.trim() === "" && i + 1 < lines.length) {
-			const next = parseHeader(lines[i + 1], known);
+			const candidate = lines[i + 1];
+			const next = parseHeader(candidate);
+			if (!next && /^[=<>-]\S/.test(candidate.trimStart())) throw new Error(
+				`Line ${i + 2} is not a hunk header: "${candidate}". Nothing was modified.\n${GRAMMAR}`,
+			);
 			if (next) {
 				hunks.push(current);
 				current = { ...next, lines: [] };
@@ -79,7 +87,7 @@ export function parseHunks(text: string, known: (a: string) => boolean): Hunk[] 
 				continue;
 			}
 		}
-		current.lines.push(line);
+		current.lines.push(line.replace(/^\\(?=\\*[=<>-])/, ""));
 	}
 	hunks.push(current);
 	for (const h of hunks) {
@@ -140,7 +148,7 @@ async function applyToFile(deps: EditDeps, absolutePath: string, shown: string, 
 		};
 		for (const h of hunks) {
 			const newLines = h.lines.map((line) => {
-				const stripped = stripPastedPrefix(line);
+				const stripped = h.literal ? line : stripPastedPrefix(line);
 				if (stripped !== line) warnings.push(`Stripped a pasted anchor prefix from "${line.slice(0, 20)}".`);
 				return stripped;
 			});
@@ -164,13 +172,13 @@ async function applyToFile(deps: EditDeps, absolutePath: string, shown: string, 
 			const rows = fresh.slice(0, 40).map((i) => formatRow(ledger.lines[i].anchor, ledger.lines[i].text));
 			const current = rows.length ? `\nLines changed on disk, with current anchors:\n${rows.join("\n")}${fresh.length > rows.length ? "\n⋯" : ""}` : "";
 			throw new Error(
-				`${shown}: unknown anchors ${[...missing].join(", ")}; the lines changed since they were read. Nothing was modified.${current}${rows.length ? "" : ` Read ${shown} (or the relevant range) again for current anchors.`}`,
+				`${shown}: unknown anchors ${[...missing].join(", ")}; the lines changed since they were read. This file was not modified.${current}${rows.length ? "" : ` Read ${shown} (or the relevant range) again for current anchors.`}`,
 			);
 		}
 
 		resolved.sort((a, b) => a.start - b.start || a.end - b.end);
 		for (let i = 1; i < resolved.length; i++) {
-			if (resolved[i].start < resolved[i - 1].end) throw new Error(`${shown}: "${resolved[i - 1].header}" and "${resolved[i].header}" overlap. Merge them into one hunk. Nothing was modified.`);
+			if (resolved[i].start < resolved[i - 1].end) throw new Error(`${shown}: "${resolved[i - 1].header}" and "${resolved[i].header}" overlap. Merge them into one hunk. This file was not modified.`);
 		}
 
 		const next = [...lines];
@@ -212,18 +220,17 @@ async function applyToFile(deps: EditDeps, absolutePath: string, shown: string, 
 
 /** Execute the same anchor DSL used by the edit tool. */
 export async function executeEdits(deps: EditDeps, cwd: string, text: string) {
-	// Make restored (resumed-session) files addressable before parsing.
-	for (const path of deps.ledger.pendingPaths()) {
-		const raw = await readFile(path, "utf8").catch(() => undefined);
-		if (raw !== undefined) deps.ledger.sync(path, splitLines(raw).lines);
-	}
-	const known = (a: string) => deps.ledger.find(a) !== undefined;
-	const hunks = parseHunks(text, known);
+	const hunks = parseHunks(text);
 	return executeHunks(deps, cwd, hunks);
 }
 
 /** Apply structured hunks without interpreting replacement text as DSL headers. */
 export async function executeHunks(deps: EditDeps, cwd: string, hunks: Hunk[]) {
+	// Make restored (resumed-session) files addressable before resolving targets.
+	for (const path of deps.ledger.pendingPaths()) {
+		const raw = await readFile(path, "utf8").catch(() => undefined);
+		if (raw !== undefined) deps.ledger.sync(path, splitLines(raw).lines);
+	}
 	// Validate every file assertion before applying any edits.
 	const byFile = new Map<string, Hunk[]>();
 	for (const h of hunks) {
@@ -238,13 +245,20 @@ export async function executeHunks(deps: EditDeps, cwd: string, hunks: Hunk[]) {
 		(byFile.get(path) ?? byFile.set(path, []).get(path)!).push(h);
 	}
 
+	const applied: string[] = [];
 	const reports: string[] = [];
 	const patches: string[] = [];
 	const diffs: string[] = [];
 	let firstChangedLine: number | undefined;
 	for (const [absolutePath, fileHunks] of byFile) {
 		const shown = relative(cwd, absolutePath).startsWith("..") ? absolutePath : relative(cwd, absolutePath);
-		const r = await applyToFile(deps, absolutePath, shown, fileHunks);
+		let r: Awaited<ReturnType<typeof applyToFile>>;
+		try {
+			r = await applyToFile(deps, absolutePath, shown, fileHunks);
+		} catch (error) {
+			throw new Error(`Edit failed in ${shown}: ${error instanceof Error ? error.message : String(error)}\nAlready changed by this call: ${applied.join(", ") || "none"}. Earlier cell operations are not rolled back. Do not blindly replay the cell.`, { cause: error });
+		}
+		if (r.patch) applied.push(shown);
 		reports.push(r.text);
 		if (r.patch) patches.push(r.patch);
 		if (r.diff) diffs.push(r.diff);

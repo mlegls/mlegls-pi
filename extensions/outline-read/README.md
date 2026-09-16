@@ -60,11 +60,14 @@ inserted before b4nn
 ```
 
 `=` replaces a line or an inclusive range, `-` deletes one (no body), `>`
-inserts after, `<` before. A header may end with `@path` to assert which
+inserts after, `<` before. A header may end with a separate `@path` token (`=abcd wxyz @src/file.ts`) to assert which
 file the anchors belong to. A file's anchors all start with the same
 character (a hash of its path), so one from the wrong file looks wrong. A pasted read row (`=abcd│text`) works as a
 header. A blank line inside a body is content unless the line after it is a
-header of known anchors.
+syntactic header, even when its anchor is unknown. Unknown targets reject; they
+do not become replacement text. Prefix literal header-like body lines with `\`
+(double it to retain the backslash). Malformed compact headers such as `=1`
+after a separator reject with grammar help.
 
 Hunks apply together per file and must not overlap. Unknown anchors reject
 the whole call; if a file changed on disk, the changed lines are returned

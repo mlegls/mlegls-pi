@@ -9,6 +9,8 @@ are omitted (cooked shell backslashes, file text as a path, range replacement du
 
 ## edit anchors (four workers; one silently lost a ticket claim)
 
+Follow-up: [edit verification and disposition](edit-dsl-verification-2026-09-16.md). The table below preserves the original reports, not the current API contract.
+
 | Report | Detail |
 | --- | --- |
 | Line numbers read as anchors | The error and help present hunk headers as `=abcd`, which reads like a line number; `=1` / `>2` are rejected with "not a hunk header of known anchors". Two workers tried numbers first. Proposal: accept a line number when the file was read this session, or echo one valid anchor for the file in the rejection. |

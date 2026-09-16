@@ -157,6 +157,38 @@ function grepPaths(value: unknown): string[] | undefined {
 	return undefined;
 }
 
+export type EditTarget = string | SourceRow;
+export type EditRange = EditTarget | [EditTarget, EditTarget];
+export type SourceEdit =
+	| { replace: EditRange; text: string }
+	| { delete: EditRange }
+	| { before: EditTarget; text: string }
+	| { after: EditTarget; text: string };
+
+function structuredHunks(edits: SourceEdit[]): Hunk[] {
+	const anchor = (target: EditTarget): string => {
+		const value = typeof target === "string" ? target : target?.anchor;
+		if (typeof value !== "string") throw new Error("Edit targets must be anchors or source rows, not line numbers or selections.");
+		return value;
+	};
+	return edits.map(edit => {
+		const modes = ["replace", "delete", "before", "after"] as const;
+		const keys = Object.keys(edit);
+		const mode = modes.find(mode => Object.hasOwn(edit, mode));
+		if (!mode || keys.some(key => key !== mode && key !== "text") || modes.filter(mode => Object.hasOwn(edit, mode)).length !== 1)
+			throw new Error("Each edit needs exactly one of replace, delete, before, after, plus text except for delete.");
+		const target = (edit as unknown as Record<string, EditRange>)[mode];
+		if (Array.isArray(target) && (target.length !== 2 || mode === "before" || mode === "after"))
+			throw new Error("Only replace and delete accept [first, last] ranges.");
+		const from = anchor(Array.isArray(target) ? target[0] : target);
+		const to = Array.isArray(target) ? anchor(target[1]) : undefined;
+		if (mode === "delete" ? "text" in edit : !("text" in edit) || typeof edit.text !== "string")
+			throw new Error("replace/before/after require text; delete takes no text.");
+		return { header: `${mode} ${from}${to ? " " + to : ""}`, mode, from, to, literal: true,
+			lines: "text" in edit ? edit.text.split("\n") : [] };
+	});
+}
+
 export interface SourceEditResult {
 	text: string;
 	details: Awaited<ReturnType<typeof executeEdits>>["details"];
@@ -268,9 +300,10 @@ export function createSourceAPI(deps: SourceDeps) {
 		}
 		return new SourceSelection(rows, files);
 	}
-	async function edit(input: string | TemplateStringsArray, ...values: unknown[]): Promise<SourceEditResult> {
+	async function edit(input: string | TemplateStringsArray | SourceEdit[], ...values: unknown[]): Promise<SourceEditResult> {
 		check();
-		const text = typeof input === "string" ? input : input.reduce((s, part, i) => s + part + (i < values.length ? String(values[i]) : ""), "");
+		if (Array.isArray(input) && !("raw" in input)) return editResult(await executeHunks(deps, cwd, structuredHunks(input)));
+		const text = typeof input === "string" ? input : (input as TemplateStringsArray).reduce((s, part, i) => s + part + (i < values.length ? String(values[i]) : ""), "");
 		return editResult(await executeEdits(deps, cwd, text));
 	}
 	async function replace(selection: SourceSelection, fn: (text: string, row: SourceRow) => string | Promise<string>): Promise<SourceEditResult> {
