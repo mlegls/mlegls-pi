@@ -9,7 +9,7 @@
  */
 import { createHash } from "node:crypto";
 import { diffArrays } from "diff";
-import { allocateAnchor } from "./anchors";
+import { allocateAnchor, AnchorSet, ANCHOR_CAPACITY, isAnchor } from "./anchors";
 
 export interface AnchoredLine {
 	anchor: string;
@@ -33,7 +33,7 @@ export function contentHash(lines: string[]): string {
 export class Ledger {
 	private files = new Map<string, FileLedger>();
 	/** Anchors in use across all files. */
-	private taken = new Set<string>();
+	private taken = new AnchorSet();
 	/** Entries restored from the session, applied lazily on first sync. */
 	private pending = new Map<string, LedgerEntry>();
 
@@ -76,13 +76,18 @@ export class Ledger {
 	 */
 	sync(path: string, current: string[]): { ledger: FileLedger; changed: boolean; fresh: number[] } {
 		let ledger = this.files.get(path);
+		// Reject before mutating the ledger; replacements can reuse removed capacity.
+		if (this.taken.size - (ledger?.lines.length ?? 0) + current.length > ANCHOR_CAPACITY) {
+			throw new Error(`Anchor capacity exhausted (${ANCHOR_CAPACITY} four-character names)`);
+		}
 		const pending = this.pending.get(path);
 		if (!ledger && pending) {
 			this.pending.delete(path);
 			if (
 				pending.hash === contentHash(current) &&
 				pending.anchors.length === current.length &&
-				!pending.anchors.some((a) => this.taken.has(a))
+				new Set(pending.anchors).size === current.length &&
+				!pending.anchors.some((a) => !isAnchor(a) || this.taken.has(a))
 			) {
 				for (const a of pending.anchors) this.taken.add(a);
 				ledger = { lines: current.map((text, i) => ({ anchor: pending.anchors[i], text })) };
@@ -102,9 +107,17 @@ export class Ledger {
 		const next: AnchoredLine[] = [];
 		const fresh: number[] = [];
 		let index = 0;
-		for (const part of diffArrays(previous, current)) {
+		const parts = diffArrays(previous, current);
+		// Free removals before additions, even when the diff puts additions first.
+		for (const part of parts) {
 			if (part.removed) {
 				for (const line of ledger.lines.slice(index, index + part.value.length)) this.taken.delete(line.anchor);
+			}
+			if (!part.added) index += part.value.length;
+		}
+		index = 0;
+		for (const part of parts) {
+			if (part.removed) {
 				index += part.value.length;
 			} else if (part.added) {
 				for (const text of part.value) {
