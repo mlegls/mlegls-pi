@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { send } from "../extensions/board/store";
 import { Worker, wait, type Outcome } from "./wm";
 
 const done = (body: string): Outcome => ({
@@ -62,22 +61,28 @@ describe("wait", () => {
 	});
 });
 
+// A coordinator must receive a report posted before it awaits the worker. The
+// poller owns a process-level cursor, so isolate the fixture's board as a process.
 test("poller delivers a report posted after the worker is registered", async () => {
 	const dir = mkdtempSync(join(tmpdir(), "wm-race-"));
-	const old = process.env.PI_BOARD_DIR;
-	process.env.PI_BOARD_DIR = dir;
-	const run = "race-" + process.pid + "-" + Date.now();
-	const w = new Worker(run, "b", dir, run, dir);
+	const code = [
+		"import { Worker } from " + JSON.stringify(join(import.meta.dir, "wm.ts")) + ";",
+		"import { send } from " + JSON.stringify(join(import.meta.dir, "../extensions/board/store.ts")) + ";",
+		"const w = new Worker('race', 'b', process.cwd(), 'race', process.cwd());",
+		"send({ topic: 'race/b', tags: ['done'], body: 'mid-spawn', from: {name: 'b'} });",
+		"const result = await w.next(); w.drop(); console.log(JSON.stringify(result));",
+	].join("\n");
+	const child = Bun.spawn([process.execPath, "-e", code], {
+		cwd: dir, env: { ...process.env, PI_BOARD_DIR: dir }, stdout: "pipe", stderr: "pipe",
+	});
+	const timeout = setTimeout(() => child.kill(), 4000);
 	try {
-		const pending = w.next();
-		send({ topic: run + "/b", tags: ["done"], body: "mid-spawn", from: { name: "b" } });
-		const o = await pending;
-		expect(o.kind).toBe("done");
-		if (o.kind === "done") expect(o.message.body).toBe("mid-spawn");
+		const [code, out, err] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+		expect({code, err}).toEqual({code: 0, err: ""});
+		expect(JSON.parse(out)).toMatchObject({kind: "done", message: {body: "mid-spawn"}});
 	} finally {
-		w.emit({ kind: "exited", tail: "" });
-		if (old === undefined) delete process.env.PI_BOARD_DIR;
-		else process.env.PI_BOARD_DIR = old;
+		clearTimeout(timeout);
+		child.kill();
 		rmSync(dir, { recursive: true, force: true });
 	}
 }, 5000);
