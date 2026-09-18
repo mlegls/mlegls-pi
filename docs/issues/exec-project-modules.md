@@ -1,7 +1,9 @@
 ---
+tags: [task]
+status: "/"
 claimed-by: frontier/0919/project-modules
 next: implement
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 project-local exec modules: `.pi/exec/<name>.ts` in the project shadows `lib/<name>.ts` with the same interface, and new files there enter the cell scope as `project.<name>`. upstreaming is moving the file. plus a `mlegls-pi` skill, the analogue of the `pi` skill: where this repo is, the module layout, how to add or override a module, how to test and reload — so the extension can be edited from any session.

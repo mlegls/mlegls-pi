@@ -1,7 +1,8 @@
 ---
+tags: [task]
 next: implement
-blocked-by: ["[[projects/mlegls-pi/issues/exec-project-modules]]"]
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+blockedBy: ["[[projects/mlegls-pi/issues/exec-project-modules]]"]
+parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 scripts import lib, agent prompts name lib functions, docs describe both: one repo. move skills (as sorted), agents, and agent-prompts from `~/.config/system-config` into this repo; system-config keeps the symlink and install layer. project-local plugins: "[[projects/mlegls-pi/issues/exec-project-modules]]".

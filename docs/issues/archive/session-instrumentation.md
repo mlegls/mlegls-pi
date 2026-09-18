@@ -1,6 +1,8 @@
 ---
+tags: [task]
+status: x
 next: done
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 record at spawn, in the session header: agent name, run, handle, parent session id. log board reads and acks with the reader's identity, not only sends. add a subscription-vs-metered flag per model and a price for luna so pool accounting ("[[projects/mlegls-pi/issues/pool-aware-routing]]") and cost audits are honest.

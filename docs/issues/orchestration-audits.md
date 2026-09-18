@@ -1,6 +1,7 @@
 ---
+tags: [task]
 next: measure
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 hypotheses left open by [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]]. each is a session; split out when claimed.

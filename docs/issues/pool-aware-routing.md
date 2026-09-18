@@ -1,6 +1,7 @@
 ---
+tags: [task]
 next: grill
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 three subscription pools (codex, anthropic, maybe grok) plus metered. constraint: anthropic worker share ≤50% so fable's interactive quota is never crowded; drain codex (and grok) to their weekly ceilings with worker traffic; metered deepseek and jev as overflow. the router takes pool slack as input: a role×model preference table filtered by slack at spawn, not a static roster.

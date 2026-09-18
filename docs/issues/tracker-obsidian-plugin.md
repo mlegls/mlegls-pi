@@ -1,6 +1,7 @@
 ---
+tags: [task]
 next: prototype
-part-of: "[[projects/mlegls-pi/issues/home-ui]]"
+parent: "[[projects/mlegls-pi/issues/home-ui]]"
 ---
 
 the vault half of home: issue views that keep state across navigation, render real internal links (copy, hover, open-in-pane), and show subissue rollups and progress. the current `tracker/Tracker.base` + `tracker/Graph` datacorejsx views cannot: a datacorejsx block lives in a note's reader, so it unmounts on every navigation, and it renders its own anchors rather than obsidian's. those are datacore limits, not polish.

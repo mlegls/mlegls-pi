@@ -1,6 +1,8 @@
 ---
+tags: [task]
+status: x
 next: done
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 `decide(state, questions) → {[q]: {choice, p, dist}}` in `lib/`, jev-backed, with two fallbacks selectable per call: a logprob-capable cheap model, and `ask` (bounce to the parent model as a tool result, or to the human as `needs-input`). thresholds live in the caller, never in the backend; calibration is the point. low confidence maps onto the existing `needs-input` tag: selective prediction with a reject option.
