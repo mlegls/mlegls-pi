@@ -261,6 +261,10 @@ function emit(cell, value) {
 }
 
 function errorText(error) {
+	const collision = /Identifier ['"]([^'"]+)['"] has already been declared/.exec(error?.message || "");
+	if (error?.name === "SyntaxError" && collision && (collision[1] === "__exec" || Object.hasOwn(server.context.__exec, collision[1]))) {
+		return `Reserved exec binding "${collision[1]}" cannot be declared at cell top level. Rename it or use a nested scope; retain values on state.`;
+	}
 	return bounded(error instanceof Error ? error.stack || error.message : String(error));
 }
 
@@ -280,11 +284,13 @@ function runShell(command, options = {}) {
 	const promise = new Promise((resolve, reject) => {
 		// Inherit the kernel process group so reset kills shells and their children.
 		const child = spawn("bash", ["-c", command], { cwd: process.cwd(), ...options, stdio: ["ignore", "pipe", "pipe"] });
-		const stdout = capture(child.stdout);
-		const stderr = capture(child.stderr);
+		const partial = (stream) => (text) => send({ type: "shell-output", shell: child.pid, stream, text });
+		const stdout = capture(child.stdout, partial("stdout"));
+		const stderr = capture(child.stderr, partial("stderr"));
 		child.once("error", reject);
 		// 'close', not 'exit': drain both pipes before exposing a result.
 		child.once("close", (code, signal) => {
+			send({ type: "shell-done", shell: child.pid });
 			const result = {
 				stdout: stdout.text(), stderr: stderr.text(),
 				stdoutTruncated: stdout.truncated(), stderrTruncated: stderr.truncated(),
@@ -299,11 +305,13 @@ function runShell(command, options = {}) {
 	return promise;
 }
 
-function capture(stream) {
+function capture(stream, onPartial) {
 	const chunks = [];
 	let size = 0;
 	let truncated = false;
 	stream.on("data", (chunk) => {
+		// Mirror only a display-sized prefix to the host, for forced termination.
+		if (size < 50 * 1024) onPartial?.(chunk.subarray(0, 50 * 1024 - size).toString());
 		const remaining = SHELL_LIMIT - size;
 		if (chunk.length > remaining) truncated = true;
 		if (remaining > 0) { chunks.push(chunk.subarray(0, remaining)); size += Math.min(chunk.length, remaining); }

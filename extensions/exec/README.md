@@ -196,13 +196,18 @@ await show(source.lines(40, 80)); // 1-based, inclusive
   `context(n)`, `enclosing()`, and `complete`. `map(rowFn)` returns an ordinary
   array; `join(separator = "\n")` joins row text without anchors.
   Filtering and slicing preserve source references; slice uses ordinary zero-based, end-exclusive array indices.
-  A row is `{anchor, text, path, line}`. Context and enclosing definitions refer
+  A row is `{anchor, text, path, line}`: `sel.rows[0].anchor` or
+  `[...sel][0].anchor` gives an edit target (`line` is one-based). Context and enclosing definitions refer
   to the original snapshot, not a fresh version of the file.
 - Text display has a **16 KiB per-cell** budget. `await show.large(value, ...)`
   explicitly raises that cell’s budget to **50 KiB**, including other show/console
   output in that cell. It does not replay text already omitted. An end-of-cell
   notice counts omitted rendered UTF-8 bytes; retain values and retry in a new
   cell with `show.large`, or select smaller slices. Notification text uses 16 KiB.
+  For several files, retain each read on `state` and show one selection at a time;
+  the budget is shared, not per argument. For large web pages, fetch to a file
+  (`sh("curl -L URL -o page.html")`) and read/grep slices instead of displaying
+  the whole response. A larger display does not change fetch/provider limits.
   Budgets exclude the short omission notice and image payloads. Object inspection
   and source/trace previews retain their own formatting limits.
 - Display is bounded; source values are not display-truncated. An explicit search
@@ -290,6 +295,12 @@ Do not blindly replay a failed cell.
 
 ## Shells and promises
 
+On timeout/reset, bounded prefixes of running shells’ stdout/stderr already
+received by the host are included as partial captures (up to 50 KiB per stream,
+within the cell’s host output cap). Unflushed process buffers cannot be recovered.
+Use `term` for long suites/clones, or retain a shell promise as below; increasing
+`timeoutMs` also works. Completed shells remain explicit-output-only.
+
 ```ts
 state.checks = sh`bun test`;
 notify(state.checks, "tests"); // one completion/error notification, even after this cell
@@ -316,7 +327,27 @@ into a new object opts back into normal object inspection.
 text/image content on completion. Plain detached promises do not request a turn;
 `notify` does.
 
-## Literal templates
+## Literal text payloads
+
+**For backticks or `${`, use ordinary double-quoted strings, not templates.**
+This single idiom works for all three APIs; use `\n` or an array of lines
+joined with `"\n"` for multiline payloads. Only double quotes and backslashes
+need JavaScript escaping; backticks and `${` are inert. JSON tool-call encoding
+is still a separate outer layer.
+
+````ts
+const text = ["```ts", "const label = `hello ${name}`;", "```", ""].join("\n");
+await write("example.md", text);
+const source = await read("example.md");
+await edit([{ replace: source.rows[1], text: "const label = `bye ${name}`;" }]);
+await show(await sh("cat <<'EOF'\n`literal ${name}`\nEOF"));
+````
+
+Structured `edit` also bypasses hunk-header parsing. `write` takes strings, not
+a tagged template. No placeholder replacement or custom raw-string syntax is
+needed. For text already in a file, pass `(await read(path)).text` directly.
+
+### Templates for backslashes
 
 **Prefer `sh.raw` for shell snippets and `edit.raw` for source containing
 backslashes.** `sh.raw` and `edit.raw` preserve backslashes in template segments; existing

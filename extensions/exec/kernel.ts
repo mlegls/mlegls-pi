@@ -71,6 +71,7 @@ export class Kernel {
 	private persistenceError?: string;
 	private entries = new Map<string, LedgerEntry>();
 	private calls = new Set<AbortController>();
+	private shellOutput = new Map<number, Map<string, string>>();
 	private active?: { trace: KernelTrace; onUpdate?: (trace: KernelTrace) => void; id: number; content: ContentBlock[]; output: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
 	private sequence = 0;
 	private disposed = false;
@@ -130,6 +131,13 @@ export class Kernel {
 				switch (message.type) {
 					case "ready": clearTimeout(timer); resolve(); break;
 					case "output": if (message.id === this.active?.id) this.append(message.text, message.warning); break;
+					case "shell-output": {
+						let streams = this.shellOutput.get(message.shell);
+						if (!streams) this.shellOutput.set(message.shell, streams = new Map());
+						streams.set(message.stream, (streams.get(message.stream) ?? "") + message.text);
+						break;
+					}
+					case "shell-done": this.shellOutput.delete(message.shell); break;
 					case "image": if (message.id === this.active?.id) this.active?.content.push({ type: "image", data: message.data, mimeType: message.mimeType }); break;
 					case "trace":
 						if (this.active && message.id === this.active.id) {
@@ -234,7 +242,7 @@ export class Kernel {
 			this.updateTrace();
 			signal?.addEventListener("abort", abort, { once: true });
 			timer = setTimeout(() => {
-				void this.stop(`Execution timed out after ${timeoutMs}ms; kernel state was cleared and shell subprocesses stopped. Side effects may remain; do not blindly retry. Set timeoutMs explicitly on this call for longer work, or use term / retained promises.`);
+				void this.stop(`Execution timed out after ${timeoutMs}ms; kernel state was cleared and shell subprocesses stopped. Captured partial output is included (bounded); side effects may remain, so do not blindly retry. Use term for long suites/clones, set timeoutMs on this call, or retain a promise and await it in a later cell.`);
 			}, timeoutMs);
 			try {
 				void this.start().then(() => {
@@ -264,6 +272,12 @@ export class Kernel {
 		this.child = undefined;
 		this.ready = undefined;
 		this.abortCalls();
+		for (const [pid, streams] of this.shellOutput) {
+			for (const [stream, text] of streams) this.append(`
+[interrupted shell ${pid} ${stream}; partial capture, up to 50 KiB]
+${text}`);
+		}
+		this.shellOutput.clear();
 		if (this.active) {
 			this.active.trace = structuredClone(this.active.trace);
 			this.active.trace.finished = true;
