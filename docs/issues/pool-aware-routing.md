@@ -62,3 +62,7 @@ export async function localUsage(pool: PoolId, since: number): Promise<{ tokens:
 - codex: headroom `subscription/codex_rate_limits.py` + commit `8c00f71` (headers -> `/wham/usage`); Soju06/codex-lb `usage-refresh-policy/context.md`.
 - anthropic: claude-code issues #41185 (`-unified-5h/7d-utilization`), #55333 (unified 5h status/remaining/reset); FullFran/claudeops-tui `oauth-usage-endpoint.md`; oh-my-claudecode #3576 + jonny/claude-code `services/api/usage.ts` (`limits[]`, `extra_usage`); openusage `providers/claude.md`.
 - xai: openusage `providers/xai.md` (`/api-key`, `x-ratelimit-*`); quotas `providers/grok.rs` (`cli-chat-proxy/v1/billing`); OmniRoute `grokCliQuotaFetcher.ts` (gRPC-web); Hermes agent xai-oauth guide.
+
+decisions:
+- 2026-09-18: featherless is a pool too: per-model \`concurrency_cost\` against a plan-wide concurrency limit (two DeepSeek-V4.1-Flash workers at cost 4 each hit \`concurrency_limit_exceeded\`). the slack reader needs a concurrency dimension, not only a token window.
+- 2026-09-18: operon's records have no pool dimension and no CPM (see [[projects/mlegls-pi/issues/archive/operon-adapter]]); the pool view is computed here and rendered into the vault, not stored in operon.
