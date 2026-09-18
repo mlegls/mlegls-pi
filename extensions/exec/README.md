@@ -439,9 +439,12 @@ This script does not replace any unrelated `board` executable on PATH.
 
 ### Workmux
 
-- `wm.spawn({run?, workers: [{handle, prompt, agent?, base?}], wake?, wait?})`
+- `wm.spawn({run?, from?: "fork" | "summary", workers: [{handle, prompt, agent?, base?, from?}], wake?, wait?})`
   returns `{workers, subscribed}`. The first spawn requires `run`; subsequent
-  calls remember it. Reports subscribe through the board; `wake` defaults true.
+  calls remember it. `from: "fork"` adds `--fork <parent session file>` to the
+  agent's pi runCommand (file, not id: the child cwd is a different project).
+  `from: "summary"` prepends an extract of the parent session to the prompt.
+  Per-worker `from` overrides the batch. Reports subscribe through the board; `wake` defaults true.
   `wait:true` also returns outcomes and pending handles.
 - `wm.wait({handles?, run?, mode?, timeoutMs?}?)` returns
   `{outcomes, pending, aborted}`. Mode is any (default) or all. Omitted handles

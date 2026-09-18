@@ -81,6 +81,7 @@ test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled
 		on: (name: string, handler: (...args: any[]) => any) => lifecycle.set(name, handler),
 		events,
 		sendMessage() {},
+		registerCommand() {},
 	} as any;
 	sessionExtension(pi);
 	try {
