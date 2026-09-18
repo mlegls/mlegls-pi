@@ -7,8 +7,9 @@ first full-experience target: terminal and harness in tmux, everything else in o
 
 the data — board, tracker vault, worktrees — is substrate-independent; views are per-home. the library's substrate seam is `lib/ui` (spawn/focus/list/capture a pane), tmux backend first. workmux stays as a dependency on tmux.
 
-prototype: a cockpit pane reading board and `wm.status` (run tree, waiting handles, needs-input), plus the obsidian views the tracker skill already defines (`tracker/Tracker.base`, `tracker/Graph`) extended with pool consumption once "[[projects/mlegls-pi/issues/pool-aware-routing]]" records it.
+prototype: a cockpit pane reading board and `wm.status` (run tree, waiting handles, needs-input); the vault views are [[projects/mlegls-pi/issues/tracker-obsidian-plugin]].
 
 decisions:
 - 2026-09-18: bb is a workspace/UI layer, not a competing harness; its threads are a multiplexer, not a mailbox, so the board stays.
 - 2026-09-18: tmux + obsidian is home; bb deferred, not rejected.
+- 2026-09-18: operon rejected as the tracker (too heavy, pipeline-only kanban, time-only gantt); frontmatter stays canonical, views are plugins or ours.
