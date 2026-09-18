@@ -1,4 +1,5 @@
 ---
+claimed-by: frontier/0919/project-modules
 next: implement
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
