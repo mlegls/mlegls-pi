@@ -1,7 +1,6 @@
 ---
 next: prototype
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
-blocked-by: ["[[projects/mlegls-pi/issues/decide-primitive]]"]
 ---
 
 everything that enters context from outside — fs, shell output, web, board — is chunked by kind, each chunk jev-scored against the conversation tail ("does the session need this to proceed"), kept chunks rendered, dropped chunks listed as a one-line index with anchor and p. `show.raw` overrides; `pull(anchor)` pages a dropped chunk in. demand paging with a visible page table.

@@ -1,7 +1,6 @@
 ---
 next: prototype
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
-blocked-by: ["[[projects/mlegls-pi/issues/decide-primitive]]"]
 ---
 
 two ingress operations that are not the filter:

@@ -1,7 +1,6 @@
 ---
 next: implement
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
-blocked-by: ["[[projects/mlegls-pi/issues/decide-primitive]]"]
 ---
 
 orchestrate steps 3–4 as a workflow script: wait → merge → test → classify the outcome with jev {clean, needs-merge-attention, needs-decision, respawn} → handle the first, second, and fourth in the script; only needs-decision wakes the coordinator, carrying a jev-selected excerpt (later the "[[projects/mlegls-pi/issues/skim-and-triage]]" rendering). on checkpoint, default to respawn from the ticket rather than steering: dispatch already prescribes this and the audit shows it was not done (9 topics checkpointed ≥2×, the same handles as the top-cost sessions).
