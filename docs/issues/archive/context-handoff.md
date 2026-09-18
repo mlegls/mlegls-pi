@@ -1,6 +1,5 @@
 ---
-claimed-by: frontier/0919/handoff
-next: implement
+next: done
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
@@ -16,3 +15,6 @@ shape:
 decisions:
 - 2026-09-18: no prototype; iterate in real use.
 - 2026-09-18: fork is one compaction strategy, not its own feature; renamed from fork-spawn. filter waits on implementation need.
+- 2026-09-18: landed `from: "fork" | "summary"` on lib/wm spawn and exec wm.spawn (batch or per-worker). fork uses parentSessionFile (`--fork` path); id misses because the child cwd is a different project. summary is extractive (compaction summaries else user text, 12k), not an LLM compact.
+- 2026-09-18: `/jump <handle>` in extensions/session; no wm.jump, no preview widget.
+- 2026-09-18: modules.ts not updated (project-modules). exec kernel PI_SESSION_* is stale inherited env; host sessionManager is the source. session-meta was missing on this worker; jump falls back to the worktree session list.

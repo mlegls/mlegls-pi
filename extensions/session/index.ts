@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { truncateTail, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { SessionAlertMonitor, type SessionAlert } from "./alerts";
 import { terminalServerName, tmuxAvailable, TmuxTerminalManager, type TerminalSnapshot, type TerminalSummary, type WaitResult } from "./tmux";
+import { childSession } from "./jump";
 
 export type TerminalResult = TerminalSnapshot | TerminalSnapshot[] | TerminalSummary | TerminalSummary[] | WaitResult | { id: string; ended: true };
 
@@ -171,6 +172,28 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
+	pi.registerCommand("jump", {
+		description: "Switch this session to a worker's session file: /jump <handle>",
+		handler: async (args, ctx) => {
+			const handle = args?.trim() ?? "";
+			if (!handle) {
+				ctx.ui.notify("Usage: /jump <handle>", "error");
+				return;
+			}
+			try {
+				const file = await childSession(handle, ctx.cwd, ctx.sessionManager.getSessionFile());
+				await ctx.waitForIdle();
+				const result = await ctx.switchSession(file, {
+					withSession: async (next) => {
+						next.ui.notify(`Jumped to ${handle}`, "info");
+					},
+				});
+				if (result.cancelled) ctx.ui.notify("Jump cancelled", "info");
+			} catch (err) {
+				ctx.ui.notify(err instanceof Error ? err.message : String(err), "error");
+			}
+		},
+	});
 	pi.events.on("term:request", (payload) => {
 		const request = payload as TerminalRequest;
 		request.handled = true;

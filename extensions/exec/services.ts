@@ -90,7 +90,7 @@ const SERVICE_HELP = {
 		ack: { signature: "ack(ids: string[])", returns: "{acknowledged}", notes: "Marks only these IDs handled, suppressing their pending delivery/wake." },
 	},
 	wm: {
-		spawn: { signature: "spawn({run?, workers: {handle, prompt, agent?, base?}[], wake?, wait?})", returns: "{workers, subscribed, outcomes?, pending?, aborted?}", notes: "run required until remembered by successful spawn. Subscribes to worker reports; wake defaults true. wait=true waits for all." },
+		spawn: { signature: "spawn({run?, from?: \"fork\" | \"summary\", workers: {handle, prompt, agent?, base?, from?}[], wake?, wait?})", returns: "{workers, subscribed, outcomes?, pending?, aborted?}", notes: "run required until remembered by successful spawn. from=fork adds --fork <parent session file> to the pi runCommand; summary prepends an extract of the parent session. Per-worker from overrides the batch. Subscribes to worker reports; wake defaults true. wait=true waits for all." },
 		wait: { signature: "wait({handles?, run?, mode?: \"any\" | \"all\", timeoutMs?}?)", returns: "{outcomes, pending, aborted}", notes: "Defaults to remembered workers and mode=any. Reports remain unacknowledged; use board.ack(message IDs)." },
 		send: { signature: "send(handle, text, {run?}?)", returns: "{handle}" },
 		capture: { signature: "capture(handle, {run?, lines?}?)", returns: "{handle, paneId, text}", notes: "Defaults to 50 lines." },
@@ -117,6 +117,7 @@ function need<T>(value: T | undefined, what: string): T {
 export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adapters: { ui?: ComputerUseBridge } = {}): ExecServices {
 	const cwd = ctx.cwd;
 	const sessionId = ctx.sessionManager.getSessionId();
+	const sessionFile = ctx.sessionManager.getSessionFile?.();
 	const name = process.env.PI_BOARD_NAME ?? basename(cwd);
 
 	let run: string | undefined;
@@ -232,11 +233,13 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 			case "spawn": {
 				const a = object(args);
 				const r = need((a.run as string | undefined) ?? run, "run");
-				const specs = (a.workers as Array<{ handle: string; prompt: string; agent?: string; base?: string }> | undefined) ?? [];
+				const specs = (a.workers as Array<{ handle: string; prompt: string; agent?: string; base?: string; from?: "fork" | "summary" }> | undefined) ?? [];
 				if (!specs.length) throw new Error("workers required");
 				const wake = (a.wake as boolean | undefined) ?? true;
 				const settled = await Promise.allSettled(specs.map(async (o) => {
-					const w = await spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd, parentSession: sessionId });
+					const from = o.from ?? a.from as "fork" | "summary" | undefined;
+					if (from && from !== "fork" && from !== "summary") throw new Error(`from must be "fork" or "summary"`);
+					const w = await spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd, parentSession: sessionId, parentSessionFile: sessionFile, from });
 					// Keep successful workers recoverable even if a sibling fails or RPC aborts.
 					// This map belongs only to the captured session, never a replacement factory.
 					workers.set(w.topic, w);
