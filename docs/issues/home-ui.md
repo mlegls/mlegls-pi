@@ -3,9 +3,12 @@ next: prototype
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
-where the sidebar lives: bb (workspace over harnesses, pi first-class, panel plugins), the terminal (tmux, custom cockpit pane), the browser, or obsidian. the data — board, tracker vault, worktrees — is shared regardless; the views are per-home and written once for whichever wins.
+first full-experience target: terminal and harness in tmux, everything else in obsidian. the tracker, campaign gantt ("[[projects/mlegls-pi/issues/campaign-coordinator]]"), frictions, and research live in the vault and are viewed there; the terminal shows sessions and worker panes; the browser is a per-project tab folder (zen) with the usage pages pinned. bb is not mature enough to be home; revisit when its panel plugins and pi threads are stable. cmux may give way back to ghostty, which only touches the terminal half.
 
-prototype: a week in bb as home with pi threads. the library's substrate seam is `lib/ui` (spawn/focus/list/capture a pane or thread) with the first backend chosen by the trial. workmux follows the substrate: keep as a dependency on tmux, retire under bb (bb owns worktree + thread + sidebar; the worktree half is ~200 lines to reabsorb).
+the data — board, tracker vault, worktrees — is substrate-independent; views are per-home. the library's substrate seam is `lib/ui` (spawn/focus/list/capture a pane), tmux backend first. workmux stays as a dependency on tmux.
+
+prototype: a cockpit pane reading board and `wm.status` (run tree, waiting handles, needs-input), plus the obsidian views the tracker skill already defines (`tracker/Tracker.base`, `tracker/Graph`) extended with pool consumption once "[[projects/mlegls-pi/issues/pool-aware-routing]]" records it.
 
 decisions:
 - 2026-09-18: bb is a workspace/UI layer, not a competing harness; its threads are a multiplexer, not a mailbox, so the board stays.
+- 2026-09-18: tmux + obsidian is home; bb deferred, not rejected.
