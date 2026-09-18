@@ -16,3 +16,4 @@ holes:
 Verification: live TypeSafe Jev request using `JEV_API_KEY` routed a duplicate-charge refund to billing with p=1. Temporary local HTTP fixture checks passed Cloudflare/direct request encoding, documented Jev response normalization, OpenAI-compatible token-logprob fallback, and pure ask marker (no network). No permanent test harness added. Cloudflare transport and logprobs were fixture-tested, not live-tested. Logprobs requires 2–20 options and rejects missing option probabilities rather than inventing zeroes; its distribution is conditional on the option labels, not Jev-calibrated.
 
 Repository check: `bun test` — 130 pass, 2 skipped, 0 fail. `bunx tsc --noEmit` reports existing errors in exa tests, session/tmux, and system-prompt tests; none in `lib/decide.ts`.
+- 2026-09-18: the ask fallback mid-script neither suspends nor re-runs; the script runs in a forked session and blocks on `needs-input`: "[[projects/mlegls-pi/issues/fork-spawn]]".
