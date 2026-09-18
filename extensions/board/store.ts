@@ -1,7 +1,7 @@
 // Append-only JSONL message log shared by every pi session (and any script)
 // on this machine. Importable from plain bun scripts without the extension.
 
-import { appendFileSync, existsSync, mkdirSync, openSync, readSync, closeSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, openSync, readSync, closeSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { compileQuery, type Query } from "./query";
@@ -40,6 +40,20 @@ export function boardDir(): string {
 export function logPath(): string {
 	return join(boardDir(), "log.jsonl");
 }
+/** A board read or acknowledgment, appended to `reads.jsonl` beside the message log so delivery is auditable without grepping sessions. */
+export interface ReadEvent {
+	ts: string;
+	action: "read" | "ack";
+	reader: { session?: string; name?: string; cwd?: string };
+	ids?: string[];
+	topic?: string;
+	tags?: string;
+	count?: number;
+}
+
+export function readsPath(): string {
+	return join(boardDir(), "reads.jsonl");
+}
 
 let lastMs = 0;
 function stamp(): { id: string; ts: string } {
@@ -56,6 +70,28 @@ export function send(input: Omit<Message, "id" | "ts">): Message {
 	mkdirSync(boardDir(), { recursive: true });
 	appendFileSync(logPath(), JSON.stringify(message) + "\n");
 	return message;
+}
+/** Log a read or acknowledgment with the reader's identity. Kept out of log.jsonl so it never parses as a message. */
+export function noteRead(event: Omit<ReadEvent, "ts">): ReadEvent {
+	const entry: ReadEvent = { ts: stamp().ts, ...event };
+	mkdirSync(boardDir(), { recursive: true });
+	appendFileSync(readsPath(), JSON.stringify(entry) + "\n");
+	return entry;
+}
+
+export function readReadEvents(): ReadEvent[] {
+	const path = readsPath();
+	if (!existsSync(path)) return [];
+	const events: ReadEvent[] = [];
+	for (const line of readFileSync(path, "utf8").split("\n")) {
+		if (!line) continue;
+		try {
+			events.push(JSON.parse(line));
+		} catch {
+			// Skip a torn line rather than poisoning the audit.
+		}
+	}
+	return events;
 }
 
 /** Read raw bytes appended since `offset`. Returns complete lines only. */

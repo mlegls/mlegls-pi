@@ -17,7 +17,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { ComputerUseBridge } from "./computer-use";
 import { contents as exaContents, search as exaSearch, type ExaContentsOptions, type ExaSearchOptions } from "../exa/client";
 import { parseTags } from "../board/query";
-import { meta as boardMeta, read as readBoard, send as sendBoard, topics as boardTopics, type Message } from "../board/store";
+import { meta as boardMeta, noteRead, read as readBoard, send as sendBoard, topics as boardTopics, type Message } from "../board/store";
 import { AGENTS_DIR, MergeConflict, attach, merge, spawn, wait, workmuxStatus, type Outcome, type Worker } from "../../lib/wm";
 
 const REPORT_TAGS = "done | blocked | needs-input | checkpoint";
@@ -197,7 +197,10 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 				const fields = a.fields;
 				if (fields !== undefined && fields !== "full" && fields !== "meta") throw new Error("fields must be \"full\" or \"meta\"");
 				if (a.bodyChars !== undefined && (typeof a.bodyChars !== "number" || !Number.isInteger(a.bodyChars) || a.bodyChars < 0)) throw new Error("bodyChars must be a nonnegative integer");
-				const { messages, omitted, total } = readBoard({ topic: a.topic as string | undefined, tags: tagFilter(a.tags), limit: a.limit as number | undefined });
+				const topic = a.topic as string | undefined;
+				const tags = tagFilter(a.tags);
+				const { messages, omitted, total } = readBoard({ topic, tags, limit: a.limit as number | undefined });
+				if (messages.length) noteRead({ action: "read", reader: { session: sessionId, name, cwd }, topic, tags, count: messages.length });
 				return {
 					messages: fields === "meta" ? messages.map((m) => boardMeta(m, typeof a.bodyChars === "number" ? a.bodyChars : 120)) : messages,
 					omitted,
@@ -233,7 +236,7 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 				if (!specs.length) throw new Error("workers required");
 				const wake = (a.wake as boolean | undefined) ?? true;
 				const settled = await Promise.allSettled(specs.map(async (o) => {
-					const w = await spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd });
+					const w = await spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd, parentSession: sessionId });
 					// Keep successful workers recoverable even if a sibling fails or RPC aborts.
 					// This map belongs only to the captured session, never a replacement factory.
 					workers.set(w.topic, w);

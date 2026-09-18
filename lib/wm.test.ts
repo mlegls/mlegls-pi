@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Worker, wait, type Outcome } from "./wm";
+import { Worker, spawnEnv, wait, type Outcome } from "./wm";
 
 const done = (body: string): Outcome => ({
 	kind: "done",
@@ -86,3 +86,21 @@ test("poller delivers a report posted after the worker is registered", async () 
 		rmSync(dir, { recursive: true, force: true });
 	}
 }, 5000);
+
+describe("spawnEnv", () => {
+	test("carries board identity, spawn provenance, and the fence ratio", () => {
+		expect(spawnEnv({ run: "reorg/0918", handle: "a", agent: "auto", parentSession: "s1", checkpoint: "0.6" })).toEqual([
+			"PI_BOARD_NAME=a",
+			"PI_BOARD_TOPIC=reorg/0918/a",
+			"PI_WM_AGENT=auto",
+			"PI_WM_RUN=reorg/0918",
+			"PI_WM_HANDLE=a",
+			"PI_WM_PARENT_SESSION=s1",
+			"PI_CHECKPOINT=0.6",
+		]);
+	});
+
+	test("drops absent optional values", () => {
+		expect(spawnEnv({ run: "r", handle: "h" })).toEqual(["PI_BOARD_NAME=h", "PI_BOARD_TOPIC=r/h", "PI_WM_RUN=r", "PI_WM_HANDLE=h"]);
+	});
+});

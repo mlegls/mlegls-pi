@@ -17,7 +17,7 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { pipe, PipeParam } from "../../lib/pipe";
 import { compileQuery, parseTags } from "./query";
-import { logSize, read, readFrom, send, topics, type Message, type Numbered } from "./store";
+import { logSize, noteRead, read, readFrom, send, topics, type Message, type Numbered } from "./store";
 
 interface Subscription {
 	topic: string;
@@ -119,6 +119,10 @@ export default function (pi: ExtensionAPI) {
 		pi.appendEntry(CURSOR_ENTRY, { offset: cursor, pending: [...pending.values()] });
 	}
 
+	function reader() {
+		return { session: sessionId, name, cwd };
+	}
+
 	function acknowledge(ids: string[]) {
 		const fresh = ids.filter((id) => !seen.has(id));
 		if (!fresh.length) return;
@@ -126,6 +130,7 @@ export default function (pi: ExtensionAPI) {
 			seen.add(id);
 			pending.delete(id);
 		}
+		noteRead({ action: "ack", reader: reader(), ids: fresh });
 		pi.appendEntry(SEEN_ENTRY, fresh);
 		persistDelivery();
 	}
@@ -277,6 +282,7 @@ export default function (pi: ExtensionAPI) {
 		async execute(_id, params) {
 			parseTags(params.tags); // validate early for a clean error
 			const { messages, omitted } = read({ ...params, limit: params.limit ?? (params.pipe ? Infinity : 20) });
+			if (messages.length) noteRead({ action: "read", reader: reader(), topic: params.topic, tags: params.tags, count: messages.length });
 			let text = messages.length ? render(messages, params.mode ?? "full") : "";
 			if (params.pipe) text = pipe(text, params.pipe, cwd);
 			if (!text) text = "(no messages)";

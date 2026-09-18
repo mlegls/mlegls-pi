@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { logSize, meta, read, readFrom, send, topics, waitFor } from "./store";
+import { logSize, meta, noteRead, read, readFrom, readReadEvents, readsPath, send, topics, waitFor } from "./store";
 
 let dir: string;
 beforeEach(() => {
@@ -83,3 +83,23 @@ test("query reports what the limit dropped", () => {
 	expect(read({ limit: 0 })).toEqual({ messages: [], omitted: 5, total: 5 });
 });
 
+
+test("reads and acks log beside the message log with the reader", () => {
+	const a = send({ topic: "t", tags: ["done"], body: "x", from });
+	const b = send({ topic: "t", tags: ["done"], body: "y", from });
+	noteRead({ action: "read", reader: { session: "s1", name: "reader" }, topic: "t", tags: "done", count: 2 });
+	noteRead({ action: "ack", reader: { session: "s1", name: "reader" }, ids: [a.id, b.id] });
+	const events = readReadEvents();
+	expect(events.map((e) => e.action)).toEqual(["read", "ack"]);
+	expect(events[0]).toMatchObject({ reader: { session: "s1", name: "reader" }, topic: "t", tags: "done", count: 2 });
+	expect(events[1]!.ids).toEqual([a.id, b.id]);
+	expect(events.every((e) => Number.isFinite(Date.parse(e.ts)))).toBe(true);
+	expect(read({}).messages.map((m) => m.id)).toEqual([a.id, b.id]);
+});
+
+test("readReadEvents tolerates an absent file and torn lines", () => {
+	expect(readReadEvents()).toEqual([]);
+	noteRead({ action: "read", reader: {}, count: 1 });
+	appendFileSync(readsPath(), "{torn\n");
+	expect(readReadEvents()).toHaveLength(1);
+});
