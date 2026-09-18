@@ -22,3 +22,4 @@ decisions:
 - 2026-09-18: the parent does not autoread its children; child reports are classified, and the filter applies to fs and other outside ingress.
 - 2026-09-18: jev is treated as free; use it for every decision node, not as a cheaper LLM.
 - 2026-09-18: decide-primitive landed as lib/decide.ts (jev direct or cloudflare, logprobs and ask fallbacks, ~2s live); suspend semantics and state serialization stay open holes.
+- 2026-09-18: session-instrumentation landed: PI_WM_* env → session-meta entry, board reads.jsonl, billing/pool flags in ~/.pi/agent/models.json (machine config, not in repo).

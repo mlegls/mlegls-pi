@@ -109,4 +109,4 @@ tool returned the child's final output as the call result.
   but is from the previous roster.
 - The board log records sends only, so whether a message was read is unanswerable without
   grepping sessions.
-- No subscription-vs-metered flag per model; luna has no price.
+- No subscription-vs-metered flag per model. (luna was priced by the time of the audit; the $0 figure came from an earlier catalog.)

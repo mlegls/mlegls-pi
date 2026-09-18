@@ -1,7 +1,6 @@
 ---
 next: measure
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
-blocked-by: ["[[projects/mlegls-pi/issues/session-instrumentation]]"]
 ---
 
 hypotheses left open by [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]]. each is a session; split out when claimed.
