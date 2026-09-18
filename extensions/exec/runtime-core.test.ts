@@ -38,7 +38,7 @@ test("reserved names reject redeclaration before effects; nested shadowing leave
 		for (const declaration of ["const", "let", "var", "function"]) {
 			const binding = declaration === "function" ? "function " + name + "() {}" : declaration + " " + name + " = 1;";
 			const rejected = await kernel.execute('state.leaked = true; show("must not run"); ' + binding);
-			expect(rejected.error).toContain("SyntaxError");
+			expect(rejected.error).toMatch(/SyntaxError|Reserved exec binding/);
 			expect(rejected.output).toBe("");
 		}
 	}
@@ -55,7 +55,7 @@ test("reserved names reject redeclaration before effects; nested shadowing leave
 } }), 15000);
 
 test("registry omits disabled modules and cannot bypass the host module gate", () => fixture(async (kernel) => {
-	expect(await cell(kernel, 'show(Object.keys(__exec).sort().join(","));')).toBe("console,host,notify,show,state\n");
+	expect(await cell(kernel, 'show(Object.keys(__exec).sort().join(","));')).toBe("cards,console,decide,dispatch,host,notify,pipe,project,show,state,supervise\n");
 	expect(await cell(kernel, 'show(typeof read, typeof sh, typeof ui, typeof exa, typeof board, typeof wm, typeof term);')).toBe("undefined undefined undefined undefined undefined undefined undefined\n");
 	for (const namespace of ["ui", "exa", "board", "wm", "term", "fs", "sh"]) {
 		const result = await kernel.execute(`await __exec.host.call(${JSON.stringify(namespace)}, "help", {});`);

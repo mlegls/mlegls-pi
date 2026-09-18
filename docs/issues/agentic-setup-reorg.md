@@ -30,3 +30,4 @@ decisions:
 - 2026-09-18: pool-aware-routing researched: codex wham/usage endpoint, anthropic in-band ratelimit headers, xai api-key balance only; pi captures none, seam is after_provider_response.
 - 2026-09-18: skills-triage resolved: skills stay skills and migrate one at a time; the skill list is the index, not a new one. "[[projects/mlegls-pi/issues/context-handoff]]" and "[[projects/mlegls-pi/issues/exec-project-modules]]" added; the parent's `next` is carried by its children.
 - 2026-09-18: context-handoff landed: wm.spawn({from:"fork"|"summary"}), /jump <handle>. "[[projects/mlegls-pi/issues/archive/context-handoff]]".
+- 2026-09-18: exec-project-modules landed: `.pi/exec/<name>.ts` shadows `lib/<name>.ts` in the cell; new stems are `project.<name>`; `skills/mlegls-pi` documents layout/add/reload. "[[projects/mlegls-pi/issues/archive/exec-project-modules]]".

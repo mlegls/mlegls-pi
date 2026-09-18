@@ -119,6 +119,15 @@ imports and enabled shell commands can still access underlying capabilities.
 The full reference below describes all modules; each session advertises only its
 selected surface.
 
+## Project modules
+
+`lib/<name>.ts` is in the cell as `<name>`, except names already in the exec API
+(`board`, `wm`, and the rest of the module table). A project file
+`.pi/exec/<name>.ts` shadows the lib file with the same stem. A name that is not
+in `lib/` is `project.<name>`. Upstreaming is moving the file to `lib/`.
+`/exec-reset` (or a new session) re-imports; a running kernel keeps the modules
+it started with.
+
 
 ## Cell scope and retained state
 
