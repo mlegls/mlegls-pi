@@ -23,3 +23,5 @@ decisions:
 - 2026-09-18: jev is treated as free; use it for every decision node, not as a cheaper LLM.
 - 2026-09-18: decide-primitive landed as lib/decide.ts (jev direct or cloudflare, logprobs and ask fallbacks, ~2s live); suspend semantics and state serialization stay open holes.
 - 2026-09-18: session-instrumentation landed: PI_WM_* env → session-meta entry, board reads.jsonl, billing/pool flags in ~/.pi/agent/models.json (machine config, not in repo).
+- 2026-09-18: supervision-join-script landed as lib/supervise.ts (serial wait→merge→test→decide; pending value, no wake primitive; caller must not wake on worker topics). live jev on recorded reports: clean .83, needs-decision .69, checkpoint→respawn only .39 — the respawn class needs a threshold or better state. cost effect unmeasured; first real run of the script is the measurement.
+- 2026-09-18: dispatch-script landed as lib/dispatch.ts; baseline on archived tickets invalid (completion prose), next is measure over spawn prompts.
