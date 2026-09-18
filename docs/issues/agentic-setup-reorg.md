@@ -1,5 +1,4 @@
 ---
-tags: [task]
 next: wait
 priority: 1
 ---

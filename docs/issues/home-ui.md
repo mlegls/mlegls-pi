@@ -1,7 +1,6 @@
 ---
-tags: [task]
 next: prototype
-parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 first full-experience target: terminal and harness in tmux, everything else in obsidian. the tracker, campaign gantt ("[[projects/mlegls-pi/issues/campaign-coordinator]]"), frictions, and research live in the vault and are viewed there; the terminal shows sessions and worker panes; the browser is a per-project tab folder (zen) with the usage pages pinned. bb is not mature enough to be home; revisit when its panel plugins and pi threads are stable. cmux may give way back to ghostty, which only touches the terminal half.

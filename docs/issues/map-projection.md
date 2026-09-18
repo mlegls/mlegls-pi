@@ -1,8 +1,7 @@
 ---
-tags: [task]
 next: wait
-parent: "[[projects/mlegls-pi/issues/autoread-show-me]]"
-blockedBy: ["[[projects/mlegls-pi/issues/autoread-show-me]]"]
+part-of: "[[projects/mlegls-pi/issues/autoread-show-me]]"
+blocked-by: ["[[projects/mlegls-pi/issues/autoread-show-me]]"]
 ---
 
 the deterministic version of the map: slice (grep/LSP-seeded neighborhood over the code graph), rank (jev per node), project (call tree, component tree, file tree, sequence from the graph), label (cached, cheap LLM only on cache miss). buys determinism, latency (deepseek thinking time is the real cost of the LLM version), and the label cache — not dollars.

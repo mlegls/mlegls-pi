@@ -1,7 +1,6 @@
 ---
-tags: [task]
 next: prototype
-parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 autoread returns understanding, not snippets: the show-me forms — labeled file tree, call tree from the ticket's identifiers outward, component tree where there is UI, a sequence diagram for the story path, pseudocode for the one function that matters — with `path:line` only as leaves. these are Kruchten's 4+1 views; the only freeform work is one-line labels per node and pseudocode, both cacheable by content hash.

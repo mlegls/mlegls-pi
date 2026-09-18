@@ -1,7 +1,6 @@
 ---
-tags: [task]
 next: prototype
-parent: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
 two ingress operations that are not the filter:

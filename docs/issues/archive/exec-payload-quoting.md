@@ -1,6 +1,4 @@
 ---
-tags: [task]
-status: x
 next: done
 priority: 2
 ---

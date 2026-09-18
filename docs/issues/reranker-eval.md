@@ -1,7 +1,6 @@
 ---
-tags: [task]
 next: measure
-parent: "[[projects/mlegls-pi/issues/ingress-filter]]"
+part-of: "[[projects/mlegls-pi/issues/ingress-filter]]"
 ---
 
 can jev separate the files a session acted on from the ones it read and never referenced? the audit labeled 3648 unique `read` calls: 58% acted on, 24% never referenced. for a sample of sessions, reconstruct the conversation state at each read, chunk the file, score with jev, and check whether the kept set covers the acted-on files and drops the never-referenced ones. report precision/recall at several thresholds and the calibration curve.
