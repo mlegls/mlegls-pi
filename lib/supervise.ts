@@ -70,7 +70,7 @@ async function test(command: string, cwd: string): Promise<TestResult> {
  return { exitCode: await child.exited, tail };
 }
 const defaults: Dependencies = {
- attach: wm.attach, wait: wm.wait, merge: wm.merge, spawn: wm.spawn, decide, test,
+ attach: wm.attach, wait: wm.wait, merge: wm.merge, spawn: wm.spawn, decide: (state, questions, options) => decide(state, questions, options ?? {}), test,
  ticket: path => readFileSync(path, "utf8"), reports: readAll,
  // Delivery acks are session-local; a script records seen IDs and a protocol ack,
  // not another pi session's delivery queue.
@@ -89,6 +89,16 @@ export async function supervise(input: Supervision, overrides: Partial<Dependenc
  if (new Set(state.handles.map(h => h.handle)).size !== state.handles.length || state.handles.some(h => !h.handle || !h.ticket || !h.agent)) throw new Error("Unique handles with ticket and agent required");
  const seen = new Set(state.seen ?? []);
  const metrics = state.metrics ??= { reports: 0, decisions: 0, respawns: 0, coordinatorBytes: 0 };
+ // Count compact JSON returned to the coordinator, including the resumable state.
+ // Iterate to include the byte counter's own decimal width.
+ const finish = (value: Result): Result => {
+  const before = metrics.coordinatorBytes;
+  for (;;) {
+   const bytes = before + Buffer.byteLength(JSON.stringify(value));
+   if (metrics.coordinatorBytes === bytes) return value;
+   metrics.coordinatorBytes = bytes;
+  }
+ };
  const workers = new Map<string, wm.Worker>();
  const queued: Array<[wm.Worker, wm.Outcome]> = [];
  const terminal = ["done", "blocked", "needs-input", "checkpoint"] as const;
@@ -127,7 +137,7 @@ export async function supervise(input: Supervision, overrides: Partial<Dependenc
    // Guard destructive cleanup even if classification contradicts execution evidence.
    if (route === "clean" && (report.kind !== "done" || merge.kind !== "merged" || tests.exitCode !== 0)) { route = "needs-decision"; reason = "Clean classification contradicted execution evidence"; }
    if (route === "needs-merge-attention" && merge.kind === "conflict" && !h.conflictSent) {
-    await w.send("Merge conflicts: " + merge.files.join(", ") + "\nMerge the coordinator branch into yours, resolve and commit, then report again.");
+    await w.send("Merge conflicts: " + merge.files.join(", ") + "\nMerge the current branch of coordinator checkout " + cwd + " into yours, resolve and commit, then report again.");
     h.conflictSent = true;
     continue;
    }
@@ -154,15 +164,14 @@ export async function supervise(input: Supervision, overrides: Partial<Dependenc
    reason ||= route === "respawn" ? "Respawn limit reached or merge failed" : route === "needs-merge-attention" ? "Conflict already sent once or no conflict list" : "Coordinator decision required";
    metrics.decisions++;
    const payload = { kind: "pending" as const, handle: h.handle, report, excerpt: { source, text: context[source] }, evidence: context, reason };
-   metrics.coordinatorBytes += Buffer.byteLength(JSON.stringify(payload));
-   return { ...payload, state };
+   return finish({ ...payload, state });
   }
-  return { kind: "done", state };
+  return finish({ kind: "done", state });
  } finally { for (const w of workers.values()) w.drop(); }
 }
 
 if (import.meta.main) {
  const path = process.argv[2];
  if (!path) { console.error("usage: bun lib/supervise.ts request.json"); process.exit(2); }
- console.log(JSON.stringify(await supervise(JSON.parse(readFileSync(path, "utf8"))), null, 2));
+ console.log(JSON.stringify(await supervise(JSON.parse(readFileSync(path, "utf8")))));
 }
