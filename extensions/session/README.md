@@ -1,6 +1,7 @@
 # Host terminal service
 
-This extension owns persistent tmux terminals and alert delivery. It registers no
+This extension owns persistent tmux terminals and alert delivery, and `/jump <handle>`
+to switch the current session to a wm worker's session file. It registers no
 model-facing tools. Exec forwards its `term` namespace through the Pi event bus:
 
 ```ts
@@ -40,3 +41,8 @@ a request stops waiting/command transport, not already-created terminals. Use
 `end` to terminate explicitly (and suppress their pending alerts).
 Session start, shutdown, and tree navigation abort outstanding requests; tree
 navigation refreshes the active context without replacing the tmux server.
+
+`/jump <handle>` waits for idle, then `switchSession` to that worker's session
+file (session-meta handle, else a fork of this session, else newest in the
+worktree's session dir). The child's file is the continuation when spawned with
+`from: "fork"`.

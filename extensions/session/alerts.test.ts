@@ -121,6 +121,7 @@ describe.skipIf(!tmuxAvailable())("SessionAlertMonitor", () => {
 			sendMessage(message: SentMessage["message"], options: SentMessage["options"]) {
 				messages.push({ message, options });
 			},
+			registerCommand() {},
 		} as unknown as ExtensionAPI);
 		const ctx = {
 			cwd,
