@@ -1,5 +1,6 @@
 ---
 next: implement
+claimed-by: supervision-join-script
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
