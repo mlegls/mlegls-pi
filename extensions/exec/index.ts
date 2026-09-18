@@ -89,7 +89,7 @@ export default async function (pi: ExtensionAPI) {
 			description: describeModules(modules) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
 			parameters: Type.Object({
 				code: Type.String({ description: "TypeScript to evaluate in the persistent kernel. Use show(...) to emit results." }),
-				timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 2_147_483_647, description: "Host-enforced deadline for this call only, in milliseconds (default 30000). Timeout clears kernel state and stops shell subprocesses; side effects may remain." })),
+				timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 2_147_483_647, description: "Host-enforced deadline for this call only, in milliseconds (default 30000). Timeout clears kernel state and stops shell subprocesses; bounded partial output survives. Use term for long work; side effects may remain." })),
 			}),
 			async execute(_id, { code, timeoutMs }, signal, onUpdate, ctx) {
 				if (configurationError) throw new Error(configurationError);
