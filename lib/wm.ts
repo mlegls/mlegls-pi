@@ -34,6 +34,42 @@ export interface SpawnOptions {
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // tmux session; default slug of run
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
+	parentSessionFile?: string; // session jsonl; --fork needs the path because the child's cwd is a different project
+	from?: "fork" | "summary"; // fork: pi --fork <parent>; summary: prepend an extract of the parent session to the prompt
+}
+
+/** Insert `--fork <source>` after the pi binary. Source should be the parent session file when the child cwd differs. */
+export function withFork(cmd: string, source: string): string {
+	if (/(?:^|\s)--fork(?:\s|$|=)/.test(cmd)) return cmd;
+	const i = cmd.search(/\s/);
+	const bin = i < 0 ? cmd : cmd.slice(0, i);
+	if (basename(bin) !== "pi") throw new Error(`from: "fork" needs a pi runCommand, got ${cmd}`);
+	const arg = /[\s"$\\]/.test(source) ? JSON.stringify(source) : source;
+	return `${bin} --fork ${arg}${i < 0 ? "" : cmd.slice(i)}`;
+}
+
+function contentText(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content.map((c) => (c && typeof c === "object" && (c as { type?: string }).type === "text" ? String((c as { text?: string }).text ?? "") : "")).filter(Boolean).join("\n");
+}
+
+/** Compaction summaries if present, else user-message text. Truncated. */
+export function parentSummary(file: string, max = 12_000): string {
+	const comps: string[] = [];
+	const users: string[] = [];
+	for (const line of readFileSync(file, "utf8").split("\n")) {
+		if (!line) continue;
+		let e: { type?: string; summary?: string; message?: { role?: string; content?: unknown } };
+		try { e = JSON.parse(line); } catch { continue; }
+		if (e.type === "compaction" && e.summary) comps.push(e.summary);
+		if (e.type === "message" && e.message?.role === "user") {
+			const t = contentText(e.message.content);
+			if (t) users.push(t);
+		}
+	}
+	const text = (comps.length ? comps : users).join("\n\n");
+	return text.length <= max ? text : `${text.slice(0, max)}\n…`;
 }
 
 const TERMINAL = ["done", "blocked", "needs-input", "checkpoint"] as const;
@@ -437,8 +473,21 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
 	try {
 		const a = o.agent ? agent(o.agent) : undefined;
-		const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
-		const cmd = a ? a.runCommand : o.agent;
+		let text = o.prompt;
+		if (o.from === "summary") {
+			const file = o.parentSessionFile ?? process.env.PI_SESSION_FILE;
+			if (file && existsSync(file)) text = [parentSummary(file), o.prompt].filter(Boolean).join("\n\n---\n\n");
+		} else if (o.from && o.from !== "fork") {
+			throw new Error(`from must be "fork" or "summary"`);
+		}
+		const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, prompt: text, agent: a })];
+		let cmd = a ? a.runCommand : o.agent;
+		if (o.from === "fork") {
+			const source = o.parentSessionFile ?? o.parentSession ?? process.env.PI_SESSION_FILE ?? process.env.PI_SESSION_ID;
+			if (!source) throw new Error(`from: "fork" needs parentSessionFile, parentSession, or PI_SESSION_ID`);
+			if (!cmd) throw new Error(`from: "fork" needs a pi runCommand`);
+			cmd = withFork(cmd, source);
+		}
 		// Board identity, spawn provenance (session-meta), and the fence ratio ride the agent command's env.
 		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint });
 		if (cmd) args.push("-a", `${env.join(" ")} ${cmd}`);
@@ -504,7 +553,7 @@ if (import.meta.main) {
 		case "spawn": {
 			const promptFile = opt("prompt-file");
 			const prompt = promptFile ? readFileSync(promptFile, "utf8") : need(opt("prompt"), "prompt");
-			const w = await spawn({ run: need(opt("run"), "run"), handle: need(pos[0], "handle"), prompt, agent: opt("agent"), base: opt("base"), session: opt("session") });
+			const w = await spawn({ run: need(opt("run"), "run"), handle: need(pos[0], "handle"), prompt, agent: opt("agent"), base: opt("base"), session: opt("session"), from: opt("from") as "fork" | "summary" | undefined, parentSessionFile: process.env.PI_SESSION_FILE });
 			print(w);
 			process.exit(0);
 		}
@@ -548,7 +597,7 @@ if (import.meta.main) {
 			process.exit(0);
 		}
 		default:
-			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) [--agent A] [--base B]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status | agents");
+			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) [--agent A] [--base B] [--from fork|summary]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status | agents");
 			process.exit(2);
 	}
 }
