@@ -1,5 +1,5 @@
 ---
-next: grill
+next: wait
 priority: 1
 ---
 
@@ -27,3 +27,4 @@ decisions:
 - 2026-09-18: dispatch-script landed as lib/dispatch.ts; baseline on archived tickets invalid (completion prose), next is measure over spawn prompts.
 - 2026-09-18: operon-adapter answered: CLI + in-process API only, no HTTP/MCP, needs obsidian running; project = parent task tree, gantt exists without CPM or pools; next and claimed-by have no analogue. adapter is possible but lossy; whether to adopt is part of the campaign-coordinator grill.
 - 2026-09-18: pool-aware-routing researched: codex wham/usage endpoint, anthropic in-band ratelimit headers, xai api-key balance only; pi captures none, seam is after_provider_response.
+- 2026-09-18: skills-triage resolved: skills stay skills and migrate one at a time; the skill list is the index, not a new one. "[[projects/mlegls-pi/issues/context-handoff]]" and "[[projects/mlegls-pi/issues/exec-project-modules]]" added; the parent's `next` is carried by its children.
