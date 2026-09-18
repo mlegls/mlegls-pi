@@ -1,3 +1,5 @@
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"] as const;
@@ -23,12 +25,60 @@ export function resolveModules(allow?: unknown, deny?: unknown): ExecModule[] {
 	return MODULES.filter(name => allowed.has(name) && !denied.has(name));
 }
 
+export const LIB_DIR = fileURLToPath(new URL("../../lib/", import.meta.url));
+
+const BINDING = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const RESERVED = new Set<string>([
+	...MODULES, "show", "notify", "console", "state", "__exec", "host", "project",
+	"eval", "arguments", "await", "break", "case", "catch", "class", "const", "continue",
+	"debugger", "default", "delete", "do", "else", "enum", "export", "extends", "false",
+	"finally", "for", "function", "if", "import", "in", "instanceof", "let", "new", "null",
+	"return", "static", "super", "switch", "this", "throw", "true", "try", "typeof", "var",
+	"void", "while", "with", "yield", "implements", "interface", "package", "private",
+	"protected", "public",
+]);
+
+export type CellModule = { name: string; path: string; scope: "lib" | "project" };
+
+function stem(file: string): string | undefined {
+	if (!file.endsWith(".ts") || file.endsWith(".test.ts") || file.endsWith(".d.ts")) return;
+	const name = file.slice(0, -3);
+	if (BINDING.test(name) && !RESERVED.has(name)) return name;
+}
+
+async function listed(dir: string): Promise<Map<string, string>> {
+	const out = new Map<string, string>();
+	let entries;
+	try { entries = await readdir(dir, { withFileTypes: true }); } catch { return out; }
+	for (const entry of entries) {
+		if (!entry.isFile()) continue;
+		const name = stem(entry.name);
+		if (name) out.set(name, join(dir, entry.name));
+	}
+	return out;
+}
+
+/** lib/<name>.ts in cell as <name>; cwd .pi/exec/<name>.ts shadows it, or becomes project.<name>. */
+export async function resolveCellModules(cwd: string, libDir = LIB_DIR): Promise<CellModule[]> {
+	const lib = await listed(libDir);
+	const local = await listed(join(cwd, ".pi", "exec"));
+	const modules: CellModule[] = [];
+	for (const name of [...lib.keys()].sort()) {
+		modules.push({ name, path: local.get(name) ?? lib.get(name)!, scope: "lib" });
+		local.delete(name);
+	}
+	for (const name of [...local.keys()].sort()) {
+		modules.push({ name, path: local.get(name)!, scope: "project" });
+	}
+	return modules;
+}
+
 const API: Record<ExecModule, string[]> = {
 	"fs": [
 		"await find(glob?, {paths?, hidden?}?) -> string[] (ignore-aware).",
 		"await read(path) -> source {path, text, rows, lines(start?,end?), outline()}.",
 		"await loadSkill(path) -> retained {path,text,commands,content()}; explicit non-anchored skill loading, expands original dynamic shell placeholders once per call with PI_SKILL_DIR/PI_WORKSPACE. show() never reruns them.",
-		"await write(path, content) -> {path,bytes}; creates parents and overwrites UTF-8 text.",
+		"await write(path, content) -> {path,bytes}; creates parents and overwrites UTF-8 text. For backticks or ${, pass a double-quoted string or lines.join(\"\\n\").",
 		"read(imagePath) -> retained ImageFile; show(image) emits actual image content.",
 		"await grep(pattern: string|RegExp, paths?: string|string[]|source|selection, {glob?,ignoreCase?,literal?,limit?}?) -> selection; options may be second argument when paths are omitted. Sources/selections select files, not row ranges.",
 		"selection.rows / [...selection] -> {anchor,text,path,line}[]; selection.filter(fn), selection.slice(start?,end?), selection.map(rowFn) -> array, selection.join(separator=\"\\n\") -> row text, selection.context(n), await selection.enclosing(), selection.complete.",
@@ -37,7 +87,7 @@ const API: Record<ExecModule, string[]> = {
 		"await replace(selection, (text,row) => newText) uses the same checked edit engine."
 	],
 	"sh": [
-		"await sh.raw`command` (preferred for shell backslashes/regex/heredocs), sh`command`, or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. sh.raw`...` preserves backslashes in template segments; sh`...` cooks JS escapes (e.g. \\n becomes a newline). Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors."
+		"await sh.raw`command` (preferred for shell backslashes/regex/heredocs), sh`command`, or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. sh.raw`...` preserves backslashes in template segments; sh`...` cooks JS escapes (e.g. \\n becomes a newline). Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors. For backticks or ${, pass a double-quoted string or lines.join(\"\\n\") rather than a tagged template."
 	],
 	"exa": [
 		"exa.search(query, options?), exa.contents(urls, options?) -> structured responses."
@@ -62,6 +112,7 @@ export function describeModules(modules: readonly ExecModule[]): string {
 		"TypeScript execution with fresh scope per call and a persistent kernel. const/let/var and function declarations are cell-local and reusable next call. Retain values/promises explicitly with state.name = value; inspect Object.keys(state), delete state.name to release. Only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects and state writes survive a later error. Never blindly retry a failed cell. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
 		"Cells have a 30s host-enforced deadline. Pass timeoutMs on the exec call to override for that call only (positive integer milliseconds). Timeout clears kernel state, kills shell subprocesses, and aborts host calls; captured output is preserved, side effects may remain. Use term or retained promises for long-running work.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",
+		"lib/<name>.ts is in cell scope as <name> except names already in the exec API. Project .pi/exec/<name>.ts shadows that file; a stem that is not in lib is project.<name>. /exec-reset reloads them.",
 		"Enabled API names, state, and __exec are reserved at cell top level: redeclarations fail before execution. Nested scopes may shadow them. __exec holds the enabled capabilities; registry and API namespaces are frozen. state is a mutable null-prototype object; its binding cannot be reassigned. Module selection is not a security sandbox.",
 		"",
 		"API:",

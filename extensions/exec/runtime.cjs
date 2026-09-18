@@ -394,6 +394,15 @@ async function initialize(message) {
 	}
 	capabilities.console = Object.freeze({ ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show });
 	capabilities.state = Object.create(null);
+	const { pathToFileURL } = require("node:url");
+	const { resolveCellModules } = await import("./modules.ts");
+	const project = Object.create(null);
+	for (const mod of await resolveCellModules(message.cwd)) {
+		const loaded = Object.freeze({ ...(await import(pathToFileURL(mod.path).href)) });
+		if (mod.scope === "project") project[mod.name] = loaded;
+		else capabilities[mod.name] = loaded;
+	}
+	capabilities.project = Object.freeze(project);
 	for (const [name, value] of Object.entries(capabilities)) {
 		Object.defineProperty(server.context, name, { value, writable: false, configurable: false });
 	}
