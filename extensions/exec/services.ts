@@ -233,7 +233,7 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 				if (!specs.length) throw new Error("workers required");
 				const wake = (a.wake as boolean | undefined) ?? true;
 				const settled = await Promise.allSettled(specs.map(async (o) => {
-					const w = await spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd });
+					const w = await spawn({ run: r, handle: o.handle, prompt: o.prompt, agent: o.agent, base: o.base, cwd, parentSession: sessionId });
 					// Keep successful workers recoverable even if a sibling fails or RPC aborts.
 					// This map belongs only to the captured session, never a replacement factory.
 					workers.set(w.topic, w);

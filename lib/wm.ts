@@ -33,6 +33,7 @@ export interface SpawnOptions {
 	base?: string; // git ref to branch from
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // tmux session; default slug of run
+	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
 }
 
 const TERMINAL = ["done", "blocked", "needs-input", "checkpoint"] as const;
@@ -92,6 +93,19 @@ function fill(text: string, run: string, handle: string): string {
 
 export function prompt(o: { run: string; handle: string; prompt: string; agent?: Agent }): string {
 	return [o.agent && fill(o.agent.body, o.run, o.handle), o.prompt, common(o.run, o.handle)].filter(Boolean).join("\n\n---\n\n");
+}
+
+/** Env exported into the worker's agent command: board identity, spawn provenance, and the fence's checkpoint ratio. */
+export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string }): string[] {
+	return [
+		`PI_BOARD_NAME=${o.handle}`,
+		`PI_BOARD_TOPIC=${o.run}/${o.handle}`,
+		o.agent && `PI_WM_AGENT=${o.agent}`,
+		`PI_WM_RUN=${o.run}`,
+		`PI_WM_HANDLE=${o.handle}`,
+		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
+		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
+	].filter((v): v is string => Boolean(v));
 }
 
 function slug(s: string): string {
@@ -425,8 +439,8 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		const a = o.agent ? agent(o.agent) : undefined;
 		const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, agent: a })];
 		const cmd = a ? a.runCommand : o.agent;
-		// The board extension reads the first two (sender name, starting subscription); fence reads the third.
-		const env = [`PI_BOARD_NAME=${o.handle}`, `PI_BOARD_TOPIC=${o.run}/${o.handle}`, a?.checkpoint && `PI_CHECKPOINT=${a.checkpoint}`].filter(Boolean);
+		// Board identity, spawn provenance (session-meta), and the fence ratio ride the agent command's env.
+		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint });
 		if (cmd) args.push("-a", `${env.join(" ")} ${cmd}`);
 		if (o.base) args.push("--base", o.base);
 		const out = await sh("workmux", args, cwd);
