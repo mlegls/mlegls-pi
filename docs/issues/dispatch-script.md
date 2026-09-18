@@ -1,5 +1,5 @@
 ---
-next: implement
+next: measure
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
@@ -33,3 +33,6 @@ All four returned `needs-input` at 0.60. This is an eyeball baseline, not measur
 Verification: temporary in-memory fetch fixture exercised one request containing both questions, optional context, rejection and exact-threshold acceptance, retained rejected decision, and cache fence below/at/above budget. Full `bun test`: 130 pass, 2 skip, 0 fail (34.38s). `bunx tsc --noEmit` reports only existing exa/session/system-prompt errors; none in dispatch. No permanent tests added.
 
 Remaining integration: reduce `~/.pi/agent/skills/dispatch/SKILL.md` steps 2–6 to the CLI invocation, threshold/needs-input handling, and caller logging. Keep parent-owned context/handoff judgment, checkpoint handling, and expand–contract prose. That file is outside this implementation branch; the system-config coordinator owns it. Obtain more historical tickets before claiming the requested ~15-ticket evaluation complete.
+
+decisions:
+- 2026-09-18: lib/dispatch.ts landed (one decide call, threshold → ask marker, cacheReadFence pure and unwired). on the four archived tickets every call rejected at .60 with p .34–.48 and routes that disagree with what happened; archived tickets carry completion prose, so that baseline is not a measurement. next is measure: the eval corpus is worker spawn prompts from the board log (pre-completion tickets, route and agent known from the spawn), ~120 of them. keep the questions untuned until that runs. the dispatch skill's prose is not reduced until the script agrees with history.
