@@ -56,11 +56,13 @@ export function ask<Q extends Questions>(state: State, questions: Q): Ask<Q> {
 }
 
 function decision(dist: Record<string, number>, choice?: string): Decision {
-	const entries = Object.entries(dist);
-	if (!entries.length || entries.some(([, p]) => !Number.isFinite(p) || p < 0 || p > 1)
-		|| Math.abs(entries.reduce((n, [, p]) => n + p, 0) - 1) > 0.01) {
+	// Wide choices come back with sums a few percent off 1 (rounded logits); renormalize rather than reject.
+	const sum = Object.values(dist).reduce((n, p) => n + p, 0);
+	if (!Number.isFinite(sum) || sum <= 0 || Object.values(dist).some((p) => !Number.isFinite(p) || p < 0)) {
 		throw new Error("Invalid probability distribution");
 	}
+	dist = Object.fromEntries(Object.entries(dist).map(([k, p]) => [k, p / sum]));
+	const entries = Object.entries(dist);
 	choice ??= entries.reduce((a, b) => b[1] > a[1] ? b : a)[0];
 	if (!Object.hasOwn(dist, choice)) throw new Error("Choice missing from distribution");
 	return { choice, p: dist[choice]!, dist };
