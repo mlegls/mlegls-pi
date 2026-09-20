@@ -33,7 +33,7 @@ Observed:
 - Large multi-file show plus board.read hit the 16 KiB display cap; smaller reads and mapped board summaries recovered the useful content.
 - Constructing a TS line containing a shell command containing single-quoted JS produced invalid TS despite write(). JSON.stringify of the inner shell command removed the extra quoting layer. No new payload API needed.
 - The /record agent tried const vault = await import(...) against the injected vault binding; the named reserved-binding error helped, and renaming to V worked. It similarly tried fs. The command now explicitly describes the fold payload so the agent need not infer how to preserve title and ticket::.
-- The first triage model returned a bracketed [[target]] despite target meaning the bare destination. No note mutation occurred; normalization accepts either shape now.
+- The first triage model returned a bracketed wiki-link target despite target meaning the bare destination. No note mutation occurred; normalization accepts either shape now.
 - Initial RPC smoke model openai-codex/gpt-5.4 was unsupported for the account; switching to deepseek/deepseek-flash worked.
 - Implementation worker observed find([glob,...]) fails deep in path.isAbsolute (find takes one glob), read().rows is an array rather than a count, and wm.capture(handle) needs a run even for an existing peer. Workarounds: one find glob with JS filtering, rows.length, and an explicit run.
 
