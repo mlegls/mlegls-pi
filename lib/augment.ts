@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
+import { complete } from './pi.ts';
 
 // Shell commands' {{caret_position}} is one-based (line:column).
 export function blockAt(note: string, line: number) {
@@ -54,13 +55,7 @@ ${block.text}
 WHOLE NOTE:
 ${note}`;
   const started = Date.now();
-  const child = Bun.spawn(['pi', '-p', '--no-session', '--no-extensions', '--no-skills', '--no-prompt-templates', '--no-tools', '--provider', 'openai-codex', '--model', 'gpt-5.6-luna', '--thinking', 'low', '--system-prompt', 'You write concise, useful margin questions on a personal project note.'], {
-    stdin: new Blob([prompt]), stdout: 'pipe', stderr: 'pipe',
-  });
-  const timer = setTimeout(() => child.kill(), 55_000);
-  const [answer, error, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-  clearTimeout(timer);
-  if (exit !== 0) throw new Error(`pi failed (${exit}): ${error || 'timed out or terminated'}`);
+  const answer = await complete(prompt, 'openai-codex/gpt-5.6-luna', 'low', 'You write concise, useful margin questions on a personal project note.');
   // No await between the final read and write: preserve edits outside the selected block.
   writeFileSync(path, insertComment(readFileSync(path, 'utf8'), block, answer));
   console.log(`Comment added (${((Date.now() - started) / 1000).toFixed(1)}s).`);
