@@ -3,6 +3,8 @@ name: multi-agent
 description: "Use when dispatching or coordinating other agents: workers in worktrees, peers in other sessions, or both."
 ---
 
+Prepared ready waves launch through `dispatch.dispatch` ([contract](../../../../../../docs/dispatch.md)); `realize` owns the concurrency plan and `route.route` selects model/effort.
+
 two primitives. a _worker_ is a workmux worktree + tmux pane running an agent from `~/.pi/agent/agents/<name>.md`:
 
 ```!

@@ -3,19 +3,19 @@ next: measure
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
-dispatch steps 2–6 as one `decide` call over (ticket, map output): plan / implement here / do it / compile / orchestrate, plus executor class. low confidence → `needs-input`. keep "warm context worth more than handoff" out of jev; that is the parent's call. the fence rule for workers changes from context fraction to cumulative cache-read tokens (the audit's cost driver), with respawn-from-ticket as the default at the fence.
+Measure the experimental Jev work-shape classifier against pre-completion worker prompts before using it in introduce/advance. Parent-owned concurrency decomposition stays in `realize`; `dispatch` is only the launch boundary.
 
-done: dispatch's prose reduced to what the script cannot decide; the script's choices logged so "[[projects/mlegls-pi/issues/orchestration-audits]]" can check them against outcomes.
+done: classifier decisions logged and compared with historical outcomes; confidence handling justified by that evidence.
 
 ## Implementation — 2026-09-18
 
 	type DispatchInput = { ticket: string; context?: string }
-	dispatch(input, threshold)
+	classify(input, threshold)
 	cacheReadFence(tokensSoFar, budget) // continue | respawn
 
-Implemented in `lib/dispatch.ts`. One Jev call, two choice questions. Accepted result is `{route, executor, p, dist: {route, executor}}`; `p` is the minimum of the two winning probabilities, not a joint probability. Below the caller's threshold returns the existing `needs-input` ask marker plus `decision` so rejected choices remain loggable. Equality accepts. The pure cumulative cache-read fence respawns at or above its caller-supplied budget; not wired to workers. The audit supplies no calibrated numerical budget.
+Implemented in `lib/classify.ts`. One Jev call, two choice questions. Accepted result is `{route, executor, p, dist: {route, executor}}`; `p` is the minimum of the two winning probabilities, not a joint probability. Below the caller's threshold returns the existing `needs-input` ask marker plus `decision` so rejected choices remain loggable. Equality accepts. The pure cumulative cache-read fence respawns at or above its caller-supplied budget; not wired to workers. The audit supplies no calibrated numerical budget.
 
-CLI: `bun lib/dispatch.ts ticket.md threshold [map-or-autoread-file] >> decisions.jsonl`. JSON includes the choice distributions for outcome comparisons; persistence is caller-owned. No context-vs-handoff question.
+CLI: `bun lib/classify.ts ticket.md threshold [map-or-autoread-file] >> decisions.jsonl`. JSON includes the choice distributions for outcome comparisons; persistence is caller-owned. No context-vs-handoff question.
 
 ## Historical baseline (before tuning)
 
@@ -32,7 +32,9 @@ All four returned `needs-input` at 0.60. This is an eyeball baseline, not measur
 
 Verification: temporary in-memory fetch fixture exercised one request containing both questions, optional context, rejection and exact-threshold acceptance, retained rejected decision, and cache fence below/at/above budget. Full `bun test`: 130 pass, 2 skip, 0 fail (34.38s). `bunx tsc --noEmit` reports only existing exa/session/system-prompt errors; none in dispatch. No permanent tests added.
 
-Remaining integration: reduce `~/.pi/agent/skills/dispatch/SKILL.md` steps 2–6 to the CLI invocation, threshold/needs-input handling, and caller logging. Keep parent-owned context/handoff judgment, checkpoint handling, and expand–contract prose. That file is outside this implementation branch; the system-config coordinator owns it. Obtain more historical tickets before claiming the requested ~15-ticket evaluation complete.
+Current integration boundary: `lib/classify.ts` is experimental and not called by `dispatch`. Its possible use in introduce/advance is separate from the parent-owned concurrency plan. Obtain more pre-completion prompts before treating the historical evaluation as complete.
 
 decisions:
 - 2026-09-18: lib/dispatch.ts landed (one decide call, threshold → ask marker, cacheReadFence pure and unwired). on the four archived tickets every call rejected at .60 with p .34–.48 and routes that disagree with what happened; archived tickets carry completion prose, so that baseline is not a measurement. next is measure: the eval corpus is worker spawn prompts from the board log (pre-completion tickets, route and agent known from the spawn), ~120 of them. keep the questions untuned until that runs. the dispatch skill's prose is not reduced until the script agrees with history.
+
+- 2026-09-20: classifier moved to `lib/classify.ts` (`classify`); it remains experimental. `dispatch` now launches prepared ready waves through BB/workmux. Parent-owned concurrency planning lives in `realize`; classification calibration is not a prerequisite for launching work. See [[projects/mlegls-pi/issues/archive/dispatch-ready-waves]].

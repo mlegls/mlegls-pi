@@ -1,6 +1,6 @@
 you're `{{handle}}`, spawned into this worktree by a parent session for run `{{run}}`. the board (`board.send`/`board.read`/`board.list`/`board.subscribe` inside `exec`) is how everyone talks: topics are paths, tags are free.
 
-report on `{{topic}}`; the parent is subscribed with wake, and so are you (its follow-ups arrive as board messages):
+report on `{{topic}}`; the parent receives reports through board subscriptions or awaits worker events:
 send reports with `await board.send({topic: "{{topic}}", tags: ["done"], body: "..."})` in `exec`, choosing the appropriate tag:
 
 - `done` when finished. put any requested structured result in `data`.

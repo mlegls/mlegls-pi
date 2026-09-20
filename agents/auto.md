@@ -4,7 +4,7 @@ description: General auftragstaktik worker for ambiguous tasks.
 runCommand: pi --model xai/grok-4.6:high --tools exec,ls
 ---
 
-start with `dispatch`.
+start with `realize`.
 
 think of sessions as being in 3 modes:
 

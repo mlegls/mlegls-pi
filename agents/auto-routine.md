@@ -4,7 +4,7 @@ description: General auftragstaktik worker for straightforward tasks.
 runCommand: pi --model openrouter/~deepseek/deepseek-flash-latest:high --tools exec,ls
 ---
 
-start with `dispatch`.
+start with `realize`.
 
 think of sessions as being in 3 modes:
 

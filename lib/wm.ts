@@ -15,8 +15,9 @@
 // CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status|agents ...
 
 import { execFile } from "node:child_process";
+import { agent, AGENTS_DIR, type Agent } from "./agents.ts";
+export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { logSize, readFrom, type Message } from "../extensions/board/store";
 
@@ -29,6 +30,7 @@ export interface SpawnOptions {
 	run: string; // board topic prefix, e.g. compile/1726 or orch/rework-auth
 	handle: string;
 	prompt: string;
+	command?: string; // explicit command override; keeps the named agent stance/checkpoint
 	agent?: string; // name of an agent file in AGENTS_DIR, else a raw command for workmux -a
 	base?: string; // git ref to branch from
 	cwd?: string; // repo; default process.cwd()
@@ -91,29 +93,6 @@ function sh(cmd: string, args: string[], cwd?: string): Promise<Result> {
 			res({ exitCode: code, stdout: String(stdout), stderr: String(stderr) });
 		});
 	});
-}
-
-export const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
-
-export interface Agent {
-	name: string;
-	runCommand?: string;
-	checkpoint?: string; // context ratio at which the fence extension fires; see extensions/fence
-	body: string;
-}
-
-/** Parse `AGENTS_DIR/<name>.md`: yaml-ish frontmatter (flat `key: value`) + body. */
-export function agent(name: string): Agent | undefined {
-	const file = join(AGENTS_DIR, `${name}.md`);
-	if (!existsSync(file)) return undefined;
-	const text = readFileSync(file, "utf8");
-	const m = /^---\n([\s\S]*?)\n---\n?/.exec(text);
-	const fm: Record<string, string> = {};
-	for (const line of m?.[1].split("\n") ?? []) {
-		const i = line.indexOf(":");
-		if (i > 0) fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-	}
-	return { name, runCommand: fm.runCommand, checkpoint: fm.checkpoint, body: (m ? text.slice(m[0].length) : text).trim() };
 }
 
 /** The board/reporting preamble every worker gets: `AGENTS_DIR/_common.md` with {{run}} {{handle}} {{topic}} filled. */
@@ -481,7 +460,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			throw new Error(`from must be "fork" or "summary"`);
 		}
 		const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, prompt: text, agent: a })];
-		let cmd = a ? a.runCommand : o.agent;
+		let cmd = o.command ?? (a ? a.runCommand : o.agent);
 		if (o.from === "fork") {
 			const source = o.parentSessionFile ?? o.parentSession ?? process.env.PI_SESSION_FILE ?? process.env.PI_SESSION_ID;
 			if (!source) throw new Error(`from: "fork" needs parentSessionFile, parentSession, or PI_SESSION_ID`);

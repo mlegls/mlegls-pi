@@ -14,7 +14,7 @@ argument-hint: "an idea, problem, or request"
      without a plan still needs one of the paths below.
    - `map`: the destination itself is not agreed.
    - `plan`: the destination is agreed; behavior and shape are not.
-   - `dispatch`: a sufficiently clear change, of whatever size.
+   - `realize`: a sufficiently clear change, of whatever size.
 3. Return the scoped understanding and recommended continuation, with the
    reason for choosing that level. Surface any choice needed to proceed.
 
