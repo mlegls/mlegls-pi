@@ -19,12 +19,15 @@ export interface Options {
   cliPath?: string;
   /** Installed OM package/entry. false opts out; otherwise discovered in pi's npm directory. */
   memoryExtension?: string | false;
+  /** Optional read-only return-channel extension. Successful tool result details become submission. */
+  submission?: { extension: string; tool: string };
 }
 
 export interface Briefing {
   text: string;
   sessionFile: string;
   model: string;
+  submission?: unknown;
 }
 
 const stance = "You are autoread, a read-only context researcher for the parent session. " +
@@ -67,14 +70,17 @@ export async function run(request: string, options: Options = {}): Promise<Brief
     join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"), "npm/node_modules/pi-observational-memory");
   if (memory && !existsSync(memory))
     throw new Error("autoread: observational memory not found; pass memoryExtension or explicitly disable it");
+  const submission = options.submission;
+  const submissionExtension = submission ? realpathSync(resolve(cwd, submission.extension)) : undefined;
   const client = new RpcClient({
     cliPath: options.cliPath ?? cli(), cwd,
     // Do not impersonate the parent in host/board integrations.
     env: { BB_THREAD_ID: "", PI_SESSION_FILE: "", PI_SESSION_ID: "", PI_BOARD_NAME: "", PI_BOARD_TOPIC: "" },
     args: ["--fork", sessionFile, "--no-extensions", "--no-skills", "--no-prompt-templates",
       ...(memory ? ["--extension", memory] : []),
-      "--tools", ["read", "grep", "find", "ls", ...(memory ? ["recall"] : [])].join(","),
-      "--system-prompt", stance],
+      ...(submissionExtension ? ["--extension", submissionExtension] : []),
+      "--tools", ["read", "grep", "find", "ls", ...(memory ? ["recall"] : []), ...(submission ? [submission.tool] : [])].join(","),
+      "--system-prompt", stance + (submission ? " Deliver the requested result through " + submission.tool + " as your final action, rather than encoding it in your prose response." : "")],
   });
   let timer: ReturnType<typeof setTimeout>;
   let abort: () => void;
@@ -85,10 +91,14 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   });
   let reading = false;
   let last: { text: string; stopReason: string; error?: string } | undefined;
+  let submitted: { value: unknown } | undefined;
   let settle!: () => void;
   const settled = new Promise<void>(resolve => { settle = resolve; });
   const unsubscribe = client.onEvent(event => {
     if (!reading) return;
+    if (submission && event.type === "tool_execution_end" && event.toolName === submission.tool && !event.isError) {
+      submitted = { value: event.result?.details };
+    }
     if (event.type === "message_end" && event.message.role === "assistant") {
       const message = event.message;
       last = { text: message.content.filter(part => part.type === "text").map(part => part.text).join("\n"),
@@ -114,6 +124,11 @@ export async function run(request: string, options: Options = {}): Promise<Brief
       reading = true;
       await client.prompt("Current autoread request (investigate only; return a briefing):\n" + request);
       await settled;
+      if (submission) {
+        if (!submitted || submitted.value === undefined || last?.stopReason === "error" || last?.stopReason === "aborted")
+          throw new Error("autoread: reader did not submit through " + submission.tool + "; inspect " + fork.sessionFile);
+        return { text: last?.text ?? "", submission: submitted.value, sessionFile: fork.sessionFile, model };
+      }
       if (!last || last.stopReason !== "stop" || !last.text.trim())
         throw new Error("autoread: reader did not finish a briefing: " + (last?.error ?? last?.stopReason ?? "no answer"));
       return { text: last.text, sessionFile: fork.sessionFile, model };

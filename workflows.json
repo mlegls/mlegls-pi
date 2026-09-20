@@ -2,5 +2,9 @@
   "autoread": {
     "model": "openrouter/~deepseek/deepseek-flash-latest",
     "effort": "low"
+  },
+  "session-candidates": {
+    "model": "openrouter/~deepseek/deepseek-flash-latest",
+    "effort": "low"
   }
 }

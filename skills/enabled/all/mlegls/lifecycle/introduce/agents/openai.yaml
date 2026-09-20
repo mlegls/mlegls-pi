@@ -1,5 +1,5 @@
 interface:
   display_name: "Introduce"
-  short_description: "Locate existing work, scope an idea, and propose next steps"
+  short_description: "Begin a prepared session for an idea or request"
 policy:
   allow_implicit_invocation: false

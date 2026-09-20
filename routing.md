@@ -14,6 +14,13 @@ Subscription use is not the same as list-price spending. Prefer using available 
 
 Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). For example, 40% weekly usage against a 50% ceiling is 0.8. Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance. This first version does not fetch usage or reserve capacity.
 
+## Session roles
+
+- `session-triage`: choosing and shaping the next session when the next move is knotty; use fable or astra. This is decision work, even when the eventual implementation is routine. Prefer fable for coherence and open goals, astra for technical/evidence-based decisions.
+- Idea-to-ticket discussions likewise favor fable/astra. Implementation supervision of already-scoped work favors sonnet, terra, or DeepSeek Flash; the supervisor need not be the strongest model.
+- Routine implementation favors luna, sonnet, or DeepSeek. Very technical implementation favors astra. Large simplifying replacements written from surviving interfaces and requirements without reading the old implementation favor fable.
+- A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
+
 ## Model characteristics
 
 - fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): great at coherency across long context and organizing big ideas. e.g. forming macro plans/campaigns, triaging messy issue ports, interactive discussion, and top-level campaign supervision. less likely to go along with bullshit than astra, but more vulnerable to making too much of existing records or otherwise inappropriately evaluating "significance" (e.g., strong tendency to say "x is already y" as if it's not an obviously established prior)
