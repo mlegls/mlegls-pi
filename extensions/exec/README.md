@@ -125,6 +125,12 @@ selected surface.
 (`board`, `wm`, and the rest of the module table). A project file
 `.pi/exec/<name>.ts` shadows the lib file with the same stem. A name that is not
 in `lib/` is `project.<name>`. Upstreaming is moving the file to `lib/`.
+
+`autoread.run(request, {model, effort?})` runs a read-only reader fork of this
+session and returns its final briefing. Exec passes `PI_SESSION_FILE` to the
+kernel; reload the extension once after installing this change. See
+[autoread](../../docs/autoread.md) for retained-promise usage and options.
+
 `/exec-reset` (or a new session) re-imports; a running kernel keeps the modules
 it started with.
 

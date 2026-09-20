@@ -44,6 +44,7 @@ export default async function (pi: ExtensionAPI) {
 		}
 		kernel = new Kernel({
 			cwd: ctx.cwd,
+			sessionFile: ctx.sessionManager.getSessionFile(),
 			modules,
 			call: services.call,
 			ledger,

@@ -1,14 +1,22 @@
 ---
-next: prototype
+next: measure
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
-autoread returns understanding, not snippets: the show-me forms — labeled file tree, call tree from the ticket's identifiers outward, component tree where there is UI, a sequence diagram for the story path, pseudocode for the one function that matters — with `path:line` only as leaves. these are Kruchten's 4+1 views; the only freeform work is one-line labels per node and pseudocode, both cacheable by content hash.
+autoread returns understanding for the parent’s next task, not snippets or a search transcript. Use labeled file/call trees, story sequences, and pseudocode where useful, with verified source references. The parent should begin useful work without repeating orientation.
 
-fully LLM-powered on deepseek flash first: a 100-file neighborhood read three times with caching is ~$0.05 on a metered pool, so reader cost is noise and the gain is entirely in what enters the parent. per-symbol labels written to a sidecar keyed by (path, symbol, hash) so the second map of a project costs nothing.
+shape: `lib/autoread.ts` exports `run(request, {model, effort?, sessionFile?, ...})` → `{text, sessionFile, model}`. Fork the persisted session, compact the child (including observational memory), switch model, investigate with read/search/recall tools, return only the last answer. Exec supplies the current session path. Routing stays caller-owned; no worker dispatch, automatic parent mutation, or cross-call cache. See [usage](../autoread.md).
 
-done: the agent prompt rewritten, five recent tickets mapped, parent context per ticket compared against what the original sessions read. then decide which parts to make deterministic ("[[projects/mlegls-pi/issues/map-projection]]").
+remaining: map five recent tickets and compare the returned context against what their original sessions read. Check factual accuracy, source citations, parent rereads, latency, and tokens before deciding which parts to make deterministic ([[projects/mlegls-pi/issues/map-projection]]). A library implementation is not evidence of briefing quality.
 
 holes:
-- whether the parent calls it or a dispatch script does; in scripts it is the first step, memoized on (query, git ref).
-- `ask(question, scope)` for reading-comprehension questions a projection cannot answer, scope pre-narrowed by the map; same agent, different prompt, or a second function.
+- Memoization would need the request, inherited context, and dirty working tree, not only a git ref. Defer caching until measured.
+- Short/already-compacted branches may retain too much context for a smaller reader model; measure before introducing a second compression policy.
+
+decisions:
+- 2026-09-20: implement as a private pi reader fork rather than a fixed projection pipeline or sidecar label cache. The same `run` handles orientation and targeted comprehension questions.
+
+evidence — 2026-09-20:
+- Live DeepSeek reader inherited a fixture label, read the module loader, and returned a briefing; parent JSONL remained byte-identical. A second run compacted an OM observation (`om.folded`) and used `recall` to recover the original source, then read code. Reader tools observed: read/find/grep/recall.
+- Briefings were useful but exceeded requested word limits; the first included an incorrect inference, and the second guessed source line numbers. The prompt now asks for grep-verified citations; quality improvement is not yet measured.
+- Exec exposes `autoread.run` and the correct session path. Timeout and pre-aborted invocations reject. Existing suite: `env -u BB_THREAD_ID bun test` — 196 pass, 2 skip, 0 fail. Typecheck retains the five existing errors outside this change.

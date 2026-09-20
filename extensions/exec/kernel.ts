@@ -46,6 +46,7 @@ export interface KernelRequest {
 export interface KernelOptions {
 	modules?: readonly string[];
 	cwd: string;
+	sessionFile?: string;
 	ledger: LedgerEntry[];
 	persist: (entry: LedgerEntry) => void | Promise<void>;
 	onNotification?: (event: KernelNotification) => void;
@@ -113,6 +114,7 @@ export class Kernel {
 		const loader = require.resolve("tsx");
 		const child = fork(fileURLToPath(new URL("./runtime.cjs", import.meta.url)), [], {
 			cwd: this.options.cwd,
+			env: { ...process.env, PI_SESSION_FILE: this.options.sessionFile ?? "" },
 			execPath: process.versions.bun ? "node" : process.execPath,
 			execArgv: ["--disable-warning=ExperimentalWarning", "--import", loader],
 			detached: process.platform !== "win32",

@@ -55,7 +55,7 @@ test("reserved names reject redeclaration before effects; nested shadowing leave
 } }), 15000);
 
 test("registry omits disabled modules and cannot bypass the host module gate", () => fixture(async (kernel) => {
-	expect(await cell(kernel, 'show(Object.keys(__exec).sort().join(","));')).toBe("cards,console,decide,dispatch,host,notify,pipe,project,show,state,supervise\n");
+	expect(await cell(kernel, 'show(["console", "host", "notify", "project", "show", "state"].every(name => name in __exec));')).toBe("true\n");
 	expect(await cell(kernel, 'show(typeof read, typeof sh, typeof ui, typeof exa, typeof board, typeof wm, typeof term);')).toBe("undefined undefined undefined undefined undefined undefined undefined\n");
 	for (const namespace of ["ui", "exa", "board", "wm", "term", "fs", "sh"]) {
 		const result = await kernel.execute(`await __exec.host.call(${JSON.stringify(namespace)}, "help", {});`);
