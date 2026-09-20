@@ -19,9 +19,14 @@ function parse(value: unknown, flag: string, fallback: readonly ExecModule[]): r
 }
 
 /** Select the advertised/callable surface, not a security sandbox. Deny wins. */
-export function resolveModules(allow?: unknown, deny?: unknown): ExecModule[] {
+/** Worker-coordination modules; superseded by the host's own thread tools when pi runs inside bb. */
+export const HOST_MODULES: readonly ExecModule[] = ["board", "wm"];
+export const inBB = (env: NodeJS.ProcessEnv = process.env): boolean => Boolean(env.BB_THREAD_ID);
+
+export function resolveModules(allow?: unknown, deny?: unknown, env: NodeJS.ProcessEnv = process.env): ExecModule[] {
 	const allowed = new Set(parse(allow, "--exec-modules", MODULES));
 	const denied = new Set(parse(deny, "--exec-deny-modules", []));
+	if (inBB(env) && allow === undefined) for (const m of HOST_MODULES) denied.add(m);
 	return MODULES.filter(name => allowed.has(name) && !denied.has(name));
 }
 

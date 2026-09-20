@@ -10,3 +10,7 @@ exec cell: `lib/<name>.ts` is `<name>` (not names already in the cell API). `.pi
 add or override: write `.pi/exec/<name>.ts`, `/exec-reset`. try it in a cell, then `bun test extensions/exec`. `bunx tsc --noEmit` currently fails in exa/session/system-prompt; those are pre-existing.
 
 reload: `/exec-reset` or a new session. a running kernel keeps the modules it started with.
+
+## hosts
+
+under bb (`BB_THREAD_ID` set), exec's `board` and `wm` modules are off by default and the board extension is inert; bb's thread commands replace them (see the multi-agent skill). `--exec-modules board,wm` re-enables them there.

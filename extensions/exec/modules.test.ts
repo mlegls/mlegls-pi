@@ -34,3 +34,13 @@ test("project .pi/exec shadows lib by name, extras are project.*, and another cw
 		await rm(plain, { recursive: true, force: true });
 	}
 }, 20000);
+
+test("resolveModules drops board and wm inside a bb thread unless allowlisted", async () => {
+	const { resolveModules, MODULES } = await import("./modules");
+	expect(resolveModules(undefined, undefined, {})).toEqual([...MODULES]);
+	const inside = resolveModules(undefined, undefined, { BB_THREAD_ID: "thr_1" });
+	expect(inside).not.toContain("board");
+	expect(inside).not.toContain("wm");
+	expect(inside).toContain("sh");
+	expect(resolveModules("board,wm", undefined, { BB_THREAD_ID: "thr_1" })).toEqual(["board", "wm"]);
+});
