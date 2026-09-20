@@ -54,7 +54,7 @@ ${block.text}
 WHOLE NOTE:
 ${note}`;
   const started = Date.now();
-  const child = Bun.spawn(['pi', '-p', '--no-session', '--no-extensions', '--no-skills', '--no-prompt-templates', '--no-tools', '--thinking', 'low', '--system-prompt', 'You write concise, useful margin questions on a personal project note.'], {
+  const child = Bun.spawn(['pi', '-p', '--no-session', '--no-extensions', '--no-skills', '--no-prompt-templates', '--no-tools', '--provider', 'openai-codex', '--model', 'gpt-5.6-luna', '--thinking', 'low', '--system-prompt', 'You write concise, useful margin questions on a personal project note.'], {
     stdin: new Blob([prompt]), stdout: 'pipe', stderr: 'pipe',
   });
   const timer = setTimeout(() => child.kill(), 55_000);
