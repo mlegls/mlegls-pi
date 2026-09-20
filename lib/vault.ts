@@ -187,6 +187,7 @@ function slug(text: string) {
 
 export async function implement(path: string, block: Block, options: { base?: string; parentSessionFile?: string } = {}) {
   const dir = project(path);
+  const { model, effort } = await route('#implement: ' + workflows().implement, block.text);
   const note = readFileSync(path, 'utf8');
   insertComment(note, block, 'guard');
   if (/ticket::/.test(block.text)) throw new Error('Thread already has a ticket; resume its worker rather than redispatch');
@@ -199,7 +200,7 @@ export async function implement(path: string, block: Block, options: { base?: st
   const lines = note.split('\n');
   lines.splice(block.end, 0, block.indent + '  ticket:: [[' + link + ']]');
   writeFileSync(path, lines.join('\n'));
-  const worker = await workers.spawn({ run: 'vault/' + basename(dir), handle: 'vault-' + name, cwd: dir, from: 'summary', ...options, agent: 'pi --model deepseek/deepseek-flash --thinking low',
+  const worker = await workers.spawn({ run: 'vault/' + basename(dir), handle: 'vault-' + name, cwd: dir, from: 'summary', ...options, agent: 'pi --model ' + JSON.stringify(model) + ' --thinking ' + JSON.stringify(effort),
     prompt: 'Mode: hacking. Implement this ticket, no new tests unless temporary signals are needed. Commit coherent changes. The ticket may not yet be in your branch: write the supplied ticket to docs/issues/' + name + '.md first if missing. When satisfied mark next: done and archive it. Do not edit the source vault note; parent merges and calls vault.done.\n\n' + content,
   });
   return { path, line: block.start + 1, tag: 'implement', ticket, worker };
@@ -207,7 +208,8 @@ export async function implement(path: string, block: Block, options: { base?: st
 
 export async function doWork(path: string, block: Block, options: { parentSessionFile?: string } = {}) {
   const dir = project(path);
-  const worker = await workers.spawn({ run: 'vault/' + basename(dir), handle: 'vault-do-' + Date.now().toString(36), cwd: dir, from: 'summary', ...options, agent: 'pi --model deepseek/deepseek-flash --thinking low',
+  const { model, effort } = await route('#do: ' + workflows().do, block.text);
+  const worker = await workers.spawn({ run: 'vault/' + basename(dir), handle: 'vault-do-' + Date.now().toString(36), cwd: dir, from: 'summary', ...options, agent: 'pi --model ' + JSON.stringify(model) + ' --thinking ' + JSON.stringify(effort),
     prompt: 'Mode: hacking. Fulfill this instruction with tools. Do not edit the source bullet. Commit project changes if any. Report done with data.result containing {inline: short result} or {title: unique note title, body: markdown artifact}. The parent writes the result back. If blocked, report blocked rather than pretending completion.\n\n' + block.text,
   });
   for await (const outcome of worker.events) {
