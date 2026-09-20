@@ -66,3 +66,6 @@ export async function localUsage(pool: PoolId, since: number): Promise<{ tokens:
 decisions:
 - 2026-09-18: featherless is a pool too: per-model \`concurrency_cost\` against a plan-wide concurrency limit (two DeepSeek-V4.1-Flash workers at cost 4 each hit \`concurrency_limit_exceeded\`). the slack reader needs a concurrency dimension, not only a token window.
 - 2026-09-18: operon's records have no pool dimension and no CPM (see [[projects/mlegls-pi/issues/archive/operon-adapter]]); the pool view is computed here and rendered into the vault, not stored in operon.
+
+decisions:
+- 2026-09-20: belongs to the [[routing]] project note (model × role table, pool slack, keymap); stays filed here because that's where lib/pool.ts and lib/route.ts land. the grill that remains is the table, in that note.

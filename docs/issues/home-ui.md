@@ -13,3 +13,4 @@ decisions:
 - 2026-09-18: bb is a workspace/UI layer, not a competing harness; its threads are a multiplexer, not a mailbox, so the board stays.
 - 2026-09-18: tmux + obsidian is home; bb deferred, not rejected.
 - 2026-09-18: operon rejected as the tracker (too heavy, pipeline-only kanban, time-only gantt); frontmatter stays canonical, views are plugins or ours.
+- 2026-09-20: the obsidian half is specified in the [[augment]] project note (four block commands: comment, propose, session, implement; CriticMarkup + shell commands + local rest api for v0). this issue keeps the tmux cockpit half.

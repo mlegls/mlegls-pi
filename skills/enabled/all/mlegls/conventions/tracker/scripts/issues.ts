@@ -187,6 +187,9 @@ function checkLinks(docs: string, say: (s: string) => void) {
     }
   };
   walk(docs);
+  // Top-level vault notes (project pages, ideas) are link targets too; only the vault root, not its project symlinks.
+  const vault = process.env.TRACKER_VAULT ?? join(process.env.HOME ?? "", "obsidian");
+  if (existsSync(vault)) for (const name of readdirSync(vault)) if (name.endsWith(".md")) files.push(join(vault, name));
   const byBase = new Map<string, string[]>();
   for (const f of files) {
     const b = basename(f, ".md");
