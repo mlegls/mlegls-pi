@@ -4,23 +4,23 @@ A read-only reader fork returns understanding for a parent session's next task, 
 
 In exec, after reloading the extension (once, to pass the parent session path):
 
-	autoread.run(request, { model: "deepseek/deepseek-flash", effort: "low" })
+	autoread.run(request)
 
 Retain long work rather than awaiting it across exec's default 30-second deadline:
 
-	state.reading = notify(autoread.run("Explain the module loader and where to add a library function", {
-	  model: "deepseek/deepseek-flash", effort: "low"
-	}), "autoread");
+	state.reading = notify(autoread.run("Explain the module loader and where to add a library function"), "autoread");
 
 Then in a later cell:
 
 	await show(await state.reading);
 
+Model and effort defaults live in [`workflows.json`](../workflows.json), under `autoread`. They are read on every call through `config.workflow("autoread")`, so config edits need no reload. The default is OpenRouter’s rolling DeepSeek Flash Latest alias (`openrouter/~deepseek/deepseek-flash-latest`), effort `low`. Per-call `{ model, effort }` overrides remain available. This config selects the reader; native compaction still uses the inherited parent model.
+
 Returns `{ text, sessionFile, model }`. `text` is only the reader's final answer; `sessionFile` retains its evidence and lineage for inspection.
 
 Outside exec, import `run` from `lib/autoread.ts` and supply `sessionFile` explicitly. It never guesses the newest session.
 
-The reader forks the persisted parent through pi RPC, compacts the child, switches to the supplied model/effort, then investigates. Small/already-compacted sessions retain their existing context. The parent model, memory, transcript, and files are not changed.
+The reader forks the persisted parent through pi RPC, compacts the child, switches to the configured model/effort, then investigates. Small/already-compacted sessions retain their existing context. The parent model, memory, transcript, and files are not changed.
 
 Only read, grep, find, ls, and observational-memory recall are available. Other extensions, skills, and prompt templates are not loaded; project context still follows pi's normal loading. This is a restricted tool surface, not an OS sandbox.
 

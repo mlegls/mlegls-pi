@@ -1,0 +1,6 @@
+{
+  "autoread": {
+    "model": "openrouter/~deepseek/deepseek-flash-latest",
+    "effort": "low"
+  }
+}

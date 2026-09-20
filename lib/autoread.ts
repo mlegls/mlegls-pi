@@ -3,13 +3,14 @@ import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { RpcClient } from "@earendil-works/pi-coding-agent";
+import { workflow } from "./config.ts";
 
 export interface Options {
   /** Defaults to exec's current persisted session. Required; never guesses the newest session. */
   sessionFile?: string;
   cwd?: string;
-  /** Explicit provider/model; routing belongs to the caller. */
-  model: string;
+  /** Override the workflow config for this invocation. */
+  model?: string;
   effort?: Parameters<RpcClient["setThinkingLevel"]>[0];
   compact?: boolean;
   timeoutMs?: number;
@@ -46,14 +47,17 @@ function cli(): string {
 }
 
 /** Retain the promise in exec state for long reads; show only the returned briefing. */
-export async function run(request: string, options: Options): Promise<Briefing> {
+export async function run(request: string, options: Options = {}): Promise<Briefing> {
   if (!request.trim()) throw new Error("autoread: reading request required");
+  const defaults = workflow("autoread");
+  const model = options.model ?? defaults.model;
+  const effort = options.effort ?? defaults.effort;
   const parent = options.sessionFile ?? process.env.PI_SESSION_FILE;
   if (!parent) throw new Error("autoread: sessionFile required (reload exec to inherit the current session)");
   const cwd = resolve(options.cwd ?? process.cwd());
   const sessionFile = realpathSync(resolve(cwd, parent));
-  const slash = options.model.indexOf("/");
-  if (slash < 1 || slash === options.model.length - 1) throw new Error("autoread: model must be provider/model");
+  const slash = model.indexOf("/");
+  if (slash < 1 || slash === model.length - 1) throw new Error("autoread: model must be provider/model");
   const timeoutMs = options.timeoutMs ?? 300_000;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647)
     throw new Error("autoread: timeoutMs must be a positive timer-sized integer");
@@ -105,14 +109,14 @@ export async function run(request: string, options: Options): Promise<Briefing> 
           if (!(error instanceof Error) || !/Nothing to compact \(session too small\)|Already compacted/.test(error.message)) throw error;
         }
       }
-      await client.setModel(options.model.slice(0, slash), options.model.slice(slash + 1));
-      if (options.effort) await client.setThinkingLevel(options.effort);
+      await client.setModel(model.slice(0, slash), model.slice(slash + 1));
+      await client.setThinkingLevel(effort);
       reading = true;
       await client.prompt("Current autoread request (investigate only; return a briefing):\n" + request);
       await settled;
       if (!last || last.stopReason !== "stop" || !last.text.trim())
         throw new Error("autoread: reader did not finish a briefing: " + (last?.error ?? last?.stopReason ?? "no answer"));
-      return { text: last.text, sessionFile: fork.sessionFile, model: options.model };
+      return { text: last.text, sessionFile: fork.sessionFile, model };
     })()]);
   } finally {
     clearTimeout(timer!);
