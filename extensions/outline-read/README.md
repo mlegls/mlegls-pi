@@ -64,9 +64,10 @@ inserts after, `<` before. A header may end with a separate `@path` token (`=abc
 file the anchors belong to. A file's anchors all start with the same
 character (a hash of its path), so one from the wrong file looks wrong. A pasted read row (`=abcd│text`) works as a
 header. A blank line inside a body is content unless the line after it is a
-syntactic header, even when its anchor is unknown. Unknown targets reject; they
-do not become replacement text. Prefix literal header-like body lines with `\`
-(double it to retain the backslash). Malformed compact headers such as `=1`
+syntactic header. An unescaped header-like body line or lone `@path` is an error;
+a backslash prefix is the only way to write one as content (double it to retain
+the backslash). Unknown targets reject; they do not become replacement text.
+Malformed compact headers such as `=1`
 after a separator reject with grammar help.
 
 Hunks apply together per file and must not overlap. Unknown anchors reject

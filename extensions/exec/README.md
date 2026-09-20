@@ -261,9 +261,10 @@ range, `-a` / `-a b` delete, `>a` inserts after, `<a` before. Here `a` and `b`
 stand for actual four-character anchors. A separate `@path` token asserts the target
 file: `=abcd wxyz @src/file.ts`. Attached forms such as `wxyz@src/file.ts`
 are invalid. Copy anchors from `abcd│text`, not displayed line numbers.
-Separate hunks with a blank line. Header recognition does not depend on whether
+Separate hunks with a blank line; an unescaped header-like body line or lone `@path` is an error.
+Header recognition does not depend on whether
 the anchor is current: unknown targets reject rather than becoming body text.
-To include a literal header-like body line, prefix it with `\` in the DSL
+The only way to write a header-like line as content is to prefix it with `\` in the DSL
 (`\=abcd`); double that escape to retain a leading backslash. JavaScript string
 escaping still applies.
 

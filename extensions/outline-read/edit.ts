@@ -14,7 +14,7 @@ const GRAMMAR = `Hunks separated by one blank line. A hunk is a header line, the
   <abcd         insert before abcd
 Copy anchors from read/grep: abcd│text → =abcd (not a line number).
 A header may end with a separate @path token: =abcd wxyz @src/file.ts.
-Escape literal header-like body lines with a backslash; double it to retain it.`;
+A header-like body line or lone @path is an error unless backslash-escaped; that is the only way to write one as content. Double it to retain it.`;
 
 const parameters = Type.Object({
 	edits: Type.String({ description: GRAMMAR }),
@@ -87,7 +87,12 @@ export function parseHunks(text: string): Hunk[] {
 				continue;
 			}
 		}
-		current.lines.push(line.replace(/^\\(?=\\*[=<>-])/, ""));
+		if (!line.startsWith("\\") && (parseHeader(line) || /^@\S+$/.test(line.trim()))) {
+			throw new Error(
+				`Line ${i + 1} looks like a hunk header: "${line}". Separate hunks with a blank line. Nothing was modified.\n${GRAMMAR}`,
+			);
+		}
+		current.lines.push(line.replace(/^\\(?=\\*[=<>@-])/, ""));
 	}
 	hunks.push(current);
 	for (const h of hunks) {
