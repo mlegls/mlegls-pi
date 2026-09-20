@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // decide: typed Jev evaluation; thresholds and fallback selection belong to the caller.
 //
 //   const answers = await decide(state, {
@@ -145,6 +146,6 @@ if (import.meta.main) {
 		console.error("usage: bun lib/decide.ts request.json [jev|logprobs|ask]");
 		process.exit(2);
 	}
-	const { state, questions } = await Bun.file(path).json();
+	const { state, questions } = JSON.parse(readFileSync(path, 'utf8'));
 	console.log(JSON.stringify(await decide(state, questions, { backend: backend as Options["backend"] }), null, 2));
 }

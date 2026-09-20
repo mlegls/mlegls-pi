@@ -3,6 +3,14 @@ import { homedir } from 'node:os';
 import { join, dirname, basename } from 'node:path';
 import { route, candidates } from './route.ts';
 import { complete } from './pi.ts';
+import { execFileSync } from 'node:child_process';
+import { decide } from './decide.ts';
+import * as workers from './wm.ts';
+
+if (!process.env.JEV_API_KEY) {
+  const secrets = join(homedir(), '.config/secrets/api-keys.env');
+  if (existsSync(secrets)) Object.assign(process.env, JSON.parse(execFileSync("/bin/bash", ["-c", "set -a; source \"$1\"; node -e 'process.stdout.write(JSON.stringify(process.env))'", "vault", secrets], { encoding: "utf8" })));
+}
 
 export const root = join(homedir(), 'obsidian');
 export const stamp = join(homedir(), '.local/state/mlegls-pi/vault.json');
@@ -70,13 +78,13 @@ export async function act(block: Block, note: string, lens?: string): Promise<Re
   const rules = workflows();
   if (!(block.tag in rules)) return { declined: 'Unknown or multiple workflows' };
   if (block.author) return { declined: 'Last comment is already a model reply' };
-  if (!['question', 'do', 'align'].includes(block.tag)) return { comments: ['vault: not handled yet'] };
+  if (!['question', 'do', 'align'].includes(block.tag)) return { declined: 'Workflow not handled' };
   const first = block.text.split('\n')[0];
-  lens ??= first.match(/\b(grilling|devils-advocate|what-else)\b/)?.[1] ?? (block.tag === 'question' ? 'grilling' : '');
+  lens ??= first.match(/\b(grilling|devils-advocate|what-else)\b/)?.[1] ?? (block.tag === 'question' ? 'Answer directly; suggest a course of action. Ask only if unable to proceed.' : '');
   const lensPath = new URL(`../skills/enabled/all/mlegls/${lens}/SKILL.md`, import.meta.url);
   const stance = lens && existsSync(lensPath) ? readFileSync(lensPath, 'utf8') : lens;
   const workflow = `#${block.tag}: ${rules[block.tag]}\nLens: ${stance}`;
-  const aliases = block.tag === 'question' ? first.match(/×\s*([\w/-]+(?:\s*,\s*[\w/-]+)*)/)?.[1].split(/\s*,\s*/) : undefined;
+  const aliases = block.tag === 'question' ? first.match(/\*\s*([\w/-]+(?:\s*,\s*[\w/-]+)*)/)?.[1].split(/\s*,\s*/) : undefined;
   const models = aliases ? aliases.map(alias => {
     const catalog = readFileSync(join(root, 'model opinions.md'), 'utf8').split(/^## catalog[^\n]*\n/m)[1];
     const choice = candidates(catalog).find(c => c.model === alias || c.model.split('/')[1].split(/[.-]/).includes(alias));
@@ -125,6 +133,32 @@ export function writeBack(path: string, block: Block, result: Result) {
   return { path, line: block.start + 1, tag: block.tag, ...(created ? { created } : {}) };
 }
 
+export type Agenda = { path: string; block: Block };
+export function agenda(notes?: string[]): Agenda[] {
+  const paths = notes?.map(p => p.startsWith('/') ? p : join(root, p)) ?? readdirSync(root).filter(p => p.endsWith('.md')).map(p => join(root, p));
+  return paths.flatMap(path => blocks(readFileSync(path, 'utf8')).filter(b => ['discuss', 'to-spec'].includes(b.tag)).map(block => ({ path, block })));
+}
+
+// Exact source snapshot: do not silently attach a conclusion to an edited discussion.
+export function record(item: Agenda, conclusion: string, options: { fold?: boolean; complete?: boolean } = {}) {
+  const { path, block } = item;
+  if (!['discuss', 'to-spec'].includes(block.tag) || !conclusion.trim()) throw new Error('Expected an agenda item and conclusion');
+  let note = readFileSync(path, 'utf8');
+  insertComment(note, block, 'guard');
+  const lines = note.split('\n');
+  const tag = block.tag === 'to-spec' ? (options.complete ? '#implement' : '#to-spec') : '';
+  if (options.fold) {
+    lines.splice(block.start, block.end - block.start, block.indent + '- ' + conclusion.trim().split('\n').join('\n' + block.indent + '  ') + (tag ? ' ' + tag : ''));
+  } else {
+    lines[block.start] = lines[block.start].replace(new RegExp('#' + block.tag + '\\b'), tag).trimEnd();
+    note = lines.join('\n');
+    note = insertComment(note, blockAt(note, block.start + 1), 'fable: ' + conclusion);
+    writeFileSync(path, note);
+    return;
+  }
+  writeFileSync(path, lines.join('\n'));
+}
+
 type Stamps = Record<string, number>;
 function stamps(): Stamps { return existsSync(stamp) ? JSON.parse(readFileSync(stamp, 'utf8')) : {}; }
 export function changed() {
@@ -133,10 +167,11 @@ export function changed() {
     .map(e => join(root, e.name)).filter(path => statSync(path).mtimeMs > (seen[path] ?? 0));
 }
 export async function run(options: { notes?: string[] } = {}) {
+  const pending: Agenda[] = [];
   const written: NonNullable<ReturnType<typeof writeBack>>[] = [];
   const declined: { path: string; line: number; reason: string }[] = [];
   const seen = stamps();
-  const paths = changed().filter(path => !options.notes || options.notes.includes(path) || options.notes.includes(basename(path)));
+  const paths = options.notes ? options.notes.map(p => p.startsWith('/') ? p : join(root, p)) : changed();
   for (const path of paths) {
     const note = readFileSync(path, 'utf8');
     const selected = blocks(note);
@@ -144,6 +179,7 @@ export async function run(options: { notes?: string[] } = {}) {
     // Bottom-up keeps earlier source coordinates valid after write-back.
     for (const block of selected.toReversed()) {
       try {
+        if (['discuss', 'to-spec'].includes(block.tag)) { continue; }
         const result = selected.some(b => b.start > block.start && b.start < block.end)
           ? { declined: 'Contains another tagged bullet; handle it separately' } : await act(block, note);
         if ('declined' in result) declined.push({ path, line: block.start + 1, reason: result.declined });
@@ -156,11 +192,12 @@ export async function run(options: { notes?: string[] } = {}) {
         declined.push({ path, line: block.start + 1, reason: String(error) });
       }
     }
+    pending.push(...agenda([path]));
     if (!failed) seen[path] = statSync(path).mtimeMs;
   }
   mkdirSync(dirname(stamp), { recursive: true });
   writeFileSync(stamp, JSON.stringify(seen, null, 2) + '\n');
-  return { written, declined };
+  return { written, declined, agenda: pending };
 }
 
 if (import.meta.main) run(process.argv.length > 2 ? { notes: process.argv.slice(2) } : {}).then(r => console.log(JSON.stringify(r, null, 2))).catch(error => { console.error(error); process.exitCode = 1; });
