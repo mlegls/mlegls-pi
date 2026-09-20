@@ -8,7 +8,7 @@ priority: 1
 `lib/route.ts`: from (sink, supertag, block, instruction?) to {skill, model, effort}, per the [[routing]] project note. that note and [[model opinions]] (its `## catalog` section) are the data; both are prose/markdown in ~/obsidian and are read at call time, not copied into code.
 
 - keymap: parse the sink × supertag table from routing.md; an instruction overrides the skill. no judgment here.
-- selection: one pinned cheap call (gpt-5.6-luna, low) given the block, the chosen skill, the selection rule and pool sections of routing.md, and the catalog; it returns the cheapest (model, effort) that clearly suffices, as json. no tables in code.
+- selection: jev (see the typesafe-ai skill), not a chat model: it's a choice among a closed set. candidates are every (model, effort) named in the catalog; the judgment is given the block, the chosen skill, the selection and pool sections of routing.md, and the catalog, and asks for the cheapest candidate that clearly suffices. no tables in code.
 - pool: `lib/pool.ts` with a `usage(provider)` stub returning 0 and the congestion price formula, so the reader in [[projects/mlegls-pi/issues/pool-aware-routing]] can slot in.
 - lib/augment.ts calls route() instead of hardcoding grilling + luna/low; its cli gains an optional instruction argument.
 
