@@ -19,7 +19,7 @@ queue wait. Override explicitly on the current tool call:
 
 `timeoutMs` is a positive integer in milliseconds (maximum 2147483647); it never
 carries over to later calls. The host enforces it even if the kernel is in a
-synchronous loop. Timeout preserves captured output, clears retained state, kills
+synchronous loop. Timeout preserves shown output, clears retained state, kills
 the kernel and its shell process group, and aborts in-flight host calls. File
 anchors and host-owned terminals survive. Filesystem and external side effects
 are not rolled back: inspect before retrying. For long-running work, use `term`
@@ -163,6 +163,22 @@ The kernel, imports, and asynchronous work persist. Local declarations do not.
 State writes and other side effects survive a later error; calls are not
 transactions and failed code must not be blindly replayed. Reset clears state.
 
+## Ingress filtering
+
+`show(...)`, `show.large(...)`, console aliases, and `notify(...)` use the same
+Jev relevance filter before the existing display budget. Omitted chunks have
+recoverable `ing-*` IDs; retained values are never changed.
+
+```ts
+await show(await read("src/example.ts"));
+await show.pull("ing-0123456789abcdef"); // omitted original, no rescoring
+await show.raw(state.result);           // bypass relevance filtering
+```
+
+Raw/pull still obey byte/image caps. Loaded skills and images bypass relevance
+filtering. Missing credentials, a scorer failure, or timeout keeps the original
+text with a warning. [Policy, setup, and verification](../../docs/ingress.md).
+
 ## Reserved API names
 
 Enabled API names, `state`, and `__exec` are reserved at cell top level.
@@ -176,7 +192,9 @@ not a security sandbox.
 ## Read, select, display
 
 Each tool call has one parameter, `code`. Values saved in `state` survive calls.
-Only `show(...)` / `console.log(...)` emit output. Await `show` when displaying
+Only `show(...)` / `console.log(...)` emit model-visible data. Raw process output
+and interrupted-shell captures are bounded UI-only diagnostics in result details.
+Await `show` when displaying
 promises or asynchronous renderers.
 
 ```ts

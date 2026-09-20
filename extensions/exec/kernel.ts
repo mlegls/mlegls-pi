@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import type { LedgerEntry } from "../outline-read/ledger";
 import type { ContentBlock } from "./image";
+import type { Event as IngressEvent } from "../../lib/ingress";
 
 export interface KernelTraceEntry {
 	id: number;
@@ -25,6 +26,8 @@ export interface KernelTrace {
 }
 
 export interface KernelResult {
+	/** Raw process/interrupted-shell diagnostics are UI-only, not model ingress. */
+	diagnostics?: string;
 	trace?: KernelTrace;
 	content: ContentBlock[];
 	output: string;
@@ -50,6 +53,7 @@ export interface KernelOptions {
 	ledger: LedgerEntry[];
 	persist: (entry: LedgerEntry) => void | Promise<void>;
 	onNotification?: (event: KernelNotification) => void;
+	onIngress?: (event: IngressEvent) => void;
 	/** Host-side implementation of the `exa` / `board` / `wm` namespaces. Must resolve JSON-serializable values. */
 	call?: (request: KernelRequest) => Promise<unknown>;
 }
@@ -73,7 +77,7 @@ export class Kernel {
 	private entries = new Map<string, LedgerEntry>();
 	private calls = new Set<AbortController>();
 	private shellOutput = new Map<number, Map<string, string>>();
-	private active?: { trace: KernelTrace; onUpdate?: (trace: KernelTrace) => void; id: number; content: ContentBlock[]; output: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
+	private active?: { trace: KernelTrace; onUpdate?: (trace: KernelTrace) => void; id: number; content: ContentBlock[]; output: string; diagnostics: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
 	private sequence = 0;
 	private disposed = false;
 
@@ -81,11 +85,11 @@ export class Kernel {
 		for (const entry of options.ledger) this.entries.set(entry.path, entry);
 	}
 
-	execute(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void, timeoutMs = 30_000): Promise<KernelResult> {
+	execute(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void, timeoutMs = 30_000, query = ""): Promise<KernelResult> {
 		if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647) {
 			return Promise.resolve({ content: [], output: "", error: "timeoutMs must be an integer between 1 and 2147483647" });
 		}
-		const run = this.queue.then(() => this.run(code, signal, onUpdate, timeoutMs));
+		const run = this.queue.then(() => this.run(code, signal, onUpdate, timeoutMs, query));
 		this.queue = run.catch(() => {});
 		return run;
 	}
@@ -108,6 +112,10 @@ export class Kernel {
 		else if (added) active.content.push({ type: "text", text: added });
 	}
 
+	private diagnostic(text: string): void {
+		if (this.active) this.active.diagnostics = (this.active.diagnostics + text).slice(0, LIMIT);
+	}
+
 	private start(): Promise<void> {
 		if (this.ready) return this.ready;
 		const require = createRequire(import.meta.url);
@@ -121,8 +129,8 @@ export class Kernel {
 			stdio: ["ignore", "pipe", "pipe", "ipc"],
 		});
 		this.child = child;
-		child.stdout?.setEncoding("utf8").on("data", (text) => { if (this.child === child) this.append(text); });
-		child.stderr?.setEncoding("utf8").on("data", (text) => { if (this.child === child) this.append(text); });
+		child.stdout?.setEncoding("utf8").on("data", (text) => { if (this.child === child) this.diagnostic(text); });
+		child.stderr?.setEncoding("utf8").on("data", (text) => { if (this.child === child) this.diagnostic(text); });
 		this.ready = new Promise<void>((resolve, reject) => {
 			const timer = setTimeout(() => {
 				reject(new Error("Kernel startup timed out"));
@@ -132,6 +140,9 @@ export class Kernel {
 				if (this.child !== child) return;
 				switch (message.type) {
 					case "ready": clearTimeout(timer); resolve(); break;
+					case "ingress":
+						this.persistence = this.persistence.then(() => this.options.onIngress?.(message.event)).catch(error => { this.persistenceError = errorMessage(error); });
+						break;
 					case "output": if (message.id === this.active?.id) this.append(message.text, message.warning); break;
 					case "shell-output": {
 						let streams = this.shellOutput.get(message.shell);
@@ -216,7 +227,7 @@ export class Kernel {
 		}
 	}
 
-	private async run(code: string, signal: AbortSignal | undefined, onUpdate: ((trace: KernelTrace) => void) | undefined, timeoutMs: number): Promise<KernelResult> {
+	private async run(code: string, signal: AbortSignal | undefined, onUpdate: ((trace: KernelTrace) => void) | undefined, timeoutMs: number, query: string): Promise<KernelResult> {
 		if (this.disposed) return { content: [], output: "", error: "Kernel is disposed" };
 		if (signal?.aborted) return { content: [], output: "", error: "Execution cancelled" };
 		return new Promise<KernelResult>((resolve) => {
@@ -231,16 +242,17 @@ export class Kernel {
 				const trace = this.active?.trace;
 				if (trace) trace.finished = true;
 				const output = this.active?.output ?? "";
+				const diagnostics = this.active?.diagnostics;
 				const content = this.active?.content ?? [];
 				this.active = undefined;
 				void this.persistence.then(() => {
 					const errors = [error, this.persistenceError].filter(Boolean);
 					this.persistenceError = undefined;
-					resolve({ output, content, trace, ...(errors.length ? { error: errors.join("\n") } : {}) });
+					resolve({ output, content, trace, ...(diagnostics ? { diagnostics } : {}), ...(errors.length ? { error: errors.join("\n") } : {}) });
 				});
 			};
 			const abort = () => { void this.stop("Execution cancelled; kernel state was cleared"); };
-			this.active = { id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate, content: [], output: "", bytes: 0, truncated: false, finish };
+			this.active = { id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate, content: [], output: "", diagnostics: "", bytes: 0, truncated: false, finish };
 			this.updateTrace();
 			signal?.addEventListener("abort", abort, { once: true });
 			timer = setTimeout(() => {
@@ -249,7 +261,7 @@ export class Kernel {
 			try {
 				void this.start().then(() => {
 					if (finished) return;
-					this.child?.send({ type: "execute", id, code }, (error) => {
+					this.child?.send({ type: "execute", id, code, query }, (error) => {
 						if (error) void this.stop(String(error));
 					});
 				}, (error) => finish(String(error)));
@@ -275,7 +287,7 @@ export class Kernel {
 		this.ready = undefined;
 		this.abortCalls();
 		for (const [pid, streams] of this.shellOutput) {
-			for (const [stream, text] of streams) this.append(`
+			for (const [stream, text] of streams) this.diagnostic(`
 [interrupted shell ${pid} ${stream}; partial capture, up to 50 KiB]
 ${text}`);
 		}

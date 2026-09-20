@@ -3,7 +3,7 @@ import { highlightCode, type ToolDefinition } from "@earendil-works/pi-coding-ag
 import { Container, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import type { KernelTrace } from "./kernel";
 
-type Details = { trace?: KernelTrace; error?: string };
+type Details = { trace?: KernelTrace; error?: string; diagnostics?: string };
 type RowState = { execSummary?: string };
 type Renderer = ToolDefinition<any, Details, RowState>;
 
@@ -98,6 +98,10 @@ export const renderResult: NonNullable<Renderer["renderResult"]> = (result, { ex
 	if (details?.error) {
 		heading("Cell error");
 		add(theme.fg("error", plain(details.error)));
+	}
+	if (details?.diagnostics) {
+		heading("Process / interrupted-shell diagnostics (UI only; use show for model output)");
+		add(plain(details.diagnostics));
 	}
 	heading(trace ? "Output (show / console.log)" : "Output");
 	for (const block of result.content) {

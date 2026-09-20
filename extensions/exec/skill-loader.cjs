@@ -5,7 +5,7 @@ const { resolve, dirname, join } = require("node:path");
 const placeholders = /```!\s*\n?([\s\S]*?)\n?```/g;
 const inline = /(?<!\S)!`([^`]+)`/g;
 
-function createSkillLoader(workspace, runShell, register) {
+function createSkillLoader(workspace, runShell, register, protect = value => value) {
  workspace = resolve(workspace);
  return async function loadSkill(path) {
   if (typeof path !== "string") throw new TypeError("loadSkill expects a SKILL.md path or directory");
@@ -38,7 +38,7 @@ function createSkillLoader(workspace, runShell, register) {
   }
   text += source.slice(cursor);
   text = "Skill: " + path + "\nPI_SKILL_DIR=" + skillDir + "\nPI_WORKSPACE=" + workspace + "\nRelative skill references resolve from PI_SKILL_DIR; workspace commands run in PI_WORKSPACE.\n\n" + text;
-  return register({ path, text, commands, content() { return [{ type: "text", text: this.text }]; } }, "text");
+  return protect(register({ path, text, commands, content() { return protect([{ type: "text", text: this.text }]); } }, "text"));
  };
 }
 module.exports = { createSkillLoader };

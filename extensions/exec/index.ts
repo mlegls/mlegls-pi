@@ -6,6 +6,7 @@ import { createExecServices, type ExecServices } from "./services";
 import { createComputerUseBridge } from "./computer-use";
 import { MODULES, resolveModules, describeModules, type ExecModule } from "./modules";
 import { renderCall, renderResult } from "./render";
+import { ingressContext } from "./ingress-context";
 
 const ENTRY_TYPE = "outline-read";
 const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
@@ -51,6 +52,9 @@ export default async function (pi: ExtensionAPI) {
 			persist(entry) {
 				if (current === generation) pi.appendEntry(ENTRY_TYPE, entry);
 			},
+			onIngress(event) {
+				if (current === generation) pi.appendEntry("exec-ingress", event);
+			},
 			onNotification(event) {
 				if (current !== generation) return;
 				pi.sendMessage({
@@ -95,13 +99,13 @@ export default async function (pi: ExtensionAPI) {
 			async execute(_id, { code, timeoutMs }, signal, onUpdate, ctx) {
 				if (configurationError) throw new Error(configurationError);
 				if (!kernel) await reset(ctx);
-				const result = await kernel!.execute(code, signal, trace => onUpdate?.({ content: [], details: { trace } }), timeoutMs);
+				const result = await kernel!.execute(code, signal, trace => onUpdate?.({ content: [], details: { trace } }), timeoutMs, ingressContext(ctx, code));
 				const content = [...result.content];
 				if (result.error) content.push({ type: "text", text: result.error });
 				if (!content.length) content.push({ type: "text", text: "(no output)" });
 				return {
 					content,
-					details: { piBetterSkills: { version: 1, handling: "explicit" }, trace: result.trace, ...(result.error ? { error: result.error } : {}) },
+					details: { piBetterSkills: { version: 1, handling: "explicit" }, trace: result.trace, ...(result.diagnostics ? { diagnostics: result.diagnostics } : {}), ...(result.error ? { error: result.error } : {}) },
 				};
 			},
 		});

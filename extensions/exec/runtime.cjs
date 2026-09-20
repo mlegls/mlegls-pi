@@ -27,6 +27,10 @@ const TRUNCATED = "\n[output truncated]\n";
 const scope = new AsyncLocalStorage();
 let server;
 let active;
+let ingress;
+let ingressQuery = "";
+const protectedDisplay = new WeakSet();
+const protect = value => { protectedDisplay.add(value); return value; };
 
 // Child→host service calls. Responses arrive on the same IPC channel as control messages.
 let requestSequence = 0;
@@ -187,9 +191,19 @@ function isPromise(value) {
 	return value != null && typeof value.then === "function";
 }
 
-function display(value) {
-	if (isPromise(value)) return Promise.resolve(value).then(display);
-	return value && typeof value.content === "function" ? value.content() : render(value);
+function display(value, raw = false, query = scope.getStore()?.query ?? ingressQuery) {
+	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query));
+	const rendered = value && typeof value.content === "function" ? value.content() : render(value);
+	if (raw || !query || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
+	return Promise.resolve(rendered).then(async result => {
+		if (protectedDisplay.has(result)) return result;
+		if (!Array.isArray(result)) return ingress.filter(String(result), query);
+		const filtered = await Promise.all(result.map(async block => block.type === "text"
+			? { ...block, text: await ingress.filter(block.text, query) } : block));
+		const error = contentErrors.get(result);
+		if (error) contentErrors.set(filtered, error);
+		return filtered;
+	});
 }
 
 function emitValues(cell, values) {
@@ -218,10 +232,12 @@ function emitValues(cell, values) {
 	flush();
 }
 
-function show(...values) {
+function show(...values) { return showValues(false, values); }
+
+function showValues(raw, values) {
 	const cell = scope.getStore();
 	if (!cell || cell.finished) return Promise.resolve();
-	const rendered = values.map(display);
+	const rendered = values.map(value => display(value, raw));
 	if (!cell.tail && !rendered.some(isPromise)) {
 		emitValues(cell, rendered.length ? rendered : [""]);
 		return Promise.resolve();
@@ -236,6 +252,9 @@ function show(...values) {
 	);
 	return pending;
 }
+
+show.raw = (...values) => showValues(true, values);
+show.pull = (id) => show.raw(ingress.pull(id));
 
 show.large = (...values) => {
 	const cell = scope.getStore();
@@ -341,7 +360,7 @@ function notify(promise, label) {
 				else { output += message.text; const last = content.at(-1); if (last?.type === "text") last.text += message.text; else content.push({ type: "text", text: message.text }); }
 			} };
 			try {
-				const displayed = await display(value);
+				const displayed = await display(value, false, ingressQuery);
 				if (Array.isArray(displayed)) emitValues(cell, [displayed]);
 				else emit(cell, displayed);
 				if (cell.renderError) error = errorText(cell.renderError);
@@ -374,7 +393,7 @@ async function initialize(message) {
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
 	const capabilities = { show, notify };
 	if (modules.has("fs")) {
-		const loadSkill = createSkillLoader(message.cwd, runShell, register);
+		const loadSkill = createSkillLoader(message.cwd, runShell, register, protect);
 		for (const [name, fn] of Object.entries({ ...api, write, loadSkill })) capabilities[name] = traced(name, fn);
 		capabilities.edit.raw = traced("edit.raw", (input, ...values) => api.edit(template(input, values, true)));
 	}
@@ -402,6 +421,7 @@ async function initialize(message) {
 		if (mod.scope === "project") project[mod.name] = loaded;
 		else capabilities[mod.name] = loaded;
 	}
+	ingress = capabilities.ingress.create({ record: event => send({ type: "ingress", event }) });
 	capabilities.project = Object.freeze(project);
 	for (const [name, value] of Object.entries(capabilities)) {
 		Object.defineProperty(server.context, name, { value, writable: false, configurable: false });
@@ -417,7 +437,9 @@ async function initialize(message) {
 }
 
 function execute(message) {
+	ingressQuery = message.query ?? "";
 	const cell = {
+		query: ingressQuery,
 		id: message.id, images: 0, imageBytes: 0, deliver: send, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
 		async finish(error) {
 			if (cell.finished || cell.finishing) return;
