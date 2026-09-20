@@ -30,3 +30,4 @@ decisions:
 - 2026-09-18: skills-triage resolved: skills stay skills and migrate one at a time; the skill list is the index, not a new one. "[[projects/mlegls-pi/issues/context-handoff]]" and "[[projects/mlegls-pi/issues/exec-project-modules]]" added; the parent's `next` is carried by its children.
 - 2026-09-18: context-handoff landed: wm.spawn({from:"fork"|"summary"}), /jump <handle>. "[[projects/mlegls-pi/issues/archive/context-handoff]]".
 - 2026-09-18: exec-project-modules landed: `.pi/exec/<name>.ts` shadows `lib/<name>.ts` in the cell; new stems are `project.<name>`; `skills/mlegls-pi` documents layout/add/reload. "[[projects/mlegls-pi/issues/archive/exec-project-modules]]".
+- 2026-09-20: repo-merge landed: `agents/`, `skills/{enabled,disabled}`, `agent-prompts/` live here; system-config keeps relative symlinks and agents-apply. package skills stay `skills/pi` and `skills/mlegls-pi`. "[[projects/mlegls-pi/issues/archive/repo-merge]]".
