@@ -227,13 +227,13 @@ export function done(name: string) {
   for (const file of readdirSync(root).filter(p => p.endsWith('.md'))) {
     const path = join(root, file);
     let note = readFileSync(path, 'utf8');
-    if (!note.includes('/issues/' + name + ']]')) continue;
+    if (!note.includes('/issues/' + name + ']]') && !note.includes('/issues/archive/' + name + ']]')) continue;
     const dir = project(path);
     const archived = join(dir, 'docs/issues/archive', name + '.md');
     if (!existsSync(archived) || !/^next:\s*done\s*$/m.test(readFileSync(archived, 'utf8'))) throw new Error('Ticket must be archived with next: done: ' + archived);
     const link = 'projects/' + basename(dir) + '/issues/' + name;
     const { lines, start, end } = section(note, 'threads');
-    const matches = lines.flatMap((line, i) => i > start && i < end && /^[-+*] /.test(line) ? [blockAt(note, i + 1)] : []).filter(b => b.text.includes('ticket:: [[' + link + ']]'));
+    const matches = lines.flatMap((line, i) => i > start && i < end && /^[-+*] /.test(line) ? [blockAt(note, i + 1)] : []).filter(b => [link, link.replace('/issues/', '/issues/archive/')].some(l => b.text.includes('ticket:: [[' + l + ']]')));
     for (const b of matches.toReversed()) {
       lines.splice(b.start, b.end - b.start);
       moved.push(path);
@@ -293,7 +293,10 @@ export async function run(options: { notes?: string[] } = {}) {
     if (triageBlocks.length) {
       try {
         await triage(path);
-        for (const b of blocks(readFileSync(path, 'utf8')).filter(b => b.tag === 'triage').toReversed()) writeBack(path, b, { inline: b.text.replace(/^\s*[-+*] /, '').replace(/#triage\b/, '').trim() || 'Triaged fleeting → threads' });
+        const triaged = readFileSync(path, 'utf8');
+        const lines = triaged.split('\n');
+        for (const b of blocks(triaged).filter(b => b.tag === 'triage').toReversed()) lines.splice(b.start, b.end - b.start);
+        writeFileSync(path, lines.join('\n'));
         written.push({ path, line: triageBlocks[0].start + 1, tag: 'triage' });
       } catch (error) { declined.push({ path, line: triageBlocks[0].start + 1, reason: String(error) }); continue; }
       note = readFileSync(path, 'utf8');
