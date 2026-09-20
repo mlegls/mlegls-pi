@@ -282,7 +282,6 @@ export function changed() {
     .map(e => join(root, e.name)).filter(path => statSync(path).mtimeMs > (seen[path] ?? 0));
 }
 export async function run(options: { notes?: string[] } = {}) {
-  const pending: Agenda[] = [];
   const written: NonNullable<ReturnType<typeof writeBack>>[] = [];
   const declined: { path: string; line: number; reason: string }[] = [];
   const seen = stamps();
@@ -321,12 +320,11 @@ export async function run(options: { notes?: string[] } = {}) {
         declined.push({ path, line: block.start + 1, reason: String(error) });
       }
     }
-    pending.push(...agenda([path]));
     if (!failed) seen[path] = statSync(path).mtimeMs;
   }
   mkdirSync(dirname(stamp), { recursive: true });
   writeFileSync(stamp, JSON.stringify(seen, null, 2) + '\n');
-  return { written, declined, agenda: pending };
+  return { written, declined, agenda: agenda(options.notes) };
 }
 
 if (import.meta.main) run(process.argv.length > 2 ? { notes: process.argv.slice(2) } : {}).then(r => console.log(JSON.stringify(r, null, 2))).catch(error => { console.error(error); process.exitCode = 1; });
