@@ -4,7 +4,7 @@ next: done
 priority: 1
 ---
 
-the first sink of [[augment]]: `comment`, end to end, everything else hardcoded. a bullet in obsidian → palette command → pi → a CriticMarkup comment appears under the bullet. this is the block→workflow→margin path the other three sinks reuse.
+the first sink of [[control plane]]: `comment`, end to end, everything else hardcoded. a bullet in obsidian → palette command → pi → a CriticMarkup comment appears under the bullet. this is the block→workflow→margin path the other three sinks reuse.
 
 pieces:
 1. `lib/augment.ts comment <absolute note path> <caret line>`: read the note; the block is the bullet at the caret plus its indented subtree; context is the whole note. run pi non-interactively (`pi -p` or the SDK; see skills/pi) with the grilling skill as the lens: the questions that would need answering to act on this block. re-read the note, locate the block by content, insert the answer as `{>>…<<}` lines nested one level under the bullet; fail loudly if the block moved. direct file write; obsidian picks up external changes.
