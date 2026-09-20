@@ -18,7 +18,7 @@ All results remain in ~/obsidian/mlegls-pi.md.
 - vault.done: archived next: done ticket collapsed into one struck-through link under done. A second call returned an empty list.
 - Discussion: vault skill returned agenda without writing comments. A real pi RPC session invoked /record mlegls-pi.md; it called vault.record, wrote a fable-attributed conclusion, and dropped #discuss.
 - Spec: /record folded a complete spec into the thread body, preserved ticket::, and changed #to-spec to #implement before the done hook.
-- #do: a real tool worker ran git rev-parse --show-toplevel and date -u. Its board artifact became [[Vault lifecycle tool receipt]] and a link replacing the instruction.
+- #do: a real tool worker ran git rev-parse --show-toplevel and date -u. Its board artifact became "Vault lifecycle tool receipt" (dogfood note, since deleted) and a link replacing the instruction.
 - Final scoped run: zero writes, zero agenda items; two existing model replies declined. Node imported and exercised the vault path; no Bun APIs remain in vault’s lib dependencies. No permanent tests added.
 
 ## interfaces

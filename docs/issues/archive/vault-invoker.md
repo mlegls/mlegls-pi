@@ -22,7 +22,7 @@ done: editing a vault note to add a #question bullet and a #do bullet, then `/sk
 
 ## signals
 
-- Live Jev route returned deepseek/deepseek-flash, low. Added one #question and one #do to ~/obsidian/mlegls-pi.md fleeting; `bun lib/vault.ts mlegls-pi.md` wrote one DeepSeek comment and replaced #do with [[Vault invocation loop]], creating ~/obsidian/Vault invocation loop.md. Results remain there. Returned 2 written, 0 declined.
+- Live Jev route returned deepseek/deepseek-flash, low. Added one #question and one #do to ~/obsidian/mlegls-pi.md fleeting; `bun lib/vault.ts mlegls-pi.md` wrote one DeepSeek comment and replaced #do with "Vault invocation loop" (dogfood note, since deleted), creating ~/obsidian/Vault invocation loop.md. Results remain there. Returned 2 written, 0 declined.
 - Immediate identical invocation returned 0 written, 0 declined. Hash comparison across all pre-existing root markdown notes: exactly mlegls-pi.md changed; its original content remained a byte-identical prefix. Exactly one new root note: Vault invocation loop.md.
 - Disposable Bun signal passed declaration/fence exclusion, plain-user/model-last thread classification, deferred-tag comment, stale-block refusal, inline replacement, and two-model comment insertion. Removed the signal script; no permanent tests added. Live fan-out and the Obsidian palette/skill UI were not exercised; the library/CLI path was.
 
