@@ -1,7 +1,6 @@
 ---
-claimed-by: frontier/0919/hunks
 tags: [task]
-next: implement
+next: done
 priority: 2
 ---
 
@@ -10,3 +9,7 @@ four workers in run frontier/0919 wrote edit hunk headers into files as content.
 fix: a body line that parses as a header (or is a lone `@path` token) is an error naming the line and the separator rule, unless backslash-escaped, same as line 80's check but without requiring the preceding blank. `edit.test.ts` has the parse fixtures.
 
 done: the three observed forms throw before touching disk; `bun test extensions/outline-read` passes; the grammar text says escaped headers are the only way to write one as content.
+
+## decisions
+
+- 2026-09-20: Unescaped header-like body lines and lone `@path` throw before disk, naming the separator rule. Backslash-escape is the only way to write one as content.
