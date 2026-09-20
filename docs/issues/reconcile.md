@@ -4,10 +4,14 @@ next: implement
 priority: 1
 ---
 
-the outliner model in the vault note [[workflows]] (section outliner) replaces the tag-driven comment loop as the main path. a `reconcile` skill runs in an interactive session, so the model is whatever the session is; the library does the reading and the mechanical moves.
+the outliner replaces the tag-driven comment loop as the main path. The `vault` skill means interactive reconciliation, using the current session's model. The skill can operate with existing read/edit tools; a dedicated library for the mechanical moves remains below.
 
 - `lib/outliner.ts`: `load(project)` reads the project's outliner note (`~/obsidian/<project>.md`, frontmatter `repo`/`directory` name the repo), its `## fleeting` and `## efforts` bullets with their tags and issue wiki-links, the tracker tree for that repo (`issues.ts tree` output or the same data via the tracker lib), and returns per bullet: status section, characteristic tags, linked issue and its live state (stage, claimed, archived) or none. `orphans()` lists live issues not linked from the outliner. `move(bullet, {to: 'efforts', issue})`, `mark(bullet, 'done')`, `remove(bullet)` edit the note guarded by content match (reuse lib/vault.ts writeBack). `attach` creates an issue through the tracker's introduce path when none exists.
-- skill `reconcile` (skills/enabled/all/mlegls/): argument is an optional characteristic-tag filter. steps: load; list bullets in scope with what each resolves to and any contradiction (issue archived but bullet live, bullet says X and tracker says Y); discuss the new/unresolved ones in chat; propose one status move per bullet and show outliner edits as a diff before applying; make tracker edits directly. it replaces introduce; introduce's SKILL.md points at reconcile.
+- skill `vault` (skills/enabled/all/mlegls/vault/): note/project and optional characteristic-tag filter. Read plans, fleeting, and efforts; resolve against tracker and relevant code; surface contradictions and orphans; discuss unresolved intent; write agreed tracker changes; show and accept an outliner diff before applying. Introduce remains separate.
 - `advance` unchanged. the #question/#do handlers in lib/vault.ts stay but the vault skill's description says they're off the main path.
 
-done: on ~/obsidian/directing work from obsidian.md (already shaped idea / plans / fleeting / efforts; plans bullets link tracker issues too), `/skill:reconcile` lists every bullet with its resolution, offers to move the fleeting ones into efforts with issues, marks the archived one #done, and reports orphans; accepting applies the diff. leave the note in that state.
+done: on ~/obsidian/directing multi-agent work.md, `/skill:vault` lists in-scope bullets with their resolution and reports orphans; accepting proposed changes applies the shown diff. Exercise moves and completion marking where the actual state warrants them.
+
+## decisions
+
+- 2026-09-20: vault now means reconcile; the skill is updated, with explicit supertag processing retained in a reference. No separate reconcile skill or introduce redirect. Library mechanics and live acceptance verification remain open.
