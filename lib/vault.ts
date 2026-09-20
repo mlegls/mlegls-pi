@@ -133,6 +133,49 @@ export function writeBack(path: string, block: Block, result: Result) {
   return { path, line: block.start + 1, tag: block.tag, ...(created ? { created } : {}) };
 }
 
+function section(note: string, heading: string) {
+  const lines = note.split('\n');
+  const start = lines.findIndex(l => l.toLowerCase() === '## ' + heading);
+  let end = lines.findIndex((l, i) => i > start && /^#{1,2} /.test(l));
+  if (end < 0) end = lines.length;
+  return { lines, start, end };
+}
+function appendSection(note: string, heading: string, text: string) {
+  const { lines, start, end } = section(note, heading);
+  if (start < 0) return note.trimEnd() + '\n\n## ' + heading + '\n' + text + '\n';
+  lines.splice(end, 0, text);
+  return lines.join('\n');
+}
+function json(text: string) { return JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '')); }
+
+export async function triage(path: string) {
+  const note = readFileSync(path, 'utf8');
+  const { lines, start, end } = section(note, 'fleeting');
+  if (start < 0) return [];
+  const tagged = blocks(note);
+  const items = lines.flatMap((l, i) => i > start && i < end && /^[-+*] /.test(l) && !/#[-\w]+/.test(l) && !tagged.some(b => b.start <= i && i < b.end) ? [blockAt(note, i + 1)] : []);
+  if (!items.length) return [];
+  const choices = await decide({ note, items: items.map(b => b.text) }, Object.fromEntries(items.map((b, i) => [String(i), {
+    type: 'choice' as const, instructions: 'Classify fleeting item ' + i + ': ' + b.text,
+    criteria: { 'to-spec': 'Useful goal needing a specification', implement: 'Already concrete and actionable', drop: 'No further work or redundant', merge: 'Belongs in an existing linked note' },
+  }])));
+  const workflow = '#triage: ' + workflows().triage;
+  const { model, effort } = await route(workflow, items.map(b => b.text).join('\n'));
+  const proposals = json(await complete(JSON.stringify({ workflow, items: items.map((b, i) => ({ text: b.text, stage: choices[String(i)].choice })), note }) + '\nReturn ONLY a JSON array in item order, each {title, body, target?}. title is one line without tags; body is exactly two concise lines preserving the idea. For merge, target is an existing wikilink destination. Do not execute anything.', model, effort, 'Turn fleeting notes into proposals for human review.'));
+  if (!Array.isArray(proposals) || proposals.length !== items.length) throw new Error('Invalid triage proposals');
+  const rendered = proposals.map((p, i) => {
+    if (typeof p.title !== 'string' || /[\r\n#]/.test(p.title) || typeof p.body !== 'string' || p.body.trim().split('\n').length !== 2) throw new Error('Expected title and two-line proposal body');
+    const stage = choices[String(i)].choice;
+    if (typeof p.target === 'string') p.target = p.target.replace(/^\[\[|\]\]$/g, '');
+    if (stage === 'merge' && (typeof p.target !== 'string' || /[\[\]\r\n]/.test(p.target))) throw new Error('Invalid merge target');
+    return '- ' + p.title + (stage === 'drop' ? ' — drop' : stage === 'merge' ? ' — merge into [[' + p.target + ']]' : ' #' + stage) + '\n  ' + p.body.trim().split('\n').join('\n  ');
+  });
+  if (readFileSync(path, 'utf8') !== note) throw new Error('Note changed during triage; no proposals written');
+  for (const b of items.toReversed()) lines.splice(b.start, b.end - b.start);
+  writeFileSync(path, appendSection(lines.join('\n'), 'threads', rendered.join('\n')));
+  return rendered;
+}
+
 export type Agenda = { path: string; block: Block };
 export function agenda(notes?: string[]): Agenda[] {
   const paths = notes?.map(p => p.startsWith('/') ? p : join(root, p)) ?? readdirSync(root).filter(p => p.endsWith('.md')).map(p => join(root, p));
@@ -173,8 +216,17 @@ export async function run(options: { notes?: string[] } = {}) {
   const seen = stamps();
   const paths = options.notes ? options.notes.map(p => p.startsWith('/') ? p : join(root, p)) : changed();
   for (const path of paths) {
-    const note = readFileSync(path, 'utf8');
-    const selected = blocks(note);
+    let note = readFileSync(path, 'utf8');
+    const triageBlocks = blocks(note).filter(b => b.tag === 'triage');
+    if (triageBlocks.length) {
+      try {
+        await triage(path);
+        for (const b of blocks(readFileSync(path, 'utf8')).filter(b => b.tag === 'triage').toReversed()) writeBack(path, b, { inline: b.text.replace(/^\s*[-+*] /, '').replace(/#triage\b/, '').trim() || 'Triaged fleeting → threads' });
+        written.push({ path, line: triageBlocks[0].start + 1, tag: 'triage' });
+      } catch (error) { declined.push({ path, line: triageBlocks[0].start + 1, reason: String(error) }); continue; }
+      note = readFileSync(path, 'utf8');
+    }
+    const selected = blocks(note).filter(b => !triageBlocks.length || !['implement', 'to-spec'].includes(b.tag));
     let failed = false;
     // Bottom-up keeps earlier source coordinates valid after write-back.
     for (const block of selected.toReversed()) {
