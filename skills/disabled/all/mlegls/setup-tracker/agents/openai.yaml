@@ -1,0 +1,5 @@
+interface:
+  display_name: "Setup Tracker"
+  short_description: "Configure issue tracking for the skills"
+policy:
+  allow_implicit_invocation: false

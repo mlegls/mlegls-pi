@@ -1,0 +1,5 @@
+interface:
+  display_name: "Introduce"
+  short_description: "Size something new and open the right playbook"
+policy:
+  allow_implicit_invocation: false

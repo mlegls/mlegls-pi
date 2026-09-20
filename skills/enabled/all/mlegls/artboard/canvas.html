@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canvas</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #e9e8e4; font: 12px/1.4 system-ui, sans-serif; color: #1d1d1b; }
+  #viewport { position: absolute; inset: 0; cursor: grab; touch-action: none; }
+  #viewport.panning { cursor: grabbing; }
+  #canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .artboard { position: absolute; }
+  .artboard > .name { position: absolute; left: 0; bottom: 100%; margin-bottom: 6px; white-space: nowrap; color: #6b6a66; user-select: none; }
+  .artboard > .name a { color: inherit; text-decoration: none; }
+  .artboard > .name a:hover { text-decoration: underline; }
+  .artboard > iframe { display: block; border: 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18), 0 8px 24px rgba(0,0,0,.08); }
+  .artboard > .shield { position: absolute; inset: 0; }
+  .artboard.live > .shield { display: none; }
+  .artboard.live > iframe { outline: 2px solid #2f6fed; }
+  .note { position: absolute; padding: 12px 14px; background: #fff7a8; box-shadow: 0 1px 2px rgba(0,0,0,.2); white-space: pre-wrap; font-size: 13px; }
+  #bar { position: absolute; left: 12px; top: 12px; display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,.92); padding: 6px 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  #bar select, #bar button { font: inherit; }
+  #hint { color: #6b6a66; }
+</style>
+</head>
+<body>
+<script id="layout" type="application/json">
+{
+  "artboards": [
+    { "file": "Main.html", "x": 0, "y": 0, "w": 1440, "h": 900 }
+  ]
+}
+</script>
+<div id="viewport"><div id="canvas"></div></div>
+<div id="bar">
+  <select id="pages" hidden></select>
+  <button id="fit">Fit</button>
+  <span id="zoom">100%</span>
+  <span id="hint">drag/scroll to pan · ⌘-scroll to zoom · click an artboard to interact · Esc · 0 fit · 1 100%</span>
+</div>
+<script>
+const L = JSON.parse(document.getElementById('layout').textContent);
+const pages = L.pages || [];
+const vp = document.getElementById('viewport'), cv = document.getElementById('canvas');
+const sel = document.getElementById('pages');
+let page = pages[0]?.id, tx = 0, ty = 0, z = 1;
+
+if (pages.length) {
+  sel.hidden = false;
+  for (const p of pages) sel.append(new Option(p.name, p.id));
+  sel.onchange = () => { page = sel.value; render(); fit(); };
+}
+
+function onPage(o) { return !pages.length || (o.page || pages[0].id) === page; }
+
+function render() {
+  cv.replaceChildren();
+  for (const a of L.artboards.filter(onPage)) {
+    const el = document.createElement('div');
+    el.className = 'artboard';
+    el.style.cssText = `left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px`;
+    const stem = a.file.replace(/\.html?$/i, '');
+    el.innerHTML = `<div class="name"><a href="${a.file}" target="_blank" title="open alone">${a.title || stem}</a> <span>${a.w}×${a.h}</span></div>
+      <iframe src="${a.file}" width="${a.w}" height="${a.h}" loading="lazy"></iframe><div class="shield"></div>`;
+    el.querySelector('.shield').addEventListener('click', () => { for (const o of cv.querySelectorAll('.live')) o.classList.remove('live'); el.classList.add('live'); });
+    cv.append(el);
+  }
+  for (const n of (L.notes || []).filter(onPage)) {
+    const el = document.createElement('div');
+    el.className = 'note';
+    el.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w || 240}px`;
+    el.textContent = n.text;
+    cv.append(el);
+  }
+}
+
+function apply() { cv.style.transform = `translate(${tx}px,${ty}px) scale(${z})`; document.getElementById('zoom').textContent = Math.round(z * 100) + '%'; }
+
+function fit() {
+  const items = [...L.artboards, ...(L.notes || []).map(n => ({ ...n, w: n.w || 240, h: 120 }))].filter(onPage);
+  if (!items.length) return;
+  const x0 = Math.min(...items.map(i => i.x)), y0 = Math.min(...items.map(i => i.y)) - 24;
+  const x1 = Math.max(...items.map(i => i.x + i.w)), y1 = Math.max(...items.map(i => i.y + i.h));
+  const pad = 48, W = innerWidth - 2 * pad, H = innerHeight - 2 * pad - 40;
+  z = Math.min(1, W / (x1 - x0), H / (y1 - y0));
+  tx = pad + (W - (x1 - x0) * z) / 2 - x0 * z; ty = pad + 40 + (H - (y1 - y0) * z) / 2 - y0 * z;
+  apply();
+}
+
+function zoomAt(f, cx, cy) { const nz = Math.min(8, Math.max(.05, z * f)); tx = cx - (cx - tx) * nz / z; ty = cy - (cy - ty) * nz / z; z = nz; apply(); }
+
+vp.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * .01), e.clientX, e.clientY);
+  else { tx -= e.deltaX; ty -= e.deltaY; apply(); }
+}, { passive: false });
+
+let drag = null;
+vp.addEventListener('pointerdown', e => {
+  if (e.target.closest('.live') || e.target.closest('a')) return;
+  drag = { x: e.clientX - tx, y: e.clientY - ty, moved: false }; vp.setPointerCapture(e.pointerId); vp.classList.add('panning');
+});
+vp.addEventListener('pointermove', e => { if (!drag) return; drag.moved = true; tx = e.clientX - drag.x; ty = e.clientY - drag.y; apply(); });
+vp.addEventListener('pointerup', e => { if (drag && !drag.moved && !e.target.closest('.artboard')) for (const o of cv.querySelectorAll('.live')) o.classList.remove('live'); drag = null; vp.classList.remove('panning'); });
+vp.addEventListener('click', e => { if (drag?.moved) e.stopPropagation(); }, true);
+
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'SELECT') return;
+  if (e.key === 'Escape') for (const o of cv.querySelectorAll('.live')) o.classList.remove('live');
+  if (e.key === '0') fit();
+  if (e.key === '1') { z = 1; apply(); }
+});
+document.getElementById('fit').onclick = fit;
+addEventListener('resize', fit);
+render(); fit();
+</script>
+</body>
+</html>

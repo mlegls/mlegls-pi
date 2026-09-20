@@ -1,0 +1,5 @@
+interface:
+  display_name: "Advance"
+  short_description: "Propose a session-sized chunk of already-planned work"
+policy:
+  allow_implicit_invocation: false

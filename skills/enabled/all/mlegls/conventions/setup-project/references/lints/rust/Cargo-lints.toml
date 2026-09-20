@@ -1,0 +1,10 @@
+# Merge into Cargo.toml ([workspace.lints] + `lints.workspace = true` per crate in a workspace).
+[lints.rust]
+dead_code = "deny"
+
+[lints.clippy]
+cognitive_complexity = "warn"
+excessive_nesting = "warn"
+too_many_lines = "warn"
+unwrap_used = "deny"
+expect_used = "deny"

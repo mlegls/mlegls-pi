@@ -1,0 +1,5 @@
+interface:
+  display_name: "Introduce"
+  short_description: "Locate existing work, scope an idea, and propose next steps"
+policy:
+  allow_implicit_invocation: false

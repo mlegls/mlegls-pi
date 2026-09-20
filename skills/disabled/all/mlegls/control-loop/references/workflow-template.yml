@@ -1,0 +1,245 @@
+# Agent <Task Title>: scheduled/manual runs open a fresh PR; `/iterate`
+# updates its branch and may update agent memory. Keep fused parts in one step.
+# Check the routing marker before checkout/setup.
+
+name: "Agent: <Task Title>"
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # Update me based on user preferences
+  workflow_dispatch:
+  issue_comment:
+    types: [created] # for iteration!
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: agent-<task-slug>
+  cancel-in-progress: true
+
+jobs:
+  agent-task:
+    # Run all non-comment events. For issue comments, only authorized PR comments
+    # starting with /iterate are allowed to reach the marker preflight below.
+    if: |
+      github.event_name != 'issue_comment' ||
+      (
+        github.event.issue.pull_request &&
+        startsWith(github.event.comment.body, '/iterate') &&
+        (github.event.comment.author_association == 'OWNER' ||
+         github.event.comment.author_association == 'MEMBER' ||
+         github.event.comment.author_association == 'COLLABORATOR')
+      )
+    runs-on: ubuntu-latest
+    env:
+      # Configure these from the runner/model actually selected for this loop.
+      AGENT_MODEL: ${{ vars.AGENT_MODEL }}
+      AGENT_EFFORT: ${{ vars.AGENT_EFFORT }}
+    steps:
+      - name: Check iterate marker to bound work-in-progress
+        id: agent_gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_URL: ${{ github.event.issue.pull_request.url }}
+          WORKFLOW_ID: agent-<task-slug>
+          AGENT_LABEL: agent-<task-slug>
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$EVENT_NAME" = "workflow_call" ]; then
+            EXISTING_PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --label "$AGENT_LABEL" --json number,url --limit 1)
+            if [ "$(echo "$EXISTING_PR" | jq 'length')" -gt 0 ]; then
+              echo "run_agent=false" >> "$GITHUB_OUTPUT"
+              echo "Open PR already exists for $AGENT_LABEL; no-op."
+              exit 0
+            fi
+          fi
+
+          if [ "$EVENT_NAME" != "issue_comment" ]; then
+            echo "run_agent=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Route shared `/iterate` comments by the hidden PR-body workflow marker.
+          PR_DATA=$(gh api "$PR_URL")
+          BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
+          if grep -Fq "<!-- codelayer-agent:workflow=$WORKFLOW_ID;" <<< "$BODY"; then
+            echo "run_agent=true" >> "$GITHUB_OUTPUT"
+            echo "number=$(echo "$PR_DATA" | jq -r '.number')" >> "$GITHUB_OUTPUT"
+            echo "head_ref=$(echo "$PR_DATA" | jq -r '.head.ref')" >> "$GITHUB_OUTPUT"
+            echo "head_sha=$(echo "$PR_DATA" | jq -r '.head.sha')" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_agent=false" >> "$GITHUB_OUTPUT"
+            echo "PR was not created by $WORKFLOW_ID; no-op."
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name != 'issue_comment'
+        with:
+          fetch-depth: 0
+
+      - uses: actions/checkout@v5
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name == 'issue_comment'
+        with:
+          ref: ${{ steps.agent_gate.outputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Configure git user & branch
+        if: steps.agent_gate.outputs.run_agent == 'true'
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "issue_comment" ]; then
+            BRANCH="<branch-prefix>/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+            git checkout -b "$BRANCH"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # NOTE: setup below assumes a bun/Node repo. Replace with this repo's runtime + install.
+      - name: Install bun
+        if: steps.agent_gate.outputs.run_agent == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install Node.js
+        if: steps.agent_gate.outputs.run_agent == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Cache bun dependencies
+        if: steps.agent_gate.outputs.run_agent == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.agent_gate.outputs.run_agent == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Install Claude Code
+        if: steps.agent_gate.outputs.run_agent == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      # `/iterate`: one feedback actuator pass, not a fresh loop cycle.
+      - name: Actuator — iterate on feedback
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name == 'issue_comment'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.agent_gate.outputs.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -o pipefail
+          # Build from PR context, feedback, and memory; adjust the helper path.
+          bun .github/scripts/agent-iteration.ts \
+            --command prompt \
+            --workflow agent-<task-slug> \
+            --memory .github/agent-memory/<task-slug>.md \
+            --repo "$GITHUB_REPOSITORY" \
+            --pr-number "$PR_NUMBER" \
+            --comment-body "$COMMENT_BODY" > /tmp/agent-prompt.md
+
+          # NOTE: runner and extraction per references/runners.md
+          claude -p "$(cat /tmp/agent-prompt.md)" --model "$AGENT_MODEL" --effort "$AGENT_EFFORT" \
+            --permission-mode bypassPermissions --output-format json \
+            | tee /tmp/agent-output.txt | jq -r .result > /tmp/pr-body.md
+
+      # Scheduled/manual loop: collapse fused parts instead of inventing steps.
+
+      - name: Sensor — measure current state
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name != 'issue_comment'
+        run: |
+          # Replace with a sensor writing normalized output.
+          #   <sensor command> > /tmp/sensor-output.json
+          echo "TODO: run the sensor and write /tmp/sensor-output.json"
+
+      - name: Controller — select the next increment
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name != 'issue_comment'
+        run: |
+          # Select a bounded increment using sensor output and selection memory.
+          # Delete this step if the actuator agent owns selection.
+          #   <controller command> /tmp/sensor-output.json .github/agent-memory/<task-slug>.md > /tmp/controller-output.md
+          echo "TODO: select target(s) and write /tmp/controller-output.md"
+
+      - name: Actuator — run the coding agent
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name != 'issue_comment'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          MEMORY_CONTENT="$(cat .github/agent-memory/<task-slug>.md)"
+          CONTROLLER_OUTPUT="$(cat /tmp/controller-output.md 2>/dev/null || true)"
+
+          PROMPT="$(cat <<EOF
+          <run assignment: objective, scope, context pointers, validation, and delivery owner>
+
+          ## Selected work (controller output)
+
+          $CONTROLLER_OUTPUT
+
+          ## Agent Memory
+
+          $MEMORY_CONTENT
+          EOF
+          )"
+
+          # NOTE: runner and extraction per references/runners.md
+          claude -p "$PROMPT" --model "$AGENT_MODEL" --effort "$AGENT_EFFORT" \
+            --permission-mode bypassPermissions --output-format json \
+            | tee /tmp/agent-output.txt | jq -r .result > /tmp/pr-body.md
+
+      - name: Push and create PR
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name != 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT_LABEL: agent-<task-slug>
+          WORKFLOW_ID: agent-<task-slug>
+        run: |
+          if git diff --quiet origin/main...HEAD; then
+            echo "No commits were created by the agent; skipping PR creation."
+            exit 0
+          fi
+
+          git push --set-upstream origin "${{ env.BRANCH }}"
+
+          # Add the routing marker; adjust the helper path.
+          bun .github/scripts/agent-iteration.ts \
+            --command footer \
+            --workflow "$WORKFLOW_ID" \
+            --memory .github/agent-memory/<task-slug>.md >> /tmp/pr-body.md
+
+          gh label create "$AGENT_LABEL" --description "Recurring <Task Title> agent PR" --color "0E8A16" || true
+          PR_URL=$(gh pr create --title "[$(date +%m/%d)] <Task Title>" --body-file /tmp/pr-body.md)
+          gh pr edit "$PR_URL" --add-label "$AGENT_LABEL"
+
+      - name: Push iteration changes and comment
+        if: steps.agent_gate.outputs.run_agent == 'true' && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! git diff --quiet HEAD; then
+            git add -A
+            git commit -m "chore: iterate <task-slug> agent feedback"
+            git push origin HEAD:${{ steps.agent_gate.outputs.head_ref }}
+          fi
+
+          gh pr comment ${{ steps.agent_gate.outputs.number }} --body-file /tmp/pr-body.md
+
+      - name: Upload agent output
+        if: always() && steps.agent_gate.outputs.run_agent == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-output
+          path: /tmp/agent-output.txt

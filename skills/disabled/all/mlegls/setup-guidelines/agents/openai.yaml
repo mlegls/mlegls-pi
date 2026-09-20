@@ -1,0 +1,5 @@
+interface:
+  display_name: "Setup Guidelines"
+  short_description: "Install project engineering guidelines"
+policy:
+  allow_implicit_invocation: false

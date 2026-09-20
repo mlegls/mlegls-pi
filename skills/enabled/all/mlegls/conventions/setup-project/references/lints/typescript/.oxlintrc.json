@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "categories": { "correctness": "error" },
+  "rules": {
+    "oxc/no-barrel-file": ["error", { "threshold": 5 }],
+    "typescript/no-unnecessary-condition": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
+    "typescript/no-non-null-assertion": "error"
+  },
+  "ignorePatterns": ["dist", "build", "node_modules", "**/*.generated.*"]
+}

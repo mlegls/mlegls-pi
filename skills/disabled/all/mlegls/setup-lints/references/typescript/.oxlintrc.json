@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "categories": { "correctness": "error" },
+  "rules": {
+    "complexity": ["error", 10],
+    "oxc/no-barrel-file": ["error", { "threshold": 5 }],
+    "max-depth": ["error", 3],
+    "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }],
+    "typescript/no-unnecessary-condition": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
+    "typescript/no-non-null-assertion": "error"
+  },
+  "ignorePatterns": ["dist", "build", "node_modules", "**/*.generated.*"]
+}

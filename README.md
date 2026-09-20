@@ -1,11 +1,11 @@
 # mlegls-pi
 
-Personal extensions, skills, prompts, and themes for pi.
+Personal extensions, skills, prompts, themes, agents, and user-level harness skills.
 
 ## Development
 
-With Bun available, run `bun run setup`, then `bun test`.
-Setup installs the root, outline-read, and disabled LSP test dependencies from
+With Bun available, run `bun run setup`, then `bun test`. Tracker CLI tests: `bun run test:tracker`.
+Setup installs the root, outline-read, disabled LSP, and tracker-script dependencies from
 committed lockfiles. Each checkout gets its own node_modules; Bun’s package cache
 is shared, not mutable dependency directories from another checkout.
 The root install suppresses lifecycle scripts, so worktree setup cannot rebuild or
@@ -22,3 +22,7 @@ Other harnesses can use the shared board through `bun lib/board.ts`; see
 [Board outside pi](extensions/exec/README.md#board-outside-pi).
 
 See [Featherless](extensions/featherless/README.md) for automatic model discovery.
+
+## User skills, agents, prompts
+
+User skills live under `skills/{enabled,disabled}/{all,claude,codex,pi}`, worker agents under `agents/`, and shared harness prompts under `agent-prompts/`. `~/.config/system-config` keeps symlinks to those trees; `scripts/agents-apply.sh` there installs them into Claude, Codex, and Pi. Package skills are only `skills/pi` and `skills/mlegls-pi`, so the enabled/disabled trees are not also loaded as package skills.

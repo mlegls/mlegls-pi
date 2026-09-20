@@ -1,0 +1,5 @@
+interface:
+  display_name: "Advance"
+  short_description: "Frontier of a scope, then the right playbook"
+policy:
+  allow_implicit_invocation: false

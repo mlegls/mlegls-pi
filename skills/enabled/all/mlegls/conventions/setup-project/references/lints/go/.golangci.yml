@@ -1,0 +1,25 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - gocognit
+    - nestif
+    - funlen
+    - unused
+    - staticcheck
+    - forcetypeassert
+  settings:
+    gocognit:
+      min-complexity: 10
+    nestif:
+      min-complexity: 4
+    funlen:
+      lines: 60
+      ignore-comments: true
+    staticcheck:
+      checks: ["S1*"]
+severity:
+  default: error
+  rules:
+    - linters: [gocognit, nestif, funlen]
+      severity: warning
