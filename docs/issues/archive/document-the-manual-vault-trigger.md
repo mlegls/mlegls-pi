@@ -1,7 +1,6 @@
 ---
-next: implement
+next: done
 priority: 2
-claimed-by: vault-document-the-manual-vault-trigger
 ---
 
 Vault workflows are manually invoked while their write-back semantics settle; the repo should say so and show the command, so that the choice reads as a decision rather than an unimplemented watcher. Done when `docs/vault-invocation.md` has that paragraph and the CLI invocation; no runtime changes.
