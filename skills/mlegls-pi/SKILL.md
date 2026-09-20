@@ -1,6 +1,6 @@
 ---
 name: mlegls-pi
-description: Use when editing this package from any session: repo layout, adding or overriding an exec module, testing and reloading.
+description: "Use when editing this package from any session: repo layout, adding or overriding an exec module, testing and reloading."
 ---
 
 canonical checkout `~/dev/mlegls-pi`. worktrees under `~/dev/mlegls-pi__worktrees/`. pi-package: `extensions/`, `lib/`, `skills/{pi,mlegls-pi}`, `prompts/`, `themes/`. user skills `skills/{enabled,disabled}`, `agents/`, `agent-prompts/` (system-config symlinks these and runs agents-apply). cell API: `extensions/exec/README.md`.
