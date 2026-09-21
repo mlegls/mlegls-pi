@@ -63,7 +63,7 @@ test("global exhaustion is finite, and freeing/resetting updates scan hints", ()
 	expect(isAnchor(allocateAnchor("same", taken, "/full"))).toBe(true);
 });
 
-test("restored occupancy spills and freed anchors remain available", () => {
+test("restored occupancy spills and retired anchors remain reserved", () => {
 	const path = "/restored";
 	const lines = Array(PREFIX_CAPACITY).fill("same");
 	const original = new Ledger();
@@ -76,7 +76,7 @@ test("restored occupancy spills and freed anchors remain available", () => {
 	expect(expanded.at(-1)!.anchor[0]).not.toBe(scent(path));
 	expect(expanded.slice(0, -1).map(line => line.anchor)).toEqual(entry.anchors);
 	ledger.sync(path, []);
-	expect(ledger.sync(path, ["same"]).ledger.lines[0].anchor[0]).toBe(scent(path));
+	expect(ledger.sync(path, ["same"]).ledger.lines[0].anchor[0]).not.toBe(scent(path));
 	ledger.reset();
 	expect(ledger.sync(path, ["same"]).ledger.lines[0].anchor).toBe(entry.anchors[0]);
 });

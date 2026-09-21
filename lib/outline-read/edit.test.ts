@@ -30,7 +30,7 @@ describe("anchors", () => {
 });
 
 describe("ledger", () => {
-	test("unchanged lines keep anchors across edits; removed anchors are freed; unique across files", () => {
+	test("unchanged lines keep anchors across edits; removed anchors stop resolving; unique across files", () => {
 		const ledger = new Ledger();
 		const first = ledger.sync("/f", ["a", "b", "c"]).ledger.lines.map((l) => l.anchor);
 		const other = ledger.sync("/g", ["a", "b"]).ledger.lines.map((l) => l.anchor);

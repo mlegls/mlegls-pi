@@ -1,0 +1,201 @@
+[
+  {
+    "name": "unrelated-function-change",
+    "initial": [
+      "function a() {",
+      "  work();",
+      "}",
+      "",
+      "function b() {",
+      "  work();",
+      "}"
+    ],
+    "target": 6,
+    "preparation": [
+      "function a() {",
+      "  other();",
+      "}",
+      "",
+      "function b() {",
+      "  work();",
+      "}"
+    ],
+    "expected": [
+      "function a() {",
+      "  other();",
+      "}",
+      "",
+      "function b() {",
+      "MARK",
+      "}"
+    ],
+    "actual": "function a() {\n  other();\n}\n\nfunction b() {\nMARK\n}\n",
+    "outcome": "intended edit",
+    "feedback": "unrelated-function-change.txt: 1 edit applied (7 → 7 lines).\n[File changed on disk since it was read; anchors of unchanged lines still apply.]\n@@ 6 → 6 @@\n 6yu6│\n 6gam│function b() {\n-  work();\n+6pxs│MARK\n 6fht│}"
+  },
+  {
+    "name": "delete-first-function-surviving-statement",
+    "initial": [
+      "function a() {",
+      "  work();",
+      "}",
+      "",
+      "function b() {",
+      "  work();",
+      "}"
+    ],
+    "target": 6,
+    "preparation": [
+      "function b() {",
+      "  work();",
+      "}"
+    ],
+    "expected": [
+      "function b() {",
+      "MARK",
+      "}"
+    ],
+    "actual": "function b() {\nMARK\n}\n",
+    "outcome": "intended edit",
+    "feedback": "delete-first-function-surviving-statement.txt: 1 edit applied (3 → 3 lines).\n[File changed on disk since it was read; anchors of unchanged lines still apply.]\n@@ 2 → 2 @@\n jgam│function b() {\n-  work();\n+jpxs│MARK\n jfht│}"
+  },
+  {
+    "name": "delete-first-function-old-brace",
+    "initial": [
+      "function a() {",
+      "  work();",
+      "}",
+      "",
+      "function b() {",
+      "  work();",
+      "}"
+    ],
+    "target": 3,
+    "preparation": [
+      "function b() {",
+      "  work();",
+      "}"
+    ],
+    "expected": null,
+    "actual": "function b() {\n  work();\n}\n",
+    "outcome": "safe rejection",
+    "feedback": "Error: Edit failed in delete-first-function-old-brace.txt: delete-first-function-old-brace.txt: unknown anchors 64yu; the lines changed since they were read. This file was not modified. Read delete-first-function-old-brace.txt (or the relevant range) again for current anchors.\nAlready changed by this call: none. Earlier cell operations are not rolled back. Do not blindly replay the cell."
+  },
+  {
+    "name": "external-delete-first-duplicate-use-survivor",
+    "initial": [
+      "A",
+      "same",
+      "same",
+      "B"
+    ],
+    "target": 3,
+    "preparation": [
+      "A",
+      "same",
+      "B"
+    ],
+    "expected": [
+      "A",
+      "MARK",
+      "B"
+    ],
+    "actual": "A\nsame\nB\n",
+    "outcome": "survivor rejected",
+    "feedback": "Error: Edit failed in external-delete-first-duplicate-use-survivor.txt: external-delete-first-duplicate-use-survivor.txt: unknown anchors n4ju; the lines changed since they were read. This file was not modified. Read external-delete-first-duplicate-use-survivor.txt (or the relevant range) again for current anchors.\nAlready changed by this call: none. Earlier cell operations are not rolled back. Do not blindly replay the cell."
+  },
+  {
+    "name": "external-delete-first-duplicate-use-deleted",
+    "initial": [
+      "A",
+      "same",
+      "same",
+      "B"
+    ],
+    "target": 2,
+    "preparation": [
+      "A",
+      "same",
+      "B"
+    ],
+    "expected": null,
+    "actual": "A\nMARK\nB\n",
+    "outcome": "silent wrong edit",
+    "feedback": "external-delete-first-duplicate-use-deleted.txt: 1 edit applied (3 → 3 lines).\n[File changed on disk since it was read; anchors of unchanged lines still apply.]\n@@ 2 → 2 @@\n hbv5│A\n-same\n+hpxs│MARK\n hzb6│B"
+  },
+  {
+    "name": "own-delete-first-duplicate-use-survivor",
+    "initial": [
+      "A",
+      "same",
+      "same",
+      "B"
+    ],
+    "target": 3,
+    "preparation": "own-delete-first-duplicate-use-survivor.txt: 1 edit applied (4 → 3 lines).\n@@ 2 → at 2 @@\n hbv5│A\n-same\n h4ju│same\n hzb6│B",
+    "expected": [
+      "A",
+      "MARK",
+      "B"
+    ],
+    "actual": "A\nMARK\nB\n",
+    "outcome": "intended edit",
+    "feedback": "own-delete-first-duplicate-use-survivor.txt: 1 edit applied (3 → 3 lines).\n@@ 2 → 2 @@\n hbv5│A\n-same\n+hpxs│MARK\n hzb6│B"
+  },
+  {
+    "name": "own-insert-duplicate-before-survivor",
+    "initial": [
+      "A",
+      "same",
+      "B"
+    ],
+    "target": 2,
+    "preparation": "own-insert-duplicate-before-survivor.txt: 1 edit applied (3 → 4 lines).\n@@ at 2 → 2 @@\n qbv5│A\n+q4ju│same\n q2um│same\n qzb6│B",
+    "expected": [
+      "A",
+      "same",
+      "MARK",
+      "B"
+    ],
+    "actual": "A\nsame\nMARK\nB\n",
+    "outcome": "intended edit",
+    "feedback": "own-insert-duplicate-before-survivor.txt: 1 edit applied (4 → 4 lines).\n@@ 3 → 3 @@\n qbv5│A\n q4ju│same\n-same\n+qpxs│MARK\n qzb6│B"
+  },
+  {
+    "name": "own-delete-first-blank-use-survivor",
+    "initial": [
+      "A",
+      "",
+      "",
+      "B"
+    ],
+    "target": 3,
+    "preparation": "own-delete-first-blank-use-survivor.txt: 1 edit applied (4 → 3 lines).\n@@ 2 → at 2 @@\n cbv5│A\n-\n c8jg│\n czb6│B",
+    "expected": [
+      "A",
+      "MARK",
+      "B"
+    ],
+    "actual": "A\nMARK\nB\n",
+    "outcome": "intended edit",
+    "feedback": "own-delete-first-blank-use-survivor.txt: 1 edit applied (3 → 3 lines).\n@@ 2 → 2 @@\n cbv5│A\n-\n+cpxs│MARK\n czb6│B"
+  },
+  {
+    "name": "deleted-name-reintroduced-elsewhere",
+    "initial": [
+      "A",
+      "target",
+      "B",
+      "C"
+    ],
+    "target": 2,
+    "preparation": {
+      "deletion": "deleted-name-reintroduced-elsewhere.txt: 1 edit applied (4 → 3 lines).\n@@ 2 → at 2 @@\n 2bv5│A\n-target\n 2zb6│B\n 2j4k│C",
+      "insertion": "deleted-name-reintroduced-elsewhere.txt: 1 edit applied (3 → 4 lines).\n@@ at 4 → 4 @@\n 2zb6│B\n 2j4k│C\n+2gha│target"
+    },
+    "expected": null,
+    "actual": "A\nB\nC\ntarget\n",
+    "outcome": "safe rejection",
+    "feedback": "Error: \"replace 2wgz\": unknown anchors; read the file again. Nothing was modified."
+  }
+]

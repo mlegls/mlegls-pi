@@ -193,8 +193,10 @@ async function applyToFile(deps: EditDeps, absolutePath: string, shown: string, 
 		}
 
 		const text = next.join("\n") + (trailingNewline ? "\n" : "");
-		await writeFile(absolutePath, text, "utf8");
-		const after = deps.ledger.sync(absolutePath, next).ledger;
+		const update = deps.ledger.prepareEdits(absolutePath, resolved);
+		try { await writeFile(absolutePath, text, "utf8"); }
+		catch (error) { update.rollback(); throw error; }
+		const after = update.commit();
 		deps.persist(absolutePath);
 
 		// Anchored diff: removed lines bare, added and context lines with anchors.

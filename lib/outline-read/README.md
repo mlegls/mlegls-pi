@@ -134,10 +134,15 @@ as long as the model takes; later reads of unchanged content are instant.
 
 ## Anchors and the ledger
 
-Anchors are derived from a content hash so an unchanged file gets the same
-names in every session, bumped when two lines in a file would collide. A
-per-file ledger tracks anchored lines; on every read or edit it is
-reconciled with the file by line diff, so unchanged lines keep their anchors
-and new lines get fresh ones. The ledger is stored as `outline-read` custom
-entries in the pi session (anchors plus a content hash), which makes it
-branch-aware and restores it on resume when the file is byte-identical.
+Anchors start from a content hash, with collisions assigned distinct names.
+Known edits preserve untouched row identities directly; replacement spans use
+line diff only within the span. External changes still use whole-file line diff,
+which cannot disambiguate all identical occurrences.
+
+Retired names are never reassigned during a session. The 1,048,576-name limit
+counts live and retired identities; exhaustion rejects before writing and needs
+a new session, not a kernel reset. Session entries persist retired names as well
+as live anchors and a content hash. Resume restores live anchors only when
+content matches, but reserves all recorded names even when content changed.
+Older entries remain readable, but cannot recover names retired before this format.
+Reservations for failed writes are released because those names were never published.
