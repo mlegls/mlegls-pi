@@ -24,19 +24,27 @@ Address lookup failures show `orca: unavailable`. A failed creation is not autom
 
 ## Supervision from exec
 
-Load the installed contract with `orca skills get orchestration`. The TypeScript wrapper preserves native receipts rather than synthesizing a worker state machine.
+Load the installed contract with `orca skills get orchestration`. The TypeScript wrapper preserves native receipts rather than synthesizing a worker state machine. For fresh assignments, use `route.prepare` to select stance, model, and effort, then [`dispatch.dispatch`](dispatch.md) to launch the prepared work. The launcher handles the Pi start-before-enrollment workaround internally; it is not a reason to choose a model manually.
 
 ```ts
 state.run = (await orca.runs.create({objective: "Implement the agreed slice"})).run;
-state.launch = notify(orca.workers.submit({
-  run: state.run.id, spec: "Self-contained assignment, context, ownership, acceptance…",
-  model: "deepseek/deepseek-chat", effort: "off", worktree: orca.workspace(),
-}), "worker launch");
+const task = "Self-contained assignment, context, ownership, acceptance…";
+const execution = await route.prepare(task);
+if (execution.kind === "triage") throw new Error("Prepare a decision-session handoff first");
+state.launch = notify(dispatch.dispatch([
+  {handle: "unit-a", prompt: task, ...execution},
+], {run: state.run.id, maxConcurrent: 3, active: []}), "dispatch");
 ```
 
-In a later cell, retain the full launch receipt. `state.worker = await state.launch` preserves `taskId`, `dispatchId`, launch effects, and the runtime’s readiness evidence. `ready/input_accepted` is not proof that Pi began a turn. Check `state.worker.startConfirmation.status`: only `started` has positive worker-side evidence; `unconfirmed` means inspect the existing dispatch, not resubmit.
+In a later cell, retain the full wave receipt with `state.wave = await state.launch`. Inspect `failed` and `pending` before proceeding; do not relaunch submitted workers. Each `state.wave.submitted` entry contains a `receipt` preserving `taskId`, `dispatchId`, launch effects, and the runtime’s readiness evidence. Set `state.worker` to the receipt being inspected. For later waves, pass all outstanding handles in `active` and serialize submissions. `ready/input_accepted` is not proof that Pi began a turn. Check `state.worker.startConfirmation.status`: only `started` has positive worker-side evidence; `unconfirmed` means inspect the existing dispatch, not resubmit.
+
+### Low-level launch escape hatch
+
+`workers.submit` and `startPi` execute supplied model/effort values; they do not call autoroute or enforce routing provenance. Use them directly only when the prepared-wave launcher does not fit or when explicitly testing launch mechanics. Normal assignments still require routing first.
 
 `workers.submit({spec, model, effort, …})` creates a Pi terminal and submits its assignment in one invocation. Before enrollment it waits for native `terminal wait --for tui-idle` to report `satisfied: true`, bounded by `timeoutMs` (default 60000). A timeout or missing readiness preserves the terminal and submits no assignment; inspect that terminal rather than launching another. After enrollment it waits up to `startWaitMs` (default 5000) for the Pi extension’s correlated `before_agent_start` event. This proves entry into the assigned turn, not a successful model response or ongoing progress. Evidence is retained in a private temporary directory named in `startConfirmation.evidencePath`. Recheck later with `await orca.workers.confirmStart(state.worker, 5000)`; this neither resends work nor consumes mail. The event observer must be installed in the child; missing evidence stays unconfirmed. Native `terminal send --wait-submit` is not a standalone observation call: it requires text and Enter. Do not repeat an accepted prompt just to observe it. Native `workers.start` remains available and conservatively returns unconfirmed; task-ID-only `startPi` launches likewise have no correlation marker.
+
+### Completion and cleanup
 
 ```ts
 state.mail = notify(orca.check({run: state.run.id, wait: true,
@@ -56,7 +64,7 @@ CLI failures throw `OrcaError` with the complete parsed envelope in `.receipt`, 
 
 Orca 1.4.206 accepts `worker-start --agent pi`, but rejects Pi launch-time model/effort selection. `orca.startPi({spec, run?, from?, worktree?, model, effort, taskTitle?})` launches a Pi terminal with native Pi flags, then enrolls it with `worker-start --terminal`. It requires an exact existing workspace selector; create a workspace first for separate checkouts. Worktrees separate Git state, not filesystem permissions; they do not prevent writing the canonical checkout. It returns the native receipt plus `clientTerminal`. A failed enrollment preserves the terminal and reports it in the error receipt.
 
-That terminal is **caller-owned**. Orca’s `workers.release(dispatchId)` will not close a pre-existing terminal. After accepted settlement and integration, inspect the release receipt, then explicitly `orca.stop(receipt.clientTerminal.handle)` if that terminal has no new owner. Remove an isolated worktree separately after merging. Direct native `workers.start({agent: "pi", …})` avoids this ownership gap when Pi’s default model is suitable.
+That terminal is **caller-owned**. Orca’s `workers.release(dispatchId)` will not close a pre-existing terminal. After accepted settlement and integration, inspect the release receipt, then explicitly `orca.stop(receipt.clientTerminal.handle)` if that terminal has no new owner. Remove an isolated worktree separately after merging. Direct native `workers.start({agent: "pi", …})` avoids this ownership gap but uses Pi’s defaults; it is not a substitute for executing the routed model/effort selection.
 
 Prepared, routed waves use [`dispatch.dispatch`](dispatch.md); this helper creates nested worktrees and uses the selected-model enrollment path.
 

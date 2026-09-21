@@ -22,9 +22,11 @@ Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`
 - `failed`: the first failed assignment, error text, and structured error receipt where available. Earlier launches survive; residual resources are retained for inspection.
 - `pending`: never-attempted assignments. The parent decides when to launch them.
 
+Routing happens before launch: `dispatch.dispatch` consumes the `route.prepare` result, while `startPi` handles Pi launch and enrollment internally. Neither launcher chooses a model or enforces routing provenance; do not replace admission with manual selection to work around native Orca launch limitations.
+
 No implicit retries, dependency scheduling, merging, or cleanup. Use `notify` for launch and mailbox waits. Worker instructions receive Orca’s authoritative lifecycle preamble; board topics and subscriptions are not involved.
 
-Consume `orca.check` deliveries, answer questions, validate completion against the Dispatch, and decide terminal ownership before acknowledging. Merge with Git or Orca. These model-selected Pi terminals are pre-existing from Orca’s perspective: native release retains them. After settlement/integration, explicitly close the caller-owned terminal if unused, then remove the worktree. Native `orca.workers.start` offers runtime-owned terminals when Pi’s default model is acceptable.
+Consume `orca.check` deliveries, answer questions, validate completion against the Dispatch, and decide terminal ownership before acknowledging. Merge with Git or Orca. These model-selected Pi terminals are pre-existing from Orca’s perspective: native release retains them. After settlement/integration, explicitly close the caller-owned terminal if unused, then remove the worktree. Native `orca.workers.start` offers runtime-owned terminals but uses Pi’s defaults rather than applying the routed model/effort selection.
 
 ## Session boundaries
 
