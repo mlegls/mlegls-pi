@@ -8,6 +8,20 @@ Run the Orca app and register the project. `/reload` Pi after upgrading this pac
 
 Inside an Orca terminal, the CLI resolves the calling terminal. Outside Orca, use `/fork-tab [title]` to open a sibling conversation in an explicitly managed checkout, or pass the real coordinator terminal handle as `from` (`terminal` for `check`). Never use the focused tab as an implicit identity. A Run is bound to a coordinator terminal; saving only its ID does not grant another caller that role. `runs.use({id, from?})` explicitly rebinds it.
 
+## Interactive addresses
+
+Interactive Pi tabs inside Orca automatically create a Run when their terminal has no binding or active Dispatch. The footer shows the full `run:<id>` address; `/orca-address` prints it in the conversation for copying. The same address is supplied to the agent on each turn. Reloading preserves the terminal's binding; a new tab (including `/fork-tab`) gets its own. Switching conversations in the same terminal keeps that terminal's address. This is not portable session-file identity: reopening the file in another terminal does not take over the old Run.
+
+Tell another session to message the displayed address:
+
+```ts
+await orca.send({to: "run:<id>", subject: "Coordination", body: "…"});
+```
+
+Existing workers display `dispatch:<id>` instead of creating a Run. Pi launches carrying `PI_ORCA_START_TOKEN` defer address creation while enrollment is pending. No mailbox is consumed automatically: use `orca.check()`, process the returned batch, then acknowledge it. Incoming-mail notifications remain separate; enqueue does not guarantee attention.
+
+Address lookup failures show `orca: unavailable`. A failed creation is not automatically retried; later polls can discover a binding created despite a lost response. Inspect Orca before reloading to retry an uncertain creation.
+
 ## Supervision from exec
 
 Load the installed contract with `orca skills get orchestration`. The TypeScript wrapper preserves native receipts rather than synthesizing a worker state machine.
