@@ -1,8 +1,42 @@
 import { writeFileSync, renameSync } from "node:fs";
-import { SessionManager, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { terminal, workspace, piCommand, call } from "../../lib/orca.ts";
+import { SessionManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { terminal, workspace, piCommand, call, inOrca } from "../../lib/orca.ts";
 
 export default function (pi: ExtensionAPI) {
+  let statusTimer: ReturnType<typeof setInterval> | undefined;
+  let statusGeneration = 0;
+  const stopStatus = () => {
+    statusGeneration++;
+    clearInterval(statusTimer);
+    statusTimer = undefined;
+  };
+  const startStatus = (ctx: ExtensionContext) => {
+    stopStatus();
+    ctx.ui.setStatus("orca-run", undefined);
+    if (!inOrca() || !ctx.hasUI) return;
+    const generation = statusGeneration;
+    let pending = false;
+    const refresh = async () => {
+      if (pending) return;
+      pending = true;
+      try {
+        const { run } = await call<{ run: { id: string } | null }>(
+          ["orchestration", "run-current"], ctx.cwd, 5_000,
+        );
+        if (generation === statusGeneration)
+          ctx.ui.setStatus("orca-run", run ? ctx.ui.theme.fg("dim", "orca: " + run.id) : undefined);
+      } catch {
+        if (generation === statusGeneration) ctx.ui.setStatus("orca-run", undefined);
+      } finally { pending = false; }
+    };
+    void refresh();
+    statusTimer = setInterval(refresh, 10_000);
+    statusTimer.unref();
+  };
+  pi.on("session_start", (_event, ctx) => startStatus(ctx));
+  pi.on("session_switch", (_event, ctx) => startStatus(ctx));
+  pi.on("session_shutdown", stopStatus);
+
   const evidencePath = process.env.PI_ORCA_START_EVIDENCE;
   const token = process.env.PI_ORCA_START_TOKEN;
   if (evidencePath && token) pi.on("before_agent_start", (event, ctx) => {
