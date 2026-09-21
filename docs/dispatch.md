@@ -18,7 +18,7 @@ Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`
 
 ## Receipts and lifecycle
 
-- `launched`: `{backend: "orca", handle, worktreeId, path, receipt}`. `receipt` retains native `runId`, `taskId`, `dispatchId`, effects, and `clientTerminal`.
+- `submitted`: `{backend: "orca", handle, worktreeId, path, receipt}`. `receipt` retains native `runId`, `taskId`, `dispatchId`, effects, and `clientTerminal`, plus `startConfirmation`. Submitted workers count against capacity even when start is unconfirmed. Only `startConfirmation.status === "started"` proves entry into the assigned Pi turn; re-observe with `orca.workers.confirmStart(receipt)` without resubmitting.
 - `failed`: the first failed assignment, error text, and structured error receipt where available. Earlier launches survive; residual resources are retained for inspection.
 - `pending`: never-attempted assignments. The parent decides when to launch them.
 

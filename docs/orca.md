@@ -14,13 +14,15 @@ Load the installed contract with `orca skills get orchestration`. The TypeScript
 
 ```ts
 state.run = (await orca.runs.create({objective: "Implement the agreed slice"})).run;
-state.launch = notify(orca.workers.start({
+state.launch = notify(orca.workers.submit({
   run: state.run.id, spec: "Self-contained assignment, context, ownership, acceptance…",
-  agent: "pi", worktree: orca.workspace(),
+  model: "deepseek/deepseek-chat", effort: "off", worktree: orca.workspace(),
 }), "worker launch");
 ```
 
-In a later cell, retain the full launch receipt. `state.worker = await state.launch` preserves `taskId`, `dispatchId`, launch effects, and the runtime’s readiness evidence. `ready/input_accepted` is not proof that Pi began a turn.
+In a later cell, retain the full launch receipt. `state.worker = await state.launch` preserves `taskId`, `dispatchId`, launch effects, and the runtime’s readiness evidence. `ready/input_accepted` is not proof that Pi began a turn. Check `state.worker.startConfirmation.status`: only `started` has positive worker-side evidence; `unconfirmed` means inspect the existing dispatch, not resubmit.
+
+`workers.submit({spec, model, effort, …})` creates a Pi terminal and submits its assignment in one invocation. It waits up to `startWaitMs` (default 5000) for the Pi extension’s correlated `before_agent_start` event. This proves entry into the assigned turn, not a successful model response or ongoing progress. Evidence is retained in a private temporary directory named in `startConfirmation.evidencePath`. Recheck later with `await orca.workers.confirmStart(state.worker, 5000)`; this neither resends work nor consumes mail. The event observer must be installed in the child; missing evidence stays unconfirmed. Native `workers.start` remains available and conservatively returns unconfirmed; task-ID-only `startPi` launches likewise have no correlation marker.
 
 ```ts
 state.mail = notify(orca.check({run: state.run.id, wait: true,

@@ -18,3 +18,5 @@ Host installation failure isolation resolved through independent Pi extension en
 - Visible Orca readers still need a same-host result-file protocol because a terminal transcript is not a typed result channel. Accepted to preserve the Pi TUI and native submission details. Live launch/status/restart parity remains to be checked: [[projects/mlegls-pi/issues/orca-terminal-launch-parity]].
 
 - Autoread’s premature-await and parent-role confusion cases now have non-blocking poll, explicit child boundaries, bounded orientation prompts and an initial briefing-validity gate. [Verification and limits](research/autoread-preparation-safety-2026-09-21.md). Remaining: semantic acceptance is probabilistic; the sampled replay is not calibrated accuracy or a live reader latency result. Rejections retain the full answer and provenance for inspection.
+
+- Orca Pi start confirmation is local, extension-dependent, and spec-correlated; native readiness cannot prove turn start, and task-ID-only launches remain unconfirmed. A native correlated turn-start receipt would remove the temporary-file observer. See [verification](research/orca-start-confirmation-2026-09-21.md).

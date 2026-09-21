@@ -1,5 +1,8 @@
 // Orca owns execution and coordination; Pi owns conversation sessions.
 import { execFile } from "node:child_process";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 
 export const inOrca = (env: NodeJS.ProcessEnv = process.env): boolean => Boolean(env.ORCA_WORKTREE_ID || env.ORCA_WORKSPACE_ID);
@@ -38,7 +41,9 @@ export const piCommand = (args: string[]) => [process.env.PI_ORCA_COMMAND || "pi
 
 export interface Context { cwd?: string; from?: string; run?: string; retryRequest?: string }
 export interface Receipt { [key: string]: unknown }
+export type StartConfirmation = { status: "started" | "unconfirmed"; evidencePath?: string; reason?: string };
 export interface WorkerReceipt extends Receipt {
+  startConfirmation: StartConfirmation;
   runId: string; taskId: string; dispatchId: string;
   state: string; stage: string;
   effects: Array<{ kind: string; action?: string; id?: string; [key: string]: unknown }>;
@@ -72,7 +77,14 @@ export interface Start extends Context {
 }
 export const workers = {
   startPi,
-  start: (options: Start) => operation<WorkerReceipt>("worker-start", { ...options, timeoutMs: options.timeoutMs ?? 60_000 }),
+  submit,
+  confirmStart,
+  start: async (options: Start): Promise<WorkerReceipt> => {
+    if (Boolean(options.spec?.trim()) === Boolean(options.task?.trim()))
+      throw new Error("workers.start: exactly one nonempty spec/task required");
+    const receipt = await operation<WorkerReceipt>("worker-start", { ...options, timeoutMs: options.timeoutMs ?? 60_000 });
+    return { ...receipt, startConfirmation: { status: "unconfirmed", reason: "Input accepted; no worker-side turn-start evidence observed" } };
+  },
   show: (dispatch: string) => operation("worker-show", { dispatch }),
   read: (options: { dispatch: string; source?: "auto" | "terminal" | "transcript"; cursor?: string; limit?: number }) => operation("worker-read", options),
   list: (options: { run?: string; includeRemote?: boolean; terminalState?: string; cursor?: string; limit?: number } = {}) => operation("worker-list", options),
@@ -105,20 +117,49 @@ export const ask = (options: Context & { question?: string; resume?: string; to?
  */
 export async function startPi(options: Context & {
   spec?: string; task?: string; taskTitle?: string; worktree?: string;
-  model: string; effort: string; timeoutMs?: number;
+  model: string; effort: string; timeoutMs?: number; startWaitMs?: number;
 }): Promise<WorkerReceipt & { clientTerminal: Terminal }> {
-  if ((Boolean(options.spec) === Boolean(options.task)) || !options.model.trim() || !options.effort.trim())
+  if ((Boolean(options.spec?.trim()) === Boolean(options.task?.trim())) || !options.model.trim() || !options.effort.trim())
     throw new Error("startPi: exactly one of spec/task, model and effort required");
   const target = options.worktree ?? workspace(options.cwd);
   if (["current", "active", "new-child", "new-top-level"].includes(target))
     throw new Error("startPi: use an exact existing workspace selector; create the workspace first");
-  const { model, effort, ...start } = options;
-  const tab = await terminal(piCommand(["--model", model, "--thinking", effort === "none" ? "off" : effort]),
+  const { model, effort, startWaitMs = 5_000, ...start } = options;
+  if (!Number.isFinite(startWaitMs) || startWaitMs < 0) throw new Error("startWaitMs must be nonnegative and finite");
+  const token = randomUUID();
+  const evidencePath = resolve(await mkdtemp(resolve(tmpdir(), "pi-orca-start-")), "started.json");
+  if (start.spec) start.spec += "\n\n[Pi launch correlation: " + token + "]";
+  const tab = await terminal("PI_ORCA_START_EVIDENCE=" + quote(evidencePath) + " PI_ORCA_START_TOKEN=" + quote(token) + " " + piCommand(["--model", model, "--thinking", effort === "none" ? "off" : effort]),
     options.taskTitle ?? "Pi worker", options.cwd, target);
   try {
-    return { ...await workers.start({ ...start, worktree: target, terminal: tab.handle }), clientTerminal: tab };
+    const receipt = { ...await workers.start({ ...start, worktree: target, terminal: tab.handle }), clientTerminal: tab };
+    receipt.startConfirmation.evidencePath = evidencePath;
+    receipt.startConfirmation = await confirmStart(receipt, startWaitMs);
+    return receipt;
   } catch (error) {
     throw new OrcaError("Pi terminal retained; inspect before retrying: " + tab.handle + ". " + String(error),
-      { clientTerminal: tab, cause: error instanceof OrcaError ? error.receipt : String(error) });
+      { clientTerminal: tab, startConfirmation: { status: "unconfirmed", evidencePath }, cause: error instanceof OrcaError ? error.receipt : String(error) });
   }
+}
+
+/** Create a Pi terminal and submit its assignment in one invocation. No automatic retry. */
+export function submit(options: Context & { spec: string; model: string; effort: string; worktree?: string; taskTitle?: string; timeoutMs?: number; startWaitMs?: number }) {
+  return startPi(options);
+}
+
+/** Re-observe a launch without resubmitting work or consuming coordinator mail. */
+export async function confirmStart(receipt: WorkerReceipt, waitMs = 0): Promise<StartConfirmation> {
+  if (!Number.isFinite(waitMs) || waitMs < 0) throw new Error("waitMs must be nonnegative and finite");
+  const { evidencePath } = receipt.startConfirmation;
+  if (!evidencePath || receipt.startConfirmation.status === "started") return receipt.startConfirmation;
+  const deadline = Date.now() + waitMs;
+  do {
+    try {
+      const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
+      if (evidence.event === "before_agent_start") return { status: "started", evidencePath };
+    } catch { /* Missing or incomplete evidence is not proof of failure. */ }
+    if (Date.now() >= deadline) break;
+    await new Promise(resolve => setTimeout(resolve, Math.min(100, deadline - Date.now())));
+  } while (true);
+  return { status: "unconfirmed", evidencePath, reason: "No correlated Pi turn-start event observed; inspect this dispatch, do not resubmit" };
 }

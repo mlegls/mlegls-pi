@@ -1,7 +1,17 @@
+import { writeFileSync, renameSync } from "node:fs";
 import { SessionManager, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { terminal, workspace, piCommand, call } from "../../lib/orca.ts";
 
 export default function (pi: ExtensionAPI) {
+  const evidencePath = process.env.PI_ORCA_START_EVIDENCE;
+  const token = process.env.PI_ORCA_START_TOKEN;
+  if (evidencePath && token) pi.on("before_agent_start", (event, ctx) => {
+    if (!event.prompt.includes("[Pi launch correlation: " + token + "]")) return;
+    try {
+      writeFileSync(evidencePath + ".tmp", JSON.stringify({ event: "before_agent_start", at: new Date().toISOString(), session: ctx.sessionManager.getSessionFile() }), { mode: 0o600 });
+      renameSync(evidencePath + ".tmp", evidencePath);
+    } catch { /* Evidence failure must not prevent the assigned work. */ }
+  });
   pi.registerCommand("fork-tab", {
     description: "Fork the current conversation into another Orca tab: /fork-tab [title]",
     handler: async (args, ctx) => {

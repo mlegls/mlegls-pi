@@ -28,7 +28,7 @@ export interface Options {
 export type Handle = { backend: "orca"; handle: string; worktreeId: string; path: string; receipt: WorkerReceipt & { clientTerminal: Terminal } };
 
 export interface Receipt {
-  launched: Handle[];
+  submitted: Handle[];
   /** Backend failure can leave resources behind. Inspect before retrying this assignment. */
   failed?: { assignment: Assignment; error: string; receipt?: unknown };
   /** Never attempted (capacity or earlier failure); parent decides when to submit later. */
@@ -60,11 +60,11 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     if (task.agent && !stance) throw new Error("dispatch: unknown agent " + task.agent);
     return { task, stance };
   });
-  const receipt: Receipt = { launched: [], pending: [] };
+  const receipt: Receipt = { submitted: [], pending: [] };
   if (!prepared.length) return receipt;
 
   for (const [index, { task, stance }] of prepared.entries()) {
-    if (active.length + receipt.launched.length >= options.maxConcurrent) {
+    if (active.length + receipt.submitted.length >= options.maxConcurrent) {
       receipt.pending = prepared.slice(index).map(item => item.task);
       break;
     }
@@ -77,9 +77,9 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       const worktree = created.worktree;
       if (!worktree?.id || !worktree.path) throw new Error("dispatch: invalid worktree receipt " + JSON.stringify(created));
       try {
-        const launched = await startPi({ spec: text, taskTitle: task.handle, run: options.run, from: options.from,
+        const submitted = await startPi({ spec: text, taskTitle: task.handle, run: options.run, from: options.from,
           model: task.model, effort: task.effort, cwd, worktree: "id:" + worktree.id });
-        receipt.launched.push({ backend: "orca", handle: task.handle, receipt: launched, worktreeId: worktree.id, path: worktree.path });
+        receipt.submitted.push({ backend: "orca", handle: task.handle, receipt: submitted, worktreeId: worktree.id, path: worktree.path });
       } catch (error) {
         throw new OrcaError("Worktree retained at " + worktree.path + ": " + String(error),
           { worktree, cause: error instanceof OrcaError ? error.receipt : String(error) });
