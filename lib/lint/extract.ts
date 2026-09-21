@@ -1,26 +1,28 @@
 // extract: candidate spans for semantic lints, with the local context a judge needs.
 //
-//   bun lib/lint/extract.ts <repoRoot> <tsconfig>[,<tsconfig>...] [file...]   # jsonl of Span on stdout
+//   bun lib/lint/extract.ts <repoRoot> <tsconfig>[,<tsconfig>...] [sinceRef]   # jsonl of Span on stdout
 //
 // Uses the target repo's own TypeScript so types resolve as its typecheck sees them. Every
 // tsconfig is loaded so property uses are counted across the whole repository, not one project.
+// With sinceRef only spans on lines `git diff sinceRef` added are emitted; the index is still whole.
 //
-// Kinds: catch (try statements), guard (if whose branch exits), expect (assertions in tests),
-// field (optional properties, with every use of that property across the repository).
-// Guards that only narrow a discriminant or a possibly-undefined lookup are skipped: strict
-// types force those. A guard whose type predicate is already satisfied by its argument's
-// declared type is emitted as kind "static", as is an optional field nothing in the repository names.
+// Kinds: expect (assertions in tests), field (optional properties, with every use of that
+// property across the repository), static (findings needing no judgment: an exiting guard whose
+// type predicate is already satisfied by its argument's declared type; an optional field nothing
+// in the repository names). Fields whose value reaches a library from node_modules are skipped:
+// their consumer is outside the repository.
 //
 // Context: the enclosing function, signatures of everything it calls, for expect the source of
 // the function under test and the concept notes whose `path:` frontmatter names that source.
 
+import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import type TS from "typescript";
 
 export interface Span {
-  kind: "catch" | "guard" | "expect" | "field" | "static";
+  kind: "expect" | "field" | "static";
   file: string;
   line: number;
   text: string;
@@ -60,14 +62,28 @@ function conceptNotes(root: string): { path: string; title: string; body: string
   return notes;
 }
 
-export function extract(root: string, tsconfigs: string[], only?: string[]): Span[] {
+/** file → line numbers `git diff ref` adds, for the working tree. */
+function addedLines(root: string, ref: string): Map<string, Set<number>> {
+  const out = new Map<string, Set<number>>();
+  const diff = execFileSync("git", ["diff", "-U0", ref, "--"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });
+  let file = "";
+  for (const line of diff.split("\n")) {
+    const f = line.match(/^\+\+\+ b\/(.*)$/);
+    if (f) { file = f[1]!; out.set(file, new Set()); continue; }
+    const h = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+    if (h) for (let i = +h[1]!, n = h[2] === undefined ? 1 : +h[2]; n > 0; n--) out.get(file)!.add(i++);
+  }
+  return out;
+}
+
+export function extract(root: string, tsconfigs: string[], sinceRef?: string): Span[] {
   const ts: typeof TS = createRequire(resolve(root, "package.json"))("typescript");
   const programs = tsconfigs.map((tsconfig) => {
     const config = ts.readConfigFile(resolve(root, tsconfig), ts.sys.readFile);
     const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, resolve(root, tsconfig, ".."));
     return ts.createProgram(parsed.fileNames, parsed.options);
   });
-  const wanted = only && new Set(only.map((f) => resolve(root, f)));
+  const added = sinceRef === undefined ? undefined : addedLines(root, sinceRef);
   const notes = conceptNotes(root);
   const spans: Span[] = [];
   const seen = new Set<string>();
@@ -77,6 +93,9 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
   // Property uses across every program, keyed by the declaring property's position so
   // same-named fields on unrelated types stay apart; unresolved uses fall back to the name.
   const propertyUses = new Map<string, string[]>();
+  // Declaring keys of fields whose value is handed to a node_modules library.
+  const externalSinks = new Set<string>();
+  const calleeOf = (n: TS.CallExpression | TS.NewExpression) => ts.isPropertyAccessExpression(n.expression) ? n.expression.name : n.expression;
   const declKey = (s: TS.Symbol | undefined, name: string): string => {
     const d = s?.declarations?.[0];
     return d ? `${d.getSourceFile().fileName}:${d.pos}` : `name:${name}`;
@@ -100,11 +119,37 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
           propertyUses.set(key, list);
         }
       };
+      const external = (s: TS.Symbol | undefined) => !!s?.declarations?.some((d) => d.getSourceFile().fileName.includes("node_modules"));
+      // The property a value expression was read from, through one binding or variable.
+      const flowsFrom = (e: TS.Node | undefined): TS.Symbol | undefined => {
+        if (!e) return undefined;
+        if (ts.isJsxExpression(e) || ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isNonNullExpression(e)) return flowsFrom(e.expression);
+        if (ts.isBinaryExpression(e) && (e.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || e.operatorToken.kind === ts.SyntaxKind.BarBarToken)) return flowsFrom(e.left);
+        if (ts.isConditionalExpression(e)) return flowsFrom(e.whenTrue) ?? flowsFrom(e.whenFalse);
+        if (ts.isPropertyAccessExpression(e)) return checker.getSymbolAtLocation(e.name);
+        if (!ts.isIdentifier(e)) return undefined;
+        const decl = checker.getSymbolAtLocation(e)?.declarations?.[0];
+        if (decl && ts.isBindingElement(decl) && ts.isObjectBindingPattern(decl.parent))
+          return propertyOf(checker.getTypeAtLocation(decl.parent), decl.propertyName && ts.isIdentifier(decl.propertyName) ? decl.propertyName.text : e.text);
+        if (decl && ts.isVariableDeclaration(decl)) return flowsFrom(decl.initializer);
+        return undefined;
+      };
+      const sink = (target: TS.Symbol | undefined, value: TS.Node | undefined) => {
+        if (!external(target)) return;
+        const source = flowsFrom(value);
+        if (source && !external(source)) externalSinks.add(declKey(source, source.name));
+      };
       const visit = (n: TS.Node) => {
         if (ts.isPropertyAccessExpression(n)) record(n, n.name.text, checker.getSymbolAtLocation(n.name));
-        else if (ts.isJsxAttribute(n) && ts.isIdentifier(n.name)) record(n, n.name.text, checker.getSymbolAtLocation(n.name));
-        else if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && (ts.isIdentifier(n.name) || ts.isStringLiteral(n.name)))
-          record(n, n.name.text, propertyOf(checker.getContextualType(n.parent), n.name.text));
+        else if (ts.isJsxAttribute(n) && ts.isIdentifier(n.name)) {
+          const s = propertyOf(checker.getContextualType(n.parent), n.name.text);
+          record(n, n.name.text, s);
+          sink(s, n.initializer);
+        } else if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && (ts.isIdentifier(n.name) || ts.isStringLiteral(n.name))) {
+          const s = propertyOf(checker.getContextualType(n.parent), n.name.text);
+          record(n, n.name.text, s);
+          sink(s, ts.isPropertyAssignment(n) ? n.initializer : n.name);
+        } else if (ts.isCallExpression(n) && external(checker.getSymbolAtLocation(calleeOf(n)))) n.arguments.forEach((a) => sink(checker.getSymbolAtLocation(calleeOf(n)), a));
         else if (ts.isBindingElement(n) && ts.isIdentifier(n.name) && ts.isObjectBindingPattern(n.parent)) {
           const name = n.propertyName && ts.isIdentifier(n.propertyName) ? n.propertyName.text : n.name.text;
           record(n, name, propertyOf(checker.getTypeAtLocation(n.parent), name));
@@ -128,7 +173,6 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
       const target = symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
       return target?.declarations?.find((d) => !program.isSourceFileDefaultLibrary(d.getSourceFile()) && !d.getSourceFile().fileName.includes("node_modules"));
     };
-    const calleeOf = (n: TS.CallExpression | TS.NewExpression) => ts.isPropertyAccessExpression(n.expression) ? n.expression.name : n.expression;
     const callees = (scope: TS.Node): string[] => {
       const out = new Set<string>();
       const visit = (n: TS.Node) => {
@@ -170,26 +214,6 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
       const hits = notes.filter((n) => n.path === file || (n.path.endsWith("/") && file.startsWith(n.path)));
       return hits.length ? cap(hits.map((n) => `# ${n.title}\n${n.body}`).join("\n\n"), 6000) : undefined;
     };
-    // Guards strict types force: discriminant checks and possibly-undefined lookups.
-    const strictForced = (cond: TS.Expression): boolean => {
-      if (ts.isParenthesizedExpression(cond)) return strictForced(cond.expression);
-      if (ts.isBinaryExpression(cond) && (cond.operatorToken.kind === ts.SyntaxKind.BarBarToken || cond.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken))
-        return strictForced(cond.left) && strictForced(cond.right);
-      const e = ts.isPrefixUnaryExpression(cond) && cond.operator === ts.SyntaxKind.ExclamationToken ? cond.operand : cond;
-      if (ts.isBinaryExpression(e)) {
-        const op = e.operatorToken.kind;
-        const literal = ts.isStringLiteralLike(e.right) || ts.isStringLiteralLike(e.left);
-        if ((op === ts.SyntaxKind.EqualsEqualsEqualsToken || op === ts.SyntaxKind.ExclamationEqualsEqualsToken) && literal && ts.isPropertyAccessExpression(e.left) && /^(kind|type|tag|role|status)$/.test(e.left.name.text)) return true;
-        if ((op === ts.SyntaxKind.EqualsEqualsEqualsToken || op === ts.SyntaxKind.ExclamationEqualsEqualsToken) && (e.right.kind === ts.SyntaxKind.UndefinedKeyword || e.right.getText() === "undefined")) {
-          const t = checker.getTypeAtLocation(e.left);
-          const decl = ts.isIdentifier(e.left) ? declarationOf(e.left) : undefined;
-          const init = decl && ts.isVariableDeclaration(decl) ? decl.initializer : undefined;
-          const lookup = ts.isElementAccessExpression(e.left) || (init && (ts.isElementAccessExpression(init) || (ts.isCallExpression(init) && ts.isPropertyAccessExpression(init.expression) && /^(get|at|find|pop|shift)$/.test(init.expression.name.text))));
-          if (lookup && t.isUnion() && t.types.some((u) => u.flags & ts.TypeFlags.Undefined)) return true;
-        }
-      }
-      return false;
-    };
     // A type predicate whose argument's declared type already satisfies it.
     const satisfiedPredicate = (cond: TS.Expression): Partial<Span> | undefined => {
       const e = ts.isPrefixUnaryExpression(cond) && cond.operator === ts.SyntaxKind.ExclamationToken ? cond.operand : cond;
@@ -207,18 +231,27 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
     for (const sf of program.getSourceFiles()) {
       if (!isProject(sf) || seen.has(sf.fileName)) continue;
       seen.add(sf.fileName);
-      if (wanted && !wanted.has(sf.fileName)) continue;
+      const lines = added?.get(rel(sf));
+      if (added && !lines) continue;
       const isTest = /\.test\.tsx?$/.test(sf.fileName);
+      const changed = (node: TS.Node) => {
+        if (!lines) return true;
+        const from = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, to = sf.getLineAndCharacterOfPosition(node.end).line + 1;
+        for (let i = from; i <= to; i++) if (lines.has(i)) return true;
+        return false;
+      };
       const push = (kind: Span["kind"], node: TS.Node, extra: Partial<Span> = {}) => {
+        if (!changed(node)) return;
         const fn = enclosingFunction(node);
         spans.push({ kind, file: rel(sf), line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
           text: node.getText(), enclosing: fn === sf ? "" : fn.getText(), callees: callees(fn), ...extra });
       };
       const visit = (n: TS.Node) => {
-        if (!isTest && ts.isPropertySignature(n) && n.questionToken && ts.isIdentifier(n.name) && !FRAMEWORK_PROPS.has(n.name.text) && (propertyUses.get(`${sf.fileName}:${n.pos}`)?.length ?? 0) <= 30) {
+        const key = `${sf.fileName}:${n.pos}`;
+        if (!isTest && ts.isPropertySignature(n) && n.questionToken && ts.isIdentifier(n.name) && changed(n) && !FRAMEWORK_PROPS.has(n.name.text) && !externalSinks.has(key) && (propertyUses.get(key)?.length ?? 0) <= 30) {
           const owner = n.parent;
           const ownerName = ts.isInterfaceDeclaration(owner) ? owner.name.text : ts.isTypeLiteralNode(owner) && ts.isTypeAliasDeclaration(owner.parent) ? owner.parent.name.text : "";
-          const resolved = propertyUses.get(`${sf.fileName}:${n.pos}`) ?? [];
+          const resolved = propertyUses.get(key) ?? [];
           const others = (propertyUses.get(`name:${n.name.text}`) ?? []).filter((r) => !resolved.includes(r));
           const sameName = others.length;
           if (sameName > 60) { ts.forEachChild(n, visit); return; }
@@ -228,11 +261,9 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
           spans.push({ kind: references.length ? "field" : "static", file: rel(sf), line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
             text: `${ownerName}.${n.name.text}: ${n.getText()}`, enclosing: cap(owner.getText(), 3000), callees: [], references, sameName,
             ...(references.length ? {} : { reason: "optional field never named anywhere in the repository" }) });
-        } else if (!isTest && ts.isTryStatement(n)) push("catch", n);
-        else if (!isTest && ts.isIfStatement(n) && exits(n.thenStatement) && !n.elseStatement) {
+        } else if (!isTest && ts.isIfStatement(n) && exits(n.thenStatement) && !n.elseStatement) {
           const satisfied = satisfiedPredicate(n.expression);
           if (satisfied) push("static", n, satisfied);
-          else if (!strictForced(n.expression)) push("guard", n);
         } else if (isTest && ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "expect") {
           let top: TS.Node = n;
           while (top.parent && !ts.isExpressionStatement(top.parent) && !ts.isBlock(top.parent)) top = top.parent;
@@ -248,7 +279,7 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
 }
 
 if (import.meta.main) {
-  const [root, tsconfigs, ...files] = process.argv.slice(2);
-  if (!root || !tsconfigs) throw new Error("usage: extract.ts <repoRoot> <tsconfig>[,<tsconfig>] [file...]");
-  for (const span of extract(resolve(root), tsconfigs.split(","), files.length ? files : undefined)) console.log(JSON.stringify(span));
+  const [root, tsconfigs, sinceRef] = process.argv.slice(2);
+  if (!root || !tsconfigs) throw new Error("usage: extract.ts <repoRoot> <tsconfig>[,<tsconfig>] [sinceRef]");
+  for (const span of extract(resolve(root), tsconfigs.split(","), sinceRef)) console.log(JSON.stringify(span));
 }

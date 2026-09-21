@@ -3,22 +3,27 @@
 Jev-judged span lints for the code and testing guidelines. Code finds candidates and builds
 their context; Jev answers narrow questions; probabilities are ranked, never gated.
 
-    bun lib/lint/extract.ts <repo> <tsconfig>[,<tsconfig>] > spans.jsonl
+    bun lib/lint/extract.ts <repo> <tsconfig>[,<tsconfig>] [sinceRef] > spans.jsonl
     bun lib/lint/judge.ts < spans.jsonl > findings.jsonl
     bun lib/lint/score.ts findings.jsonl lib/lint/labels/<repo>.tsv
 
-Kinds and what a full run over concept (2193 spans, ~50s, ~2M tokens) showed:
+With sinceRef only spans on lines the working tree adds over that ref are judged, while the
+reference index still covers the whole repository. Five commits of concept: 40 spans, 9s.
+The whole tree: 1168 spans, ~30s.
 
-| kind/question | status |
+| kind/question | what it found on concept |
 |---|---|
-| static (type predicate satisfied by declared type; field nothing names) | pure structure, no question; `beyond_type` then asks whether the predicate body checks more than the type carries (AUC 1.0, n=5) |
-| field/inert | the useful one: fields written and never read for a decision (AUC 0.67, n=12; every miss is a pass-through to an external library, which is structurally detectable and not yet filtered) |
-| expect/off_concept | with concept notes as state, finds behavior the docs never promise; reads as doc drift from the test side (AUC 1.0, n=4) |
-| expect/implementation_detail | concept notes halve the mean; effect-yield assertions still read as internals without the story step |
-| expect/tautological, expect/typed | no separation; typed never exceeds 0.42 |
-| guard/excluded, guard/revalidates | no separation after the compiler's own lints and the static rules; what remains is not a semantic question |
-| catch/swallows | accurate description of parse-or-undefined idioms, not a smell by itself |
-| */just_in_case | 0.5 everywhere without callers in state |
+| static (no question) | a type predicate already satisfied by its argument's declared type; an optional field nothing names |
+| static/beyond_type | whether that predicate's body checks more than the type carries: format, range, finiteness (AUC 1.0, n=5) |
+| field/inert | fields written and never read for a decision (AUC 0.88, n=10) |
+| expect/off_concept | with the concept notes whose `path:` names the code under test as state, assertions on behavior the notes never promise; doc drift read from the test side (AUC 1.0, n=4) |
+| expect/implementation_detail | ambiguous; concept notes halve the mean, effect-yield assertions still read as internals without the story step |
 
-Labels are sparse and mine; overwrite them. Sample sizes are too small to trust any AUC to
-a decimal; the point is which questions separate at all.
+Tried and dropped: guard questions (excluded, revalidates, just-in-case) once the compiler's
+own lints and the static predicate rule take the structural cases, nothing left separated;
+catch/swallows accurately describes parse-or-undefined idioms, which are not smells; expect
+tautological and typed never separated. Fields whose value flows into a node_modules library
+are filtered structurally, which removed every false positive inert had.
+
+Labels are sparse and mine; overwrite them. Sample sizes are too small to trust any AUC to a
+decimal; the point is which questions separate at all.
