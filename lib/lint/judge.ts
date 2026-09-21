@@ -21,12 +21,16 @@ const questions: Record<Span["kind"], Record<string, Question>> = {
     revalidates: { type: "noul", instructions: CONTEXT + "Does the guard in `span` re-check something a callee or an earlier statement in `function` already established?" },
     just_in_case: { type: "noul", instructions: CONTEXT + "Is the guard in `span` there 'just in case' — protecting against a situation no caller produces — rather than producing an outcome the caller relies on?" },
   },
+  static: {
+    beyond_type: { type: "noul", instructions: CONTEXT + "The guard in `span` calls a type predicate whose source is `predicate`, on an argument whose declared type is already `argument`. Does the predicate's body verify anything that type does not guarantee (a format, a range, finiteness, non-emptiness)?" },
+  },
   field: {
     inert: { type: "noul", instructions: CONTEXT + "`span` declares an optional field of the type in `type`; `references` lists every line in the program that names that property. Is the field inert — only validated, defaulted, copied, serialized or passed along, and never read to decide behavior, compute a result, or display something?" },
     speculative: { type: "noul", instructions: CONTEXT + "Judging from `references`, does the field in `span` exist for a consumer that does not yet exist — plumbing laid for a future feature rather than a present need?" },
   },
   expect: {
-    implementation_detail: { type: "noul", instructions: CONTEXT + "Does the assertion in `span` check internal structure, intermediate values, or call shapes that a user of the code under test would never notice, rather than an outcome they would?" },
+    implementation_detail: { type: "noul", instructions: CONTEXT + "Does the assertion in `span` check internal structure, intermediate values, or call shapes that a user of the code under test would never notice, rather than an outcome they would? If `concepts` is present it describes what the code under test is for and who reads it; judge 'notice' against those readers." },
+    off_concept: { type: "noul", instructions: CONTEXT + "`concepts` are the documented ideas the code under test realizes. Does the assertion in `span` check something none of them describe or imply — a behavior the documentation does not promise?" },
     tautological: { type: "noul", instructions: CONTEXT + "Given `subject` (the source of the function under test) and `test`, is the assertion's outcome so directly entailed by reading the implementation that it carries no information — it could only fail if someone edited the code specifically to make it fail?" },
     typed: { type: "noul", instructions: CONTEXT + "Does the assertion in `span` only check something the TypeScript compiler already guarantees (a property exists, a value has a shape, a function returns its declared type)?" },
   },
@@ -38,6 +42,8 @@ export function stateOf(span: Span): State {
   const s: Record<string, unknown> = { span: span.text, function: cap(span.enclosing, 6000) || "(module scope)", callees: span.callees.slice(0, 20) };
   if (span.test) s.test = span.test;
   if (span.subject) s.subject = cap(span.subject, 6000);
+  if (span.kind === "static") { s.predicate = span.predicate; s.argument = span.argument; }
+  if (span.concepts) s.concepts = span.concepts;
   if (span.kind === "field") { s.type = s.function; delete s.function; delete s.callees; s.references = span.references; }
   return s as State;
 }
@@ -46,6 +52,7 @@ export interface Finding extends Span { answers: Record<string, number> }
 
 export async function judge(span: Span): Promise<Finding> {
   const qs = questions[span.kind];
+  if (span.kind === "static" && !span.predicate) return { ...span, answers: {} };
   const d = await decide(stateOf(span), qs);
   return { ...span, answers: Object.fromEntries(Object.entries(d).map(([k, v]) => [k, +v.dist.true!.toFixed(3)])) };
 }
