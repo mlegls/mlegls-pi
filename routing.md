@@ -21,7 +21,7 @@ Use these fixed model/effort pairs for fresh implementation sessions rather than
 
 ## Assignment stances
 
-Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them.
+Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them; campaign supervisors delegate substantial work.
 
 - `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
 - `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
@@ -52,7 +52,7 @@ Distinguish visual perception, GUI grounding, interactive computer use, and visu
 
 ## Session roles
 
-- `session-triage`: choosing and shaping the next session when the next move is knotty; use fable or astra. This is decision work, even when the eventual implementation is routine. Prefer fable for coherence and open goals, astra for technical/evidence-based decisions.
+- `session-triage`: resolving consequential gaps in a delegated contract, or `shape` driving an issue toward executable tickets; use fable or astra. This is decision work, even when the eventual implementation is routine. Prefer fable for coherence and open goals, astra for technical/evidence-based decisions.
 - Idea-to-ticket discussions likewise favor fable/astra. Implementation supervision of already-scoped work favors sonnet, terra, or DeepSeek Flash; the supervisor need not be the strongest model.
 - Implementation follows the three fixed operating points above. Large simplifying replacements written from surviving interfaces and requirements without reading the old implementation favor fable.
 - A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.

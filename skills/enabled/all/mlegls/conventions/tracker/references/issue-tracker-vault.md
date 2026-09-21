@@ -20,7 +20,7 @@ claimed-by: <session name>
 priority: 1 | 2 | 3                                # roots; children inherit the nearest
 ```
 
-`next` is the kind of session this issue needs now. grill: decide with me. research: search the web or the machine. prototype: build and iterate with me; the iteration replaces the backbrief. measure: an experiment; needs a harness designed first. simplify: a friction, linking the concept or path where it happened; the concept's backlinks are the theme. implement: shaped enough to code. wait: nothing anyone can do yet. an issue with open children is carried by them.
+`next` is the kind of session this issue needs now. grill: decide with me. research: search the web or the machine. prototype: build and iterate with me; the iteration replaces the backbrief. measure: an experiment; needs a harness designed first. simplify: a friction, linking the concept or path where it happened; the concept's backlinks are the theme. implement: shaped enough to code. wait: nothing anyone can do yet. an issue with open children is carried by them; its supervisor still owns integration and acceptance of the parent destination.
 
 `blocked-by` is what the *next* step waits on, not everything the issue will ever wait on. when `next` changes, ask again. implementing A may wait on B while deciding A doesn't; so A is `grill` and unblocked until it's `implement`.
 
@@ -59,7 +59,7 @@ claim: `claimed-by` before anything else; sessions share the directory, so read 
 
 a ticket is a `wt` worktree on a branch named for its slug; `wt merge` when its stories drive. commit implementation changes in the ticket’s worktree as you go. commit the claim in the canonical checkout before branching. shared tracker changes—parent decisions, dependencies, new tickets—belong in the canonical checkout; workers report these to the coordinator. the ticket’s completion and archival ride its implementation branch.
 
-resolve: write the answer or land the code, `next: done`, drop the claim, a dated decision line in the parent, remove from every dependent's `blocked-by`, move to `archive/`. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
+resolve: record the answer or land the code and satisfy its recorded acceptance (including story verification), `next: done`, drop the claim, a dated decision line in the parent, remove from every dependent's `blocked-by`, move to `archive/`. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
 
 friction: `next: simplify`, the observation raw, without reading other frictions first.
 

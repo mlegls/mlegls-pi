@@ -4,7 +4,7 @@ description: "Use for implementation-level planning: from the want, derive the a
 argument-hint: "a bounded goal whose destination is agreed"
 ---
 
-1. Start from the want, in the user's words. Use `grilling` to derive the
+1. Start from the want, in the user's words. Use `grill` to derive the
    sequence(s) of affordances that fulfil it and the program steps each
    decomposes into, over the theory's tree. If they come naturally there
    may be nothing to build. What cannot be written is what the spec adds.
@@ -19,9 +19,9 @@ argument-hint: "a bounded goal whose destination is agreed"
    ownership, dependencies, observable acceptance, and any discovery or design
    deliberately delegated to its worker. Unresolved choices outside that
    authority remain holes.
-4. Record it (`tracker`): the want, the sequence, the steps, the shape;
+4. Create or update the durable stories (`project-docs`) with their wants, affordance sequences and observable acceptance; refactors may cite existing stories they preserve. Link them from the issues so verification starts from the agreed behavior. Record it (`tracker`): the want, the sequence, the steps, the shape;
    `next: implement` when the remaining work is within the delegated authority.
    Reference named code and docs for context already recorded there.
 5. Return the issue and what remains before execution: `compile` to prepare
    closed assignments, `implement` for a bounded autonomous session, or
-   `realize` to supervise prepared assignments and deliberately open streams.
+   `supervise` to carry the scope through execution and verification.

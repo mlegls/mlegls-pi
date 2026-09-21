@@ -23,6 +23,6 @@ if (check.status === "ready") {
 ```
 
 If pending, end the turn and wait for notification. If failed, inspect the error before retrying.
-Use the carrying skill or stance and begin the returned assignment. For triage, begin with its questions; for idle, report the state.
+Use the briefing to establish the idea with the user and record it (`tracker`), reusing related work. Return what is agreed, what remains open, and the suggested next entry. Continue into `shape` or `supervise` only when requested.
 
-`state.prepared.suggestion`, when present, is optional advice for the user, separate from the assignment. Continuing with the current model is fine. The full reading and decisions remain in `state.prepared.audit`.
+The full reading remains in `state.prepared.audit`.

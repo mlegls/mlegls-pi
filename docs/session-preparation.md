@@ -1,18 +1,22 @@
-# Introduce and advance
+# Orientation and interactive roles
 
-Prepare the next parent session rather than asking the parent to spend its opening turn choosing work. Introduce starts from intent; advance starts from recorded scope.
+- `introduce` establishes new intent in the tracker.
+- `orient` answers where things stand and what to enter next. `advance` is an alias.
+- `shape` drives an issue toward executable contracts, using map and plan.
+- `supervise` owns an agreed subtree through implementation, verification and reconciliation. `realize` delegates to it.
 
-## Use
+Campaigns are ordinary parent issues. A scope may contain both agent-ready work and branches needing shaping. Keep its supervisor session across waves; separate shaping sessions return updated tickets and report what changed. Shared truth is in tickets/docs, working context in session/OM, and execution state in durable orchestration records.
 
-Reload exec once after installation (`/exec-reset`), then invoke the introduce or advance skill, or call the library:
+## Preparation
+
+Reload exec after installation (`/exec-reset`). Retain the promise:
 
 ```ts
-state.preparing = introduce.run("Make the deployment workflow less fragile");
-notify(state.preparing.then(() => "Session preparation is ready"), "introduce");
-// Or: advance.run("deployment"), advance.run() for the current project tracker.
+state.preparing = orient.run(); // or orient.run("issue-subtree"), introduce.run("new intent")
+notify(state.preparing.then(() => "Orientation is ready"), "orient");
 ```
 
-After the completion notification (or for an early status check):
+When notified, inspect in a later cell:
 
 ```ts
 const check = await poll(state.preparing);
@@ -22,33 +26,20 @@ if (check.status === "ready") {
 } else await show(check);
 ```
 
-If pending, end the turn and wait for notification; if failed, inspect the error before retrying. Polling never waits for preparation or cancels it. Directly awaiting the preparation promise can still consume the cell deadline and destroy the kernel.
+If pending, end the turn and wait; if failed, inspect before retrying. Directly awaiting preparation can exceed the cell deadline and destroy the kernel.
 
-Use the carrying skill or stance and start with the returned first action. The prose assignment includes an objective, workflow, why-now, stopping condition and working context. It may assign concrete work, frame specific user decisions, or explain that nothing is actionable. Suggestions never block continuation or change the parent model. `suggestion`, when present, is optional user/harness advice, deliberately excluded from `text`.
+The returned text is a read-only briefing, not permission to execute a recommendation. Orient reports progress, known supervisors, ready unowned work and a leverage-ranked human queue. Introduce uses its briefing to establish and record the idea. Neither silently becomes a local implementation session.
 
-Outside exec, import `run` from `lib/introduce.ts` or `lib/advance.ts`, passing `{ reader: { sessionFile, cwd } }`. The session file is explicit; there is no newest-session guessing.
+Outside exec, import run from lib/orient.ts, lib/advance.ts or lib/introduce.ts and pass `{ reader: { sessionFile, cwd } }`. The session file is explicit.
 
-## Pipeline and policy
+## Mechanism
 
-1. Autoread orients within scope: frontier, claims/blockers, constraints and code entry points. Stop when these are known or their absence is explained; leave the actual research/audit inventory to the assigned session.
-2. In one call, Jev checks that orientation is a briefing rather than a status/wait response, and speculatively distinguishes easy selection from knotty selection. A non-briefing rejects before any follow-up reader; the error retains the reader answer, decision and transcript reference. Explained empty, blocked or unreadable scope is valid. This is a semantic judgment, not a correctness proof. Difficulty of implementation is a different question.
-3. Easy: the candidate model submits up to five prose directives through the typed `submit_candidates` tool (not JSON in its response); Jev picks one, then independently scores chunks of the broad reading. Relevant context is assembled losslessly. If candidates cannot be constructed or selected without new planning, take the triage path.
-4. Hard: route a reasoning model for `session-triage`. Its free-text answer is returned verbatim, with unresolved human questions as the session task. There is no schema, response parser, subsequent Jev approval, or context filtering.
+lib/prepare.ts calls autoread once under [workflows.md](../workflows.md), then checks that the response contains orientation rather than an acknowledgment or wait message. A rejected response retains the reader and its transcript reference. Empty, blocked, missing and unreadable scopes are valid explained results. This check is not a correctness proof.
 
-Follow-up readers fork the broad reader with compaction disabled, retaining its evidence rather than repeating parent orientation. They have autoread's read-only tool surface, plus a terminating submission tool for the candidate stage; no claims, edits or worker launches occur. Execution and authorized dispatch belong to the parent.
-
-Inside BB, every reader is a visible child thread with its own transcript. Follow-up readers inherit the broad reader’s evidence through a BB fork, while remaining children of the calling thread. `audit.reads[].threadId` retains their links; failures include the child reference. Outside BB, readers remain private Pi subprocesses. See [autoread](autoread.md#inside-bb) for lifecycle and reload details.
-
-- [workflows.md](../workflows.md): editable intent, selection and handoff policy, read each invocation.
-- [workflows.json](../workflows.json): fixed `autoread` and `session-candidates` model/effort defaults.
-- [routing.md](../routing.md): model preferences, including reasoning triage and implementation/supervision roles.
-
-Options: `reader` passes autoread's options; `candidates` and `triage` override their model/effort; `routing` passes router options; `policyPath` overrides workflow policy. `contextThreshold` defaults to 0.2 (favor retaining potentially relevant material). This is not a calibrated confidence threshold on selecting work. Routing/selection failures reject; context scoring failure keeps the full briefing and records a warning. Empty context selection also keeps the full briefing. No automatic retry.
-
-`audit` retains every full reader answer, candidate tool submission and session path, the briefing-validity, difficulty and candidate-choice distributions, context scores and warnings. Omitted context is recoverable via `audit.reads[0].text`. The retained audit is not part of the parent-facing directive. Read timeouts apply per reader call; retain the whole preparation promise and use `poll` instead of waiting across exec's default 30-second deadline.
+The briefing is returned intact with its reading and judgment in `audit`. There is no candidate-session selection or model-routed reassignment of the interactive role. Options are `reader` (autoread options except submission) and `policyPath`. [workflows.json](../workflows.json) supplies the reader default; [routing.md](../routing.md) governs delegated assignments. Autoread remains useful inside shaping and supervision for bounded orientation.
 
 ## Verification
 
-Drive both an already-scoped ticket and an ambiguous new request. The former should yield a concrete assignment without redundant orientation; the latter should yield a resolved task or specific discussion questions, not a model-switch prerequisite. Check that preparation leaves the project and source session unchanged. These examples verify the mechanism, not calibrated decision quality across projects.
+An orient call over a specified ticket should locate it within the scope and recommend an entry, not command its implementation. A workflow discussion should remain a discussion even when related executable tickets exist. An introduce call should locate and establish intent rather than start executing it. Preparation leaves tracker and source session unchanged.
 
-Observed checks and limits: [2026-09-20 verification](research/session-preparation-2026-09-20.md).
+The older selection pipeline's observations are retained in [2026-09-20 verification](research/session-preparation-2026-09-20.md); they are not verification of the current orientation-only policy.

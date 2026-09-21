@@ -9,6 +9,8 @@ standalone extensions for their Pi-facing commands and providers. See [host libr
 
 See [Orca](docs/orca.md) for graphical workspaces, worker dispatch, and `/fork-tab`.
 
+Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [workflows](workflows.md) and [session preparation](docs/session-preparation.md).
+
 ## Development
 
 With Bun available, run `bun run setup`, then `bun test`. Tracker CLI tests: `bun run test:tracker`.

@@ -1,25 +1,35 @@
-# Session preparation
+# Interactive workflows
 
-Policy for introduce and advance, read at call time by lib/prepare.ts. Model preferences live in routing.md; fixed reader/candidate defaults live in workflows.json.
+Policy read at call time by lib/prepare.ts. Model preferences live in routing.md.
 
 ## Introduce
 
-Locate an idea or request in the existing project and related work. If already recorded, use that record rather than duplicating it. Establish what is agreed and what remains open. An unsettled destination calls for map; an agreed destination with unsettled behavior or shape calls for plan. Shaped work calls for implementation or its supervision. Stale intent calls for reconciliation before execution.
+Establish new intent in the project: find related work, distinguish what is agreed from what is open, and prepare its tracker record. Reuse an existing issue when appropriate. Stop once the idea is established; shaping or execution is a separate choice.
 
-## Advance
+## Orient (also advance)
 
-Find one session-sized tracer bullet within the requested issue subtree, or the current project's tracker when no scope is given. It may span related issues or be one increment of a larger issue. Respect claims and blockers; an issue carried by open children is not another independent assignment. Include human decision work as well as the agent frontier. Prefer priority and transitive unblocks, subject to the user's current intent. Distinguish a completed or blocked frontier from a missing or unreadable tracker.
+Where are things at, and what is worth doing next? Orient within the requested subtree, or the current project tracker when no scope is given. Identify ongoing scopes and their live supervisors where observable, what has landed and been verified, what remains, ready work without an owner, and questions needing the user ranked by priority and transitive unblocks. Distinguish recorded state, observed contradictions, and unknowns; claims alone do not prove a session is alive.
 
-## Preparing the session
+Recommend resuming or starting a supervisor, shaping an issue, or introducing new intent. Return an overview and a recommended next entry, not an implementation assignment. Preserve the conversation's purpose: a discussion of workflow problems is not authorization to execute a nearby ticket. Missing, unreadable, blocked and completed trackers are different states.
 
-Orient first: establish the live frontier, claims/blockers, governing constraints and relevant entry points. Stop when those are established or their absence is explained; leave the research inventory, audit and implementation discovery to the assigned session. Judge how knotty choosing the next move is, separately from how difficult it will be to implement. Easy selection restates settled tickets: a small model submits candidate-session prose through a typed tool, Jev selects one, and Jev selects relevant chunks of the broad reading. Hard selection needs a reasoning model to triage and return an assignment directly. That free-text assignment is returned verbatim, with no response schema or parser and no rejudgment by Jev.
+## Shape
 
-Use exact carrying skill names: `map` for unsettled destinations, `plan` for shaping agreed goals, `implement` for a bounded agreed change, `realize` for supervising specified work, `orchestrate`/`compile` when their scope warrants them, `simplify`, `verify-story`, `vault` for reconciliation, and `grilling` for a bounded decision. Research, prototype and measure can be named stances when no installed skill carries them. Use `none` for idle. Read the applicable instructions rather than inventing a skill name.
+Drive an issue from intent to agent-ready contracts using map and plan. Resolve discoverable facts through research or experiments; bring consequential choices to the user. Own exploratory children and interpretation of their results. Record the destination, decisions, holes, dependencies, delegated authority and observable acceptance. Planning creates or updates the durable stories verification will consume; refactors may preserve existing stories. Report changed contracts and newly ready work to the scope's supervisor.
 
-Workflow names and tracker `next` values are different vocabularies. Use the tracker's actual conventions when an assignment calls for recording work; for the vault tracker, open goal/shape decisions use `next: grill`, not invented `next: map` or `next: plan` stages.
+## Supervise
 
-A session assignment names a concrete result, the carrying skill or stance, the first useful action, why this move matters now, and an observable stopping condition. If user decisions remain, make the discussion and its specific questions the session's work. Exhausted or blocked scope is a valid idle result; do not manufacture activity.
+Carry an agreed issue subtree through execution, integration, verification and tracker reconciliation. A campaign is an ordinary parent issue, not a new tracker entity. Delegate substantial work. Schedule ready streams Gantt-style and dispatch as dependencies and capacity permit. Read next as the requested kind of work, not permission to reconstruct missing design. Autonomous research can be dispatched when its question and completion criterion are settled; exploratory research belongs to the shaping session that owns the question.
 
-The current parent starts with this assignment and its working context rather than spending a turn deciding what to do. Include relevant project constraints, precedents, counterevidence, and source references. Remaining implementation discovery is legitimate work; repeating orientation is not. Surface stale tracker fields as part of the assignment rather than modifying them during preparation.
+Triage within recorded decisions. Surface consequentially wrong or incomplete tickets as bounded shaping assignments, ranked by what they unblock, for separate sessions. Continue independent branches. Incorporate their conclusions from updated tickets and completion reports.
 
-Preparation is read-only: no tracker edits, claims, implementation, or worker launches. The parent carries out the selected workflow, including any authorized dispatch. Model suggestions are optional advice for the user/harness, separate from the assignment. Continuing with the current model is always fine.
+After integration, verify the affected stories and reconcile the tracker with the evidence. Distinguish landed from verified; dispose of findings explicitly and close only against acceptance. Report progress toward the destination, not worker counts. Keep the parent current: established outcomes, remaining work, and needed decisions, with evidence links.
+
+Keep the supervisor session across waves, using OM and compaction. Shared truth belongs in tickets and project docs; working context in the session and OM; worker handles and integration state in durable orchestration records. At checkpoints make replacement recoverable, without requiring replacement. Fresh workers and verifiers provide bounded context and independent judgment.
+
+## Preparation and routing
+
+Preparation is read-only orientation through autoread: no claims, edits, launches or automatic selection of a local task. Stop once the scope, frontier, constraints and relevant sources are established; leave substantive research and design to their owners. Return working context and source references, including explained absences. The interactive role is chosen by the user, not the router.
+
+Autoroute places bounded delegated assignments and identifies closure gaps; it does not choose the interactive session's purpose. Shape favors strong reasoning models; supervision follows recorded contracts on a mid-tier model. Model advice never blocks continuing a session.
+
+Workflow names and tracker next values are different vocabularies. Use actual tracker conventions, including next: grill for unresolved decisions. Verification pending remains explicit in acceptance/current state rather than silently treating code landed as done.

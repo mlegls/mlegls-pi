@@ -4,7 +4,7 @@ description: "Use for goal-level planning: agree on a destination through grilli
 argument-hint: "an effort whose destination is not yet agreed"
 ---
 
-1. Use `grilling` to agree on the destination, what is out of scope, and what
+1. Use `grill` to agree on the destination, what is out of scope, and what
    is already decided. Research discoverable facts; question choices.
 2. Record it as an issue (`tracker`): destination, decisions so far, holes
    each with what `next` fills it; a hole is its own issue when it's a
