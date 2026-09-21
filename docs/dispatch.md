@@ -18,8 +18,8 @@ Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`
 
 ## Receipts and lifecycle
 
-- `submitted`: `{backend: "orca", handle, worktreeId, path, receipt}`. `receipt` retains native `runId`, `taskId`, `dispatchId`, effects, and `clientTerminal`, plus `startConfirmation`. Submitted workers count against capacity even when start is unconfirmed. Only `startConfirmation.status === "started"` proves entry into the assigned Pi turn; re-observe with `orca.workers.confirmStart(receipt)` without resubmitting.
-- `failed`: the first failed assignment, error text, and structured error receipt where available. Earlier launches survive; residual resources are retained for inspection.
+- `submitted`: `{backend: "orca", handle, worktreeId, path, receipt}`. `receipt` retains native `runId`, `taskId`, `dispatchId`, effects, and `clientTerminal`, plus `startConfirmation`. Only confirmed starts enter `submitted`. Only `startConfirmation.status === "started"` proves entry into the assigned Pi turn; re-observe with `orca.workers.confirmStart(receipt)` without resubmitting.
+- `failed`: the first failed assignment, error text, and structured error receipt where available. Earlier launches survive; residual resources are retained for inspection. An unconfirmed turn start stops the wave here, with its full worker receipt under `failed.receipt.cause`. Re-observe that receipt with `orca.workers.confirmStart`; do not resubmit the assignment or wait for its completion without start evidence. Resolve the retained attempt before launching another wave: it still consumes capacity.
 - `pending`: never-attempted assignments. The parent decides when to launch them.
 
 Routing happens before launch: `dispatch.dispatch` consumes the `route.prepare` result, while `startPi` handles Pi launch and enrollment internally. Neither launcher chooses a model or enforces routing provenance; do not replace admission with manual selection to work around native Orca launch limitations.

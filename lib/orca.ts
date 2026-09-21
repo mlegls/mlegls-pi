@@ -136,21 +136,27 @@ export async function startPi(options: Context & {
   const token = randomUUID();
   const evidencePath = resolve(await mkdtemp(resolve(tmpdir(), "pi-orca-start-")), "started.json");
   if (start.spec) start.spec += "\n\n[Pi launch correlation: " + token + "]";
-  const tab = await terminal("PI_ORCA_START_EVIDENCE=" + quote(evidencePath) + " PI_ORCA_START_TOKEN=" + quote(token) + " " + piCommand(["--model", model, "--thinking", effort === "none" ? "off" : effort]),
+  const readyPath = resolve(evidencePath, "../ready.json");
+  let enrolled: (WorkerReceipt & { clientTerminal: Terminal }) | undefined;
+  const tab = await terminal("PI_ORCA_READY_EVIDENCE=" + quote(readyPath) + " PI_ORCA_START_EVIDENCE=" + quote(evidencePath) + " PI_ORCA_START_TASK=" + quote(start.task ?? "") + " PI_ORCA_START_TOKEN=" + quote(token) + " " + piCommand(["--model", model, "--thinking", effort === "none" ? "off" : effort]),
     options.taskTitle ?? "Pi worker", options.cwd, target);
   try {
     const timeoutMs = options.timeoutMs ?? 60_000;
+    if (!await observeEvent(readyPath, "session_start", timeoutMs))
+      throw new OrcaError("Pi extension startup not observed; assignment not submitted", { readyPath });
     const readiness = await call<{ wait: { satisfied: boolean } }>([
       "terminal", "wait", "--terminal", tab.handle, "--for", "tui-idle", "--timeout-ms", String(timeoutMs),
     ], options.cwd, timeoutMs + 30_000);
     if (!readiness.wait?.satisfied) throw new OrcaError("Pi readiness not observed; assignment not submitted", readiness);
-    const receipt = { ...await workers.start({ ...start, worktree: target, terminal: tab.handle }), clientTerminal: tab };
+    const receipt = enrolled = { ...await workers.start({ ...start, worktree: target, terminal: tab.handle }), clientTerminal: tab };
     receipt.startConfirmation.evidencePath = evidencePath;
     receipt.startConfirmation = await confirmStart(receipt, startWaitMs);
+    if (receipt.startConfirmation.status !== "started")
+      throw new Error("Pi turn start unconfirmed; do not wait for completion or resubmit. Inspect the retained dispatch");
     return receipt;
   } catch (error) {
     throw new OrcaError("Pi terminal retained; inspect before retrying: " + tab.handle + ". " + String(error),
-      { clientTerminal: tab, startConfirmation: { status: "unconfirmed", evidencePath }, cause: error instanceof OrcaError ? error.receipt : String(error) });
+      { ...enrolled, clientTerminal: tab, startConfirmation: enrolled?.startConfirmation ?? { status: "unconfirmed", evidencePath }, readyPath, cause: error instanceof OrcaError ? error.receipt : String(error) });
   }
 }
 
@@ -164,14 +170,18 @@ export async function confirmStart(receipt: WorkerReceipt, waitMs = 0): Promise<
   if (!Number.isFinite(waitMs) || waitMs < 0) throw new Error("waitMs must be nonnegative and finite");
   const { evidencePath } = receipt.startConfirmation;
   if (!evidencePath || receipt.startConfirmation.status === "started") return receipt.startConfirmation;
+  if (await observeEvent(evidencePath, "before_agent_start", waitMs))
+    return receipt.startConfirmation = { status: "started", evidencePath };
+  return receipt.startConfirmation = { status: "unconfirmed", evidencePath, reason: "No correlated Pi turn-start event observed; inspect this dispatch, do not resubmit" };
+}
+
+async function observeEvent(path: string, event: string, waitMs: number): Promise<boolean> {
   const deadline = Date.now() + waitMs;
   do {
     try {
-      const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
-      if (evidence.event === "before_agent_start") return { status: "started", evidencePath };
+      if (JSON.parse(await readFile(path, "utf8")).event === event) return true;
     } catch { /* Missing or incomplete evidence is not proof of failure. */ }
-    if (Date.now() >= deadline) break;
+    if (Date.now() >= deadline) return false;
     await new Promise(resolve => setTimeout(resolve, Math.min(100, deadline - Date.now())));
   } while (true);
-  return { status: "unconfirmed", evidencePath, reason: "No correlated Pi turn-start event observed; inspect this dispatch, do not resubmit" };
 }
