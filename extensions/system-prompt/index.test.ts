@@ -17,7 +17,8 @@ function promptBuilder(getHeader: GetHeader = () => null) {
 		},
 	} as ExtensionAPI);
 	if (!handler) throw new Error("before_agent_start handler was not registered");
-	return (options: BuildSystemPromptOptions, systemPrompt = "") => handler(
+	const registeredHandler = handler;
+	return (options: BuildSystemPromptOptions, systemPrompt = "") => registeredHandler(
 		{ systemPrompt, systemPromptOptions: options },
 		{ sessionManager: { getHeader } },
 	).systemPrompt;

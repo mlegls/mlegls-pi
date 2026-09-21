@@ -206,8 +206,8 @@ export class TmuxTerminalManager {
 
 			const abort = () => child.kill("SIGTERM");
 			options.signal?.addEventListener("abort", abort, { once: true });
-			child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
-			child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+			child.stdout!.on("data", (chunk) => { stdout += chunk.toString(); });
+			child.stderr!.on("data", (chunk) => { stderr += chunk.toString(); });
 			child.on("error", (error) => {
 				if (settled) return;
 				settled = true;
@@ -224,7 +224,7 @@ export class TmuxTerminalManager {
 				}
 				resolveCommand({ stdout, stderr, code: code ?? 1 });
 			});
-			if (options.input !== undefined) child.stdin.end(options.input);
+			if (options.input !== undefined) child.stdin!.end(options.input);
 		});
 	}
 
