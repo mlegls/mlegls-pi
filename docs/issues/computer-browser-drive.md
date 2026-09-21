@@ -19,4 +19,6 @@ then in concept: drive.ts → load the Drive file, persona sign-in leaving stora
 
 not: assertions from the driver (done stays a judgment, the reviewer asserts into the skeleton); running drives in the project's CI (recorded specs are what CI runs); a copy of the loop in the project.
 
-evidence: session.take-a-lesson and plan.start-a-plan re-driven through the new path produce a skeleton the existing recorded specs could have been reviewed from.
+done 2026-09-21: the three lifts, `lib/computer/browser.ts`, the renderers; concept's `scripts/drive.ts` is now `prepare`/`record`/`finish` around `computer.walk`. Smoke over a local page: fill by placeholder-less `getByRole`, press, `appeared: status: Signed by Ada`, a valid block with `drive.inputs` back-referenced. The showing noul reads the node tree alone at ~0.5 even when the condition plainly holds and the aria text at ~0.85, so each view's readable text now sits beside its nodes in the state; with it the smoke ran with no waits and no contested endings.
+
+next: session.take-a-lesson and plan.start-a-plan re-driven through this path against the browser story environment (isolated deployment, packaged host, scripted provider), and the skeletons compared with the specs their reviewers accepted. `verify-story` step 2 to name the composition in drive.ts's header.
