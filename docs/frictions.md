@@ -13,3 +13,5 @@ Resolved reports and reproduction evidence: [2026-09-16 verification](research/e
 - Board-dependent tests inherit `BB_THREAD_ID` and fail under BB because its board host is intentionally disabled. `env -u BB_THREAD_ID bun test` passes (196 pass, 2 skip); next: make test host mode explicit rather than inheriting the invoking agent’s environment.
 
 Host installation failure isolation resolved through independent Pi extension entrypoints: [2026-09-21 verification](research/host-failure-isolation-2026-09-21.md). Startup-only installation and `/reload` recovery remain intentional.
+
+- Autoread in @thread:thr_m6g4pdthxc lost two attempts to premature parent awaits, then accepted a reader’s promise to wait as a completed briefing. A later triage recovered, hiding the failed orientation. [Session evidence and reader-profile verification](research/autoread-reader-profile-2026-09-21.md).

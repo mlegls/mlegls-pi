@@ -150,6 +150,20 @@ imports and enabled shell commands can still access underlying capabilities.
 The full reference below describes all modules; each session advertises only its
 selected surface.
 
+### Reader profile
+
+Use `pi --exec-profile reader` (or `PI_EXEC_PROFILE=reader` for host-managed
+readers). Autoread selects this profile automatically. It exposes only
+`read`, `find`, `grep`, source/selection helpers, `state`, `show`, `console`,
+and `exa`. Module allow/deny flags can narrow it further, never widen it;
+`--exec-deny-modules exa` disables web research.
+
+No write/edit helpers, `loadSkill` shell expansion, `notify`, shell, terminals,
+UI, coordination, or automatic `lib/` and `.pi/exec/` modules are exposed or
+loaded. Read skill files as reference without executing them. Internal
+relevance filtering still works. The profile is API shaping, **not a security
+sandbox**: imports and OS access remain unrestricted.
+
 ## Project modules
 
 `lib/<name>.ts` is in the cell as `<name>`, except names already in the exec API

@@ -3,6 +3,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"] as const;
+export type ExecProfile = "default" | "reader";
+export function resolveProfile(value: unknown): ExecProfile {
+	if (value === undefined || value === "default") return "default";
+	if (value === "reader") return "reader";
+	throw new Error("exec-profile expects default or reader");
+}
+
 export type ExecModule = typeof MODULES[number];
 
 function parse(value: unknown, flag: string, fallback: readonly ExecModule[]): readonly ExecModule[] {
@@ -112,7 +119,15 @@ const API: Record<ExecModule, string[]> = {
 	]
 };
 
-export function describeModules(modules: readonly ExecModule[]): string {
+export function describeModules(modules: readonly ExecModule[], profile: ExecProfile = "default"): string {
+	if (profile === "reader") return [
+		"Reader API in a persistent TypeScript kernel. Use state to retain values, show(...) to emit output, and ordinary TypeScript to batch/filter reads. Cells have a 30s deadline (timeoutMs overrides it). Fresh lexical scope per cell; state persists until reset.",
+		"This profile limits the supplied API, not imports or OS access; it is not a security sandbox. No write/edit, shell, skill execution, UI, terminal, coordination, or auto-loaded lib/project helpers are supplied.",
+		...(modules.includes("fs") ? API.fs.filter(line => ["await find(", "await read(", "read(imagePath", "await grep(", "selection."].some(prefix => line.startsWith(prefix))) : []),
+		...(modules.includes("exa") ? API.exa : []),
+		"await show(value, ...) renders output (16 KiB per cell); show.large raises it to 50 KiB. show.raw bypasses relevance filtering; show.pull(id) retrieves omitted chunks. Source text and selections are retained untruncated. console.log also renders output.",
+		"Read skill files as reference only: this profile does not execute their shell placeholders.",
+	].join("\n");
 	return [
 		"TypeScript execution with fresh scope per call and a persistent kernel. const/let/var and function declarations are cell-local and reusable next call. Retain values/promises explicitly with state.name = value; inspect Object.keys(state), delete state.name to release. Only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects and state writes survive a later error. Never blindly retry a failed cell. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
 		"Cells have a 30s host-enforced deadline. Pass timeoutMs on the exec call to override for that call only (positive integer milliseconds). Timeout clears kernel state, kills shell subprocesses, and aborts host calls; shown output is preserved; unshown process/partial-shell diagnostics are UI-only; side effects may remain. Use term or retained promises for long-running work.",

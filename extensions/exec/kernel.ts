@@ -48,6 +48,7 @@ export interface KernelRequest {
 
 export interface KernelOptions {
 	modules?: readonly string[];
+	profile?: "default" | "reader";
 	cwd: string;
 	sessionFile?: string;
 	ledger: LedgerEntry[];
@@ -186,7 +187,7 @@ export class Kernel {
 				reject(new Error(error));
 				if (this.child === child) void this.stop(error);
 			});
-			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], modules: this.options.modules });
+			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], modules: this.options.modules, profile: this.options.profile });
 		});
 		return this.ready;
 	}
@@ -197,7 +198,7 @@ export class Kernel {
 	 */
 	private async handleRequest(child: ChildProcess, message: any): Promise<void> {
 		const id = message.id;
-		if (!(this.options.modules ?? DEFAULT_MODULES).includes(message.namespace)) {
+		if ((this.options.profile === "reader" && message.namespace !== "exa") || !(this.options.modules ?? DEFAULT_MODULES).includes(message.namespace)) {
 			this.respond(child, id, { ok: false, error: `Exec module ${String(message.namespace)} is disabled` });
 			return;
 		}

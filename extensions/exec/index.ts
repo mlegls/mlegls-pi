@@ -4,7 +4,7 @@ import type { LedgerEntry } from "../../lib/outline-read/ledger";
 import { Kernel } from "./kernel";
 import { createExecServices, type ExecServices } from "./services";
 import { createComputerUseBridge } from "./computer-use";
-import { MODULES, resolveModules, describeModules, type ExecModule } from "./modules";
+import { MODULES, resolveModules, describeModules, resolveProfile, type ExecProfile, type ExecModule } from "./modules";
 import { renderCall, renderResult } from "./render";
 import { ingressContext } from "./ingress-context";
 
@@ -14,6 +14,8 @@ const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "
 export default async function (pi: ExtensionAPI) {
 	pi.registerFlag("exec-modules", { type: "string", description: "Exec module allowlist: " + MODULES.join(",") + " (* = all, none = core only)" });
 	pi.registerFlag("exec-deny-modules", { type: "string", description: "Exec module denylist; overrides --exec-modules" });
+	pi.registerFlag("exec-profile", { type: "string", description: "Exec API profile: default or reader (not a security sandbox)" });
+	let profile: ExecProfile = "default";
 	let modules: ExecModule[] = [...MODULES];
 	let configurationError: string | undefined;
 	const ui = await createComputerUseBridge(pi);
@@ -29,7 +31,9 @@ export default async function (pi: ExtensionAPI) {
 		if (session) services = undefined;
 		if (!ctx) return;
 		try {
+			profile = resolveProfile(process.env.PI_EXEC_PROFILE ?? pi.getFlag("exec-profile"));
 			modules = resolveModules(pi.getFlag("exec-modules"), pi.getFlag("exec-deny-modules"));
+			if (profile === "reader") modules = modules.filter(name => name === "fs" || name === "exa");
 			configurationError = undefined;
 		} catch (error) {
 			modules = [];
@@ -47,6 +51,7 @@ export default async function (pi: ExtensionAPI) {
 			cwd: ctx.cwd,
 			sessionFile: ctx.sessionManager.getSessionFile(),
 			modules,
+			profile,
 			call: services.call,
 			ledger,
 			persist(entry) {
@@ -91,7 +96,7 @@ export default async function (pi: ExtensionAPI) {
 			label: "exec",
 			renderCall,
 			renderResult,
-			description: describeModules(modules) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
+			description: describeModules(modules, profile) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
 			parameters: Type.Object({
 				code: Type.String({ description: "TypeScript to evaluate in the persistent kernel. Use show(...) to emit results." }),
 				timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 2_147_483_647, description: "Host-enforced deadline for this call only, in milliseconds (default 30000). Timeout clears kernel state and stops shell subprocesses; bounded partial output survives. Use term for long work; side effects may remain." })),

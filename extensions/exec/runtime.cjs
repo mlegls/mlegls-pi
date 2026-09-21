@@ -374,7 +374,8 @@ function notify(promise, label) {
 }
 
 async function initialize(message) {
-	modules = new Set(message.modules ?? DEFAULT_MODULES);
+	const reader = message.profile === "reader";
+	modules = new Set((message.modules ?? DEFAULT_MODULES).filter(name => !reader || name === "fs" || name === "exa"));
 	if (typeof stripTypeScriptTypes !== "function") throw new Error("exec requires Node >= 22.13 for TypeScript transpilation");
 	const [{ createSourceAPI }, { Ledger }] = await Promise.all([
 		import("./source.ts"), import("../../lib/outline-read/ledger.ts"),
@@ -391,18 +392,22 @@ async function initialize(message) {
 	});
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
-	const capabilities = { show, notify };
+	const capabilities = reader ? { show } : { show, notify };
 	if (modules.has("fs")) {
-		const loadSkill = createSkillLoader(message.cwd, runShell, register, protect);
-		for (const [name, fn] of Object.entries({ ...api, write, loadSkill })) capabilities[name] = traced(name, fn);
-		capabilities.edit.raw = traced("edit.raw", (input, ...values) => api.edit(template(input, values, true)));
+		if (reader) {
+			for (const name of ["read", "grep", "find"]) capabilities[name] = traced(name, api[name]);
+		} else {
+			const loadSkill = createSkillLoader(message.cwd, runShell, register, protect);
+			for (const [name, fn] of Object.entries({ ...api, write, loadSkill })) capabilities[name] = traced(name, fn);
+			capabilities.edit.raw = traced("edit.raw", (input, ...values) => api.edit(template(input, values, true)));
+		}
 	}
 	if (modules.has("sh")) {
 		capabilities.sh = traced("sh", sh);
 		capabilities.sh.raw = traced("sh.raw", (input, ...values) => runShell(template(input, values, true)));
 	}
 	for (const [namespace, methods] of Object.entries(services)) {
-		if (namespace !== "host" && !modules.has(namespace)) continue;
+		if ((reader && namespace !== "exa") || (namespace !== "host" && !modules.has(namespace))) continue;
 		capabilities[namespace] = Object.freeze(Object.fromEntries(Object.entries(methods).map(([method, fn]) => [method, Object.freeze(traced(namespace + "." + method, fn))])));
 	}
 	// Freeze owned API wrappers, not returned values or Node's console internals.
@@ -416,13 +421,13 @@ async function initialize(message) {
 	const { pathToFileURL } = require("node:url");
 	const { resolveCellModules } = await import("./modules.ts");
 	const project = Object.create(null);
-	for (const mod of await resolveCellModules(message.cwd)) {
+	for (const mod of reader ? [] : await resolveCellModules(message.cwd)) {
 		const loaded = Object.freeze({ ...(await import(pathToFileURL(mod.path).href)) });
 		if (mod.scope === "project") project[mod.name] = loaded;
 		else capabilities[mod.name] = loaded;
 	}
-	ingress = capabilities.ingress.create({ record: event => send({ type: "ingress", event }) });
-	capabilities.project = Object.freeze(project);
+	ingress = (reader ? await import("../../lib/ingress.ts") : capabilities.ingress).create({ record: event => send({ type: "ingress", event }) });
+	if (!reader) capabilities.project = Object.freeze(project);
 	for (const [name, value] of Object.entries(capabilities)) {
 		Object.defineProperty(server.context, name, { value, writable: false, configurable: false });
 	}

@@ -3,6 +3,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { RpcClient } from "@earendil-works/pi-coding-agent";
+import { fileURLToPath } from "node:url";
 import { workflow } from "./config.ts";
 
 export interface Options {
@@ -75,11 +76,12 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   const client = new RpcClient({
     cliPath: options.cliPath ?? cli(), cwd,
     // Do not impersonate the parent in host/board integrations.
-    env: { BB_THREAD_ID: "", PI_SESSION_FILE: "", PI_SESSION_ID: "", PI_BOARD_NAME: "", PI_BOARD_TOPIC: "" },
+    env: { BB_THREAD_ID: "", PI_EXEC_PROFILE: "reader", PI_SESSION_FILE: "", PI_SESSION_ID: "", PI_BOARD_NAME: "", PI_BOARD_TOPIC: "" },
     args: ["--fork", sessionFile, "--no-extensions", "--no-skills", "--no-prompt-templates",
+      "--extension", fileURLToPath(new URL("../extensions/exec/index.ts", import.meta.url)),
       ...(memory ? ["--extension", memory] : []),
       ...(submissionExtension ? ["--extension", submissionExtension] : []),
-      "--tools", ["read", "grep", "find", "ls", ...(memory ? ["recall"] : []), ...(submission ? [submission.tool] : [])].join(","),
+      "--tools", ["exec", ...(memory ? ["recall"] : []), ...(submission ? [submission.tool] : [])].join(","),
       "--system-prompt", stance + (submission ? " Deliver the requested result through " + submission.tool + " as your final action, rather than encoding it in your prose response." : "")],
   });
   let timer: ReturnType<typeof setTimeout>;

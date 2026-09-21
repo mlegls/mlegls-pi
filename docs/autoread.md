@@ -22,7 +22,7 @@ Outside exec, import `run` from `lib/autoread.ts` and supply `sessionFile` expli
 
 The reader forks the persisted parent through pi RPC, compacts the child, switches to the configured model/effort, then investigates. Small/already-compacted sessions retain their existing context. The parent model, memory, transcript, and files are not changed.
 
-Only read, grep, find, ls, and observational-memory recall are available. Other extensions, skills, and prompt templates are not loaded; project context still follows pi's normal loading. This is a restricted tool surface, not an OS sandbox.
+Reader-profile exec and observational-memory recall are available, plus an optional submission tool. Other extensions, skills, and prompt templates are not loaded; project context still follows pi's normal loading. See the [reader profile](../extensions/exec/README.md#reader-profile) for the exact API and its non-sandbox boundary.
 
 Observational memory defaults to the installed package under pi's agent npm directory (honoring PI_CODING_AGENT_DIR). Override its path with memoryExtension, or explicitly use memoryExtension: false for native compaction. Existing OM entries survive the fork and recall resolves their original evidence. With no applicable observations, OM falls back to pi's native summarizer. Compaction happens before the model switch, so native compaction uses the inherited model.
 
