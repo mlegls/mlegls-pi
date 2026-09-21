@@ -49,7 +49,7 @@ function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: strin
 	return parts.join("\n\n");
 }
 
-export function install(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
 	pi.on("before_agent_start", (event, ctx) => ({
 		systemPrompt: buildPrompt(event.systemPromptOptions, ctx.sessionManager.getHeader()?.timestamp),
 	}));

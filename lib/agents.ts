@@ -8,7 +8,7 @@ export const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "a
 export interface Agent {
 	name: string;
 	runCommand?: string;
-	checkpoint?: string; // context ratio at which the fence host hook fires; see lib/fence
+	checkpoint?: string; // context ratio at which the fence extension fires; see extensions/fence
 	body: string;
 }
 

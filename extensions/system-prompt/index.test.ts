@@ -1,6 +1,6 @@
 import { describe, expect, setSystemTime, test } from "bun:test";
 import type { BuildSystemPromptOptions, ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { install as systemPromptExtension } from "./host";
+import systemPromptExtension from "./index";
 
 type GetHeader = () => { timestamp: string } | null;
 

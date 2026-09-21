@@ -11,7 +11,7 @@ add or override: write `.pi/exec/<name>.ts`, `/exec-reset`. try it in a cell, th
 
 kernel reload: `/exec-reset` or a new session. a running kernel keeps the modules it started with.
 
-host hooks: `lib/<name>/host.ts` exports `install(host: ExtensionAPI)`. exec discovers these once at extension load. `/reload` or restart Pi after changing host code. `extensions/disabled/` holds standalone adapters; the package loads only `extensions/exec/index.ts`.
+host hooks: `lib/<name>/host.ts` exports `install(host: ExtensionAPI)`. exec discovers these once at extension load. `/reload` or restart Pi after changing host code. `extensions/disabled/` holds standalone adapters; featherless, fence, system-prompt, and workspace remain independent extensions because they have no exec interface.
 
 ## hosts
 

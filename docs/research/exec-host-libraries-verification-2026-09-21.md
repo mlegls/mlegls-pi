@@ -39,3 +39,21 @@ The existing workspace approval tool remains registered. Human-facing commands
 were inspected for registration, not driven to switch the user's session or write
 vault conclusions. No new desktop permission/capture flow was exercised.
 The non-transactional installer limitation is recorded in `docs/frictions.md`.
+
+## Boundary correction
+
+Featherless, fence, system-prompt, and workspace were subsequently restored as
+standalone extensions: they have no callable interface in exec. The package
+manifest now loads five extensions. Pi’s real loader reported no errors; exec
+registered only the exec tool, while workspace owned workspace_request and
+/workspace. Board, record/vault, terminals, and worker provenance remain
+exec-installed host libraries. The earlier sole-extension observations above
+describe the initial migration, not the corrected layout.
+
+SCC against `3d57a72`: code 30,720 → 30,716 (-4); complexity unchanged at 4,195.
+Typechecking still reports the same four pre-existing errors (system-prompt
+now under `extensions/`, session subprocesses under `lib/`).
+
+After correction, `env -u BB_THREAD_ID bun test`: 196 passed, 2 skipped,
+0 failed. Installed Pi also listed Featherless models successfully with only
+`-e ./extensions/featherless/index.ts --no-extensions`, independently of exec.

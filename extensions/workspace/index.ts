@@ -28,7 +28,7 @@ async function switchWorkspace(target: string, ctx: ExtensionCommandContext): Pr
 	}
 }
 
-export function install(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
 	let pendingWorkspace: string | undefined;
 
 	pi.registerTool({

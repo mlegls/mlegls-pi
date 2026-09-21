@@ -10,7 +10,8 @@ its subprocesses and clear retained state without discarding file anchors.
 
 ## Host libraries
 
-Exec is this package's only active Pi extension. At extension load it discovers
+Exec owns host integrations for its callable capabilities. Featherless, fence,
+system-prompt, and workspace remain independent Pi extensions. At extension load exec discovers
 `lib/*/host.ts` in name order and awaits each explicit `install(host)` export:
 
 ```ts
@@ -44,8 +45,7 @@ The generic loader lives in [host.ts](host.ts); policy and capability
 implementations live in [lib](../../lib). The former standalone adapters are
 [archived](../disabled/README.md). Do not enable them alongside exec: that would
 install the same behavior twice. Exa and Board standalone tools are archive-only;
-exec uses their library implementations directly. The workspace approval tool is
-retained alongside its human-facing command.
+exec uses their library implementations directly. The independent workspace extension owns its approval tool and human-facing command.
 
 ## Cell deadline
 

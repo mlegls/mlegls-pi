@@ -16,7 +16,7 @@ async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => 
 	const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], cwd);
 	expect(loaded.errors).toEqual([]);
 	const manager = SessionManager.inMemory(cwd);
-	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, { registerProvider() {} } as any);
+	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, {} as any);
 	const sent: any[] = [], errors: any[] = [];
 	let idle = true;
 	let active = ["read", "bash", "write", "exa_search", "board_read", "wm_spawn", "session_spawn", "session_wait", "session", "observe_ui", "act_ui", "launch_browser", "navigate_browser", "evaluate_browser", "exec"];

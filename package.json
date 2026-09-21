@@ -10,8 +10,8 @@
     "test:outline-read": "bun test lib/outline-read",
     "test:session": "bun test lib/session",
     "test:lib": "bun test lib",
-    "test:system-prompt": "bun test lib/system-prompt",
-    "test:workspace": "bun test lib/workspace",
+    "test:system-prompt": "bun test extensions/system-prompt",
+    "test:workspace": "bun test extensions/workspace",
     "test:tracker": "bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts"
   },
   "keywords": [
@@ -19,7 +19,11 @@
   ],
   "pi": {
     "extensions": [
-      "./extensions/exec/index.ts"
+      "./extensions/exec/index.ts",
+      "./extensions/featherless/index.ts",
+      "./extensions/fence/index.ts",
+      "./extensions/system-prompt/index.ts",
+      "./extensions/workspace/index.ts"
     ],
     "skills": [
       "./skills/pi",

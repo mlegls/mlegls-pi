@@ -126,7 +126,7 @@ async function session(flags: Record<string, string>, run: (s: any) => Promise<v
 	const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], cwd);
 	expect(loaded.errors).toEqual([]);
 	const manager = SessionManager.inMemory(cwd);
-	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, { registerProvider() {} } as any);
+	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, {} as any);
 	// Match CLI lifecycle: factory has already run when runner receives parsed flags.
 	for (const [name, value] of Object.entries(flags)) runner.setFlagValue(name, value);
 	let active = ["exec"];

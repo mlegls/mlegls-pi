@@ -30,7 +30,7 @@ function fenceText(percent: number, topic: string): string {
 	return text.replaceAll("{{percent}}", String(Math.round(percent))).replaceAll("{{topic}}", topic).trim();
 }
 
-export function install(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;
 	let armed = true;

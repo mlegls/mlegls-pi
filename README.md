@@ -2,9 +2,10 @@
 
 Personal exec libraries, skills, prompts, themes, agents, and user-level harness skills.
 
-Exec is the sole active Pi extension. Host integrations are explicit
-`install(host)` exports in `lib/*/host.ts`; old standalone adapters live in
-`extensions/disabled/`. See [host libraries](extensions/exec/README.md#host-libraries).
+Exec-facing capabilities install their host integrations through explicit
+`install(host)` exports in `lib/*/host.ts`; obsolete adapters live in
+`extensions/disabled/`. Featherless, fence, system-prompt, and workspace remain
+standalone extensions because they have no interface inside exec. See [host libraries](extensions/exec/README.md#host-libraries).
 
 ## Development
 
@@ -25,7 +26,7 @@ See [exec](extensions/exec/README.md) for the TypeScript cell API.
 Other harnesses can use the shared board through `bun lib/board.ts`; see
 [Board outside pi](extensions/exec/README.md#board-outside-pi).
 
-See [Featherless](lib/featherless/README.md) for automatic model discovery.
+See [Featherless](extensions/featherless/README.md) for automatic model discovery.
 
 ## User skills, agents, prompts
 

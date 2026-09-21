@@ -18,7 +18,7 @@ function price(value?: string) {
   return Number.isFinite(n) && n >= 0 ? n * 1_000_000 : 0;
 }
 
-export async function install(pi: ExtensionAPI) {
+export default async function (pi: ExtensionAPI) {
   const baseUrl = "https://api.featherless.ai/v1";
   const directory = join(getAgentDir(), "cache");
   const path = join(directory, "featherless-models.json");
