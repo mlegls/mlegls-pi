@@ -11,8 +11,8 @@ const SESSION_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const SAFE_KEY = /^(?:Enter|Escape|Tab|BSpace|Space|Up|Down|Left|Right|Home|End|PPage|NPage|DC|IC|F(?:[1-9]|1[0-2])|C-[A-Za-z@\[\\\]^_?]|M-[A-Za-z0-9])$/;
 const SUMMARY_FORMAT = [
 	"#{session_name}", "#{@pi_name}", "#{@pi_command}", "#{@pi_cwd}", "#{@pi_started_at}",
-	"#{pane_dead}", "#{pane_dead_status}", "#{pane_pid}", "#{pane_current_command}", "#{@pi_alerts}",
-].join("\t");
+	"#{pane_dead}", "#{pane_dead_status}", "#{pane_pid}", "#{@pi_alerts}", "#{pane_current_command}",
+].join("|"); // tmux 3.7 sanitizes control characters, including tab separators.
 
 export type TerminalAlertKind = "exit" | "output";
 export type TerminalAlertState = "armed" | "fired" | "suppressed";
@@ -139,7 +139,7 @@ function decodeAlerts(value: string | undefined): TerminalAlerts | undefined {
 }
 
 function parseSummary(line: string, fallbackId = ""): TerminalSummary {
-	const fields = line.trimEnd().split("\t").map(cleanField);
+	const fields = line.trimEnd().split("|").map(cleanField);
 	const dead = fields[5] === "1";
 	return {
 		id: fields[0] || fallbackId,
@@ -150,8 +150,8 @@ function parseSummary(line: string, fallbackId = ""): TerminalSummary {
 		status: dead ? "exited" : "running",
 		...(dead ? { exitCode: parseOptionalNumber(fields[6]) } : {}),
 		pid: parseOptionalNumber(fields[7]),
-		currentCommand: fields[8] || undefined,
-		alerts: decodeAlerts(fields[9]),
+		alerts: decodeAlerts(fields[8]),
+		currentCommand: fields.slice(9).join("|") || undefined,
 	};
 }
 
