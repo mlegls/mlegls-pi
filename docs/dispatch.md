@@ -14,7 +14,7 @@ state.launch = notify(dispatch.dispatch([
 
 Later: `state.wave = await state.launch`. `run` must be an existing Orca Run ID, not a topic prefix. Outside an Orca coordinator terminal, pass its real handle as `from`. For later waves, pass all outstanding handles supervised by this parent in `active`. This is a parent-scoped budget, not a global scheduler. Serialize wave submissions. Excess assignments remain `pending`.
 
-Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`; optional `agent` names a roster stance, not an Orca agent preset. Optional `base` selects an exact Git ref. Omission uses Orca’s default base, not uncommitted parent changes. The helper creates explicitly nested worktrees, requests setup, launches Pi with model/effort, and enrolls the terminal through native `worker-start --terminal`.
+Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`; optional `agent` names a roster stance, not an Orca agent preset. Optional `base` selects an exact Git ref. Omission uses Orca’s default base, not uncommitted parent changes. The helper creates explicitly nested worktrees, requests setup, enrolls a caller-owned bootstrap terminal through native `dispatch --return-preamble`, then starts Pi with model/effort and the assignment as a prompt-file argument. No assignment is typed into Pi’s editor. Native dispatch supplies Task/Dispatch/mail identity but does not supervise the process; terminal cleanup remains caller-owned.
 
 ## Receipts and lifecycle
 

@@ -1,6 +1,6 @@
 // Orca owns execution and coordination; Pi owns conversation sessions.
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
@@ -118,9 +118,9 @@ export const reply = (options: Context & { id: string; body: string }) => operat
 export const ask = (options: Context & { question?: string; resume?: string; to?: string; dispatchCapability?: string; options?: string[]; timeoutMs?: number }) =>
   operation("ask", { ...options, options: options.options?.join(","), timeoutMs: options.timeoutMs ?? 900_000 });
 
-/** Pi model selection is not supported by native worker-start in Orca 1.4.206.
- * Launch in an existing workspace, then enroll via the supported --terminal path.
- * This pre-existing terminal remains caller-owned: release will not close it.
+/** Enroll a caller-owned bootstrap terminal, then start Pi with its assignment as argv.
+ * Native dispatch supplies the lifecycle preamble but does not supervise the process.
+ * The terminal remains caller-owned: release will not close it.
  */
 export async function startPi(options: Context & {
   spec?: string; task?: string; taskTitle?: string; worktree?: string;
@@ -131,32 +131,57 @@ export async function startPi(options: Context & {
   const target = options.worktree ?? workspace(options.cwd);
   if (["current", "active", "new-child", "new-top-level"].includes(target))
     throw new Error("startPi: use an exact existing workspace selector; create the workspace first");
-  const { model, effort, startWaitMs = 5_000, ...start } = options;
+  const { model, effort, timeoutMs = 60_000, startWaitMs = timeoutMs, cwd, run, from, retryRequest } = options;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("timeoutMs must be positive and finite");
   if (!Number.isFinite(startWaitMs) || startWaitMs < 0) throw new Error("startWaitMs must be nonnegative and finite");
   const token = randomUUID();
-  const evidencePath = resolve(await mkdtemp(resolve(tmpdir(), "pi-orca-start-")), "started.json");
-  if (start.spec) start.spec += "\n\n[Pi launch correlation: " + token + "]";
-  const readyPath = resolve(evidencePath, "../ready.json");
+  const directory = await mkdtemp(resolve(tmpdir(), "pi-orca-start-"));
+  const evidencePath = resolve(directory, "started.json");
+  const promptPath = resolve(directory, "prompt.md");
+  const bootstrapPath = resolve(directory, "bootstrap.sh");
+  await writeFile(bootstrapPath, [
+    "i=0",
+    "while [ ! -f " + quote(promptPath) + " ]; do",
+    "  i=$((i + 1))",
+    '  [ "$i" -le ' + Math.ceil(timeoutMs / 100) + ' ] || { echo "Pi assignment was not published; inspect the retained launch" >&2; exit 1; }',
+    "  sleep 0.1",
+    "done",
+    "exec env PI_ORCA_START_EVIDENCE=" + quote(evidencePath) + " PI_ORCA_START_TOKEN=" + quote(token) + " " +
+      piCommand(["--model", model, "--thinking", effort === "none" ? "off" : effort, "@" + promptPath]),
+  ].join("\n") + "\n", { mode: 0o600 });
+  let taskId = options.task;
+  let tab: Terminal | undefined;
+  let taskReceipt: Receipt | undefined;
   let enrolled: (WorkerReceipt & { clientTerminal: Terminal }) | undefined;
-  const tab = await terminal("PI_ORCA_READY_EVIDENCE=" + quote(readyPath) + " PI_ORCA_START_EVIDENCE=" + quote(evidencePath) + " PI_ORCA_START_TASK=" + quote(start.task ?? "") + " PI_ORCA_START_TOKEN=" + quote(token) + " " + piCommand(["--model", model, "--thinking", effort === "none" ? "off" : effort]),
-    options.taskTitle ?? "Pi worker", options.cwd, target);
   try {
-    const timeoutMs = options.timeoutMs ?? 60_000;
-    if (!await observeEvent(readyPath, "session_start", timeoutMs))
-      throw new OrcaError("Pi extension startup not observed; assignment not submitted", { readyPath });
-    const readiness = await call<{ wait: { satisfied: boolean } }>([
-      "terminal", "wait", "--terminal", tab.handle, "--for", "tui-idle", "--timeout-ms", String(timeoutMs),
-    ], options.cwd, timeoutMs + 30_000);
-    if (!readiness.wait?.satisfied) throw new OrcaError("Pi readiness not observed; assignment not submitted", readiness);
-    const receipt = enrolled = { ...await workers.start({ ...start, worktree: target, terminal: tab.handle }), clientTerminal: tab };
-    receipt.startConfirmation.evidencePath = evidencePath;
+    if (!taskId) {
+      const created = await operation<{ task: { id: string }; [key: string]: unknown }>("task-create",
+        { spec: options.spec, taskTitle: options.taskTitle, cwd, run, from, retryRequest });
+      taskReceipt = created;
+      taskId = created.task.id;
+    }
+    tab = await terminal("sh " + quote(bootstrapPath), options.taskTitle ?? "Pi worker", cwd, target);
+    const native = await operation<{ dispatch: { id: string; task_id: string; run_id: string }; preamble: string; [key: string]: unknown }>(
+      "dispatch", { task: taskId, to: tab.handle, returnPreamble: true, cwd, run, from, retryRequest: options.task ? retryRequest : undefined });
+    const receipt = enrolled = { ...native, runId: native.dispatch.run_id, taskId: native.dispatch.task_id,
+      dispatchId: native.dispatch.id, state: "starting", stage: "enrolled",
+      effects: [{ kind: "terminal", action: "created", id: tab.handle }], clientTerminal: tab,
+      startConfirmation: { status: "unconfirmed", evidencePath } as StartConfirmation, promptPath, taskReceipt };
+    if (!native.preamble?.trim()) throw new Error("Orca returned no dispatch preamble; Pi not started");
+    await writeFile(promptPath + ".tmp", native.preamble + "\n\n[Pi launch correlation: " + token + "]\n", { mode: 0o600 });
+    await rename(promptPath + ".tmp", promptPath);
+    receipt.stage = "prompt_published";
     receipt.startConfirmation = await confirmStart(receipt, startWaitMs);
     if (receipt.startConfirmation.status !== "started")
       throw new Error("Pi turn start unconfirmed; do not wait for completion or resubmit. Inspect the retained dispatch");
+    receipt.state = "ready";
+    receipt.stage = "turn_started";
     return receipt;
   } catch (error) {
-    throw new OrcaError("Pi terminal retained; inspect before retrying: " + tab.handle + ". " + String(error),
-      { ...enrolled, clientTerminal: tab, startConfirmation: enrolled?.startConfirmation ?? { status: "unconfirmed", evidencePath }, readyPath, cause: error instanceof OrcaError ? error.receipt : String(error) });
+    throw new OrcaError("Pi launch retained; inspect before retrying" + (tab ? ": " + tab.handle : "") + ". " + String(error),
+      { ...enrolled, taskId, taskReceipt, clientTerminal: tab, promptPath, bootstrapPath,
+        startConfirmation: enrolled?.startConfirmation ?? { status: "unconfirmed", evidencePath },
+        cause: error instanceof OrcaError ? error.receipt : String(error) });
   }
 }
 

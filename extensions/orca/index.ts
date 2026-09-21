@@ -87,18 +87,10 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // Native tui-idle can precede Pi's extension/input initialization.
-  const readyPath = process.env.PI_ORCA_READY_EVIDENCE;
-  if (readyPath) pi.on("session_start", () => {
-    writeFileSync(readyPath + ".tmp", JSON.stringify({ event: "session_start" }), { mode: 0o600 });
-    renameSync(readyPath + ".tmp", readyPath);
-  });
   const evidencePath = process.env.PI_ORCA_START_EVIDENCE;
   const token = process.env.PI_ORCA_START_TOKEN;
-  const task = process.env.PI_ORCA_START_TASK;
   if (evidencePath && token) pi.on("before_agent_start", (event, ctx) => {
-    if (!event.prompt.includes("[Pi launch correlation: " + token + "]") &&
-        !(task && event.prompt.includes(task))) return;
+    if (!event.prompt.includes("[Pi launch correlation: " + token + "]")) return;
     try {
       writeFileSync(evidencePath + ".tmp", JSON.stringify({ event: "before_agent_start", at: new Date().toISOString(), session: ctx.sessionManager.getSessionFile() }), { mode: 0o600 });
       renameSync(evidencePath + ".tmp", evidencePath);
