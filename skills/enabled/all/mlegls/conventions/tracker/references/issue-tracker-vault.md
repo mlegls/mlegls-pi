@@ -24,7 +24,7 @@ priority: 1 | 2 | 3                                # roots; children inherit the
 
 `blocked-by` is what the *next* step waits on, not everything the issue will ever wait on. when `next` changes, ask again. implementing A may wait on B while deciding A doesn't; so A is `grill` and unblocked until it's `implement`.
 
-derived, never stored: agent frontier = research/implement/simplify, unblocked, unclaimed. mine = grill/prototype/measure, unblocked, by priority then transitive unblocks. `bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|tree [slug] | check`; `[slug]` scopes to a subtree. `tracker/Tracker` and `tracker/Graph` at the vault root show the same across projects.
+derived, never stored: agent frontier = research/implement/simplify, unblocked, unclaimed. mine = grill/prototype/measure, unblocked, by priority then transitive unblocks. a claim is live while a worktree named for the slug or the claim's run exists; `check` reports stale ones and `frontier` offers them as `stale-claim:`. `bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|tree [slug] | check | outline`; `[slug]` scopes to a subtree. `outline` reads the vault note whose `directory:` is this project: each top-level bullet's issues with their state, bullets linking nothing in sections that link issues, and open issues no bullet covers. `tracker/Tracker` and `tracker/Graph` at the vault root show the same across projects.
 
 The CLI uses the skill-owned dependency lock: once after installation or update, `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
 

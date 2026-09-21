@@ -8,21 +8,23 @@ import { join } from "node:path";
 const cwd = mkdtempSync(join(tmpdir(), "tracker-"));
 const issues = join(cwd, "docs/issues");
 const cli = process.env.TRACKER_CLI ?? join(import.meta.dir, "issues.ts");
-const commands = ["tree", "frontier", "mine", "check"];
+const commands = ["tree", "frontier", "mine", "check", "outline"];
 const blocker = '"[[projects/fixture/issues/blocker]]"';
 const frontmatter = (body: string) => `---\n${body}\n---\n`;
 function put(file: string, text: string) {
   writeFileSync(join(issues, file + ".md"), text);
 }
+const vault = mkdtempSync(join(tmpdir(), "vault-"));
+writeFileSync(join(vault, "fixture.md"), `---\ndirectory: ${cwd}\n---\n## efforts\n- the blocker — [[projects/fixture/issues/blocker]]\n- a note with no issue\n## snippets\n- prose that links nothing\n`);
 function run(cmd: string) {
-  const p = Bun.spawnSync([process.execPath, cli, cmd], { cwd });
+  const p = Bun.spawnSync([process.execPath, cli, cmd], { cwd, env: { ...process.env, TRACKER_VAULT: vault } });
   return { code: p.exitCode, out: p.stdout.toString(), err: p.stderr.toString() };
 }
 mkdirSync(join(issues, "archive"), { recursive: true });
 mkdirSync(join(issues, "attachments"));
 put("attachments/evidence", "A note, not an issue.\n");
 put("blocker", frontmatter("next: wait"));
-afterAll(() => rmSync(cwd, { recursive: true, force: true }));
+afterAll(() => { rmSync(cwd, { recursive: true, force: true }); rmSync(vault, { recursive: true, force: true }); });
 
 test("format-equivalent dependencies preserve all queries", () => {
   for (const next of ["implement", "grill"]) {
@@ -91,4 +93,38 @@ test("wrapped edges still receive graph checks and done blockers retain scheduli
   expect(run("check").out).toContain("blocked-by blocker is done; remove it");
   expect(run("check").code).toBe(1);
   expect(run("frontier").out).toContain("task");
+}, 30_000);
+
+test("a claim without a worktree is stale: reported by check, offered by frontier, kept by a worktree naming the slug or run", () => {
+  Bun.spawnSync(["git", "init", "-q"], { cwd });
+  put("task", frontmatter("next: implement\nclaimed-by: task-worker (run_0badcafe)"));
+  expect(run("check").out).toContain("task: claimed by task-worker (run_0badcafe) without a worktree");
+  expect(run("frontier").out).toContain("task  [implement stale-claim:task-worker (run_0badcafe)]");
+  put("task", frontmatter("next: grill\nclaimed-by: me"));
+  expect(run("check").out).toBe("ok\n");
+  expect(run("mine").out).toContain("[grill claimed:me]");
+  Bun.spawnSync(["git", "commit", "-q", "--allow-empty", "-m", "root"], { cwd, env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } });
+  const wt = join(cwd, "..", "tracker-wt-run_0badcafe-task");
+  Bun.spawnSync(["git", "worktree", "add", "-q", wt], { cwd });
+  put("task", frontmatter("next: implement\nclaimed-by: task-worker (run_0badcafe)"));
+  expect(run("check").out).toBe("ok\n");
+  expect(run("frontier").out).toBe("");
+  Bun.spawnSync(["git", "worktree", "remove", "--force", wt], { cwd });
+  rmSync(join(cwd, ".git"), { recursive: true, force: true });
+  put("task", frontmatter("next: implement"));
+}, 30_000);
+
+test("outline maps each linked bullet to its issue, flags unlinked intent among linked bullets, and lists open issues no bullet covers", () => {
+  put("task", frontmatter("next: implement\npart-of: \"[[projects/fixture/issues/blocker]]\""));
+  put("loose", frontmatter("next: grill"));
+  put("blocker", frontmatter("next: wait"));
+  rmSync(join(issues, "archive/blocker.md"), { force: true });
+  const out = run("outline").out;
+  expect(out).toContain("5: the blocker —  blocker  [wait]");
+  expect(out).toContain("6: a note with no issue  [no issue]");
+  expect(out).not.toContain("prose that links nothing");
+  expect(out).toContain("uncovered: loose  [grill] p3");
+  expect(out).not.toContain("uncovered: task");
+  rmSync(join(issues, "loose.md"));
+  put("task", frontmatter("next: implement"));
 }, 30_000);

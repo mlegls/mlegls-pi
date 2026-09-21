@@ -4,14 +4,17 @@
 //   issues frontier [slug]  an agent can start: next is research/implement/simplify, unblocked, unclaimed
 //   issues mine [slug]      needs me: next is grill/prototype/measure, unblocked; by priority, then dependents
 //   issues tree [slug]      subtree under slug (or every root), children in dependency order
-//   issues check            dangling links and anchors across docs/, blockers already done, done outside archive
+//   issues check            dangling links and anchors across docs/, blockers already done, done outside archive, stale claims
+//   issues outline          the project's outliner note against the tracker: each linked bullet's state, unlinked intent, uncovered issues
 //
 // [slug] scopes to that issue's subtree.
 //
 // Run from anywhere inside a project; the nearest docs/issues/ upward is used.
 
-import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, existsSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, basename, dirname, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, parseDocument, visit } from "yaml";
 
 type Issue = {
@@ -132,9 +135,23 @@ function openBlockers(i: Issue, all: Map<string, Issue>): string[] {
   return i.blockedBy.filter((b) => all.get(b)?.next !== "done");
 }
 
+// A claim is carried by a worktree named for the slug, or for the run the claim names.
+let worktrees: string[] | undefined;
+function claimLive(i: Issue): boolean | undefined {
+  if (!i.claimedBy) return undefined;
+  if (!worktrees) {
+    const p = spawnSync("git", ["worktree", "list", "--porcelain"], { encoding: "utf8" });
+    worktrees = p.status === 0 ? p.stdout.split("\n").filter((l) => /^(worktree|branch) /.test(l)) : [];
+  }
+  const runs = [...i.claimedBy.matchAll(/run_[0-9a-f]+/g)].map((m) => m[0]);
+  const tokens = [i.slug, ...runs];
+  if (!runs.length && !AGENT.has(i.next)) return undefined;
+  return worktrees.some((w) => tokens.some((t) => w.includes(t)));
+}
+
 function line(i: Issue, all: Map<string, Issue>): string {
   const bits = [i.next];
-  if (i.claimedBy) bits.push("claimed:" + i.claimedBy);
+  if (i.claimedBy) bits.push((claimLive(i) === false ? "stale-claim:" : "claimed:") + i.claimedBy);
   const ob = openBlockers(i, all);
   if (ob.length) bits.push("blocked:" + ob.join(","));
   const d = dependents(i.slug, all);
@@ -228,6 +245,70 @@ function checkLinks(docs: string, say: (s: string) => void) {
   }
 }
 
+// The vault note whose frontmatter directory is this project.
+function outlineNote(root: string): string | undefined {
+  const vault = process.env.TRACKER_VAULT ?? join(homedir(), "obsidian");
+  if (!existsSync(vault)) return undefined;
+  const real = (p: string) => { p = resolve(p.replace(/^~(?=$|\/)/, homedir())); return existsSync(p) ? realpathSync(p) : p; };
+  for (const name of readdirSync(vault)) {
+    if (!name.endsWith(".md")) continue;
+    const text = readFileSync(join(vault, name), "utf8");
+    const m = text.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)^---/m);
+    const directory = m?.[1].match(/^directory:\s*["']?([^"'\n]+?)["']?\s*$/m)?.[1];
+    if (directory && real(directory) === real(root)) return join(vault, name);
+  }
+  return undefined;
+}
+
+// Each top-level line of the outliner with its issues' state; unlinked lines in sections that link issues; open issues no bullet covers.
+function outline(note: string, all: Map<string, Issue>): string[] {
+  const out: string[] = [];
+  const lines = readFileSync(note, "utf8").split(/\r?\n/);
+  const linked = new Set<string>();
+  const firstLine = new Map<string, number>();
+  let section = "", sectionLinks = false, start = 0;
+  const pending: { n: number; text: string }[] = [];
+  const flushSection = () => {
+    if (sectionLinks) for (const p of pending) out.push(`${p.n}: ${p.text}  [no issue]`);
+    pending.length = 0; sectionLinks = false;
+  };
+  for (let n = 1; n <= lines.length; n++) {
+    const raw = lines[n - 1];
+    if (n === 1 && raw.trim() === "---") { start = lines.indexOf("---", 1) + 1; }
+    if (n <= start) continue;
+    const h = raw.match(/^#+\s+(.*)/);
+    if (h) { flushSection(); section = h[1]; continue; }
+    if (/^\s/.test(raw) || !raw.trim()) continue;
+    const links = [...raw.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]*)?\]\]/g)].map((m) => m[1]).filter((t) => t.includes("/issues/")).map(slugOf);
+    const text = raw.replace(/^[-*+]\s+/, "").replace(/\s*·?\s*\[\[[^\]]+\]\]/g, "").trim().slice(0, 80);
+    if (!links.length) { pending.push({ n, text }); continue; }
+    sectionLinks = true;
+    for (const slug of links) {
+      const i = all.get(slug);
+      if (!i) { out.push(`${n}: ${text}  [[${slug}]] does not exist`); continue; }
+      if (firstLine.has(slug)) out.push(`${n}: ${text}  ${slug} also at ${firstLine.get(slug)}`);
+      else firstLine.set(slug, n);
+      linked.add(slug);
+      out.push(`${n}: ${text}  ${line(i, all)}${i.next === "done" ? "  (done; mark or drop)" : ""}`);
+    }
+  }
+  flushSection();
+  // A bullet covers the issue it links, that issue's subtree, and the parents it sits under.
+  const covered = new Set<string>();
+  for (const slug of linked) for (let c = all.get(slug); c; c = c.partOf ? all.get(c.partOf) : undefined) covered.add(c.slug);
+  const isCovered = (i: Issue): boolean => {
+    for (let c: Issue | undefined = i; c; c = c.partOf ? all.get(c.partOf) : undefined) if (linked.has(c.slug)) return true;
+    return covered.has(i.slug);
+  };
+  for (const i of [...all.values()].sort((a, b) => a.slug.localeCompare(b.slug))) {
+    if (i.next === "done" || isCovered(i)) continue;
+    const parent = i.partOf ? all.get(i.partOf) : undefined;
+    if (parent && parent.next !== "done") continue; // its topmost open ancestor is reported
+    out.push(`uncovered: ${line(i, all)}`);
+  }
+  return out;
+}
+
 const [cmd, arg] = process.argv.slice(2);
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);
@@ -236,7 +317,7 @@ const open = [...all.values()].filter((i) => i.next !== "done" && within(arg, al
 switch (cmd) {
   case "frontier": {
     open
-      .filter((i) => actor(i, all) === "agent" && !openBlockers(i, all).length && !i.claimedBy)
+      .filter((i) => actor(i, all) === "agent" && !openBlockers(i, all).length && claimLive(i) !== true)
       .sort((a, b) => effectivePriority(a, all) - effectivePriority(b, all) || dependents(b.slug, all) - dependents(a.slug, all))
       .forEach((i) => console.log(line(i, all)));
     break;
@@ -265,13 +346,21 @@ switch (cmd) {
       if (i.next === "done" && !i.archived) say(`${i.slug}: done but not in archive/`);
       if (i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
       if (!KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
+      if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; drop the claim`);
     }
     checkLinks(dirname(dir), say);
     if (!bad) console.log("ok");
     else process.exitCode = 1;
     break;
   }
+  case "outline": {
+    const root = basename(dir) === "issues" && basename(dirname(dir)) === "docs" ? dirname(dirname(dir)) : dirname(dir);
+    const note = outlineNote(root);
+    if (!note) throw new Error("no vault note has directory: " + root);
+    console.log(outline(note, all).join("\n"));
+    break;
+  }
   default:
-    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | check");
+    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | check | outline");
     process.exitCode = 2;
 }
