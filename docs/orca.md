@@ -8,6 +8,30 @@ Run the Orca app and register the project. `/reload` Pi after upgrading this pac
 
 Inside an Orca terminal, the CLI resolves the calling terminal. Outside Orca, use `/fork-tab [title]` to open a sibling conversation in an explicitly managed checkout, or pass the real coordinator terminal handle as `from` (`terminal` for `check`). Never use the focused tab as an implicit identity. A Run is bound to a coordinator terminal; saving only its ID does not grant another caller that role. `runs.use({id, from?})` explicitly rebinds it.
 
+## Known unavailable providers
+
+Keep availability separate from usage ceilings. After a positively observed billing
+or authentication failure, record the exact catalog provider in a coordinator-owned
+map and pass it to every subsequent `route.prepare` or `route.route` call:
+
+```ts
+state.routing = { unavailableProviders: {} as Record<string, string> }; // once per run
+state.routing.unavailableProviders.openai = "Account reports no credits remaining";
+const assignment = await route.prepare("Implement the agreed slice", state.routing);
+// After credentials/credits are repaired, explicitly restore eligibility:
+delete state.routing.unavailableProviders.openai;
+```
+
+An exclusion removes all models for that provider before judgment; it does not
+exclude another provider such as `openai-codex`. Reasons are retained in the
+routing receipt. All excluded means a local routing error, not a selection call. Unknown
+telemetry is still eligible. The map belongs to the run/account context: preserve
+it in the handoff if continuing after a kernel reset; do not carry it to a different
+credential context. There is no guessed expiry or global blacklist. Availability
+is coordinator-reported, not inferred from timeouts or parsed automatically from
+worker prose. This affects future selection only: it neither cancels nor retries
+an existing Dispatch.
+
 ## Interactive addresses
 
 Interactive Pi tabs inside Orca automatically create a Run when their terminal has no binding or active Dispatch. The footer shows the full `run:<id>` address; `/orca-address` prints it in the conversation for copying. The same address is supplied to the agent on each turn. Reloading preserves the terminal's binding; a new tab (including `/fork-tab`) gets its own. Switching conversations in the same terminal keeps that terminal's address. This is not portable session-file identity: reopening the file in another terminal does not take over the old Run.
@@ -59,6 +83,30 @@ Process **every** message in the returned batch. Reply to questions with `orca.r
 `workers.show(dispatchId)`, `workers.read({dispatch, source: "auto"})`, and `workers.list({run, includeRemote: true})` preserve Orca’s observations and pagination. A timeout, contact loss, or null agent state is not proof of exit. `workers.stop({dispatch})` and `workers.abandon({dispatch})` are explicit recovery operations, not automatic timeout handlers. Load the installed recovery guide before using them. Orca terminal handles are not exec `term` session IDs: use `workers.read` or `orca.call(["terminal", "read", "--terminal", handle])`, not `term.view(handle)`. A tmux lookup failure says nothing about Orca worker liveness.
 
 CLI failures throw `OrcaError` with the complete parsed envelope in `.receipt`, including residual resources and recovery commands. Unknown mutation outcomes are not retried. Long waits use a CLI timeout longer than the native wait; retain them with `notify` to avoid the exec cell deadline. Kernel reset can interrupt the CLI without undoing its mutation. Reinspect Orca; inbox batches remain durable until acknowledged.
+
+### stop_unknown recovery
+
+On Orca 1.4.206, stopping a caller-owned Pi terminal can return
+`state: stop_unknown`, `processAction: none`, and
+`lastError: "The worker terminal is external; no terminal was closed."`
+This is not successful cancellation. Native release then refuses settlement and
+misleadingly recommends stop again; a repeated stop can itself refuse. The local
+adapter adds recovery guidance to these errors and keeps the native `.receipt`
+unchanged.
+
+1. Inspect `workers.show(dispatch)`, `workers.read({dispatch})`, and run-scoped
+   `workers.list({run, includeRemote: true})`. Preserve the actual terminal identity
+   and execution host. Silence or an unavailable host is not exit evidence.
+2. With positive proof the agent stopped (not merely an idle PTY), explicitly
+   `workers.abandon({dispatch, reason: "<observed evidence>"})` to fence the attempt.
+   If liveness remains uncertain, retain the resources and investigate instead.
+3. Abandon performs no process action. After accepted settlement, handle release
+   and any caller-owned terminal cleanup separately, checking that the terminal
+   has no new owner. An uncertain release is not permission to close it.
+4. A replacement requires an explicit retry decision and the original Task and
+   `retryOf` lineage; never replay an accepted prompt on the strength of this error.
+
+This is an adapter recovery fix, not a change to native Orca ownership semantics.
 
 ## Pi model selection
 

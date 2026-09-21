@@ -448,9 +448,14 @@ Use `write(path, text)` or the string form of `edit` for already assembled text.
 
 ```ts
 await show(await sh.raw`printf 'one\ntwo\n'`);
+await show(await sh.raw`printf '%s\n' '{"file":"ok","line":7}' | jq -r '"\(.file):\(.line)"'`); // ok:7
 await edit.raw`=abcd
 const pattern = /\d+/;`;
 ```
+
+Inside `sh.raw`, write jq interpolation as `\(.file)`, not `\\(.file)`:
+raw preserves the extra backslash too. The tool-call JSON representation escapes
+backslashes for transport; do not add that escaping again in the TypeScript source.
 
 Use `grep(/pattern/, paths)` instead of nesting a regex in shell quoting, and
 `replace(selection, fn)` when source-preserving transformations avoid rebuilding

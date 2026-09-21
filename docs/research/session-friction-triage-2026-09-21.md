@@ -6,9 +6,9 @@ Scope: local Pi session JSONL modified since September 18, with reports dated Se
 
 | Priority | Finding | Disposition |
 | --- | --- | --- |
-| 1 | Five of seven routed workers selected a credit-exhausted OpenAI account; coordinator recreated them on ZAI. | New [routing availability issue](../issues/routing-known-provider-failures.md). Current route accepts caller usage, but has no provider-failure memory; unknown telemetry remains eligible. Pool quota and hard account unavailability are different inputs. |
-| 2 | Coordinator reports stop → stop_unknown → release refusal directing it back to stop; abandon was the escape. | New [recovery investigation](../issues/orca-stop-unknown-recovery.md). Not reproduced here; previous audit exercised operator-close/already-settled recovery, not this state. |
-| 3 | find([glob,...]) throws a Node path.isAbsolute argument TypeError. | Reproduced in this session. New [argument diagnostic issue](../issues/exec-find-argument-diagnostic.md). Unsupported input, poor diagnostic—not a broken supported glob operation. |
+| 1 | Five of seven routed workers selected a credit-exhausted OpenAI account; coordinator recreated them on ZAI. | New [routing availability issue](../issues/archive/routing-known-provider-failures.md). Current route accepts caller usage, but has no provider-failure memory; unknown telemetry remains eligible. Pool quota and hard account unavailability are different inputs. |
+| 2 | Coordinator reports stop → stop_unknown → release refusal directing it back to stop; abandon was the escape. | New [recovery investigation](../issues/archive/orca-stop-unknown-recovery.md). Not reproduced here; previous audit exercised operator-close/already-settled recovery, not this state. |
+| 3 | find([glob,...]) throws a Node path.isAbsolute argument TypeError. | Reproduced in this session. New [argument diagnostic issue](../issues/archive/exec-find-argument-diagnostic.md). Unsupported input, poor diagnostic—not a broken supported glob operation. |
 
 ## Exec dispositions
 
@@ -44,3 +44,9 @@ Paths below are relative to ~/.pi/agent/sessions; numbers are JSONL physical lin
 - find/rows/capture report: --Users-mlegls-dev-mlegls-pi__worktrees-vault-document-the-manual-vault-trigger--/2026-09-20T06-45-45-056Z_01a0bd90-49df-71ab-967b-6ec23a5cc3f5.jsonl:99; also docs/issues/archive/vault-lifecycle.md.
 - Earlier quoting/timeout/cap report: --Users-mlegls-dev-mlegls-pi__worktrees-pool-aware-routing--/2026-09-18T16-32-13-130Z_01a0b55c-7f4a-746c-8d3d-a228521bdcf0.jsonl:117.
 - Consolidated vault reports: docs/issues/archive/vault-invoker.md and vault-lifecycle.md; route reports: docs/issues/archive/route.md.
+
+## Follow-up implementation
+
+All three local follow-ups resolved September 21: explicit run-scoped routing exclusions, stop_unknown error guidance preserving native receipts, and find argument validation. The jq example is now in the exec README. Orca native ownership behavior is unchanged.
+
+Verification: existing suite 201 passed, 1 skipped, 0 failed; typecheck passed with a temporary TypeScript 5.9.3 installation in the isolated worktree. Jev lint over the starting ref judged 3 spans with none at or above 0.5. Live routing rejected an all-excluded catalog and selected DeepSeek after explicit restoration. Original native stop/release receipts replayed through the CLI adapter kept their exact envelopes and gained recovery guidance. No active workers were changed.
