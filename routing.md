@@ -7,6 +7,7 @@ Subscription use is not the same as list-price spending. Prefer using available 
 - Aim for close to, but no more than, 50% of the Anthropic weekly quota on non-fable workers; preserve interactive fable capacity.
 - Aim to use the OpenAI, Z.ai Coding Plan, and Grok allowances, while allowing for interactive OpenAI use, especially astra.
 - Metered providers are overflow when appropriate.
+- For the same OpenAI model and effort, use `openai-codex` while eligible; `openai` is available only when that subscription candidate is excluded. Unknown subscription usage does not enable metered overflow.
 
 Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). For example, 40% weekly usage against a 50% ceiling is 0.8. Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance.
 

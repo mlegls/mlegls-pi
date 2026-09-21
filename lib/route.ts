@@ -63,7 +63,7 @@ async function select(workflow: string, block: string, options: RouteOptions,
       throw new Error('Invalid usage fraction for ' + provider);
     }
   }
-  const choices = candidates(section(policy, 'catalog'))
+  const eligible = candidates(section(policy, 'catalog'))
     .filter(candidate => !Object.hasOwn(unavailableProviders, candidate.model.split('/')[0]))
     .map(candidate => {
       const provider = candidate.model.split('/')[0];
@@ -71,6 +71,9 @@ async function select(workflow: string, block: string, options: RouteOptions,
       return { ...candidate, usageFractionOfCeiling: used,
         priceMultiplier: used === null ? null : effectiveCost(1, used) };
     }).filter(candidate => candidate.priceMultiplier === null || Number.isFinite(candidate.priceMultiplier));
+  const choices = eligible.filter(candidate => !candidate.model.startsWith('openai/') ||
+    !eligible.some(other => other.model === candidate.model.replace('openai/', 'openai-codex/') &&
+      other.effort === candidate.effort));
   if (!choices.length) throw new Error('No available model candidates below their pool ceilings');
   const criteria = Object.fromEntries(choices.map(candidate => [
     candidate.model + '@' + candidate.effort, JSON.stringify(candidate),
