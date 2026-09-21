@@ -1,5 +1,5 @@
 interface:
-  display_name: "Grilling"
+  display_name: "Grill"
   short_description: "Reach consensus through questions in waves"
 policy:
   allow_implicit_invocation: false

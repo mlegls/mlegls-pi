@@ -1,5 +1,5 @@
 ---
-name: grilling
+name: grill
 description: "Use to establish consensus on questions."
 ---
 
