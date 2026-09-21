@@ -25,8 +25,7 @@ Disabled Firecrawl and MCP packages are optional and not required by the suite;
 install their dependencies separately if enabling them.
 
 See [exec](extensions/exec/README.md) for the TypeScript cell API.
-Other harnesses can use the shared board through `bun lib/board.ts`; see
-[Board outside pi](extensions/exec/README.md#board-outside-pi).
+Execution and messaging use [Orca](docs/orca.md) in every client. Legacy wm/board namespaces and board wake hooks are disabled.
 
 See [Featherless](extensions/featherless/README.md) for automatic model discovery.
 

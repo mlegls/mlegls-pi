@@ -11,4 +11,4 @@ carry the agreed scope through to completion; bring back choices that change it.
 3. join serially as reports arrive (`multi-agent`); at an exception or `checkpoint`, use `route.continuation`; consult separately or replace from a compacted/OM-backed handoff. Merge changes; send conflicts back to the worker to resolve on its branch. Update tracked work and clean up workers as chunks complete. Replan the next ready wave from what landed.
 4. after joining, compare the result with the original destination. finish remaining work within the agreed scope, then resolve the issue; if blocked, name the exact unresolved claim and what resolves it.
 
-workers and the board: `multi-agent`.
+workers and messaging: `multi-agent`.

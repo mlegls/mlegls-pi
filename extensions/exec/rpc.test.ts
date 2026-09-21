@@ -17,7 +17,7 @@ test("structured host results can be filtered before display; saved jobs notify 
 		cwd: process.cwd(), ledger: [], persist() {}, onNotification: n => notices.push(n),
 		call: async ({ method, signal }) => {
 			if (method === "search") return { results: [{ title: "discard", text: "x".repeat(100_000) }, { title: "keep", text: "needle" }], costDollars: { total: 0.007 } };
-			if (method === "status") { started = true; return new Promise(resolve => { release = resolve; }); }
+			if (method === "list") { started = true; return new Promise(resolve => { release = resolve; }); }
 			if (method === "wait") return new Promise((_, reject) => signal.addEventListener("abort", () => { aborted = true; reject(new Error("cancelled")); }, { once: true }));
 			throw new Error("host unavailable");
 		},
@@ -30,19 +30,19 @@ test("structured host results can be filtered before display; saved jobs notify 
 		expect(filtered.output).toContain("needle");
 		expect(filtered.output).toContain("0.007");
 		expect(filtered.output).not.toContain("discard");
-		await kernel.execute('state.job = wm.status(); notify(state.job, "workers");');
+		await kernel.execute('state.job = term.list(); notify(state.job, "workers");');
 		await until(() => started);
 		release([{ handle: "worker", status: "done" }]);
 		await until(() => notices.length === 1);
 		expect(notices[0].label).toBe("workers");
 		expect((await kernel.execute('show((await state.job)[0].handle);')).output).toContain("worker");
 		const controller = new AbortController();
-		const waiting = kernel.execute('await wm.wait({ timeoutMs: 60000 });', controller.signal);
+		const waiting = kernel.execute('await term.wait({ waitMs: 60000 });', controller.signal);
 		const timer = setTimeout(() => controller.abort(), 150);
 		try { expect((await waiting).error).toMatch(/cancel/i); } finally { clearTimeout(timer); }
 		await until(() => aborted);
 		expect((await kernel.execute('show(typeof state.response);')).output).toBe("undefined\n");
-		const failed = await kernel.execute('show("before"); await board.list();');
+		const failed = await kernel.execute('show("before"); await ui.help();');
 		expect(failed.output).toBe("before\n");
 		expect(failed.error).toContain("host unavailable");
 	} finally { await kernel.dispose(); }

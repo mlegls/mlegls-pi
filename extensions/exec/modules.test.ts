@@ -35,12 +35,12 @@ test("project .pi/exec shadows lib by name, extras are project.*, and another cw
 	}
 }, 20000);
 
-test("resolveModules keeps board but replaces workmux inside Orca unless allowlisted", async () => {
+test("resolveModules disables legacy coordination in every client", async () => {
 	const { resolveModules, MODULES } = await import("./modules");
-	expect(resolveModules(undefined, undefined, {})).toEqual([...MODULES]);
+	expect(resolveModules(undefined, undefined, {})).toEqual(MODULES.filter(name => name !== "board" && name !== "wm"));
 	const inside = resolveModules(undefined, undefined, { ORCA_WORKTREE_ID: "repo::/work" });
-	expect(inside).toContain("board");
+	expect(inside).not.toContain("board");
 	expect(inside).not.toContain("wm");
 	expect(inside).toContain("sh");
-	expect(resolveModules("board,wm", undefined, { ORCA_WORKTREE_ID: "repo::/work" })).toEqual(["board", "wm"]);
+	expect(resolveModules("board,wm", undefined, { ORCA_WORKTREE_ID: "repo::/work" })).toEqual([]);
 });

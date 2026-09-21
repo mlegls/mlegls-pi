@@ -1,44 +1,30 @@
 # Dispatch a ready wave
 
-The supervisor follows the issue graph and coordinates ready streams; complex triage returns to a separate decision session. `realize` carries that workflow: autoread → recorded plan → assignment admission → dispatch → integration. Dispatch itself only launches prepared assignments. Work shape, model/effort, capability tradeoffs, and session-continuity policy live in `routing.md`.
-
-`lib/dispatch.ts` selects Orca when `ORCA_WORKTREE_ID` or `ORCA_WORKSPACE_ID` is set, otherwise workmux. In exec (after `/exec-reset`):
+`dispatch.dispatch` launches prepared Pi assignments through Orca in every client. The supervisor owns decomposition, admission (`route.prepare`), integration, and concurrency. Orca owns the Run, Task, Dispatch, and mailbox lifecycle. See [Orca](orca.md) for the direct API and coordinator identity requirements.
 
 ```ts
-const task = "Implement the agreed change. Context: … Interfaces/ownership: … Done: …";
-const execution = await route.prepare(task); // pass { stance: "fill" } for a recorded closed unit
-if (execution.kind === "triage") throw new Error("Prepare a decision-session handoff before launching");
-await board.subscribe({ topic: "feature-x/*", tags: "done | blocked | needs-input", wake: true });
+state.run = (await orca.runs.create({objective: "Implement feature X"})).run;
+const task = "Self-contained assignment, context, interfaces, ownership, acceptance…";
+const execution = await route.prepare(task);
+if (execution.kind === "triage") throw new Error("Prepare a decision-session handoff first");
 state.launch = notify(dispatch.dispatch([
-  { handle: "unit-a", prompt: task, ...execution },
-], { run: "feature-x", maxConcurrent: 3, active: [] }), "dispatch");
+  {handle: "unit-a", prompt: task, ...execution},
+], {run: state.run.id, maxConcurrent: 3, active: []}), "dispatch");
 ```
 
-In a later cell: `state.wave = await state.launch; await show(state.wave);`
+Later: `state.wave = await state.launch`. `run` must be an existing Orca Run ID, not a topic prefix. Outside an Orca coordinator terminal, pass its real handle as `from`. For later waves, pass all outstanding handles supervised by this parent in `active`. This is a parent-scoped budget, not a global scheduler. Serialize wave submissions. Excess assignments remain `pending`.
 
-On either backend, options must include `{ run, maxConcurrent: 3, active: [] }`. For later waves, supply **all outstanding handles from the selected backend** supervised by this parent in `active`. Retire them from that list after integrating/closing them. Dispatch admits at most `maxConcurrent - active.length` assignments; excess stays `pending`. Serialize submissions from one parent. This is a parent-scoped budget, not a host-wide lock against other parents or direct workmux calls. The installed workmux `--max-concurrent` counts only windows from a single invocation, so it cannot enforce separately prompted waves.
+Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`; optional `agent` names a roster stance, not an Orca agent preset. Optional `base` selects an exact Git ref. Omission uses Orca’s default base, not uncommitted parent changes. The helper creates explicitly nested worktrees, requests setup, launches Pi with model/effort, and enrolls the terminal through native `worker-start --terminal`.
 
-Orca workers are Pi terminals in nested worktrees under the calling checkout. Setup hooks run before launch; failures retain resources for inspection. Model/effort are Pi CLI arguments. Orca does not own the coordination protocol: the board does.
+## Receipts and lifecycle
 
-## Assignments and receipts
+- `launched`: `{backend: "orca", handle, worktreeId, path, receipt}`. `receipt` retains native `runId`, `taskId`, `dispatchId`, effects, and `clientTerminal`.
+- `failed`: the first failed assignment, error text, and structured error receipt where available. Earlier launches survive; residual resources are retained for inspection.
+- `pending`: never-attempted assignments. The parent decides when to launch them.
 
-Each assignment has `handle`, self-contained `prompt`, `model` (provider/model), `effort`, optional `agent` (roster stance), and optional `base` (exact Git ref). Agent bodies are included on both backends. Agent files have no launch commands. Optional single-line `routingRecommendation` frontmatter is free text passed to the model/effort router for the chosen stance; it is advisory under the routing policy and provider ceilings, not an execution override. Direct workmux calls likewise require `model` and `effort` (or an explicit `command` for custom processes); `agent` names a stance only. Workmux launches Pi with exec/ls and the supplied model/effort. Orca launches Pi with the same selection. Set `base` explicitly when the worker must start at a particular commit; omission uses the backend's default, not uncommitted parent changes.
+No implicit retries, dependency scheduling, merging, or cleanup. Use `notify` for launch and mailbox waits. Worker instructions receive Orca’s authoritative lifecycle preamble; board topics and subscriptions are not involved.
 
-Returns:
-
-- `launched`: Orca `{ backend: "orca", handle, terminal, worktreeId, path }`, or workmux `{ backend, handle, worker }` retaining the native Worker object.
-- `failed`: the first attempted assignment that failed and its error. Earlier launches remain alive. A backend failure or interrupted call can leave resources behind; inspect before retrying.
-- `pending`: assignments never attempted, because capacity ran out or an earlier launch failed. The parent decides when to submit them.
-
-Invalid assignments fail before launch. There are no implicit retries, model decisions, dependency scheduling, merges, or cleanup. Keep the launch promise across exec cells; don't interrupt a mutation just because a cell deadline is short.
-
-## Supervision
-
-Subscribe to the run’s board topics before dispatch for wake notifications. Orca workers subscribe to their own topic via `PI_BOARD_TOPIC`; send follow-ups there. Inspect with `orca terminal read --terminal <terminal> --json`; focus with `orca terminal switch --terminal <terminal>`. Review/merge with Git or Orca, then remove the worktree through Orca. No terminal-idle event is treated as proof of completed work.
-
-Workmux returns native library Workers: `worker.next()`, `worker.send(text)`, `worker.close()`, and `merge(worker)` from `lib/wm.ts`. Use `notify(worker.next(), label)` in exec for a report notification. These are library workers, not the exec host's `wm` handle registry; dispatch does not install board wake subscriptions. Await/notify their events, or explicitly subscribe through `board`.
-
-The old experimental classifier in `lib/classify.ts` remains for its calibration consumers. Runtime admission is `route.prepare`: recorded stance first, otherwise policy-owned Jev classification, then model/effort selection. Neither classifier discovers context or creates a decomposition. Dispatch does not implicitly classify or reroute.
+Consume `orca.check` deliveries, answer questions, validate completion against the Dispatch, and decide terminal ownership before acknowledging. Merge with Git or Orca. These model-selected Pi terminals are pre-existing from Orca’s perspective: native release retains them. After settlement/integration, explicitly close the caller-owned terminal if unused, then remove the worktree. Native `orca.workers.start` offers runtime-owned terminals when Pi’s default model is acceptable.
 
 ## Session boundaries
 

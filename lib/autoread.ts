@@ -6,11 +6,10 @@ import { RpcClient } from "@earendil-works/pi-coding-agent";
 import { fileURLToPath } from "node:url";
 import { workflow } from "./config.ts";
 import { run as orcaRead } from "./autoread/orca.ts";
-import { inOrca } from "./orca.ts";
 import { readerRequest } from "./autoread/protocol.ts";
 
 export interface Options {
-  /** Orca is automatic in its workspaces; pi opts into a private local reader. */
+  /** Orca is the default in every client; pi explicitly opts into a private local reader. */
   backend?: "orca" | "pi";
   /** Defaults to exec's current persisted session. Required; never guesses the newest session. */
   sessionFile?: string;
@@ -69,7 +68,7 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647)
     throw new Error("autoread: timeoutMs must be a positive timer-sized integer");
   options.signal?.throwIfAborted();
-  if (options.backend === "orca" || (options.backend !== "pi" && inOrca())) {
+  if (options.backend !== "pi") {
     return orcaRead(request, options, model, effort, stance + (options.submission ? " Deliver the requested result through " + options.submission.tool + " as your final action." : ""), timeoutMs);
   }
   const parent = options.sessionFile ?? process.env.PI_SESSION_FILE;

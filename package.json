@@ -19,7 +19,6 @@
   ],
   "pi": {
     "extensions": [
-      "./lib/board/host.ts",
       "./lib/record/host.ts",
       "./lib/session/host.ts",
       "./lib/session-meta/host.ts",

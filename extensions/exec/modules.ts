@@ -1,4 +1,3 @@
-import { inOrca } from "../../lib/orca.ts";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,13 +26,13 @@ function parse(value: unknown, flag: string, fallback: readonly ExecModule[]): r
 }
 
 /** Select the advertised/callable surface, not a security sandbox. Deny wins. */
-/** Workmux is replaced by Orca dispatch; board coordination remains available. */
-export const HOST_MODULES: readonly ExecModule[] = ["wm"];
+/** Legacy coordination is disabled in every client, including explicit allowlists. */
+export const HOST_MODULES: readonly ExecModule[] = ["board", "wm"];
 
 export function resolveModules(allow?: unknown, deny?: unknown, env: NodeJS.ProcessEnv = process.env): ExecModule[] {
 	const allowed = new Set(parse(allow, "--exec-modules", MODULES));
 	const denied = new Set(parse(deny, "--exec-deny-modules", []));
-	if (inOrca(env) && allow === undefined) for (const m of HOST_MODULES) denied.add(m);
+	for (const m of HOST_MODULES) denied.add(m);
 	return MODULES.filter(name => allowed.has(name) && !denied.has(name));
 }
 
@@ -129,6 +128,7 @@ export function describeModules(modules: readonly ExecModule[], profile: ExecPro
 		"Read skill files as reference only: this profile does not execute their shell placeholders.",
 	].join("\n");
 	return [
+		"Orca coordination is available as the auto-loaded orca library. wm/board are disabled universally. Use orca.runs.create/use/current, orca.workers.start/show/read/list/release/retain, orca.check/ack/send/ask/reply; receipts retain native IDs and recovery data. Use notify(orca.check({wait:true}), label) for waits. Never auto-ack displayed mail. See docs/orca.md and orca skills get orchestration for the lifecycle contract.",
 		"TypeScript execution with fresh scope per call and a persistent kernel. const/let/var and function declarations are cell-local and reusable next call. Retain values/promises explicitly with state.name = value; inspect Object.keys(state), delete state.name to release. Only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects and state writes survive a later error. Never blindly retry a failed cell. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
 		"Cells have a 30s host-enforced deadline. Pass timeoutMs on the exec call to override for that call only (positive integer milliseconds). Timeout clears kernel state, kills shell subprocesses, and aborts host calls; shown output is preserved; unshown process/partial-shell diagnostics are UI-only; side effects may remain. Use term or retained promises for long-running work.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",

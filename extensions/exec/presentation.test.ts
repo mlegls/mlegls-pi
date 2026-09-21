@@ -106,10 +106,10 @@ test("trace previews are passive, byte-bounded, and omit image payloads", () => 
 }), 20000);
 
 // Want: selected capabilities disappear, including the generic RPC route, across reset.
-test("Kernel modules default to all, empty means core only, and host rejects excluded RPC", async () => {
+test("Kernel defaults exclude legacy coordination, empty means core only, and host rejects excluded RPC", async () => {
 	const names = '[typeof read,typeof sh,typeof exa,typeof board,typeof wm,typeof term,typeof ui,typeof show,typeof notify,typeof console]';
 	await fixture(async kernel => {
-		expect((await kernel.execute('show(' + names + '.join(","));')).output).toBe("function,function,object,object,object,object,object,function,function,object\n");
+		expect((await kernel.execute('show(' + names + '.join(","));')).output).toBe("function,function,object,undefined,undefined,object,object,function,function,object\n");
 	});
 	let dispatched = 0;
 	await fixture(async kernel => {
@@ -201,25 +201,5 @@ test("real tool result renders narrow/wide and expanded/collapsed without guessi
 				expect(display).toContain("not invoked");
 			}
 		}
-	}
-}), 20000);
-
-
-// Want: a selected real host module stays usable without advertising or exposing its peers.
-test("board-only RPC retains complete results while show selects model-visible content", () => session({ "exec-modules": "board" }, async ({ exec, definition, cwd }) => {
-	const previous = process.env.PI_BOARD_DIR;
-	process.env.PI_BOARD_DIR = join(cwd, "board");
-	try {
-		const result = await exec('await board.send({topic:"audit",body:"selected"}); await board.send({topic:"audit",body:"unshown"}); const messages = await board.read({topic:"audit"}); show(messages.messages.filter(m=>m.body==="selected").map(m=>m.body));');
-		expect(result.details.error).toBeUndefined();
-		expect(result.details.trace.entries.map((e: any) => e.name)).toEqual(["board.send", "board.send", "board.read"]);
-		expect(result.details.trace.entries[2].result).toContain("unshown");
-		expect(text(result)).toContain("selected");
-		expect(text(result)).not.toContain("unshown");
-		const excluded = await exec('await host.call("exa", "search", {query:"never sent"});');
-		expect(excluded.details.error).toMatch(/disabled|excluded|not enabled/i);
-		expect(definition().description).not.toContain("wm.");
-	} finally {
-		if (previous === undefined) delete process.env.PI_BOARD_DIR; else process.env.PI_BOARD_DIR = previous;
 	}
 }), 20000);

@@ -10,7 +10,7 @@ const repl = require("node:repl");
 const { createTrace } = require("./trace.cjs");
 const { register, format } = require("./passive.cjs");
 const { createSkillLoader } = require("./skill-loader.cjs");
-const DEFAULT_MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"];
+const DEFAULT_MODULES = ["fs", "sh", "exa", "term", "ui"];
 let modules = new Set(DEFAULT_MODULES);
 
 function traced(name, fn) {
@@ -391,7 +391,7 @@ function notify(promise, label) {
 
 async function initialize(message) {
 	const reader = message.profile === "reader";
-	modules = new Set((message.modules ?? DEFAULT_MODULES).filter(name => !reader || name === "fs" || name === "exa"));
+	modules = new Set((message.modules ?? DEFAULT_MODULES).filter(name => name !== "board" && name !== "wm" && (!reader || name === "fs" || name === "exa")));
 	if (typeof stripTypeScriptTypes !== "function") throw new Error("exec requires Node >= 22.13 for TypeScript transpilation");
 	const [{ createSourceAPI }, { Ledger }] = await Promise.all([
 		import("./source.ts"), import("../../lib/outline-read/ledger.ts"),

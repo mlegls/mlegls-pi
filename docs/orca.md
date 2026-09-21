@@ -1,34 +1,61 @@
-# Orca integration
+# Orca execution and coordination
 
-Orca owns the graphical workspace and terminals. Pi owns conversations and TUI rendering; the board owns cross-session coordination. Workmux remains the fallback outside Orca. BB integration has been removed.
+Orca is the execution backend in every client. Exec disables `wm` and `board`, even in explicit allowlists; the board host is no longer loaded. Legacy libraries remain importable for rollback, not advertised as active APIs. Module selection is not a sandbox.
 
-## Setup
+## Setup and identity
 
-Install Orca and its CLI, open the repository in Orca, and launch Pi with this package loaded. Orca supplies `ORCA_WORKTREE_ID` / `ORCA_WORKSPACE_ID`. Reload Pi after updating the package; `/exec-reset` alone does not register new commands.
+Run the Orca app and register the project. `/reload` Pi after upgrading this package. `lib/orca.ts` is auto-loaded as `orca` in normal exec cells; the reader profile excludes it. `ORCA_CLI` overrides the executable; otherwise the Orca environment/platform conventions apply. `PI_ORCA_COMMAND` overrides the trusted Pi shell command.
 
-`ORCA_CLI` overrides the CLI executable path; otherwise Orca’s `ORCA_CLI_COMMAND` / dev-build environment is honored. `PI_ORCA_COMMAND` is an optional trusted shell command for launching Pi (default `pi`); use it for a custom launcher or extra package/extension arguments. Forks do not reconstruct the parent process’s one-off command-line flags. Normal Pi configuration is loaded by the new process.
+Inside an Orca terminal, the CLI resolves the calling terminal. Outside Orca, use `/fork-tab [title]` to open a sibling conversation in an explicitly managed checkout, or pass the real coordinator terminal handle as `from` (`terminal` for `check`). Never use the focused tab as an implicit identity. A Run is bound to a coordinator terminal; saving only its ID does not grant another caller that role. `runs.use({id, from?})` explicitly rebinds it.
 
-The adapter uses explicit checkout selectors, not whichever workspace happens to have focus. It targets local macOS/POSIX hosts; remote routing has not been implemented.
+## Supervision from exec
 
-## Fork a conversation into a tab
+Load the installed contract with `orca skills get orchestration`. The TypeScript wrapper preserves native receipts rather than synthesizing a worker state machine.
 
-In an idle Pi session, run `/fork-tab Alternative approach`. A snapshot of the session is persisted immediately and launched as another Pi terminal in the same workspace. The original process stays on its original session. Both tabs share files; this is conversation isolation, not a worktree fork.
+```ts
+state.run = (await orca.runs.create({objective: "Implement the agreed slice"})).run;
+state.launch = notify(orca.workers.start({
+  run: state.run.id, spec: "Self-contained assignment, context, ownership, acceptance…",
+  agent: "pi", worktree: orca.workspace(),
+}), "worker launch");
+```
 
-The command preserves Pi’s persisted session tree through `SessionManager.forkFrom`; it opens at the calling session’s selected leaf. It does not copy exec’s heap. `/fork`, `/clone`, and `/tree` retain their normal in-terminal behavior. Selecting an earlier message directly from `/fork-tab` is not implemented.
+In a later cell, retain the full launch receipt. `state.worker = await state.launch` preserves `taskId`, `dispatchId`, launch effects, and the runtime’s readiness evidence. `ready/input_accepted` is not proof that Pi began a turn.
 
-If launch fails, the fork is retained and its path reported. Inspect Orca before retrying: a timed-out creation may already have produced a tab. Fork ancestry is stored by Pi; Orca displays sibling tabs, not a conversation-family tree.
+```ts
+state.mail = notify(orca.check({run: state.run.id, wait: true,
+  types: ["worker_done", "question", "escalation"]}), "worker mail");
+// Later:
+state.delivery = await state.mail;
+await show(state.delivery);
+```
 
-## Workers and readers
+Process **every** message in the returned batch. Reply to questions with `orca.reply({id, body})`; validate outcomes against the expected Dispatch. Reuse, explicitly retain, or release each settled worker. Then `state.next = await orca.ack(state.delivery.deliveryId, {run: state.run.id})`. Ack can return another delivery: handle it rather than discarding it. Reads, display, and notifications never acknowledge mail. Type filters select when to wake, not which messages in the FIFO delivery to process.
 
-[Dispatch](dispatch.md) launches prepared workers into nested Orca worktrees with explicit parent-scoped concurrency. Board subscriptions supply reports/wake and follow-up messages. Failed launches preserve their worktrees and prompt files; no automatic merge or deletion occurs.
+`workers.show(dispatchId)`, `workers.read({dispatch, source: "auto"})`, and `workers.list({run, includeRemote: true})` preserve Orca’s observations and pagination. A timeout, contact loss, or null agent state is not proof of exit. `workers.stop({dispatch})` and `workers.abandon({dispatch})` are explicit recovery operations, not automatic timeout handlers. Load the installed recovery guide before using them.
 
-[Autoread](autoread.md) launches a restricted reader TUI in the same workspace and collects its structured result. Its PTY is stopped after completion or cancellation; the Pi session and result files are retained. Terminal handles can become stale after closure. There is no automatic cascading lifecycle when the parent tab closes.
+CLI failures throw `OrcaError` with the complete parsed envelope in `.receipt`, including residual resources and recovery commands. Unknown mutation outcomes are not retried. Long waits use a CLI timeout longer than the native wait; retain them with `notify` to avoid the exec cell deadline. Kernel reset can interrupt the CLI without undoing its mutation. Reinspect Orca; inbox batches remain durable until acknowledged.
 
-## Live acceptance check
+## Pi model selection
 
-1. Run `/fork-tab Alternative` after a distinctive conversation turn. Check two tabs, shared checkout, independent session files, inherited context, and unchanged original session.
-2. In the fork, exercise exec output, `@` completion, image input, and Orca’s Pi status/restart/history behavior.
-3. Subscribe to a run topic; dispatch one worker. Check a nested worktree, the intended model/effort, board reporting and steering, then review and clean up.
-4. Run autoread on a small session, then one needing compaction. Check a visible reader, returned briefing/submission, and stopped PTY with retained session/results. Repeat with abort/timeout.
+Orca 1.4.206 accepts `worker-start --agent pi`, but rejects Pi launch-time model/effort selection. `orca.startPi({spec, run?, from?, worktree?, model, effort, taskTitle?})` launches a Pi terminal with native Pi flags, then enrolls it with `worker-start --terminal`. It requires an exact existing workspace selector; create a workspace first for isolation. It returns the native receipt plus `clientTerminal`. A failed enrollment preserves the terminal and reports it in the error receipt.
 
-Basic live fork, worker, and reader checks passed on Orca 1.4.206: [verification](research/orca-integration-2026-09-21.md). Compaction, structured submissions, cancellation, image rendering, and restart/history remain follow-up checks.
+That terminal is **caller-owned**. Orca’s `workers.release(dispatchId)` will not close a pre-existing terminal. After accepted settlement and integration, inspect the release receipt, then explicitly `orca.stop(receipt.clientTerminal.handle)` if that terminal has no new owner. Remove an isolated worktree separately after merging. Direct native `workers.start({agent: "pi", …})` avoids this ownership gap when Pi’s default model is suitable.
+
+Prepared, routed waves use [`dispatch.dispatch`](dispatch.md); this helper creates nested worktrees and uses the selected-model enrollment path.
+
+## Messaging
+
+`orca.send({to, subject, body, type?, threadId?, payload?})` supports direct `dispatch:<id>`, `run:<id>`, and native group addresses. Most groups cover live dispatches in the sender’s Run; `@worktree:<id>` is workspace-scoped. This is addressed mail, not arbitrary topic subscriptions. Copy lifecycle IDs, sender identity, and capability arguments from the live worker preamble.
+
+`orca.ask({question, …})` blocks for a reply; timeout leaves the question pending, resumable with `{resume: messageId}`. Retain long asks with `notify`. Native wake/nudge is best effort, not proof of processing; workers check their mailbox at checkpoints. There is no additional Pi polling adapter in this version.
+
+## Conversation forks and readers
+
+`/fork-tab [title]` forks the persisted session at the selected leaf into another focused Pi terminal in the same checkout. It leaves the source conversation in place and creates no Task/Dispatch. Normal `/fork` is unchanged. Use separate worktrees for conflicting edits.
+
+`autoread.run` defaults to Orca even outside Orca; `{backend: "pi"}` explicitly selects a private local reader. Readers and forks are not supervised tasks. Reader PTYs stop on completion/cancellation; session/result files remain durable, terminal handles do not.
+
+## Verification
+
+See [native lifecycle verification](research/orca-native-coordination-2026-09-21.md). Remote execution, app restart, image rendering, and native Pi status-hook parity remain separate checks.

@@ -1,11 +1,10 @@
 import { SessionManager, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { inOrca, terminal, workspace, piCommand, call } from "../../lib/orca.ts";
+import { terminal, workspace, piCommand, call } from "../../lib/orca.ts";
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("fork-tab", {
     description: "Fork the current conversation into another Orca tab: /fork-tab [title]",
     handler: async (args, ctx) => {
-      if (!inOrca()) { ctx.ui.notify("/fork-tab requires an Orca workspace", "error"); return; }
       await ctx.waitForIdle();
       const source = ctx.sessionManager.getSessionFile();
       if (!source) { ctx.ui.notify("Forking requires a persisted session", "error"); return; }

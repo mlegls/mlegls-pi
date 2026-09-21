@@ -59,7 +59,7 @@ export interface KernelOptions {
 	call?: (request: KernelRequest) => Promise<unknown>;
 }
 
-const DEFAULT_MODULES = ["fs", "sh", "exa", "board", "wm", "term", "ui"];
+const DEFAULT_MODULES = ["fs", "sh", "exa", "term", "ui"];
 
 const LIMIT = 50 * 1024;
 const TRUNCATED = "\n[output truncated]\n";
@@ -198,7 +198,7 @@ export class Kernel {
 	 */
 	private async handleRequest(child: ChildProcess, message: any): Promise<void> {
 		const id = message.id;
-		if ((this.options.profile === "reader" && message.namespace !== "exa") || !(this.options.modules ?? DEFAULT_MODULES).includes(message.namespace)) {
+		if (message.namespace === "board" || message.namespace === "wm" || (this.options.profile === "reader" && message.namespace !== "exa") || !(this.options.modules ?? DEFAULT_MODULES).includes(message.namespace)) {
 			this.respond(child, id, { ok: false, error: `Exec module ${String(message.namespace)} is disabled` });
 			return;
 		}

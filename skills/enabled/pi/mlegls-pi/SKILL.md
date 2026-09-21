@@ -7,7 +7,7 @@ canonical checkout `~/dev/mlegls-pi`. worktrees under `~/dev/mlegls-pi__worktree
 
 exec cell: `lib/<name>.ts` is `<name>` (not names already in the cell API). `.pi/exec/<name>.ts` in the project shadows that file; a stem that isn't in lib is `project.<name>`. upstream by moving the file to `lib/`.
 
-add or override: write `.pi/exec/<name>.ts`, `/exec-reset`. try it in a cell, then `bun test extensions/exec`. `bunx tsc --noEmit` currently fails in session/system-prompt; those are pre-existing.
+add or override: write `.pi/exec/<name>.ts`, `/exec-reset`. try it in a cell, then `bun test extensions/exec`. run `bunx tsc --noEmit` for typechecking.
 
 kernel reload: `/exec-reset` or a new session. a running kernel keeps the modules it started with.
 
@@ -15,4 +15,4 @@ host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is e
 
 ## hosts
 
-inside Orca, exec keeps `board` and defaults `wm` off; `dispatch.dispatch` launches Orca workers. `/fork-tab [title]` opens the current conversation in another tab. See `docs/orca.md`.
+exec disables `board` and `wm` in every client. `orca` supplies native supervision and messaging; `dispatch.dispatch` launches prepared Pi workers into an existing Orca Run. `/fork-tab [title]` opens the current conversation in another tab. See `docs/orca.md`.

@@ -2,7 +2,7 @@
 
 One tool for TypeScript cells with fresh local scope and persistent explicit state.
 Replaces the advertised file/shell,
-Exa, workmux, board, terminal, and desktop-control tools with composable functions.
+Exa, terminal, and desktop-control tools with composable functions.
 Requires Node 22.13+ and ripgrep (`rg` on PATH or pi's installed copy).
 
 Reload pi (`/reload`) to enable it. Use `/exec-reset` to stop the kernel and
@@ -113,10 +113,10 @@ to `tsx`, not a separately maintained exec implementation.
 
 ## Module selection
 
-All modules are enabled by default. Select a surface with CLI flags:
+All non-legacy modules are enabled by default. `board` and `wm` are disabled in every client, including explicit allowlists. Select a surface with CLI flags:
 
 ```sh
-pi --tools exec --exec-modules fs,sh,board
+pi --tools exec --exec-modules fs,sh,exa
 pi --exec-deny-modules ui,wm
 pi --exec-modules '*' --exec-deny-modules term,ui
 pi --exec-modules none
@@ -131,8 +131,8 @@ configuration error rather than silently enabling everything.
 | `fs` | `read`, `write`, `find`, `grep`, `edit`, `replace`, `loadSkill` (including image reads) |
 | `sh` | `sh` |
 | `exa` | `exa.*` |
-| `board` | `board.*` |
-| `wm` | `wm.*` |
+| `board` | Disabled (legacy) |
+| `wm` | Disabled (legacy) |
 | `term` | `term.*` |
 | `ui` | `ui.*` |
 
@@ -142,9 +142,7 @@ module globals and API documentation are omitted; `host.call` also rejects
 excluded namespaces. Selection survives kernel resets and session navigation.
 
 Agent frontmatter supplies a stance, not a launch command. Use `route.prepare`
-and `dispatch` to launch routed workers. Direct `wm.spawn` requires explicit
-`model` and `effort`, or `command` for a custom process. `agent` only names a stance.
-Keep `board` enabled when using the standard workmux worker reporting preamble.
+and `dispatch` to launch routed Pi workers. The auto-loaded `orca` library supplies native supervision and messaging; see [Orca](../../docs/orca.md). `agent` in a routed assignment names a stance.
 Module selection limits the supplied API, **not** filesystem/process permissions: arbitrary
 imports and enabled shell commands can still access underlying capabilities.
 The full reference below describes all modules; each session advertises only its
@@ -484,7 +482,7 @@ anchored `edit`/`replace` for checked changes. Overwriting does not bless old an
 
 ## Host services
 
-`exa`, `board`, `wm`, `term`, and `ui` call the extension host asynchronously.
+`exa`, `term`, and `ui` call the extension host asynchronously.
 
 Their results remain structured and are not display-truncated: retain them, filter or map in
 TypeScript, then `show` the selected data. There is no `pipe` option on these APIs.
@@ -507,86 +505,11 @@ Contents options: `maxCharacters` (10000), `verbosity` (compact, standard, full)
 `includeSections`, `excludeSections`, `maxAgeHours`. Credentials and endpoint
 configuration are unchanged: `EXA_API_KEY` and optional `EXA_API_URL`.
 
-### Board
+### Orca
 
-- `board.send({topic, body, tags?, data?})` returns the stored message.
-- `board.read({topic?, tags?, limit?, fields?, bodyChars?}?)` returns
-  `{messages, omitted, total}`. The default selection is the newest 20 matches,
-  returned in log order. Each message has its stable `line` number. `omitted`
-  counts older matches excluded by the query limit; pass `limit: total` to
-  include all current matches. This is separate from display truncation.
-  Use `fields: "meta"` for compact previews: no `data`, and at most `bodyChars`
-  characters of body (default 120; 0 omits it). Shortened bodies carry
-  `bodyTruncated: true`. The default `fields: "full"` preserves whole messages.
-- `board.list({topic?}?)` returns `{topics, subscriptions}`.
-- `board.subscribe({topic, tags?, wake?, remove?})` changes this session's
-  subscription. Wake defaults to true; subscriptions survive session restoration.
-  Removal returns `{topic, tags?, remove:true}`, without irrelevant wake settings.
-- `board.ack(ids)` acknowledges specific messages already handled.
-- `board.help(method?)` returns signatures and filter/acknowledgment semantics.
+The auto-loaded `orca` library talks to the native CLI from the kernel. It preserves Run/Task/Dispatch identities and FIFO delivery acknowledgments. Retain long waits with `notify`; showing a message never acknowledges it. [API and lifecycle](../../docs/orca.md).
 
-Read/subscribe filters accept tag expressions (`"done | blocked"`) or arrays
-(`tags: ["done", "verified"]` means **all** those tags; `[]` means no filter).
-Send tags remain arrays of literal tag names. Invalid types and malformed
-expressions fail at the service boundary with an actionable error.
-
-Reading values does **not** acknowledge them. Neither does `wm.wait`. This keeps
-filtered-away reports eligible for later delivery. Acknowledge the particular
-messages you handled, rather than every message in a fetched batch:
-
-```ts
-const batch = await board.read({topic: "review/**"});
-const chosen = batch.messages.filter(m => m.tags.includes("needs-input"));
-await show(chosen);
-await board.ack(chosen.map(m => m.id));
-```
-
-### Board outside pi
-
-The same board is available to other harnesses through `bun lib/board.ts`
-(use the script’s absolute path when outside this checkout):
-
-```sh
-bun lib/board.ts read --topic "review/**" --fields meta --body-chars 80
-bun lib/board.ts send review/unit --tag done --body "Verified"
-bun lib/board.ts cursor  # {"offset": ...}; capture BEFORE starting workers
-bun lib/board.ts wait --topic "review/**" --tags done --from-offset 123 --timeout 30000
-```
-
-CLI output is JSON. `wait` requires the captured byte offset so reports arriving
-during startup are not lost; replace `123` with that cursor. Timeout exits 1.
-The importable `waitFor` keeps its from-now default: pass `fromOffset` explicitly
-for the same guarantee. Neither CLI reads nor waits acknowledge messages.
-`PI_BOARD_DIR` selects an isolated log; `PI_BOARD_NAME` sets the CLI sender name.
-This script does not replace any unrelated `board` executable on PATH.
-
-### Workmux
-
-- `wm.spawn({run?, from?: "fork" | "summary", workers: [{handle, prompt, model?, effort?, command?, agent?, base?, from?}], wake?, wait?})`
-  returns `{workers, subscribed}`. The first spawn requires `run`; subsequent
-  calls remember it. `from: "fork"` adds `--fork <parent session file>` to the
-  agent's Pi command (file, not id: the child cwd is a different project).
-  `from: "summary"` prepends an extract of the parent session to the prompt.
-  Per-worker `from` overrides the batch. Reports subscribe through the board; `wake` defaults true.
-  `wait:true` also returns outcomes and pending handles.
-- `wm.wait({handles?, run?, mode?, timeoutMs?}?)` returns
-  `{outcomes, pending, aborted}`. Mode is any (default) or all. Omitted handles
-  use this session's tracked workers. Outcomes carry `handle`, `kind`, and
-  either a full `message` or an idle/exited `tail`.
-- `wm.send(handle, text, {run?}?)` sends a prompt.
-- `wm.capture(handle, {run?, lines?}?)` returns `{handle, paneId, text}`; default
-  lines is 50. Filter the text in TypeScript rather than piping it through a shell.
-- `wm.merge(handles, {run?, into?, mode?}?)` merges in order; mode is merge
-  (default) or rebase. Returns `{merged, into, mode}`, plus
-  `conflict: {handle, files}` on conflict; the conflicting merge is aborted.
-- `wm.close(handles, {run?, keepBranch?}?)` closes workers and unsubscribes;
-  returns `{closed}`.
-- `wm.status()` returns status rows using `handle` and `paneId`; `wm.agents()` lists agents and
-  descriptions.
-- `wm.help(method?)` returns method signatures and worker lifecycle semantics.
-
-A failed batch spawn names both failures and successfully started handles; those
-workers remain tracked. Cancellation does not undo created workers or git changes.
+Legacy board/workmux libraries remain in the repository for rollback; neither their namespaces nor board wake hooks are enabled by this package.
 
 ### Persistent terminals
 
@@ -713,7 +636,7 @@ extensions need exec-aware integration.
 Use exec while developing or verifying it. Report concrete friction: the operation
 attempted, what actually happened, the workaround, and a simpler interaction if
 one is apparent. Record unresolved observations in `docs/frictions.md`; workers
-should include them in their board report so the coordinating session can
+should include them in their Orca completion report so the coordinating session can
 consolidate duplicates. Distinguish observations from proposed improvements.
 
 Worker profiles with an explicit `--tools` allowlist must include `exec`.
