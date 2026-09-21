@@ -8,6 +8,30 @@ Run the Orca app and register the project. `/reload` Pi after upgrading this pac
 
 Inside an Orca terminal, the CLI resolves the calling terminal. Outside Orca, use `/fork-tab [title]` to open a sibling conversation in an explicitly managed checkout, or pass the real coordinator terminal handle as `from` (`terminal` for `check`). Never use the focused tab as an implicit identity. A Run is bound to a coordinator terminal; saving only its ID does not grant another caller that role. `runs.use({id, from?})` explicitly rebinds it.
 
+## Known unavailable providers
+
+Keep availability separate from usage ceilings. After a positively observed billing
+or authentication failure, record the exact catalog provider in a coordinator-owned
+map and pass it to every subsequent `route.prepare` or `route.route` call:
+
+```ts
+state.routing = { unavailableProviders: {} as Record<string, string> }; // once per run
+state.routing.unavailableProviders.openai = "Account reports no credits remaining";
+const assignment = await route.prepare("Implement the agreed slice", state.routing);
+// After credentials/credits are repaired, explicitly restore eligibility:
+delete state.routing.unavailableProviders.openai;
+```
+
+An exclusion removes all models for that provider before judgment; it does not
+exclude another provider such as `openai-codex`. Reasons are retained in the
+routing receipt. All excluded means a local routing error, not a selection call. Unknown
+telemetry is still eligible. The map belongs to the run/account context: preserve
+it in the handoff if continuing after a kernel reset; do not carry it to a different
+credential context. There is no guessed expiry or global blacklist. Availability
+is coordinator-reported, not inferred from timeouts or parsed automatically from
+worker prose. This affects future selection only: it neither cancels nor retries
+an existing Dispatch.
+
 ## Interactive addresses
 
 Interactive Pi tabs inside Orca automatically create a Run when their terminal has no binding or active Dispatch. The footer shows the full `run:<id>` address; `/orca-address` prints it in the conversation for copying. The same address is supplied to the agent on each turn. Reloading preserves the terminal's binding; a new tab (including `/fork-tab`) gets its own. Switching conversations in the same terminal keeps that terminal's address. This is not portable session-file identity: reopening the file in another terminal does not take over the old Run.
