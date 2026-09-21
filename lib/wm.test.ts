@@ -67,7 +67,7 @@ test("poller delivers a report posted after the worker is registered", async () 
 	const dir = mkdtempSync(join(tmpdir(), "wm-race-"));
 	const code = [
 		"import { Worker } from " + JSON.stringify(join(import.meta.dir, "wm.ts")) + ";",
-		"import { send } from " + JSON.stringify(join(import.meta.dir, "../extensions/board/store.ts")) + ";",
+		"import { send } from " + JSON.stringify(join(import.meta.dir, "./board/store.ts")) + ";",
 		"const w = new Worker('race', 'b', process.cwd(), 'race', process.cwd());",
 		"send({ topic: 'race/b', tags: ['done'], body: 'mid-spawn', from: {name: 'b'} });",
 		"const result = await w.next(); w.drop(); console.log(JSON.stringify(result));",

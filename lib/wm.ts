@@ -19,7 +19,7 @@ import { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { logSize, readFrom, type Message } from "../extensions/board/store";
+import { logSize, readFrom, type Message } from "./board/store";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: Message } // checkpoint: fenced on context; paused for a follow-up like needs-input

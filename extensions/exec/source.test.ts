@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Ledger } from "../outline-read/ledger";
+import { Ledger } from "../../lib/outline-read/ledger";
 import { createSourceAPI, SourceFile } from "./source";
 
 async function withApi(run: (api: ReturnType<typeof createSourceAPI>, cwd: string) => Promise<void>) {

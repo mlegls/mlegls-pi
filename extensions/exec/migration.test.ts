@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { Kernel, type KernelNotification, type KernelOptions } from "./kernel";
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
-import sessionExtension from "../session";
-import { TmuxTerminalManager, terminalServerName, tmuxAvailable } from "../session/tmux";
+import { install as sessionExtension } from "../../lib/session/host";
+import { TmuxTerminalManager, terminalServerName, tmuxAvailable } from "../../lib/session/tmux";
 import { createComputerUseBridge } from "./computer-use";
 import { createExecServices, type ExecServices } from "./services";
 

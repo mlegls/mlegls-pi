@@ -1,7 +1,7 @@
 import { fork, spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import type { LedgerEntry } from "../outline-read/ledger";
+import type { LedgerEntry } from "../../lib/outline-read/ledger";
 import type { ContentBlock } from "./image";
 import type { Event as IngressEvent } from "../../lib/ingress";
 

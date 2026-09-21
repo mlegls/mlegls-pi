@@ -8,6 +8,45 @@ Requires Node 22.13+ and ripgrep (`rg` on PATH or pi's installed copy).
 Reload pi (`/reload`) to enable it. Use `/exec-reset` to stop the kernel and
 its subprocesses and clear retained state without discarding file anchors.
 
+## Host libraries
+
+Exec is this package's only active Pi extension. At extension load it discovers
+`lib/*/host.ts` in name order and awaits each explicit `install(host)` export:
+
+```ts
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+export function install(host: ExtensionAPI) {
+  host.on("before_agent_start", (event) => ({
+    systemPrompt: event.systemPrompt + "\nYour local policy.",
+  }));
+  host.registerCommand("example", {
+    description: "A host command",
+    handler: async (_args, ctx) => { ctx.ui.notify("Hello"); },
+  });
+}
+```
+
+The host API is Pi's ExtensionAPI, including hooks, commands, providers, and the
+event bus. Installers run before session startup and provider discovery completes.
+Start session resources in `session_start` and clean them up in
+`session_shutdown`; Pi owns event-bus subscription cleanup. Registration happens
+once per extension instance, not per cell, kernel reset, or tree navigation.
+Installation failures are reported at session startup without disabling other
+host modules; a failed installation is not retried within that instance.
+
+Use `/reload` (or a new Pi process) after editing host code. `/exec-reset`
+only reloads kernel code. `lib/<name>.ts` and project `.pi/exec/*.ts` remain
+cell libraries; project overrides do not install host hooks. Only the installed
+package's trusted library directory is scanned for host modules.
+
+The generic loader lives in [host.ts](host.ts); policy and capability
+implementations live in [lib](../../lib). The former standalone adapters are
+[archived](../disabled/README.md). Do not enable them alongside exec: that would
+install the same behavior twice. Exa and Board standalone tools are archive-only;
+exec uses their library implementations directly. The workspace approval tool is
+retained alongside its human-facing command.
+
 ## Cell deadline
 
 Cells have a **30s host-enforced deadline**, including kernel startup but excluding

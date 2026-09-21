@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Kernel, type KernelNotification } from "./kernel";
-import type { LedgerEntry } from "../outline-read/ledger";
+import type { LedgerEntry } from "../../lib/outline-read/ledger";
 
 async function fixture(run: (kernel: Kernel, cwd: string, entries: LedgerEntry[], notifications: KernelNotification[]) => Promise<void>) {
 	const cwd = await mkdtemp(join(tmpdir(), "exec-contract-"));

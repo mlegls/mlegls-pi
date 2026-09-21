@@ -9,10 +9,10 @@
 // Snapshot cursor before spawn; wait requires --from-offset.
 
 import { basename } from "node:path";
-import { logSize, meta, read, send, topics, waitFor } from "../extensions/board/store";
+import { logSize, meta, read, send, topics, waitFor } from "./board/store";
 
-export { logSize, meta, read, readFrom, send, topics, waitFor } from "../extensions/board/store";
-export type { Message, Meta, Numbered, ReadOptions, TopicSummary } from "../extensions/board/store";
+export { logSize, meta, read, readFrom, send, topics, waitFor } from "./board/store";
+export type { Message, Meta, Numbered, ReadOptions, TopicSummary } from "./board/store";
 
 if (import.meta.main) {
 	const [cmd, ...rest] = process.argv.slice(2);

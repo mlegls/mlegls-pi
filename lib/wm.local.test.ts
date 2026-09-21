@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, wait, type Worker } from "./wm";
-import { send } from "../extensions/board/store";
+import { send } from "./board/store";
 
 // Opt in: starts harmless local shell workers, never a model or paid API.
 test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent workers share a new session; any/all preserve reports and close removes worktrees", async () => {

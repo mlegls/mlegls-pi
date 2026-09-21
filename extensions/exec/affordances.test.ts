@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { ExtensionRunner, SessionManager, wrapRegisteredTools } from "@earendil-works/pi-coding-agent";
-import { send } from "../board/store";
+import { send } from "../../lib/board/store";
 import { loadExtensions } from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
 
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR4AQEFAPr/AP8AAP8FAAH/+lyI0QAAAABJRU5ErkJggg==";
@@ -13,10 +13,10 @@ async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => 
 	const cwd = await mkdtemp(join(tmpdir(), "exec-affordance-"));
 	const oldBoard = process.env.PI_BOARD_DIR;
 	process.env.PI_BOARD_DIR = join(cwd, "board");
-	const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts"), resolve(import.meta.dir, "../board/index.ts")], cwd);
+	const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], cwd);
 	expect(loaded.errors).toEqual([]);
 	const manager = SessionManager.inMemory(cwd);
-	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, {} as any);
+	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, { registerProvider() {} } as any);
 	const sent: any[] = [], errors: any[] = [];
 	let idle = true;
 	let active = ["read", "bash", "write", "exa_search", "board_read", "wm_spawn", "session_spawn", "session_wait", "session", "observe_ui", "act_ui", "launch_browser", "navigate_browser", "evaluate_browser", "exec"];

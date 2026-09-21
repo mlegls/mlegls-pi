@@ -3,15 +3,15 @@
   "version": "0.1.0",
   "description": "Personal pi package for mlegls",
   "scripts": {
-    "setup": "bun install --frozen-lockfile --ignore-scripts && bun install --cwd extensions/outline-read --frozen-lockfile && bun install --cwd extensions/disabled/lsp --frozen-lockfile && bun install --frozen-lockfile --cwd skills/enabled/all/mlegls/conventions/tracker/scripts",
-    "test:board": "bun test extensions/board",
-    "test:exa": "bun test extensions/exa",
+    "setup": "bun install --frozen-lockfile --ignore-scripts && bun install --cwd lib/outline-read --frozen-lockfile && bun install --cwd extensions/disabled/lsp --frozen-lockfile && bun install --frozen-lockfile --cwd skills/enabled/all/mlegls/conventions/tracker/scripts",
+    "test:board": "bun test lib/board extensions/disabled/board",
+    "test:exa": "bun test lib/exa extensions/disabled/exa",
     "test:lsp": "bun test extensions/lsp",
-    "test:outline-read": "bun test extensions/outline-read",
-    "test:session": "bun test extensions/session",
+    "test:outline-read": "bun test lib/outline-read",
+    "test:session": "bun test lib/session",
     "test:lib": "bun test lib",
-    "test:system-prompt": "bun test extensions/system-prompt",
-    "test:workspace": "bun test extensions/workspace",
+    "test:system-prompt": "bun test lib/system-prompt",
+    "test:workspace": "bun test lib/workspace",
     "test:tracker": "bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts"
   },
   "keywords": [
@@ -19,7 +19,7 @@
   ],
   "pi": {
     "extensions": [
-      "./extensions"
+      "./extensions/exec/index.ts"
     ],
     "skills": [
       "./skills/pi",

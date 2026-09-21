@@ -1,11 +1,11 @@
 // Host-side service adapter behind exec's structured globals (`exa.*`,
 // `board.*`, `wm.*`). exec runs in a separate Node process; `createExecServices`
-// owns the host half, wrapping the same libraries the tool extensions use --
-// `../exa/client`, `../board/store`, and `../../lib/wm` -- so results arrive
+// owns the host half, calling the capability libraries --
+// `lib/exa/client`, `lib/board/store`, and `lib/wm` -- so results arrive
 // structured and untruncated. The child renders with `show`; nothing is
 // flattened here.
 //
-// Board subscriptions and acknowledgments have one owner: the board extension,
+// Board subscriptions and acknowledgments have one owner: the board host library,
 // reached via board:subscribe / board:seen. This adapter owns the session's worker
 // map and remembered wm-run; workers use lib/wm's shared poller.
 // The bridge retains this factory on kernel reset, replaces it on session change,
@@ -15,17 +15,17 @@ import { readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { ComputerUseBridge } from "./computer-use";
-import { contents as exaContents, search as exaSearch, type ExaContentsOptions, type ExaSearchOptions } from "../exa/client";
-import { parseTags } from "../board/query";
-import { meta as boardMeta, noteRead, read as readBoard, send as sendBoard, topics as boardTopics, type Message } from "../board/store";
+import { contents as exaContents, search as exaSearch, type ExaContentsOptions, type ExaSearchOptions } from "../../lib/exa/client";
+import { parseTags } from "../../lib/board/query";
+import { meta as boardMeta, noteRead, read as readBoard, send as sendBoard, topics as boardTopics, type Message } from "../../lib/board/store";
 import { AGENTS_DIR, MergeConflict, attach, merge, spawn, wait, workmuxStatus, type Outcome, type Worker } from "../../lib/wm";
 
 const REPORT_TAGS = "done | blocked | needs-input | checkpoint";
 const RUN_ENTRY = "wm-run";
 const SUBS_ENTRY = "board-subs";
 
-export type { ExaResponse } from "../exa/client";
-export type { Message, Numbered, TopicSummary } from "../board/store";
+export type { ExaResponse } from "../../lib/exa/client";
+export type { Message, Numbered, TopicSummary } from "../../lib/board/store";
 
 /** One call from the exec child, dispatched by namespace and method. */
 export interface ExecServiceRequest {
@@ -126,7 +126,7 @@ export function createExecServices(pi: ExtensionAPI, ctx: ExtensionContext, adap
 	}
 	const workers = new Map<string, Worker>();
 
-	/** This session's subscriptions, read from the same entry the board extension persists. */
+	/** This session's subscriptions, read from the same entry the board host library persists. */
 	function subscriptions(): Subscription[] {
 		let restored: Subscription[] | undefined;
 		for (const entry of ctx.sessionManager.getBranch()) {

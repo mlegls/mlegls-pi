@@ -377,7 +377,7 @@ async function initialize(message) {
 	modules = new Set(message.modules ?? DEFAULT_MODULES);
 	if (typeof stripTypeScriptTypes !== "function") throw new Error("exec requires Node >= 22.13 for TypeScript transpilation");
 	const [{ createSourceAPI }, { Ledger }] = await Promise.all([
-		import("./source.ts"), import("../outline-read/ledger.ts"),
+		import("./source.ts"), import("../../lib/outline-read/ledger.ts"),
 	]);
 	const ledger = new Ledger();
 	for (const entry of message.ledger) ledger.restore(entry);

@@ -1,17 +1,22 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import type { LedgerEntry } from "../outline-read/ledger";
+import type { LedgerEntry } from "../../lib/outline-read/ledger";
 import { Kernel } from "./kernel";
 import { createExecServices, type ExecServices } from "./services";
 import { createComputerUseBridge } from "./computer-use";
-import { MODULES, resolveModules, describeModules, type ExecModule } from "./modules";
+import { LIB_DIR, MODULES, resolveModules, describeModules, type ExecModule } from "./modules";
 import { renderCall, renderResult } from "./render";
 import { ingressContext } from "./ingress-context";
+import { createHostModuleLoader } from "./host";
 
 const ENTRY_TYPE = "outline-read";
 const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
 
 export default async function (pi: ExtensionAPI) {
+	const hostErrors = await createHostModuleLoader(pi)(LIB_DIR);
+	if (hostErrors.length) pi.on("session_start", (_event, ctx) => {
+		for (const failure of hostErrors) ctx.ui.notify(`Exec host module ${failure.path}: ${failure.error}`, "error");
+	});
 	pi.registerFlag("exec-modules", { type: "string", description: "Exec module allowlist: " + MODULES.join(",") + " (* = all, none = core only)" });
 	pi.registerFlag("exec-deny-modules", { type: "string", description: "Exec module denylist; overrides --exec-modules" });
 	let modules: ExecModule[] = [...MODULES];

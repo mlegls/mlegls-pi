@@ -5,13 +5,13 @@ import { readFile, stat } from "node:fs/promises";
 import { basename, isAbsolute, join, matchesGlob, relative, resolve } from "node:path";
 import { types } from "node:util";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import { formatRow } from "../outline-read/anchors";
-import { executeEdits, executeHunks, type Hunk } from "../outline-read/edit";
-import type { Ledger } from "../outline-read/ledger";
-import { markdownSource } from "../outline-read/outline/markdown";
-import { treeSitterSource } from "../outline-read/outline/treesitter";
-import { renderOutline } from "../outline-read/outline/render";
-import type { OutlineNode } from "../outline-read/outline/types";
+import { formatRow } from "../../lib/outline-read/anchors";
+import { executeEdits, executeHunks, type Hunk } from "../../lib/outline-read/edit";
+import type { Ledger } from "../../lib/outline-read/ledger";
+import { markdownSource } from "../../lib/outline-read/outline/markdown";
+import { treeSitterSource } from "../../lib/outline-read/outline/treesitter";
+import { renderOutline } from "../../lib/outline-read/outline/render";
+import type { OutlineNode } from "../../lib/outline-read/outline/types";
 import { createImageFile, detectImageMimeType, looksLikeImageFile, type ImageFile } from "./image";
 
 function sourceLines(raw: string): string[] {

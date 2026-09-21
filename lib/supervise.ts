@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as wm from "./wm";
 import { decide, type Questions, type Options, type State, type Decisions, type Ask } from "./decide";
-import { readAll, send as post, type Message } from "../extensions/board/store";
+import { readAll, send as post, type Message } from "./board/store";
 
 export interface Handle {
  handle: string;
