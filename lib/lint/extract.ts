@@ -6,7 +6,7 @@
 // tsconfig is loaded so property uses are counted across the whole repository, not one project.
 //
 // Kinds: catch (try statements), guard (if whose branch exits), expect (assertions in tests),
-// field (optional properties of exported types, with every same-named use in the repository).
+// field (optional properties, with every use of that property across the repository).
 // Guards that only narrow a discriminant or a possibly-undefined lookup are skipped: strict
 // types force those. A guard whose type predicate is already satisfied by its argument's
 // declared type is emitted as kind "static", as is an optional field nothing in the repository names.
@@ -29,6 +29,7 @@ export interface Span {
   subject?: string;
   test?: string;
   references?: string[];
+  sameName?: number;
   concepts?: string;
   reason?: string;
   predicate?: string;
@@ -73,25 +74,46 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
   const rel = (sf: TS.SourceFile) => relative(root, sf.fileName);
   const isProject = (sf: TS.SourceFile) => !sf.isDeclarationFile && !sf.fileName.includes("node_modules") && /\.tsx?$/.test(sf.fileName);
 
-  // Property uses across every program: name -> "file:line: text".
+  // Property uses across every program, keyed by the declaring property's position so
+  // same-named fields on unrelated types stay apart; unresolved uses fall back to the name.
   const propertyUses = new Map<string, string[]>();
-  for (const program of programs) for (const sf of program.getSourceFiles()) {
-    if (!isProject(sf)) continue;
-    const lines = sf.text.split("\n");
-    const visit = (n: TS.Node) => {
-      const name = ts.isPropertyAccessExpression(n) ? n.name
-        : ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n) || ts.isBindingElement(n) ? n.name
-        : ts.isStringLiteral(n) && n.parent && ts.isElementAccessExpression(n.parent) ? n : undefined;
-      if (name && (ts.isIdentifier(name) || ts.isStringLiteral(name))) {
+  const declKey = (s: TS.Symbol | undefined, name: string): string => {
+    const d = s?.declarations?.[0];
+    return d ? `${d.getSourceFile().fileName}:${d.pos}` : `name:${name}`;
+  };
+  for (const program of programs) {
+    const checker = program.getTypeChecker();
+    const propertyOf = (type: TS.Type | undefined, name: string): TS.Symbol | undefined => {
+      if (!type) return undefined;
+      if (type.isUnion()) for (const t of type.types) { const s = propertyOf(t, name); if (s) return s; }
+      return type.getProperty(name);
+    };
+    for (const sf of program.getSourceFiles()) {
+      if (!isProject(sf)) continue;
+      const lines = sf.text.split("\n");
+      const record = (n: TS.Node, name: string, symbol: TS.Symbol | undefined) => {
         const line = sf.getLineAndCharacterOfPosition(n.getStart(sf)).line;
         const entry = `${rel(sf)}:${line + 1}: ${lines[line]!.trim()}`;
-        const list = propertyUses.get(name.text) ?? [];
-        if (!list.includes(entry)) list.push(entry);
-        propertyUses.set(name.text, list);
-      }
-      ts.forEachChild(n, visit);
-    };
-    visit(sf);
+        for (const key of new Set([declKey(symbol, name), `name:${name}`])) {
+          const list = propertyUses.get(key) ?? [];
+          if (!list.includes(entry)) list.push(entry);
+          propertyUses.set(key, list);
+        }
+      };
+      const visit = (n: TS.Node) => {
+        if (ts.isPropertyAccessExpression(n)) record(n, n.name.text, checker.getSymbolAtLocation(n.name));
+        else if (ts.isJsxAttribute(n) && ts.isIdentifier(n.name)) record(n, n.name.text, checker.getSymbolAtLocation(n.name));
+        else if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && (ts.isIdentifier(n.name) || ts.isStringLiteral(n.name)))
+          record(n, n.name.text, propertyOf(checker.getContextualType(n.parent), n.name.text));
+        else if (ts.isBindingElement(n) && ts.isIdentifier(n.name) && ts.isObjectBindingPattern(n.parent)) {
+          const name = n.propertyName && ts.isIdentifier(n.propertyName) ? n.propertyName.text : n.name.text;
+          record(n, name, propertyOf(checker.getTypeAtLocation(n.parent), name));
+        } else if (ts.isStringLiteral(n) && n.parent && ts.isElementAccessExpression(n.parent))
+          record(n, n.text, propertyOf(checker.getTypeAtLocation(n.parent.expression), n.text));
+        ts.forEachChild(n, visit);
+      };
+      visit(sf);
+    }
   }
 
   for (const program of programs) {
@@ -150,6 +172,9 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
     };
     // Guards strict types force: discriminant checks and possibly-undefined lookups.
     const strictForced = (cond: TS.Expression): boolean => {
+      if (ts.isParenthesizedExpression(cond)) return strictForced(cond.expression);
+      if (ts.isBinaryExpression(cond) && (cond.operatorToken.kind === ts.SyntaxKind.BarBarToken || cond.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken))
+        return strictForced(cond.left) && strictForced(cond.right);
       const e = ts.isPrefixUnaryExpression(cond) && cond.operator === ts.SyntaxKind.ExclamationToken ? cond.operand : cond;
       if (ts.isBinaryExpression(e)) {
         const op = e.operatorToken.kind;
@@ -190,12 +215,18 @@ export function extract(root: string, tsconfigs: string[], only?: string[]): Spa
           text: node.getText(), enclosing: fn === sf ? "" : fn.getText(), callees: callees(fn), ...extra });
       };
       const visit = (n: TS.Node) => {
-        if (!isTest && ts.isPropertySignature(n) && n.questionToken && ts.isIdentifier(n.name) && !FRAMEWORK_PROPS.has(n.name.text) && (propertyUses.get(n.name.text)?.length ?? 0) <= 30) {
+        if (!isTest && ts.isPropertySignature(n) && n.questionToken && ts.isIdentifier(n.name) && !FRAMEWORK_PROPS.has(n.name.text) && (propertyUses.get(`${sf.fileName}:${n.pos}`)?.length ?? 0) <= 30) {
           const owner = n.parent;
           const ownerName = ts.isInterfaceDeclaration(owner) ? owner.name.text : ts.isTypeLiteralNode(owner) && ts.isTypeAliasDeclaration(owner.parent) ? owner.parent.name.text : "";
-          const references = propertyUses.get(n.name.text) ?? [];
+          const resolved = propertyUses.get(`${sf.fileName}:${n.pos}`) ?? [];
+          const others = (propertyUses.get(`name:${n.name.text}`) ?? []).filter((r) => !resolved.includes(r));
+          const sameName = others.length;
+          if (sameName > 60) { ts.forEachChild(n, visit); return; }
+          // Type operators (Pick, indexed access, intersections) hide the declaring symbol from some
+          // uses, so a sparsely resolved field also lists same-named uses, marked as such.
+          const references = resolved.length >= 3 ? resolved : [...resolved, ...others.slice(0, 15).map((r) => `${r}  (same name, other type)`)];
           spans.push({ kind: references.length ? "field" : "static", file: rel(sf), line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
-            text: `${ownerName}.${n.name.text}: ${n.getText()}`, enclosing: cap(owner.getText(), 3000), callees: [], references,
+            text: `${ownerName}.${n.name.text}: ${n.getText()}`, enclosing: cap(owner.getText(), 3000), callees: [], references, sameName,
             ...(references.length ? {} : { reason: "optional field never named anywhere in the repository" }) });
         } else if (!isTest && ts.isTryStatement(n)) push("catch", n);
         else if (!isTest && ts.isIfStatement(n) && exits(n.thenStatement) && !n.elseStatement) {

@@ -17,7 +17,7 @@ const questions: Record<Span["kind"], Record<string, Question>> = {
     just_in_case: { type: "noul", instructions: CONTEXT + "Is the try/catch in `span` there 'just in case' — would deleting it and letting the error propagate leave every reachable behavior a user or caller sees unchanged?" },
   },
   guard: {
-    excluded: { type: "noul", instructions: CONTEXT + "Does the guard in `span` test a condition that the declared types of the values involved (see `function` and `callees`) already make impossible?" },
+    excluded: { type: "noul", instructions: CONTEXT + "Does the guard in `span` test a condition that the declared types of the values involved (see `function` and `callees`) already make impossible? TypeScript types carry no ranges, formats, finiteness, lengths or uniqueness, so checks of those are never excluded by types; an undefined check on an indexed or looked-up value is forced by the compiler, not defensive." },
     revalidates: { type: "noul", instructions: CONTEXT + "Does the guard in `span` re-check something a callee or an earlier statement in `function` already established?" },
     just_in_case: { type: "noul", instructions: CONTEXT + "Is the guard in `span` there 'just in case' — protecting against a situation no caller produces — rather than producing an outcome the caller relies on?" },
   },
@@ -25,7 +25,7 @@ const questions: Record<Span["kind"], Record<string, Question>> = {
     beyond_type: { type: "noul", instructions: CONTEXT + "The guard in `span` calls a type predicate whose source is `predicate`, on an argument whose declared type is already `argument`. Does the predicate's body verify anything that type does not guarantee (a format, a range, finiteness, non-emptiness)?" },
   },
   field: {
-    inert: { type: "noul", instructions: CONTEXT + "`span` declares an optional field of the type in `type`; `references` lists every line in the program that names that property. Is the field inert — only validated, defaulted, copied, serialized or passed along, and never read to decide behavior, compute a result, or display something?" },
+    inert: { type: "noul", instructions: CONTEXT + "`span` declares an optional field of the type in `type`; `references` lists every line in the repository that uses that property (see `note` if present). Is the field inert — only validated, defaulted, copied, serialized or passed along, and never read to decide behavior, compute a result, or display something?" },
     speculative: { type: "noul", instructions: CONTEXT + "Judging from `references`, does the field in `span` exist for a consumer that does not yet exist — plumbing laid for a future feature rather than a present need?" },
   },
   expect: {
@@ -44,7 +44,7 @@ export function stateOf(span: Span): State {
   if (span.subject) s.subject = cap(span.subject, 6000);
   if (span.kind === "static") { s.predicate = span.predicate; s.argument = span.argument; }
   if (span.concepts) s.concepts = span.concepts;
-  if (span.kind === "field") { s.type = s.function; delete s.function; delete s.callees; s.references = span.references; }
+  if (span.kind === "field") { s.type = s.function; delete s.function; delete s.callees; s.references = span.references; if (span.sameName) s.note = `${span.sameName} other uses of a same-named property on unrelated types are not listed; values may still flow between them structurally.`; }
   return s as State;
 }
 

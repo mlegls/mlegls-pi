@@ -1,0 +1,27 @@
+# <file>:<line>\t<question>\t<1|0>\t<note>   — 1 = the smell the question names is present
+# Labeled by reading the span and its references during harness development; overwrite freely.
+packages/core/src/theory/theory.ts:13#rank	inert	1	rank is written by project.ts and read only by a test asserting it is undefined
+packages/web/src/ui/browse/me-layout.tsx:286	inert	1	cardOperations is destructured and passed on, nothing reads it
+packages/web/convex/lib/frictions.ts:16	inert	1	route is stored and never read in code (human readers of the table aside)
+packages/core/src/patch/model.ts:252	inert	0	attachedTags is merged into resolved tags in compile.ts
+packages/web/convex/lib/llm.ts:70	inert	0	providerOptions reaches the AI SDK call in turn.ts; consumer is external
+packages/web/src/ui/dialog.tsx:11	inert	0	container is forwarded to the Base UI portal; consumer is external
+packages/core/src/observations.ts:63	inert	0	successors is parsed and applied by deltas.ts
+packages/web/convex/hub.ts:200	inert	0	expectedTags drives theoryTags
+packages/web/src/ui/materials/review/review-card.tsx:32	inert	0	inspected changes rendering
+packages/web/convex/lib/hub_projection.ts:388	inert	0	published gates release selection
+packages/web/convex/lib/hub_projection.ts:59	inert	0	author is searched over
+packages/web/convex/lib/review_card.ts:29	inert	0	caption is displayed
+packages/core/src/observations.ts:148	beyond_type	1	ISO format check on a string
+packages/core/src/observations.ts:150	beyond_type	1	ISO format check on a string
+packages/web/convex/lib/revisions.ts:212	beyond_type	1	64 hex digits after sha256: is more than the template type says
+packages/web/convex/lib/program.ts:116	beyond_type	0	/^obs-.+/ vs obs-${string} differ only on an empty suffix
+packages/core/src/patch/metadata.ts:79	beyond_type	0	only Number.isFinite survives the MetadataValue type; the guard mostly re-checks the type
+packages/core/test/patch/release.test.ts:218	off_concept	1	semver precedence rules are nowhere in the Patch release note
+packages/core/test/patch/release.test.ts:221	off_concept	1	same
+packages/core/test/patch/release.test.ts:75	off_concept	0	the note says digest covers manifest order
+packages/core/test/patch/release.test.ts:86	off_concept	0	provenance per exact patch is the note's subject
+packages/web/src/ui/metadata-value.tsx:53	excluded	1	isFact already excludes null/non-object; the following clauses re-check it
+packages/core/src/theory/release.ts:24	excluded	0	match === undefined is forced by noUncheckedIndexedAccess; length check is real
+packages/web/convex/lib/notebook.ts:223	excluded	0	isSafeInteger overflow is not expressible in types
+packages/core/src/observations.ts:114	excluded	0	"standing" in observation is a runtime shape check on a generic payload
