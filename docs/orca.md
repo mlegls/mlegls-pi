@@ -84,6 +84,30 @@ Process **every** message in the returned batch. Reply to questions with `orca.r
 
 CLI failures throw `OrcaError` with the complete parsed envelope in `.receipt`, including residual resources and recovery commands. Unknown mutation outcomes are not retried. Long waits use a CLI timeout longer than the native wait; retain them with `notify` to avoid the exec cell deadline. Kernel reset can interrupt the CLI without undoing its mutation. Reinspect Orca; inbox batches remain durable until acknowledged.
 
+### stop_unknown recovery
+
+On Orca 1.4.206, stopping a caller-owned Pi terminal can return
+`state: stop_unknown`, `processAction: none`, and
+`lastError: "The worker terminal is external; no terminal was closed."`
+This is not successful cancellation. Native release then refuses settlement and
+misleadingly recommends stop again; a repeated stop can itself refuse. The local
+adapter adds recovery guidance to these errors and keeps the native `.receipt`
+unchanged.
+
+1. Inspect `workers.show(dispatch)`, `workers.read({dispatch})`, and run-scoped
+   `workers.list({run, includeRemote: true})`. Preserve the actual terminal identity
+   and execution host. Silence or an unavailable host is not exit evidence.
+2. With positive proof the agent stopped (not merely an idle PTY), explicitly
+   `workers.abandon({dispatch, reason: "<observed evidence>"})` to fence the attempt.
+   If liveness remains uncertain, retain the resources and investigate instead.
+3. Abandon performs no process action. After accepted settlement, handle release
+   and any caller-owned terminal cleanup separately, checking that the terminal
+   has no new owner. An uncertain release is not permission to close it.
+4. A replacement requires an explicit retry decision and the original Task and
+   `retryOf` lineage; never replay an accepted prompt on the strength of this error.
+
+This is an adapter recovery fix, not a change to native Orca ownership semantics.
+
 ## Pi model selection
 
 Orca 1.4.206 accepts `worker-start --agent pi`, but rejects Pi launch-time model/effort selection. `orca.startPi({spec, run?, from?, worktree?, model, effort, taskTitle?})` launches a Pi terminal with native Pi flags, then enrolls it with `worker-start --terminal`. It requires an exact existing workspace selector; create a workspace first for separate checkouts. Worktrees separate Git state, not filesystem permissions; they do not prevent writing the canonical checkout. It returns the native receipt plus `clientTerminal`. A failed enrollment preserves the terminal and reports it in the error receipt.

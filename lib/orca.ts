@@ -57,9 +57,16 @@ const argv = (options: Flags) => Object.entries(options).flatMap(([key, value]) 
   return value === true ? [flag] : [flag, typeof value === "object" ? JSON.stringify(value) : String(value)];
 });
 /** Receipts are returned intact; no retry, acknowledgement, or lifecycle inference. */
-const operation = <T = Receipt>(verb: string, options: Flags = {}) => {
+const operation = async <T = Receipt>(verb: string, options: Flags = {}) => {
   const { cwd, timeoutMs } = options as { cwd?: string; timeoutMs?: number };
-  return call<T>(["orchestration", verb, ...argv(options)], cwd, timeoutMs === undefined ? 60_000 : timeoutMs + 30_000);
+  try {
+    return await call<T>(["orchestration", verb, ...argv(options)], cwd, timeoutMs === undefined ? 60_000 : timeoutMs + 30_000);
+  } catch (error) {
+    const native = error instanceof OrcaError ? (error.receipt as { error?: { code?: string; message?: string } })?.error : undefined;
+    if ((verb === "worker-release" || verb === "worker-stop") && native?.code === "dispatch_inactive" && /\bstop_unknown\b/.test(native.message ?? ""))
+      (error as OrcaError).message += " Recovery: stop_unknown is not settlement. Do not repeat stop/release blindly. Inspect workers.show/read and the execution-host liveness; a caller-owned terminal may still be live. With positive evidence the agent stopped, explicitly workers.abandon({dispatch, reason}) to fence the attempt. Abandon does not kill its terminal. See docs/orca.md#stop_unknown-recovery.";
+    throw error;
+  }
 };
 
 export const runs = {
