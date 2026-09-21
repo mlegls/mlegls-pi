@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for ambiguous tasks.
-runCommand: pi --model xai/grok-4.6:high --tools exec,ls
+runCommand: pi --model zai/glm-5.3-flash:high --tools exec,ls
 ---
 
 start with `realize`.

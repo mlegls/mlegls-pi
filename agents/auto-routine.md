@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for straightforward tasks.
-runCommand: pi --model openrouter/~deepseek/deepseek-flash-latest:high --tools exec,ls
+runCommand: pi --model openai-codex/gpt-5.6-luna:high --tools exec,ls
 ---
 
 start with `realize`.
