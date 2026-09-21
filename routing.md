@@ -1,7 +1,3 @@
-# Routing policy
-
-The single policy source for `lib/route.ts`, read at call time. Edit this file to change routing; no Obsidian notes are loaded. Prices and model opinions below are personal guidance, not capability guarantees.
-
 ## Selection
 
 Choose the least costly model and effort that clearly suffice for the workflow and task. Consider openness, subjectivity, scope, novelty, and technical difficulty together, rather than as an ordered decision tree. Vision, durable/user-facing prose, and domain-specific limitations can rule out otherwise attractive models. Follow the model characteristics and effort guidance below.
@@ -12,11 +8,11 @@ Subscription use is not the same as list-price spending. Prefer using available 
 - Aim to use the OpenAI and Grok weekly allowances, while allowing for interactive OpenAI use, especially astra.
 - Metered providers are overflow when appropriate.
 
-Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). For example, 40% weekly usage against a 50% ceiling is 0.8. Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance. This first version does not fetch usage or reserve capacity.
+Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). For example, 40% weekly usage against a 50% ceiling is 0.8. Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance.
 
 ## Assignment stances
 
-These bullets are machine-read choice criteria. A recorded stance takes precedence; classification interprets supplied evidence and cannot create closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them.
+Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them.
 
 - `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
 - `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
@@ -31,11 +27,11 @@ These bullets are machine-read choice criteria. A recorded stance takes preceden
 
 ## Continuation actions
 
-These bullets are machine-read choice criteria. Judge at a meaningful checkpoint or exception, not every turn. Relevant warm context has future value; spent tokens are sunk cost. Compare remaining cost to accepted completion, including cached/uncached input, handoff preparation, rediscovery, verification, and repair. Use observed cache telemetry where available; unknown cache hits, expiry, or quota are not free capacity. A provider at its routing ceiling is unavailable for continued metered work under that policy.
+Relevant warm context has future value; spent tokens are sunk cost. Compare remaining cost to accepted completion, including cached/uncached input, handoff preparation, rediscovery, verification, and repair. Use observed cache telemetry where available; unknown cache hits, expiry, or quota are not free capacity. A provider at its routing ceiling is unavailable for continued metered work under that policy.
 
 - `continue`: The current session can finish within its authority and its relevant context is worth retaining. Keep its model; routine continuation needs no fresh admission decision.
-- `consult`: A bounded decision or specialist investigation can unblock the current session. Start a separate expert session with a small evidence packet, return the decision, then resume the warm session.
-- `replace`: The current approach, capability, or accumulated context is no longer useful enough. Prepare an updated ticket and compacted/OM-backed handoff, route a fresh session, and retire the old session after preserving its work.
+- `consult`: A bounded decision or specialist investigation can unblock the current session. A small evidence packet suffices for a separate expert session, after which the warm session can resume.
+- `replace`: The current approach, capability, or accumulated context is no longer useful enough. A fresh session from an updated ticket and compacted/OM-backed handoff is preferable to retaining the current session.
 
 ## Session economics
 
@@ -43,7 +39,7 @@ Route model/effort at fresh-session boundaries. Escalation normally creates a co
 
 Evaluate delegated workers by accepted completion, total workstream cost and wall time, parent repair, and escalation/handoff loss. Compare strong-from-start against cheap-then-consult/replace. The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design. Complex triage goes to a fresh session-triage assignment.
 
-Model characteristics and catalog below own the task-specific Pareto frontier and capability spikes. Distinguish visual perception, GUI grounding, interactive computer use, and visual judgment; also consider tool/harness compatibility, data-use permissions, effort-specific evidence, and subscription availability. An aggregate benchmark rank or token price alone is not an admission rule. Record observed workflow costs and evidence provenance here as they become available.
+Distinguish visual perception, GUI grounding, interactive computer use, and visual judgment; also consider tool/harness compatibility, data-use permissions, effort-specific evidence, and subscription availability. An aggregate benchmark rank or token price alone is not an admission rule.
 
 ## Session roles
 
@@ -62,22 +58,9 @@ Model characteristics and catalog below own the task-specific Pareto frontier an
 - grok 4.6 (`xai/grok-4.6`; efforts low/high): lower raw intelligence than fable 5/sol 5.6, but very "straightforward". similar in this to astra 6. will take the direct approach to a problem, and better at code deletion than anthropic or openai models except fable 5.1/astra. i think the alignment training approaches used by openai and anthropic probably led to some neuroses about privacy/safety/security/testing etc via connotative transfer; one of grok's greatest strengths is not being so attracted to "gates"/"guards"/"checks" etc, or generally defensiveness/"enterprise"ness
 
 ## catalog (2026-09-20 list prices, $/MTok in/out; cache-read in parens)
-notation: each bullet names its pi model id(s) in backticks as `provider/model` and its effort set; the router's candidates are exactly those pairs. ids from `pi --list-models`.
 - fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): 10/50 (0.25). effort: low for top level orchestration of something already specified, or rewriting/simplifying existing functionality. medium for knotty open questions
 - gpt astra 6 (`openai-codex/gpt-6-astra`, overflow `openai/gpt-6-astra`; efforts low/medium/high): 10/50 (1). effort: almost never above low, except frontier math or similarly technical problems.
 - opus 5 (`anthropic/claude-opus-5`), sonnet 5 (`anthropic/claude-sonnet-5`); efforts low/medium/high. opus: 5/25 (0.5). sonnet 5: 2/10 (0.2). effort: fairly linear with task difficulty
 - gpt 5.6 sol (`openai-codex/gpt-5.6-sol`), terra (`openai-codex/gpt-5.6-terra`), luna (`openai-codex/gpt-5.6-luna`); overflow under `openai/`; efforts low/medium/high. sol: 4/20 (0.4) — rarely worth it over astra. terra: 2/12 (0.2). luna: 0.2/1.2 (0.02). effort: fairly linear with task difficulty
 - deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003). effort: fairly linear with task difficulty; thinks very long with high though
 - grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5). effort: fairly linear with task difficulty
-
-## Calling
-
-`await route.prepare(taskWithContext, { stance?, policyPath?, usage? })` admits a **fresh** assignment. Include the issue contract, dependencies/ownership, relevant evidence, capability needs, and handoff/context facts. Supply `stance` when already recorded; otherwise Jev selects from Assignment stances. Returns `kind: "ready"`, `agent`, `stance`, `judgment`, and the model selection fields below. A `kind: "triage"` result has no worker agent: use the selected model for a new decision session, not the original implementation assignment. `judgment` is null for a recorded stance.
-
-`await route.continuation(context, { policyPath?, usage? })` returns `action`, `p`, `dist`, and `policyPath`. Supply current model/effort, assignment, latest report, remaining work, context relevance, and available cache/handoff evidence. It only advises continue/consult/replace: it never switches models, compacts, launches, or closes sessions. For consult/replace, prepare the actual handoff and admit it with `prepare`; do not route the old full transcript again.
-
-`await route.route(workflow, task, { policyPath, usage })` in exec; both options are optional. `usage` is a provider-keyed map of normalized fractions or null. The default policy path is this package’s root `routing.md`, independent of the current directory.
-
-Returns `model`, `effort`, winning probability `p`, and `dist` keyed by `provider/model@effort`, plus `policyPath` and the supplied usage snapshot. Probabilities compare alternatives, not overall correctness; no uncalibrated confidence gate is imposed.
-
-CLI: `bun lib/route.ts <workflow> <task text> [policy-path]`.
