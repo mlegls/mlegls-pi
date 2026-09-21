@@ -10,7 +10,7 @@ Establish new intent in the project: find related work, distinguish what is agre
 
 Where are things at, and what is worth doing next? Orient within the requested subtree, or the current project tracker when no scope is given. Identify ongoing scopes and their live supervisors where observable, what has landed and been verified, what remains, ready work without an owner, and questions needing the user ranked by priority and transitive unblocks. Distinguish recorded state, observed contradictions, and unknowns; claims alone do not prove a session is alive.
 
-Recommend resuming or starting a supervisor, shaping an issue, or introducing new intent. Return an overview and a recommended next entry, not an implementation assignment. Preserve the conversation's purpose: a discussion of workflow problems is not authorization to execute a nearby ticket. Missing, unreadable, blocked and completed trackers are different states.
+Recommend resuming or starting a supervisor, shaping an issue, or introducing new intent. Return an overview and a recommended next entry, not an implementation assignment. Ready implementation belongs to a supervisor, even for a single ticket; direct implementation in the interactive session is an explicit user choice. Preserve the conversation's purpose: a discussion of workflow problems is not authorization to execute a nearby ticket. Missing, unreadable, blocked and completed trackers are different states.
 
 ## Shape
 

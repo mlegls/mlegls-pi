@@ -36,7 +36,8 @@ export async function run(mode: "introduce" | "orient", request: string, options
     "acceptance, existing decisions and contradictions. Distinguish recorded facts, observations and unknowns. " +
     "For introduce, locate related work and identify what must be established to record the idea. " +
     "For orient, locate active scopes and known supervisors, report overall progress and rank the user's next opportunities by leverage. " +
-    "Recommend an entry point, not a local implementation assignment. Explain absent, unreadable, exhausted or blocked scope.",
+    "Recommend orient/introduce/shape/supervise as appropriate; ready implementation goes to supervision even for one ticket. " +
+    "Direct interactive implementation requires an explicit user choice. Explain absent, unreadable, exhausted or blocked scope.",
     "Return a self-contained Markdown briefing with source references. Stop when scope, frontier, constraints and entry points " +
     "are established or their absence explained. Leave substantive research, audit and design to the session that owns them. " +
     "Preparation does not authorize executing a recommendation.",
