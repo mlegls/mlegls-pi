@@ -132,6 +132,11 @@ export async function startPi(options: Context & {
   const tab = await terminal("PI_ORCA_START_EVIDENCE=" + quote(evidencePath) + " PI_ORCA_START_TOKEN=" + quote(token) + " " + piCommand(["--model", model, "--thinking", effort === "none" ? "off" : effort]),
     options.taskTitle ?? "Pi worker", options.cwd, target);
   try {
+    const timeoutMs = options.timeoutMs ?? 60_000;
+    const readiness = await call<{ wait: { satisfied: boolean } }>([
+      "terminal", "wait", "--terminal", tab.handle, "--for", "tui-idle", "--timeout-ms", String(timeoutMs),
+    ], options.cwd, timeoutMs + 30_000);
+    if (!readiness.wait?.satisfied) throw new OrcaError("Pi readiness not observed; assignment not submitted", readiness);
     const receipt = { ...await workers.start({ ...start, worktree: target, terminal: tab.handle }), clientTerminal: tab };
     receipt.startConfirmation.evidencePath = evidencePath;
     receipt.startConfirmation = await confirmStart(receipt, startWaitMs);

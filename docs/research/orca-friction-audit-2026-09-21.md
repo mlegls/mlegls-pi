@@ -37,3 +37,16 @@ Creating a separate Run with --from another terminal was refused because this pr
 ## Next work
 
 Fix the adapter's Pi-ready/enrollment sequencing without replaying ambiguous starts. Clarify native versus local observation and terminal handle spaces. Upstream: standalone prompt observation and Pi launch preferences; decide whether canonical-checkout write protection is a desired product boundary. Investigate old capability injection and waiter conflicts only with the original Dispatch/version or a stronger reproduction.
+
+## Local fix verification
+
+The adapter now waits for native terminal tui-idle readiness before its single enrollment attempt. Only wait.satisfied:true permits submission; timeout/error/missing readiness retains the exact terminal and recovery envelope without submitting or retrying. timeoutMs bounds readiness as well as enrollment; startWaitMs still bounds correlated turn-start observation.
+
+Live verification on 2026-09-21 (Run run_cf2acc5513be):
+
+- workers.submit with deepseek/deepseek-chat/off returned Dispatch ctx_9a3608e262df and startConfirmation.status:started. Worker task_4e2142a90328 then sent accepted worker_done succeeded (msg_0c8bd56258fd). Release reported external_terminal; the caller-owned terminal was closed, completion acknowledged, and no reclaimable workers remained.
+- A controlled non-agent launcher (PI_ORCA_COMMAND set to sleep 60 with remaining arguments commented out) and timeoutMs:1000 returned native timeout before enrollment. The retained terminal was inspected and closed; Task enumeration contained only the successful smoke Task, proving no timeout-fixture assignment was submitted. This exercises a timeout error, not a successful wait receipt with satisfied:false.
+- Original coordinator Run restored. TypeScript check passed; full existing suite with BB_THREAD_ID unset: 201 passed, 1 skipped, 0 failed.
+- docs/orca.md now distinguishes native readiness, correlated turn-start observation, terminal handle spaces, live versus reconstructed preambles, and checkout separation versus filesystem isolation.
+
+The native passive-observation and Pi launch-preference gaps remain upstream; no native Orca behavior was changed. No sandbox was added.
