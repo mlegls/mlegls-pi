@@ -45,8 +45,6 @@ function subKey(s: Subscription): string {
 }
 
 export function install(pi: ExtensionAPI) {
-	// Inside a bb thread, cross-session messaging is bb's (thread tell/wait, parent wake): leave the board inert.
-	if (process.env.BB_THREAD_ID) return;
 	let subs: Subscription[] = [];
 	let cursor = 0; // byte offset into the log
 	let context: ExtensionContext | undefined;

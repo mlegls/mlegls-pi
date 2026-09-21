@@ -87,11 +87,11 @@ export async function run(mode: "introduce" | "advance", request: string, option
     },
   }, { signal });
   if (briefing.choice !== "usable") throw Object.assign(new Error("prepare: reader did not return an orientation briefing; inspect " +
-    (overview.threadId ? "@thread:" + overview.threadId : overview.sessionFile)), { briefing, reader: overview });
+    (overview.terminalHandle ? "Orca terminal " + overview.terminalHandle : overview.sessionFile)), { briefing, reader: overview });
   const audit: Prepared["audit"] = { mode, request, briefing, difficulty, reads: [overview], warnings: [] };
   // Fork the broad reader to reuse its evidence, not the parent to repeat orientation.
   const followup = (prompt: string, model: Workflow, submission?: ReadOptions["submission"]) => autoread(prompt, {
-    ...readOptions, ...model, sessionFile: overview.sessionFile, sourceThreadId: overview.threadId, compact: false, submission,
+    ...readOptions, ...model, sessionFile: overview.sessionFile, compact: false, submission,
   });
 
   const triage = async (): Promise<Prepared> => {

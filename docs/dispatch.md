@@ -2,30 +2,31 @@
 
 The supervisor follows the issue graph and coordinates ready streams; complex triage returns to a separate decision session. `realize` carries that workflow: autoread → recorded plan → assignment admission → dispatch → integration. Dispatch itself only launches prepared assignments. Work shape, model/effort, capability tradeoffs, and session-continuity policy live in `routing.md`.
 
-`lib/dispatch.ts` selects BB when `BB_THREAD_ID` is set, otherwise workmux. In exec (after `/exec-reset`):
+`lib/dispatch.ts` selects Orca when `ORCA_WORKTREE_ID` or `ORCA_WORKSPACE_ID` is set, otherwise workmux. In exec (after `/exec-reset`):
 
 ```ts
 const task = "Implement the agreed change. Context: … Interfaces/ownership: … Done: …";
 const execution = await route.prepare(task); // pass { stance: "fill" } for a recorded closed unit
 if (execution.kind === "triage") throw new Error("Prepare a decision-session handoff before launching");
+await board.subscribe({ topic: "feature-x/*", tags: "done | blocked | needs-input", wake: true });
 state.launch = notify(dispatch.dispatch([
   { handle: "unit-a", prompt: task, ...execution },
-], { run: "feature-x" }), "dispatch"); // BB
+], { run: "feature-x", maxConcurrent: 3, active: [] }), "dispatch");
 ```
 
 In a later cell: `state.wave = await state.launch; await show(state.wave);`
 
-Outside BB, options must include `{ run, maxConcurrent: 3, active: [] }`. For later waves, supply **all outstanding workmux handles** supervised by this parent in `active`. Retire them from that list after integrating/closing them. Dispatch admits at most `maxConcurrent - active.length` assignments; excess stays `pending`. Serialize submissions from one parent. This is a parent-scoped budget, not a host-wide lock against other parents or direct workmux calls. The installed workmux `--max-concurrent` counts only windows from a single invocation, so it cannot enforce separately prompted waves.
+On either backend, options must include `{ run, maxConcurrent: 3, active: [] }`. For later waves, supply **all outstanding handles from the selected backend** supervised by this parent in `active`. Retire them from that list after integrating/closing them. Dispatch admits at most `maxConcurrent - active.length` assignments; excess stays `pending`. Serialize submissions from one parent. This is a parent-scoped budget, not a host-wide lock against other parents or direct workmux calls. The installed workmux `--max-concurrent` counts only windows from a single invocation, so it cannot enforce separately prompted waves.
 
-BB uses its configured global/host limits, including its native queue; dispatch never changes those settings. Omit `maxConcurrent` and `active` there. Model IDs and reasoning levels must be valid for BB's Pi provider. Each BB worker is a child thread in a fresh worktree on its parent's host/project.
+Orca workers are Pi terminals in nested worktrees under the calling checkout. Setup hooks run before launch; failures retain resources for inspection. Model/effort are Pi CLI arguments. Orca does not own the coordination protocol: the board does.
 
 ## Assignments and receipts
 
-Each assignment has `handle`, self-contained `prompt`, `model` (provider/model), `effort`, optional `agent` (roster stance), and optional `base` (exact Git ref). Agent bodies are included on both backends. Agent files have no launch commands. Optional single-line `routingRecommendation` frontmatter is free text passed to the model/effort router for the chosen stance; it is advisory under the routing policy and provider ceilings, not an execution override. Direct workmux calls likewise require `model` and `effort` (or an explicit `command` for custom processes); `agent` names a stance only. Workmux launches Pi with exec/ls and the supplied model/effort. BB receives the same selection through its provider flags. Set `base` explicitly when the worker must start at a particular commit; omission uses the backend's default, not uncommitted parent changes.
+Each assignment has `handle`, self-contained `prompt`, `model` (provider/model), `effort`, optional `agent` (roster stance), and optional `base` (exact Git ref). Agent bodies are included on both backends. Agent files have no launch commands. Optional single-line `routingRecommendation` frontmatter is free text passed to the model/effort router for the chosen stance; it is advisory under the routing policy and provider ceilings, not an execution override. Direct workmux calls likewise require `model` and `effort` (or an explicit `command` for custom processes); `agent` names a stance only. Workmux launches Pi with exec/ls and the supplied model/effort. Orca launches Pi with the same selection. Set `base` explicitly when the worker must start at a particular commit; omission uses the backend's default, not uncommitted parent changes.
 
 Returns:
 
-- `launched`: BB `{ backend, handle, id, environmentId, status }`, or workmux `{ backend, handle, worker }` retaining the native Worker object.
+- `launched`: Orca `{ backend: "orca", handle, terminal, worktreeId, path }`, or workmux `{ backend, handle, worker }` retaining the native Worker object.
 - `failed`: the first attempted assignment that failed and its error. Earlier launches remain alive. A backend failure or interrupted call can leave resources behind; inspect before retrying.
 - `pending`: assignments never attempted, because capacity ran out or an earlier launch failed. The parent decides when to submit them.
 
@@ -33,7 +34,7 @@ Invalid assignments fail before launch. There are no implicit retries, model dec
 
 ## Supervision
 
-BB wakes the parent when a child idles. Use `bb thread wait/output/tell/show` with the returned ID; inspect and merge its changes, then archive it.
+Subscribe to the run’s board topics before dispatch for wake notifications. Orca workers subscribe to their own topic via `PI_BOARD_TOPIC`; send follow-ups there. Inspect with `orca terminal read --terminal <terminal> --json`; focus with `orca terminal switch --terminal <terminal>`. Review/merge with Git or Orca, then remove the worktree through Orca. No terminal-idle event is treated as proof of completed work.
 
 Workmux returns native library Workers: `worker.next()`, `worker.send(text)`, `worker.close()`, and `merge(worker)` from `lib/wm.ts`. Use `notify(worker.next(), label)` in exec for a report notification. These are library workers, not the exec host's `wm` handle registry; dispatch does not install board wake subscriptions. Await/notify their events, or explicitly subscribe through `board`.
 

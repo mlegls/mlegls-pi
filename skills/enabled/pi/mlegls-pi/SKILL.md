@@ -15,4 +15,4 @@ host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is e
 
 ## hosts
 
-under bb (`BB_THREAD_ID` set), exec's `board` and `wm` modules are off by default and the board host installer is inert; bb's thread commands replace them (see the multi-agent skill). `--exec-modules board,wm` re-enables them there.
+inside Orca, exec keeps `board` and defaults `wm` off; `dispatch.dispatch` launches Orca workers. `/fork-tab [title]` opens the current conversation in another tab. See `docs/orca.md`.

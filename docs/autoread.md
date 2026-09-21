@@ -18,23 +18,21 @@ Poll returns `pending`, `ready` with `value`, or `failed` with the original `err
 
 Model and effort defaults live in [`workflows.json`](../workflows.json), under `autoread`. They are read on every call through `config.workflow("autoread")`, so config edits need no reload. The default is OpenRouter’s rolling DeepSeek Flash Latest alias (`openrouter/~deepseek/deepseek-flash-latest`), effort `low`. Per-call `{ model, effort }` overrides remain available. This config selects the reader; native compaction still uses the inherited parent model.
 
-Returns `{ text, sessionFile, model, threadId?, submission? }`. `text` is only the reader’s final answer; `sessionFile` retains its evidence and lineage for inspection. Inside BB, `threadId` links to the visible reader.
+Returns `{ text, sessionFile, model, terminalHandle?, submission? }`. `text` is only the reader’s final answer; `sessionFile` retains its evidence and lineage for inspection. Inside Orca, `terminalHandle` identifies the visible reader.
 
-## Inside BB
+## Inside Orca
 
-When `BB_THREAD_ID` is set, readers are visible Pi child threads, forked from the current thread in the same environment. BB owns their model execution, transcript, and runtime. They are lifecycle-owned by the parent (archive/delete follows it); completion, timeout, and abort stop the runtime without hiding the transcript. Failures include the child thread reference. BB concurrency/provisioning waits count toward the reader timeout.
+When `ORCA_WORKTREE_ID` or `ORCA_WORKSPACE_ID` is set, readers run as Pi TUI terminals in the calling checkout’s Orca workspace. They fork the persisted source session, compact using its inherited model, then switch to the reader model/effort and submit the request. Follow-ups use `{ sessionFile: briefing.sessionFile, compact: false }`.
 
-Follow-up readers pass `{ sourceThreadId: briefing.threadId, sessionFile: briefing.sessionFile, compact: false }`; preparation does this automatically. Their source is the broad reader, but their visible parent remains the calling thread. The source must be a Pi thread on this host. Only completed source turns are inherited by BB forks.
+Readers load only exec, observational memory (unless disabled), and the reader host/optional submission extension. The reader profile removes editing, shell, skill execution, UI, terminals, coordination, and automatic library/project modules. This is not an OS sandbox.
 
-The package’s `lib/autoread/host.ts` entrypoint restricts active tools to reader-profile exec, installed recall, and the requested submission tool. It also blocks other tool calls. Exec supplies read/find/grep, retained source/selection helpers, state/show, and Exa; no editing, shell, skill execution, UI, terminal, coordination, or automatic library/project modules. Module restrictions are not an OS sandbox. Unlike the private backend, BB loads normal Pi extensions/skills as trusted host code. BB compaction uses the inherited model and installed memory extension before the reader model is selected.
+The host returns typed submission details through an atomic same-host result file under `$PI_CODING_AGENT_DIR/autoread/<readerId>/` (default `~/.pi/agent/autoread/`). Configuration and results contain session data and remain for inspection. Completion, timeout, and abort stop the PTY; sessions remain resumable from their files. Orca may retain an orphan transcript, but the returned terminal handle can become stale after closure and is diagnostic, not a durable session identity. There is no Orca-native parent/child conversation lineage or cascading ownership.
 
-The host writes the structured result atomically under `$PI_CODING_AGENT_DIR/autoread/<threadId>/` (default `~/.pi/agent/autoread/`). Config, request, and result files stay there for inspection/resume; these contain session data. The result carries native submission details, never parsed model prose. The parent polls it and BB status.
-
-Use `{ backend: "pi" }` to explicitly request the original private subprocess, including for `cliPath` or `memoryExtension` overrides. BB mode rejects those overrides rather than silently ignoring them. Outside BB, the private backend remains the default. After updating this package, `/exec-reset` loads the new backend into an existing parent kernel; new child runtimes load the host entrypoint automatically.
+Use `{ backend: "pi" }` for a private subprocess instead. Both backends accept `cliPath` and `memoryExtension` overrides. Orca mode requires a locally accessible CLI, source session, and workspace; cross-host reader execution is not supported.
 
 ## Private Pi backend
 
-Outside BB (or with `backend: "pi"`), import `run` from `lib/autoread.ts` and supply `sessionFile` explicitly when not in exec. It never guesses the newest session.
+Outside Orca (or with `backend: "pi"`), import `run` from `lib/autoread.ts` and supply `sessionFile` explicitly when not in exec. It never guesses the newest session.
 
 The reader forks the persisted parent through pi RPC, compacts the child, switches to the configured model/effort, then investigates. Small/already-compacted sessions retain their existing context. The parent model, memory, transcript, and files are not changed. The system stance and current request both identify the child explicitly: inherited messages are evidence, not the child’s running exec state or pending work.
 

@@ -5,14 +5,13 @@ import { delimiter, join, resolve } from "node:path";
 import { RpcClient } from "@earendil-works/pi-coding-agent";
 import { fileURLToPath } from "node:url";
 import { workflow } from "./config.ts";
-import { run as bbRead } from "./autoread/bb.ts";
+import { run as orcaRead } from "./autoread/orca.ts";
+import { inOrca } from "./orca.ts";
 import { readerRequest } from "./autoread/protocol.ts";
 
 export interface Options {
-  /** BB is automatic inside BB; pi explicitly opts into a private local reader. */
-  backend?: "bb" | "pi";
-  /** BB source for a follow-up reader; defaults to the current thread. */
-  sourceThreadId?: string;
+  /** Orca is automatic in its workspaces; pi opts into a private local reader. */
+  backend?: "orca" | "pi";
   /** Defaults to exec's current persisted session. Required; never guesses the newest session. */
   sessionFile?: string;
   cwd?: string;
@@ -34,7 +33,7 @@ export interface Briefing {
   text: string;
   sessionFile: string;
   model: string;
-  threadId?: string;
+  terminalHandle?: string;
   submission?: unknown;
 }
 
@@ -70,8 +69,8 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647)
     throw new Error("autoread: timeoutMs must be a positive timer-sized integer");
   options.signal?.throwIfAborted();
-  if (options.backend === "bb" || (options.backend !== "pi" && process.env.BB_THREAD_ID)) {
-    return bbRead(request, options, model, effort, stance + (options.submission ? " Deliver the requested result through " + options.submission.tool + " as your final action." : ""), timeoutMs);
+  if (options.backend === "orca" || (options.backend !== "pi" && inOrca())) {
+    return orcaRead(request, options, model, effort, stance + (options.submission ? " Deliver the requested result through " + options.submission.tool + " as your final action." : ""), timeoutMs);
   }
   const parent = options.sessionFile ?? process.env.PI_SESSION_FILE;
   if (!parent) throw new Error("autoread: sessionFile required (reload exec to inherit the current session)");
@@ -87,7 +86,7 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   const client = new RpcClient({
     cliPath: options.cliPath ?? cli(), cwd,
     // Do not impersonate the parent in host/board integrations.
-    env: { BB_THREAD_ID: "", PI_EXEC_PROFILE: "reader", PI_SESSION_FILE: "", PI_SESSION_ID: "", PI_BOARD_NAME: "", PI_BOARD_TOPIC: "" },
+    env: { PI_AUTOREAD_ID: "", ORCA_WORKTREE_ID: "", ORCA_WORKSPACE_ID: "", ORCA_TERMINAL_HANDLE: "", PI_EXEC_PROFILE: "reader", PI_SESSION_FILE: "", PI_SESSION_ID: "", PI_BOARD_NAME: "", PI_BOARD_TOPIC: "" },
     args: ["--fork", sessionFile, "--no-extensions", "--no-skills", "--no-prompt-templates",
       "--extension", fileURLToPath(new URL("../extensions/exec/index.ts", import.meta.url)),
       ...(memory ? ["--extension", memory] : []),

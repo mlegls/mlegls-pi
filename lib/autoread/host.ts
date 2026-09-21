@@ -1,12 +1,12 @@
 import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { createJiti } from "jiti";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { readerFiles, type ReaderConfig, type ReaderResult } from "./protocol.ts";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { readerFiles, readerRequest, type ReaderConfig, type ReaderResult } from "./protocol.ts";
 
-/** Only BB-managed readers have a config; ordinary parent sessions are untouched. */
+/** Explicitly configured visible readers only; ordinary sessions are untouched. */
 export default async function (pi: ExtensionAPI) {
-  const id = process.env.BB_THREAD_ID;
-  if (!id) return;
+  const id = process.env.PI_AUTOREAD_ID;
+  if (typeof id !== "string" || !id) return;
   const files = readerFiles(id);
   if (!existsSync(files.config)) return;
   const config: ReaderConfig = JSON.parse(readFileSync(files.config, "utf8"));
@@ -25,7 +25,43 @@ export default async function (pi: ExtensionAPI) {
   }
   let submission: unknown;
   let result: ReaderResult | undefined;
-  pi.on("session_start", () => { pi.setActiveTools(allowed); });
+  const persist = (value: ReaderResult) => {
+    writeFileSync(files.result + ".tmp", JSON.stringify(value), { mode: 0o600 });
+    renameSync(files.result + ".tmp", files.result);
+  };
+  let started = false;
+  let startup: ReturnType<typeof setTimeout> | undefined;
+  async function start(ctx: ExtensionContext) {
+    try {
+      if (setupError) throw new Error(setupError);
+      if (config.compact !== false) {
+        try {
+          await new Promise<void>((resolve, reject) => ctx.compact({
+            customInstructions: "Preserve context relevant to: " + config.request,
+            onComplete: () => resolve(), onError: reject,
+          }));
+        } catch (error) {
+          if (!/Nothing to compact \(session too small\)|Already compacted/.test(String(error))) throw error;
+        }
+      }
+      const slash = config.model!.indexOf("/");
+      const model = ctx.modelRegistry.find(config.model!.slice(0, slash), config.model!.slice(slash + 1));
+      if (!model || !await pi.setModel(model)) throw new Error("Reader model unavailable: " + config.model);
+      pi.setThinkingLevel(config.effort as Parameters<typeof pi.setThinkingLevel>[0]);
+      pi.sendUserMessage(readerRequest(config.request!));
+    } catch (error) {
+      persist({ text: "", sessionFile: ctx.sessionManager.getSessionFile() ?? "", error: String(error) });
+    }
+  }
+  pi.on("session_start", (_event, ctx) => {
+    pi.setActiveTools(allowed);
+    if (started || existsSync(files.result) || !config.request) return;
+    started = true;
+    pi.setSessionName("autoread: " + config.request.split("\n")[0].slice(0, 90));
+    // Let session initialization finish before compaction or prompt submission.
+    startup = setTimeout(() => { void start(ctx); }, 0);
+  });
+  pi.on("session_shutdown", () => { clearTimeout(startup); });
   pi.on("before_agent_start", () => {
     submission = undefined;
     result = undefined;
@@ -50,7 +86,6 @@ export default async function (pi: ExtensionAPI) {
   });
   pi.on("agent_settled", () => {
     if (!result) return;
-    writeFileSync(files.result + ".tmp", JSON.stringify(result), { mode: 0o600 });
-    renameSync(files.result + ".tmp", files.result);
+    persist(result);
   });
 }

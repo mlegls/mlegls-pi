@@ -19,7 +19,7 @@ mesh: any sessions, including two interactive ones you're running, `board.subscr
 
 after handling fetched reports, `await board.ack(ids)`.
 
-inside bb (`BB_THREAD_ID` set): `wm` and `board` are absent and bb's thread tree is the mesh, via `sh`. worker = `bb thread spawn --parent "$BB_THREAD_ID" --new-environment worktree --prompt-file - --json` (prompt on stdin; `--provider pi`, model/reasoning from `bb provider models pi --json`); the parent is woken when a child idles. `bb thread wait <id>` blocks on idle, `bb thread output <id>` is the report, `bb thread show <id> --git-diff` the change, `bb thread tell <id> "…"` steers (`--mode queue` to not interrupt); a worker reports by ending its turn and reaches the parent with `bb thread tell`. merge is still plain git in the parent. `multi-agent`'s tags (`done`/`blocked`/`needs-input`) go in the first line of the final output. archive the thread when merged; the worktree follows.
+inside Orca (`ORCA_WORKTREE_ID` / `ORCA_WORKSPACE_ID`): use `dispatch.dispatch` for nested worktree workers, `board` for reports and steering, and Orca’s terminal CLI for inspection. Subscribe to `<run>/*` before launch; retain all outstanding handles in the dispatch budget. Review/merge with Git or Orca, then remove the worktree. See [Orca integration](../../../../../../docs/orca.md).
 
 `orchestrate` for auftragstaktik over open inputs, `compile` for preparing hermetic fills over closed ones; mixed waves and standalone fills are normal. `session` is a separate tmux server: it can't see worker panes; `capture`/`send` can.
 
