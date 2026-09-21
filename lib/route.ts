@@ -19,8 +19,6 @@ export function candidates(catalog: string) {
     const models = [...line.matchAll(/`([\w-]+\/[\w.-]+)`/g)].map(match => match[1]);
     const efforts = line.match(/\befforts ([a-z]+(?:\/[a-z]+)*)/)?.[1].split('/');
     if (!models.length || !efforts?.length) throw new Error(`Missing model IDs or effort set: ${line}`);
-    const overflow = line.match(/overflow under `([\w-]+\/)`/)?.[1];
-    if (overflow) models.push(...models.map(model => overflow + model.split('/')[1]));
     return models.flatMap(model => efforts.map(effort => ({ model, effort })));
   });
 }
@@ -63,7 +61,7 @@ async function select(workflow: string, block: string, options: RouteOptions,
       throw new Error('Invalid usage fraction for ' + provider);
     }
   }
-  const eligible = candidates(section(policy, 'catalog'))
+  const choices = candidates(section(policy, 'catalog'))
     .filter(candidate => !Object.hasOwn(unavailableProviders, candidate.model.split('/')[0]))
     .map(candidate => {
       const provider = candidate.model.split('/')[0];
@@ -71,9 +69,6 @@ async function select(workflow: string, block: string, options: RouteOptions,
       return { ...candidate, usageFractionOfCeiling: used,
         priceMultiplier: used === null ? null : effectiveCost(1, used) };
     }).filter(candidate => candidate.priceMultiplier === null || Number.isFinite(candidate.priceMultiplier));
-  const choices = eligible.filter(candidate => !candidate.model.startsWith('openai/') ||
-    !eligible.some(other => other.model === candidate.model.replace('openai/', 'openai-codex/') &&
-      other.effort === candidate.effort));
   if (!choices.length) throw new Error('No available model candidates below their pool ceilings');
   const criteria = Object.fromEntries(choices.map(candidate => [
     candidate.model + '@' + candidate.effort, JSON.stringify(candidate),
