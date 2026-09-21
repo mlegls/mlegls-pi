@@ -21,4 +21,4 @@ if (check.status === "ready") {
 } else await show(check);
 ```
 
-Explain where things stand and recommend the next entry: resume or start a supervisor, shape an issue, or introduce intent. Rank what needs the user by what it unblocks. The recommendation is not authorization to execute it. Full reading remains in state.prepared.audit.
+Explain where things stand and recommend the next entry: resume or start a supervisor, shape an issue, or introduce intent. Rank what needs the user by what it unblocks. The recommendation is not authorization to execute it. Full reading remains in state.prepared.audit; the views it rests on in state.prepared.views. Before acting on the briefing later in the session, `await show.raw(state.prepared.recheck())`.

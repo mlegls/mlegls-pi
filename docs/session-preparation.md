@@ -34,7 +34,7 @@ Outside exec, import run from lib/orient.ts, lib/advance.ts or lib/introduce.ts 
 
 ## Mechanism
 
-lib/prepare.ts calls autoread once under [workflows.md](../workflows.md), then checks that the response contains orientation rather than an acknowledgment or wait message. A rejected response retains the reader and its transcript reference. Empty, blocked, missing and unreadable scopes are valid explained results. This check is not a correctness proof.
+lib/prepare.ts takes a [views](../lib/views.ts) snapshot (tracker frontier/mine/check/outline from the tracker skill's CLI, git state, worktrees), calls autoread once under [workflows.md](../workflows.md) with the snapshot in the request, then checks that the response contains orientation rather than an acknowledgment or wait message. The snapshot returns as `views`; `recheck()` reruns it and reports the lines that changed, so a briefing's age is measurable instead of narrated. A rejected response retains the reader and its transcript reference. Empty, blocked, missing and unreadable scopes are valid explained results. This check is not a correctness proof.
 
 The briefing is returned intact with its reading and judgment in `audit`. There is no candidate-session selection or model-routed reassignment of the interactive role. Options are `reader` (autoread options except submission) and `policyPath`. [workflows.json](../workflows.json) supplies the reader default; [routing.md](../routing.md) governs delegated assignments. Autoread remains useful inside shaping and supervision for bounded orientation.
 
