@@ -101,7 +101,7 @@ const API: Record<ExecModule, string[]> = {
 		"board.send({topic,body,tags?,data?}), board.read({topic?,tags?,limit?,fields?:\"full\"|\"meta\",bodyChars?}?) -> {messages,omitted,total}, board.list({topic?}?), board.subscribe({topic,tags?,wake?,remove?}), board.ack(ids), board.help(method?). Filter tags accept an expression string or an array requiring all listed tags (empty = unrestricted). Use fields:\"meta\" for compact previews (bodyChars defaults 120, 0 omits body); bodyTruncated marks snippets. Pass limit:total to include omitted older matches. Reads do not acknowledge; ack only handled message IDs."
 	],
 	"wm": [
-		"wm.spawn({run?,workers:[{handle,prompt,agent?,base?}],wake?,wait?}), wm.wait({handles?,run?,mode?:\"any\"|\"all\",timeoutMs?}?), wm.send(handle,text,{run?}?), wm.capture(handle,{run?,lines?}?), wm.merge(handles,{run?,into?,mode?}?), wm.close(handles,{run?,keepBranch?}?), wm.status() (handle/paneId records), wm.agents(), wm.help(method?). Waits do not acknowledge reports."
+		"wm.spawn({run?,workers:[{handle,prompt,model?,effort?,command?,agent?,base?}],wake?,wait?}), wm.wait({handles?,run?,mode?:\"any\"|\"all\",timeoutMs?}?), wm.send(handle,text,{run?}?), wm.capture(handle,{run?,lines?}?), wm.merge(handles,{run?,into?,mode?}?), wm.close(handles,{run?,keepBranch?}?), wm.status() (handle/paneId records), wm.agents(), wm.help(method?). Waits do not acknowledge reports."
 	],
 	"term": [
 		"term.spawn({terminals:[{command,cwd?,name?,notifyOnExit?,notifyOnOutput?}]}), term.view(id,{lines?,cursor?,waitMs?}?), term.send(id,text,{submit?}?), term.sendRaw(id,keys), term.end(id), term.list().",

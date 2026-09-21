@@ -141,19 +141,11 @@ are unchanged. `show`, `notify`, and `console` are always available. Disabled
 module globals and API documentation are omitted; `host.call` also rejects
 excluded namespaces. Selection survives kernel resets and session navigation.
 
-Use the same flags in a workmux agent's existing frontmatter:
-
-```yaml
----
-name: focused-worker
-runCommand: pi --tools exec --exec-modules fs,sh,board
----
-```
-
+Agent frontmatter supplies a stance, not a launch command. Use `route.prepare`
+and `dispatch` to launch routed workers. Direct `wm.spawn` requires explicit
+`model` and `effort`, or `command` for a custom process. `agent` only names a stance.
 Keep `board` enabled when using the standard workmux worker reporting preamble.
-
-No separate frontmatter parser or worker-specific configuration is needed. This
-limits the supplied API, **not** filesystem/process permissions: arbitrary
+Module selection limits the supplied API, **not** filesystem/process permissions: arbitrary
 imports and enabled shell commands can still access underlying capabilities.
 The full reference below describes all modules; each session advertises only its
 selected surface.
@@ -546,10 +538,10 @@ This script does not replace any unrelated `board` executable on PATH.
 
 ### Workmux
 
-- `wm.spawn({run?, from?: "fork" | "summary", workers: [{handle, prompt, agent?, base?, from?}], wake?, wait?})`
+- `wm.spawn({run?, from?: "fork" | "summary", workers: [{handle, prompt, model?, effort?, command?, agent?, base?, from?}], wake?, wait?})`
   returns `{workers, subscribed}`. The first spawn requires `run`; subsequent
   calls remember it. `from: "fork"` adds `--fork <parent session file>` to the
-  agent's pi runCommand (file, not id: the child cwd is a different project).
+  agent's Pi command (file, not id: the child cwd is a different project).
   `from: "summary"` prepends an extract of the parent session to the prompt.
   Per-worker `from` overrides the batch. Reports subscribe through the board; `wake` defaults true.
   `wait:true` also returns outcomes and pending handles.

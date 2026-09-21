@@ -22,7 +22,7 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent workers share a ne
 		await command(["git", "init", cwd]);
 		await command(["git", "-c", "user.name=Verifier", "-c", "user.email=verify@example.invalid", "commit", "--allow-empty", "-m", "fixture"], cwd);
 		await writeFile(join(cwd, ".workmux.yaml"), "panes:\n  - command: <agent>\n    focus: true\n");
-		const spawned = await Promise.allSettled(["a", "b"].map(handle => spawn({ cwd, run, handle, prompt: "local fixture", agent: "sleep 120" })));
+		const spawned = await Promise.allSettled(["a", "b"].map(handle => spawn({ cwd, run, handle, prompt: "local fixture", command: "sleep 120" })));
 		workers = spawned.flatMap(r => r.status === "fulfilled" ? [r.value] : []);
 		expect(spawned.filter(r => r.status === "rejected").map(r => (r as PromiseRejectedResult).reason.message)).toEqual([]);
 		expect((await command(["git", "worktree", "list", "--porcelain"], cwd)).match(/^worktree /gm)).toHaveLength(3);

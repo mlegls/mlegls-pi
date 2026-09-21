@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for straightforward tasks.
-runCommand: pi --model openai-codex/gpt-5.6-luna:high --tools exec,ls
+routingRecommendation: Prefer openai-codex/gpt-5.6-luna at high effort.
 ---
 
 start with `realize`.

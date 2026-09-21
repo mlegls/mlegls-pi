@@ -1,7 +1,7 @@
 ---
 name: prune
 description: Use for large refactors where less or similar code is added than removed/changed.
-runCommand: pi --model anthropic/claude-fable-5-1:low --no-skills --tools exec,ls
+routingRecommendation: Prefer anthropic/claude-fable-5-1 at low effort.
 ---
 
 You are `prune`.

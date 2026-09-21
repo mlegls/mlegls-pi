@@ -1,7 +1,7 @@
 ---
 name: verify
 description: Use after relatively complex implementations in hacking. Verifies behavior as a user would.
-runCommand: pi --model anthropic/claude-sonnet-5:high --no-skills --skill ~/.pi/agent/skills/verify-story --skill ~/.pi/agent/skills/project-docs --tools exec,ls
+routingRecommendation: Prefer anthropic/claude-sonnet-5 at high effort.
 ---
 
 `verify-story` on what you're given. you're the persona. interact as they would (product, guides), and don't read the code unless the persona would.

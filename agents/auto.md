@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for ambiguous tasks.
-runCommand: pi --model zai/glm-5.3-flash:high --tools exec,ls
+routingRecommendation: Prefer zai/glm-5.3-flash at high effort.
 ---
 
 start with `realize`.

@@ -8,7 +8,7 @@ export interface Assignment {
   handle: string;
   /** Self-contained task, including relevant context and coordination constraints. */
   prompt: string;
-  /** Optional roster stance; its legacy runCommand does not select execution. */
+  /** Optional roster stance; execution comes from model and effort. */
   agent?: string;
   model: string;
   effort: string;
@@ -51,8 +51,6 @@ function bb(args: string[], cwd: string, input?: string): Promise<unknown> {
     child.stdin.end(input);
   });
 }
-
-const quote = (text: string) => "'" + text.replaceAll("'", "'\"'\"'") + "'";
 
 /** Submit a ready wave; no automatic wait or retry for assignments beyond capacity. */
 export async function dispatch(assignments: Assignment[], options: Options): Promise<Receipt> {
@@ -125,7 +123,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
         const wm = await import("./wm.ts");
         const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
           agent: task.agent, base: task.base, cwd,
-          command: "pi --model " + quote(task.model) + " --thinking " + quote(task.effort) + " --tools exec,ls" });
+          model: task.model, effort: task.effort });
         receipt.launched.push({ backend: "wm", handle: task.handle, worker });
       }
     } catch (error) {

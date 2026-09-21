@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Review a diff. Generally for auditing mode only, not hacking.
-runCommand: pi --model openai-codex/gpt-6-astra:low --no-skills --tools exec,ls
+routingRecommendation: Prefer openai-codex/gpt-6-astra at low effort.
 ---
 
 review the diff you're pointed at.

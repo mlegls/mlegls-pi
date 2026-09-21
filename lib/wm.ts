@@ -1,12 +1,12 @@
 // wm: spawn interactive pi workers in workmux worktrees and hear back through the board.
 //
 // A worker is one workmux worktree + tmux window running an agent (an AGENTS_DIR/<name>.md
-// with a `runCommand`, or a raw command). Its `handle` is the
+// for its stance, with explicit model/effort, or an explicit command). Its `handle` is the
 // branch, the worktree dir, the window, and the board sender name; it reports on
 // board topic `<run>/<handle>` with tags done | blocked | needs-input | checkpoint. The tmux
 // session is named after the run, so every worker of a run sits in one session.
 //
-//   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt });
+//   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt, model, effort });
 //   const o = await w.done;                        // resolves on done, rejects on exit
 //   for await (const o of w.events) { ... }        // every event, incl. blocked/idle
 //   const got = await wait([a, b], { mode: "all" }); // Map<Worker, Outcome> across several
@@ -30,8 +30,10 @@ export interface SpawnOptions {
 	run: string; // board topic prefix, e.g. compile/1726 or orch/rework-auth
 	handle: string;
 	prompt: string;
-	command?: string; // explicit command override; keeps the named agent stance/checkpoint
-	agent?: string; // name of an agent file in AGENTS_DIR, else a raw command for workmux -a
+	model?: string; // routed provider/model; required with effort unless command is supplied
+	effort?: string;
+	command?: string; // explicit process; mutually exclusive with model/effort
+	agent?: string; // name of a stance file in AGENTS_DIR
 	base?: string; // git ref to branch from
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // tmux session; default slug of run
@@ -45,7 +47,7 @@ export function withFork(cmd: string, source: string): string {
 	if (/(?:^|\s)--fork(?:\s|$|=)/.test(cmd)) return cmd;
 	const i = cmd.search(/\s/);
 	const bin = i < 0 ? cmd : cmd.slice(0, i);
-	if (basename(bin) !== "pi") throw new Error(`from: "fork" needs a pi runCommand, got ${cmd}`);
+	if (basename(bin) !== "pi") throw new Error(`from: "fork" needs a pi command, got ${cmd}`);
 	const arg = /[\s"$\\]/.test(source) ? JSON.stringify(source) : source;
 	return `${bin} --fork ${arg}${i < 0 ? "" : cmd.slice(i)}`;
 }
@@ -444,6 +446,15 @@ async function excludeWm(cwd: string) {
 }
 
 export async function spawn(o: SpawnOptions): Promise<Worker> {
+	const a = o.agent ? agent(o.agent) : undefined;
+	if (o.agent && !a) throw new Error("Unknown agent stance: " + o.agent);
+	if (o.command !== undefined && (o.model !== undefined || o.effort !== undefined))
+		throw new Error("Supply model/effort or command, not both");
+	if (o.command === undefined && (!o.model?.includes("/") || !o.effort))
+		throw new Error("wm.spawn requires routed model (provider/model) and effort, or an explicit command");
+	const quote = (text: string) => "'" + text.replaceAll("'", "'\"'\"'") + "'";
+	let cmd = o.command ?? "pi --model " + quote(o.model!) + " --thinking " + quote(o.effort!) + " --tools exec,ls";
+	if (!cmd.trim()) throw new Error("command must not be empty");
 	const cwd = resolve(o.cwd ?? process.cwd());
 	const session = o.session ?? slug(o.run);
 	await ensureSession(session, cwd);
@@ -451,7 +462,6 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	// Own the board window before workmux starts the agent, or a fast report is consumed by a ticking poller against nobody.
 	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
 	try {
-		const a = o.agent ? agent(o.agent) : undefined;
 		let text = o.prompt;
 		if (o.from === "summary") {
 			const file = o.parentSessionFile ?? process.env.PI_SESSION_FILE;
@@ -460,16 +470,14 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			throw new Error(`from must be "fork" or "summary"`);
 		}
 		const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, prompt: text, agent: a })];
-		let cmd = o.command ?? (a ? a.runCommand : o.agent);
 		if (o.from === "fork") {
 			const source = o.parentSessionFile ?? o.parentSession ?? process.env.PI_SESSION_FILE ?? process.env.PI_SESSION_ID;
 			if (!source) throw new Error(`from: "fork" needs parentSessionFile, parentSession, or PI_SESSION_ID`);
-			if (!cmd) throw new Error(`from: "fork" needs a pi runCommand`);
 			cmd = withFork(cmd, source);
 		}
 		// Board identity, spawn provenance (session-meta), and the fence ratio ride the agent command's env.
 		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint });
-		if (cmd) args.push("-a", `${env.join(" ")} ${cmd}`);
+		args.push("-a", `${env.join(" ")} ${cmd}`);
 		if (o.base) args.push("--base", o.base);
 		const out = await sh("workmux", args, cwd);
 		if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr || out.stdout}`);
@@ -532,7 +540,7 @@ if (import.meta.main) {
 		case "spawn": {
 			const promptFile = opt("prompt-file");
 			const prompt = promptFile ? readFileSync(promptFile, "utf8") : need(opt("prompt"), "prompt");
-			const w = await spawn({ run: need(opt("run"), "run"), handle: need(pos[0], "handle"), prompt, agent: opt("agent"), base: opt("base"), session: opt("session"), from: opt("from") as "fork" | "summary" | undefined, parentSessionFile: process.env.PI_SESSION_FILE });
+			const w = await spawn({ run: need(opt("run"), "run"), handle: need(pos[0], "handle"), prompt, model: opt("model"), effort: opt("effort"), command: opt("command"), agent: opt("agent"), base: opt("base"), session: opt("session"), from: opt("from") as "fork" | "summary" | undefined, parentSessionFile: process.env.PI_SESSION_FILE });
 			print(w);
 			process.exit(0);
 		}
@@ -576,7 +584,7 @@ if (import.meta.main) {
 			process.exit(0);
 		}
 		default:
-			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) [--agent A] [--base B] [--from fork|summary]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status | agents");
+			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) (--model provider/model --effort E | --command C) [--agent A] [--base B] [--from fork|summary]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status | agents");
 			process.exit(2);
 	}
 }

@@ -1,7 +1,7 @@
 ---
 name: autoread
 description: Use this instead of reading files yourself before planning or implementation, to preserve your context. Defers broad search and relevance selection to a separate model.
-runCommand: pi --model openrouter/~deepseek/deepseek-flash-latest:high --no-skills --tools exec,ls
+routingRecommendation: Prefer openrouter/~deepseek/deepseek-flash-latest at high effort.
 ---
 
 you read so the parent doesn't have to. the parent will act on what you return without opening the files.

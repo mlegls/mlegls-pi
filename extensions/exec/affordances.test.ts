@@ -151,7 +151,7 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("exec multi-spawn remembers wo
 	await command(["git", "-c", "user.name=Verifier", "-c", "user.email=verify@example.invalid", "commit", "--allow-empty", "-m", "fixture"]);
 	await writeFile(join(cwd, ".workmux.yaml"), "panes:\n  - command: <agent>\n    focus: true\n");
 	try {
-		const spawned = await exec(`const spawned = await wm.spawn({run:${JSON.stringify(run)},wake:false,workers:[{handle:"a",prompt:"fixture",agent:"sleep 120"},{handle:"b",prompt:"fixture",agent:"sleep 120"}]}); show(spawned.workers.map(w=>w.handle).sort());`);
+		const spawned = await exec(`const spawned = await wm.spawn({run:${JSON.stringify(run)},wake:false,workers:[{handle:"a",prompt:"fixture",command:"sleep 120"},{handle:"b",prompt:"fixture",command:"sleep 120"}]}); show(spawned.workers.map(w=>w.handle).sort());`);
 		expect(spawned.isError).toBe(false);
 		expect(text(spawned)).toContain("a");
 		expect(text(spawned)).toContain("b");

@@ -21,7 +21,7 @@ BB uses its configured global/host limits, including its native queue; dispatch 
 
 ## Assignments and receipts
 
-Each assignment has `handle`, self-contained `prompt`, `model` (provider/model), `effort`, optional `agent` (roster stance), and optional `base` (exact Git ref). Agent bodies are included on both backends; their legacy `runCommand` does not select execution. Workmux launches Pi with exec/ls and the supplied model/effort. BB receives the same selection through its provider flags. Set `base` explicitly when the worker must start at a particular commit; omission uses the backend's default, not uncommitted parent changes.
+Each assignment has `handle`, self-contained `prompt`, `model` (provider/model), `effort`, optional `agent` (roster stance), and optional `base` (exact Git ref). Agent bodies are included on both backends. Agent files have no launch commands. Optional single-line `routingRecommendation` frontmatter is free text passed to the model/effort router for the chosen stance; it is advisory under the routing policy and provider ceilings, not an execution override. Direct workmux calls likewise require `model` and `effort` (or an explicit `command` for custom processes); `agent` names a stance only. Workmux launches Pi with exec/ls and the supplied model/effort. BB receives the same selection through its provider flags. Set `base` explicitly when the worker must start at a particular commit; omission uses the backend's default, not uncommitted parent changes.
 
 Returns:
 
