@@ -195,11 +195,13 @@ function display(value, raw = false, query = scope.getStore()?.query ?? ingressQ
 	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query));
 	const rendered = value && typeof value.content === "function" ? value.content() : render(value);
 	if (raw || !query || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
+	const cell = scope.getStore();
+	const budget = cell ? Math.max(0, (cell.outputLimit ?? OUTPUT_LIMIT) - cell.bytes) : undefined;
 	return Promise.resolve(rendered).then(async result => {
 		if (protectedDisplay.has(result)) return result;
-		if (!Array.isArray(result)) return ingress.filter(String(result), query);
+		if (!Array.isArray(result)) return ingress.filter(String(result), query, budget);
 		const filtered = await Promise.all(result.map(async block => block.type === "text"
-			? { ...block, text: await ingress.filter(block.text, query) } : block));
+			? { ...block, text: await ingress.filter(block.text, query, budget) } : block));
 		const error = contentErrors.get(result);
 		if (error) contentErrors.set(filtered, error);
 		return filtered;

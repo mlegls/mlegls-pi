@@ -220,7 +220,10 @@ await show.raw(state.result);           // bypass relevance filtering
 
 Raw/pull still obey byte/image caps. Loaded skills and images bypass relevance
 filtering. Missing credentials, a scorer failure, or timeout keeps the original
-text with a warning. [Policy, setup, and verification](../../docs/ingress.md).
+text with a warning. The cell's own code is part of the relevance query, so a
+comment stating what the output is for sharpens it. Over the display budget,
+the least relevant pages go before the tail is truncated.
+[Policy, setup, and verification](../../docs/ingress.md).
 
 ## Reserved API names
 

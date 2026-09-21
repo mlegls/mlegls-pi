@@ -3,7 +3,7 @@ import { decide, type Questions } from "./decide.ts";
 
 export interface Chunk { text: string; label: string }
 export interface Page extends Chunk { id: string; p: number; kept: boolean }
-export type Event = { type: "filter"; threshold: number; queryHash: string; pages: (Omit<Page, "text"> & { chars: number })[] } | { type: "pull"; id: string };
+export type Event = { type: "filter"; threshold: number; budget?: number; queryHash: string; pages: (Omit<Page, "text"> & { chars: number })[] } | { type: "pull"; id: string };
 export interface Options {
   threshold?: number;
   chunk?: (text: string) => Chunk[];
@@ -14,11 +14,48 @@ export interface Options {
 const body = (line: string) => line.replace(/^\d+ [a-z0-9]+│/, "");
 const heading = (line: string) => /^(#{1,6} |(?:export )?(?:default )?(?:async )?(?:function|class|interface|type|const|let|def|fn|struct|enum)\b)/.test(body(line));
 
+const lines = (text: string) => text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+
+/** Records of a rendered array/object (inspect or JSON): one chunk per sibling at the shallowest depth with siblings. */
+export function records(text: string): Chunk[] | undefined {
+  const rows = lines(text);
+  const opens = new Map<number, number>();
+  for (const row of rows) {
+    const m = /^(\s*)[{[]\s*$/.exec(row);
+    if (m) opens.set(m[1].length, (opens.get(m[1].length) ?? 0) + 1);
+  }
+  const depth = [...opens].filter(([, n]) => n >= 2).map(([d]) => d).sort((a, b) => a - b)[0];
+  if (depth === undefined) return undefined;
+  const indent = "^" + " ".repeat(depth);
+  const opener = new RegExp(indent + "[{[]\\s*$"), closer = new RegExp(indent + "[}\\]],?\\s*$");
+  const chunks: Chunk[] = [];
+  let current = "";
+  const flush = () => {
+    if (!current) return;
+    const key = current.split("\n").map(row => row.trim()).find(row => row && !/^[{}[\],]+$/.test(row));
+    if (!key && chunks.length) { chunks[chunks.length - 1].text += current; current = ""; return; }
+    const parts = lexical(current);
+    for (const part of parts) chunks.push({ text: part.text, label: (parts.length > 1 ? key + " · " + part.label : key ?? "record").slice(0, 180) });
+    current = "";
+  };
+  for (const row of rows) {
+    if (opener.test(row)) flush();
+    current += row;
+    if (closer.test(row)) flush();
+  }
+  flush();
+  return chunks;
+}
+
 /** Lossless lexical sections; anchored source rows retain their edit identities.
  * Oversized sections split at line boundaries (or code points for long lines).
  * Supply a chunker for richer source/web/log structures without changing policy.
  */
 export function chunk(text: string): Chunk[] {
+  return records(text) ?? lexical(text);
+}
+
+export function lexical(text: string): Chunk[] {
   const chunks: Chunk[] = [];
   let current = "", source = "";
   const flush = () => {
@@ -27,12 +64,12 @@ export function chunk(text: string): Chunk[] {
     chunks.push({ text: current, label: [source, first.trim()].filter(Boolean).join(" · ").slice(0, 180) });
     current = "";
   };
-  const lines = text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+  const rows = lines(text);
   let fenced = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (let i = 0; i < rows.length; i++) {
+    const line = rows[i];
     // A displayed source header is followed by an anchored row.
-    if (/^\d+ [a-z0-9]+│/.test(lines[i + 1] ?? "") && !/^\d+ [a-z0-9]+│/.test(line) && line.trim().endsWith(":")) {
+    if (/^\d+ [a-z0-9]+│/.test(rows[i + 1] ?? "") && !/^\d+ [a-z0-9]+│/.test(line) && line.trim().endsWith(":")) {
       flush(); source = line.trim().slice(0, -1);
     }
     if (!fenced && heading(line) && current.trim() !== source + ":") flush();
@@ -78,7 +115,8 @@ export function create(options: Options = {}) {
   const pages = new Map<string, Page>();
   const record = options.record ?? (() => {});
   return {
-    async filter(text: string, query: string): Promise<string> {
+    /** Over a display budget, the least relevant pages go first; pages at or above .8 stay for the byte cap to cut. */
+    async filter(text: string, query: string, budget?: number): Promise<string> {
       // Tiny output costs less than its page table. Diffs require every hunk.
       if (!query.trim() || text.length < 512 || /^(diff --git |@@ |--- a\/)/m.test(text)) return text;
       let chunks: Chunk[], probabilities: number[];
@@ -95,8 +133,15 @@ export function create(options: Options = {}) {
         ...c, id: "ing-" + createHash("sha256").update(c.label).update("\0").update(c.text).digest("hex").slice(0, 16),
         p: probabilities[i], kept: probabilities[i] >= threshold,
       }));
+      if (budget) {
+        let size = judged.reduce((n, page) => n + (page.kept ? page.text.length : 0), 0);
+        for (const page of [...judged].sort((a, b) => a.p - b.p)) {
+          if (size <= budget || page.p >= 0.8) break;
+          if (page.kept) { page.kept = false; size -= page.text.length; }
+        }
+      }
       for (const page of judged) if (!page.kept) pages.set(page.id, page);
-      record({ type: "filter", threshold, queryHash: createHash("sha256").update(query).digest("hex"),
+      record({ type: "filter", threshold, budget, queryHash: createHash("sha256").update(query).digest("hex"),
         pages: judged.map(({ text, ...meta }) => ({ ...meta, chars: text.length })) });
       const omitted = judged.filter(page => !page.kept);
       if (!omitted.length) return text;

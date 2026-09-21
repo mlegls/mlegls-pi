@@ -31,7 +31,9 @@ compaction-applied branch (12,000 characters), plus up to 4,000 characters of th
 current cell. Thinking and previous tool-result bodies are not sent. Notifications
 use the latest cell's query. No conversation context means no pruning.
 
-The initial chunker is lossless and lexical: Markdown sections, top-level
+The chunker is lossless. A rendered array or object (inspect or JSON) is chunked
+one record per sibling at the shallowest depth with siblings, labeled by the
+record's first field; anything else lexically: Markdown sections, top-level
 source declarations, and paragraphs/blocks, bounded to 4,096 characters. Source
 headers carry into labels. This is not yet an AST or specialized log chunker.
 The importing API `ingress.create({chunk, score, threshold, record})` admits richer
@@ -41,7 +43,11 @@ module; the hook uses its `create` export too.
 Jev receives independent Noul questions, eight chunks per request, at most four
 requests concurrently, with an eight-second scoring deadline per displayed text.
 Keep `P(useful) >= .2`, including uncertain chunks. This is a conservative
-**uncalibrated** threshold. Text under 512 characters and recognizable unified
+**uncalibrated** threshold. When the kept text exceeds the cell's remaining
+display budget, pages go lowest probability first until it fits, stopping at
+`.8`; the byte cap then truncates as before. Under budget the threshold alone
+decides. The cell's code is part of the query, so a comment naming what the
+output is for sharpens the judgment in a fresh session. Text under 512 characters and recognizable unified
 diffs pass through (a page table or incomplete diff would be worse). A failed
 scorer keeps the original with an explicit notice; it does not retry.
 
