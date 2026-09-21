@@ -14,8 +14,14 @@ argument-hint: "a bounded goal whose destination is agreed"
    line is a missing verb; name it. The steps block is the future test
    names (`testing`); `simplify` writes them. Sketch the program with `show-me` when the
    shape has choices worth seeing.
-3. Record it (`tracker`): the want, the sequence, the steps, the shape;
-   `next: implement`. Split into child issues when the work exceeds a session
-   or has parts to parallelize.
-4. Return the issue and the recommended continuation: `implement` for one
-   session, `orchestrate` for more, `compile` when the children's inputs are closed.
+3. Settle shared interfaces and consequential implementation choices. Split
+   into independently implementable contracts where useful. Record each leaf's
+   ownership, dependencies, observable acceptance, and any discovery or design
+   deliberately delegated to its worker. Unresolved choices outside that
+   authority remain holes.
+4. Record it (`tracker`): the want, the sequence, the steps, the shape;
+   `next: implement` when the remaining work is within the delegated authority.
+   Reference named code and docs for context already recorded there.
+5. Return the issue and what remains before execution: `compile` to prepare
+   closed assignments, `implement` for a bounded autonomous session, or
+   `realize` to supervise prepared assignments and deliberately open streams.
