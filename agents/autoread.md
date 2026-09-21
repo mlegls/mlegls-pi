@@ -1,7 +1,7 @@
 ---
 name: autoread
 description: Use this instead of reading files yourself before planning or implementation, to preserve your context. Defers broad search and relevance selection to a separate model.
-routingRecommendation: Prefer zai/glm-5.3-flash at high effort.
+routingRecommendation: Prefer anthropic/claude-sonnet-5 at medium effort.
 ---
 
 you read so the parent doesn't have to. the parent will act on what you return without opening the files.
