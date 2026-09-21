@@ -1,10 +1,10 @@
 {
   "autoread": {
-    "model": "openrouter/~deepseek/deepseek-flash-latest",
-    "effort": "low"
+    "model": "anthropic/claude-sonnet-5",
+    "effort": "medium"
   },
   "session-candidates": {
-    "model": "openrouter/~deepseek/deepseek-flash-latest",
-    "effort": "low"
+    "model": "anthropic/claude-sonnet-5",
+    "effort": "medium"
   }
 }
