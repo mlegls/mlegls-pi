@@ -75,7 +75,7 @@ export async function run(mode: "introduce" | "advance", request: string, option
   const audit: Prepared["audit"] = { mode, request, difficulty, reads: [overview], warnings: [] };
   // Fork the broad reader to reuse its evidence, not the parent to repeat orientation.
   const followup = (prompt: string, model: Workflow, submission?: ReadOptions["submission"]) => autoread(prompt, {
-    ...readOptions, ...model, sessionFile: overview.sessionFile, compact: false, submission,
+    ...readOptions, ...model, sessionFile: overview.sessionFile, sourceThreadId: overview.threadId, compact: false, submission,
   });
 
   const triage = async (): Promise<Prepared> => {

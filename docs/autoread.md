@@ -16,9 +16,23 @@ Then in a later cell:
 
 Model and effort defaults live in [`workflows.json`](../workflows.json), under `autoread`. They are read on every call through `config.workflow("autoread")`, so config edits need no reload. The default is OpenRouter’s rolling DeepSeek Flash Latest alias (`openrouter/~deepseek/deepseek-flash-latest`), effort `low`. Per-call `{ model, effort }` overrides remain available. This config selects the reader; native compaction still uses the inherited parent model.
 
-Returns `{ text, sessionFile, model }`. `text` is only the reader's final answer; `sessionFile` retains its evidence and lineage for inspection.
+Returns `{ text, sessionFile, model, threadId?, submission? }`. `text` is only the reader’s final answer; `sessionFile` retains its evidence and lineage for inspection. Inside BB, `threadId` links to the visible reader.
 
-Outside exec, import `run` from `lib/autoread.ts` and supply `sessionFile` explicitly. It never guesses the newest session.
+## Inside BB
+
+When `BB_THREAD_ID` is set, readers are visible Pi child threads, forked from the current thread in the same environment. BB owns their model execution, transcript, and runtime. They are lifecycle-owned by the parent (archive/delete follows it); completion, timeout, and abort stop the runtime without hiding the transcript. Failures include the child thread reference. BB concurrency/provisioning waits count toward the reader timeout.
+
+Follow-up readers pass `{ sourceThreadId: briefing.threadId, sessionFile: briefing.sessionFile, compact: false }`; preparation does this automatically. Their source is the broad reader, but their visible parent remains the calling thread. The source must be a Pi thread on this host. Only completed source turns are inherited by BB forks.
+
+The package’s `lib/autoread/host.ts` entrypoint restricts active tools to reader-profile exec, installed recall, and the requested submission tool. It also blocks other tool calls. Exec supplies read/find/grep, retained source/selection helpers, state/show, and Exa; no editing, shell, skill execution, UI, terminal, coordination, or automatic library/project modules. Module restrictions are not an OS sandbox. Unlike the private backend, BB loads normal Pi extensions/skills as trusted host code. BB compaction uses the inherited model and installed memory extension before the reader model is selected.
+
+The host writes the structured result atomically under `$PI_CODING_AGENT_DIR/autoread/<threadId>/` (default `~/.pi/agent/autoread/`). Config, request, and result files stay there for inspection/resume; these contain session data. The result carries native submission details, never parsed model prose. The parent polls it and BB status.
+
+Use `{ backend: "pi" }` to explicitly request the original private subprocess, including for `cliPath` or `memoryExtension` overrides. BB mode rejects those overrides rather than silently ignoring them. Outside BB, the private backend remains the default. After updating this package, `/exec-reset` loads the new backend into an existing parent kernel; new child runtimes load the host entrypoint automatically.
+
+## Private Pi backend
+
+Outside BB (or with `backend: "pi"`), import `run` from `lib/autoread.ts` and supply `sessionFile` explicitly when not in exec. It never guesses the newest session.
 
 The reader forks the persisted parent through pi RPC, compacts the child, switches to the configured model/effort, then investigates. Small/already-compacted sessions retain their existing context. The parent model, memory, transcript, and files are not changed.
 

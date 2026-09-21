@@ -32,6 +32,8 @@ Outside exec, import `run` from `lib/introduce.ts` or `lib/advance.ts`, passing 
 
 Follow-up readers fork the broad reader with compaction disabled, retaining its evidence rather than repeating parent orientation. They have autoread's read-only tool surface, plus a terminating submission tool for the candidate stage; no claims, edits or worker launches occur. Execution and authorized dispatch belong to the parent.
 
+Inside BB, every reader is a visible child thread with its own transcript. Follow-up readers inherit the broad reader’s evidence through a BB fork, while remaining children of the calling thread. `audit.reads[].threadId` retains their links; failures include the child reference. Outside BB, readers remain private Pi subprocesses. See [autoread](autoread.md#inside-bb) for lifecycle and reload details.
+
 - [workflows.md](../workflows.md): editable intent, selection and handoff policy, read each invocation.
 - [workflows.json](../workflows.json): fixed `autoread` and `session-candidates` model/effort defaults.
 - [routing.md](../routing.md): model preferences, including reasoning triage and implementation/supervision roles.

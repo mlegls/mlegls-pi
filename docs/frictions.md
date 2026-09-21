@@ -14,4 +14,6 @@ Resolved reports and reproduction evidence: [2026-09-16 verification](research/e
 
 Host installation failure isolation resolved through independent Pi extension entrypoints: [2026-09-21 verification](research/host-failure-isolation-2026-09-21.md). Startup-only installation and `/reload` recovery remain intentional.
 
+- BB reader integration needs a small same-host file protocol and Pi host extension because the BB CLI does not expose per-thread restricted tool loading or a native typed result channel. Queue creation can auto-dispatch, while an idle fork may still be provisioning; the adapter handles both without submitting twice. Accepted to retain BB-native history/lifecycle plus read-only tools and structured submissions. Next: simplify against a native BB reader/result API if one becomes available; current evidence: [BB autoread verification](research/autoread-bb-2026-09-21.md).
+
 - Autoread in @thread:thr_m6g4pdthxc lost two attempts to premature parent awaits, then accepted a reader’s promise to wait as a completed briefing. A later triage recovered, hiding the failed orientation. [Session evidence and reader-profile verification](research/autoread-reader-profile-2026-09-21.md).

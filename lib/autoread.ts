@@ -5,8 +5,13 @@ import { delimiter, join, resolve } from "node:path";
 import { RpcClient } from "@earendil-works/pi-coding-agent";
 import { fileURLToPath } from "node:url";
 import { workflow } from "./config.ts";
+import { run as bbRead } from "./autoread/bb.ts";
 
 export interface Options {
+  /** BB is automatic inside BB; pi explicitly opts into a private local reader. */
+  backend?: "bb" | "pi";
+  /** BB source for a follow-up reader; defaults to the current thread. */
+  sourceThreadId?: string;
   /** Defaults to exec's current persisted session. Required; never guesses the newest session. */
   sessionFile?: string;
   cwd?: string;
@@ -28,6 +33,7 @@ export interface Briefing {
   text: string;
   sessionFile: string;
   model: string;
+  threadId?: string;
   submission?: unknown;
 }
 
@@ -56,16 +62,19 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   const defaults = workflow("autoread");
   const model = options.model ?? defaults.model;
   const effort = options.effort ?? defaults.effort;
-  const parent = options.sessionFile ?? process.env.PI_SESSION_FILE;
-  if (!parent) throw new Error("autoread: sessionFile required (reload exec to inherit the current session)");
-  const cwd = resolve(options.cwd ?? process.cwd());
-  const sessionFile = realpathSync(resolve(cwd, parent));
   const slash = model.indexOf("/");
   if (slash < 1 || slash === model.length - 1) throw new Error("autoread: model must be provider/model");
   const timeoutMs = options.timeoutMs ?? 300_000;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647)
     throw new Error("autoread: timeoutMs must be a positive timer-sized integer");
   options.signal?.throwIfAborted();
+  if (options.backend === "bb" || (options.backend !== "pi" && process.env.BB_THREAD_ID)) {
+    return bbRead(request, options, model, effort, stance + (options.submission ? " Deliver the requested result through " + options.submission.tool + " as your final action." : ""), timeoutMs);
+  }
+  const parent = options.sessionFile ?? process.env.PI_SESSION_FILE;
+  if (!parent) throw new Error("autoread: sessionFile required (reload exec to inherit the current session)");
+  const cwd = resolve(options.cwd ?? process.cwd());
+  const sessionFile = realpathSync(resolve(cwd, parent));
 
   const memory = options.memoryExtension === false ? undefined : options.memoryExtension ??
     join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"), "npm/node_modules/pi-observational-memory");
