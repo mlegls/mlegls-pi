@@ -235,6 +235,8 @@ export function createSourceAPI(deps: SourceDeps) {
 	}
 	async function find(glob?: string, options: FindOptions = {}): Promise<string[]> {
 		check();
+		if (glob !== undefined && typeof glob !== "string")
+			throw new TypeError('find(glob?, {paths?, hidden?}): glob must be a string; use a brace glob like "**/*.{ts,md}" or separate find calls, not an array.');
 		const pattern = glob && (isAbsolute(glob) ? relative(cwd, glob) : glob.replace(/^\.\//, ""));
 		const local = join(getAgentDir(), "bin", "rg");
 		const paths = typeof options.paths === "string" ? [options.paths] : options.paths ?? ["."];
