@@ -9,4 +9,4 @@ argument-hint: "a ticket or clear bounded change"
 3. run the full existing test suite to ensure no behavioral regressions.
 4. `verify-story` on the stories the change touched. fix what fails.
 5. record any frictions (Ousterhout symptoms) you encountered while making the change, as a `next: simplify` issue linking the concept hit (`tracker`), or a line in `docs/frictions.md` on a remote tracker. record surprising realization costs likewise: what drives the cost, an alternative if known, and why we accept it if deferred.
-6. commit. report `setup-project`'s `scc-delta.sh` against the starting ref, as well as any frictions recorded.
+6. commit. report `setup-project`'s `scc-delta.sh` and `jev-lint` against the starting ref, as well as any frictions recorded.
