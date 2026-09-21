@@ -71,7 +71,7 @@ export const renderResult: NonNullable<Renderer["renderResult"]> = (result, { ex
 				if (entries.length > 8 || trace?.omitted) line("… " + (Math.max(0, entries.length - 8) + (trace?.omitted ?? 0)) + " more operations; expand");
 				if (details?.error) preview(details.error);
 				if (!entries.length) for (const block of result.content) {
-					if (block.type === "text" && block.text !== "(no output)") { preview(block.text); break; }
+					if (block.type === "text" && block.text !== "(no output)" && block.text !== details?.error) { preview(block.text); break; }
 				}
 				return lines;
 			},

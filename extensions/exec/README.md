@@ -181,7 +181,7 @@ it started with.
 ## Cell scope and retained state
 
 Each call has fresh scope: ordinary `const`, `let`, `var`, and function
-names can be reused in the next call. No extra block is needed:
+declarations do not persist. Their names can be redeclared in the next call. No extra block is needed:
 
 ```ts
 const result = await sh.raw`git status --short`;

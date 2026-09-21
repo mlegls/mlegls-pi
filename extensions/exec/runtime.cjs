@@ -284,7 +284,18 @@ function errorText(error) {
 	if (error?.name === "SyntaxError" && collision && (collision[1] === "__exec" || Object.hasOwn(server.context.__exec, collision[1]))) {
 		return `Reserved exec binding "${collision[1]}" cannot be declared at cell top level. Rename it or use a nested scope; retain values on state.`;
 	}
-	return bounded(error instanceof Error ? error.stack || error.message : String(error));
+	const text = bounded(error instanceof Error ? error.stack || error.message : String(error));
+	const missing = /^(.+) is not defined$/.exec(error?.message || "");
+	if (error?.name === "ReferenceError" && missing) {
+		const name = missing[1];
+		const retained = server?.context.__exec?.state;
+		const target = "state[" + JSON.stringify(name) + "]";
+		const access = /^[A-Za-z_$][\w$]*$/.test(name) ? "state." + name : target;
+		return text + "\nExec locals do not persist between calls. " + (retained && Object.hasOwn(retained, name)
+			? access + " exists; use it to access the retained value."
+			: "Retain cross-call values explicitly as " + access + "; otherwise declare the name in this call.");
+	}
+	return text;
 }
 
 /** Shell captures are independent of displayed output and never receive anchors. */
