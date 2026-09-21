@@ -1,14 +1,15 @@
 # Dispatch a ready wave
 
-The parent plans concurrent streams and revises their dependencies as results arrive. `realize` carries that workflow: autoread → parent planning → model routing → dispatch → integration. Dispatch itself only launches prepared assignments.
+The supervisor follows the issue graph and coordinates ready streams; complex triage returns to a separate decision session. `realize` carries that workflow: autoread → recorded plan → assignment admission → dispatch → integration. Dispatch itself only launches prepared assignments. Work shape, model/effort, capability tradeoffs, and session-continuity policy live in `routing.md`.
 
 `lib/dispatch.ts` selects BB when `BB_THREAD_ID` is set, otherwise workmux. In exec (after `/exec-reset`):
 
 ```ts
 const task = "Implement the agreed change. Context: … Interfaces/ownership: … Done: …";
-const execution = await route.route("auto-routine", task);
+const execution = await route.prepare(task); // pass { stance: "fill" } for a recorded closed unit
+if (execution.kind === "triage") throw new Error("Prepare a decision-session handoff before launching");
 state.launch = notify(dispatch.dispatch([
-  { handle: "unit-a", prompt: task, agent: "auto-routine", ...execution },
+  { handle: "unit-a", prompt: task, ...execution },
 ], { run: "feature-x" }), "dispatch"); // BB
 ```
 
@@ -36,4 +37,16 @@ BB wakes the parent when a child idles. Use `bb thread wait/output/tell/show` wi
 
 Workmux returns native library Workers: `worker.next()`, `worker.send(text)`, `worker.close()`, and `merge(worker)` from `lib/wm.ts`. Use `notify(worker.next(), label)` in exec for a report notification. These are library workers, not the exec host's `wm` handle registry; dispatch does not install board wake subscriptions. Await/notify their events, or explicitly subscribe through `board`.
 
-The old experimental Jev work-shape classifier is preserved in `lib/classify.ts` (`classify`); it is not called by dispatch. Its calibration remains separate from parent-owned planning.
+The old experimental classifier in `lib/classify.ts` remains for its calibration consumers. Runtime admission is `route.prepare`: recorded stance first, otherwise policy-owned Jev classification, then model/effort selection. Neither classifier discovers context or creates a decomposition. Dispatch does not implicitly classify or reroute.
+
+## Session boundaries
+
+Use `route.continuation({ current: { model, effort }, assignment, report, remaining, context, handoff }, options)` at an exception or context checkpoint. Include measured cache use or known handoff size in that evidence when available; missing facts stay unknown.
+
+- `continue`: retain the current session/model and relevant context.
+- `consult`: prepare a bounded question and evidence packet; `route.prepare` it (recorded `session-triage` for decisions outside delegated authority), launch a separate session, then return its decision to the warm worker.
+- `replace`: preserve commits and outstanding work, update the issue, and prepare a compacted/OM-backed handoff. Admit and launch a new session from the intended base; stop the old worker before transferring write ownership. Retire it after the handoff is secured.
+
+A `prepare` result with `kind: "triage"` supplies the selected model/effort but no agent. Launch a new session with the explicit decision question, evidence, and requirement to update the issues; do not dispatch the original implementation prompt. Re-admit execution after the decision.
+
+These tools do not transfer memory, compact history, change models in place, manage dependencies, or terminate workers. Save their returned judgments with the assignment/report when evaluating cost to accepted completion, including repair and escalation.

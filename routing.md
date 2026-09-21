@@ -14,6 +14,37 @@ Subscription use is not the same as list-price spending. Prefer using available 
 
 Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). For example, 40% weekly usage against a 50% ceiling is 0.8. Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance. This first version does not fetch usage or reserve capacity.
 
+## Assignment stances
+
+These bullets are machine-read choice criteria. A recorded stance takes precedence; classification interprets supplied evidence and cannot create closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them.
+
+- `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
+- `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
+- `technical`: Clear acceptance criterion but difficult technical fulfillment, including novel algorithms, complex systems, or exacting UI implementation.
+- `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
+- `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
+- `research`: Find and compress evidence for an upstream decision; research is the deliverable.
+- `reviewer`: Review a diff against its contract, reporting findings rather than implementing it.
+- `verify`: Exercise implemented behavior as its user would and report evidence of what holds or fails.
+- `visual-reviewer`: Judge the rendered surface, layout, visual coherence, or usability from screenshots or direct interaction.
+- `session-triage`: The recorded plan is insufficient: resolve missing acceptance, conflicting dependencies/interfaces, or decisions outside delegated authority. Return a decision and updated issues for supervision to resume.
+
+## Continuation actions
+
+These bullets are machine-read choice criteria. Judge at a meaningful checkpoint or exception, not every turn. Relevant warm context has future value; spent tokens are sunk cost. Compare remaining cost to accepted completion, including cached/uncached input, handoff preparation, rediscovery, verification, and repair. Use observed cache telemetry where available; unknown cache hits, expiry, or quota are not free capacity. A provider at its routing ceiling is unavailable for continued metered work under that policy.
+
+- `continue`: The current session can finish within its authority and its relevant context is worth retaining. Keep its model; routine continuation needs no fresh admission decision.
+- `consult`: A bounded decision or specialist investigation can unblock the current session. Start a separate expert session with a small evidence packet, return the decision, then resume the warm session.
+- `replace`: The current approach, capability, or accumulated context is no longer useful enough. Prepare an updated ticket and compacted/OM-backed handoff, route a fresh session, and retire the old session after preserving its work.
+
+## Session economics
+
+Route model/effort at fresh-session boundaries. Escalation normally creates a consultation or replacement session rather than changing the model over an uncompacted history. Compacted parent context, OM references with recoverable evidence, and small self-contained handoffs make fresh routing economical; they do not guarantee cache reuse or preserve every constraint. Never assume the new session inherits the parent's memory, uncommitted files, or cache.
+
+Evaluate delegated workers by accepted completion, total workstream cost and wall time, parent repair, and escalation/handoff loss. Compare strong-from-start against cheap-then-consult/replace. The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design. Complex triage goes to a fresh session-triage assignment.
+
+Model characteristics and catalog below own the task-specific Pareto frontier and capability spikes. Distinguish visual perception, GUI grounding, interactive computer use, and visual judgment; also consider tool/harness compatibility, data-use permissions, effort-specific evidence, and subscription availability. An aggregate benchmark rank or token price alone is not an admission rule. Record observed workflow costs and evidence provenance here as they become available.
+
 ## Session roles
 
 - `session-triage`: choosing and shaping the next session when the next move is knotty; use fable or astra. This is decision work, even when the eventual implementation is routine. Prefer fable for coherence and open goals, astra for technical/evidence-based decisions.
@@ -40,6 +71,10 @@ notation: each bullet names its pi model id(s) in backticks as `provider/model` 
 - grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5). effort: fairly linear with task difficulty
 
 ## Calling
+
+`await route.prepare(taskWithContext, { stance?, policyPath?, usage? })` admits a **fresh** assignment. Include the issue contract, dependencies/ownership, relevant evidence, capability needs, and handoff/context facts. Supply `stance` when already recorded; otherwise Jev selects from Assignment stances. Returns `kind: "ready"`, `agent`, `stance`, `judgment`, and the model selection fields below. A `kind: "triage"` result has no worker agent: use the selected model for a new decision session, not the original implementation assignment. `judgment` is null for a recorded stance.
+
+`await route.continuation(context, { policyPath?, usage? })` returns `action`, `p`, `dist`, and `policyPath`. Supply current model/effort, assignment, latest report, remaining work, context relevance, and available cache/handoff evidence. It only advises continue/consult/replace: it never switches models, compacts, launches, or closes sessions. For consult/replace, prepare the actual handoff and admit it with `prepare`; do not route the old full transcript again.
 
 `await route.route(workflow, task, { policyPath, usage })` in exec; both options are optional. `usage` is a provider-keyed map of normalized fractions or null. The default policy path is this package’s root `routing.md`, independent of the current directory.
 

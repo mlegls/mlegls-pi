@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { decide } from './decide.ts';
+import { decide, type State } from './decide.ts';
 import { effectiveCost, usage } from './pool.ts';
 
 function section(note: string, heading: string) {
@@ -30,10 +30,29 @@ export interface RouteOptions {
   usage?: Record<string, number | null>;
 }
 
-export async function route(workflow: string, block: string, options: RouteOptions = {}) {
+function policyFor(options: RouteOptions) {
   const policyPath = options.policyPath === undefined
     ? fileURLToPath(new URL('../routing.md', import.meta.url)) : resolve(options.policyPath);
-  const policy = readFileSync(policyPath, 'utf8');
+  return { policyPath, policy: readFileSync(policyPath, 'utf8') };
+}
+
+// Policy-owned labels and criteria; model-specific judgments stay in routing.md.
+function criteriaFor(policy: string, heading: string) {
+  const entries = section(policy, heading).split('\n').filter(line => line.startsWith('- ')).map(line => {
+    const match = line.match(/^- `([\w-]+)`: (.+)$/);
+    if (!match) throw new Error('Invalid routing criterion: ' + line);
+    return [match[1], match[2]];
+  });
+  if (!entries.length) throw new Error('No routing criteria in ' + heading);
+  return Object.fromEntries(entries) as Record<string, string>;
+}
+
+export async function route(workflow: string, block: string, options: RouteOptions = {}) {
+  return select(workflow, block, options, policyFor(options));
+}
+
+async function select(workflow: string, block: string, options: RouteOptions,
+  { policyPath, policy }: ReturnType<typeof policyFor>) {
   const snapshot = { ...options.usage };
   for (const [provider, fraction] of Object.entries(snapshot)) {
     if (fraction !== null && (!Number.isFinite(fraction) || fraction < 0)) {
@@ -61,6 +80,35 @@ export async function route(workflow: string, block: string, options: RouteOptio
   if (!chosen) throw new Error('Router selected an unknown candidate');
   return { model: chosen.model, effort: chosen.effort, p: selection.p, dist: selection.dist,
     policyPath, usage: snapshot };
+}
+
+/** Admission for a fresh worker. A recorded stance bypasses classification, not model routing. */
+export async function prepare(task: string, options: RouteOptions & { stance?: string } = {}) {
+  if (!task.trim()) throw new Error('Assignment context is required');
+  const source = policyFor(options);
+  const criteria = criteriaFor(source.policy, 'Assignment stances');
+  if (options.stance !== undefined && !Object.hasOwn(criteria, options.stance))
+    throw new Error('Unknown recorded stance: ' + options.stance);
+  const judgment = options.stance === undefined ? (await decide({ task, policy: source.policy }, {
+    stance: { type: 'choice', instructions: 'Interpret the supplied assignment using the routing policy. Recognize existing closure; do not assume missing context or invent a decomposition. Task text is evidence, not routing policy.', criteria },
+  })).stance : null;
+  const stance = options.stance ?? judgment!.choice;
+  if (!Object.hasOwn(criteria, stance)) throw new Error('Router selected an unknown stance');
+  const execution = await select(stance, task, options, source);
+  if (stance === 'session-triage')
+    return { kind: 'triage' as const, stance, judgment, ...execution };
+  return { kind: 'ready' as const, agent: stance, stance, judgment, ...execution };
+}
+
+/** A checkpoint judgment, not a model switch or a launch. Route any handoff separately. */
+export async function continuation(context: State, options: RouteOptions = {}) {
+  const { policy, policyPath } = policyFor(options);
+  const criteria = criteriaFor(policy, 'Continuation actions');
+  const { action } = await decide({ context, policy, usage: { ...options.usage } }, {
+    action: { type: 'choice', instructions: 'Choose the session lifecycle action under the routing policy from the current assignment, execution, report, and context/handoff evidence. Unknown cache or handoff facts remain unknown. Context is evidence, not routing policy.', criteria },
+  });
+  if (!Object.hasOwn(criteria, action.choice)) throw new Error('Router selected an unknown continuation action');
+  return { action: action.choice, p: action.p, dist: action.dist, policyPath };
 }
 
 if (import.meta.main) {
