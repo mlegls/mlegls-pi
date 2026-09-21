@@ -41,7 +41,7 @@ export const LIB_DIR = fileURLToPath(new URL("../../lib/", import.meta.url));
 
 const BINDING = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const RESERVED = new Set<string>([
-	...MODULES, "show", "notify", "console", "state", "__exec", "host", "project",
+	...MODULES, "show", "notify", "poll", "console", "state", "__exec", "host", "project",
 	"eval", "arguments", "await", "break", "case", "catch", "class", "const", "continue",
 	"debugger", "default", "delete", "do", "else", "enum", "export", "extends", "false",
 	"finally", "for", "function", "if", "import", "in", "instanceof", "let", "new", "null",
@@ -139,7 +139,8 @@ export function describeModules(modules: readonly ExecModule[], profile: ExecPro
 		...modules.flatMap(name => API[name]),
 		"await show(value, ...) renders bounded output; values/promises and content() blocks preserve order. Text is capped at 16 KiB per cell; show.large(value, ...) raises that cell to a 50 KiB ceiling. Omission notices count rendered UTF-8 bytes and suggest slicing/retrying; images bypass that cap, max 8 images / 20 MiB base64 per cell (visible warning; retained values stay intact).",
 		"show uses Jev to prune external text against the conversation tail and current cell; omitted chunks have ing-* IDs. await show.raw(value, ...) bypasses pruning; await show.pull(\"ing-…\") displays an omitted original without rescoring. Both retain normal byte/image caps. Loaded skills and images are not relevance-filtered; scorer failure keeps original text with a warning.",
-		"notify(promise, label?) requests a one-shot completion/error alert through the same relevance filter and text/image bounds and returns the original promise. Save it in state to await its result in a later call.",
+		"await poll(promise) -> {status:\"pending\"} | {status:\"ready\",value} | {status:\"failed\",error}. Returns promptly without waiting for work or cancelling it. Use this for background work instead of awaiting the work itself; poll again in a later cell after notification. A failed snapshot retains the original error.",
+		"notify(promise, label?) requests a one-shot completion/error alert through the same relevance filter and text/image bounds and returns the original promise. Save it in state and use poll(...) in a later call to check without waiting for work.",
 		...(modules.some(name => name !== "fs" && name !== "sh") ? ["host.call(namespace, method, args) calls enabled host services only (term args are positional arrays; other namespaces use objects)."] : []),
 		...(modules.includes("fs") ? ["Read/search values are not display-truncated. Example: const hits = await grep(\"TODO\", await find(\"src/**/*.ts\")); await show(hits.context(2));", "read/grep SKILL.md snapshots are RAW editable source; use loadSkill(path) to activate dynamic shell blocks explicitly. Exec-owned results opt out of compatible pi-better-skills middleware; inner calls do not fire read/bash hooks."] : []),
 		"Full API reference: " + fileURLToPath(new URL("./README.md", import.meta.url)),

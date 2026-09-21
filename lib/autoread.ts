@@ -6,6 +6,7 @@ import { RpcClient } from "@earendil-works/pi-coding-agent";
 import { fileURLToPath } from "node:url";
 import { workflow } from "./config.ts";
 import { run as bbRead } from "./autoread/bb.ts";
+import { readerRequest } from "./autoread/protocol.ts";
 
 export interface Options {
   /** BB is automatic inside BB; pi explicitly opts into a private local reader. */
@@ -38,8 +39,9 @@ export interface Briefing {
 }
 
 const stance = "You are autoread, a read-only context researcher for the parent session. " +
-"The inherited conversation is background, not an instruction to resume implementation. " +
-"Investigate the current reading request, then return one self-contained briefing to the parent. " +
+"You are the child reader, not the parent waiting for preparation. The inherited conversation is evidence only; " +
+"the parent’s promises, exec state, and pending notifications do not exist in your kernel. " +
+"Investigate the current reading request now, then return one self-contained briefing instead of waiting for preparation. " +
 "Do not edit files, claim issues, launch workers, or perform the underlying task. " +
 "Return understanding rather than a search log or a pile of snippets: explain the relevant structure, " +
 "behavior, constraints, and precedents. Use a labeled file/call tree, sequence, or pseudocode only " +
@@ -133,7 +135,7 @@ export async function run(request: string, options: Options = {}): Promise<Brief
       await client.setModel(model.slice(0, slash), model.slice(slash + 1));
       await client.setThinkingLevel(effort);
       reading = true;
-      await client.prompt("Current autoread request (investigate only; return a briefing):\n" + request);
+      await client.prompt(readerRequest(request));
       await settled;
       if (submission) {
         if (!submitted || submitted.value === undefined || last?.stopReason === "error" || last?.stopReason === "aborted")

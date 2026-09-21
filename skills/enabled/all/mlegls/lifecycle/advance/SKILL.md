@@ -12,7 +12,17 @@ state.preparing = advance.run();
 notify(state.preparing.then(() => "Session preparation is ready"), "advance");
 ```
 
-When notified, in a later cell, `state.prepared = await state.preparing; await show.raw(state.prepared.text);`.
+When notified (or checking early), use `poll` in a later cell; it returns pending without waiting or destroying the kernel:
+
+```ts
+const check = await poll(state.preparing);
+if (check.status === "ready") {
+  state.prepared = check.value;
+  await show.raw(state.prepared.text);
+} else await show(check);
+```
+
+If pending, end the turn and wait for notification. If failed, inspect the error before retrying.
 Use the carrying skill or stance and begin the returned assignment. For triage, begin with its questions; for idle, report the state.
 
 `state.prepared.suggestion`, when present, is optional advice for the user, separate from the assignment. Continuing with the current model is fine. The full reading and decisions remain in `state.prepared.audit`.

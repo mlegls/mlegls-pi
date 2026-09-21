@@ -349,6 +349,22 @@ async function write(path, content) {
 	return { path, bytes: Buffer.byteLength(content, "utf8") };
 }
 
+// Observe without awaiting the work: an early status check cannot consume a cell deadline.
+const polled = new WeakMap();
+async function poll(promise) {
+	if (!promise || typeof promise.then !== "function") throw new TypeError("poll expects a retained promise");
+	if (!polled.has(promise)) {
+		polled.set(promise, Object.freeze({ status: "pending" }));
+		Promise.resolve(promise).then(
+			value => polled.set(promise, Object.freeze({ status: "ready", value })),
+			error => polled.set(promise, Object.freeze({ status: "failed", error })),
+		);
+	}
+	// A REPL promise is from another realm; let its adoption/reaction microtasks drain.
+	await new Promise(resolve => setImmediate(resolve));
+	return polled.get(promise);
+}
+
 function notify(promise, label) {
 	if (label !== undefined && typeof label !== "string") throw new TypeError("notify label must be a string");
 	Promise.resolve(promise).then(
@@ -392,7 +408,7 @@ async function initialize(message) {
 	});
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
-	const capabilities = reader ? { show } : { show, notify };
+	const capabilities = reader ? { show } : { show, notify, poll };
 	if (modules.has("fs")) {
 		if (reader) {
 			for (const name of ["read", "grep", "find"]) capabilities[name] = traced(name, api[name]);

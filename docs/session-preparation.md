@@ -12,12 +12,17 @@ notify(state.preparing.then(() => "Session preparation is ready"), "introduce");
 // Or: advance.run("deployment"), advance.run() for the current project tracker.
 ```
 
-After the completion notification:
+After the completion notification (or for an early status check):
 
 ```ts
-state.prepared = await state.preparing;
-await show.raw(state.prepared.text);
+const check = await poll(state.preparing);
+if (check.status === "ready") {
+  state.prepared = check.value;
+  await show.raw(state.prepared.text);
+} else await show(check);
 ```
+
+If pending, end the turn and wait for notification; if failed, inspect the error before retrying. Polling never waits for preparation or cancels it. Directly awaiting the preparation promise can still consume the cell deadline and destroy the kernel.
 
 Use the carrying skill or stance and start with the returned first action. The prose assignment includes an objective, workflow, why-now, stopping condition and working context. It may assign concrete work, frame specific user decisions, or explain that nothing is actionable. Suggestions never block continuation or change the parent model. `suggestion`, when present, is optional user/harness advice, deliberately excluded from `text`.
 
@@ -25,8 +30,8 @@ Outside exec, import `run` from `lib/introduce.ts` or `lib/advance.ts`, passing 
 
 ## Pipeline and policy
 
-1. Autoread broadly within scope, including current intent, tracker state, code, relevant skill instructions and constraints.
-2. Jev distinguishes easy selection from knotty selection. Difficulty of implementation is a different question.
+1. Autoread orients within scope: frontier, claims/blockers, constraints and code entry points. Stop when these are known or their absence is explained; leave the actual research/audit inventory to the assigned session.
+2. In one call, Jev checks that orientation is a briefing rather than a status/wait response, and speculatively distinguishes easy selection from knotty selection. A non-briefing rejects before any follow-up reader; the error retains the reader answer, decision and transcript reference. Explained empty, blocked or unreadable scope is valid. This is a semantic judgment, not a correctness proof. Difficulty of implementation is a different question.
 3. Easy: the candidate model submits up to five prose directives through the typed `submit_candidates` tool (not JSON in its response); Jev picks one, then independently scores chunks of the broad reading. Relevant context is assembled losslessly. If candidates cannot be constructed or selected without new planning, take the triage path.
 4. Hard: route a reasoning model for `session-triage`. Its free-text answer is returned verbatim, with unresolved human questions as the session task. There is no schema, response parser, subsequent Jev approval, or context filtering.
 
@@ -40,7 +45,7 @@ Inside BB, every reader is a visible child thread with its own transcript. Follo
 
 Options: `reader` passes autoread's options; `candidates` and `triage` override their model/effort; `routing` passes router options; `policyPath` overrides workflow policy. `contextThreshold` defaults to 0.2 (favor retaining potentially relevant material). This is not a calibrated confidence threshold on selecting work. Routing/selection failures reject; context scoring failure keeps the full briefing and records a warning. Empty context selection also keeps the full briefing. No automatic retry.
 
-`audit` retains every full reader answer, candidate tool submission and session path, the difficulty and candidate-choice distributions, context scores and warnings. Omitted context is recoverable via `audit.reads[0].text`. The retained audit is not part of the parent-facing directive. Read timeouts apply per reader call; retain the whole preparation promise rather than using exec's default 30-second deadline.
+`audit` retains every full reader answer, candidate tool submission and session path, the briefing-validity, difficulty and candidate-choice distributions, context scores and warnings. Omitted context is recoverable via `audit.reads[0].text`. The retained audit is not part of the parent-facing directive. Read timeouts apply per reader call; retain the whole preparation promise and use `poll` instead of waiting across exec's default 30-second deadline.
 
 ## Verification
 

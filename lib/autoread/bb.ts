@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { Options, Briefing } from "../autoread.ts";
-import { readerFiles, type ReaderResult } from "./protocol.ts";
+import { readerFiles, readerRequest, type ReaderResult } from "./protocol.ts";
 
 function bb<T = unknown>(args: string[], signal?: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -58,7 +58,7 @@ export async function run(request: string, options: Options, model: string, effo
     mkdirSync(files.dir, { recursive: true, mode: 0o700 });
     const submission = options.submission && { ...options.submission, extension: realpathSync(resolve(options.cwd ?? process.cwd(), options.submission.extension)) };
     writeFileSync(files.config, JSON.stringify({ systemPrompt, submission }), { mode: 0o600 });
-    writeFileSync(files.request, "Current autoread request (investigate only; return a briefing):\n" + request, { mode: 0o600 });
+    writeFileSync(files.request, readerRequest(request), { mode: 0o600 });
     if (options.compact !== false) {
       try { await whenReady(["thread", "compact", id]); }
       catch (error) {

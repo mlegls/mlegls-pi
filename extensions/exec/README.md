@@ -137,7 +137,7 @@ configuration error rather than silently enabling everything.
 | `ui` | `ui.*` |
 
 `fs` is a configuration group, not a new REPL namespace. Existing function names
-are unchanged. `show`, `notify`, and `console` are always available. Disabled
+are unchanged. `show`, `notify`, `poll`, and `console` are available in the default profile. Disabled
 module globals and API documentation are omitted; `host.call` also rejects
 excluded namespaces. Selection survives kernel resets and session navigation.
 
@@ -391,8 +391,8 @@ notify(state.checks, "tests"); // one completion/error notification, even after 
 Later:
 
 ```ts
-const result = await state.checks;
-await show(result);
+const check = await poll(state.checks);
+await show(check.status === "ready" ? check.value : check);
 ```
 
 `sh(command)` also works. Its result contains `stdout`, `stderr`, and
@@ -408,6 +408,16 @@ into a new object opts back into normal object inspection.
 `notify(promise, label?)` returns the original promise and delivers bounded
 text/image content on completion. Plain detached promises do not request a turn;
 `notify` does.
+
+### Non-blocking promise checks
+
+`await poll(promise)` returns a snapshot: `{status: "pending"}`,
+`{status: "ready", value}`, or `{status: "failed", error}`. It observes a
+retained promise without waiting for it, cancelling it, or throwing its rejection.
+Snapshots preserve the original result/error, and repeated checks reuse one observer.
+Use it after notification or for an early check of background preparation; if
+pending, end the turn. Directly awaiting the work still risks the cell deadline.
+`poll` belongs to the default profile, not the child reader profile.
 
 ## Literal text payloads
 
