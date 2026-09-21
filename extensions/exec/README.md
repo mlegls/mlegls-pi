@@ -646,3 +646,7 @@ consolidate duplicates. Distinguish observations from proposed improvements.
 
 Worker profiles with an explicit `--tools` allowlist must include `exec`.
 Hiding the old file tools does not override that allowlist.
+
+### Intent-driven UI
+
+`computer.run({ui, apps, goal, until, ...})` delegates a bounded AX intent to Jev; `computer.step(options, history)` exposes the same loop for scripts. Hooks supply text, gate actions, and retain screenshots/state. See [computer use](../../docs/computer.md). Driver completion is not a verification assertion.
