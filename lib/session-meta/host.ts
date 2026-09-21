@@ -33,3 +33,5 @@ export function install(pi: ExtensionAPI) {
 		if (!recorded) pi.appendEntry(SPAWN_META, meta);
 	});
 }
+
+export { install as default };

@@ -200,3 +200,5 @@ export function install(pi: ExtensionAPI) {
 		void call(request.method, request.args, request.signal).then(request.resolve, request.reject);
 	});
 }
+
+export { install as default };

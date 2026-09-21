@@ -19,6 +19,10 @@
   ],
   "pi": {
     "extensions": [
+      "./lib/board/host.ts",
+      "./lib/record/host.ts",
+      "./lib/session/host.ts",
+      "./lib/session-meta/host.ts",
       "./extensions/exec/index.ts",
       "./extensions/featherless/index.ts",
       "./extensions/fence/index.ts",

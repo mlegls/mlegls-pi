@@ -222,3 +222,5 @@ export function install(pi: ExtensionAPI) {
 		}).join("\n\n"), 0, 0);
 	});
 }
+
+export { install as default };

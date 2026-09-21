@@ -17,3 +17,5 @@ export function install(pi: ExtensionAPI) {
     },
   });
 }
+
+export { install as default };

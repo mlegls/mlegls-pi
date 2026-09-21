@@ -10,14 +10,14 @@ its subprocesses and clear retained state without discarding file anchors.
 
 ## Host libraries
 
-Exec owns host integrations for its callable capabilities. Featherless, fence,
-system-prompt, and workspace remain independent Pi extensions. At extension load exec discovers
-`lib/*/host.ts` in name order and awaits each explicit `install(host)` export:
+Host integrations live in `lib/*/host.ts` alongside their callable capabilities.
+Each is an independent Pi extension explicitly listed in `package.json` under
+`pi.extensions`, with a default factory export:
 
 ```ts
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-export function install(host: ExtensionAPI) {
+export default function install(host: ExtensionAPI) {
   host.on("before_agent_start", (event) => ({
     systemPrompt: event.systemPrompt + "\nYour local policy.",
   }));
@@ -28,24 +28,24 @@ export function install(host: ExtensionAPI) {
 }
 ```
 
-The host API is Pi's ExtensionAPI, including hooks, commands, providers, and the
-event bus. Installers run before session startup and provider discovery completes.
+Pi awaits each factory before session startup and provider discovery completes.
+Its per-extension load boundary discards a failed factory’s registrations, removes
+its event-bus subscriptions, and rejects further calls through its captured API.
+Other extensions remain usable; Pi reports load failures. This isolates Pi
+registrations, not arbitrary filesystem, process, or import-time side effects.
 Start session resources in `session_start` and clean them up in
-`session_shutdown`; Pi owns event-bus subscription cleanup. Registration happens
-once per extension instance, not per cell, kernel reset, or tree navigation.
-Installation failures are reported at session startup without disabling other
-host modules; a failed installation is not retried within that instance.
+`session_shutdown`; Pi owns event-bus subscription cleanup.
 
-Use `/reload` (or a new Pi process) after editing host code. `/exec-reset`
-only reloads kernel code. `lib/<name>.ts` and project `.pi/exec/*.ts` remain
-cell libraries; project overrides do not install host hooks. Only the installed
-package's trusted library directory is scanned for host modules.
+Add new host entrypoints to `package.json`; exec does not discover or install them.
+Use `/reload` (or a new Pi process) after editing host code or to retry a failed
+load. `/exec-reset` only reloads kernel code. `lib/<name>.ts` and project
+`.pi/exec/*.ts` remain cell libraries; project overrides do not install host hooks.
+Loading only `extensions/exec/index.ts` with `-e` does not load the host extensions.
 
-The generic loader lives in [host.ts](host.ts); policy and capability
-implementations live in [lib](../../lib). The former standalone adapters are
-[archived](../disabled/README.md). Do not enable them alongside exec: that would
-install the same behavior twice. Exa and Board standalone tools are archive-only;
-exec uses their library implementations directly. The independent workspace extension owns its approval tool and human-facing command.
+Featherless, fence, system-prompt, and workspace also remain independent Pi
+extensions. The former standalone adapters are [archived](../disabled/README.md);
+do not enable them alongside the corresponding manifest entrypoint. Exa and Board
+standalone tools are archive-only. Workspace owns its approval tool and command.
 
 ## Cell deadline
 
@@ -287,7 +287,10 @@ await show(source.lines(40, 80)); // 1-based, inclusive
 
 All source views share the four-character anchor ledger. Allocation prefers a
 file-specific initial character, then spills into other prefixes when full;
-the session-wide limit is 1,048,576 live anchors, with an explicit capacity error.
+the session-wide limit is 1,048,576 issued names (live plus retired), with an explicit
+capacity error before writing. Known edits preserve untouched row identities; retired
+names cannot revive, including after resume. External changes still use line-diff
+correspondence, which is ambiguous for some repeated rows.
 Slicing or expanding a selection preserves provenance. Arbitrary strings and shell output
 are not editable source references.
 

@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { ExtensionRunner, SessionManager, wrapRegisteredTools } from "@earendil-works/pi-coding-agent";
 import { send } from "../../lib/board/store";
 import { loadExtensions } from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
+import manifest from "../../package.json";
 
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR4AQEFAPr/AP8AAP8FAAH/+lyI0QAAAABJRU5ErkJggg==";
 
@@ -13,7 +14,8 @@ async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => 
 	const cwd = await mkdtemp(join(tmpdir(), "exec-affordance-"));
 	const oldBoard = process.env.PI_BOARD_DIR;
 	process.env.PI_BOARD_DIR = join(cwd, "board");
-	const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], cwd);
+	const paths = manifest.pi.extensions.filter(path => path.startsWith("./lib/") || path === "./extensions/exec/index.ts");
+	const loaded = await loadExtensions(paths.map(path => resolve(import.meta.dir, "../..", path)), cwd);
 	expect(loaded.errors).toEqual([]);
 	const manager = SessionManager.inMemory(cwd);
 	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, {} as any);
