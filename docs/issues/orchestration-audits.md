@@ -1,5 +1,6 @@
 ---
-next: measure
+stage: spec
+assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
@@ -10,3 +11,5 @@ hypotheses left open by [[projects/mlegls-pi/research/orchestration-audit-2026-0
 - fence on cumulative cache-read: per-session cumulative cost vs tool index for the opus workers; find the knee; estimate what respawn-from-ticket at the knee would have saved.
 - orchestrate rework (`a7f7a98`, 09-15) worked: runs since with exactly one handle; per-run cost and checkpoint counts vs the 09-14 baseline.
 - model spikiness per role: same-shaped review and verify-story tasks across sonnet/astra/glm; parent acceptance vs cost. feeds "[[projects/mlegls-pi/issues/pool-aware-routing]]".
+
+2026-09-22 scope: board-specific hypotheses concern the named historical runs, not current Orca messaging. Report corpus availability and limits; do not restart the retired backend to recreate evidence. Split these independently executable measurements before dispatching individual sessions.

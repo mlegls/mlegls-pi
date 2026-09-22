@@ -1,6 +1,6 @@
 ---
 tags: [task]
-next: done
+stage: done
 priority: 2
 ---
 

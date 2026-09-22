@@ -1,5 +1,6 @@
 ---
-next: measure
+stage: spec
+assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
@@ -38,3 +39,5 @@ decisions:
 - 2026-09-18: lib/dispatch.ts landed (one decide call, threshold → ask marker, cacheReadFence pure and unwired). on the four archived tickets every call rejected at .60 with p .34–.48 and routes that disagree with what happened; archived tickets carry completion prose, so that baseline is not a measurement. next is measure: the eval corpus is worker spawn prompts from the board log (pre-completion tickets, route and agent known from the spawn), ~120 of them. keep the questions untuned until that runs. the dispatch skill's prose is not reduced until the script agrees with history.
 
 - 2026-09-20: classifier moved to `lib/classify.ts` (`classify`); it remains experimental. `dispatch` now launches prepared ready waves through BB/workmux. Parent-owned concurrency planning lives in `realize`; classification calibration is not a prerequisite for launching work. See [[projects/mlegls-pi/issues/archive/dispatch-ready-waves]].
+
+2026-09-22 boundary: current dispatch is Orca-backed. This remains evaluation of lib/classify.ts on pre-completion prompts, not replacement of current routing or a requirement to restore BB/workmux.

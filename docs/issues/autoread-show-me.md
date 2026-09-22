@@ -1,5 +1,6 @@
 ---
-next: measure
+stage: ticket
+assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 

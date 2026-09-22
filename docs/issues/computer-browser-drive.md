@@ -1,5 +1,6 @@
 ---
-next: implement
+stage: spec
+assignee: agent
 ---
 
 concept's `packages/web/scripts/drive.ts` is `computer.run` plus a Playwright `UI` adapter plus three things run lacks. Lift those three, add the adapter in pi, and drive.ts becomes a loader, a persona sign-in, and two renderer calls.

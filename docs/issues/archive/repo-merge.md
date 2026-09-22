@@ -1,5 +1,5 @@
 ---
-next: done
+stage: done
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 

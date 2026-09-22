@@ -1,6 +1,7 @@
 ---
 tags: [task]
-next: implement
+stage: spec
+assignee: agent
 priority: 1
 ---
 

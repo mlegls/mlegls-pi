@@ -1,5 +1,6 @@
 ---
-next: simplify
+stage: idea
+assignee: agent
 ---
 
 A one-line, fully shaped ticket took about 4.5 minutes through `advance.run` in the 2026-09-20 live check. The broad DeepSeek reader took roughly 213 seconds, then the candidate reader rechecked files before submitting. Context scoring hit its eight-second timeout and correctly retained the full briefing. The session assignment was usable, but preparing it can cost more latency than doing this tiny task directly.

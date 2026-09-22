@@ -1,5 +1,6 @@
 ---
-next: grill
+stage: goal
+assignee: human
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
@@ -69,3 +70,5 @@ decisions:
 
 decisions:
 - 2026-09-20: belongs to the [[routing]] project note (model × role table, pool slack, keymap); stays filed here because that's where lib/pool.ts and lib/route.ts land. the grill that remains is the table, in that note.
+
+2026-09-22 state: lib/pool.ts currently exposes caller-supplied usage and effectiveCost; it is not the proposed provider-telemetry reader. lib/route.ts already owns catalog/stance selection, explicit assignee constraints and unavailable-provider admission. Reconcile the remaining quota policy and role choices against [[routing]] before implementing telemetry; do not replace the current router with the historical table above.

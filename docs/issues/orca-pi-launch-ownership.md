@@ -1,5 +1,6 @@
 ---
-next: simplify
+stage: goal
+assignee: agent
 ---
 
 `lib/orca.ts:startPi` must launch Pi itself to select model/effort, then enroll the terminal through native `worker-start --terminal`. Orca 1.4.206 rejects `worker-start --agent pi --model …` before launch.

@@ -1,20 +1,23 @@
 ---
-next: wait
+stage: goal
+assignee: human
 priority: 1
 ---
 
-one harness-integrated library replaces tool calls, most skills, and the split between `~/.config/system-config` (skills, agents) and this repo (exec, lib). functions are orthogonal and composable; project-local exec modules are the plugin surface and upstream by moving the file. the system prompt carries one entry to the library's index. jev is the substrate for decision-tree and coordination logic; language models only where output is freeform or the reasoning is too hard for jev.
+A coherent harness-integrated library, skills and human surfaces reduce orchestration overhead. The repository merge and project-local exec modules are delivered; skills remain skills. Orca owns current execution and messaging, not wm/board.
+
+Residual work: reconcile the remaining human-surface choices and accept the composed workflow against the recorded orchestration costs. Children own bounded preparation, measurement and delivery; their results do not by themselves certify the whole workflow. The dated decisions below preserve the route, including superseded proposals.
 
 evidence for the current state: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]]. summary: parents spend ~60% of context on reading, a quarter of files read are never referenced; coordinator sessions spend 94% of their cost after the first spawn, reading merged results in the main checkout; child reports are small (1.3 KB) and enter unfiltered by board push; the one expensive worker shape is a long opus session steered many times through checkpoints.
 
 substeps, roughly in dependency order:
-1. "[[projects/mlegls-pi/issues/decide-primitive]]" — everything jev-backed waits on it.
-2. "[[projects/mlegls-pi/issues/session-instrumentation]]" — so later audits are one-liners.
+1. "[[projects/mlegls-pi/issues/archive/decide-primitive]]" — everything jev-backed waits on it.
+2. "[[projects/mlegls-pi/issues/archive/session-instrumentation]]" — so later audits are one-liners.
 3. "[[projects/mlegls-pi/issues/ingress-filter]]", "[[projects/mlegls-pi/issues/autoread-show-me]]", "[[projects/mlegls-pi/issues/skim-and-triage]]" — what enters context; run in parallel.
-4. "[[projects/mlegls-pi/issues/supervision-join-script]]", "[[projects/mlegls-pi/issues/dispatch-script]]" — orchestration as scripts.
-5. "[[projects/mlegls-pi/issues/pool-aware-routing]]", "[[projects/mlegls-pi/issues/campaign-coordinator]]".
-6. "[[projects/mlegls-pi/issues/skills-triage]]" then "[[projects/mlegls-pi/issues/repo-merge]]".
-7. "[[projects/mlegls-pi/issues/home-ui]]", "[[projects/mlegls-pi/issues/operon-adapter]]" — the human surfaces; independent of the rest.
+4. "[[projects/mlegls-pi/issues/archive/supervision-join-script]]", "[[projects/mlegls-pi/issues/dispatch-script]]" — orchestration as scripts.
+5. "[[projects/mlegls-pi/issues/pool-aware-routing]]", "[[projects/mlegls-pi/issues/archive/campaign-coordinator]]".
+6. "[[projects/mlegls-pi/issues/archive/skills-triage]]" then "[[projects/mlegls-pi/issues/archive/repo-merge]]".
+7. "[[projects/mlegls-pi/issues/home-ui]]", "[[projects/mlegls-pi/issues/archive/operon-adapter]]" — the human surfaces; independent of the rest.
 8. "[[projects/mlegls-pi/issues/orchestration-audits]]" — remaining hypotheses; "[[projects/mlegls-pi/issues/reranker-eval]]" gates how much of the filter to build.
 
 decisions:
@@ -27,7 +30,7 @@ decisions:
 - 2026-09-18: dispatch-script landed as lib/dispatch.ts; baseline on archived tickets invalid (completion prose), next is measure over spawn prompts.
 - 2026-09-18: operon-adapter answered: CLI + in-process API only, no HTTP/MCP, needs obsidian running; project = parent task tree, gantt exists without CPM or pools; next and claimed-by have no analogue. adapter is possible but lossy; whether to adopt is part of the campaign-coordinator grill.
 - 2026-09-18: pool-aware-routing researched: codex wham/usage endpoint, anthropic in-band ratelimit headers, xai api-key balance only; pi captures none, seam is after_provider_response.
-- 2026-09-18: skills-triage resolved: skills stay skills and migrate one at a time; the skill list is the index, not a new one. "[[projects/mlegls-pi/issues/context-handoff]]" and "[[projects/mlegls-pi/issues/exec-project-modules]]" added; the parent's `next` is carried by its children.
+- 2026-09-18: skills-triage resolved: skills stay skills and migrate one at a time; the skill list is the index, not a new one. "[[projects/mlegls-pi/issues/archive/context-handoff]]" and "[[projects/mlegls-pi/issues/archive/exec-project-modules]]" added; children carry the individual follow-ups; composed acceptance remains with the parent.
 - 2026-09-18: context-handoff landed: wm.spawn({from:"fork"|"summary"}), /jump <handle>. "[[projects/mlegls-pi/issues/archive/context-handoff]]".
 - 2026-09-18: exec-project-modules landed: `.pi/exec/<name>.ts` shadows `lib/<name>.ts` in the cell; new stems are `project.<name>`; `skills/mlegls-pi` documents layout/add/reload. "[[projects/mlegls-pi/issues/archive/exec-project-modules]]".
 - 2026-09-20: repo-merge landed: `agents/`, `skills/{enabled,disabled}`, `agent-prompts/` live here; system-config keeps relative symlinks and agents-apply. package skills stay `skills/pi` and `skills/mlegls-pi`. "[[projects/mlegls-pi/issues/archive/repo-merge]]".

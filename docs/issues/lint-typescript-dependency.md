@@ -1,5 +1,6 @@
 ---
-next: simplify
+stage: ticket
+assignee: agent
 priority: 3
 ---
 

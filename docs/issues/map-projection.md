@@ -1,6 +1,6 @@
 ---
-next: wait
-part-of: "[[projects/mlegls-pi/issues/autoread-show-me]]"
+stage: idea
+assignee: agent
 blocked-by: ["[[projects/mlegls-pi/issues/autoread-show-me]]"]
 ---
 

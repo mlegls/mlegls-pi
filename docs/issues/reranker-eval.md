@@ -1,5 +1,6 @@
 ---
-next: measure
+stage: spec
+assignee: agent
 part-of: "[[projects/mlegls-pi/issues/ingress-filter]]"
 ---
 
@@ -8,3 +9,5 @@ can jev separate the files a session acted on from the ones it read and never re
 done: a number that says how much of the 24% (and of the whole-file bytes in the 58%) the filter would remove at a given miss rate. if jev cannot separate them, the query serialization is wrong before the filter is worth building further.
 
 harness: session parser from the audit (tool classification, basename-referenced labels) plus a chunker for source files; outline-read's symbol split is enough.
+
+2026-09-22 measurement target: use the current five-level policy in docs/ingress.md, not the retired binary .2 threshold. Retain the historical acted-on labels as a proxy, not ground truth for comprehension. Report retention, pulls, missed necessary evidence, latency and token savings against raw display; separate compression fidelity from relevance selection. This study produces evidence and recommendations; policy acceptance belongs to ingress-filter.

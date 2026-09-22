@@ -1,5 +1,5 @@
 ---
-next: done
+stage: done
 ---
 
 From [[directing multi-agent work]]: separate parent-owned Gantt-style concurrency planning from launching workers. The parent autoreads, plans streams, routes delegated assignments, dispatches a ready wave, and integrates/replans after reports.

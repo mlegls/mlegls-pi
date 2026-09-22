@@ -1,5 +1,6 @@
 ---
-next: prototype
+stage: goal
+assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
