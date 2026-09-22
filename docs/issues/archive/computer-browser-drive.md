@@ -1,7 +1,13 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 ---
+
+## Disposition — 2026-09-22
+
+The reusable controller lifts, Playwright adapter, renderers and Concept drive composition are delivered, with the local-page encounter recorded below. The two proposed product-story reruns were not established by that encounter; they remain an explicit evidence limit, not an indefinitely extended library-delivery contract. This closure does not certify those product stories. [Computer composition](../../computer.md).
+
+## Prior scope and evidence
 
 concept's `packages/web/scripts/drive.ts` is `computer.run` plus a Playwright `UI` adapter plus three things run lacks. Lift those three, add the adapter in pi, and drive.ts becomes a loader, a persona sign-in, and two renderer calls.
 

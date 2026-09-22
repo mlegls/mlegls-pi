@@ -1,8 +1,14 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
+
+## Disposition — 2026-09-22
+
+The classifier implementation is delivered; its proposed integration is superseded by policy-driven route.prepare and the prepared dispatch boundary. [Routing encounter](../../research/session-routing-verification-2026-09-21.md); [current dispatch](../../dispatch.md). The historical four-case experiment was not calibration. Further calibration of this unused classifier is not retained as a completion obligation.
+
+## Prior scope and evidence
 
 Measure the experimental Jev work-shape classifier against pre-completion worker prompts before using it in introduce/advance. Parent-owned concurrency decomposition stays in `realize`; `dispatch` is only the launch boundary.
 

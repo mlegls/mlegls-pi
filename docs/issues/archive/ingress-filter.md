@@ -1,10 +1,16 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
-External data reaches the parent at the fidelity its reading needs, with recoverable originals and unchanged retained values. The current contract is [Exec ingress](../ingress.md): five retention levels, local prose compression, exact code/excerpt fallbacks and raw/pull recovery. The September 20 binary p >= .2 prototype is superseded, not the calibration target.
+## Disposition — 2026-09-22
+
+Delivered: recoverable, focus-sensitive ingress filtering and five-level skimming are integrated into exec. [Current contract](../../ingress.md); [live integration and replay](../../research/ingress-retention-2026-09-22.md). Broader calibration is independent work in [[projects/mlegls-pi/issues/reranker-eval]], not a condition for keeping this delivery open.
+
+## Prior scope and evidence
+
+External data reaches the parent at the fidelity its reading needs, with recoverable originals and unchanged retained values. The current contract is [Exec ingress](../../ingress.md): five retention levels, local prose compression, exact code/excerpt fallbacks and raw/pull recovery. The September 20 binary p >= .2 prototype is superseded, not the calibration target.
 
 The display integration is delivered. Residual acceptance is evidence-backed calibration of the current policy, using [[projects/mlegls-pi/issues/reranker-eval]]: reconcile its measurements with the reading promise, document the limits, and either accept the policy or give each demonstrated defect a separate owner. Building a richer chunker is not implied by completing the measurement.
 

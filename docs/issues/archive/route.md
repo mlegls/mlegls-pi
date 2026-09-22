@@ -8,7 +8,7 @@ priority: 1
 
 - keymap: parse the sink × supertag table from routing.md; an instruction overrides the skill. no judgment here.
 - selection: jev (see the typesafe-ai skill), not a chat model: it's a choice among a closed set. candidates are every (model, effort) named in the catalog; the judgment is given the block, the chosen skill, the selection and pool sections of routing.md, and the catalog, and asks for the cheapest candidate that clearly suffices. no tables in code.
-- pool: `lib/pool.ts` with a `usage(provider)` stub returning 0 and the congestion price formula, so the reader in [[projects/mlegls-pi/issues/pool-aware-routing]] can slot in.
+- pool: `lib/pool.ts` with a `usage(provider)` stub returning 0 and the congestion price formula, so the reader in [[projects/mlegls-pi/issues/archive/pool-aware-routing]] can slot in.
 - lib/augment.ts calls route() instead of hardcoding grilling + luna/low; its cli gains an optional instruction argument.
 
 done: `bun lib/route.ts comment fleeting "<block text>"` prints {skill, model, effort}; the augment palette CLI produces a comment; direct probes cover keymap parsing, instruction override, catalog expansion, and congestion pricing. No persistent tests (implementation-session constraint).

@@ -1,8 +1,14 @@
 ---
-stage: goal
+stage: done
 assignee: human
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
+
+## Disposition — 2026-09-22
+
+The provider-slack research and usage-aware routing seam are delivered. lib/route.ts consumes caller-supplied usage, excludes unavailable/exhausted candidates, and follows the current routing policy; lib/pool.ts supplies the cost calculation. The historical fixed role table is superseded. Automatic provider telemetry was not delivered and is a separate proposal: [[projects/mlegls-pi/issues/collect-provider-quota-telemetry]]. [Routing encounter](../../research/session-routing-verification-2026-09-21.md).
+
+## Prior scope and evidence
 
 three subscription pools (codex, anthropic, maybe grok) plus metered. constraint: anthropic worker share ≤50% so fable's interactive quota is never crowded; drain codex (and grok) to their weekly ceilings with worker traffic; metered deepseek and jev as overflow. the router takes pool slack as input: a role×model preference table filtered by slack at spawn, not a static roster.
 

@@ -1,10 +1,10 @@
 ---
-stage: ticket
-assignee: agent
+stage: idea
+assignee: human
 author: run:run_a99780307abf
 ---
 
-Extend the native background trial to the actual Electron/custom-control apps.
+Decide whether to extend the native background trial to Electron/custom-control apps. The TextEdit integration is delivered; this is a separate compatibility study, not an unfinished integration ticket.
 [Guide and recording](../guide/cua-background.md): the direct Jev runner replaced
 a TextEdit document, then finished on Cua verify_state confirming the exact AX
 value. Zed remained frontmost at sampled endpoints; this is not a continuous
@@ -16,7 +16,7 @@ reduced the repeat to 982. Query and tree budgets are explicit runner options;
 projection cannot establish absence. Native elements_complete remained false.
 A prior bold-button press reported an unverifiable effect.
 
-Next measurement: background type/scroll in an Electron app, with frontmost and
+If wanted, the proposed measurement is: background type/scroll in an Electron app, with frontmost and
 cursor sampling during delivery, not only endpoints. Include an interrupted
 mutation: no automatic retry or later queued write after cancellation. The
 current replay covers transport cancellation/lifecycle, not a live interrupted write.

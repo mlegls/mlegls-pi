@@ -10,12 +10,12 @@ Residual work: reconcile the remaining human-surface choices and accept the comp
 
 evidence for the current state: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]]. summary: parents spend ~60% of context on reading, a quarter of files read are never referenced; coordinator sessions spend 94% of their cost after the first spawn, reading merged results in the main checkout; child reports are small (1.3 KB) and enter unfiltered by board push; the one expensive worker shape is a long opus session steered many times through checkpoints.
 
-substeps, roughly in dependency order:
+Original decomposition, roughly in dependency order (archived links include delivered and superseded scopes):
 1. "[[projects/mlegls-pi/issues/archive/decide-primitive]]" — everything jev-backed waits on it.
 2. "[[projects/mlegls-pi/issues/archive/session-instrumentation]]" — so later audits are one-liners.
-3. "[[projects/mlegls-pi/issues/ingress-filter]]", "[[projects/mlegls-pi/issues/autoread-show-me]]", "[[projects/mlegls-pi/issues/skim-and-triage]]" — what enters context; run in parallel.
-4. "[[projects/mlegls-pi/issues/archive/supervision-join-script]]", "[[projects/mlegls-pi/issues/dispatch-script]]" — orchestration as scripts.
-5. "[[projects/mlegls-pi/issues/pool-aware-routing]]", "[[projects/mlegls-pi/issues/archive/campaign-coordinator]]".
+3. "[[projects/mlegls-pi/issues/archive/ingress-filter]]", "[[projects/mlegls-pi/issues/autoread-show-me]]", "[[projects/mlegls-pi/issues/archive/skim-and-triage]]" — what enters context; run in parallel.
+4. "[[projects/mlegls-pi/issues/archive/supervision-join-script]]", "[[projects/mlegls-pi/issues/archive/dispatch-script]]" — orchestration as scripts.
+5. "[[projects/mlegls-pi/issues/archive/pool-aware-routing]]", "[[projects/mlegls-pi/issues/archive/campaign-coordinator]]".
 6. "[[projects/mlegls-pi/issues/archive/skills-triage]]" then "[[projects/mlegls-pi/issues/archive/repo-merge]]".
 7. "[[projects/mlegls-pi/issues/home-ui]]", "[[projects/mlegls-pi/issues/archive/operon-adapter]]" — the human surfaces; independent of the rest.
 8. "[[projects/mlegls-pi/issues/orchestration-audits]]" — remaining hypotheses; "[[projects/mlegls-pi/issues/reranker-eval]]" gates how much of the filter to build.

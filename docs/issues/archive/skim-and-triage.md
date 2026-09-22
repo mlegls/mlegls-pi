@@ -1,8 +1,14 @@
 ---
-stage: goal
+stage: done
 assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
+
+## Disposition — 2026-09-22
+
+Closed as superseded, not as literal implementation of the proposal below. Current ingress supplies five-level recoverable skims; lib/code.ts and outline-read provide structural reading. The proposed automatic diff-shaped, per-hunk review pipeline was not delivered. Whether that additional operation is wanted is [[projects/mlegls-pi/issues/triage-diff-hunks-for-review]]. [Current reading contract](../../ingress.md).
+
+## Prior scope and evidence
 
 two ingress operations that are not the filter:
 
