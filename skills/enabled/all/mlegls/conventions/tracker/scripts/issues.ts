@@ -57,7 +57,7 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
     };
     if ("next" in fm) {
       if (!KINDS.includes(fm.next)) throw new Error("next must be one of " + KINDS.join(" "));
-      if (["stage", "assignee", "author"].some(k => k in fm)) throw new Error("legacy next cannot mix with lifecycle fields");
+      if ("stage" in fm) throw new Error("legacy next cannot mix with stage");
     }
     if ("stage" in fm && !STAGES.includes(fm.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
     if ("assignee" in fm && (typeof fm.assignee !== "string" || !validAssignee(fm.assignee))) throw new Error("invalid assignee selector");
@@ -115,9 +115,9 @@ const STAGES = ["idea", "goal", "spec", "ticket", "done"];
 function validAssignee(a: string): boolean {
   const parts = a.split(",").map(p => p.trim());
   const stance = (p: string) => /^agent:[a-z][a-z0-9-]*$/.test(p);
-  const model = (p: string) => /^model:[^\s/,:]+\/[^\s,:]+:(none|minimal|low|medium|high|xhigh)$/.test(p);
+  const model = (p: string) => /^model:[^\s/,:]+\/[^\s,:]+:([a-z]+)$/.test(p);
   if (parts.length === 2) return (stance(parts[0]) && model(parts[1])) || (model(parts[0]) && stance(parts[1]));
-  return parts.length === 1 && (/^(agent|human)$/.test(a) || /^(user|session):[^\s:,]+$/.test(a) || stance(a) || model(a));
+  return parts.length === 1 && (/^(agent|human)$/.test(a) || /^(user|session):[^\s,]+$/.test(a) || stance(a) || model(a));
 }
 function children(i: Issue, all: Map<string, Issue>): Issue[] {
   return [...all.values()].filter(c => c.partOf === i.slug);
@@ -186,9 +186,9 @@ function line(i: Issue, all: Map<string, Issue>): string {
   if (i.assignee) bits.push("assignee:" + i.assignee);
   if (i.claimedBy) bits.push((claimLive(i) === false ? "stale-claim:" : "claimed:") + i.claimedBy);
   const ob = openBlockers(i, all);
-  if (ob.length) bits.push("blocked:" + ob.join(","));
+  if (ob.length) bits.push("prerequisites:" + ob.join(","));
   const d = dependents(i.slug, all);
-  return `${i.slug}  [${bits.join(" ")}] p${effectivePriority(i, all)}${d ? " unblocks:" + d : ""}`;
+  return `${i.slug}  [${bits.join(" ")}] p${i.priority ?? "?"}${d ? " unblocks:" + d : ""}`;
 }
 
 // children in dependency order: an issue after everything in blocked-by it shares a parent with
@@ -349,11 +349,11 @@ const dir = findIssuesDir(process.cwd());
 const all = load(dir);
 // Validate graph before any output, including legacy graphs.
 for (const i of all.values()) {
-  for (const relation of ["partOf", "blockedBy"] as const) {
+  for (const relation of ["partOf", "blockedBy", "completion"] as const) {
     const visit = (n: Issue, path: Set<string>) => {
       if (path.has(n.slug)) throw new Error(i.file + ": " + relation + " cycle");
       const next = new Set(path).add(n.slug);
-      const edges = relation === "partOf" ? (n.partOf ? [n.partOf] : []) : n.blockedBy;
+      const edges = relation === "partOf" ? (n.partOf ? [n.partOf] : []) : relation === "blockedBy" ? n.blockedBy : n.archived ? [] : [...n.blockedBy, ...children(n, all).filter(c => !c.archived).map(c => c.slug)];
       for (const edge of edges) if (all.has(edge)) visit(all.get(edge)!, next);
     };
     visit(i, new Set());

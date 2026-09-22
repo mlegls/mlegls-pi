@@ -57,6 +57,7 @@ smoke("compound constraints, omission, blockers, claims, deferred and done stay 
 smoke("scope scheduling ignores internal edges, rejects cycles and preserves own mine filters", () => {
   const base = [page("parent", {}), page("a", { stage: "ticket", assignee: "agent", "part-of": link("parent"), "blocked-by": [link("b")] }), page("b", { stage: "ticket", assignee: "agent", "part-of": link("parent") })];
   expect(slugs(model(base).frontier)).toEqual(["b", "parent"]);
+  expect(model([base[0], page("child", { stage: "ticket", assignee: "agent", "part-of": link("parent"), "blocked-by": [link("parent")] })]).frontier).toHaveLength(0);
   expect(model([...base.slice(0, 2), page("b", { stage: "ticket", assignee: "agent", "part-of": link("parent"), "blocked-by": [link("a")] })]).frontier).toHaveLength(0);
   expect(model([page("mine", { stage: "goal", assignee: "human", "blocked-by": [link("missing")] })]).mine).toHaveLength(0);
   expect(model([page("mine", { stage: "goal", assignee: "human", "claimed-by": "historic-claim" })]).mine).toHaveLength(0);
@@ -84,7 +85,7 @@ function currentPages() {
 smoke("current vault model and all JSX surfaces load", () => {
   const m = model(currentPages());
   expect(m.issues.size).toBeGreaterThan(0);
-  expect(m.frontier.every((i: any) => i.project === "concept" && i.subtreeReady && !i.claims.length && !i.openBlockers.length)).toBe(true);
+  expect(m.frontier.every((i: any) => !i.legacy && i.subtreeReady && !i.claims.length && !i.openBlockers.length)).toBe(true);
   const transpiler = new Bun.Transpiler({ loader: "jsx" });
   for (const name of ["lib", "Tracker", "Graph"]) {
     const code = readFileSync(join(vault, "tracker/" + name + ".md"), "utf8").split(/```(?:datacore)?jsx\n/)[1].split("```")[0];

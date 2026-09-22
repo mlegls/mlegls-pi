@@ -31,7 +31,7 @@ test("format-equivalent dependencies preserve all queries", () => {
     put("task", frontmatter(`stage: ${next === "implement" ? "ticket" : "goal"}
 assignee: ${next === "implement" ? "agent" : "human"}\nblocked-by: [${blocker}]`));
     const baseline = commands.map(run);
-    expect(baseline[0].out).toContain("blocked:blocker");
+    expect(baseline[0].out).toContain("prerequisites:blocker");
     expect(baseline[1].out).toBe("");
     expect(baseline[2].out).toBe("");
     expect(baseline[3]).toEqual({ code: 0, out: "ok\n", err: "" });
@@ -114,7 +114,7 @@ test("outline maps each linked bullet to its issue, flags unlinked intent among 
   expect(out).toContain("5: the blocker —  blocker  [own:idea effective:idea]");
   expect(out).toContain("6: a note with no issue  [no issue]");
   expect(out).not.toContain("prose that links nothing");
-  expect(out).toContain("uncovered: loose  [own:goal effective:goal assignee:human] p2.5");
+  expect(out).toContain("uncovered: loose  [own:goal effective:goal assignee:human] p?");
   expect(out).not.toContain("uncovered: task");
   rmSync(join(issues, "loose.md"));
   put("task", frontmatter("stage: ticket\nassignee: agent"));
@@ -200,4 +200,10 @@ test("historical provenance survives and duplicate identities fail before projec
   expect(run("snapshot").out).toBe("");
   rmSync(join(issues, "archive/provenance.md"));
   rmSync(join(issues, "provenance.md"));
+});
+
+test("a child cannot await completion of its own parent scope", () => {
+  put("parent", frontmatter("assignee: agent"));
+  put("child", frontmatter('stage: ticket\nassignee: agent\npart-of: "[[projects/test/issues/parent]]"\nblocked-by: ["[[projects/test/issues/parent]]"]'));
+  expect(run("frontier").err).toContain("completion cycle");
 });

@@ -34,7 +34,7 @@ Frontmatter is a strict YAML mapping. Relations are quoted vault-absolute issue 
 
 ### Legacy projects
 
-Issues retaining `next: grill | research | prototype | measure | simplify | implement | wait | done` remain readable/checkable and appear explicitly as legacy. They have no lifecycle readiness/frontier. Mixing next with lifecycle fields is invalid. Reconcile bodies, code and results before assigning lifecycle metadata; no automatic translation.
+Issues retaining `next: grill | research | prototype | measure | simplify | implement | wait | done` remain readable/checkable and appear explicitly as legacy. They have no lifecycle readiness/frontier. Mixing next with stage is invalid; existing provenance and assignment metadata are preserved without certifying readiness. Reconcile bodies, code and results before assigning lifecycle metadata; no automatic translation.
 
 ## body
 

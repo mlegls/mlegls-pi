@@ -12,7 +12,7 @@ Prototype review is interactive feedback, not the implementation verification pi
 
 The [agreed tracker lifecycle](../skills/enabled/all/mlegls/conventions/tracker/references/lifecycle.md) defines readiness rollup, closed execution scopes, optional stage transitions, result digestion, author provenance, assignment eligibility and live claims. New discoveries during execution start separate idea trees.
 
-The tracker currently uses `next`; follow the current adapter until schema, queries and views migrate together. The lifecycle reference records the replacement and remaining migration decisions. Shared skills define delivery behavior now: `plan`, `implement`, `verify-story` and `testing`.
+The tracker supports the lifecycle schema. Unmigrated `next` records remain explicitly legacy and outside lifecycle frontiers; reconcile them before assigning readiness. Shared skills define delivery behavior now: `plan`, `implement`, `verify-story` and `testing`.
 
 ## Decision authority
 
