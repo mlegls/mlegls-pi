@@ -98,3 +98,5 @@ current live ingress deadline; the cause was not investigated in this experiment
 This receipt uses the direct TypeSafe endpoint with jev-1.13.0. Local model startup
 and compression timing are recorded separately. There is no latency/accuracy claim
 for a deployed pipeline.
+
+[Follow-up investigation](INVESTIGATION.md) isolates the cold connection delay, repeats the neighboring-rate judgments, and traces the LLMLingua 20× claim.

@@ -1,0 +1,696 @@
+{
+  "bun": [
+    {
+      "runtime": "v26.3.0",
+      "bun": "1.4.2",
+      "dns": [
+        {
+          "address": "44.227.31.201",
+          "family": 4
+        },
+        {
+          "address": "100.20.85.248",
+          "family": 4
+        }
+      ]
+    },
+    {
+      "name": "tiny-cold",
+      "status": 200,
+      "headersMs": 30893.716417,
+      "totalMs": 30895.195417,
+      "headers": {
+        "content-length": "117",
+        "content-type": "application/json",
+        "date": "Tue, 22 Sep 2026 04:04:15 GMT",
+        "server": "istio-envoy",
+        "x-envoy-upstream-service-time": "96",
+        "x-typesafe-request-id": "req_01a0c749295d7b4ab6989bf6d3582bce"
+      },
+      "body": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "blue": {
+            "type": "noul",
+            "noul": 0.99
+          }
+        },
+        "usage": {
+          "input_tokens": 278,
+          "output_tokens": 20
+        }
+      }
+    },
+    {
+      "name": "tiny-warm",
+      "status": 200,
+      "headersMs": 313.1240409999955,
+      "totalMs": 313.2565409999952,
+      "headers": {
+        "content-length": "117",
+        "content-type": "application/json",
+        "date": "Tue, 22 Sep 2026 04:04:15 GMT",
+        "server": "istio-envoy",
+        "x-envoy-upstream-service-time": "116",
+        "x-typesafe-request-id": "req_01a0c7492a8d743aa02f825170059569"
+      },
+      "body": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "blue": {
+            "type": "noul",
+            "noul": 0.99
+          }
+        },
+        "usage": {
+          "input_tokens": 278,
+          "output_tokens": 20
+        }
+      }
+    },
+    {
+      "name": "full",
+      "status": 200,
+      "headersMs": 513.8792089999988,
+      "totalMs": 513.9078340000051,
+      "headers": {
+        "content-length": "696",
+        "content-type": "application/json",
+        "date": "Tue, 22 Sep 2026 04:04:16 GMT",
+        "server": "istio-envoy",
+        "x-envoy-upstream-service-time": "144",
+        "x-typesafe-request-id": "req_01a0c7492c7970d5a7dcae9df1bb1fe5"
+      },
+      "body": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.24,
+            "probabilities": {
+              "three_quarters": 0.37,
+              "full": 0.12,
+              "omit": 0.04,
+              "half": 0.39,
+              "quarter": 0.08
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.78,
+            "probabilities": {
+              "three_quarters": 0.04,
+              "full": 0.01,
+              "omit": 0.82,
+              "half": 0.05,
+              "quarter": 0.08
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.77,
+            "probabilities": {
+              "three_quarters": 0.04,
+              "full": 0.01,
+              "omit": 0.8099999999999999,
+              "half": 0.05,
+              "quarter": 0.09
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "three_quarters",
+            "confidence": 0.24,
+            "probabilities": {
+              "three_quarters": 0.39,
+              "quarter": 0.03,
+              "omit": 0.03,
+              "full": 0.24,
+              "half": 0.31
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 214
+        }
+      }
+    },
+    {
+      "name": "full-repeat",
+      "status": 200,
+      "headersMs": 299.5486249999958,
+      "totalMs": 299.5819169999959,
+      "headers": {
+        "content-length": "687",
+        "content-type": "application/json",
+        "date": "Tue, 22 Sep 2026 04:04:16 GMT",
+        "server": "istio-envoy",
+        "x-envoy-upstream-service-time": "94",
+        "x-typesafe-request-id": "req_01a0c7492dcd7099966b1ab6756526bc"
+      },
+      "body": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.23,
+            "probabilities": {
+              "three_quarters": 0.35,
+              "quarter": 0.08,
+              "full": 0.16,
+              "half": 0.37,
+              "omit": 0.04
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.83,
+            "probabilities": {
+              "three_quarters": 0.03,
+              "quarter": 0.07,
+              "full": 0.01,
+              "half": 0.03,
+              "omit": 0.86
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.74,
+            "probabilities": {
+              "three_quarters": 0.03,
+              "quarter": 0.12,
+              "full": 0.01,
+              "half": 0.05,
+              "omit": 0.79
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.18,
+            "probabilities": {
+              "three_quarters": 0.33,
+              "quarter": 0.03,
+              "full": 0.25,
+              "half": 0.35000000000000003,
+              "omit": 0.04
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 211
+        }
+      }
+    }
+  ],
+  "runs": [
+    {
+      "name": "jev-curl-full.json",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.22,
+            "probabilities": {
+              "quarter": 0.09,
+              "omit": 0.06,
+              "three_quarters": 0.35,
+              "half": 0.38,
+              "full": 0.12
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.82,
+            "probabilities": {
+              "quarter": 0.07,
+              "omit": 0.84,
+              "three_quarters": 0.04,
+              "full": 0.01,
+              "half": 0.04
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.8,
+            "probabilities": {
+              "quarter": 0.09,
+              "omit": 0.84,
+              "three_quarters": 0.03,
+              "full": 0.01,
+              "half": 0.03
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.2,
+            "probabilities": {
+              "quarter": 0.03,
+              "omit": 0.02,
+              "three_quarters": 0.35,
+              "full": 0.24,
+              "half": 0.36
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 211
+        }
+      }
+    },
+    {
+      "name": "jev-direct.json",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.22,
+            "probabilities": {
+              "quarter": 0.1,
+              "three_quarters": 0.35,
+              "half": 0.37,
+              "omit": 0.06,
+              "full": 0.12
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.81,
+            "probabilities": {
+              "quarter": 0.07,
+              "three_quarters": 0.04,
+              "half": 0.04,
+              "omit": 0.84,
+              "full": 0.01
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.77,
+            "probabilities": {
+              "quarter": 0.1,
+              "three_quarters": 0.03,
+              "half": 0.05,
+              "omit": 0.8099999999999999,
+              "full": 0.01
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "three_quarters",
+            "confidence": 0.18,
+            "probabilities": {
+              "quarter": 0.04,
+              "three_quarters": 0.35,
+              "half": 0.3,
+              "omit": 0.05,
+              "full": 0.26
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 214
+        }
+      }
+    },
+    {
+      "name": "jev-ip-44.227.31.201.json",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.23,
+            "probabilities": {
+              "half": 0.38,
+              "quarter": 0.11,
+              "omit": 0.06,
+              "full": 0.1,
+              "three_quarters": 0.35
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.81,
+            "probabilities": {
+              "full": 0.01,
+              "half": 0.04,
+              "omit": 0.85,
+              "quarter": 0.06,
+              "three_quarters": 0.04
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.81,
+            "probabilities": {
+              "three_quarters": 0.03,
+              "full": 0.01,
+              "omit": 0.84,
+              "half": 0.04,
+              "quarter": 0.08
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.17,
+            "probabilities": {
+              "full": 0.28,
+              "half": 0.34,
+              "omit": 0.03,
+              "quarter": 0.03,
+              "three_quarters": 0.32
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 211
+        }
+      }
+    },
+    {
+      "name": "jev-ip-100.20.85.248.json",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.24,
+            "probabilities": {
+              "half": 0.39,
+              "full": 0.15,
+              "three_quarters": 0.34,
+              "omit": 0.04,
+              "quarter": 0.08
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.84,
+            "probabilities": {
+              "half": 0.03,
+              "full": 0.01,
+              "three_quarters": 0.03,
+              "omit": 0.87,
+              "quarter": 0.06
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.78,
+            "probabilities": {
+              "half": 0.04,
+              "full": 0.01,
+              "three_quarters": 0.03,
+              "omit": 0.83,
+              "quarter": 0.09
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "three_quarters",
+            "confidence": 0.23,
+            "probabilities": {
+              "half": 0.31,
+              "full": 0.26,
+              "three_quarters": 0.39,
+              "omit": 0.02,
+              "quarter": 0.02
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 214
+        }
+      }
+    },
+    {
+      "name": "jev-direct-ipv4.json",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.22,
+            "probabilities": {
+              "omit": 0.06,
+              "full": 0.14,
+              "half": 0.37,
+              "three_quarters": 0.33,
+              "quarter": 0.1
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.84,
+            "probabilities": {
+              "three_quarters": 0.03,
+              "full": 0.01,
+              "half": 0.03,
+              "omit": 0.87,
+              "quarter": 0.06
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.79,
+            "probabilities": {
+              "omit": 0.83,
+              "full": 0.01,
+              "half": 0.04,
+              "three_quarters": 0.03,
+              "quarter": 0.09
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.23,
+            "probabilities": {
+              "three_quarters": 0.35,
+              "full": 0.21,
+              "half": 0.39,
+              "omit": 0.02,
+              "quarter": 0.03
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 211
+        }
+      }
+    },
+    {
+      "name": "jev-direct-pinned.json",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "three_quarters",
+            "confidence": 0.23,
+            "probabilities": {
+              "omit": 0.04,
+              "quarter": 0.08,
+              "three_quarters": 0.38,
+              "full": 0.14,
+              "half": 0.36
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.8,
+            "probabilities": {
+              "omit": 0.84,
+              "quarter": 0.08,
+              "full": 0.01,
+              "three_quarters": 0.03,
+              "half": 0.04
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.78,
+            "probabilities": {
+              "omit": 0.82,
+              "quarter": 0.1,
+              "full": 0.01,
+              "three_quarters": 0.03,
+              "half": 0.04
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.21,
+            "probabilities": {
+              "omit": 0.02,
+              "quarter": 0.03,
+              "full": 0.23,
+              "three_quarters": 0.35,
+              "half": 0.37
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 214
+        }
+      }
+    },
+    {
+      "name": "full",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.24,
+            "probabilities": {
+              "three_quarters": 0.37,
+              "full": 0.12,
+              "omit": 0.04,
+              "half": 0.39,
+              "quarter": 0.08
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.78,
+            "probabilities": {
+              "three_quarters": 0.04,
+              "full": 0.01,
+              "omit": 0.82,
+              "half": 0.05,
+              "quarter": 0.08
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.77,
+            "probabilities": {
+              "three_quarters": 0.04,
+              "full": 0.01,
+              "omit": 0.8099999999999999,
+              "half": 0.05,
+              "quarter": 0.09
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "three_quarters",
+            "confidence": 0.24,
+            "probabilities": {
+              "three_quarters": 0.39,
+              "quarter": 0.03,
+              "omit": 0.03,
+              "full": 0.24,
+              "half": 0.31
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 214
+        }
+      }
+    },
+    {
+      "name": "full-repeat",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "0": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.23,
+            "probabilities": {
+              "three_quarters": 0.35,
+              "quarter": 0.08,
+              "full": 0.16,
+              "half": 0.37,
+              "omit": 0.04
+            }
+          },
+          "1": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.83,
+            "probabilities": {
+              "three_quarters": 0.03,
+              "quarter": 0.07,
+              "full": 0.01,
+              "half": 0.03,
+              "omit": 0.86
+            }
+          },
+          "2": {
+            "type": "choice",
+            "choice": "omit",
+            "confidence": 0.74,
+            "probabilities": {
+              "three_quarters": 0.03,
+              "quarter": 0.12,
+              "full": 0.01,
+              "half": 0.05,
+              "omit": 0.79
+            }
+          },
+          "3": {
+            "type": "choice",
+            "choice": "half",
+            "confidence": 0.18,
+            "probabilities": {
+              "three_quarters": 0.33,
+              "quarter": 0.03,
+              "full": 0.25,
+              "half": 0.35000000000000003,
+              "omit": 0.04
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2420,
+          "output_tokens": 211
+        }
+      }
+    }
+  ]
+}
