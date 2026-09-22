@@ -1,0 +1,13 @@
+.trk { font-size: var(--font-ui-small); padding: 4px 8px; }
+.trk-row { display: flex; gap: 8px; align-items: baseline; padding: 3px 6px; border-radius: 4px; }
+.trk-row:hover { background: var(--background-modifier-hover); }
+.trk-row.done { opacity: .45; }
+.trk-row.dim > .trk-title { color: var(--text-faint); }
+.trk-title { flex: 1; cursor: pointer; color: var(--text-normal); text-decoration: none; }
+.trk-title:hover { text-decoration: underline; }
+.trk-badge { font-family: var(--font-monospace); font-size: 10px; padding: 0 5px; border-radius: 3px; background: var(--background-secondary); color: var(--text-muted); white-space: nowrap; }
+.trk-meta { color: var(--text-faint); font-size: 11px; white-space: nowrap; }
+.trk-proj { color: var(--text-faint); font-size: 11px; }
+.trk-tree { margin-left: 14px; border-left: 1px solid var(--background-modifier-border); }
+.trk-toggle { display: inline-block; width: 12px; color: var(--text-faint); cursor: pointer; user-select: none; font-family: var(--font-monospace); }
+.trk-empty { color: var(--text-faint); padding: 6px; font-style: italic; }
