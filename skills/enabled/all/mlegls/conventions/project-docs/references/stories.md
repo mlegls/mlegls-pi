@@ -2,11 +2,15 @@
 
 A story is a real situation and want, with its originating request or observation. It motivates issues; it is not a post-hoc justification for an implementation. Many successive issues can serve the same story.
 
+Extend existing stories and recordings at the smallest meaningful scope: a newly noticed promise adds a check at that moment; a distinct route or condition adds a scenario with shared setup; an independently meaningful want gets a linked story. An issue may need only one more assertion, not its own flow or test file.
+
 Use one recognizable situation and purpose per file in `docs/stories/`. Keep alternate routes and interruptions as scenarios within it; split independently meaningful wants into linked files. Organize by meaning, like a glossary. Story links are not execution containment: the issue tree defines supervisor scope.
 
 Start with the want and source. During planning add intended outcomes, a rough affordance sequence, then the consequential behavior needed to try it. Implementation shape belongs in the spec or concept notes. Resolve unknown interactions through research or prototypes where needed.
 
 `docs/guide/<task>.md` is the route through the actual product, `for:` its user or starting persona. Write it just before or during first use, alongside the recording, and correct it against what was encountered. Intended controls stay in the story/spec until usable. Link known limitations without turning them into instructions that cannot be followed.
+
+First use means first use of the changed behavior. Reproduce the observation within the existing journey and update the affected portion; reuse the accepted route and setup around it.
 
 Review the encounter's actions, screenshots and state; checks come from expectations and uncertainties encountered there (`testing`). Replay the reviewed sequence thereafter. The story links the guide, accepted recording and detailed evidence, and states supported behavior and remaining gaps concisely. A green partial recording is not evidence for omitted steps.
 
