@@ -1,3 +1,4 @@
+import { executionHost } from "./execution-host.ts";
 import { assertAssignment } from "./route.ts";
 // Orca owns execution and coordination; Pi owns conversation sessions.
 import { execFile } from "node:child_process";
@@ -6,7 +7,7 @@ import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 
-export const inOrca = (env: NodeJS.ProcessEnv = process.env): boolean => Boolean(env.ORCA_WORKTREE_ID || env.ORCA_WORKSPACE_ID);
+export const inOrca = (env: NodeJS.ProcessEnv = process.env): boolean => executionHost(env) === "orca";
 export const quote = (text: string): string => "'" + text.replaceAll("'", "'\\''") + "'";
 export function workspace(cwd = process.cwd()): string {
   return "path:" + resolve(cwd);

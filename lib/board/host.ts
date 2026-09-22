@@ -1,3 +1,4 @@
+import { executionHost } from "../execution-host.ts";
 // Board: a shared pubsub log for coordinating pi sessions and scripts.
 //
 // Topics are paths (`compile/run-3/unit-a`), messages carry tags, and a session
@@ -45,6 +46,7 @@ function subKey(s: Subscription): string {
 }
 
 export function install(pi: ExtensionAPI) {
+	if (executionHost() !== "wm") return;
 	let subs: Subscription[] = [];
 	let cursor = 0; // byte offset into the log
 	let context: ExtensionContext | undefined;

@@ -3,6 +3,7 @@ import { SessionManager, type ExtensionAPI, type ExtensionContext } from "@earen
 import { terminal, workspace, piCommand, call, inOrca } from "../../lib/orca.ts";
 
 export default function (pi: ExtensionAPI) {
+  if (!inOrca()) return;
   let statusTimer: ReturnType<typeof setInterval> | undefined;
   let statusGeneration = 0;
   let address: string | undefined;

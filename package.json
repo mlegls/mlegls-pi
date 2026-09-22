@@ -21,6 +21,7 @@
     "extensions": [
       "./lib/record/host.ts",
       "./lib/session/host.ts",
+      "./lib/board/host.ts",
       "./lib/session-meta/host.ts",
       "./extensions/exec/index.ts",
       "./extensions/featherless/index.ts",

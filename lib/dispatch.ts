@@ -1,3 +1,6 @@
+import { executionHost } from "./execution-host.ts";
+import * as paseo from "./paseo.ts";
+import type { Worker } from "./wm.ts";
 // Launch a parent-planned ready wave. No reading, routing, dependency graph, or retries.
 import { call, workspace, startPi, workers, OrcaError, type WorkerReceipt, type Terminal } from "./orca.ts";
 import { execFile } from "node:child_process";
@@ -20,18 +23,22 @@ export interface Assignment {
 }
 
 export interface Options {
-  /** Existing Orca Run ID, not a free-form topic prefix. */
+  /** Parent topic/branch prefix; inside Orca, an existing Run ID. */
   run: string;
   from?: string;
   cwd?: string;
-  /** Parent-scoped budget, including active handles, on either backend. */
+  /** Parent-scoped budget, including active handles, on every backend. */
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
   active: Handle[];
   routing?: RouteOptions;
 }
 
-export type Handle = { backend: "orca"; handle: string; worktreeId: string; path: string; receipt: WorkerReceipt & { clientTerminal: Terminal } };
+export type OrcaHandle = { backend: "orca"; handle: string; worktreeId: string; path: string; receipt: WorkerReceipt & { clientTerminal: Terminal } };
+
+export type Handle = OrcaHandle
+  | { backend: "paseo"; handle: string; agentId: string; workspaceId: string; path: string; receipt: paseo.Launch }
+  | { backend: "wm"; handle: string; path: string; worker: Worker };
 
 export interface Receipt {
   submitted: Handle[];
@@ -44,10 +51,11 @@ export interface Receipt {
 /** Submit a ready wave; no automatic wait or retry for assignments beyond capacity. */
 export async function dispatch(assignments: Assignment[], options: Options): Promise<Receipt> {
   const cwd = resolve(options.cwd ?? process.cwd());
-  if (!/^run_[A-Za-z0-9]+$/.test(options.run)) throw new Error("dispatch: invalid run");
+  const backend = executionHost();
+  if (!(backend === "orca" ? /^run_[A-Za-z0-9]+$/ : /^[A-Za-z0-9][A-Za-z0-9_/-]*$/).test(options.run)) throw new Error("dispatch: invalid run");
   if (!Number.isSafeInteger(options.maxConcurrent) || options.maxConcurrent < 1)
     throw new Error("dispatch: positive maxConcurrent required");
-  if (!Array.isArray(options.active) || options.active.some(handle => handle.backend !== "orca"))
+  if (!Array.isArray(options.active) || options.active.some(handle => handle.backend !== backend))
     throw new Error("dispatch: active must contain this backend's outstanding handles (use [] for the first wave)");
   const active = [...(options.active ?? [])];
   const names = new Set(active.map(handle => handle.handle));
@@ -77,7 +85,24 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       break;
     }
     try {
-      const text = [stance?.body, task.prompt].filter(Boolean).join("\n\n---\n\n");
+      const text = [stance?.body, task.prompt,
+        ...(backend === "paseo" ? ["You are " + task.handle + ". Parent agent ID: " + process.env.PASEO_AGENT_ID + ". " +
+          "Begin final output with done, blocked, or needs-input. Questions go to the parent via paseo send " +
+          process.env.PASEO_AGENT_ID + " --no-wait <message>. Commit changes for the parent to integrate; retain the workspace. " +
+          "A completed turn is not assignment completion."] : [])].filter(Boolean).join("\n\n---\n\n");
+      if (backend === "paseo") {
+        const launched = await paseo.launch(task, text, { run: options.run, cwd });
+        receipt.submitted.push({ backend, handle: task.handle, agentId: launched.agent.agentId,
+          workspaceId: launched.workspace.workspaceId, path: launched.workspace.cwd, receipt: launched });
+        continue;
+      }
+      if (backend === "wm") {
+        const wm = await import("./wm.ts");
+        const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
+          agent: task.agent, base: task.base, model: task.model, effort: task.effort, cwd });
+        receipt.submitted.push({ backend, handle: task.handle, path: worker.dir, worker });
+        continue;
+      }
       const created = await call<{ worktree: { id: string; path: string } }>([
         "worktree", "create", "--name", options.run + "-" + task.handle,
         "--parent-worktree", workspace(cwd), "--setup", "run",
@@ -94,7 +119,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
           { worktree, cause: error instanceof OrcaError ? error.receipt : String(error) });
       }
     } catch (error) {
-      receipt.failed = { assignment: task, error: error instanceof Error ? error.message : String(error), receipt: error instanceof OrcaError ? error.receipt : undefined };
+      receipt.failed = { assignment: task, error: error instanceof Error ? error.message : String(error), receipt: error instanceof OrcaError || error instanceof paseo.PaseoError ? error.receipt : undefined };
       receipt.pending = prepared.slice(index + 1).map(item => item.task);
       break;
     }
@@ -102,14 +127,13 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
   return receipt;
 }
 
-/** Merge a settled worker's branch into the parent checkout, then retire everything Orca holds for it:
- * release the Dispatch, close every terminal in its worktree, and remove the worktree (Orca record, Git worktree, merged branch).
+/** Merge a settled worker's branch into the parent checkout, then retire its host resources.
  * Uncommitted work in the worktree refuses; conflicts abort and throw with the conflicted files. */
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
 export interface Integration { branch: string; mode: "rebase" | "merge"; released?: unknown; closed?: unknown; removed?: unknown }
-export async function integrate(worker: Pick<Handle, "worktreeId" | "path"> & { receipt?: { dispatchId?: string } },
+export async function integrate(worker: { backend?: "orca" | "paseo" | "wm"; worktreeId?: string; workspaceId?: string; path: string; receipt?: { dispatchId?: string } | paseo.Launch; worker?: Worker },
     options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean } = {}): Promise<Integration> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const mode = options.mode ?? "rebase";
@@ -132,7 +156,19 @@ export async function integrate(worker: Pick<Handle, "worktreeId" | "path"> & { 
   }
   const result: Integration = { branch, mode };
   if (options.keep) return result;
-  if (worker.receipt?.dispatchId) result.released = await workers.release(worker.receipt.dispatchId);
+  if (worker.backend === "paseo") {
+    if (!worker.workspaceId) throw new Error("integrate: Paseo workspaceId required for archive");
+    result.removed = await paseo.call(["workspace", "archive", worker.workspaceId], cwd);
+    return result;
+  }
+  if (worker.backend === "wm") {
+    if (!worker.worker) throw new Error("integrate: retained wm worker required for cleanup");
+    result.removed = await worker.worker.close();
+    return result;
+  }
+  if (!worker.worktreeId) throw new Error("integrate: Orca worktreeId required for cleanup");
+  if (worker.receipt && "dispatchId" in worker.receipt && worker.receipt.dispatchId)
+    result.released = await workers.release(worker.receipt.dispatchId);
   const selector = "id:" + worker.worktreeId;
   result.closed = await call(["terminal", "close", "--worktree", selector, "--all"], cwd);
   result.removed = await call(["worktree", "rm", "--worktree", selector], cwd);

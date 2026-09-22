@@ -35,12 +35,25 @@ test("project .pi/exec shadows lib by name, extras are project.*, and another cw
 	}
 }, 20000);
 
-test("resolveModules disables legacy coordination in every client", async () => {
+test("resolveModules substitutes coordination only inside native hosts", async () => {
 	const { resolveModules, MODULES } = await import("./modules");
-	expect(resolveModules(undefined, undefined, {})).toEqual(MODULES.filter(name => name !== "board" && name !== "wm"));
+	expect(resolveModules(undefined, undefined, {})).toEqual([...MODULES]);
 	const inside = resolveModules(undefined, undefined, { ORCA_WORKTREE_ID: "repo::/work" });
 	expect(inside).not.toContain("board");
 	expect(inside).not.toContain("wm");
 	expect(inside).toContain("sh");
 	expect(resolveModules("board,wm", undefined, { ORCA_WORKTREE_ID: "repo::/work" })).toEqual([]);
+});
+
+
+test("Paseo takes precedence over inherited Orca; instructions stay host-local", async () => {
+  const { resolveModules, describeModules } = await import("./modules");
+  const { executionHost } = await import("../../lib/execution-host");
+  const env = { PASEO_AGENT_ID: "parent", ORCA_WORKTREE_ID: "inherited" };
+  expect(executionHost(env)).toBe("paseo");
+  expect(resolveModules("board,wm", undefined, env)).toEqual([]);
+  expect(describeModules([], "default", env)).toContain("paseo run --background");
+  expect(describeModules([], "default", env)).not.toContain("orca.runs");
+  expect(describeModules([], "default", {})).not.toContain("orca.runs");
+  expect(describeModules([], "reader", env)).not.toContain("paseo run");
 });

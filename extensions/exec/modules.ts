@@ -1,3 +1,4 @@
+import { executionHost } from "../../lib/execution-host.ts";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,13 +27,13 @@ function parse(value: unknown, flag: string, fallback: readonly ExecModule[]): r
 }
 
 /** Select the advertised/callable surface, not a security sandbox. Deny wins. */
-/** Legacy coordination is disabled in every client, including explicit allowlists. */
+/** Native hosts substitute their own coordination; standalone retains wm/board. */
 export const HOST_MODULES: readonly ExecModule[] = ["board", "wm"];
 
 export function resolveModules(allow?: unknown, deny?: unknown, env: NodeJS.ProcessEnv = process.env): ExecModule[] {
 	const allowed = new Set(parse(allow, "--exec-modules", MODULES));
 	const denied = new Set(parse(deny, "--exec-deny-modules", []));
-	for (const m of HOST_MODULES) denied.add(m);
+	if (executionHost(env) !== "wm") for (const m of HOST_MODULES) denied.add(m);
 	return MODULES.filter(name => allowed.has(name) && !denied.has(name));
 }
 
@@ -118,7 +119,7 @@ const API: Record<ExecModule, string[]> = {
 	]
 };
 
-export function describeModules(modules: readonly ExecModule[], profile: ExecProfile = "default"): string {
+export function describeModules(modules: readonly ExecModule[], profile: ExecProfile = "default", env: NodeJS.ProcessEnv = process.env): string {
 	if (profile === "reader") return [
 		"Reader API in a persistent TypeScript kernel. Use state to retain values, show(...) to emit output, and ordinary TypeScript to batch/filter reads. Cells have a 30s deadline (timeoutMs overrides it). Fresh lexical scope per cell; state persists until reset.",
 		"This profile limits the supplied API, not imports or OS access; it is not a security sandbox. No write/edit, shell, skill execution, UI, terminal, coordination, or auto-loaded lib/project helpers are supplied.",
@@ -128,7 +129,7 @@ export function describeModules(modules: readonly ExecModule[], profile: ExecPro
 		"Read skill files as reference only: this profile does not execute their shell placeholders.",
 	].join("\n");
 	return [
-		"Orca coordination is available as the auto-loaded orca library. wm/board are disabled universally. Use orca.runs.create/use/current, orca.workers.submit/confirmStart/show/read/list/release/retain, orca.check/ack/send/ask/reply; submit creates a Pi child and submits its spec in one call (model and effort required). submit enrolls a bootstrap terminal and starts Pi with a prompt-file argument; it requires turn-start evidence; unconfirmed throws with the retained receipt and stops a dispatch wave. Inspect that attempt before completion waits; never retry on input acceptance alone. Receipts retain native IDs and recovery data. Use notify(orca.check({wait:true}), label) for waits. Never auto-ack displayed mail. See docs/orca.md and orca skills get orchestration for the lifecycle contract.",
+		...(executionHost(env) === "orca" ? ["Orca coordination is available as the auto-loaded orca library. wm/board are replaced inside Orca. Use orca.runs.create/use/current, orca.workers.submit/confirmStart/show/read/list/release/retain, orca.check/ack/send/ask/reply; submit creates a Pi child and submits its spec in one call (model and effort required). submit enrolls a bootstrap terminal and starts Pi with a prompt-file argument; it requires turn-start evidence; unconfirmed throws with the retained receipt and stops a dispatch wave. Inspect that attempt before completion waits; never retry on input acceptance alone. Receipts retain native IDs and recovery data. Use notify(orca.check({wait:true}), label) for waits. Never auto-ack displayed mail. See docs/orca.md and orca skills get orchestration for the lifecycle contract."] : executionHost(env) === "paseo" ? ["Inside Paseo (PASEO_AGENT_ID), use native agents/workspaces/messaging via paseo run --background, wait ID, logs ID, send ID. dispatch.dispatch launches prepared assignments; retain native receipts, inspect uncertain creation before retrying. Parent owns dependencies and concurrency. A completed turn is not assignment completion: final output begins done/blocked/needs-input; questions go to the parent ID. See docs/paseo.md. wm/board are replaced only inside native hosts."] : ["Standalone coordination uses wm/board; dispatch.dispatch launches prepared assignments with explicit model/effort and parent-scoped capacity. See docs/dispatch.md."]),
 		"TypeScript execution with fresh scope per call and a persistent kernel. Local variables and functions do not persist between calls; their names may be redeclared in later calls. Retain values/promises explicitly with state.name = value; inspect Object.keys(state), delete state.name to release. Only show(...) or console.log(...) emits output. Operations are not transactional: earlier side effects and state writes survive a later error. Never blindly retry a failed cell. Interrupting resets the kernel and stops its shell subprocesses, not host-owned terminals.",
 		"Cells have a 30s host-enforced deadline. Pass timeoutMs on the exec call to override for that call only (positive integer milliseconds). Timeout clears kernel state, kills shell subprocesses, and aborts host calls; shown output is preserved; unshown process/partial-shell diagnostics are UI-only; side effects may remain. Use term or retained promises for long-running work.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",

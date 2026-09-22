@@ -1,3 +1,4 @@
+import { executionHost } from "./execution-host.ts";
 // A private reader fork: compact inherited context, switch model, return only its last answer.
 import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
@@ -9,7 +10,7 @@ import { run as orcaRead } from "./autoread/orca.ts";
 import { readerRequest } from "./autoread/protocol.ts";
 
 export interface Options {
-  /** Orca is the default in every client; pi explicitly opts into a private local reader. */
+  /** Orca is host-local; Paseo and standalone use the private Pi reader. */
   backend?: "orca" | "pi";
   /** Defaults to exec's current persisted session. Required; never guesses the newest session. */
   sessionFile?: string;
@@ -68,7 +69,7 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647)
     throw new Error("autoread: timeoutMs must be a positive timer-sized integer");
   options.signal?.throwIfAborted();
-  if (options.backend !== "pi") {
+  if (options.backend === "orca" || (options.backend !== "pi" && executionHost() === "orca")) {
     return orcaRead(request, options, model, effort, stance + (options.submission ? " Deliver the requested result through " + options.submission.tool + " as your final action." : ""), timeoutMs);
   }
   const parent = options.sessionFile ?? process.env.PI_SESSION_FILE;
@@ -85,7 +86,7 @@ export async function run(request: string, options: Options = {}): Promise<Brief
   const client = new RpcClient({
     cliPath: options.cliPath ?? cli(), cwd,
     // Do not impersonate the parent in host/board integrations.
-    env: { PI_AUTOREAD_ID: "", ORCA_WORKTREE_ID: "", ORCA_WORKSPACE_ID: "", ORCA_TERMINAL_HANDLE: "", PI_EXEC_PROFILE: "reader", PI_SESSION_FILE: "", PI_SESSION_ID: "", PI_BOARD_NAME: "", PI_BOARD_TOPIC: "" },
+    env: { PASEO_AGENT_ID: "", PI_AUTOREAD_ID: "", ORCA_WORKTREE_ID: "", ORCA_WORKSPACE_ID: "", ORCA_TERMINAL_HANDLE: "", PI_EXEC_PROFILE: "reader", PI_SESSION_FILE: "", PI_SESSION_ID: "", PI_BOARD_NAME: "", PI_BOARD_TOPIC: "" },
     args: ["--fork", sessionFile, "--no-extensions", "--no-skills", "--no-prompt-templates",
       "--extension", fileURLToPath(new URL("../extensions/exec/index.ts", import.meta.url)),
       ...(memory ? ["--extension", memory] : []),
