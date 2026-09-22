@@ -26,6 +26,18 @@ put("attachments/evidence", "A note, not an issue.\n");
 put("blocker", frontmatter("stage: idea"));
 afterAll(() => { rmSync(cwd, { recursive: true, force: true }); rmSync(vault, { recursive: true, force: true }); });
 
+test("cross-project evidence links resolve through the vault, not a local namesake", () => {
+  const other = join(vault, "projects/other");
+  mkdirSync(other, { recursive: true });
+  writeFileSync(join(other, "delivery.md"), "# Contract\n");
+  const evidence = join(cwd, "docs/migration.md");
+  writeFileSync(evidence, "[[projects/other/delivery#Contract]]\n[[projects/other/blocker]]\n");
+  const checked = run("check");
+  expect(checked.out).not.toContain("delivery");
+  expect(checked.out).toContain("[[projects/other/blocker]] does not exist");
+  rmSync(evidence);
+});
+
 test("format-equivalent dependencies preserve all queries", () => {
   for (const next of ["implement", "grill"]) {
     put("task", frontmatter(`stage: ${next === "implement" ? "ticket" : "goal"}

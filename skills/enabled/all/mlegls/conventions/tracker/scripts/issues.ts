@@ -248,6 +248,10 @@ function checkLinks(docs: string, say: (s: string) => void) {
   }
   const resolveLink = (target: string): string | undefined => {
     const segs = target.split("/");
+    if (segs[0] === "projects" && existsSync(join(vault, ...segs.slice(0, 2)))) {
+      const exact = join(vault, target + ".md");
+      return existsSync(exact) && statSync(exact).isFile() ? exact : undefined;
+    }
     const cands = byBase.get(segs[segs.length - 1]) ?? [];
     if (cands.length <= 1) return cands[0];
     const tail = segs.slice(-2).join("/") + ".md";

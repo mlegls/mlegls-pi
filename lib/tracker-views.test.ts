@@ -5,7 +5,7 @@
 import { expect, test } from "bun:test";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 
 const vault = process.env.TRACKER_VAULT ?? join(homedir(), "obsidian");
@@ -95,13 +95,14 @@ smoke("current vault model and all JSX surfaces load", () => {
   console.log(JSON.stringify({ issues: m.issues.size, frontier: m.frontier.length, mine: m.mine.length, done: m.done.length, legacy: m.legacy.length, invalid: slugs(m.invalid) }));
 });
 
-(available && process.env.TRACKER_PROJECT ? test : test.skip)("CLI snapshot parity against current Concept vault", () => {
+(available && process.env.TRACKER_PROJECT ? test : test.skip)("CLI snapshot parity against selected project vault", () => {
+  const project = basename(process.env.TRACKER_PROJECT!);
   const result = Bun.spawnSync(["bun", join(scripts, "issues.ts"), "snapshot", "--json"], { cwd: process.env.TRACKER_PROJECT });
   expect(result.exitCode, result.stderr.toString()).toBe(0);
   const snapshot = JSON.parse(result.stdout.toString());
   const m = model(currentPages());
   for (const i of snapshot.issues) {
-    const view = [...m.issues.values()].find((v: any) => v.project === "concept" && v.slug === i.slug && v.archived === i.archived) as any;
+    const view = [...m.issues.values()].find((v: any) => v.project === project && v.slug === i.slug && v.archived === i.archived) as any;
     expect(view, i.slug).toBeDefined();
     expect(view.ownStage ?? null, i.slug).toBe(i.ownStage);
     expect(view.effectiveStage, i.slug).toBe(i.effectiveStage);
@@ -115,7 +116,7 @@ smoke("current vault model and all JSX surfaces load", () => {
   for (const kind of ["frontier", "mine", "done"]) {
     const selected = Bun.spawnSync(["bun", join(scripts, "issues.ts"), kind, "--json"], { cwd: process.env.TRACKER_PROJECT });
     expect(selected.exitCode, selected.stderr.toString()).toBe(0);
-    expect(slugs(m[kind].filter((i: any) => i.project === "concept")), kind).toEqual(slugs(JSON.parse(selected.stdout.toString()).issues));
+    expect(slugs(m[kind].filter((i: any) => i.project === project)), kind).toEqual(slugs(JSON.parse(selected.stdout.toString()).issues));
   }
 
 });
