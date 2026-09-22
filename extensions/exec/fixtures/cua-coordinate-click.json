@@ -1,0 +1,30 @@
+{
+  "target": {
+    "pid": 45567,
+    "window_id": 83548
+  },
+  "snapshot_id": "s00000001",
+  "click": {
+    "pid": 45567,
+    "window_id": 83548,
+    "snapshot_id": "s00000001",
+    "x": 200,
+    "y": 300
+  },
+  "response": {
+    "content": [
+      {
+        "text": "✅ Posted click to pid 45567 (background CGEvent; not driver-verified — confirm via screenshot).",
+        "type": "text"
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "background"
+      },
+      "effect": "unverifiable",
+      "route": "synthetic_events"
+    }
+  },
+  "reuse": "Stale or missing Cua observation; get_window_state before writing"
+}

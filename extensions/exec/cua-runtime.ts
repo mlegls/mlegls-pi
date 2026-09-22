@@ -5,7 +5,7 @@ import { computerUseTools, type ComputerUseRuntime } from "./computer-use";
 type SDK = typeof import("@trycua/cua-driver");
 const writes = new Set(["click", "type_text", "press_key", "set_value", "scroll", "drag"]);
 const reads = new Set(["list_apps", "list_windows", "get_window_state"]);
-const policy = "Exec owns the Cua session. Exact pid/window_id required (no desktop/frontmost fallback). Observe before writing; pass a current element_token or snapshot_id. One write consumes that window's observation, even on error. Background by default; delivery_mode:foreground is explicit opt-in, never an automatic retry. verify_state also invalidates action tokens. Re-observe after interruption or reload.";
+const policy = "Exec owns the Cua session. Exact pid/window_id required (no desktop/frontmost fallback). Observe before writing; pass a current element_token or snapshot_id. For coordinate clicks, supply snapshot_id with x/y; exec validates it and omits it from native pixel addressing. One write consumes that window's observation, even on error. Background by default; delivery_mode:foreground is explicit opt-in, never an automatic retry. verify_state also invalidates action tokens. Re-observe after interruption or reload.";
 
 /** Cua's native tool protocol, without a second outline, ref system, or action language. */
 export function createCuaRuntime(sdk: SDK, createDriver: () => CuaDriverLike = () => sdk.CuaDriver.create(undefined)): ComputerUseRuntime {
@@ -53,6 +53,8 @@ export function createCuaRuntime(sdk: SDK, createDriver: () => CuaDriverLike = (
    }
    const issue = async () => {
     const input = { ...args, ...(scoped ? { session } : {}), ...(writes.has(method) && method !== "set_value" ? { delivery_mode: args.delivery_mode ?? "background" } : {}) };
+   // Coordinate clicks use the snapshot as an exec guard, not native AX addressing.
+   if (method === "click" && args.x !== undefined && args.y !== undefined && args.element_index === undefined && args.element_token === undefined) delete input.snapshot_id;
     const result = await native().callTool(method, JSON.stringify(input), signal && { signal });
     signal?.throwIfAborted();
     return JSON.parse(result.rawJson);

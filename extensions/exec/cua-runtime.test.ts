@@ -4,6 +4,7 @@ import recording from "./fixtures/cua-direct-textedit.json";
 import { createCuaRuntime } from "./cua-runtime";
 import { run, type UI } from "../../lib/computer";
 import { computerUseTools } from "./computer-use";
+import coordinate from "./fixtures/cua-coordinate-click.json";
 
 // Replay docs/guide/cua-background.md through the real runner, adapter and Jev HTTP client.
 // Only the desktop and model service are replaced by their captured responses.
@@ -63,5 +64,28 @@ test("an ended driver session rotates the label: reads re-issue, writes need a n
   await expect(runtime.call("click", { pid: 1, window_id: 2, snapshot_id: "s1", x: 1, y: 1 })).rejects.toThrow("Cua session ended and was restarted");
   await expect(runtime.call("click", { pid: 1, window_id: 2, snapshot_id: "s1", x: 1, y: 1 })).rejects.toThrow("Stale or missing Cua observation");
   expect(calls[2].session).toBe(calls[1].session);
+ } finally { await runtime.close(); }
+});
+
+// Native encounter and replay instructions: docs/guide/cua-coordinate-clicks.md.
+test("coordinate clicks consume the exec snapshot without sending native AX addressing", async () => {
+ const calls: any[] = [];
+ const runtime = createCuaRuntime(sdk, () => ({
+  async callTool(method: string, argsJson: string) {
+   const args = JSON.parse(argsJson); calls.push({ method, args });
+   if (method === "get_window_state") return { rawJson: JSON.stringify({ structuredContent: { ...coordinate.target, snapshot_id: coordinate.snapshot_id, elements: [] } }) };
+   expect(args).not.toHaveProperty("snapshot_id");
+   expect(args).toMatchObject({ ...coordinate.target, x: 200, y: 300, delivery_mode: "background" });
+   return { rawJson: JSON.stringify(coordinate.response) };
+  }, async shutdown() {},
+ }) as any);
+ try {
+  await expect(runtime.call("click", coordinate.click)).rejects.toThrow(coordinate.reuse);
+  await runtime.call("get_window_state", coordinate.target);
+  await expect(runtime.call("click", { ...coordinate.click, snapshot_id: "stale" })).rejects.toThrow(coordinate.reuse);
+  expect(await runtime.call("click", coordinate.click)).toEqual(coordinate.response);
+  expect(coordinate.click.snapshot_id).toBe(coordinate.snapshot_id);
+  await expect(runtime.call("click", coordinate.click)).rejects.toThrow(coordinate.reuse);
+  expect(calls.map(c => c.method)).toEqual(["get_window_state", "click"]);
  } finally { await runtime.close(); }
 });
