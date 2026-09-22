@@ -1,38 +1,41 @@
-# Dispatch a ready wave
+# Prepared dispatch
 
-During the Orca trial, `dispatch.dispatch` launches prepared Pi assignments through Orca in every client. This is the active configuration, not a settled choice over tmux/workmux/board. The supervisor owns decomposition, admission (`route.prepare`), integration, and concurrency. Orca owns the Run, Task, Dispatch, and mailbox lifecycle. See [Orca](orca.md) for the direct API and coordinator identity requirements.
+The parent owns decomposition, dependencies, admission (`route.prepare`), concurrency and acceptance. `dispatch.dispatch` only launches prepared assignments. Host selection is local: `PASEO_AGENT_ID` → Paseo; otherwise an Orca workspace environment → retained Orca adapter; otherwise workmux/board. Paseo takes precedence over inherited Orca variables.
 
 ```ts
-state.run = (await orca.runs.create({objective: "Implement feature X"})).run;
-const task = "Self-contained assignment, context, interfaces, ownership, acceptance…";
-const execution = await route.prepare(task);
-if (execution.kind === "triage") throw new Error("Prepare a decision-session handoff first");
 state.launch = notify(dispatch.dispatch([
-  {handle: "unit-a", prompt: task, ...execution},
-], {run: state.run.id, maxConcurrent: 3, active: []}), "dispatch");
+  { handle: "unit-a", prompt: "Self-contained assignment, context, constraints and completion criterion",
+    agent: "auto", model: "openai-codex/gpt-5.6-luna", effort: "high", base: "<exact Git ref>" }
+], { run: "feature-x", maxConcurrent: 2, active: [] }), "launch");
 ```
 
-Later: `state.wave = await state.launch`. `run` must be an existing Orca Run ID, not a topic prefix. Outside an Orca coordinator terminal, pass its real handle as `from`. For later waves, pass all outstanding handles supervised by this parent in `active`. This is a parent-scoped budget, not a global scheduler. Serialize wave submissions. Excess assignments remain `pending`.
+Later retrieve `state.wave = await state.launch`. Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` is required on every backend; it is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`. An uncertain launch must be resolved before the next wave; it may still consume capacity.
 
-Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`; optional `agent` names a roster stance, not an Orca agent preset. Optional `base` selects an exact Git ref. Omission uses Orca’s default base, not uncommitted parent changes. The helper creates explicitly nested worktrees, requests setup, enrolls a caller-owned bootstrap terminal through native `dispatch --return-preamble`, then starts Pi with model/effort and the assignment as a prompt-file argument. No assignment is typed into Pi’s editor. Native dispatch supplies Task/Dispatch/mail identity but does not supervise the process; terminal cleanup remains caller-owned.
+Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`. Optional `agent` names a roster stance, not a host preset. Optional `base` passes the exact Git ref to the host; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, routing, dependency scheduling, or inherited issue ownership.
 
-## Receipts and lifecycle
+The receipt contains:
 
-- `submitted`: `{backend: "orca", handle, worktreeId, path, receipt}`. `receipt` retains native `runId`, `taskId`, `dispatchId`, effects, and `clientTerminal`, plus `startConfirmation`. Only confirmed starts enter `submitted`. Only `startConfirmation.status === "started"` proves entry into the assigned Pi turn; re-observe with `orca.workers.confirmStart(receipt)` without resubmitting.
-- `failed`: the first failed assignment, error text, and structured error receipt where available. Earlier launches survive; residual resources are retained for inspection. An unconfirmed turn start stops the wave here, with its full worker receipt under `failed.receipt.cause`. Re-observe that receipt with `orca.workers.confirmStart`; do not resubmit the assignment or wait for its completion without start evidence. Resolve the retained attempt before launching another wave: it still consumes capacity.
-- `pending`: never-attempted assignments. The parent decides when to launch them.
+- `submitted`: native handles for successful launches. Paseo: `{backend: "paseo", handle, agentId, workspaceId, path, receipt: {workspace, agent}}`; workmux: `{backend: "wm", handle, path, worker}`; Orca retains `{backend: "orca", handle, worktreeId, path, receipt}`.
+- `failed`: first failed assignment, error text and available native/raw receipt. Earlier launches survive. Inspect the retained attempt, including malformed/partial CLI output, before deciding what to do. Creation can succeed before a client timeout or parse failure.
+- `pending`: assignments never attempted, because of capacity or the earlier failure.
 
-Routing happens before launch: `dispatch.dispatch` consumes the `route.prepare` result, while `startPi` handles Pi launch and enrollment internally. Neither launcher chooses a model; explicit assignment constraints are rechecked before launch; do not replace admission with manual selection to work around native Orca launch limitations.
+## Paseo
 
-No implicit retries or dependency scheduling. Use `notify` for launch and mailbox waits. Worker instructions receive Orca’s authoritative lifecycle preamble; board topics and subscriptions are not involved.
+See [the bounded trial and setup](paseo.md). Workspace creation and agent launch are separate native commands so a launch failure retains the workspace ID. Launch uses `run --background --workspace ID --provider pi --model MODEL --thinking EFFORT`; the prompt is a single argv value, not shell interpolation or editor input. `none` maps to Pi's native `off`; other effort IDs pass unchanged. `PASEO_CLI` optionally selects an executable (not a shell command).
 
-Consume `orca.check` deliveries, answer questions, validate completion against the Dispatch, and decide terminal ownership before acknowledging. These model-selected Pi terminals are pre-existing from Orca’s perspective: native release retains them, so integration below closes them explicitly. Native `orca.workers.start` offers runtime-owned terminals but uses Pi’s defaults rather than applying the routed model/effort selection.
+Paseo inherits the caller's `PASEO_AGENT_ID` as parent even with explicit workspace placement. The prompt includes the roster stance, assignment, parent ID and reporting convention. Use `paseo wait ID`, `paseo logs ID`, and `paseo send ID "message"` for supervision. Parent completion notifications are native. A completed turn is not assignment completion: read the report, answer questions, and check the assignment's completion criterion. Final output begins `done`, `blocked`, or `needs-input`; questions go to the parent ID. There is no additional inbox/ack or task-record layer.
+
+## Standalone and retained Orca
+
+Standalone uses `wm.spawn` with the selected model/effort, stance, base and board reporting. Retain its Worker object for supervision and cleanup.
+
+Inside Orca, `run` must be an existing native Run ID; `from` can identify the real coordinator terminal. The existing enrollment, authoritative preamble, start-confirmation and partial-receipt behavior is unchanged. Only confirmed starts enter `submitted`; inspect `failed.receipt.cause` and use `orca.workers.confirmStart` rather than resubmitting an uncertain start. See [Orca lifecycle](orca.md). Those requirements do not apply to Paseo or standalone.
 
 ## Integration
 
-`dispatch.integrate(handle, {cwd?, mode?, keep?})` retires one settled worker after its completion has been validated. `handle` is a `submitted` entry (`worktreeId`, `path`, `receipt.dispatchId`); the same shape can be reassembled from `orca.workers.list` and `orca worktree list`. It refuses a worktree with uncommitted changes, then with `mode: "rebase"` (default) rebases the worker branch onto the parent HEAD and fast-forwards the parent, or with `mode: "merge"` creates a `--no-ff` merge commit. A conflict aborts the rebase/merge, leaving both checkouts as they were, and throws `MergeConflict` with `branch` and `files`; send those to the worker to resolve on its branch and integrate again.
+After the worker is settled and completion is accepted, `dispatch.integrate(handle, {cwd?, mode?, keep?})` uses plain Git. It refuses uncommitted worker changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` makes a `--no-ff` merge commit. Conflicts abort and throw `MergeConflict` with `branch` and `files`; send those to the worker to resolve on its branch. The caller owns settlement and acceptance; integration does not infer them from idle status.
 
-After the merge it releases the Dispatch (archiving worker output for later `workers.read`), closes every terminal in the worktree (`terminal close --worktree id:… --all`, which covers the caller-owned bootstrap terminal), and removes the worktree from Orca and Git (`worktree rm`, which deletes the branch once it is provably merged). The returned `Integration` retains each native receipt. `keep: true` stops after the merge. Steps are sequential and not transactional: a failure after the merge leaves it in place; rerunning is safe since an already-merged branch fast-forwards to nothing.
+`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: Paseo archives the retained workspace ID; workmux closes the retained Worker; Orca releases the Dispatch, closes the worktree's terminals and removes its worktree. Native receipts are returned in `Integration`. Cleanup is sequential, not transactional: if archive/cleanup fails after the merge, the merge remains. Inspect native state before repeating cleanup. No archive is attempted on merge failure.
 
 ## Session boundaries
 

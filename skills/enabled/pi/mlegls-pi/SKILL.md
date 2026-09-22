@@ -15,4 +15,4 @@ host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is e
 
 ## hosts
 
-exec disables `board` and `wm` in every client. `orca` supplies native supervision and messaging; `dispatch.dispatch` launches prepared Pi workers into an existing Orca Run. `/fork-tab [title]` opens the current conversation in another tab. See `docs/orca.md`.
+`PASEO_AGENT_ID` selects native Paseo agents/workspaces/messaging; otherwise Orca workspace variables select the retained Orca adapter. Standalone uses `wm`/`board`. `dispatch.dispatch` launches prepared assignments; host hooks and instructions follow that selection. Paseo readers initially use standalone Pi RPC. See `docs/paseo.md` for the bounded trial and deferred cutover.

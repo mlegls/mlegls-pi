@@ -7,7 +7,7 @@ Exec-facing capabilities install their host integrations through explicit
 `extensions/disabled/`. Featherless, fence, system-prompt, workspace, and Orca commands remain
 standalone extensions for their Pi-facing commands and providers. See [host libraries](extensions/exec/README.md#host-libraries).
 
-See [Orca](docs/orca.md) for graphical workspaces, worker dispatch, and `/fork-tab`.
+See [Paseo trial](docs/paseo.md) for native agents/workspaces and deferred setup; [Orca](docs/orca.md) retains its host-local adapter and `/fork-tab`.
 
 Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [workflows](workflows.md), [delivery](docs/delivery.md), and [session preparation](docs/session-preparation.md).
 
@@ -27,7 +27,7 @@ Disabled Firecrawl and MCP packages are optional and not required by the suite;
 install their dependencies separately if enabling them.
 
 See [exec](extensions/exec/README.md) for the TypeScript cell API.
-Execution and messaging use [Orca](docs/orca.md) in every client. Legacy wm/board namespaces and board wake hooks are disabled.
+Execution and messaging are host-local: Paseo under `PASEO_AGENT_ID`, otherwise Orca inside its workspace environment, otherwise standalone wm/board. Native hosts suppress wm/board hooks and instructions.
 
 See [Featherless](extensions/featherless/README.md) for automatic model discovery.
 

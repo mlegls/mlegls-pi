@@ -1,10 +1,10 @@
 ---
 name: merge
-description: "Use to integrate a settled Orca worker: merge its branch and retire its dispatch, terminals and worktree."
+description: "Use to integrate a settled worker's branch and retire its host resources."
 ---
 
-once worker_done is validated against the Dispatch: `dispatch.integrate(handle, {mode?, keep?})` ([contract](../../../../../../../docs/dispatch.md#integration)). `handle` is the `submitted` entry from the wave receipt, or `{worktreeId, path, receipt: {dispatchId}}` reassembled from `orca.workers.list` and `orca worktree list`.
+Once completion is accepted: `dispatch.integrate(handle, {mode?, keep?})` ([contract](../../../../../../docs/dispatch.md#integration)). Pass the retained `submitted` handle.
 
-rebase onto the parent HEAD and fast-forward by default; `mode: "merge"` for a merge commit. a `MergeConflict` leaves both trees as they were: send `.files` to the worker to resolve on its branch, then integrate again. `keep: true` merges without retiring anything.
+Rebase onto parent HEAD and fast-forward by default; `mode: "merge"` for a merge commit. Send `MergeConflict.files` to the worker to resolve on its branch. `keep: true` integrates without cleanup.
 
-ack the delivery after integrating.
+Archive/cleanup follows Git integration. Inspect a cleanup failure before repeating it; the merge remains. Orca deliveries are acknowledged after handling; Paseo uses native completion notifications.

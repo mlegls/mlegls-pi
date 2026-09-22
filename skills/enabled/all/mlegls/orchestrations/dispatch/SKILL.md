@@ -3,7 +3,7 @@ name: dispatch
 description: "Use to launch prepared worker assignments."
 ---
 
-Call `dispatch.dispatch(assignments, options)` in exec; see [the launch contract](../../../../../../docs/dispatch.md). Retain the promise and returned handles. Inspect a failed assignment before retrying; earlier launches survive.
+Call `dispatch.dispatch(assignments, options)` in exec; see [the launch contract](../../../../../../docs/dispatch.md). Retain the promise and native handles. Serialize waves; include every outstanding worker in the parent-scoped capacity budget. Inspect a failed assignment before retrying; earlier launches survive.
 
 For taking work from intent to done, use `realize`.
 

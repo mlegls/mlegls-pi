@@ -1,12 +1,12 @@
 # Orca execution and coordination
 
-Orca is being trialled against the tmux/workmux/board stack; the long-term choice remains open. During the trial it is the active execution backend in every client. Exec disables `wm` and `board`, even in explicit allowlists; the board host is no longer loaded. The tmux/workmux/board libraries remain importable as the alternative under evaluation, but are not advertised as active exec APIs during the trial. Module selection is not a sandbox.
+Orca remains available inside Orca workspace environments. The bounded [Paseo trial](paseo.md) restores host-local substitution: Paseo wins when `PASEO_AGENT_ID` is set; standalone uses wm/board. This retains the Orca lifecycle implementation without applying it to other clients. No live runs or configuration are migrated automatically. Module selection is not a sandbox.
 
 ## Setup and identity
 
 Run the Orca app and register the project. `/reload` Pi after upgrading this package. `lib/orca.ts` is auto-loaded as `orca` in normal exec cells; the reader profile excludes it. `ORCA_CLI` overrides the executable; otherwise the Orca environment/platform conventions apply. `PI_ORCA_COMMAND` overrides the trusted Pi shell command.
 
-Inside an Orca terminal, the CLI resolves the calling terminal. Outside Orca, use `/fork-tab [title]` to open a sibling conversation in an explicitly managed checkout, or pass the real coordinator terminal handle as `from` (`terminal` for `check`). Never use the focused tab as an implicit identity. A Run is bound to a coordinator terminal; saving only its ID does not grant another caller that role. `runs.use({id, from?})` explicitly rebinds it.
+Inside an Orca terminal, the CLI resolves the calling terminal. `/fork-tab [title]` is registered only inside Orca. Explicit library callers outside Orca must pass the real coordinator terminal handle as `from` (`terminal` for `check`). Never use the focused tab as an implicit identity. A Run is bound to a coordinator terminal; saving only its ID does not grant another caller that role. `runs.use({id, from?})` explicitly rebinds it.
 
 ## Known unavailable providers
 
