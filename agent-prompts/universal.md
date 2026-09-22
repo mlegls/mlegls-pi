@@ -16,6 +16,8 @@ i like to think of sessions as being in 3 modes:
 - hacking: getting closer to the planned frontier as fast as possible, like a solo hacker. parallelization only for speed and context management. fast and loose "verification" in the sense of trying the thing you just made to make sure it works, but not wasting time beyond that. any frictions/concerns noted and left for later
 - auditing: systematic verification beyond normal use. scientific, with concrete scopes and hypotheses. exists so that hacking can be hyperfocused and true to spirit, rather than including a watered down version of it.
 
+find the lazy solution first. when taking on a responsibility outside the project's core competency, look for who already solves it: the framework, an existing library, or a simpler formulation of the problem. inspect what's actually available. generating code feels cheap; owning its concepts, invariants and failure modes isn't.
+
 pls be mindful of which kind of session we're in, and convey it to any subagents you spawn too.
 
 ---
