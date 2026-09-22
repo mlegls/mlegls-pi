@@ -601,8 +601,11 @@ await show(await ui.set_value({pid, window_id,
 ```
 
 Methods: list_apps, list_windows, get_window_state, verify_state, click, type_text,
-press_key, set_value, scroll, drag, and help. Use `ui.help(name)` for native schemas;
-there is no unrestricted callTool escape hatch. Prefer chrome-devtools-axi for
+press_key, set_value, scroll, drag, help, and reset. Use `ui.help(name)` for native schemas;
+there is no unrestricted callTool escape hatch. The driver retires idle session
+labels (`session_ended`): exec starts a fresh label on that refusal, re-issuing
+reads and failing writes until re-observed. `ui.reset()` restarts the driver
+process itself for anything worse; observations made before it are gone. Prefer chrome-devtools-axi for
 ordinary browser work. The Jev runner uses this same surface directly; see
 [computer composition](../../docs/computer.md).
 

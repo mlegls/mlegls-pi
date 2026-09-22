@@ -42,3 +42,26 @@ test("Cua-native Jev replacement ends on driver verification, not its choice", a
   expect(records).toHaveLength(0);
  } finally {await runtime.close();server.stop(true);}
 });
+
+test("an ended driver session rotates the label: reads re-issue, writes need a new observation", async () => {
+ const calls: any[] = [];
+ let ended = true;
+ const runtime = createCuaRuntime(sdk, () => ({
+  async callTool(method: string, argsJson: string) {
+   const args = JSON.parse(argsJson); calls.push({ method, session: args.session });
+   if (ended) { ended = false; return { rawJson: JSON.stringify({ status: "refused", structuredContent: { status: "refused", refusal: { code: "session_ended" } } }) }; }
+   if (method === "get_window_state") return { rawJson: JSON.stringify({ structuredContent: { pid: 1, window_id: 2, snapshot_id: "s1", elements: [] } }) };
+   return { rawJson: JSON.stringify({ structuredContent: { ok: true } }) };
+  }, async shutdown() {},
+ }) as any);
+ try {
+  const state = await runtime.call("get_window_state", { pid: 1, window_id: 2 });
+  expect(state.structuredContent.snapshot_id).toBe("s1");
+  expect(calls).toHaveLength(2);
+  expect(calls[0].session).not.toBe(calls[1].session);
+  ended = true;
+  await expect(runtime.call("click", { pid: 1, window_id: 2, snapshot_id: "s1", x: 1, y: 1 })).rejects.toThrow("Cua session ended and was restarted");
+  await expect(runtime.call("click", { pid: 1, window_id: 2, snapshot_id: "s1", x: 1, y: 1 })).rejects.toThrow("Stale or missing Cua observation");
+  expect(calls[2].session).toBe(calls[1].session);
+ } finally { await runtime.close(); }
+});

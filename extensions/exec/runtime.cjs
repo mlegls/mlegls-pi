@@ -135,7 +135,7 @@ const services = {
 		end: (id) => termCall("end", [id]),
 		list: () => termCall("list", []),
 	},
-	ui: Object.freeze(Object.assign(Object.fromEntries(["list_apps", "list_windows", "get_window_state", "verify_state", "click", "type_text", "press_key", "set_value", "scroll", "drag"].map(name => [name, args => uiCall(name, args)])), { help: uiHelp })),
+	ui: Object.freeze(Object.assign(Object.fromEntries(["list_apps", "list_windows", "get_window_state", "verify_state", "click", "type_text", "press_key", "set_value", "scroll", "drag"].map(name => [name, args => uiCall(name, args)])), { help: uiHelp, reset: () => rpc("ui", "reset", {}) })),
 
 	// Escape hatch for namespaces not yet given a typed surface.
 	host: { call: (namespace, method, args) => rpc(namespace, method, args) },

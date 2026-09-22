@@ -114,7 +114,7 @@ const API: Record<ExecModule, string[]> = {
 		"term.wait({ids,mode?:\"any\"|\"all\",cursors?,waitMs?,lines?}); snapshots and waits stay structured, show renders readable terminal output. Terminals survive kernel reset."
 	],
 	"ui": [
-		"ui exposes Cua native tools: list_apps/list_windows/get_window_state/verify_state/click/type_text/press_key/set_value/scroll/drag. Snake_case arguments and .structuredContent are native Cua; show(result) emits ordered text/images. ui.help(name?) returns installed native schemas plus exec policy. Exact pid/window_id required; no desktop/frontmost fallback. Exec owns session. Observe before each write; use current element_token or snapshot_id. Background by default; delivery_mode:foreground is explicit opt-in, never a retry. Writes and verify_state consume action observations, including errors. Tokens do not survive reload/session changes. No old refs, outline, search or act API."
+		"ui exposes Cua native tools: list_apps/list_windows/get_window_state/verify_state/click/type_text/press_key/set_value/scroll/drag. Snake_case arguments and .structuredContent are native Cua; show(result) emits ordered text/images. ui.help(name?) returns installed native schemas plus exec policy; ui.reset() restarts a wedged driver (idle session_ended recovers by itself). Exact pid/window_id required; no desktop/frontmost fallback. Exec owns session. Observe before each write; use current element_token or snapshot_id. Background by default; delivery_mode:foreground is explicit opt-in, never a retry. Writes and verify_state consume action observations, including errors. Tokens do not survive reload/session changes. No old refs, outline, search or act API."
 	]
 };
 

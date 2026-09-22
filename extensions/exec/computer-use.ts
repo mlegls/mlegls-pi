@@ -80,6 +80,12 @@ export async function createComputerUseBridge(pi: ExtensionAPI, factory?: Comput
   async call(method, args, ctx, signal) {
    signal.throwIfAborted();
    const requested = method === "help" ? (args as { method?: string } | undefined)?.method : undefined;
+   if (method === "reset") {
+    // Explicit driver restart from the kernel; observations made before it are gone.
+    if (!acceptingCalls || resetError) throw new Error(resetError ?? "Computer-use session or branch changed");
+    await runtime.reset();
+    return { status: "reset" };
+   }
    if (method === "help") {
     if (requested !== undefined && !Object.hasOwn(computerUseTools, requested)) throw new Error("Unknown ui method: " + requested);
    } else if (!Object.hasOwn(computerUseTools, method)) throw new Error("Unknown ui method: " + method);

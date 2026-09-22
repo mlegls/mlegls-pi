@@ -4,6 +4,7 @@ import { computerUseTools, type ComputerUseRuntime } from "./computer-use";
 
 type SDK = typeof import("@trycua/cua-driver");
 const writes = new Set(["click", "type_text", "press_key", "set_value", "scroll", "drag"]);
+const reads = new Set(["list_apps", "list_windows", "get_window_state"]);
 const policy = "Exec owns the Cua session. Exact pid/window_id required (no desktop/frontmost fallback). Observe before writing; pass a current element_token or snapshot_id. One write consumes that window's observation, even on error. Background by default; delivery_mode:foreground is explicit opt-in, never an automatic retry. verify_state also invalidates action tokens. Re-observe after interruption or reload.";
 
 /** Cua's native tool protocol, without a second outline, ref system, or action language. */
@@ -50,10 +51,19 @@ export function createCuaRuntime(sdk: SDK, createDriver: () => CuaDriverLike = (
     // Capture/verification can replace native token caches even when the call fails.
     snapshots.delete(key);
    }
-   const input = { ...args, ...(scoped ? { session } : {}), ...(writes.has(method) && method !== "set_value" ? { delivery_mode: args.delivery_mode ?? "background" } : {}) };
-   const result = await native().callTool(method, JSON.stringify(input), signal && { signal });
-   signal?.throwIfAborted();
-   const response = JSON.parse(result.rawJson);
+   const issue = async () => {
+    const input = { ...args, ...(scoped ? { session } : {}), ...(writes.has(method) && method !== "set_value" ? { delivery_mode: args.delivery_mode ?? "background" } : {}) };
+    const result = await native().callTool(method, JSON.stringify(input), signal && { signal });
+    signal?.throwIfAborted();
+    return JSON.parse(result.rawJson);
+   };
+   let response = await issue();
+   // The driver retires idle session labels. Start a fresh one: reads re-issue, writes need a new observation.
+   if (response.structuredContent?.refusal?.code === "session_ended") {
+    snapshots.clear(); session = "pi-" + randomUUID();
+    if (!reads.has(method)) throw new Error("Cua session ended and was restarted; get_window_state before writing");
+    response = await issue();
+   }
    const state = response.structuredContent;
    if (method === "get_window_state" && !response.isError && state?.snapshot_id) {
     if (state.pid + ":" + state.window_id !== key) throw new Error("Cua returned a different window");
