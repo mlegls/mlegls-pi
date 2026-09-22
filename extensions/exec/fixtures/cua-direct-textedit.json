@@ -1,0 +1,548 @@
+{
+  "note": "Recorded native Cua 0.28.2 and live Jev encounter, 2026-09-22. App inventory is projected to TextEdit; window snapshots use the real native query. Native tokens are historical, never dispatch them to a live driver.",
+  "target": {
+    "pid": 94683,
+    "window_id": 82630
+  },
+  "record": [
+    {
+      "method": "list_apps",
+      "args": {},
+      "response": {
+        "content": [],
+        "structuredContent": {
+          "apps": [
+            {
+              "active": false,
+              "bundle_id": "com.apple.TextEdit",
+              "kind": "desktop",
+              "last_used": "2025-08-16T18:44:29Z",
+              "launch_path": "/System/Applications/TextEdit.app",
+              "name": "TextEdit",
+              "pid": 94683,
+              "running": true,
+              "windows": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "list_windows",
+      "args": {
+        "pid": 94683,
+        "on_screen_only": true
+      },
+      "response": {
+        "content": [
+          {
+            "text": "Found 1 window(s).",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "current_space_id": 1,
+          "windows": [
+            {
+              "app_name": "TextEdit",
+              "bounds": {
+                "height": 491,
+                "width": 601,
+                "x": 152,
+                "y": 80
+              },
+              "current_space_id": 1,
+              "is_on_screen": true,
+              "layer": 0,
+              "on_current_space": true,
+              "pid": 94683,
+              "space_ids": [
+                1
+              ],
+              "title": "Untitled 3",
+              "window_id": 82630,
+              "z_index": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "get_window_state",
+      "args": {
+        "query": "Cua direct",
+        "pid": 94683,
+        "window_id": 82630,
+        "include_screenshot": false
+      },
+      "response": {
+        "content": [
+          {
+            "text": "window_id=82630 pid=94683 elements=192\n\n- [0] AXWindow \"Untitled 3\" [id=_NS:34 actions=[raise]]\n  - [1] AXTextArea = \"Cua direct probe\" [id=First Text View actions=[showmenu]]\n",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "_note": "Prefer `elements` — `tree_markdown` will continue to work but new fields will only be added to the structured side. Issue #22865: use `max_elements` / `max_depth` to bound the AX walk on apps with very large trees.",
+          "app_name": "TextEdit",
+          "background_input": {
+            "exact_window": {
+              "pid": 94683,
+              "status": "matched",
+              "window_id": 82630
+            },
+            "observation": {
+              "frame_freshness": "unknown",
+              "one_shot_capture": "unavailable"
+            },
+            "routes": [
+              {
+                "route": "accessibility",
+                "status": "available"
+              },
+              {
+                "route": "window_pointer",
+                "status": "available"
+              },
+              {
+                "route": "pid_keyboard",
+                "status": "available"
+              }
+            ]
+          },
+          "element_count": 192,
+          "elements": [
+            {
+              "actions": [
+                "AXRaise"
+              ],
+              "depth": 0,
+              "element_index": 0,
+              "element_token": "s00000002:0",
+              "frame": {
+                "h": 491,
+                "w": 601,
+                "x": 152,
+                "y": 80
+              },
+              "label": "Untitled 3",
+              "role": "AXWindow"
+            },
+            {
+              "actions": [
+                "AXShowMenu"
+              ],
+              "depth": 1,
+              "element_index": 1,
+              "element_token": "s00000002:1",
+              "frame": {
+                "h": 388,
+                "w": 586,
+                "x": 152,
+                "y": 168
+              },
+              "label": "Cua direct probe",
+              "parent_index": 0,
+              "role": "AXTextArea",
+              "value": "Cua direct probe"
+            }
+          ],
+          "elements_complete": false,
+          "filtered_element_count": 2,
+          "pid": 94683,
+          "returned_element_count": 2,
+          "snapshot_id": "s00000002",
+          "total_element_count": 192,
+          "tree_markdown": "- [0] AXWindow \"Untitled 3\" [id=_NS:34 actions=[raise]]\n  - [1] AXTextArea = \"Cua direct probe\" [id=First Text View actions=[showmenu]]\n",
+          "window_id": 82630,
+          "window_title": "Untitled 3"
+        }
+      }
+    },
+    {
+      "method": "verify_state",
+      "args": {
+        "pid": 94683,
+        "window_id": 82630,
+        "expect": [
+          {
+            "element": {
+              "selector": {
+                "role": "AXTextArea"
+              },
+              "value_equals": "Cua direct replacement works"
+            }
+          }
+        ],
+        "timeout_ms": 0,
+        "stable_samples": 1
+      },
+      "response": {
+        "content": [
+          {
+            "text": "verify_state: unsatisfied after 1 sample(s) in 308 ms",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "elapsed_ms": 308,
+          "predicates": [
+            {
+              "index": 0,
+              "observed_json": "{\"element_index\":1,\"frame\":{\"h\":388.0,\"w\":586.0,\"x\":152.0,\"y\":168.0},\"label\":\"Cua direct probe\",\"role\":\"AXTextArea\",\"value\":\"Cua direct probe\"}",
+              "status": "unsatisfied",
+              "unknown_reason": null
+            }
+          ],
+          "samples": 1,
+          "stable": false,
+          "status": "unsatisfied"
+        }
+      }
+    },
+    {
+      "method": "get_window_state",
+      "args": {
+        "query": "Cua direct",
+        "pid": 94683,
+        "window_id": 82630,
+        "include_screenshot": false
+      },
+      "response": {
+        "content": [
+          {
+            "text": "window_id=82630 pid=94683 elements=192\n\n- [0] AXWindow \"Untitled 3\" [id=_NS:34 actions=[raise]]\n  - [1] AXTextArea = \"Cua direct probe\" [id=First Text View actions=[showmenu]]\n",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "_note": "Prefer `elements` — `tree_markdown` will continue to work but new fields will only be added to the structured side. Issue #22865: use `max_elements` / `max_depth` to bound the AX walk on apps with very large trees.",
+          "app_name": "TextEdit",
+          "background_input": {
+            "exact_window": {
+              "pid": 94683,
+              "status": "matched",
+              "window_id": 82630
+            },
+            "observation": {
+              "frame_freshness": "unknown",
+              "one_shot_capture": "unavailable"
+            },
+            "routes": [
+              {
+                "route": "accessibility",
+                "status": "available"
+              },
+              {
+                "route": "window_pointer",
+                "status": "available"
+              },
+              {
+                "route": "pid_keyboard",
+                "status": "available"
+              }
+            ]
+          },
+          "element_count": 192,
+          "elements": [
+            {
+              "actions": [
+                "AXRaise"
+              ],
+              "depth": 0,
+              "element_index": 0,
+              "element_token": "s00000003:0",
+              "frame": {
+                "h": 491,
+                "w": 601,
+                "x": 152,
+                "y": 80
+              },
+              "label": "Untitled 3",
+              "role": "AXWindow"
+            },
+            {
+              "actions": [
+                "AXShowMenu"
+              ],
+              "depth": 1,
+              "element_index": 1,
+              "element_token": "s00000003:1",
+              "frame": {
+                "h": 388,
+                "w": 586,
+                "x": 152,
+                "y": 168
+              },
+              "label": "Cua direct probe",
+              "parent_index": 0,
+              "role": "AXTextArea",
+              "value": "Cua direct probe"
+            }
+          ],
+          "elements_complete": false,
+          "filtered_element_count": 2,
+          "pid": 94683,
+          "returned_element_count": 2,
+          "snapshot_id": "s00000003",
+          "total_element_count": 192,
+          "tree_markdown": "- [0] AXWindow \"Untitled 3\" [id=_NS:34 actions=[raise]]\n  - [1] AXTextArea = \"Cua direct probe\" [id=First Text View actions=[showmenu]]\n",
+          "window_id": 82630,
+          "window_title": "Untitled 3"
+        }
+      }
+    },
+    {
+      "method": "set_value",
+      "args": {
+        "pid": 94683,
+        "window_id": 82630,
+        "snapshot_id": "s00000003",
+        "element_token": "s00000003:1",
+        "value": "Cua direct replacement works"
+      },
+      "response": {
+        "content": [
+          {
+            "text": "✅ Set AXValue on [1] AXTextArea.",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "delivery": {
+            "mode": "background"
+          },
+          "effect": "confirmed",
+          "evidence": [
+            {
+              "kind": "value_readback"
+            }
+          ],
+          "route": "accessibility"
+        }
+      }
+    },
+    {
+      "method": "list_apps",
+      "args": {},
+      "response": {
+        "content": [],
+        "structuredContent": {
+          "apps": [
+            {
+              "active": false,
+              "bundle_id": "com.apple.TextEdit",
+              "kind": "desktop",
+              "last_used": "2025-08-16T18:44:29Z",
+              "launch_path": "/System/Applications/TextEdit.app",
+              "name": "TextEdit",
+              "pid": 94683,
+              "running": true,
+              "windows": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "list_windows",
+      "args": {
+        "pid": 94683,
+        "on_screen_only": true
+      },
+      "response": {
+        "content": [
+          {
+            "text": "Found 1 window(s).",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "current_space_id": 1,
+          "windows": [
+            {
+              "app_name": "TextEdit",
+              "bounds": {
+                "height": 491,
+                "width": 601,
+                "x": 152,
+                "y": 80
+              },
+              "current_space_id": 1,
+              "is_on_screen": true,
+              "layer": 0,
+              "on_current_space": true,
+              "pid": 94683,
+              "space_ids": [
+                1
+              ],
+              "title": "Untitled 3",
+              "window_id": 82630,
+              "z_index": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "get_window_state",
+      "args": {
+        "query": "Cua direct",
+        "pid": 94683,
+        "window_id": 82630,
+        "include_screenshot": false
+      },
+      "response": {
+        "content": [
+          {
+            "text": "window_id=82630 pid=94683 elements=192\n\n- [0] AXWindow \"Untitled 3\" [id=_NS:34 actions=[raise]]\n  - [1] AXTextArea = \"Cua direct replacement works\" [id=First Text View actions=[showmenu]]\n",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "_note": "Prefer `elements` — `tree_markdown` will continue to work but new fields will only be added to the structured side. Issue #22865: use `max_elements` / `max_depth` to bound the AX walk on apps with very large trees.",
+          "app_name": "TextEdit",
+          "background_input": {
+            "exact_window": {
+              "pid": 94683,
+              "status": "matched",
+              "window_id": 82630
+            },
+            "observation": {
+              "frame_freshness": "unknown",
+              "one_shot_capture": "unavailable"
+            },
+            "routes": [
+              {
+                "route": "accessibility",
+                "status": "available"
+              },
+              {
+                "route": "window_pointer",
+                "status": "available"
+              },
+              {
+                "route": "pid_keyboard",
+                "status": "available"
+              }
+            ]
+          },
+          "element_count": 192,
+          "elements": [
+            {
+              "actions": [
+                "AXRaise"
+              ],
+              "depth": 0,
+              "element_index": 0,
+              "element_token": "s00000004:0",
+              "frame": {
+                "h": 491,
+                "w": 601,
+                "x": 152,
+                "y": 80
+              },
+              "label": "Untitled 3",
+              "role": "AXWindow"
+            },
+            {
+              "actions": [
+                "AXShowMenu"
+              ],
+              "depth": 1,
+              "element_index": 1,
+              "element_token": "s00000004:1",
+              "frame": {
+                "h": 388,
+                "w": 586,
+                "x": 152,
+                "y": 168
+              },
+              "label": "Cua direct replacement works",
+              "parent_index": 0,
+              "role": "AXTextArea",
+              "value": "Cua direct replacement works"
+            }
+          ],
+          "elements_complete": false,
+          "filtered_element_count": 2,
+          "pid": 94683,
+          "returned_element_count": 2,
+          "snapshot_id": "s00000004",
+          "total_element_count": 192,
+          "tree_markdown": "- [0] AXWindow \"Untitled 3\" [id=_NS:34 actions=[raise]]\n  - [1] AXTextArea = \"Cua direct replacement works\" [id=First Text View actions=[showmenu]]\n",
+          "window_id": 82630,
+          "window_title": "Untitled 3"
+        }
+      }
+    },
+    {
+      "method": "verify_state",
+      "args": {
+        "pid": 94683,
+        "window_id": 82630,
+        "expect": [
+          {
+            "element": {
+              "selector": {
+                "role": "AXTextArea"
+              },
+              "value_equals": "Cua direct replacement works"
+            }
+          }
+        ],
+        "timeout_ms": 0,
+        "stable_samples": 1
+      },
+      "response": {
+        "content": [
+          {
+            "text": "verify_state: satisfied after 1 sample(s) in 296 ms",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "elapsed_ms": 296,
+          "predicates": [
+            {
+              "index": 0,
+              "observed_json": "{\"element_index\":1,\"frame\":{\"h\":388.0,\"w\":586.0,\"x\":152.0,\"y\":168.0},\"label\":\"Cua direct replacement works\",\"role\":\"AXTextArea\",\"value\":\"Cua direct replacement works\"}",
+              "status": "satisfied",
+              "unknown_reason": null
+            }
+          ],
+          "samples": 1,
+          "stable": true,
+          "status": "satisfied"
+        }
+      }
+    }
+  ],
+  "choice": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "next": {
+        "type": "choice",
+        "choice": "a2",
+        "confidence": 0.88,
+        "probabilities": {
+          "a1": 0,
+          "needs-input": 0.01,
+          "abstain": 0.08,
+          "done": 0,
+          "reobserve": 0.01,
+          "a2": 0.9,
+          "a0": 0
+        }
+      },
+      "showing": {
+        "type": "noul",
+        "noul": 0.05
+      }
+    },
+    "usage": {
+      "input_tokens": 997,
+      "output_tokens": 94
+    }
+  }
+}

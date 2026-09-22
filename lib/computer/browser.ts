@@ -2,7 +2,7 @@
  * replays through the locator it drove with. The caller owns the browser and the page;
  * nothing here imports Playwright, only the page's methods are used. */
 import { createHash } from "node:crypto";
-import type { Action, Event, UI, UIResult, Walked } from "../computer.ts";
+import type { Action, Event, UI, UIResult, Walked } from "./browser-runner.ts";
 
 /** The Playwright `Page` surface used, structurally, so any project's copy of Playwright fits. */
 export interface PageLike {

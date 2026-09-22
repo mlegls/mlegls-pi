@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import desktopObservation from "./fixtures/desktop-observation-v0.5.1.json";
+import cuaRecording from "./fixtures/cua-direct-textedit.json";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -128,126 +128,53 @@ test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled
 
 const pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR4AQEFAPr/AP8AAP8FAAH/+lyI0QAAAABJRU5ErkJggg==";
 
-// Captured from pi-computer-use 0.5.1 observe_ui on Zed, 2026-09-15.
-// Keep the native restoration payload; content below independently exercises transport ordering.
-test("UI observations cross real Kernel RPC with ordered images, reusable refs and state, and visible errors", async () => {
-	const requests: Array<{ name: string; args: unknown }> = [];
-	const saved: any[] = [];
-	let branch: any[] = [], backendState: string | undefined;
-	const lifecycle = new Map<string, (...args: any[]) => any>();
-	let releaseLate: (() => void) | undefined, lateSettled = false;
-	const pi = {
-		registerTool() { throw new Error("Direct runtime must not register tools"); },
-		on: (name: string, handler: (...args: any[]) => any) => lifecycle.set(name, handler),
-		appendEntry: (customType: string, data: unknown) => {
-			const entry = { type: "custom", customType, data, id: String(saved.length), timestamp: new Date().toISOString() };
-			saved.push(entry); branch.push(entry);
-		},
-	} as any;
-	let services: ExecServices;
-	const bridge = await createComputerUseBridge(pi, () => {
-		const methods: Record<string, (args: any) => any> = {};
-		let dirty = false;
-		const register = (name: string, execute: (args: any) => any) => {
-			methods[name] = async (args: any) => { requests.push({ name, args }); return execute(args); };
-		};
-		// The desktop backend is the only substituted boundary; no image or display mock.
-		register("observe_ui", () => {
-			dirty = true;
-			backendState = "3c0c1d71-f059-4c97-b436-4cadb5aa752c";
-			return {
-			content: [
-				{ type: "text", text: "state: 3c0c1d71-f059-4c97-b436-4cadb5aa752c\n@e2 button Save" },
-				{ type: "image", data: pixel, mimeType: "image/png" },
-				{ type: "text", text: "detail crop" },
-				{ type: "image", data: pixel, mimeType: "image/png" },
-				{ type: "text", text: "end observation" },
-			],
-			details: desktopObservation,
-			};
-		});
-		register("inspect_ui", ({ ref, stateId }) => {
-			if (stateId !== backendState) throw new Error("UI state unavailable; observe again");
-			if (ref === "@delayed") return new Promise(resolve => {
-				releaseLate = () => { backendState = "late-state"; dirty = true; resolve({ content: [{ type: "text", text: "late completion" }], details: { ...desktopObservation, capture: { ...desktopObservation.capture, stateId: "late-state" } } }); };
-			});
-			if (ref === "@missing") throw new Error("UI ref @missing expired; observe again");
-			return { content: [{ type: "text", text: "Save is enabled" }], details: { stateId: "3c0c1d71-f059-4c97-b436-4cadb5aa752c", ref } };
-		});
-		register("act_ui", () => ({
-			isError: true,
-			content: [{ type: "text", text: "Action refused: stale state" }, { type: "image", data: pixel, mimeType: "image/png" }],
-			details: { stateId: "desktop-2" },
-		}));
-		return {
-			observe: methods.observe_ui, inspect: methods.inspect_ui, act: methods.act_ui,
-			help: () => [],
-			exportSnapshot(options: { incremental?: boolean } = {}) {
-				expect(options.incremental).toBe(true);
-				if (!dirty) return { version: 1, incremental: true };
-				dirty = false;
-				// An opaque backend payload: the adapter must round-trip it without interpretation.
-				return { version: 1, incremental: true, observation: { ...desktopObservation, capture: { ...desktopObservation.capture, stateId: backendState } } };
-			},
-			async restoreSnapshot(snapshot: any) { if (snapshot.observation) backendState = snapshot.observation.capture.stateId; },
-			async reset() { backendState = undefined; dirty = false; },
-			async close() { backendState = undefined; },
-		} as any;
-	});
-	await fixture(async (kernel, cwd) => {
-		const ctx = { cwd, sessionManager: { getSessionId: () => "ui-migration", getBranch: () => branch } } as any;
-		services = createExecServices(pi, ctx, { ui: bridge });
-		await lifecycle.get("session_start")!({}, ctx);
-		expect((await cell(kernel, 'state.observation = await ui.observe({root:"@r3",mode:"visual"});')).content).toEqual([]);
-		const shown = await cell(kernel, 'await show(state.observation);');
-		expect(shown.content.map(c => c.type)).toEqual(["text", "image", "text", "image", "text"]);
-		expect(shown.content.filter(c => c.type === "text").map(c => c.text.trim())).toEqual(["state: 3c0c1d71-f059-4c97-b436-4cadb5aa752c\n@e2 button Save", "detail crop", "end observation"]);
-		expect(shown.content.filter(c => c.type === "image")).toEqual([{ type: "image", data: pixel, mimeType: "image/png" }, { type: "image", data: pixel, mimeType: "image/png" }]);
-		const inspected = (await cell(kernel, 'show(JSON.stringify(state.observation)); show({...state.observation});')).output;
-		expect(inspected).not.toContain(pixel);
-		expect(inspected).toContain("3c0c1d71-f059-4c97-b436-4cadb5aa752c");
-		expect(inspected).toContain("@e2");
-		expect(shown.output).not.toContain(pixel);
-		await cell(kernel, 'const inspectedRef = await ui.inspect({stateId:state.observation.capture.stateId,ref:state.observation.details.outline.root.children[0].ref}); await show(inspectedRef);');
-		expect(requests.slice(0, 2)).toEqual([
-			{ name: "observe_ui", args: { root: "@r3", mode: "visual" } },
-			{ name: "inspect_ui", args: { stateId: "3c0c1d71-f059-4c97-b436-4cadb5aa752c", ref: "@e2" } },
-		]);
-		const failed = await kernel.execute('await show(state.observation); await ui.inspect({stateId:state.observation.capture.stateId,ref:"@missing"});');
-		expect(failed.error).toContain("UI ref @missing expired; observe again");
-		expect(failed.content.filter(c => c.type === "image")).toHaveLength(2);
-		const refused = await kernel.execute('const refused = await ui.act({stateId:state.observation.capture.stateId,actions:[{ref:state.observation.details.outline.root.children[0].ref,action:"press"}]}); show(refused.isError, refused.details.stateId); await show(refused);');
-		expect(refused.error).toContain("UI operation failed");
-		expect(refused.output).toContain("true desktop-2");
-		expect(refused.output).toContain("Action refused: stale state");
-		expect(refused.content.filter(c => c.type === "image")).toHaveLength(1);
-		expect((await cell(kernel, 'show(typeof ui.navigate, typeof ui.evaluate, typeof ui.launchBrowser);')).output).toBe("undefined undefined undefined\n");
-		expect(JSON.stringify(saved)).not.toContain(pixel);
-		expect(saved).toHaveLength(4); // Observation, cached inspect, expired-ref rejection, and refused action export deltas.
-		expect(saved.filter(entry => entry.data.snapshot.observation)).toHaveLength(1);
-		expect(saved[0].data.snapshot.observation.capture.stateId).toBe(desktopObservation.capture.stateId);
-		expect(saved[0].data.snapshot.observation.outline.root).toEqual(desktopObservation.outline.root);
-
-		// Restore the real earlier journal after an interrupted backend finishes late.
-		const beforeLate = saved.length;
-		const controller = new AbortController();
-		const pending = kernel.execute('await ui.inspect({stateId:"3c0c1d71-f059-4c97-b436-4cadb5aa752c",ref:"@delayed"});', controller.signal);
-		await until(() => releaseLate !== undefined);
-		controller.abort();
-		expect((await pending).error).toMatch(/cancel/i);
-		branch = saved.slice(0, 1);
-		const restored = lifecycle.get("session_tree")!({}, ctx);
-		releaseLate!();
-		await restored;
-		await until(() => lateSettled);
-		expect(saved).toHaveLength(beforeLate);
-		expect((await cell(kernel, 'show(typeof state.observation); await show(await ui.inspect({stateId:"3c0c1d71-f059-4c97-b436-4cadb5aa752c",ref:"@e2"}));')).output).toContain("undefined\nSave is enabled");
-		branch = [];
-		await lifecycle.get("session_tree")!({}, ctx);
-		expect((await kernel.execute('await ui.inspect({stateId:"3c0c1d71-f059-4c97-b436-4cadb5aa752c",ref:"@e2"});')).error).toContain("UI state unavailable");
-		await lifecycle.get("session_shutdown")!({}, ctx);
-	}, ({ namespace, method, args, signal }) => {
-		if (namespace !== "ui") throw new Error("Unexpected namespace " + namespace);
-		return services.call({ namespace, method, args, signal }).finally(() => { if (signal.aborted) lateSettled = true; });
-	});
-}, 20000);
+// Native Cua observation from the reviewed TextEdit encounter; ordered image blocks
+// retain the existing exec transport checks independently of desktop delivery.
+test("Cua results cross Kernel RPC with native tokens, ordered images, errors and lifecycle reset", async () => {
+ const observation=cuaRecording.record.find(r=>r.method==="get_window_state")!.response;
+ const snapshot=(observation.structuredContent as any).snapshot_id;
+ let backendState: string | undefined;
+ const lifecycle=new Map<string,(...args:any[])=>any>();
+ let releaseLate: (()=>void) | undefined, lateSettled=false;
+ const pi={on:(name:string,handler:any)=>lifecycle.set(name,handler),appendEntry(){throw Error("Native snapshots must not be journaled");}} as any;
+ let services: ExecServices;
+ const requests: any[]=[];
+ const bridge=await createComputerUseBridge(pi,()=>({
+  async call(method:string,args:any) {
+   requests.push({method,args});
+   if(method==="get_window_state") {backendState=snapshot;return {...observation,content:[
+    {type:"text",text:"TextEdit snapshot " + snapshot},{type:"image",data:pixel,mimeType:"image/png"},
+    {type:"text",text:"detail crop"},{type:"image",data:pixel,mimeType:"image/png"},{type:"text",text:"end observation"},
+   ]};}
+   if(method==="verify_state") return new Promise(resolve=>{releaseLate=()=>{backendState="late";resolve({content:[],structuredContent:{status:"unknown"}});};});
+   if(args.snapshot_id!==backendState) throw Error("Stale Cua snapshot; get_window_state again");
+   backendState=undefined;
+   return {isError:true,content:[{type:"text",text:"Action refused"},{type:"image",data:pixel,mimeType:"image/png"}],structuredContent:{code:"refused"}};
+  },async help(){return [];},async reset(){backendState=undefined;},async close(){backendState=undefined;},async setup(){},
+ }));
+ await fixture(async(kernel,cwd)=>{
+  const ctx={cwd,sessionManager:{getSessionId:()=>"cua-migration",getBranch:()=>[]}} as any;
+  services=createExecServices(pi,ctx,{ui:bridge});await lifecycle.get("session_start")!({},ctx);
+  expect((await cell(kernel,'state.observation=await ui.get_window_state({...'+JSON.stringify(cuaRecording.target)+'});')).content).toEqual([]);
+  const shown=await cell(kernel,'await show(state.observation);');
+  expect(shown.content.map(c=>c.type)).toEqual(["text","image","text","image","text"]);
+  expect(shown.content.filter(c=>c.type==="image")).toEqual([{type:"image",data:pixel,mimeType:"image/png"},{type:"image",data:pixel,mimeType:"image/png"}]);
+  const inspected=(await cell(kernel,'show(JSON.stringify(state.observation)); show({...state.observation});')).output;
+  expect(inspected).not.toContain(pixel);expect(inspected).toContain(snapshot);expect(inspected).toContain("element_token");
+  expect(shown.output).not.toContain(pixel);
+  const failed=await kernel.execute('await show(state.observation); await ui.click({...'+JSON.stringify(cuaRecording.target)+',snapshot_id:"missing",element_index:1});');
+  expect(failed.error).toContain("Stale Cua snapshot");expect(failed.content.filter(c=>c.type==="image")).toHaveLength(2);
+  const refused=await kernel.execute('const s=state.observation.structuredContent; const r=await ui.click({pid:s.pid,window_id:s.window_id,snapshot_id:s.snapshot_id,element_token:s.elements[1].element_token}); show(r.isError,r.structuredContent.code); await show(r);');
+  expect(refused.error).toContain("UI operation failed");expect(refused.output).toContain("true refused");expect(refused.content.filter(c=>c.type==="image")).toHaveLength(1);
+  expect(requests[2].args.element_token).toBe((observation.structuredContent as any).elements[1].element_token);
+  expect((await cell(kernel,'show(typeof ui.findRoots,typeof ui.act,typeof ui.observe);')).output).toBe("undefined undefined undefined\n");
+  const controller=new AbortController();
+  const pending=kernel.execute('await ui.verify_state({...'+JSON.stringify(cuaRecording.target)+',expect:[]});',controller.signal);
+  await until(()=>releaseLate!==undefined);controller.abort();expect((await pending).error).toMatch(/cancel/i);
+  const reset=lifecycle.get("session_tree")!({},ctx);releaseLate!();await reset;await until(()=>lateSettled);
+  expect((await cell(kernel,'show(typeof state.observation);')).output).toBe("undefined\n");
+  expect((await kernel.execute('await ui.click({...'+JSON.stringify(cuaRecording.target)+',snapshot_id:'+JSON.stringify(snapshot)+',element_index:1});')).error).toContain("Stale Cua snapshot");
+  await cell(kernel,'await ui.get_window_state({...'+JSON.stringify(cuaRecording.target)+'});');
+  await lifecycle.get("session_shutdown")!({},ctx);
+ },({namespace,method,args,signal})=>services.call({namespace,method,args,signal}).finally(()=>{if(signal.aborted)lateSettled=true;}));
+},20000);

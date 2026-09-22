@@ -85,8 +85,7 @@ const contentErrors = new WeakMap();
 class UIResult {
 	#blocks;
 	constructor(result) {
-		this.details = result.details;
-		this.capture = result.capture;
+		this.structuredContent = result.structuredContent;
 		this.isError = Boolean(result.isError);
 		this.#blocks = result.content;
 	}
@@ -136,17 +135,8 @@ const services = {
 		end: (id) => termCall("end", [id]),
 		list: () => termCall("list", []),
 	},
-	ui: {
-		findRoots: (args) => uiCall("findRoots", args),
-		observe: (args) => uiCall("observe", args),
-		search: (args) => uiCall("search", args),
-		expand: (args) => uiCall("expand", args),
-		inspect: (args) => uiCall("inspect", args),
-		act: (args) => uiCall("act", args),
-		readText: (args) => uiCall("readText", args),
-		waitFor: (args) => uiCall("waitFor", args),
-		help: uiHelp,
-	},
+	ui: Object.freeze(Object.assign(Object.fromEntries(["list_apps", "list_windows", "get_window_state", "verify_state", "click", "type_text", "press_key", "set_value", "scroll", "drag"].map(name => [name, args => uiCall(name, args)])), { help: uiHelp })),
+
 	// Escape hatch for namespaces not yet given a typed surface.
 	host: { call: (namespace, method, args) => rpc(namespace, method, args) },
 };

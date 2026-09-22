@@ -1,23 +1,16 @@
-import { STATE_ENTRY, journal, restorationRecords } from "./desktop-restore";
-import { captureSummary } from "./desktop-discovery";
 import { type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-export const computerUseTools = {
- findRoots: "find_roots", observe: "observe_ui", search: "search_ui", expand: "expand_ui",
- inspect: "inspect_ui", act: "act_ui", readText: "read_text", waitFor: "wait_for",
-} as const;
-type Method = keyof typeof computerUseTools;
-type Result = { content: unknown[]; details?: unknown; isError?: boolean };
-/** Structural public seam: optional package types need not be installed to use exec. */
-export type ComputerUseRuntime = Record<Method, (params: any, signal?: AbortSignal) => Promise<Result>> & {
- help(method?: string): { method: string; [key: string]: unknown }[];
- exportSnapshot(options?: { incremental?: boolean }): unknown;
- restoreSnapshot(snapshot: any): Promise<void>;
+export const computerUseTools = Object.fromEntries([
+ "list_apps", "list_windows", "get_window_state", "verify_state", "click", "type_text", "press_key", "set_value", "scroll", "drag",
+].map(name => [name, name]));
+export type ComputerUseRuntime = {
+ call(method: string, params: any, signal?: AbortSignal): Promise<any>;
+ help(method?: string, signal?: AbortSignal): Promise<any[]>;
  reset(): Promise<void>;
  close(): Promise<void>;
- setup(ui?: any, signal?: AbortSignal): Promise<unknown>;
+ setup(): Promise<unknown>;
 };
-export type ComputerUseRuntimeFactory = (options: { cwd?: string | (() => string) }) => ComputerUseRuntime | Promise<ComputerUseRuntime>;
+export type ComputerUseRuntimeFactory = () => ComputerUseRuntime | Promise<ComputerUseRuntime>;
 export interface ComputerUseBridge {
  call(method: string, args: unknown, ctx: ExtensionContext, signal: AbortSignal): Promise<unknown>;
 }
@@ -40,19 +33,18 @@ async function loadComputerUseRuntime() {
 }
 
 export async function createComputerUseBridge(pi: ExtensionAPI, factory?: ComputerUseRuntimeFactory): Promise<ComputerUseBridge> {
- let cwd = process.cwd();
  let runtime: ComputerUseRuntime;
  let registerSetup: ((pi: ExtensionAPI, runtime: ComputerUseRuntime) => void) | undefined;
  try {
   if (!factory) { const loaded = await loadComputerUseRuntime(); factory = loaded.factory; registerSetup = loaded.registerSetup; }
-  runtime = await factory({ cwd: () => cwd });
+  runtime = await factory();
  } catch (error) {
   return { async call() { throw new Error("ui unavailable: " + message(error), { cause: error }); } };
  }
  let generation = 0;
  let acceptingCalls = false;
  let sessionId: string | undefined;
- let restorationError: string | undefined;
+ let resetError: string | undefined;
  let lifecycleAbort = new AbortController();
  let lifecycleWork = Promise.resolve();
  const pending = new Set<Promise<unknown>>();
@@ -65,24 +57,17 @@ export async function createComputerUseBridge(pi: ExtensionAPI, factory?: Comput
    await Promise.allSettled([...pending]);
    if (shutdown) { await runtime.close(); return; }
    if (current !== generation) return;
-   cwd = ctx.cwd;
-   restorationError = undefined;
+   resetError = undefined;
    try {
     await runtime.reset();
-    const { snapshots, legacy } = restorationRecords(ctx);
-    if (legacy) ctx.ui.notify("Older UI observations cannot be restored after this upgrade; re-observe to get fresh refs.", "warning");
-    for (const snapshot of snapshots) {
-     if (current !== generation) return;
-     await runtime.restoreSnapshot(snapshot);
-    }
    } catch (error) {
-    restorationError = "ui restoration failed; re-observe on a fresh branch: " + message(error);
+    resetError = "ui reset failed; restart and re-observe: " + message(error);
     try { await runtime.reset(); } catch { /* Keep failure scoped to ui. */ }
-    ctx.ui.notify(restorationError, "warning");
+    ctx.ui.notify(resetError, "warning");
    }
    if (current !== generation) return;
    sessionId = ctx.sessionManager.getSessionId();
-   acceptingCalls = !restorationError;
+   acceptingCalls = !resetError;
   });
   return lifecycleWork;
  }
@@ -94,32 +79,26 @@ export async function createComputerUseBridge(pi: ExtensionAPI, factory?: Comput
  return {
   async call(method, args, ctx, signal) {
    signal.throwIfAborted();
+   const requested = method === "help" ? (args as { method?: string } | undefined)?.method : undefined;
    if (method === "help") {
-    const requested = (args as { method?: string } | undefined)?.method;
     if (requested !== undefined && !Object.hasOwn(computerUseTools, requested)) throw new Error("Unknown ui method: " + requested);
-    return runtime.help(requested).filter(tool => Object.hasOwn(computerUseTools, tool.method));
-   }
-   if (!Object.hasOwn(computerUseTools, method)) throw new Error("Unknown ui method: " + method);
+   } else if (!Object.hasOwn(computerUseTools, method)) throw new Error("Unknown ui method: " + method);
    const current = generation;
    const callerSessionId = ctx.sessionManager.getSessionId();
    signal = AbortSignal.any([signal, lifecycleAbort.signal]);
    function checkCurrent() {
     signal.throwIfAborted();
-    if (restorationError) throw new Error(restorationError);
+    if (resetError) throw new Error(resetError);
     if (!acceptingCalls || current !== generation || callerSessionId !== ctx.sessionManager.getSessionId() || callerSessionId !== sessionId) throw new Error("Computer-use session or branch changed");
    }
    checkCurrent();
-   const operation = runtime[method as Method](args ?? {}, signal);
+   const operation = method === "help" ? runtime.help(requested, signal) : runtime.call(method, args ?? {}, signal);
    pending.add(operation);
    try {
-    const result = await operation;
-    return { ...result, capture: captureSummary(result.details) };
+    return await operation;
    } finally {
     pending.delete(operation);
-    // Rejected native writes can still advance resource epochs. Never journal
-    // a cancelled caller or an operation from a departed session/branch.
     checkCurrent();
-    pi.appendEntry(STATE_ENTRY, journal(runtime.exportSnapshot({ incremental: true })));
    }
   },
  };

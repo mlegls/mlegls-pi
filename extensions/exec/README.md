@@ -569,60 +569,55 @@ not a complete process log. There is no shell-pipe option; select values in JS.
 
 ### Desktop computer use
 
-`ui` uses the pinned `@trycua/cua-driver` native SDK in the extension host.
-Cua owns window capture, element tokens, and input delivery; exec serializes
-calls and adapts observations to the outline used by `computer`.
-Use `chrome-devtools-axi` for ordinary browser work.
+`ui` exposes the pinned Cua Driver 0.28.2 **native tool protocol**. Method and
+argument names are snake_case; results retain Cua's `structuredContent` without
+an intermediate outline, capability flags, refs, or action language.
 
 ```ts
-await show(await ui.help("act"));
-const roots = await ui.findRoots({app: "TextEdit"});
-await show(roots); // choose an exact returned windowRef, never the first by assumption
-const view = await ui.observe({root: chosenWindowRef, mode: "visual"});
-await show(view); // readable refs and actual screenshot images
-await show(await ui.search({stateId: view.capture.stateId, role: "TextArea"}));
-await show(await ui.act({stateId: view.capture.stateId, actions: [
-  {action: "setText", ref: chosenTextFieldRef, text: "Replacement text"},
-]}));
-// Re-observe the same root to check the effect and obtain fresh refs.
+await show(await ui.help("get_window_state")); // installed native schema + exec policy
+const apps = (await ui.list_apps({})).structuredContent.apps;
+const windows = (await ui.list_windows({pid, on_screen_only: true})).structuredContent.windows;
+const view = await ui.get_window_state({pid, window_id, include_screenshot: true});
+await show(view); // ordered native text/image blocks; no implicit display on capture
+const field = view.structuredContent.elements.find(e => e.role === "AXTextArea");
+await show(await ui.set_value({pid, window_id,
+  element_token: field.element_token, value: "Replacement text"}));
+// Re-observe or verify_state to check the actual effect.
 ```
 
-Methods: `findRoots`, `observe`, `search`, `expand`, `inspect`, `act`,
-`readText`, `waitFor`, and `help`. Call `help(method)` for the current argument
-contract; the old pi-computer-use schemas are not preserved.
+Methods: list_apps, list_windows, get_window_state, verify_state, click, type_text,
+press_key, set_value, scroll, drag, and help. Use `ui.help(name)` for native schemas;
+there is no unrestricted callTool escape hatch. Prefer chrome-devtools-axi for
+ordinary browser work. The Jev runner uses this same surface directly; see
+[computer composition](../../docs/computer.md).
 
-- Discovery selects running apps by exact name, bundle ID, or PID and returns
-  on-screen windows. No app launch or frontmost-app fallback.
-- Actions target an exact window. Background delivery is the default. A refusal
-  never triggers a foreground retry; `allowForeground: true` on an individual
-  `act` call explicitly permits focus-stealing delivery.
-- Exactly **one action per observation**: `press`, `setText`, `typeText`,
-  `scroll`, screenshot-coordinate `click`, or `key`. `setText` replaces native
-  AX text values; `typeText` inserts. Web inputs need renderer-aware input, not
-  AX replacement. Scroll values select direction and approximate wheel notches.
-- Actions consume all observations for that window, including failed or
-  cancelled actions. Re-observe before deciding whether to retry: a write can
-  land before an error. Delivery receipts do not prove the intended effect.
-- `search`, `inspect`, and `readText` read the cached projection; they do not
-  validate live absence. Search matches text substrings and exact roles/subroles,
-  ignoring AX prefixes. Cua currently provides roles, not separate subroles.
-  Completeness is forwarded conservatively. `expand` recaptures the window with
-  a larger budget, replacing its refs. `waitFor` polls fresh AX text.
-- Up to 128 observations are retained in memory. Native tokens and window refs
-  **do not survive reload, session/branch changes, or shutdown**. Journal entries
-  contain only a backend marker; old observations are never restored as actionable
-  state. Historical images/text in the conversation remain historical evidence.
+Exec's additions are only host policy and lifetime:
 
-Install with `bun install --frozen-lockfile --ignore-scripts`. The optional SDK
-installs a platform-specific native package; missing SDK support disables only
-`ui`. Do not independently load the old pi-computer-use extension.
-`/computer-use` reports permission status; `/computer-use setup` explicitly
-requests native permissions. Grants belong to the process hosting Pi, not the
-old pi-computer-use helper. Routine startup does not request permission.
+- An exact safe-integer pid/window_id is required for scoped operations. No
+  desktop/frontmost fallback. Native window targets are also accepted where Cua
+  supports them, but conflicting identities are refused.
+- Exec owns the native session, serializes calls, forwards cancellation, and
+  shuts the driver down on session/branch changes. Caller-supplied session labels
+  are rejected. Routine startup does not request permissions.
+- Background delivery is explicit by default. `delivery_mode: "foreground"`
+  opts in for that write only; no automatic escalation/retry. set_value is native
+  AX replacement and has no foreground mode. type_text is insertion.
+- Observe before writing. A current native element_token or snapshot_id is
+  required; one write consumes the observation even on error. verify_state also
+  invalidates action tokens. Re-observe after either before another write.
+- No native snapshots are journaled/restored. Tokens must not be reused after
+  reload, session/branch changes, or shutdown. Read prior results as historical
+  evidence only. Native query/completeness and verification results stay intact.
 
-See [the background TextEdit encounter](../../docs/guide/cua-background.md) for
-observed behavior and current limits. Separate apps can be used while the agent
-works in the background; concurrent writers to the same window are not isolated.
+Install with `bun install --frozen-lockfile --ignore-scripts` and restart Pi.
+/computer-use reports permissions; /computer-use setup explicitly requests them
+for the host process. Missing optional native support disables only ui. Do not
+load the old pi-computer-use extension alongside it. /exec-reset alone does not
+replace the extension-host backend.
+
+[Background guide and encounter](../../docs/guide/cua-background.md). Background
+routing permits working in another app; it does not isolate concurrent writers
+to the same window or guarantee compatibility with every app.
 
 ## Lifetime and boundaries
 
