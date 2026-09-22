@@ -3,7 +3,7 @@
 Converted the mlegls-pi and system-config trackers to stage/assignee metadata. Unknown priorities and historical authors remain unknown. Archived records use stage done. Existing feature results are not new runtime verification.
 
 - Detached map-projection from autoread-show-me while retaining its prerequisite: a parent cannot finish while a child waits for that parent to finish.
-- Kept home-ui and persistent tracker-view choices human-owned; the old tmux/board cockpit is not a current implementation contract. Reconciled block launch and local adapter acceptance with Orca. Historical workmux failures and preparation latency remain observations, not ready repairs.
+- Kept home-ui and persistent tracker-view choices human-owned; the tmux/board cockpit remains an alternative to the Orca trial, not an approved implementation contract. Reconciled block launch and local adapter acceptance with Orca. Historical workmux failures and preparation latency remain observations, not ready repairs.
 - Reconciled ingress calibration with the current five retention levels. The child study produces evidence; parent acceptance remains represented.
 - Archived system-config’s delivered vault-tracker adoption goal and replaced its obsolete schema claims with a link to the current contract.
 

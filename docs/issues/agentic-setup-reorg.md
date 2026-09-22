@@ -4,7 +4,7 @@ assignee: human
 priority: 1
 ---
 
-A coherent harness-integrated library, skills and human surfaces reduce orchestration overhead. The repository merge and project-local exec modules are delivered; skills remain skills. Orca owns current execution and messaging, not wm/board.
+A coherent harness-integrated library, skills and human surfaces reduce orchestration overhead. The repository merge and project-local exec modules are delivered; skills remain skills. Orca currently supplies execution and messaging as a trial. Choosing between what it offers and a tmux/workmux/board composition remains part of the human-surface decision.
 
 Residual work: reconcile the remaining human-surface choices and accept the composed workflow against the recorded orchestration costs. Children own bounded preparation, measurement and delivery; their results do not by themselves certify the whole workflow. The dated decisions below preserve the route, including superseded proposals.
 

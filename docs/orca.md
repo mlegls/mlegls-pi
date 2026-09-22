@@ -1,6 +1,6 @@
 # Orca execution and coordination
 
-Orca is the execution backend in every client. Exec disables `wm` and `board`, even in explicit allowlists; the board host is no longer loaded. Legacy libraries remain importable for rollback, not advertised as active APIs. Module selection is not a sandbox.
+Orca is being trialled against the tmux/workmux/board stack; the long-term choice remains open. During the trial it is the active execution backend in every client. Exec disables `wm` and `board`, even in explicit allowlists; the board host is no longer loaded. The tmux/workmux/board libraries remain importable as the alternative under evaluation, but are not advertised as active exec APIs during the trial. Module selection is not a sandbox.
 
 ## Setup and identity
 

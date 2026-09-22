@@ -4,7 +4,7 @@ assignee: human
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
-Current question: what human cockpit is still wanted beyond the working Orca terminals and Obsidian tracker? Settle the remaining experience before building a replacement. The tmux/board proposal below predates Orca becoming the execution backend; it is not an implementation contract. Obsidian block launch and persistent tracker views remain separately owned children.
+Current question: does Orca offer a better human cockpit than a tmux/workmux/board composition? Orca is a trial, not the settled baseline that other options must merely extend. The tmux/board proposal below remains an alternative to evaluate, not an approved implementation contract. Obsidian block launch and persistent tracker views remain separately owned children.
 
 ## Earlier proposal
 

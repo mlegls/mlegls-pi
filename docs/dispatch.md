@@ -1,6 +1,6 @@
 # Dispatch a ready wave
 
-`dispatch.dispatch` launches prepared Pi assignments through Orca in every client. The supervisor owns decomposition, admission (`route.prepare`), integration, and concurrency. Orca owns the Run, Task, Dispatch, and mailbox lifecycle. See [Orca](orca.md) for the direct API and coordinator identity requirements.
+During the Orca trial, `dispatch.dispatch` launches prepared Pi assignments through Orca in every client. This is the active configuration, not a settled choice over tmux/workmux/board. The supervisor owns decomposition, admission (`route.prepare`), integration, and concurrency. Orca owns the Run, Task, Dispatch, and mailbox lifecycle. See [Orca](orca.md) for the direct API and coordinator identity requirements.
 
 ```ts
 state.run = (await orca.runs.create({objective: "Implement feature X"})).run;
