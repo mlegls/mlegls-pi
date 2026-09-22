@@ -1,80 +1,100 @@
 # Exec ingress
 
-External information should reach the session in relevant pieces, without losing
-access to the original. Exec applies `lib/ingress.ts` at display time, not read time.
+External information should reach the session at the fidelity its reading needs:
+exact evidence at the focus, a source sketch in the periphery, and recoverable
+omissions elsewhere. Exec applies this at display time, not read time.
 
 ## Use
 
-Reload the extension (`/reload` or restart Pi) once to install the host context
-handoff. A kernel reset alone does not reload the host extension. Jev uses the
-existing `JEV_API_KEY` or Cloudflare credentials supported by `lib/decide.ts`;
-no additional model subscription or provider routing is involved.
+Reload the extension (/reload or restart Pi) to update the advertised API. A kernel
+reset loads the new runtime and library. Jev uses the existing JEV_API_KEY or
+Cloudflare credentials supported by lib/decide.ts.
 
-- `await show(value)`: render, chunk, score, then apply the display budget.
-- `await show.raw(value)`: render without relevance scoring.
-- `await show.pull("ing-…")`: recover an omitted original without rescoring.
-- `show.large` raises the byte budget but does **not** bypass relevance scoring.
-  Raw/pull obey the same cap; call `await show.large()` first to raise it.
-- Console aliases and notification results use the same filter. User messages,
-  explicit loaded skills (including their returned content blocks), API help, and
-  image payloads are not relevance-filtered.
+~~~ts
+await show(await read("lib/ingress.ts"), { focus: "understand the architecture" });
+await show(await read("lib/ingress.ts"), { focus: "inspect budget handling before editing" });
+await show(state.source);       // implicit reading intent
+await show.pull("ing-…");       // exact original of a skim or omitted run
+await show.raw(state.source);   // no semantic transformation
+~~~
 
-IDs are content-derived page references, **not edit anchors**. Source line/edit
-anchors remain intact in retained and pulled text. Pages last until kernel reset,
-interruption, or session navigation; retain source values if you need other views.
-Normal truncation remains separate from relevance pruning.
+Focus supplements implicit context rather than replacing it. It describes the
+operation as well as the subject: orientation and editing need different fidelity.
+A trailing object whose only key is a string-valued focus is options when another
+value precedes it; other variadic values remain content. Raw treats all arguments
+as content. Large accepts the same options and raises the cell cap to 50 KiB.
 
-## Prototype policy
+Console aliases and notification results use implicit focus. Loaded skills, API
+help and images bypass the filter. Raw and pull still obey normal byte/image caps.
+Source values stay unchanged; recovery IDs are not edit anchors. Originals expire
+on kernel reset, interruption or session navigation.
 
-The query is up to six recent user/assistant text messages from the active,
+## Reading policy
+
+Implicit context is up to six recent user/assistant text messages from the active,
 compaction-applied branch (12,000 characters), plus up to 4,000 characters of the
-current cell. Thinking and previous tool-result bodies are not sent. Notifications
-use the latest cell's query. No conversation context means no pruning.
+current cell. Thinking and previous tool-result bodies are excluded. Notifications
+use the latest cell's context. No context and no explicit focus means no filtering.
 
-The chunker is lossless. A rendered array or object (inspect or JSON) is chunked
-one record per sibling at the shallowest depth with siblings, labeled by the
-record's first field; anything else lexically: Markdown sections, top-level
-source declarations, and paragraphs/blocks, bounded to 4,096 characters. Source
-headers carry into labels. This is not yet an AST or specialized log chunker.
-The importing API `ingress.create({chunk, score, threshold, record})` admits richer
-chunkers and alternate scoring. A project `.pi/exec/ingress.ts` can override that
-module; the hook uses its `create` export too.
+The lossless chunker groups Markdown headings with bodies, tracks heading ancestry,
+and binds trailing comments to declarations. Source identities and declaration
+signatures carry into continuation chunks. Rendered sibling records remain separate.
+Passages are bounded to 4,096 characters, splitting at lines or, for long lines, code
+points. This is lexical structure, not an AST or a specialized log parser.
 
-Jev receives independent Noul questions, eight chunks per request, at most four
-requests concurrently, with an eight-second scoring deadline per displayed text.
-Keep `P(useful) >= .2`, including uncertain chunks. This is a conservative
-**uncalibrated** threshold. When the kept text exceeds the cell's remaining
-display budget, pages go lowest probability first until it fits, stopping at
-`.8`; the byte cap then truncates as before. Under budget the threshold alone
-decides. The cell's code is part of the query, so a comment naming what the
-output is for sharpens the judgment in a fresh session. Text under 512 characters and recognizable unified
-diffs pass through (a page table or incomplete diff would be worse). A failed
-scorer keeps the original with an explicit notice; it does not retry.
+For each passage Jev chooses:
 
-Omissions are indexed before retained bodies. Original values are unchanged;
-only rendered omitted chunks are copied into the kernel's page table. Hidden
-`exec-ingress` session entries record decisions, threshold, query hash, chunk
-IDs/labels/sizes/probabilities, and explicit pulls. They add no model tokens.
+- **Verbatim:** exact detail is needed for action, interpretation, editing or verification.
+- **Skim:** ancestry plus one source excerpt is sufficient for peripheral understanding.
+- **Omit:** neither detail nor gist contributes to the reading.
 
-## Boundary
+An independent speculative Choice selects the best skim excerpt in the same request.
+Candidates are contiguous, lossless source spans grouped from lines/paragraphs,
+roughly 500 characters each, merged to at most twelve candidates. Jev selects;
+code copies. Skims are explicitly marked incomplete and carry a recovery handle.
+They are not generated summaries. If fidelity's winning probability is below .6,
+the passage stays verbatim. This conservative policy is not calibrated accuracy.
 
-Raw child stdout/stderr and interrupted-shell captures are bounded diagnostics
-in tool-result details, visible in the expanded Pi row but not sent to the model.
-Capture a shell result and show it when the model needs it. Exec errors remain
-visible as control feedback. This is a context policy, not a security sandbox.
-Other extensions' direct notifications and BB tools remain outside this hook;
-this change does not claim to intercept those channels.
+Batches contain eight passages, with up to four requests concurrently and an
+eight-second deadline per displayed text. The importing seam is
+lib/ingress.create({chunk, judge, record}); judge returns mode, distribution, and
+excerpt index. It replaces the prototype's score/threshold seam.
 
-## Verification — 2026-09-20
+Adjacent omissions share one notice and one recoverable original. Their ancestry
+is preserved without repeating identical lines within the run. Small passages stay
+verbatim when the notice or skim would cost more. Full rendering overhead counts
+in UTF-8 bytes: successful filtering never makes the text larger. Over budget,
+skims yield in descending omission probability; verbatim evidence is not demoted.
+The normal byte cap may still truncate, including when exact evidence alone exceeds
+it. Text below 512 bytes and recognizable unified diffs pass through. Service,
+validation or timeout failures keep the original with a warning, without retry.
 
-A fresh kernel with live Jev kept an exec-cancellation section (p=.95), omitted an
-unrelated gardening section (p=.02), and preserved show/console ordering. A later
-pull recovered the omitted section without another judgment; raw showed both.
-A deferred notification used the same filter. Explicit skill loading stayed
-unfiltered. This small smoke example does not establish a miss rate; corpus
-measurement remains in `docs/issues/reranker-eval.md`.
+## Replay records and boundaries
 
-The real extension/session-manager drive also verified source rows and edit
-anchors, missing-key fail-open, and UI-only stdout/stderr/interrupted-shell
-captures. Source-section relevance was .91/.05. Existing suite:
-`env -u BB_THREAD_ID bun test` — 196 pass, 2 skip, 0 fail.
+Hidden version-2 exec-ingress entries retain the query, focus, full source passages,
+ancestry, judgments/distributions, chosen excerpt indices, applied modes, and whether
+attention, budget or rendering overhead determined them. They also record latency
+and input/output bytes. Pulls and failures are separate events. These inputs allow
+local replay, unlike the prototype's query hash and labels alone.
+
+These records add no model tokens, but increase session storage and retain external
+text even when it was not displayed. They use the session's existing local storage
+and retention; do not treat omitted material as absent from the session log.
+The version identifies the current candidate/policy implementation; historical
+replays should use its corresponding source revision.
+
+Raw child stdout/stderr and interrupted-shell captures remain bounded UI-only
+diagnostics. Other extensions' direct notifications remain outside this hook.
+This is an attention policy, not a security sandbox.
+
+## Verification
+
+The 2026-09-22 live exec drive read the same anchored source twice. Architecture
+focus produced a 5,278-byte extractive sketch from 15,971 bytes; inspection before
+editing retained all 15,971 bytes. Exact expansion, raw, and variadic compatibility
+were exercised. A cross-VM options bug was found and fixed during this drive.
+
+[Encounter, replay and limits](research/ingress-foveation-2026-09-22.md).
+This establishes the focused-reading surface and one useful fidelity distinction,
+not a miss rate or general semantic accuracy. The earlier binary filter's smoke
+examples are superseded by this reading policy.

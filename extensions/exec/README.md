@@ -206,23 +206,34 @@ The kernel, imports, and asynchronous work persist. Local declarations do not.
 State writes and other side effects survive a later error; calls are not
 transactions and failed code must not be blindly replayed. Reset clears state.
 
-## Ingress filtering
+## Foveated reading
 
-`show(...)`, `show.large(...)`, console aliases, and `notify(...)` use the same
-Jev relevance filter before the existing display budget. Omitted chunks have
-recoverable `ing-*` IDs; retained values are never changed.
+Read with an intent, not just a search term:
 
-```ts
-await show(await read("src/example.ts"));
-await show.pull("ing-0123456789abcdef"); // omitted original, no rescoring
-await show.raw(state.result);           // bypass relevance filtering
-```
+~~~ts
+await show(await read("src/example.ts"), { focus: "inspect cancellation before editing" });
+await show(state.document, { focus: "understand the architecture" });
+await show(state.document);             // infer attention from the session
+await show.pull("ing-0123456789abcdef"); // exact skimmed/omitted original, no rescoring
+await show.raw(state.result);           // no semantic transformation
+~~~
 
-Raw/pull still obey byte/image caps. Loaded skills and images bypass relevance
-filtering. Missing credentials, a scorer failure, or timeout keeps the original
-text with a warning. The cell's own code is part of the relevance query, so a
-comment stating what the output is for sharpens it. Over the display budget,
-the least relevant pages go before the tail is truncated.
+Jev chooses exact passages, extractive skims, or omissions. Focus supplements the
+conversation tail and current cell; it does not exclude peripheral context.
+Skims are selected source excerpts, explicitly incomplete, with an expansion ID.
+Headings and declaration context remain visible. Original retained values never change.
+
+A trailing object containing only a string `focus` field is reserved as options
+when another value precedes it. Other variadic values—including trailing strings—
+remain content. Use `show.raw` to display that object literally alongside other
+values. `show.large` accepts the same focus option and raises the display cap.
+Console aliases and notifications infer focus from context.
+
+Raw/pull still obey byte/image caps. Loaded skills and images bypass filtering.
+Missing credentials, scorer failure, or timeout keeps the original with a warning.
+Rendering counts notice overhead in UTF-8 bytes and never expands a successful
+filtered read. Under budget pressure peripheral skims yield before exact passages;
+ordinary display truncation can still cut an oversized result.
 [Policy, setup, and verification](../../docs/ingress.md).
 
 ## Reserved API names

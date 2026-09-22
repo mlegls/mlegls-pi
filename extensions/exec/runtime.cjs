@@ -191,17 +191,17 @@ function isPromise(value) {
 	return value != null && typeof value.then === "function";
 }
 
-function display(value, raw = false, query = scope.getStore()?.query ?? ingressQuery) {
-	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query));
+function display(value, raw = false, query = scope.getStore()?.query ?? ingressQuery, focus) {
+	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query, focus));
 	const rendered = value && typeof value.content === "function" ? value.content() : render(value);
-	if (raw || !query || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
+	if (raw || (!query && !focus) || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
 	const cell = scope.getStore();
 	const budget = cell ? Math.max(0, (cell.outputLimit ?? OUTPUT_LIMIT) - cell.bytes) : undefined;
 	return Promise.resolve(rendered).then(async result => {
 		if (protectedDisplay.has(result)) return result;
-		if (!Array.isArray(result)) return ingress.filter(String(result), query, budget);
+		if (!Array.isArray(result)) return ingress.filter(String(result), query, budget, focus);
 		const filtered = await Promise.all(result.map(async block => block.type === "text"
-			? { ...block, text: await ingress.filter(block.text, query, budget) } : block));
+			? { ...block, text: await ingress.filter(block.text, query, budget, focus) } : block));
 		const error = contentErrors.get(result);
 		if (error) contentErrors.set(filtered, error);
 		return filtered;
@@ -234,12 +234,17 @@ function emitValues(cell, values) {
 	flush();
 }
 
-function show(...values) { return showValues(false, values); }
+function show(...values) {
+	const last = values.at(-1);
+	const options = values.length > 1 && last && typeof last === "object" && !Array.isArray(last)
+		&& Object.keys(last).length === 1 && typeof last.focus === "string" ? values.pop() : undefined;
+	return showValues(false, values, options?.focus);
+}
 
-function showValues(raw, values) {
+function showValues(raw, values, focus) {
 	const cell = scope.getStore();
 	if (!cell || cell.finished) return Promise.resolve();
-	const rendered = values.map(value => display(value, raw));
+	const rendered = values.map(value => display(value, raw, undefined, focus));
 	if (!cell.tail && !rendered.some(isPromise)) {
 		emitValues(cell, rendered.length ? rendered : [""]);
 		return Promise.resolve();

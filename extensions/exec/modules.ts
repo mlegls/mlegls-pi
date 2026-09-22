@@ -124,7 +124,7 @@ export function describeModules(modules: readonly ExecModule[], profile: ExecPro
 		"This profile limits the supplied API, not imports or OS access; it is not a security sandbox. No write/edit, shell, skill execution, UI, terminal, coordination, or auto-loaded lib/project helpers are supplied.",
 		...(modules.includes("fs") ? API.fs.filter(line => ["await find(", "await read(", "read(imagePath", "await grep(", "selection."].some(prefix => line.startsWith(prefix))) : []),
 		...(modules.includes("exa") ? API.exa : []),
-		"await show(value, ...) renders output (16 KiB per cell); show.large raises it to 50 KiB. show.raw bypasses relevance filtering; show.pull(id) retrieves omitted chunks. Source text and selections are retained untruncated. console.log also renders output.",
+		"await show(value, ...) renders output (16 KiB per cell); show.large raises it to 50 KiB. show(value, {focus:\"reading intent\"}) refines implicit context; Jev keeps exact passages, extracts skims, or omits. show.raw bypasses this; show.pull(id) retrieves skimmed/omitted originals. Source text and selections are retained untruncated. console.log also renders output.",
 		"Read skill files as reference only: this profile does not execute their shell placeholders.",
 	].join("\n");
 	return [
@@ -138,7 +138,7 @@ export function describeModules(modules: readonly ExecModule[], profile: ExecPro
 		"API:",
 		...modules.flatMap(name => API[name]),
 		"await show(value, ...) renders bounded output; values/promises and content() blocks preserve order. Text is capped at 16 KiB per cell; show.large(value, ...) raises that cell to a 50 KiB ceiling. Omission notices count rendered UTF-8 bytes and suggest slicing/retrying; images bypass that cap, max 8 images / 20 MiB base64 per cell (visible warning; retained values stay intact).",
-		"show uses Jev to prune external text against the conversation tail and current cell; omitted chunks have ing-* IDs. await show.raw(value, ...) bypasses pruning; await show.pull(\"ing-…\") displays an omitted original without rescoring. Both retain normal byte/image caps. Loaded skills and images are not relevance-filtered; scorer failure keeps original text with a warning.",
+		"show(value, {focus: \"reading intent\"}) reads with explicit attention; without focus, attention comes from the conversation tail and current cell. Jev chooses verbatim / extractive skim / omit. A trailing object with only a string focus field is reserved as options; other variadic values remain content. await show.raw(value, ...) bypasses semantic filtering; await show.pull(\"ing-…\") displays a skimmed/omitted original without rescoring. Both retain normal byte/image caps. Loaded skills and images bypass filtering; scorer failure keeps original text with a warning.",
 		"await poll(promise) -> {status:\"pending\"} | {status:\"ready\",value} | {status:\"failed\",error}. Returns promptly without waiting for work or cancelling it. Use this for background work instead of awaiting the work itself; poll again in a later cell after notification. A failed snapshot retains the original error.",
 		"notify(promise, label?) requests a one-shot completion/error alert through the same relevance filter and text/image bounds and returns the original promise. Save it in state and use poll(...) in a later call to check without waiting for work.",
 		...(modules.some(name => name !== "fs" && name !== "sh") ? ["host.call(namespace, method, args) calls enabled host services only (term args are positional arrays; other namespaces use objects)."] : []),
