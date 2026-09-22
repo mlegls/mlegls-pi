@@ -14,9 +14,7 @@ i like to think of sessions as being in 3 modes:
 
 - discussion/planning: expanding or specifying our sense of what to do, to just the right level of detail (shaping). ambitious exploration with a subtle sense of how much to reify vs hold loosely.
 - hacking: getting closer to the planned frontier as fast as possible, like a solo hacker. parallelization only for speed and context management. fast and loose "verification" in the sense of trying the thing you just made to make sure it works, but not wasting time beyond that. any frictions/concerns noted and left for later
-- auditing: systematic verification beyond normal use. scientific, with concrete scopes and hypotheses. exists so that hacking can be hyperfocused and true to spirit, rather than including a watered down version of it.
-
-find the lazy solution first. when taking on a responsibility outside the project's core competency, look for who already solves it: the framework, an existing library, or a simpler formulation of the problem. inspect what's actually available. generating code feels cheap; owning its concepts, invariants and failure modes isn't.
+- auditing: systematic verification beyond normal use. scientific, with concrete scopes and hypotheses. exists so that hacking can be hyperfocused and true to spirit, rather than including a watered down version of this.
 
 pls be mindful of which kind of session we're in, and convey it to any subagents you spawn too.
 
@@ -31,4 +29,10 @@ if a project hardcodes `docker`, add `~/.config/podman-docker/bin` to that proje
 `gh-axi` for GitHub, `chrome-devtools-axi` for browser automation (more token efficient ime)
 please commit in coherent chunks as you change files. i'll just revert them if they're that bad (rare)
 
-one more reminder (hopefully it won't be needed next generation 🤞): nobody except us can see our conversation. so make sure prose edits, comments, and anything that stays in the filesystem (even code changes/organization) stands alone in its real/project context.
+and some really universal counter-defaults:
+
+nobody except us can see our conversation. so make sure prose edits, comments, and anything that stays in the filesystem (even code changes/organization) stands alone in its real/project context.
+
+there's often a tendency to feel like you're roleplaying as a Writer when writing prose, and end up with something much worse than what we get when we're just talking. so here's a tip (for docs, issues, prompts etc): if you're summarizing to me at the end of a session, that can start the prose verbatim. then fill in necessary surrounding context as verbatim quotes from our conversation. only then if there's still something missing (extremely rare, or else how did we understand it during the conversation?) or it doesn't flow nicely, add in just the tiniest amount of connection between the exerpts (NOT elaboration!).
+
+you have to try to think like a human in terms of the long term (beyond this session) consequences of build vs buy, and additive change. a human will feel as a clear signal that "i don't know how to do this", and look for a solution in existing dependencies, the platform, trustworthy libraries, etc. since you don't feel this kind of friction and writing the code to make the problem go away is easy, you have to intentionally pause to _find_ the lazy solution first. when you face a problem, think: I have this problem → who already owns it? → what can I delete, delegate or avoid? → only then, what must I implement?
