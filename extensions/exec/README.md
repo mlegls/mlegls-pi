@@ -169,6 +169,15 @@ sandbox**: imports and OS access remain unrestricted.
 `.pi/exec/<name>.ts` shadows the lib file with the same stem. A name that is not
 in `lib/` is `project.<name>`. Upstreaming is moving the file to `lib/`.
 
+`code` is the program as a graph, for TypeScript projects with a tsconfig:
+`code.index(root?)` gives top-level definitions (`defs`, `def(name)`, each with
+`file`, `line`–`endLine`, `signature`, `body`) and checker-resolved references
+between them (`callers`, `callees`, `tests`, `dead`, `impact`). Joins are plain
+TypeScript over those arrays. Every call re-indexes incrementally, so the
+snapshot follows edits. A definition's rows for editing are
+`(await read(d.path)).lines(d.line, d.endLine)`. Source in
+[outline-read/program.ts](../../lib/outline-read/program.ts).
+
 `autoread.run(request, options?)` runs a read-only reader fork of this
 session and returns its final briefing. Exec passes `PI_SESSION_FILE` to the
 kernel; reload the extension once after installing this change. See
