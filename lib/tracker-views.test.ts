@@ -1,4 +1,4 @@
-/** Replays the Datacore model without Obsidian. Vault files intentionally live outside git.
+/** The Obsidian plugin's vault-wide model (extensions/obsidian-tracker/model.ts) against fixtures, the live vault, and the CLI.
  * TRACKER_VAULT=/path/to/vault bun test lib/tracker-views.test.ts
  * Optional TRACKER_PROJECT=/path/to/project compares snapshot --json with the same notes.
  */
@@ -7,20 +7,14 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { model } from "../extensions/obsidian-tracker/model.ts";
 
 const vault = process.env.TRACKER_VAULT ?? join(homedir(), "obsidian");
-const lib = join(vault, "tracker/lib.md");
-const available = existsSync(lib);
-const smoke = available ? test : test.skip;
+const available = existsSync(join(vault, "projects"));
+const smoke = test;
 const scripts = resolve(import.meta.dir, "../skills/enabled/all/mlegls/conventions/tracker/scripts");
-const yaml = available ? createRequire(join(scripts, "package.json"))("yaml") : undefined;
-const dc = { resolvePath: (raw: string) => raw };
-const source = available ? readFileSync(lib, "utf8").split("```jsx\n")[1].split("```")[0] : "";
-const model = available ? new Function("dc", source.slice(0, source.indexOf("function openIssue")) + "return model;")(dc) : undefined;
-const page = (slug: string, fm: Record<string, unknown>, project = "concept") => ({
-  $path: "projects/" + project + "/issues/" + slug + ".md",
-  $name: slug.split("/").at(-1), value: (key: string) => fm[key],
-});
+const yaml = createRequire(join(scripts, "package.json"))("yaml");
+const page = (slug: string, fm: Record<string, unknown>, project = "concept") => ({ path: "projects/" + project + "/issues/" + slug + ".md", frontmatter: fm });
 const link = (slug: string) => "[[projects/concept/issues/" + slug + "]]";
 const slugs = (xs: any[]) => xs.map((i) => i.slug).sort();
 
@@ -82,16 +76,10 @@ function currentPages() {
   return pages;
 }
 
-smoke("current vault model and all JSX surfaces load", () => {
+(available ? test : test.skip)("current vault model loads", () => {
   const m = model(currentPages());
   expect(m.issues.size).toBeGreaterThan(0);
-  expect(m.frontier.every((i: any) => !i.legacy && i.subtreeReady && !i.claims.length && !i.openBlockers.length)).toBe(true);
-  const transpiler = new Bun.Transpiler({ loader: "jsx" });
-  for (const name of ["lib", "Tracker", "Graph"]) {
-    const code = readFileSync(join(vault, "tracker/" + name + ".md"), "utf8").split(/```(?:datacore)?jsx\n/)[1].split("```")[0];
-    expect(transpiler.transformSync("async function ViewLoader() {\n" + code + "\n}")).toContain("ViewLoader");
-  }
-  expect(yaml.parse(readFileSync(join(vault, "tracker/Tracker.base"), "utf8")).views).toHaveLength(2);
+  expect(m.frontier.every((i) => !i.legacy && i.subtreeReady && !i.claims.length && !i.openBlockers.length)).toBe(true);
   console.log(JSON.stringify({ issues: m.issues.size, frontier: m.frontier.length, mine: m.mine.length, done: m.done.length, legacy: m.legacy.length, invalid: slugs(m.invalid) }));
 });
 
@@ -116,7 +104,7 @@ smoke("current vault model and all JSX surfaces load", () => {
   for (const kind of ["frontier", "mine", "done"]) {
     const selected = Bun.spawnSync(["bun", join(scripts, "issues.ts"), kind, "--json"], { cwd: process.env.TRACKER_PROJECT });
     expect(selected.exitCode, selected.stderr.toString()).toBe(0);
-    expect(slugs(m[kind].filter((i: any) => i.project === project)), kind).toEqual(slugs(JSON.parse(selected.stdout.toString()).issues));
+    expect(slugs(m[kind as "frontier" | "mine" | "done"].filter((i) => i.project === project)), kind).toEqual(slugs(JSON.parse(selected.stdout.toString()).issues));
   }
 
 });
