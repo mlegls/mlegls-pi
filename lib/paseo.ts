@@ -67,7 +67,7 @@ export async function launch(task: { handle: string; model: string; effort: stri
 export async function archive(workspaceId: string) {
   return withClient(async client => {
     const result = await client.workspaces.archive(workspaceId);
-    // SDK 0.8 returns daemon archive errors as data rather than rejecting.
+    // The SDK returns daemon archive errors as data rather than rejecting.
     if (result.error || result.workspaceId !== workspaceId || !result.archivedAt)
       throw new PaseoError("Paseo workspace archive failed; inspect before retrying", result);
     return result;

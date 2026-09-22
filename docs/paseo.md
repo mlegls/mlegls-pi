@@ -16,7 +16,7 @@ Autoread defaults to the existing private Pi RPC reader in Paseo and standalone.
 
 ## SDK boundary
 
-`lib/paseo.ts` uses the public `@getpaseo/client` API, pinned to **0.8.0**, matching the installed desktop app and daemon. The [SDK reference](https://paseo.sh/docs/sdk/reference) and installed declarations/implementation were checked; current online docs can describe newer capabilities. The CLI is retained for manual inspection and recovery, not programmatic transport.
+`lib/paseo.ts` uses the public `@getpaseo/client` API, pinned to **0.9.0**, matching the installed desktop app and daemon. The [SDK reference](https://paseo.sh/docs/sdk/reference) and installed declarations/implementation were checked; current online docs can describe newer capabilities. The CLI is retained for manual inspection and recovery, not programmatic transport.
 
 `paseo.connect(options?)` returns a connected native client. `paseo.withClient(callback, options?)` connects, runs the callback, and closes in `finally`. Closing removes local subscriptions and the connection; it does not stop agents or archive workspaces.
 
@@ -37,7 +37,7 @@ workspace.agents.create({
 
 The base is omitted when unspecified; `none` thinking maps to Pi native `off`. Parentage is explicit from `PASEO_AGENT_ID`, not inferred by the SDK. Prompts are data, without shell interpolation or OS argv limits. Receipts retain native IDs, serializable snapshots and paths, not live client objects. SDK agent statuses `initializing`, `running`, and `idle` are accepted; idle can mean a fast finished turn, not accepted assignment completion. Error/closed snapshots stop the wave and remain in the failure receipt.
 
-Creation stays separate so a failed agent launch retains the workspace. Failures retain both request correlation IDs, branch title, cwd and any observed resources; those IDs are diagnostic, **not idempotency keys**. A timeout or disconnect can follow successful creation. Inspect native state before another wave; never retry an uncertain launch blindly. SDK 0.8 archive errors are returned as data, so the adapter explicitly checks them before reporting cleanup success.
+Creation stays separate so a failed agent launch retains the workspace. Failures retain both request correlation IDs, branch title, cwd and any observed resources; those IDs are diagnostic, **not idempotency keys**. A timeout or disconnect can follow successful creation. Inspect native state before another wave; never retry an uncertain launch blindly. SDK archive errors are returned as data, so the adapter explicitly checks them before reporting cleanup success.
 
 Every backend still requires a serialized parent-scoped `maxConcurrent` and `active` budget. No scheduler or retry layer is added. See [dispatch and integration](dispatch.md).
 
@@ -82,7 +82,7 @@ The outline-read dependency install is checkout-local. Typecheck was compared wi
 
 Before a live trial, the user must provide:
 
-1. A compatible running Paseo host, explicit connection settings if not the local default, and native Pi provider available. The installed 0.8.0 host passed the read-only SDK check; `paseo provider diagnostic pi --json` remains a manual diagnostic. No MCP injection is needed.
+1. A compatible running Paseo host, explicit connection settings if not the local default, and native Pi provider available. The installed 0.9.0 host passed the read-only SDK check; `paseo provider diagnostic pi --json` remains a manual diagnostic. No MCP injection is needed.
 2. A compatible Pi executable with model credentials, this trial package loaded, and the revised skills/roster in the provider-launched Pi profile. Use a dedicated trial profile if existing sessions must stay unchanged; verify the daemon uses that profile for both parent and children. A parent-only package override does not configure daemon-launched children.
 3. A disposable registered repository/checkout for launch, messaging and merge/archive checks. The adapter and integration assume same-host, locally accessible Git paths. No cross-host integration is implemented.
 4. A persisted Pi parent session, available reader model, and installed OM path for autoread; or explicitly select `memoryExtension: false`. Test compaction and structured submission with this Pi/Paseo combination before relying on them.
@@ -101,13 +101,17 @@ state.wave = await state.launch; show(state.wave);
 
 Use the returned ID with `paseo wait ID`, `paseo logs ID`, and `paseo send ID --no-wait "Report needs-input with a question to the parent"`. Check native parent notifications and the actual report, not just idle status. In a separate bounded edit, inspect/accept its commit, call `dispatch.integrate(handle, {keep: true})`, verify the Git result, then explicitly archive that disposable workspace. Test `autoread.run` separately; launch success does not establish reader/OM compatibility.
 
-## Deferred installation / cutover
+## Installation / cutover
 
-No cutover was performed. All revised skills are real tracked files in this worktree:
+Cutover to the canonical main checkout was authorized on 2026-09-22 after upgrading the desktop daemon and SDK to 0.9.0. The upgrade passed the same 160-test regression suite (2 skips), with unchanged typecheck diagnostics; native connection and Pi provider diagnostics succeeded.
+
+The live package configuration already points at `~/dev/mlegls-pi`; orchestration skill symlinks point into that checkout. The Pi-specific `mlegls-pi` skill additionally needs a link in `~/.pi/agent/skills`. The tracked skills are:
 
 - `skills/enabled/all/mlegls/orchestrations/{multi-agent,dispatch,merge,supervise}/SKILL.md`
 - `skills/enabled/pi/mlegls-pi/SKILL.md`
 
 The skill tree was inspected before edits. Its unrelated `conventions/setup-project/references/lints/jev-lint` symlink was not followed or modified. Live `~/.pi` skills, global Pi/Paseo settings, the main checkout, and existing Orca runs/workers were left unchanged. The separately requested login-PATH change in system-config does not install this integration or migrate sessions.
 
-When ready, the user should integrate this branch into the chosen package checkout, review the live skill symlinks and the installation convention in `~/.config/system-config`, then install/repoint only the intended tracked skills and package. Do not run agents-apply or replace shared links as part of an isolated trial. The package metadata alone does not install these enabled user skills. Reload/restart only the Pi sessions intended to adopt the new hooks; `/exec-reset` alone does not reload host extensions. Existing Orca sessions can remain on their current configuration until explicitly migrated. Rollback is the previous package/skill revision and a reload of only the opted-in sessions.
+Fast-forward main to this branch and install its locked dependencies. Existing package and orchestration-skill links then resolve the new code without repointing. Link the Pi-specific skill directly; a broad agents-apply run is unnecessary.
+
+Reload/restart Pi to load the host extensions and skills; `/exec-reset` alone does not reload host extensions. Start new working sessions through Paseo so `PASEO_AGENT_ID` selects the native backend. Existing Orca sessions retain their host identity; merging does not migrate a running session. Standalone Pi continues to use workmux/board. Rollback is the previous package/skill revision and a reload.

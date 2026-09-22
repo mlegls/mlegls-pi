@@ -5,7 +5,7 @@
     "": {
       "name": "mlegls-pi",
       "dependencies": {
-        "@getpaseo/client": "0.8.0",
+        "@getpaseo/client": "0.9.0",
         "jiti": "^2.7.0",
         "tsx": "^4.23.13",
       },
@@ -146,11 +146,11 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.28.2", "", { "os": "win32", "cpu": "x64" }, "sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g=="],
 
-    "@getpaseo/client": ["@getpaseo/client@0.8.0", "", { "dependencies": { "@getpaseo/protocol": "0.8.0", "@getpaseo/relay": "0.8.0", "zod": "^4.4.3" } }, "sha512-sX0PPR47a9MoK4cUpZXo4vrZLSfP39/l9jlxYslQTGTiXE/9g6EDr6XlRQZVlTkgZZ47xGRVJZ/wxhE37nLWkw=="],
+    "@getpaseo/client": ["@getpaseo/client@0.9.0", "", { "dependencies": { "@getpaseo/protocol": "0.9.0", "@getpaseo/relay": "0.9.0", "zod": "^4.4.3" } }, "sha512-NEYNV+dQhGZIz6pEALKBYn9RTXp/+K8uOAn1kEJ/TupCtHJb58HqgaVmlWgkuFhb5RVWNOHF67BZwF4lbXcrcg=="],
 
-    "@getpaseo/protocol": ["@getpaseo/protocol@0.8.0", "", { "dependencies": { "semver": "^7.8.5", "zod": "^4.4.3" } }, "sha512-SytigneLVG61useJ9yU400WFVWlqluwwUeWF/giRs0+ZOmgMSBZvYduqPAJdTRMAvJlrj62T/uVBH8gzMuHYLw=="],
+    "@getpaseo/protocol": ["@getpaseo/protocol@0.9.0", "", { "dependencies": { "semver": "^7.8.5", "zod": "^4.4.3" } }, "sha512-Ozzg8Wop6Ixm1z8iG4I3Moyx+WokUnfXhJEqnK5o510zi1fc0T3pLoen4tUbqsIfPvDg6a0VHq26ZgmBgNoBfQ=="],
 
-    "@getpaseo/relay": ["@getpaseo/relay@0.8.0", "", { "dependencies": { "base64-js": "^1.5.1", "tweetnacl": "^1.0.3", "ws": "^8.14.2" } }, "sha512-YBCMAI3WOx7HgEToryyB94Mnugb7o2opuxN6ZycVK+K2wk2T25aV0sG3enzlKVM1oyiFVoJxJrAZyGDWfWpxpQ=="],
+    "@getpaseo/relay": ["@getpaseo/relay@0.9.0", "", { "dependencies": { "base64-js": "^1.5.1", "tweetnacl": "^1.0.3", "ws": "^8.14.2" } }, "sha512-9cjR/4VzZWy5V7aCu/iXZS4RzVvmUDf1keWLU5zSTQkwL48AMdOu7m524iI9sSLLcYWTV1A0h3QgPonwJeYvUg=="],
 
     "@google/genai": ["@google/genai@1.52.0", "", { "dependencies": { "google-auth-library": "^10.3.0", "p-retry": "^4.6.2", "protobufjs": "^7.5.4", "ws": "^8.18.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.2" }, "optionalPeers": ["@modelcontextprotocol/sdk"] }, "sha512-gwSvbpiN/17O9TbsqSsE/OzZcpv5Fo4RQjdngGgogtuB9RsyJ8ZHhX5KjHj1bp5N9snN2eK8LDGXSaWW2hof8Q=="],
 
