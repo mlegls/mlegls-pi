@@ -1,0 +1,232 @@
+{
+  "model": "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank",
+  "revision": "5f0c82792b7ea14c6484e015b6a072009496b7f2",
+  "device": "cpu",
+  "platform": "macOS-15.6.1-arm64-arm-64bit",
+  "threads": 4,
+  "parameters": 177341186,
+  "versions": {
+    "llmlingua": "0.2.2",
+    "transformers": "4.57.6",
+    "torch": "2.14.0"
+  },
+  "loadMsIncludingDownloads": 175864,
+  "warmupMs": 343,
+  "options": {
+    "force_tokens": [
+      "!",
+      ".",
+      "?",
+      "\n"
+    ],
+    "drop_consecutive": true,
+    "force_reserve_digit": true,
+    "use_context_level_filter": false
+  },
+  "cases": [
+    {
+      "name": "ingress",
+      "source": "The first live drive caught a real integration bug: exec objects cross a VM boundary, so a “plain object” prototype check discarded {focus}. Fixed.\n\nWith focus actually reaching Jev, the same source read now behaves differently: architecture reading produced a roughly 5 KB sketch from 16 KB; inspection before editing retained the full source. Pulls recovered exact originals. I’m capturing that as a replay and tightening the small-passage/notice behavior.",
+      "variants": [
+        {
+          "requestedRetention": 0.75,
+          "elapsedMs": [
+            87.3,
+            90.7,
+            91.4
+          ],
+          "result": {
+            "compressed_prompt": "first live drive caught integration bug exec objects cross VM boundary plain object prototype check discarded focus }. Fixed. \n focus reaching Jev same source read behaves differently architecture reading produced 5 KB sketch from 16 KB inspection before editing retained full source. Pulls recovered originals. capturing as replay tightening small - passage / notice behavior.",
+            "origin_tokens": 91,
+            "compressed_tokens": 64,
+            "ratio": "1.4x",
+            "rate": "70.3%"
+          }
+        },
+        {
+          "requestedRetention": 0.5,
+          "elapsedMs": [
+            99.6,
+            93.5,
+            90.1
+          ],
+          "result": {
+            "compressed_prompt": "first live drive integration bug exec objects VM boundary plain prototype check discarded focus. Fixed. \n focus reaching Jev same source differently architecture 5 KB sketch 16 KB inspection full source. originals. replay small passage notice behavior.",
+            "origin_tokens": 91,
+            "compressed_tokens": 45,
+            "ratio": "2.0x",
+            "rate": "49.5%"
+          }
+        },
+        {
+          "requestedRetention": 0.35,
+          "elapsedMs": [
+            89.5,
+            88.6,
+            86.3
+          ],
+          "result": {
+            "compressed_prompt": "drive integration bug VM boundary check discarded focus. Fixed. \n Jev source architecture 5 KB sketch 16 full source. originals. replay small passage notice behavior.",
+            "origin_tokens": 91,
+            "compressed_tokens": 33,
+            "ratio": "2.8x",
+            "rate": "36.3%"
+          }
+        }
+      ]
+    },
+    {
+      "name": "conditions",
+      "source": "The request was not cancelled. Either the client or the server must retain the receipt; both may retain it, but they must not both delete it. Retry only if the server has not acknowledged the write. A timeout does not prove that the write failed.",
+      "variants": [
+        {
+          "requestedRetention": 0.75,
+          "elapsedMs": [
+            100.1,
+            91.2,
+            89.9
+          ],
+          "result": {
+            "compressed_prompt": "request not cancelled. Either client or server must retain receipt ; both may retain, but they must not both delete. Retry only if server not acknowledged write. timeout not prove write failed.",
+            "origin_tokens": 51,
+            "compressed_tokens": 37,
+            "ratio": "1.4x",
+            "rate": "72.5%"
+          }
+        },
+        {
+          "requestedRetention": 0.5,
+          "elapsedMs": [
+            92.1,
+            88.1,
+            94
+          ],
+          "result": {
+            "compressed_prompt": "request not cancelled. client or server retain receipt retain not delete. Retry if server acknowledged write. timeout prove write failed.",
+            "origin_tokens": 51,
+            "compressed_tokens": 24,
+            "ratio": "2.1x",
+            "rate": "47.1%"
+          }
+        },
+        {
+          "requestedRetention": 0.35,
+          "elapsedMs": [
+            93.7,
+            97.9,
+            96.6
+          ],
+          "result": {
+            "compressed_prompt": "request cancelled. client server retain receipt. Retry server acknowledged. timeout write failed.",
+            "origin_tokens": 51,
+            "compressed_tokens": 16,
+            "ratio": "3.2x",
+            "rate": "31.4%"
+          }
+        }
+      ]
+    },
+    {
+      "name": "uncertainty",
+      "source": "In this small pilot, the treatment reduced symptoms by roughly 15% relative to placebo, but the confidence interval included no effect. This does not establish that the treatment works. Five of the twelve participants reported nausea; none required hospitalization.",
+      "variants": [
+        {
+          "requestedRetention": 0.75,
+          "elapsedMs": [
+            101.5,
+            96,
+            183.2
+          ],
+          "result": {
+            "compressed_prompt": "small pilot treatment reduced symptoms by 15 % relative to placebo confidence interval included no effect. not establish treatment works. Five of twelve participants reported nausea none required hospitalization.",
+            "origin_tokens": 48,
+            "compressed_tokens": 34,
+            "ratio": "1.4x",
+            "rate": "70.8%"
+          }
+        },
+        {
+          "requestedRetention": 0.5,
+          "elapsedMs": [
+            120.6,
+            119.6,
+            112.8
+          ],
+          "result": {
+            "compressed_prompt": "pilot treatment reduced symptoms 15 % no effect. treatment. Five twelve participants reported nausea none hospitalization.",
+            "origin_tokens": 48,
+            "compressed_tokens": 22,
+            "ratio": "2.2x",
+            "rate": "45.8%"
+          }
+        },
+        {
+          "requestedRetention": 0.35,
+          "elapsedMs": [
+            110.6,
+            98.8,
+            95.2
+          ],
+          "result": {
+            "compressed_prompt": "reduced symptoms 15 % no. Five twelve participants reported nausea none hospitalization.",
+            "origin_tokens": 48,
+            "compressed_tokens": 17,
+            "ratio": "2.8x",
+            "rate": "35.4%"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reading-policy",
+      "source": "Implicit context is up to six recent user/assistant text messages from the active,\ncompaction-applied branch (12,000 characters), plus up to 4,000 characters of the\ncurrent cell. Thinking and previous tool-result bodies are excluded. Notifications\nuse the latest cell's context. No context and no explicit focus means no filtering.\n\nThe lossless chunker groups Markdown headings with bodies, tracks heading ancestry,\nand binds trailing comments to declarations. Source identities and declaration\nsignatures carry into continuation chunks. Rendered sibling records remain separate.\nPassages are bounded to 4,096 characters, splitting at lines or, for long lines, code\npoints. This is lexical structure, not an AST or a specialized log parser.\n\nFor each passage Jev chooses:\n\n- **Verbatim:** exact detail is needed for action, interpretation, editing or verification.\n- **Skim:** ancestry plus one source excerpt is sufficient for peripheral understanding.\n- **Omit:** neither detail nor gist contributes to the reading.\n\nAn independent speculative Choice selects the best skim excerpt in the same request.\nCandidates are contiguous, lossless source spans grouped from lines/paragraphs,\nroughly 500 characters each, merged to at most twelve candidates. Jev selects;\ncode copies. Skims are explicitly marked incomplete and carry a recovery handle.\nThey are not generated summaries. If fidelity's winning probability is below .6,\nthe passage stays verbatim. This conservative policy is not calibrated accuracy.\n\nBatches contain eight passages, with up to four requests concurrently and an\neight-second deadline per displayed text. The importing seam is\nlib/ingress.create({chunk, judge, record}); judge returns mode, distribution, and\nexcerpt index. It replaces the prototype's score/threshold seam.\n\nAdjacent omissions share one notice and one recoverable original. Their ancestry\nis preserved without repeating identical lines within the run. Small passages stay\nverbatim when the notice or skim would cost more. Full rendering overhead counts\nin UTF-8 bytes: successful filtering never makes the text larger. Over budget,\nskims yield in descending omission probability; verbatim evidence is not demoted.\nThe normal byte cap may still truncate, including when exact evidence alone exceeds\nit. Text below 512 bytes and recognizable unified diffs pass through. Service,\nvalidation or timeout failures keep the original with a warning, without retry.",
+      "variants": [
+        {
+          "requestedRetention": 0.75,
+          "elapsedMs": [
+            190.7,
+            174.1,
+            170.1
+          ],
+          "result": {
+            "compressed_prompt": "Implicit context six recent user assistant text messages from active \n compaction - applied branch ( 12, 000 characters ) plus 4, 000 characters \n current cell. previous tool - result bodies excluded. Notifications \n use latest cell s context. No context no explicit focus no filtering. \n lossless chunker groups Markdown headings with bodies tracks heading ancestry \n binds trailing comments to declarations. Source identities declaration \n signatures carry continuation chunks. Rendered sibling records separate. \n Passages bounded to 4, 096 characters splitting lines long lines code \n points. lexical structure not AST or specialized log parser. \n each passage Jev chooses \n Verbatim exact detail needed for action interpretation editing verification. \n ancestry plus one source excerpt sufficient for understanding. \n Omit neither detail gist contributes to reading. \n independent speculative Choice selects best skim excerpt same request. \n Candidates contiguous lossless source spans grouped from lines paragraphs \n 500 characters each merged to twelve candidates. Jev selects \n code copies. Skims marked incomplete carry recovery handle. \n not generated summaries. fidelity ' s winning probability below. 6 \n passage stays verbatim. conservative policy not calibrated accuracy. \n Batches contain eight passages four requests concurrently \n eight - second deadline per displayed text. importing seam is \n lib / ingress. create ( judge record judge returns mode, distribution \n excerpt index. replaces prototype ' s score / threshold seam. \n Adjacent omissions share one notice one recoverable original. ancestry \n preserved without repeating identical lines. Small passages stay \n verbatim when notice or skim cost more.rendering overhead counts \n UTF - 8 bytes filtering never makes text larger. Over budget \n skims yield omission probability verbatim evidence not demoted. \n normal byte cap truncate exact evidence exceeds \n. Text below 512 bytes recognizable unified diffs pass through. Service \n validation timeout failures keep original warning without retry.",
+            "origin_tokens": 477,
+            "compressed_tokens": 376,
+            "ratio": "1.3x",
+            "rate": "78.8%"
+          }
+        },
+        {
+          "requestedRetention": 0.5,
+          "elapsedMs": [
+            168.1,
+            172.8,
+            171.6
+          ],
+          "result": {
+            "compressed_prompt": "context six text messages \n compaction branch 12, 000 characters 4, 000 characters \n current cell. bodies excluded. \n use latest cell context. No context focus filtering. \n lossless chunker groups Markdown headings tracks ancestry \n binds trailing comments declarations. Source identities \n signatures continuation chunks. sibling records separate. \n Passages bounded 4, 096 characters \n. lexical structure not AST specialized log parser. \n detail interpretation editing. \n ancestry one source excerpt. \n detail contributes. \n independent speculative Choice selects best skim excerpt. \n Candidates contiguous lossless source spans \n 500 characters each merged twelve candidates. \n. Skims marked incomplete carry recovery handle. \n not generated summaries. probability below. 6 \n passage stays verbatim. not. \n Batches contain eight passages four requests \n eight - second deadline text. importing seam \n lib ingress. create mode distribution \n excerpt index. replaces prototype score threshold seam. \n Adjacent omissions share one notice recoverable original. \n preserved without identical lines. Small passages stay \n verbatim.\n UTF - 8 bytes filtering text. \n omission probability evidence not demoted. \n byte cap truncate evidence exceeds \n. Text below 512 bytes diffs pass. \n validation failures keep original warning without retry.",
+            "origin_tokens": 477,
+            "compressed_tokens": 253,
+            "ratio": "1.9x",
+            "rate": "53.0%"
+          }
+        },
+        {
+          "requestedRetention": 0.35,
+          "elapsedMs": [
+            164.7,
+            170.3,
+            166.4
+          ],
+          "result": {
+            "compressed_prompt": "context six messages \n compaction 12, 000 characters 4, 000 characters \n cell. excluded. \n context. No filtering. \n lossless chunker groups headings ancestry \n comments. identities \n continuation chunks. sibling records separate. \n Passages 4, 096 characters \n. lexical structure not parser. \n. \n excerpt. \n. \n selects best excerpt. \n Candidates contiguous lossless source \n 500 characters twelve candidates. \n. recovery handle. \n not summaries. probability below. 6 \n passage stays verbatim. \n eight passages four requests \n second deadline text. importing seam \n. \n excerpt. replaces score threshold seam. \n Adjacent omissions share one notice recoverable original. \n preserved lines. Small passages stay \n verbatim.\n UTF - 8 bytes. \n omission demoted. \n cap truncate exceeds \n. Text 512 bytes diffs. \n keep original warning retry.",
+            "origin_tokens": 477,
+            "compressed_tokens": 184,
+            "ratio": "2.6x",
+            "rate": "38.6%"
+          }
+        }
+      ]
+    }
+  ]
+}

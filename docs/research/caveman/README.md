@@ -81,3 +81,7 @@ cannot establish whether joint deletion or individual judgment errors dominate.
 Prototype checks: successful live runs of both modes (12 requests total), Bun build,
 and git diff --check. Interactive review of the recorded output is the acceptance
 surface; no production regression assertions or automatic fallback gate were added.
+
+## Local-model follow-up
+
+[LLMLingua-2 comparison](LLMLINGUA.md): existing token-compression models, local CPU/MPS inference, and the same failure probes.
