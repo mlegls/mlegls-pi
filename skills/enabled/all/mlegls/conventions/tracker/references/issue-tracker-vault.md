@@ -1,5 +1,7 @@
 # Issue tracker: vault
 
+The [agreed lifecycle replacement](lifecycle.md) is recorded separately pending schema, query and view migration. This adapter remains the current operational format.
+
 work is markdown under `docs/issues/`, browsed as `~/obsidian/projects/<repo>`. no service; publishing is writing the file.
 
 ```
