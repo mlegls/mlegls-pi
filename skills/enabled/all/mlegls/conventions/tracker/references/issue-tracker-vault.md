@@ -1,12 +1,12 @@
 # Issue tracker: vault
 
-The [agreed lifecycle replacement](lifecycle.md) is recorded separately pending schema, query and view migration. This adapter remains the current operational format.
+The [lifecycle contract](lifecycle.md) defines stage, readiness, assignment and completion.
 
 work is markdown under `docs/issues/`, browsed as `~/obsidian/projects/<repo>`. no service; publishing is writing the file.
 
 ```
 docs/issues/<slug>.md           live
-docs/issues/archive/<slug>.md   done; obsidian rewrites links on move
+docs/issues/archive/<slug>.md   stage done, purpose fulfilled; obsidian rewrites links on move
 docs/issues/attachments/        research, evidence, pasted images an issue links
 ```
 
@@ -15,22 +15,26 @@ filename is the identity and title; no H1. links are vault-absolute wikilinks `[
 ## frontmatter
 
 ```yaml
-next: grill | research | prototype | measure | simplify | implement | wait | done
+stage: idea | goal | spec | ticket | done
+assignee: agent
+author: session:<origin>
 part-of: "[[projects/<repo>/issues/<parent>]]"
 blocked-by: ["[[projects/<repo>/issues/<x>]]"]
-claimed-by: <session name>
-priority: 1 | 2 | 3                                # roots; children inherit the nearest
+claimed-by: session:<holder>
+priority: 1 | 2 | 3 | 4
 ```
 
-`next` is the kind of session this issue needs now. grill: decide with me. research: search the web or the machine. prototype: build and iterate with me; the iteration replaces the backbrief. measure: an experiment; needs a harness designed first. simplify: a friction, linking the concept or path where it happened; the concept's backlinks are the theme. implement: shaped enough to code. wait: nothing anyone can do yet. an issue with open children is carried by them; its supervisor still owns integration and acceptance of the parent destination.
+Omit stage only when all residual work is delegated to children; null is invalid. Priority and assignment do not inherit. Assignment accepts agent, human, user:<name>, session:<id>, agent:<existing stance>, model:<provider>/<model>:<effort>, or a comma-separated stance/model pair. Routing resolves model selectors. Historical unknown authors are omitted; provenance is immutable.
 
-`blocked-by` is what the *next* step waits on, not everything the issue will ever wait on. when `next` changes, ask again. implementing A may wait on B while deciding A doesn't; so A is `grill` and unblocked until it's `implement`.
+`bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|done|tree [slug] | snapshot [slug] | check | outline`. Scope explicitly selects deferred work too. Frontier uses whole-subtree readiness, eligibility, blockers and conservative claims; mine uses explicit human/user assignment including pre-spec shaping; done exposes live results for digestion. Tree shows own and effective stage. Outline reconciles the project vault note. `snapshot --json` (or query `--json`) provides schemaVersion, lifecycle issues and a separate legacy collection; rows expose ownStage, effectiveStage, ready, eligible, frontier, blockers, claims, selectors and done. Omitted ownStage is serialized as null, not valid stored YAML. JSON is a model projection; run `check` separately for diagnostics.
 
-derived, never stored: agent frontier = research/implement/simplify, unblocked, unclaimed. mine = grill/prototype/measure, unblocked, by priority then transitive unblocks. a claim is live while a worktree named for the slug or the claim's run exists; `check` reports stale ones and `frontier` offers them as `stale-claim:`. `bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|tree [slug] | check | outline`; `[slug]` scopes to a subtree. `outline` reads the vault note whose `directory:` is this project: each top-level bullet's issues with their state, bullets linking nothing in sections that link issues, and open issues no bullet covers. `tracker/Tracker` and `tracker/Graph` at the vault root show the same across projects.
+The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
 
-The CLI uses the skill-owned dependency lock: once after installation or update, `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
+Frontmatter is a strict YAML mapping. Relations are quoted vault-absolute issue wikilinks; blocked-by is a list. Every query rejects malformed YAML, duplicate keys/slugs, aliases, explicit tags, merge keys, invalid tracker fields and relation cycles before emitting results. Extra metadata is allowed; attachments/ is not scanned as issues. `check` preserves link/heading checks and flags resolved blockers and suspect claims.
 
-Issue frontmatter is a YAML mapping with required `next`. Relations use quoted vault-absolute issue wikilinks; `blocked-by` is a list (inline, wrapped or block style; absent or `[]` means none). Optional fields must have the shown types; `claimed-by` is nonempty. Extra metadata is allowed. Every query rejects malformed YAML, duplicate keys, aliases, explicit tags, merge keys and invalid tracker fields with a filename before emitting results. `attachments/` is not scanned as issues.
+### Legacy projects
+
+Issues retaining `next: grill | research | prototype | measure | simplify | implement | wait | done` remain readable/checkable and appear explicitly as legacy. They have no lifecycle readiness/frontier. Mixing next with lifecycle fields is invalid. Reconcile bodies, code and results before assigning lifecycle metadata; no automatic translation.
 
 ## body
 
@@ -61,8 +65,8 @@ claim: `claimed-by` before anything else; sessions share the directory, so read 
 
 a ticket is a `wt` worktree on a branch named for its slug; `wt merge` when its stories drive. commit implementation changes in the ticket’s worktree as you go. commit the claim in the canonical checkout before branching. shared tracker changes—parent decisions, dependencies, new tickets—belong in the canonical checkout; workers report these to the coordinator. the ticket’s completion and archival ride its implementation branch.
 
-resolve: record the answer or land the code and satisfy its recorded acceptance (including story verification), `next: done`, drop the claim, a dated decision line in the parent, remove from every dependent's `blocked-by`, move to `archive/`. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
+resolve: record the answer or land the code and satisfy its recorded acceptance (including story verification), `stage: done`, drop the claim and remove resolved dependent blockers. Leave the result live for review/digestion; move to `archive/` once it has fulfilled its enclosing purpose. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
 
-friction: `next: simplify`, the observation raw, without reading other frictions first.
+friction: `stage: idea`, immutable `author: session:<origin>`, the observation raw with its originating story and evidence. Priority follows observed impact; unknown impact stays unknown. Triage before execution.
 
 join the messenger channel named for the parent's slug when your ticket shares an interface or files with a sibling in flight. reserve paths, say when you land. nothing there is reread; anything worth rereading goes in the issue.

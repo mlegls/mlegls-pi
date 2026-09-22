@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 // Queries over docs/issues/ frontmatter. See ../references/issue-tracker-vault.md.
 //
-//   issues frontier [slug]  an agent can start: next is research/implement/simplify, unblocked, unclaimed
-//   issues mine [slug]      needs me: next is grill/prototype/measure, unblocked; by priority, then dependents
+//   issues frontier [slug]  execution-ready agent-permitted subtrees, unblocked and unclaimed
+//   issues mine [slug]      explicit human/user assignments, including shaping work
 //   issues tree [slug]      subtree under slug (or every root), children in dependency order
-//   issues check            dangling links and anchors across docs/, blockers already done, done outside archive, stale claims
+//   issues check            dangling links and anchors across docs/, blockers already done, archive consistency, stale claims
 //   issues outline          the project's outliner note against the tracker: each linked bullet's state, unlinked intent, uncovered issues
 //
 // [slug] scopes to that issue's subtree.
@@ -21,7 +21,10 @@ type Issue = {
   slug: string;
   file: string;
   archived: boolean;
-  next: string;
+  next?: string;
+  stage?: string;
+  assignee?: string;
+  author?: string;
   partOf?: string;
   blockedBy: string[];
   claimedBy?: string;
@@ -52,12 +55,19 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
         throw new Error("relations must be vault-absolute issue wikilinks");
       return slugOf(value);
     };
-    if (!KINDS.includes(fm.next)) throw new Error("next must be one of " + KINDS.join(" "));
+    if ("next" in fm) {
+      if (!KINDS.includes(fm.next)) throw new Error("next must be one of " + KINDS.join(" "));
+      if (["stage", "assignee", "author"].some(k => k in fm)) throw new Error("legacy next cannot mix with lifecycle fields");
+    }
+    if ("stage" in fm && !STAGES.includes(fm.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
+    if ("assignee" in fm && (typeof fm.assignee !== "string" || !validAssignee(fm.assignee))) throw new Error("invalid assignee selector");
+    if ("author" in fm && (typeof fm.author !== "string" || !fm.author.trim())) throw new Error("author must be a nonempty provenance string");
     if ("blocked-by" in fm && !Array.isArray(fm["blocked-by"])) throw new Error("blocked-by must be a list of issue wikilinks");
     if ("claimed-by" in fm && (typeof fm["claimed-by"] !== "string" || !fm["claimed-by"].trim())) throw new Error("claimed-by must be a nonempty string");
-    if ("priority" in fm && ![1, 2, 3].includes(fm.priority)) throw new Error("priority must be 1, 2 or 3");
+    if ("priority" in fm && ![1, 2, 3, 4].includes(fm.priority)) throw new Error("priority must be 1, 2, 3 or 4");
     return {
       next: fm.next,
+      stage: fm.stage, assignee: fm.assignee, author: fm.author,
       partOf: "part-of" in fm ? link(fm["part-of"]) : undefined,
       blockedBy: (fm["blocked-by"] ?? []).map(link),
       claimedBy: fm["claimed-by"],
@@ -90,6 +100,7 @@ function load(dir: string): Map<string, Issue> {
       } else if (name.endsWith(".md")) {
         const fm = parseFrontmatter(readFileSync(p, "utf8"), p);
         const slug = name.slice(0, -3);
+        if (issues.has(slug)) throw new Error(`${p}: duplicate issue slug ${slug}`);
         issues.set(slug, { slug, file: p, archived, ...fm });
       }
     }
@@ -99,40 +110,61 @@ function load(dir: string): Map<string, Issue> {
 }
 
 const KINDS = ["grill", "research", "prototype", "measure", "simplify", "implement", "wait", "done"];
-const AGENT = new Set(["research", "implement", "simplify"]);
-const ME = new Set(["grill", "prototype", "measure"]);
-
-function hasOpenChildren(slug: string, all: Map<string, Issue>): boolean {
-  for (const i of all.values()) if (i.partOf === slug && i.next !== "done") return true;
-  return false;
+const STAGES = ["idea", "goal", "spec", "ticket", "done"];
+// Routing owns stance and model resolution; tracker validates selector syntax only.
+function validAssignee(a: string): boolean {
+  const parts = a.split(",").map(p => p.trim());
+  const stance = (p: string) => /^agent:[a-z][a-z0-9-]*$/.test(p);
+  const model = (p: string) => /^model:[^\s/,:]+\/[^\s,:]+:(none|minimal|low|medium|high|xhigh)$/.test(p);
+  if (parts.length === 2) return (stance(parts[0]) && model(parts[1])) || (model(parts[0]) && stance(parts[1]));
+  return parts.length === 1 && (/^(agent|human)$/.test(a) || /^(user|session):[^\s:,]+$/.test(a) || stance(a) || model(a));
 }
-
-function actor(i: Issue, all: Map<string, Issue>): "agent" | "me" | "nobody" {
-  if (hasOpenChildren(i.slug, all)) return "nobody"; // its open children carry it
-  if (AGENT.has(i.next)) return "agent";
-  if (ME.has(i.next)) return "me";
-  return "nobody";
+function children(i: Issue, all: Map<string, Issue>): Issue[] {
+  return [...all.values()].filter(c => c.partOf === i.slug);
 }
-
-function effectivePriority(i: Issue, all: Map<string, Issue>): number {
-  let cur: Issue | undefined = i;
-  const seen = new Set<string>();
-  while (cur && !seen.has(cur.slug)) {
-    if (cur.priority !== undefined) return cur.priority;
-    seen.add(cur.slug);
-    cur = cur.partOf ? all.get(cur.partOf) : undefined;
-  }
-  return 3;
+function effectiveStage(i: Issue, all: Map<string, Issue>, seen = new Set<string>()): string | null {
+  if (i.archived) return "done";
+  if (i.next) return null;
+  if (seen.has(i.slug)) throw new Error(i.file + ": part-of cycle");
+  const path = new Set(seen).add(i.slug);
+  const stages = [i.stage ?? "done", ...children(i, all).map(c => effectiveStage(c, all, path))];
+  if (stages.includes(null)) return null;
+  return STAGES[Math.min(...stages.map(s => STAGES.indexOf(s!)))];
 }
+function complete(i: Issue, all: Map<string, Issue>): boolean {
+  return i.next ? i.next === "done" : effectiveStage(i, all) === "done";
+}
+function subtree(i: Issue, all: Map<string, Issue>): Issue[] {
+  return [i, ...children(i, all).filter(c => !c.archived).flatMap(c => subtree(c, all))];
+}
+function model(i: Issue, all: Map<string, Issue>, explicit = false) {
+  const effective = effectiveStage(i, all);
+  const nodes = subtree(i, all).filter(n => !n.archived && !complete(n, all));
+  const remaining = nodes.filter(n => n.stage !== undefined && n.stage !== "done");
+  const scope = new Set(subtree(i, all).map(n => n.slug));
+  const blockers = [...new Set(nodes.flatMap(n => openBlockers(n, all)))].filter(slug => !scope.has(slug));
+  const claims = subtree(i, all).filter(n => !n.archived).filter(n => n.claimedBy).map(n => ({ slug: n.slug, claimedBy: n.claimedBy }));
+  const selectors = remaining.map(n => ({ slug: n.slug, assignee: n.assignee ?? null }));
+  const eligible = !i.next && remaining.length > 0 && remaining.every(n => n.assignee === "agent" || n.assignee?.startsWith("agent:") || n.assignee?.startsWith("model:"));
+  const ready = effective === "spec" || effective === "ticket";
+  const deferred = nodes.some(n => n.priority === 4);
+  return { slug: i.slug, file: i.file, archived: i.archived, legacy: !!i.next, next: i.next,
+    ownStage: i.stage ?? null, effectiveStage: effective, assignee: i.assignee ?? null,
+    author: i.author ?? null, priority: i.priority ?? null, partOf: i.partOf ?? null, blockedBy: i.blockedBy,
+    ready, eligible, blockers, claims, selectors, deferred,
+    frontier: !i.archived && ready && eligible && !blockers.length && !claims.length && (explicit || !deferred),
+    done: !i.archived && complete(i, all) };
+}
+function effectivePriority(i: Issue, _all: Map<string, Issue>): number { return i.priority ?? 2.5; }
 
 function dependents(slug: string, all: Map<string, Issue>): number {
   let n = 0;
-  for (const i of all.values()) if (i.next !== "done" && i.blockedBy.includes(slug)) n++;
+  for (const i of all.values()) if (!complete(i, all) && i.blockedBy.includes(slug)) n++;
   return n;
 }
 
 function openBlockers(i: Issue, all: Map<string, Issue>): string[] {
-  return i.blockedBy.filter((b) => all.get(b)?.next !== "done");
+  return i.blockedBy.filter((b) => !all.has(b) || !complete(all.get(b)!, all));
 }
 
 // A claim is carried by a worktree named for the slug, or for the run the claim names.
@@ -145,12 +177,13 @@ function claimLive(i: Issue): boolean | undefined {
   }
   const runs = [...i.claimedBy.matchAll(/run_[0-9a-f]+/g)].map((m) => m[0]);
   const tokens = [i.slug, ...runs];
-  if (!runs.length && !AGENT.has(i.next)) return undefined;
+  if (!runs.length && (!i.next || !["research", "implement", "simplify"].includes(i.next))) return undefined;
   return worktrees.some((w) => tokens.some((t) => w.includes(t)));
 }
 
 function line(i: Issue, all: Map<string, Issue>): string {
-  const bits = [i.next];
+  const bits = [i.next ? "legacy next:" + i.next : "own:" + (i.stage ?? "none") + " effective:" + effectiveStage(i, all)];
+  if (i.assignee) bits.push("assignee:" + i.assignee);
   if (i.claimedBy) bits.push((claimLive(i) === false ? "stale-claim:" : "claimed:") + i.claimedBy);
   const ob = openBlockers(i, all);
   if (ob.length) bits.push("blocked:" + ob.join(","));
@@ -289,7 +322,7 @@ function outline(note: string, all: Map<string, Issue>): string[] {
       if (firstLine.has(slug)) out.push(`${n}: ${text}  ${slug} also at ${firstLine.get(slug)}`);
       else firstLine.set(slug, n);
       linked.add(slug);
-      out.push(`${n}: ${text}  ${line(i, all)}${i.next === "done" ? "  (done; mark or drop)" : ""}`);
+      out.push(`${n}: ${text}  ${line(i, all)}${complete(i, all) ? "  (done; review/digest)" : ""}`);
     }
   }
   flushSection();
@@ -301,32 +334,53 @@ function outline(note: string, all: Map<string, Issue>): string[] {
     return covered.has(i.slug);
   };
   for (const i of [...all.values()].sort((a, b) => a.slug.localeCompare(b.slug))) {
-    if (i.next === "done" || isCovered(i)) continue;
+    if (complete(i, all) || isCovered(i)) continue;
     const parent = i.partOf ? all.get(i.partOf) : undefined;
-    if (parent && parent.next !== "done") continue; // its topmost open ancestor is reported
+    if (parent && !complete(parent, all)) continue; // its topmost open ancestor is reported
     out.push(`uncovered: ${line(i, all)}`);
   }
   return out;
 }
 
-const [cmd, arg] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const json = args.includes("--json");
+const [cmd, arg] = args.filter(a => a !== "--json");
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);
-const open = [...all.values()].filter((i) => i.next !== "done" && within(arg, all)(i));
+// Validate graph before any output, including legacy graphs.
+for (const i of all.values()) {
+  for (const relation of ["partOf", "blockedBy"] as const) {
+    const visit = (n: Issue, path: Set<string>) => {
+      if (path.has(n.slug)) throw new Error(i.file + ": " + relation + " cycle");
+      const next = new Set(path).add(n.slug);
+      const edges = relation === "partOf" ? (n.partOf ? [n.partOf] : []) : n.blockedBy;
+      for (const edge of edges) if (all.has(edge)) visit(all.get(edge)!, next);
+    };
+    visit(i, new Set());
+  }
+  if (!i.next && !i.stage && !children(i, all).length) throw new Error(i.file + ": omitted stage requires children");
+  if (!i.next && i.archived && i.stage !== "done") throw new Error(i.file + ": archive requires stage done");
+}
+const scoped = [...all.values()].filter(within(arg, all));
+const open = scoped.filter(i => !i.archived && !complete(i, all));
+const selected = (kind: string) => (kind === "done" ? scoped.filter(i => !i.next && !i.archived && complete(i, all)) : open.filter(i => {
+  const m = model(i, all, !!arg);
+  if (kind === "frontier") return m.frontier;
+  return !i.next && i.stage !== undefined && i.stage !== "done" && (i.assignee === "human" || i.assignee?.startsWith("user:")) && !openBlockers(i, all).length && !i.claimedBy && (!!arg || i.priority !== 4);
+})).sort((a, b) => effectivePriority(a, all) - effectivePriority(b, all) || dependents(b.slug, all) - dependents(a.slug, all));
+if (json || cmd === "snapshot") {
+  const rows = ["frontier", "mine", "done"].includes(cmd) ? selected(cmd) : scoped;
+  console.log(JSON.stringify({ schemaVersion: 1, issues: rows.filter(i => !i.next).map(i => model(i, all, !!arg)), legacy: scoped.filter(i => i.next).map(i => ({ slug: i.slug, next: i.next, archived: i.archived, partOf: i.partOf, blockedBy: i.blockedBy, claimedBy: i.claimedBy, priority: i.priority })) }, null, 2));
+  process.exit(0);
+}
 
 switch (cmd) {
-  case "frontier": {
-    open
-      .filter((i) => actor(i, all) === "agent" && !openBlockers(i, all).length && claimLive(i) !== true)
-      .sort((a, b) => effectivePriority(a, all) - effectivePriority(b, all) || dependents(b.slug, all) - dependents(a.slug, all))
-      .forEach((i) => console.log(line(i, all)));
-    break;
-  }
-  case "mine": {
-    open
-      .filter((i) => actor(i, all) === "me" && !openBlockers(i, all).length)
-      .sort((a, b) => effectivePriority(a, all) - effectivePriority(b, all) || dependents(b.slug, all) - dependents(a.slug, all))
-      .forEach((i) => console.log(line(i, all)));
+  case "frontier":
+  case "mine":
+  case "done": {
+    selected(cmd).forEach(i => console.log(line(i, all)));
+    const legacy = scoped.filter(i => i.next && !i.archived);
+    if (legacy.length) console.log("Legacy (read/check only; no lifecycle frontier):\n" + legacy.map(i => line(i, all)).join("\n"));
     break;
   }
   case "tree": {
@@ -339,14 +393,15 @@ switch (cmd) {
     const say = (s: string) => (bad++, console.log(s));
     for (const i of all.values()) {
       if (i.partOf && !all.has(i.partOf)) say(`${i.slug}: part-of ${i.partOf} does not exist`);
+      if (!i.archived && i.partOf && all.get(i.partOf)?.archived) say(`${i.slug}: live issue has archived parent ${i.partOf}`);
       for (const b of i.blockedBy) {
         if (!all.has(b)) say(`${i.slug}: blocked-by ${b} does not exist`);
-        else if (all.get(b)!.next === "done") say(`${i.slug}: blocked-by ${b} is done; remove it`);
+        else if (complete(all.get(b)!, all)) say(`${i.slug}: blocked-by ${b} is done; remove it`);
       }
       if (i.next === "done" && !i.archived) say(`${i.slug}: done but not in archive/`);
-      if (i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
-      if (!KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
-      if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; drop the claim`);
+      if (i.next && i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
+      if (i.next && !KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
+      if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; verify ownership before clearing`);
     }
     checkLinks(dirname(dir), say);
     if (!bad) console.log("ok");
@@ -361,6 +416,6 @@ switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | check | outline");
+    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | check | outline [--json]");
     process.exitCode = 2;
 }

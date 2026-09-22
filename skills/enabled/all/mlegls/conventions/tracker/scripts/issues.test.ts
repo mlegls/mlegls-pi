@@ -17,18 +17,19 @@ function put(file: string, text: string) {
 const vault = mkdtempSync(join(tmpdir(), "vault-"));
 writeFileSync(join(vault, "fixture.md"), `---\ndirectory: ${cwd}\n---\n## efforts\n- the blocker — [[projects/fixture/issues/blocker]]\n- a note with no issue\n## snippets\n- prose that links nothing\n`);
 function run(cmd: string) {
-  const p = Bun.spawnSync([process.execPath, cli, cmd], { cwd, env: { ...process.env, TRACKER_VAULT: vault } });
+  const p = Bun.spawnSync([process.execPath, cli, ...cmd.split(" ")], { cwd, env: { ...process.env, TRACKER_VAULT: vault } });
   return { code: p.exitCode, out: p.stdout.toString(), err: p.stderr.toString() };
 }
 mkdirSync(join(issues, "archive"), { recursive: true });
 mkdirSync(join(issues, "attachments"));
 put("attachments/evidence", "A note, not an issue.\n");
-put("blocker", frontmatter("next: wait"));
+put("blocker", frontmatter("stage: idea"));
 afterAll(() => { rmSync(cwd, { recursive: true, force: true }); rmSync(vault, { recursive: true, force: true }); });
 
 test("format-equivalent dependencies preserve all queries", () => {
   for (const next of ["implement", "grill"]) {
-    put("task", frontmatter(`next: ${next}\nblocked-by: [${blocker}]`));
+    put("task", frontmatter(`stage: ${next === "implement" ? "ticket" : "goal"}
+assignee: ${next === "implement" ? "agent" : "human"}\nblocked-by: [${blocker}]`));
     const baseline = commands.map(run);
     expect(baseline[0].out).toContain("blocked:blocker");
     expect(baseline[1].out).toBe("");
@@ -39,14 +40,16 @@ test("format-equivalent dependencies preserve all queries", () => {
       `blocked-by:\n  - ${blocker}`,
       "blocked-by: ['[[projects/fixture/issues/blocker]]'] # comment",
     ]) {
-      const text = frontmatter(`next: ${next}\n${field}`);
+      const text = frontmatter(`stage: ${next === "implement" ? "ticket" : "goal"}
+assignee: ${next === "implement" ? "agent" : "human"}\n${field}`);
       for (const formatted of [text, "\uFEFF" + text.replaceAll("\n", "\r\n")]) {
         put("task", formatted);
         expect(commands.map(run)).toEqual(baseline);
       }
     }
     for (const field of ["", "\nblocked-by: []"]) {
-      put("task", frontmatter(`next: ${next}${field}`));
+      put("task", frontmatter(`stage: ${next === "implement" ? "ticket" : "goal"}
+assignee: ${next === "implement" ? "agent" : "human"}${field}`));
       expect(run(next === "implement" ? "frontier" : "mine").out).toContain("task");
       expect(run("check").out).toBe("ok\n");
     }
@@ -55,21 +58,21 @@ test("format-equivalent dependencies preserve all queries", () => {
 
 test("invalid frontmatter fails every query with a filename and no partial output", () => {
   const invalid = [
-    "no frontmatter", "---\nnext: implement", "---\nnext: implement\n---not-a-delimiter",
+    "no frontmatter", "---\nstage: ticket\nassignee: agent", "---\nstage: ticket\nassignee: agent\n---not-a-delimiter",
     ...[
-      "", "[]", "next: implement\nnext: wait", "next: [", "next: bogus", "priority: 1",
-      "next: null", "next: [implement]", "next: implement\npriority: '1'",
-      "next: implement\npriority: 4", "next: implement\nclaimed-by: null",
-      "next: implement\nclaimed-by: []", "next: implement\nclaimed-by: ''",
-      "next: implement\npart-of: null", "next: implement\npart-of: blocker",
-      "next: implement\npart-of: '[[blocker]]'", "next: implement\nblocked-by: null",
-      `next: implement\nblocked-by: ${blocker}`, `next: implement\nblocked-by: [${blocker}, 1]`,
-      "next: implement\nblocked-by: ['[[projects/fixture/issues/blocker#heading]]']",
-      "next: implement\nblocked-by: [\n  '[[projects/fixture/issues/blocker]]'\n",
-      "next: implement\nblocked-by: []\nblocked-by: []",
-      "next: implement\nother: &a [1]\nblocked-by: *a",
+      "", "[]", "stage: ticket\nassignee: agent\nstage: idea", "next: [", "next: bogus", "priority: 1",
+      "next: null", "next: [implement]", "stage: ticket\nassignee: agent\npriority: '1'",
+      "stage: ticket\nassignee: agent\npriority: 5", "stage: ticket\nassignee: agent\nclaimed-by: null",
+      "stage: ticket\nassignee: agent\nclaimed-by: []", "stage: ticket\nassignee: agent\nclaimed-by: ''",
+      "stage: ticket\nassignee: agent\npart-of: null", "stage: ticket\nassignee: agent\npart-of: blocker",
+      "stage: ticket\nassignee: agent\npart-of: '[[blocker]]'", "stage: ticket\nassignee: agent\nblocked-by: null",
+      `stage: ticket\nassignee: agent\nblocked-by: ${blocker}`, `stage: ticket\nassignee: agent\nblocked-by: [${blocker}, 1]`,
+      "stage: ticket\nassignee: agent\nblocked-by: ['[[projects/fixture/issues/blocker#heading]]']",
+      "stage: ticket\nassignee: agent\nblocked-by: [\n  '[[projects/fixture/issues/blocker]]'\n",
+      "stage: ticket\nassignee: agent\nblocked-by: []\nblocked-by: []",
+      "stage: ticket\nassignee: agent\nother: &a [1]\nblocked-by: *a",
       "next: &a implement\nother: *a", "next: !!str implement", "next: !unknown implement",
-      "next: implement\n<<: {priority: 1}", "next: implement\n1: value",
+      "stage: ticket\nassignee: agent\n<<: {priority: 1}", "stage: ticket\nassignee: agent\n1: value",
     ].map(frontmatter),
   ];
   for (const text of invalid) {
@@ -84,47 +87,117 @@ test("invalid frontmatter fails every query with a filename and no partial outpu
 }, 30_000);
 
 test("wrapped edges still receive graph checks and done blockers retain scheduling semantics", () => {
-  put("task", frontmatter(`next: implement\nblocked-by: [\n  ${blocker}\n]`));
+  put("task", frontmatter(`stage: ticket\nassignee: agent\nblocked-by: [\n  ${blocker}\n]`));
   rmSync(join(issues, "blocker.md"));
   expect(run("check").out).toContain("blocked-by blocker does not exist");
   expect(run("check").code).toBe(1);
   expect(run("frontier").out).toBe("");
-  put("archive/blocker", frontmatter("next: done"));
+  put("archive/blocker", frontmatter("stage: done"));
   expect(run("check").out).toContain("blocked-by blocker is done; remove it");
   expect(run("check").code).toBe(1);
   expect(run("frontier").out).toContain("task");
 }, 30_000);
 
-test("a claim without a worktree is stale: reported by check, offered by frontier, kept by a worktree naming the slug or run", () => {
-  Bun.spawnSync(["git", "init", "-q"], { cwd });
-  put("task", frontmatter("next: implement\nclaimed-by: task-worker (run_0badcafe)"));
-  expect(run("check").out).toContain("task: claimed by task-worker (run_0badcafe) without a worktree");
-  expect(run("frontier").out).toContain("task  [implement stale-claim:task-worker (run_0badcafe)]");
-  put("task", frontmatter("next: grill\nclaimed-by: me"));
-  expect(run("check").out).toBe("ok\n");
-  expect(run("mine").out).toContain("[grill claimed:me]");
-  Bun.spawnSync(["git", "commit", "-q", "--allow-empty", "-m", "root"], { cwd, env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } });
-  const wt = join(cwd, "..", "tracker-wt-run_0badcafe-task");
-  Bun.spawnSync(["git", "worktree", "add", "-q", wt], { cwd });
-  put("task", frontmatter("next: implement\nclaimed-by: task-worker (run_0badcafe)"));
-  expect(run("check").out).toBe("ok\n");
+test("unverified claims conservatively reserve execution", () => {
+  put("task", frontmatter("stage: ticket\nassignee: agent\nclaimed-by: session:missing"));
   expect(run("frontier").out).toBe("");
-  Bun.spawnSync(["git", "worktree", "remove", "--force", wt], { cwd });
-  rmSync(join(cwd, ".git"), { recursive: true, force: true });
-  put("task", frontmatter("next: implement"));
-}, 30_000);
+  expect(JSON.parse(run("snapshot").out).issues.find((i: any) => i.slug === "task").claims).toEqual([{slug: "task", claimedBy: "session:missing"}]);
+  put("task", frontmatter("stage: ticket\nassignee: agent"));
+});
 
 test("outline maps each linked bullet to its issue, flags unlinked intent among linked bullets, and lists open issues no bullet covers", () => {
-  put("task", frontmatter("next: implement\npart-of: \"[[projects/fixture/issues/blocker]]\""));
-  put("loose", frontmatter("next: grill"));
-  put("blocker", frontmatter("next: wait"));
+  put("task", frontmatter("stage: ticket\nassignee: agent\npart-of: \"[[projects/fixture/issues/blocker]]\""));
+  put("loose", frontmatter("stage: goal\nassignee: human"));
+  put("blocker", frontmatter("stage: idea"));
   rmSync(join(issues, "archive/blocker.md"), { force: true });
   const out = run("outline").out;
-  expect(out).toContain("5: the blocker —  blocker  [wait]");
+  expect(out).toContain("5: the blocker —  blocker  [own:idea effective:idea]");
   expect(out).toContain("6: a note with no issue  [no issue]");
   expect(out).not.toContain("prose that links nothing");
-  expect(out).toContain("uncovered: loose  [grill] p3");
+  expect(out).toContain("uncovered: loose  [own:goal effective:goal assignee:human] p2.5");
   expect(out).not.toContain("uncovered: task");
   rmSync(join(issues, "loose.md"));
-  put("task", frontmatter("next: implement"));
+  put("task", frontmatter("stage: ticket\nassignee: agent"));
 }, 30_000);
+
+// Encounter: selecting a spec must reserve its whole contract without hiding a ready sibling.
+test("subtree readiness, assignment, dependencies, scheduling and review remain separate", () => {
+  const link = (slug: string) => '"[[projects/fixture/issues/' + slug + ']]"';
+  const snapshot = () => JSON.parse(run("snapshot --json").out).issues;
+  const row = (slug: string) => snapshot().find((i: any) => i.slug === slug);
+  put("scope", frontmatter("stage: done\nassignee: human\npriority: 1"));
+  put("child", frontmatter('stage: ticket\nassignee: "agent:fill, model:zai/glm-5.3-flash:high"\npart-of: ' + link("scope")));
+  expect(row("scope").effectiveStage).toBe("ticket");
+  expect(row("scope").frontier).toBe(true);
+  expect(row("child").priority).toBe(null);
+  put("early", frontmatter('stage: idea\nassignee: human\npart-of: ' + link("scope")));
+  expect(row("scope").ready).toBe(false);
+  expect(row("child").frontier).toBe(true);
+  expect(run("mine").out).toContain("early");
+  put("early", frontmatter('stage: ticket\nassignee: human\npart-of: ' + link("scope")));
+  expect(row("scope").ready).toBe(true);
+  expect(row("scope").eligible).toBe(false);
+  put("early", frontmatter('stage: ticket\nassignee: agent\npriority: 4\npart-of: ' + link("scope")));
+  expect(row("scope").frontier).toBe(false);
+  expect(JSON.parse(run("frontier scope --json").out).issues.map((i: any) => i.slug)).toContain("scope");
+  put("early", frontmatter('stage: ticket\nassignee: agent\nblocked-by: [' + link("blocker") + ']\npart-of: ' + link("scope")));
+  expect(row("scope").blockers).toContain("blocker");
+  expect(row("scope").frontier).toBe(false);
+  put("early", frontmatter('stage: ticket\nassignee: agent\nblocked-by: [' + link("child") + ']\npart-of: ' + link("scope")));
+  expect(row("scope").frontier).toBe(true);
+  expect(row("early").frontier).toBe(false);
+  put("early", frontmatter('stage: ticket\npart-of: ' + link("scope")));
+  expect(row("scope").eligible).toBe(false);
+  put("early", frontmatter('stage: done\npart-of: ' + link("scope")));
+  put("scope", frontmatter("assignee: agent"));
+  expect(row("scope").ownStage).toBe(null);
+  put("archive/retired", frontmatter('stage: done\npart-of: ' + link("scope")));
+  expect(row("scope").effectiveStage).toBe("ticket");
+  rmSync(join(issues, "archive/retired.md"));
+  put("early", frontmatter('stage: done\nclaimed-by: session:reserved\npart-of: ' + link("scope")));
+  expect(row("scope").frontier).toBe(false);
+  put("early", frontmatter('stage: done\npart-of: ' + link("scope")));
+  expect(row("scope").effectiveStage).toBe("ticket");
+  put("child", frontmatter('stage: done\npart-of: ' + link("scope")));
+  expect(run("done").out).toContain("scope");
+  expect(row("scope").frontier).toBe(false);
+  for (const slug of ["scope", "child", "early"]) rmSync(join(issues, slug + ".md"));
+});
+
+test("legacy is readable but never translated; selectors and structural omissions fail closed", () => {
+  put("legacy", frontmatter("next: implement"));
+  const snap = JSON.parse(run("frontier --json").out);
+  expect(snap.legacy.map((i: any) => i.slug)).toContain("legacy");
+  expect(snap.issues.map((i: any) => i.slug)).not.toContain("legacy");
+  expect(run("tree").out).toContain("legacy next:implement");
+  for (const metadata of ["stage: null", "stage: archived", "assignee: agent", "stage: ticket\nassignee: model:fill", "stage: ticket\nassignee: fill", "stage: ticket\nassignee: agent:bad/name", 'stage: ticket\nassignee: "human, model:a/b:high"', 'stage: ticket\nassignee: "agent:fill, agent:research"', "next: implement\nstage: ticket", 'stage: ticket\npart-of: "[[projects/fixture/issues/invalid]]"']) {
+    put("invalid", frontmatter(metadata));
+    expect(run("snapshot").code, metadata).not.toBe(0);
+    expect(run("snapshot").out).toBe("");
+  }
+  rmSync(join(issues, "invalid.md"));
+  rmSync(join(issues, "legacy.md"));
+});
+
+test("human shaping uses own residual constraints, and archive cannot parent live work", () => {
+  put("shaping", frontmatter("stage: goal\nassignee: human"));
+  put("subwork", frontmatter('stage: idea\nclaimed-by: session:busy\nblocked-by: ["[[projects/fixture/issues/blocker]]"]\npart-of: "[[projects/fixture/issues/shaping]]"'));
+  expect(run("mine").out).toContain("shaping");
+  put("shaping", frontmatter("stage: done\nassignee: human"));
+  expect(run("mine").out).not.toContain("shaping");
+  rmSync(join(issues, "shaping.md"));
+  put("archive/shaping", frontmatter("stage: done\nassignee: human"));
+  expect(run("check").out).toContain("subwork: live issue has archived parent shaping");
+  rmSync(join(issues, "archive/shaping.md"));
+  rmSync(join(issues, "subwork.md"));
+});
+
+test("historical provenance survives and duplicate identities fail before projection", () => {
+  put("provenance", frontmatter("stage: idea\nauthor: run:run_efb5c58089d3"));
+  expect(JSON.parse(run("snapshot").out).issues.find((i: any) => i.slug === "provenance").author).toBe("run:run_efb5c58089d3");
+  put("archive/provenance", frontmatter("stage: done"));
+  expect(run("snapshot").err).toContain("duplicate issue slug provenance");
+  expect(run("snapshot").out).toBe("");
+  rmSync(join(issues, "archive/provenance.md"));
+  rmSync(join(issues, "provenance.md"));
+});
