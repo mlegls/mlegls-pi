@@ -1,5 +1,6 @@
 // Launch a parent-planned ready wave. No reading, routing, dependency graph, or retries.
-import { call, workspace, startPi, OrcaError, type WorkerReceipt, type Terminal } from "./orca.ts";
+import { call, workspace, startPi, workers, OrcaError, type WorkerReceipt, type Terminal } from "./orca.ts";
+import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { assertAssignment, type RouteOptions } from "./route.ts";
@@ -99,4 +100,41 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     }
   }
   return receipt;
+}
+
+/** Merge a settled worker's branch into the parent checkout, then retire everything Orca holds for it:
+ * release the Dispatch, close every terminal in its worktree, and remove the worktree (Orca record, Git worktree, merged branch).
+ * Uncommitted work in the worktree refuses; conflicts abort and throw with the conflicted files. */
+export class MergeConflict extends Error {
+  constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
+}
+export interface Integration { branch: string; mode: "rebase" | "merge"; released?: unknown; closed?: unknown; removed?: unknown }
+export async function integrate(worker: Pick<Handle, "worktreeId" | "path"> & { receipt?: { dispatchId?: string } },
+    options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean } = {}): Promise<Integration> {
+  const cwd = resolve(options.cwd ?? process.cwd());
+  const mode = options.mode ?? "rebase";
+  const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
+    execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
+  const conflicted = async (dir: string) => (await git(dir, "diff", "--name-only", "--diff-filter=U")).out.split("\n").filter(Boolean);
+  const dirty = await git(worker.path, "status", "--porcelain");
+  if (dirty.out) throw new Error("integrate: uncommitted changes in " + worker.path + "\n" + dirty.out);
+  const branch = (await git(worker.path, "branch", "--show-current")).out;
+  if (!branch) throw new Error("integrate: detached HEAD in " + worker.path);
+  if (mode === "rebase") {
+    const base = (await git(cwd, "rev-parse", "HEAD")).out;
+    const rebase = await git(worker.path, "rebase", base);
+    if (rebase.code) { const files = await conflicted(worker.path); await git(worker.path, "rebase", "--abort"); throw new MergeConflict(branch, files); }
+    const ff = await git(cwd, "merge", "--ff-only", branch);
+    if (ff.code) throw new Error("integrate: ff-only merge of " + branch + " failed: " + ff.err);
+  } else {
+    const merge = await git(cwd, "merge", "--no-ff", "--no-edit", branch);
+    if (merge.code) { const files = await conflicted(cwd); await git(cwd, "merge", "--abort"); throw new MergeConflict(branch, files); }
+  }
+  const result: Integration = { branch, mode };
+  if (options.keep) return result;
+  if (worker.receipt?.dispatchId) result.released = await workers.release(worker.receipt.dispatchId);
+  const selector = "id:" + worker.worktreeId;
+  result.closed = await call(["terminal", "close", "--worktree", selector, "--all"], cwd);
+  result.removed = await call(["worktree", "rm", "--worktree", selector], cwd);
+  return result;
 }

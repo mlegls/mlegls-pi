@@ -24,9 +24,15 @@ Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`
 
 Routing happens before launch: `dispatch.dispatch` consumes the `route.prepare` result, while `startPi` handles Pi launch and enrollment internally. Neither launcher chooses a model; explicit assignment constraints are rechecked before launch; do not replace admission with manual selection to work around native Orca launch limitations.
 
-No implicit retries, dependency scheduling, merging, or cleanup. Use `notify` for launch and mailbox waits. Worker instructions receive Orca’s authoritative lifecycle preamble; board topics and subscriptions are not involved.
+No implicit retries or dependency scheduling. Use `notify` for launch and mailbox waits. Worker instructions receive Orca’s authoritative lifecycle preamble; board topics and subscriptions are not involved.
 
-Consume `orca.check` deliveries, answer questions, validate completion against the Dispatch, and decide terminal ownership before acknowledging. Merge with Git or Orca. These model-selected Pi terminals are pre-existing from Orca’s perspective: native release retains them. After settlement/integration, explicitly close the caller-owned terminal if unused, then remove the worktree. Native `orca.workers.start` offers runtime-owned terminals but uses Pi’s defaults rather than applying the routed model/effort selection.
+Consume `orca.check` deliveries, answer questions, validate completion against the Dispatch, and decide terminal ownership before acknowledging. These model-selected Pi terminals are pre-existing from Orca’s perspective: native release retains them, so integration below closes them explicitly. Native `orca.workers.start` offers runtime-owned terminals but uses Pi’s defaults rather than applying the routed model/effort selection.
+
+## Integration
+
+`dispatch.integrate(handle, {cwd?, mode?, keep?})` retires one settled worker after its completion has been validated. `handle` is a `submitted` entry (`worktreeId`, `path`, `receipt.dispatchId`); the same shape can be reassembled from `orca.workers.list` and `orca worktree list`. It refuses a worktree with uncommitted changes, then with `mode: "rebase"` (default) rebases the worker branch onto the parent HEAD and fast-forwards the parent, or with `mode: "merge"` creates a `--no-ff` merge commit. A conflict aborts the rebase/merge, leaving both checkouts as they were, and throws `MergeConflict` with `branch` and `files`; send those to the worker to resolve on its branch and integrate again.
+
+After the merge it releases the Dispatch (archiving worker output for later `workers.read`), closes every terminal in the worktree (`terminal close --worktree id:… --all`, which covers the caller-owned bootstrap terminal), and removes the worktree from Orca and Git (`worktree rm`, which deletes the branch once it is provably merged). The returned `Integration` retains each native receipt. `keep: true` stops after the merge. Steps are sequential and not transactional: a failure after the merge leaves it in place; rerunning is safe since an already-merged branch fast-forwards to nothing.
 
 ## Session boundaries
 

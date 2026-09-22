@@ -9,4 +9,4 @@ Prepared waves: `dispatch.dispatch` ([contract](../../../../../../docs/dispatch.
 
 Mesh: send to a known `dispatch:<id>` or `run:<id>`; groups are scoped by Orca. Ordinary conversation handoffs and `/fork-tab` need no task records.
 
-`route.prepare` selects stance/model/effort for fresh assignments; `route.continuation` judges continue/consult/replace at exceptions. Size assignments to their context; consult old sessions for handoffs when replacing them. Merge with Git or Orca, and clean up owned terminals/worktrees after integrating.
+`route.prepare` selects stance/model/effort for fresh assignments; `route.continuation` judges continue/consult/replace at exceptions. Size assignments to their context; consult old sessions for handoffs when replacing them. Integrate and retire settled workers with `merge`.
