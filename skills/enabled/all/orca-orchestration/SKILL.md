@@ -1,5 +1,5 @@
 ---
-name: orchestration
+name: orca-orchestration
 description: >-
   Coordinate supervised Orca workers: threaded messages, blocking ask/reply,
   task dispatch, worker_done/escalation waits, task DAGs, decision gates,
