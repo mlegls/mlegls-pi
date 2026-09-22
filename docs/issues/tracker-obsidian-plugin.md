@@ -1,5 +1,5 @@
 ---
-stage: goal
+stage: spec
 assignee: human
 part-of: "[[projects/mlegls-pi/issues/home-ui]]"
 ---
@@ -8,8 +8,15 @@ the vault half of home: issue views that keep state across navigation, render re
 
 data stays our frontmatter (`stage`, `assignee`, `author`, `part-of`, `blocked-by`, `claimed-by`, local `priority`); `issues.ts snapshot --json` supplies the current recursive model. Any replacement must preserve its frontier/mine/done semantics and can emit static renders (mermaid `graph LR` of the dependency network into a note) at zero cost. operon rejected as too heavy: pipeline-only kanban, time-only gantt, needs a running desktop, verified-write contract we don't need ([[projects/mlegls-pi/issues/archive/operon-adapter]]).
 
-prototype, in order:
-1. tried `project-planner` (HMIL1151 fork): note tasks via `tags: [task]` + `parent`/`blockedBy` frontmatter do load, but the board groupings are hard-coded (status, due, person, tag, project, priority, note) and the views assume its own task model. not flexible enough; keys reverted. `bases-board` untried since the board is the part that has to be ours.
-2. our plugin, when it comes up. two shapes — own `ItemView`s (tree with rollups, board, network; full control) or Bases custom views via `registerBasesView` (Bases owns filter/sort/formula/property UI; we render). check the Bases view API surface first: what a view receives and whether it persists state. source lives here (`extensions/obsidian-tracker/`), shares the model with `issues.ts`, bun-built into the vault plugin dir.
+shape: `extensions/obsidian-tracker/` — `model.ts` (vault-wide readiness, pure over `{path, frontmatter}`; `lib/tracker-views.test.ts` holds it at parity with the CLI), `view.ts` (a Bases view type `tracker`), `bun run build.ts [--watch]`, `dist/` symlinked as `~/obsidian/.obsidian/plugins/tracker`. `registerBasesView` chosen over own `ItemView`s: Bases owns filter/sort/group/property UI and persists view options in the `.base` file; the view computes readiness over every issue note in the vault (`metadataCache`) and uses the Base's entries only as the visible set, so rollups survive filtering. mode (tree/frontier/mine/done/invalid/legacy/all), show done and include deferred are view options; tree collapse state persists as `toggled`. links are `internal-link` anchors with hover-link and file-menu.
+
+holes:
+- graph view (`tracker-graph`, port of `tracker/Graph`'s force layout to SVG in the same factory) and board.
+- retire `tracker/Tracker.md`, `lib.md`, `Graph.md` and datacore once the graph exists.
+- `issues.ts` still has its own slug-keyed model; it could import `model.ts` the way it imports `lib/tracker-lint.ts`. parity test is the seam until then.
+- collapse toggles write the `.base` on every click; move to plugin `saveData` if that proves noisy.
+
+decisions:
+- 2026-09-22: Bases custom views, not ItemViews. project-planner tried earlier and reverted (hard-coded board groupings, own task model).
 
 done: the three views (tree, board, network) exist for the live tracker, whichever way, and the datacorejsx notes are retired.

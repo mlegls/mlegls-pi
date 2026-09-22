@@ -1,4 +1,4 @@
-import { BasesView, Keymap, Menu, Plugin, TFile, type QueryController } from "obsidian";
+import { BasesView, Keymap, Menu, Plugin, TFile, setIcon, type QueryController } from "obsidian";
 import { model, type Issue, type Model } from "./model.ts";
 
 export const MODES = ["tree", "frontier", "mine", "done", "invalid", "legacy", "all"] as const;
@@ -27,30 +27,46 @@ export class TrackerView extends BasesView {
       .map((f) => ({ path: f.path, frontmatter: this.app.metadataCache.getFileCache(f)?.frontmatter }));
   }
 
+  // The Base's sort orders siblings and lists; without one, priority then slug (the model's order).
+  private order: Map<string, number> = new Map();
+  private sorted<T extends Issue>(xs: T[]): T[] {
+    if (!this.order.size) return xs;
+    const rank = (i: Issue) => this.order.get(i.id) ?? Number.MAX_SAFE_INTEGER;
+    return [...xs].sort((a, b) => rank(a) - rank(b));
+  }
+
   onDataUpdated() {
     const mode = this.option<Mode>("mode", "tree");
     const showDone = this.option("showDone", false);
     const includeDeferred = this.option("includeDeferred", false);
     this.toggled = new Set(this.option<string[]>("toggled", []));
     const m = model(this.notes(), { includeDeferred });
-    const visible = new Set(this.data.data.map((e) => e.file.path.replace(/\.md$/, "")));
-    const keep = (i: Issue) => visible.has(i.id);
-    const showProject = new Set([...visible].map((id) => id.split("/")[1])).size > 1;
+    const id = (e: { file: { path: string } }) => e.file.path.replace(/\.md$/, "");
+    this.order = this.config.getSort().length ? new Map(this.data.data.map((e, n) => [id(e), n])) : new Map();
+    const showProject = new Set(this.data.data.map((e) => id(e).split("/")[1])).size > 1;
     this.root.empty();
-    let rows: Issue[];
-    if (mode === "tree") {
-      const roots = m.roots.filter((i) => !i.legacy && (showDone || !i.subtreeDone) && this.reaches(i, keep, showDone));
-      if (!roots.length) this.empty();
-      for (const r of roots) this.node(this.root, r, keep, showDone, showProject, 0);
-      return;
-    } else if (mode === "all") rows = [...m.issues.values()].filter((i) => !i.legacy && (showDone || !i.subtreeDone));
-    else rows = m[mode];
-    rows = rows.filter(keep);
-    if (!rows.length) this.empty();
-    for (const i of rows) this.row(this.root, i, showProject);
+    const groups = this.data.groupedData;
+    const grouped = groups.length > 1 || groups.some((g) => g.hasKey());
+    for (const g of groups) {
+      const visible = new Set(g.entries.map(id));
+      const keep = (i: Issue) => visible.has(i.id);
+      const into = grouped ? this.root.createDiv({ cls: "trk-group" }) : this.root;
+      if (grouped) into.createDiv({ cls: "trk-h", text: g.hasKey() ? String(g.key) : "—" });
+      if (mode === "tree") {
+        const roots = this.sorted(m.roots.filter((i) => !i.legacy && (showDone || !i.subtreeDone) && this.reaches(i, keep, showDone)));
+        if (!roots.length) this.empty(into);
+        for (const r of roots) this.node(into, r, keep, showDone, showProject, 0);
+        continue;
+      }
+      const pool = mode === "all" ? [...m.issues.values()].filter((i) => !i.legacy && (showDone || !i.subtreeDone)) : m[mode];
+      const rows = this.sorted(pool.filter(keep));
+      if (!rows.length) this.empty(into);
+      for (const i of rows) this.row(into, i, showProject);
+    }
+    if (!groups.length) this.empty(this.root);
   }
 
-  private empty() { this.root.createDiv({ cls: "trk-empty", text: "nothing" }); }
+  private empty(into: HTMLElement) { into.createDiv({ cls: "trk-empty", text: "nothing" }); }
 
   // A subtree is drawn when any node in it passes the Base's filters.
   private reaches(i: Issue, keep: (i: Issue) => boolean, showDone: boolean, seen = new Set<string>()): boolean {
@@ -60,7 +76,7 @@ export class TrackerView extends BasesView {
   }
 
   private node(parent: HTMLElement, i: Issue, keep: (i: Issue) => boolean, showDone: boolean, showProject: boolean, depth: number) {
-    const kids = depth > 50 ? [] : i.children.filter((c) => (showDone || !c.subtreeDone) && this.reaches(c, keep, showDone));
+    const kids = depth > 50 ? [] : this.sorted(i.children.filter((c) => (showDone || !c.subtreeDone) && this.reaches(c, keep, showDone)));
     const open = (depth < 2) !== this.toggled.has(i.id);
     const el = parent.createDiv();
     const toggle = createSpan({ cls: "trk-toggle", text: kids.length ? (open ? "▾" : "▸") : "" });
@@ -85,14 +101,19 @@ export class TrackerView extends BasesView {
     badge.title = i.errors.join("; ") || `assignee: ${i.assignee ?? "unassigned"}`;
     this.link(row, i);
     if (showProject) row.createSpan({ cls: "trk-proj", text: i.project });
-    const meta = (text: string, title?: string) => { const s = row.createSpan({ cls: "trk-meta", text }); if (title) s.title = title; };
+    const meta = (text: string, title?: string, icon?: string) => {
+      const s = row.createSpan({ cls: "trk-meta" });
+      if (icon) setIcon(s.createSpan({ cls: "trk-icon" }), icon);
+      s.appendText(text);
+      if (title) s.title = title;
+    };
     meta(`p${i.priority ?? "?"}`);
-    if (i.unblocksAll > 0) meta(`⤴${i.unblocksAll}`, "open issues this unblocks");
-    if (i.errors.length) meta("⚠ invalid", i.errors.join("; "));
-    if (i.claimedBy) meta(`⛏ ${i.claimedBy}`);
-    else if (i.claims.length) meta(`⛏ tree ${i.claims.length}`, i.claims.map((n) => `${n.slug}: ${n.claimedBy}`).join("\n"));
-    if (i.internalDependencies.length) meta(`↳ order ${i.internalDependencies.length}`, "Internal scheduling order\n" + i.internalDependencies.join("\n"));
-    if (i.openBlockers.length) meta(`⏸ ${i.openBlockers.length}`, "Subtree external dependencies\n" + i.openBlockers.join("\n"));
+    if (i.unblocksAll > 0) meta(String(i.unblocksAll), "open issues this unblocks", "lucide-arrow-up-from-line");
+    if (i.errors.length) meta("invalid", i.errors.join("; "), "lucide-alert-triangle");
+    if (i.claimedBy) meta(String(i.claimedBy), undefined, "lucide-pickaxe");
+    else if (i.claims.length) meta(`tree ${i.claims.length}`, i.claims.map((n) => `${n.slug}: ${n.claimedBy}`).join("\n"), "lucide-pickaxe");
+    if (i.internalDependencies.length) meta(`order ${i.internalDependencies.length}`, "Internal scheduling order\n" + i.internalDependencies.join("\n"), "lucide-corner-down-right");
+    if (i.openBlockers.length) meta(String(i.openBlockers.length), "Subtree external dependencies\n" + i.openBlockers.join("\n"), "lucide-pause");
   }
 
   private link(parent: HTMLElement, i: Issue) {
