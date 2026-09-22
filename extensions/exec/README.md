@@ -605,9 +605,14 @@ press_key, set_value, scroll, drag, help, and reset. Use `ui.help(name)` for nat
 there is no unrestricted callTool escape hatch. The driver retires idle session
 labels (`session_ended`): exec starts a fresh label on that refusal, re-issuing
 reads and failing writes until re-observed. `ui.reset()` restarts the driver
-process itself for anything worse; observations made before it are gone. Prefer chrome-devtools-axi for
-ordinary browser work. The Jev runner uses this same surface directly; see
-[computer composition](../../docs/computer.md).
+process itself for anything worse; observations made before it are gone.
+
+Use `computer.run/step/walk` for goal-directed browser and desktop interaction:
+Jev selects actions while the parent supplies scope, intent, completion conditions,
+and exact text. Use direct tools for inspection, setup, deterministic replay,
+debugging, or unsupported actions. When a browser CLI is needed, prefer
+`chrome-devtools-axi`. See [computer composition](../../docs/computer.md) for native
+Cua and Playwright drives.
 
 Exec's additions are only host policy and lifetime:
 

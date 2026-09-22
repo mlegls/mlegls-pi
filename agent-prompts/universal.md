@@ -26,7 +26,7 @@ my system settings are in ~/.config/system-config. please check there before dir
 per-project deps/config go through mise (just use whatever already exists in public projects though, or gitignore mise.toml). nix shell or mise for missing one-off commands
 uv for python and bun for js/ts on my local machine. npm/pip are fine for public repos/github workflows. i just don't want duplicate package caches.
 if a project hardcodes `docker`, add `~/.config/podman-docker/bin` to that project's mise `_.path`
-`gh-axi` for GitHub, `chrome-devtools-axi` for browser automation (more token efficient ime)
+`gh-axi` for GitHub. Where exec is available, use `computer.run/step/walk` for goal-directed browser and desktop interaction; see `~/dev/mlegls-pi/docs/computer.md`. Use direct tools for inspection, setup, deterministic replay, debugging, or unsupported actions. When a browser CLI is needed, prefer `chrome-devtools-axi`.
 please commit in coherent chunks as you change files. i'll just revert them if they're that bad (rare)
 
 and some really universal counter-defaults:

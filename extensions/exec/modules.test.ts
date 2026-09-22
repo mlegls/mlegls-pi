@@ -57,3 +57,13 @@ test("Paseo takes precedence over inherited Orca; instructions stay host-local",
   expect(describeModules([], "default", {})).not.toContain("orca.runs");
   expect(describeModules([], "reader", env)).not.toContain("paseo.withClient");
 });
+
+// Session audit: UI journeys went straight to raw actions because only ui was advertised.
+test("exec advertises delegated computer use, except in the read-only profile", async () => {
+  const { describeModules } = await import("./modules");
+  const description = describeModules(["ui"]);
+  expect(description).toContain("computer.run(options)");
+  expect(description).toContain("computer.browser(page)");
+  expect(description).toContain("when a browser CLI is needed");
+  expect(describeModules([], "reader")).not.toContain("computer.run");
+});

@@ -1,5 +1,9 @@
 # Intent-driven computer use
 
+Use `computer.run/step/walk` for goal-directed browser and desktop interaction.
+Use direct tools for inspection, setup, deterministic replay, debugging, or
+unsupported actions. When a browser CLI is needed, prefer `chrome-devtools-axi`.
+
 The auto-loaded exec library `computer` drives native windows directly through
 Cua. Code constructs bounded native actions from Cua elements; Jev selects an ID.
 Native tokens and arguments stay in code. The parent supplies scope, intent,
@@ -88,7 +92,21 @@ checkpoint checks, and evidence; fresh goal-seeking may route around a broken st
 
 ## Playwright surface
 
-`computer.browser(page)` still works with run/step/walk. It uses its separate
+Supply an existing Playwright page from the project's browser setup; the caller
+owns its authentication, lifecycle, and cleanup. For example:
+
+```ts
+state.drive = notify(computer.run({
+  ui: computer.browser(page), apps: ["page"],
+  goal: "Enter the supplied name and sign the guest book",
+  until: "The page confirms that Ada signed the guest book",
+  inputs: {name: "Ada"},
+}), "guest book");
+// In a later cell:
+show(await poll(state.drive));
+```
+
+`computer.browser(page)` works with run/step/walk. It uses its separate
 Playwright controller and locator-backed replay format, not the Cua bridge.
 `spec`, `sheet`, and `appeared` remain browser recording helpers. Its existing
 two-judgment/contested-ending behavior is unchanged. Browser-specific types live
