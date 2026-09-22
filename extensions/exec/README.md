@@ -218,10 +218,17 @@ await show.pull("ing-0123456789abcdef"); // exact skimmed/omitted original, no r
 await show.raw(state.result);           // no semantic transformation
 ~~~
 
-Jev chooses exact passages, extractive skims, or omissions. Focus supplements the
-conversation tail and current cell; it does not exclude peripheral context.
-Skims are selected source excerpts, explicitly incomplete, with an expansion ID.
-Headings and declaration context remain visible. Original retained values never change.
+Jev chooses 100/75/50/25/0% retention. A persistent local LLMLingua-2 worker
+compresses prose at the middle levels; 25% is explicitly keyword cues, not assertions.
+Focus supplements the conversation tail and current cell. Skims can lose qualifiers
+and relationships: pull the original before relying on details. Code, tables and
+anchored evidence use exact excerpts instead of token deletion. Headings and recovery
+handles remain visible, and original retained values never change.
+
+One-time local setup: `uv run --no-project --python 3.12 --script lib/skim-worker.py --setup`
+from this package. Normal reads run offline and reuse the loaded model until reset.
+Unavailable compression falls back to labeled source excerpts; see
+[setup, limits and replay](../../docs/ingress.md).
 
 A trailing object containing only a string `focus` field is reserved as options
 when another value precedes it. Other variadic values—including trailing strings—

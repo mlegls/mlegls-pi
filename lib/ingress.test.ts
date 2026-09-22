@@ -27,7 +27,8 @@ test("recorded focused reads retain exact evidence or a recoverable extractive s
       expect(query).toBe(encounter.query);
       expect(focus).toBe(reading.focus);
       expect(chunks.length).toBe(reading.judgments.length);
-      return reading.judgments as Judgment[];
+      return reading.judgments.map(j => ({ ...j, mode: j.mode === "skim" ? "skim50" : j.mode,
+        dist: { verbatim: j.dist.verbatim, skim75: 0, skim50: j.dist.skim, cues: 0, omit: j.dist.omit } })) as Judgment[];
     }, record: e => events.push(e) });
     const out = await reader.filter(encounter.source, encounter.query, 16384, reading.focus);
     const event = events[0];
@@ -39,8 +40,8 @@ test("recorded focused reads retain exact evidence or a recoverable extractive s
       expect(out).toBe(encounter.source);
     } else {
       expect(event.outputBytes).toBeLessThan(event.inputBytes / 2);
-      expect(out).toContain("[skim ing-");
-      for (const page of event.pages.filter(p => p.mode === "skim")) {
+      expect(out).toContain("[skim; exact excerpt");
+      for (const page of event.pages.filter(p => p.mode === "skim50")) {
         expect(out).toContain(excerpts(page.text)[page.judgment.excerpt]);
         expect(reader.pull(page.id)).toBe(page.text);
       }
@@ -62,7 +63,7 @@ test("tiny headings stay, omitted runs share a recoverable handle, exact evidenc
     + "\n## Archive\n\n" + "The original prototype ran in another process.\n".repeat(20);
   const reader = create({ judge: async cs => cs.map(c => {
     const exact = c.label.includes("Cancellation");
-    return { mode: exact ? "verbatim" : "omit", dist: { verbatim: exact ? 1 : 0, skim: 0, omit: exact ? 0 : 1 }, excerpt: 0 };
+    return { mode: exact ? "verbatim" : "omit", dist: { verbatim: exact ? 1 : 0, skim75: 0, skim50: 0, cues: 0, omit: exact ? 0 : 1 }, excerpt: 0 };
   }) });
   const out = await reader.filter(text, "inspect cancellation", 600);
   expect(out).toContain("# Runtime\n\n## Related\n\n## Cancellation");
