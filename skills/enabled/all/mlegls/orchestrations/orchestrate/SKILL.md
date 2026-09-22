@@ -12,3 +12,5 @@ carry the agreed scope through to completion; bring back choices that change it.
 4. after joining, compare the result with the original destination. finish remaining work within the agreed scope, then resolve the issue; if blocked, name the exact unresolved claim and what resolves it.
 
 workers and messaging: `multi-agent`.
+
+For tracker work, pass each issue’s own `assignee` (including absence) to `route.prepare`, then carry `issue` and `assignee` into dispatch. Re-read child assignments when decomposing; explicit human/session ownership requires its owner.

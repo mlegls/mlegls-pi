@@ -17,7 +17,7 @@ Live usage arrives separately from the caller, by provider, as a fraction of the
 - `auto`: `zai/glm-5.3-flash`, high effort, through the Z.ai Coding Plan subscription endpoint.
 - `technical`: `openai-codex/gpt-6-astra`, low effort.
 
-Use these fixed model/effort pairs for fresh implementation sessions rather than selecting freely across the catalog. Provider-ceiling exclusions still apply; if the assigned provider is unavailable, select an available fallback under the general policy. Specialist routes remain separate; do not add visual or rewrite operating points without demonstrated need.
+Use these fixed model/effort pairs for fresh implementation sessions rather than selecting freely across the catalog. Provider-ceiling exclusions still apply. General routing may select an available fallback; an explicit tracker assignment to an agent operating point or model refuses unavailable execution instead. A compound `agent:<stance>, model:<provider>/<model>:<effort>` assignment selects the stance with the explicit model override. Specialist routes remain separate; do not add visual or rewrite operating points without demonstrated need.
 
 ## Assignment stances
 

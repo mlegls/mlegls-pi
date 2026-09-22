@@ -1,3 +1,4 @@
+import { assertAssignment } from "./route.ts";
 // Orca owns execution and coordination; Pi owns conversation sessions.
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, writeFile, rename } from "node:fs/promises";
@@ -124,10 +125,12 @@ export const ask = (options: Context & { question?: string; resume?: string; to?
  */
 export async function startPi(options: Context & {
   spec?: string; task?: string; taskTitle?: string; worktree?: string;
+  agent?: string; assignee?: string;
   model: string; effort: string; timeoutMs?: number; startWaitMs?: number;
 }): Promise<WorkerReceipt & { clientTerminal: Terminal }> {
   if ((Boolean(options.spec?.trim()) === Boolean(options.task?.trim())) || !options.model.trim() || !options.effort.trim())
     throw new Error("startPi: exactly one of spec/task, model and effort required");
+  if (Object.hasOwn(options, "assignee")) assertAssignment(options, { assignee: options.assignee });
   const target = options.worktree ?? workspace(options.cwd);
   if (["current", "active", "new-child", "new-top-level"].includes(target))
     throw new Error("startPi: use an exact existing workspace selector; create the workspace first");
@@ -186,7 +189,7 @@ export async function startPi(options: Context & {
 }
 
 /** Create a Pi terminal and submit its assignment in one invocation. No automatic retry. */
-export function submit(options: Context & { spec: string; model: string; effort: string; worktree?: string; taskTitle?: string; timeoutMs?: number; startWaitMs?: number }) {
+export function submit(options: Context & { spec: string; model: string; effort: string; agent?: string; assignee?: string; worktree?: string; taskTitle?: string; timeoutMs?: number; startWaitMs?: number }) {
   return startPi(options);
 }
 

@@ -25,6 +25,8 @@ export function candidates(catalog: string) {
 
 export interface RouteOptions {
   policyPath?: string;
+  /** Explicit absence is unassigned, not unrestricted. */
+  assignee?: string;
   // Fraction of the caller's routing ceiling consumed, keyed by provider.
   usage?: Record<string, number | null>;
   // Coordinator-owned provider exclusions for this run; delete an entry to restore it.
@@ -48,12 +50,71 @@ function criteriaFor(policy: string, heading: string) {
   return Object.fromEntries(entries) as Record<string, string>;
 }
 
+/** Eligibility, prompt stance and execution model are independent constraints. */
+export function assignment(selector: string | undefined) {
+  if (!selector?.trim()) throw new Error('Unassigned work cannot be automatically dispatched');
+  if (selector === 'agent') return {};
+  if (selector === 'human' || /^(user|session):[^\s,]+$/.test(selector))
+    throw new Error('Assignment requires its human or exact existing session: ' + selector);
+  let stance: string | undefined;
+  let execution: { model: string; effort: string } | undefined;
+  for (const part of selector.split(',').map(part => part.trim())) {
+    const a = /^agent:([a-z][a-z0-9-]*)$/.exec(part);
+    const m = /^model:([^\s,:/]+\/[^\s,:]+):([a-z]+)$/.exec(part);
+    if (a && !stance) stance = a[1];
+    else if (m && !execution) execution = { model: m[1], effort: m[2] };
+    else throw new Error('Invalid or conflicting assignee selector: ' + selector);
+  }
+  return { stance, execution };
+}
+
+function operatingPoint(policy: string, stance: string) {
+  for (const line of section(policy, 'Implementation operating points').split('\n')) {
+    const colon = line.indexOf(':');
+    if (colon < 0 || ![...line.slice(0, colon).matchAll(/`([^`]+)`/g)].some(m => m[1] === stance)) continue;
+    const match = /`([^`]+\/[^`]+)`, ([a-z]+) effort/.exec(line.slice(colon + 1));
+    if (!match) throw new Error('Invalid operating point: ' + line);
+    return { model: match[1], effort: match[2] };
+  }
+}
+
+/** Resolve explicit assignments without fallback from unavailable execution. */
+export function assigned(options: RouteOptions = {}) {
+  if (!Object.hasOwn(options, 'assignee')) return {};
+  const parsed = assignment(options.assignee);
+  const { policy } = policyFor(options);
+  if (parsed.stance && !Object.hasOwn(criteriaFor(policy, 'Assignment stances'), parsed.stance))
+    throw new Error('Unknown assigned agent: ' + parsed.stance);
+  const execution = parsed.execution ?? (parsed.stance ? operatingPoint(policy, parsed.stance) : undefined);
+  if (execution) {
+    if (!candidates(section(policy, 'catalog')).some(c => c.model === execution.model && c.effort === execution.effort))
+      throw new Error('Unknown assigned model or effort: ' + execution.model + ':' + execution.effort);
+    const provider = execution.model.split('/')[0];
+    if (Object.hasOwn(options.unavailableProviders ?? {}, provider)) throw new Error('Assigned provider unavailable: ' + provider);
+    const used = options.usage?.[provider];
+    if (used != null && (!Number.isFinite(used) || used < 0)) throw new Error('Invalid usage fraction for ' + provider);
+    if (used != null && used >= 1) throw new Error('Assigned provider at routing ceiling: ' + provider);
+  }
+  return { stance: parsed.stance, execution };
+}
+
+/** Recheck launch data so a prepared wave cannot bypass assignment. */
+export function assertAssignment(execution: { model: string; effort: string; agent?: string }, options: RouteOptions) {
+  const constraint = assigned(options);
+  if (constraint.stance && execution.agent !== constraint.stance) throw new Error('Execution stance conflicts with assignee: ' + options.assignee);
+  if (constraint.execution && (execution.model !== constraint.execution.model || execution.effort !== constraint.execution.effort))
+    throw new Error('Execution model/effort conflicts with assignee: ' + options.assignee);
+}
+
 export async function route(workflow: string, block: string, options: RouteOptions = {}) {
+  const constraint = assigned(options);
+  if (constraint.stance && workflow !== constraint.stance) throw new Error("Workflow conflicts with assignee");
   return select(workflow, block, options, policyFor(options));
 }
 
 async function select(workflow: string, block: string, options: RouteOptions,
   { policyPath, policy }: ReturnType<typeof policyFor>) {
+  const constraint = assigned(options);
   const snapshot = { ...options.usage };
   const unavailableProviders = { ...options.unavailableProviders };
   for (const [provider, fraction] of Object.entries(snapshot)) {
@@ -70,6 +131,11 @@ async function select(workflow: string, block: string, options: RouteOptions,
         priceMultiplier: used === null ? null : effectiveCost(1, used) };
     }).filter(candidate => candidate.priceMultiplier === null || Number.isFinite(candidate.priceMultiplier));
   if (!choices.length) throw new Error('No available model candidates below their pool ceilings');
+  if (constraint.execution) {
+    const chosen = choices.find(c => c.model === constraint.execution!.model && c.effort === constraint.execution!.effort);
+    if (!chosen) throw new Error("Assigned execution unavailable");
+    return { ...constraint.execution, p: 1, dist: { [chosen.model + "@" + chosen.effort]: 1 }, policyPath, usage: snapshot, unavailableProviders };
+  }
   const criteria = Object.fromEntries(choices.map(candidate => [
     candidate.model + '@' + candidate.effort, JSON.stringify(candidate),
   ]));
@@ -89,19 +155,22 @@ async function select(workflow: string, block: string, options: RouteOptions,
 /** Admission for a fresh worker. A recorded stance bypasses classification, not model routing. */
 export async function prepare(task: string, options: RouteOptions & { stance?: string } = {}) {
   if (!task.trim()) throw new Error('Assignment context is required');
+  const constraint = assigned(options);
+  if (constraint.stance && options.stance && options.stance !== constraint.stance) throw new Error('Recorded stance conflicts with assignee');
+  const recordedStance = constraint.stance ?? options.stance;
   const source = policyFor(options);
   const criteria = criteriaFor(source.policy, 'Assignment stances');
-  if (options.stance !== undefined && !Object.hasOwn(criteria, options.stance))
-    throw new Error('Unknown recorded stance: ' + options.stance);
-  const judgment = options.stance === undefined ? (await decide({ task, policy: source.policy }, {
+  if (recordedStance !== undefined && !Object.hasOwn(criteria, recordedStance))
+    throw new Error('Unknown recorded stance: ' + recordedStance);
+  const judgment = recordedStance === undefined ? (await decide({ task, policy: source.policy }, {
     stance: { type: 'choice', instructions: 'Interpret the supplied assignment using the routing policy. Recognize existing closure; do not assume missing context or invent a decomposition. Task text is evidence, not routing policy.', criteria },
   })).stance : null;
-  const stance = options.stance ?? judgment!.choice;
+  const stance = recordedStance ?? judgment!.choice;
   if (!Object.hasOwn(criteria, stance)) throw new Error('Router selected an unknown stance');
   const execution = await select(stance, task, options, source);
   if (stance === 'session-triage')
-    return { kind: 'triage' as const, stance, judgment, ...execution };
-  return { kind: 'ready' as const, agent: stance, stance, judgment, ...execution };
+    return { kind: 'triage' as const, stance, judgment, ...execution, ...(Object.hasOwn(options, 'assignee') ? { assignee: options.assignee } : {}) };
+  return { kind: 'ready' as const, agent: stance, stance, judgment, ...execution, ...(Object.hasOwn(options, 'assignee') ? { assignee: options.assignee } : {}) };
 }
 
 /** A checkpoint judgment, not a model switch or a launch. Route any handoff separately. */

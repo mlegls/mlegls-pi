@@ -13,3 +13,5 @@ Be the supervisor for this scope. Delegate substantial work; lightly triage tick
 5. Launch the next ready wave. Keep the parent current and report progress toward its destination, remaining work, live streams, and decisions needed. Finish when the destination is met; if everything is blocked, report what resumes it.
 
 Keep this session across waves with OM and compaction. Tickets/docs hold shared truth; session/OM hold working context; durable Orca records hold execution handles and pending integration. At checkpoints make a replacement recoverable without requiring one. Use `route.continuation` for worker exceptions and context checkpoints. Fresh verifiers provide independent judgment; the supervisor retains continuity.
+
+For tracker work, pass each issue’s own `assignee` (including absence) to `route.prepare`, then carry `issue` and `assignee` into dispatch. Re-read child assignments when decomposing; explicit human/session ownership requires its owner.

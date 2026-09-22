@@ -22,7 +22,7 @@ Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`
 - `failed`: the first failed assignment, error text, and structured error receipt where available. Earlier launches survive; residual resources are retained for inspection. An unconfirmed turn start stops the wave here, with its full worker receipt under `failed.receipt.cause`. Re-observe that receipt with `orca.workers.confirmStart`; do not resubmit the assignment or wait for its completion without start evidence. Resolve the retained attempt before launching another wave: it still consumes capacity.
 - `pending`: never-attempted assignments. The parent decides when to launch them.
 
-Routing happens before launch: `dispatch.dispatch` consumes the `route.prepare` result, while `startPi` handles Pi launch and enrollment internally. Neither launcher chooses a model or enforces routing provenance; do not replace admission with manual selection to work around native Orca launch limitations.
+Routing happens before launch: `dispatch.dispatch` consumes the `route.prepare` result, while `startPi` handles Pi launch and enrollment internally. Neither launcher chooses a model; explicit assignment constraints are rechecked before launch; do not replace admission with manual selection to work around native Orca launch limitations.
 
 No implicit retries, dependency scheduling, merging, or cleanup. Use `notify` for launch and mailbox waits. Worker instructions receive Orca’s authoritative lifecycle preamble; board topics and subscriptions are not involved.
 
@@ -42,7 +42,7 @@ These tools do not transfer memory, compact history, change models in place, man
 
 ## Routing API
 
-`await route.prepare(taskWithContext, { stance?, policyPath?, usage? })` admits a **fresh** assignment. Include the issue contract, dependencies/ownership, relevant evidence, capability needs, and handoff/context facts. Supply `stance` when already recorded; otherwise Jev selects from Assignment stances. Returns `kind: "ready"`, `agent`, `stance`, `judgment`, and the model selection fields below. A `kind: "triage"` result has no worker agent: use the selected model for a new decision session, not the original implementation assignment. `judgment` is null for a recorded stance.
+`await route.prepare(taskWithContext, { assignee?, stance?, policyPath?, usage?, unavailableProviders? })` admits a **fresh** assignment. Include the issue contract, dependencies/ownership, relevant evidence, capability needs, and handoff/context facts. Supply `stance` when already recorded; otherwise Jev selects from Assignment stances. Returns `kind: "ready"`, `agent`, `stance`, `judgment`, and the model selection fields below. A `kind: "triage"` result has no worker agent: use the selected model for a new decision session, not the original implementation assignment. `judgment` is null for a recorded stance.
 
 `await route.continuation(context, { policyPath?, usage? })` returns `action`, `p`, `dist`, and `policyPath`. Supply current model/effort, assignment, latest report, remaining work, context relevance, and available cache/handoff evidence. It only advises continue/consult/replace: it never switches models, compacts, launches, or closes sessions. For consult/replace, prepare the actual handoff and admit it with `prepare`; do not route the old full transcript again.
 
@@ -59,3 +59,15 @@ CLI: `bun lib/route.ts <workflow> <task text> [policy-path]`.
 The Assignment stances and Continuation actions sections use machine-read bullets of the form "- \`label\`: criterion". Catalog bullets name Pi model IDs in backticks as `provider/model` and their effort sets; those pairs define the candidate set. Obtain IDs from `pi --list-models`.
 
 Usage is supplied by the caller as a fraction of each provider’s routing ceiling, not necessarily its full quota. The router does not fetch usage or reserve capacity.
+
+## Tracker assignment
+
+Pass each issue's own `assignee` to `route.prepare`, even when absent. Omission of the option is reserved for non-tracker calls; an explicitly absent value is unassigned and refuses automatic routing. Pass `issue` and the returned `assignee` into dispatch. Re-read child assignments during recursive decomposition: a parent's selector is not inherited permission.
+
+- `agent`: ordinary agent admission.
+- `agent:fill`: the named prompt/workflow and its policy model (the implementation operating point where defined).
+- `model:zai/glm-5.3-flash:high`: exact execution; prompt/workflow still comes from admission or a supplied stance.
+- `agent:fill, model:zai/glm-5.3-flash:high`: that workflow with an explicit model override. Component order is immaterial.
+- `human`, `user:<name>`, `session:<id>`: not fresh agent admission. Hand to the human or recover/resume the exact assigned session; changing context requires explicit reassignment.
+
+Bare aliases, short model names, duplicate selectors, unknown models/efforts and unavailable assigned providers are errors, never fallback hints. Catalog availability is policy plus caller-supplied provider exclusions/ceilings, not an authenticated provider health probe. Generic agent routing retains normal policy selection. Direct `orca.startPi` calls can carry `assignee` and `agent` for the same launch checks; they do not install the stance prompt for the caller.

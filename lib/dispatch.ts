@@ -2,9 +2,13 @@
 import { call, workspace, startPi, OrcaError, type WorkerReceipt, type Terminal } from "./orca.ts";
 import { resolve } from "node:path";
 import { agent } from "./agents.ts";
+import { assertAssignment, type RouteOptions } from "./route.ts";
 
 export interface Assignment {
   handle: string;
+  /** Tracker identity requires explicit eligibility; never inherit from a parent. */
+  issue?: string;
+  assignee?: string;
   /** Self-contained task, including relevant context and coordination constraints. */
   prompt: string;
   /** Optional roster stance; execution comes from model and effort. */
@@ -23,6 +27,7 @@ export interface Options {
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
   active: Handle[];
+  routing?: RouteOptions;
 }
 
 export type Handle = { backend: "orca"; handle: string; worktreeId: string; path: string; receipt: WorkerReceipt & { clientTerminal: Terminal } };
@@ -56,6 +61,8 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       throw new Error("dispatch: prompt, provider/model and effort required for " + task.handle);
     if (task.agent !== undefined && !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(task.agent))
       throw new Error("dispatch: invalid agent name");
+    if (task.issue || Object.hasOwn(task, "assignee"))
+      assertAssignment(task, { ...options.routing, assignee: task.assignee });
     const stance = task.agent ? agent(task.agent) : undefined;
     if (task.agent && !stance) throw new Error("dispatch: unknown agent " + task.agent);
     return { task, stance };
@@ -78,7 +85,8 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       if (!worktree?.id || !worktree.path) throw new Error("dispatch: invalid worktree receipt " + JSON.stringify(created));
       try {
         const submitted = await startPi({ spec: text, taskTitle: task.handle, run: options.run, from: options.from,
-          model: task.model, effort: task.effort, cwd, worktree: "id:" + worktree.id });
+          model: task.model, effort: task.effort, agent: task.agent,
+          ...(task.issue || Object.hasOwn(task, "assignee") ? { assignee: task.assignee } : {}), cwd, worktree: "id:" + worktree.id });
         receipt.submitted.push({ backend: "orca", handle: task.handle, receipt: submitted, worktreeId: worktree.id, path: worktree.path });
       } catch (error) {
         throw new OrcaError("Worktree retained at " + worktree.path + ": " + String(error),
