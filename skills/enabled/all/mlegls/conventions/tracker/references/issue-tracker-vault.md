@@ -32,6 +32,16 @@ The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKIL
 
 Frontmatter is a strict YAML mapping. Relations are quoted vault-absolute issue wikilinks; blocked-by is a list. Every query rejects malformed YAML, duplicate keys/slugs, aliases, explicit tags, merge keys, invalid tracker fields and relation cycles before emitting results. Extra metadata is allowed; attachments/ is not scanned as issues. `check` preserves link/heading checks and flags resolved blockers and suspect claims.
 
+### Semantic preflight
+
+`issues.ts lint [slug] [--json]` refreshes Jev judgments for live issues in scope (including live done records). Unchanged input reuses the cache; `mine` and `frontier` only read it, reporting fresh, stale, missing or error. Their JSON rows carry advisory lint details; snapshot schema/readiness remains unchanged.
+
+Findings give a suspected mismatch, probability, selected source quote and question to reconcile. No finding certifies correctness; findings never change stages or block dispatch. The display threshold is an uncalibrated majority judgment. Separate follow-up ideas and explicit evidence limits are not unfinished delivery by themselves.
+
+Context is the issue, immediate parent/children/prerequisites and directly linked Markdown evidence, with no network fetch or recursive crawl. At most ten documents are shown (12,000 characters for the issue, 4,000 for each other document); missing links and clipped context are marked. Cache fingerprints include full collected sources and the lint policy. This cannot discover unlinked superseding evidence or inspect current code.
+
+Cache: `$XDG_CACHE_HOME/mlegls-pi/tracker-lint/` (default `~/.cache`), keyed by project and issue; deleting an entry forces another judgment. Jev credentials use the existing `lib/decide.ts` configuration. Failed refreshes preserve the last successful entry and exit nonzero; offline queries still expose stale/missing results. `orient` and `supervise` refresh at entry, not at every dispatch.
+
 ### Legacy projects
 
 Issues retaining `next: grill | research | prototype | measure | simplify | implement | wait | done` remain readable/checkable and appear explicitly as legacy. They have no lifecycle readiness/frontier. Mixing next with stage is invalid; existing provenance and assignment metadata are preserved without certifying readiness. Reconcile bodies, code and results before assigning lifecycle metadata; no automatic translation.

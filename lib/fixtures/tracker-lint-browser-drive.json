@@ -1,0 +1,78 @@
+{
+  "origin": "git show 8aaa80f:docs/issues/computer-browser-drive.md; live Jev via issues lint, 2026-09-22",
+  "source": "---\nstage: spec\nassignee: agent\n---\n\nconcept's `packages/web/scripts/drive.ts` is `computer.run` plus a Playwright `UI` adapter plus three things run lacks. Lift those three, add the adapter in pi, and drive.ts becomes a loader, a persona sign-in, and two renderer calls.\n\ninto `lib/computer.ts`, none browser-specific:\n- `walk(steps)`: a guide is a sequence of `{label, expect, budget?}`; run per step with history carried across; a step that never arrives is recorded and walked past, not a stop.\n- two-judgment done: a step ends when the Choice says done and a Noul \"the expected result is already showing\" agrees ≥ 0.75, else wait; past the wait budget the Choice alone ends it and the ending is marked contested. Default policy for `run` too.\n- `Candidate.replay?: string`: the adapter's source for the same action it took, so a recorded drive replays through the locator it drove with.\n\n`lib/computer/browser.ts`: `UI` over a Playwright `Page`, Playwright loaded from the target repo by `createRequire` as lint/extract.ts loads TypeScript. observe = `ariaSnapshotJSON({mode:\"ai\"})` → actionable roles as `canPress`/`isTextInput`, landmark path in the description, tail of readable text as context; act = `getByRole(role, {name, exact})` click or fill with the re-mount retry (fill until the field holds it); `replay` = that locator as source.\n\nrenderers over `Event[]`, pure: `appeared(before, after)`, `sheet(trace)` contact sheet, `spec(trace)` the Playwright block skeleton with one comment per step and `// appeared:` candidates. `spec` is the browser adapter's.\n\nhooks stay for what must survive interruption or belongs to the project: `onEvent` writing each event under `.drives/<story>/<stamp>/` as it lands; project state snapshots (a Convex query after a step) through the same hook. `beforeAction` unchanged.\n\nthen in concept: drive.ts → load the Drive file, persona sign-in leaving storage state, `walk` with the browser adapter, render. `verify-story` step 2 names `computer.walk`; step 5 gains the static traceability gaps (test file no story names; story row no recorded check names), no model call.\n\nnot: assertions from the driver (done stays a judgment, the reviewer asserts into the skeleton); running drives in the project's CI (recorded specs are what CI runs); a copy of the loop in the project.\n\ndone 2026-09-21: the three lifts, `lib/computer/browser.ts`, the renderers; concept's `scripts/drive.ts` is now `prepare`/`record`/`finish` around `computer.walk`. Smoke over a local page: fill by placeholder-less `getByRole`, press, `appeared: status: Signed by Ada`, a valid block with `drive.inputs` back-referenced. The showing noul reads the node tree alone at ~0.5 even when the condition plainly holds and the aria text at ~0.85, so each view's readable text now sits beside its nodes in the state; with it the smoke ran with no waits and no contested endings.\n\nnext: session.take-a-lesson and plan.start-a-plan re-driven through this path against the browser story environment (isolated deployment, packaged host, scripted provider), and the skeletons compared with the specs their reviewers accepted. `verify-story` step 2 to name the composition in drive.ts's header.\n",
+  "judgments": {
+    "completed": {
+      "choice": "true",
+      "p": 0.67,
+      "dist": {
+        "true": 0.67,
+        "false": 0.32999999999999996
+      }
+    },
+    "completedEvidence": {
+      "choice": "1",
+      "p": 0.98,
+      "dist": {
+        "0": 0,
+        "1": 0.98,
+        "2": 0.02,
+        "none": 0
+      }
+    },
+    "expanded": {
+      "choice": "false",
+      "p": 0.6599999999999999,
+      "dist": {
+        "true": 0.34,
+        "false": 0.6599999999999999
+      }
+    },
+    "expandedEvidence": {
+      "choice": "2",
+      "p": 0.34,
+      "dist": {
+        "0": 0.05,
+        "1": 0.3,
+        "2": 0.34,
+        "none": 0.31
+      }
+    },
+    "stage": {
+      "choice": "false",
+      "p": 0.54,
+      "dist": {
+        "true": 0.46,
+        "false": 0.54
+      }
+    },
+    "stageEvidence": {
+      "choice": "1",
+      "p": 0.85,
+      "dist": {
+        "0": 0.09,
+        "1": 0.85,
+        "2": 0.01,
+        "none": 0.05
+      }
+    },
+    "superseded": {
+      "choice": "false",
+      "p": 0.62,
+      "dist": {
+        "true": 0.38,
+        "false": 0.62
+      }
+    },
+    "supersededEvidence": {
+      "choice": "1",
+      "p": 0.55,
+      "dist": {
+        "0": 0.03,
+        "1": 0.55,
+        "2": 0.02,
+        "none": 0.4
+      }
+    }
+  }
+}

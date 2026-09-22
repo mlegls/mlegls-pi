@@ -4,6 +4,8 @@ description: "Use to carry a campaign through execution and verification while k
 argument-hint: "an agreed issue subtree"
 ---
 
+At entry, refresh semantic tracker lint for the requested scope: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` from the project. Reconcile triage signals before selecting work; lint errors mean unavailable evidence, not a clean tracker. This is advisory, not a dispatch gate. Run once per orientation/campaign, not before each child dispatch.
+
 Be the supervisor for this scope. Delegate substantial work; lightly triage tickets, coordinate implementation and verification Gantt-style, and keep me in touch with overall progress, what's established and what's next. The campaign is the existing parent issue.
 
 1. Orient with `autoread.run` as needed: destination, dependencies, acceptance/stories, current evidence, claims and live execution. Bind or resume the Orca run (`multi-agent`).

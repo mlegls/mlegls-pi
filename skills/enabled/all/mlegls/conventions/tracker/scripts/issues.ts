@@ -17,6 +17,8 @@ import { join, basename, dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, parseDocument, visit } from "yaml";
 
+import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
+
 type Issue = {
   slug: string;
   file: string;
@@ -372,17 +374,27 @@ const selected = (kind: string) => (kind === "done" ? scoped.filter(i => !i.next
   if (kind === "frontier") return m.frontier;
   return !i.next && i.stage !== undefined && i.stage !== "done" && (i.assignee === "human" || i.assignee?.startsWith("user:")) && !openBlockers(i, all).length && !i.claimedBy && (!!arg || i.priority !== 4);
 })).sort((a, b) => effectivePriority(a, all) - effectivePriority(b, all) || dependents(b.slug, all) - dependents(a.slug, all));
-if (json || cmd === "snapshot") {
+if (arg && !all.has(arg)) throw new Error("no issue " + arg);
+if (cmd === "lint") {
+  const reports = [];
+  for (const issue of scoped.filter(i => !i.archived)) {
+    const report = await refresh(issue, all, dir);
+    reports.push(report);
+    if (!json) console.log(format(report, true));
+  }
+  if (json) console.log(JSON.stringify({ advisory: true, reports }, null, 2));
+  if (reports.some(r => r.status === "error")) process.exitCode = 1;
+} else if (json || cmd === "snapshot") {
   const rows = ["frontier", "mine", "done"].includes(cmd) ? selected(cmd) : scoped;
-  console.log(JSON.stringify({ schemaVersion: 1, issues: rows.filter(i => !i.next).map(i => model(i, all, !!arg)), legacy: scoped.filter(i => i.next).map(i => ({ slug: i.slug, next: i.next, archived: i.archived, partOf: i.partOf, blockedBy: i.blockedBy, claimedBy: i.claimedBy, priority: i.priority })) }, null, 2));
+  console.log(JSON.stringify({ schemaVersion: 1, issues: rows.filter(i => !i.next).map(i => ({ ...model(i, all, !!arg), ...(["mine", "frontier"].includes(cmd) ? { lint: cached(i, all, dir) } : {}) })), legacy: scoped.filter(i => i.next).map(i => ({ slug: i.slug, next: i.next, archived: i.archived, partOf: i.partOf, blockedBy: i.blockedBy, claimedBy: i.claimedBy, priority: i.priority })) }, null, 2));
   process.exit(0);
 }
 
-switch (cmd) {
+if (cmd !== "lint") switch (cmd) {
   case "frontier":
   case "mine":
   case "done": {
-    selected(cmd).forEach(i => console.log(line(i, all)));
+    selected(cmd).forEach(i => console.log(line(i, all) + (["mine", "frontier"].includes(cmd) ? "\n  " + format(cached(i, all, dir)) : "")));
     const legacy = scoped.filter(i => i.next && !i.archived);
     if (legacy.length) console.log("Legacy (read/check only; no lifecycle frontier):\n" + legacy.map(i => line(i, all)).join("\n"));
     break;
@@ -420,6 +432,6 @@ switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | check | outline [--json]");
+    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check | outline [--json]");
     process.exitCode = 2;
 }
