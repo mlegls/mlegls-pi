@@ -87,8 +87,9 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     try {
       const text = [stance?.body, task.prompt,
         ...(backend === "paseo" ? ["You are " + task.handle + ". Parent agent ID: " + process.env.PASEO_AGENT_ID + ". " +
-          "Begin final output with done, blocked, or needs-input. Questions go to the parent via paseo send " +
-          process.env.PASEO_AGENT_ID + " --no-wait <message>. Commit changes for the parent to integrate; retain the workspace. " +
+          "Begin final output with done, blocked, or needs-input. Questions go to the parent using " +
+          "paseo.withClient(c => c.agents.ref(" + JSON.stringify(process.env.PASEO_AGENT_ID) + ").send(message)) in exec. " +
+          "Commit changes for the parent to integrate; retain the workspace. " +
           "A completed turn is not assignment completion."] : [])].filter(Boolean).join("\n\n---\n\n");
       if (backend === "paseo") {
         const launched = await paseo.launch(task, text, { run: options.run, cwd });
@@ -158,7 +159,7 @@ export async function integrate(worker: { backend?: "orca" | "paseo" | "wm"; wor
   if (options.keep) return result;
   if (worker.backend === "paseo") {
     if (!worker.workspaceId) throw new Error("integrate: Paseo workspaceId required for archive");
-    result.removed = await paseo.call(["workspace", "archive", worker.workspaceId], cwd);
+    result.removed = await paseo.archive(worker.workspaceId);
     return result;
   }
   if (worker.backend === "wm") {

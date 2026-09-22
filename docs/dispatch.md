@@ -16,14 +16,14 @@ Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`
 The receipt contains:
 
 - `submitted`: native handles for successful launches. Paseo: `{backend: "paseo", handle, agentId, workspaceId, path, receipt: {workspace, agent}}`; workmux: `{backend: "wm", handle, path, worker}`; Orca retains `{backend: "orca", handle, worktreeId, path, receipt}`.
-- `failed`: first failed assignment, error text and available native/raw receipt. Earlier launches survive. Inspect the retained attempt, including malformed/partial CLI output, before deciding what to do. Creation can succeed before a client timeout or parse failure.
+- `failed`: first failed assignment, error text and available native/raw receipt. Earlier launches survive. Inspect the retained attempt, including retained SDK snapshots and request correlation IDs, before deciding what to do. Creation can succeed before a client timeout or parse failure.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
 
 ## Paseo
 
-See [the bounded trial and setup](paseo.md). Workspace creation and agent launch are separate native commands so a launch failure retains the workspace ID. Launch uses `run --background --workspace ID --provider pi --model MODEL --thinking EFFORT`; the prompt is a single argv value, not shell interpolation or editor input. `none` maps to Pi's native `off`; other effort IDs pass unchanged. `PASEO_CLI` optionally selects an executable (not a shell command).
+See [the SDK boundary and setup](paseo.md). Workspace creation and agent launch are separate SDK requests so a launch failure retains the workspace ID. Launch uses native Pi config `provider: "pi/PROVIDER/MODEL"`, an explicit parent from `PASEO_AGENT_ID`, and a data prompt. `none` maps to Pi native `off`; other effort IDs pass unchanged. `PASEO_URL`/`PASEO_PASSWORD` select the connection; the default is the local desktop daemon. CLI host configuration is not consulted.
 
-Paseo inherits the caller's `PASEO_AGENT_ID` as parent even with explicit workspace placement. The prompt includes the roster stance, assignment, parent ID and reporting convention. Use `paseo wait ID`, `paseo logs ID`, and `paseo send ID "message"` for supervision. Parent completion notifications are native. A completed turn is not assignment completion: read the report, answer questions, and check the assignment's completion criterion. Final output begins `done`, `blocked`, or `needs-input`; questions go to the parent ID. There is no additional inbox/ack or task-record layer.
+The prompt includes the roster stance, assignment, parent ID and reporting convention. Supervise through `paseo.withClient(c => c.agents.ref(ID).waitForFinish())`, `.timeline.refetch()` and `.send(message)`; retain long waits with `notify`. Parent completion notifications are native. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion. Final output begins `done`, `blocked`, or `needs-input`; questions go to the parent ID. There is no additional inbox/ack or task-record layer. CLI `wait`, `logs`, and `send --no-wait` remain manual recovery tools.
 
 ## Standalone and retained Orca
 

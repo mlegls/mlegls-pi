@@ -1,9 +1,10 @@
-import { test, expect } from "bun:test";
+import { test, expect, spyOn } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { integrate, MergeConflict } from "./dispatch.ts";
+import * as paseo from "./paseo.ts";
 
 function repo() {
   const root = mkdtempSync(join(tmpdir(), "integrate-"));
@@ -46,20 +47,21 @@ test("refuses uncommitted work and reports conflicts after aborting", async () =
 test("Paseo archives only after Git integration; keep retains workspace", async () => {
   const r = repo();
   r.commit(r.work, "a", "worker");
-  const cli = join(r.main, "../paseo");
-  const log = join(r.main, "../archived");
-  writeFileSync(cli, "#!/bin/sh\n" +
-    "git -C '" + r.main + "' merge-base --is-ancestor unit-a HEAD || exit 9\n" +
-    "printf '%s\\n' \"$@\" > '" + log + "'\nprintf '{\"status\":\"archived\"}'\n", { mode: 0o700 });
-  const old = process.env.PASEO_CLI;
-  process.env.PASEO_CLI = cli;
+  const archived = {workspaceId: "ws-exact", requestId: "archive-1", archivedAt: "2026-09-22", error: null};
+  const archive = spyOn(paseo, "archive").mockImplementation(async () => {
+    r.git(r.main, "merge-base", "--is-ancestor", "unit-a", "HEAD");
+    return archived;
+  });
   try {
-    const { existsSync, readFileSync } = await import("node:fs");
     const worker = { backend: "paseo" as const, workspaceId: "ws-exact", path: r.work };
     await integrate(worker, { cwd: r.main, keep: true });
-    expect(existsSync(log)).toBe(false);
+    expect(archive).not.toHaveBeenCalled();
     const result = await integrate(worker, { cwd: r.main });
-    expect(result.removed).toEqual({ status: "archived" });
-    expect(readFileSync(log, "utf8")).toBe("workspace\narchive\nws-exact\n--json\n");
-  } finally { if (old === undefined) delete process.env.PASEO_CLI; else process.env.PASEO_CLI = old; }
+    expect(result.removed).toEqual(archived);
+    expect(archive).toHaveBeenCalledTimes(1);
+    expect(archive).toHaveBeenCalledWith("ws-exact");
+    archive.mockRejectedValueOnce(new Error("workspace busy"));
+    await expect(integrate(worker, { cwd: r.main })).rejects.toThrow("workspace busy");
+    r.git(r.main, "merge-base", "--is-ancestor", "unit-a", "HEAD");
+  } finally { archive.mockRestore(); }
 });

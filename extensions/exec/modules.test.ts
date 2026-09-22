@@ -52,8 +52,8 @@ test("Paseo takes precedence over inherited Orca; instructions stay host-local",
   const env = { PASEO_AGENT_ID: "parent", ORCA_WORKTREE_ID: "inherited" };
   expect(executionHost(env)).toBe("paseo");
   expect(resolveModules("board,wm", undefined, env)).toEqual([]);
-  expect(describeModules([], "default", env)).toContain("paseo run --background");
+  expect(describeModules([], "default", env)).toContain("paseo.withClient");
   expect(describeModules([], "default", env)).not.toContain("orca.runs");
   expect(describeModules([], "default", {})).not.toContain("orca.runs");
-  expect(describeModules([], "reader", env)).not.toContain("paseo run");
+  expect(describeModules([], "reader", env)).not.toContain("paseo.withClient");
 });
