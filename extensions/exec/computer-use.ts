@@ -1,9 +1,6 @@
 import { STATE_ENTRY, journal, restorationRecords } from "./desktop-restore";
 import { captureSummary } from "./desktop-discovery";
-import { createRequire } from "node:module";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export const computerUseTools = {
  findRoots: "find_roots", observe: "observe_ui", search: "search_ui", expand: "expand_ui",
@@ -25,30 +22,21 @@ export interface ComputerUseBridge {
  call(method: string, args: unknown, ctx: ExtensionContext, signal: AbortSignal): Promise<unknown>;
 }
 
-let loaderReady = false;
 async function loadComputerUseRuntime() {
- const entry = "@injaneity/pi-computer-use/runtime";
- let runtimePath: string | undefined;
- let setupPath: string | undefined;
- for (const base of [import.meta.url, join(getAgentDir(), "npm", "package.json")]) {
-  const require = createRequire(base);
-  try {
-   runtimePath = require.resolve(entry);
-   setupPath = require.resolve("@injaneity/pi-computer-use/setup");
-   break;
-  } catch (error) {
-   const code = (error as NodeJS.ErrnoException).code;
-   if (code === "ERR_PACKAGE_PATH_NOT_EXPORTED") throw new Error("ui requires the pi-computer-use headless-runtime fork; the installed package lacks public runtime/setup exports.");
-   if (code !== "MODULE_NOT_FOUND") throw error;
-  }
- }
- if (!runtimePath || !setupPath) throw new Error("ui requires the optional pi-computer-use headless-runtime fork dependency. Install this project's optional dependencies and disable the independent pi-computer-use extension entry.");
- // Use the ordinary module graph, including upstream non-erasable TypeScript.
- if (!loaderReady && !process.versions.bun) { (await import("tsx/esm/api")).register(); loaderReady = true; }
- const runtime = await import(pathToFileURL(runtimePath).href);
- const setup = await import(pathToFileURL(setupPath).href);
- if (typeof runtime.createComputerUseRuntime !== "function" || typeof setup.registerComputerUseSetup !== "function") throw new Error("ui requires the pi-computer-use headless-runtime fork's public runtime/setup exports.");
- return { factory: runtime.createComputerUseRuntime as ComputerUseRuntimeFactory, registerSetup: setup.registerComputerUseSetup };
+ const sdk = await import("@trycua/cua-driver");
+ const { createCuaRuntime } = await import("./cua-runtime");
+ return {
+  factory: () => createCuaRuntime(sdk),
+  registerSetup(pi: ExtensionAPI, runtime: ComputerUseRuntime) {
+   pi.registerCommand("computer-use", {
+    description: "Cua status; /computer-use setup requests native permissions",
+    async handler(args, ctx) {
+     const status = args.trim() === "setup" ? await runtime.setup() : process.platform === "darwin" ? sdk.currentMacOsPermissionStatus() : { platform: process.platform };
+     ctx.ui.notify("Cua 0.28.2: " + JSON.stringify(status) + ". Background delivery is the default; reload requires fresh observations.", "info");
+    },
+   });
+  },
+ };
 }
 
 export async function createComputerUseBridge(pi: ExtensionAPI, factory?: ComputerUseRuntimeFactory): Promise<ComputerUseBridge> {

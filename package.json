@@ -60,6 +60,6 @@
   },
   "type": "module",
   "optionalDependencies": {
-    "@injaneity/pi-computer-use": "github:mlegls/pi-computer-use#6772738c32a6c58e97233b33708c5c2430a5c5fc"
+    "@trycua/cua-driver": "0.28.2"
   }
 }

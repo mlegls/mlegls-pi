@@ -1,0 +1,157 @@
+{
+  "window": {
+    "windowRef": "pi-286f773e-8715-4475-ae10-25a816afdd3e:94683:82455",
+    "app": "TextEdit",
+    "pid": 94683,
+    "windowId": "82455",
+    "windowTitle": "Untitled"
+  },
+  "record": [
+    {
+      "method": "getWindowState",
+      "result": {
+        "pid": 94683,
+        "windowId": "82455",
+        "snapshotId": "s00000002",
+        "appName": "TextEdit",
+        "windowTitle": "Untitled",
+        "treeMarkdown": "  - [1] AXTextArea = \"Cua background probe\" [id=First Text View actions=[showmenu]]\n    - [26] AXCheckBox (bold) [help=\"Bold text\" actions=[press]]",
+        "elements": [
+          {
+            "elementIndex": "1",
+            "role": "AXTextArea",
+            "depth": 1,
+            "elementToken": "s00000002:1",
+            "label": "Cua background probe",
+            "value": "Cua background probe",
+            "actions": [
+              "AXShowMenu"
+            ],
+            "parentIndex": "0",
+            "frame": {
+              "x": 152,
+              "y": 168,
+              "w": 586,
+              "h": 388
+            }
+          },
+          {
+            "elementIndex": "26",
+            "role": "AXCheckBox",
+            "depth": 2,
+            "elementToken": "s00000002:26",
+            "label": "bold",
+            "value": "0",
+            "enabled": true,
+            "selected": false,
+            "actions": [
+              "AXPress"
+            ],
+            "parentIndex": "0",
+            "frame": {
+              "x": 477,
+              "y": 112,
+              "w": 22,
+              "h": 21
+            }
+          }
+        ],
+        "elementCount": "192",
+        "totalElementCount": "192",
+        "returnedElementCount": "2",
+        "elementsComplete": false,
+        "images": []
+      }
+    },
+    {
+      "method": "callTool",
+      "result": {
+        "text": "✅ Set AXValue on [1] AXTextArea.",
+        "images": [],
+        "structuredJson": "{\"delivery\":{\"mode\":\"background\"},\"effect\":\"confirmed\",\"evidence\":[{\"kind\":\"value_readback\"}],\"route\":\"accessibility\"}",
+        "isError": false,
+        "action": {
+          "effect": 0,
+          "route": 0,
+          "delivery": {
+            "mode": 0
+          },
+          "evidence": [
+            {
+              "kind": 0
+            }
+          ]
+        },
+        "degraded": false,
+        "rawJson": "{\"content\":[{\"text\":\"✅ Set AXValue on [1] AXTextArea.\",\"type\":\"text\"}],\"structuredContent\":{\"delivery\":{\"mode\":\"background\"},\"effect\":\"confirmed\",\"evidence\":[{\"kind\":\"value_readback\"}],\"route\":\"accessibility\"}}"
+      }
+    },
+    {
+      "method": "getWindowState",
+      "result": {
+        "pid": 94683,
+        "windowId": "82455",
+        "snapshotId": "s00000003",
+        "appName": "TextEdit",
+        "windowTitle": "Untitled",
+        "treeMarkdown": "  - [1] AXTextArea = \"Cua background replacement works\" [id=First Text View actions=[showmenu]]\n    - [26] AXCheckBox (bold) [help=\"Bold text\" actions=[press]]",
+        "elements": [
+          {
+            "elementIndex": "1",
+            "role": "AXTextArea",
+            "depth": 1,
+            "elementToken": "s00000003:1",
+            "label": "Cua background replacement works",
+            "value": "Cua background replacement works",
+            "actions": [
+              "AXShowMenu"
+            ],
+            "parentIndex": "0",
+            "frame": {
+              "x": 152,
+              "y": 168,
+              "w": 586,
+              "h": 388
+            }
+          },
+          {
+            "elementIndex": "26",
+            "role": "AXCheckBox",
+            "depth": 2,
+            "elementToken": "s00000003:26",
+            "label": "bold",
+            "value": "0",
+            "enabled": true,
+            "selected": false,
+            "actions": [
+              "AXPress"
+            ],
+            "parentIndex": "0",
+            "frame": {
+              "x": 477,
+              "y": 112,
+              "w": 22,
+              "h": 21
+            }
+          }
+        ],
+        "elementCount": "192",
+        "totalElementCount": "192",
+        "returnedElementCount": "2",
+        "elementsComplete": false,
+        "images": []
+      }
+    },
+    {
+      "method": "click",
+      "result": {
+        "effect": 2,
+        "route": 0,
+        "delivery": {
+          "mode": 0
+        }
+      }
+    }
+  ],
+  "note": "Native TextEdit encounter, 2026-09-22. Snapshot projection retains the text area and bold button; tokens are historical and must never be dispatched to a live driver."
+}

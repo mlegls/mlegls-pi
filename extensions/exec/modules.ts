@@ -114,7 +114,7 @@ const API: Record<ExecModule, string[]> = {
 		"term.wait({ids,mode?:\"any\"|\"all\",cursors?,waitMs?,lines?}); snapshots and waits stay structured, show renders readable terminal output. Terminals survive kernel reset."
 	],
 	"ui": [
-		"ui.findRoots/observe/search/expand/inspect/act/readText/waitFor(args); await show(await ui.observe()) emits text/images; .capture is concise metadata; .details retains full state/ref data. ui.search({stateId,subrole?,unlabeled?,limit?,...}) searches the cached outline with explicit completeness; native search otherwise stays unchanged. ui.help(method?) returns upstream schemas and guidelines."
+		"ui.findRoots({app}) discovers running apps and window refs. ui.observe({root,mode?:\"semantic\"|\"visual\"}) captures a window; show emits text/images, .capture is concise metadata, .details retains the outline. ui.search/inspect/readText read a captured stateId, not live state. ui.act({stateId,actions:[action],allowForeground?:boolean}) uses Cua background delivery by default; exactly one action consumes the observation, even on failure. Re-observe before continuing. No automatic foreground retry. ui.expand recaptures; ui.waitFor polls text. ui.help(method?) describes arguments and limits. Refs do not survive session/branch changes or reload."
 	]
 };
 

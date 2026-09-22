@@ -17,7 +17,7 @@ For long drives use `state.drive = notify(computer.run(...), "drive")`, then `po
 
 ## Composition
 
-`computer.step(options, priorEvents)` performs one fresh observation/decision/action cycle. `computer.run(options)` repeats it, returning `{status, trace}`. Keep prior events when manually stepping for history and loop detection. Do not drive the same desktop concurrently.
+`computer.step(options, priorEvents)` performs one fresh observation/decision/action cycle. `computer.run(options)` repeats it, returning `{status, trace}`. Keep prior events when manually stepping for history and loop detection. Native `ui` uses Cua background delivery: other apps can remain in use, but do not concurrently drive the same window. See [background setup and limits](guide/cua-background.md).
 
 - `ui`, `apps`, `goal`, `until` are required. App names match discovery exactly, ignoring case. Apps must already be running; no frontmost-app fallback.
 - `inputs` maps names to exact strings. Jev selects a field/input pair; code copies the string unchanged. Replacement requires AX `canSetValue`.

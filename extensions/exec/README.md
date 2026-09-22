@@ -569,60 +569,60 @@ not a complete process log. There is no shell-pipe option; select values in JS.
 
 ### Desktop computer use
 
-`ui` calls the public runtime from the pinned
-[mlegls/pi-computer-use fork](https://github.com/mlegls/pi-computer-use).
-The runtime owns native resources, argument validation, observations, and checked
-actions; exec is a thin lifecycle and display adapter.
-Use `chrome-devtools-axi` through `sh` for browsers; the three upstream
-browser-specific tools are hidden and have no `ui` wrappers.
+`ui` uses the pinned `@trycua/cua-driver` native SDK in the extension host.
+Cua owns window capture, element tokens, and input delivery; exec serializes
+calls and adapts observations to the outline used by `computer`.
+Use `chrome-devtools-axi` for ordinary browser work.
 
 ```ts
-await show(await ui.help("act")); // original schema and guidelines
-await show(await ui.findRoots({app: "TextEdit"}));
-const view = await ui.observe({root: "@r1", mode: "visual"}); // use a returned ref
-await show(view); // original text and actual screenshot images
-await show(view.capture); // concise state/capture metadata; full .details retained
-await show(await ui.search({stateId: view.capture.stateId, subrole: "CloseButton", unlabeled: true}));
+await show(await ui.help("act"));
+const roots = await ui.findRoots({app: "TextEdit"});
+await show(roots); // choose an exact returned windowRef, never the first by assumption
+const view = await ui.observe({root: chosenWindowRef, mode: "visual"});
+await show(view); // readable refs and actual screenshot images
+await show(await ui.search({stateId: view.capture.stateId, role: "TextArea"}));
+await show(await ui.act({stateId: view.capture.stateId, actions: [
+  {action: "setText", ref: chosenTextFieldRef, text: "Replacement text"},
+]}));
+// Re-observe the same root to check the effect and obtain fresh refs.
 ```
 
 Methods: `findRoots`, `observe`, `search`, `expand`, `inspect`, `act`,
-`readText`, and `waitFor`. Native operations take the upstream argument object.
-`search` additionally accepts `subrole`, `unlabeled`, and `limit` (1–1000, default
-50). Any of these opts into **cached-outline discovery**, not native ranked
-search: provide a captured `stateId`; roles/subroles/capabilities match exactly
-(case-insensitive, ignoring AX prefixes), and text matches substrings. It walks
-the whole captured outline before applying the result limit, retaining original
-refs. Results report `totalMatches`, `hasMore`, `complete`, `truncatedNodes`, and
-`scope: "cached-outline"`; completeness does not imply uncaptured UI is known.
-Native inspection checks state validity before returning cached results.
-The runtime retains the most recent 128 observations, including branch replay.
-Re-observe evicted states; restoration does not restore the physical desktop.
-`ui.help(method?)` returns original descriptions, schemas, and prompt guidelines.
-Refs remain tied to their returned `stateId`; browser and native state checks are
-not bypassed. Results retain `details` and `isError`; image bytes stay private
-until `content()` or `show`. Displayed error results preserve images and mark the
-exec result as failed. Upstream thrown errors propagate normally.
+`readText`, `waitFor`, and `help`. Call `help(method)` for the current argument
+contract; the old pi-computer-use schemas are not preserved.
 
-The fork is a root optional dependency pinned by Git commit in `package.json`
-and `bun.lock`. Install with `bun install --frozen-lockfile --ignore-scripts`.
-Remove the old `npm:@injaneity/pi-computer-use` entry from Pi package settings;
-do not independently load its extension alongside exec. The public `./runtime`
-and `./setup` exports share one runtime owner (one active instance per process).
-Missing installation disables only `ui`, not shell or file operations.
+- Discovery selects running apps by exact name, bundle ID, or PID and returns
+  on-screen windows. No app launch or frontmost-app fallback.
+- Actions target an exact window. Background delivery is the default. A refusal
+  never triggers a foreground retry; `allowForeground: true` on an individual
+  `act` call explicitly permits focus-stealing delivery.
+- Exactly **one action per observation**: `press`, `setText`, `typeText`,
+  `scroll`, screenshot-coordinate `click`, or `key`. `setText` replaces native
+  AX text values; `typeText` inserts. Web inputs need renderer-aware input, not
+  AX replacement. Scroll values select direction and approximate wheel notches.
+- Actions consume all observations for that window, including failed or
+  cancelled actions. Re-observe before deciding whether to retry: a write can
+  land before an error. Delivery receipts do not prove the intended effect.
+- `search`, `inspect`, and `readText` read the cached projection; they do not
+  validate live absence. Search matches text substrings and exact roles/subroles,
+  ignoring AX prefixes. Cua currently provides roles, not separate subroles.
+  Completeness is forwarded conservatively. `expand` recaptures the window with
+  a larger budget, replacing its refs. `waitFor` polls fresh AX text.
+- Up to 128 observations are retained in memory. Native tokens and window refs
+  **do not survive reload, session/branch changes, or shutdown**. Journal entries
+  contain only a backend marker; old observations are never restored as actionable
+  state. Historical images/text in the conversation remain historical evidence.
 
-`/computer-use` shows configuration; `/computer-use setup` explicitly starts
-permission setup. Neither session startup nor routine readiness checks request
-consent. Actual visual capture can still trigger macOS consent even when its
-preflight check succeeds. Development installs should use `--ignore-scripts`:
-rebuilding or re-signing the native helper can invalidate existing grants. The
-fork preserves an already validly signed, same-version helper during setup.
+Install with `bun install --frozen-lockfile --ignore-scripts`. The optional SDK
+installs a platform-specific native package; missing SDK support disables only
+`ui`. Do not independently load the old pi-computer-use extension.
+`/computer-use` reports permission status; `/computer-use setup` explicitly
+requests native permissions. Grants belong to the process hosting Pi, not the
+old pi-computer-use helper. Routine startup does not request permission.
 
-Exec journals opaque, image-free incremental runtime snapshots in version-2
-entries and replays them through the public restoration API. Cached reads do not
-repeat stored observations. There is no registration capture, synthetic tool-result
-projection, or separate outline cache. Pre-upgrade version-1 entries cannot be
-replayed: re-observe once after upgrading. Corrupt snapshots fail within `ui`
-without preventing the rest of exec from starting.
+See [the background TextEdit encounter](../../docs/guide/cua-background.md) for
+observed behavior and current limits. Separate apps can be used while the agent
+works in the background; concurrent writers to the same window are not isolated.
 
 ## Lifetime and boundaries
 
