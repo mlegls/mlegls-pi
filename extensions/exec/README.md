@@ -169,14 +169,20 @@ sandbox**: imports and OS access remain unrestricted.
 `.pi/exec/<name>.ts` shadows the lib file with the same stem. A name that is not
 in `lib/` is `project.<name>`. Upstreaming is moving the file to `lib/`.
 
+A lib or project module that exports `attach(api)` is handed the cell API
+(`read`, `edit`, ...) once at kernel start, so it can return anchored rows.
+
 `code` is the program as a graph, for TypeScript projects with a tsconfig:
-`code.index(root?)` gives top-level definitions (`defs`, `def(name)`, each with
-`file`, `line`–`endLine`, `signature`, `body`) and checker-resolved references
-between them (`callers`, `callees`, `tests`, `dead`, `impact`). Joins are plain
-TypeScript over those arrays. Every call re-indexes incrementally, so the
-snapshot follows edits. A definition's rows for editing are
-`(await read(d.path)).lines(d.line, d.endLine)`. Source in
-[outline-read/program.ts](../../lib/outline-read/program.ts).
+`code.index(root?)` gives definitions (`defs`, `def(name)`, each with `file`,
+`line`–`endLine`, `signature`, `body`): top-level statements and the functions,
+classes, members, and function-valued variables nested in them, named by dot
+path. References between them are checker-resolved and owned by the innermost
+definition: `callers`, `callees`, `tests`, `dead`, `impact` (transitive callers),
+`similar` (shared callees or callers, by Jaccard), `around` (a fisheye: the body,
+neighbors by signature, files beyond by count). Joins are plain TypeScript over
+those arrays. Every call re-indexes incrementally, so the snapshot follows
+edits. `await ix.rows(d)` is the definition's anchored rows for `edit`/`replace`.
+Source in [outline-read/program.ts](../../lib/outline-read/program.ts).
 
 `autoread.run(request, options?)` runs a read-only reader fork of this
 session and returns its final briefing. Exec passes `PI_SESSION_FILE` to the

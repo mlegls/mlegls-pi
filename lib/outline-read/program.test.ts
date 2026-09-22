@@ -23,17 +23,17 @@ describe("program index", () => {
 		expect(ix.def("Shape").body).toBe('export type Shape = Circle | Rect; // sum');
 		expect(ix.def("perimeter").body.startsWith("/** Perimeter")).toBe(true);
 		expect(ix.def("area").signature).toBe("export function area(s: Shape): number");
-		expect(ix.defs({ kind: "import" }).map(d => d.name)).toEqual(["../shapes.ts"]);
+		expect(ix.defs({ kind: "import" }).map(d => d.name)).toEqual(["./shapes.ts", "../shapes.ts"]);
 		expect(() => ix.def("nope")).toThrow("0 definitions");
 	});
 	test("references are resolved by the checker", () => {
 		const ix = index(fixture());
 		const area = ix.def("area");
-		expect(ix.callers(area)).toEqual([{ def: ix.def("ok"), kind: "call" }]);
+		expect(ix.callers(area).map(e => e.def.name + ":" + e.kind)).toEqual(["Bag.total:value", "api.measure:call", "ok:call"]);
 		expect(ix.callees(area).map(e => e.def.name + ":" + e.kind)).toEqual(["Shape:type", "Circle:member", "Rect:member"]);
 		expect(names(ix.tests(area))).toEqual(["ok"]);
-		expect(names(ix.dead())).toEqual(["perimeter", "ok"]);
-		expect(names(ix.impact(ix.def("Rect")))).toEqual(["Shape", "area", "perimeter", "unit", "ok"]);
+		expect(names(ix.dead())).toEqual(["perimeter", "Bag.add", "Bag.total", "viaApi", "ok"]);
+		expect(names(ix.impact(ix.def("Rect")))).toEqual(["Shape", "area", "perimeter", "unit", "Bag", "Bag.add", "api.measure", "Bag.total", "ok", "api", "viaApi"]);
 	});
 	test("each call re-reads the tree and re-resolves what changed", () => {
 		const dir = fixture();
@@ -45,6 +45,21 @@ describe("program index", () => {
 		rewrite(join(dir, "shapes.ts"), "perimeter(s", "perim(s");
 		ix = index(dir);
 		expect(names(ix.defs({ file: "shapes.ts", kind: "function" }))).toEqual(["area", "perim"]);
-		expect(names(ix.dead())).toEqual(["perim", "ok", "p"]);
+		expect(names(ix.dead())).toEqual(["perim", "Bag.add", "Bag.total", "viaApi", "ok", "p"]);
 	});
+	test("nested definitions own their references", () => {
+		const ix = index(fixture());
+		expect(names(ix.file("nested.ts"))).toEqual(["./shapes.ts", "Bag", "Bag.add", "Bag.total", "Bag.total.sum", "api", "api.measure", "viaApi"]);
+		expect(ix.def("total").kind).toBe("method");
+		expect(ix.def("Bag.total").signature).toBe("total(): number");
+		expect(names(ix.tests(ix.def("area")))).toEqual(["ok"]);
+		expect(names(ix.children(ix.def("Bag")))).toEqual(["Bag.add", "Bag.total"]);
+		expect(names(ix.lineage(ix.def("sum")))).toEqual(["Bag", "Bag.total", "Bag.total.sum"]);
+		// { measure } forwards to the inner function, so viaApi calls api.measure, not api.
+		expect(names(ix.callers(ix.def("measure")).map(e => e.def))).toEqual(["api", "viaApi"]);
+		expect(names(ix.similar(ix.def("api.measure")).map(s => s.def))).toEqual(["ok"]); // shares a call to area
+		expect(names(ix.similar(ix.def("api.measure"), { kinds: ["call", "value"] }).map(s => s.def))).toEqual(["Bag.total", "ok"]);
+		expect(() => ix.def("add")).not.toThrow();
+	});
+
 });

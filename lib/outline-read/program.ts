@@ -3,12 +3,14 @@ import path from "node:path";
 import ts from "typescript";
 
 // Compiler-resolved definitions and references for a TypeScript program.
-// Top-level statements are the definitions; references between them come from
-// the checker, so a caller is a fact rather than a name match (tree-sitter's
-// outline gives shape per file; this gives the graph across files).
+// Top-level statements are the definitions, with named functions, classes,
+// members, and function-valued variables nested under them; references
+// between them come from the checker, so a caller is a fact rather than a
+// name match (tree-sitter's outline gives shape per file; this gives the
+// graph across files).
 
 export type Kind =
-	| "import" | "interface" | "type" | "enum" | "function" | "class"
+	| "import" | "interface" | "type" | "enum" | "function" | "class" | "method"
 	| "const" | "let" | "var" | "export" | "statement";
 
 export interface Def {
@@ -16,6 +18,8 @@ export interface Def {
 	id: string;
 	name: string;
 	kind: Kind;
+	/** Dotted through enclosing definitions: "createSourceAPI.read", "Index.similar". */
+	parent?: string;
 	/** Relative to the program root. */
 	file: string;
 	/** Absolute. */
@@ -68,11 +72,21 @@ export function load(tsconfig: string, old?: ts.Program): ts.Program {
 	return ts.createProgram(config.fileNames, config.options, host(config.options), old);
 }
 
+/** The declaration an identifier resolves to. An object property that forwards a local ({ read } or { read: read }) resolves through to that local. */
 function declaration(checker: ts.TypeChecker, n: ts.Identifier): ts.Node | undefined {
 	let sym = checker.getSymbolAtLocation(n);
 	if (!sym) return undefined;
 	if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym);
-	const d = sym.declarations?.[0];
+	let d = sym.declarations?.[0];
+	for (let hops = 0; d && hops < 4; hops++) {
+		let forwarded: ts.Symbol | undefined;
+		if (ts.isShorthandPropertyAssignment(d)) forwarded = checker.getShorthandAssignmentValueSymbol(d);
+		else if (ts.isPropertyAssignment(d) && ts.isIdentifier(d.initializer)) forwarded = checker.getSymbolAtLocation(d.initializer);
+		else break;
+		if (forwarded && forwarded.flags & ts.SymbolFlags.Alias) forwarded = checker.getAliasedSymbol(forwarded);
+		if (!forwarded?.declarations?.[0]) break;
+		d = forwarded.declarations[0];
+	}
 	if (!d || d.getSourceFile().isDeclarationFile) return undefined;
 	return d;
 }
@@ -117,8 +131,13 @@ function nameAndKind(st: ts.Statement): [string, Kind] {
 	return ["", "statement"];
 }
 
-function signature(st: ts.Statement, text: string): string {
-	if (ts.isFunctionDeclaration(st) && st.body) return text.slice(0, st.body.getStart() - st.getStart()).trim();
+function signature(st: ts.Node, text: string): string {
+	if (ts.isFunctionLike(st) && st.body) return text.slice(0, st.body.getStart() - st.getStart()).trim();
+	if (ts.isVariableStatement(st)) {
+		const init = st.declarationList.declarations[0]?.initializer;
+		if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) && ts.isBlock(init.body))
+			return text.slice(0, init.body.getStart() - st.getStart()).trim();
+	}
 	if (ts.isClassDeclaration(st)) {
 		const brace = text.indexOf("{");
 		return brace > 0 ? text.slice(0, brace).trim() : text;
@@ -130,7 +149,7 @@ function signature(st: ts.Statement, text: string): string {
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 /** The statement's start, or that of a comment directly above it (no blank line between). */
-function docStart(st: ts.Statement, s: ts.SourceFile): number {
+function docStart(st: ts.Node, s: ts.SourceFile): number {
 	const start = st.getStart(s);
 	const doc = (ts.getLeadingCommentRanges(s.text, st.getFullStart()) ?? []).at(-1);
 	if (!doc || /\n\s*\n/.test(s.text.slice(doc.end, start))) return start;
@@ -141,22 +160,40 @@ function merged(a: Def, b: Def, s: ts.SourceFile): Def {
 	return { ...a, id: sha(a.file + "\0" + a.name + "\0" + a.kind + "\0" + body).slice(0, 10), end: b.end, endLine: b.endLine, body };
 }
 
-function definition(st: ts.Statement, s: ts.SourceFile, root: string): Def {
-	const [name, kind] = nameAndKind(st);
-	const start = docStart(st, s);
-	const trailing = ts.getTrailingCommentRanges(s.text, st.getEnd()) ?? [];
-	const end = trailing.at(-1)?.end ?? st.getEnd();
+/** Named declarations nested in node, each under parent: functions, classes and their members, and function-valued variables. */
+function nested(node: ts.Node, s: ts.SourceFile, root: string, parent: Def, out: Def[]): void {
+	const visit = (n: ts.Node) => {
+		let d: Def | undefined;
+		const fnValued = (init?: ts.Expression) => !!init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init));
+		if (ts.isFunctionDeclaration(n) && n.name) d = definition(n, n.name.text, "function", s, root, parent);
+		else if (ts.isClassDeclaration(n) && n.name) d = definition(n, n.name.text, "class", s, root, parent);
+		else if ((ts.isMethodDeclaration(n) || ts.isGetAccessor(n) || ts.isSetAccessor(n)) && n.body) d = definition(n, n.name.getText(s), "method", s, root, parent);
+		else if (ts.isConstructorDeclaration(n) && n.body) d = definition(n, "constructor", "method", s, root, parent);
+		else if (ts.isPropertyDeclaration(n) && fnValued(n.initializer)) d = definition(n, n.name.getText(s), "method", s, root, parent);
+		else if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && fnValued(n.initializer) && !ts.isSourceFile(n.parent.parent.parent))
+			d = definition(n.parent.parent, n.name.text, n.parent.flags & ts.NodeFlags.Const ? "const" : "let", s, root, parent);
+		if (d) { out.push(d); nested(n, s, root, d, out); }
+		else ts.forEachChild(n, visit);
+	};
+	ts.forEachChild(node, visit);
+}
+
+function definition(node: ts.Node, name: string, kind: Kind, s: ts.SourceFile, root: string, parent?: Def): Def {
+	const start = docStart(node, s);
+	const trailing = ts.getTrailingCommentRanges(s.text, node.getEnd()) ?? [];
+	const end = trailing.at(-1)?.end ?? node.getEnd();
 	const body = s.text.slice(start, end);
-	const exported = ts.canHaveModifiers(st)
-		? (ts.getModifiers(st)?.some(m => m.kind === ts.SyntaxKind.ExportKeyword) ?? false)
-		: ts.isExportAssignment(st) || ts.isExportDeclaration(st);
+	const exported = ts.canHaveModifiers(node)
+		? (ts.getModifiers(node)?.some(m => m.kind === ts.SyntaxKind.ExportKeyword) ?? false)
+		: ts.isExportAssignment(node) || ts.isExportDeclaration(node);
 	const file = path.relative(root, s.fileName);
+	if (parent) name = parent.name + "." + name;
 	return {
 		id: sha(file + "\0" + name + "\0" + kind + "\0" + body).slice(0, 10),
-		name, kind, file, path: s.fileName,
+		name, kind, file, path: s.fileName, parent: parent?.id,
 		line: s.getLineAndCharacterOfPosition(start).line + 1,
 		endLine: s.getLineAndCharacterOfPosition(Math.max(start, end - 1)).line + 1,
-		exported, signature: signature(st, body), body, start, end,
+		exported, signature: signature(node, s.text.slice(node.getStart(s), end)), body, start, end,
 	};
 }
 
@@ -180,11 +217,13 @@ export function analyze(program: ts.Program, root: string, old?: Analysis): Anal
 		const rel = path.relative(root, s.fileName);
 		const own: Def[] = changed.has(rel) || !old ? [] : old.defs.filter(d => d.file === rel);
 		if (own.length === 0) for (const st of s.statements) {
-			const d = definition(st, s, root);
+			const [name, kind] = nameAndKind(st);
+			const d = definition(st, name, kind, s, root);
 			const prev = own.at(-1);
 			// Overload signatures and their implementation are one definition.
 			if (prev && prev.kind === "function" && d.kind === "function" && prev.name === d.name) own[own.length - 1] = merged(prev, d, s);
 			else own.push(d);
+			if (kind !== "import") nested(st, s, root, own.at(-1)!, own);
 		}
 		defs.push(...own);
 		byFile.set(s.fileName, own);
@@ -203,29 +242,27 @@ export function analyze(program: ts.Program, root: string, old?: Analysis): Anal
 		if (from === undefined || affected.has(from) || !fileOf.has(r.to)) continue;
 		refs.set(r.from + "\0" + r.to + "\0" + r.kind, r);
 	}
+	/** The innermost definition containing node: the last by start among those enclosing its position. */
 	const owner = (node: ts.Node): Def | undefined => {
 		const pos = node.getStart();
-		return byFile.get(node.getSourceFile().fileName)?.find(d => d.start <= pos && pos < d.end);
+		return byFile.get(node.getSourceFile().fileName)?.findLast(d => d.start <= pos && pos < d.end);
 	};
 	for (const s of sources) {
 		if (old && !affected.has(path.relative(root, s.fileName))) continue;
 		const own = byFile.get(s.fileName) ?? [];
-		for (const st of s.statements) {
-			const from = own.find(d => d.start <= st.getStart(s) && st.getStart(s) < d.end);
-			if (!from || from.kind === "import") continue;
-			const visit = (n: ts.Node) => {
-				if (ts.isIdentifier(n)) {
-					const target = declaration(checker, n);
-					const to = target && owner(target);
-					if (to && to.id !== from.id) {
-						const kind = refKind(n);
-						refs.set(from.id + "\0" + to.id + "\0" + kind, { from: from.id, to: to.id, kind });
-					}
+		const visit = (n: ts.Node) => {
+			if (ts.isIdentifier(n)) {
+				const from = owner(n);
+				const target = from && from.kind !== "import" ? declaration(checker, n) : undefined;
+				const to = target && owner(target);
+				if (from && to && to.id !== from.id) {
+					const kind = refKind(n);
+					refs.set(from.id + "\0" + to.id + "\0" + kind, { from: from.id, to: to.id, kind });
 				}
-				ts.forEachChild(n, visit);
-			};
-			visit(st);
-		}
+			}
+			ts.forEachChild(n, visit);
+		};
+		visit(s);
 	}
 	return { root, files, defs, refs: [...refs.values()] };
 }

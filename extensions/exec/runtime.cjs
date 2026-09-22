@@ -447,6 +447,7 @@ async function initialize(message) {
 	const project = Object.create(null);
 	for (const mod of reader ? [] : await resolveCellModules(message.cwd)) {
 		const loaded = Object.freeze({ ...(await import(pathToFileURL(mod.path).href)) });
+		if (typeof loaded.attach === "function") loaded.attach(capabilities);
 		if (mod.scope === "project") project[mod.name] = loaded;
 		else capabilities[mod.name] = loaded;
 	}
