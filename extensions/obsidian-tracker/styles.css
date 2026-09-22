@@ -13,3 +13,8 @@
 .trk-toggle { display: inline-block; width: 12px; color: var(--text-faint); cursor: pointer; user-select: none; font-family: var(--font-monospace); }
 .trk-empty { color: var(--text-faint); padding: 6px; font-style: italic; }
 .trk-h { margin: 12px 0 4px; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.trk-bar { display: flex; gap: 10px; align-items: center; padding: 4px 0 8px; }
+.trk-graph { width: 100%; height: calc(100% - 40px); min-height: 400px; background: var(--background-secondary); border-radius: 6px; user-select: none; }
+.trk-node { cursor: pointer; }
+.trk-node.lone text { display: none; }
+.trk-node.lone:hover text { display: block; }

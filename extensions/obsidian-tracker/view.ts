@@ -1,7 +1,8 @@
 import { BasesView, Keymap, Menu, Plugin, TFile, setIcon, type QueryController } from "obsidian";
 import { model, type Issue, type Model } from "./model.ts";
+import { Graph } from "./graph.ts";
 
-export const MODES = ["tree", "frontier", "mine", "done", "invalid", "legacy", "all"] as const;
+export const MODES = ["tree", "graph", "frontier", "mine", "done", "invalid", "legacy", "all"] as const;
 type Mode = (typeof MODES)[number];
 
 const ACTOR_COLOR = { agent: "var(--color-green)", me: "var(--color-blue)", nobody: "var(--text-faint)" };
@@ -10,6 +11,7 @@ export class TrackerView extends BasesView {
   type = "tracker";
   private root: HTMLElement;
   private toggled = new Set<string>();
+  private graph: Graph | null = null;
 
   constructor(controller: QueryController, containerEl: HTMLElement, private plugin: Plugin) {
     super(controller);
@@ -45,6 +47,8 @@ export class TrackerView extends BasesView {
     this.order = this.config.getSort().length ? new Map(this.data.data.map((e, n) => [id(e), n])) : new Map();
     const showProject = new Set(this.data.data.map((e) => id(e).split("/")[1])).size > 1;
     this.root.empty();
+    if (mode === "graph") return this.drawGraph(m, new Set(this.data.data.map(id)), showDone);
+    this.graph?.stop(); this.graph = null;
     const groups = this.data.groupedData;
     const grouped = groups.length > 1 || groups.some((g) => g.hasKey());
     for (const g of groups) {
@@ -64,6 +68,30 @@ export class TrackerView extends BasesView {
       for (const i of rows) this.row(into, i, showProject);
     }
     if (!groups.length) this.empty(this.root);
+  }
+
+  onunload() { this.graph?.stop(); }
+
+  // Positions live in the Graph across data updates so nodes don't jump; pinned positions persist in the Base.
+  private drawGraph(m: Model, visible: Set<string>, showDone: boolean) {
+    const nodes = [...m.issues.values()].filter((i) => visible.has(i.id) && !i.legacy && (showDone || !i.subtreeDone));
+    this.graph ??= new Graph({
+      pinned: this.option<Record<string, [number, number]>>("pinned", {}),
+      open: (i, ev) => this.app.workspace.openLinkText(i.id, "", Keymap.isModEvent(ev)),
+      hover: (i, ev, el) => this.app.workspace.trigger("hover-link", { event: ev, source: "tracker", hoverParent: this, targetEl: el, linktext: i.id, sourcePath: "" }),
+      menu: (i, ev) => this.fileMenu(i, ev),
+      pin: (pinned) => this.config.set("pinned", pinned),
+      label: (i) => i.slug,
+    });
+    this.graph.mount(this.root, nodes);
+  }
+
+  private fileMenu(i: Issue, ev: MouseEvent) {
+    const file = this.app.vault.getAbstractFileByPath(i.id + ".md");
+    if (!(file instanceof TFile)) return;
+    const menu = new Menu();
+    this.app.workspace.trigger("file-menu", menu, file, "tracker");
+    menu.showAtMouseEvent(ev);
   }
 
   private empty(into: HTMLElement) { into.createDiv({ cls: "trk-empty", text: "nothing" }); }
@@ -121,12 +149,6 @@ export class TrackerView extends BasesView {
     a.dataset.href = i.id;
     a.addEventListener("click", (ev) => { ev.preventDefault(); this.app.workspace.openLinkText(i.id, "", Keymap.isModEvent(ev)); });
     a.addEventListener("mouseover", (ev) => this.app.workspace.trigger("hover-link", { event: ev, source: "tracker", hoverParent: this, targetEl: a, linktext: i.id, sourcePath: "" }));
-    a.addEventListener("contextmenu", (ev) => {
-      const file = this.app.vault.getAbstractFileByPath(i.id + ".md");
-      if (!(file instanceof TFile)) return;
-      const menu = new Menu();
-      this.app.workspace.trigger("file-menu", menu, file, "tracker");
-      menu.showAtMouseEvent(ev);
-    });
+    a.addEventListener("contextmenu", (ev) => this.fileMenu(i, ev));
   }
 }

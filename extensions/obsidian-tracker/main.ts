@@ -12,7 +12,7 @@ export default class TrackerPlugin extends Plugin {
       factory: (controller, containerEl) => new TrackerView(controller, containerEl, this),
       options: (config: BasesViewConfig) => [
         { type: "dropdown", key: "mode", displayName: "Mode", default: "tree", options: Object.fromEntries(MODES.map((m) => [m, m])) },
-        { type: "toggle", key: "showDone", displayName: "Show done", default: false, shouldHide: () => !["tree", "all"].includes(String(config.get("mode") ?? "tree")) },
+        { type: "toggle", key: "showDone", displayName: "Show done", default: false, shouldHide: () => !["tree", "graph", "all"].includes(String(config.get("mode") ?? "tree")) },
         { type: "toggle", key: "includeDeferred", displayName: "Include deferred", default: false, shouldHide: () => !["frontier", "mine"].includes(String(config.get("mode") ?? "tree")) },
       ],
     });
