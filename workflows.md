@@ -4,7 +4,7 @@ Policy read at call time by lib/prepare.ts. Model preferences live in routing.md
 
 ## Introduce
 
-Establish new intent in the project: find related work, distinguish what is agreed from what is open, and prepare its tracker record. Reuse an existing issue when appropriate. Stop once the idea is established; shaping or execution is a separate choice.
+Establish new intent in the project: find related work, distinguish what is agreed from what is open, and prepare its tracker record. Locate the motivating user story and preserve the originating request or observation; extend an existing story and issue where appropriate. Stop once the idea is established; shaping or execution is a separate choice.
 
 ## Orient (also advance)
 
@@ -14,7 +14,7 @@ Recommend resuming or starting a supervisor, shaping an issue, or introducing ne
 
 ## Shape
 
-Drive an issue from intent to agent-ready contracts using map and plan. Resolve discoverable facts through research or experiments; bring consequential choices to the user. Own exploratory children and interpretation of their results. Record the destination, decisions, holes, dependencies, delegated authority and observable acceptance. Planning creates or updates the durable stories verification will consume; refactors may preserve existing stories. Report changed contracts and newly ready work to the scope's supervisor.
+Drive an issue from intent to agent-ready contracts using map and plan. Resolve discoverable facts through research or experiments; bring consequential choices to the user. Own exploratory children and interpretation of their results. Record the destination, decisions, holes, dependencies, delegated authority and observable acceptance. Planning updates durable stories with intended behavior and makes first use possible, including setup and missing fixtures. Guides and recordings are written together just before or during first use; assertions arise from reviewing that encounter, not from a planned program-step inventory. Refactors may preserve existing stories. Report changed contracts and newly ready work to the scope's supervisor.
 
 ## Supervise
 
@@ -22,7 +22,7 @@ Carry an agreed issue subtree through execution, integration, verification and t
 
 Triage within recorded decisions. Surface consequentially wrong or incomplete tickets as bounded shaping assignments, ranked by what they unblock, for separate sessions. Continue independent branches. Incorporate their conclusions from updated tickets and completion reports.
 
-After integration, verify the affected stories and reconcile the tracker with the evidence. Distinguish landed from verified; dispose of findings explicitly and close only against acceptance. Report progress toward the destination, not worker counts. Keep the parent current: established outcomes, remaining work, and needed decisions, with evidence links.
+After integration, run project lints and verify the affected stories through the [delivery lifecycle](docs/delivery.md), then reconcile the tracker with the evidence. Distinguish landed from verified; dispose of findings explicitly and close only against acceptance. Report progress toward the destination, not worker counts. Keep the parent current: established outcomes, remaining work, and needed decisions, with evidence links.
 
 Keep the supervisor session across waves, using OM and compaction. Shared truth belongs in tickets and project docs; working context in the session and OM; worker handles and integration state in durable orchestration records. At checkpoints make replacement recoverable, without requiring replacement. Fresh workers and verifiers provide bounded context and independent judgment.
 

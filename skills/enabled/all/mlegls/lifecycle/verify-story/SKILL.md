@@ -1,23 +1,11 @@
 ---
 name: verify-story
 description: "Use to check that the product does what a story claims: drive it as its user would and record what you observe."
-argument-hint: "a story ID, a subtree, or the whole tree"
+argument-hint: "a story, subtree, or changed journey"
 ---
 
-1. Read the stories in scope; the guide each cites is the script, its
-   steps block says what the guide leaves out, its checks note what to look
-   at on the way.
-2. A story whose `sequence:` names a recorded drive is verified by running it:
-   green means the checks its reviewer wrote in still hold, and you drive by
-   hand only what has no recording or is red. Record a new drive the way the
-   project's development doc says, then write what you checked into its block
-   so the next pass is a test run; a red block is re-driven from its failing
-   step, and only that block is re-accepted.
-3. Otherwise be the persona, as the personas doc says, and follow the guide through
-   the persona's surface: CLI, browser, API, or importing code. Look at the
-   join, not at every step.
-4. Record what you observe in the story's argument, with the date. A
-   counterexample is stated there and becomes an issue with reproduction
-   steps. A step the guide got wrong is corrected in the guide; a step the block got wrong, in the block.
-5. Report the claims driven, which held, and what could not be observed and why.
-   Distinguish a counterexample to the claim being driven from another problem noticed along the way.
+1. Read the story, intended outcome and existing evidence. Use the prepared starting state and the persona's real surface: browser, CLI, API or library. Report missing setup as unfinished delivery work.
+2. Replay accepted recordings for unchanged paths. Drive new or changed behavior through actual use, using automated computer use where available. Write or revise the guide just before and during that encounter, alongside the action recording; correct both against the interface. Follow the project's development docs for recording.
+3. Review the use log, screenshots and relevant state. What went wrong, what was uncertain, what promise did an action lead you to rely on? Put checks at those moments in the recorded sequence (`testing`), then replay it. Re-drive failing or changed portions rather than rediscovering the whole journey.
+4. Keep the story's supported behavior and limits current; link detailed evidence rather than accumulating drive transcripts there. A counterexample becomes an issue with its originating story, reproduction and author/session. Distinguish failures of the intended claim from other discoveries.
+5. Report what held, failed or remains unobserved. A green recording proves only what its reviewed checks cover. Acceptance and digestion need no human involvement unless a decision or interactive feedback requires it.
