@@ -26,6 +26,11 @@ torch.set_num_threads(4)
 cases = [{"name": r["name"], "source": r["source"]} for r in json.loads((root / "docs/research/caveman/indexed.json").read_text())["receipts"]]
 doc = (root / "docs/ingress.md").read_text()
 cases.append({"name": "reading-policy", "source": doc.split("## Reading policy\n", 1)[1].split("## Replay records", 1)[0].strip()})
+jobs = "--jobs" in sys.argv
+if jobs:
+    cases = json.load(sys.stdin)["jobs"]
+    if any(c["rate"] not in [0, 0.25, 0.5, 0.75, 1] for c in cases):
+        raise ValueError("invalid retention rate")
 start = time.perf_counter()
 with contextlib.redirect_stdout(sys.stderr):
     compressor = PromptCompressor(model_name=model, device_map=device,
@@ -47,11 +52,12 @@ compress(cases[0]["source"], 0.5)
 warmup_ms = (time.perf_counter() - start) * 1000
 for case in cases:
     case["variants"] = []
-    for rate in [0.75, 0.5, 0.35]:
+    for rate in ([case["rate"]] if jobs else [0.75, 0.5, 0.35]):
         timings = []
-        for _ in range(3):
+        for _ in range(1 if jobs else 3):
             start = time.perf_counter()
-            result = compress(case["source"], rate)
+            result = ({"compressed_prompt": case["source"] if rate == 1 else ""}
+                      if rate in [0, 1] else compress(case["source"], rate))
             timings.append(round((time.perf_counter() - start) * 1000, 1))
         case["variants"].append({"requestedRetention": rate, "elapsedMs": timings, "result": result})
     print("finished " + case["name"], file=sys.stderr, flush=True)

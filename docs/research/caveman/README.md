@@ -85,3 +85,5 @@ surface; no production regression assertions or automatic fallback gate were add
 ## Local-model follow-up
 
 [LLMLingua-2 comparison](LLMLINGUA.md): existing token-compression models, local CPU/MPS inference, and the same failure probes.
+
+[Focus-dependent retention replay](RETENTION.md): Jev chooses full / 75 / 50 / 25 / omit, then LLMLingua compresses only selected skims.
