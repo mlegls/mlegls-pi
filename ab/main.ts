@@ -75,7 +75,7 @@ async function read(args: string[]) {
 
 async function grep(args: string[]) {
 	const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
-		"ignore-case": { type: "boolean", short: "i" }, fixed: { type: "boolean", short: "F" },
+		"ignore-case": { type: "boolean", short: "i" }, "line-number": { type: "boolean", short: "n" }, fixed: { type: "boolean", short: "F" },
 		glob: { type: "string", short: "g" }, limit: { type: "string", short: "m" }, context: { type: "string", short: "C" },
 	} });
 	const [pattern, ...paths] = positionals;

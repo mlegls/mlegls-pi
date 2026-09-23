@@ -147,9 +147,10 @@ export default function (pi: ExtensionAPI) {
 			if (outcome === "abort") { kill(job); await job.done; }
 			const earlier = await drain(ctx);
 			if (outcome === "yield") {
-				job.detached = true;
 				void job.done.then(code => { late.push({ job, code }); if (!busy) void flush(); });
-				return { content: [...earlier, ...await output(job, undefined, ctx, { raw: true })], details: { handle: job.handle, pid: job.pid, running: true } };
+				const running = await output(job, undefined, ctx, { raw: true });
+				job.detached = true;
+				return { content: [...earlier, ...running], details: { handle: job.handle, pid: job.pid, running: true } };
 			}
 			const code = outcome === "abort" ? "interrupted" : outcome;
 			return { content: [...earlier, ...await output(job, code, ctx, { raw, focus })], details: { handle: job.handle, exitCode: code } };
