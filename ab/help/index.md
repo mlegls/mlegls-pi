@@ -11,6 +11,7 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab lib MODULE [FN] [ARG]  call a lib/ export; ARGs parse as JSON when they can
   ab daemon [status|stop ID|shutdown] manage the per-user job daemon
   ab job start TYPE JSON  start a restartable job
+  ab supervise start TICKET  run a subtree's implement → verify → integrate loop, waking this agent on exceptions
 
 ab CMD --help for each. Plain shell covers the rest: fd, rg, cat > f <<'EOF', sed, jq, git.
 The same code is importable from bun/node/zx: lib/*.ts, extensions/exec/source.ts.

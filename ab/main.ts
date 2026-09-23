@@ -13,7 +13,7 @@ const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
 const stateDir = process.env.AB_SESSION_STATE ?? process.env.AB_STATE ?? join(abStateRoot, createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job"];
+const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -175,6 +175,50 @@ async function job(args: string[]) {
 	console.log(JSON.stringify(result));
 }
 
+// Supervision loop (lib/jobs/supervise.ts) run by the daemon for the owning agent. State and
+// the owner's resume commands live under the checkout's git dir, keyed by ticket.
+async function supervise(args: string[]) {
+	const api = await import("../lib/daemon.ts");
+	const [verb, ticket, ...rest] = args;
+	const gitDir = spawnSync("git", ["rev-parse", "--absolute-git-dir"], { cwd, encoding: "utf8" }).stdout.trim();
+	const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).stdout.trim();
+	if (!gitDir || !top) fail("supervise runs in the owner's checkout");
+	const dir = join(gitDir, "ab-supervise");
+	const jobs = (await api.status()).filter(j => j.type === "supervise" && (j.input as any).cwd === top && (!ticket || (j.input as any).ticket === ticket));
+	if (verb === "start" && ticket) {
+		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" } } });
+		const owner = process.env.PASEO_AGENT_ID;
+		if (!owner) fail("supervise start needs PASEO_AGENT_ID: the owning agent is woken on exceptions");
+		if (jobs.some(j => j.status === "running")) fail("already supervising " + ticket + "; ab supervise status " + ticket);
+		const previous = jobs.at(-1);
+		mkdirSync(dir, { recursive: true });
+		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
+		const input = { ticket, cwd: top, owner, budget: Number(values.budget ?? 3), test: values.test, commands: join(dir, ticket + ".commands.jsonl"), carried: previous?.state ?? null };
+		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
+		console.log(record.id + " " + record.status + (previous ? " (continuing " + previous.id + ")" : ""));
+		return;
+	}
+	if (verb === "status" || !verb) {
+		if (!jobs.length) return console.log("no supervision jobs here");
+		for (const j of jobs) {
+			const s = j.state as any;
+			console.log(j.id + " " + j.status + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : ""));
+			for (const c of Object.values<any>(s?.children ?? {})) console.log("  " + c.slug + " " + c.phase + " " + (c.handle.agentId ?? c.handle.handle) + (c.waiting ? " waiting: " + c.waiting : ""));
+		}
+		return;
+	}
+	if (verb === "resume" && ticket && rest.length === 2 && ["verify", "integrate", "drop", "redispatch"].includes(rest[1])) {
+		const running = jobs.find(j => j.status === "running");
+		if (!running) fail("no running supervision of " + ticket + "; ab supervise start " + ticket + " continues from its state");
+		appendFileSync((running.input as any).commands, JSON.stringify({ child: rest[0], action: rest[1] }) + "\n");
+		console.log("queued " + rest[1] + " " + rest[0]);
+		return;
+	}
+	if (verb === "stop" && ticket) { for (const j of jobs.filter(j => j.status === "running")) console.log(JSON.stringify((await api.stop(j.id)).status)); return; }
+	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | stop <ticket>");
+}
+
+
 function pull(args: string[]) {
 	for (const id of args) {
 		const file = join(stateDir, "ingress", id);
@@ -199,7 +243,7 @@ async function lib(args: string[]) {
 const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
-const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job };
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
 catch (error) { fail(error instanceof Error ? error.message : String(error)); }
