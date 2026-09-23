@@ -20,12 +20,12 @@ const HEAD = 8 * 1024, TAIL = 32 * 1024, BUDGET = 16 * 1024;
 // An unhandled failure anywhere in a composed command reports itself and the script goes on
 // (unlike set -e). ERR skips if/while conditions and the left of && and ||, so expected
 // failures stay quiet; set -E carries the trap into functions and substitutions (a failing
-// function reports inside and again at its call). bash -c counts lines from 0, so with the
-// prelude on line 0, LINENO is the command's own 1-based line. stderr joins stdout so the
-// merged output keeps its order; reports go to a saved copy of that stream, so a failure
-// inside $(...) is reported rather than captured into the value. A fixed fd, since macOS's
-// bash 3.2 has no {var} allocation.
-export const PRELUDE = "exec 2>&1 19>&1; set -E; trap 'echo \"[exit $? at line $LINENO: $BASH_COMMAND]\" >&19' ERR\n";
+// function reports inside and again at its call). Line numbers are the command's own:
+// bash -c counts from 0 in 3.2 and from 1 in 5, so they are relative to the prelude's line.
+// stderr joins stdout so the merged output keeps its order; reports go to a saved copy of
+// that stream, so a failure inside $(...) is reported rather than captured into the value.
+// A fixed fd, since macOS's bash 3.2 has no {var} allocation.
+export const PRELUDE = "exec 2>&1 19>&1; set -E; __ab_line=$LINENO; trap 'echo \"[exit $? at line $((LINENO - __ab_line)): $BASH_COMMAND]\" >&19' ERR\n";
 // Seconds a call waits before returning a handle; PI_BASH_YIELD_S=0 makes every call return at once.
 const YIELD_S = process.env.PI_BASH_YIELD_S !== undefined && Number.isFinite(Number(process.env.PI_BASH_YIELD_S)) ? Number(process.env.PI_BASH_YIELD_S) : 10;
 
@@ -41,6 +41,10 @@ export default function (pi: ExtensionAPI) {
 	let next = 1;
 	let late: { job: Job; code: number | string }[] = [];
 	let busy = false;
+	// Every wake-up re-reads the whole context, so completions close together share one:
+	// a flush waits SETTLE_MS after the latest completion, and at most MAX_SETTLE_MS after the first.
+	const SETTLE_MS = 500, MAX_SETTLE_MS = 2000;
+	let settle: ReturnType<typeof setTimeout> | undefined, firstLate = 0;
 	let lastCtx: ExtensionContext | undefined;
 	const jobs = new Map<string, Job>();
 	const ingress = createIngress({
@@ -64,7 +68,10 @@ export default function (pi: ExtensionAPI) {
 		const log = join(state, "out", handle + ".log");
 		const attach = join(state, "out", handle + ".attach");
 		const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
-		const env = { ...process.env, PATH: BIN + ":" + process.env.PATH, AB_STATE: abStateRoot, AB_SESSION_STATE: state, AB_OUT: attach };
+		// PI_BASH_PATH puts directories ahead of the user's PATH for agent commands only,
+		// e.g. GNU userland on macOS, where models expect GNU sed/grep/date.
+		const path = [BIN, process.env.PI_BASH_PATH, process.env.PATH].filter(Boolean).join(":");
+		const env = { ...process.env, PATH: path, AB_STATE: abStateRoot, AB_SESSION_STATE: state, AB_OUT: attach };
 		// Own process group, so interrupting kills the command's children too.
 		const child = spawn("bash", ["-c", PRELUDE + command], { cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
 		const file = createWriteStream(log);
@@ -126,7 +133,16 @@ export default function (pi: ExtensionAPI) {
 		return out;
 	}
 
+	function schedule() {
+		if (busy) return;
+		const now = Date.now();
+		if (!settle) firstLate = now;
+		clearTimeout(settle);
+		settle = setTimeout(() => { settle = undefined; void flush(); }, Math.min(SETTLE_MS, Math.max(0, firstLate + MAX_SETTLE_MS - now)));
+	}
+
 	async function flush() {
+		clearTimeout(settle); settle = undefined;
 		if (busy || !late.length) return;
 		const content = await drain(lastCtx);
 		pi.sendMessage({ customType: "bash-output", content, display: true }, { triggerTurn: true, deliverAs: "followUp" });
@@ -162,7 +178,7 @@ export default function (pi: ExtensionAPI) {
 			if (outcome === "yield") {
 				const running = await output(job, undefined, ctx, { raw: true });
 				job.detached = true;
-				void job.done.then(code => { late.push({ job, code }); if (!busy) void flush(); });
+				void job.done.then(code => { late.push({ job, code }); schedule(); });
 				return { content: [...earlier, ...running], details: { handle: job.handle, pid: job.pid, running: true } };
 			}
 			const code = outcome === "abort" ? "interrupted" : outcome;
