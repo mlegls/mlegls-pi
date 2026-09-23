@@ -5,7 +5,7 @@ import { dispatch } from './dispatch.ts';
 test('a fill assignment can use its default or an independently pinned model', async () => {
   const standard = await prepare('A supplied bounded edit', { assignee: 'agent:fill' });
   if (standard.kind !== "ready") throw new Error("Expected ready assignment");
-  expect([standard.agent, standard.model, standard.effort]).toEqual(['fill', 'openai-codex/gpt-5.6-luna', 'high']);
+  expect([standard.agent, standard.model, standard.effort]).toEqual(['fill', 'openai-codex/gpt-6-luna', 'high']);
   const override = await prepare('The same bounded edit', { assignee: 'agent:fill, model:zai/glm-5.3-flash:high' });
   if (override.kind !== "ready") throw new Error("Expected ready assignment");
   expect([override.agent, override.model, override.effort]).toEqual(['fill', 'zai/glm-5.3-flash', 'high']);

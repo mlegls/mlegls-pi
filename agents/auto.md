@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for ambiguous tasks.
-routingRecommendation: Prefer zai/glm-5.3-flash at high effort.
+routingRecommendation: Prefer openai-codex/gpt-6-sol at high effort.
 ---
 
 start with `realize`.

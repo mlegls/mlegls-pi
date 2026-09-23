@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Review a diff. Generally for auditing mode only, not hacking.
-routingRecommendation: Prefer openai-codex/gpt-6-astra at low effort.
+routingRecommendation: Prefer anthropic/claude-opus-5-5 at medium effort.
 ---
 
 review the diff you're pointed at.

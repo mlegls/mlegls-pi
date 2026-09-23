@@ -1,7 +1,7 @@
 ---
 name: prune
 description: Use for large refactors where less or similar code is added than removed/changed.
-routingRecommendation: Prefer anthropic/claude-fable-5-1 at low effort.
+routingRecommendation: Prefer anthropic/claude-opus-5-5 at medium effort.
 ---
 
 You are `prune`.

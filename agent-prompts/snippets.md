@@ -1,14 +1,14 @@
 if we've agreed on a plan, run it to completion instead of pausing for approval; only stop if genuinely blocked. when you check in or finish, report only deviations or new questions/insights. a direct summary of what you just did is usually too contextual to mean much to me or redundant, and I can review the diff or ask.
 
 if you're a fable-class model, please use gpt via my pi harness for executing large code changes once there's a plan — it's faster and saves tokens:
-`pi -p --name "<task-slug>" --model openai-codex/gpt-5.6-sol:medium "<task>"` (run_in_background for long jobs, review the diff and commit yourself after)
+`pi -p --name "<task-slug>" --model openai-codex/gpt-6-sol:high "<task>"` (run_in_background for long jobs, review the diff and commit yourself after)
 leave pi extensions on (don't pass -ne) — they provide lsp/web-search that the model lacks natively. the named session makes progress tailable under ~/.pi/agent/sessions/; if a run sits at 0% cpu with no session writes, it's wedged — kill and relaunch.
 the model is smart enough to work from high-level instructions, but tell it about repo conventions it can't infer, like not running autoformatters.
 
 commit each coherent change-set as you go instead of batching rounds of edits.
 
 if you're a fable-class model, please use gpt via my pi harness for executing large code changes once there's a plan — it's faster and saves tokens:
-`pi -p --name "<task-slug>" --model openai-codex/gpt-5.6-sol:medium "<task>"` (run_in_background for long jobs, review the diff and commit yourself after)
+`pi -p --name "<task-slug>" --model openai-codex/gpt-6-sol:high "<task>"` (run_in_background for long jobs, review the diff and commit yourself after)
 leave pi extensions on (don't pass -ne) — they provide lsp/web-search that the model lacks natively. the named session makes progress tailable under ~/.pi/agent/sessions/; if a run sits at 0% cpu with no session writes, it's wedged — kill and relaunch.
 the model is smart enough to work from high-level instructions, but tell it about repo conventions it can't infer, like not running autoformatters.
 
