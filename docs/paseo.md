@@ -52,7 +52,7 @@ await paseo.withClient(c => c.agents.ref(agentId).send("Follow-up"));
 await show(await paseo.withClient(c => c.agents.ref(agentId).timeline.refetch()));
 ```
 
-`send` resolves on daemon acceptance, not completion of the recipient turn. A worker can use it to ask its parent without waiting on that parent. Native completion notifications and final `done`/`blocked`/`needs-input` reports remain the reporting convention. Read the outcome and check the assignment criterion: a finished turn is not a finished assignment.
+`send` resolves on daemon acceptance, not completion of the recipient turn. A worker can use it to ask its parent without waiting on that parent. SDK-created children don't notify the parent natively (Paseo's `notifyOnFinish` applies only to MCP `create_agent`); waits on `waitForFinish` and final `done`/`blocked`/`needs-input` reports remain the reporting convention. Read the outcome and check the assignment criterion: a finished turn is not a finished assignment.
 
 For streaming, retain `await paseo.connect()` and the native timeline subscription, await its `.ready`, then unsubscribe and close in `finally`. Do not return a live handle or subscription from `withClient`: its connection is already closed. Reconnection is opt-in; live timeline delivery does not replay missed history, so explicitly refetch it. Native SDK objects are not durable across an exec reset; IDs are.
 
