@@ -17,6 +17,17 @@ import { ingressContext } from "../exec/ingress-context";
 const BIN = resolve(dirname(new URL(import.meta.url).pathname), "../../bin");
 const REPLACED = ["read", "edit", "write", "grep", "find", "ls", "exec"];
 const HEAD = 8 * 1024, TAIL = 32 * 1024, BUDGET = 16 * 1024;
+// An unhandled failure anywhere in a composed command reports itself and the script goes on
+// (unlike set -e). ERR skips if/while conditions and the left of && and ||, so expected
+// failures stay quiet; set -E carries the trap into functions and substitutions (a failing
+// function reports inside and again at its call). bash -c counts lines from 0, so with the
+// prelude on line 0, LINENO is the command's own 1-based line. stderr joins stdout so the
+// merged output keeps its order; reports go to a saved copy of that stream, so a failure
+// inside $(...) is reported rather than captured into the value. A fixed fd, since macOS's
+// bash 3.2 has no {var} allocation.
+export const PRELUDE = "exec 2>&1 19>&1; set -E; trap 'echo \"[exit $? at line $LINENO: $BASH_COMMAND]\" >&19' ERR\n";
+// Seconds a call waits before returning a handle; PI_BASH_YIELD_S=0 makes every call return at once.
+const YIELD_S = process.env.PI_BASH_YIELD_S !== undefined && Number.isFinite(Number(process.env.PI_BASH_YIELD_S)) ? Number(process.env.PI_BASH_YIELD_S) : 10;
 
 interface Job {
 	handle: string; command: string; pid: number; started: number; log: string;
@@ -54,7 +65,7 @@ export default function (pi: ExtensionAPI) {
 		const attach = join(state, "out", handle + ".attach");
 		const env = { ...process.env, PATH: BIN + ":" + process.env.PATH, AB_STATE: state, AB_OUT: attach };
 		// Own process group, so interrupting kills the command's children too.
-		const child = spawn("bash", ["-c", command], { cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+		const child = spawn("bash", ["-c", PRELUDE + command], { cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
 		const file = createWriteStream(log);
 		const job: Job = { handle, command, pid: child.pid ?? 0, started: Date.now(), log, attach, chunks: [], size: 0, detached: false, child, done: undefined as any };
 		const take = (chunk: Buffer) => {
@@ -124,20 +135,21 @@ export default function (pi: ExtensionAPI) {
 		name: "bash",
 		label: "bash",
 		description: [
-			"Run a bash command in the workspace. The call returns when the command finishes, or after wait seconds (default 10) with a handle while it keeps running; its result then arrives by itself. Don't poll or sleep for it. Independent commands can be parallel calls in one turn.",
+			"Run a bash command in the workspace. The call returns when the command finishes, or after wait seconds (default " + YIELD_S + ") with a handle while it keeps running; its result then arrives by itself. Don't poll or sleep for it. Independent commands can be parallel calls in one turn.",
+			"A failing command inside a script prints [exit N at line L: cmd] and the script continues; conditions and || handle failures silently.",
 			"Output is read with attention to the conversation: skimmed or omitted parts carry an ing-… id that ab pull recovers. raw: true returns exact output; focus names what to look for. Long output keeps head and tail; the full log path is shown.",
 			"ab --help: anchored read/grep/edit (ab read prints N abcd│text rows; ab edit takes =abcd hunks on stdin), images (ab view), skills (ab skill), TypeScript code graph (ab code), lib/ adapters; exa-cli for web search. Write files with cat > path <<'EOF'.",
 		].join("\n"),
 		parameters: Type.Object({
 			command: Type.String({ description: "Bash source; runs with bash -c in the workspace." }),
-			wait: Type.Optional(Type.Number({ description: "Seconds to wait before returning a handle (default 10, 0 returns immediately)." })),
+			wait: Type.Optional(Type.Number({ description: "Seconds to wait before returning a handle (default " + YIELD_S + ", 0 returns immediately)." })),
 			focus: Type.Optional(Type.String({ description: "What to look for in the output." })),
 			raw: Type.Optional(Type.Boolean({ description: "Exact output, no attention filtering." })),
 		}),
 		async execute(_id, { command, wait, focus, raw }, signal, _onUpdate, ctx) {
 			lastCtx = ctx;
 			const job = start(command, ctx.cwd);
-			const window = Math.max(0, wait ?? (Number(process.env.PI_BASH_YIELD_S) || 10)) * 1000;
+			const window = Math.max(0, wait ?? YIELD_S) * 1000;
 			let timer: ReturnType<typeof setTimeout> | undefined, poll: ReturnType<typeof setInterval> | undefined;
 			const aborted = new Promise<"abort">(resolve => signal?.addEventListener("abort", () => resolve("abort"), { once: true }));
 			// A steering message detaches the command rather than waiting out the window.
