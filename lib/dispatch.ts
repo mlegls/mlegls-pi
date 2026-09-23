@@ -52,7 +52,7 @@ export interface Receipt {
 export async function dispatch(assignments: Assignment[], options: Options): Promise<Receipt> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const backend = executionHost();
-  if (!(backend === "orca" ? /^run_[A-Za-z0-9]+$/ : /^[A-Za-z0-9][A-Za-z0-9_/-]*$/).test(options.run)) throw new Error("dispatch: invalid run");
+  if (typeof options.run !== "string" || !(backend === "orca" ? /^run_[A-Za-z0-9]+$/ : /^[A-Za-z0-9][A-Za-z0-9_/-]*$/).test(options.run)) throw new Error("dispatch: invalid run");
   if (!Number.isSafeInteger(options.maxConcurrent) || options.maxConcurrent < 1)
     throw new Error("dispatch: positive maxConcurrent required");
   if (!Array.isArray(options.active) || options.active.some(handle => handle.backend !== backend))
