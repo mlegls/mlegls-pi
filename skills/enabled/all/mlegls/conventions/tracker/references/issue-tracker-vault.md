@@ -28,6 +28,8 @@ Omit stage only when all residual work is delegated to children; null is invalid
 
 `bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|done|tree [slug] | snapshot [slug] | check | outline`. Scope explicitly selects deferred work too. Frontier uses whole-subtree readiness, eligibility, blockers and conservative claims; mine uses explicit human/user assignment including pre-spec shaping; done exposes live results for digestion. Tree shows own and effective stage. Outline reconciles the project vault note. `snapshot --json` (or query `--json`) provides schemaVersion, lifecycle issues and a separate legacy collection; rows expose ownStage, effectiveStage, ready, eligible, frontier, blockers, claims, selectors and done. Omitted ownStage is serialized as null, not valid stored YAML. JSON is a model projection; run `check` separately for diagnostics.
 
+`check` rewrites vault-absolute issue links left dangling by archiving or un-archiving to where the issue now is, and prints each as `fixed`.
+
 The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
 
 Frontmatter is a strict YAML mapping. Relations are quoted vault-absolute issue wikilinks; blocked-by is a list. Every query rejects malformed YAML, duplicate keys/slugs, aliases, explicit tags, merge keys, invalid tracker fields and relation cycles before emitting results. Extra metadata is allowed; attachments/ is not scanned as issues. `check` preserves link/heading checks and flags resolved blockers and suspect claims.

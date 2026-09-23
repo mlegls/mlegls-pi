@@ -11,7 +11,7 @@
 //
 // Run from anywhere inside a project; the nearest docs/issues/ upward is used.
 
-import { readdirSync, readFileSync, statSync, existsSync, realpathSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, basename, dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -229,7 +229,9 @@ function tree(root: Issue | undefined, all: Map<string, Issue>, depth = 0): stri
 
 // Every [[link]] and [[link#Heading]] under docs/, resolved as Obsidian does: by
 // basename, disambiguated by the link's trailing path segments; fenced code ignored.
-function checkLinks(docs: string, say: (s: string) => void) {
+// A vault-absolute issue link left dangling by archiving (or un-archiving) is
+// rewritten to where the issue now is, and reported as fixed.
+function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) => void) {
   const files: string[] = [];
   const walk = (d: string) => {
     for (const name of readdirSync(d)) {
@@ -268,19 +270,37 @@ function checkLinks(docs: string, say: (s: string) => void) {
     }
     return h;
   };
+  // projects/<repo>/issues/<slug> <-> projects/<repo>/issues/archive/<slug>
+  const moved = (target: string): string | undefined => {
+    const m = target.match(/^(projects\/[^/]+\/issues\/)(archive\/)?([^/]+)$/);
+    if (!m) return undefined;
+    const alt = m[1] + (m[2] ? "" : "archive/") + m[3];
+    return resolveLink(alt) ? alt : undefined;
+  };
   const seen = new Set<string>();
   for (const f of files) {
-    const text = readFileSync(f, "utf8").replace(/^```[\s\S]*?^```/gm, "");
+    const raw = readFileSync(f, "utf8");
+    const text = raw.replace(/^```[\s\S]*?^```/gm, "");
+    const fixes = new Map<string, string>();
     const rel = f.slice(docs.length + 1);
     for (const m of text.matchAll(/\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g)) {
       const target = m[1].trim();
       if (seen.has(rel + m[0])) continue;
       seen.add(rel + m[0]);
       const to = resolveLink(target);
-      if (!to) say(`${rel}: [[${target}]] does not exist`);
+      const alt = to ? undefined : moved(target);
+      if (alt) fixes.set(target, alt);
+      else if (!to) say(`${rel}: [[${target}]] does not exist`);
       else if (m[2] && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim()))
         say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
     }
+    if (!fixes.size) continue;
+    let out = raw;
+    for (const [from, to] of fixes) {
+      for (const end of ["]]", "#", "|"]) out = out.split("[[" + from + end).join("[[" + to + end);
+      fixed(`${rel}: [[${from}]] -> [[${to}]]`);
+    }
+    writeFileSync(f, out);
   }
 }
 
@@ -419,7 +439,7 @@ if (cmd !== "lint") switch (cmd) {
       if (i.next && !KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
       if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; verify ownership before clearing`);
     }
-    checkLinks(dirname(dir), say);
+    checkLinks(dirname(dir), say, (s) => console.log("fixed " + s));
     if (!bad) console.log("ok");
     else process.exitCode = 1;
     break;

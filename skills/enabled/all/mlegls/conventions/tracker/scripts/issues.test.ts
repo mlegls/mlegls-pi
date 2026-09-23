@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -36,6 +36,16 @@ test("cross-project evidence links resolve through the vault, not a local namesa
   expect(checked.out).not.toContain("delivery");
   expect(checked.out).toContain("[[projects/other/blocker]] does not exist");
   rmSync(evidence);
+  symlinkSync(join(cwd, "docs"), join(vault, "projects/fixture"));
+  writeFileSync(join(cwd, "docs/issues/archive/gone.md"), "---\nstage: done\n---\n");
+  writeFileSync(evidence, "[[projects/fixture/issues/gone]] [[projects/fixture/issues/gone|alias]]\n");
+  const fixed = run("check");
+  expect(fixed.out).toContain("fixed migration.md: [[projects/fixture/issues/gone]] -> [[projects/fixture/issues/archive/gone]]");
+  expect(fixed.out).not.toContain("does not exist");
+  expect(readFileSync(evidence, "utf8")).toBe("[[projects/fixture/issues/archive/gone]] [[projects/fixture/issues/archive/gone|alias]]\n");
+  rmSync(evidence);
+  rmSync(join(cwd, "docs/issues/archive/gone.md"));
+  rmSync(join(vault, "projects/fixture"));
 });
 
 test("format-equivalent dependencies preserve all queries", () => {

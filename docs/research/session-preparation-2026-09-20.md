@@ -8,7 +8,7 @@ Driven through `advance.run` and `introduce.run` with disposable git projects an
 - **Hard — conflicting incident-workflow goals, empty tracker.** Jev chose hard (winning probability .85); the router chose Fable at medium effort. Fable returned a `map`/grilling assignment, concrete questions, stopping condition and context in ordinary prose. The public `text` equaled the reader answer exactly. No candidate-selection or context-filtering call followed it. Optional model advice was separate metadata, absent from the directive. Total: 106.5 seconds.
 - Source session bytes and complete project snapshots were unchanged in both runs. Only private reader sessions were created.
 
-These verify the return-channel and workflow mechanisms, not calibrated selection or briefing quality. The hard answer incorrectly asserted that an issue cannot have priority without an owner; the tracker convention contains no such requirement. Strong-model prose is still model judgment, not verified tracker logic. Representative-ticket evaluation belongs with [[projects/mlegls-pi/issues/autoread-show-me]]. Latency is recorded in [[projects/mlegls-pi/issues/session-preparation-latency]].
+These verify the return-channel and workflow mechanisms, not calibrated selection or briefing quality. The hard answer incorrectly asserted that an issue cannot have priority without an owner; the tracker convention contains no such requirement. Strong-model prose is still model judgment, not verified tracker logic. Representative-ticket evaluation belongs with [[projects/mlegls-pi/issues/archive/autoread-show-me]]. Latency is recorded in [[projects/mlegls-pi/issues/archive/session-preparation-latency]].
 
 ## Existing checks
 
