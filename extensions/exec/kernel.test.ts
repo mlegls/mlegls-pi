@@ -49,6 +49,8 @@ test("a slow show yields its cell and arrives later by handle; show.sync and wai
 	await until(() => late.some(event => event.handle === "c7"));
 	expect(late.find(event => event.handle === "c7")!.passive).toBe(true);
 	expect(await cell(kernel, 'const result = await state.job; show(result.stdout, result.exitCode);')).toBe("finished 7\n");
+	expect((await cell(kernel, 'show.pull("c7.2");')).trimEnd()).toBe("finished");
+	expect((await cell(kernel, 'show.pull("c7");')).trimEnd()).toBe("now\nfinished");
 	const synced = await kernel.execute('show.sync(sh("sleep 0.3; printf synced").then(r => r.stdout));', { yieldMs: 50 });
 	expect(synced.running).toBeUndefined();
 	expect(synced.output).toBe("synced\n");

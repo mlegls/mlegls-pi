@@ -14,5 +14,5 @@ export function ingressContext(ctx: ExtensionContext, code: string): string {
     if (text.trim()) conversation.push(message.role + ": " + text.slice(-4000));
   }
   // No session context means no inferred task (e.g. standalone kernel consumers).
-  return conversation.length ? conversation.slice(-6).join("\n\n").slice(-12000) + "\n\nCurrent exec cell:\n" + code.slice(0, 4000) : "";
+  return conversation.length ? conversation.slice(-6).join("\n\n").slice(-12000) + (code ? "\n\nCurrent exec cell:\n" + code.slice(0, 4000) : "") : "";
 }

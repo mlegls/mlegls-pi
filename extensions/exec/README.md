@@ -68,6 +68,15 @@ starts a turn. A finished cell adds a passive `done` under `[c7]` that rides alo
 never wakes the agent; a late error always does. Not calling `show` means the
 result is not needed.
 
+Late output is judged twice. Relevance is scored against the request that
+started the work (the conversation and code when the cell ran), so a long task
+the conversation has since moved on from still counts as asked for. Novelty is
+scored at delivery against the conversation now: output it has already accounted
+for (observed another way, acted on, or superseded) collapses to its handle and
+first line and does not wake the agent. The threshold is P(accounted for) ≥ 0.8;
+errors and unavailable judgments deliver in full. `show.pull("c7.2")` (or
+`"c7"` for the whole cell) re-shows any handle's output until the kernel resets.
+
 The cell is only an ergonomic boundary: handles are addresses, so waiting on one
 is the same from its own cell or a later one.
 

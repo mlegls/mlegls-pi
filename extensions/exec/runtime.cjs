@@ -267,7 +267,16 @@ function showValues(raw, values, focus, sync = false, limit = OUTPUT_LIMIT) {
 }
 
 show.raw = (...values) => showValues(true, values);
-show.pull = (id) => show.raw(ingress.pull(id));
+show.pull = (id) => show.raw(HANDLE.test(id) ? handleOutput(id) : ingress.pull(id));
+
+// Emitted text by handle, so output delivered in collapsed form stays recoverable until reset.
+const HANDLE = /^c\d+(?:\.\d+)?$/;
+const outputs = new Map();
+function handleOutput(id) {
+	const keys = id.includes(".") ? [id] : [...outputs.keys()].filter(key => key === id || key.startsWith(id + "."));
+	if (!keys.some(key => outputs.has(key))) throw new Error("No output recorded for handle " + id + "; handle output expires on kernel reset");
+	return keys.map(key => outputs.get(key) ?? "").join("");
+}
 show.sync = (...values) => {
 	const focus = splitOptions(values);
 	return showValues(false, values, focus, true);
@@ -314,6 +323,8 @@ function emit(cell, value, call = 0) {
 	const text = bytes.subarray(0, end).toString();
 	budget.bytes += end;
 	budget.omitted += bytes.length - end;
+	const key = "c" + cell.id + (call ? "." + call : "");
+	if (text) outputs.set(key, (outputs.get(key) ?? "") + text);
 	if (text) cell.deliver({ type: "output", id: cell.id, call, text });
 }
 

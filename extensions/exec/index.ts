@@ -8,6 +8,7 @@ import { createComputerUseBridge } from "./computer-use";
 import { MODULES, resolveModules, describeModules, resolveProfile, type ExecProfile, type ExecModule } from "./modules";
 import { renderCall, renderResult } from "./render";
 import { ingressContext } from "./ingress-context";
+import { deliver } from "./delivery";
 
 const ENTRY_TYPE = "outline-read";
 const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
@@ -30,27 +31,29 @@ export default async function (pi: ExtensionAPI) {
 	let running = 0;
 	let busy = false;
 	let flushTimer: ReturnType<typeof setTimeout> | undefined;
+	// Late output is judged for novelty against the conversation at delivery, with the code that asked for it.
+	const origins = new Map<number, string>();
+	let lastCtx: ExtensionContext | undefined;
 
-	function drain(): ContentBlock[] {
-		const content = mergeText(queue.flatMap(event => [
-			{ type: "text" as const, text: `[${event.handle}]${event.error ? " failed" : ""}\n` },
-			...event.content,
-			...(event.error ? [{ type: "text" as const, text: event.error + "\n" }] : []),
-		]));
+	async function drain(ctx: ExtensionContext | undefined) {
+		const events = queue;
 		queue = [];
-		return content;
+		if (!events.length) return { content: [] as ContentBlock[], handles: [] as string[], wake: false };
+		const delivery = await deliver(events, ctx ? ingressContext(ctx, "") : "", handle => origins.get(Number(handle.slice(1).split(".")[0])));
+		return { ...delivery, content: mergeText(delivery.content) };
 	}
 
-	function flush() {
+	async function flush() {
 		clearTimeout(flushTimer);
 		flushTimer = undefined;
 		if (running || busy || queue.every(event => event.passive)) return;
-		const handles = queue.map(event => event.handle);
-		pi.sendMessage({ customType: "exec-output", content: drain(), display: true, details: { handles } }, { triggerTurn: true, deliverAs: "followUp" });
+		const { content, handles, wake } = await drain(lastCtx);
+		// Output the conversation already accounted for is shown to the user without starting a turn.
+		pi.sendMessage({ customType: "exec-output", content, display: true, details: { handles } }, { triggerTurn: wake, deliverAs: "followUp" });
 	}
 
 	function scheduleFlush() {
-		if (!flushTimer) flushTimer = setTimeout(flush, 250);
+		if (!flushTimer) flushTimer = setTimeout(() => void flush().catch(() => {}), 250);
 	}
 
 	async function reset(ctx?: ExtensionContext, session = false) {
@@ -76,6 +79,7 @@ export default async function (pi: ExtensionAPI) {
 		queue = [];
 		if (session) {
 			nextCell = 1;
+			origins.clear();
 			for (const entry of ctx.sessionManager.getBranch() as any[]) {
 				const message = entry.type === "message" ? entry.message : undefined;
 				const cell = message?.role === "toolResult" && message.toolName === "exec" ? message.details?.cell : undefined;
@@ -112,7 +116,7 @@ export default async function (pi: ExtensionAPI) {
 		await reset(ctx, true);
 	});
 	pi.on("agent_start", async () => { busy = true; });
-	pi.on("agent_settled", async () => { busy = false; flush(); });
+	pi.on("agent_settled", async (_event, ctx) => { busy = false; lastCtx = ctx; await flush(); });
 	pi.on("session_tree", async (_event, ctx) => { await reset(ctx, true); });
 	pi.on("session_shutdown", async () => { await reset(undefined, true); });
 
@@ -142,6 +146,8 @@ export default async function (pi: ExtensionAPI) {
 				if (configurationError) throw new Error(configurationError);
 				if (!kernel) await reset(ctx);
 				const cell = nextCell++;
+				origins.set(cell, code.slice(0, 1500));
+				lastCtx = ctx;
 				running++;
 				let result;
 				try {
@@ -152,7 +158,7 @@ export default async function (pi: ExtensionAPI) {
 						detach: () => ctx.hasPendingMessages(),
 					});
 				} finally { running--; }
-				const content = mergeText([...drain(), ...result.content]);
+				const content = mergeText([...(await drain(ctx)).content, ...result.content]);
 				if (result.error) content.push({ type: "text", text: result.error });
 				if (!content.length) content.push({ type: "text", text: "(no output)" });
 				return {
