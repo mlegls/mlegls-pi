@@ -20,7 +20,7 @@ Data: all local Pi session JSONL (2,121 files, 116,094 tool calls; extractor [ex
 
 The measured wins come from bounded output, filtering, anchored reads and host services as values, most of which don't depend on the outer language. What the outer language itself did: it paid ~2 points of interface errors, concentrated in payload and cell scoping, for in-process values (state, selections, images, terminal and agent handles, async results).
 
-Payload failures are an in-band signaling problem. JSON tool arguments and quoted heredocs (`<<'EOF'`) are raw channels; TS has none (``` and `${` are live in template literals, and String.raw cannot contain a backtick). Moving payload from edit/write tool arguments into TS literals turned a quoting-free path into the most error-prone one.
+Payload failures are an in-band signaling problem. JSON tool arguments and quoted heredocs (`<<'EOF'`) are raw channels; TS has none (`` ` `` and `${` are live in template literals, and String.raw cannot contain a backtick). Moving payload from edit/write tool arguments into TS literals turned a quoting-free path into the most error-prone one.
 
 ## Possible follow-ups
 
