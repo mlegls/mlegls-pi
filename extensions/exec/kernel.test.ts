@@ -122,6 +122,14 @@ test("discovery honors ignores but explicit reads work; limited search reports i
 	expect(await cell(kernel, 'show((await find("*.ts")).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
 }), 15000);
 
+test("process stdout/stderr written by a cell is a collapsed side stream, pullable as cN.io", () => fixture(async (kernel) => {
+	const output = await cell(kernel, 'globalThis.console.warn("DeprecationWarning: old"); process.stdout.write("raw\\n"); show("visible")');
+	expect(output).toBe('visible\n[io: 2 lines (1 stderr) written to stdout/stderr, not shown: "DeprecationWarning: old"; show.pull("c1.io")]\n');
+	expect(await cell(kernel, 'await show.pull("c1.io")')).toBe("DeprecationWarning: old\nraw\n\n");
+	expect(await cell(kernel, 'await show.pull("c1")')).toBe("visible\n\n");
+	expect(await cell(kernel, 'show("quiet")')).toBe("quiet\n");
+}));
+
 test("Bun Shell $ quotes interpolations, rejects nonzero exits with stderr, and shows stdout", () => fixture(async (kernel) => {
 	expect(await cell(kernel, 'const name = "a b; echo injected"; show(await $`printf %s ${name}`)')).toBe("a b; echo injected\n");
 	const failed = await kernel.execute('await $`exit 3`');

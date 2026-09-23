@@ -273,10 +273,10 @@ show.raw = (...values) => showValues(true, values);
 show.pull = (id) => show.raw(HANDLE.test(id) ? handleOutput(id) : ingress.pull(id));
 
 // Emitted text by handle, so output delivered in collapsed form stays recoverable until reset.
-const HANDLE = /^c\d+(?:\.\d+)?$/;
+const HANDLE = /^c\d+(?:\.(?:\d+|io))?$/;
 const outputs = new Map();
 function handleOutput(id) {
-	const keys = id.includes(".") ? [id] : [...outputs.keys()].filter(key => key === id || key.startsWith(id + "."));
+	const keys = id.includes(".") ? [id] : [...outputs.keys()].filter(key => key === id || (key.startsWith(id + ".") && !key.endsWith(".io")));
 	if (!keys.some(key => outputs.has(key))) throw new Error("No output recorded for handle " + id + "; handle output expires on kernel reset");
 	return keys.map(key => outputs.get(key) ?? "").join("");
 }
@@ -314,6 +314,39 @@ function outputWarning(cell, call) {
 	const large = budget.limit >= LARGE_OUTPUT_LIMIT;
 	cell.deliver({ type: "output", id: cell.id, call, warning: true, text: `\n[output truncated] ${budget.omitted} UTF-8 bytes omitted from this show (${budget.limit / 1024} KiB); retained values unchanged. Select a smaller slice${large ? "" : " or use show.large(value) (32 KiB)"}.\n` });
 	budget.omitted = 0;
+}
+
+// Process stdout/stderr written during a cell (library logging, the global console, stray
+// process.stdout.write) is that cell's side stream: kept under handle cN.io and announced
+// in one collapsed line when the cell finishes. Writes outside any cell stay kernel
+// diagnostics, as do subprocesses writing to inherited descriptors.
+const STREAM_LIMIT = 256 * 1024;
+function captureStreams() {
+	for (const name of ["stdout", "stderr"]) {
+		const stream = process[name], write = stream.write.bind(stream);
+		stream.write = (chunk, encoding, callback) => {
+			const cell = scope.getStore();
+			if (!cell) return write(chunk, encoding, callback);
+			const text = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString();
+			const key = "c" + cell.id + ".io", prior = outputs.get(key) ?? "";
+			if (prior.length < STREAM_LIMIT) outputs.set(key, prior + text);
+			const io = cell.io ??= { lines: 0, stderr: 0, first: "" };
+			const lines = (text.match(/\n/g) || []).length || 1;
+			io.lines += lines;
+			if (name === "stderr") io.stderr += lines;
+			if (!io.first) io.first = text.trim().split("\n")[0];
+			(typeof encoding === "function" ? encoding : callback)?.();
+			return true;
+		};
+	}
+	// Bun's native console bypasses process.stdout.write; route the global one through it.
+	globalThis.console = new (require("node:console").Console)({ stdout: process.stdout, stderr: process.stderr });
+}
+
+function streamNotice(cell) {
+	const { lines, stderr, first } = cell.io;
+	const cue = first.length > 120 ? first.slice(0, 120) + "…" : first;
+	return "[io: " + lines + " line" + (lines === 1 ? "" : "s") + (stderr ? " (" + stderr + " stderr)" : "") + " written to stdout/stderr, not shown: " + JSON.stringify(cue) + '; show.pull("c' + cell.id + '.io")]\n';
 }
 
 function emit(cell, value, call = 0) {
@@ -459,6 +492,7 @@ async function initialize(message) {
 		for (const method of Object.values(value)) if (typeof method === "function") Object.freeze(method);
 		Object.freeze(value);
 	}
+	captureStreams();
 	capabilities.console = Object.freeze({ ...console, log: show, info: show, warn: show, error: show, debug: show, dir: show });
 	capabilities.state = Object.create(null);
 	const { pathToFileURL } = require("node:url");
@@ -496,6 +530,7 @@ function execute(message) {
 			// Flush promised views even when show() was not explicitly awaited.
 			while (cell.pending.size) await Promise.allSettled([...cell.pending]);
 			outputWarning(cell, 0);
+			if (cell.io) cell.deliver({ type: "output", id: cell.id, call: 0, warning: true, text: streamNotice(cell) });
 			cell.finished = true;
 			cell.trace.finish();
 			if (active === cell) active = undefined;

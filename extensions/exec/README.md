@@ -299,8 +299,12 @@ not a security sandbox.
 ## Read, select, display
 
 Each tool call has one parameter, `code`. Values saved in `state` survive calls.
-Only `show(...)` / `console.log(...)` emit model-visible data. Raw process output
-and interrupted-shell captures are bounded UI-only diagnostics in result details.
+Only `show(...)` / `console.log(...)` emit model-visible data. Process stdout and
+stderr written during a cell (the global `console` in imported modules, library
+warnings, `process.stdout.write`) are that cell's side stream: kept under handle
+`cN.io` and announced as one collapsed `[io: …]` line with its first line as a cue.
+Writes outside any cell, subprocesses writing to inherited descriptors, and
+interrupted-shell captures are bounded UI-only diagnostics in result details.
 Await `show` when displaying
 promises or asynchronous renderers.
 
