@@ -9,20 +9,11 @@ Prepare this session with `introduce.run(intent)` in exec. Retain the promise:
 
 ```ts
 state.preparing = introduce.run("the user's intent");
-notify(state.preparing.then(() => "Session preparation is ready"), "introduce");
+show.raw(state.preparing.then(prepared => (state.prepared = prepared).text));
 ```
 
-When notified (or checking early), use `poll` in a later cell; it returns pending without waiting or destroying the kernel:
+The briefing arrives by handle when ready; if there is nothing else to do meanwhile, end the turn. If it failed, inspect the error before retrying.
 
-```ts
-const check = await poll(state.preparing);
-if (check.status === "ready") {
-  state.prepared = check.value;
-  await show.raw(state.prepared.text);
-} else await show(check);
-```
-
-If pending, end the turn and wait for notification. If failed, inspect the error before retrying.
 Use the briefing to establish the idea with the user and record it (`tracker`), reusing related work. Return what is agreed, what remains open, and the suggested next entry. Continue into `shape` or `supervise` only when requested.
 
 The full reading remains in `state.prepared.audit`.

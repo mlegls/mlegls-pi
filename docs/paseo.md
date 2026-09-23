@@ -46,10 +46,9 @@ Every backend still requires a serialized parent-scoped `maxConcurrent` and `act
 Use retained IDs with the SDK, including after an exec reset:
 
 ```ts
-state.waiting = notify(paseo.withClient(c =>
-  c.agents.ref(agentId).waitForFinish()), "worker turn");
-// Later, after notification:
-await show(await poll(state.waiting));
+show(state.waiting = paseo.withClient(c =>
+  c.agents.ref(agentId).waitForFinish()));
+// The outcome arrives by handle when the turn finishes.
 
 await paseo.withClient(c => c.agents.ref(agentId).send("Follow-up"));
 await show(await paseo.withClient(c => c.agents.ref(agentId).timeline.refetch()));
@@ -91,12 +90,11 @@ Then, in a Paseo-owned Pi session on the disposable checkout:
 
 ```ts
 // exec: use an authenticated model/effort from the native Pi catalog.
-state.launch = notify(dispatch.dispatch([{
+show(state.launch = dispatch.dispatch([{
   handle: "smoke", prompt: "Do not edit files. Report done with your cwd and parent agent ID.",
   model: "<provider/model>", effort: "high", base: "<exact disposable repo commit>"
-}], { run: "paseo-smoke", maxConcurrent: 1, active: [] }), "smoke launch");
-// Later:
-state.wave = await state.launch; show(state.wave);
+}], { run: "paseo-smoke", maxConcurrent: 1, active: [] }));
+// The wave arrives by handle; later cells can `state.wave = await state.launch`.
 ```
 
 Use the returned ID with `paseo wait ID`, `paseo logs ID`, and `paseo send ID --no-wait "Report needs-input with a question to the parent"`. Check native parent notifications and the actual report, not just idle status. In a separate bounded edit, inspect/accept its commit, call `dispatch.integrate(handle, {keep: true})`, verify the Git result, then explicitly archive that disposable workspace. Test `autoread.run` separately; launch success does not establish reader/OM compatibility.

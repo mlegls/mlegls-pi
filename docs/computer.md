@@ -34,7 +34,7 @@ show(state.drive);
 ```
 
 [Setup and reviewed TextEdit encounter](guide/cua-background.md).
-For long drives retain `notify(computer.run(...), "drive")` and poll in a later cell.
+Long drives need no special handling: `show(computer.run(...))` yields and delivers the result by handle.
 A reset interrupts the drive; do not blindly replay it. Credentials follow
 `decide`: JEV_API_KEY or Cloudflare account/token environment variables. The
 `decision` option accepts credentials, endpoint, and model overrides.
@@ -96,14 +96,13 @@ Supply an existing Playwright page from the project's browser setup; the caller
 owns its authentication, lifecycle, and cleanup. For example:
 
 ```ts
-state.drive = notify(computer.run({
+show(state.drive = computer.run({
   ui: computer.browser(page), apps: ["page"],
   goal: "Enter the supplied name and sign the guest book",
   until: "The page confirms that Ada signed the guest book",
   inputs: {name: "Ada"},
-}), "guest book");
-// In a later cell:
-show(await poll(state.drive));
+}));
+// The outcome arrives by handle when the drive ends.
 ```
 
 `computer.browser(page)` works with run/step/walk. It uses its separate

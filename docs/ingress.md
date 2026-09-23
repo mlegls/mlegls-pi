@@ -67,8 +67,7 @@ These choices are not calibrated guarantees of task accuracy.
 
 Jev batches eight passages, up to four requests concurrently, with an eight-second
 deadline per displayed text. The local worker serializes compression requests and
-allows fifteen seconds per active request, including initial model startup. The
-kernel's outer cell deadline still applies. The seam is
+allows fifteen seconds per active request, including initial model startup. The seam is
 lib/ingress.create({chunk, judge, compress, record}); judge returns mode, distribution,
 and fallback excerpt index, while compress accepts {text, rate} jobs and returns
 strings. Standalone readers should call dispose(); exec reset kills the kernel

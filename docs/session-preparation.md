@@ -13,20 +13,10 @@ Reload exec after installation (`/exec-reset`). Retain the promise:
 
 ```ts
 state.preparing = orient.run(); // or orient.run("issue-subtree"), introduce.run("new intent")
-notify(state.preparing.then(() => "Orientation is ready"), "orient");
+show.raw(state.preparing.then(prepared => (state.prepared = prepared).text));
 ```
 
-When notified, inspect in a later cell:
-
-```ts
-const check = await poll(state.preparing);
-if (check.status === "ready") {
-  state.prepared = check.value;
-  await show.raw(state.prepared.text);
-} else await show(check);
-```
-
-If pending, end the turn and wait; if failed, inspect before retrying. Directly awaiting preparation can exceed the cell deadline and destroy the kernel.
+The briefing arrives by handle when ready. If there is nothing else to do meanwhile, end the turn; if it failed, inspect before retrying.
 
 The returned text is a read-only briefing, not permission to execute a recommendation. Orient reports progress, known supervisors, ready unowned work and a leverage-ranked human queue. Introduce uses its briefing to establish and record the idea. Neither silently becomes a local implementation session.
 

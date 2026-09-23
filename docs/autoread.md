@@ -6,15 +6,12 @@ In exec, after reloading the extension (once, to pass the parent session path):
 
 	autoread.run(request)
 
-Retain long work rather than awaiting it across exec's default 30-second deadline:
+Long work needs no special handling: exec yields the cell and delivers the shown result by handle when it settles.
 
-	state.reading = notify(autoread.run("Explain the module loader and where to add a library function"), "autoread");
+	state.reading = autoread.run("Explain the module loader and where to add a library function");
+	show(state.reading);
 
-Then, after notification or for an early status check, in a later cell:
-
-	await show(await poll(state.reading));
-
-Poll returns `pending`, `ready` with `value`, or `failed` with the original `error`; it never waits for the reader or cancels it. A pending check is a reason to end the turn and wait for notification, not to await the work directly.
+If something later depends on it, `await wait("c7.2")` (the handle printed when the cell yielded) or `await state.reading` in a later cell.
 
 Model and effort defaults live in [`workflows.json`](../workflows.json), under `autoread`. They are read on every call through `config.workflow("autoread")`, so config edits need no reload. The default is OpenRouter’s rolling DeepSeek Flash Latest alias (`openrouter/~deepseek/deepseek-flash-latest`), effort `low`. Per-call `{ model, effort }` overrides remain available. This config selects the reader; native compaction still uses the inherited parent model.
 

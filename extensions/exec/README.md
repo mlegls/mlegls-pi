@@ -47,22 +47,45 @@ extensions. The former standalone adapters are [archived](../disabled/README.md)
 do not enable them alongside the corresponding manifest entrypoint. Exa and Board
 standalone tools are archive-only. Workspace owns its approval tool and command.
 
-## Cell deadline
+## Asynchronous results
 
-Cells have a **30s host-enforced deadline**, including kernel startup but excluding
-queue wait. Override explicitly on the current tool call:
+Cells never time out. Each exec call is cell `cN` (numbered per session branch)
+and each `show`/`console.log` call in it is output handle `cN.k`. The tool
+result returns when the cell and all its shows finish, or after a 10s yield
+(`PI_EXEC_YIELD_MS` overrides it; the clock starts once the kernel receives the
+cell) with whatever has been shown, labeled by handle, plus the pending handles:
 
-```json
-{"code":"await show(await sh`bun test`)","timeoutMs":120000}
+```text
+[c7.1]
+now
+c7 running; pending c7.2. Later output arrives by handle at the next tool result, or wakes you if idle. …
 ```
 
-`timeoutMs` is a positive integer in milliseconds (maximum 2147483647); it never
-carries over to later calls. The host enforces it even if the kernel is in a
-synchronous loop. Timeout preserves shown output, clears retained state, kills
-the kernel and its shell process group, and aborts in-flight host calls. File
-anchors and host-owned terminals survive. Filesystem and external side effects
-are not rolled back: inspect before retrying. For long-running work, use `term`
-or retain a promise in `state` and return from the cell without awaiting it.
+Each show renders when its own values resolve, independently of earlier calls.
+Output that settles after the yield is queued and delivered once: with the next
+exec result, or, when the agent settles, as an `exec-output` follow-up that
+starts a turn. A finished cell adds a passive `done` under `[c7]` that rides along but
+never wakes the agent; a late error always does. Not calling `show` means the
+result is not needed.
+
+The cell is only an ergonomic boundary: handles are addresses, so waiting on one
+is the same from its own cell or a later one.
+
+- `show.sync(...)` is `show` that holds this result past the yield until shown.
+- `wait("c7", "c8.2")` holds this result until those handles settle (`c7` = the
+  cell body and all its shows) and shows `settled: …`.
+- A user message queued while a result is held yields it immediately.
+
+Cells run concurrently in one kernel. A later cell may start while an earlier
+one still writes `state`; `wait` on its handle before reading such state.
+JavaScript is single-threaded, so a cell stuck in a synchronous loop still blocks
+every other cell.
+
+Interrupting (Esc) detaches running cells: their later output is delivered with
+the next result but does not wake the agent. The host then pings the kernel;
+only if it cannot answer within 1s is it reset (state cleared, shell process
+group killed, host calls aborted). File anchors and host-owned terminals survive
+resets; filesystem and external side effects are not rolled back.
 
 ## Pi presentation
 
@@ -87,7 +110,7 @@ Explicit `show` output has its own section; the original TypeScript follows.
 Concurrent calls retain invocation order rather than completion order. A retained
 job can still be pending when its cell ends; tracing does not wait for it. Traces
 freeze at cell completion; a pending entry is historical, not a live task monitor.
-Use retained promises or `notify` to observe later completion. Previews are capped
+Late output arrives by handle (see above). Previews are capped
 at 64 operations and 4 KiB per field, within a 64 KiB trace. Source previews use
 the same byte budget. Truncation is explicit and does not truncate retained values.
 Source, shell, and terminal values share a trusted passive formatter between
@@ -137,7 +160,7 @@ configuration error rather than silently enabling everything.
 | `ui` | `ui.*` |
 
 `fs` is a configuration group, not a new REPL namespace. Existing function names
-are unchanged. `show`, `notify`, `poll`, and `console` are available in the default profile. Disabled
+are unchanged. `show`, `wait`, and `console` are available in both profiles. Disabled
 module globals and API documentation are omitted; `host.call` also rejects
 excluded namespaces. Selection survives kernel resets and session navigation.
 
@@ -156,7 +179,7 @@ readers). Autoread selects this profile automatically. It exposes only
 and `exa`. Module allow/deny flags can narrow it further, never widen it;
 `--exec-deny-modules exa` disables web research.
 
-No write/edit helpers, `loadSkill` shell expansion, `notify`, shell, terminals,
+No write/edit helpers, `loadSkill` shell expansion, shell, terminals,
 UI, coordination, or automatic `lib/` and `.pi/exec/` modules are exposed or
 loaded. Read skill files as reference without executing them. Internal
 relevance filtering still works. The profile is API shaping, **not a security
@@ -411,22 +434,20 @@ Do not blindly replay a failed cell.
 
 ## Shells and promises
 
-On timeout/reset, bounded prefixes of running shells’ stdout/stderr already
+On reset, bounded prefixes of running shells’ stdout/stderr already
 received by the host are included as partial captures (up to 50 KiB per stream,
 within the cell’s host output cap). Unflushed process buffers cannot be recovered.
-Use `term` for long suites/clones, or retain a shell promise as below; increasing
-`timeoutMs` also works. Completed shells remain explicit-output-only.
+Completed shells remain explicit-output-only. Long work needs no special handling:
 
 ```ts
 state.checks = sh`bun test`;
-notify(state.checks, "tests"); // one completion/error notification, even after this cell
+show(state.checks); // arrives as a late handle if it takes longer than the yield
 ```
 
-Later:
+Later, if something depends on it:
 
 ```ts
-const check = await poll(state.checks);
-await show(check.status === "ready" ? check.value : check);
+await wait("c7.2"); // or: const check = await state.checks;
 ```
 
 `sh(command)` also works. Its result contains `stdout`, `stderr`, and
@@ -439,19 +460,7 @@ interpolation inserts literal shell text, not automatically quoted arguments.
 `show(await sh(...))` prints literal stdout/stderr under compact exit/truncation
 metadata. The retained result remains an ordinary structured value; spreading it
 into a new object opts back into normal object inspection.
-`notify(promise, label?)` returns the original promise and delivers bounded
-text/image content on completion. Plain detached promises do not request a turn;
-`notify` does.
-
-### Non-blocking promise checks
-
-`await poll(promise)` returns a snapshot: `{status: "pending"}`,
-`{status: "ready", value}`, or `{status: "failed", error}`. It observes a
-retained promise without waiting for it, cancelling it, or throwing its rejection.
-Snapshots preserve the original result/error, and repeated checks reuse one observer.
-Use it after notification or for an early check of background preparation; if
-pending, end the turn. Directly awaiting the work still risks the cell deadline.
-`poll` belongs to the default profile, not the child reader profile.
+A retained promise can be awaited again in any later cell.
 
 ## Literal text payloads
 
@@ -527,7 +536,7 @@ anchored `edit`/`replace` for checked changes. Overwriting does not bless old an
 
 Their results remain structured and are not display-truncated: retain them, filter or map in
 TypeScript, then `show` the selected data. There is no `pipe` option on these APIs.
-The promises work with `notify` and can be awaited again in a later cell.
+The promises can be shown for a late result and awaited again in a later cell.
 `host.call(namespace, method, args)` is the low-level equivalent; arguments and
 results cross the process boundary as JSON-compatible data.
 
@@ -548,7 +557,7 @@ configuration are unchanged: `EXA_API_KEY` and optional `EXA_API_URL`.
 
 ### Orca
 
-The auto-loaded `orca` library talks to the native CLI from the kernel. It preserves Run/Task/Dispatch identities and FIFO delivery acknowledgments. Retain long waits with `notify`; showing a message never acknowledges it. [API and lifecycle](../../docs/orca.md).
+The auto-loaded `orca` library talks to the native CLI from the kernel. It preserves Run/Task/Dispatch identities and FIFO delivery acknowledgments. Show long waits (`show(orca.check({wait: true}))`); the result arrives by handle. Showing a message never acknowledges it. [API and lifecycle](../../docs/orca.md).
 
 Legacy board/workmux libraries remain in the repository for rollback; neither their namespaces nor board wake hooks are enabled by this package.
 

@@ -55,9 +55,9 @@ state.run = (await orca.runs.create({objective: "Implement the agreed slice"})).
 const task = "Self-contained assignment, context, ownership, acceptance…";
 const execution = await route.prepare(task);
 if (execution.kind === "triage") throw new Error("Prepare a decision-session handoff first");
-state.launch = notify(dispatch.dispatch([
+show(state.launch = dispatch.dispatch([
   {handle: "unit-a", prompt: task, ...execution},
-], {run: state.run.id, maxConcurrent: 3, active: []}), "dispatch");
+], {run: state.run.id, maxConcurrent: 3, active: []}));
 ```
 
 In a later cell, retain the full wave receipt with `state.wave = await state.launch`. Inspect `failed` and `pending` before proceeding; do not relaunch submitted workers. Each `state.wave.submitted` entry contains a `receipt` preserving `taskId`, `dispatchId`, launch effects, and Pi’s turn-start evidence. Set `state.worker` to the receipt being inspected. For later waves, pass all outstanding handles in `active` and serialize submissions. `ready/input_accepted` is not proof that Pi began a turn. Check `state.worker.startConfirmation.status`: only `started` has positive worker-side evidence; `unconfirmed` is a launch error: inspect the retained dispatch, not resubmit or wait for completion.
@@ -77,18 +77,17 @@ Native `workers.start` remains available and conservatively returns unconfirmed.
 ### Completion and cleanup
 
 ```ts
-state.mail = notify(orca.check({run: state.run.id, wait: true,
-  types: ["worker_done", "question", "escalation"]}), "worker mail");
-// Later:
+show(state.mail = orca.check({run: state.run.id, wait: true,
+  types: ["worker_done", "question", "escalation"]}));
+// The batch arrives by handle; then, in a later cell:
 state.delivery = await state.mail;
-await show(state.delivery);
 ```
 
 Process **every** message in the returned batch. Reply to questions with `orca.reply({id, body})`; validate outcomes against the expected Dispatch. Reuse, explicitly retain, or release each settled worker. Then `state.next = await orca.ack(state.delivery.deliveryId, {run: state.run.id})`. Ack can return another delivery: handle it rather than discarding it. Reads, display, and notifications never acknowledge mail. Type filters select when to wake, not which messages in the FIFO delivery to process.
 
 `workers.show(dispatchId)`, `workers.read({dispatch, source: "auto"})`, and `workers.list({run, includeRemote: true})` preserve Orca’s observations and pagination. A timeout, contact loss, or null agent state is not proof of exit. `workers.stop({dispatch})` and `workers.abandon({dispatch})` are explicit recovery operations, not automatic timeout handlers. Load the installed recovery guide before using them. Orca terminal handles are not exec `term` session IDs: use `workers.read` or `orca.call(["terminal", "read", "--terminal", handle])`, not `term.view(handle)`. A tmux lookup failure says nothing about Orca worker liveness.
 
-CLI failures throw `OrcaError` with the complete parsed envelope in `.receipt`, including residual resources and recovery commands. Unknown mutation outcomes are not retried. Long waits use a CLI timeout longer than the native wait; retain them with `notify` to avoid the exec cell deadline. Kernel reset can interrupt the CLI without undoing its mutation. Reinspect Orca; inbox batches remain durable until acknowledged.
+CLI failures throw `OrcaError` with the complete parsed envelope in `.receipt`, including residual resources and recovery commands. Unknown mutation outcomes are not retried. Long waits use a CLI timeout longer than the native wait; show them and the result arrives by handle. Kernel reset can interrupt the CLI without undoing its mutation. Reinspect Orca; inbox batches remain durable until acknowledged.
 
 ### stop_unknown recovery
 
@@ -126,7 +125,7 @@ Prepared, routed waves use [`dispatch.dispatch`](dispatch.md); this helper creat
 
 `orca.send({to, subject, body, type?, threadId?, payload?})` supports direct `dispatch:<id>`, `run:<id>`, and native group addresses. Most groups cover live dispatches in the sender’s Run; `@worktree:<id>` is workspace-scoped. This is addressed mail, not arbitrary topic subscriptions. Copy lifecycle IDs, sender identity, and capability arguments from the live injected worker preamble. Orca 1.4.206’s `dispatch-show --preamble` omits the capability; do not use it to reconstruct lifecycle authority.
 
-`orca.ask({question, …})` blocks for a reply; timeout leaves the question pending, resumable with `{resume: messageId}`. Retain long asks with `notify`. Native wake/nudge is best effort, not proof of processing; workers check their mailbox at checkpoints. There is no additional Pi polling adapter in this version.
+`orca.ask({question, …})` blocks for a reply; timeout leaves the question pending, resumable with `{resume: messageId}`. Show long asks; the reply arrives by handle. Native wake/nudge is best effort, not proof of processing; workers check their mailbox at checkpoints. There is no additional Pi polling adapter in this version.
 
 ## Conversation forks and readers
 

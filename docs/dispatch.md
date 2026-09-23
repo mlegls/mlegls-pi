@@ -3,10 +3,10 @@
 The parent owns decomposition, dependencies, admission (`route.prepare`), concurrency and acceptance. `dispatch.dispatch` only launches prepared assignments. Host selection is local: `PASEO_AGENT_ID` → Paseo; otherwise an Orca workspace environment → retained Orca adapter; otherwise workmux/board. Paseo takes precedence over inherited Orca variables.
 
 ```ts
-state.launch = notify(dispatch.dispatch([
+show(state.launch = dispatch.dispatch([
   { handle: "unit-a", prompt: "Self-contained assignment, context, constraints and completion criterion",
     agent: "auto", model: "openai-codex/gpt-6-sol", effort: "high", base: "<exact Git ref>" }
-], { run: "feature-x", maxConcurrent: 2, active: [] }), "launch");
+], { run: "feature-x", maxConcurrent: 2, active: [] }));
 ```
 
 Later retrieve `state.wave = await state.launch`. Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` is required on every backend; it is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`. An uncertain launch must be resolved before the next wave; it may still consume capacity.
@@ -23,7 +23,7 @@ The receipt contains:
 
 See [the SDK boundary and setup](paseo.md). Workspace creation and agent launch are separate SDK requests so a launch failure retains the workspace ID. Launch uses native Pi config `provider: "pi/PROVIDER/MODEL"`, an explicit parent from `PASEO_AGENT_ID`, and a data prompt. `none` maps to Pi native `off`; other effort IDs pass unchanged. `PASEO_URL`/`PASEO_PASSWORD` select the connection; the default is the local desktop daemon. CLI host configuration is not consulted.
 
-The prompt includes the roster stance, assignment, parent ID and reporting convention. Supervise through `paseo.withClient(c => c.agents.ref(ID).waitForFinish())`, `.timeline.refetch()` and `.send(message)`; retain long waits with `notify`. Parent completion notifications are native. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion. Final output begins `done`, `blocked`, or `needs-input`; questions go to the parent ID. There is no additional inbox/ack or task-record layer. CLI `wait`, `logs`, and `send --no-wait` remain manual recovery tools.
+The prompt includes the roster stance, assignment, parent ID and reporting convention. Supervise through `paseo.withClient(c => c.agents.ref(ID).waitForFinish())`, `.timeline.refetch()` and `.send(message)`; show long waits and the outcome arrives by handle. Parent completion notifications are native. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion. Final output begins `done`, `blocked`, or `needs-input`; questions go to the parent ID. There is no additional inbox/ack or task-record layer. CLI `wait`, `logs`, and `send --no-wait` remain manual recovery tools.
 
 ## Standalone and retained Orca
 
