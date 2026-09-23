@@ -11,8 +11,10 @@ const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR4AQEFAPr/AP8
 // Real pi loader, runner, session storage and wrapped tool. Only terminal/model UI is absent.
 async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => Promise<any>; runner: ExtensionRunner; sent: any[]; active: () => string[]; cwd: string; idle: (value: boolean) => void }) => Promise<void>) {
 	const cwd = await mkdtemp(join(tmpdir(), "exec-affordance-"));
-	const oldBoard = process.env.PI_BOARD_DIR;
+	const oldBoard = process.env.PI_BOARD_DIR, oldMode = process.env.PI_TOOL_MODE;
 	process.env.PI_BOARD_DIR = join(cwd, "board");
+	// An ambient PI_TOOL_MODE=bash (agent config) would make exec step aside.
+	delete process.env.PI_TOOL_MODE;
 	const paths = manifest.pi.extensions.filter(path => path.startsWith("./lib/") || path === "./extensions/exec/index.ts");
 	const loaded = await loadExtensions(paths.map(path => resolve(import.meta.dir, "../..", path)), cwd);
 	expect(loaded.errors).toEqual([]);
@@ -49,6 +51,7 @@ async function session(run: (s: { exec: (code: string, signal?: AbortSignal) => 
 	} finally {
 		await runner.emit({ type: "session_shutdown" } as any);
 		if (oldBoard === undefined) delete process.env.PI_BOARD_DIR; else process.env.PI_BOARD_DIR = oldBoard;
+		if (oldMode !== undefined) process.env.PI_TOOL_MODE = oldMode;
 		await rm(cwd, { recursive: true, force: true });
 		await rm(`${cwd}__worktrees`, { recursive: true, force: true });
 	}

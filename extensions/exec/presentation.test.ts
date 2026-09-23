@@ -126,7 +126,10 @@ test("Kernel defaults exclude legacy coordination, empty means core only, and ho
 
 async function session(flags: Record<string, string>, run: (s: any) => Promise<void>) {
 	const cwd = await mkdtemp(join(tmpdir(), "exec-presentation-session-"));
-	const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], cwd);
+	// An ambient PI_TOOL_MODE=bash (agent config) would make exec step aside at load.
+	const oldMode = process.env.PI_TOOL_MODE;
+	delete process.env.PI_TOOL_MODE;
+	const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], cwd).finally(() => { if (oldMode !== undefined) process.env.PI_TOOL_MODE = oldMode; });
 	expect(loaded.errors).toEqual([]);
 	const manager = SessionManager.inMemory(cwd);
 	const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, cwd, manager, {} as any);
