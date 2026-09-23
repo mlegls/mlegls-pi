@@ -12,7 +12,7 @@ const HERE = dirname(new URL(import.meta.url).pathname);
 const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const stateDir = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab", createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "exa", "pull", "lib"];
+const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "pull", "lib"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -144,27 +144,6 @@ async function code(args: string[]) {
 	}
 }
 
-async function exa(args: string[]) {
-	const [verb, ...rest] = args;
-	const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, allowNegative: true, options: {
-		n: { type: "string", short: "n" }, type: { type: "string" }, category: { type: "string" }, domain: { type: "string", multiple: true },
-		since: { type: "string" }, text: { type: "boolean" }, max: { type: "string" }, json: { type: "boolean" },
-	} });
-	const client = await import("../lib/exa/client.ts");
-	const max = values.max ? Number(values.max) : undefined;
-	const response = verb === "search"
-		? await client.search({ query: positionals.join(" "), numResults: values.n ? Number(values.n) : undefined, type: values.type as any, category: values.category as any, includeDomains: values.domain, startPublishedDate: values.since, content: values.text ? "text" : "highlights", maxCharacters: max })
-		: verb === "contents" ? await client.contents({ urls: positionals, maxCharacters: max })
-		: fail("exa needs search or contents");
-	if (values.json) return console.log(JSON.stringify(response, null, 2));
-	for (const r of response.results ?? []) {
-		console.log("## " + (r.title ?? r.url) + "\n" + r.url + (r.publishedDate ? "  " + r.publishedDate.slice(0, 10) : ""));
-		const body = r.text ?? (r as any).highlights?.join("\n…\n") ?? r.summary;
-		if (body) console.log(body.trim());
-		console.log();
-	}
-}
-
 function pull(args: string[]) {
 	for (const id of args) {
 		const file = join(stateDir, "ingress", id);
@@ -189,7 +168,7 @@ async function lib(args: string[]) {
 const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
-const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, exa, pull, lib };
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, pull, lib };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
 catch (error) { fail(error instanceof Error ? error.message : String(error)); }

@@ -126,7 +126,7 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Run a bash command in the workspace. The call returns when the command finishes, or after wait seconds (default 10) with a handle while it keeps running; its result then arrives by itself. Don't poll or sleep for it. Independent commands can be parallel calls in one turn.",
 			"Output is read with attention to the conversation: skimmed or omitted parts carry an ing-… id that ab pull recovers. raw: true returns exact output; focus names what to look for. Long output keeps head and tail; the full log path is shown.",
-			"ab --help: anchored read/grep/edit (ab read prints N abcd│text rows; ab edit takes =abcd hunks on stdin), images (ab view), skills (ab skill), TypeScript code graph (ab code), web search (exa), lib/ adapters. Write files with cat > path <<'EOF'.",
+			"ab --help: anchored read/grep/edit (ab read prints N abcd│text rows; ab edit takes =abcd hunks on stdin), images (ab view), skills (ab skill), TypeScript code graph (ab code), lib/ adapters; exa-cli for web search. Write files with cat > path <<'EOF'.",
 		].join("\n"),
 		parameters: Type.Object({
 			command: Type.String({ description: "Bash source; runs with bash -c in the workspace." }),

@@ -6,7 +6,6 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab view IMAGE...          attach images to the tool result
   ab skill PATH             load a SKILL.md with its dynamic shell blocks expanded
   ab code VERB [NAME]       TypeScript definitions and checker-resolved references
-  ab exa search|contents    Exa web search and page contents (also: exa)
   ab pull ING-ID            original text behind a skimmed/omitted output page
   ab lib MODULE [FN] [ARG]  call a lib/ export; ARGs parse as JSON when they can
 

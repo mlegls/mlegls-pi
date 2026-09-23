@@ -1,3 +1,0 @@
-#!/bin/sh
-# Exa web search/contents. Shadows eza's compatibility `exa` symlink where this bin/ precedes it on PATH.
-exec "$(dirname "$(readlink -f "$0")")/ab" exa "$@"
