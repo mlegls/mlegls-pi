@@ -27,15 +27,14 @@ per-project deps/config go through mise (just use whatever already exists in pub
 uv for python and bun for js/ts on my local machine. npm/pip are fine for public repos/github workflows. i just don't want duplicate package caches.
 if a project hardcodes `docker`, add `~/.config/podman-docker/bin` to that project's mise `_.path`
 axi tools are agent-ergonomic clis on PATH. running one with no args shows live state; `<tool> <cmd> --help` for details. don't run their `setup hooks`: this list is their ambient context.
-- `gh-axi` instead of `gh`, and `chrome-devtools-axi` instead of `chrome-devtools`, though prefer `computer.run/step/walk` or direct `ui` tools in exec when available. see `~/dev/mlegls-pi/docs/computer.md`.
-- `quota-axi`: local quota windows and runway for claude, codex, cursor, copilot, grok and other providers. data only; it never routes.
-- `jev-axi`: calibrated snap judgments from TypeSafe's Jev at fractions of a cent: pick/rate/check/rank/filter over files or stdin, plus recipes: `triage` a long failing log, `diff` review, `guard` untrusted fetched text against prompt injection, `files`/`find` to shortlist code in an unfamiliar repo.
-- `lavish-axi <file.html>`: opens an html artifact in my browser for me to annotate; `lavish-axi poll` brings my feedback back. for anything easier to review visually than to read.
-- `obsidian-axi`: obsidian vault notes straight from the filesystem: search by tag or frontmatter, patch one heading's section or frontmatter field, links/backlinks/orphans.
-- `cyber-mux`: open/send/read/wait/close terminal panes across tmux, herdr, wezterm, zellij and cmux; can create a git worktree and open it in a new pane.
-- `firecrawl-axi`: live scraping (js-rendered pages to markdown), site map/crawl, pdf/docx parsing, paper search/reading. exa is better for search; firecrawl for pages exa can't fetch and whole-site crawls.
+
+- `cargo-axi`, `chrome-devtools-axi`, `firecrawl-axi`, `gh-axi`, `obsidian-axi`: token-efficient variants of the corresponding. prefer jev-powered computer use to manual chrome where appropriate though.
+- `cyber-mux`: open/send/read/wait/close for tmux, herdr, wezterm, zellij and cmux, including worktree management.
+- `jev-axi`: calibrated snap judgments from a cheap and fairly powerful 0-shot classifer. useful for subjective "lint"-like steps and hooks.
+- `lavish-axi <file.html>`: opens an html artifact in my browser for me to annotate.
 - `pypi-axi`: pypi package view/versions/deps/downloads (no search: pypi has no search api).
-- `cargo axi`: rust workspace overview, and `check`/`clippy` with compact results.
+- `quota-axi`: local quota windows and runway for various llm providers.
+
 please commit in coherent chunks as you change files. i'll just revert them if they're that bad (rare)
 
 and some really universal counter-defaults:
