@@ -12,7 +12,7 @@ const HERE = dirname(new URL(import.meta.url).pathname);
 const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const stateDir = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab", createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "pull", "lib"];
+const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "computer", "pull", "lib"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -168,7 +168,7 @@ async function lib(args: string[]) {
 const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
-const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, pull, lib };
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
 catch (error) { fail(error instanceof Error ? error.message : String(error)); }
