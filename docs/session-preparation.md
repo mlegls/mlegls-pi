@@ -13,7 +13,7 @@ Orientation happens in the interactive session itself, not in a delegated reader
 
 The briefing is read-only, not permission to execute a recommendation. Orient reports progress, known supervisors, ready unowned work and a leverage-ranked human queue. Introduce uses it to establish and record the idea. Neither silently becomes a local implementation session.
 
-With observational memory, compaction after the reading costs the parent nothing, so the reads need no isolation; the briefing is a natural point to compact and switch model. [Autoread](autoread.md) remains for bounded reads inside shaping and supervision.
+With observational memory, compaction after the reading costs the parent nothing, so the reads need no isolation; the briefing is a natural point to compact and switch model. Broad or web evidence can go to a `research` worker, which returns compressed findings with sources.
 
 ## Verification
 

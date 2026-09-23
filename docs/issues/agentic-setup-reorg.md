@@ -13,7 +13,7 @@ evidence for the current state: [[projects/mlegls-pi/research/orchestration-audi
 Original decomposition, roughly in dependency order (archived links include delivered and superseded scopes):
 1. "[[projects/mlegls-pi/issues/archive/decide-primitive]]" — everything jev-backed waits on it.
 2. "[[projects/mlegls-pi/issues/archive/session-instrumentation]]" — so later audits are one-liners.
-3. "[[projects/mlegls-pi/issues/archive/ingress-filter]]", "[[projects/mlegls-pi/issues/autoread-show-me]]", "[[projects/mlegls-pi/issues/archive/skim-and-triage]]" — what enters context; run in parallel.
+3. "[[projects/mlegls-pi/issues/archive/ingress-filter]]", "[[projects/mlegls-pi/issues/archive/autoread-show-me]]", "[[projects/mlegls-pi/issues/archive/skim-and-triage]]" — what enters context; run in parallel.
 4. "[[projects/mlegls-pi/issues/archive/supervision-join-script]]", "[[projects/mlegls-pi/issues/archive/dispatch-script]]" — orchestration as scripts.
 5. "[[projects/mlegls-pi/issues/archive/pool-aware-routing]]", "[[projects/mlegls-pi/issues/archive/campaign-coordinator]]".
 6. "[[projects/mlegls-pi/issues/archive/skills-triage]]" then "[[projects/mlegls-pi/issues/archive/repo-merge]]".

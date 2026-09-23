@@ -1,5 +1,5 @@
 // Historical calibration helper; live admission/continuation use route.ts and routing.md.
-// Classify a ticket with optional map/autoread output in one Jev call.
+// Classify a ticket with optional map or research output in one Jev call.
 //   await classify({ ticket, context }, threshold);
 //   bun lib/classify.ts ticket.md threshold [context-file] >> decisions.jsonl
 // p is the weaker winning probability, not a calibrated joint probability.

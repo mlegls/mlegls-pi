@@ -9,6 +9,6 @@ Orca source at the inspected main revision routes Claude/Codex CLI launches thro
 
 Current acceptance uses the Orca lifecycle in docs/orca.md; archived board/workmux checks are not current steering evidence.
 
-Check `/fork-tab` creates a visible sibling tab without switching or mutating the original Pi session. Check worker setup/launch and Orca messaging/ask/reply, plus visible reader success, compaction, structured submission, abort, and timeout.
+Check `/fork-tab` creates a visible sibling tab without switching or mutating the original Pi session. Check worker setup/launch and Orca messaging/ask/reply.
 
 If Pi lifecycle metadata is missing, prefer Orca’s Pi launch/hook configuration or a small upstream adapter change over reimplementing a session registry here. Remote hosts and automatic descendant lifecycle are outside the local adapter’s current scope.

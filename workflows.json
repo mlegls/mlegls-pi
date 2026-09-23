@@ -1,6 +1,0 @@
-{
-  "autoread": {
-    "model": "anthropic/claude-sonnet-5",
-    "effort": "medium"
-  }
-}

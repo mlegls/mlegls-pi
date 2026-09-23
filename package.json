@@ -28,7 +28,6 @@
       "./extensions/fence/index.ts",
       "./extensions/system-prompt/index.ts",
       "./extensions/workspace/index.ts",
-      "./lib/autoread/host.ts",
       "./extensions/orca/index.ts"
     ],
     "skills": [

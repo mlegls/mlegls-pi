@@ -183,7 +183,7 @@ selected surface.
 ### Reader profile
 
 Use `pi --exec-profile reader` (or `PI_EXEC_PROFILE=reader` for host-managed
-readers). Autoread selects this profile automatically. It exposes only
+readers). It exposes only
 `read`, `find`, `grep`, source/selection helpers, `state`, `show`, `console`,
 and `exa`. Module allow/deny flags can narrow it further, never widen it;
 `--exec-deny-modules exa` disables web research.
@@ -215,11 +215,6 @@ neighbors by signature, files beyond by count). Joins are plain TypeScript over
 those arrays. Every call re-indexes incrementally, so the snapshot follows
 edits. `await ix.rows(d)` is the definition's anchored rows for `edit`/`replace`.
 Source in [outline-read/program.ts](../../lib/outline-read/program.ts).
-
-`autoread.run(request, options?)` runs a read-only reader fork of this
-session and returns its final briefing. Exec passes `PI_SESSION_FILE` to the
-kernel; reload the extension once after installing this change. See
-[autoread](../../docs/autoread.md) for retained-promise usage and options.
 
 `/exec-reset` (or a new session) re-imports; a running kernel keeps the modules
 it started with.

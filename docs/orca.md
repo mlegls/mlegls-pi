@@ -127,11 +127,9 @@ Prepared, routed waves use [`dispatch.dispatch`](dispatch.md); this helper creat
 
 `orca.ask({question, …})` blocks for a reply; timeout leaves the question pending, resumable with `{resume: messageId}`. Show long asks; the reply arrives by handle. Native wake/nudge is best effort, not proof of processing; workers check their mailbox at checkpoints. There is no additional Pi polling adapter in this version.
 
-## Conversation forks and readers
+## Conversation forks
 
 `/fork-tab [title]` forks the persisted session at the selected leaf into another focused Pi terminal in the same checkout. It leaves the source conversation in place and creates no Task/Dispatch. Normal `/fork` is unchanged. Use separate worktrees for conflicting edits.
-
-`autoread.run` defaults to Orca even outside Orca; `{backend: "pi"}` explicitly selects a private local reader. Readers and forks are not supervised tasks. Reader PTYs stop on completion/cancellation; session/result files remain durable, terminal handles do not.
 
 ## Verification
 

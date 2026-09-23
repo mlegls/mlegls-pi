@@ -1,7 +1,6 @@
 import { test, expect } from "bun:test";
 import orcaExtension from "../extensions/orca/index.ts";
 import boardExtension from "./board/host.ts";
-import { run as read } from "./autoread.ts";
 import { executionHost } from "./execution-host.ts";
 
 async function withEnv(env: Record<string, string>, fn: () => unknown) {
@@ -26,13 +25,4 @@ test("native host substitution leaves no Orca hooks in Paseo or standalone", asy
     boardExtension(untouched);
   });
   await withEnv({ ORCA_WORKSPACE_ID: "w" }, () => { expect(executionHost()).toBe("orca"); boardExtension(untouched); });
-});
-
-test("Paseo and standalone readers select the local persisted-session boundary", async () => {
-  for (const env of [{}, { PASEO_AGENT_ID: "p", ORCA_WORKTREE_ID: "inherited" }] as Record<string, string>[]) {
-    await withEnv(env, async () => {
-      await expect(read("Read only", { model: "zai/glm-5.3-flash", effort: "high", memoryExtension: false }))
-        .rejects.toThrow("sessionFile required");
-    });
-  }
 });

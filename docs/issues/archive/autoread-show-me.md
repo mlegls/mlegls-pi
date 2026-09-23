@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
@@ -21,3 +21,5 @@ evidence — 2026-09-20:
 - Live DeepSeek reader inherited a fixture label, read the module loader, and returned a briefing; parent JSONL remained byte-identical. A second run compacted an OM observation (`om.folded`) and used `recall` to recover the original source, then read code. Reader tools observed: read/find/grep/recall.
 - Briefings were useful but exceeded requested word limits; the first included an incorrect inference, and the second guessed source line numbers. The prompt now asks for grep-verified citations; quality improvement is not yet measured.
 - Exec exposes `autoread.run` and the correct session path. Timeout and pre-aborted invocations reject. Existing suite: `env -u BB_THREAD_ID bun test` — 196 pass, 2 skip, 0 fail. Typecheck retains the five existing errors outside this change.
+
+done 2026-09-23: dropped with `lib/autoread.ts`. With observational memory, compaction after reading is free to the parent, so orientation reads in-session (`orient`/`introduce` skills) and delegated reading goes to the `research` stance.

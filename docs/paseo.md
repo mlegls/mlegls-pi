@@ -12,8 +12,6 @@ Implementation baseline: `05ef261674a4e45f2c3d0cb4fa141f452fc46942`, fast-forwar
 
 The Orca extension returns before registering hooks, commands or its status bar outside Orca. Exec instructions and coordination modules follow host selection. The explicit Orca library remains importable; it is not the default outside Orca. This is the smallest reversible treatment of the Orca trial, not its removal.
 
-Autoread defaults to the existing private Pi RPC reader in Paseo and standalone. It clears host identity in its child environment and retains context/model routing and structured submission results. BB visible-reader parity required native fork/compact and is deferred. Paseo 0.9.0/Pi 0.85.1 launch, exec host selection and SDK messaging were live-verified during cutover below. Autoread and observational-memory compatibility remain unverified.
-
 ## SDK boundary
 
 `lib/paseo.ts` uses the public `@getpaseo/client` API, pinned to **0.9.0**, matching the installed desktop app and daemon. The [SDK reference](https://paseo.sh/docs/sdk/reference) and installed declarations/implementation were checked; current online docs can describe newer capabilities. The CLI is retained for manual inspection and recovery, not programmatic transport.
@@ -62,7 +60,7 @@ For streaming, retain `await paseo.connect()` and the native timeline subscripti
 
 The CLI was initially absent from PATH, but is bundled at `/Applications/Paseo.app/Contents/Resources/bin/paseo`. A separately authorized system-config change added that directory to the login PATH. The running desktop-managed daemon and CLI report 0.8.0. A read-only SDK connection and `providers.diagnostic("pi")` succeeded on 2026-09-22: Pi 0.85.1, auth config found, status Ready. Initial checks installed/started no daemon, changed no provider settings, and created no live resources. The later authorized cutover exercised and archived a disposable workspace as recorded below.
 
-Isolated public-SDK fixtures replace the CLI fixtures: exact model/prompt/base/parent propagation, native snapshots, parent capacity, partial creation, failed connection/close, archive error data, cleanup, and no retries. They do not establish end-to-end launch or provider-extension compatibility. Host tests exercise precedence, hook suppression and local reader selection; Git fixtures exercise integration before archive, `keep`, and cleanup failure after a successful merge.
+Isolated public-SDK fixtures replace the CLI fixtures: exact model/prompt/base/parent propagation, native snapshots, parent capacity, partial creation, failed connection/close, archive error data, cleanup, and no retries. They do not establish end-to-end launch or provider-extension compatibility. Host tests exercise precedence and hook suppression; Git fixtures exercise integration before archive, `keep`, and cleanup failure after a successful merge.
 
 Run the local replay:
 
@@ -84,7 +82,6 @@ Prerequisites for further live exercises:
 1. A compatible running Paseo host, explicit connection settings if not the local default, and native Pi provider available. The installed 0.9.0 host passed the read-only SDK check; `paseo provider diagnostic pi --json` remains a manual diagnostic. No MCP injection is needed.
 2. A compatible Pi executable with model credentials, this trial package loaded, and the revised skills/roster in the provider-launched Pi profile. Use a dedicated trial profile if existing sessions must stay unchanged; verify the daemon uses that profile for both parent and children. A parent-only package override does not configure daemon-launched children.
 3. A disposable registered repository/checkout for launch, messaging and merge/archive checks. The adapter and integration assume same-host, locally accessible Git paths. No cross-host integration is implemented.
-4. A persisted Pi parent session, available reader model, and installed OM path for autoread; or explicitly select `memoryExtension: false`. Test compaction and structured submission with this Pi/Paseo combination before relying on them.
 
 Then, in a Paseo-owned Pi session on the disposable checkout:
 
@@ -97,7 +94,7 @@ show(state.launch = dispatch.dispatch([{
 // The wave arrives by handle; later cells can `state.wave = await state.launch`.
 ```
 
-Use the returned ID with `paseo wait ID`, `paseo logs ID`, and `paseo send ID --no-wait "Report needs-input with a question to the parent"`. Check native parent notifications and the actual report, not just idle status. In a separate bounded edit, inspect/accept its commit, call `dispatch.integrate(handle, {keep: true})`, verify the Git result, then explicitly archive that disposable workspace. Test `autoread.run` separately; launch success does not establish reader/OM compatibility.
+Use the returned ID with `paseo wait ID`, `paseo logs ID`, and `paseo send ID --no-wait "Report needs-input with a question to the parent"`. Check native parent notifications and the actual report, not just idle status. In a separate bounded edit, inspect/accept its commit, call `dispatch.integrate(handle, {keep: true})`, verify the Git result, then explicitly archive that disposable workspace.
 
 ## Installation / cutover
 
@@ -126,4 +123,4 @@ The read-only assignment used the actual exec tool to inspect the native host bo
 
 `waitForFinish` returned idle with a `done` report; the agent reported no visible extension startup errors. A fresh SDK connection sent a follow-up and waited for the exact response `done followup received`. `paseo.archive` then returned the same workspace ID, an archive timestamp, and `error: null`. No implementation files were changed by the smoke agent. Native Pi session `01a0c9b1-2a42-7637-a94c-720e635dd70f` retains the transcript; local driver, receipt and logs were retained under `/tmp/paseo-cutover.9Rfosc`.
 
-This proves live workspace/agent creation, package loading, exec host substitution, wait/timeline/send and archive. It does not establish child-to-parent notifications, live merge conflict handling, or reader/OM compaction; those remain separate exercises.
+This proves live workspace/agent creation, package loading, exec host substitution, wait/timeline/send and archive. It does not establish child-to-parent notifications, live merge conflict handling or OM compaction; those remain separate exercises.
