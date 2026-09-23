@@ -438,6 +438,8 @@ Do not blindly replay a failed cell.
 
 ## Shells and promises
 
+`$` is zx's: ``await $`git log -1 ${ref}` `` quotes `ref` as one argument (arrays expand to several) and rejects on a nonzero exit; `.nothrow()` resolves instead. `show` renders a `ProcessOutput` as stdout, then stderr, then `[exit N]` when nonzero. The rest of zx is under `zx`. `sh` below keeps literal interpolation and resolves on every exit.
+
 On reset, bounded prefixes of running shells’ stdout/stderr already
 received by the host are included as partial captures (up to 50 KiB per stream,
 within the cell’s host output cap). Unflushed process buffers cannot be recovered.
