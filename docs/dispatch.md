@@ -1,6 +1,6 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, admission (`route.prepare`), concurrency and acceptance. `dispatch.dispatch` only launches prepared assignments. Host selection is local: `PASEO_AGENT_ID` → Paseo; otherwise an Orca workspace environment → retained Orca adapter; otherwise workmux/board. Paseo takes precedence over inherited Orca variables.
+The parent owns decomposition, dependencies, admission (`route.prepare`), concurrency and acceptance. `dispatch.dispatch` only launches prepared assignments. Host selection: `PI_EXECUTION_HOST=paseo|wm` chooses; otherwise `PASEO_AGENT_ID` → Paseo, else standalone workmux/board. With Paseo chosen outside a Paseo agent, workers have no parent agent; the parent waits on them.
 
 ```ts
 show(state.launch = dispatch.dispatch([
@@ -9,7 +9,7 @@ show(state.launch = dispatch.dispatch([
 ], { run: "feature-x", maxConcurrent: 2, active: [] }));
 ```
 
-From bash, the same call takes JSON arguments: `ab lib dispatch dispatch '[{"handle":"unit-a",…}]' '{"run":"feature-x","maxConcurrent":2,"active":[]}' > receipt.json`. It prints the receipt; a long launch arrives as a late result. Standalone `wm` needs the pi host, so this works under Paseo or Orca.
+From bash, the same call takes JSON arguments: `ab lib dispatch dispatch '[{"handle":"unit-a",…}]' '{"run":"feature-x","maxConcurrent":2,"active":[]}' > receipt.json`. It prints the receipt; a long launch arrives as a late result. Standalone `wm` needs the pi host, so this works when Paseo is the host.
 
 Later retrieve `state.wave = await state.launch`. Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` is required on every backend; it is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`. An uncertain launch must be resolved before the next wave; it may still consume capacity.
 
@@ -17,7 +17,7 @@ Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`
 
 The receipt contains:
 
-- `submitted`: native handles for successful launches. Paseo: `{backend: "paseo", handle, agentId, workspaceId, path, receipt: {workspace, agent}}`; workmux: `{backend: "wm", handle, path, worker}`; Orca retains `{backend: "orca", handle, worktreeId, path, receipt}`.
+- `submitted`: native handles for successful launches. Paseo: `{backend: "paseo", handle, agentId, workspaceId, path, receipt: {workspace, agent}}`; workmux: `{backend: "wm", handle, path, worker}`.
 - `failed`: first failed assignment, error text and available native/raw receipt. Earlier launches survive. Inspect the retained attempt, including retained SDK snapshots and request correlation IDs, before deciding what to do. Creation can succeed before a client timeout or parse failure.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
 
@@ -27,17 +27,15 @@ See [the SDK boundary and setup](paseo.md). Workspace creation and agent launch 
 
 The prompt includes the roster stance, assignment, parent ID and reporting convention. Supervise through `paseo.withClient(c => c.agents.ref(ID).waitForFinish())`, `.timeline.refetch()` and `.send(message)`; show long waits and the outcome arrives by handle. Parent is only the `paseo.parent-agent-id` label: SDK-created children never wake the parent (Paseo's `notifyOnFinish` is MCP `create_agent` only), so the parent waits on them itself. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion. Workers end the turn with `done`, `blocked`, or `needs-input` first (`lib/report.ts`); a question is a `needs-input` turn end, answered by the next message. There is no additional inbox/ack or task-record layer. CLI `wait`, `logs`, and `send --no-wait` remain manual recovery tools.
 
-## Standalone and retained Orca
+## Standalone
 
 Standalone uses `wm.spawn` with the selected model/effort, stance, base and board reporting. Retain its Worker object for supervision and cleanup.
-
-Inside Orca, `run` must be an existing native Run ID; `from` can identify the real coordinator terminal. The existing enrollment, authoritative preamble, start-confirmation and partial-receipt behavior is unchanged. Only confirmed starts enter `submitted`; inspect `failed.receipt.cause` and use `orca.workers.confirmStart` rather than resubmitting an uncertain start. See [Orca lifecycle](orca.md). Those requirements do not apply to Paseo or standalone.
 
 ## Integration
 
 After the worker is settled and completion is accepted, `dispatch.integrate(handle, {cwd?, mode?, keep?})` uses plain Git. It refuses uncommitted worker changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` makes a `--no-ff` merge commit. Conflicts abort and throw `MergeConflict` with `branch` and `files`; send those to the worker to resolve on its branch. The caller owns settlement and acceptance; integration does not infer them from idle status.
 
-`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: Paseo archives the retained workspace ID; workmux closes the retained Worker; Orca releases the Dispatch, closes the worktree's terminals and removes its worktree. Processes still running from inside the worktree (a `term.spawn` tmux server, a dev server) are sent SIGTERM (`killed`); host archive doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `dispatch.retire(handle, {cwd})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Native receipts are returned in `Integration`. Cleanup is sequential, not transactional: if archive/cleanup fails after the merge, the merge remains. Inspect native state before repeating cleanup. No archive is attempted on merge failure.
+`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: Paseo archives the retained workspace ID; workmux closes the retained Worker. Processes still running from inside the worktree (a `term.spawn` tmux server, a dev server) are sent SIGTERM (`killed`); host archive doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `dispatch.retire(handle, {cwd})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Native receipts are returned in `Integration`. Cleanup is sequential, not transactional: if archive/cleanup fails after the merge, the merge remains. Inspect native state before repeating cleanup. No archive is attempted on merge failure.
 
 ## Session boundaries
 

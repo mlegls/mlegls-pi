@@ -6,11 +6,11 @@ Implementation baseline: `05ef261674a4e45f2c3d0cb4fa141f452fc46942`, fast-forwar
 
 ## Host behavior
 
-- `PASEO_AGENT_ID`: native Paseo workspaces, agents and messaging, even when Orca variables are inherited.
-- Otherwise `ORCA_WORKTREE_ID` or `ORCA_WORKSPACE_ID`: retained Orca trial adapter.
+- `PI_EXECUTION_HOST=paseo` or `wm`: that host, wherever pi was started. The global mise config sets `paseo`, so a pi started outside Paseo still dispatches to it; its workers have no parent agent, and it waits on them.
+- Otherwise `PASEO_AGENT_ID`: native Paseo workspaces, agents and messaging.
 - Otherwise: standalone workmux/board, including board wake hooks.
 
-The Orca extension returns before registering hooks, commands or its status bar outside Orca. Exec instructions and coordination modules follow host selection. The explicit Orca library remains importable; it is not the default outside Orca. This is the smallest reversible treatment of the Orca trial, not its removal.
+Exec instructions and coordination modules follow host selection. `ab supervise` still needs `PASEO_AGENT_ID`, since it wakes its owner through Paseo.
 
 ## SDK boundary
 
@@ -68,7 +68,7 @@ Run the local replay:
 bun install --frozen-lockfile --ignore-scripts
 bun install --cwd lib/outline-read --frozen-lockfile
 bun test lib/paseo.test.ts lib/execution-host.test.ts lib/dispatch.test.ts lib/route-assignment.test.ts extensions/exec/modules.test.ts
-bun test lib extensions/exec extensions/orca
+bun test lib extensions/exec
 tsc --noEmit
 git diff --check
 ```
@@ -109,7 +109,7 @@ The skill tree was inspected before edits. Its unrelated `conventions/setup-proj
 
 Main was fast-forwarded through `39a70aa` and its locked dependencies installed. Existing package and orchestration-skill links resolve the new code without repointing. Missing Pi-specific skill links were added directly; no broad agents-apply run or provider configuration change was needed.
 
-Reload/restart Pi to load the host extensions and skills; `/exec-reset` alone does not reload host extensions. Start new working sessions through Paseo so `PASEO_AGENT_ID` selects the native backend. Existing Orca sessions retain their host identity; merging does not migrate a running session. Standalone Pi continues to use workmux/board. Rollback is the previous package/skill revision and a reload.
+Reload/restart Pi to load the host extensions and skills; `/exec-reset` alone does not reload host extensions. Start new working sessions through Paseo so `PASEO_AGENT_ID` selects the native backend. `PI_EXECUTION_HOST=wm` returns standalone Pi to workmux/board. Rollback is the previous package/skill revision and a reload.
 
 ## Cutover smoke: 2026-09-22
 

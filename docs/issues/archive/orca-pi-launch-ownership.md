@@ -8,3 +8,5 @@ assignee: agent
 This splits lifecycle ownership: Orca settles the Dispatch but native release returns `retained / external_terminal`, so the coordinator must explicitly close the caller-owned terminal after integration. Direct native Pi launches release correctly. Prefer upstream Pi launch-preference support so the normal runtime-owned path covers routed workers too.
 
 Accepted for the native-coordination trial; the full receipt and caller-owned terminal are exposed rather than hidden behind automatic cleanup. Observed in [verification](../research/orca-native-coordination-2026-09-21.md).
+
+Closed 2026-09-23: the Orca trial ended and its adapter was removed.

@@ -15,4 +15,4 @@ host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is e
 
 ## hosts
 
-`PASEO_AGENT_ID` selects native Paseo agents/workspaces/messaging; otherwise Orca workspace variables select the retained Orca adapter. Standalone uses `wm`/`board`. `dispatch.dispatch` launches prepared assignments; host hooks and instructions follow that selection. Paseo readers initially use standalone Pi RPC. See `docs/paseo.md` for connection, supervision and installation details.
+`PI_EXECUTION_HOST=paseo|wm` selects the host; otherwise `PASEO_AGENT_ID` selects native Paseo agents/workspaces/messaging, else standalone `wm`/`board`. `dispatch.dispatch` launches prepared assignments; host hooks and instructions follow that selection. Paseo readers initially use standalone Pi RPC. See `docs/paseo.md` for connection, supervision and installation details.

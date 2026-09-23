@@ -174,7 +174,7 @@ module globals and API documentation are omitted; `host.call` also rejects
 excluded namespaces. Selection survives kernel resets and session navigation.
 
 Agent frontmatter supplies a stance, not a launch command. Use `route.prepare`
-and `dispatch` to launch routed Pi workers. The auto-loaded `orca` library supplies native supervision and messaging; see [Orca](../../docs/orca.md). `agent` in a routed assignment names a stance.
+and `dispatch` to launch routed Pi workers. Paseo supplies native supervision and messaging when it is the host; see [Paseo](../../docs/paseo.md). `agent` in a routed assignment names a stance.
 Module selection limits the supplied API, **not** filesystem/process permissions: arbitrary
 imports and enabled shell commands can still access underlying capabilities.
 The full reference below describes all modules; each session advertises only its
@@ -561,11 +561,9 @@ Contents options: `maxCharacters` (10000), `verbosity` (compact, standard, full)
 `includeSections`, `excludeSections`, `maxAgeHours`. Credentials and endpoint
 configuration are unchanged: `EXA_API_KEY` and optional `EXA_API_URL`.
 
-### Orca
+### Hosts
 
-The auto-loaded `orca` library talks to the native CLI from the kernel. It preserves Run/Task/Dispatch identities and FIFO delivery acknowledgments. Show long waits (`show(orca.check({wait: true}))`); the result arrives by handle. Showing a message never acknowledges it. [API and lifecycle](../../docs/orca.md).
-
-Legacy board/workmux libraries remain in the repository for rollback; neither their namespaces nor board wake hooks are enabled by this package.
+The `board` and `wm` modules and board wake hooks are enabled only when standalone workmux/board is the host; under Paseo they are replaced by `paseo` and `children`. See [dispatch](../../docs/dispatch.md) for host selection.
 
 ### Persistent terminals
 
@@ -695,7 +693,7 @@ extensions need exec-aware integration.
 Use exec while developing or verifying it. Report concrete friction: the operation
 attempted, what actually happened, the workaround, and a simpler interaction if
 one is apparent. Record unresolved observations in `docs/frictions.md`; workers
-should include them in their Orca completion report so the coordinating session can
+should include them in their completion report so the coordinating session can
 consolidate duplicates. Distinguish observations from proposed improvements.
 
 Worker profiles with an explicit `--tools` allowlist must include `exec`.

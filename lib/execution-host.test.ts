@@ -1,10 +1,9 @@
 import { test, expect } from "bun:test";
-import orcaExtension from "../extensions/orca/index.ts";
 import boardExtension from "./board/host.ts";
 import { executionHost } from "./execution-host.ts";
 
 async function withEnv(env: Record<string, string>, fn: () => unknown) {
-  const keys = ["PASEO_AGENT_ID", "ORCA_WORKTREE_ID", "ORCA_WORKSPACE_ID", "PI_SESSION_FILE"];
+  const keys = ["PASEO_AGENT_ID", "PI_EXECUTION_HOST", "PI_SESSION_FILE"];
   const saved = Object.fromEntries(keys.map(k => [k, process.env[k]]));
   try {
     for (const k of keys) { delete process.env[k]; }
@@ -15,14 +14,17 @@ async function withEnv(env: Record<string, string>, fn: () => unknown) {
   }
 }
 
-test("native host substitution leaves no Orca hooks in Paseo or standalone", async () => {
+test("PI_EXECUTION_HOST chooses the host; otherwise Paseo inside a Paseo agent, else wm", () => {
+  expect(executionHost({})).toBe("wm");
+  expect(executionHost({ PASEO_AGENT_ID: "p" })).toBe("paseo");
+  expect(executionHost({ PI_EXECUTION_HOST: "paseo" })).toBe("paseo");
+  expect(executionHost({ PI_EXECUTION_HOST: "wm", PASEO_AGENT_ID: "p" })).toBe("wm");
+  expect(executionHost({ PI_EXECUTION_HOST: "bogus" })).toBe("wm");
+});
+
+test("board registers no hooks when Paseo is the host", async () => {
   // Any registration (commands, status timers, turn hooks) would touch this proxy.
   const untouched = new Proxy({} as any, { get() { throw new Error("unexpected host hook"); } });
-  await withEnv({}, () => { expect(executionHost()).toBe("wm"); orcaExtension(untouched); });
-  await withEnv({ PASEO_AGENT_ID: "p", ORCA_WORKTREE_ID: "inherited" }, () => {
-    expect(executionHost()).toBe("paseo");
-    orcaExtension(untouched);
-    boardExtension(untouched);
-  });
-  await withEnv({ ORCA_WORKSPACE_ID: "w" }, () => { expect(executionHost()).toBe("orca"); boardExtension(untouched); });
+  await withEnv({ PASEO_AGENT_ID: "p" }, () => boardExtension(untouched));
+  await withEnv({ PI_EXECUTION_HOST: "paseo" }, () => boardExtension(untouched));
 });

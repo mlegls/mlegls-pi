@@ -48,7 +48,7 @@ function isPaseoId(id: string): boolean {
   return id.startsWith("paseo:") || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 }
 
-function backendFor(id: string): "paseo" | "wm" | "orca" {
+function backendFor(id: string): "paseo" | "wm" {
   if (isPaseoId(id)) return "paseo";
   if (id.includes("/")) return "wm";
   return executionHost();
@@ -268,7 +268,6 @@ export async function turnEnd(ids: string[], options: TurnEndOptions = {}): Prom
   const hosts = new Set(ids.map(backendFor));
   if (hosts.size !== 1) throw new Error("children.turnEnd cannot wait across execution hosts");
   const host = [...hosts][0];
-  if (host === "orca") throw new Error("children: Orca turn events are not implemented");
   if (host === "wm") return turnEndWm(ids, options);
 
   const client = await paseo.connect({ reconnect: { enabled: true } });
@@ -293,7 +292,6 @@ export async function turnEnd(ids: string[], options: TurnEndOptions = {}): Prom
 /** Read a child's most recent terminal turn, useful when reattaching after a daemon restart. */
 export async function last(id: string): Promise<TurnEnd | null> {
   const host = backendFor(id);
-  if (host === "orca") throw new Error("children: Orca turn events are not implemented");
   if (host === "wm") return lastWm(id);
   return paseo.withClient((client) => readPaseoEnd(client, id));
 }
@@ -302,7 +300,6 @@ export async function last(id: string): Promise<TurnEnd | null> {
 export async function send(id: string, text: string): Promise<void> {
   if (typeof text !== "string") throw new Error("children.send requires text");
   const host = backendFor(id);
-  if (host === "orca") throw new Error("children: Orca messaging is not implemented");
   if (host === "wm") {
     const target = wmTarget(id);
     const worker = wm.attach(target.run, target.handle);

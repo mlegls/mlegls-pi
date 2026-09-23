@@ -9,10 +9,10 @@ const text = (content: any[]) => content.map(block => block.text ?? "").join("")
 test("late output judged already accounted for is quiet; new output and errors wake", async () => {
 	const seen: any[] = [];
 	const judge = async (arrivals: any[]) => { seen.push(...arrivals); return arrivals.map(a => a.handle === "c3.1" ? 0.9 : 0.1); };
-	const quiet = await deliver([late("c3.1", "\nmerged unit-a into main\nmore detail\n"), late("c3", "done\n", { passive: true })], "assistant: merged unit-a", () => "orca.check()", judge);
+	const quiet = await deliver([late("c3.1", "\nmerged unit-a into main\nmore detail\n"), late("c3", "done\n", { passive: true })], "assistant: merged unit-a", () => "children.turnEnd()", judge);
 	expect(text(quiet.content)).toBe('[c3.1] quiet: likely already accounted for; show.pull("c3.1") for the full output\nmerged unit-a into main\n[c3]\ndone\n');
 	expect(quiet.wake).toBe(false);
-	expect(seen).toEqual([{ handle: "c3.1", code: "orca.check()", text: "\nmerged unit-a into main\nmore detail\n" }]);
+	expect(seen).toEqual([{ handle: "c3.1", code: "children.turnEnd()", text: "\nmerged unit-a into main\nmore detail\n" }]);
 
 	const loud = await deliver([late("c3.1", "x\n"), late("c4.1", "build ok\n"), late("c5", "", { error: "Error: boom" })], "assistant: merged", () => undefined, judge);
 	expect(loud.wake).toBe(true);

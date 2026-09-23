@@ -26,7 +26,7 @@ test("rebases the worker branch onto the parent and fast-forwards", async () => 
   const r = repo();
   r.commit(r.work, "a", "worker");
   r.commit(r.main, "b", "parent");
-  const result = await integrate({ worktreeId: "x", path: r.work }, { cwd: r.main, keep: true });
+  const result = await integrate({ backend: "wm" as const, path: r.work }, { cwd: r.main, keep: true });
   expect(result).toEqual({ branch: "unit-a", mode: "rebase" });
   expect(r.git(r.main, "log", "--format=%s")).toBe("a\nb\nroot");
 });
@@ -34,10 +34,10 @@ test("rebases the worker branch onto the parent and fast-forwards", async () => 
 test("refuses uncommitted work and reports conflicts after aborting", async () => {
   const r = repo();
   writeFileSync(join(r.work, "dirty"), "");
-  await expect(integrate({ worktreeId: "x", path: r.work }, { cwd: r.main, keep: true })).rejects.toThrow("uncommitted");
+  await expect(integrate({ backend: "wm" as const, path: r.work }, { cwd: r.main, keep: true })).rejects.toThrow("uncommitted");
   r.commit(r.work, "dirty", "w");
   r.commit(r.main, "dirty", "p");
-  const failure = await integrate({ worktreeId: "x", path: r.work }, { cwd: r.main, keep: true }).catch(e => e);
+  const failure = await integrate({ backend: "wm" as const, path: r.work }, { cwd: r.main, keep: true }).catch(e => e);
   expect(failure).toBeInstanceOf(MergeConflict);
   expect(failure.files).toEqual(["dirty"]);
   expect(r.git(r.work, "status", "--porcelain")).toBe("");

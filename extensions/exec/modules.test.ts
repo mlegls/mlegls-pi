@@ -35,26 +35,26 @@ test("project .pi/exec shadows lib by name, extras are project.*, and another cw
 	}
 }, 20000);
 
-test("resolveModules substitutes coordination only inside native hosts", async () => {
+test("resolveModules drops wm/board while Paseo is the host", async () => {
 	const { resolveModules, MODULES } = await import("./modules");
 	expect(resolveModules(undefined, undefined, {})).toEqual([...MODULES]);
-	const inside = resolveModules(undefined, undefined, { ORCA_WORKTREE_ID: "repo::/work" });
-	expect(inside).not.toContain("board");
-	expect(inside).not.toContain("wm");
-	expect(inside).toContain("sh");
-	expect(resolveModules("board,wm", undefined, { ORCA_WORKTREE_ID: "repo::/work" })).toEqual([]);
+	const paseo = resolveModules(undefined, undefined, { PI_EXECUTION_HOST: "paseo" });
+	expect(paseo).not.toContain("board");
+	expect(paseo).not.toContain("wm");
+	expect(paseo).toContain("sh");
+	expect(resolveModules("board,wm", undefined, { PASEO_AGENT_ID: "p" })).toEqual([]);
 });
 
 
-test("Paseo takes precedence over inherited Orca; instructions stay host-local", async () => {
+test("coordination instructions follow the host", async () => {
   const { resolveModules, describeModules } = await import("./modules");
   const { executionHost } = await import("../../lib/execution-host");
-  const env = { PASEO_AGENT_ID: "parent", ORCA_WORKTREE_ID: "inherited" };
+  const env = { PASEO_AGENT_ID: "parent" };
   expect(executionHost(env)).toBe("paseo");
   expect(resolveModules("board,wm", undefined, env)).toEqual([]);
   expect(describeModules([], "default", env)).toContain("paseo.withClient");
-  expect(describeModules([], "default", env)).not.toContain("orca.runs");
-  expect(describeModules([], "default", {})).not.toContain("orca.runs");
+  expect(describeModules([], "default", {})).not.toContain("paseo.withClient");
+  expect(describeModules([], "default", { PI_EXECUTION_HOST: "paseo" })).toContain("paseo.withClient");
   expect(describeModules([], "reader", env)).not.toContain("paseo.withClient");
 });
 

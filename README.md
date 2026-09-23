@@ -4,10 +4,10 @@ Personal exec libraries, skills, prompts, themes, agents, and user-level harness
 
 Exec-facing capabilities install their host integrations through explicit
 `install(host)` exports in `lib/*/host.ts`; obsolete adapters live in
-`extensions/disabled/`. Featherless, fence, system-prompt, workspace, and Orca commands remain
+`extensions/disabled/`. Featherless, fence, system-prompt, and workspace commands remain
 standalone extensions for their Pi-facing commands and providers. See [host libraries](extensions/exec/README.md#host-libraries).
 
-See [Paseo integration](docs/paseo.md) for native agents/workspaces and setup; [Orca](docs/orca.md) retains its host-local adapter and `/fork-tab`.
+See [Paseo integration](docs/paseo.md) for native agents/workspaces and setup.
 
 Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [delivery](docs/delivery.md), and [session preparation](docs/session-preparation.md).
 
@@ -27,7 +27,7 @@ Disabled Firecrawl and MCP packages are optional and not required by the suite;
 install their dependencies separately if enabling them.
 
 See [exec](extensions/exec/README.md) for the TypeScript cell API.
-Execution and messaging are host-local: Paseo under `PASEO_AGENT_ID`, otherwise Orca inside its workspace environment, otherwise standalone wm/board. Native hosts suppress wm/board hooks and instructions.
+Execution and messaging follow one host: `PI_EXECUTION_HOST=paseo|wm` chooses; otherwise `PASEO_AGENT_ID` → Paseo, else standalone workmux/board. Native hosts suppress wm/board hooks and instructions.
 
 See [Featherless](extensions/featherless/README.md) for automatic model discovery.
 

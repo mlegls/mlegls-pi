@@ -12,3 +12,5 @@ Current acceptance uses the Orca lifecycle in docs/orca.md; archived board/workm
 Check `/fork-tab` creates a visible sibling tab without switching or mutating the original Pi session. Check worker setup/launch and Orca messaging/ask/reply.
 
 If Pi lifecycle metadata is missing, prefer Orca’s Pi launch/hook configuration or a small upstream adapter change over reimplementing a session registry here. Remote hosts and automatic descendant lifecycle are outside the local adapter’s current scope.
+
+Closed 2026-09-23: the Orca trial ended and its adapter was removed.
