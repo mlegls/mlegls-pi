@@ -134,15 +134,16 @@ async function session(flags: Record<string, string>, run: (s: any) => Promise<v
 	for (const [name, value] of Object.entries(flags)) runner.setFlagValue(name, value);
 	let active = ["exec"];
 	const errors: unknown[] = [];
+	const sent: { message: any; options: any }[] = [];
 	runner.onError(error => errors.push(error));
-	runner.bindCore({ refreshTools() {}, appendEntry: (kind: string, data: unknown) => manager.appendCustomEntry(kind, data), sendMessage() {}, getActiveTools: () => active, setActiveTools: (names: string[]) => { active = names; }, getAllTools: () => runner.getAllRegisteredTools().map(t => t.definition) } as any, { getModel: () => undefined, getScopedModels: () => [], isIdle: () => true, isProjectTrusted: () => true, getSignal: () => undefined, hasPendingMessages: () => false, getContextUsage: () => undefined, getSystemPrompt: () => "" } as any);
+	runner.bindCore({ refreshTools() {}, appendEntry: (kind: string, data: unknown) => manager.appendCustomEntry(kind, data), sendMessage: (message: any, options: any) => sent.push({ message, options }), getActiveTools: () => active, setActiveTools: (names: string[]) => { active = names; }, getAllTools: () => runner.getAllRegisteredTools().map(t => t.definition) } as any, { getModel: () => undefined, getScopedModels: () => [], isIdle: () => true, isProjectTrusted: () => true, getSignal: () => undefined, hasPendingMessages: () => false, getContextUsage: () => undefined, getSystemPrompt: () => "" } as any);
 	try {
 		await runner.emit({ type: "session_start" } as any);
 		const definition = () => runner.getAllRegisteredTools().find(t => t.definition.name === "exec")!.definition;
 		let id = 0;
 		const exec = (code: string, onUpdate?: any) => wrapRegisteredTools(runner.getAllRegisteredTools(), runner).find(t => t.name === "exec")!.execute(String(++id), { code }, undefined, onUpdate);
 		await writeFile(join(cwd, "pixel.png"), Buffer.from(png, "base64"));
-		await run({ exec, runner, definition, cwd });
+		await run({ exec, runner, definition, cwd, sent });
 		expect(errors).toEqual([]);
 	} finally { await runner.emit({ type: "session_shutdown" } as any); await rm(cwd, { recursive: true, force: true }); }
 }
@@ -204,5 +205,33 @@ test("real tool result renders narrow/wide and expanded/collapsed without guessi
 				expect(display).toContain("not invoked");
 			}
 		}
+	}
+}), 20000);
+
+// Want: late output is delivered once, by handle: with the next exec result while the agent runs, else as a waking follow-up.
+test("yielded output drains into the next result, or follows up once the agent settles", () => session({}, async ({ exec, runner, sent }) => {
+	const previous = process.env.PI_EXEC_YIELD_MS;
+	process.env.PI_EXEC_YIELD_MS = "100";
+	try {
+		await runner.emit({ type: "agent_start" });
+		const first = await exec('show("now"); show(sh("sleep 0.3; printf late").then(r => r.stdout));');
+		expect(first.details.cell).toBe(1);
+		expect(text(first)).toContain("[c1.1]\nnow");
+		expect(text(first)).toContain("pending c1.2");
+		await Bun.sleep(600);
+		expect(sent).toHaveLength(0);
+		const second = await exec('show(1);');
+		expect(text(second)).toMatch(/^\[c1\.2\]\nlate\n[\s\S]*\[c1\]\ndone\n1\n$/);
+		expect(text(await exec('show(2);'))).toBe("2\n");
+		await exec('show(sh("sleep 0.3; printf woke").then(r => r.stdout));');
+		await Bun.sleep(600);
+		expect(sent).toHaveLength(0);
+		await runner.emit({ type: "agent_settled" });
+		expect(sent).toHaveLength(1);
+		expect(sent[0].options).toEqual({ triggerTurn: true, deliverAs: "followUp" });
+		expect(sent[0].message.details.handles).toEqual(["c4.1", "c4"]);
+		expect(sent[0].message.content.map((c: any) => c.text).join("")).toContain("[c4.1]\nwoke");
+	} finally {
+		if (previous === undefined) delete process.env.PI_EXEC_YIELD_MS; else process.env.PI_EXEC_YIELD_MS = previous;
 	}
 }), 20000);

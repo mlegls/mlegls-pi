@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { LedgerEntry } from "../../lib/outline-read/ledger";
-import { Kernel, type KernelLate } from "./kernel";
+import { Kernel, mergeText, type KernelLate } from "./kernel";
 import type { ContentBlock } from "./image";
 import { createExecServices, type ExecServices } from "./services";
 import { createComputerUseBridge } from "./computer-use";
@@ -32,11 +32,11 @@ export default async function (pi: ExtensionAPI) {
 	let flushTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function drain(): ContentBlock[] {
-		const content = queue.flatMap(event => [
+		const content = mergeText(queue.flatMap(event => [
 			{ type: "text" as const, text: `[${event.handle}]${event.error ? " failed" : ""}\n` },
 			...event.content,
 			...(event.error ? [{ type: "text" as const, text: event.error + "\n" }] : []),
-		]);
+		]));
 		queue = [];
 		return content;
 	}
@@ -152,7 +152,7 @@ export default async function (pi: ExtensionAPI) {
 						detach: () => ctx.hasPendingMessages(),
 					});
 				} finally { running--; }
-				const content = [...drain(), ...result.content];
+				const content = mergeText([...drain(), ...result.content]);
 				if (result.error) content.push({ type: "text", text: result.error });
 				if (!content.length) content.push({ type: "text", text: "(no output)" });
 				return {

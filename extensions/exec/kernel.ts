@@ -100,7 +100,7 @@ interface CellRun {
 	finish: (error?: string) => void;
 }
 
-function mergeText(blocks: ContentBlock[]): ContentBlock[] {
+export function mergeText(blocks: ContentBlock[]): ContentBlock[] {
 	const out: ContentBlock[] = [];
 	for (const block of blocks) {
 		const last = out.at(-1);
