@@ -9,6 +9,7 @@
         "jiti": "^2.7.0",
         "tsx": "^4.23.13",
         "typescript": "5",
+        "yaml": "2.9.0",
         "zx": "^8.8.5",
       },
       "devDependencies": {

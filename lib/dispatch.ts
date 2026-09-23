@@ -6,6 +6,7 @@ import { call, workspace, startPi, workers, OrcaError, type WorkerReceipt, type 
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { agent } from "./agents.ts";
+import { HANDOFF_KEYS } from "./report.ts";
 import { assertAssignment, type RouteOptions } from "./route.ts";
 
 export interface Assignment {
@@ -91,9 +92,9 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     try {
       const text = [stance?.body, task.prompt,
         ...(backend === "paseo" ? ["You are " + task.handle + ". Parent agent ID: " + parent + ". " +
-          "Begin final output with done, blocked, or needs-input. Questions go to the parent using " +
-          "paseo.withClient(c => c.agents.ref(" + JSON.stringify(parent) + ").send(message)) in exec. " +
-          "Commit changes for the parent to integrate; retain the workspace. " +
+          "End the turn with done, blocked, or needs-input as the first word. Do not send a terminal report or question mid-turn; for a question, finish with needs-input and the answer arrives as the next message. " +
+          "When useful, include a fenced JSON or YAML handoff using these keys: " + HANDOFF_KEYS.join(", ") + ". " +
+          "A missing status is an exception, not a guess. Commit changes for the parent to integrate; retain the workspace. " +
           "A completed turn is not assignment completion."] : [])].filter(Boolean).join("\n\n---\n\n");
       if (backend === "paseo") {
         const launched = await paseo.launch(task, text, { run: options.run, cwd, parent });
