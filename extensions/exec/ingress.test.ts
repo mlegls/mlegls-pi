@@ -13,7 +13,7 @@ test("focus crosses the exec VM boundary, supplements context, and leaves raw/va
     'export function create() { return { filter(text, query, budget, focus) { return JSON.stringify({text, query, focus}); }, pull(id) { return "original:" + id; } }; }');
   const kernel = new Kernel({ cwd, modules: [], ledger: [], persist() {} });
   const run = async (code: string, query = "implicit context") => {
-    const result = await kernel.execute(code, undefined, undefined, 30000, query);
+    const result = await kernel.execute(code, { query });
     expect(result.error).toBeUndefined();
     return result.output;
   };

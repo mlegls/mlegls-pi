@@ -32,10 +32,31 @@ export interface KernelResult {
 	content: ContentBlock[];
 	output: string;
 	error?: string;
+	/** Cell number; its output handles are c<cell> (body plus all shows) and c<cell>.<call>. */
+	cell?: number;
+	/** The result yielded before the cell settled; the rest arrives through onLate. */
+	running?: boolean;
 }
 
-export interface KernelNotification extends KernelResult {
-	label?: string;
+/** Output that settled after its cell's tool result yielded. */
+export interface KernelLate {
+	handle: string;
+	content: ContentBlock[];
+	error?: string;
+	/** Passive events ride along with the next delivery but never wake the agent by themselves. */
+	passive: boolean;
+}
+
+export interface ExecuteOptions {
+	/** Cell number; defaults to a per-kernel counter. */
+	id?: number;
+	signal?: AbortSignal;
+	onUpdate?: (trace: KernelTrace) => void;
+	query?: string;
+	/** Yield with partial output after this long unless a show.sync/wait is pending (default 10s). */
+	yieldMs?: number;
+	/** Polled while the result is held; true yields immediately (e.g. the user queued a steer). */
+	detach?: () => boolean;
 }
 
 /** One child→host service call. `signal` aborts when the kernel stops or is disposed. */
@@ -53,7 +74,7 @@ export interface KernelOptions {
 	sessionFile?: string;
 	ledger: LedgerEntry[];
 	persist: (entry: LedgerEntry) => void | Promise<void>;
-	onNotification?: (event: KernelNotification) => void;
+	onLate?: (event: KernelLate) => void;
 	onIngress?: (event: IngressEvent) => void;
 	/** Host-side implementation of the `exa` / `board` / `wm` namespaces. Must resolve JSON-serializable values. */
 	call?: (request: KernelRequest) => Promise<unknown>;
@@ -61,8 +82,37 @@ export interface KernelOptions {
 
 const DEFAULT_MODULES = ["fs", "sh", "exa", "term", "ui"];
 
-const LIMIT = 50 * 1024;
-const TRUNCATED = "\n[output truncated]\n";
+const LIMIT = 64 * 1024;
+const DEFAULT_YIELD_MS = 10_000;
+
+interface CellCall { content: ContentBlock[]; done: boolean; sync: boolean; error?: string }
+interface CellRun {
+	id: number;
+	trace: KernelTrace;
+	onUpdate?: (trace: KernelTrace) => void;
+	/** Call 0 is cell-level output (limit warnings), not a show. */
+	calls: Map<number, CellCall>;
+	diagnostics: string;
+	bytes: number;
+	detached: boolean;
+	passive: boolean;
+	check: () => void;
+	finish: (error?: string) => void;
+}
+
+function mergeText(blocks: ContentBlock[]): ContentBlock[] {
+	const out: ContentBlock[] = [];
+	for (const block of blocks) {
+		const last = out.at(-1);
+		if (block.type === "text" && last?.type === "text") out[out.length - 1] = { ...last, text: last.text + block.text };
+		else if (block.type !== "text" || block.text) out.push(block);
+	}
+	return out;
+}
+
+function textOf(blocks: ContentBlock[]): string {
+	return blocks.map(block => block.type === "text" ? block.text : "").join("");
+}
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -72,13 +122,14 @@ function errorMessage(error: unknown): string {
 export class Kernel {
 	private child?: ChildProcess;
 	private ready?: Promise<void>;
-	private queue: Promise<unknown> = Promise.resolve();
 	private persistence: Promise<void> = Promise.resolve();
 	private persistenceError?: string;
 	private entries = new Map<string, LedgerEntry>();
 	private calls = new Set<AbortController>();
 	private shellOutput = new Map<number, Map<string, string>>();
-	private active?: { trace: KernelTrace; onUpdate?: (trace: KernelTrace) => void; id: number; content: ContentBlock[]; output: string; diagnostics: string; bytes: number; truncated: boolean; finish: (error?: string) => void };
+	private cells = new Map<number, CellRun>();
+	private pongs = new Map<number, () => void>();
+	private pinging = false;
 	private sequence = 0;
 	private disposed = false;
 
@@ -86,35 +137,31 @@ export class Kernel {
 		for (const entry of options.ledger) this.entries.set(entry.path, entry);
 	}
 
-	execute(code: string, signal?: AbortSignal, onUpdate?: (trace: KernelTrace) => void, timeoutMs = 30_000, query = ""): Promise<KernelResult> {
-		if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647) {
-			return Promise.resolve({ content: [], output: "", error: "timeoutMs must be an integer between 1 and 2147483647" });
-		}
-		const run = this.queue.then(() => this.run(code, signal, onUpdate, timeoutMs, query));
-		this.queue = run.catch(() => {});
-		return run;
+	/**
+	 * Run one cell. Cells run concurrently in one kernel; the result settles when the cell
+	 * and its shows finish, or yields at yieldMs (unless show.sync/wait is pending) with
+	 * whatever has been shown. Later output is reported through onLate by handle.
+	 */
+	execute(code: string, options: ExecuteOptions = {}): Promise<KernelResult> {
+		return this.run(code, options);
 	}
 
-	private append(text: string, warning = false): void {
-		const active = this.active;
-		if (!active || (active.truncated && !warning)) return;
-		const before = active.output.length;
-		const bytes = Buffer.from(text);
-		const remaining = warning ? bytes.length : LIMIT - active.bytes;
-		active.output += bytes.subarray(0, remaining).toString();
-		if (!warning) active.bytes += Math.min(bytes.length, remaining);
-		if (bytes.length > remaining) {
-			active.truncated = true;
-			active.output += TRUNCATED;
-		}
-		const added = active.output.slice(before);
-		const last = active.content.at(-1);
-		if (last?.type === "text") last.text += added;
-		else if (added) active.content.push({ type: "text", text: added });
+	private call(cell: CellRun, call: number): CellCall {
+		let record = cell.calls.get(call);
+		if (!record) cell.calls.set(call, record = { content: [], done: call === 0, sync: false });
+		return record;
+	}
+
+	private append(cell: CellRun, call: number, text: string, warning = false): void {
+		const bytes = Buffer.byteLength(text);
+		if (!warning && cell.bytes + bytes > LIMIT) return;
+		if (!warning) cell.bytes += bytes;
+		this.call(cell, call).content.push({ type: "text", text });
 	}
 
 	private diagnostic(text: string): void {
-		if (this.active) this.active.diagnostics = (this.active.diagnostics + text).slice(0, LIMIT);
+		const cell = [...this.cells.values()].at(-1);
+		if (cell) cell.diagnostics = (cell.diagnostics + text).slice(0, LIMIT);
 	}
 
 	private start(): Promise<void> {
@@ -144,7 +191,7 @@ export class Kernel {
 					case "ingress":
 						this.persistence = this.persistence.then(() => this.options.onIngress?.(message.event)).catch(error => { this.persistenceError = errorMessage(error); });
 						break;
-					case "output": if (message.id === this.active?.id) this.append(message.text, message.warning); break;
+					case "output": { const cell = this.cells.get(message.id); if (cell) this.append(cell, message.call ?? 0, message.text, message.warning); break; }
 					case "shell-output": {
 						let streams = this.shellOutput.get(message.shell);
 						if (!streams) this.shellOutput.set(message.shell, streams = new Map());
@@ -152,14 +199,29 @@ export class Kernel {
 						break;
 					}
 					case "shell-done": this.shellOutput.delete(message.shell); break;
-					case "image": if (message.id === this.active?.id) this.active?.content.push({ type: "image", data: message.data, mimeType: message.mimeType }); break;
-					case "trace":
-						if (this.active && message.id === this.active.id) {
-							this.active.trace = message.trace;
-							this.updateTrace();
-						}
+					case "image": this.cells.get(message.id) && this.call(this.cells.get(message.id)!, message.call ?? 0).content.push({ type: "image", data: message.data, mimeType: message.mimeType }); break;
+					case "trace": {
+						const cell = this.cells.get(message.id);
+						if (cell) { cell.trace = message.trace; this.updateTrace(cell); }
 						break;
-					case "done": if (message.id === this.active?.id) this.active?.finish(message.error); break;
+					}
+					case "show": {
+						const cell = this.cells.get(message.id);
+						if (cell) this.call(cell, message.call).sync = Boolean(message.sync);
+						break;
+					}
+					case "show-done": {
+						const cell = this.cells.get(message.id);
+						if (!cell) break;
+						const record = this.call(cell, message.call);
+						record.done = true;
+						record.error = message.error;
+						// No immediate check: the interval tick gives the body's done a moment to follow a finished sync call.
+						if (cell.detached) this.late({ handle: `c${cell.id}.${message.call}`, content: mergeText(record.content), error: record.error, passive: cell.passive });
+						break;
+					}
+					case "done": this.cells.get(message.id)?.finish(message.error); break;
+					case "pong": this.pongs.get(message.nonce)?.(); break;
 					case "request": void this.handleRequest(child, message); break;
 					case "persist": {
 						const entry = message.entry as LedgerEntry;
@@ -169,9 +231,6 @@ export class Kernel {
 						});
 						break;
 					}
-					case "notification":
-						try { this.options.onNotification?.(message.event); } catch { /* UI delivery must not kill the kernel. */ }
-						break;
 					case "fatal":
 						clearTimeout(timer); reject(new Error(message.error));
 						void this.stop(message.error);
@@ -228,52 +287,110 @@ export class Kernel {
 		}
 	}
 
-	private async run(code: string, signal: AbortSignal | undefined, onUpdate: ((trace: KernelTrace) => void) | undefined, timeoutMs: number, query: string): Promise<KernelResult> {
+	/** After an interrupt, a kernel whose event loop cannot answer within 1s is wedged; only then is it stopped. */
+	private async probe(): Promise<void> {
+		const child = this.child;
+		if (!child || this.pinging) return;
+		this.pinging = true;
+		const nonce = Math.random();
+		const answered = await new Promise<boolean>(resolve => {
+			const timer = setTimeout(() => resolve(false), 1000);
+			this.pongs.set(nonce, () => { clearTimeout(timer); resolve(true); });
+			try { child.send({ type: "ping", nonce }, () => {}); } catch { clearTimeout(timer); resolve(false); }
+		});
+		this.pongs.delete(nonce);
+		this.pinging = false;
+		if (!answered && this.child === child) await this.stop("Kernel was unresponsive after interrupt; state was cleared and shell subprocesses stopped");
+	}
+
+	private late(event: KernelLate): void {
+		try { this.options.onLate?.(event); } catch { /* Delivery must not kill the kernel. */ }
+	}
+
+	private async run(code: string, options: ExecuteOptions): Promise<KernelResult> {
 		if (this.disposed) return { content: [], output: "", error: "Kernel is disposed" };
-		if (signal?.aborted) return { content: [], output: "", error: "Execution cancelled" };
+		if (options.signal?.aborted) return { content: [], output: "", error: "Execution cancelled" };
+		const id = options.id ?? this.sequence + 1;
+		this.sequence = Math.max(this.sequence, id);
+		const yieldMs = options.yieldMs ?? DEFAULT_YIELD_MS;
+		// The yield clock starts when the kernel receives the cell, not during startup.
+		let started = Infinity;
 		return new Promise<KernelResult>((resolve) => {
-			let finished = false;
-			let timer: ReturnType<typeof setTimeout> | undefined;
-			const id = ++this.sequence;
-			const finish = (error?: string) => {
-				if (finished) return;
-				finished = true;
-				clearTimeout(timer);
-				signal?.removeEventListener("abort", abort);
-				const trace = this.active?.trace;
-				if (trace) trace.finished = true;
-				const output = this.active?.output ?? "";
-				const diagnostics = this.active?.diagnostics;
-				const content = this.active?.content ?? [];
-				this.active = undefined;
+			let resolved = false;
+			let timer: ReturnType<typeof setInterval> | undefined;
+			const ordered = () => [...cell.calls.entries()].filter(([call]) => call !== 0).sort(([a], [b]) => a - b);
+			const settle = (result: Omit<KernelResult, "output">) => {
+				resolved = true;
+				clearInterval(timer);
+				options.signal?.removeEventListener("abort", cell.check);
+				const trace = structuredClone(cell.trace);
+				const content = mergeText(result.content);
+				const diagnostics = cell.diagnostics;
 				void this.persistence.then(() => {
-					const errors = [error, this.persistenceError].filter(Boolean);
+					const errors = [result.error, this.persistenceError].filter(Boolean);
 					this.persistenceError = undefined;
-					resolve({ output, content, trace, ...(diagnostics ? { diagnostics } : {}), ...(errors.length ? { error: errors.join("\n") } : {}) });
+					resolve({ ...result, cell: id, content, output: textOf(content), trace, ...(diagnostics ? { diagnostics } : {}), ...(errors.length ? { error: errors.join("\n") } : {}) });
 				});
 			};
-			const abort = () => { void this.stop("Execution cancelled; kernel state was cleared"); };
-			this.active = { id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate, content: [], output: "", diagnostics: "", bytes: 0, truncated: false, finish };
-			this.updateTrace();
-			signal?.addEventListener("abort", abort, { once: true });
-			timer = setTimeout(() => {
-				void this.stop(`Execution timed out after ${timeoutMs}ms; kernel state was cleared and shell subprocesses stopped. Captured partial output is included (bounded); side effects may remain, so do not blindly retry. Use term for long suites/clones, set timeoutMs on this call, or retain a promise and await it in a later cell.`);
-			}, timeoutMs);
+			const detach = () => {
+				cell.detached = true;
+				const content: ContentBlock[] = [];
+				const pending: string[] = [];
+				for (const [call, record] of ordered()) {
+					const handle = `c${id}.${call}`;
+					if (!record.done) { pending.push(handle); continue; }
+					content.push({ type: "text", text: `[${handle}]\n` }, ...record.content);
+					if (record.error) content.push({ type: "text", text: record.error + "\n" });
+				}
+				const status = `c${id} running${pending.length ? `; pending ${pending.join(", ")}` : ""}. ` + (cell.passive
+					? "Detached on interrupt: later output is delivered with the next result but will not wake the agent."
+					: `Later output arrives by handle at the next tool result, or wakes you if idle. Do other work meanwhile; wait("c${id}") blocks.`);
+				content.push({ type: "text", text: status + "\n" });
+				settle({ content, running: true });
+			};
+			const cell: CellRun = {
+				id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate: options.onUpdate,
+				calls: new Map(), diagnostics: "", bytes: 0, detached: false, passive: false,
+				check: () => {
+					if (resolved) return;
+					if (options.signal?.aborted) { cell.passive = true; void this.probe(); return detach(); }
+					if (options.detach?.()) return detach();
+					if (Date.now() - started >= yieldMs && ![...cell.calls.values()].some(call => call.sync && !call.done)) detach();
+				},
+				finish: (error?: string) => {
+					if (this.cells.get(id) !== cell) return;
+					this.cells.delete(id);
+					cell.trace = { ...cell.trace, finished: true };
+					const extra = cell.calls.get(0)?.content ?? [];
+					if (!resolved) {
+						const content = [...ordered().flatMap(([, record]) => record.content), ...extra];
+						return settle({ content, ...(error ? { error } : {}) });
+					}
+					if (!cell.detached) return;
+					const reported = ordered().some(([, record]) => record.error && record.error === error);
+					const failed = Boolean(error && !reported);
+					this.late({ handle: `c${id}`, content: mergeText([{ type: "text", text: failed ? "" : "done\n" }, ...extra]), ...(failed ? { error } : {}), passive: cell.passive || !failed });
+				},
+			};
+			this.cells.set(id, cell);
+			this.updateTrace(cell);
+			options.signal?.addEventListener("abort", cell.check, { once: true });
+			timer = setInterval(cell.check, Math.max(20, Math.min(200, yieldMs)));
 			try {
 				void this.start().then(() => {
-					if (finished) return;
-					this.child?.send({ type: "execute", id, code, query }, (error) => {
-						if (error) void this.stop(String(error));
+					if (this.cells.get(id) !== cell) return;
+					started = Date.now();
+					this.child?.send({ type: "execute", id, code, query: options.query ?? "" }, (error) => {
+						if (error) cell.finish(String(error));
 					});
-				}, (error) => finish(String(error)));
-			} catch (error) { finish(String(error)); }
+				}, (error) => cell.finish(String(error)));
+			} catch (error) { cell.finish(String(error)); }
 		});
 	}
 
-	private updateTrace(): void {
-		const active = this.active;
-		if (!active?.onUpdate) return;
-		try { active.onUpdate(structuredClone(active.trace)); } catch { /* Presentation cannot affect execution. */ }
+	private updateTrace(cell: CellRun): void {
+		if (!cell.onUpdate || cell.detached) return;
+		try { cell.onUpdate(structuredClone(cell.trace)); } catch { /* Presentation cannot affect execution. */ }
 	}
 
 	/** Abort every in-flight host service call; its promise must settle so host work unwinds. */
@@ -293,17 +410,17 @@ export class Kernel {
 ${text}`);
 		}
 		this.shellOutput.clear();
-		if (this.active) {
-			this.active.trace = structuredClone(this.active.trace);
-			this.active.trace.finished = true;
-			for (const entry of this.active.trace.entries) if (entry.state === "pending") {
+		for (const cell of [...this.cells.values()]) {
+			cell.trace = structuredClone(cell.trace);
+			cell.trace.finished = true;
+			for (const entry of cell.trace.entries) if (entry.state === "pending") {
 				entry.state = "interrupted";
 				entry.durationMs = Date.now() - entry.startedAt;
 				entry.error = "Kernel stopped before completion";
 			}
-			this.updateTrace();
+			this.updateTrace(cell);
+			cell.finish(error);
 		}
-		this.active?.finish(error);
 		if (!child?.pid) return;
 		const exited = child.exitCode !== null || child.signalCode !== null;
 		const closed = exited ? Promise.resolve() : new Promise<void>((resolve) => child.once("exit", () => resolve()));
@@ -314,6 +431,11 @@ ${text}`);
 			} else process.kill(-child.pid, "SIGKILL");
 		} catch { child.kill("SIGKILL"); }
 		await closed;
+	}
+
+	/** Stop the kernel process, its shells and host calls; the next cell starts a fresh kernel. */
+	restart(reason = "Kernel restarted; state was cleared"): Promise<void> {
+		return this.stop(reason);
 	}
 
 	async dispose(): Promise<void> {

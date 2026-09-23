@@ -198,25 +198,25 @@ function display(value, raw = false, query = scope.getStore()?.query ?? ingressQ
 	});
 }
 
-function emitValues(cell, values) {
+function emitValues(cell, values, call = 0) {
 	let texts = [];
-	const flush = () => { if (texts.length) { emit(cell, texts.join(" ") + "\n"); texts = []; } };
+	const flush = () => { if (texts.length) { emit(cell, texts.join(" ") + "\n", call); texts = []; } };
 	for (const value of values) {
 		if (!Array.isArray(value)) { texts.push(value); continue; }
 		flush();
 		cell.renderError ??= contentErrors.get(value);
 		for (const block of value) {
-			if (block.type === "text") emit(cell, block.text + "\n");
+			if (block.type === "text") emit(cell, block.text + "\n", call);
 			else if (block.type === "image" && !cell.finished) {
 				const bytes = Buffer.byteLength(block.data);
 				if (cell.images >= 8 || cell.imageBytes + bytes > 20 * 1024 * 1024) {
 					if (!cell.imageWarning) {
 						cell.imageWarning = true;
-						cell.deliver({ type: "output", id: cell.id, text: "\n[image limit reached: max 8 images / 20 MiB base64; retained values can be displayed later]\n", warning: true });
+						cell.deliver({ type: "output", id: cell.id, call, text: "\n[image limit reached: max 8 images / 20 MiB base64; retained values can be displayed later]\n", warning: true });
 					}
 				} else {
 					cell.images++; cell.imageBytes += bytes;
-					cell.deliver({ type: "image", id: cell.id, data: block.data, mimeType: block.mimeType });
+					cell.deliver({ type: "image", id: cell.id, call, data: block.data, mimeType: block.mimeType });
 				}
 			}
 		}
@@ -224,34 +224,66 @@ function emitValues(cell, values) {
 	flush();
 }
 
-function show(...values) {
+// Output handles: "c<cell>" settles when the cell body and all its shows finish;
+// "c<cell>.<call>" settles when that show call has emitted. Handles are addresses,
+// so waiting on one is the same whether it was made in this cell or an earlier one.
+const handles = new Map();
+
+function splitOptions(values) {
 	const last = values.at(-1);
-	const options = values.length > 1 && last && typeof last === "object" && !Array.isArray(last)
-		&& Object.keys(last).length === 1 && typeof last.focus === "string" ? values.pop() : undefined;
-	return showValues(false, values, options?.focus);
+	return values.length > 1 && last && typeof last === "object" && !Array.isArray(last)
+		&& Object.keys(last).length === 1 && typeof last.focus === "string" ? values.pop().focus : undefined;
 }
 
-function showValues(raw, values, focus) {
+function show(...values) {
+	const focus = splitOptions(values);
+	return showValues(false, values, focus);
+}
+
+// One show call: announced to the host, emitted when its values resolve (independently
+// of earlier calls), then marked done. sync calls hold the tool result past the yield.
+function track(cell, work, sync, emitResult) {
+	const call = ++cell.calls;
+	const handle = "c" + cell.id + "." + call;
+	send({ type: "show", id: cell.id, call, sync });
+	let failure;
+	const pending = Promise.resolve(work).then(value => emitResult(value, call));
+	const done = pending.then(() => {}, error => { failure = error; cell.renderError ??= error; });
+	cell.pending.add(done);
+	void done.then(() => {
+		cell.pending.delete(done);
+		send({ type: "show-done", id: cell.id, call, ...(failure ? { error: errorText(failure) } : {}) });
+	});
+	handles.set(handle, done);
+	return pending;
+}
+
+function showValues(raw, values, focus, sync = false) {
 	const cell = scope.getStore();
 	if (!cell || cell.finished) return Promise.resolve();
 	const rendered = values.map(value => display(value, raw, undefined, focus));
-	if (!cell.tail && !rendered.some(isPromise)) {
-		emitValues(cell, rendered.length ? rendered : [""]);
-		return Promise.resolve();
-	}
-	const resolved = Promise.all(rendered);
-	const pending = Promise.all([cell.tail, resolved]).then(([, values]) => emitValues(cell, values.length ? values : [""]));
-	cell.tail = pending.catch(() => {});
-	cell.pending.add(pending);
-	pending.then(
-		() => cell.pending.delete(pending),
-		(error) => { cell.pending.delete(pending); cell.renderError ??= error; },
-	);
-	return pending;
+	const work = rendered.some(isPromise) ? Promise.all(rendered) : rendered;
+	return track(cell, work, sync, (values, call) => emitValues(cell, values.length ? values : [""], call));
 }
 
 show.raw = (...values) => showValues(true, values);
 show.pull = (id) => show.raw(ingress.pull(id));
+show.sync = (...values) => {
+	const focus = splitOptions(values);
+	return showValues(false, values, focus, true);
+};
+
+/** Block this cell's tool result until the named output handles settle. */
+function wait(...ids) {
+	const cell = scope.getStore();
+	if (!cell || cell.finished) return Promise.resolve();
+	const targets = ids.map(id => {
+		const target = handles.get(String(id));
+		if (!target) throw new Error("Unknown output handle " + JSON.stringify(id) + "; handles look like c7 or c7.2");
+		return target;
+	});
+	return track(cell, Promise.all(targets), true, (_values, call) => emit(cell, "settled: " + ids.join(", ") + "\n", call));
+}
 
 show.large = (...values) => {
 	const cell = scope.getStore();
@@ -261,10 +293,10 @@ show.large = (...values) => {
 
 function outputWarning(cell) {
 	if (!cell.omittedBytes) return;
-	cell.deliver({ type: "output", id: cell.id, warning: true, text: `\n[output truncated] ${cell.omittedBytes} UTF-8 bytes omitted; retained values unchanged. Select a smaller slice or use show.large(value) in a new cell (50 KiB ceiling).\n` });
+	cell.deliver({ type: "output", id: cell.id, call: 0, warning: true, text: `\n[output truncated] ${cell.omittedBytes} UTF-8 bytes omitted; retained values unchanged. Select a smaller slice or use show.large(value) in a new cell (50 KiB ceiling).\n` });
 }
 
-function emit(cell, value) {
+function emit(cell, value, call = 0) {
 	if (cell.finished) return;
 	const bytes = Buffer.from(value);
 	const remaining = Math.max(0, (cell.outputLimit ?? OUTPUT_LIMIT) - cell.bytes);
@@ -273,7 +305,7 @@ function emit(cell, value) {
 	const text = bytes.subarray(0, end).toString();
 	cell.bytes += end;
 	cell.omittedBytes = (cell.omittedBytes ?? 0) + bytes.length - end;
-	if (text) cell.deliver({ type: "output", id: cell.id, text });
+	if (text) cell.deliver({ type: "output", id: cell.id, call, text });
 }
 
 function errorText(error) {
@@ -357,46 +389,6 @@ async function write(path, content) {
 	return { path, bytes: Buffer.byteLength(content, "utf8") };
 }
 
-// Observe without awaiting the work: an early status check cannot consume a cell deadline.
-const polled = new WeakMap();
-async function poll(promise) {
-	if (!promise || typeof promise.then !== "function") throw new TypeError("poll expects a retained promise");
-	if (!polled.has(promise)) {
-		polled.set(promise, Object.freeze({ status: "pending" }));
-		Promise.resolve(promise).then(
-			value => polled.set(promise, Object.freeze({ status: "ready", value })),
-			error => polled.set(promise, Object.freeze({ status: "failed", error })),
-		);
-	}
-	// A REPL promise is from another realm; let its adoption/reaction microtasks drain.
-	await new Promise(resolve => setImmediate(resolve));
-	return polled.get(promise);
-}
-
-function notify(promise, label) {
-	if (label !== undefined && typeof label !== "string") throw new TypeError("notify label must be a string");
-	Promise.resolve(promise).then(
-		async (value) => {
-			const content = [];
-			let output = "", error;
-			const cell = { bytes: 0, images: 0, imageBytes: 0, deliver(message) {
-				if (message.type === "image") content.push({ type: "image", data: message.data, mimeType: message.mimeType });
-				else { output += message.text; const last = content.at(-1); if (last?.type === "text") last.text += message.text; else content.push({ type: "text", text: message.text }); }
-			} };
-			try {
-				const displayed = await display(value, false, ingressQuery);
-				if (Array.isArray(displayed)) emitValues(cell, [displayed]);
-				else emit(cell, displayed);
-				if (cell.renderError) error = errorText(cell.renderError);
-			} catch (e) { error = errorText(e); }
-			outputWarning(cell);
-			send({ type: "notification", event: { label, output, content, ...(error ? { error } : {}) } });
-		},
-		(error) => send({ type: "notification", event: { label, output: "", content: [], error: errorText(error) } }),
-	);
-	return promise;
-}
-
 async function initialize(message) {
 	const reader = message.profile === "reader";
 	modules = new Set((message.modules ?? DEFAULT_MODULES).filter(name => name !== "board" && name !== "wm" && (!reader || name === "fs" || name === "exa")));
@@ -416,7 +408,7 @@ async function initialize(message) {
 	});
 	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
-	const capabilities = reader ? { show } : { show, notify, poll };
+	const capabilities = { show, wait };
 	if (modules.has("fs")) {
 		if (reader) {
 			for (const name of ["read", "grep", "find"]) capabilities[name] = traced(name, api[name]);
@@ -470,7 +462,7 @@ function execute(message) {
 	ingressQuery = message.query ?? "";
 	const cell = {
 		query: ingressQuery,
-		id: message.id, images: 0, imageBytes: 0, deliver: send, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
+		id: message.id, calls: 0, images: 0, imageBytes: 0, deliver: send, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
 		async finish(error) {
 			if (cell.finished || cell.finishing) return;
 			cell.finishing = true;
@@ -482,8 +474,11 @@ function execute(message) {
 			if (active === cell) active = undefined;
 			error ??= cell.renderError;
 			send({ type: "done", id: cell.id, ...(error ? { error: errorText(error) } : {}) });
+			settled();
 		},
 	};
+	let settled;
+	handles.set("c" + cell.id, new Promise(resolve => { settled = resolve; }));
 	cell.trace = createTrace(cell, send);
 	active = cell;
 	scope.run(cell, () => {
@@ -501,6 +496,7 @@ process.on("message", (message) => {
 	if (message.type === "init") initialize(message).catch((error) => send({ type: "fatal", error: errorText(error) }));
 	else if (message.type === "execute") execute(message);
 	else if (message.type === "response") resolveMessage(message);
+	else if (message.type === "ping") send({ type: "pong", nonce: message.nonce });
 });
 
 // Parent crashes should not leave ordinary shell descendants behind.

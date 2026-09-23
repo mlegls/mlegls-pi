@@ -30,7 +30,7 @@ async function fixture(run: (kernel: Kernel, cwd: string) => Promise<void>, opti
 test("live invocation order is independent of completion order; explicit show remains a filter", () => fixture(async kernel => {
 	const updates: KernelTrace[] = [];
 	let complete = false;
-	const work = kernel.execute('const slow = sh("sleep .25; echo slow; echo second"); const fast = sh(`printf fast\nprintf tail`); state.source = await read("sample.ts"); await Promise.all([slow, fast]);', undefined, t => updates.push(t)).then(r => { complete = true; return r; });
+	const work = kernel.execute('const slow = sh("sleep .25; echo slow; echo second"); const fast = sh(`printf fast\nprintf tail`); state.source = await read("sample.ts"); await Promise.all([slow, fast]);', { onUpdate: t => updates.push(t) }).then(r => { complete = true; return r; });
 	await until(() => updates.some(t => t.entries.some(e => e.state === "pending")));
 	expect(complete).toBe(false);
 	const saved = JSON.stringify(updates[0]);
@@ -68,12 +68,15 @@ test("retained jobs, operation errors, and interruption remain distinct", () => 
 	expect(entries(failed)[0].error).toContain("absent.ts");
 	const controller = new AbortController();
 	const updates: KernelTrace[] = [];
-	const work = kernel.execute('await sh("sleep 60");', controller.signal, t => updates.push(t));
+	const work = kernel.execute('await sh("sleep 60");', { signal: controller.signal, onUpdate: t => updates.push(t) });
 	await until(() => updates.some(t => t.entries.some(e => e.state === "pending")));
 	controller.abort();
 	const interrupted = await work;
-	expect(interrupted.error).toMatch(/cancel|interrupt/i);
-	expect(entries(interrupted)[0].state).toBe("interrupted");
+	expect(interrupted.running).toBe(true);
+	expect(interrupted.output).toContain("Detached on interrupt");
+	expect(entries(interrupted)[0].state).toBe("pending");
+	expect((await kernel.execute('show(typeof state.job);')).output).toBe("object\n");
+	await kernel.restart();
 	expect((await kernel.execute('show(typeof state.job);')).output).toBe("undefined\n");
 }), 20000);
 
@@ -98,7 +101,7 @@ test("trace previews are passive, byte-bounded, and omit image payloads", () => 
 	for (const entry of entries(large)) for (const preview of [entry.args, entry.result, entry.error]) if (preview) expect(Buffer.byteLength(preview)).toBeLessThanOrEqual(4096);
 	expect(large.output).toBe("");
 	const burstUpdates: KernelTrace[] = [];
-	const burst = await kernel.execute('for (let i=0;i<1000;i++) { try { sh(null); } catch {} }', undefined, t => burstUpdates.push(t));
+	const burst = await kernel.execute('for (let i=0;i<1000;i++) { try { sh(null); } catch {} }', { onUpdate: t => burstUpdates.push(t) });
 	expect(entries(burst)).toHaveLength(64);
 	expect(burst.trace!.omitted).toBe(936);
 	expect(burstUpdates.length).toBeLessThan(64);
@@ -107,7 +110,7 @@ test("trace previews are passive, byte-bounded, and omit image payloads", () => 
 
 // Want: selected capabilities disappear, including the generic RPC route, across reset.
 test("Kernel defaults exclude legacy coordination, empty means core only, and host rejects excluded RPC", async () => {
-	const names = '[typeof read,typeof sh,typeof exa,typeof board,typeof wm,typeof term,typeof ui,typeof show,typeof notify,typeof console]';
+	const names = '[typeof read,typeof sh,typeof exa,typeof board,typeof wm,typeof term,typeof ui,typeof show,typeof wait,typeof console]';
 	await fixture(async kernel => {
 		expect((await kernel.execute('show(' + names + '.join(","));')).output).toBe("function,function,object,undefined,undefined,object,object,function,function,object\n");
 	});
@@ -151,7 +154,7 @@ test("loader-applied flags update advertised API and survive session tree and co
 		expect(description).toContain("read(");
 		for (const api of ["await sh`", "board.send(", "exa.search(", "wm.spawn(", "term.spawn(", "ui.findRoots"]) expect(description).not.toContain(api);
 		expect(description).toContain("show(");
-		expect(description).toContain("notify(");
+		expect(description).toContain("wait(");
 	};
 	await check();
 	await runner.emit({ type: "session_tree" } as any);

@@ -1,7 +1,8 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { LedgerEntry } from "../../lib/outline-read/ledger";
-import { Kernel } from "./kernel";
+import { Kernel, type KernelLate } from "./kernel";
+import type { ContentBlock } from "./image";
 import { createExecServices, type ExecServices } from "./services";
 import { createComputerUseBridge } from "./computer-use";
 import { MODULES, resolveModules, describeModules, resolveProfile, type ExecProfile, type ExecModule } from "./modules";
@@ -22,6 +23,35 @@ export default async function (pi: ExtensionAPI) {
 	let kernel: Kernel | undefined;
 	let services: ExecServices | undefined;
 	let generation = 0;
+	// Output handles (c<cell>.<call>) are numbered per session branch, so they stay unambiguous across kernel resets and reloads.
+	let nextCell = 1;
+	// Late output waits for a listening point: the next exec result, or the agent settling.
+	let queue: KernelLate[] = [];
+	let running = 0;
+	let busy = false;
+	let flushTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function drain(): ContentBlock[] {
+		const content = queue.flatMap(event => [
+			{ type: "text" as const, text: `[${event.handle}]${event.error ? " failed" : ""}\n` },
+			...event.content,
+			...(event.error ? [{ type: "text" as const, text: event.error + "\n" }] : []),
+		]);
+		queue = [];
+		return content;
+	}
+
+	function flush() {
+		clearTimeout(flushTimer);
+		flushTimer = undefined;
+		if (running || busy || queue.every(event => event.passive)) return;
+		const handles = queue.map(event => event.handle);
+		pi.sendMessage({ customType: "exec-output", content: drain(), display: true, details: { handles } }, { triggerTurn: true, deliverAs: "followUp" });
+	}
+
+	function scheduleFlush() {
+		if (!flushTimer) flushTimer = setTimeout(flush, 250);
+	}
 
 	async function reset(ctx?: ExtensionContext, session = false) {
 		generation++;
@@ -43,6 +73,15 @@ export default async function (pi: ExtensionAPI) {
 		if (configurationError) throw new Error(configurationError);
 		services ??= createExecServices(pi, ctx, { ui });
 		const current = generation;
+		queue = [];
+		if (session) {
+			nextCell = 1;
+			for (const entry of ctx.sessionManager.getBranch() as any[]) {
+				const message = entry.type === "message" ? entry.message : undefined;
+				const cell = message?.role === "toolResult" && message.toolName === "exec" ? message.details?.cell : undefined;
+				if (typeof cell === "number" && cell >= nextCell) nextCell = cell + 1;
+			}
+		}
 		const ledger: LedgerEntry[] = [];
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type === "custom" && entry.customType === ENTRY_TYPE) ledger.push(entry.data as LedgerEntry);
@@ -60,13 +99,10 @@ export default async function (pi: ExtensionAPI) {
 			onIngress(event) {
 				if (current === generation) pi.appendEntry("exec-ingress", event);
 			},
-			onNotification(event) {
+			onLate(event) {
 				if (current !== generation) return;
-				pi.sendMessage({
-					customType: "exec-notification",
-					content: [{ type: "text", text: `exec${event.label ? ` (${event.label})` : ""}: ${event.error ? "failed" : "completed"}` }, ...event.content, ...(event.error ? [{ type: "text" as const, text: event.error }] : [])],
-					display: true,
-				}, { triggerTurn: true, deliverAs: "followUp" });
+				queue.push(event);
+				scheduleFlush();
 			},
 		});
 	}
@@ -75,6 +111,8 @@ export default async function (pi: ExtensionAPI) {
 		pi.setActiveTools([...new Set([...pi.getActiveTools().filter((name) => !REPLACED.has(name)), "exec"])]);
 		await reset(ctx, true);
 	});
+	pi.on("agent_start", async () => { busy = true; });
+	pi.on("agent_settled", async () => { busy = false; flush(); });
 	pi.on("session_tree", async (_event, ctx) => { await reset(ctx, true); });
 	pi.on("session_shutdown", async () => { await reset(undefined, true); });
 
@@ -99,18 +137,27 @@ export default async function (pi: ExtensionAPI) {
 			description: describeModules(modules, profile) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
 			parameters: Type.Object({
 				code: Type.String({ description: "TypeScript to evaluate in the persistent kernel. Use show(...) to emit results." }),
-				timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 2_147_483_647, description: "Host-enforced deadline for this call only, in milliseconds (default 30000). Timeout clears kernel state and stops shell subprocesses; bounded partial output survives. Use term for long work; side effects may remain." })),
 			}),
-			async execute(_id, { code, timeoutMs }, signal, onUpdate, ctx) {
+			async execute(_id, { code }, signal, onUpdate, ctx) {
 				if (configurationError) throw new Error(configurationError);
 				if (!kernel) await reset(ctx);
-				const result = await kernel!.execute(code, signal, trace => onUpdate?.({ content: [], details: { trace } }), timeoutMs, ingressContext(ctx, code));
-				const content = [...result.content];
+				const cell = nextCell++;
+				running++;
+				let result;
+				try {
+					result = await kernel!.execute(code, {
+						id: cell, signal, query: ingressContext(ctx, code),
+						yieldMs: Number(process.env.PI_EXEC_YIELD_MS) || undefined,
+						onUpdate: trace => onUpdate?.({ content: [], details: { trace } }),
+						detach: () => ctx.hasPendingMessages(),
+					});
+				} finally { running--; }
+				const content = [...drain(), ...result.content];
 				if (result.error) content.push({ type: "text", text: result.error });
 				if (!content.length) content.push({ type: "text", text: "(no output)" });
 				return {
 					content,
-					details: { piBetterSkills: { version: 1, handling: "explicit" }, trace: result.trace, ...(result.diagnostics ? { diagnostics: result.diagnostics } : {}), ...(result.error ? { error: result.error } : {}) },
+					details: { piBetterSkills: { version: 1, handling: "explicit" }, cell, trace: result.trace, ...(result.diagnostics ? { diagnostics: result.diagnostics } : {}), ...(result.error ? { error: result.error } : {}) },
 				};
 			},
 		});

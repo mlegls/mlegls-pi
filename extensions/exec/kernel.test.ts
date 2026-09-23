@@ -2,14 +2,14 @@ import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Kernel, type KernelNotification } from "./kernel";
+import { Kernel, type KernelLate } from "./kernel";
 import type { LedgerEntry } from "../../lib/outline-read/ledger";
 
-async function fixture(run: (kernel: Kernel, cwd: string, entries: LedgerEntry[], notifications: KernelNotification[]) => Promise<void>) {
+async function fixture(run: (kernel: Kernel, cwd: string, entries: LedgerEntry[], late: KernelLate[]) => Promise<void>) {
 	const cwd = await mkdtemp(join(tmpdir(), "exec-contract-"));
-	const entries: LedgerEntry[] = [], notifications: KernelNotification[] = [];
-	const kernel = new Kernel({ cwd, ledger: [], persist: entry => { entries.push(entry); }, onNotification: event => notifications.push(event) });
-	try { await writeFile(join(cwd, "example.ts"), "export function oldName() {\n  return 42;\n}\n"); await run(kernel, cwd, entries, notifications); }
+	const entries: LedgerEntry[] = [], late: KernelLate[] = [];
+	const kernel = new Kernel({ cwd, ledger: [], persist: entry => { entries.push(entry); }, onLate: event => late.push(event) });
+	try { await writeFile(join(cwd, "example.ts"), "export function oldName() {\n  return 42;\n}\n"); await run(kernel, cwd, entries, late); }
 	finally { await kernel.dispose(); await rm(cwd, { recursive: true, force: true }); }
 }
 
@@ -38,16 +38,29 @@ test("explicitly retained read selections and typed values survive calls; promis
 	expect(failed.error).toContain("intentional");
 }), 15000);
 
-test("saved shell promises notify the host after the originating call and remain awaitable", () => fixture(async (kernel, _cwd, _entries, notifications) => {
-	await cell(kernel, 'state.job = sh("sleep 0.2; printf finished; exit 7"); notify(state.job, "job");');
-	expect(notifications).toHaveLength(0);
-	await until(() => notifications.length === 1);
-	expect(notifications[0].label).toBe("job");
-	expect(notifications[0].output).toContain("finished");
+test("a slow show yields its cell and arrives later by handle; show.sync and wait hold the result", () => fixture(async (kernel, _cwd, _entries, late) => {
+	const yielded = await kernel.execute('show("now"); state.job = sh("sleep 0.4; printf finished; exit 7"); show(state.job.then(r => r.stdout)); state.set = 1;', { id: 7, yieldMs: 100 });
+	expect(yielded.running).toBe(true);
+	expect(yielded.output).toContain("[c7.1]\nnow\n");
+	expect(yielded.output).toContain("pending c7.2");
+	expect(await cell(kernel, 'show(state.set);')).toBe("1\n");
+	await until(() => late.some(event => event.handle === "c7.2"));
+	expect(late.find(event => event.handle === "c7.2")!.content).toEqual([{ type: "text", text: "finished\n" }]);
+	await until(() => late.some(event => event.handle === "c7"));
+	expect(late.find(event => event.handle === "c7")!.passive).toBe(true);
 	expect(await cell(kernel, 'const result = await state.job; show(result.stdout, result.exitCode);')).toBe("finished 7\n");
+	const synced = await kernel.execute('show.sync(sh("sleep 0.3; printf synced").then(r => r.stdout));', { yieldMs: 50 });
+	expect(synced.running).toBeUndefined();
+	expect(synced.output).toBe("synced\n");
+	await kernel.execute('show(sh("sleep 0.3; printf later").then(r => r.stdout));', { id: 20, yieldMs: 50 });
+	expect((await kernel.execute('await wait("c20.1");', { yieldMs: 50 })).output).toBe("settled: c20.1\n");
+	const failed = await kernel.execute('await sh("sleep 0.2"); throw new Error("late failure");', { id: 30, yieldMs: 50 });
+	expect(failed.running).toBe(true);
+	await until(() => late.some(event => event.handle === "c30"));
+	expect(late.find(event => event.handle === "c30")).toMatchObject({ passive: false, error: expect.stringContaining("late failure") });
 }), 15000);
 
-test("interrupt kills looping kernel and shell descendants; fresh kernel restores latest edited anchors", () => fixture(async (kernel, cwd, entries) => {
+test("interrupt detaches; a wedged kernel is killed with its shell descendants; fresh kernel restores latest edited anchors", () => fixture(async (kernel, cwd, entries) => {
 	await cell(kernel, 'const first = await read("example.ts"); await edit("=" + first.rows[0].anchor + "\\nexport function latest() {"); state.latest = await read("example.ts");');
 	const anchor = (await cell(kernel, 'show(state.latest.rows[0].anchor);')).trim();
 	expect(entries.length).toBeGreaterThan(1);
@@ -55,12 +68,13 @@ test("interrupt kills looping kernel and shell descendants; fresh kernel restore
 	let pid = 0;
 	await until(async () => { try { pid = Number(await readFile(join(cwd, "child.pid"), "utf8")); return pid > 0; } catch { return false; } });
 	const controller = new AbortController();
-	const interrupted = kernel.execute('show("looping"); while (true) {}', controller.signal);
+	const interrupted = kernel.execute('show("looping"); await new Promise(r => setTimeout(r, 50)); while (true) {}', { signal: controller.signal });
 	const timer = setTimeout(() => controller.abort(), 150);
 	try {
 		const result = await interrupted;
-		expect(result.error).toContain("cancelled");
+		expect(result.running).toBe(true);
 		expect(result.output).toContain("looping");
+		expect(result.output).toContain("Detached on interrupt");
 	} finally { clearTimeout(timer); }
 	await until(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
 	expect(await cell(kernel, 'show(typeof state.latest); const restored = await read("example.ts"); show(restored.rows[0].anchor);')).toBe(`undefined\n${anchor}\n`);

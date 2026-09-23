@@ -3,7 +3,7 @@ import cuaRecording from "./fixtures/cua-direct-textedit.json";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Kernel, type KernelNotification, type KernelOptions } from "./kernel";
+import { Kernel, type KernelLate, type KernelOptions } from "./kernel";
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import { install as sessionExtension } from "../../lib/session/host";
@@ -11,10 +11,10 @@ import { TmuxTerminalManager, terminalServerName, tmuxAvailable } from "../../li
 import { createComputerUseBridge } from "./computer-use";
 import { createExecServices, type ExecServices } from "./services";
 
-async function fixture(run: (kernel: Kernel, cwd: string, notices: KernelNotification[]) => Promise<void>, call?: KernelOptions["call"]) {
+async function fixture(run: (kernel: Kernel, cwd: string, notices: KernelLate[]) => Promise<void>, call?: KernelOptions["call"]) {
 	const cwd = await mkdtemp(join(tmpdir(), "exec-migration-"));
-	const notices: KernelNotification[] = [];
-	const kernel = new Kernel({ cwd, ledger: [], persist() {}, call, onNotification: n => notices.push(n) });
+	const notices: KernelLate[] = [];
+	const kernel = new Kernel({ cwd, ledger: [], persist() {}, call, onLate: n => notices.push(n) });
 	try { await run(kernel, cwd, notices); }
 	finally { await kernel.dispose(); await rm(cwd, { recursive: true, force: true }); }
 }
@@ -33,7 +33,7 @@ async function until(predicate: () => boolean) {
 	}
 }
 
-test("shell results remain queryable while show and notify render literal streams, not object inspection", () => fixture(async (kernel, _cwd, notices) => {
+test("shell results remain queryable while immediate and late shows render literal streams, not object inspection", () => fixture(async (kernel, _cwd, notices) => {
 	const command = "printf 'first\\nsecond\\n'; printf 'warning one\\nwarning two\\n' >&2; exit 7";
 	expect((await cell(kernel, `state.shellJob = sh(${JSON.stringify(command)}); state.shellResult = await state.shellJob;`)).output).toBe("");
 	const shown = (await cell(kernel, "await show(state.shellResult);")).output;
@@ -44,10 +44,10 @@ test("shell results remain queryable while show and notify render literal stream
 	const ordinary = (await cell(kernel, "show({...state.shellResult});")).output;
 	expect(ordinary).toContain("stdout:");
 	expect(ordinary).toContain("first\\nsecond\\n");
-	await cell(kernel, 'notify(state.shellJob, "shell-report");');
-	await until(() => notices.length === 1);
-	expect(notices[0].label).toBe("shell-report");
-	expect(notices[0].output.trimEnd()).toBe(shown.trimEnd());
+	await kernel.execute('show(new Promise(r => setTimeout(r, 200)).then(() => state.shellJob));', { id: 5, yieldMs: 50 });
+	await until(() => notices.some(n => n.handle === "c5.1"));
+	const late = notices.find(n => n.handle === "c5.1")!.content.map(block => block.type === "text" ? block.text : "").join("");
+	expect(late.trimEnd()).toBe(shown.trimEnd());
 
 	await cell(kernel, `state.largeShell = await sh(${JSON.stringify("node -e 'process.stdout.write(\"x\".repeat(1100000));process.stderr.write(\"y\".repeat(1100000))'")});`);
 	expect((await cell(kernel, "show(JSON.stringify([state.largeShell.stdout.slice(0,1048576).length, state.largeShell.stderr.slice(0,1048576).length, state.largeShell.stdoutTruncated, state.largeShell.stderrTruncated]));")).output.trim()).toBe(JSON.stringify([1024 * 1024, 1024 * 1024, true, true]));
@@ -99,10 +99,11 @@ test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled
 
 			waiting = false;
 			const controller = new AbortController();
-			const pending = kernel.execute('await term.wait({ids:["left","right"],mode:"all",waitMs:30000});', controller.signal);
+			const pending = kernel.execute('await term.wait({ids:["left","right"],mode:"all",waitMs:30000});', { signal: controller.signal });
 			await until(() => waiting);
 			controller.abort();
-			expect((await pending).error).toMatch(/cancel/i);
+			expect((await pending).running).toBe(true);
+			await kernel.restart();
 			await until(() => cancelled);
 			expect((await cell(kernel, 'show(typeof state.terminals); show((await term.list()).map(t=>t.id).sort().join(","));')).output).toBe("undefined\nleft,right\n");
 			await cell(kernel, 'await term.send("left", "echo survived=$((value+1))");');
@@ -169,8 +170,8 @@ test("Cua results cross Kernel RPC with native tokens, ordered images, errors an
   expect(requests[2].args.element_token).toBe((observation.structuredContent as any).elements[1].element_token);
   expect((await cell(kernel,'show(typeof ui.findRoots,typeof ui.act,typeof ui.observe);')).output).toBe("undefined undefined undefined\n");
   const controller=new AbortController();
-  const pending=kernel.execute('await ui.verify_state({...'+JSON.stringify(cuaRecording.target)+',expect:[]});',controller.signal);
-  await until(()=>releaseLate!==undefined);controller.abort();expect((await pending).error).toMatch(/cancel/i);
+  const pending=kernel.execute('await ui.verify_state({...'+JSON.stringify(cuaRecording.target)+',expect:[]});',{signal:controller.signal});
+  await until(()=>releaseLate!==undefined);controller.abort();expect((await pending).running).toBe(true);await kernel.restart();
   const reset=lifecycle.get("session_tree")!({},ctx);releaseLate!();await reset;await until(()=>lateSettled);
   expect((await cell(kernel,'show(typeof state.observation);')).output).toBe("undefined\n");
   expect((await kernel.execute('await ui.click({...'+JSON.stringify(cuaRecording.target)+',snapshot_id:'+JSON.stringify(snapshot)+',element_index:1});')).error).toContain("Stale Cua snapshot");
