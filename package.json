@@ -58,7 +58,8 @@
   "dependencies": {
     "@getpaseo/client": "0.9.0",
     "jiti": "^2.7.0",
-    "tsx": "^4.23.13"
+    "tsx": "^4.23.13",
+    "typescript": "5"
   },
   "type": "module",
   "optionalDependencies": {

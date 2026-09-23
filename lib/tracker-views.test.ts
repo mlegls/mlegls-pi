@@ -25,7 +25,7 @@ smoke("ready siblings survive a parent's shaping residual; own and subtree diffe
   const m = model(pages);
   expect(slugs(m.frontier)).toEqual(["ready"]);
   expect(slugs(m.mine)).toEqual(["later", "parent"]);
-  expect(m.issues.get("projects/concept/issues/parent").effectiveStage).toBe("idea");
+  expect(m.issues.get("projects/concept/issues/parent")?.effectiveStage).toBe("idea");
   expect(m.frontier[0].priority_).toBe(2.5);
   expect(model([page("unassigned", { stage: "ticket" })]).frontier).toHaveLength(0);
 });

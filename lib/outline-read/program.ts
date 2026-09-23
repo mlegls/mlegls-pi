@@ -132,7 +132,7 @@ function nameAndKind(st: ts.Statement): [string, Kind] {
 }
 
 function signature(st: ts.Node, text: string): string {
-	if (ts.isFunctionLike(st) && st.body) return text.slice(0, st.body.getStart() - st.getStart()).trim();
+	if (ts.isFunctionLike(st) && "body" in st && st.body) return text.slice(0, st.body.getStart() - st.getStart()).trim();
 	if (ts.isVariableStatement(st)) {
 		const init = st.declarationList.declarations[0]?.initializer;
 		if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) && ts.isBlock(init.body))

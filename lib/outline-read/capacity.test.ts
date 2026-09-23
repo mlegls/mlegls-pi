@@ -17,7 +17,7 @@ test("public Kernel: 50k identical rows spill, restore, and reject stale edits w
 	try {
 		await writeFile(path, text);
 		const started = performance.now();
-		const result = await kernel.execute('state.source = await read("repeat.txt"); show(state.source.rows.length);', controller.signal);
+		const result = await kernel.execute('state.source = await read("repeat.txt"); show(state.source.rows.length);', { signal: controller.signal });
 		const elapsed = performance.now() - started;
 		clearTimeout(timer);
 		console.log("50k public Kernel read: " + elapsed.toFixed(1) + "ms");
