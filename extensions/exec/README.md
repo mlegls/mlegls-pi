@@ -134,14 +134,15 @@ not a credential-redaction mechanism. Image payloads are excluded from previews.
 
 ## TypeScript execution
 
-Cells use Node’s TypeScript transform before evaluation in a fresh async function.
-The child process preloads `tsx` for ordinary and transitive TypeScript imports,
-including the kernel’s own source bootstrap. Parameter properties and other
-syntax requiring emitted JavaScript therefore work in imported `.ts` files;
-there is no custom module transformer. Use `await import(...)` in cells.
-Neither path type-checks code. Imported modules are cached for the kernel’s
-lifetime; reset starts a fresh process. Project import/tsconfig handling belongs
-to `tsx`, not a separately maintained exec implementation.
+The kernel is a Bun process, whatever runtime runs pi; `bun` must be on PATH.
+Cells are transpiled with `Bun.Transpiler` and evaluated as a fresh async
+function in the kernel's own realm, so values from Bun and Node APIs need no
+cross-realm handling. Imports, including relative ones resolved from the cwd and
+transitive TypeScript, use Bun's loader; there is no separate module
+transformer. Use `await import(...)` in cells. Neither path type-checks code.
+Imported modules are cached for the kernel's lifetime; reset starts a fresh
+process. A cell can change the kernel's globals, but not the APIs it binds from
+the frozen registry.
 
 ## Module selection
 
@@ -438,7 +439,7 @@ Do not blindly replay a failed cell.
 
 ## Shells and promises
 
-`$` is zx's: ``await $`git log -1 ${ref}` `` quotes `ref` as one argument (arrays expand to several) and rejects on a nonzero exit; `.nothrow()` resolves instead. `show` renders a `ProcessOutput` as stdout, then stderr, then `[exit N]` when nonzero. The rest of zx is under `zx`. `sh` below keeps literal interpolation and resolves on every exit.
+`$` is Bun Shell's: ``await $`git log -1 ${ref}` `` quotes `ref` as one argument (arrays expand to several) and rejects with a `ShellError` on a nonzero exit; `.nothrow()` resolves instead. It is quiet: output is captured, not printed. `show` renders a `ShellOutput` as stdout, then stderr, then `[exit N]` when nonzero, and a `ShellError` includes stderr. `.text()`, `.json()` and `.blob()` read stdout; `.lines()` is an async iterable. Bun Shell is not bash: it has pipes, `&&`, `$(...)`, globs and redirects such as `2>&1` and `1>&2`, but not `>&2` or bash functions. `sh` below runs a real shell, keeps literal interpolation and resolves on every exit.
 
 On reset, bounded prefixes of running shells’ stdout/stderr already
 received by the host are included as partial captures (up to 50 KiB per stream,

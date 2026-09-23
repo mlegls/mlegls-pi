@@ -3,10 +3,8 @@ const { AsyncLocalStorage } = require("node:async_hooks");
 const { spawn } = require("node:child_process");
 const { mkdir, writeFile } = require("node:fs/promises");
 const { dirname, resolve } = require("node:path");
-const { stripTypeScriptTypes } = require("node:module");
-const { PassThrough, Writable } = require("node:stream");
+const vm = require("node:vm");
 const { inspect } = require("node:util");
-const repl = require("node:repl");
 const { createTrace } = require("./trace.cjs");
 const { register, format } = require("./passive.cjs");
 const { createSkillLoader } = require("./skill-loader.cjs");
@@ -26,11 +24,11 @@ const LARGE_OUTPUT_LIMIT = 32 * 1024;
 const SHELL_LIMIT = 1024 * 1024;
 const TRUNCATED = "\n[output truncated]\n";
 const scope = new AsyncLocalStorage();
-let server;
+let exec;
 let active;
 let ingress;
 let ingressQuery = "";
-let ProcessOutput;
+const transpiler = new Bun.Transpiler({ loader: "ts" });
 const protectedDisplay = new WeakSet();
 const protect = value => { protectedDisplay.add(value); return value; };
 
@@ -174,8 +172,8 @@ function render(value) {
 		const rendered = value.render();
 		return isPromise(rendered) ? Promise.resolve(rendered).then(String) : String(rendered);
 	}
-	if (ProcessOutput && value instanceof ProcessOutput) {
-		const { stdout, stderr, exitCode } = value;
+	if (value?.constructor?.name === "ShellOutput" && Buffer.isBuffer(value.stdout)) {
+		const stdout = value.stdout.toString(), stderr = value.stderr.toString(), { exitCode } = value;
 		return stdout + (stderr ? (stdout && !stdout.endsWith("\n") ? "\n" : "") + "stderr:\n" + stderr : "") + (exitCode ? "\n[exit " + exitCode + "]" : "");
 	}
 	const passive = format(value, Infinity);
@@ -334,15 +332,17 @@ function emit(cell, value, call = 0) {
 }
 
 function errorText(error) {
-	const collision = /Identifier ['"]([^'"]+)['"] has already been declared/.exec(error?.message || "");
-	if (error?.name === "SyntaxError" && collision && (collision[1] === "__exec" || Object.hasOwn(server.context.__exec, collision[1]))) {
+	// V8: "Identifier 'x' has already been declared"; JSC: "Cannot declare a const variable twice: 'x'."
+	const collision = /(?:Identifier|declare)[^'"]*['"]([^'"]+)['"]/.exec(error?.message || "");
+	if (error?.name === "SyntaxError" && collision && (collision[1] === "__exec" || Object.hasOwn(exec ?? {}, collision[1]))) {
 		return `Reserved exec binding "${collision[1]}" cannot be declared at cell top level. Rename it or use a nested scope; retain values on state.`;
 	}
-	const text = bounded(error instanceof Error ? error.stack || error.message : String(error));
+	const shellStderr = error instanceof Bun.$.ShellError ? error.stderr.toString() : "";
+	const text = bounded((error instanceof Error ? error.stack || error.message : String(error)) + (shellStderr ? "\nstderr:\n" + shellStderr : ""));
 	const missing = /^(.+) is not defined$/.exec(error?.message || "");
 	if (error?.name === "ReferenceError" && missing) {
 		const name = missing[1];
-		const retained = server?.context.__exec?.state;
+		const retained = exec?.state;
 		const target = "state[" + JSON.stringify(name) + "]";
 		const access = /^[A-Za-z_$][\w$]*$/.test(name) ? "state." + name : target;
 		return text + "\nExec locals do not persist between calls. " + (retained && Object.hasOwn(retained, name)
@@ -417,7 +417,7 @@ async function write(path, content) {
 async function initialize(message) {
 	const reader = message.profile === "reader";
 	modules = new Set((message.modules ?? DEFAULT_MODULES).filter(name => name !== "board" && name !== "wm" && (!reader || name === "fs" || name === "exa")));
-	if (typeof stripTypeScriptTypes !== "function") throw new Error("exec requires Node >= 22.13 for TypeScript transpilation");
+	if (typeof Bun === "undefined") throw new Error("the exec kernel runs on Bun");
 	const [{ createSourceAPI }, { Ledger }] = await Promise.all([
 		import("./source.ts"), import("../../lib/outline-read/ledger.ts"),
 	]);
@@ -431,8 +431,6 @@ async function initialize(message) {
 			if (entry) send({ type: "persist", entry });
 		},
 	});
-	const sink = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
-	server = repl.start({ input: new PassThrough(), output: sink, terminal: false, useGlobal: false, ignoreUndefined: true });
 	const capabilities = { show, wait };
 	if (modules.has("fs")) {
 		if (reader) {
@@ -446,12 +444,10 @@ async function initialize(message) {
 	if (modules.has("sh")) {
 		capabilities.sh = traced("sh", sh);
 		capabilities.sh.raw = traced("sh.raw", (input, ...values) => runShell(template(input, values, true)));
-		// zx's $ quotes interpolated values as arguments and rejects on nonzero exit (use .nothrow()).
-		// Untraced: tracing would replace the ProcessPromise and lose .nothrow()/.quiet()/.lines().
-		const zx = await import("zx");
-		capabilities.$ = zx.$({ cwd: message.cwd, quiet: true, verbose: false });
-		capabilities.zx = zx;
-		ProcessOutput = zx.ProcessOutput;
+		// Bun Shell quotes interpolated values as arguments and rejects on nonzero exit (use .nothrow()).
+		// Quiet by default: kernel stdout is diagnostics, not cell output. Untraced: tracing would
+		// replace the ShellPromise and lose .nothrow()/.text()/.lines().
+		capabilities.$ = Object.assign((strings, ...values) => Bun.$(strings, ...values).quiet(), { escape: Bun.$.escape, braces: Bun.$.braces, ShellError: Bun.$.ShellError });
 	}
 	for (const [namespace, methods] of Object.entries(services)) {
 		if ((reader && namespace !== "exa") || (namespace !== "host" && !modules.has(namespace))) continue;
@@ -476,16 +472,16 @@ async function initialize(message) {
 	}
 	ingress = (reader ? await import("../../lib/ingress.ts") : capabilities.ingress).create({ record: event => send({ type: "ingress", event }) });
 	if (!reader) capabilities.project = Object.freeze(project);
-	for (const [name, value] of Object.entries(capabilities)) {
-		Object.defineProperty(server.context, name, { value, writable: false, configurable: false });
-	}
-	Object.defineProperty(server.context, "__exec", { value: Object.freeze(capabilities), writable: false, configurable: false });
-	// Node's default REPL evaluator reports thrown errors through its domain,
-	// rather than the eval callback. Keep partial explicit output in either case.
-	server._domain.on("error", (error) => {
+	exec = Object.freeze(capabilities);
+	Object.defineProperty(globalThis, Symbol.for("pi.exec"), { value: exec, writable: false, configurable: false });
+	// Errors thrown outside a cell's promise chain (timers, emitters) belong to the cell that scheduled them.
+	const orphan = (error) => {
 		const cell = scope.getStore() || active;
-		cell?.finish(error);
-	});
+		if (cell && !cell.finished) cell.finish(error);
+		else process.stderr.write(errorText(error) + "\n");
+	};
+	process.on("uncaughtException", orphan);
+	process.on("unhandledRejection", orphan);
 	send({ type: "ready" });
 }
 
@@ -514,11 +510,11 @@ function execute(message) {
 	active = cell;
 	scope.run(cell, () => {
 		try {
-			const code = stripTypeScriptTypes(message.code, { mode: "transform", sourceUrl: "exec.ts" });
+			const code = transpiler.transformSync(message.code);
 			// Same-scope const declarations reserve API names before any cell code runs.
 			// The async function also keeps var/function declarations local to this call.
-			const names = Object.keys(server.context.__exec).join(", ");
-			server.eval('await (async () => { "use strict"; const __exec = globalThis.__exec; const { ' + names + ' } = __exec;\n' + code + '\n})()\n', server.context, "exec.ts", (error) => cell.finish(error));
+			const body = vm.runInThisContext('(async function () { "use strict"; const __exec = globalThis[Symbol.for("pi.exec")]; const { ' + Object.keys(exec).join(", ") + ' } = __exec;\n' + code + '\n})', { filename: "exec.ts", importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER });
+			body().then(() => cell.finish(), (error) => cell.finish(error));
 		} catch (error) { cell.finish(error); }
 	});
 }

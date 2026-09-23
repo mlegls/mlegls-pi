@@ -1,6 +1,6 @@
 import { fork, spawn, type ChildProcess } from "node:child_process";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { basename } from "node:path";
 import type { LedgerEntry } from "../../lib/outline-read/ledger";
 import type { ContentBlock } from "./image";
 import type { Event as IngressEvent } from "../../lib/ingress";
@@ -167,13 +167,12 @@ export class Kernel {
 
 	private start(): Promise<void> {
 		if (this.ready) return this.ready;
-		const require = createRequire(import.meta.url);
-		const loader = require.resolve("tsx");
 		const child = fork(fileURLToPath(new URL("./runtime.cjs", import.meta.url)), [], {
 			cwd: this.options.cwd,
 			env: { ...process.env, PI_SESSION_FILE: this.options.sessionFile ?? "" },
-			execPath: process.versions.bun ? "node" : process.execPath,
-			execArgv: ["--disable-warning=ExperimentalWarning", "--import", loader],
+			// The kernel runs on Bun whatever runs pi. A Bun-compiled pi's execPath is pi itself, so find bun on PATH.
+			execPath: basename(process.execPath) === "bun" ? process.execPath : "bun",
+			execArgv: [],
 			detached: process.platform !== "win32",
 			stdio: ["ignore", "pipe", "pipe", "ipc"],
 		});

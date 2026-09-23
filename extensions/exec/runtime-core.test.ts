@@ -44,7 +44,9 @@ test("reserved names reject redeclaration before effects; nested shadowing leave
 	}
 	expect(await cell(kernel, 'show(state.leaked); { const read = 1, state = 2, __exec = 3; show(read, state, __exec); }')).toBe("undefined\n1 2 3\n");
 	expect(await cell(kernel, 'show(Object.isFrozen(__exec), ["ui","exa","board","wm","term","host","console"].every(k => Object.isFrozen(__exec[k])), Object.isFrozen(show), Object.isFrozen(sh));')).toBe("true true true true\n");
-	expect(await cell(kernel, 'show([...Object.keys(__exec), "__exec"].every(k => { const original = globalThis[k]; Reflect.set(globalThis, k, {}); Reflect.deleteProperty(globalThis, k); return globalThis[k] === original; }), Reflect.set(__exec, "read", 0), Reflect.set(ui, "help", 0), Reflect.set(show, "large", 0), Reflect.set(sh, "raw", 0));')).toBe("true false false false false\n");
+	// Cells bind APIs from the frozen registry, so global assignments cannot redirect them in later cells.
+	await cell(kernel, 'for (const k of [...Object.keys(__exec), "__exec"]) if (k !== "console") globalThis[k] = 0;');
+	expect(await cell(kernel, 'show(typeof read, typeof state, typeof __exec, Reflect.set(__exec, "read", 0), Reflect.set(ui, "help", 0), Reflect.set(show, "large", 0), Reflect.set(sh, "raw", 0));')).toBe("function object object false false false false\n");
 	for (const code of ['state = {};', '__exec = {};', 'show = 1;', 'ui.help = 1;']) {
 		expect((await kernel.execute(code)).error).toContain("TypeError");
 	}

@@ -99,7 +99,7 @@ const API: Record<ExecModule, string[]> = {
 		"await replace(selection, (text,row) => newText) uses the same checked edit engine."
 	],
 	"sh": [
-		"await $`cmd ${arg}` (zx) -> ProcessOutput {stdout, stderr, exitCode}; interpolated values are quoted as arguments (arrays expand to several), a nonzero exit rejects unless $`...`.nothrow(); .text(), .lines(), .json(). show() renders stdout, stderr and a nonzero exit. The zx namespace holds the rest of zx (within, retry, glob, YAML, …).",
+		"await $`cmd ${arg}` (Bun Shell, not bash) -> ShellOutput {stdout, stderr: Buffer, exitCode}; interpolated values are quoted as arguments (arrays expand to several), a nonzero exit rejects with ShellError unless $`...`.nothrow(); .text(), .json(), async-iterable .lines(). show() renders stdout, stderr and a nonzero exit. Use sh for bash syntax such as >&2.",
 		"await sh.raw`command` (preferred for shell backslashes/regex/heredocs), sh`command`, or sh(command) -> {stdout, stderr, exitCode, stdoutTruncated, stderrTruncated}; nonzero exits resolve. Captures 1 MiB/stream; redirect larger logs to files. sh.raw`...` preserves backslashes in template segments; sh`...` cooks JS escapes (e.g. \\n becomes a newline). Template interpolation is literal shell text, not argument quoting. Shell output has no editable anchors. For backticks or ${, pass a double-quoted string or lines.join(\"\\n\") rather than a tagged template."
 	],
 	"exa": [
