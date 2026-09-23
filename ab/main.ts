@@ -11,8 +11,9 @@ import { spawnSync } from "node:child_process";
 const HERE = dirname(new URL(import.meta.url).pathname);
 const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
-const stateDir = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab", createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "computer", "pull", "lib"];
+const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
+const stateDir = process.env.AB_SESSION_STATE ?? process.env.AB_STATE ?? join(abStateRoot, createHash("sha1").update(cwd).digest("hex").slice(0, 12));
+const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -144,10 +145,40 @@ async function code(args: string[]) {
 	}
 }
 
+async function daemon(args: string[]) {
+	const api = await import("../lib/daemon.ts");
+	const verb = args[0] ?? "status";
+	if (verb === "status" && args.length <= 1) {
+		const jobs = await api.status();
+		if (!jobs.length) console.log("no jobs");
+		else for (const item of jobs) console.log(JSON.stringify(item));
+		return;
+	}
+	if (verb === "stop" && args.length === 2) {
+		console.log(JSON.stringify(await api.stop(args[1])));
+		return;
+	}
+	if (verb === "shutdown" && args.length === 1) {
+		await api.shutdown();
+		console.log("daemon stopped");
+		return;
+	}
+	fail("usage: ab daemon [status|stop <id>|shutdown]");
+}
+
+async function job(args: string[]) {
+	if (args[0] !== "start" || !args[1] || args.length < 3) fail("usage: ab job start <type> <json>");
+	let input: unknown;
+	try { input = JSON.parse(args.slice(2).join(" ")); }
+	catch (error) { fail("job input must be JSON: " + String(error)); }
+	const result = await import("../lib/daemon.ts").then(api => api.start(args[1], input));
+	console.log(JSON.stringify(result));
+}
+
 function pull(args: string[]) {
 	for (const id of args) {
 		const file = join(stateDir, "ingress", id);
-		if (!existsSync(file)) fail("unknown page " + id + " (pages are kept per session in $AB_STATE/ingress)");
+		if (!existsSync(file)) fail("unknown page " + id + " (pages are kept per session in $AB_SESSION_STATE/ingress)");
 		process.stdout.write(readFileSync(file, "utf8"));
 	}
 }
@@ -168,7 +199,7 @@ async function lib(args: string[]) {
 const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
-const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib };
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
 catch (error) { fail(error instanceof Error ? error.message : String(error)); }

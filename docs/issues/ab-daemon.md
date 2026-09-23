@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0cd1a-8da4-701c-8253-d1ab9fd2b4e6
 part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"

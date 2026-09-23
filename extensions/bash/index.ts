@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { create as createIngress } from "../../lib/ingress.ts";
 import { createImageFile, detectImageMimeType, type ContentBlock } from "../exec/image";
@@ -63,7 +63,8 @@ export default function (pi: ExtensionAPI) {
 		mkdirSync(join(state, "out"), { recursive: true });
 		const log = join(state, "out", handle + ".log");
 		const attach = join(state, "out", handle + ".attach");
-		const env = { ...process.env, PATH: BIN + ":" + process.env.PATH, AB_STATE: state, AB_OUT: attach };
+		const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
+		const env = { ...process.env, PATH: BIN + ":" + process.env.PATH, AB_STATE: abStateRoot, AB_SESSION_STATE: state, AB_OUT: attach };
 		// Own process group, so interrupting kills the command's children too.
 		const child = spawn("bash", ["-c", PRELUDE + command], { cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
 		const file = createWriteStream(log);
