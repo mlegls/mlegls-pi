@@ -20,8 +20,9 @@ function traced(name, fn) {
 	};
 }
 
-const OUTPUT_LIMIT = 16 * 1024;
-const LARGE_OUTPUT_LIMIT = 50 * 1024;
+// Text budgets are per show call (per output handle), not per cell.
+const OUTPUT_LIMIT = 8 * 1024;
+const LARGE_OUTPUT_LIMIT = 32 * 1024;
 const SHELL_LIMIT = 1024 * 1024;
 const TRUNCATED = "\n[output truncated]\n";
 const scope = new AsyncLocalStorage();
@@ -181,12 +182,10 @@ function isPromise(value) {
 	return value != null && typeof value.then === "function";
 }
 
-function display(value, raw = false, query = scope.getStore()?.query ?? ingressQuery, focus) {
-	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query, focus));
+function display(value, raw = false, query = scope.getStore()?.query ?? ingressQuery, focus, budget = OUTPUT_LIMIT) {
+	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query, focus, budget));
 	const rendered = value && typeof value.content === "function" ? value.content() : render(value);
 	if (raw || (!query && !focus) || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
-	const cell = scope.getStore();
-	const budget = cell ? Math.max(0, (cell.outputLimit ?? OUTPUT_LIMIT) - cell.bytes) : undefined;
 	return Promise.resolve(rendered).then(async result => {
 		if (protectedDisplay.has(result)) return result;
 		if (!Array.isArray(result)) return ingress.filter(String(result), query, budget, focus);
@@ -242,12 +241,13 @@ function show(...values) {
 
 // One show call: announced to the host, emitted when its values resolve (independently
 // of earlier calls), then marked done. sync calls hold the tool result past the yield.
-function track(cell, work, sync, emitResult) {
+function track(cell, work, sync, emitResult, limit = OUTPUT_LIMIT) {
 	const call = ++cell.calls;
 	const handle = "c" + cell.id + "." + call;
+	cell.budgets.set(call, { limit, bytes: 0, omitted: 0 });
 	send({ type: "show", id: cell.id, call, sync });
 	let failure;
-	const pending = Promise.resolve(work).then(value => emitResult(value, call));
+	const pending = Promise.resolve(work).then(value => { emitResult(value, call); outputWarning(cell, call); });
 	const done = pending.then(() => {}, error => { failure = error; cell.renderError ??= error; });
 	cell.pending.add(done);
 	void done.then(() => {
@@ -258,12 +258,12 @@ function track(cell, work, sync, emitResult) {
 	return pending;
 }
 
-function showValues(raw, values, focus, sync = false) {
+function showValues(raw, values, focus, sync = false, limit = OUTPUT_LIMIT) {
 	const cell = scope.getStore();
 	if (!cell || cell.finished) return Promise.resolve();
-	const rendered = values.map(value => display(value, raw, undefined, focus));
+	const rendered = values.map(value => display(value, raw, undefined, focus, limit));
 	const work = rendered.some(isPromise) ? Promise.all(rendered) : rendered;
-	return track(cell, work, sync, (values, call) => emitValues(cell, values.length ? values : [""], call));
+	return track(cell, work, sync, (values, call) => emitValues(cell, values.length ? values : [""], call), limit);
 }
 
 show.raw = (...values) => showValues(true, values);
@@ -286,25 +286,34 @@ function wait(...ids) {
 }
 
 show.large = (...values) => {
-	const cell = scope.getStore();
-	if (cell) cell.outputLimit = LARGE_OUTPUT_LIMIT;
-	return show(...values);
+	const focus = splitOptions(values);
+	return showValues(false, values, focus, false, LARGE_OUTPUT_LIMIT);
 };
 
-function outputWarning(cell) {
-	if (!cell.omittedBytes) return;
-	cell.deliver({ type: "output", id: cell.id, call: 0, warning: true, text: `\n[output truncated] ${cell.omittedBytes} UTF-8 bytes omitted; retained values unchanged. Select a smaller slice or use show.large(value) in a new cell (50 KiB ceiling).\n` });
+function budgetOf(cell, call) {
+	let budget = cell.budgets.get(call);
+	if (!budget) cell.budgets.set(call, budget = { limit: OUTPUT_LIMIT, bytes: 0, omitted: 0 });
+	return budget;
+}
+
+function outputWarning(cell, call) {
+	const budget = cell.budgets.get(call);
+	if (!budget?.omitted || cell.finished) return;
+	const large = budget.limit >= LARGE_OUTPUT_LIMIT;
+	cell.deliver({ type: "output", id: cell.id, call, warning: true, text: `\n[output truncated] ${budget.omitted} UTF-8 bytes omitted from this show (${budget.limit / 1024} KiB); retained values unchanged. Select a smaller slice${large ? "" : " or use show.large(value) (32 KiB)"}.\n` });
+	budget.omitted = 0;
 }
 
 function emit(cell, value, call = 0) {
 	if (cell.finished) return;
 	const bytes = Buffer.from(value);
-	const remaining = Math.max(0, (cell.outputLimit ?? OUTPUT_LIMIT) - cell.bytes);
+	const budget = budgetOf(cell, call);
+	const remaining = Math.max(0, budget.limit - budget.bytes);
 	let end = Math.min(bytes.length, remaining);
 	while (end > 0 && end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--;
 	const text = bytes.subarray(0, end).toString();
-	cell.bytes += end;
-	cell.omittedBytes = (cell.omittedBytes ?? 0) + bytes.length - end;
+	budget.bytes += end;
+	budget.omitted += bytes.length - end;
 	if (text) cell.deliver({ type: "output", id: cell.id, call, text });
 }
 
@@ -462,13 +471,13 @@ function execute(message) {
 	ingressQuery = message.query ?? "";
 	const cell = {
 		query: ingressQuery,
-		id: message.id, calls: 0, images: 0, imageBytes: 0, deliver: send, bytes: 0, truncated: false, finished: false, finishing: false, pending: new Set(),
+		id: message.id, calls: 0, images: 0, imageBytes: 0, deliver: send, budgets: new Map(), truncated: false, finished: false, finishing: false, pending: new Set(),
 		async finish(error) {
 			if (cell.finished || cell.finishing) return;
 			cell.finishing = true;
 			// Flush promised views even when show() was not explicitly awaited.
 			while (cell.pending.size) await Promise.allSettled([...cell.pending]);
-			outputWarning(cell);
+			outputWarning(cell, 0);
 			cell.finished = true;
 			cell.trace.finish();
 			if (active === cell) active = undefined;

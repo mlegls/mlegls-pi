@@ -22,7 +22,7 @@ Focus supplements implicit context rather than replacing it. It describes the
 operation as well as the subject: orientation and editing need different fidelity.
 A trailing object whose only key is a string-valued focus is options when another
 value precedes it; other variadic values remain content. Raw treats all arguments
-as content. Large accepts the same options and raises the cell cap to 50 KiB.
+as content. Large accepts the same options and raises that call's cap to 32 KiB.
 
 Console aliases and notification results use implicit focus. Loaded skills, API
 help and images bypass the filter. Raw and pull still obey normal byte/image caps.

@@ -85,7 +85,8 @@ const DEFAULT_MODULES = ["fs", "sh", "exa", "term", "ui"];
 const LIMIT = 64 * 1024;
 const DEFAULT_YIELD_MS = 10_000;
 
-interface CellCall { content: ContentBlock[]; done: boolean; sync: boolean; error?: string }
+/** Host backstop: text per show call is capped at LIMIT (the runtime enforces the real budget). */
+interface CellCall { content: ContentBlock[]; done: boolean; sync: boolean; bytes: number; error?: string }
 interface CellRun {
 	id: number;
 	trace: KernelTrace;
@@ -93,7 +94,6 @@ interface CellRun {
 	/** Call 0 is cell-level output (limit warnings), not a show. */
 	calls: Map<number, CellCall>;
 	diagnostics: string;
-	bytes: number;
 	detached: boolean;
 	passive: boolean;
 	check: () => void;
@@ -148,15 +148,16 @@ export class Kernel {
 
 	private call(cell: CellRun, call: number): CellCall {
 		let record = cell.calls.get(call);
-		if (!record) cell.calls.set(call, record = { content: [], done: call === 0, sync: false });
+		if (!record) cell.calls.set(call, record = { content: [], done: call === 0, sync: false, bytes: 0 });
 		return record;
 	}
 
 	private append(cell: CellRun, call: number, text: string, warning = false): void {
 		const bytes = Buffer.byteLength(text);
-		if (!warning && cell.bytes + bytes > LIMIT) return;
-		if (!warning) cell.bytes += bytes;
-		this.call(cell, call).content.push({ type: "text", text });
+		const record = this.call(cell, call);
+		if (!warning && record.bytes + bytes > LIMIT) return;
+		if (!warning) record.bytes += bytes;
+		record.content.push({ type: "text", text });
 	}
 
 	private diagnostic(text: string): void {
@@ -350,7 +351,7 @@ export class Kernel {
 			};
 			const cell: CellRun = {
 				id, trace: { entries: [], omitted: 0, truncated: false, finished: false }, onUpdate: options.onUpdate,
-				calls: new Map(), diagnostics: "", bytes: 0, detached: false, passive: false,
+				calls: new Map(), diagnostics: "", detached: false, passive: false,
 				check: () => {
 					if (resolved) return;
 					if (options.signal?.aborted) { cell.passive = true; void this.probe(); return detach(); }

@@ -334,13 +334,13 @@ await show(source.lines(40, 80)); // 1-based, inclusive
   A row is `{anchor, text, path, line}`: `sel.rows[0].anchor` or
   `[...sel][0].anchor` gives an edit target (`line` is one-based). Context and enclosing definitions refer
   to the original snapshot, not a fresh version of the file.
-- Text display has a **16 KiB per-cell** budget. `await show.large(value, ...)`
-  explicitly raises that cell’s budget to **50 KiB**, including other show/console
-  output in that cell. It does not replay text already omitted. An end-of-cell
-  notice counts omitted rendered UTF-8 bytes; retain values and retry in a new
-  cell with `show.large`, or select smaller slices. Notification text uses 16 KiB.
-  For several files, retain each read on `state` and show one selection at a time;
-  the budget is shared, not per argument. For large web pages, fetch to a file
+- Text display has an **8 KiB budget per show call** (per output handle); console
+  calls count as shows. `await show.large(value, ...)` gives that one call **32 KiB**.
+  Relevance filtering fits text to the budget first, omitting passages with pull
+  ids; anything still over is cut, with a notice in that show counting omitted
+  UTF-8 bytes. Retained values are unchanged: select a smaller slice or use
+  `show.large`. The budget is shared by the arguments of one call, so show several
+  files as separate calls, one selection each. For large web pages, fetch to a file
   (`sh("curl -L URL -o page.html")`) and read/grep slices instead of displaying
   the whole response. A larger display does not change fetch/provider limits.
   Budgets exclude the short omission notice and image payloads. Object inspection

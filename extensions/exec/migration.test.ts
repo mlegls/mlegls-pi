@@ -56,6 +56,12 @@ test("shell results remain queryable while immediate and late shows render liter
 	expect(bounded).toMatch(/stderr[^\n]*truncat/i);
 	expect(bounded).toContain("[output truncated]");
 	expect((await cell(kernel, "show(state.largeShell.stderr.slice(1000000,1000004));")).output).toBe("yyyy\n");
+	// Want: each show call has its own 8 KiB budget (32 KiB with show.large), so one large show does not starve the next.
+	const perShow = (await cell(kernel, 'show("a".repeat(20000)); show("tail"); show.large("b".repeat(20000));')).output;
+	expect(perShow).toContain("tail\n");
+	expect(perShow).toMatch(/\[output truncated\] \d+ UTF-8 bytes omitted from this show \(8 KiB\)/);
+	expect(perShow).toContain("b".repeat(20000));
+	expect(perShow.match(/output truncated/g)).toHaveLength(1);
 }), 20000);
 
 test("write creates parents and overwrites; retained read anchors still protect intervening writes", () => fixture(async (kernel, cwd) => {
