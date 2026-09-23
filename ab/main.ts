@@ -1,0 +1,190 @@
+#!/usr/bin/env bun
+// ab: the exec kernel's library surface as a shell program. Each subcommand is a thin
+// adapter over lib/ and the exec source engine; scoped help lives in ab/help/<command>.md.
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { parseArgs } from "node:util";
+import { spawnSync } from "node:child_process";
+
+const HERE = dirname(new URL(import.meta.url).pathname);
+const ROOT = resolve(HERE, "..");
+const cwd = process.cwd();
+const stateDir = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab", createHash("sha1").update(cwd).digest("hex").slice(0, 12));
+const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "exa", "pull", "lib"];
+
+function help(command?: string): string {
+	const file = join(HERE, "help", (command ?? "index") + ".md");
+	if (!existsSync(file)) throw new Error("no help for " + command + "; commands: " + COMMANDS.join(", "));
+	return readFileSync(file, "utf8");
+}
+function fail(message: string): never { process.stderr.write("ab: " + message + "\n"); process.exit(2); }
+
+/** Side channel to the harness: attachments such as images, one JSON object per line. */
+function attach(event: Record<string, unknown>): boolean {
+	const out = process.env.AB_OUT;
+	if (!out) return false;
+	appendFileSync(out, JSON.stringify(event) + "\n");
+	return true;
+}
+
+async function source() {
+	const [{ createSourceAPI }, { Ledger }] = await Promise.all([import("../extensions/exec/source.ts"), import("../lib/outline-read/ledger.ts")]);
+	mkdirSync(stateDir, { recursive: true });
+	const file = join(stateDir, "ledger.jsonl");
+	const ledger = new Ledger();
+	if (existsSync(file)) for (const line of readFileSync(file, "utf8").split("\n")) if (line) ledger.restore(JSON.parse(line));
+	return createSourceAPI({ cwd, ledger, persist(path: string) { const entry = ledger.entry(path); if (entry) appendFileSync(file, JSON.stringify(entry) + "\n"); } });
+}
+
+const OUTLINE_OVER = Number(process.env.AB_OUTLINE_OVER) || 300;
+/** path, path:50-80, path:50+30, path:50-, path:all, path:outline; several ranges with commas. */
+function selector(arg: string): { path: string; spec?: string } {
+	const m = /^(.*?):((?:\d+(?:-\d*|\+\d+)?)(?:,\d+(?:-\d*|\+\d+)?)*|all|outline)$/.exec(arg);
+	return m && !existsSync(arg) ? { path: m[1], spec: m[2] } : { path: arg };
+}
+
+async function read(args: string[]) {
+	if (!args.length) fail("read needs a path");
+	const api = await source();
+	const out: string[] = [];
+	for (const arg of args) {
+		const { path, spec } = selector(arg);
+		const file: any = await api.read(path);
+		if (!file.rows) {
+			out.push(attach({ type: "image", path: resolve(cwd, path) }) ? "[image attached: " + path + "]" : "[image: " + path + "; run inside the ab-aware bash tool to attach it]");
+			continue;
+		}
+		const lines = file.rows.length;
+		if (spec === "all" || (!spec && lines <= OUTLINE_OVER)) out.push(file.render());
+		else if (!spec || spec === "outline") out.push((await file.outline()).render() + "\n[" + lines + " lines; ab read " + path + ":START-END for ranges, :all for everything]");
+		else {
+			const rows: any[] = [];
+			for (const part of spec.split(",")) {
+				const [, a, op, b] = /^(\d+)([-+]?)(\d*)$/.exec(part)!;
+				const start = Number(a);
+				const end = op === "+" ? start + Number(b) - 1 : op === "-" ? (b ? Number(b) : lines) : start;
+				rows.push(...file.lines(start, Math.min(Math.max(start, end), lines)).rows);
+			}
+			out.push(file.lines(1, lines).filter((row: any) => rows.includes(row)).render());
+		}
+	}
+	console.log(out.join("\n\n"));
+}
+
+async function grep(args: string[]) {
+	const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
+		"ignore-case": { type: "boolean", short: "i" }, fixed: { type: "boolean", short: "F" },
+		glob: { type: "string", short: "g" }, limit: { type: "string", short: "m" }, context: { type: "string", short: "C" },
+	} });
+	const [pattern, ...paths] = positionals;
+	if (!pattern) fail("grep needs a pattern");
+	const api = await source();
+	let hits: any = await api.grep(pattern, paths.length ? paths : undefined, { ignoreCase: values["ignore-case"], literal: values.fixed, glob: values.glob, limit: values.limit ? Number(values.limit) : undefined });
+	if (values.context) hits = hits.context(Number(values.context));
+	console.log(hits.render());
+	if (!hits.rows.length) process.exitCode = 1;
+}
+
+async function edit(args: string[]) {
+	const input = args[0] && args[0] !== "-" ? readFileSync(args[0], "utf8") : readFileSync(0, "utf8");
+	if (!input.trim()) fail("edit reads hunks from stdin (or a file argument); see ab edit --help");
+	const api = await source();
+	console.log((await api.edit(input)).text);
+}
+
+async function view(args: string[]) {
+	if (!args.length) fail("view needs an image path");
+	for (const path of args) {
+		if (!existsSync(path)) fail(path + ": no such file");
+		console.log(attach({ type: "image", path: resolve(cwd, path) }) ? "[image attached: " + path + "]" : "[AB_OUT unset: images attach only inside the ab-aware bash tool]");
+	}
+}
+
+async function skill(args: string[]) {
+	if (!args[0]) fail("skill needs a SKILL.md path or directory");
+	const { createSkillLoader } = await import("../extensions/exec/skill-loader.cjs");
+	const runShell = async (command: string, options: any) => {
+		const r = spawnSync("bash", ["-c", command], { ...options, encoding: "utf8", maxBuffer: 1 << 20 });
+		return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", exitCode: r.status, stdoutTruncated: false, stderrTruncated: false };
+	};
+	const loaded = await createSkillLoader(cwd, runShell, (v: unknown) => v)(args[0]);
+	console.log(loaded.text);
+}
+
+async function code(args: string[]) {
+	const [verb, ...rest] = args;
+	const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, allowNegative: true, options: {
+		file: { type: "string", short: "f" }, kind: { type: "string", short: "k", multiple: true }, exported: { type: "boolean" },
+		root: { type: "string" }, tsconfig: { type: "string" }, hops: { type: "string" }, by: { type: "string" }, n: { type: "string" }, body: { type: "boolean" },
+	} });
+	const code = await import("../lib/code.ts");
+	const index = code.index(values.root ?? cwd, values.tsconfig ?? "tsconfig.json");
+	const loc = (d: any) => d.file + ":" + d.line + "-" + d.endLine;
+	const line = (d: any) => loc(d) + "  " + d.kind + " " + (d.parent ? d.parent + "." : "") + d.name + "  " + d.signature.split("\n")[0].slice(0, 160);
+	const pattern = (p?: string) => p && /^\/.*\/$/.test(p) ? new RegExp(p.slice(1, -1)) : p;
+	const one = () => { if (!positionals[0]) fail(verb + " needs a definition name"); return index.def(pattern(positionals[0])!, pattern(values.file)); };
+	switch (verb) {
+		case undefined: case "stats": console.log(index.render()); break;
+		case "defs": for (const d of index.defs({ name: pattern(positionals[0]), file: pattern(values.file), kind: values.kind as any, exported: values.exported })) console.log(line(d)); break;
+		case "def": { const d = one(); console.log(line(d)); if (values.body !== false) console.log(d.body); break; }
+		case "callers": case "callees": for (const e of index[verb](one())) console.log(e.kind.padEnd(6) + " " + line(e.def)); break;
+		case "tests": case "impact": for (const d of index[verb](one())) console.log(line(d)); break;
+		case "dead": for (const d of index.dead()) console.log(line(d)); break;
+		case "similar": for (const s of index.similar(one(), { by: values.by as any, n: values.n ? Number(values.n) : undefined })) console.log(s.score.toFixed(2) + " " + line(s.def)); break;
+		case "around": console.log(index.around(one(), { hops: values.hops ? Number(values.hops) : undefined })); break;
+		case "rows": { const d = one(); const api = await source(); console.log((await api.read(d.path) as any).lines(d.line, d.endLine).render()); break; }
+		default: fail("unknown code verb " + verb + "; see ab code --help");
+	}
+}
+
+async function exa(args: string[]) {
+	const [verb, ...rest] = args;
+	const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, allowNegative: true, options: {
+		n: { type: "string", short: "n" }, type: { type: "string" }, category: { type: "string" }, domain: { type: "string", multiple: true },
+		since: { type: "string" }, text: { type: "boolean" }, max: { type: "string" }, json: { type: "boolean" },
+	} });
+	const client = await import("../lib/exa/client.ts");
+	const max = values.max ? Number(values.max) : undefined;
+	const response = verb === "search"
+		? await client.search({ query: positionals.join(" "), numResults: values.n ? Number(values.n) : undefined, type: values.type as any, category: values.category as any, includeDomains: values.domain, startPublishedDate: values.since, content: values.text ? "text" : "highlights", maxCharacters: max })
+		: verb === "contents" ? await client.contents({ urls: positionals, maxCharacters: max })
+		: fail("exa needs search or contents");
+	if (values.json) return console.log(JSON.stringify(response, null, 2));
+	for (const r of response.results ?? []) {
+		console.log("## " + (r.title ?? r.url) + "\n" + r.url + (r.publishedDate ? "  " + r.publishedDate.slice(0, 10) : ""));
+		const body = r.text ?? (r as any).highlights?.join("\n…\n") ?? r.summary;
+		if (body) console.log(body.trim());
+		console.log();
+	}
+}
+
+function pull(args: string[]) {
+	for (const id of args) {
+		const file = join(stateDir, "ingress", id);
+		if (!existsSync(file)) fail("unknown page " + id + " (pages are kept per session in $AB_STATE/ingress)");
+		process.stdout.write(readFileSync(file, "utf8"));
+	}
+}
+
+async function lib(args: string[]) {
+	const [module, fn, ...rest] = args;
+	if (!module) fail("lib needs a module name; ls " + join(ROOT, "lib"));
+	const loaded: any = await import(join(ROOT, "lib", module + ".ts"));
+	if (!fn) return console.log(Object.keys(loaded).map(k => k + (typeof loaded[k] === "function" ? "(" + loaded[k].length + ")" : "")).join("\n"));
+	const target = fn.split(".").reduce((o: any, k) => o?.[k], loaded);
+	if (typeof target !== "function") fail(module + "." + fn + " is not a function");
+	const parsed = rest.map(a => { try { return JSON.parse(a); } catch { return a; } });
+	const result = await target(...parsed);
+	if (result === undefined) return;
+	console.log(typeof result === "string" ? result : typeof result?.render === "function" ? result.render() : JSON.stringify(result, null, 2));
+}
+
+const [command, ...args] = process.argv.slice(2);
+if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
+if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, exa, pull, lib };
+if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
+try { await run[command](args); }
+catch (error) { fail(error instanceof Error ? error.message : String(error)); }
