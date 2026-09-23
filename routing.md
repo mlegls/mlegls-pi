@@ -16,6 +16,7 @@ Live usage arrives separately from the caller, by provider, as a fraction of the
 - `fill`: `openai-codex/gpt-6-luna`, high effort.
 - `auto-routine`: `openai-codex/gpt-6-luna`, max effort.
 - `auto`: `openai-codex/gpt-6-sol`, high effort.
+- `compile`: `anthropic/claude-opus-5-5`, high effort.
 - `technical`: `anthropic/claude-opus-5-5`, high effort.
 - `reviewer` and `prune`: `anthropic/claude-opus-5-5`, medium effort.
 - `visual-reviewer`: `anthropic/claude-opus-5-5`, high effort.
@@ -30,6 +31,7 @@ Interpret supplied evidence; do not invent missing context or closure. Prefer a 
 - `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
 - `technical`: Clear acceptance criterion but difficult technical fulfillment, including novel algorithms, complex systems, or exacting UI implementation.
 - `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
+- `compile`: A spec leaf whose design is closed but which is too big for one session: close interfaces, commit stubs, fan out `fill`.
 - `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.
 - `supervise`: A non-leaf, agent-ready subtree: delegate its children, integrate them into one branch, and verify it before reporting up.
