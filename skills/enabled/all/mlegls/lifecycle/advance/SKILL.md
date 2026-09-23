@@ -5,4 +5,4 @@ disable-model-invocation: true
 argument-hint: "an issue subtree, or nothing for the project"
 ---
 
-Use `orient`. `advance.run(scope)` is the same read-only orientation entry point as `orient.run(scope)`.
+Use `orient`.

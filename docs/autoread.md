@@ -45,6 +45,5 @@ Options also include cwd, compact: false, timeoutMs (five minutes by default), s
 
 A caller needing structured evidence can supply `submission: { extension, tool }`. The explicitly loaded extension owns the native tool schema and returns its validated payload in tool-result `details`. Autoread captures a successful execution of that named tool as `briefing.submission`; it never parses the assistant’s prose. A terminating submission tool can end the reader without a follow-up model turn. Missing submissions or reader errors reject; `text` is incidental in this mode. The extension is trusted caller code, not a sandbox. The default reader remains unchanged.
 
-Orientation uses an ordinary free-text briefing; bounded readers may use a submission tool when their caller needs typed results.
+Bounded readers may use a submission tool when their caller needs typed results.
 
-Session preparation additionally checks the initial orientation’s semantic validity with Jev before choosing work. A nonempty parent-style acknowledgment or promise to wait is rejected there. Direct autoread remains a transport/completion check, and reasoning triage stays verbatim without semantic rejudgment.

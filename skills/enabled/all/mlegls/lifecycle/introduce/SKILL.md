@@ -5,15 +5,15 @@ disable-model-invocation: true
 argument-hint: "an idea, problem, or request"
 ---
 
-Prepare this session with `introduce.run(intent)` in exec. Retain the promise:
+Take the project views in exec and read over them yourself:
 
 ```ts
-state.preparing = introduce.run("the user's intent");
-show.raw(state.preparing.then(prepared => (state.prepared = prepared).text));
+state.views = views.snapshot();
+show.raw(views.format(state.views));
 ```
 
-The briefing arrives by handle when ready; if there is nothing else to do meanwhile, end the turn. If it failed, inspect the error before retrying.
+The views are computed and current as of their timestamp; narrate over them instead of recomputing or restating them. Read what they cannot tell: issue bodies and stories related to the intent, and what landed in git since the tracker last moved. Stay within the project and explicitly relevant sources; packaged skills are conventions, not project evidence. Reading is read-only: no claims, edits or launches.
 
-Use the briefing to establish the idea with the user and record it (`tracker`), reusing related work. Return what is agreed, what remains open, and the suggested next entry. Continue into `shape` or `supervise` only when requested.
+Establish the intent in the project: find related work, distinguish what is agreed from what is open, and identify what must be established to record it. Locate the motivating user story and preserve the originating request or observation; extend an existing story and issue where appropriate.
 
-The full reading remains in `state.prepared.audit`.
+Establish the idea with the user and record it (`tracker`), reusing related work. Return what is agreed, what remains open, and the suggested next entry. Stop once the idea is established; continue into `shape` or `supervise` only when requested. After the reading, before recording, is a natural point to compact and switch model.

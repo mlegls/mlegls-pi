@@ -9,27 +9,14 @@ Campaigns are ordinary parent issues. A scope may contain both agent-ready work 
 
 ## Preparation
 
-Reload exec after installation (`/exec-reset`). Retain the promise:
+Orientation happens in the interactive session itself, not in a delegated reader. The `orient` and `introduce` skills take a [views](../lib/views.ts) snapshot (tracker frontier/mine/check/outline from the tracker skill's CLI, git state, worktrees), read what the views cannot tell, and write the briefing. `views.diff(state.views, views.snapshot())` reruns the snapshot and reports the lines that changed, so a briefing's age is measurable instead of narrated.
 
-```ts
-state.preparing = orient.run(); // or orient.run("issue-subtree"), introduce.run("new intent")
-show.raw(state.preparing.then(prepared => (state.prepared = prepared).text));
-```
+The briefing is read-only, not permission to execute a recommendation. Orient reports progress, known supervisors, ready unowned work and a leverage-ranked human queue. Introduce uses it to establish and record the idea. Neither silently becomes a local implementation session.
 
-The briefing arrives by handle when ready. If there is nothing else to do meanwhile, end the turn; if it failed, inspect before retrying.
-
-The returned text is a read-only briefing, not permission to execute a recommendation. Orient reports progress, known supervisors, ready unowned work and a leverage-ranked human queue. Introduce uses its briefing to establish and record the idea. Neither silently becomes a local implementation session.
-
-Outside exec, import run from lib/orient.ts, lib/advance.ts or lib/introduce.ts and pass `{ reader: { sessionFile, cwd } }`. The session file is explicit.
-
-## Mechanism
-
-lib/prepare.ts takes a [views](../lib/views.ts) snapshot (tracker frontier/mine/check/outline from the tracker skill's CLI, git state, worktrees), calls autoread once under [workflows.md](../workflows.md) with the snapshot in the request, then checks that the response contains orientation rather than an acknowledgment or wait message. The snapshot returns as `views`; `recheck()` reruns it and reports the lines that changed, so a briefing's age is measurable instead of narrated. A rejected response retains the reader and its transcript reference. Empty, blocked, missing and unreadable scopes are valid explained results. This check is not a correctness proof.
-
-The briefing is returned intact with its reading and judgment in `audit`. There is no candidate-session selection or model-routed reassignment of the interactive role. Options are `reader` (autoread options except submission) and `policyPath`. [workflows.json](../workflows.json) supplies the reader default; [routing.md](../routing.md) governs delegated assignments. Autoread remains useful inside shaping and supervision for bounded orientation.
+With observational memory, compaction after the reading costs the parent nothing, so the reads need no isolation; the briefing is a natural point to compact and switch model. [Autoread](autoread.md) remains for bounded reads inside shaping and supervision.
 
 ## Verification
 
-An orient call over a specified ticket should locate it within the scope and recommend an entry, not command its implementation. A workflow discussion should remain a discussion even when related executable tickets exist. An introduce call should locate and establish intent rather than start executing it. Preparation leaves tracker and source session unchanged.
+An orientation over a specified ticket should locate it within the scope and recommend an entry, not command its implementation. A workflow discussion should remain a discussion even when related executable tickets exist. An introduction should locate and establish intent rather than start executing it. Orientation leaves the tracker unchanged.
 
 The older selection pipeline's observations are retained in [2026-09-20 verification](research/session-preparation-2026-09-20.md); they are not verification of the current orientation-only policy.

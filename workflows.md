@@ -1,16 +1,14 @@
 # Interactive workflows
 
-Policy read at call time by lib/prepare.ts. Model preferences live in routing.md.
+Model preferences live in routing.md.
 
 ## Introduce
 
-Establish new intent in the project: find related work, distinguish what is agreed from what is open, and prepare its tracker record. Locate the motivating user story and preserve the originating request or observation; extend an existing story and issue where appropriate. Stop once the idea is established; shaping or execution is a separate choice.
+Establish new intent in the project and record it. Policy: [introduce skill](skills/enabled/all/mlegls/lifecycle/introduce/SKILL.md).
 
 ## Orient (also advance)
 
-Where are things at, and what is worth doing next? Orient within the requested subtree, or the current project tracker when no scope is given. Identify ongoing scopes and their live supervisors where observable, what has landed and been verified, what remains, ready work without an owner, and questions needing the user ranked by priority and transitive unblocks. Distinguish recorded state, observed contradictions, and unknowns; claims alone do not prove a session is alive.
-
-Recommend resuming or starting a supervisor, shaping an issue, or introducing new intent. Return an overview and a recommended next entry, not an implementation assignment. Group agent-ready work by the code area it touches. Carry the views' hygiene findings as dispositions. End with the facts the briefing rests on. Ready implementation belongs to a supervisor, even for a single ticket; direct implementation in the interactive session is an explicit user choice. Preserve the conversation's purpose: a discussion of workflow problems is not authorization to execute a nearby ticket. Missing, unreadable, blocked and completed trackers are different states.
+Where are things at, and what is worth doing next? Policy: [orient skill](skills/enabled/all/mlegls/lifecycle/orient/SKILL.md).
 
 ## Shape
 
@@ -28,7 +26,7 @@ Keep the supervisor session across waves, using OM and compaction. Shared truth 
 
 ## Preparation and routing
 
-Preparation is read-only orientation through autoread: no claims, edits, launches or automatic selection of a local task. Stop once the scope, frontier, constraints and relevant sources are established; leave substantive research and design to their owners. Return working context and source references, including explained absences. The interactive role is chosen by the user, not the router.
+Orientation is read-only, done in the interactive session over computed project views: no claims, edits, launches or automatic selection of a local task. Stop once the scope, frontier, constraints and relevant sources are established; leave substantive research and design to their owners. Return working context and source references, including explained absences. The interactive role is chosen by the user, not the router.
 
 Autoroute places bounded delegated assignments and identifies closure gaps; it does not choose the interactive session's purpose. Shape favors strong reasoning models; supervision follows recorded contracts on a mid-tier model. Model advice never blocks continuing a session.
 
