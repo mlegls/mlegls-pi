@@ -29,6 +29,7 @@ if a project hardcodes `docker`, add `~/.config/podman-docker/bin` to that proje
 axi tools are agent-ergonomic clis on PATH. running one with no args shows live state; `<tool> <cmd> --help` for details. don't run their `setup hooks`: this list is their ambient context.
 
 - `cargo-axi`, `chrome-devtools-axi`, `firecrawl-axi`, `gh-axi`, `obsidian-axi`: token-efficient variants of the corresponding. prefer jev-powered computer use to manual chrome where appropriate though.
+- `bun-axi`: `test` and `run <script>` summarize bun results (counts, failure locations, tsc/oxlint diagnostics, full log path) instead of piping through tail; also outdated/why and npm registry lookups.
 - `cyber-mux`: open/send/read/wait/close for tmux, herdr, wezterm, zellij and cmux, including worktree management.
 - `jev-axi`: calibrated snap judgments from a cheap and fairly powerful 0-shot classifer. useful for subjective "lint"-like steps and hooks.
 - `lavish-axi <file.html>`: opens an html artifact in my browser for me to annotate.
