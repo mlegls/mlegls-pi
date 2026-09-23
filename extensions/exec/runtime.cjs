@@ -30,6 +30,7 @@ let server;
 let active;
 let ingress;
 let ingressQuery = "";
+let ProcessOutput;
 const protectedDisplay = new WeakSet();
 const protect = value => { protectedDisplay.add(value); return value; };
 
@@ -172,6 +173,10 @@ function render(value) {
 	if (value && typeof value.render === "function") {
 		const rendered = value.render();
 		return isPromise(rendered) ? Promise.resolve(rendered).then(String) : String(rendered);
+	}
+	if (ProcessOutput && value instanceof ProcessOutput) {
+		const { stdout, stderr, exitCode } = value;
+		return stdout + (stderr ? (stdout && !stdout.endsWith("\n") ? "\n" : "") + "stderr:\n" + stderr : "") + (exitCode ? "\n[exit " + exitCode + "]" : "");
 	}
 	const passive = format(value, Infinity);
 	if (passive) return passive.text;
@@ -441,6 +446,12 @@ async function initialize(message) {
 	if (modules.has("sh")) {
 		capabilities.sh = traced("sh", sh);
 		capabilities.sh.raw = traced("sh.raw", (input, ...values) => runShell(template(input, values, true)));
+		// zx's $ quotes interpolated values as arguments and rejects on nonzero exit (use .nothrow()).
+		// Untraced: tracing would replace the ProcessPromise and lose .nothrow()/.quiet()/.lines().
+		const zx = await import("zx");
+		capabilities.$ = zx.$({ cwd: message.cwd, quiet: true, verbose: false });
+		capabilities.zx = zx;
+		ProcessOutput = zx.ProcessOutput;
 	}
 	for (const [namespace, methods] of Object.entries(services)) {
 		if ((reader && namespace !== "exa") || (namespace !== "host" && !modules.has(namespace))) continue;

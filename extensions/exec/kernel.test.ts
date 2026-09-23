@@ -121,3 +121,10 @@ test("discovery honors ignores but explicit reads work; limited search reports i
 	expect(await cell(kernel, 'show((await grep("needle", "ignored.ts")).rows.length);')).toBe("1\n");
 	expect(await cell(kernel, 'show((await find("*.ts")).map(path => path.split("/").pop()).sort().join(","));')).toBe("example.ts\n");
 }), 15000);
+
+test("zx $ quotes interpolations, rejects nonzero exits, and shows stdout", () => fixture(async (kernel) => {
+	expect(await cell(kernel, 'const name = "a b; echo injected"; show(await $`printf %s ${name}`)')).toBe("a b; echo injected\n");
+	const failed = await kernel.execute('await $`exit 3`');
+	expect(failed.error).toContain("exit code: 3");
+	expect(await cell(kernel, 'show(await $`echo out; echo err >&2; exit 4`.nothrow())')).toBe("out\nstderr:\nerr\n\n[exit 4]\n");
+}));
