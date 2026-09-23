@@ -103,8 +103,8 @@ export async function run(job: JobContext) {
  const toVerify = async (c: Child, report: string) => {
   const issue = snapshot(input).find(i => i.slug === c.slug)!;
   const branch = git(c.handle.path, "branch", "--show-current");
-  c.implementer = c.handle; c.phase = "verify"; c.cursor = undefined;
-  c.handle = await launch(c.slug, "verify", verifyPrompt(c.slug, readFileSync(issue.file, "utf8"), report), branch, undefined, "verify");
+  const handle = await launch(c.slug, "verify", verifyPrompt(c.slug, readFileSync(issue.file, "utf8"), report), branch, "agent", "verify");
+  Object.assign(c, { implementer: c.handle, handle, phase: "verify", cursor: undefined });
   await save();
  };
 
@@ -138,9 +138,10 @@ export async function run(job: JobContext) {
   finally { watcher?.close(); job.signal.removeEventListener("abort", abort); }
   const c = live[ids.indexOf(end.id)];
   c.cursor = end.cursor; c.waiting = undefined; await save();
+  await (async () => {
   const r = parse(end.text);
-  if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); continue; }
-  if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); continue; }
+  if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
+  if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); return; }
   if (c.phase === "implement") {
    if (caveats(r.handoff)) await except(c, "done with caveats", end.text);
    else if (git(c.handle.path, "status", "--porcelain")) await except(c, "done with uncommitted changes", end.text);
@@ -149,6 +150,7 @@ export async function run(job: JobContext) {
    if (caveats(r.handoff) || unheld(r.handoff)) await except(c, "verification did not hold cleanly", end.text);
    else await integrateChild(c, c.handle);
   } else await integrateChild(c, c.handle);
+  })().catch(error => except(c, "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
  }
  if (job.signal.aborted) return;
  const open = snapshot(input).filter(i => i.partOf === input.ticket && !i.done);
