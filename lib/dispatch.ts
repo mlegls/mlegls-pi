@@ -138,7 +138,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
-export interface Integration { branch: string; mode: "rebase" | "merge"; released?: unknown; closed?: unknown; removed?: unknown }
+export interface Integration { branch: string; mode: "rebase" | "merge"; released?: unknown; closed?: unknown; removed?: unknown; branchDeleted?: string; branchKept?: string }
 export async function integrate(worker: { backend?: "orca" | "paseo" | "wm"; worktreeId?: string; workspaceId?: string; path: string; receipt?: { dispatchId?: string } | paseo.Launch; worker?: Worker },
     options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean } = {}): Promise<Integration> {
   const cwd = resolve(options.cwd ?? process.cwd());
@@ -162,21 +162,39 @@ export async function integrate(worker: { backend?: "orca" | "paseo" | "wm"; wor
   }
   const result: Integration = { branch, mode };
   if (options.keep) return result;
+  return Object.assign(result, await retire(worker, { cwd, branch }));
+}
+
+type Retirable = Parameters<typeof integrate>[0];
+/** Retire a worker's host resources, then delete its branch if all its patches are in HEAD.
+ * An unmerged or still-checked-out branch is kept and reported in `branchKept`; that is not an error. */
+export async function retire(worker: Retirable, options: { cwd?: string; branch?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
+  const cwd = resolve(options.cwd ?? process.cwd());
+  const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
+    execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
+  const branch = options.branch ?? (await git(worker.path, "branch", "--show-current")).out;
+  const result: Awaited<ReturnType<typeof retire>> = {};
   if (worker.backend === "paseo") {
-    if (!worker.workspaceId) throw new Error("integrate: Paseo workspaceId required for archive");
+    if (!worker.workspaceId) throw new Error("retire: Paseo workspaceId required for archive");
     result.removed = await paseo.archive(worker.workspaceId);
-    return result;
-  }
-  if (worker.backend === "wm") {
-    if (!worker.worker) throw new Error("integrate: retained wm worker required for cleanup");
+  } else if (worker.backend === "wm") {
+    if (!worker.worker) throw new Error("retire: retained wm worker required for cleanup");
     result.removed = await worker.worker.close();
-    return result;
+  } else {
+    if (!worker.worktreeId) throw new Error("retire: Orca worktreeId required for cleanup");
+    if (worker.receipt && "dispatchId" in worker.receipt && worker.receipt.dispatchId)
+      result.released = await workers.release(worker.receipt.dispatchId);
+    const selector = "id:" + worker.worktreeId;
+    result.closed = await call(["terminal", "close", "--worktree", selector, "--all"], cwd);
+    result.removed = await call(["worktree", "rm", "--worktree", selector], cwd);
   }
-  if (!worker.worktreeId) throw new Error("integrate: Orca worktreeId required for cleanup");
-  if (worker.receipt && "dispatchId" in worker.receipt && worker.receipt.dispatchId)
-    result.released = await workers.release(worker.receipt.dispatchId);
-  const selector = "id:" + worker.worktreeId;
-  result.closed = await call(["terminal", "close", "--worktree", selector, "--all"], cwd);
-  result.removed = await call(["worktree", "rm", "--worktree", selector], cwd);
+  if (branch) {
+    await git(cwd, "worktree", "prune");
+    // Rebase integration rewrites commits, so "merged" means every patch is upstream (git cherry), not ancestry.
+    const cherry = await git(cwd, "cherry", "HEAD", branch);
+    const merged = !cherry.code && !cherry.out.split("\n").some(line => line.startsWith("+"));
+    const deleted = merged ? await git(cwd, "branch", "-D", branch) : { code: 1, out: "", err: "not merged into HEAD" };
+    if (deleted.code) result.branchKept = branch + ": " + (deleted.err || deleted.out); else result.branchDeleted = branch;
+  }
   return result;
 }

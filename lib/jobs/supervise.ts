@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, watch } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
-import { dispatch, integrate, type Handle } from "../dispatch.ts";
+import { dispatch, integrate, retire as retireWorker, type Handle } from "../dispatch.ts";
 import * as route from "../route.ts";
 import * as children from "../children.ts";
 import { parse } from "../report.ts";
@@ -59,7 +59,8 @@ export async function run(job: JobContext) {
   state.metrics.launched++;
   return receipt.submitted[0];
  };
- const retire = async (h: Handle) => { if (h.backend === "paseo") await paseo.archive(h.workspaceId).catch(e => job.log("archive " + h.handle + ": " + e)); };
+ // Unmerged branches (drop, redispatch) survive for the owner to inspect; merged ones are deleted.
+ const retire = async (h: Handle) => { await retireWorker(h as any, { cwd: input.cwd }).catch(e => job.log("retire " + h.handle + ": " + e)); };
  const close = async (slug: string) => {
   const issue = snapshot(input).find(i => i.slug === slug);
   if (issue && !issue.done && existsSync(issue.file)) {

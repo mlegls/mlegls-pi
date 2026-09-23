@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { integrate, MergeConflict } from "./dispatch.ts";
+import { integrate, MergeConflict, retire } from "./dispatch.ts";
 import * as paseo from "./paseo.ts";
 
 function repo() {
@@ -63,5 +63,25 @@ test("Paseo archives only after Git integration; keep retains workspace", async 
     archive.mockRejectedValueOnce(new Error("workspace busy"));
     await expect(integrate(worker, { cwd: r.main })).rejects.toThrow("workspace busy");
     r.git(r.main, "merge-base", "--is-ancestor", "unit-a", "HEAD");
+  } finally { archive.mockRestore(); }
+});
+
+test("retiring deletes a merged worker branch once its worktree is gone; an unmerged one is kept", async () => {
+  const r = repo();
+  r.commit(r.work, "a", "worker");
+  r.commit(r.main, "m", "parent moved, so integration rebases");
+  const archive = spyOn(paseo, "archive").mockImplementation(async id => {
+    r.git(r.main, "worktree", "remove", r.work);
+    return {workspaceId: id, requestId: "x", archivedAt: "now", error: null};
+  });
+  try {
+    const result = await integrate({ backend: "paseo", workspaceId: "ws", path: r.work }, { cwd: r.main });
+    expect(result.branchDeleted).toBe("unit-a");
+    expect(r.git(r.main, "branch", "--list", "unit-a")).toBe("");
+    r.git(r.main, "worktree", "add", "-q", "-b", "unit-b", r.work);
+    r.commit(r.work, "b", "unmerged");
+    const dropped = await retire({ backend: "paseo", workspaceId: "ws", path: r.work }, { cwd: r.main });
+    expect(dropped.branchKept).toStartWith("unit-b");
+    expect(r.git(r.main, "branch", "--list", "unit-b")).toContain("unit-b");
   } finally { archive.mockRestore(); }
 });
