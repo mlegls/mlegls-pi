@@ -138,7 +138,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
-export interface Integration { branch: string; mode: "rebase" | "merge"; released?: unknown; closed?: unknown; removed?: unknown; branchDeleted?: string; branchKept?: string }
+export interface Integration { branch: string; mode: "rebase" | "merge"; released?: unknown; closed?: unknown; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string }
 export async function integrate(worker: { backend?: "orca" | "paseo" | "wm"; worktreeId?: string; workspaceId?: string; path: string; receipt?: { dispatchId?: string } | paseo.Launch; worker?: Worker },
     options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean } = {}): Promise<Integration> {
   const cwd = resolve(options.cwd ?? process.cwd());
@@ -166,6 +166,23 @@ export async function integrate(worker: { backend?: "orca" | "paseo" | "wm"; wor
 }
 
 type Retirable = Parameters<typeof integrate>[0];
+
+/** Processes still running from inside a retired worktree: tmux servers behind term.spawn (kept per pi
+ * session so they survive restarts), dev servers, watchers. Host archive does not reach them. Matched by
+ * working directory, which lsof still reports after the directory is deleted. Never the parent checkout. */
+async function killLeftovers(path: string, cwd: string): Promise<number[]> {
+  const root = resolve(path);
+  if (!root || root === "/" || cwd === root || cwd.startsWith(root + "/")) return [];
+  const listing = await new Promise<string>(done => execFile("lsof", ["-d", "cwd", "-Fpn"], (_, out) => done(out ?? "")));
+  const pids: number[] = [];
+  let pid = 0;
+  for (const line of listing.split("\n")) {
+    if (line[0] === "p") pid = Number(line.slice(1));
+    else if (line[0] === "n" && pid && pid !== process.pid && (line.slice(1) === root || line.slice(1).startsWith(root + "/"))) pids.push(pid);
+  }
+  for (const id of pids) try { process.kill(id, "SIGTERM"); } catch {}
+  return pids;
+}
 /** Retire a worker's host resources, then delete its branch if all its patches are in HEAD.
  * An unmerged or still-checked-out branch is kept and reported in `branchKept`; that is not an error. */
 export async function retire(worker: Retirable, options: { cwd?: string; branch?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
@@ -188,6 +205,7 @@ export async function retire(worker: Retirable, options: { cwd?: string; branch?
     result.closed = await call(["terminal", "close", "--worktree", selector, "--all"], cwd);
     result.removed = await call(["worktree", "rm", "--worktree", selector], cwd);
   }
+  result.killed = await killLeftovers(worker.path, cwd);
   if (branch) {
     await git(cwd, "worktree", "prune");
     // Rebase integration rewrites commits, so "merged" means every patch is upstream (git cherry), not ancestry.
