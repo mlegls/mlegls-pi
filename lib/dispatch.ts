@@ -27,6 +27,8 @@ export interface Options {
   run: string;
   from?: string;
   cwd?: string;
+  /** Owning Paseo agent; overrides PASEO_AGENT_ID and forces the Paseo host. */
+  parent?: string;
   /** Parent-scoped budget, including active handles, on every backend. */
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
@@ -51,7 +53,9 @@ export interface Receipt {
 /** Submit a ready wave; no automatic wait or retry for assignments beyond capacity. */
 export async function dispatch(assignments: Assignment[], options: Options): Promise<Receipt> {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const backend = executionHost();
+  const parent = options.parent ?? process.env.PASEO_AGENT_ID;
+  if (options.parent !== undefined && !options.parent.trim()) throw new Error("dispatch: parent must not be empty");
+  const backend = options.parent === undefined ? executionHost() : "paseo";
   if (typeof options.run !== "string" || !(backend === "orca" ? /^run_[A-Za-z0-9]+$/ : /^[A-Za-z0-9][A-Za-z0-9_/-]*$/).test(options.run)) throw new Error("dispatch: invalid run");
   if (!Number.isSafeInteger(options.maxConcurrent) || options.maxConcurrent < 1)
     throw new Error("dispatch: positive maxConcurrent required");
@@ -86,13 +90,13 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     }
     try {
       const text = [stance?.body, task.prompt,
-        ...(backend === "paseo" ? ["You are " + task.handle + ". Parent agent ID: " + process.env.PASEO_AGENT_ID + ". " +
+        ...(backend === "paseo" ? ["You are " + task.handle + ". Parent agent ID: " + parent + ". " +
           "Begin final output with done, blocked, or needs-input. Questions go to the parent using " +
-          "paseo.withClient(c => c.agents.ref(" + JSON.stringify(process.env.PASEO_AGENT_ID) + ").send(message)) in exec. " +
+          "paseo.withClient(c => c.agents.ref(" + JSON.stringify(parent) + ").send(message)) in exec. " +
           "Commit changes for the parent to integrate; retain the workspace. " +
           "A completed turn is not assignment completion."] : [])].filter(Boolean).join("\n\n---\n\n");
       if (backend === "paseo") {
-        const launched = await paseo.launch(task, text, { run: options.run, cwd });
+        const launched = await paseo.launch(task, text, { run: options.run, cwd, parent });
         receipt.submitted.push({ backend, handle: task.handle, agentId: launched.agent.agentId,
           workspaceId: launched.workspace.workspaceId, path: launched.workspace.cwd, receipt: launched });
         continue;
