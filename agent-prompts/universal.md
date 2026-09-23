@@ -31,6 +31,7 @@ axi tools are agent-ergonomic clis on PATH. running one with no args shows live 
 - `cargo-axi`, `chrome-devtools-axi`, `firecrawl-axi`, `gh-axi`, `obsidian-axi`: token-efficient variants of the corresponding. prefer jev-powered computer use to manual chrome where appropriate though.
 - `bun-axi`: `test` and `run <script>` summarize bun results (counts, failure locations, tsc/oxlint diagnostics, full log path) instead of piping through tail; also outdated/why and npm registry lookups.
 - `cyber-mux`: open/send/read/wait/close for tmux, herdr, wezterm, zellij and cmux, including worktree management.
+- `exa-cli`: exa search/contents/find-similar/answer (not `exa`, which may be eza). json by default with per-url crawl statuses; `--plain` for compact lines.
 - `jev-axi`: calibrated snap judgments from a cheap and fairly powerful 0-shot classifer. useful for subjective "lint"-like steps and hooks.
 - `lavish-axi <file.html>`: opens an html artifact in my browser for me to annotate.
 - `pypi-axi`: pypi package view/versions/deps/downloads (no search: pypi has no search api).
