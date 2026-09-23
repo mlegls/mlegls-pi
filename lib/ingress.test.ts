@@ -20,7 +20,7 @@ test("records and sections remain lossless reading units", () => {
 });
 
 // Live Jev encounter: identical source, architecture reading vs inspection before editing.
-test("recorded focused reads retain exact evidence or a recoverable extractive sketch", async () => {
+test("recorded focused reads retain exact evidence or fallback excerpts when compression fails", async () => {
   for (const reading of encounter.readings) {
     const events: Event[] = [];
     const reader = create({ judge: async (chunks, query, focus) => {
@@ -29,9 +29,9 @@ test("recorded focused reads retain exact evidence or a recoverable extractive s
       expect(chunks.length).toBe(reading.judgments.length);
       return reading.judgments.map(j => ({ ...j, mode: j.mode === "skim" ? "skim50" : j.mode,
         dist: { verbatim: j.dist.verbatim, skim75: 0, skim50: j.dist.skim, cues: 0, omit: j.dist.omit } })) as Judgment[];
-    }, record: e => events.push(e) });
+    }, compress: async () => { throw new Error("compression unavailable for historical excerpt replay"); }, record: e => events.push(e) });
     const out = await reader.filter(encounter.source, encounter.query, 16384, reading.focus);
-    const event = events[0];
+    const event = events.find(e => e.type === "filter")!;
     if (event.type !== "filter") throw new Error("missing decision record");
     expect(event.pages.map(p => p.text).join("")).toBe(encounter.source);
     expect(event.outputBytes).toBe(Buffer.byteLength(out));

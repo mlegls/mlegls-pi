@@ -57,9 +57,10 @@ guarantee. Skims can lose negations, qualifications and relationships, including
 on their details. No generated paraphrases are introduced; tokenizer reconstruction
 can change spacing. Headings/ancestry remain exact outside the compressed body.
 
-Anchored source and recognized code/tables use exact source excerpts instead.
-Eligibility is lexical, not a language parser. An independent Choice selects the
-best fallback excerpt in the same Jev request, including for unavailable compression.
+All intermediate retention levels use LLMLingua, including anchored source, code
+and tables. Use verbatim when exact syntax or edit anchors matter; compressed
+source is not editable evidence. An independent Choice selects the best fallback
+excerpt in the same Jev request, used only when compression fails.
 Candidates are contiguous source spans grouped from lines/paragraphs, roughly 500
 characters each, merged to at most twelve. A low winning probability does not
 promote the passage to verbatim: adjacent retention levels commonly share probability.
@@ -140,3 +141,15 @@ examples are superseded by this reading policy.
 
 The five-level integration was driven through actual exec show/pull/raw calls: see
 [encounter and offline replay](research/ingress-retention-2026-09-22.md).
+
+### Failure-only excerpt fallback (2026-09-23)
+
+Intermediate retention now sends all source types through LLMLingua; the lexical
+prose gate is removed. A direct reader drive with fixed skim75 judgments and the
+real local compressor confirmed token representations for YAML-frontmatter prose
+and anchored code, with no fallback events. The anchored-code display shrank from
+1,739 to 1,475 bytes, including labels; its syntax was deliberately incomplete.
+Tiny declaration chunks in an earlier probe reverted to verbatim because labels
+cost more than compression saved. This checks compressor routing, not live Jev
+selection quality or improved task-level economics. Existing compression-failure
+and exact-pull replays still pass.

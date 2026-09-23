@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { create, prose, type Event, type Judgment } from "./ingress.ts";
+import { create, type Event, type Judgment } from "./ingress.ts";
 import encounter from "../extensions/exec/fixtures/ingress-retention.json";
 
 // Actual exec show/read encounters; replay the recorded service boundaries offline.
@@ -60,11 +60,4 @@ test("unavailable compression leaves exact recoverable excerpts instead of broke
     expect(Buffer.byteLength(out)).toBeLessThanOrEqual(Buffer.byteLength(encounter.source));
     for (const id of out.match(/ing-[a-f0-9]+/g) ?? []) expect(encounter.source).toContain(reader.pull(id));
   } finally { reader.dispose(); }
-});
-
-// The first drive falsely classified a prose line ending with a semicolon as code.
-test("the reading-policy prose reaches LLMLingua; anchored evidence does not", () => {
-  const pages = encounter.encounters[0].events.find(e => e.type === "filter")!.pages;
-  expect(prose(pages.find(p => p.label === "# reading-policy")!.text)).toBe(true);
-  expect(prose("/src/a.ts:\n1 abcd│export function cancel() {\n2 efgh│return true;\n3 ijkl│}\n")).toBe(false);
 });
