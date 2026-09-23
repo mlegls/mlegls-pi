@@ -9,6 +9,8 @@ show(state.launch = dispatch.dispatch([
 ], { run: "feature-x", maxConcurrent: 2, active: [] }));
 ```
 
+From bash, the same call takes JSON arguments: `ab lib dispatch dispatch '[{"handle":"unit-a",…}]' '{"run":"feature-x","maxConcurrent":2,"active":[]}' > receipt.json`. It prints the receipt; a long launch arrives as a late result. Standalone `wm` needs the pi host, so this works under Paseo or Orca.
+
 Later retrieve `state.wave = await state.launch`. Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` is required on every backend; it is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`. An uncertain launch must be resolved before the next wave; it may still consume capacity.
 
 Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`. Optional `agent` names a roster stance, not a host preset. Optional `base` passes the exact Git ref to the host; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, routing, dependency scheduling, or inherited issue ownership.

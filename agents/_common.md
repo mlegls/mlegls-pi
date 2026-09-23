@@ -12,4 +12,4 @@ When exec exposes `loadSkill`, activate a skill with `await show(await loadSkill
 
 Commit as you go; the parent merges your branch.
 
-While dogfooding `exec`, include concrete ergonomic friction in the final report: what you tried, what happened, and the workaround or simpler interaction you wanted. Distinguish observed problems from proposed improvements; the parent consolidates them.
+While dogfooding `exec` or the bash tool and `ab`, include concrete ergonomic friction in the final report: what you tried, what happened, and the workaround or simpler interaction you wanted. Distinguish observed problems from proposed improvements; the parent consolidates them.
