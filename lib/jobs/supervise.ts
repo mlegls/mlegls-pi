@@ -141,6 +141,8 @@ export async function run(job: JobContext) {
   await (async () => {
   const r = parse(end.text);
   if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
+  // A child supervisor ends its turn while its own loop runs; only a status sentinel reports.
+  if (c.phase === "supervise" && r.status === null) return;
   if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); return; }
   if (c.phase === "implement") {
    if (caveats(r.handoff)) await except(c, "done with caveats", end.text);
