@@ -88,8 +88,13 @@ async function grep(args: string[]) {
 }
 
 async function edit(args: string[]) {
-	const input = args[0] && args[0] !== "-" ? readFileSync(args[0], "utf8") : readFileSync(0, "utf8");
-	if (!input.trim()) fail("edit reads hunks from stdin (or a file argument); see ab edit --help");
+	// Hunks always come from stdin; an optional path asserts which file bare headers target.
+	let input = readFileSync(0, "utf8");
+	if (!input.trim()) fail("edit reads hunks from stdin: ab edit [PATH] <<'EOF' … EOF; see ab edit --help");
+	if (args[0]) {
+		const lines = input.split("\n");
+		input = lines.map((line, i) => (i === 0 || lines[i - 1] === "") && /^[=<>-][0-9a-z]{4}( [0-9a-z]{4})?$/.test(line) ? line + " @" + args[0] : line).join("\n");
+	}
 	const api = await source();
 	console.log((await api.edit(input)).text);
 }

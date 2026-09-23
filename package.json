@@ -24,6 +24,7 @@
       "./lib/board/host.ts",
       "./lib/session-meta/host.ts",
       "./extensions/exec/index.ts",
+      "./extensions/bash/index.ts",
       "./extensions/featherless/index.ts",
       "./extensions/fence/index.ts",
       "./extensions/system-prompt/index.ts",
@@ -58,7 +59,8 @@
     "@getpaseo/client": "0.9.0",
     "jiti": "^2.7.0",
     "tsx": "^4.23.13",
-    "typescript": "5"
+    "typescript": "5",
+    "zx": "^8.8.5"
   },
   "type": "module",
   "optionalDependencies": {

@@ -1,4 +1,6 @@
-ab edit [FILE|-]  < hunks
+ab edit [PATH] < hunks
+
+PATH, when given, asserts the file every hunk targets (same as @PATH on each header).
 
 Hunks come from stdin (use a quoted heredoc, so nothing in the body is interpreted):
 

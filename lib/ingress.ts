@@ -20,6 +20,8 @@ export interface Options {
   judge?: (chunks: Chunk[], query: string, focus?: string) => Promise<Judgment[]>;
   record?: (event: Event) => void;
   compress?: (jobs: SkimJob[]) => Promise<string[]>;
+  /** Called with each retained original, for hosts that serve pulls outside this process. */
+  retain?: (id: string, text: string) => void;
 }
 
 const body = (line: string) => line.replace(/^\d+ [a-z0-9]+│/, "");
@@ -291,7 +293,7 @@ export function create(options: Options = {}) {
         result = { output: text, retained: new Map() };
         for (const page of pages) if (page.mode !== "verbatim") { page.mode = "verbatim"; page.reason = "overhead"; }
       }
-      for (const [id, original] of result.retained) originals.set(id, original);
+      for (const [id, original] of result.retained) { originals.set(id, original); options.retain?.(id, original); }
       record({ type: "filter", version: 3, query, focus, budget, elapsedMs: Date.now() - started,
         inputBytes: bytes(text), outputBytes: bytes(result.output), pages });
       return result.output;

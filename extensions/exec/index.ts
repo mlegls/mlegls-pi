@@ -14,6 +14,8 @@ const ENTRY_TYPE = "outline-read";
 const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
 
 export default async function (pi: ExtensionAPI) {
+	// PI_TOOL_MODE=bash hands the tool surface to extensions/bash and the ab program.
+	if (process.env.PI_TOOL_MODE === "bash") return;
 	pi.registerFlag("exec-modules", { type: "string", description: "Exec module allowlist: " + MODULES.join(",") + " (* = all, none = core only)" });
 	pi.registerFlag("exec-deny-modules", { type: "string", description: "Exec module denylist; overrides --exec-modules" });
 	pi.registerFlag("exec-profile", { type: "string", description: "Exec API profile: default or reader (not a security sandbox)" });
