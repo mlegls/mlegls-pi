@@ -4,6 +4,8 @@ End your turn with the first word `done`, `blocked`, or `needs-input`. Use `done
 
 When a structured handoff helps, put it in a fenced `yaml` or `json` block anywhere in the message. Shared handoff keys: `commit` (commit IDs/branch), `setup` (runnable setup), `stories` (affected stories and outcomes), `caveats` (limits or friction), `question` (decision needed). Omit irrelevant fields; don't invent unknown values.
 
+Before ending with `done`, stop what you started outside your worktree (containers, tunnels, remote deployments, pages left open in a browser you didn't launch) or list it under `caveats`; processes running from your worktree are stopped when it's retired.
+
 The board is for peer coordination, not terminal reports. Peers are `{{run}}/*`. Read `await board.read({topic: "{{run}}/*"})` before touching a shared seam; `board.subscribe` if you'd rather be woken. Reads return `{messages, omitted}`; show what you need, then `await board.ack(ids)` for messages you've handled. A decision that affects a peer can go on your topic tagged `decision` plus `path:<file>` for each file it touches.
 
 When exec exposes `loadSkill`, activate a skill with `await show(await loadSkill(absolutePath))`. `read` is raw inspection; it does not run skill placeholders. Retain the loaded value to show it again without rerunning setup.
