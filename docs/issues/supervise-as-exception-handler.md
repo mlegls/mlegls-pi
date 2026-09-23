@@ -11,3 +11,5 @@ Rewrite the `supervise` skill and `agents/supervise.md` for an owner that starts
 The interactive root is the same plus a ledger of open human questions, and status generated from the loop's state when asked instead of narrated as events happen.
 
 first use: run a real campaign root on GLM 5.3 Flash; compare owner wakes, coordination cost and human-facing messages with [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]].
+
+2026-09-23: skill and stance rewritten; the loop ignores a child supervisor's status-free turn ends. Waiting on the real-campaign first use.

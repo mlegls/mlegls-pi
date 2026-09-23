@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0cd1a-8da4-701c-8253-d1ab9fd2b4e6
 part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
@@ -15,3 +15,5 @@ The loop as an `ab daemon` job, replacing `lib/supervise.ts`: `ab supervise star
 - metrics per job: owner wakes, bytes delivered to the owner, children, accepted completions. These decide whether GLM is enough.
 
 first use: a two-leaf toy subtree in a scratch repo, driven end to end with the owner woken once for a planted `needs-input`; then one real subtree in a project.
+
+first use 2026-09-23: a two-leaf toy subtree (/tmp/sup-toy) ran end to end with the owner woken for the planted needs-input and once by the strict caveat rule ("no test suite configured"); two restarts on the way continued from carried state. A real subtree is the first use of [[projects/mlegls-pi/issues/supervise-as-exception-handler]].

@@ -26,6 +26,11 @@ decisions:
 - 2026-09-23: `supervise` operating point is GLM 5.3 Flash high on trial, opus 5.5 medium if it can't hold the process (`869e6a7`).
 
 holes:
+- the loop saves a child's turn-end cursor before handling it; a handling error now wakes the owner, but a daemon killed mid-handling loses that event (resume <child> verify|integrate recovers).
+- crossing-story verification at subtree end is left to the owner; no Jev check yet.
+- the daemon caches job modules: `ab daemon shutdown` after changing lib/jobs code (jobs resume on next start).
+- the strict caveat rule wakes on boilerplate like "no test suite configured"; relax with data.
+- 25 of 112 turn ends in the 2026-09-23 campaign had no sentinel under the old prompts; watch the rate under the new ones.
 - Jev preflight lint on assignment prompts in `dispatch` (checklist-commissioned tests, wrong stance, audit inside hacking). Wanted by the loop's templated assignments too.
 - pinning the roster per campaign, or linting that "start with `X`" names an existing skill: the stance files changed mid-campaign.
 - verifier environments are the main block (ports, deployments, sign-in); project-side, e.g. a concept `verify:env` task with isolated ports and a signed-in `storageState`.
