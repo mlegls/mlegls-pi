@@ -284,7 +284,7 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
     const fixes = new Map<string, string>();
     const rel = f.slice(docs.length + 1);
     for (const m of text.matchAll(/\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g)) {
-      const target = m[1].trim();
+      const target = m[1].trim().replace(/\\$/, ""); // [[x\|alias]] inside a table
       if (seen.has(rel + m[0])) continue;
       seen.add(rel + m[0]);
       const to = resolveLink(target);
@@ -297,7 +297,7 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
     if (!fixes.size) continue;
     let out = raw;
     for (const [from, to] of fixes) {
-      for (const end of ["]]", "#", "|"]) out = out.split("[[" + from + end).join("[[" + to + end);
+      for (const end of ["]]", "#", "|", "\\|"]) out = out.split("[[" + from + end).join("[[" + to + end);
       fixed(`${rel}: [[${from}]] -> [[${to}]]`);
     }
     writeFileSync(f, out);
