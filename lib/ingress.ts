@@ -233,7 +233,7 @@ export function create(options: Options = {}) {
           !Number.isInteger(j.excerpt) || j.excerpt < 0 || j.excerpt >= excerpts(chunks[i].text).length)) throw new Error("invalid fidelity judgments");
       } catch (error) {
         record({ type: "unavailable", version: 3, query, focus, error: String(error) });
-        return "[ingress unavailable: kept original output; show.raw(...) bypasses scoring]\n" + text;
+        return "[ingress unavailable: kept original output]\n" + text;
       }
       const pages: Page[] = chunks.map((c, i) => {
         const judgment = judgments[i];
