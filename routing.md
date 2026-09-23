@@ -17,7 +17,7 @@ Live usage arrives separately from the caller, by provider, as a fraction of the
 - `auto-routine`: `openai-codex/gpt-6-luna`, max effort.
 - `auto`: `openai-codex/gpt-6-sol`, high effort.
 - `compile`: `anthropic/claude-opus-5-5`, high effort.
-- `supervise`: `anthropic/claude-opus-5-5`, medium effort.
+- `supervise`: `zai/glm-5.3-flash`, high effort.
 - `technical`: `anthropic/claude-opus-5-5`, high effort.
 - `reviewer` and `prune`: `anthropic/claude-opus-5-5`, medium effort.
 - `visual-reviewer`: `anthropic/claude-opus-5-5`, high effort.
@@ -60,7 +60,7 @@ Distinguish visual perception, GUI grounding, interactive computer use, and visu
 ## Session roles
 
 - `session-triage`: resolving consequential gaps in a delegated contract, or `shape` driving an issue toward executable tickets; use fable or astra. This is decision work, even when the eventual implementation is routine. Prefer fable for coherence and open goals, astra for technical/evidence-based decisions.
-- Idea-to-ticket discussions likewise favor fable/astra. Supervision of already-scoped work, including dispatched `supervise` children, uses the `supervise` operating point: the hard work belongs in the tickets, so the supervisor need not be the strongest model, but it must hold long context and stay node-local. Sonnet 5 drifts toward commissioning tests and reaching into sibling work; prefer opus 5.5 medium until a cheaper model (sonnet 5.5, a newer GLM Flash) proves steerable here.
+- Idea-to-ticket discussions likewise favor fable/astra. Supervision of already-scoped work, including dispatched `supervise` children, uses the `supervise` operating point: the hard work belongs in the tickets, so the supervisor need not be the strongest model, but it must hold long context and stay node-local. Sonnet 5 drifts toward commissioning tests and reaching into sibling work. GLM 5.3 Flash is on trial; upgrade to opus 5.5 medium if it cannot hold the process.
 - Implementation follows the fixed operating points above. The `prune` stance is the simplifying-replacement route; fable remains an option for exploratory planning before its contract is settled.
 - Routing places delegated assignments and identifies closure gaps; it does not choose an interactive session's purpose.
 - A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
