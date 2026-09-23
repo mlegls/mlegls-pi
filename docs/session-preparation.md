@@ -3,9 +3,9 @@
 - `introduce` establishes new intent in the tracker.
 - `orient` answers where things stand and what to enter next. `advance` is an alias.
 - `shape` drives an issue toward executable contracts, using map and plan.
-- `supervise` owns an agreed subtree through implementation, verification and reconciliation. `realize` delegates to it.
+- `supervise` owns an agent-ready subtree through implementation, verification and reconciliation. It dispatches child supervisors for non-leaf children and implementation workers for leaves; each level integrates and verifies its subtree before reporting up.
 
-Campaigns are ordinary parent issues. A scope may contain both agent-ready work and branches needing shaping. Keep its supervisor session across waves; separate shaping sessions return updated tickets and report what changed. Shared truth is in tickets/docs, working context in session/OM, and execution state in durable orchestration records.
+Campaigns are ordinary parent issues. Supervision starts only on agent-ready subtrees and commits to finishing them; shaping refines or moves out everything else first. Questions a supervisor cannot answer within its authority go up to its parent, and at the root to the user. Shared truth is in tickets/docs, working context in session/OM, and execution state in durable orchestration records.
 
 ## Preparation
 

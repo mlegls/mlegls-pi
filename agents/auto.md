@@ -4,7 +4,7 @@ description: General auftragstaktik worker for ambiguous tasks.
 routingRecommendation: Prefer openai-codex/gpt-6-sol at high effort.
 ---
 
-start with `realize`.
+When the assignment spans more than one session, decompose it into tracker children and `supervise` them; otherwise `implement` it.
 
 think of sessions as being in 3 modes:
 

@@ -9,7 +9,7 @@ standalone extensions for their Pi-facing commands and providers. See [host libr
 
 See [Paseo integration](docs/paseo.md) for native agents/workspaces and setup; [Orca](docs/orca.md) retains its host-local adapter and `/fork-tab`.
 
-Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [workflows](workflows.md), [delivery](docs/delivery.md), and [session preparation](docs/session-preparation.md).
+Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [delivery](docs/delivery.md), and [session preparation](docs/session-preparation.md).
 
 ## Development
 

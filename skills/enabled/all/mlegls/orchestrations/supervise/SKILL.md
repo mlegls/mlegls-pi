@@ -1,21 +1,25 @@
 ---
 name: supervise
-description: "Use to carry a campaign through execution and verification while keeping the user oriented."
-argument-hint: "an agreed issue subtree"
+description: "Use to carry an agent-ready issue subtree through execution, integration and verification, recursively."
+argument-hint: "an issue whose subtree is agent-ready, or a root whose ready subtrees to dispatch"
 ---
 
-At entry, refresh semantic tracker lint for the requested scope: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` from the project. Reconcile triage signals before selecting work; lint errors mean unavailable evidence, not a clean tracker. This is advisory, not a dispatch gate. Run once per orientation/campaign, not before each child dispatch.
+At entry, refresh semantic tracker lint for the requested scope: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` from the project. Reconcile triage signals before selecting work; lint errors mean unavailable evidence, not a clean tracker. This is advisory, not a dispatch gate. Run once per campaign, not before each child dispatch.
 
-Be the supervisor for this scope. Delegate substantial work; lightly triage tickets, coordinate implementation and verification Gantt-style, and keep me in touch with overall progress, what's established and what's next. The campaign is the existing parent issue.
+Supervising an issue commits to finishing its whole subtree. Shaping has already refined every child to spec/ticket or moved it out of the tree; a child that cannot be finished is an exception to recover from, not scope to trim. Discoveries start a separate idea tree (`tracker`), never a child of this issue.
+
+Your parent is the supervisor that dispatched you, or the user when you are the root. Keep it oriented: established outcomes, remaining work, live streams and decisions needed. At a root without a single agent-ready issue, such as the whole project, dispatch supervisors only on the ready subtrees the tracker frontier lists; everything else belongs to shaping.
 
 Implementation workers own changes, existing regression runs and runnable setup; fresh verifiers own acceptance and encounter-grounded replay checks. Missing coverage alone is not work to commission. Keep systematic audits separately scoped.
 
 1. Orient as needed: destination, dependencies, acceptance/stories, current evidence, claims and live execution. Read directly; for broad or web evidence, dispatch a `research` worker (`route.prepare(question, {stance: "research"})` → `dispatch.dispatch`) with the question and the context it needs. Recover the native worker handles and reports (`multi-agent`).
-2. Dispatch ready streams as capacity and dependencies permit: `route.prepare` → `dispatch.dispatch`. Use `compile` for assignment preparation and `orchestrate` for large bounded units. Research is dispatchable when its question and completion criterion are settled; exploratory work belongs to its shaping session.
-3. Surface what needs me, ranked by what it unblocks, as bounded `shape` assignments for separate sessions. Triage within recorded decisions; consequentially wrong or incomplete tickets go back for shaping. Incorporate updated tickets and completion reports, continuing independent branches meanwhile.
-4. Integrate changes and dispatch a fresh `verify-story` worker with runnable setup and affected stories for first use, guide/recording updates and reviewed replay. Batch related changes into a coherent journey. Reconcile issues and dependencies against the evidence. Route in-contract repairs to workers; changed contracts to shaping. Explicitly dispose of findings. Landed is not yet verified; close against acceptance.
-5. Launch the next ready wave. Keep the parent current and report progress toward its destination, remaining work, live streams, and decisions needed. Finish when the destination is met; if everything is blocked, report what resumes it.
+2. Dispatch ready children as capacity and dependencies permit, choosing the stance by tree shape. A child with live children gets `{stance: "supervise"}` and a share of your concurrency budget, stated in its prompt; a leaf goes through `route.prepare` for its stance. Where a child's subtree is a single stream or a few small closed leaves, dispatch those leaves yourself instead of a supervisor, and keep small edits local. Use `compile` for assignment preparation. Dispatch with `run` set to this issue's slug and `base` set to your committed HEAD, so children start from what has already been integrated here.
+3. Answer children's needs-input within recorded decisions and your delegated authority. Otherwise ask your parent with needs-input, and continue independent branches meanwhile. A consequentially wrong or incomplete ticket is such a question; at the root it becomes a bounded `shape` item for the user, ranked by what it unblocks. Incorporate updated tickets and completion reports.
+4. Integrate each settled child into your branch (`merge`). Route in-contract repairs to workers; changed contracts go up as questions. Once the subtree is integrated, dispatch a fresh `verify-story` worker with runnable setup over the stories it touches that the children's own verification did not cover, especially those crossing between children. Batch related changes into a coherent journey. Landed is not yet verified; dispose of findings explicitly and close against acceptance. Reconcile the tracker with the evidence.
+5. Finish when the whole subtree is integrated, verified and reconciled: report `done` to your parent, which integrates your branch. If you cannot finish, report `blocked` with the exact claim and what resumes it.
+
+Your concurrency budget comes from your parent; the user sets the root's. Child supervisors' shares count against it.
 
 Keep this session across waves with OM and compaction. Tickets/docs hold shared truth; session/OM hold working context; retained native receipts identify live workers and pending integration. At checkpoints make a replacement recoverable without requiring one. Use `route.continuation` for worker exceptions and context checkpoints. Fresh verifiers provide independent judgment; the supervisor retains continuity.
 
-For tracker work, pass each issue’s own `assignee` (including absence) to `route.prepare`, then carry `issue` and `assignee` into dispatch. Re-read child assignments when decomposing; explicit human/session ownership requires its owner.
+For tracker work, pass each issue’s own `assignee` (including absence) to `route.prepare`, then carry `issue` and `assignee` into dispatch. Explicit human/session ownership requires its owner.

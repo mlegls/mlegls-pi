@@ -32,6 +32,7 @@ Interpret supplied evidence; do not invent missing context or closure. Prefer a 
 - `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
 - `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.
+- `supervise`: A non-leaf, agent-ready subtree: delegate its children, integrate them into one branch, and verify it before reporting up.
 - `reviewer`: Review a diff against its contract, reporting findings rather than implementing it.
 - `verify`: Exercise implemented behavior as its user would and report evidence of what holds or fails.
 - `visual-reviewer`: Judge the rendered surface, layout, visual coherence, or usability from screenshots or direct interaction.
@@ -56,8 +57,9 @@ Distinguish visual perception, GUI grounding, interactive computer use, and visu
 ## Session roles
 
 - `session-triage`: resolving consequential gaps in a delegated contract, or `shape` driving an issue toward executable tickets; use fable or astra. This is decision work, even when the eventual implementation is routine. Prefer fable for coherence and open goals, astra for technical/evidence-based decisions.
-- Idea-to-ticket discussions likewise favor fable/astra. Implementation supervision of already-scoped work favors sonnet, terra, or DeepSeek Flash; the supervisor need not be the strongest model.
+- Idea-to-ticket discussions likewise favor fable/astra. Supervision of already-scoped work, including dispatched `supervise` children, favors sonnet, terra, or DeepSeek Flash; the supervisor need not be the strongest model.
 - Implementation follows the fixed operating points above. The `prune` stance is the simplifying-replacement route; fable remains an option for exploratory planning before its contract is settled.
+- Routing places delegated assignments and identifies closure gaps; it does not choose an interactive session's purpose.
 - A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
 
 ## Model characteristics
