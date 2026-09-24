@@ -153,3 +153,7 @@ Tiny declaration chunks in an earlier probe reverted to verbatim because labels
 cost more than compression saved. This checks compressor routing, not live Jev
 selection quality or improved task-level economics. Existing compression-failure
 and exact-pull replays still pass.
+
+### Names and first reads (2026-09-24)
+
+Bash sessions abandoned the filter after orientation reads came back as keyword cues. The fidelity question now keeps names verbatim when the command asks to see them and treats read-backs as verification; omission notices name what they omit. [Diagnosis and replay](research/ingress-first-reads/README.md).

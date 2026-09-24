@@ -23,7 +23,8 @@ test("five-level exec encounters replay with exact pulls and byte accounting", a
       record: e => events.push(e),
     });
     try {
-      const out = await reader.filter(encounter.source, reading.query, 16384, reading.focus);
+      // Omission notices now name what they omit; the recorded renderings predate that.
+      const out = (await reader.filter(encounter.source, reading.query, 16384, reading.focus)).replace(/(\[omitted ing-[a-f0-9]+): [^\]\n]*\]/g, "$1]");
       expect(out + "\n").toBe(reading.result.output);
       expect(Buffer.byteLength(out)).toBe(event.outputBytes);
       expect(Buffer.byteLength(out)).toBeLessThan(Buffer.byteLength(encounter.source));
