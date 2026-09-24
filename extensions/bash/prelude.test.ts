@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { PRELUDE } from "./index.ts";
+import { collapseReports, PRELUDE } from "./index.ts";
 
 const run = (script: string) => { const r = spawnSync("bash", ["-c", PRELUDE + script], { encoding: "utf8" }); return { out: r.stdout, err: r.stderr, code: r.status }; };
 
@@ -21,4 +21,10 @@ test("the trap reaches functions and command substitutions", () => {
 	expect(r.out).toContain("[exit 1 at line 1: false]");
 	expect(r.out).toContain("[exit 1 at line 3: false]");
 	expect(r.out).toContain("x=y\n");
+});
+
+test("a failure repeated in a loop reports once with its count", () => {
+	const r = run("for i in 1 2 3; do grep -q x /dev/null; done\nfalse\necho done");
+	expect(collapseReports(r.out)).toBe("[exit 1 at line 1: grep -q x /dev/null] ×3\n[exit 1 at line 2: false]\ndone\n");
+	expect(collapseReports("a\nb\n")).toBe("a\nb\n");
 });

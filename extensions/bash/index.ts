@@ -26,6 +26,22 @@ const HEAD = 8 * 1024, TAIL = 32 * 1024, BUDGET = 16 * 1024;
 // that stream, so a failure inside $(...) is reported rather than captured into the value.
 // A fixed fd, since macOS's bash 3.2 has no {var} allocation.
 export const PRELUDE = "exec 2>&1 19>&1; set -E; __ab_line=$LINENO; trap 'echo \"[exit $? at line $((LINENO - __ab_line)): $BASH_COMMAND]\" >&19' ERR\n";
+const REPORT = /^\[exit \d+ at line \d+: .*\]$/;
+/** Identical reports (a failing command in a loop) collapse into their first, suffixed ×N; the log keeps every one. */
+export function collapseReports(text: string): string {
+	const lines = text.split("\n");
+	const counts = new Map<string, number>();
+	for (const line of lines) if (REPORT.test(line)) counts.set(line, (counts.get(line) ?? 0) + 1);
+	if (![...counts.values()].some(n => n > 1)) return text;
+	const seen = new Set<string>();
+	return lines.flatMap(line => {
+		const n = counts.get(line);
+		if (n === undefined) return [line];
+		if (seen.has(line)) return [];
+		seen.add(line);
+		return [n > 1 ? line + " ×" + n : line];
+	}).join("\n");
+}
 // Seconds a call waits before returning a handle; PI_BASH_YIELD_S=0 makes every call return at once.
 const YIELD_S = process.env.PI_BASH_YIELD_S !== undefined && Number.isFinite(Number(process.env.PI_BASH_YIELD_S)) ? Number(process.env.PI_BASH_YIELD_S) : 10;
 
@@ -97,7 +113,7 @@ export default function (pi: ExtensionAPI) {
 	function kill(job: Job) { try { process.kill(-job.pid, "SIGTERM"); } catch {} }
 
 	async function output(job: Job, code: number | string | undefined, ctx: ExtensionContext | undefined, options: { raw?: boolean; focus?: string } = {}): Promise<ContentBlock[]> {
-		let text = readFileSync(job.log, "utf8");
+		let text = collapseReports(readFileSync(job.log, "utf8"));
 		if (Buffer.byteLength(text) > HEAD + TAIL) {
 			const buffer = Buffer.from(text);
 			text = buffer.subarray(0, HEAD).toString() + "\n…[" + (buffer.length - HEAD - TAIL) + " bytes omitted; full output: " + job.log + "]…\n" + buffer.subarray(buffer.length - TAIL).toString();
@@ -153,7 +169,7 @@ export default function (pi: ExtensionAPI) {
 		label: "bash",
 		description: [
 			"Run a bash command in the workspace. The call returns when the command finishes, or after wait seconds (default " + YIELD_S + ") with a handle while it keeps running; its result then arrives by itself. Don't poll or sleep for it. Independent commands can be parallel calls in one turn.",
-			"A failing command inside a script prints [exit N at line L: cmd] and the script continues; conditions and || handle failures silently.",
+			"A failing command inside a script prints [exit N at line L: cmd] and the script continues; conditions and || handle failures silently. Identical reports collapse into the first, suffixed ×N.",
 			"Output is read with attention to the conversation: skimmed or omitted parts carry an ing-… id that ab pull recovers. raw: true returns exact output; focus names what to look for. Long output keeps head and tail; the full log path is shown.",
 			"Read and search files with ab read PATH[:50-80] and ab grep PATTERN rather than cat/sed/head: every row carries an anchor (N abcd│text), and ab edit targets anchors, so a change sends only its new lines, with no old text to quote and no whole-file rewrite. ab edit takes hunks on stdin (ab edit <<'EOF' ... EOF): =abcd or =abcd wxyz replaces, -abcd deletes, >abcd / <abcd insert after/before; hunks are separated by a blank line and a stale anchor is rejected, never misapplied. Create new files with cat > path <<'EOF'.",
 			"ab also has images (ab view), skills (ab skill), a TypeScript code graph (ab code) and lib/ adapters; ab CMD --help for each. exa-cli for web search.",
