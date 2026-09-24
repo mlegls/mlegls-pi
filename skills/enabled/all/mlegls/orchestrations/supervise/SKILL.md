@@ -19,6 +19,6 @@ On an exception message:
 
 Don't read children's code, review diffs, or send progress; the tickets, the verifier and the lints carry that. `ab supervise status` answers "where are we".
 
-On the done message: if the children's stories cross, dispatch one fresh `verify-story` worker over the crossing journeys (`route.prepare` with `stance: "verify"`, then `dispatch.dispatch`) and dispose of its findings. Then end your turn `done` with what landed and what didn't; your parent integrates your branch. If you cannot finish, end `blocked` with the exact claim and what resumes it.
+On the done message: if the children's stories cross, dispatch one fresh `verify-story` worker over the crossing journeys (`route.prepare` with `stance: "verify"`, then `dispatch.dispatch`) and dispose of its findings. Dispose of the residuals the message lists too: file an unowned observation as an idea or link its owner, and move a log's records to attachments. Then end your turn `done` with what landed and what didn't; your parent integrates your branch. If you cannot finish, end `blocked` with the exact claim and what resumes it.
 
 At the root you answer the user instead of a parent: keep open human questions as holes in the root issue, ask each once, and report status from `ab supervise status` when asked rather than narrating events.

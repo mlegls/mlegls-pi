@@ -32,6 +32,16 @@ const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, 
 const caveats = (h: Record<string, unknown> | null) => { const c = h?.caveats; return Array.isArray(c) ? c.length > 0 : !!c && !/^(none|no|\[\])$/i.test(String(c).trim()); };
 // Verifier outcomes live under handoff.stories as held/failed/unobservable per story; anything but held needs the owner.
 const unheld = (h: Record<string, unknown> | null) => { const s = JSON.stringify(h?.stories ?? null); return s === "null" || /"(failed|unobservable)"|:\s*"?(failed|unobservable)/i.test(s); };
+// Workers record what they met on the way in prose; digesting it is the owner's, since the loop reads no diffs.
+// Advisory Jev findings over the subtree: observations that link no owning issue, and bodies turning into logs.
+function residuals(input: Input): string {
+ try {
+  const { reports } = JSON.parse(execFileSync("bun", [TRACKER, "lint", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8", timeout: 300_000 }));
+  const found = (reports as { slug: string; entry?: { findings: { kind: string; probability: number }[] } }[])
+   .flatMap(r => (r.entry?.findings ?? []).filter(f => f.kind === "unowned" || f.kind === "journal").map(f => r.slug + " " + f.kind + " p=" + f.probability.toFixed(2)));
+  return found.length ? "\nFile each unowned observation as an idea or link its owner; move a log's records to attachments:\n" + found.join("\n") : "";
+ } catch (error) { return "\nResidual lint unavailable: " + (error instanceof Error ? error.message : String(error)).slice(0, 300); }
+}
 const HANDOFF = "End with the status sentinel and a fenced yaml handoff (agents/_common.md keys). ";
 
 
@@ -159,5 +169,5 @@ export async function run(job: JobContext) {
  const open = snapshot(input).filter(i => i.partOf === input.ticket && !i.done);
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); return; }
  state.finished = true; await save();
- await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide.");
+ await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide." + residuals(input));
 }
