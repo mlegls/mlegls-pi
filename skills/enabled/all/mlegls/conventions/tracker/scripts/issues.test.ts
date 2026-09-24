@@ -244,3 +244,37 @@ test("a child cannot await completion of its own parent scope", () => {
   put("child", frontmatter('stage: ticket\nassignee: agent\npart-of: "[[projects/test/issues/parent]]"\nblocked-by: ["[[projects/test/issues/parent]]"]'));
   expect(run("frontier").err).toContain("completion cycle");
 });
+
+/** A separate project, so a check reads only what the test puts there. */
+function project(files: Record<string, string>, git = false) {
+  const root = mkdtempSync(join(tmpdir(), "tracker-own-"));
+  mkdirSync(join(root, "docs/issues"), { recursive: true });
+  const sh = (...args: string[]) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: root });
+  const write = (fs: Record<string, string>) => { for (const [f, t] of Object.entries(fs)) writeFileSync(join(root, "docs", f), t); };
+  write(files);
+  if (git) { sh("init", "-q"); sh("add", "."); sh("commit", "-qm", "committed"); }
+  const check = () => Bun.spawnSync([process.execPath, cli, "check"], { cwd: root, env: { ...process.env, TRACKER_VAULT: vault } }).stdout.toString();
+  return { write, check, done: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+test("check names the child that lowers a spec, and a side friction log", () => {
+  const p = project({
+    "issues/shaped.md": frontmatter("stage: spec\nassignee: agent"),
+    "issues/unshaped.md": frontmatter('stage: goal\nassignee: agent\npart-of: "[[projects/fixture/issues/shaped]]"'),
+    "frictions.md": "- a one-liner\n",
+  });
+  const out = p.check();
+  expect(out).toContain("shaped: own spec but effective goal through unshaped");
+  expect(out).toContain("docs/frictions.md: frictions in a vault project are stage: idea issues");
+  p.done();
+}, 30_000);
+
+test("a new uncommitted issue needs author provenance; committed history is left alone", () => {
+  const p = project({ "issues/old.md": frontmatter("stage: idea") }, true);
+  p.write({ "issues/new.md": frontmatter("stage: idea"), "issues/owned.md": frontmatter("stage: idea\nauthor: session:x") });
+  const out = p.check();
+  expect(out).toContain("new: new issue without author provenance");
+  expect(out).not.toContain("old:");
+  expect(out).not.toContain("owned:");
+  p.done();
+}, 30_000);

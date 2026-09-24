@@ -126,6 +126,13 @@ function validAssignee(a: string): boolean {
   if (parts.length === 2) return (stance(parts[0]) && model(parts[1])) || (model(parts[0]) && stance(parts[1]));
   return parts.length === 1 && (/^(agent|human)$/.test(a) || /^(user|session):[^\s,]+$/.test(a) || stance(a) || model(a));
 }
+/** Live issues not yet committed, whose provenance is still being written; none outside git. */
+function uncommitted(dir: string): string[] {
+  const p = spawnSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "."], { cwd: dir, encoding: "utf8" });
+  if (p.status !== 0) return [];
+  return p.stdout.split("\n").filter((l) => /^(\?\?|A.)/.test(l) && l.endsWith(".md")).map((l) => basename(l.slice(3), ".md"));
+}
+
 function children(i: Issue, all: Map<string, Issue>): Issue[] {
   return [...all.values()].filter(c => c.partOf === i.slug);
 }
@@ -444,7 +451,16 @@ if (cmd !== "lint") switch (cmd) {
       if (i.next && i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
       if (i.next && !KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
       if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; verify ownership before clearing`);
+      // Refinement never lowers a spec or ticket: a child that needs shaping leaves the tree with its honest stage.
+      const effective = effectiveStage(i, all);
+      if (!i.archived && (i.stage === "spec" || i.stage === "ticket") && effective && STAGES.indexOf(effective) < STAGES.indexOf(i.stage)) {
+        const lowering = children(i, all).filter((c) => { const e = effectiveStage(c, all); return e && STAGES.indexOf(e) < STAGES.indexOf(i.stage!); });
+        say(`${i.slug}: own ${i.stage} but effective ${effective} through ${lowering.map((c) => c.slug).join(", ")}; move a child that needs shaping out of the tree (lifecycle)`);
+      }
     }
+    // Observations are issues in a vault project; a side log is read by nobody who triages.
+    if (existsSync(join(dirname(dir), "frictions.md"))) say("docs/frictions.md: frictions in a vault project are stage: idea issues");
+    for (const slug of uncommitted(dir)) if (all.has(slug) && !all.get(slug)!.author) say(`${slug}: new issue without author provenance`);
     checkLinks(dirname(dir), say, (s) => console.log("fixed " + s));
     if (!bad) console.log("ok");
     else process.exitCode = 1;
