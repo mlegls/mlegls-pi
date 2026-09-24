@@ -50,7 +50,7 @@ For each passage Jev chooses the lowest retention sufficient for the current rea
 - **25% / cues:** peripheral topic cues only, explicitly **not assertions**.
 - **0% / omit:** neither detail nor topic cues contribute to this reading.
 
-A persistent local LLMLingua-2 worker token-compresses prose at the middle levels.
+A persistent local LLMLingua-2 worker token-compresses text at the middle levels.
 The percentage is a requested token retention rate, not a byte ratio or a fidelity
 guarantee. Skims can lose negations, qualifications and relationships, including at
 75%. They are marked incomplete and carry an expansion handle. Pull before relying

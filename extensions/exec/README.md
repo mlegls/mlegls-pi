@@ -262,7 +262,7 @@ await show.raw(state.result);           // no semantic transformation
 ~~~
 
 Jev chooses 100/75/50/25/0% retention. A persistent local LLMLingua-2 worker
-compresses prose at the middle levels; 25% is explicitly keyword cues, not assertions.
+compresses text at the middle levels; 25% is explicitly keyword cues, not assertions.
 Focus supplements the conversation tail and current cell. Skims can lose qualifiers
 and relationships: pull the original before relying on details. Code, tables and
 anchored source are token-deleted too, so compressed source is not editable evidence:
