@@ -265,7 +265,8 @@ Jev chooses 100/75/50/25/0% retention. A persistent local LLMLingua-2 worker
 compresses prose at the middle levels; 25% is explicitly keyword cues, not assertions.
 Focus supplements the conversation tail and current cell. Skims can lose qualifiers
 and relationships: pull the original before relying on details. Code, tables and
-anchored evidence use exact excerpts instead of token deletion. Headings and recovery
+anchored source are token-deleted too, so compressed source is not editable evidence:
+edit through retained rows, or show verbatim first. Headings and recovery
 handles remain visible, and original retained values never change.
 
 One-time local setup: `uv run --no-project --python 3.12 --script lib/skim-worker.py --setup`
