@@ -698,8 +698,8 @@ extensions need exec-aware integration.
 
 Use exec while developing or verifying it. Report concrete friction: the operation
 attempted, what actually happened, the workaround, and a simpler interaction if
-one is apparent. Record unresolved observations in `docs/frictions.md`; workers
-should include them in their completion report so the coordinating session can
+one is apparent. File each unresolved observation as a `stage: idea` issue (`tracker`) and
+link it from your completion report, so the coordinating session can
 consolidate duplicates. Distinguish observations from proposed improvements.
 
 Worker profiles with an explicit `--tools` allowlist must include `exec`.
