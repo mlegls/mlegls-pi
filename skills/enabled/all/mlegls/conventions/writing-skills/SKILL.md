@@ -7,7 +7,7 @@ a skill is either an ergonomic invocation of something i say often, or a steerin
 
 for the first, write it like i'd say it. you can understand when i say it, so the skill doesn't have to add any more. the reader is an omniscient frontier LLM, so in fact knows more than me. use one word names for things that have been thought of before (basically everything). contrast from these where it's shorter than the positive explanation from scratch.
 
-for the second, we'll add a line for each undesired behavior (ideally with verbatim yes/no example) only when we actually see it. you cannot anticipate it: whoever reads the skill later is you, or someone much like you, so whatever you think is right, they think so too. anything you think "should" be cautioned/advised on is "default".
+for the second, we'll add a line for each undesired behavior (ideally with verbatim yes/no example, when it reads standalone outside its project) only when we actually see it. you cannot anticipate it: whoever reads the skill later is you, or someone much like you, so whatever you think is right, they think so too. anything you think "should" be cautioned/advised on is "default".
 
 ## concrete counter-defaults
 
