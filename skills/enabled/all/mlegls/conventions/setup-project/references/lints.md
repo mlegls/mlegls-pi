@@ -24,7 +24,8 @@ Meaning, as a ranked advisory ([jev-lint](lints/jev-lint), TypeScript only):
 with Jev and prints the few spans most likely to be an inert field, an
 assertion the concept notes never promise, or a type predicate that checks
 no more than its argument's type already carries; findings nothing needs
-to judge (a field nothing names) print as `static`. Probabilities, not
+to judge (a field nothing names) print as `static`, and `drift` lines name
+a concept-note statement the change appears to contradict. Probabilities, not
 rules: read the top of the queue, never gate on it. `implement` reports it
 beside `scc-delta.sh`; `JEV_API_KEY` must be set.
 
