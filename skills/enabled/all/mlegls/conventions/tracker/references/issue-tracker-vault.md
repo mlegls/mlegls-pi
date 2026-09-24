@@ -60,6 +60,7 @@ holes: bullets, each linking its resolution once it has one. a hole is its own i
 decisions: one dated line each, linking the question when it had one.
 
 shape: structures, flows, where each new thing lives; a fat-marker sketch, types, or an exact interface where one was settled.
+result: written at done, per `pr`.
 ```
 
 preserve the distinction between what we chose and what we used to explore the choice.
@@ -77,7 +78,7 @@ claim: `claimed-by` before anything else; sessions share the directory, so read 
 
 a ticket is a `wt` worktree on a branch named for its slug; `wt merge` when its stories drive. commit implementation changes in the ticket’s worktree as you go. commit the claim in the canonical checkout before branching. shared tracker changes—parent decisions, dependencies, new tickets—belong in the canonical checkout; workers report these to the coordinator. the ticket’s completion and archival ride its implementation branch.
 
-resolve: record the answer or land the code and satisfy its recorded acceptance (including story verification), `stage: done`, drop the claim and remove resolved dependent blockers. Leave the result live for review/digestion; move to `archive/` once it has fulfilled its enclosing purpose. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
+resolve: record the answer or land the code and satisfy its recorded acceptance (including story verification), write the result, `stage: done`, drop the claim and remove resolved dependent blockers. Leave the result live for review/digestion; move to `archive/` once it has fulfilled its enclosing purpose. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
 
 friction: `stage: idea`, immutable `author: session:<origin>`, the observation raw with its originating story and evidence. Priority follows observed impact; unknown impact stays unknown. Triage before execution.
 
