@@ -16,7 +16,7 @@ Baseline: `e489da0434623322c2efcd2d0a3adf539f628aa3`. Local macOS, Pi 0.84.4, Or
 
 ## Remaining checks
 
-Compaction, native structured submission, abort/timeout against an active reader, Pi restart/history integration, full agent-status transitions, image rendering, and graphical review/merge were not exercised. Orca accepts Pi terminal input but its send receipt reports `provider: unsupported`; observe the terminal or board result rather than treating input acceptance as delivery. See [[projects/mlegls-pi/issues/orca-terminal-launch-parity]].
+Compaction, native structured submission, abort/timeout against an active reader, Pi restart/history integration, full agent-status transitions, image rendering, and graphical review/merge were not exercised. Orca accepts Pi terminal input but its send receipt reports `provider: unsupported`; observe the terminal or board result rather than treating input acceptance as delivery. See [[projects/mlegls-pi/issues/archive/orca-terminal-launch-parity]].
 
 ## Size
 

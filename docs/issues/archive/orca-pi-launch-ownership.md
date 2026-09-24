@@ -1,5 +1,5 @@
 ---
-stage: goal
+stage: done
 assignee: agent
 ---
 
