@@ -32,7 +32,7 @@ Omit stage only when all residual work is delegated to children; null is invalid
 
 The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
 
-Frontmatter is a strict YAML mapping. Relations are quoted vault-absolute issue wikilinks; blocked-by is a list. Every query rejects malformed YAML, duplicate keys/slugs, aliases, explicit tags, merge keys, invalid tracker fields and relation cycles before emitting results. Extra metadata is allowed; attachments/ is not scanned as issues. `check` preserves link/heading checks and flags resolved blockers and suspect claims.
+Frontmatter is a strict YAML mapping. Relations are quoted vault-absolute issue wikilinks; blocked-by is a list of such links and quoted `"<tag>: <value>"` guards, which always count as open (see [lifecycle](lifecycle.md)). Every query rejects malformed YAML, duplicate keys/slugs, aliases, explicit tags, merge keys, invalid tracker fields and relation cycles before emitting results. Extra metadata is allowed; attachments/ is not scanned as issues. `check` preserves link/heading checks and flags resolved blockers and suspect claims.
 
 ### Semantic preflight
 

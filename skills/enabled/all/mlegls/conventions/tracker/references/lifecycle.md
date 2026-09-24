@@ -26,6 +26,8 @@ priority: 2
 
 Stage is optional idea/goal/spec/ticket/done. `part-of` is the single execution parent, not thematic membership; `blocked-by` contains actual prerequisites. Research, grilling, prototyping and measurement describe how a hole is resolved, in its body or an independently executable child, not another workflow axis.
 
+Besides other issues, an issue can be blocked by a time or a condition, written as a quoted `"<tag>: <value>"` guard: `"after: 2026-10-01"`, `"merged: <PR url>"`, or `"spec: [[…]]"` for something only blocked on another issue getting to spec rather than on its implementation. Tags are added lazily as needed and stay opaque to the tracker: a guard blocks like an open prerequisite until whoever finds it satisfied removes it, and the reason lives in the body. Entries are conjunctive, so a timeout that should prompt a different action (following up with a maintainer) is a separate issue blocked by the date. A condition nobody can check without judgment is an issue, not a guard. Obsidian does not index links inside guard strings.
+
 Priority is local and never inherited: 1 urgent, 2 main, 3 nice to have, 4 deferred. Absent means unknown, sorted after main and before nice. Deferred subtrees are excluded from automatic selection unless explicitly scoped. Deferral is preference, not a fake dependency; missing impact evidence is uncertainty, not minor severity.
 
 Author is immutable nonempty provenance. New capture uses `session:<id>` or `user:<name>`; preserve historical values verbatim. Capture the originating session for new observations; omit unknown historical authors.

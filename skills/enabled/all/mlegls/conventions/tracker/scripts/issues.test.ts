@@ -90,6 +90,7 @@ test("invalid frontmatter fails every query with a filename and no partial outpu
       "stage: ticket\nassignee: agent\npart-of: '[[blocker]]'", "stage: ticket\nassignee: agent\nblocked-by: null",
       `stage: ticket\nassignee: agent\nblocked-by: ${blocker}`, `stage: ticket\nassignee: agent\nblocked-by: [${blocker}, 1]`,
       "stage: ticket\nassignee: agent\nblocked-by: ['[[projects/fixture/issues/blocker#heading]]']",
+      "stage: ticket\nassignee: agent\nblocked-by:\n  - after: 2026-10-01", "stage: ticket\nassignee: agent\nblocked-by: ['someday']",
       "stage: ticket\nassignee: agent\nblocked-by: [\n  '[[projects/fixture/issues/blocker]]'\n",
       "stage: ticket\nassignee: agent\nblocked-by: []\nblocked-by: []",
       "stage: ticket\nassignee: agent\nother: &a [1]\nblocked-by: *a",
@@ -125,6 +126,20 @@ test("unverified claims conservatively reserve execution", () => {
   expect(run("frontier").out).toBe("");
   expect(JSON.parse(run("snapshot").out).issues.find((i: any) => i.slug === "task").claims).toEqual([{slug: "task", claimedBy: "session:missing"}]);
   put("task", frontmatter("stage: ticket\nassignee: agent"));
+});
+
+test("tagged guards are opaque: they block until removed and never resolve on their own", () => {
+  put("task", frontmatter("stage: ticket\nassignee: agent\nblocked-by:\n  - \"after: 2000-01-01\""));
+  put("ask", frontmatter("stage: goal\nassignee: human\nblocked-by: ['merged: https://github.com/o/r/pull/1']"));
+  expect(run("frontier").out).toBe("");
+  expect(run("mine").out).toBe("");
+  expect(run("tree").out).toContain('guard:"after: 2000-01-01"');
+  expect(JSON.parse(run("snapshot").out).issues.find((i: any) => i.slug === "task")).toMatchObject({ blockedBy: [], guards: ["after: 2000-01-01"], blockers: ["after: 2000-01-01"] });
+  expect(run("check")).toEqual({ code: 0, out: "ok\n", err: "" });
+  put("task", frontmatter("stage: ticket\nassignee: agent"));
+  put("ask", frontmatter("stage: goal\nassignee: human"));
+  expect(run("frontier").out).toContain("task");
+  rmSync(join(issues, "ask.md"));
 });
 
 test("outline maps each linked bullet to its issue, flags unlinked intent among linked bullets, and lists open issues no bullet covers", () => {

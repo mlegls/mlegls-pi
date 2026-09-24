@@ -29,6 +29,7 @@ type Issue = {
   author?: string;
   partOf?: string;
   blockedBy: string[];
+  guards: string[];
   claimedBy?: string;
   priority?: number;
 };
@@ -64,14 +65,18 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
     if ("stage" in fm && !STAGES.includes(fm.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
     if ("assignee" in fm && (typeof fm.assignee !== "string" || !validAssignee(fm.assignee))) throw new Error("invalid assignee selector");
     if ("author" in fm && (typeof fm.author !== "string" || !fm.author.trim())) throw new Error("author must be a nonempty provenance string");
-    if ("blocked-by" in fm && !Array.isArray(fm["blocked-by"])) throw new Error("blocked-by must be a list of issue wikilinks");
+    if ("blocked-by" in fm && !Array.isArray(fm["blocked-by"])) throw new Error("blocked-by must be a list of issue wikilinks and guards");
+    const isLink = (value: unknown) => typeof value === "string" && value.startsWith("[[");
+    const guards = (fm["blocked-by"] ?? []).filter((value: unknown) => !isLink(value));
+    for (const g of guards) if (typeof g !== "string" || !/^[a-z][a-z0-9-]*: \S/.test(g)) throw new Error("blocked-by entries must be issue wikilinks or quoted '<tag>: <value>' guards");
     if ("claimed-by" in fm && (typeof fm["claimed-by"] !== "string" || !fm["claimed-by"].trim())) throw new Error("claimed-by must be a nonempty string");
     if ("priority" in fm && ![1, 2, 3, 4].includes(fm.priority)) throw new Error("priority must be 1, 2, 3 or 4");
     return {
       next: fm.next,
       stage: fm.stage, assignee: fm.assignee, author: fm.author,
       partOf: "part-of" in fm ? link(fm["part-of"]) : undefined,
-      blockedBy: (fm["blocked-by"] ?? []).map(link),
+      blockedBy: (fm["blocked-by"] ?? []).filter(isLink).map(link),
+      guards,
       claimedBy: fm["claimed-by"],
       priority: fm.priority,
     };
@@ -152,7 +157,7 @@ function model(i: Issue, all: Map<string, Issue>, explicit = false) {
   const deferred = nodes.some(n => n.priority === 4);
   return { slug: i.slug, file: i.file, archived: i.archived, legacy: !!i.next, next: i.next,
     ownStage: i.stage ?? null, effectiveStage: effective, assignee: i.assignee ?? null,
-    author: i.author ?? null, priority: i.priority ?? null, partOf: i.partOf ?? null, blockedBy: i.blockedBy,
+    author: i.author ?? null, priority: i.priority ?? null, partOf: i.partOf ?? null, blockedBy: i.blockedBy, guards: i.guards,
     ready, eligible, blockers, claims, selectors, deferred,
     frontier: !i.archived && ready && eligible && !blockers.length && !claims.length && (explicit || !deferred),
     done: !i.archived && complete(i, all) };
@@ -166,7 +171,7 @@ function dependents(slug: string, all: Map<string, Issue>): number {
 }
 
 function openBlockers(i: Issue, all: Map<string, Issue>): string[] {
-  return i.blockedBy.filter((b) => !all.has(b) || !complete(all.get(b)!, all));
+  return [...i.blockedBy.filter((b) => !all.has(b) || !complete(all.get(b)!, all)), ...i.guards];
 }
 
 // A claim is carried by a worktree named for the slug, or for the run the claim names.
@@ -187,8 +192,9 @@ function line(i: Issue, all: Map<string, Issue>): string {
   const bits = [i.next ? "legacy next:" + i.next : "own:" + (i.stage ?? "none") + " effective:" + effectiveStage(i, all)];
   if (i.assignee) bits.push("assignee:" + i.assignee);
   if (i.claimedBy) bits.push((claimLive(i) === false ? "stale-claim:" : "claimed:") + i.claimedBy);
-  const ob = openBlockers(i, all);
+  const ob = openBlockers(i, all).filter((b) => !i.guards.includes(b));
   if (ob.length) bits.push("prerequisites:" + ob.join(","));
+  for (const g of i.guards) bits.push("guard:" + JSON.stringify(g));
   const d = dependents(i.slug, all);
   return `${i.slug}  [${bits.join(" ")}] p${i.priority ?? "?"}${d ? " unblocks:" + d : ""}`;
 }
