@@ -3,6 +3,7 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab read PATH[:SEL]...     anchored lines; outline for long files
   ab grep PATTERN [PATH]... anchored matches, directly editable
   ab edit < hunks           replace/insert/delete lines by anchor
+  ab raw [CMD ARG...]       exact output past the bash tool's filter (or CMD | ab raw)
   ab view IMAGE...          attach images to the tool result
   ab skill PATH             load a SKILL.md with its dynamic shell blocks expanded
   ab code VERB [NAME]       TypeScript definitions and checker-resolved references

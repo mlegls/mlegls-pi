@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { create as createIngress } from "../../lib/ingress.ts";
+import { segments } from "../../lib/raw.ts";
 import { createImageFile, detectImageMimeType, type ContentBlock } from "../exec/image";
 import { ingressContext } from "../exec/ingress-context";
 
@@ -118,7 +119,12 @@ export default function (pi: ExtensionAPI) {
 			const buffer = Buffer.from(text);
 			text = buffer.subarray(0, HEAD).toString() + "\n…[" + (buffer.length - HEAD - TAIL) + " bytes omitted; full output: " + job.log + "]…\n" + buffer.subarray(buffer.length - TAIL).toString();
 		}
-		if (!options.raw && ctx) text = await ingress.filter(text, ingressContext(ctx, job.command), BUDGET, options.focus);
+		const parts = segments(text);
+		const rawBytes = parts.reduce((n, p) => n + (p.raw ? Buffer.byteLength(p.text) : 0), 0);
+		const loose = parts.filter(p => !p.raw), looseBytes = loose.reduce((n, p) => n + Buffer.byteLength(p.text), 0);
+		// Exact regions spend the budget first; the rest shares what is left in proportion to size.
+		const budget = (p: { text: string }) => Math.max(1024, Math.floor((BUDGET - rawBytes) * Buffer.byteLength(p.text) / Math.max(1, looseBytes)));
+		text = (await Promise.all(parts.map(p => p.raw || options.raw || !ctx ? p.text : ingress.filter(p.text, ingressContext(ctx, job.command), budget(p), options.focus)))).join("");
 		const notes: string[] = [];
 		if (job.detached) notes.push(job.handle + " finished after " + Math.round((Date.now() - job.started) / 1000) + "s: " + job.command.split("\n")[0].slice(0, 120));
 		if (code === undefined) notes.push(job.handle + " still running (pid " + job.pid + ", " + Math.round((Date.now() - job.started) / 1000) + "s); its result arrives when it finishes — don't poll. kill -- -" + job.pid + " stops it; output so far is in " + job.log);
@@ -170,7 +176,7 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Run a bash command in the workspace. The call returns when the command finishes, or after wait seconds (default " + YIELD_S + ") with a handle while it keeps running; its result then arrives by itself. Don't poll or sleep for it. Independent commands can be parallel calls in one turn.",
 			"A failing command inside a script prints [exit N at line L: cmd] and the script continues; conditions and || handle failures silently. Identical reports collapse into the first, suffixed ×N.",
-			"Output is read with attention to the conversation: skimmed or omitted parts carry an ing-… id that ab pull recovers. raw: true returns exact output; focus names what to look for. Long output keeps head and tail; the full log path is shown.",
+			"Output is read with attention to the conversation: skimmed or omitted parts carry an ing-… id that ab pull recovers. ab read/grep/edit/pull output always arrives exact; for another command, CMD | ab raw, or ab raw CMD ARG… to include its stderr and exit status. raw: true makes the whole call exact; focus names what to look for. Long output keeps head and tail; the full log path is shown.",
 			"Read and search files with ab read PATH[:50-80] and ab grep PATTERN rather than cat/sed/head: every row carries an anchor (N abcd│text), and ab edit targets anchors, so a change sends only its new lines, with no old text to quote and no whole-file rewrite. ab edit takes hunks on stdin (ab edit <<'EOF' ... EOF): =abcd or =abcd wxyz replaces, -abcd deletes, >abcd / <abcd insert after/before; hunks are separated by a blank line and a stale anchor is rejected, never misapplied. Create new files with cat > path <<'EOF'.",
 			"ab also has images (ab view), skills (ab skill), a TypeScript code graph (ab code) and lib/ adapters; ab CMD --help for each. exa-cli for web search.",
 		].join("\n"),

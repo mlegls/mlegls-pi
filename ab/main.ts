@@ -7,13 +7,14 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { spawnSync } from "node:child_process";
+import { exact, OPEN, CLOSE, inTool } from "../lib/raw.ts";
 
 const HERE = dirname(new URL(import.meta.url).pathname);
 const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
 const stateDir = process.env.AB_SESSION_STATE ?? process.env.AB_STATE ?? join(abStateRoot, createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise"];
+const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -71,7 +72,7 @@ async function read(args: string[]) {
 			out.push(file.lines(1, lines).filter((row: any) => rows.includes(row)).render());
 		}
 	}
-	console.log(out.join("\n\n"));
+	process.stdout.write(exact(out.join("\n\n") + "\n"));
 }
 
 async function grep(args: string[]) {
@@ -84,7 +85,7 @@ async function grep(args: string[]) {
 	const api = await source();
 	let hits: any = await api.grep(pattern, paths.length ? paths : undefined, { ignoreCase: values["ignore-case"], literal: values.fixed, glob: values.glob, limit: values.limit ? Number(values.limit) : undefined });
 	if (values.context) hits = hits.context(Number(values.context));
-	console.log(hits.render());
+	process.stdout.write(exact(hits.render() + "\n"));
 	if (!hits.rows.length) process.exitCode = 1;
 }
 
@@ -97,7 +98,7 @@ async function edit(args: string[]) {
 		input = lines.map((line, i) => (i === 0 || lines[i - 1] === "") && /^[=<>-][0-9a-z]{4}( [0-9a-z]{4})?$/.test(line) ? line + " @" + args[0] : line).join("\n");
 	}
 	const api = await source();
-	console.log((await api.edit(input)).text);
+	process.stdout.write(exact((await api.edit(input)).text + "\n"));
 }
 
 async function view(args: string[]) {
@@ -223,8 +224,18 @@ function pull(args: string[]) {
 	for (const id of args) {
 		const file = join(stateDir, "ingress", id);
 		if (!existsSync(file)) fail("unknown page " + id + " (pages are kept per session in $AB_SESSION_STATE/ingress)");
-		process.stdout.write(readFileSync(file, "utf8"));
+		process.stdout.write(exact(readFileSync(file, "utf8")));
 	}
+}
+
+/** Exact output: `CMD | ab raw`, or `ab raw CMD ARG...` to include stderr and keep the exit status. */
+function raw(args: string[]) {
+	if (!args.length) return void process.stdout.write(exact(readFileSync(0, "utf8")));
+	if (inTool()) process.stdout.write(OPEN);
+	const r = spawnSync(args[0], args.slice(1), { stdio: ["inherit", "inherit", "inherit"] });
+	if (inTool()) process.stdout.write(CLOSE);
+	if (r.error) fail(r.error.message);
+	process.exitCode = r.status ?? 1;
 }
 
 async function lib(args: string[]) {
@@ -243,7 +254,7 @@ async function lib(args: string[]) {
 const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
-const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise };
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
 catch (error) { fail(error instanceof Error ? error.message : String(error)); }
