@@ -253,8 +253,8 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
   const resolveLink = (target: string): string | undefined => {
     const segs = target.split("/");
     if (segs[0] === "projects" && existsSync(join(vault, ...segs.slice(0, 2)))) {
-      const exact = join(vault, target + ".md");
-      return existsSync(exact) && statSync(exact).isFile() ? exact : undefined;
+      // A note is named without its extension; any other file (an attachment script, an image) with it.
+      return [join(vault, target + ".md"), join(vault, target)].find((p) => existsSync(p) && statSync(p).isFile());
     }
     const cands = byBase.get(segs[segs.length - 1]) ?? [];
     if (cands.length <= 1) return cands[0];
@@ -291,7 +291,7 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
       const alt = to ? undefined : moved(target);
       if (alt) fixes.set(target, alt);
       else if (!to) say(`${rel}: [[${target}]] does not exist`);
-      else if (m[2] && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim()))
+      else if (m[2] && to.endsWith(".md") && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim()))
         say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
     }
     if (!fixes.size) continue;
