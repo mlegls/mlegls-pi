@@ -12,6 +12,8 @@ Implementation baseline: `05ef261674a4e45f2c3d0cb4fa141f452fc46942`, fast-forwar
 
 Exec instructions and coordination modules follow host selection. `ab supervise` still needs `PASEO_AGENT_ID`, since it wakes its owner through Paseo.
 
+Paseo starts pi with its own environment, not the login shell's mise environment. Tool mode for Paseo agents is set in `~/.paseo/config.json` under `agents.providers.pi.env` (`PI_TOOL_MODE: "bash"`, `PI_BASH_PATH` → the agent GNU userland); `paseo daemon reload` applies it to new agents without a restart.
+
 ## SDK boundary
 
 `lib/paseo.ts` uses the public `@getpaseo/client` API, pinned to **0.9.0**, matching the installed desktop app and daemon. The [SDK reference](https://paseo.sh/docs/sdk/reference) and installed declarations/implementation were checked; current online docs can describe newer capabilities. The CLI is retained for manual inspection and recovery, not programmatic transport.
