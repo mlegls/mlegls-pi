@@ -28,6 +28,8 @@ Omit stage only when all residual work is delegated to children; null is invalid
 
 `bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|done|tree [slug] | snapshot [slug] | check | outline`. Scope explicitly selects deferred work too. Frontier uses whole-subtree readiness, eligibility, blockers and conservative claims; mine uses explicit human/user assignment including pre-spec shaping; done exposes live results for digestion. Tree shows own and effective stage. Outline reconciles the project vault note. `snapshot --json` (or query `--json`) provides schemaVersion, lifecycle issues and a separate legacy collection; rows expose ownStage, effectiveStage, ready, eligible, frontier, blockers, claims, selectors and done. Omitted ownStage is serialized as null, not valid stored YAML. JSON is a model projection; run `check` separately for diagnostics.
 
+`check` also flags a spec or ticket whose effective stage is lower than its own (it names the child: refinement never lowers a node, so that child moves out of the tree), a `docs/frictions.md` beside a vault tracker, and a new uncommitted issue without `author`.
+
 `check` rewrites vault-absolute issue links left dangling by archiving or un-archiving to where the issue now is, and prints each as `fixed`.
 
 The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
@@ -38,7 +40,7 @@ Frontmatter is a strict YAML mapping. Relations are quoted vault-absolute issue 
 
 `issues.ts lint [slug] [--json]` refreshes Jev judgments for live issues in scope (including live done records). Unchanged input reuses the cache; `mine` and `frontier` only read it, reporting fresh, stale, missing or error. Their JSON rows carry advisory lint details; snapshot schema/readiness remains unchanged.
 
-Findings give a suspected mismatch, probability, selected source quote and question to reconcile. No finding certifies correctness; findings never change stages or block dispatch. The display threshold is an uncalibrated majority judgment. Separate follow-up ideas and explicit evidence limits are not unfinished delivery by themselves.
+Findings give a suspected mismatch, probability, selected source quote and question to reconcile. No finding certifies correctness; findings never change stages or block dispatch. The display threshold is an uncalibrated majority judgment. Separate follow-up ideas and explicit evidence limits are not unfinished delivery by themselves; whether they are owned is its own finding. `unowned` asks for an incidental defect, friction, cost or evidence limit that links no issue and records no acceptance, and `journal` for a body accumulating dated work records where current state belongs. Both read only the issue's own text. `ab supervise` lists them over its subtree in its done message.
 
 Context is the issue, immediate parent/children/prerequisites and directly linked Markdown evidence, with no network fetch or recursive crawl. At most ten documents are shown (12,000 characters for the issue, 4,000 for each other document); missing links and clipped context are marked. Cache fingerprints include full collected sources and the lint policy. This cannot discover unlinked superseding evidence or inspect current code.
 
@@ -76,7 +78,7 @@ the reader is me later, or an agent who has to be me. state the current state; g
 
 claim: `claimed-by` before anything else; sessions share the directory, so read before editing.
 
-a ticket is a `wt` worktree on a branch named for its slug; `wt merge` when its stories drive. commit implementation changes in the ticket’s worktree as you go. commit the claim in the canonical checkout before branching. shared tracker changes—parent decisions, dependencies, new tickets—belong in the canonical checkout; workers report these to the coordinator. the ticket’s completion and archival ride its implementation branch.
+a ticket is a `wt` worktree on a branch named for its slug; `wt merge` when its stories drive. commit implementation changes in the ticket’s worktree as you go. commit the claim in the canonical checkout before branching. shared tracker changes—parent decisions, dependencies, new tickets—belong in the canonical checkout; workers report these to the coordinator. a new friction or bug idea is not shared state: whoever meets it files it at once, on their branch when the tracker is git-tracked (it merges as a new file), otherwise straight into the tracker's directory. a report or ticket body mentions it by link, never in its place. the ticket’s completion and archival ride its implementation branch.
 
 resolve: record the answer or land the code and satisfy its recorded acceptance (including story verification), write the result, `stage: done`, drop the claim and remove resolved dependent blockers. Leave the result live for review/digestion; move to `archive/` once it has fulfilled its enclosing purpose. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
 
