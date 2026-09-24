@@ -1,19 +1,11 @@
 ---
 name: introduce
-description: "Use when asked to introduce an idea or request."
-disable-model-invocation: true
-argument-hint: "an idea, problem, or request"
+description: "Use when the user says something about the project should change: a request, idea, complaint or observation that isn't a steer on the task already underway."
+argument-hint: "the change"
 ---
 
-Take the project views in exec and read over them yourself:
+Start from the user it serves. Find the story (`project-docs`) where the change would matter, or the realistic situation that would contain it, before judging the change: the request is evidence of a want, not yet the want. The story is what later verification checks against; without one, checks restate the implementation, and "is this really useful to its user" is the anchor against just doing what was said.
 
-```ts
-state.views = views.snapshot();
-show.raw(views.format(state.views));
-```
-
-The views are computed and current as of their timestamp; narrate over them instead of recomputing or restating them. Read what they cannot tell: issue bodies and stories related to the intent, and what landed in git since the tracker last moved. Stay within the project and explicitly relevant sources; packaged skills are conventions, not project evidence. Reading is read-only: no claims, edits or launches.
-
-Establish the intent in the project: find related work, distinguish what is agreed from what is open, and identify what must be established to record it. Locate the motivating user story and preserve the originating request or observation; extend an existing story and issue where appropriate.
-
-Establish the idea with the user and record it (`tracker`), reusing related work. Return what is agreed, what remains open, and the suggested next entry. Stop once the idea is established; continue into `shape` or `supervise` only when requested. After the reading, before recording, is a natural point to compact and switch model.
+1. Premise: in that story, is the change needed, and is its framing right? Is it already solved in the project, its dependencies or the platform, or would a smaller change serve the same want? Say so before going on.
+2. Records: find the issues, stories, frictions and research already tracking it (`tracker`), and extend them rather than duplicate.
+3. Route: update the story with the intended outcome, keeping the request verbatim as its source, even when the change is session-sized. Then, if it's settled and session-sized, implement it here; the user saying it is the choice to do it directly. Otherwise record an issue at its honest stage, linked to the story, and stop. Work already under a supervisor goes to that supervisor.
