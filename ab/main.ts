@@ -72,7 +72,7 @@ async function read(args: string[]) {
 			out.push(file.lines(1, lines).filter((row: any) => rows.includes(row)).render());
 		}
 	}
-	process.stdout.write(exact(out.join("\n\n") + "\n"));
+	console.log(out.join("\n\n"));
 }
 
 async function grep(args: string[]) {
@@ -85,7 +85,7 @@ async function grep(args: string[]) {
 	const api = await source();
 	let hits: any = await api.grep(pattern, paths.length ? paths : undefined, { ignoreCase: values["ignore-case"], literal: values.fixed, glob: values.glob, limit: values.limit ? Number(values.limit) : undefined });
 	if (values.context) hits = hits.context(Number(values.context));
-	process.stdout.write(exact(hits.render() + "\n"));
+	console.log(hits.render());
 	if (!hits.rows.length) process.exitCode = 1;
 }
 
@@ -98,7 +98,7 @@ async function edit(args: string[]) {
 		input = lines.map((line, i) => (i === 0 || lines[i - 1] === "") && /^[=<>-][0-9a-z]{4}( [0-9a-z]{4})?$/.test(line) ? line + " @" + args[0] : line).join("\n");
 	}
 	const api = await source();
-	process.stdout.write(exact((await api.edit(input)).text + "\n"));
+	console.log((await api.edit(input)).text);
 }
 
 async function view(args: string[]) {
