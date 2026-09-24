@@ -47,3 +47,7 @@ hooks. No hot replacement or automatic retry was added. New host entrypoints
 require a manifest entry. Loading exec alone with `-e` intentionally no longer
 loads its host integrations. Interactive reload and human-facing commands that
 write vault conclusions or change sessions were not driven.
+
+## Accepted limits
+
+Moved from `docs/frictions.md` on 2026-09-24: "Startup-only installation and `/reload` recovery remain intentional."

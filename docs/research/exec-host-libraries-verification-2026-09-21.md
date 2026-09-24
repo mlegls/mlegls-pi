@@ -38,7 +38,7 @@ Host installation is extension-load-time, not runtime hook replacement.
 The existing workspace approval tool remains registered. Human-facing commands
 were inspected for registration, not driven to switch the user's session or write
 vault conclusions. No new desktop permission/capture flow was exercised.
-The non-transactional installer limitation is recorded in `docs/frictions.md`.
+The non-transactional installer limitation was resolved by [host failure isolation](host-failure-isolation-2026-09-21.md).
 
 ## Boundary correction
 

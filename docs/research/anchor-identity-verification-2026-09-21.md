@@ -50,3 +50,7 @@ Capacity tradeoff: the finite namespace now counts all identities issued during 
 Runtime-only `setup-project` scc delta against `24ce57b420bfb3f0a07c3785b0b644247a4665f4` (`ledger.ts`, `edit.ts`): code 357 → 377 (+20), complexity 136 → 152 (+16). Scoped explicitly because scanning the library directory includes installed dependencies in this checkout. Growth buys scoped correspondence plus reserved-name commit/rollback and persistence.
 
 Full-suite verification on the shared checkout: `env -u BB_THREAD_ID bun test` finished with 203 pass, 2 skip, 0 fail. The initial BB-inherited run hit seven board-host failures; the first non-BB run had one board-delivery timeout, which passed in isolation and on the final full run. Concurrent host-library work was present; no board/host code is included in this change.
+
+## Accepted limits
+
+Moved from `docs/frictions.md` on 2026-09-24: "Remaining: indistinguishable external duplicate changes (and ambiguity within replaced spans) still use line-diff correspondence; whole-file rejection is out of scope. Accepted cost: the 1,048,576-name session budget includes retired identities, persisted with each file; old session entries cannot recover previously retired names."
