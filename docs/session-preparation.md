@@ -3,7 +3,7 @@
 Advancing spends the user's attention; supervision spends compute.
 
 - `introduce` is the intake check whenever the user says something about the project should change: find the story it serves, question the premise, find existing records, then update the story and either implement a settled session-sized change or record an issue.
-- `orient` answers where things stand and what to enter next. `advance` and `supervise` read their scope through it.
+- `orient` answers where things stand and what to enter next. `advance` reads its scope through it.
 - `advance` moves ideas toward agent-ready tickets: triage for the most tickets per user decision, then (unscoped) areas ranked by importance and leverage for the user to pick and fork, then `shape` on each chosen scope.
 - `shape` drives an issue toward executable contracts, using map and plan.
 - `supervise` owns an agent-ready subtree through implementation, verification and reconciliation. It dispatches child supervisors for non-leaf children and implementation workers for leaves; each level integrates and verifies its subtree before reporting up.
