@@ -81,7 +81,7 @@ async function post(url: string, apiKey: string | undefined, body: unknown, sign
 		method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
 		body: JSON.stringify(body), signal,
 	});
-	if (!response.ok) throw new Error(`Decision API: HTTP ${response.status}`);
+	if (!response.ok) throw new Error(`Decision API: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`);
 	return response.json();
 }
 
