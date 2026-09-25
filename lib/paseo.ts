@@ -76,22 +76,3 @@ export async function archive(workspaceId: string) {
     return result;
   });
 }
-
-/** Fork-context RPC is not yet surfaced by the high-level Paseo client. */
-export async function forkContext(agentId: string) {
-  const { DaemonClient } = await import("@getpaseo/client/internal/daemon-client");
-  const client = new DaemonClient({
-    url: process.env.PASEO_URL || "ws://127.0.0.1:6767/ws",
-    password: process.env.PASEO_PASSWORD || undefined,
-    clientId: randomUUID(),
-    clientType: "cli",
-    connectTimeoutMs: 10_000,
-    reconnect: { enabled: false },
-  });
-  try {
-    await client.connect();
-    return await client.buildAgentForkContext(agentId);
-  } finally {
-    await client.close();
-  }
-}
