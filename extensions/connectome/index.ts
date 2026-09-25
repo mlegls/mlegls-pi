@@ -118,7 +118,7 @@ function piContent(blocks: Block[]): any[] {
 
 // ── record shared across reloads / session replacement (store lock is per process) ──
 
-function remember(l: { originals: Map<string, Message[]> }, key: string, m: Message) {
+function remember(l: { originals: Originals }, key: string, m: Message[]) {
 	const all = l.originals.get(key);
 	if (all) all.push(m);
 	else l.originals.set(key, [m]);
@@ -130,17 +130,20 @@ interface Holder {
 	log: string;
 	aborts: Set<AbortController>;
 	/** the life's originals, so memory-write requests replay history exactly as pi sent it live */
-	originals?: Map<string, Message[]>;
+	originals?: Originals;
 }
 interface Life {
 	path: string;
 	cm: ContextManager;
 	holder: Holder;
 	/** keyOf -> pi's originals with that content, oldest first. Identical content recurs ("ok",
-	 *  repeated questions), and each original carries its own provider item ids. */
-	originals: Map<string, Message[]>;
-	ingested: Set<string>; // external ids `${entryId}:${i}`
+	 *  repeated questions), and each original carries its own provider item ids. An original is
+	 *  a group: a batch of pi toolResult messages is stored as one message (see ingest). */
+	originals: Originals;
+	/** pi ids `${entryId}:${i}` -> the store message's external id (the first id of its group) */
+	ingested: Map<string, string>;
 }
+type Originals = Map<string, Message[][]>;
 const LIVES: Map<string, Life> = ((globalThis as any)[Symbol.for("mlegls.connectome.lives")] ??= new Map());
 
 /** context-manager logs diagnostics straight to the console (~100 call sites), which would
@@ -214,7 +217,7 @@ function membraneFor(holder: Holder) {
 /** Compiled membrane messages -> pi messages. Raw messages come back as pi's originals when
  *  unchanged; memories and truncated messages are rebuilt. Folding consumes history from the
  *  front, so the n surviving copies of some content are matched to its n newest originals. */
-function toPiMessages(nms: NMessage[], agentName: string, model: any, originals: Map<string, Message[]> | undefined): Message[] {
+function toPiMessages(nms: NMessage[], agentName: string, model: any, originals: Originals | undefined): Message[] {
 	const out: Message[] = [];
 	const now = Date.now();
 	const keys = nms.map((nm) => keyOf(nm.participant === agentName ? "" : HUMAN, nm.content));
@@ -227,7 +230,7 @@ function toPiMessages(nms: NMessage[], agentName: string, model: any, originals:
 		remaining.set(keys[i], left - 1);
 		const orig = all && all.length >= left ? all[all.length - left] : undefined;
 		if (orig) {
-			out.push(orig);
+			out.push(...orig);
 			return;
 		}
 		if (isAgent) {
@@ -360,7 +363,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 			LIB_LOG.path = join(path, "lib.log");
-			l = { path, cm, holder, originals: new Map(), ingested: new Set() };
+			l = { path, cm, holder, originals: new Map(), ingested: new Map() };
 			holder.originals = l.originals;
 			reindex(l);
 			LIVES.set(path, l);
@@ -377,31 +380,51 @@ export default function (pi: ExtensionAPI) {
 		l.ingested.clear();
 		for (const m of l.cm.getAllMessages()) {
 			const ext = (m.metadata as any)?.external;
-			if (ext?.source === SOURCE) l.ingested.add(ext.id);
-			const pim = (m.metadata as any)?.pi as Message | undefined;
-			if (pim) remember(l, keyOf(m.participant === l.holder.agentName ? "" : HUMAN, m.content as Block[]), pim);
+			if (ext?.source === SOURCE) for (const id of ext.ids ?? [ext.id]) l.ingested.set(id, ext.id);
+			const pim = (m.metadata as any)?.pi as Message | Message[] | undefined;
+			if (pim) remember(l, keyOf(m.participant === l.holder.agentName ? "" : HUMAN, m.content as Block[]), Array.isArray(pim) ? pim : [pim]);
 		}
 	};
 
+	// pi stores each tool result as its own message; context-manager assumes the Anthropic shape
+	// (all results of a tool_use turn in the next message) when it cuts windows and chunks, so a
+	// run of toolResults is ingested as one message. A run is complete by the time we see it:
+	// ingest runs before an LLM call or at agent_end, never mid-batch.
 	const ingest = (l: Life, ctx: ExtensionContext) => {
+		const sid = ctx.sessionManager.getSessionId();
+		let run: { ids: string[]; msgs: Message[]; blocks: Block[] } | undefined;
+		const add = (participant: string, blocks: Block[], ids: string[], msgs: Message[]) => {
+			l.cm.addMessage(participant, blocks, {
+				external: { source: SOURCE, id: ids[0], ...(ids.length > 1 ? { ids } : {}) },
+				pi: msgs.length > 1 ? msgs : msgs[0],
+				piSession: sid,
+			});
+			for (const id of ids) l.ingested.set(id, ids[0]);
+			remember(l, keyOf(participant === l.holder.agentName ? "" : HUMAN, blocks), msgs);
+		};
+		const flush = () => {
+			if (run) add(HUMAN, run.blocks, run.ids, run.msgs);
+			run = undefined;
+		};
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (l.ingested.has(`${entry.id}:0`) || l.ingested.has(`${entry.id}:-`)) continue;
 			const llm = convertToLlm(sessionEntryToContextMessages(entry));
-			if (!llm.length) continue;
 			llm.forEach((m, i) => {
 				const b = toBlocks(m);
 				if (!b || !b.blocks.length) return;
-				const participant = m.role === "assistant" ? l.holder.agentName : b.participant;
 				const id = `${entry.id}:${i}`;
-				l.cm.addMessage(participant, b.blocks, {
-					external: { source: SOURCE, id },
-					pi: m,
-					piSession: ctx.sessionManager.getSessionId(),
-				});
-				l.ingested.add(id);
-				remember(l, keyOf(m.role === "assistant" ? "" : HUMAN, b.blocks), m);
+				if (m.role === "toolResult") {
+					run ??= { ids: [], msgs: [], blocks: [] };
+					run.ids.push(id);
+					run.msgs.push(m);
+					run.blocks.push(...b.blocks);
+					return;
+				}
+				flush();
+				add(m.role === "assistant" ? l.holder.agentName : b.participant, b.blocks, [id], [m]);
 			});
 		}
+		flush();
 	};
 
 	const syncPromptAndTools = (l: Life, ctx: ExtensionContext) => {
@@ -461,7 +484,7 @@ export default function (pi: ExtensionAPI) {
 			trace(l, {
 				piMessages: event.messages.length,
 				compiled: compiled.messages.length,
-				reused: messages.filter((m) => [...l.originals.values()].some((all) => all.includes(m))).length,
+				reused: messages.filter((m) => [...l.originals.values()].some((all) => all.some((g) => g.includes(m)))).length,
 				chars: JSON.stringify(messages).length,
 				maxTokens,
 				ms: Date.now() - t0,
@@ -497,10 +520,10 @@ export default function (pi: ExtensionAPI) {
 		const branch = ctx.sessionManager.getBranch();
 		for (let i = branch.length - 1; i >= 0; i--) {
 			const e = branch[i];
-			const hits = [...l.ingested].filter((id) => id.startsWith(`${e.id}:`));
+			const hits = [...l.ingested.keys()].filter((id) => id.startsWith(`${e.id}:`));
 			if (!hits.length) continue;
 			const last = hits.sort().at(-1)!;
-			const found = l.cm.findMessageByExternalId(SOURCE, last);
+			const found = l.cm.findMessageByExternalId(SOURCE, l.ingested.get(last)!);
 			if (!found) break;
 			await l.cm.switchBranch(l.cm.branchAt(found, `tree-${Date.now()}`));
 			reindex(l);
