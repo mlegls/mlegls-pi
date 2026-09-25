@@ -9,6 +9,9 @@ export interface TurnEnd {
   kind: "finished" | "error" | "closed" | "permission";
   text: string;
   cursor: string;
+  /** The host could not read this child at all (for example a closed agent whose worktree is gone);
+   * no later turn end will arrive for it until someone resumes it. */
+  unreachable?: true;
 }
 
 export interface TurnEndOptions {
@@ -140,6 +143,12 @@ function watchPaseoAgent(client: Awaited<ReturnType<typeof paseo.connect>>, id: 
     settled = true;
     reject(error);
   };
+  // A lost daemon connection is the caller's to retry; any other read failure belongs to this one child,
+  // so it ends as that child's error instead of failing every sibling's wait.
+  const unreadable = (error: unknown) => {
+    if (error instanceof Error && error.name === "DaemonConnectionError") return fail(error);
+    finish({ id, kind: "error", text: error instanceof Error ? error.message : String(error), cursor: after ?? "", unreachable: true });
+  };
 
   const check = async (preferred?: EndKind, eventCursor?: Cursor, eventIsLive = false) => {
     if (settled) return;
@@ -156,13 +165,13 @@ function watchPaseoAgent(client: Awaited<ReturnType<typeof paseo.connect>>, id: 
       if (!isAfter(cursor, after) && !eventIsLive) return;
       if (eventCursor && !isAfter(eventCursor, after)) return;
       finish({ id, kind, text: lastText, cursor: cursorString(cursor) });
-    } catch (error) { fail(error); }
+    } catch (error) { unreadable(error); }
   };
 
   const timeline = handle.timeline.subscribe((event) => {
     if (event.agentId !== agentId) return;
     if (event.event.type === "error") {
-      fail(new Error("Paseo timeline " + id + ": " + event.event.error));
+      unreadable(new Error("Paseo timeline " + id + ": " + event.event.error));
       return;
     }
     if (event.event.type === "replacement" || event.event.type === "subscription_restored") {

@@ -5,7 +5,7 @@
 // Children are created with the owner as parent, so they show under it in the host.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, watch } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { dispatch, integrate, retire as retireWorker, type Handle } from "../dispatch.ts";
 import * as route from "../route.ts";
@@ -16,7 +16,7 @@ import type { JobContext } from "../daemon.ts";
 
 export interface Input { ticket: string; cwd: string; owner: string; budget: number; test?: string; commands: string; carried?: State | null }
 type Phase = "implement" | "verify" | "supervise";
-interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; waiting?: string }
+interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; waiting?: string; unreachable?: boolean }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
@@ -29,6 +29,25 @@ function snapshot(input: Input): Issue[] {
  return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8" })).issues;
 }
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
+// Every loop runs in the one ab daemon, and loops over the same repository commit to the same checkout;
+// integration, the tests after it and the close commit run one loop at a time per repository.
+const repoTurns = new Map<string, Promise<unknown>>();
+function serialized<T>(cwd: string, fn: () => Promise<T>): Promise<T> {
+ const key = resolve(cwd, git(cwd, "rev-parse", "--git-common-dir"));
+ const run = (repoTurns.get(key) ?? Promise.resolve()).catch(() => {}).then(fn);
+ repoTurns.set(key, run);
+ return run;
+}
+const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>(done => {
+ const t = setTimeout(done, ms); signal?.addEventListener("abort", () => { clearTimeout(t); done(); }, { once: true });
+});
+// Sessions outside the daemon (the owner, a human) also commit there; a lost ref or index lock is retried.
+async function commitRetrying(cwd: string, ...args: string[]) {
+ for (let attempt = 1; ; attempt++) {
+  try { return git(cwd, "commit", ...args); }
+  catch (error) { if (attempt >= 5 || !/cannot lock ref|index\.lock/.test(String(error))) throw error; await sleep(1000 * attempt); }
+ }
+}
 const caveats = (h: Record<string, unknown> | null) => { const c = h?.caveats; return Array.isArray(c) ? c.length > 0 : !!c && !/^(none|no|\[\])$/i.test(String(c).trim()); };
 // Verifier outcomes live under handoff.stories as held/failed/unobservable per story; anything but held needs the owner.
 const unheld = (h: Record<string, unknown> | null) => { const s = JSON.stringify(h?.stories ?? null); return s === "null" || /"(failed|unobservable)"|:\s*"?(failed|unobservable)/i.test(s); };
@@ -52,7 +71,9 @@ export async function run(job: JobContext) {
  const wake = async (text: string) => {
   const message = "supervise " + input.ticket + " (job " + job.id + "): " + text;
   state.metrics.wakes++; state.metrics.ownerBytes += Buffer.byteLength(message);
-  await children.send(input.owner, message); await save();
+  try { await children.send(input.owner, message); }
+  catch (error) { job.log("wake not delivered: " + error + "\n" + message.slice(0, 500)); }
+  await save();
  };
  const except = async (c: Child, reason: string, text = "") => {
   c.waiting = reason;
@@ -75,14 +96,15 @@ export async function run(job: JobContext) {
   const issue = snapshot(input).find(i => i.slug === slug);
   if (issue && !issue.done && existsSync(issue.file)) {
    writeFileSync(issue.file, readFileSync(issue.file, "utf8").replace(/^stage: \w+$/m, "stage: done"));
-   git(input.cwd, "commit", "-qm", "Close " + slug, "--", issue.file);
+   await commitRetrying(input.cwd, "-qm", "Close " + slug, "--", issue.file);
   }
  };
  const verifyPrompt = (slug: string, ticket: string, report: string) => ["Verify the ticket below: " + HACK,
   "Your branch starts at the implementer's commits. First use as the ticket's user; record what you observe; update guides/replays only where the encounter earns them. " + HANDOFF + "stories: each story or promise you checked with held, failed or unobservable; caveats: [] when there are none.",
   "Ticket " + slug + ":\n\n" + ticket, "Implementer's report:\n\n" + report].join("\n\n");
- const integrateChild = async (c: Child, handle: Handle) => {
-  try { await integrate(handle as any, { cwd: input.cwd }); }
+ const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
+  // A commit landing between the rebase and the fast-forward fails the merge; rebasing again settles it.
+  try { await integrate(handle as any, { cwd: input.cwd }).catch(error => error?.name === "MergeConflict" ? Promise.reject(error) : integrate(handle as any, { cwd: input.cwd })); }
   catch (error) { return except(c, "integration failed", String(error)); }
   if (c.implementer) await retire(c.implementer);
   if (input.test) {
@@ -92,7 +114,7 @@ export async function run(job: JobContext) {
   await close(c.slug);
   delete state.children[c.slug]; state.integrated.push(c.slug); state.metrics.completed++;
   await save();
- };
+ });
 
  // Pending owner commands (resume) are applied between turn ends.
  const file = input.commands;
@@ -103,7 +125,7 @@ export async function run(job: JobContext) {
   for (const cmd of all.slice(applied)) {
    const c = state.children[cmd.child];
    if (!c) { await wake("resume: no live child " + cmd.child); continue; }
-   c.waiting = undefined;
+   c.waiting = undefined; c.unreachable = undefined;
    if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); delete state.children[c.slug]; }
    else if (cmd.action === "integrate") await integrateChild(c, c.handle);
    else if (cmd.action === "verify") await toVerify(c, (await children.last(("agentId" in c.handle ? c.handle.agentId : c.handle.handle)))?.text ?? "");
@@ -120,6 +142,7 @@ export async function run(job: JobContext) {
  };
 
  applied = commands().length; // commands issued before a restart were applied then
+ let lostWatches = 0;
  while (!job.signal.aborted) {
   await apply();
   // Fill the budget from the subtree's frontier: direct children only; non-leaves get supervise.
@@ -137,18 +160,29 @@ export async function run(job: JobContext) {
   }
   const live = Object.values(state.children);
   if (!live.length) break;
-  const ids = live.map(c => "agentId" in c.handle ? c.handle.agentId : c.handle.handle);
-  const cursors = Object.fromEntries(live.filter(c => c.cursor).map(c => ["agentId" in c.handle ? c.handle.agentId : c.handle.handle, c.cursor!]));
+  // A child the host cannot read sends no turn end; it waits for a resume command like any exception.
+  const watched = live.filter(c => !c.unreachable);
+  const ids = watched.map(c => "agentId" in c.handle ? c.handle.agentId : c.handle.handle);
+  const cursors = Object.fromEntries(watched.filter(c => c.cursor).map(c => ["agentId" in c.handle ? c.handle.agentId : c.handle.handle, c.cursor!]));
   const stop = new AbortController();
   const abort = () => stop.abort();
   job.signal.addEventListener("abort", abort);
   const watcher = watch(dirname(file), (_, name) => { if (name === basename(file)) stop.abort(); });
   let end: children.TurnEnd;
-  try { end = await children.turnEnd(ids, { after: cursors, signal: stop.signal }); }
-  catch (error) { if (stop.signal.aborted) continue; throw error; }
+  try { end = ids.length ? await children.turnEnd(ids, { after: cursors, signal: stop.signal }) : await new Promise<never>((_, reject) => stop.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); }
+  catch (error) {
+   if (stop.signal.aborted) continue;
+   // A dropped host connection is not a child's failure: back off and watch again, telling the owner once.
+   if (++lostWatches === 5) await wake("cannot watch children (still retrying): " + error);
+   job.log("watch failed (" + lostWatches + "): " + error);
+   await sleep(Math.min(60_000, 2000 * lostWatches), job.signal);
+   continue;
+  }
   finally { watcher?.close(); job.signal.removeEventListener("abort", abort); }
-  const c = live[ids.indexOf(end.id)];
+  lostWatches = 0;
+  const c = watched[ids.indexOf(end.id)];
   c.cursor = end.cursor; c.waiting = undefined; await save();
+  if (end.unreachable) { c.unreachable = true; await except(c, "unreachable", end.text); continue; }
   await (async () => {
   const r = parse(end.text);
   if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
