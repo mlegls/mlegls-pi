@@ -679,18 +679,12 @@ Inner operations do not fire individual pi tool events. Exec marks final result
 details with `piBetterSkills: {version: 1, handling: "explicit"}`. Compatible
 pi-better-skills middleware leaves marked results alone—no heuristic skill reads,
 glob injection, frontmatter overrides, or dynamic execution. Explicit `loadSkill`
-owns expansion; ordinary `read`/`grep` stay raw and editable. This contract requires
-the companion pi-better-skills patch; stock 1.3.2 does not recognize it. The
-patched fork is `mlegls/pi-better-skills`, branch `explicit-skill-ownership`,
-pinned in the local pi configuration as
-`git:github.com/mlegls/pi-better-skills@a87cfcc94bf2683c89a96377f86fdf6cade82e89`.
-Upstream proposal: https://github.com/edxeth/pi-better-skills/pull/4.
-Keep updates explicit: retain the ownership patch and check that raw reads stay
-raw and explicit loads expand once before advancing the pin.
-The portable patch is `patches/pi-better-skills-explicit-output.patch` at the
-repository root. On an unpatched 1.3.2 checkout, apply its two commits with
-`git -C <better-skills-checkout> am <absolute-path-to-patch>`; do not reapply it
-to an already patched checkout. Setup does not silently mutate external packages.
+owns expansion; ordinary `read`/`grep` stay raw and editable. The ownership
+marker is supported upstream as of pi-better-skills v1.3.7
+([PR #4](https://github.com/edxeth/pi-better-skills/pull/4)). The local pi
+configuration pins `git:github.com/edxeth/pi-better-skills@fe87a7885ce15b3f0ccf7b34704cebbd3f3ea5b7`.
+Keep updates explicit: check that raw reads stay raw and explicit loads expand
+once before advancing the pin. Setup does not silently mutate external packages.
 Other middleware may still transform output; tool-specific approval and monitoring
 extensions need exec-aware integration.
 
