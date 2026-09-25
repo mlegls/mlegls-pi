@@ -34,7 +34,7 @@ const CONNECT_TIMEOUT = 5000;
 const START_TIMEOUT = 15000;
 const OWNER_PATIENCE = 20000;
 
-function stateRoot(): string {
+export function stateRoot(): string {
   return resolve(process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab"));
 }
 function socketPath(): string { return join(stateRoot(), "daemon.sock"); }
