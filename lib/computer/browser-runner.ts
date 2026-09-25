@@ -4,6 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { decide, type Decision, type Options as DecisionOptions, type State } from "../decide.ts";
 import { shortlist, showingInstructions, judgmentDone } from "./choice.ts";
 import type { Verification } from "./native.ts";
+import { redact } from "./redact.ts";
 
 type Node = {
   ref: string; role: string; subrole?: string; identifier?: string; text?: unknown[]; title?: string; description?: string; value?: string;
@@ -32,7 +33,7 @@ export interface Event {
   observations: UIResult[]; candidates: Candidate[]; decision?: Decision;
   /** How far a separate judgment agrees that `until` is already showing. */
   showing?: number;
-  /** A done the two judgments did not agree on: the choice said done, showing did not. */
+  /** Present only in historical recordings; current runs never accept contested completion. */
   contested?: boolean;
   selected?: Candidate; outcome?: UIResult; fingerprint?: string;
   verification?: Verification; completion?: "judgment" | "driver" | "application";
@@ -43,6 +44,7 @@ export interface Options {
   goal: string;
   until: string;
   inputs?: Record<string, string>;
+  hidden?: string[];
   /** What happened before this run, for context only; `walk` fills it with earlier steps. */
   earlier?: string[];
   /** Actions per run; waits are budgeted separately by `maxWaits`. */
@@ -144,12 +146,12 @@ export async function step(options: Options, history: readonly Event[] = []): Pr
         if (options.resolveInput) add({ ...base, description: "Ask the parent text resolver for the required text, then replace " + label(node), action: { action: "setText", ref: node.ref } });
       }
     }
-    const state = json({ goal: options.goal, until: options.until, textResolverAvailable: Boolean(options.resolveInput), inputs: options.inputs ?? {}, earlier: options.earlier ?? [],
+    const state = redact(json({ goal: options.goal, until: options.until, textResolverAvailable: Boolean(options.resolveInput), inputs: options.inputs ?? {}, earlier: options.earlier ?? [],
       // A surface's readable rendering (`details.text`) sits beside the nodes: the showing
       // judgment reads far better from text than from the node tree alone.
       views: views.map(v => ({ root: v.root, nodes: v.nodes.map(n => ({ ref: n.ref, role: n.role, subrole: n.subrole, title: n.title, description: n.description, value: n.value, text: n.text, children: n.children?.map(c => c.ref), truncated: n.truncated })), ...(typeof v.observation.details?.text === "string" ? { text: v.observation.details.text } : {}) })),
-      history: history.slice(-8).map(e => ({ selected: e.selected?.description, status: e.status, reason: e.reason, outcome: e.outcome?.details?.execution })) });
-    const criteria = await shortlist(state, Object.fromEntries(event.candidates.map(c => [c.id, c.description + " at " + c.action?.ref + " in " + c.root])), { ...options.decision, signal });
+      history: history.slice(-8).map(e => ({ selected: e.selected?.description, status: e.status, reason: e.reason, outcome: e.outcome?.details?.execution })), verification: event.verification }), options.inputs, options.hidden);
+    const criteria = await shortlist(state, Object.fromEntries(event.candidates.map(c => [c.id, redact(c.description + " at " + c.action?.ref + " in " + c.root, options.inputs, options.hidden)])), { ...options.decision, signal });
     Object.assign(criteria, {
       done: "The until condition is visibly satisfied; no further action needed",
       stuck: "No available action can make progress, or necessary controls/evidence are missing",

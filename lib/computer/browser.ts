@@ -12,7 +12,7 @@ export interface PageLike {
   getByRole(role: any, options: { name: string; exact: true }): Locator;
   getByPlaceholder(text: string, options: { exact: true }): Locator;
   screenshot(options?: { path?: string }): Promise<Uint8Array>;
-  waitForLoadState(state: "networkidle"): Promise<void>;
+  waitForLoadState(state: "domcontentloaded", options?: { timeout?: number }): Promise<void>;
   waitForTimeout(ms: number): Promise<void>;
   mouse: { wheel(dx: number, dy: number): Promise<void> };
 }
@@ -49,7 +49,8 @@ export function browser(page: PageLike, options: Options = {}): UI {
   let epoch = 0;
   let current = "";
   const observe = async (visual: boolean): Promise<UIResult> => {
-    await page.waitForLoadState("networkidle").catch(() => {});
+    await page.waitForLoadState("domcontentloaded", { timeout: 5000 });
+    if (typeof page.locator("body").ariaSnapshotJSON !== "function") throw new Error("computer.browser requires Playwright ariaSnapshotJSON (1.63+)");
     const json = await page.locator("body").ariaSnapshotJSON({ mode: "ai" });
     const text = await page.locator("body").ariaSnapshot();
     const nodes: any[] = [];

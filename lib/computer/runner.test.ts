@@ -89,3 +89,19 @@ test("browser verifier overrides model done; recaptures before actions", async (
     expect(fresh.actions[0].stateId).toBe("s2");
   } finally { act.close(); }
 });
+
+test("browser model state and nominations do not contain hidden inputs or UI echoes", async () => {
+  const m = model("done", 0.99), p = page(300);
+  const observe = p.ui.observe;
+  p.ui.observe = async args => {
+    const r = await observe(args);
+    r.details.text = 'echo secret"value';
+    r.details.outline.root.children[0].title = 'secret"value';
+    return r;
+  };
+  try {
+    await browser.step({ ...goal, ...p, decision: m.decision, inputs: { password: 'secret"value' }, hidden: ["password"] });
+    expect(JSON.stringify(m.requests)).not.toContain('secret');
+    expect(JSON.stringify(m.requests)).toContain('%password%');
+  } finally { m.close(); }
+});

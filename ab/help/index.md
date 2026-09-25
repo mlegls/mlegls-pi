@@ -7,7 +7,7 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab view IMAGE...          attach images to the tool result
   ab skill PATH             load a SKILL.md with its dynamic shell blocks expanded
   ab code VERB [NAME]       TypeScript definitions and checker-resolved references
-  ab computer "INTENT"      carry out an intent in native windows (Jev-driven Cua)
+  ab computer "INTENT"      Jev-driven browser (--url/--browser) or explicit native window
   ab pull ING-ID            original text behind a skimmed/omitted output page
   ab lib MODULE [FN] [ARG]  call a lib/ export; ARGs parse as JSON when they can
   ab daemon [status|stop ID|shutdown] manage the per-user job daemon

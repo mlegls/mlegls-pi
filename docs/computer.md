@@ -4,6 +4,55 @@ Use `computer.run/step/walk` for goal-directed browser and desktop interaction.
 Use direct tools for inspection, setup, deterministic replay, debugging, or
 unsupported actions. When a browser CLI is needed, prefer `chrome-devtools-axi`.
 
+## From bash
+
+```sh
+ab computer --url http://127.0.0.1:4401/ncept/ \
+  --input email=dev+clerk_test@example.com --input code=424242 \
+  --until 'The signed-in learner home is visible' \
+  'Sign in with the supplied existing account; do not create an account'
+```
+
+`--url` owns an isolated Chromium context, closes it afterward, and never borrows
+an existing desktop window. Run from the package with Playwright 1.63+ installed;
+it resolves the project's `@playwright/test`, then `playwright`. `--headed` shows
+that browser. No second Playwright installation is added by ab.
+
+For a project's existing authentication and lifecycle, supply `--browser ./setup.ts`.
+The module default-exports an async function receiving `{signal}` and returning
+`{page, close, verify?}`. For example, adapt an existing project helper:
+
+```ts
+import { prepare } from "./existing-browser-setup.ts";
+export default async ({signal}) => {
+  const session = await prepare({signal}); // owns an isolated or exclusively assigned page
+  return {page: session.page, close: () => session.close(),
+    verify: async () => {
+      const visible = await session.page.getByRole("heading", {name: "Welcome Ada", exact: true}).isVisible();
+      return {source: "application", result: visible ? "satisfied" : "unsatisfied", evidence: {visible}};
+    },
+  };
+};
+```
+
+Setup owns cleanup if it fails before returning, and should honor `signal`.
+The CLI calls `close` after success or failure; it does not close unrelated pages.
+A browser trace cannot resume a closed context. To continue on a retained page,
+let project setup reattach exclusively and start a new intent from fresh observation.
+
+Native desktop use requires `--app NAME` resolving to one window, or explicit
+`--window PID:WINDOW_ID`. There is no guessed-window fallback. Scope is not a lock:
+assign one writer per target. `--resume DRIVE` is native-only and observes anew.
+
+Every new CLI drive requires `--until`. Supply a journey and an observable end state,
+not one parent-directed click at a time. Exact text comes from `--input name=VALUE`
+or quoted spans in the intent; unquoted URLs in prose are not typing inputs.
+Jev receives semantic state, not screenshots. Transient flashes, layout, native IME
+behavior and claims that something *never* appeared need separate observation or
+instrumentation; a final-state judgment cannot establish them.
+
+## Native library surface
+
 The auto-loaded exec library `computer` drives native windows directly through
 Cua. Code constructs bounded native actions from Cua elements; Jev selects an ID.
 Native tokens and arguments stay in code. The parent supplies scope, intent,
@@ -114,3 +163,24 @@ runs share verifier precedence and require both judgments to agree without a ver
 Browser-specific types live
 in lib/computer/browser-runner.ts; BrowserOptions and BrowserEvent are exported
 from computer. Native UI has no compatibility aliases for the old outline/ref API.
+
+## Checked browser encounters — 2026-09-25
+
+Live Jev and the project's Playwright 1.63 drove two isolated local fixtures:
+
+- `--url`: entered Ada and signed a guest book in two actions, then stopped with
+  `completion: judgment`. The captured heading was `Signed by Ada`.
+- `--browser`: found Language among 301 enabled buttons, entered `zh-CN`, and saved
+  in three actions. Completion came from the application verifier; an independent
+  final read agreed on the saved value and `Saved language: zh-CN` heading.
+
+An earlier guest-book pass delivered both actions but exhausted its waits: the
+longer completion instructions yielded showing probabilities near 0.5 despite
+visible success. The shorter current instructions passed the repeat. These are
+smokes, not a reliability or token-savings estimate. Native background delivery
+still has the limits in the [TextEdit encounter](guide/cua-background.md).
+
+Regression coverage: `lib/computer/runner.test.ts` exercises 251/252/600 candidates,
+tail selection with unchanged native tokens, verifier precedence, and disagreement
+at the wait limit. `ab/computer.test.ts` checks CLI scope refusal and project-page
+cleanup on completion and observation failure.
