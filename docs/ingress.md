@@ -101,12 +101,15 @@ Hugging Face's local-files-only mode; it does not intentionally install/download
 models during a read. CPU with four Torch threads is the default. PI_SKIM_DEVICE
 can select another supported Torch device; the integrated drive used CPU.
 
-The model is loaded lazily on the first prose skim, once per kernel, and remains
-resident until reset. Each active kernel has its own model memory footprint. Initial
-cold startup can exceed fifteen seconds and fall back; subsequent startup in the
-local drive was about six seconds, with short warm compressions around 0.3 seconds.
-The separate local DNS/connection delay still affects cold Jev requests; integrating
-LLMLingua does not fix it. See the [transport investigation](research/caveman/INVESTIGATION.md).
+The model is loaded lazily on the first prose skim by a per-user Unix-socket daemon
+at `~/.cache/mlegls-pi/skim.sock`, shared across pi sessions. It remains resident
+until the daemon exits (e.g. logout or `pkill -f 'skim-worker.py --serve'`).
+Startup is elected with a file lock, so simultaneous sessions do not load duplicate
+models. The socket and lock live in a private cache directory. Initial cold startup
+can exceed fifteen seconds and fall back; subsequent startup in the local drive was
+about six seconds, with short warm compressions around 0.3 seconds. The separate
+local DNS/connection delay still affects cold Jev requests; integrating LLMLingua
+does not fix it. See the [transport investigation](research/caveman/INVESTIGATION.md).
 
 ## Replay records and boundaries
 
