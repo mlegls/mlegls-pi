@@ -9,18 +9,20 @@ Uses Anima Labs' [context-manager](https://github.com/anima-research/context-man
 
 ## Identity
 
-The identity is resolved at session start and opened at the first model call. Precedence:
+A life lives at `<root>/<project>/<name>/<model id>`. `<project>` is the git common dir, so worktrees of one repo share lives. A name starting with `/` is project-independent: `<root>/_global/<name>/<model id>`. Sessions choose a name; the model part follows the model selection, so `/model` moves the session into that model's life under the same name. Lives are created on first use.
 
-1. An in-session choice: `/connectome use <identity>`, `/connectome off`, `/connectome default`. It is persisted in the session, so resume keeps it. Messages already mirrored into the previous life stay there; the new life takes in the session's whole branch.
-2. `PI_CONNECTOME` from whoever launched pi: an identity, or `off`. Paseo dispatch (`lib/paseo.ts`) sets `off` unless the task names an identity, because dispatched agents are task-scoped.
+The name is resolved at session start and the life opens at the first model call. Precedence:
+
+1. An in-session choice: `/connectome use <name>`, `/connectome off`, `/connectome default`. It is persisted in the session, so resume keeps it. Messages already mirrored into the previous life stay there; the new life takes in the session's whole branch.
+2. `PI_CONNECTOME` from whoever launched pi: a name, or `off`. Paseo dispatch (`lib/paseo.ts`) sets `off` unless the task names a life, because dispatched agents are task-scoped.
 3. `connectome.identity` in settings.
-4. `<repo>/<model id>`. The repo is the git common dir, so worktrees of one repo share a life.
+4. `main`.
 
-`/connectome list` shows existing identities; `use` completes them.
+`/connectome list` shows this project's names (and `/` names) with the models each has lives for; `use` completes them.
 
 ## Settings
 
-Settings go under `connectome` in `~/.pi/agent/settings.json` or `<cwd>/.pi/settings.json`: `identity`, `enabled`, `dir`, `agentName`, `budgetRatio` (default 0.5), `budgetTokens`, `reserveForResponse`, `strategy` (passthrough overrides for `AutobiographicalConfig`).
+Settings go under `connectome` in `~/.pi/agent/settings.json` or `<cwd>/.pi/settings.json`: `identity` (a name), `enabled`, `dir`, `agentName`, `budgetRatio` (default 0.5), `budgetTokens`, `reserveForResponse`, `strategy` (passthrough overrides for `AutobiographicalConfig`).
 
 ## Inspection
 

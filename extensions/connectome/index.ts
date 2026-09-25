@@ -6,8 +6,8 @@
 // (AutobiographicalStrategy, kv-stable folding). pi's own compaction is cancelled.
 //
 // Settings ("connectome" in ~/.pi/agent/settings.json or <cwd>/.pi/settings.json):
-//   identity      store name (see README for precedence: /connectome use, PI_CONNECTOME, this,
-//                 then <repo>/<model>). Same identity = same continuing life.
+//   identity      default life name (see README: lives are <project>/<name>/<model>; precedence is
+//                 /connectome use, PI_CONNECTOME, this, then "main")
 //   dir           store root; default ~/.pi/agent/connectome
 //   agentName     participant name memories are voiced as; default "Assistant"
 //   budgetRatio   fraction of the model's context window the prompt (system, tools, view) may use; default 0.5
@@ -118,18 +118,27 @@ function piContent(blocks: Block[]): any[] {
 
 // ── record shared across reloads / session replacement (store lock is per process) ──
 
+function remember(l: { originals: Map<string, Message[]> }, key: string, m: Message) {
+	const all = l.originals.get(key);
+	if (all) all.push(m);
+	else l.originals.set(key, [m]);
+}
 interface Holder {
 	ctx?: ExtensionContext;
 	pi?: ExtensionAPI;
 	agentName: string;
 	log: string;
 	aborts: Set<AbortController>;
+	/** the life's originals, so memory-write requests replay history exactly as pi sent it live */
+	originals?: Map<string, Message[]>;
 }
 interface Life {
 	path: string;
 	cm: ContextManager;
 	holder: Holder;
-	originals: Map<string, Message>; // keyOf -> original pi message
+	/** keyOf -> pi's originals with that content, oldest first. Identical content recurs ("ok",
+	 *  repeated questions), and each original carries its own provider item ids. */
+	originals: Map<string, Message[]>;
 	ingested: Set<string>; // external ids `${entryId}:${i}`
 }
 const LIVES: Map<string, Life> = ((globalThis as any)[Symbol.for("mlegls.connectome.lives")] ??= new Map());
@@ -159,7 +168,7 @@ function membraneFor(holder: Holder) {
 			const ctx = holder.ctx;
 			const model = ctx?.model;
 			if (!ctx || !model) throw new Error("connectome: no active model for memory formation");
-			const messages = toPiMessages(req.messages, holder.agentName, model, undefined);
+			const messages = toPiMessages(req.messages, holder.agentName, model, holder.originals);
 			const tools = (req.tools ?? []).map((t: any) => ({ name: t.name, description: t.description, parameters: t.inputSchema }));
 			const level = holder.pi?.getThinkingLevel();
 			const ac = new AbortController();
@@ -203,16 +212,23 @@ function membraneFor(holder: Holder) {
 }
 
 /** Compiled membrane messages -> pi messages. Raw messages come back as pi's originals when
- *  unchanged; memories and truncated messages are rebuilt. */
-function toPiMessages(nms: NMessage[], agentName: string, model: any, originals: Map<string, Message> | undefined): Message[] {
+ *  unchanged; memories and truncated messages are rebuilt. Folding consumes history from the
+ *  front, so the n surviving copies of some content are matched to its n newest originals. */
+function toPiMessages(nms: NMessage[], agentName: string, model: any, originals: Map<string, Message[]> | undefined): Message[] {
 	const out: Message[] = [];
 	const now = Date.now();
-	for (const nm of nms) {
+	const keys = nms.map((nm) => keyOf(nm.participant === agentName ? "" : HUMAN, nm.content));
+	const remaining = new Map<string, number>();
+	for (const k of keys) remaining.set(k, (remaining.get(k) ?? 0) + 1);
+	nms.forEach((nm, i) => {
 		const isAgent = nm.participant === agentName;
-		const orig = originals?.get(keyOf(isAgent ? "" : HUMAN, nm.content));
+		const all = originals?.get(keys[i]);
+		const left = remaining.get(keys[i])!;
+		remaining.set(keys[i], left - 1);
+		const orig = all && all.length >= left ? all[all.length - left] : undefined;
 		if (orig) {
 			out.push(orig);
-			continue;
+			return;
 		}
 		if (isAgent) {
 			const content: any[] = [];
@@ -220,7 +236,7 @@ function toPiMessages(nms: NMessage[], agentName: string, model: any, originals:
 				if (b.type === "text") content.push({ type: "text", text: b.text });
 				else if (b.type === "tool_use") content.push({ type: "toolCall", id: b.id, name: b.name, arguments: b.input });
 			}
-			if (!content.length) continue;
+			if (!content.length) return;
 			out.push({
 				role: "assistant",
 				content,
@@ -231,7 +247,7 @@ function toPiMessages(nms: NMessage[], agentName: string, model: any, originals:
 				stopReason: content.some((c) => c.type === "toolCall") ? "toolUse" : "stop",
 				timestamp: now,
 			} as AssistantMessage);
-			continue;
+			return;
 		}
 		let pending: any[] = [];
 		const flush = () => {
@@ -246,7 +262,7 @@ function toPiMessages(nms: NMessage[], agentName: string, model: any, originals:
 			} else pending.push(...piContent([b]));
 		}
 		flush();
-	}
+	});
 	return out;
 }
 
@@ -254,15 +270,18 @@ export default function (pi: ExtensionAPI) {
 	let life: Life | undefined;
 	let settings: Settings = {};
 	let warned = false;
-	/** identity this session should live in; null = off. Resolved at session start, opened lazily
-	 *  at the first LLM call so a `/connectome use` before then never touches the default life. */
+	/** Name of the life this session should live in; null = off. A name is resolved per project
+	 *  and per model (see lifePath), so switching models moves the session to that model's life.
+	 *  Resolved at session start and opened lazily at the first LLM call, so a `/connectome use`
+	 *  before then never touches the default life. */
 	let wanted: string | null = null;
+	let lastCtx: ExtensionContext | undefined;
+	const DEFAULT_NAME = "main";
 
 	const CHOICE = "connectome-identity";
 
 	/** Precedence: an in-session choice (persisted in the session, so resume keeps it), then
-	 *  PI_CONNECTOME from whoever launched pi ("off" or an identity), then settings, then
-	 *  <repo>/<model>. The repo is the git common dir, so worktrees of one repo share a life. */
+	 *  PI_CONNECTOME from whoever launched pi ("off" or a name), then settings, then "main". */
 	const resolve = (ctx: ExtensionContext): string | null => {
 		settings = readSettings(ctx.cwd);
 		const chosen = ctx.sessionManager
@@ -273,19 +292,29 @@ export default function (pi: ExtensionAPI) {
 		const env = process.env.PI_CONNECTOME;
 		if (env) return env === "off" ? null : env;
 		if (settings.enabled === false) return null;
-		return settings.identity ?? defaultIdentity(ctx);
+		return settings.identity ?? DEFAULT_NAME;
 	};
 
-	const defaultIdentity = (ctx: ExtensionContext) => {
+	/** The project is the git common dir's parent, so worktrees of one repo share lives. */
+	const projectDir = (ctx: ExtensionContext) => {
 		let root = ctx.cwd;
 		try {
 			const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: ctx.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 			root = dirname(common);
 		} catch {}
-		return `${slug(root)}/${ctx.model?.id ?? "model"}`;
+		return slug(root);
 	};
 
 	const storeRoot = () => settings.dir ?? join(homedir(), ".pi", "agent", "connectome");
+
+	/** <root>/<project>/<name>/<model>; a name starting with "/" is project-independent:
+	 *  <root>/_global/<name>/<model>. */
+	const lifePath = (ctx: ExtensionContext, name: string) => {
+		const model = slug(ctx.model?.id ?? "model");
+		return name.startsWith("/")
+			? join(storeRoot(), "_global", name.slice(1), model)
+			: join(storeRoot(), projectDir(ctx), name, model);
+	};
 
 	const release = async (l: Life) => {
 		for (const ac of l.holder.aborts) ac.abort();
@@ -297,10 +326,10 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	const showStatus = (ctx: ExtensionContext) =>
-		ctx.ui.setStatus?.("connectome", wanted ? `◈ ${wanted.split("/").map((s) => s.slice(-20)).join("/")}${life ? "" : " …"}` : "◇ off");
+		ctx.ui.setStatus?.("connectome", wanted ? `◈ ${wanted}${life ? "" : " …"}` : "◇ off");
 
-	const activate = async (ctx: ExtensionContext, identity: string) => {
-		const path = join(storeRoot(), identity);
+	const activate = async (ctx: ExtensionContext, name: string) => {
+		const path = lifePath(ctx, name);
 		const agentName = settings.agentName ?? "Assistant";
 		let l = LIVES.get(path);
 		if (!l) {
@@ -332,6 +361,7 @@ export default function (pi: ExtensionAPI) {
 			}
 			LIB_LOG.path = join(path, "lib.log");
 			l = { path, cm, holder, originals: new Map(), ingested: new Set() };
+			holder.originals = l.originals;
 			reindex(l);
 			LIVES.set(path, l);
 		}
@@ -349,7 +379,7 @@ export default function (pi: ExtensionAPI) {
 			const ext = (m.metadata as any)?.external;
 			if (ext?.source === SOURCE) l.ingested.add(ext.id);
 			const pim = (m.metadata as any)?.pi as Message | undefined;
-			if (pim) l.originals.set(keyOf(m.participant === l.holder.agentName ? "" : HUMAN, m.content as Block[]), pim);
+			if (pim) remember(l, keyOf(m.participant === l.holder.agentName ? "" : HUMAN, m.content as Block[]), pim);
 		}
 	};
 
@@ -369,7 +399,7 @@ export default function (pi: ExtensionAPI) {
 					piSession: ctx.sessionManager.getSessionId(),
 				});
 				l.ingested.add(id);
-				l.originals.set(keyOf(m.role === "assistant" ? "" : HUMAN, b.blocks), m);
+				remember(l, keyOf(m.role === "assistant" ? "" : HUMAN, b.blocks), m);
 			});
 		}
 	};
@@ -387,6 +417,7 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	pi.on("session_start", async (_e, ctx) => {
+		lastCtx = ctx;
 		life = undefined;
 		wanted = resolve(ctx);
 		showStatus(ctx);
@@ -399,6 +430,11 @@ export default function (pi: ExtensionAPI) {
 	};
 	pi.on("context", async (event, ctx) => {
 		const model = ctx.model;
+		// a model switch moves the session into that model's life under the same name
+		if (life && (!wanted || life.path !== lifePath(ctx, wanted))) {
+			await release(life);
+			life = undefined;
+		}
 		if (!life && wanted && model) await activate(ctx, wanted);
 		const l = life;
 		if (!l || !model) return;
@@ -425,7 +461,7 @@ export default function (pi: ExtensionAPI) {
 			trace(l, {
 				piMessages: event.messages.length,
 				compiled: compiled.messages.length,
-				reused: messages.filter((m) => [...l.originals.values()].includes(m)).length,
+				reused: messages.filter((m) => [...l.originals.values()].some((all) => all.includes(m))).length,
 				chars: JSON.stringify(messages).length,
 				maxTokens,
 				ms: Date.now() - t0,
@@ -480,36 +516,37 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("connectome", {
-		description: "connectome memory: status | use <identity> | off | default | list",
+		description: "connectome memory: status | use <name> | off | default | list  (lives are per project/name/model; /name is project-independent)",
 		getArgumentCompletions: (prefix) => {
 			const [verb, arg = ""] = prefix.split(/\s+/, 2);
 			if (!prefix.includes(" "))
 				return ["use ", "off", "default", "list"].filter((v) => v.startsWith(verb)).map((v) => ({ value: v, label: v.trim() }));
 			if (verb !== "use") return null;
-			return listIdentities()
-				.filter((id) => id.startsWith(arg))
-				.map((id) => ({ value: `use ${id}`, label: id }));
+			return listNames(lastCtx)
+				.filter((n) => n.name.startsWith(arg))
+				.map((n) => ({ value: `use ${n.name}`, label: n.name, description: n.models.join(", ") }));
 		},
 		handler: async (args, ctx) => {
 			const [verb, arg] = args.trim().split(/\s+/, 2);
-			if (verb === "list") return ctx.ui.notify(listIdentities().join("\n") || "(no lives yet)", "info");
+			if (verb === "list")
+				return ctx.ui.notify(listNames(ctx).map((n) => `${n.name}  (${n.models.join(", ")})`).join("\n") || "(no lives yet)", "info");
 			if (verb === "use" || verb === "off" || verb === "default") {
-				const next = verb === "off" ? null : verb === "default" ? defaultIdentity(ctx) : arg;
-				if (verb === "use" && !arg) return ctx.ui.notify("usage: /connectome use <identity>", "warning");
+				const next = verb === "off" ? null : verb === "default" ? DEFAULT_NAME : arg;
+				if (verb === "use" && !arg) return ctx.ui.notify("usage: /connectome use <name>", "warning");
 				// Messages already mirrored into the previous life stay there; the new life takes in
 				// this session's whole branch at its next call.
 				pi.appendEntry(CHOICE, { identity: next });
 				const prev = life;
 				life = undefined;
 				wanted = next;
-				if (prev && prev.path !== (next && join(storeRoot(), next))) await release(prev);
+				if (prev && (!next || prev.path !== lifePath(ctx, next))) await release(prev);
 				showStatus(ctx);
 				return ctx.ui.notify(next ? `connectome: this session now lives in ${next}` : "connectome: off for this session", "info");
 			}
 			const l = life;
 			if (!l) return ctx.ui.notify(`connectome: ${wanted ? `${wanted} (opens at the next model call)` : "off"} this session`, "info");
 			const lines = [
-				`identity ${wanted}`,
+				`name ${wanted}  model ${ctx.model?.id}`,
 				`store ${l.path}`,
 				`branch ${l.cm.currentBranch().name}  messages ${l.cm.getMessageCount()}  max summary level ${l.cm.getMaxSummaryLevel()}`,
 				`pending ${l.cm.getPendingWork()?.description ?? "none"}`,
@@ -520,21 +557,24 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	/** Identities are store directories under the root, possibly nested (<repo>/<model>). */
-	const listIdentities = (): string[] => {
-		const root = storeRoot();
-		const out: string[] = [];
-		const walk = (rel: string, depth: number) => {
-			let names: string[] = [];
+	/** Names with at least one model life: this project's, then project-independent ("/name"). */
+	const listNames = (ctx: ExtensionContext | undefined): { name: string; models: string[] }[] => {
+		const out: { name: string; models: string[] }[] = [];
+		const ls = (dir: string) => {
 			try {
-				names = readdirSync(join(root, rel));
+				return readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
 			} catch {
-				return;
+				return [];
 			}
-			if (names.includes("store")) return void out.push(rel);
-			if (depth < 3) for (const n of names) walk(rel ? `${rel}/${n}` : n, depth + 1);
 		};
-		walk("", 0);
-		return out.sort();
+		const walk = (base: string, rel: string, prefix: string, depth: number) => {
+			const dir = join(base, rel);
+			const models = ls(dir).filter((m) => existsSync(join(dir, m, "store")));
+			if (models.length) out.push({ name: prefix + rel, models });
+			if (depth < 3) for (const n of ls(dir)) if (!models.includes(n)) walk(base, rel ? `${rel}/${n}` : n, prefix, depth + 1);
+		};
+		if (ctx) walk(join(storeRoot(), projectDir(ctx)), "", "", 0);
+		walk(join(storeRoot(), "_global"), "", "/", 0);
+		return out.filter((n) => n.name && n.name !== "/").sort((a, b) => a.name.localeCompare(b.name));
 	};
 }
