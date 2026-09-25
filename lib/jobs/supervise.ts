@@ -18,7 +18,7 @@ export interface Input { ticket: string; cwd: string; owner: string; budget: num
 type Phase = "implement" | "verify" | "supervise";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; waiting?: string }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
-export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child }
+export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; pending?: string[] }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
 // One integration at a time per checkout, across every supervise job in this daemon: concurrent
@@ -39,7 +39,10 @@ function snapshot(input: Input): Issue[] {
  return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8" })).issues;
 }
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
+const refExists = (cwd: string, ref: string) => { try { git(cwd, "rev-parse", "--verify", "--quiet", ref); return true; } catch { return false; } }
 const caveats = (h: Record<string, unknown> | null) => { const c = h?.caveats; return Array.isArray(c) ? c.length > 0 : !!c && !/^(none|no|\[\])$/i.test(String(c).trim()); };
+// An implement handoff whose every story is unobservable claims nothing checkable; the owner steers, like caveats.
+const unobservable = (h: Record<string, unknown> | null) => { const s = h?.stories; return Array.isArray(s) && s.length > 0 && s.every(x => JSON.stringify(x).toLowerCase().includes("unobservable")); };
 // Verifier outcomes live under handoff.stories as held/failed/unobservable per story; anything but held needs the owner.
 const unheld = (h: Record<string, unknown> | null) => { const s = JSON.stringify(h?.stories ?? null); return s === "null" || /"(failed|unobservable)"|:\s*"?(failed|unobservable)/i.test(s); };
 // Workers record what they met on the way in prose; digesting it is the owner's, since the loop reads no diffs.
@@ -59,10 +62,25 @@ export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
  const save = () => job.save(state);
+ const deliver = async (text: string): Promise<boolean> => {
+  for (const delay of [0, 2_000, 10_000]) {
+   if (delay) await new Promise(r => setTimeout(r, delay));
+   if (job.signal.aborted) return false;
+   try { await children.send(input.owner, text); return true; }
+   catch (error) { job.log("wake to owner failed: " + message(error)); }
+  }
+  return false;
+ };
  const wake = async (text: string) => {
   const message = "supervise " + input.ticket + " (job " + job.id + "): " + text;
   state.metrics.wakes++; state.metrics.ownerBytes += Buffer.byteLength(message);
-  await children.send(input.owner, message); await save();
+  // A busy or absent owner (active run, retired session) must never kill the job: retry, then queue
+  // in state; the next successful wake or a restart drains the queue in order.
+  const queued = state.pending ??= [];
+  queued.push(message);
+  while (queued.length && await deliver(queued[0])) queued.shift();
+  if (!queued.length) delete state.pending;
+  await save();
  };
  const except = async (c: Child, reason: string, text = "") => {
   c.waiting = reason;
@@ -73,14 +91,29 @@ export async function run(job: JobContext) {
  const launch = async (slug: string, phase: Phase, prompt: string, base: string, assignee?: string | null, stance?: string) => {
   const prepared = await route.prepare(prompt, { assignee: assignee ?? undefined, stance });
   if (prepared.kind !== "ready") throw new Error("routing needs triage for " + slug);
-  const receipt = await dispatch([{ handle: phase === "verify" ? slug + "-verify" : slug, prompt, agent: prepared.agent, model: prepared.model, effort: prepared.effort, base }],
+  // A retired child's kept branch owns <ticket>/<handle>; relaunch beside it under the next free name.
+  let name = phase === "verify" ? slug + "-verify" : slug;
+  for (let n = 2; refExists(input.cwd, "refs/heads/" + input.ticket + "/" + name); n++) name = slug + (phase === "verify" ? "-verify-" : "-") + n;
+  const receipt = await dispatch([{ handle: name, prompt, agent: prepared.agent, model: prepared.model, effort: prepared.effort, base }],
    { run: input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent: input.owner });
   if (!receipt.submitted[0]) throw new Error("launch failed for " + slug + ": " + (receipt.failed?.error ?? "pending"));
   state.metrics.launched++;
   return receipt.submitted[0];
  };
- // Unmerged branches (drop, redispatch) survive for the owner to inspect; merged ones are deleted.
+ // Unmerged branches (drop) survive for the owner to inspect; merged ones are deleted.
  const retire = async (h: Handle) => { await retireWorker(h as any, { cwd: input.cwd }).catch(e => job.log("retire " + h.handle + ": " + e)); };
+ // Redispatch must not leave a branch that collides with the relaunch's worktree add (cannot lock ref):
+ // delete it when it holds nothing beyond HEAD, else the relaunch runs under a distinct handle.
+ const redispatch = async (c: Child) => {
+  let branch = "";
+  try { branch = git(c.handle.path, "branch", "--show-current"); } catch { /* worktree already gone */ }
+  await retire(c.handle);
+  if (c.implementer) await retire(c.implementer);
+  try {
+   if (branch && refExists(input.cwd, "refs/heads/" + branch) && git(input.cwd, "rev-list", "--count", "HEAD.." + branch) === "0")
+    git(input.cwd, "branch", "-D", branch);
+  } catch (error) { job.log("redispatch " + c.slug + ": " + message(error)); }
+ };
  // A ticket's close rides its branch: stage: done is committed in the child's worktree before the
  // merge, so integration is one merge and nothing else writes the owner's checkout.
  const close = (c: Child, handle: Handle) => {
@@ -88,9 +121,13 @@ export async function run(job: JobContext) {
   if (!issue || issue.done) return;
   const rel = relative(realpathSync(input.cwd), realpathSync(issue.file)), file = join(handle.path, rel);
   if (rel.startsWith("..") || !existsSync(file)) return;
-  const text = readFileSync(file, "utf8"), closed = text.replace(/^stage: \w+$/m, "stage: done");
-  if (closed === text) return;
-  writeFileSync(file, closed);
+  const text = readFileSync(file, "utf8"), frontmatter = text.match(/^---\n[\s\S]*?\n---/);
+  if (!frontmatter) return;
+  // Replace the stage line inside the frontmatter; a parent that delegates all its work may omit it,
+  // so insert one rather than skipping the close (the commit would otherwise fail or never happen).
+  const body = frontmatter[0], closed = /^stage:.*$/m.test(body) ? body.replace(/^stage:.*$/m, "stage: done") : body.replace(/\n---$/, "\nstage: done\n---");
+  if (closed === body) return;
+  writeFileSync(file, text.replace(body, closed));
   git(handle.path, "commit", "-qm", "Close " + c.slug, "--", rel);
  };
  const verifyPrompt = (slug: string, ticket: string, report: string) => ["Verify the ticket below: " + HACK,
@@ -134,7 +171,7 @@ export async function run(job: JobContext) {
     if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); delete state.children[c.slug]; }
     else if (cmd.action === "integrate") await integrateChild(c, c.handle);
     else if (cmd.action === "verify") await toVerify(c, (await children.last(idOf(c)))?.text ?? "");
-    else if (cmd.action === "redispatch") { await retire(c.handle); delete state.children[c.slug]; }
+    else if (cmd.action === "redispatch") { await redispatch(c); delete state.children[c.slug]; }
    } catch (error) { await except(c, "resume " + cmd.action + " failed: " + message(error)); }
   }
   applied = all.length; await save();
@@ -148,6 +185,9 @@ export async function run(job: JobContext) {
  };
 
  applied = commands().length; // commands issued before a restart were applied then
+ // Wakes a previous run queued for a busy owner deliver first, in order, before anything new.
+ while (state.pending?.length && await deliver(state.pending[0])) state.pending.shift();
+ if (!state.pending?.length) delete state.pending;
  while (!job.signal.aborted) {
   await apply();
   // Fill the budget from the subtree's frontier: direct children only; non-leaves get supervise.
@@ -182,12 +222,13 @@ export async function run(job: JobContext) {
   c.cursor = end.cursor; c.waiting = undefined; await save();
   await (async () => {
   const r = parse(end.text);
-  if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
-  // A child supervisor ends its turn while its own loop runs; only a status sentinel reports.
+  // A child supervisor waiting on its own loop checks in with a closed turn and no sentinel; not a report.
   if (c.phase === "supervise" && r.status === null) return;
+  if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
   if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); return; }
   if (c.phase === "implement") {
    if (caveats(r.handoff)) await except(c, "done with caveats", end.text);
+   else if (unobservable(r.handoff)) await except(c, "done with nothing observable", end.text);
    else if (git(c.handle.path, "status", "--porcelain")) await except(c, "done with uncommitted changes", end.text);
    else await toVerify(c, end.text);
   } else if (c.phase === "verify") {
