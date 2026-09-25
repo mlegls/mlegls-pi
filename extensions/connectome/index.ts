@@ -402,6 +402,15 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 
+	// Chronicle writes its state indexes only on sync/close, and can't rebuild them from the log:
+	// a pi that dies without closing (crash, kill) would reopen the life empty or at its last close.
+	const persist = (l: Life) => {
+		try {
+			l.cm.sync();
+		} catch (e) {
+			trace(l, { syncError: String(e) }); // e.g. closed by a model switch while a tick ran
+		}
+	};
 	// pi stores each tool result as its own message; context-manager assumes the Anthropic shape
 	// (all results of a tool_use turn in the next message) when it cuts windows and chunks, so a
 	// run of toolResults is ingested as one message. A run is complete by the time we see it:
@@ -441,6 +450,7 @@ export default function (pi: ExtensionAPI) {
 			});
 		}
 		flush();
+		persist(l);
 	};
 
 	const syncPromptAndTools = (l: Life, ctx: ExtensionContext) => {
@@ -481,7 +491,7 @@ export default function (pi: ExtensionAPI) {
 		try {
 			ingest(l, ctx);
 			// memory formation runs in the background; tick schedules it without blocking the turn
-			l.cm.tick().catch((e) => trace(l, { tickError: String(e) }));
+			l.cm.tick().then(() => persist(l), (e) => trace(l, { tickError: String(e) }));
 			syncPromptAndTools(l, ctx);
 			const ratio = settings.budgetRatio ?? 0.5;
 			// maxTokens is the window the view must fit in together with system/tools and the reply
