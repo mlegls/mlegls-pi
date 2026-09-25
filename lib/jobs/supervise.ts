@@ -4,8 +4,8 @@
 //   ab supervise status | resume <job> <child> verify|integrate|drop|redispatch
 // Children are created with the owner as parent, so they show under it in the host.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, watch } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { existsSync, readFileSync, realpathSync, writeFileSync, watch } from "node:fs";
+import { basename, dirname, join, relative } from "node:path";
 import { homedir } from "node:os";
 import { dispatch, integrate, retire as retireWorker, type Handle } from "../dispatch.ts";
 import * as route from "../route.ts";
@@ -21,6 +21,16 @@ export interface Metrics { wakes: number; ownerBytes: number; launched: number; 
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
+// One integration at a time per checkout, across every supervise job in this daemon: concurrent
+// loops on one checkout otherwise race rebase/ff-only merges and run hooks and tests on a moving tree.
+const merging = new Map<string, Promise<unknown>>();
+const serial = <T>(key: string, f: () => Promise<T>): Promise<T> => {
+ const next = (merging.get(key) ?? Promise.resolve()).catch(() => {}).then(f);
+ merging.set(key, next);
+ return next;
+};
+const idOf = (c: Child) => "agentId" in c.handle ? c.handle.agentId : c.handle.handle;
+const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const HACK = "Hacking session: reach the ticket's first use fast and try it; no systematic audit. Commit coherent chunks on your branch.";
 
@@ -71,27 +81,43 @@ export async function run(job: JobContext) {
  };
  // Unmerged branches (drop, redispatch) survive for the owner to inspect; merged ones are deleted.
  const retire = async (h: Handle) => { await retireWorker(h as any, { cwd: input.cwd }).catch(e => job.log("retire " + h.handle + ": " + e)); };
- const close = async (slug: string) => {
-  const issue = snapshot(input).find(i => i.slug === slug);
-  if (issue && !issue.done && existsSync(issue.file)) {
-   writeFileSync(issue.file, readFileSync(issue.file, "utf8").replace(/^stage: \w+$/m, "stage: done"));
-   git(input.cwd, "commit", "-qm", "Close " + slug, "--", issue.file);
-  }
+ // A ticket's close rides its branch: stage: done is committed in the child's worktree before the
+ // merge, so integration is one merge and nothing else writes the owner's checkout.
+ const close = (c: Child, handle: Handle) => {
+  const issue = snapshot(input).find(i => i.slug === c.slug);
+  if (!issue || issue.done) return;
+  const rel = relative(realpathSync(input.cwd), realpathSync(issue.file)), file = join(handle.path, rel);
+  if (rel.startsWith("..") || !existsSync(file)) return;
+  const text = readFileSync(file, "utf8"), closed = text.replace(/^stage: \w+$/m, "stage: done");
+  if (closed === text) return;
+  writeFileSync(file, closed);
+  git(handle.path, "commit", "-qm", "Close " + c.slug, "--", rel);
  };
  const verifyPrompt = (slug: string, ticket: string, report: string) => ["Verify the ticket below: " + HACK,
   "Your branch starts at the implementer's commits. First use as the ticket's user; record what you observe; update guides/replays only where the encounter earns them. " + HANDOFF + "stories: each story or promise you checked with held, failed or unobservable; caveats: [] when there are none.",
   "Ticket " + slug + ":\n\n" + ticket, "Implementer's report:\n\n" + report].join("\n\n");
- const integrateChild = async (c: Child, handle: Handle) => {
-  try { await integrate(handle as any, { cwd: input.cwd }); }
+ const integrateChild = (c: Child, handle: Handle) => serial(input.cwd, async () => {
+  try { close(c, handle); await integrate(handle as any, { cwd: input.cwd }); }
   catch (error) { return except(c, "integration failed", String(error)); }
+  // Merged: the child is integrated whatever the tests say; its handle was retired with the merge.
+  delete state.children[c.slug]; state.integrated.push(c.slug); state.metrics.completed++;
+  await save();
   if (c.implementer) await retire(c.implementer);
   if (input.test) {
    try { execFileSync("bash", ["-lc", input.test], { cwd: input.cwd, stdio: "pipe" }); }
-   catch (error: any) { return except(c, "tests fail after integrating " + c.slug, String(error.stdout ?? "") + String(error.stderr ?? "")); }
+   catch (error: any) { await wake("tests fail after integrating " + c.slug + "\n\n" + (String(error.stdout ?? "") + String(error.stderr ?? "")).slice(-3000)); }
   }
-  await close(c.slug);
-  delete state.children[c.slug]; state.integrated.push(c.slug); state.metrics.completed++;
-  await save();
+ });
+ // Children whose handle no longer resolves (retired, deleted, timeline unreadable) wait for the owner
+ // instead of failing the job; not persisted, so a restart probes them again.
+ const lost = new Set<string>();
+ const probe = async (cs: Child[]) => {
+  let found = false;
+  for (const c of cs) {
+   try { await children.last(idOf(c)); }
+   catch (error) { found = true; lost.add(c.slug); await except(c, "handle no longer resolves: " + message(error)); }
+  }
+  return found;
  };
 
  // Pending owner commands (resume) are applied between turn ends.
@@ -103,11 +129,13 @@ export async function run(job: JobContext) {
   for (const cmd of all.slice(applied)) {
    const c = state.children[cmd.child];
    if (!c) { await wake("resume: no live child " + cmd.child); continue; }
-   c.waiting = undefined;
-   if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); delete state.children[c.slug]; }
-   else if (cmd.action === "integrate") await integrateChild(c, c.handle);
-   else if (cmd.action === "verify") await toVerify(c, (await children.last(("agentId" in c.handle ? c.handle.agentId : c.handle.handle)))?.text ?? "");
-   else if (cmd.action === "redispatch") { await retire(c.handle); delete state.children[c.slug]; }
+   c.waiting = undefined; lost.delete(c.slug);
+   try {
+    if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); delete state.children[c.slug]; }
+    else if (cmd.action === "integrate") await integrateChild(c, c.handle);
+    else if (cmd.action === "verify") await toVerify(c, (await children.last(idOf(c)))?.text ?? "");
+    else if (cmd.action === "redispatch") { await retire(c.handle); delete state.children[c.slug]; }
+   } catch (error) { await except(c, "resume " + cmd.action + " failed: " + message(error)); }
   }
   applied = all.length; await save();
  };
@@ -137,17 +165,20 @@ export async function run(job: JobContext) {
   }
   const live = Object.values(state.children);
   if (!live.length) break;
-  const ids = live.map(c => "agentId" in c.handle ? c.handle.agentId : c.handle.handle);
-  const cursors = Object.fromEntries(live.filter(c => c.cursor).map(c => ["agentId" in c.handle ? c.handle.agentId : c.handle.handle, c.cursor!]));
+  const watched = live.filter(c => !lost.has(c.slug));
+  const ids = watched.map(idOf);
+  const cursors = Object.fromEntries(watched.filter(c => c.cursor).map(c => [idOf(c), c.cursor!]));
   const stop = new AbortController();
   const abort = () => stop.abort();
   job.signal.addEventListener("abort", abort);
   const watcher = watch(dirname(file), (_, name) => { if (name === basename(file)) stop.abort(); });
   let end: children.TurnEnd;
-  try { end = await children.turnEnd(ids, { after: cursors, signal: stop.signal }); }
-  catch (error) { if (stop.signal.aborted) continue; throw error; }
+  // With every child lost, only an owner command (or stop) moves the loop.
+  const idle = () => new Promise<never>((_, reject) => stop.signal.addEventListener("abort", () => reject(stop.signal.reason), { once: true }));
+  try { end = ids.length ? await children.turnEnd(ids, { after: cursors, signal: stop.signal }) : await idle(); }
+  catch (error) { if (stop.signal.aborted || await probe(watched)) continue; throw error; }
   finally { watcher?.close(); job.signal.removeEventListener("abort", abort); }
-  const c = live[ids.indexOf(end.id)];
+  const c = watched[ids.indexOf(end.id)];
   c.cursor = end.cursor; c.waiting = undefined; await save();
   await (async () => {
   const r = parse(end.text);
