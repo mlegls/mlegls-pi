@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -18,6 +19,19 @@ function price(value?: string) {
   return Number.isFinite(n) && n >= 0 ? n * 1_000_000 : 0;
 }
 
+/** The full catalogue (~22k models) costs ~60 MB per process. Only interactive sessions browse
+ * it; RPC/print sessions (Paseo agents, subagents) register just the models they can be asked
+ * for: `--model`, featherless entries in settings `enabledModels`, and PI_FEATHERLESS_MODELS. */
+function selected(data: Catalogue["data"]): Catalogue["data"] {
+  const argv = process.argv;
+  if (!argv.some(a => a === "--mode" || a.startsWith("--mode=") || a === "-p" || a === "--print")) return data;
+  const wanted = new Set<string>();
+  const add = (spec: string | undefined) => { if (spec?.startsWith("featherless/")) wanted.add(spec.slice("featherless/".length).replace(/:[a-z]+$/, "")); };
+  argv.forEach((a, i) => { if (a === "--model" || a === "-m") add(argv[i + 1]); else if (a.startsWith("--model=")) add(a.slice(8)); });
+  try { for (const spec of JSON.parse(readFileSync(join(getAgentDir(), "settings.json"), "utf8")).enabledModels ?? []) add(spec); } catch {}
+  for (const spec of (process.env.PI_FEATHERLESS_MODELS ?? "").split(",")) add(spec.trim() && "featherless/" + spec.trim());
+  return data.filter(m => wanted.has(m.id));
+}
 export default async function (pi: ExtensionAPI) {
   const baseUrl = "https://api.featherless.ai/v1";
   const directory = join(getAgentDir(), "cache");
@@ -56,7 +70,7 @@ export default async function (pi: ExtensionAPI) {
     baseUrl,
     apiKey: "$FEATHERLESS_API_KEY",
     api: "openai-completions",
-    models: models!.data.map(m => ({
+    models: selected(models!.data).map(m => ({
       id: m.id,
       name: m.name ?? m.id,
       reasoning: false,

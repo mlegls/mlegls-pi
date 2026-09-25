@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import * as paseo from "../../lib/paseo.js";
+// Loaded on use: @getpaseo/client costs ~35 MB per pi process, and most sessions never fork.
+const loadPaseo = () => import("../../lib/paseo.js");
 
 /** Paseo's UI fork creates a chat-history attachment, then starts a new agent with it. */
 export default function (pi: ExtensionAPI) {
@@ -13,6 +14,7 @@ export default function (pi: ExtensionAPI) {
         return;
       }
       try {
+        const paseo = await loadPaseo();
         const result = await paseo.withClient(async (client) => {
           const source = client.agents.ref(sourceId);
           const snapshot = await source.refresh();
