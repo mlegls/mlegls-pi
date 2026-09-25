@@ -68,7 +68,9 @@ the same window concurrently.
   model calls, waits, and subsequent operations. In-flight UI calls obey the exec
   host lifecycle; cancellation cannot retract an already delivered action.
 
-More than 512 candidates stops rather than silently dropping options. Repeated
+Large action sets use bounded nominations before the final choice: every candidate
+is considered, and each request stays within Jev's 255-choice limit, including
+four control choices. Nominations select actions, never establish completion. Repeated
 action/unchanged-state pairs stop after two earlier occurrences. Native errors
 stop without retry; unverifiable delivery is followed by fresh observation, not
 treated as success. All raw Cua responses remain in the trace.
@@ -107,7 +109,8 @@ show(state.drive = computer.run({
 
 `computer.browser(page)` works with run/step/walk. It uses its separate
 Playwright controller and locator-backed replay format, not the Cua bridge.
-`spec`, `sheet`, and `appeared` remain browser recording helpers. Its existing
-two-judgment/contested-ending behavior is unchanged. Browser-specific types live
+`spec`, `sheet`, and `appeared` remain browser recording helpers. Browser and native
+runs share verifier precedence and require both judgments to agree without a verifier.
+Browser-specific types live
 in lib/computer/browser-runner.ts; BrowserOptions and BrowserEvent are exported
 from computer. Native UI has no compatibility aliases for the old outline/ref API.
