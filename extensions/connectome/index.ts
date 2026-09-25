@@ -94,7 +94,7 @@ function toBlocks(m: Message): { participant: string; blocks: Block[] } | null {
 
 /** Key for mapping compiled/raw blocks back to pi's original message. Thinking is ignored:
  *  context-manager strips it in places, and the original (with signatures) is what pi sent live. */
-function keyOf(participant: string, blocks: Block[]): string {
+export function keyOf(participant: string, blocks: Block[]): string {
 	const norm = blocks.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
 	return createHash("sha256").update(participant + "\0" + canonical(norm)).digest("hex");
 }
@@ -217,9 +217,12 @@ function membraneFor(holder: Holder) {
 /** Compiled membrane messages -> pi messages. Raw messages come back as pi's originals when
  *  unchanged; memories and truncated messages are rebuilt. Folding consumes history from the
  *  front, so the n surviving copies of some content are matched to its n newest originals. */
-function toPiMessages(nms: NMessage[], agentName: string, model: any, originals: Originals | undefined): Message[] {
+export function toPiMessages(nms: NMessage[], agentName: string, model: any, originals: Originals | undefined): Message[] {
 	const out: Message[] = [];
 	const now = Date.now();
+	// pi-ai never replays aborted/errored assistant turns, but context-manager's tool pairing
+	// stubs results for their unanswered tool calls; those results would reach the API orphaned.
+	const dropped = new Set<string>();
 	const keys = nms.map((nm) => keyOf(nm.participant === agentName ? "" : HUMAN, nm.content));
 	const remaining = new Map<string, number>();
 	for (const k of keys) remaining.set(k, (remaining.get(k) ?? 0) + 1);
@@ -230,7 +233,10 @@ function toPiMessages(nms: NMessage[], agentName: string, model: any, originals:
 		remaining.set(keys[i], left - 1);
 		const orig = all && all.length >= left ? all[all.length - left] : undefined;
 		if (orig) {
-			out.push(...orig);
+			for (const m of orig)
+				if (m.role === "assistant" && (m.stopReason === "aborted" || m.stopReason === "error"))
+					for (const b of m.content) if (b.type === "toolCall") dropped.add(b.id);
+			out.push(...orig.filter((m) => !(m.role === "toolResult" && dropped.has(m.toolCallId))));
 			return;
 		}
 		if (isAgent) {
@@ -259,6 +265,7 @@ function toPiMessages(nms: NMessage[], agentName: string, model: any, originals:
 		};
 		for (const b of nm.content) {
 			if (b.type === "tool_result") {
+				if (dropped.has(b.toolUseId)) continue;
 				flush();
 				const content = typeof b.content === "string" ? [{ type: "text", text: b.content }] : piContent(b.content);
 				out.push({ role: "toolResult", toolCallId: b.toolUseId, toolName: b.toolName ?? "", content, isError: !!b.isError, timestamp: now } as ToolResultMessage);
