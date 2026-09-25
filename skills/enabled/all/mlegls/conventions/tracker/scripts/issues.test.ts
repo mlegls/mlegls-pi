@@ -316,3 +316,18 @@ test("work in flight elsewhere leaves the frontier: supervise children, closes o
   rmSync(dir + "-wt1", { recursive: true, force: true }); rmSync(dir + "-wt2", { recursive: true, force: true });
   p.done();
 }, 30_000);
+
+test("check rewrites a unique slugged heading anchor to the heading text, and names an oversized open body", () => {
+  const p = project({
+    "issues/target.md": frontmatter("stage: idea") + "\n## Frontend replacement mid-turn — 2026-09-25\n\n## Twin one\n\n## Twin: one\n",
+    "issues/linker.md": frontmatter("stage: idea") + "[[projects/fixture/issues/target#frontend-replacement-mid-turn-2026-09-25|x]] [[projects/fixture/issues/target#twin-one]]\n" + "x".repeat(33_000),
+  });
+  symlinkSync(join(p.root, "docs"), join(vault, "projects/fixture-anchors"));
+  p.write({ "issues/linker.md": readFileSync(join(p.root, "docs/issues/linker.md"), "utf8").replaceAll("projects/fixture/", "projects/fixture-anchors/") });
+  const out = p.check();
+  expect(readFileSync(join(p.root, "docs/issues/linker.md"), "utf8")).toContain("[[projects/fixture-anchors/issues/target#Frontend replacement mid-turn — 2026-09-25|x]]");
+  expect(out).toContain("target#twin-one]] has no such heading");
+  expect(out).toContain("linker: body is 33KB");
+  rmSync(join(vault, "projects/fixture-anchors"));
+  p.done();
+}, 30_000);

@@ -48,3 +48,17 @@ test("delivery signal is advisory, cached, and stale when its evidence changes",
     expect(context(issue, all, dir).hash).not.toBe(before);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+// A closed issue is not asked whether it is fulfilled or superseded; its own text's residuals still are.
+test("a done issue's lint asks only about its text", async () => {
+  const root = mkdtempSync(join(tmpdir(), "tracker-lint-done-"));
+  const dir = join(root, "docs/issues");
+  mkdirSync(dir, { recursive: true });
+  const issue = { slug: "closed", file: join(dir, "closed.md"), blockedBy: [] };
+  writeFileSync(issue.file, "---\nstage: done\n---\nDelivered 2026-09-21.\n");
+  try {
+    const asked: string[] = [];
+    await refresh(issue, new Map([[issue.slug, issue]]), dir, async (_input, questions) => { asked.push(...Object.keys(questions)); return {}; }, { done: true });
+    expect(asked.filter(k => !k.endsWith("Evidence")).sort()).toEqual(["journal", "theory", "unowned"]);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

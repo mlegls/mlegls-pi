@@ -302,6 +302,7 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
     const raw = readFileSync(f, "utf8");
     const text = raw.replace(/^```[\s\S]*?^```/gm, "");
     const fixes = new Map<string, string>();
+    const anchors = new Map<string, string>();
     const rel = f.slice(docs.length + 1);
     for (const m of text.matchAll(/\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g)) {
       const target = m[1].trim().replace(/\\$/, ""); // [[x\|alias]] inside a table
@@ -311,11 +312,17 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
       const alt = to ? undefined : moved(target);
       if (alt) fixes.set(target, alt);
       else if (!to) say(`${rel}: [[${target}]] does not exist`);
-      else if (m[2] && to.endsWith(".md") && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim()))
-        say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
+      else if (m[2] && to.endsWith(".md") && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim())) {
+        // Obsidian anchors are the heading text; a GitHub-style slug of exactly one heading is rewritten to it.
+        const slug = (h: string) => h.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
+        const hits = [...headingsOf(to)].filter((h) => slug(h) === slug(m[2]));
+        if (hits.length === 1) anchors.set("[[" + m[1] + "#" + m[2], "[[" + m[1] + "#" + hits[0]);
+        else say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
+      }
     }
-    if (!fixes.size) continue;
+    if (!fixes.size && !anchors.size) continue;
     let out = raw;
+    for (const [from, to] of anchors) { out = out.split(from).join(to); fixed(`${rel}: ${from}]] -> ${to}]]`); }
     for (const [from, to] of fixes) {
       for (const end of ["]]", "#", "|", "\\|"]) out = out.split("[[" + from + end).join("[[" + to + end);
       fixed(`${rel}: [[${from}]] -> [[${to}]]`);
@@ -419,7 +426,7 @@ if (arg && !all.has(arg)) throw new Error("no issue " + arg);
 if (cmd === "lint") {
   const reports = [];
   for (const issue of scoped.filter(i => !i.archived)) {
-    const report = await refresh(issue, all, dir);
+    const report = await refresh(issue, all, dir, undefined, { done: complete(issue, all) });
     reports.push(report);
     if (!json) console.log(format(report, true));
   }
@@ -458,6 +465,8 @@ if (cmd !== "lint") switch (cmd) {
       if (i.next === "done" && !i.archived) say(`${i.slug}: done but not in archive/`);
       if (i.next && i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
       if (i.next && !KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
+      // Contract and state belong in the body; dated records and evidence belong in attachments and git.
+      if (!i.archived && !complete(i, all) && statSync(i.file).size > 32_000) say(`${i.slug}: body is ${Math.round(statSync(i.file).size / 1000)}KB; keep the contract and current state, move records to attachments`);
       if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; verify ownership before clearing`);
       // Refinement never lowers a spec or ticket: a child that needs shaping leaves the tree with its honest stage.
       const effective = effectiveStage(i, all);
