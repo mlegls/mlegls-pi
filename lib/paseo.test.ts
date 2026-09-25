@@ -45,7 +45,7 @@ test("prepared assignment survives SDK workspace/agent boundary; capacity stays 
   expect(result.submitted[0]).toMatchObject({ backend: "paseo", agentId: "agent-2", workspaceId: "ws-1", path: "/isolated/1" });
   expect(result.pending.map((t: any) => t.handle)).toEqual(["b"]);
   expect(calls[0].source).toMatchObject({ kind: "worktree", action: "branch-off", branchName: "trial/a", baseBranch: task.base });
-  expect(calls[1]).toMatchObject({ config: {provider: "pi/" + task.model, thinkingOptionId: "high"}, parent: "parent-1", title: "trial/a" });
+  expect(calls[1]).toMatchObject({ config: {provider: "pi/" + task.model, thinkingOptionId: "high"}, parent: "parent-1", title: "trial/a", env: { PI_CONNECTOME: "off" } });
   expect(calls[0].requestId).not.toBe(calls[1].requestId);
   expect(calls[1].prompt).toContain(task.prompt);
   expect(calls[1].prompt).toContain("Parent agent ID: parent-1");

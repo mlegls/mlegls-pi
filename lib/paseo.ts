@@ -29,7 +29,7 @@ export interface Workspace { workspaceId: string; cwd: string; isolation: string
 export interface Agent { agentId: string; cwd: string; status: string; provider: string; snapshot: PaseoAgent | null }
 export interface Launch { workspace: Workspace; agent: Agent }
 
-export async function launch(task: { handle: string; model: string; effort: string; base?: string },
+export async function launch(task: { handle: string; model: string; effort: string; base?: string; connectome?: string },
     text: string, options: { run: string; cwd: string; parent?: string }): Promise<Launch> {
   let workspace: Workspace | undefined;
   let agent: Agent | undefined;
@@ -51,6 +51,8 @@ export async function launch(task: { handle: string; model: string; effort: stri
         requestId: requests.agent,
         config: { provider: "pi/" + task.model, thinkingOptionId: task.effort === "none" ? "off" : task.effort },
         parent: (options.parent ?? process.env.PASEO_AGENT_ID) || undefined, title, prompt: text,
+        // Dispatched agents are task-scoped: no connectome life unless the task names one.
+        env: { PI_CONNECTOME: task.connectome ?? "off" },
       });
       agent = { agentId: nativeAgent.id, cwd: nativeAgent.cwd ?? "", status: nativeAgent.status ?? "",
         provider: nativeAgent.current()?.provider ?? "", snapshot: nativeAgent.current() };
