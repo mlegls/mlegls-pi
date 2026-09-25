@@ -18,7 +18,8 @@ export interface Input { ticket: string; cwd: string; owner: string; budget: num
 type Phase = "implement" | "verify" | "supervise";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; waiting?: string; unreachable?: boolean }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
-export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child }
+// Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
+export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]> }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -50,7 +51,7 @@ async function commitRetrying(cwd: string, ...args: string[]) {
   catch (error) { if (attempt >= 5 || !/cannot lock ref|index\.lock/.test(String(error))) throw error; await sleep(1000 * attempt); }
  }
 }
-const caveats = (h: Record<string, unknown> | null) => { const c = h?.caveats; return Array.isArray(c) ? c.length > 0 : !!c && !/^(none|no|\[\])$/i.test(String(c).trim()); };
+const caveats = (h: Record<string, unknown> | null): string[] => { const c = h?.caveats; return Array.isArray(c) ? c.map(x => typeof x === "string" ? x : JSON.stringify(x)) : c && !/^(none|no|\[\])$/i.test(String(c).trim()) ? [String(c)] : []; };
 // Verifier outcomes live under handoff.stories as held/failed/unobservable per story; anything but held needs the owner.
 const unheld = (h: Record<string, unknown> | null) => { const s = JSON.stringify(h?.stories ?? null); return s === "null" || /"(failed|unobservable)"|:\s*"?(failed|unobservable)/i.test(s); };
 // Workers record what they met on the way in prose; digesting it is the owner's, since the loop reads no diffs.
@@ -63,6 +64,8 @@ function residuals(input: Input): string {
   return found.length ? "\nFile each unowned observation as an idea or link its owner; move a log's records to attachments:\n" + found.join("\n") : "";
  } catch (error) { return "\nResidual lint unavailable: " + (error instanceof Error ? error.message : String(error)).slice(0, 300); }
 }
+// Caveats workers reported, for the owner to file as ideas or link to their owners.
+const listCaveats = (all?: Record<string, string[]>) => Object.entries(all ?? {}).map(([slug, cs]) => cs.map(c => slug + ": " + c).join("\n")).join("\n");
 const HANDOFF = "End with the status sentinel and a fenced yaml handoff (agents/_common.md keys). ";
 
 
@@ -70,6 +73,7 @@ export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
  const save = () => job.save(state);
+ const note = (slug: string, found: string[]) => { if (found.length) (state.caveats ??= {})[slug] = [...(state.caveats[slug] ?? []), ...found]; };
  // Wakes are delivered in order; an owner mid-turn ("already has an active run") or a dropped connection
  // defers delivery rather than failing the loop, which keeps handling other children meanwhile.
  let deliveries: Promise<void> = Promise.resolve();
@@ -112,8 +116,9 @@ export async function run(job: JobContext) {
    await commitRetrying(input.cwd, "-qm", "Close " + slug, "--", issue.file);
   }
  };
+ const carried = () => { const l = listCaveats(state.caveats); return l ? "\nCaveats the children reported, integrated anyway; file each as an idea or link its owner:\n" + l : ""; };
  const verifyPrompt = (slug: string, ticket: string, report: string) => ["Verify the ticket below: " + HACK,
-  "Your branch starts at the implementer's commits. First use as the ticket's user; record what you observe; update guides/replays only where the encounter earns them. " + HANDOFF + "stories: each story or promise you checked with held, failed or unobservable; caveats: [] when there are none.",
+  "Your branch starts at the implementer's commits. First use as the ticket's user; record what you observe; update guides/replays only where the encounter earns them. " + HANDOFF + "stories: each story or promise you checked with held, failed or unobservable; caveats: [] when there are none (residuals the loop carries on; a failed story is what stops it).",
   "Ticket " + slug + ":\n\n" + ticket, "Implementer's report:\n\n" + report].join("\n\n");
  const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
   // A commit landing between the rebase and the fast-forward fails the merge; rebasing again settles it.
@@ -166,7 +171,7 @@ export async function run(job: JobContext) {
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
     ? HACK + "\n\nSupervise the subtree of " + i.file + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ": run ab supervise start " + i.slug + " and handle what it wakes you with; end your turn with done when it reports the subtree done.\n\n" + readFileSync(i.file, "utf8")
-    : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + HANDOFF + "commit, setup (how to try it), stories, caveats: [] when there are none.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
+    : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + HANDOFF + "commit, setup (how to try it), stories, caveats: [] when there are none. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
    try { state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle: await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined) }; }
    catch (error) { await wake("could not launch " + i.slug + ": " + error); }
    await save();
@@ -203,11 +208,12 @@ export async function run(job: JobContext) {
   if (c.phase === "supervise" && r.status === null) return;
   if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); return; }
   if (c.phase === "implement") {
-   if (caveats(r.handoff)) await except(c, "done with caveats", end.text);
-   else if (git(c.handle.path, "status", "--porcelain")) await except(c, "done with uncommitted changes", end.text);
+   note(c.slug, caveats(r.handoff));
+   if (git(c.handle.path, "status", "--porcelain")) await except(c, "done with uncommitted changes", end.text);
    else await toVerify(c, end.text);
   } else if (c.phase === "verify") {
-   if (caveats(r.handoff) || unheld(r.handoff)) await except(c, "verification did not hold cleanly", end.text);
+   note(c.slug, caveats(r.handoff));
+   if (unheld(r.handoff)) await except(c, "verification did not hold cleanly", end.text);
    else await integrateChild(c, c.handle);
   } else await integrateChild(c, c.handle);
   })().catch(error => except(c, "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
@@ -216,6 +222,6 @@ export async function run(job: JobContext) {
  const open = snapshot(input).filter(i => i.partOf === input.ticket && !i.done);
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();
- await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide." + residuals(input));
+ await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide." + carried() + residuals(input));
  await deliveries;
 }
