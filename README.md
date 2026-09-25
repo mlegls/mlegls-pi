@@ -4,7 +4,7 @@ Personal exec libraries, skills, prompts, themes, agents, and user-level harness
 
 Exec-facing capabilities install their host integrations through explicit
 `install(host)` exports in `lib/*/host.ts`; obsolete adapters live in
-`extensions/disabled/`. Featherless, fence, system-prompt, and workspace commands remain
+`extensions/disabled/`. Connectome, featherless, fence, system-prompt, and workspace commands remain
 standalone extensions for their Pi-facing commands and providers. See [host libraries](extensions/exec/README.md#host-libraries).
 
 See [Paseo integration](docs/paseo.md) for native agents/workspaces and setup.

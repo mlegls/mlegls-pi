@@ -26,6 +26,7 @@
       "./extensions/exec/index.ts",
       "./extensions/bash/index.ts",
       "./extensions/featherless/index.ts",
+      "./extensions/connectome/index.ts",
       "./extensions/fence/index.ts",
       "./extensions/system-prompt/index.ts",
       "./extensions/workspace/index.ts"
@@ -55,6 +56,9 @@
     "typebox": "1.3.7"
   },
   "dependencies": {
+    "@animalabs/chronicle": "0.4.0",
+    "@animalabs/context-manager": "0.10.1",
+    "@animalabs/membrane": "0.5.86",
     "@getpaseo/client": "0.9.0",
     "jiti": "^2.7.0",
     "typescript": "5",
