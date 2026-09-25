@@ -68,11 +68,22 @@ export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
  const save = () => job.save(state);
+ // Wakes are delivered in order; an owner mid-turn ("already has an active run") or a dropped connection
+ // defers delivery rather than failing the loop, which keeps handling other children meanwhile.
+ let deliveries: Promise<void> = Promise.resolve();
+ const deliver = async (message: string) => {
+  for (let attempt = 1; !job.signal.aborted; attempt++) {
+   try { return await children.send(input.owner, message); }
+   catch (error) {
+    if (attempt === 1 || attempt % 10 === 0) job.log("wake deferred (" + attempt + "): " + error);
+    await sleep(Math.min(60_000, 5000 * attempt), job.signal);
+   }
+  }
+ };
  const wake = async (text: string) => {
   const message = "supervise " + input.ticket + " (job " + job.id + "): " + text;
   state.metrics.wakes++; state.metrics.ownerBytes += Buffer.byteLength(message);
-  try { await children.send(input.owner, message); }
-  catch (error) { job.log("wake not delivered: " + error + "\n" + message.slice(0, 500)); }
+  deliveries = deliveries.then(() => deliver(message));
   await save();
  };
  const except = async (c: Child, reason: string, text = "") => {
@@ -201,7 +212,8 @@ export async function run(job: JobContext) {
  }
  if (job.signal.aborted) return;
  const open = snapshot(input).filter(i => i.partOf === input.ticket && !i.done);
- if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); return; }
+ if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();
  await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide." + residuals(input));
+ await deliveries;
 }
