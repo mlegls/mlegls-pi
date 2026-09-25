@@ -51,8 +51,9 @@ export async function launch(task: { handle: string; model: string; effort: stri
         requestId: requests.agent,
         config: { provider: "pi/" + task.model, thinkingOptionId: task.effort === "none" ? "off" : task.effort },
         parent: (options.parent ?? process.env.PASEO_AGENT_ID) || undefined, title, prompt: text,
-        // Dispatched agents are task-scoped: no connectome life unless the task names one.
-        env: { PI_CONNECTOME: task.connectome ?? "off" },
+        // Dispatched agents are task-scoped: their own per-session life unless the task names one.
+        // Explicit, so a project's connectome.identity doesn't pull every worker into a shared life.
+        env: { PI_CONNECTOME: task.connectome ?? "@session" },
       });
       agent = { agentId: nativeAgent.id, cwd: nativeAgent.cwd ?? "", status: nativeAgent.status ?? "",
         provider: nativeAgent.current()?.provider ?? "", snapshot: nativeAgent.current() };

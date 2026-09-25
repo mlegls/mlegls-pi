@@ -16,7 +16,7 @@ For example, keep `supervisor` (remembers past failures) and `main` (design) per
 The name is resolved at session start and the life opens at the first model call. Precedence:
 
 1. An in-session choice: `/connectome use <name>`, `/connectome off`, `/connectome default` (falls back to 2–4). It is persisted in the session, so resume keeps it. Messages already mirrored into the previous life stay there; the new life takes in the session's whole branch.
-2. `PI_CONNECTOME` from whoever launched pi: a name, or `off`. Paseo dispatch (`lib/paseo.ts`) sets `off` unless the task names a life, because dispatched agents are task-scoped.
+2. `PI_CONNECTOME` from whoever launched pi: a name, `@session`, or `off`. Paseo dispatch (`lib/paseo.ts`) sets `@session` unless the task names a life, because dispatched agents are task-scoped.
 3. `connectome.identity` in settings.
 4. `@session`.
 
