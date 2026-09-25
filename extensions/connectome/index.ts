@@ -1,13 +1,13 @@
 // connectome: Anima Labs' context-manager (https://github.com/anima-research/context-manager)
 // as pi's memory/compaction backend. Every message pi would send is mirrored into a
-// Chronicle store that belongs to an identity rather than a session,
+// Chronicle store (a "life"): by default one per session, or a named one shared across sessions,
 // and each LLM call's messages are replaced with the store's compiled view: recent history
 // verbatim, older history as first-person memories the agent's own model wrote
 // (AutobiographicalStrategy, kv-stable folding). pi's own compaction is cancelled.
 //
 // Settings ("connectome" in ~/.pi/agent/settings.json or <cwd>/.pi/settings.json):
 //   identity      default life name (see README: lives are <project>/<name>/<model>; precedence is
-//                 /connectome use, PI_CONNECTOME, this, then "main")
+//                 /connectome use, PI_CONNECTOME, this, then "@session": a life of this session only)
 //   dir           store root; default ~/.pi/agent/connectome
 //   agentName     participant name memories are voiced as; default "Assistant"
 //   budgetRatio   fraction of the model's context window the prompt (system, tools, view) may use; default 0.5
@@ -279,23 +279,30 @@ export default function (pi: ExtensionAPI) {
 	 *  before then never touches the default life. */
 	let wanted: string | null = null;
 	let lastCtx: ExtensionContext | undefined;
-	const DEFAULT_NAME = "main";
+	/** The default: a life that belongs to this session only (resume keeps it; /new starts another). */
+	const SESSION = "@session";
+	const SESSIONS_DIR = "_sessions";
 
 	const CHOICE = "connectome-identity";
 
 	/** Precedence: an in-session choice (persisted in the session, so resume keeps it), then
-	 *  PI_CONNECTOME from whoever launched pi ("off" or a name), then settings, then "main". */
+	 *  PI_CONNECTOME from whoever launched pi ("off" or a name), then settings, then this session's own life. */
 	const resolve = (ctx: ExtensionContext): string | null => {
 		settings = readSettings(ctx.cwd);
 		const chosen = ctx.sessionManager
 			.getEntries()
 			.filter((e: any) => e.type === "custom" && e.customType === CHOICE)
 			.at(-1) as any;
-		if (chosen) return chosen.data?.identity ?? null;
+		// `/connectome default` records { default: true }: fall through as if nothing was chosen
+		if (chosen && !chosen.data?.default) return chosen.data?.identity ?? null;
+		return fallback();
+	};
+	/** What a session gets without an in-session choice. */
+	const fallback = (): string | null => {
 		const env = process.env.PI_CONNECTOME;
 		if (env) return env === "off" ? null : env;
 		if (settings.enabled === false) return null;
-		return settings.identity ?? DEFAULT_NAME;
+		return settings.identity ?? SESSION;
 	};
 
 	/** The project is the git common dir's parent, so worktrees of one repo share lives. */
@@ -311,12 +318,14 @@ export default function (pi: ExtensionAPI) {
 	const storeRoot = () => settings.dir ?? join(homedir(), ".pi", "agent", "connectome");
 
 	/** <root>/<project>/<name>/<model>; a name starting with "/" is project-independent:
-	 *  <root>/_global/<name>/<model>. */
+	 *  <root>/_global/<name>/<model>; "@session" is <root>/<project>/_sessions/<session id>/<model>. */
 	const lifePath = (ctx: ExtensionContext, name: string) => {
 		const model = slug(ctx.model?.id ?? "model");
 		return name.startsWith("/")
 			? join(storeRoot(), "_global", name.slice(1), model)
-			: join(storeRoot(), projectDir(ctx), name, model);
+			: name === SESSION
+				? join(storeRoot(), projectDir(ctx), SESSIONS_DIR, slug(ctx.sessionManager.getSessionId()), model)
+				: join(storeRoot(), projectDir(ctx), name, model);
 	};
 
 	const release = async (l: Life) => {
@@ -545,20 +554,20 @@ export default function (pi: ExtensionAPI) {
 			if (!prefix.includes(" "))
 				return ["use ", "off", "default", "list"].filter((v) => v.startsWith(verb)).map((v) => ({ value: v, label: v.trim() }));
 			if (verb !== "use") return null;
-			return listNames(lastCtx)
+			return [{ name: SESSION, models: [] as string[] }, ...listNames(lastCtx)]
 				.filter((n) => n.name.startsWith(arg))
-				.map((n) => ({ value: `use ${n.name}`, label: n.name, description: n.models.join(", ") }));
+				.map((n) => ({ value: `use ${n.name}`, label: n.name, description: n.name === SESSION ? "this session only" : n.models.join(", ") }));
 		},
 		handler: async (args, ctx) => {
 			const [verb, arg] = args.trim().split(/\s+/, 2);
 			if (verb === "list")
 				return ctx.ui.notify(listNames(ctx).map((n) => `${n.name}  (${n.models.join(", ")})`).join("\n") || "(no lives yet)", "info");
 			if (verb === "use" || verb === "off" || verb === "default") {
-				const next = verb === "off" ? null : verb === "default" ? DEFAULT_NAME : arg;
+				const next = verb === "off" ? null : verb === "default" ? ((settings = readSettings(ctx.cwd)), fallback()) : arg;
 				if (verb === "use" && !arg) return ctx.ui.notify("usage: /connectome use <name>", "warning");
 				// Messages already mirrored into the previous life stay there; the new life takes in
 				// this session's whole branch at its next call.
-				pi.appendEntry(CHOICE, { identity: next });
+				pi.appendEntry(CHOICE, verb === "default" ? { default: true } : { identity: next });
 				const prev = life;
 				life = undefined;
 				wanted = next;
@@ -596,7 +605,8 @@ export default function (pi: ExtensionAPI) {
 			if (models.length) out.push({ name: prefix + rel, models });
 			if (depth < 3) for (const n of ls(dir)) if (!models.includes(n)) walk(base, rel ? `${rel}/${n}` : n, prefix, depth + 1);
 		};
-		if (ctx) walk(join(storeRoot(), projectDir(ctx)), "", "", 0);
+		// per-session lives are reachable only as @session from their own session
+		if (ctx) for (const n of ls(join(storeRoot(), projectDir(ctx)))) if (n !== SESSIONS_DIR) walk(join(storeRoot(), projectDir(ctx)), n, "", 1);
 		walk(join(storeRoot(), "_global"), "", "/", 0);
 		return out.filter((n) => n.name && n.name !== "/").sort((a, b) => a.name.localeCompare(b.name));
 	};
