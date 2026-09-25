@@ -33,4 +33,4 @@ See [Featherless](extensions/featherless/README.md) for automatic model discover
 
 ## User skills, agents, prompts
 
-User skills live under `skills/{enabled,disabled}/{all,claude,codex,pi}`, worker agents under `agents/`, and shared harness prompts under `agent-prompts/`. `~/.config/system-config` keeps symlinks to those trees; `scripts/agents-apply.sh` there installs them into Claude, Codex, and Pi. Package skills are only `skills/pi` and `skills/mlegls-pi`, so the enabled/disabled trees are not also loaded as package skills.
+User skills live under `skills/{enabled,disabled}/{all,claude,codex,pi}`, worker agents under `agents/`, and shared harness prompts under `agent-prompts/`. `~/.config/system-config` keeps symlinks to those trees; `scripts/agents-apply.sh` there installs them into Claude, Codex, and Pi. Package skills are only `skills/enabled/pi/pi` and `skills/enabled/pi/mlegls-pi`; the enabled/disabled trees are not also loaded as package skills. Keep `package.json` valid JSON: Pi falls back to scanning all of `skills/` if it cannot parse the manifest.
