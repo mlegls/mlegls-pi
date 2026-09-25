@@ -1,5 +1,5 @@
 // Per-user process hosting restartable, named jobs. The Unix socket is local IPC only.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { createConnection, createServer, type Socket } from "node:net";
@@ -32,12 +32,25 @@ const DAEMON_ENTRY = join(ROOT, "ab/daemon.ts");
 const JOBS_DIR = join(ROOT, "lib/jobs");
 const CONNECT_TIMEOUT = 5000;
 const START_TIMEOUT = 15000;
+const OWNER_PATIENCE = 20000;
 
 function stateRoot(): string {
   return resolve(process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab"));
 }
 function socketPath(): string { return join(stateRoot(), "daemon.sock"); }
 function indexPath(): string { return join(stateRoot(), "jobs.json"); }
+function pidPath(): string { return join(stateRoot(), "daemon.pid"); }
+/** PID in daemon.pid when that process is still an ab daemon; guards against PID reuse. */
+function liveOwner(): number | undefined {
+  let pid: number;
+  try { pid = Number(readFileSync(pidPath(), "utf8").trim()); } catch { return undefined; }
+  if (!Number.isInteger(pid) || pid <= 0) return undefined;
+  try {
+    const command = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" });
+    return command.includes(DAEMON_ENTRY) ? pid : undefined;
+  } catch { return undefined; }
+}
+const sleep = (ms: number) => new Promise(resolveWait => setTimeout(resolveWait, ms));
 function encode(value: unknown): string {
   const text = JSON.stringify(value);
   if (text === undefined) throw new Error("job data must be JSON-serializable");
@@ -89,6 +102,17 @@ export async function ensure(): Promise<void> {
   ensureDirectory(root);
   try { chmodSync(root, 0o700); } catch {}
   if (await isLive()) return;
+  // A slow daemon (e.g. under memory pressure) must not be replaced while it still owns the
+  // socket: that orphans it with its jobs still running. Wait, then restart it explicitly.
+  const owner = liveOwner();
+  if (owner !== undefined) {
+    const patience = Date.now() + OWNER_PATIENCE;
+    while (Date.now() < patience) { if (await isLive()) return; await sleep(250); }
+    try { process.kill(owner, "SIGTERM"); } catch {}
+    for (let i = 0; i < 40 && liveOwner() === owner; i++) await sleep(50);
+    if (liveOwner() === owner) try { process.kill(owner, "SIGKILL"); } catch {}
+    for (let i = 0; i < 40 && liveOwner() === owner; i++) await sleep(50);
+  }
   const lock = join(root, "daemon.starting");
   const token = randomUUID();
   const deadline = Date.now() + START_TIMEOUT;
@@ -189,6 +213,11 @@ export async function runDaemon(): Promise<void> {
   let writeQueue = Promise.resolve();
   let stopping = false;
 
+  const owner = liveOwner();
+  if (owner !== undefined && owner !== process.pid) {
+    console.error("ab daemon: " + owner + " already owns " + socket + "; exiting");
+    process.exit(0);
+  }
   if (existsSync(index)) {
     const files = JSON.parse(readFileSync(index, "utf8")) as string[];
     if (!Array.isArray(files)) throw new Error("invalid ab daemon job index");
@@ -277,6 +306,8 @@ export async function runDaemon(): Promise<void> {
   const loaded = [...records.values()].filter(record => record.status === "running");
   const server = createServer((client: Socket) => {
     let buffer = "";
+    // Clients time out and hang up; a late reply must not crash the daemon with EPIPE.
+    client.on("error", () => {});
     client.on("data", chunk => {
       buffer += chunk.toString();
       if (buffer.length > 4 * 1024 * 1024) { client.end(encode({ ok: false, error: "request too large" }) + "\n"); return; }
@@ -302,7 +333,11 @@ export async function runDaemon(): Promise<void> {
     server.listen(socket, () => { server.removeListener("error", reject); resolveListen(); });
   });
   try { chmodSync(socket, 0o600); } catch {}
-  process.once("exit", () => { try { unlinkSync(socket); } catch {} });
+  writeFileSync(pidPath(), String(process.pid) + "\n", { mode: 0o600 });
+  const owns = () => { try { return Number(readFileSync(pidPath(), "utf8").trim()) === process.pid; } catch { return false; } };
+  process.once("exit", () => { if (owns()) { try { unlinkSync(socket); } catch {} try { unlinkSync(pidPath()); } catch {} } });
+  // Replaced by another daemon (its pidfile overwrote ours): exit rather than run jobs twice.
+  setInterval(() => { if (!owns()) { console.error("ab daemon: " + process.pid + " lost ownership; exiting"); process.exit(0); } }, 10_000).unref();
   process.once("SIGTERM", () => process.exit(0));
   for (const record of loaded) runJob(record);
 }
