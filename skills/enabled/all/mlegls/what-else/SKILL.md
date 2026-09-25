@@ -8,3 +8,5 @@ two passes over this session.
 first: what did we build, say, or decide that already has a name/source?
 
 second: what else is there that it seems like i probably don't know about, that's relevant to what we've talked about, or that i might like in general?
+
+before calling anything new, grep the project's docs for its name and neighbours: a prior research or evidence file may already cite it. say what's already there, then only what isn't.
