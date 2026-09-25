@@ -14,7 +14,7 @@ const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
 const stateDir = process.env.AB_SESSION_STATE ?? process.env.AB_STATE ?? join(abStateRoot, createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise"];
+const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise", "tree"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -178,6 +178,21 @@ async function job(args: string[]) {
 
 // Supervision loop (lib/jobs/supervise.ts) run by the daemon for the owning agent. State and
 // the owner's resume commands live under the checkout's git dir, keyed by ticket.
+// Session views over lib/tree: every pi session with its parent, project and live state.
+async function tree(args: string[]) {
+	const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
+		mode: { type: "string", short: "m", default: "tree" }, all: { type: "boolean", short: "a" },
+		json: { type: "boolean" }, days: { type: "string" }, hours: { type: "string" } } });
+	const { graph } = await import("../lib/tree/graph.ts");
+	const view = await import("../lib/tree/view.ts");
+	const nodes = await graph({ days: values.days ? Number(values.days) : undefined });
+	const mode = values.mode as "tree" | "projects" | "status";
+	if (!["tree", "projects", "status"].includes(mode)) fail("mode must be tree, projects or status");
+	const rows = view.rows(nodes, mode, { query: positionals.join(" "), all: values.all, hours: values.hours ? Number(values.hours) : undefined });
+	if (values.json) for (const r of rows) console.log(JSON.stringify(r.kind === "header" ? r : { ...r, node: { ...r.node, children: undefined, lastText: undefined } }));
+	else for (const r of rows) console.log(view.line(r));
+}
+
 async function supervise(args: string[]) {
 	const api = await import("../lib/daemon.ts");
 	const [verb, given, ...rest] = args;
@@ -260,7 +275,7 @@ async function lib(args: string[]) {
 const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
-const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise };
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, tree, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
 catch (error) { fail(error instanceof Error ? error.message : String(error)); }

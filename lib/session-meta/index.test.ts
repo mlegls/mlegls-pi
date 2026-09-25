@@ -66,3 +66,9 @@ describe("extension", () => {
 		});
 	});
 });
+describe("invokedBy", () => {
+	test("records the calling session for headless children, not for wm workers", () => {
+		expect(spawnMeta({ PI_SESSION_ID: "parent" })).toEqual({ invokedBy: "parent" });
+		expect(spawnMeta({ PI_SESSION_ID: "parent", PI_WM_RUN: "r", PI_WM_HANDLE: "h" })).toEqual({ run: "r", handle: "h", agent: undefined, parentSession: undefined });
+	});
+});

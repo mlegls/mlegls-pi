@@ -8,7 +8,8 @@
 // read customType "session-meta" instead of inferring workers from directory names; a
 // resumed session keeps the entry it already has.
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { removeLive, writeLive } from "./live";
 
 export const SPAWN_META = "session-meta";
 
@@ -18,6 +19,8 @@ export interface SpawnMeta {
 	handle?: string;
 	parentSession?: string;
 	paseoAgent?: string;
+	/** Session whose tool call started this pi (PI_SESSION_ID from the bash tool's env): headless children. */
+	invokedBy?: string;
 }
 
 /** Spawn provenance from wm's or Paseo's env, or undefined in sessions neither spawned. */
@@ -26,16 +29,33 @@ export function spawnMeta(env: Record<string, string | undefined> = process.env)
 	const handle = env.PI_WM_HANDLE;
 	const wm = run && handle ? { run, handle, agent: env.PI_WM_AGENT, parentSession: env.PI_WM_PARENT_SESSION } : undefined;
 	const paseoAgent = env.PASEO_AGENT_ID || undefined;
-	return paseoAgent ? { ...wm, paseoAgent } : wm;
+	const invokedBy = !wm && env.PI_SESSION_ID ? env.PI_SESSION_ID : undefined;
+	if (!wm && !paseoAgent && !invokedBy) return undefined;
+	return { ...wm, ...(paseoAgent && { paseoAgent }), ...(invokedBy && { invokedBy }) };
 }
 
 export function install(pi: ExtensionAPI) {
 	const meta = spawnMeta();
-	if (!meta) return;
-	pi.on("session_start", (_event, ctx) => {
-		const recorded = ctx.sessionManager.getBranch().some((entry) => entry.type === "custom" && entry.customType === SPAWN_META);
+	let ctx: ExtensionContext | undefined;
+	const live = (state: "working" | "idle") => {
+		if (!ctx) return;
+		const sm = ctx.sessionManager;
+		try {
+			writeLive({ pid: process.pid, sessionId: sm.getSessionId(), sessionFile: sm.getSessionFile(), cwd: sm.getCwd(), state,
+				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, paseoAgent: process.env.PASEO_AGENT_ID });
+		} catch {}
+	};
+	pi.on("session_start", (_event, c) => {
+		ctx = c;
+		live("idle");
+		if (!meta) return;
+		const recorded = c.sessionManager.getBranch().some((entry) => entry.type === "custom" && entry.customType === SPAWN_META);
 		if (!recorded) pi.appendEntry(SPAWN_META, meta);
 	});
+	pi.on("agent_start", () => live("working"));
+	pi.on("agent_end", () => live("idle"));
+	pi.on("session_shutdown", () => removeLive());
+	process.once("exit", () => removeLive());
 }
 
 export { install as default };
