@@ -78,12 +78,14 @@ function addedLines(root: string, ref: string): Map<string, Set<number>> {
 
 export function extract(root: string, tsconfigs: string[], sinceRef?: string): Span[] {
   const ts: typeof TS = createRequire(resolve(root, "package.json"))("typescript");
+  const added = sinceRef === undefined ? undefined : addedLines(root, sinceRef);
+  // Building the programs is the whole cost (GBs on a mid-size repo); skip it when no TS changed.
+  if (added && ![...added.keys()].some((f) => /\.tsx?$/.test(f))) return [];
   const programs = tsconfigs.map((tsconfig) => {
     const config = ts.readConfigFile(resolve(root, tsconfig), ts.sys.readFile);
     const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, resolve(root, tsconfig, ".."));
     return ts.createProgram(parsed.fileNames, parsed.options);
   });
-  const added = sinceRef === undefined ? undefined : addedLines(root, sinceRef);
   const notes = conceptNotes(root);
   const spans: Span[] = [];
   const seen = new Set<string>();

@@ -6,7 +6,8 @@
 // advisory: one line per finding above 0.5, highest first, plus static findings, which need no
 // judgment. Nothing here fails; the reader decides what is worth a look.
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { extract } from "./extract";
 import { drift } from "./drift";
@@ -21,7 +22,31 @@ const tsconfigs = ["tsconfig.json", ...(existsSync(join(root, "packages")) ? rea
   .filter((t) => existsSync(join(root, t)));
 if (tsconfigs.length === 0) throw new Error(`no tsconfig.json under ${root}`);
 
+// Agents tend to finish together, and each extract type-checks whole programs (~2.5 GB on a
+// mid-size repo), so extraction takes one of JEV_LINT_SLOTS (default 1) machine-wide slots.
+async function slot(): Promise<() => void> {
+  const dir = join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "jev-lint", "slots");
+  mkdirSync(dir, { recursive: true });
+  const slots = Number(process.env.JEV_LINT_SLOTS ?? 1);
+  for (;;) {
+    for (let i = 0; i < slots; i++) {
+      const path = join(dir, String(i));
+      try {
+        writeFileSync(path, String(process.pid), { flag: "wx" });
+        const release = () => { try { unlinkSync(path); } catch {} };
+        process.once("exit", release);
+        return release;
+      } catch {
+        try { process.kill(Number(readFileSync(path, "utf8")), 0); } catch { try { unlinkSync(path); } catch {} }
+      }
+    }
+    await Bun.sleep(1000);
+  }
+}
+const release = await slot();
 const spans = extract(root, tsconfigs, sinceRef);
+release();
+Bun.gc(true);
 const [findings, drifts] = await Promise.all([judgeAll(spans), drift(root, sinceRef)]);
 const line = (f: Finding, q: string, p: number) => `${p.toFixed(2)} ${f.kind}/${q} ${f.file}:${f.line}  ${f.text.replace(/\s+/g, " ").slice(0, 100)}`;
 
