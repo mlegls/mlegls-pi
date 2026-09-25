@@ -1,12 +1,13 @@
 // connectome: Anima Labs' context-manager (https://github.com/anima-research/context-manager)
 // as pi's memory/compaction backend. Every message pi would send is mirrored into a
-// Chronicle store that belongs to an identity (default: one per cwd) rather than a session,
+// Chronicle store that belongs to an identity rather than a session,
 // and each LLM call's messages are replaced with the store's compiled view: recent history
 // verbatim, older history as first-person memories the agent's own model wrote
 // (AutobiographicalStrategy, kv-stable folding). pi's own compaction is cancelled.
 //
 // Settings ("connectome" in ~/.pi/agent/settings.json or <cwd>/.pi/settings.json):
-//   identity      store name; default derived from cwd. Same identity = same continuing life.
+//   identity      store name (see README for precedence: /connectome use, PI_CONNECTOME, this,
+//                 then <repo>/<model>). Same identity = same continuing life.
 //   dir           store root; default ~/.pi/agent/connectome
 //   agentName     participant name memories are voiced as; default "Assistant"
 //   budgetRatio   fraction of the model's context window the prompt (system, tools, view) may use; default 0.5
@@ -22,9 +23,10 @@ import { convertToLlm, sessionEntryToContextMessages } from "@earendil-works/pi-
 import type { AssistantMessage, Message, ToolResultMessage, UserMessage } from "@earendil-works/pi-ai";
 import { AutobiographicalStrategy, ContextManager, OverBudgetError } from "@animalabs/context-manager";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { execFileSync } from "node:child_process";
 
 type Block = any; // membrane ContentBlock
 type NMessage = { participant: string; content: Block[] };
@@ -252,13 +254,53 @@ export default function (pi: ExtensionAPI) {
 	let life: Life | undefined;
 	let settings: Settings = {};
 	let warned = false;
+	/** identity this session should live in; null = off. Resolved at session start, opened lazily
+	 *  at the first LLM call so a `/connectome use` before then never touches the default life. */
+	let wanted: string | null = null;
 
-	const open = async (ctx: ExtensionContext) => {
+	const CHOICE = "connectome-identity";
+
+	/** Precedence: an in-session choice (persisted in the session, so resume keeps it), then
+	 *  PI_CONNECTOME from whoever launched pi ("off" or an identity), then settings, then
+	 *  <repo>/<model>. The repo is the git common dir, so worktrees of one repo share a life. */
+	const resolve = (ctx: ExtensionContext): string | null => {
 		settings = readSettings(ctx.cwd);
-		if (settings.enabled === false) return;
-		const identity = settings.identity ?? slug(ctx.cwd);
-		const root = settings.dir ?? join(homedir(), ".pi", "agent", "connectome");
-		const path = join(root, identity);
+		const chosen = ctx.sessionManager
+			.getEntries()
+			.filter((e: any) => e.type === "custom" && e.customType === CHOICE)
+			.at(-1) as any;
+		if (chosen) return chosen.data?.identity ?? null;
+		const env = process.env.PI_CONNECTOME;
+		if (env) return env === "off" ? null : env;
+		if (settings.enabled === false) return null;
+		return settings.identity ?? defaultIdentity(ctx);
+	};
+
+	const defaultIdentity = (ctx: ExtensionContext) => {
+		let root = ctx.cwd;
+		try {
+			const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: ctx.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+			root = dirname(common);
+		} catch {}
+		return `${slug(root)}/${ctx.model?.id ?? "model"}`;
+	};
+
+	const storeRoot = () => settings.dir ?? join(homedir(), ".pi", "agent", "connectome");
+
+	const release = async (l: Life) => {
+		for (const ac of l.holder.aborts) ac.abort();
+		for (let i = 0; i < 50 && l.cm.getPendingWork(); i++) await new Promise((r) => setTimeout(r, 100));
+		LIVES.delete(l.path);
+		try {
+			l.cm.close();
+		} catch {}
+	};
+
+	const showStatus = (ctx: ExtensionContext) =>
+		ctx.ui.setStatus?.("connectome", wanted ? `◈ ${wanted.split("/").map((s) => s.slice(-20)).join("/")}${life ? "" : " …"}` : "◇ off");
+
+	const activate = async (ctx: ExtensionContext, identity: string) => {
+		const path = join(storeRoot(), identity);
 		const agentName = settings.agentName ?? "Assistant";
 		let l = LIVES.get(path);
 		if (!l) {
@@ -284,6 +326,8 @@ export default function (pi: ExtensionAPI) {
 				cm = await ContextManager.open({ path: join(path, "store"), strategy, membrane: membraneFor(holder) as any });
 			} catch (e) {
 				ctx.ui.notify(`connectome: can't open ${path} (${(e as Error).message}); using pi's own context this session`, "warning");
+				wanted = null;
+				showStatus(ctx);
 				return;
 			}
 			LIB_LOG.path = join(path, "lib.log");
@@ -294,7 +338,7 @@ export default function (pi: ExtensionAPI) {
 		l.holder.ctx = ctx;
 		l.holder.pi = pi;
 		life = l;
-		ctx.ui.setStatus?.("connectome", `◈ ${identity.slice(-24)}`);
+		showStatus(ctx);
 	};
 
 	/** Rebuild id/original maps from the store's current branch. */
@@ -343,7 +387,9 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	pi.on("session_start", async (_e, ctx) => {
-		await open(ctx);
+		life = undefined;
+		wanted = resolve(ctx);
+		showStatus(ctx);
 	});
 
 	const trace = (l: Life, o: Record<string, unknown>) => {
@@ -352,8 +398,9 @@ export default function (pi: ExtensionAPI) {
 		} catch {}
 	};
 	pi.on("context", async (event, ctx) => {
-		const l = life;
 		const model = ctx.model;
+		if (!life && wanted && model) await activate(ctx, wanted);
+		const l = life;
 		if (!l || !model) return;
 		l.holder.ctx = ctx;
 		try {
@@ -399,11 +446,11 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	// Chronicle owns forgetting; pi's compaction would summarize a view we already replace.
 	// the final reply of a run has no following LLM call to carry it in
 	pi.on("agent_end", async (_e, ctx) => {
 		if (life) ingest(life, ctx);
 	});
+	// Chronicle owns forgetting; pi's compaction would summarize a view we already replace.
 	pi.on("session_before_compact", async () => (life ? { cancel: true } : undefined));
 
 	// /tree navigation = time travel in the life: branch the store at the newest message the
@@ -429,29 +476,65 @@ export default function (pi: ExtensionAPI) {
 		const l = life;
 		life = undefined;
 		if (!l || e.reason !== "quit") return; // keep the store open across /new, /resume, /reload
-		for (const ac of l.holder.aborts) ac.abort();
-		for (let i = 0; i < 50 && l.cm.getPendingWork(); i++) await new Promise((r) => setTimeout(r, 100));
-		LIVES.delete(l.path);
-		try {
-			l.cm.close();
-		} catch {}
+		await release(l);
 	});
 
 	pi.registerCommand("connectome", {
-		description: "connectome memory: store, sizes, summaries, pending work",
-		handler: async (_args, ctx) => {
+		description: "connectome memory: status | use <identity> | off | default | list",
+		getArgumentCompletions: (prefix) => {
+			const [verb, arg = ""] = prefix.split(/\s+/, 2);
+			if (!prefix.includes(" "))
+				return ["use ", "off", "default", "list"].filter((v) => v.startsWith(verb)).map((v) => ({ value: v, label: v.trim() }));
+			if (verb !== "use") return null;
+			return listIdentities()
+				.filter((id) => id.startsWith(arg))
+				.map((id) => ({ value: `use ${id}`, label: id }));
+		},
+		handler: async (args, ctx) => {
+			const [verb, arg] = args.trim().split(/\s+/, 2);
+			if (verb === "list") return ctx.ui.notify(listIdentities().join("\n") || "(no lives yet)", "info");
+			if (verb === "use" || verb === "off" || verb === "default") {
+				const next = verb === "off" ? null : verb === "default" ? defaultIdentity(ctx) : arg;
+				if (verb === "use" && !arg) return ctx.ui.notify("usage: /connectome use <identity>", "warning");
+				// Messages already mirrored into the previous life stay there; the new life takes in
+				// this session's whole branch at its next call.
+				pi.appendEntry(CHOICE, { identity: next });
+				const prev = life;
+				life = undefined;
+				wanted = next;
+				if (prev && prev.path !== (next && join(storeRoot(), next))) await release(prev);
+				showStatus(ctx);
+				return ctx.ui.notify(next ? `connectome: this session now lives in ${next}` : "connectome: off for this session", "info");
+			}
 			const l = life;
-			if (!l) return ctx.ui.notify("connectome: inactive this session", "info");
-			const s: any = l.cm.stats();
+			if (!l) return ctx.ui.notify(`connectome: ${wanted ? `${wanted} (opens at the next model call)` : "off"} this session`, "info");
 			const lines = [
+				`identity ${wanted}`,
 				`store ${l.path}`,
 				`branch ${l.cm.currentBranch().name}  messages ${l.cm.getMessageCount()}  max summary level ${l.cm.getMaxSummaryLevel()}`,
 				`pending ${l.cm.getPendingWork()?.description ?? "none"}`,
-				`stats ${JSON.stringify(s)}`,
 				`render ${JSON.stringify(l.cm.getRenderStats())}`,
 				`memory-write log ${l.holder.log}`,
 			];
 			ctx.ui.notify(lines.join("\n"), "info");
 		},
 	});
+
+	/** Identities are store directories under the root, possibly nested (<repo>/<model>). */
+	const listIdentities = (): string[] => {
+		const root = storeRoot();
+		const out: string[] = [];
+		const walk = (rel: string, depth: number) => {
+			let names: string[] = [];
+			try {
+				names = readdirSync(join(root, rel));
+			} catch {
+				return;
+			}
+			if (names.includes("store")) return void out.push(rel);
+			if (depth < 3) for (const n of names) walk(rel ? `${rel}/${n}` : n, depth + 1);
+		};
+		walk("", 0);
+		return out.sort();
+	};
 }
