@@ -203,10 +203,6 @@ test("subtree readiness, assignment, dependencies, scheduling and review remain 
 
 test("legacy is readable but never translated; selectors and structural omissions fail closed", () => {
   put("legacy", frontmatter("next: implement"));
-  writeFileSync(join(dir, "docs/issues/sent.md"), t(""));
-  mkdirSync(join(dir, ".git/ab-dispatch"));
-  writeFileSync(join(dir, ".git/ab-dispatch/r-sent.json"), JSON.stringify({ run: "root", handle: "w", issue: "sent", path: dir + "-wt2", agent: "fedcba987654" }));
-  writeFileSync(join(dir, ".git/ab-dispatch/r-gone.json"), JSON.stringify({ run: "root", handle: "g", issue: "free", path: dir + "-nowhere", agent: "x" }));
   const snap = JSON.parse(run("frontier --json").out);
   expect(snap.legacy.map((i: any) => i.slug)).toContain("legacy");
   expect(snap.issues.map((i: any) => i.slug)).not.toContain("legacy");
@@ -299,6 +295,10 @@ test("work in flight elsewhere leaves the frontier: supervise children, closes o
   job("dead", "failed", "orphan");
   job("dropped", "running", "unhosted");
   writeFileSync(join(dir, "docs/issues/unhosted.md"), t(""));
+  writeFileSync(join(dir, "docs/issues/sent.md"), t(""));
+  mkdirSync(join(dir, ".git/ab-dispatch"));
+  writeFileSync(join(dir, ".git/ab-dispatch/r-sent.json"), JSON.stringify({ run: "root", handle: "w", issue: "sent", path: dir + "-wt2", agent: "fedcba987654" }));
+  writeFileSync(join(dir, ".git/ab-dispatch/r-gone.json"), JSON.stringify({ run: "root", handle: "g", issue: "free", path: dir + "-nowhere", agent: "x" }));
   const state = mkdtempSync(join(tmpdir(), "ab-state-"));
   writeFileSync(join(state, "jobs.json"), JSON.stringify(["live", "dead"].map(id => join(dir, ".git/ab-supervise", id + ".json"))));
   const snap = JSON.parse(Bun.spawnSync([process.execPath, cli, "snapshot", "--json"], { cwd: dir, env: { ...process.env, AB_STATE: state } }).stdout.toString()).issues;
