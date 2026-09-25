@@ -30,7 +30,7 @@ Besides other issues, an issue can be blocked by a time or a condition, written 
 
 Priority is local and never inherited: 1 urgent, 2 main, 3 nice to have, 4 deferred. Absent means unknown, sorted after main and before nice. Deferred subtrees are excluded from automatic selection unless explicitly scoped. Deferral is preference, not a fake dependency; missing impact evidence is uncertainty, not minor severity.
 
-Author is immutable nonempty provenance. New capture uses `session:<id>` or `user:<name>`; preserve historical values verbatim. Capture the originating session for new observations; omit unknown historical authors.
+Author is immutable nonempty provenance. New capture uses `session:<id>` or `user:<name>`; preserve historical values verbatim. The current session's id is `$PI_SESSION_ID` in agent shells; a session forked or continued from another has its own id, so read the variable rather than reusing one from context. Capture the originating session for new observations; omit unknown historical authors.
 
 Assignment is local, never inherited, and independent of readiness:
 

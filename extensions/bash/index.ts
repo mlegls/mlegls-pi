@@ -55,6 +55,7 @@ interface Job {
 export default function (pi: ExtensionAPI) {
 	if (process.env.PI_TOOL_MODE !== "bash") return;
 	let state = join(tmpdir(), "ab-" + process.pid);
+	let sessionId: string | undefined;
 	let next = 1;
 	let late: { job: Job; code: number | string }[] = [];
 	let busy = false;
@@ -72,6 +73,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		const file = ctx.sessionManager.getSessionFile();
 		state = file ? file.replace(/\.jsonl$/, "") + ".ab" : state;
+		sessionId = ctx.sessionManager.getSessionId();
 		mkdirSync(state, { recursive: true });
 		pi.setActiveTools([...new Set([...pi.getActiveTools().filter(name => !REPLACED.includes(name)), "bash"])]);
 	});
@@ -88,7 +90,8 @@ export default function (pi: ExtensionAPI) {
 		// PI_BASH_PATH puts directories ahead of the user's PATH for agent commands only,
 		// e.g. GNU userland on macOS, where models expect GNU sed/grep/date.
 		const path = [BIN, process.env.PI_BASH_PATH, process.env.PATH].filter(Boolean).join(":");
-		const env = { ...process.env, PATH: path, AB_STATE: abStateRoot, AB_SESSION_STATE: state, AB_OUT: attach };
+		// PI_SESSION_ID lets commands record provenance (e.g. tracker `author: session:<id>`).
+		const env = { ...process.env, PATH: path, AB_STATE: abStateRoot, AB_SESSION_STATE: state, AB_OUT: attach, ...(sessionId && { PI_SESSION_ID: sessionId }) };
 		// Own process group, so interrupting kills the command's children too.
 		const child = spawn("bash", ["-c", PRELUDE + command], { cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
 		const file = createWriteStream(log);
