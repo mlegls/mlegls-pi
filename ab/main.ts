@@ -4,7 +4,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { spawnSync } from "node:child_process";
 import { exact, OPEN, CLOSE, inTool } from "../lib/raw.ts";
@@ -180,7 +180,9 @@ async function job(args: string[]) {
 // the owner's resume commands live under the checkout's git dir, keyed by ticket.
 async function supervise(args: string[]) {
 	const api = await import("../lib/daemon.ts");
-	const [verb, ticket, ...rest] = args;
+	const [verb, given, ...rest] = args;
+	// An issue is named by its slug; a path to its file (docs/issues/<slug>.md) names the same issue.
+	const ticket = given && /\.md$/.test(given) ? basename(given, ".md") : given;
 	const gitDir = spawnSync("git", ["rev-parse", "--absolute-git-dir"], { cwd, encoding: "utf8" }).stdout.trim();
 	const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).stdout.trim();
 	if (!gitDir || !top) fail("supervise runs in the owner's checkout");
