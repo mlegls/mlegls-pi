@@ -18,6 +18,9 @@ import { spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, parseDocument, visit } from "yaml";
 
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
+import { inflight } from "./inflight.ts";
+// Derived claims from supervise loops and worktree branches (./inflight.ts); set once the issues load.
+let flight = new Map<string, string[]>();
 
 type Issue = {
   slug: string;
@@ -157,7 +160,10 @@ function model(i: Issue, all: Map<string, Issue>, explicit = false) {
   const remaining = nodes.filter(n => n.stage !== undefined && n.stage !== "done");
   const scope = new Set(subtree(i, all).map(n => n.slug));
   const blockers = [...new Set(nodes.flatMap(n => openBlockers(n, all)))].filter(slug => !scope.has(slug));
-  const claims = subtree(i, all).filter(n => !n.archived).filter(n => n.claimedBy).map(n => ({ slug: n.slug, claimedBy: n.claimedBy }));
+  const claims = [
+    ...subtree(i, all).filter(n => !n.archived).filter(n => n.claimedBy).map(n => ({ slug: n.slug, claimedBy: n.claimedBy })),
+    ...subtree(i, all).filter(n => !n.archived && !complete(n, all) && flight.has(n.slug)).map(n => ({ slug: n.slug, claimedBy: flight.get(n.slug)!.join("; "), derived: true })),
+  ];
   const selectors = remaining.map(n => ({ slug: n.slug, assignee: n.assignee ?? null }));
   const eligible = !i.next && remaining.length > 0 && remaining.every(n => n.assignee === "agent" || n.assignee?.startsWith("agent:") || n.assignee?.startsWith("model:"));
   const ready = effective === "spec" || effective === "ticket";
@@ -199,6 +205,7 @@ function line(i: Issue, all: Map<string, Issue>): string {
   const bits = [i.next ? "legacy next:" + i.next : "own:" + (i.stage ?? "none") + " effective:" + effectiveStage(i, all)];
   if (i.assignee) bits.push("assignee:" + i.assignee);
   if (i.claimedBy) bits.push((claimLive(i) === false ? "stale-claim:" : "claimed:") + i.claimedBy);
+  if (flight.has(i.slug) && !complete(i, all)) bits.push("inflight:" + flight.get(i.slug)!.join("; "));
   const ob = openBlockers(i, all).filter((b) => !i.guards.includes(b));
   if (ob.length) bits.push("prerequisites:" + ob.join(","));
   for (const g of i.guards) bits.push("guard:" + JSON.stringify(g));
@@ -386,6 +393,7 @@ const json = args.includes("--json");
 const [cmd, arg] = args.filter(a => a !== "--json");
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);
+flight = inflight(dir, slug => !all.has(slug) || all.get(slug)!.archived || complete(all.get(slug)!, all));
 // Validate graph before any output, including legacy graphs.
 for (const i of all.values()) {
   for (const relation of ["partOf", "blockedBy", "completion"] as const) {

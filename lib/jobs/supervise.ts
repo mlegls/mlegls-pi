@@ -26,7 +26,9 @@ const HACK = "Hacking session: reach the ticket's first use fast and try it; no 
 
 interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; effectiveStage: string }
 function snapshot(input: Input): Issue[] {
- return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8" })).issues;
+ // The loop's own state is authoritative for its children; the tracker's derived in-flight claims would
+ // hide them (and a redispatched child's surviving branch) from it.
+ return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8", env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } })).issues;
 }
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 // Every loop runs in the one ab daemon, and loops over the same repository commit to the same checkout;

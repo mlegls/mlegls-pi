@@ -254,7 +254,7 @@ function project(files: Record<string, string>, git = false) {
   write(files);
   if (git) { sh("init", "-q"); sh("add", "."); sh("commit", "-qm", "committed"); }
   const check = () => Bun.spawnSync([process.execPath, cli, "check"], { cwd: root, env: { ...process.env, TRACKER_VAULT: vault } }).stdout.toString();
-  return { write, check, done: () => rmSync(root, { recursive: true, force: true }) };
+  return { root, write, check, done: () => rmSync(root, { recursive: true, force: true }) };
 }
 
 test("check names the child that lowers a spec, and a side friction log", () => {
@@ -276,5 +276,32 @@ test("a new uncommitted issue needs author provenance; committed history is left
   expect(out).toContain("new: new issue without author provenance");
   expect(out).not.toContain("old:");
   expect(out).not.toContain("owned:");
+  p.done();
+}, 30_000);
+
+test("work in flight elsewhere leaves the frontier: supervise children, closes on branches, orphaned loops", () => {
+  const t = (s: string) => frontmatter("stage: ticket\nassignee: agent") + s;
+  const p = project({ "issues/closed.md": t(""), "issues/named.md": t(""), "issues/watched.md": t(""), "issues/orphan.md": t(""), "issues/free.md": t("") }, true);
+  const dir = p.root;
+  const sh = (cwd: string, ...args: string[]) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd });
+  sh(dir, "worktree", "add", "-q", "-b", "sup/closer", dir + "-wt1");
+  writeFileSync(dir + "-wt1/docs/issues/closed.md", frontmatter("stage: done"));
+  sh(dir + "-wt1", "commit", "-qam", "Close closed");
+  sh(dir, "worktree", "add", "-q", "-b", "sup/named", dir + "-wt2");
+  writeFileSync(dir + "-wt2/x", "x"); sh(dir + "-wt2", "add", "x"); sh(dir + "-wt2", "commit", "-qm", "work");
+  mkdirSync(join(dir, ".git/ab-supervise"));
+  const job = (id: string, status: string, slug: string, waiting?: string) => writeFileSync(join(dir, ".git/ab-supervise", id + ".json"), JSON.stringify({ id, type: "supervise", status, input: { ticket: "root", cwd: dir }, state: { children: { [slug]: { phase: "implement", waiting, handle: { agentId: "abcdef123456" } } }, integrated: [] } }));
+  job("live", "running", "watched", "done with caveats");
+  job("dead", "failed", "orphan");
+  const snap = JSON.parse(Bun.spawnSync([process.execPath, cli, "snapshot", "--json"], { cwd: dir }).stdout.toString()).issues;
+  const claim = (s: string) => snap.find((i: any) => i.slug === s).claims.map((c: any) => c.claimedBy).join();
+  expect(claim("closed")).toContain("closed on sup/closer");
+  expect(claim("named")).toContain("branch sup/named +1");
+  expect(claim("watched")).toContain("supervised implement by abcdef12 (waiting: done with caveats)");
+  expect(claim("orphan")).toContain("orphaned implement by abcdef12 (failed loop dead)");
+  expect(snap.filter((i: any) => i.frontier).map((i: any) => i.slug)).toEqual(["free"]);
+  const off = JSON.parse(Bun.spawnSync([process.execPath, cli, "snapshot", "--json"], { cwd: dir, env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } }).stdout.toString()).issues;
+  expect(off.filter((i: any) => i.frontier).length).toBe(5);
+  rmSync(dir + "-wt1", { recursive: true, force: true }); rmSync(dir + "-wt2", { recursive: true, force: true });
   p.done();
 }, 30_000);
