@@ -9,3 +9,5 @@ Seen supervising `~/dev/mmon/concept`, 2026-09-25, job `supervise-refine-the-cha
 In the same burst the loop also reported `loop error: Cannot replace agent 97e2e1e0-… because its active run cancellation was not acknowledged`: `children.send` to the owner while the owner was mid-turn tried to replace the owner's run rather than queue the message.
 
 Done looks like: one wake per child turn end, with the final text; a wake to a busy owner queues.
+
+Same noise from supervise-phase children: every turn end of a child supervisor that is waiting on its own loop arrives as `turn ended: closed` (the `end.kind !== "finished"` branch runs before the `phase === "supervise" && status === null` skip), so the owner is woken each time a child supervisor checks in. Seen repeatedly for `capture-learner-and-tutor-friction-reports-in-convex-for-manual-review`, `start-a-session-from-a-proposed-skill` and `whole-evidence-through-bounded-transactions`.
