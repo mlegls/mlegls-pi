@@ -8,6 +8,7 @@
 // A slug with entries is treated as claimed. TRACKER_NO_INFLIGHT=1 disables the overlay.
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
+import { homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 
 const git = (cwd: string, ...args: string[]) => {
@@ -18,7 +19,15 @@ const git = (cwd: string, ...args: string[]) => {
 interface Job { id: string; type: string; status: string; input?: { ticket?: string; cwd?: string };
   state?: { children?: Record<string, { phase: string; waiting?: string | null; unreachable?: boolean | null; handle?: { agentId?: string; handle?: string } }>; integrated?: string[] } }
 
+// The ab daemon's index names the job records it still hosts; a record it dropped (a lost worktree, a
+// daemon state reset) can still say running on disk while nothing runs it.
+function hosted(): Set<string> | null {
+  const index = join(process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab"), "jobs.json");
+  try { return new Set((JSON.parse(readFileSync(index, "utf8")) as string[]).map(f => { try { return realpathSync(f); } catch { return f; } })); } catch { return null; }
+}
+
 function jobs(common: string): { job: Job; mtime: number }[] {
+  const live = hosted();
   const dirs = [join(common, "ab-supervise")];
   const wt = join(common, "worktrees");
   if (existsSync(wt)) for (const n of readdirSync(wt)) dirs.push(join(wt, n, "ab-supervise"));
@@ -28,7 +37,12 @@ function jobs(common: string): { job: Job; mtime: number }[] {
     for (const n of readdirSync(d)) {
       if (!n.endsWith(".json")) continue;
       const f = join(d, n);
-      try { const job = JSON.parse(readFileSync(f, "utf8")) as Job; if (job.type === "supervise") out.push({ job, mtime: statSync(f).mtimeMs }); } catch {}
+      try {
+        const job = JSON.parse(readFileSync(f, "utf8")) as Job;
+        if (job.type !== "supervise") continue;
+        if (job.status === "running" && live && !live.has(realpathSync(f))) job.status = "unhosted";
+        out.push({ job, mtime: statSync(f).mtimeMs });
+      } catch {}
     }
   }
   return out;

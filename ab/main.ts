@@ -190,7 +190,11 @@ async function supervise(args: string[]) {
 		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" } } });
 		const owner = process.env.PASEO_AGENT_ID;
 		if (!owner) fail("supervise start needs PASEO_AGENT_ID: the owning agent is woken on exceptions");
-		if (jobs.some(j => j.status === "running")) fail("already supervising " + ticket + "; ab supervise status " + ticket);
+		// One loop per ticket per repository: loops started from sibling worktrees would dispatch the same children twice.
+		const common = (dir: string) => { const r = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: dir, encoding: "utf8" }); return r.status === 0 ? r.stdout.trim() : dir; };
+		const here = common(top);
+		const elsewhere = (await api.status()).find(j => j.type === "supervise" && j.status === "running" && (j.input as any).ticket === ticket && existsSync((j.input as any).cwd) && common((j.input as any).cwd) === here);
+		if (elsewhere) fail("already supervising " + ticket + " (" + elsewhere.id + ", owner " + (elsewhere.input as any).owner + ", checkout " + (elsewhere.input as any).cwd + "); ab supervise status " + ticket + " there");
 		const previous = jobs.at(-1);
 		mkdirSync(dir, { recursive: true });
 		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
