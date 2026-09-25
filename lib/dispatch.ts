@@ -2,8 +2,9 @@ import { executionHost } from "./execution-host.ts";
 import * as paseo from "./paseo.ts";
 import type { Worker } from "./wm.ts";
 // Launch a parent-planned ready wave. No reading, routing, dependency graph, or retries.
-import { execFile } from "node:child_process";
-import { resolve } from "node:path";
+import { execFile, execFileSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { HANDOFF_KEYS } from "./report.ts";
 import { assertAssignment, type RouteOptions } from "./route.ts";
@@ -45,6 +46,21 @@ export interface Receipt {
   failed?: { assignment: Assignment; error: string; receipt?: unknown };
   /** Never attempted (capacity or earlier failure); parent decides when to submit later. */
   pending: Assignment[];
+}
+
+/** Each submitted worker leaves a record under the repository's git dir, so the tracker shows the issue it
+ * works on as in flight (the tracker skill's inflight script) while its branch has not merged. The issue is the
+ * assignment's, else the first issue file or wikilink its prompt names. Records whose worktree is gone are ignored. */
+function ledger(cwd: string, task: Assignment, run: string, handle: Handle, parent?: string) {
+  try {
+    const common = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim();
+    const issue = task.issue ?? task.prompt.match(/issues\/(?!archive\/)([a-z0-9][a-z0-9-]*)(?:\.md|\]\]|\|)/)?.[1];
+    const dir = join(common, "ab-dispatch");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, (run + "-" + task.handle).replace(/[^A-Za-z0-9_-]/g, "-") + ".json"), JSON.stringify({
+      run, handle: task.handle, issue: issue ?? null, path: handle.path, parent: parent ?? null,
+      agent: "agentId" in handle ? handle.agentId : handle.handle, at: new Date().toISOString() }, null, 1));
+  } catch {}
 }
 
 /** Submit a ready wave; no automatic wait or retry for assignments beyond capacity. */
@@ -96,12 +112,14 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
         const launched = await paseo.launch(task, text, { run: options.run, cwd, parent });
         receipt.submitted.push({ backend, handle: task.handle, agentId: launched.agent.agentId,
           workspaceId: launched.workspace.workspaceId, path: launched.workspace.cwd, receipt: launched });
+        ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
         continue;
       }
       const wm = await import("./wm.ts");
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
         agent: task.agent, base: task.base, model: task.model, effort: task.effort, cwd });
       receipt.submitted.push({ backend, handle: task.handle, path: worker.dir, worker });
+      ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {
       receipt.failed = { assignment: task, error: error instanceof Error ? error.message : String(error), receipt: error instanceof paseo.PaseoError ? error.receipt : undefined };
       receipt.pending = prepared.slice(index + 1).map(item => item.task);

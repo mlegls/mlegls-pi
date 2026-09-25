@@ -203,6 +203,10 @@ test("subtree readiness, assignment, dependencies, scheduling and review remain 
 
 test("legacy is readable but never translated; selectors and structural omissions fail closed", () => {
   put("legacy", frontmatter("next: implement"));
+  writeFileSync(join(dir, "docs/issues/sent.md"), t(""));
+  mkdirSync(join(dir, ".git/ab-dispatch"));
+  writeFileSync(join(dir, ".git/ab-dispatch/r-sent.json"), JSON.stringify({ run: "root", handle: "w", issue: "sent", path: dir + "-wt2", agent: "fedcba987654" }));
+  writeFileSync(join(dir, ".git/ab-dispatch/r-gone.json"), JSON.stringify({ run: "root", handle: "g", issue: "free", path: dir + "-nowhere", agent: "x" }));
   const snap = JSON.parse(run("frontier --json").out);
   expect(snap.legacy.map((i: any) => i.slug)).toContain("legacy");
   expect(snap.issues.map((i: any) => i.slug)).not.toContain("legacy");
@@ -303,11 +307,12 @@ test("work in flight elsewhere leaves the frontier: supervise children, closes o
   expect(claim("named")).toContain("branch sup/named +1");
   expect(claim("watched")).toContain("supervised implement by abcdef12 (waiting: done with caveats)");
   expect(claim("orphan")).toContain("orphaned implement by abcdef12 (failed loop dead)");
+  expect(claim("sent")).toContain("dispatched fedcba98 (root, +1)");
   expect(claim("unhosted")).toContain("orphaned implement by abcdef12 (unhosted loop dropped)");
   expect(snap.filter((i: any) => i.frontier).map((i: any) => i.slug)).toEqual(["free"]);
   rmSync(state, { recursive: true, force: true });
   const off = JSON.parse(Bun.spawnSync([process.execPath, cli, "snapshot", "--json"], { cwd: dir, env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } }).stdout.toString()).issues;
-  expect(off.filter((i: any) => i.frontier).length).toBe(6);
+  expect(off.filter((i: any) => i.frontier).length).toBe(7);
   rmSync(dir + "-wt1", { recursive: true, force: true }); rmSync(dir + "-wt2", { recursive: true, force: true });
   p.done();
 }, 30_000);

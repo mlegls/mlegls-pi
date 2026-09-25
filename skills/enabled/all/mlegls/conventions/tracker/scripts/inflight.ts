@@ -1,8 +1,9 @@
 // Work in flight that the checked-out docs/issues/ cannot show. Supervision integrates upward, so a leaf's
 // close lands on its supervisor's branch and reaches the main checkout only when the root integrates;
-// meanwhile the tracker would offer that leaf again. Two sources, both derived, never written back:
+// meanwhile the tracker would offer that leaf again. Three sources, all derived, never written back:
 //   - ab supervise job records under the repository's git dir: each running loop's children, and the
 //     children of the latest failed/stopped loop per ticket (orphaned: their agents run unsupervised);
+//   - workers lib/dispatch.ts recorded under the git dir (ab-dispatch/), while their worktree lives;
 //   - worktree branches ahead of the main checkout: a branch named for the issue, or one whose tip
 //     already has the issue at stage: done.
 // A slug with entries is treated as claimed. TRACKER_NO_INFLIGHT=1 disables the overlay.
@@ -80,6 +81,19 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
   for (const [, { job }] of latest) if (job.status !== "running" && job.status !== "completed")
     for (const [slug, c] of Object.entries(job.state?.children ?? {}))
       add(slug, "orphaned " + c.phase + " by " + short(c.handle?.agentId ?? c.handle?.handle) + " (" + job.status + " loop " + job.id + ")");
+
+  // Workers dispatched outside a loop (lib/dispatch.ts records them): live while their worktree exists and
+  // its branch is ahead of the main checkout. A loop's own children are recorded too and read the same.
+  const ledger = join(common, "ab-dispatch");
+  if (existsSync(ledger)) for (const n of readdirSync(ledger)) {
+    try {
+      const d = JSON.parse(readFileSync(join(ledger, n), "utf8")) as { issue?: string | null; path?: string; agent?: string; run?: string };
+      if (!d.issue || !d.path || !existsSync(d.path) || done(d.issue)) continue;
+      const head = git(d.path, "rev-parse", "HEAD");
+      const ahead = head ? Number(git(issuesDir, "rev-list", "--count", main.head + ".." + head) ?? 0) : 0;
+      add(d.issue, "dispatched " + short(d.agent) + " (" + d.run + (ahead ? ", +" + ahead : ", no commits yet") + ")");
+    } catch {}
+  }
 
   const issuesRel = relative(realpathSync(top), realpathSync(issuesDir));
   for (const t of trees.slice(1)) {
