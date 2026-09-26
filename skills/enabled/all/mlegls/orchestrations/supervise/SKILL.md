@@ -11,7 +11,7 @@ Supervising an issue commits to finishing its whole subtree. Shaping has already
 The loop is a script: `ab supervise start <slug> --budget N [--test CMD]` from your checkout (`ab supervise --help`). It dispatches ready children under you (non-leaves get `supervise` and a share of the budget), takes each leaf implement → fresh verify → integrate, closes tickets, and messages you only on exceptions and when the subtree is done. End your turn after starting it, and after handling each message, with a line that is not a status; your parent's loop reads only `done`, `blocked` or `needs-input`.
 
 On an exception message:
-- steer: if the fix is obvious, send it to the child (`children.send` / paseo send); its next turn end returns to the loop.
+- steer: if the fix is obvious, send it to the child (`children.send`); its next turn end returns to the loop.
 - answer: from the ticket, its parent's recorded decisions and your delegated authority. Record a new decision in the issue.
 - consult: when judgment is beyond you, ask a frontier model once (astra or fable, low effort) with the question and the evidence in the message, then answer the child.
 - change loop state: `ab supervise resume <slug> <child> verify|integrate|drop|redispatch`.

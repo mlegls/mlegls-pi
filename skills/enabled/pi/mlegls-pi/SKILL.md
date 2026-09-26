@@ -15,4 +15,4 @@ host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is e
 
 ## hosts
 
-`PI_EXECUTION_HOST=paseo|wm` selects the host; otherwise `PASEO_AGENT_ID` selects native Paseo agents/workspaces/messaging, else standalone `wm`/`board`. `dispatch.dispatch` launches prepared assignments; host hooks and instructions follow that selection. Paseo readers initially use standalone Pi RPC. See `docs/paseo.md` for connection, supervision and installation details.
+Workers run as `wm` workers (workmux + tmux) and report over the board; `dispatch.dispatch` launches prepared assignments. Every session also listens on board topic `session/<id>`, which is how scripts (supervision loops, `ab tree` sends) reach it.

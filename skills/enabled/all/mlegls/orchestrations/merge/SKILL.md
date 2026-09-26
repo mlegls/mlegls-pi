@@ -7,4 +7,4 @@ Once completion is accepted: `dispatch.integrate(handle, {mode?, keep?})` ([cont
 
 Rebase onto parent HEAD and fast-forward by default; `mode: "merge"` for a merge commit. Send `MergeConflict.files` to the worker to resolve on its branch. `keep: true` integrates without cleanup.
 
-Archive/cleanup follows Git integration. Inspect a cleanup failure before repeating it; the merge remains. Paseo uses native completion notifications.
+Cleanup follows Git integration. Inspect a cleanup failure before repeating it; the merge remains.

@@ -1,6 +1,6 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, admission (`route.prepare`), concurrency and acceptance. `dispatch.dispatch` only launches prepared assignments. Host selection: `PI_EXECUTION_HOST=paseo|wm` chooses; otherwise `PASEO_AGENT_ID` → Paseo, else standalone workmux/board. With Paseo chosen outside a Paseo agent, workers have no parent agent; the parent waits on them.
+The parent owns decomposition, dependencies, admission (`route.prepare`), concurrency and acceptance. `dispatch.dispatch` only launches prepared assignments, each as a `wm` worker: a workmux worktree and tmux window running pi, reporting on board topic `<run>/<handle>`.
 
 ```ts
 show(state.launch = dispatch.dispatch([
@@ -9,33 +9,27 @@ show(state.launch = dispatch.dispatch([
 ], { run: "feature-x", maxConcurrent: 2, active: [] }));
 ```
 
-From bash, the same call takes JSON arguments: `ab lib dispatch dispatch '[{"handle":"unit-a",…}]' '{"run":"feature-x","maxConcurrent":2,"active":[]}' > receipt.json`. It prints the receipt; a long launch arrives as a late result. Standalone `wm` needs the pi host, so this works when Paseo is the host.
+From bash, the same call takes JSON arguments: `ab lib dispatch dispatch '[{"handle":"unit-a",…}]' '{"run":"feature-x","maxConcurrent":2,"active":[]}' > receipt.json`. It prints the receipt; a long launch arrives as a late result.
 
-Later retrieve `state.wave = await state.launch`. Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` is required on every backend; it is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`. An uncertain launch must be resolved before the next wave; it may still consume capacity.
+Later retrieve `state.wave = await state.launch`. Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` is required; it is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`. An uncertain launch must be resolved before the next wave; it may still consume capacity.
 
 Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`. Optional `agent` names a roster stance, not a host preset. Optional `base` passes the exact Git ref to the host; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, routing, dependency scheduling, or inherited issue ownership.
 
 The receipt contains:
 
-- `submitted`: native handles for successful launches. Paseo: `{backend: "paseo", handle, agentId, workspaceId, path, receipt: {workspace, agent}}`; workmux: `{backend: "wm", handle, path, worker}`.
-- `failed`: first failed assignment, error text and available native/raw receipt. Earlier launches survive. Inspect the retained attempt, including retained SDK snapshots and request correlation IDs, before deciding what to do. Creation can succeed before a client timeout or parse failure.
+- `submitted`: `{handle, run, path}` per launch, plain data you can persist; `dispatch.topic(h)` is its board topic and child ID, and `wm.attach(run, handle)` rebuilds the Worker.
+- `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree workmux may have created before deciding what to do.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
 
-## Paseo
+## Supervision
 
-See [the SDK boundary and setup](paseo.md). Workspace creation and agent launch are separate SDK requests so a launch failure retains the workspace ID. Launch uses native Pi config `provider: "pi/PROVIDER/MODEL"`, an explicit parent from `PASEO_AGENT_ID`, and a data prompt. `none` maps to Pi native `off`; other effort IDs pass unchanged. `PASEO_URL`/`PASEO_PASSWORD` select the connection; the default is the local desktop daemon. CLI host configuration is not consulted.
-
-The prompt includes the roster stance, assignment, parent ID and reporting convention. Supervise through `paseo.withClient(c => c.agents.ref(ID).waitForFinish())`, `.timeline.refetch()` and `.send(message)`; show long waits and the outcome arrives by handle. Parent is only the `paseo.parent-agent-id` label: SDK-created children never wake the parent (Paseo's `notifyOnFinish` is MCP `create_agent` only), so the parent waits on them itself. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion. Workers end the turn with `done`, `blocked`, or `needs-input` first (`lib/report.ts`); a question is a `needs-input` turn end, answered by the next message. There is no additional inbox/ack or task-record layer. CLI `wait`, `logs`, and `send --no-wait` remain manual recovery tools.
-
-## Standalone
-
-Standalone uses `wm.spawn` with the selected model/effort, stance, base and board reporting. Retain its Worker object for supervision and cleanup.
+Workers report by ending their turn: the last message starts with `done`, `blocked`, or `needs-input` (`lib/report.ts`), posted on `<run>/<handle>`. Dispatch doesn't subscribe the parent; `board.subscribe({ topic: "<run>/*", tags: "done | blocked | needs-input | checkpoint" })` makes reports wake it, or wait with `children.turnEnd([topic(h), …])`. `children.send(topic, text)` answers a question or steers a worker. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
 
 ## Integration
 
 After the worker is settled and completion is accepted, `dispatch.integrate(handle, {cwd?, mode?, keep?})` uses plain Git. It refuses uncommitted worker changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` makes a `--no-ff` merge commit. Conflicts abort and throw `MergeConflict` with `branch` and `files`; send those to the worker to resolve on its branch. The caller owns settlement and acceptance; integration does not infer them from idle status.
 
-`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: Paseo archives the retained workspace ID; workmux closes the retained Worker. Processes still running from inside the worktree (a `term.spawn` tmux server, a dev server) are sent SIGTERM (`killed`); host archive doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `dispatch.retire(handle, {cwd})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Native receipts are returned in `Integration`. Cleanup is sequential, not transactional: if archive/cleanup fails after the merge, the merge remains. Inspect native state before repeating cleanup. No archive is attempted on merge failure.
+`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: workmux removes the worker's window and worktree. Processes still running from inside the worktree (a `term.spawn` tmux server, a dev server) are sent SIGTERM (`killed`); workmux doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `dispatch.retire(handle, {cwd})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Cleanup is sequential, not transactional: if it fails after the merge, the merge remains. Inspect the worktree before repeating cleanup. Nothing is removed on merge failure.
 
 ## Session boundaries
 

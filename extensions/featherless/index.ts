@@ -20,7 +20,7 @@ function price(value?: string) {
 }
 
 /** The full catalogue (~22k models) costs ~60 MB per process. Only interactive sessions browse
- * it; RPC/print sessions (Paseo agents, subagents) register just the models they can be asked
+ * it; RPC/print sessions (headless workers, subagents) register just the models they can be asked
  * for: `--model`, featherless entries in settings `enabledModels`, and PI_FEATHERLESS_MODELS. */
 function selected(data: Catalogue["data"]): Catalogue["data"] {
   const argv = process.argv;

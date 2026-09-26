@@ -175,7 +175,7 @@ module globals and API documentation are omitted; `host.call` also rejects
 excluded namespaces. Selection survives kernel resets and session navigation.
 
 Agent frontmatter supplies a stance, not a launch command. Use `route.prepare`
-and `dispatch` to launch routed Pi workers. Paseo supplies native supervision and messaging when it is the host; see [Paseo](../../docs/paseo.md). `agent` in a routed assignment names a stance.
+and `dispatch` to launch routed Pi workers as `wm` workers; see [dispatch](../../docs/dispatch.md). `agent` in a routed assignment names a stance.
 Module selection limits the supplied API, **not** filesystem/process permissions: arbitrary
 imports and enabled shell commands can still access underlying capabilities.
 The full reference below describes all modules; each session advertises only its
@@ -569,7 +569,6 @@ configuration are unchanged: `EXA_API_KEY` and optional `EXA_API_URL`.
 
 ### Hosts
 
-The `board` and `wm` modules and board wake hooks are enabled only when standalone workmux/board is the host; under Paseo they are replaced by `paseo` and `children`. See [dispatch](../../docs/dispatch.md) for host selection.
 
 ### Persistent terminals
 
