@@ -54,3 +54,11 @@ Sources: `01a0d6c8-d861-7641-a79f-2ca08e46caf6:111`; `01a0cc01-0b1a-7688-aca4-00
 - **Low-confidence one-offs:** missing edit output after a piped read, multi-glob grep returning nothing, directory input to `ab view`, and a tmux timing failure that passed alone. Recover exact invocations before proposing fixes. Directory input and unsupported grep flags are not supported-operation failures.
 
 No runtime or prompt behavior changed. The five new issues are raw ideas, not an execution queue; original sessions remain cited in this note, while issue authors identify the recovery session.
+
+## Follow-up
+
+The filing handoff is reconciled in `cffe103`: workers file unresolved observations and report links, including a durable fallback when the tool's own tracker is inaccessible. No collector was added.
+
+Browser investigation recovered original tool results and retained package-owned dependency resolution. Help, the verifier stance and the missing-dependency diagnostic now explain the package CWD and full invocation. The composer verifier did sign in and reach the Session before waiting on a layout condition (source B, physical lines 75–81); semantic driving cannot establish overlap. The separate input-selection failure has [its own owner](../issues/browser-driver-selects-code-for-email-field.md): its retained trace shows the verification code placed in Email. Later attempts also encountered connection refusal and missing Clerk configuration.
+
+Five existing CLI tests pass. A disposable local-page smoke using Concept's installed Playwright opened an isolated browser, read the heading via `ariaSnapshotJSON`, and closed browser/server. No project files, active services, model routing or driver selection policy were changed. Adoption by fresh workers and sign-in reliability were not measured.

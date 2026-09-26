@@ -5,8 +5,8 @@ ab computer --resume DRIVE [--input NAME=VALUE]... [--budget N]
 
 Common: --budget N (20 actions), --timeout S (300 seconds), --json.
 
-  browser  --url launches an isolated Chromium context using the current project's
-           @playwright/test or playwright (1.63+). No desktop window or account is
+  browser  --url launches an isolated Chromium context. Run from the package declaring
+           @playwright/test or playwright (1.63+), not a monorepo root without it. No desktop window or account is
            borrowed. The context closes when the drive ends. --headed shows it.
            For existing authentication/lifecycle, --browser loads a project module:
            default-export async ({signal}) => ({page, close, verify?}). See

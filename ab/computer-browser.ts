@@ -34,7 +34,7 @@ export async function openBrowser(options: Pick<Options, "module" | "url" | "hea
     for (const name of ["@playwright/test", "playwright"]) {
         try { playwright = require(name); break; } catch (error: any) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
     }
-    if (!playwright) throw new Error("Run from a project with Playwright installed, or use --browser ./setup.ts with the project's existing browser setup");
+    if (!playwright) throw new Error(`Cannot resolve @playwright/test or playwright from ${process.cwd()}. Run from the package declaring Playwright 1.63+ (for example, cd packages/web in a monorepo), or use --browser ./setup.ts with the project's existing browser setup. ab does not search child workspaces or install Playwright.`);
     const instance = await playwright.chromium.launch({ headless: !options.headed });
     try {
         const context = await instance.newContext();

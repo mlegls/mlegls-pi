@@ -51,6 +51,12 @@ Jev receives semantic state, not screenshots. Transient flashes, layout, native 
 behavior and claims that something *never* appeared need separate observation or
 instrumentation; a final-state judgment cannot establish them.
 
+For example, “the final turn sits above the composer” is a layout claim, not a
+semantic `--until`. Reach the Session with the driver, then check overlap using
+screenshots or browser geometry. For same-page evidence, use `--browser` setup
+whose verifier or cleanup captures it before closing; a new `--url` invocation
+starts a fresh context, not the page just driven.
+
 ## Native library surface
 
 The auto-loaded exec library `computer` drives native windows directly through
