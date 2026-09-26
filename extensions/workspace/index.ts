@@ -2,6 +2,7 @@ import { rm } from "node:fs/promises";
 import { Type } from "typebox";
 import { SessionManager, type ExtensionAPI, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { resolveWorkspacePath } from "./workspace";
+import { registerForkTab } from "./fork-tab";
 
 async function switchWorkspace(target: string, ctx: ExtensionCommandContext): Promise<void> {
 	const sourceSession = ctx.sessionManager.getSessionFile();
@@ -29,6 +30,7 @@ async function switchWorkspace(target: string, ctx: ExtensionCommandContext): Pr
 }
 
 export default function (pi: ExtensionAPI) {
+	registerForkTab(pi);
 	let pendingWorkspace: string | undefined;
 
 	pi.registerTool({
