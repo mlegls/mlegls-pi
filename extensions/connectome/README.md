@@ -2,6 +2,8 @@
 
 Uses Anima Labs' [context-manager](https://github.com/anima-research/context-manager) (the memory layer of [Connectome](https://animalabs.ai/connectome/)) as pi's memory and compaction backend.
 
+- `/workspace` keeps the current life, including its memories and folding state, across projects and subsequent resume. An explicit `use` or `default` clears that binding. Actual forks do not inherit the workspace binding; named lives still share by name.
+- If compilation fails, Connectome steps aside until session reload or an explicit identity choice, allowing Pi's own compaction rather than repeatedly sending oversized raw history.
 - Every message pi sends is mirrored into a Chronicle store, a "life". By default each session has its own; named lives are shared across sessions, so `/new` and later sessions attached to the same name continue it.
 - Before each LLM call, the messages are replaced with the store's compiled view. Recent history stays verbatim. Older history becomes first-person memories written by the session's own model (`AutobiographicalStrategy`, `kv-stable` folding).
 - Memory writes reuse the live prefix and session id, so they can hit the prompt cache.

@@ -4,7 +4,7 @@ import { SessionManager, type ExtensionAPI, type ExtensionCommandContext } from 
 import { resolveWorkspacePath } from "./workspace";
 import { registerForkTab } from "./fork-tab";
 
-async function switchWorkspace(target: string, ctx: ExtensionCommandContext): Promise<void> {
+export async function switchWorkspace(target: string, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<void> {
 	const sourceSession = ctx.sessionManager.getSessionFile();
 	if (!sourceSession) throw new Error("Workspace switching requires a persisted session");
 	if (target === ctx.cwd) {
@@ -16,6 +16,8 @@ async function switchWorkspace(target: string, ctx: ExtensionCommandContext): Pr
 	const fork = SessionManager.forkFrom(sourceSession, target);
 	const targetSession = fork.getSessionFile();
 	if (!targetSession) throw new Error("Failed to create the replacement session");
+	// Extensions can persist continuity metadata before the replacement runtime starts.
+	pi.events.emit("workspace:handoff", { source: ctx, target: fork });
 
 	const result = await ctx.switchSession(targetSession, {
 		withSession: async (replacementCtx) => {
@@ -85,12 +87,12 @@ export default function (pi: ExtensionAPI) {
 					ctx.ui.notify("No workspace switch is pending", "error");
 					return;
 				}
-				await switchWorkspace(pendingWorkspace, ctx);
+				await switchWorkspace(pendingWorkspace, ctx, pi);
 				return;
 			}
 
 			const target = await resolveWorkspacePath(argument, ctx.cwd);
-			await switchWorkspace(target, ctx);
+			await switchWorkspace(target, ctx, pi);
 		},
 	});
 }

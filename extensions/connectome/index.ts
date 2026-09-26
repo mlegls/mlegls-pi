@@ -285,6 +285,7 @@ export default function (pi: ExtensionAPI) {
 	 *  Resolved at session start and opened lazily at the first LLM call, so a `/connectome use`
 	 *  before then never touches the default life. */
 	let wanted: string | null = null;
+	let movedLife: { sessionId: string; directory: string } | undefined;
 	let lastCtx: ExtensionContext | undefined;
 	/** The default: a life that belongs to this session only (resume keeps it; /new starts another). */
 	const SESSION = "@session";
@@ -300,6 +301,8 @@ export default function (pi: ExtensionAPI) {
 			.getEntries()
 			.filter((e: any) => e.type === "custom" && e.customType === CHOICE)
 			.at(-1) as any;
+		movedLife = chosen?.data?.workspace;
+		if (movedLife?.sessionId !== ctx.sessionManager.getSessionId()) movedLife = undefined;
 		// `/connectome default` records { default: true }: fall through as if nothing was chosen
 		if (chosen && !chosen.data?.default) return chosen.data?.identity ?? null;
 		return fallback();
@@ -328,6 +331,7 @@ export default function (pi: ExtensionAPI) {
 	 *  <root>/_global/<name>/<model>; "@session" is <root>/<project>/_sessions/<session id>/<model>. */
 	const lifePath = (ctx: ExtensionContext, name: string) => {
 		const model = slug(ctx.model?.id ?? "model");
+		if (movedLife) return join(movedLife.directory, model);
 		return name.startsWith("/")
 			? join(storeRoot(), "_global", name.slice(1), model)
 			: name === SESSION
@@ -473,6 +477,17 @@ export default function (pi: ExtensionAPI) {
 		showStatus(ctx);
 	});
 
+	// A workspace move continues a life, unlike a fork. Scope the binding to the new
+	// session ID so copying its entries into a later fork cannot share the store.
+	pi.events.on("workspace:handoff", (event) => {
+		const { source, target } = event as { source: ExtensionContext; target: import("@earendil-works/pi-coding-agent").SessionManager };
+		target.appendCustomEntry(CHOICE, {
+			identity: wanted,
+			...(wanted ? { workspace: { sessionId: target.getSessionId(), directory: dirname(lifePath(source, wanted)) } } : {}),
+		});
+		if (life) persist(life);
+	});
+
 	const trace = (l: Life, o: Record<string, unknown>) => {
 		try {
 			appendFileSync(join(l.path, "calls.jsonl"), JSON.stringify({ t: new Date().toISOString(), ...o }) + "\n");
@@ -527,7 +542,12 @@ export default function (pi: ExtensionAPI) {
 			return { messages };
 		} catch (e) {
 			trace(l, { error: (e as Error).stack ?? String(e) });
-			ctx.ui.notify(`connectome: compile failed, using pi's context (${(e as Error).message})`, "error");
+			// Do not keep vetoing Pi's compaction while sending its uncompressed history.
+			life = undefined;
+			wanted = null;
+			await release(l);
+			showStatus(ctx);
+			ctx.ui.notify(`connectome: compile failed; disabled for this session so Pi can compact (${(e as Error).message})`, "error");
 			return;
 		}
 	});
@@ -587,6 +607,7 @@ export default function (pi: ExtensionAPI) {
 				if (verb === "use" && !arg) return ctx.ui.notify("usage: /connectome use <name>", "warning");
 				// Messages already mirrored into the previous life stay there; the new life takes in
 				// this session's whole branch at its next call.
+				movedLife = undefined;
 				pi.appendEntry(CHOICE, verb === "default" ? { default: true } : { identity: next });
 				const prev = life;
 				life = undefined;
