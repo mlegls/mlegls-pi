@@ -1,6 +1,6 @@
 ---
 name: technical
-description: Execute work whose acceptance criterion is clear (metric, stub, contract...) but whose fulfilment is hard and requires strong reasoning (complex systems, difficult or novel algorithms, performance optimization). Use ui for UI/UX work.
+description: Execute work whose acceptance criterion is clear (metric, stub, contract...) but whose fulfilment is hard and requires strong reasoning (complex systems, difficult or novel algorithms, performance optimization).
 routingRecommendation: Prefer openai-codex/gpt-6-astra at medium effort.
 ---
 
