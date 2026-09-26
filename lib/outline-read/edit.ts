@@ -13,8 +13,9 @@ const GRAMMAR = `Hunks separated by one blank line. A hunk is a header line, the
   >abcd         insert after abcd
   <abcd         insert before abcd
 Copy anchors from read/grep: abcd│text → =abcd (not a line number).
+Bodies contain only the new text, not unified-diff + additions or - removals. =abcd replaces only one old line even when its body has many lines; use both endpoint anchors to replace an old block.
 A header may end with a separate @path token: =abcd wxyz @src/file.ts.
-A header-like body line or lone @path is an error unless backslash-escaped; that is the only way to write one as content. Double it to retain it.`;
+A header-like body line or lone @path must be backslash-escaped before its sigil (after any indentation), e.g. \\<time; double the backslash to retain it.`;
 
 const parameters = Type.Object({
 	edits: Type.String({ description: GRAMMAR }),
@@ -87,12 +88,12 @@ export function parseHunks(text: string): Hunk[] {
 				continue;
 			}
 		}
-		if (!line.startsWith("\\") && (parseHeader(line) || /^@\S+$/.test(line.trim()))) {
+		if (!line.trimStart().startsWith("\\") && (parseHeader(line) || /^@\S+$/.test(line.trim()))) {
 			throw new Error(
-				`Line ${i + 1} looks like a hunk header: "${line}". Separate hunks with a blank line. Nothing was modified.\n${GRAMMAR}`,
+				`Line ${i + 1} looks like a hunk header: "${line}". For another hunk, separate it with a blank line; for literal content, put a backslash before the sigil (after indentation). Nothing was modified.\n${GRAMMAR}`,
 			);
 		}
-		current.lines.push(line.replace(/^\\(?=\\*[=<>@-])/, ""));
+		current.lines.push(line.replace(/^(\s*)\\(?=\\*[=<>@-])/, "$1"));
 	}
 	hunks.push(current);
 	for (const h of hunks) {
@@ -157,6 +158,11 @@ async function applyToFile(deps: EditDeps, absolutePath: string, shown: string, 
 				if (stripped !== line) warnings.push(`Stripped a pasted anchor prefix from "${line.slice(0, 20)}".`);
 				return stripped;
 			});
+			// Suspicion is not permission to strip legitimate source text or reject it.
+			const nonblank = newLines.filter(line => line.trim());
+			if (!h.literal && nonblank.length >= 2 && nonblank.every(line => /^[+-]/.test(line)) && nonblank.some(line => line.startsWith("+"))) {
+				warnings.push(`"${h.header}": body resembles a unified diff. Leading + and - were written literally, not applied as diff markers. Supply only new text; use both endpoint anchors when replacing an old block.`);
+			}
 			if (h.mode === "after" || h.mode === "before") {
 				const index = at(h.from);
 				if (index < 0) continue;
@@ -242,8 +248,9 @@ export async function executeHunks(deps: EditDeps, cwd: string, hunks: Hunk[]) {
 	const byFile = new Map<string, Hunk[]>();
 	for (const h of hunks) {
 		const from = deps.ledger.find(h.from);
-		if (!from || (h.to && !deps.ledger.find(h.to))) throw new Error(`"${h.header}": unknown anchors; read the file again. Nothing was modified.`);
-		const path = from.path;
+		const missing = [h.from, ...(h.to ? [h.to] : [])].filter(anchor => !deps.ledger.find(anchor));
+		if (missing.length) throw new Error(`"${h.header}": unknown anchors ${missing.join(", ")}; copy them from a fresh read of the intended range. Nothing was modified.`);
+		const path = from!.path;
 		const toPath = h.to && deps.ledger.find(h.to)!.path;
 		if (toPath && toPath !== path) throw new Error(`"${h.header}": anchors are in different files. Nothing was modified.`);
 		if (h.path !== undefined && resolve(cwd, h.path) !== path) {

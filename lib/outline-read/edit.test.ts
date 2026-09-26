@@ -76,6 +76,14 @@ describe("parseHunks", () => {
 		expect(() => parseHunks("=aaaa")).toThrow(/use -aaaa to delete/);
 	});
 
+	test("indented header-like JSX can be escaped without losing indentation", () => {
+		expect(() => parseHunks("=aaaa\n            <time\n              dateTime={value}"))
+			.toThrow(/literal content.*backslash before the sigil/);
+		expect(parseHunks("=aaaa\n            \\<time\n              dateTime={value}\n            >")[0].lines)
+			.toEqual(["            <time", "              dateTime={value}", "            >"]);
+		expect(parseHunks("=aaaa\nx\n\n    \\<time")[0].lines).toEqual(["x", "", "    <time"]);
+		expect(parseHunks("=aaaa\n    \\\\<time")[0].lines).toEqual(["    \\<time"]);
+	});
 	test("bare words and escaped headers are text; bodies must fit the sigil", () => {
 		expect(parseHunks("=aaaa\nbbbb\n\nzzzz\n\n\\=zzzz")[0].lines).toEqual(["bbbb", "", "zzzz", "", "=zzzz"]);
 		expect(() => parseHunks("aaaa\nx")).toThrow(/not a hunk header/);
@@ -106,6 +114,31 @@ describe("edit tool", () => {
 		return { dir, file, read, edit, persisted };
 	};
 
+	test.each(["-old\n+new", "+first\n+second"])("diff-looking bodies remain literal, with a warning: %s", async body => {
+		const { file, read, edit } = setup();
+		const rows = await read();
+		const before = readFileSync(file, "utf8");
+		const r = await edit(`=${rows[0]}\n${body}`);
+		expect(r.content[0].text).toContain("body resembles a unified diff");
+		expect(readFileSync(file, "utf8")).toBe(body + "\n" + before.split("\n").slice(1).join("\n"));
+	});
+
+	test("a block replacement uses both endpoints and needs no diff markers", async () => {
+		const { file, read, edit } = setup();
+		const rows = await read();
+		const r = await edit(`=${rows[0]} ${rows[2]}\nfunction a() {\n  return 9;\n}`);
+		expect(r.content[0].text).not.toContain("body resembles");
+		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 9;\n}\n\nfunction b() {\n  return 2;\n}\n");
+	});
+
+	test("unknown range endpoint is named before any file changes", async () => {
+		const { file, read, edit } = setup();
+		const rows = await read();
+		const before = readFileSync(file, "utf8");
+		const absent = ["aaaa", "bbbb", "cccc"].find(a => !rows.includes(a))!;
+		await expect(edit(`=${rows[0]} ${absent}\nreplacement`)).rejects.toThrow(`unknown anchors ${absent};`);
+		expect(readFileSync(file, "utf8")).toBe(before);
+	});
 	test("insert a blank line after an anchor", async () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
