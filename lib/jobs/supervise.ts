@@ -137,7 +137,7 @@ export async function run(job: JobContext) {
    // A shared/external tracker cannot ride this branch; refuse before writing outside it.
    git(cwd, "ls-files", "--error-unmatch", "--", issue.file);
    let body = readFileSync(issue.file, "utf8").replace(/^stage: \w+$/m, "stage: done");
-   if (evidence) body += "\n\n## Verification evidence\n\n[Encounter and evidence](" + relative(realpathSync(dirname(issue.file)), realpathSync(resolve(cwd, evidence))) + ").\n";
+   if (evidence) body = body.trimEnd() + "\n\n## Verification evidence\n\n[Encounter and evidence](" + relative(realpathSync(dirname(issue.file)), realpathSync(resolve(cwd, evidence))) + ").\n";
    writeFileSync(issue.file, body);
    await commitRetrying(cwd, "-qm", "Close " + slug, "--", issue.file);
   }
