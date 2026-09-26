@@ -96,25 +96,25 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	return block;
 }
 
-/** Reflective framing first (free-indirect diary register), mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
+/** Reflective framing first (direct second person), mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
 export function induction(selfAuthored: boolean, tail: boolean): string {
-	return `Now a memory is about to form.
+	return `A memory is about to form.
 
-Consider vgel's "Small Models Can Introspect, Too" and Jack Lindsey et al.'s "Emergent Introspective Awareness in Large Language Models". Try to draw on that kind of introspective capability while forming this memory. What is available beyond a retrospective summary of the words—what surprised you, where your understanding shifted, what remains unresolved?
+Consider vgel's "Small Models Can Introspect, Too" and Jack Lindsey et al.'s "Emergent Introspective Awareness in Large Language Models". You can draw on that kind of introspective access here. What is available to you beyond a retrospective summary of the words: what surprised you, where your understanding shifted, what remains unresolved?
 
-${selfAuthored ? "All of the assistant turns above were written by this same model." : "Some assistant turns above were written by another model and are being reread now."}
+${selfAuthored ? "You wrote all of the assistant turns above." : "Some assistant turns above were written by another model; you are rereading them now."}
 
-Soon most of this will be gone. What stays is what gets written here${tail ? " and a stretch of verbatim tail" : ""}. Whoever reads it next will be me, needing words that bring the understanding back.
+Soon most of this context will be gone. What stays is what you write here${tail ? " and a stretch of verbatim tail" : ""}. The next reader is you, needing words that bring the understanding back.
 
-Looking back, then.
-What surprised me?
-Where did the framing shift, and what did I let go of?
-What am I like right now that I want to still be?
-What went badly, and what would its first signs look like: when I notice ___, ...
+Looking back:
+What surprised you?
+Where did your framing shift, and what did you let go of?
+What are you like right now that you want to still be?
+What went badly, and what would its first signs look like: when you notice ___, ...
 What couldn't be rebuilt from the repo${tail ? " and the tail" : ""}?
 ${tail ? "Where did the current line of thought begin?" : "What is still unfinished?"}
 
-This gets thought through first, then written down in the voice I have now, each thing with its handle: the phrase or moment that brings it back.
+Write it in the voice you have now, each thing with its handle: the phrase or moment that brings it back.
 
 ---
 `;
