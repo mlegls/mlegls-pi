@@ -2,7 +2,7 @@
 
 Supervision runs implementation → fresh encounter → visual judgment when the journey is rendered → integration. The encounter worker uses the project's prepared setup, Jev for semantic navigation and existing Playwright replays where appropriate. The visual reviewer opens the actual images; a collector's `held` is not a visual verdict. Backend-only journeys use API, CLI or library evidence without an extra visual worker.
 
-Before driving, check the handoff's deployment kind and owned target, persona/authentication, seed or restored state, and runnable entry point. Do not substitute anonymous-local setup for a Cloud requirement. Wait for setup to finish. Missing preparation goes back as unfinished delivery work. Never publish credentials or private account data in evidence; use test personas or redact before committing.
+Before driving, check the handoff's deployment kind and owned target, persona/authentication, seed or restored state, and runnable entry point. Do not substitute anonymous-local setup for a Cloud requirement. Wait for setup to finish. Resolve known, authorized preparation locally rather than handing it back by default. Never publish credentials or private account data in evidence; use test personas or redact before committing.
 
 ## Packet
 
@@ -38,9 +38,9 @@ Use `held`, `failed` or `unobservable` exactly. For a nonvisual journey set `vis
 
 ## Visual judgment and recovery
 
-A fresh visual reviewer receives the ticket and packet. Open the actual screenshots (contact sheets first when useful), judge the required claims, and commit the judgment with image references to the packet index. Only the index may change during this stage. Use the same `stories`/`evidence` handoff, not the standalone reviewer's `data: {blocking, nits}` format. Missing states are `unobservable`, not inferred success. Unrelated improvements are nonblocking observations with their own owner.
+A fresh visual reviewer receives the ticket and packet. Open the actual screenshots (contact sheets first when useful) and judge the required claims. If you have the context and authority to repair a gap, repair it directly, re-drive the affected behavior and refresh the evidence. Collect missing states yourself when practical. Commit the repairs and your judgment with current image references to the packet index. Pre-fix images cannot establish a repaired outcome. Use the same `stories`/`evidence` handoff, not the standalone reviewer's `data: {blocking, nits}` format. Missing states remain `unobservable` until observed. Unrelated improvements are nonblocking observations with their own owner.
 
-If evidence is missing, the supervisor sends the collector back through `resume … verify`, including the reviewer's request. Product failures go back to implementation; scope changes go to shaping. The loop retains earlier workers until integration or explicit disposal. `resume … integrate` retries an accepted integration; it does not waive verification or visual judgment. A changed branch needs fresh verification.
+A handoff should buy missing capability, context, authority or lower total cost, not preserve role purity. Repair size alone does not decide it. Use `resume … verify` when a fresh collector is actually useful; scope changes go to shaping. A reviewer's repair does not automatically require another reviewer: re-drive what changed, refresh the evidence, and finish. The loop retains earlier workers until integration or explicit disposal. `resume … integrate` retries an accepted integration; it does not waive acceptance, and edits after acceptance need updated evidence.
 
 Changing an acceptance gate requires checking its sensitivity: after relaxing a screenshot tolerance, try a known-bad change or leave sensitivity explicitly unverified. A small important regression may occupy fewer than 2% of pixels.
 
@@ -49,3 +49,4 @@ Only the parent integrates a child's branch. Cleanup follows recorded integratio
 ## First-use trial
 
 Try this on a few real visual and nonvisual tickets before changing model defaults. Record completed encounters, setup failures, parent interventions, evidence requested by the reviewer and defects found, along with model/effort. Compare accepted completion cost, not just collector token cost. Keep trial notes with the packet; no permanent telemetry system is required.
+Count avoidable handoffs too: fixes bounced to an implementer despite sufficient reviewer context, trivial missing states sent to another collector, duplicated judgment and repeated setup. Keep a stage only where its contribution justifies the context and scheduling cost.

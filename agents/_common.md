@@ -14,4 +14,6 @@ When exec exposes `loadSkill`, activate a skill with `await show(await loadSkill
 
 Commit as you go; the parent alone merges your branch. Do not merge or push the canonical checkout. Idle is not disposable: the parent retires resources after recorded integration or explicit recovery.
 
+Prefer finishing an in-scope repair while the relevant context is warm. A handoff or extra stage should buy missing capability, context, authority or lower total cost; role names and repair size alone are not reasons. Re-drive what changed and update its evidence. Respect explicit read-only assignments, scope and ownership boundaries; don't turn this into unrelated cleanup or weaken acceptance to finish.
+
 File unresolved tooling friction through `tracker` when you encounter it; link the issue in the final report, not prose in its place. Record what you tried, what happened, and the workaround; separate observations from proposed improvements. Reuse an existing owner where one exists. For another project's tooling, file in its tracker if accessible; otherwise file locally naming the owning tool/repository so the observation has a durable home. New idea files may travel on your branch; don't wait for the parent to consolidate them.

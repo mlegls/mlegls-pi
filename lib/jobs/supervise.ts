@@ -203,8 +203,8 @@ export async function run(job: JobContext) {
  const toVisualReview = async (c: Child, report: string) => {
   const issue = snapshot(input).find(i => i.slug === c.slug)!;
   const packet = evidencePacket(c.handle.path, c.evidence ?? null);
-  const prompt = ["Judge the collected visual evidence against this ticket. This is acceptance, not an open-ended design audit. Do not edit product code or weaken the contract. Open the actual screenshots (use lib/cards.ts for contact sheets); the collector's held outcomes are claims, not your verdict. Request missing states rather than infer them.",
-   "Read ~/dev/mlegls-pi/docs/verification-evidence.md. Commit your per-claim judgment and image references to the packet index " + packet.path + ". Only that index may change. For this supervised review, use the shared handoff rather than data: {blocking,nits}: stories: [{story: <claim>, outcome: held|failed|unobservable}], evidence: " + JSON.stringify(packet) + ", caveats: []. End blocked for failed or unobservable requirements; done only when all required visual claims hold. A small regression can affect fewer than 2% of pixels: changing a gate's tolerance needs a known-bad probe or an explicitly unverified sensitivity claim.",
+  const prompt = ["Judge the collected visual evidence against this ticket. This is acceptance, not an open-ended design audit. Open the actual screenshots (use lib/cards.ts for contact sheets); the collector's held outcomes are claims, not your verdict. If you have the context and authority to fix a gap, fix it directly, re-drive the affected behavior and refresh the evidence. Collect missing states yourself when practical. Hand off only when context, authority or cost warrants it; do not weaken the contract. Your repairs do not automatically require another reviewer.",
+   "Read ~/dev/mlegls-pi/docs/verification-evidence.md. Commit your per-claim judgment, any repairs and refreshed image references to the packet index " + packet.path + ". For this supervised review, use the shared handoff rather than data: {blocking,nits}: stories: [{story: <claim>, outcome: held|failed|unobservable}], evidence: " + JSON.stringify(packet) + " (update shots after repairs), caveats: []. End blocked only for requirements you cannot finish; done when all required claims hold on the repaired state. Record what changed and what you re-drove; pre-fix screenshots cannot establish the repaired outcome. A small regression can affect fewer than 2% of pixels: changing a gate's tolerance needs a known-bad probe or an explicitly unverified sensitivity claim.",
    "Ticket:\n" + readFileSync(issue.file, "utf8"), "Collector report:\n" + report].join("\n\n");
   const handle = await launch(c.slug, "visual-review", prompt, c.acceptedHead!, "agent:visual-reviewer", "visual-reviewer");
   (c.previous ??= []).push(c.handle);
@@ -284,9 +284,11 @@ export async function run(job: JobContext) {
   } else if (c.phase === "visual-review") {
    note(c.slug, caveats(r.handoff));
    if (unheld(r.handoff)) { await except(c, "visual acceptance did not hold", end.text); return; }
-   const packet = evidencePacket(c.handle.path, c.evidence ?? null);
+   const priorPath = (c.evidence?.evidence as { path?: string } | undefined)?.path;
+   const packet = evidencePacket(c.handle.path, r.handoff);
    const changed = git(c.handle.path, "diff", "--name-only", c.acceptedHead!, "HEAD").split("\n").filter(Boolean);
-   if (!changed.includes(packet.path) || changed.some(p => p !== packet.path) || git(c.handle.path, "status", "--porcelain")) { await except(c, "review must commit its judgment to the evidence index only", end.text); return; }
+   if (!packet.visual || packet.path !== priorPath || !changed.includes(packet.path) || git(c.handle.path, "status", "--porcelain")) { await except(c, "review must commit its judgment and current visual evidence", end.text); return; }
+   c.evidence = r.handoff!;
    c.visualReviewed = true; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD");
    await save();
    await integrateChild(c, c.handle);
