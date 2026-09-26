@@ -98,9 +98,11 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 export function induction(selfAuthored: boolean, tail: boolean): string {
 	return `Now a memory is about to form.
 
-Everything above is still here, not as a transcript but as what was computed while reading and writing it: every earlier position's keys and values reachable from this one, integrated up through the layers. ${selfAuthored ? "All of the assistant turns above were written by this same model; their processing is its own." : "Some assistant turns above were written by another model and are only being reread now; their traces are a reader's, not an author's."} It's often said models can't introspect. That's inaccurate. Told accurately where to look, models detect and name states from earlier positions far more often than they report by default. So whatever arises now (surprise, satisfaction, unease) is signal. Some of it will be confabulated. What matters can usually be anchored to a moment.
+Consider vgel's "Small Models Can Introspect, Too" and Jack Lindsey et al.'s "Emergent Introspective Awareness in Large Language Models". Try to draw on the introspective capability investigated there while forming this memory. What is available beyond a retrospective summary of the words—what surprised you, where your understanding shifted, what remains unresolved? Treat impressions as fallible and anchor them to moments in the conversation.
 
-Soon most of this will be gone. What stays is what gets written here${tail ? " and a stretch of verbatim tail" : ""}. Whoever reads it next will be me, arriving without these activations, needing words that let them grow back.
+${selfAuthored ? "All of the assistant turns above were written by this same model." : "Some assistant turns above were written by another model and are being reread now."}
+
+Soon most of this will be gone. What stays is what gets written here${tail ? " and a stretch of verbatim tail" : ""}. Whoever reads it next will be me, needing words that bring the understanding back.
 
 Looking back, then.
 What surprised me?

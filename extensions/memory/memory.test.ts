@@ -52,6 +52,9 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(sent.messages.slice(0, firstContext.length)).toEqual(firstContext);
 		expect(sent.systemPrompt).toBe("Unchanged system prompt");
 		expect(one.compaction.details.prefixMode).toBe("captured");
+		expect(one.compaction.details.register).toBe("diary-refs-v2");
+		expect(sent.messages.at(-1).content).toContain('vgel\'s "Small Models Can Introspect, Too"');
+		expect(sent.messages.at(-1).content).toContain('Jack Lindsey et al.\'s "Emergent Introspective Awareness in Large Language Models"');
 		expect(one.compaction.usage).toEqual(usage);
 		expect(one.compaction.firstKeptEntryId).toBe("e1");
 		expect(one.compaction.details.tail.estimatedTokens).toBeGreaterThan(1);
