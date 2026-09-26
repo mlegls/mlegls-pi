@@ -35,7 +35,10 @@ j/k switch workspaces;
 in session views j/k select agents (or project headers in the tree) and switch to live
 agent windows immediately. Enter opens or resumes one; h/l fold and expand the session tree.
 x closes the selected window, X its session;
-n/c/N create a pi window, terminal, or worktree.
-Free (untagged) tmux sessions stay under tmux even when their panes are inside a project.
-On one of those sessions, n and c start new windows in ~; on a workspace they use its path.
+n/c/N create a pi window, terminal, or worktree. On a project heading in either project
+view, they use the main checkout.
+The tmux heading in workspace view stays visible even when there are no free sessions.
+Select it and press n to create a free pi session or c for a free terminal session, both
+starting in ~. Existing free sessions stay under tmux even when their panes are in a repo;
+on an existing free session, n/c add windows starting in ~.
 Mouse works; ? shows the keys.

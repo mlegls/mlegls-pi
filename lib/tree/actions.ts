@@ -66,6 +66,17 @@ export function newWindow(w: Workspace, command?: string, name?: string): void {
 	switchTo(session, pane);
 }
 
+/** New untagged tmux session from the tmux heading (not a project workspace). */
+export function newFreeSession(command?: string): void {
+	const args = ["new-session", "-d", "-P", "-F", "#{session_name}", "-c", homedir()];
+	if (command) {
+		const shell = process.env.SHELL || "/bin/zsh";
+		const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'";
+		args.push("-n", "pi", `${shell} -ic ${q(command + "; exec " + shell + " -i")}`);
+	}
+	switchTo(tmux(...args));
+}
+
 /** Focus the node's pane, or resume it with pi --session in a new window of its workspace. */
 export function open(n: Node, w?: Workspace): string | undefined {
 	if (paneAlive(n.pane)) {

@@ -87,6 +87,8 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const byProject = new Map<string, Workspace[]>();
 		const recency = (w: Workspace): string => [w.updated, ...w.children.filter(k => spaces.has(k)).map(k => recency(spaces.get(k)!))].sort().pop()!;
 		for (const w of roots.sort((a, b) => recency(b).localeCompare(recency(a)))) { if (!byProject.has(w.project)) byProject.set(w.project, []); byProject.get(w.project)!.push(w); }
+		// The tmux heading is an action target even before any free sessions exist.
+		if (!byProject.has("tmux")) byProject.set("tmux", []);
 		left = [];
 		for (const [project, list] of byProject) {
 			const count = [...shown].filter(k => spaces.get(k)!.project === project).length;
@@ -294,14 +296,14 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	// keyboard stays here (the sidebar is a Ghostty split outside tmux) until enter/esc/click.
 	const tm = (...a: string[]) => execFileSync("tmux", a, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 	const navSession = (d: number) => {
-		// Only workspaces with a session: parked ones open with enter or a click.
-		const ws = left.filter((r): r is Extract<Left, { kind: "ws" }> => r.kind === "ws" && !!r.w.session);
+		// Skip parked workspaces; headings are selectable without switching the tmux client.
+		const ws = left.filter(r => r.kind === "project" || !!r.w.session);
 		if (!ws.length) return;
-		const at = ws.findIndex(r => r.w.key === selLeft);
-		const from = at >= 0 ? at : Math.max(0, ws.findIndex(r => r.w.session === current));
+		const at = ws.findIndex(r => leftKey(r) === selLeft);
+		const from = at >= 0 ? at : Math.max(0, ws.findIndex(r => r.kind === "ws" && r.w.session === current));
 		const to = ws[Math.max(0, Math.min(ws.length - 1, from + d))]!;
-		selLeft = to.w.key;
-		try { const s = to.w.session!; act.switchTo(s); current = s; } catch (e) { message = String(e); }
+		selLeft = leftKey(to);
+		if (to.kind === "ws") try { const s = to.w.session!; act.switchTo(s); current = s; } catch (e) { message = String(e); }
 	};
 	const navWindow = (d: number) => {
 		const session = current ?? act.currentSession();
@@ -335,7 +337,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			if (nav[k]) { nav[k]!(); draw(); return; }
 			if (k === "enter") { const r = left.find(x => leftKey(x) === selLeft); if (r?.kind === "ws") openLeft(); leaveSidebar(); draw(); return; }
 		} else if (sidebar && k === "escape") { leaveSidebar(); draw(); return; }
-		const w = view !== "workspaces" ? workspaceFor(selectedAgent()) : selectedWs();
+		const projectRow = view === "workspaces" && focus === "left" ? left.find(r => leftKey(r) === selLeft) : undefined;
+		const project = view === "tree" ? (selectedTree()?.node ? undefined : selectedTree()?.label) : projectRow?.kind === "project" ? projectRow.project : undefined;
+		const w = (view !== "workspaces" ? workspaceFor(selectedAgent()) : selectedWs()) ?? (project ? [...spaces.values()].find(x => x.main && x.project === project) : undefined);
+		const freeRoot = view === "workspaces" && focus === "left" && selLeft === "project:tmux";
 		const moveLeft = (d: number) => { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); selRight = 0; buildRight(); };
 		const moveAgent = (d: number) => { const list = agents; const i = Math.max(0, Math.min(list.length - 1, Math.max(0, list.findIndex(r => r.node?.id === selAgent)) + d)); const r = list[i]; if (r?.node) selAgent = r.node.id; else if (r) { const next = list[i + Math.sign(d)]; if (next?.node) selAgent = next.node.id; } };
 		const move = (d: number) => {
@@ -385,8 +390,8 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				break;
 			}
 			case "z": { const n = selectedAgent(); if (n) { message = act.park(n) ?? "parked"; setTimeout(refresh, 500); } break; }
-			case "n": if (w) { if (attempt(() => act.newWindow(w, "pi", "pi"))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
-			case "c": if (w) { if (attempt(() => act.newWindow(w))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
+			case "n": if (w || freeRoot) { if (attempt(() => w ? act.newWindow(w, "pi", "pi") : act.newFreeSession("pi"))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
+			case "c": if (w || freeRoot) { if (attempt(() => w ? act.newWindow(w) : act.newFreeSession())) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
 			case "N": if (w && !w.key.startsWith("tmux:")) input = { kind: "branch", text: "", prompt: sidebar ? "new branch: " : `new worktree off ${w.branch ?? label(w)}: `, then: name => {
 				if (!name.trim()) return;
 				const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'";
@@ -550,13 +555,14 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
               m merge into its parent (workmux merge)   x close its active window   X close its tmux session
               d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
               y yazi   e nvim   o zed
-  free tmux  untagged sessions stay under tmux even inside projects; n/c there start in ~
+  project    n/c/N use its main checkout (workspace view or project session tree)
+  tmux       always shown in workspace view; n/c on its heading create free sessions in ~
   i        type into the selected window/agent's pane from here (esc returns); an agent
            without a pane (headless) gets a one-line board message instead
   window   x kill it           agent   z park (stop the process; the session stays resumable)   enter resume
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
-  sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ wheel switches live sessions
+  sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ visits headings and live sessions
            h/l ←/→: windows in workspace view, fold/expand in session tree; enter opens/resumes
            x closes the active window (or selected agent's window); X closes its session
            n new pi   c new terminal   N new worktree (selected workspace/agent's workspace)

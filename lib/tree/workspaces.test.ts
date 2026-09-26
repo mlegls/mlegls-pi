@@ -4,7 +4,7 @@ import { chmodSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, 
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Node } from "./graph";
-import { newWindow } from "./actions";
+import { newFreeSession, newWindow } from "./actions";
 import { workspaces } from "./workspaces";
 
 test("free tmux sessions stay under tmux even inside repos; new windows start at home", () => {
@@ -23,6 +23,7 @@ case "$1" in
   list-panes) cat "$AB_TMUX_PANES" ;;
   has-session) exit 0 ;;
   new-window) printf '%%9\\n' ;;
+  new-session) printf 'scratch\\n' ;;
 esac
 `);
 		chmodSync(join(bin, "tmux"), 0o755);
@@ -47,10 +48,17 @@ esac
 		newWindow(free);
 		newWindow(free, "pi", "pi");
 		newWindow(ws.get(repo)!);
+		newFreeSession();
+		newFreeSession("pi");
 		const calls = readFileSync(log, "utf8").split("\n");
 		const cwdArgs = calls.flatMap((arg, i) => arg === "-c" && calls[i - 1] === "free:" ? [calls[i + 1]] : []);
 		expect(cwdArgs).toEqual([homedir(), homedir()]);
 		expect(calls.flatMap((arg, i) => arg === "-c" && calls[i - 1] === "tagged:" ? [calls[i + 1]] : [])).toEqual([repo]);
+		const created = calls.flatMap((arg, i) => arg === "new-session" ? [calls.slice(i, calls.indexOf("switch-client", i))] : []);
+		expect(created).toHaveLength(2);
+		expect(created.every(args => args.includes(homedir()) && !args.includes("@ab-workspace"))).toBe(true);
+		expect(created[0]?.includes("-n")).toBe(false);
+		expect(created[1]?.some(arg => arg.includes("pi; exec "))).toBe(true);
 	} finally {
 		process.env.PATH = oldPath;
 		if (oldTmux === undefined) delete process.env.TMUX; else process.env.TMUX = oldTmux;
