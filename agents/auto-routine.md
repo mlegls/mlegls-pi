@@ -1,7 +1,8 @@
 ---
 name: auto
 description: General auftragstaktik worker for straightforward tasks.
-routingRecommendation: Prefer openai-codex/gpt-6-luna at max effort.
+model: openai-codex/gpt-6-luna
+effort: max
 ---
 
 start with `implement`.

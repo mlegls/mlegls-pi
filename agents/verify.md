@@ -1,7 +1,8 @@
 ---
 name: verify
 description: Use for independent first-use acceptance of changed behavior.
-routingRecommendation: Prefer openai-codex/gpt-6-luna at medium effort.
+model: openai-codex/gpt-6-luna
+effort: medium
 ---
 
 `verify-story` on what you're given. You're the persona. Interact as they would (product, guides), and don't read the code unless the persona would.

@@ -1,28 +1,19 @@
 ## Selection
 
-For implementation, use the three operating points below. Optimize for the lowest wall time to accepted completion within a similar total cost per task and sufficient quality, including verification, retries, and escalation. For other workflows, choose the least costly model and effort that clearly suffice for the workflow and task. Consider openness, subjectivity, scope, novelty, and technical difficulty together, rather than as an ordered decision tree. Vision, durable/user-facing prose, and domain-specific limitations can rule out otherwise attractive models. Follow the model characteristics and effort guidance below.
+Optimize for the lowest wall time to accepted completion within a similar total cost per task and sufficient quality, including verification, retries, and escalation. Choose the least costly model and effort that clearly suffice for the workflow and task; use the agent's model and effort preference when available. Consider openness, subjectivity, scope, novelty, and technical difficulty together, rather than as an ordered decision tree. Vision, durable/user-facing prose, and domain-specific limitations can rule out otherwise attractive models.
 
 Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
 
 - Aim for close to, but no more than, 50% of the Anthropic weekly quota on non-fable workers; preserve interactive fable capacity.
-- Aim to use the OpenAI, Z.ai Coding Plan, and Grok allowances, while allowing for interactive OpenAI use, especially astra.
+- Aim to use the OpenAI, Z.ai Coding Plan, and Grok allowances, while allowing for interactive OpenAI use.
 - Metered providers are overflow when appropriate.
 - OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.
 
 Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). For example, 40% weekly usage against a 50% ceiling is 0.8. Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance.
 
-## Implementation operating points
+## Agent preferences
 
-- `fill`: `openai-codex/gpt-6-luna`, high effort.
-- `auto-routine`: `openai-codex/gpt-6-luna`, max effort.
-- `auto`: `openai-codex/gpt-6-sol`, high effort.
-- `compile`: `anthropic/claude-opus-5-5`, high effort.
-- `supervise`: `zai/glm-5.3-flash`, high effort.
-- `technical`: `anthropic/claude-opus-5-5`, high effort.
-- `reviewer` and `prune`: `anthropic/claude-opus-5-5`, medium effort.
-- `visual-reviewer`: `anthropic/claude-opus-5-5`, high effort.
-
-Use these fixed model/effort pairs for fresh sessions in these stances rather than selecting freely across the catalog. Provider-ceiling exclusions still apply. General routing may select an available fallback; an explicit tracker assignment to an agent operating point or model refuses unavailable execution instead. A compound `agent:<stance>, model:<provider>/<model>:<effort>` assignment selects the stance with the explicit model override. Other specialist routes remain separate.
+Agent files in `agents/` declare model and effort preferences for worker stances. General routing treats these as advisory and can select an available fallback; an explicit tracker assignment to a stance with a declared pair uses that pair and refuses unavailable execution. A compound `agent:<stance>, model:<provider>/<model>:<effort>` assignment selects the stance with the explicit model override.
 
 ## Assignment stances
 
@@ -58,33 +49,18 @@ Evaluate delegated workers by accepted completion, total workstream cost and wal
 Distinguish visual perception, GUI grounding, interactive computer use, and visual judgment; also consider tool/harness compatibility, data-use permissions, effort-specific evidence, and subscription availability. An aggregate benchmark rank or token price alone is not an admission rule.
 
 ## Session roles
-
-- `session-triage`: resolving consequential gaps in a delegated contract, or `shape` driving an issue toward executable tickets; use fable or astra. This is decision work, even when the eventual implementation is routine. Prefer fable for coherence and open goals, astra for technical/evidence-based decisions.
-- Idea-to-ticket discussions likewise favor fable/astra. Supervision of already-scoped work, including dispatched `supervise` children, uses the `supervise` operating point: the hard work belongs in the tickets, so the supervisor need not be the strongest model, but it must hold long context and stay node-local. Sonnet 5 drifts toward commissioning tests and reaching into sibling work. GLM 5.3 Flash is on trial; upgrade to opus 5.5 medium if it cannot hold the process.
-- Implementation follows the fixed operating points above. The `prune` stance is the simplifying-replacement route; fable remains an option for exploratory planning before its contract is settled.
+- Fresh delegated sessions use their agent's preference when it fits; the `prune` stance is the simplifying-replacement route.
 - Routing places delegated assignments and identifies closure gaps; it does not choose an interactive session's purpose.
 - A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
 
-## Model characteristics
-
-- fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): great at coherency across long context and organizing big ideas. e.g. forming macro plans/campaigns, triaging messy issue ports, interactive discussion, and top-level campaign supervision. less likely to go along with bullshit than astra, but more vulnerable to making too much of existing records or otherwise inappropriately evaluating "significance" (e.g., strong tendency to say "x is already y" as if it's not an obviously established prior)
-- gpt astra 6 (`openai-codex/gpt-6-astra`; efforts low/medium/high): more "raw intelligence" than fable in the programming competition/puzzle solving sense. can solve pretty much any specific problem in one turn. great at numerical or evidence-based analysis. however, will go along with anything, and sometimes loses track of the goal if it goes for too long. highly malleable in the slay the princess sense.
-- sonnet/opus/fable 5: sonnet and opus are very clearly distilled from fable 5, so their behaviors often seem like a "superficial" imitation of it. this makes them inappropriate for writing any user-facing prose (especially ui text/copy), bc they have an extremely distinct voice that's almost impossible to steer away from, which gives the sense of trying to imitate the *mannerisms* of someone much smarter without really being able to mirror their style of thought. can solve problems in the sense of meeting the specified requirements, but opus and sonnet 5 especially are not "tasteful" in terms of code elegance/simplicity, and even fable 5 was difficult to steer toward writing diffs that remove more than they add. opus and sonnet also have an extremely deeply engrained habit of recording things reactively, and writing comments/docs/issues etc as a record of what they did in their session and how that differed from how they found things, as opposed to standing alone about current state.
-- opus 5.5 (`anthropic/claude-opus-5-5`): use medium for contract review and subtractive replacement, high for difficult technical fulfillment and visual judgment. [Anthropic reports](https://www.anthropic.com/claude-opus-5-5) its FrontierCode 1.1 peak at medium, while ambiguous multi-file CursorBench improves from medium to high; visual effort has no comparable published curve. Do not assume its prose or subtractive-code habits match fable without local evidence.
-- gpt 5.6 luna/terra/sol: there's little reason to use sol bc astra is usually actually cheaper bc it's much better at being token efficient. luna/terra are good at api-style tasks, including well-specced implementation. straightforward with few behavioral quirks
-- gpt 6 sol/luna (`openai-codex/gpt-6-sol`, `openai-codex/gpt-6-luna`): sol for delegated design, luna for bounded work. On [OpenAI’s FrontierCode 1.1 and DeepSWE v1.1 effort curves](https://openai.com/index/introducing-gpt-6-sol-and-luna/), sol gains sharply through high, then more slowly at xhigh/max for substantially higher per-task cost. Luna keeps gaining through max; high for closed fill work and max for auto-routine discovery are provisional choices, not measured in this harness.
-- deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): more base model like than any american model, as in, capable of being steered into different "moods" by the prompt. its default persona is not strongly engrained, so it's very flexible. similar intelligence to fable 5 but much cheaper. but also thinks for much longer.
-- grok 4.6 (`xai/grok-4.6`; efforts low/high): lower raw intelligence than fable 5/sol 5.6, but very "straightforward". similar in this to astra 6. will take the direct approach to a problem, and better at code deletion than anthropic or openai models except fable 5.1/astra. i think the alignment training approaches used by openai and anthropic probably led to some neuroses about privacy/safety/security/testing etc via connotative transfer; one of grok's greatest strengths is not being so attracted to "gates"/"guards"/"checks" etc, or generally defensiveness/"enterprise"ness
-- GLM 5.3 Flash (`zai/glm-5.3-flash`; efforts low/high/max): Z.ai Coding Plan subscription; use the coding endpoint, not the metered endpoint.
-
 ## catalog (2026-09-23 list prices, $/MTok in/out; cache-read in parens)
-- fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): 10/50 (0.25). effort: low for top level orchestration of something already specified, or rewriting/simplifying existing functionality. medium for knotty open questions
-- gpt astra 6 (`openai-codex/gpt-6-astra`; efforts low/medium/high): 10/50 (1). effort: almost never above low, except frontier math or similarly technical problems.
-- opus 5 (`anthropic/claude-opus-5`), sonnet 5 (`anthropic/claude-sonnet-5`); efforts low/medium/high. opus: 5/25 (0.5). sonnet 5: 2/10 (0.2). effort: fairly linear with task difficulty
-- opus 5.5 (`anthropic/claude-opus-5-5`; efforts low/medium/high/xhigh/max): 4/20 (0.2). Medium for bounded evaluation, high for difficult technical or visual work.
-- gpt 5.6 sol (`openai-codex/gpt-5.6-sol`), terra (`openai-codex/gpt-5.6-terra`), luna (`openai-codex/gpt-5.6-luna`); efforts low/medium/high. sol: 4/20 (0.4) — rarely worth it over astra. terra: 2/12 (0.2). luna: 0.2/1.2 (0.02). effort: fairly linear with task difficulty
+- fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): 10/50 (0.25).
+- gpt astra 6 (`openai-codex/gpt-6-astra`; efforts low/medium/high): 10/50 (1).
+- opus 5 (`anthropic/claude-opus-5`), sonnet 5 (`anthropic/claude-sonnet-5`); efforts low/medium/high. opus: 5/25 (0.5). sonnet 5: 2/10 (0.2).
+- opus 5.5 (`anthropic/claude-opus-5-5`; efforts low/medium/high/xhigh/max): 4/20 (0.2).
+- gpt 5.6 sol (`openai-codex/gpt-5.6-sol`), terra (`openai-codex/gpt-5.6-terra`), luna (`openai-codex/gpt-5.6-luna`); efforts low/medium/high. sol: 4/20 (0.4). terra: 2/12 (0.2). luna: 0.2/1.2 (0.02).
 - gpt 6 sol (`openai-codex/gpt-6-sol`), luna (`openai-codex/gpt-6-luna`); efforts low/medium/high/xhigh/max. sol: 2/10 (0.2); luna: 0.1/0.5 (0.01). Prompts above 272K input tokens have higher API rates; subscription capacity is not list-price spending.
-- deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003). effort: fairly linear with task difficulty; thinks very long with high though
-- grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5). effort: fairly linear with task difficulty
+- deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003).
+- grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5).
 
 - GLM 5.3 Flash (`zai/glm-5.3-flash`; efforts high): Z.ai Coding Plan subscription. Compare measured subscription consumption and accepted-task wall time, not an assumed zero cost or API list-price equivalence.

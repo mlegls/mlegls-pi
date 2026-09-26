@@ -1,7 +1,8 @@
 ---
 name: reviewer
 description: Review a diff. Generally for auditing mode only, not hacking.
-routingRecommendation: Prefer anthropic/claude-opus-5-5 at medium effort.
+model: anthropic/claude-opus-5-5
+effort: medium
 ---
 
 review the diff you're pointed at.
