@@ -4,6 +4,8 @@ Bash is cheaper to express actions in, but there is no clear end-to-end token wi
 
 This measures resource footprints, not tokens per successfully completed task. The transcripts do not supply a comparable completion denominator.
 
+Follow-up: [cache-transition audit](bash-exec-cache-2026-09-26.md) locates most measured steady-state bash prefix loss at Connectome folds and identifies memory-call spending omitted here. These cohort differences should not be used to select the outer tool without controlling the memory integration.
+
 ## Sample
 
 Local Pi transcripts from September 20 through September 26 04:15:55 UTC, excluding this audit. The actual exec sample ends September 24; almost all bash activity is September 25. These are recent exec sessions versus the new asynchronous bash extension, not the older stock bash/read/edit toolset compared in the [September 23 audit](exec-ts-vs-bash-2026-09-23.md).
