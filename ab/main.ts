@@ -10,6 +10,8 @@ import { spawnSync } from "node:child_process";
 import { exact, OPEN, CLOSE, inTool } from "../lib/raw.ts";
 
 const HERE = dirname(new URL(import.meta.url).pathname);
+// A reader that closes early (`ab raw … | head`) is not an error.
+process.stdout.on("error", (e: NodeJS.ErrnoException) => { if (e.code === "EPIPE") process.exit(0); throw e; });
 const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");

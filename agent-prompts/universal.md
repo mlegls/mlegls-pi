@@ -35,7 +35,7 @@ axi tools are agent-ergonomic clis on PATH. running one with no args shows live 
 - `cyber-mux`: open/send/read/wait/close for tmux, herdr, wezterm, zellij and cmux, including worktree management.
 - `exa-cli`: exa search/contents/find-similar/answer (not `exa`, which may be eza). json by default with per-url crawl statuses; `--plain` for compact lines.
 - `jev-axi`: calibrated snap judgments from a cheap and fairly powerful 0-shot classifer. useful for subjective "lint"-like steps and hooks.
-- `lavish-axi <file.html>`: opens an html artifact in my browser for me to annotate.
+- `lavish-axi <file.html>`: opens an html artifact in my browser for me to annotate. run `poll` in the foreground with a long wait; if an earlier poll is still listening (e.g. i answered in chat instead), the next one needs `--takeover`.
 - `pypi-axi`: pypi package view/versions/deps/downloads (no search: pypi has no search api).
 - `quota-axi`: local quota windows and runway for various llm providers.
 
