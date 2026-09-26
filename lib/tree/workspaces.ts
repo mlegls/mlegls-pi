@@ -5,7 +5,7 @@
 // A worktree's parent: workmux's recorded base branch, else a branch-name prefix (a
 // run/handle branch), else the older worktree it shares the newest merge-base with (else the main
 // checkout). tmux sessions map to a workspace by the @ab-workspace option we set on sessions we
-// create, else by their session path, else by where their panes are.
+// create. Untagged tmux sessions stay free under tmux, regardless of their cwd.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync, statSync } from "node:fs";
@@ -16,7 +16,7 @@ import type { Node } from "./graph";
 export interface Pane { id: string; pid: number; command: string; path: string; active: boolean; agent?: Node }
 export interface Window { session: string; index: number; name: string; active: boolean; panes: Pane[] }
 export interface Workspace {
-	key: string; // worktree path, or "tmux:<session>" for sessions outside any repo
+	key: string; // worktree path, or "tmux:<session>" for free tmux sessions
 	path: string;
 	project: string;
 	branch?: string;
@@ -153,7 +153,7 @@ export function workspaces(nodes: Map<string, Node>, opts: { recent?: number; pi
 	const rootOf = new Map<string, string | undefined>();
 	const root = (p: string) => { if (!rootOf.has(p)) rootOf.set(p, existsSync(p) ? repoRoot(p) : undefined); return rootOf.get(p); };
 	for (const n of nodes.values()) if (ACTIVE.has(n.state) || (n.state !== "gone" && n.updated >= cutoff)) { const r = root(n.cwd); if (r) roots.add(r); }
-	for (const p of panes) { const r = root(p.tag || p.sessionPath || p.path); if (r) roots.add(r); }
+	for (const p of panes) if (p.tag) { const r = root(p.tag); if (r) roots.add(r); }
 	for (const p of opts.pinned ?? []) { const r = root(p); if (r) roots.add(r); }
 	for (const p of opts.hidden ?? []) roots.delete(real(p));
 
@@ -175,10 +175,7 @@ export function workspaces(nodes: Map<string, Node>, opts: { recent?: number; pi
 	for (const p of panes) {
 		if (sessionOwner.has(p.session)) continue;
 		const byTag = p.tag && out.has(real(p.tag)) ? real(p.tag) : undefined;
-		const byPath = owner(p.sessionPath) ?? panes.filter(q => q.session === p.session).map(q => owner(q.path)).find(Boolean);
-		// A session named after a project whose directory is gone: that project's main checkout.
-		const byName = [...out.values()].find(w => w.main && w.project === p.session)?.key;
-		sessionOwner.set(p.session, byTag ?? byPath ?? byName ?? "tmux:" + p.session);
+		sessionOwner.set(p.session, byTag ?? "tmux:" + p.session);
 	}
 	const ppid = parentsOfPids();
 	const paneOfPid = new Map<number, string>();
@@ -213,7 +210,9 @@ export function workspaces(nodes: Map<string, Node>, opts: { recent?: number; pi
 	const byWs = new Map<string, Node[]>();
 	for (const n of nodes.values()) {
 		if (n.state === "gone") continue;
-		const key = owner(real(n.cwd));
+		const pane = n.pane && agentOfPane.get(n.pane)?.id === n.id ? n.pane : n.pid ? paneOfPid.get(n.pid) : undefined;
+		const free = pane && panes.find(p => p.pane === pane && sessionOwner.get(p.session)?.startsWith("tmux:"));
+		const key = free ? sessionOwner.get(free.session) : owner(real(n.cwd));
 		if (!key) continue;
 		if (!byWs.has(key)) byWs.set(key, []);
 		byWs.get(key)!.push(n);

@@ -31,4 +31,6 @@ in session views j/k select agents (or project headers in the tree) and switch t
 agent windows immediately. Enter opens or resumes one; h/l fold and expand the session tree.
 x closes the selected window, X its session;
 n/c/N create a pi window, terminal, or worktree.
+Free (untagged) tmux sessions stay under tmux even when their panes are inside a project.
+On one of those sessions, n and c start new windows in ~; on a workspace they use its path.
 Mouse works; ? shows the keys.

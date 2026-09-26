@@ -5,6 +5,7 @@
 import { mail } from "../board/mailbox";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import type { Node } from "./graph";
 import type { Window, Workspace } from "./workspaces";
@@ -54,7 +55,7 @@ export function openWindow(win: Window): void { switchTo(win.session, `${win.ses
 /** New window in the workspace: pi, a shell, or a given command. */
 export function newWindow(w: Workspace, command?: string, name?: string): void {
 	const session = ensureSession(w);
-	const args = ["new-window", "-P", "-F", "#{pane_id}", "-t", session + ":", "-c", w.path];
+	const args = ["new-window", "-P", "-F", "#{pane_id}", "-t", session + ":", "-c", w.key.startsWith("tmux:") ? homedir() : w.path];
 	if (name) args.push("-n", name);
 	// Through an interactive shell so PATH matches a terminal (pi comes from mise), and the
 	// window stays as a shell when the command exits.

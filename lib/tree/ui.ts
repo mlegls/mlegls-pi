@@ -101,7 +101,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		}
 		if (!left.some(r => leftKey(r) === selLeft)) selLeft = (left.find(r => r.kind === "ws" && r.w.session === current) ?? left.find(r => r.kind === "ws") ?? left[0]) && leftKey((left.find(r => r.kind === "ws" && r.w.session === current) ?? left.find(r => r.kind === "ws") ?? left[0])!);
 	};
-	const workspaceFor = (n?: Node): Workspace | undefined => n && spaces.get([...spaces.keys()].sort((a, b) => b.length - a.length).find(k => n.cwd === k || n.cwd.startsWith(k + "/")) ?? "");
+	const workspaceFor = (n?: Node): Workspace | undefined => n && ([...spaces.values()].find(w => w.agents.some(a => a.id === n.id)) ?? spaces.get([...spaces.keys()].sort((a, b) => b.length - a.length).find(k => n.cwd === k || n.cwd.startsWith(k + "/")) ?? ""));
 	const selectedWs = (): Workspace | undefined => { const r = left.find(x => leftKey(x) === selLeft); return r?.kind === "ws" ? r.w : undefined; };
 	const buildRight = () => {
 		const w = selectedWs();
@@ -385,7 +385,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				break;
 			}
 			case "z": { const n = selectedAgent(); if (n) { message = act.park(n) ?? "parked"; setTimeout(refresh, 500); } break; }
-			case "n": if (w && !w.key.startsWith("tmux:")) { if (attempt(() => act.newWindow(w, "pi", "pi"))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
+			case "n": if (w) { if (attempt(() => act.newWindow(w, "pi", "pi"))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
 			case "c": if (w) { if (attempt(() => act.newWindow(w))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
 			case "N": if (w && !w.key.startsWith("tmux:")) input = { kind: "branch", text: "", prompt: sidebar ? "new branch: " : `new worktree off ${w.branch ?? label(w)}: `, then: name => {
 				if (!name.trim()) return;
@@ -550,6 +550,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
               m merge into its parent (workmux merge)   x close its active window   X close its tmux session
               d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
               y yazi   e nvim   o zed
+  free tmux  untagged sessions stay under tmux even inside projects; n/c there start in ~
   i        type into the selected window/agent's pane from here (esc returns); an agent
            without a pane (headless) gets a one-line board message instead
   window   x kill it           agent   z park (stop the process; the session stays resumable)   enter resume
