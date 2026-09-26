@@ -56,6 +56,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			if (!ctx.model) throw new Error("No active memory model");
 			const branch = event.branchEntries;
 			const leaf = ctx.sessionManager.getLeafId();
+			const session = ctx.sessionManager.getSessionId(), model = modelKey(ctx);
 			const visible = visibleEntries(branch);
 			const choices = tailChoices(visible);
 			let prior = previousBlocks(branch);
@@ -85,7 +86,13 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(),
 				maxTokens: Math.min(s.maxOutputTokens, ctx.model.maxTokens || s.maxOutputTokens),
 			}).result();
-			if (event.signal.aborted || ctx.sessionManager.getLeafId() !== leaf) throw new Error("Memory cancelled: session changed or request aborted");
+			if (event.signal.aborted) throw new Error("Memory cancelled: request aborted");
+			const current = ctx.sessionManager.getBranch();
+			const originalLeaf = current.findIndex(e => e.id === leaf);
+			// Extension bookkeeping (e.g. board cursors) advances the leaf without changing context.
+			if (ctx.sessionManager.getSessionId() !== session || modelKey(ctx) !== model || originalLeaf < 0
+				|| current.slice(originalLeaf + 1).some(e => e.type !== "custom"))
+				throw new Error("Memory cancelled: session or conversation changed");
 			if (response.stopReason !== "stop" || response.content.some((b: any) => b.type === "toolCall"))
 				throw new Error(`Memory generation did not finish cleanly: ${response.errorMessage ?? response.stopReason}`);
 			const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");

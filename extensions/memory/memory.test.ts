@@ -132,3 +132,42 @@ test("tail starts exclude tool results and old summaries, preserving call/result
 	expect(entries.slice(choices[1].index).map(e => e.id)).toEqual(["call", "result", "answer"]);
 	expect(choices[0].tokens).toBeGreaterThan(choices[2].tokens);
 });
+
+test("compaction tolerates metadata appends but rejects changed context and aborts", async () => {
+	const cwd = mkdtempSync(join(tmpdir(), "memory-race-"));
+	try {
+		mkdirSync(join(cwd, ".pi"));
+		writeFileSync(join(cwd, ".pi/settings.json"), JSON.stringify({ memory: { enabled: true } }));
+		for (const change of ["metadata", "message", "custom_message", "compaction", "branch", "session", "model", "abort"]) {
+			const branch: any[] = [
+				{ type: "message", id: "user", parentId: null, message: { role: "user", content: "Use port 4567", timestamp: 1 } },
+				{ type: "message", id: "answer", parentId: "user", message: assistant("Ready") },
+			];
+			const hooks = new Map<string, any>(), notices: string[] = [];
+			const controller = new AbortController();
+			let session = "session";
+			const ctx: any = {
+				cwd, model: { id: "model", provider: "test", maxTokens: 16000 }, getSystemPrompt: () => "",
+				ui: { notify: (s: string) => notices.push(s) },
+				sessionManager: { getSessionId: () => session, getLeafId: () => branch.at(-1)?.id, getBranch: () => branch },
+				modelRegistry: { streamSimple() { return { result: async () => {
+					if (change === "session") session = "other";
+					else if (change === "model") ctx.model = { ...ctx.model, id: "other" };
+					else if (change === "abort") controller.abort();
+					else if (change === "branch") branch.pop();
+					else branch.push({ type: change === "metadata" ? "custom" : change, id: "new", parentId: "answer", customType: "board-cursor", data: { offset: 123 } });
+					return assistant(JSON.stringify({ text: "Port 4567. [@user]", firstKeptEntryId: "answer", tailReason: "Keep the reply." }));
+				} }; } },
+			};
+			memoryExtension({ on: (name: string, fn: any) => hooks.set(name, fn), registerCommand() {}, getActiveTools: () => [], getAllTools: () => [], getThinkingLevel: () => "off" } as any);
+			const result = await hooks.get("session_before_compact")({ branchEntries: [...branch], preparation: { tokensBefore: 100 }, signal: controller.signal }, ctx);
+			if (change === "metadata") {
+				expect(result.compaction.firstKeptEntryId).toBe("answer");
+				expect(notices).toEqual([]);
+			} else {
+				expect(result).toEqual({ cancel: true });
+				expect(notices.at(-1)).toContain(change === "abort" ? "request aborted" : "session or conversation changed");
+			}
+		}
+	} finally { rmSync(cwd, { recursive: true, force: true }); }
+});
