@@ -1,8 +1,14 @@
 ---
-stage: idea
+stage: done
 author: session:2026-09-26T09-29-46-063Z_01a0dd0c-9b4f-7795-aad1-0299963801cf
 ---
 
 While fixing supervision closure ordering, inspection found a separate restart risk. `lib/children.ts:turnEndWm` calls `wm.attach(run, handle)` without the worker's checkout or parent repository. `wm.attach` defaults to `process.cwd()`; the shared daemon can supervise repositories other than its own startup directory. The poller queries workmux status by that cwd. A fresh Worker also has no paneId: `Worker.observe` does nothing when both the entry and known pane are absent, rather than emitting an exit. A restarted watch can therefore wait without a missing-worker event even if the worktree still exists. Board reports may hide the problem while workers are healthy.
 
 This is code-path evidence, not a live reproduced daemon failure. Check actual workmux status scoping and reattach a stopped worker in another repository before changing the receipt/attachment API. Preserve the distinction between a missing worker and a temporarily unavailable host. Supervision now detects missing worktree paths and parks reported exits, but that does not cover an existing worktree whose pane cannot be rediscovered. Origin: [supervision closure review](close-a-supervised-ticket-inside-its-branch.md).
+
+September 26: the supervisor now passes its repository through `children.turnEnd` to `wm.attach`. A fresh attachment with neither a status entry nor a known pane consults `workmux list --json`: a missing or closed target emits an exit, while an open target remains pending. This uses workmux's target identity rather than reconstructing window names. Status/list command failures and malformed responses are not empty successful results; the poller logs/de-duplicates failures and retries, independently per worker where possible. A tmux-host failure defers the whole host observation. Normal spawn-in-progress workers do not take the attachment-only check.
+
+A disposable live workmux window in another repository had `agents: []` both before and after closing its window, but `is_open` changed from true to false. A new watcher running from mlegls-pi, with the fixture repository supplied, returned `closed` and `unreachable` while the worktree still existed. Cleanup of the owned worktree and tmux session succeeded. Fifteen focused tests pass, including cwd forwarding and open/missing/closed targets versus unavailable/malformed responses. [Probe evidence](../research/wm-reattachment-2026-09-26.md).
+
+An open target without a registered agent is intentionally not declared dead: workmux has not established that. No live daemon restart or running Pi process was killed; the probe closed a disposable shell window. Host failures leave watches pending/cancellable and are logged, rather than being reported as worker exits.

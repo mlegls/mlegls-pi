@@ -141,16 +141,16 @@ interface StatusEntry {
 
 export async function workmuxStatus(cwd: string): Promise<StatusEntry[]> {
 	const out = await sh("workmux", ["status", "--json"], cwd);
-	if (out.exitCode !== 0) return [];
-	try {
-		return JSON.parse(out.stdout).agents ?? [];
-	} catch {
-		return [];
-	}
+	if (out.exitCode !== 0) throw new Error("workmux status unavailable: " + (out.stderr || out.stdout));
+	const value = JSON.parse(out.stdout);
+	if (!Array.isArray(value.agents)) throw new Error("workmux status: missing agents array");
+	return value.agents;
 }
 
 async function livePanes(): Promise<Map<string, string>> {
 	const out = await sh("tmux", ["list-panes", "-a", "-F", "#{pane_id} #{pane_current_command}"]);
+	if (out.exitCode !== 0 && !/no server running|No such file or directory/.test(out.stderr))
+		throw new Error("tmux panes unavailable: " + (out.stderr || out.stdout));
 	const map = new Map<string, string>();
 	for (const line of out.stdout.split("\n")) {
 		const [id, cmd] = line.split(" ");
@@ -165,19 +165,26 @@ class Poller {
 	private cursor = logSize();
 	private timer?: ReturnType<typeof setTimeout>;
 	private running = false;
+	private errors = new Map<string, string>();
+	private defer(key: string, error: unknown) {
+		const message = String(error);
+		if (this.errors.get(key) !== message) console.error("wm poll deferred (" + key + "): " + message);
+		this.errors.set(key, message);
+	}
 
 	add(w: Worker) {
 		this.workers.add(w);
 	}
 	remove(w: Worker) {
 		this.workers.delete(w);
+		this.errors.delete(w.topic);
 	}
 	/** @internal called when a worker gains a waiter or listener */
 	schedule() {
 		if (this.timer || ![...this.workers].some((w) => w.awaited)) return;
 		this.timer = setTimeout(() => {
 			this.timer = undefined;
-			void this.tick().finally(() => this.schedule());
+			void this.tick().catch(error => this.defer("poll", error)).finally(() => this.schedule());
 		}, POLL_MS);
 	}
 	private async tick() {
@@ -195,10 +202,14 @@ class Poller {
 			const byCwd = new Map<string, Promise<StatusEntry[]>>();
 			const panes = await livePanes();
 			for (const w of this.workers) {
-				if (!byCwd.has(w.cwd)) byCwd.set(w.cwd, workmuxStatus(w.cwd));
-				const entry = (await byCwd.get(w.cwd)!).find((e) => e.worktree === w.handle);
-				await w.observe(entry, panes);
+				try {
+					if (!byCwd.has(w.cwd)) byCwd.set(w.cwd, workmuxStatus(w.cwd));
+					const entry = (await byCwd.get(w.cwd)!).find((e) => e.worktree === w.handle);
+					await w.observe(entry, panes);
+					this.errors.delete(w.topic);
+				} catch (error) { this.defer(w.topic, error); }
 			}
+			this.errors.delete("poll");
 		} finally {
 			this.running = false;
 		}
@@ -225,6 +236,8 @@ export class Worker {
 	private sawAgent = false; // pane has run something other than a shell, so a shell now means pi exited
 	/** Infer idle turns from workmux status. Only for explicit commands: pi workers post their own turn ends. */
 	quietIsIdle = false;
+	/** Attach has no spawn-in-progress grace: consult workmux target state if status is absent. */
+	reattached = false;
 
 	constructor(
 		readonly run: string,
@@ -265,6 +278,18 @@ export class Worker {
 
 	/** @internal */
 	async observe(entry: StatusEntry | undefined, panes: Map<string, string>) {
+		if (this.reattached && !entry && !this.paneId) {
+			const out = await sh("workmux", ["list", "--json"], this.cwd);
+			if (out.exitCode !== 0) throw new Error("workmux list unavailable: " + (out.stderr || out.stdout));
+			const rows = JSON.parse(out.stdout);
+			if (!Array.isArray(rows)) throw new Error("workmux list: expected worktree array");
+			const target = rows.find(row => row.handle === this.handle);
+			if (target && typeof target.is_open !== "boolean") throw new Error("workmux list: missing is_open");
+			if (!target || !target.is_open) {
+				this.emit({ kind: "exited", tail: "workmux target is not open: " + this.handle });
+				return;
+			}
+		}
 		if (entry?.pane_id) this.paneId = entry.pane_id;
 		if (this.paneId) {
 			const cmd = panes.get(this.paneId);
@@ -496,7 +521,9 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 
 /** A Worker for a handle spawned elsewhere (another process, or before a resume). Assumes workmux's default worktree layout. */
 export function attach(run: string, handle: string, cwd = process.cwd(), session = slug(run)): Worker {
-	return new Worker(run, handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, handle));
+	const worker = new Worker(run, handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, handle));
+	worker.reattached = true;
+	return worker;
 }
 
 /** Merge the worker's branch into `into` (default: current branch of cwd) with plain git. */

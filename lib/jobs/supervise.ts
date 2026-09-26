@@ -204,7 +204,7 @@ export async function run(job: JobContext) {
   job.signal.addEventListener("abort", abort);
   const watcher = watch(dirname(file), (_, name) => { if (name === basename(file)) stop.abort(); });
   let end: children.TurnEnd;
-  try { end = ids.length ? await children.turnEnd(ids, { after: cursors, signal: stop.signal }) : await new Promise<never>((_, reject) => stop.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); }
+  try { end = ids.length ? await children.turnEnd(ids, { cwd: input.cwd, after: cursors, signal: stop.signal }) : await new Promise<never>((_, reject) => stop.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); }
   catch (error) {
    if (stop.signal.aborted) continue;
    // A dropped host connection is not a child's failure: back off and watch again, telling the owner once.

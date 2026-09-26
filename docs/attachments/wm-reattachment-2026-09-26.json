@@ -1,0 +1,96 @@
+[
+  {
+    "args": [
+      "workmux",
+      "status",
+      "--json"
+    ],
+    "cwd": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo",
+    "code": 0,
+    "stdout": "{\n  \"context\": {\n    \"backend\": \"tmux\",\n    \"instance\": \"/private/tmp/tmux-501/default\"\n  },\n  \"scope\": {\n    \"repository\": \"/private/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo\",\n    \"all\": false,\n    \"targets\": []\n  },\n  \"state_files_total\": 14,\n  \"state_files_invalid\": 0,\n  \"state_files_invalid_unattributed\": 0,\n  \"state_files_invalid_matching_context\": 0,\n  \"state_files_matching_context\": 11,\n  \"reconciled_agent_count\": 11,\n  \"agents\": [],\n  \"target_errors\": []\n}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "workmux",
+      "list",
+      "--json",
+      "reattach-probe"
+    ],
+    "cwd": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo",
+    "code": 0,
+    "stdout": "[{\"project\":\"repo\",\"project_path\":\"/private/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo\",\"handle\":\"reattach-probe\",\"branch\":\"reattach-probe\",\"path\":\"/private/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo__worktrees/reattach-probe\",\"is_main\":false,\"mode\":\"window\",\"has_uncommitted_changes\":false,\"is_open\":true,\"agent_statuses\":[],\"created_at\":1790420045}]\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "tmux",
+      "kill-window",
+      "-t",
+      "@111"
+    ],
+    "cwd": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo",
+    "code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "workmux",
+      "status",
+      "--json"
+    ],
+    "cwd": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo",
+    "code": 0,
+    "stdout": "{\n  \"context\": {\n    \"backend\": \"tmux\",\n    \"instance\": \"/private/tmp/tmux-501/default\"\n  },\n  \"scope\": {\n    \"repository\": \"/private/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo\",\n    \"all\": false,\n    \"targets\": []\n  },\n  \"state_files_total\": 14,\n  \"state_files_invalid\": 0,\n  \"state_files_invalid_unattributed\": 0,\n  \"state_files_invalid_matching_context\": 0,\n  \"state_files_matching_context\": 11,\n  \"reconciled_agent_count\": 11,\n  \"agents\": [],\n  \"target_errors\": []\n}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "workmux",
+      "list",
+      "--json",
+      "reattach-probe"
+    ],
+    "cwd": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo",
+    "code": 0,
+    "stdout": "[{\"project\":\"repo\",\"project_path\":\"/private/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo\",\"handle\":\"reattach-probe\",\"branch\":\"reattach-probe\",\"path\":\"/private/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo__worktrees/reattach-probe\",\"is_main\":false,\"mode\":\"window\",\"has_uncommitted_changes\":false,\"is_open\":false,\"agent_statuses\":[],\"created_at\":1790420045}]\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "bun",
+      "-e",
+      "import {turnEnd} from '/Users/mlegls/dev/mlegls-pi/lib/children.ts';console.log(JSON.stringify(await turnEnd([\"friction-6f3886662f/reattach-probe\"],{cwd:\"/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo\",signal:AbortSignal.timeout(5000)})));"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi",
+    "code": 0,
+    "stdout": "{\"id\":\"friction-6f3886662f/reattach-probe\",\"kind\":\"closed\",\"text\":\"workmux target is not open: reattach-probe\",\"cursor\":\"wm:exited:1790420047715\",\"unreachable\":true}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "workmux",
+      "rm",
+      "reattach-probe",
+      "-f",
+      "-k"
+    ],
+    "cwd": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo",
+    "code": 0,
+    "stdout": "\u2713 Removed worktree 'reattach-probe' (branch 'reattach-probe' kept)\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "tmux",
+      "kill-session",
+      "-t",
+      "friction-6f3886662f"
+    ],
+    "cwd": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/wm-reattach-vo0qphgw/repo",
+    "code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

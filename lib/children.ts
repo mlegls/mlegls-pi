@@ -16,6 +16,8 @@ export interface TurnEnd {
 export interface TurnEndOptions {
   after?: Record<string, string>;
   signal?: AbortSignal;
+  /** Repository owning the workers; a shared daemon's cwd is not their repository. */
+  cwd?: string;
 }
 
 type EndKind = TurnEnd["kind"];
@@ -69,7 +71,7 @@ async function turnEndWm(ids: string[], options: TurnEndOptions): Promise<TurnEn
     end !== null && (!options.after?.[end.id] || options.after[end.id] !== end.cursor));
   if (existing.length) return existing[0];
 
-  const workers = targets.map((target) => wm.attach(target.run, target.handle));
+  const workers = targets.map((target) => wm.attach(target.run, target.handle, options.cwd));
   try {
     while (true) {
       if (options.signal?.aborted) throw abortError(options.signal);
