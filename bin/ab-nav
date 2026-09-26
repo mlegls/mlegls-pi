@@ -1,0 +1,26 @@
+#!/bin/sh
+# Back/forward through visited tmux windows across sessions, like a browser or vim's jumplist.
+#   ab-nav record <window_id>   (hooks) note a visit
+#   ab-nav back | forward
+# History lives in server options: @ab-nav (space-separated window ids) and @ab-nav-at.
+list=$(tmux show -gqv @ab-nav); at=$(tmux show -gqv @ab-nav-at); at=${at:-0}
+count() { set -- $list; echo $#; }
+nth() { i=$1; set -- $list; eval echo "\${$i}"; }
+alive() { live=" $(tmux list-windows -a -F '#{window_id}' | tr '\n' ' ')"; while read -r w; do [ -n "$w" ] && case "$live" in *" $w "*) echo "$w" ;; esac; done; }
+go() {
+	w=$(nth "$1")
+	tmux set -g @ab-nav-at "$1"; tmux set -g @ab-nav-moving 1
+	tmux switch-client -t "$w" 2>/dev/null; tmux select-window -t "$w" 2>/dev/null
+}
+case "$1" in
+	record)
+		[ "$(tmux show -gqv @ab-nav-moving)" = 1 ] && { tmux set -g @ab-nav-moving 0; exit 0; }
+		[ -n "$2" ] || exit 0
+		n=$(count); [ "$n" -gt 0 ] && [ "$(nth "$at")" = "$2" ] && exit 0
+		# drop forward history, append, keep the last 50 live windows
+		keep=$(echo $list | tr ' ' '\n' | head -n "$at")
+		list=$(printf '%s\n%s\n' "$keep" "$2" | alive | tail -n 50 | tr '\n' ' ')
+		tmux set -g @ab-nav "$list"; tmux set -g @ab-nav-at "$(count)" ;;
+	back) [ "$at" -gt 1 ] && go $((at - 1)) || tmux display 'no earlier window' ;;
+	forward) [ "$at" -lt "$(count)" ] && go $((at + 1)) || tmux display 'no later window' ;;
+esac

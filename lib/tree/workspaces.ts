@@ -146,7 +146,7 @@ function parentsOfPids(): Map<number, number> {
 
 const ACTIVE = new Set(["working", "idle", "live"]);
 
-export function workspaces(nodes: Map<string, Node>, opts: { recent?: number } = {}): Map<string, Workspace> {
+export function workspaces(nodes: Map<string, Node>, opts: { recent?: number; pinned?: string[]; hidden?: string[] } = {}): Map<string, Workspace> {
 	const panes = tmuxPanes().filter(p => !p.sidebar);
 	const roots = new Set<string>();
 	const cutoff = new Date(Date.now() - 2 * 86_400_000).toISOString();
@@ -154,6 +154,8 @@ export function workspaces(nodes: Map<string, Node>, opts: { recent?: number } =
 	const root = (p: string) => { if (!rootOf.has(p)) rootOf.set(p, existsSync(p) ? repoRoot(p) : undefined); return rootOf.get(p); };
 	for (const n of nodes.values()) if (ACTIVE.has(n.state) || (n.state !== "gone" && n.updated >= cutoff)) { const r = root(n.cwd); if (r) roots.add(r); }
 	for (const p of panes) { const r = root(p.tag || p.sessionPath || p.path); if (r) roots.add(r); }
+	for (const p of opts.pinned ?? []) { const r = root(p); if (r) roots.add(r); }
+	for (const p of opts.hidden ?? []) roots.delete(real(p));
 
 	const out = new Map<string, Workspace>();
 	for (const r of roots) {

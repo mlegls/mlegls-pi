@@ -15,8 +15,23 @@ import { graph, type Node } from "./graph";
 import { age, attention, ICON, matcher, rows as agentRows, type Row } from "./view";
 import { label, home, workspaces, type Window, type Workspace } from "./workspaces";
 import * as act from "./actions";
+import { transcriptTail } from "./tail";
+import { execFileSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
+import { resolve } from "node:path";
 
 const STATE = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab-tree", "ui.json");
+const PROJECTS = join(dirname(STATE), "projects.json");
+interface Projects { pinned: string[]; hidden: string[] }
+const loadProjects = (): Projects => { try { return { pinned: [], hidden: [], ...JSON.parse(readFileSync(PROJECTS, "utf8")) }; } catch { return { pinned: [], hidden: [] }; } };
+const saveProjects = (p: Projects) => { mkdirSync(dirname(PROJECTS), { recursive: true }); writeFileSync(PROJECTS, JSON.stringify(p, null, 2)); };
+/** A typed project: a path, or anything zoxide knows. */
+function resolveProject(text: string): string | undefined {
+	const t = text.trim().replace(/^~(?=\/|$)/, homedir());
+	if (!t) return undefined;
+	if (existsSync(t)) return realpathSync(resolve(t));
+	try { return execFileSync("zoxide", ["query", ...t.split(/\s+/)], { encoding: "utf8" }).trim() || undefined; } catch { return undefined; }
+}
 interface Saved { collapsed: string[]; preview: number; view: "workspaces" | "agents" }
 
 type Left = { kind: "project"; project: string; count: number } | { kind: "ws"; w: Workspace; depth: number };
@@ -45,6 +60,9 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	let view: Saved["view"] = sidebar ? "workspaces" : saved.view;
 	let query = opts.query ?? "";
 	let input: { kind: "filter" | "send" | "branch" | "confirm"; text: string; then?: (text: string) => void; prompt?: string } | undefined;
+	/** Pane the keyboard is passed through to (i on a window or agent with a pane). */
+	let pass: string | undefined;
+	let passTimer: ReturnType<typeof setInterval> | undefined;
 	let nodes = new Map<string, Node>();
 	let spaces = new Map<string, Workspace>();
 	let left: Left[] = [], right: Right[] = [], agents: Row[] = [];
@@ -111,7 +129,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const paseo = Date.now() - lastPaseo > 60_000;
 			nodes = await graph({ paseo, days: 2 });
 			if (paseo) lastPaseo = Date.now();
-			spaces = workspaces(nodes);
+			spaces = workspaces(nodes, loadProjects());
 			current = act.currentSession();
 			rebuild();
 			draw();
@@ -161,13 +179,16 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		} else if (w) {
 			const win = w.windows.find(x => x.active) ?? w.windows[0];
 			pane = win?.panes.find(p => p.active)?.id;
+			if (!pane) n = w.agents[0]; // parked workspace: its latest agent's transcript
 			head = [c("1", label(w)) + c("90", `  ${w.branch ?? ""}  ${home(w.path)}${w.parent ? "  ← " + label(spaces.get(w.parent) ?? w) : ""}`)];
 		}
-		if (n) head = [c("1", n.title.replace(/\s+/g, " ")), c("90", `${n.state}${n.pid ? " pid " + n.pid : ""}  ${n.model ?? ""}  ${n.parentKind ? "via " + n.parentKind : "root"}  ${home(n.cwd)}`), ...(n.report ? [c("33", `[${n.report.tag}] ${n.report.body.replace(/\s+/g, " ")}`)] : [])];
-		pane ??= n?.pane;
-		const body = (pane && act.capturePane(pane, height)) || (n?.lastText ?? "").split("\n");
+		if (n) head = [c("90", `${n.state}${n.pid ? " pid " + n.pid : ""}  ${n.model ?? ""}  ${home(n.cwd)}`) + (n.report ? c("33", `  [${n.report.tag}] ${n.report.body.replace(/\s+/g, " ")}`) : "")];
+		pane ??= n?.pane && act.paneAlive(n.pane) ? n.pane : undefined;
+		if (pass) pane = pass;
+		if (pass) head = [c("1;30;43", " input → " + pass + " ") + c("90", "  esc returns to the dashboard")];
+		const body = (pane && act.capturePane(pane, height)) || (n ? transcriptTail(n.file, height, width) : []);
 		while (body.length && !body[body.length - 1]!.trim()) body.pop();
-		const lines = [...head, "", ...body.slice(-(height - head.length - 1))];
+		const lines = [...head, ...body.slice(-(height - head.length))];
 		return lines.slice(0, height).map(l => truncateToWidth(l, width));
 	};
 
@@ -177,7 +198,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const hint = sidebar ? `? help` : view === "agents" ? "enter open  i send  z park  s workspaces  / filter  ? help"
 			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s agents  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
-		const footerText = input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
+		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
 		const footer = truncateToWidth(c("7", " " + footerText), width, "", true);
 		if (help) {
 			out.write("\x1b[H\x1b[2J" + HELP.split("\n").slice(0, height - 1).map(l => truncateToWidth(l, width)).join("\r\n") + `\x1b[${height};1H` + footer);
@@ -290,9 +311,11 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			case "/": input = { kind: "filter", text: query }; break;
 			case "enter": if (view === "agents") { const n = nodes.get(selAgent ?? ""); if (n) openAgent(n); } else focus === "right" ? openRight() : openLeft(); break;
 			case "i": {
-				const n = selectedAgent(), pane = selectedPane();
-				if (!n && !pane) { message = "select a window or agent (l)"; break; }
-				input = { kind: "send", text: "", prompt: "send> ", then: t => { message = pane ? (attempt(() => act.sendToPane(pane, t)) ? "sent" : message) : act.send(n!, t) ?? "sent"; } };
+				const n = selectedAgent();
+				const pane = selectedPane() ?? (n?.pane && act.paneAlive(n.pane) ? n.pane : undefined) ?? (focus === "left" && w ? (w.windows.find(x => x.active) ?? w.windows[0])?.panes.find(p => p.active)?.id : undefined);
+				if (pane) { pass = pane; passTimer = setInterval(draw, 250); break; }
+				if (!n) { message = "select a window or agent (l)"; break; }
+				input = { kind: "send", text: "", prompt: "send (no pane; via Paseo)> ", then: t => { message = act.send(n, t) ?? "sent"; } };
 				break;
 			}
 			case "z": { const n = selectedAgent(); if (n) { message = act.park(n) ?? "parked"; setTimeout(refresh, 500); } break; }
@@ -320,6 +343,27 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				if (m.count) runTool("cd " + JSON.stringify(m.dir) + " && yazi");
 				draw();
 			}).catch(e => { message = String(e); draw(); }); } break;
+			case "P": input = { kind: "branch", text: "", prompt: "add project (path or zoxide query): ", then: t => {
+				const path = resolveProject(t);
+				if (!path) { message = "no such project: " + t; return; }
+				const p = loadProjects();
+				p.hidden = p.hidden.filter(x => x !== path);
+				if (!p.pinned.includes(path)) p.pinned.push(path);
+				saveProjects(p); message = "added " + home(path); void refresh();
+			} }; break;
+			case "D": {
+				const r = left.find(x => leftKey(x) === selLeft);
+				const main = r?.kind === "project" ? [...spaces.values()].find(x => x.main && x.project === r.project) : r?.kind === "ws" ? [...spaces.values()].find(x => x.main && x.project === r.w.project) : undefined;
+				if (!main) break;
+				input = { kind: "confirm", text: "", prompt: `remove ${main.project} from the dashboard (until P adds it back)? [y/N] `, then: a => {
+					if (a.trim() !== "y") return;
+					const p = loadProjects();
+					p.pinned = p.pinned.filter(x => x !== main.path);
+					if (!p.hidden.includes(main.path)) p.hidden.push(main.path);
+					saveProjects(p); void refresh();
+				} };
+				break;
+			}
 			case "+": case "=": preview = Math.min(80, preview + 5); break;
 			case "-": preview = Math.max(15, preview - 5); break;
 			case "r": void refresh(); break;
@@ -355,7 +399,17 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 
 	process.stdin.setRawMode(true);
 	process.stdin.setEncoding("utf8");
-	process.stdin.on("data", (chunk: string) => { for (const k of keys(chunk)) k.startsWith("\x1b[<") ? handleMouse(k) : handleKey(k); });
+	process.stdin.on("data", (chunk: string) => {
+		if (pass) {
+			if (chunk === "\x1b") { pass = undefined; clearInterval(passTimer); draw(); return; }
+			if (chunk.startsWith("\x1b[<")) return; // mouse
+			try { execFileSync("tmux", ["send-keys", "-t", pass, "-H", ...[...Buffer.from(chunk, "utf8")].map(b => b.toString(16))]); }
+			catch { pass = undefined; clearInterval(passTimer); message = "pane is gone"; }
+			setTimeout(draw, 60);
+			return;
+		}
+		for (const k of keys(chunk)) k.startsWith("\x1b[<") ? handleMouse(k) : handleKey(k);
+	});
 	out.on("resize", draw);
 	out.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h");
 	message = "loading…";
@@ -393,8 +447,10 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
               m merge into its parent (workmux merge)   x close its tmux session
               d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
               y yazi   e nvim   o zed
-  window      i send a line to its pane   x kill it
-  agent       i send   z park (stop; Paseo agents are archived)   enter resume (pi --session)
+  i        type into the selected window/agent's pane from here (esc returns); an agent
+           without a pane (running in Paseo) gets a one-line message instead
+  window   x kill it           agent   z park (stop; Paseo agents are archived)   enter resume
+  P        add a project (path or zoxide query)   D remove the selected project from the list
 
   ! needs you ⊘ blocked ● working ○ idle ◌ running in Paseo □ open ◇ parked   ▌ you are here
   +/- preview size   r refresh   q quit`;
