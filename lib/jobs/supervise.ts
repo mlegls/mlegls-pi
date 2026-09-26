@@ -2,16 +2,16 @@
 // woken (by message) only on exceptions. Design: docs/issues/scripted-supervision-loop.md.
 //   ab supervise start <ticket> [--budget N] [--test CMD]   (from the owning agent)
 //   ab supervise status | resume <job> <child> verify|integrate|drop|redispatch
-// Children are created with the owner as parent, so they show under it in the host.
+// Children are wm workers spawned with the owner as parent session; the owner is woken on
+// board topic session/<its session id>.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, watch } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { dispatch, integrate, retire as retireWorker, type Handle } from "../dispatch.ts";
+import { dispatch, integrate, retire as retireWorker, topic, type Handle } from "../dispatch.ts";
 import * as route from "../route.ts";
 import * as children from "../children.ts";
 import { parse } from "../report.ts";
-import * as paseo from "../paseo.ts";
 import type { JobContext } from "../daemon.ts";
 
 export interface Input { ticket: string; cwd: string; owner: string; budget: number; test?: string; commands: string; carried?: State | null }
@@ -95,20 +95,20 @@ export async function run(job: JobContext) {
  const except = async (c: Child, reason: string, text = "") => {
   c.waiting = reason;
   await wake(c.phase + " " + c.slug + ": " + reason + "\n\n" + text.slice(-3000) +
-   "\n\nchild agent " + ("agentId" in c.handle ? c.handle.agentId : c.handle.handle) + ", worktree " + c.handle.path +
+   "\n\nchild " + topic(c.handle) + ", worktree " + c.handle.path +
    "\nSteer it directly (its next turn end returns to the loop), or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
  };
  const launch = async (slug: string, phase: Phase, prompt: string, base: string, assignee?: string | null, stance?: string) => {
   const prepared = await route.prepare(prompt, { assignee: assignee ?? undefined, stance });
   if (prepared.kind !== "ready") throw new Error("routing needs triage for " + slug);
   const receipt = await dispatch([{ handle: phase === "verify" ? slug + "-verify" : slug, prompt, agent: prepared.agent, model: prepared.model, effort: prepared.effort, base }],
-   { run: input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent: input.owner });
+   { run: input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent: input.owner.replace(/^session\//, "") });
   if (!receipt.submitted[0]) throw new Error("launch failed for " + slug + ": " + (receipt.failed?.error ?? "pending"));
   state.metrics.launched++;
   return receipt.submitted[0];
  };
  // Unmerged branches (drop, redispatch) survive for the owner to inspect; merged ones are deleted.
- const retire = async (h: Handle) => { await retireWorker(h as any, { cwd: input.cwd }).catch(e => job.log("retire " + h.handle + ": " + e)); };
+ const retire = async (h: Handle) => { await retireWorker(h, { cwd: input.cwd }).catch(e => job.log("retire " + h.handle + ": " + e)); };
  const close = async (slug: string) => {
   const issue = snapshot(input).find(i => i.slug === slug);
   if (issue && !issue.done && existsSync(issue.file)) {
@@ -122,7 +122,7 @@ export async function run(job: JobContext) {
   "Ticket " + slug + ":\n\n" + ticket, "Implementer's report:\n\n" + report].join("\n\n");
  const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
   // A commit landing between the rebase and the fast-forward fails the merge; rebasing again settles it.
-  try { await integrate(handle as any, { cwd: input.cwd }).catch(error => error?.name === "MergeConflict" ? Promise.reject(error) : integrate(handle as any, { cwd: input.cwd })); }
+  try { await integrate(handle, { cwd: input.cwd }).catch(error => error?.name === "MergeConflict" ? Promise.reject(error) : integrate(handle, { cwd: input.cwd })); }
   catch (error) { return except(c, "integration failed", String(error)); }
   if (c.implementer) await retire(c.implementer);
   if (input.test) {
@@ -146,7 +146,7 @@ export async function run(job: JobContext) {
    c.waiting = undefined; c.unreachable = undefined;
    if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); delete state.children[c.slug]; }
    else if (cmd.action === "integrate") await integrateChild(c, c.handle);
-   else if (cmd.action === "verify") await toVerify(c, (await children.last(("agentId" in c.handle ? c.handle.agentId : c.handle.handle)))?.text ?? "");
+   else if (cmd.action === "verify") await toVerify(c, (await children.last(topic(c.handle)))?.text ?? "");
    else if (cmd.action === "redispatch") { await retire(c.handle); delete state.children[c.slug]; }
   }
   applied = all.length; await save();
@@ -155,7 +155,7 @@ export async function run(job: JobContext) {
   const issue = snapshot(input).find(i => i.slug === c.slug)!;
   const branch = git(c.handle.path, "branch", "--show-current");
   const handle = await launch(c.slug, "verify", verifyPrompt(c.slug, readFileSync(issue.file, "utf8"), report), branch, "agent", "verify");
-  Object.assign(c, { implementer: c.handle, handle, phase: "verify", cursor: undefined });
+  Object.assign(c, { implementer: c.handle, handle, phase: "verify", cursor: handle.cursor });
   await save();
  };
 
@@ -172,7 +172,7 @@ export async function run(job: JobContext) {
    const prompt = nonleaf
     ? HACK + "\n\nSupervise the subtree of " + i.file + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ": run ab supervise start " + i.slug + " and handle what it wakes you with; end your turn with done when it reports the subtree done.\n\n" + readFileSync(i.file, "utf8")
     : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + HANDOFF + "commit, setup (how to try it), stories, caveats: [] when there are none. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
-   try { state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle: await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined) }; }
+   try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor }; }
    catch (error) { await wake("could not launch " + i.slug + ": " + error); }
    await save();
   }
@@ -180,8 +180,8 @@ export async function run(job: JobContext) {
   if (!live.length) break;
   // A child the host cannot read sends no turn end; it waits for a resume command like any exception.
   const watched = live.filter(c => !c.unreachable);
-  const ids = watched.map(c => "agentId" in c.handle ? c.handle.agentId : c.handle.handle);
-  const cursors = Object.fromEntries(watched.filter(c => c.cursor).map(c => ["agentId" in c.handle ? c.handle.agentId : c.handle.handle, c.cursor!]));
+  const ids = watched.map(c => topic(c.handle));
+  const cursors = Object.fromEntries(watched.filter(c => c.cursor).map(c => [topic(c.handle), c.cursor!]));
   const stop = new AbortController();
   const abort = () => stop.abort();
   job.signal.addEventListener("abort", abort);

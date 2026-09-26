@@ -217,8 +217,9 @@ async function supervise(args: string[]) {
 	const jobs = (await api.status()).filter(j => j.type === "supervise" && (j.input as any).cwd === top && (!ticket || (j.input as any).ticket === ticket));
 	if (verb === "start" && ticket) {
 		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" } } });
-		const owner = process.env.PASEO_AGENT_ID;
-		if (!owner) fail("supervise start needs PASEO_AGENT_ID: the owning agent is woken on exceptions");
+		const session = process.env.PI_SESSION_ID;
+		if (!session) fail("supervise start runs from the owning pi session (PI_SESSION_ID): it is woken on board topic session/<id>");
+		const owner = "session/" + session;
 		// One loop per ticket per repository: loops started from sibling worktrees would dispatch the same children twice.
 		const common = (dir: string) => { const r = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: dir, encoding: "utf8" }); return r.status === 0 ? r.stdout.trim() : dir; };
 		const here = common(top);
@@ -237,7 +238,7 @@ async function supervise(args: string[]) {
 		for (const j of jobs) {
 			const s = j.state as any;
 			console.log(j.id + " " + j.status + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : ""));
-			for (const c of Object.values<any>(s?.children ?? {})) console.log("  " + c.slug + " " + c.phase + " " + (c.handle.agentId ?? c.handle.handle) + (c.waiting ? " waiting: " + c.waiting : ""));
+			for (const c of Object.values<any>(s?.children ?? {})) console.log("  " + c.slug + " " + c.phase + " " + (c.handle.run + "/" + c.handle.handle) + (c.waiting ? " waiting: " + c.waiting : ""));
 		}
 		return;
 	}

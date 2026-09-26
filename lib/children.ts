@@ -1,16 +1,14 @@
-import type { PaseoAgent, PaseoAgentTimelineEvent } from "@getpaseo/client";
-import { executionHost } from "./execution-host.ts";
-import * as paseo from "./paseo.ts";
+// Children's turn ends and follow-ups over the board: a child is a wm worker, named by its
+// run/handle topic, or any session by session/<id>.
 import * as wm from "./wm.ts";
-import { readAll, type Message } from "./board/store";
+import { readAll, send as post, type Message } from "./board/store";
 
 export interface TurnEnd {
   id: string;
   kind: "finished" | "error" | "closed" | "permission";
   text: string;
   cursor: string;
-  /** The host could not read this child at all (for example a closed agent whose worktree is gone);
-   * no later turn end will arrive for it until someone resumes it. */
+  /** The host could not read this child at all; no later turn end will arrive until someone resumes it. */
   unreachable?: true;
 }
 
@@ -20,191 +18,9 @@ export interface TurnEndOptions {
 }
 
 type EndKind = TurnEnd["kind"];
-type Cursor = { epoch: string; seq: number };
-
-function parseCursor(cursor: string | undefined): Cursor | undefined {
-  if (!cursor) return undefined;
-  try {
-    const value = JSON.parse(cursor);
-    if (typeof value?.epoch === "string" && Number.isFinite(value?.seq))
-      return { epoch: value.epoch, seq: value.seq };
-  } catch { /* workmux message IDs are not Paseo cursors */ }
-  return undefined;
-}
-
-function cursorString(cursor: Cursor): string {
-  return JSON.stringify(cursor);
-}
-
-function isAfter(cursor: Cursor | undefined, after: string | undefined): boolean {
-  if (!after) return true;
-  const previous = parseCursor(after);
-  if (!previous || !cursor) return true;
-  return cursor.epoch !== previous.epoch || cursor.seq > previous.seq;
-}
-
-function paseoId(id: string): string {
-  return id.startsWith("paseo:") ? id.slice("paseo:".length) : id;
-}
-
-function isPaseoId(id: string): boolean {
-  return id.startsWith("paseo:") || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-}
-
-function backendFor(id: string): "paseo" | "wm" {
-  if (isPaseoId(id)) return "paseo";
-  if (id.includes("/")) return "wm";
-  return executionHost();
-}
-
-type TimelineEntry = { item: { type: string; text?: string }; seqEnd: number };
-
-function latestAssistant(entries: TimelineEntry[]): TimelineEntry | undefined {
-  for (let i = entries.length - 1; i >= 0; i--)
-    if (entries[i].item.type === "assistant_message") return entries[i];
-  return undefined;
-}
-
-function completedAssistant(entries: TimelineEntry[]): TimelineEntry | undefined {
-  const assistant = latestAssistant(entries);
-  if (!assistant) return undefined;
-  let lastUserSeq = -1;
-  for (const entry of entries) if (entry.item.type === "user_message") lastUserSeq = entry.seqEnd;
-  return assistant.seqEnd > lastUserSeq ? assistant : undefined;
-}
-
-function textFromEntries(entries: TimelineEntry[]): string {
-  return latestAssistant(entries)?.item.text ?? "";
-}
-
-function statusKind(agent: PaseoAgent | null, entries: TimelineEntry[]): EndKind | null {
-  if (!agent) return null;
-  if (agent.pendingPermissions?.length || agent.attentionReason === "permission") return "permission";
-  if (agent.status === "closed") return "closed";
-  if (agent.status === "error" || agent.attentionReason === "error") return "error";
-  if ((agent.attentionReason === "finished" || agent.status === "idle" && !agent.activeTurn) && completedAssistant(entries))
-    return "finished";
-  return null;
-}
-
-
-function pageCursor(page: { endCursor: Cursor | null; epoch: string; window: { maxSeq: number } }): Cursor {
-  return page.endCursor ?? { epoch: page.epoch, seq: page.window.maxSeq };
-}
-
-async function readPaseoEnd(client: Awaited<ReturnType<typeof paseo.connect>>, id: string): Promise<TurnEnd | null> {
-  const handle = client.agents.ref(paseoId(id));
-  const page = await handle.timeline.refetch({ direction: "tail", limit: 100, projection: "canonical" });
-  if (page.error) throw new Error("Paseo timeline " + id + ": " + page.error);
-  const text = textFromEntries(page.entries);
-  const kind = statusKind(page.agent ?? handle.current(), page.entries);
-  if (!kind) return null;
-  return { id, kind, text, cursor: cursorString(pageCursor(page)) };
-}
-
-function streamEndKind(event: PaseoAgentTimelineEvent["event"]): EndKind | null {
-  switch (event.type) {
-    case "turn_completed": return "finished";
-    case "turn_failed": return "error";
-    case "turn_canceled": return "closed";
-    case "permission_requested": return "permission";
-    case "attention_required":
-      return event.reason === "permission" ? "permission" : event.reason === "error" ? "error" : "finished";
-    default: return null;
-  }
-}
-
-function streamCursor(event: PaseoAgentTimelineEvent): Cursor | undefined {
-  if ("generation" in event && "seq" in event && typeof event.generation === "string" && typeof event.seq === "number")
-    return { epoch: event.generation, seq: event.seq };
-  return undefined;
-}
-
-interface AgentWait {
-  promise: Promise<TurnEnd>;
-  stop(): Promise<void>;
-}
-
-function watchPaseoAgent(client: Awaited<ReturnType<typeof paseo.connect>>, id: string, after: string | undefined): AgentWait {
-  const agentId = paseoId(id);
-  const handle = client.agents.ref(agentId);
-  let resolve!: (value: TurnEnd) => void;
-  let reject!: (reason: unknown) => void;
-  let settled = false;
-  let lastText = "";
-  const promise = new Promise<TurnEnd>((res, rej) => { resolve = res; reject = rej; });
-  const finish = (value: TurnEnd) => {
-    if (settled) return;
-    settled = true;
-    resolve(value);
-  };
-  const fail = (error: unknown) => {
-    if (settled) return;
-    settled = true;
-    reject(error);
-  };
-  // A lost daemon connection is the caller's to retry; any other read failure belongs to this one child,
-  // so it ends as that child's error instead of failing every sibling's wait.
-  const unreadable = (error: unknown) => {
-    if (error instanceof Error && error.name === "DaemonConnectionError") return fail(error);
-    finish({ id, kind: "error", text: error instanceof Error ? error.message : String(error), cursor: after ?? "", unreachable: true });
-  };
-
-  const check = async (preferred?: EndKind, eventCursor?: Cursor, eventIsLive = false) => {
-    if (settled) return;
-    try {
-      const page = await handle.timeline.refetch({ direction: "tail", limit: 100, projection: "canonical" });
-      if (page.error) throw new Error("Paseo timeline " + id + ": " + page.error);
-      const assistant = completedAssistant(page.entries);
-      lastText = textFromEntries(page.entries) || lastText;
-      const snapshot = page.agent ?? handle.current();
-      const kind = preferred ?? statusKind(snapshot, page.entries);
-      if (!kind || kind === "finished" && !assistant) return;
-      const cursor = eventCursor ?? pageCursor(page);
-      if (kind === "finished" && assistant && !isAfter({ epoch: page.epoch, seq: assistant.seqEnd }, after)) return;
-      if (!isAfter(cursor, after) && !eventIsLive) return;
-      if (eventCursor && !isAfter(eventCursor, after)) return;
-      finish({ id, kind, text: lastText, cursor: cursorString(cursor) });
-    } catch (error) { unreadable(error); }
-  };
-
-  const timeline = handle.timeline.subscribe((event) => {
-    if (event.agentId !== agentId) return;
-    if (event.event.type === "error") {
-      unreadable(new Error("Paseo timeline " + id + ": " + event.event.error));
-      return;
-    }
-    if (event.event.type === "replacement" || event.event.type === "subscription_restored") {
-      void check();
-      return;
-    }
-    const kind = streamEndKind(event.event);
-    if (kind) void check(kind, streamCursor(event), true);
-  });
-  const unsubscribeAgent = handle.subscribe((update) => {
-    if (update.kind === "remove" && update.agentId === agentId) {
-      const cursor = update.generation && typeof update.seq === "number"
-        ? { epoch: update.generation, seq: update.seq } : undefined;
-      void check("closed", cursor, true);
-    } else if (update.kind === "upsert" && update.agent.id === agentId) {
-      const cursor = update.generation && typeof update.seq === "number"
-        ? { epoch: update.generation, seq: update.seq } : undefined;
-      void check(undefined, cursor, true);
-    }
-  });
-  void timeline.ready.then(() => check()).catch(fail);
-
-  return {
-    promise,
-    async stop() {
-      unsubscribeAgent();
-      await timeline.release().catch(() => {});
-    },
-  };
-}
 
 function terminalMessage(message: Message): EndKind | undefined {
-  if (message.tags.includes("done") || message.tags.includes("blocked") ||
+  if (message.tags.includes("done") || message.tags.includes("blocked") || message.tags.includes("turn-end") ||
       message.tags.includes("needs-input") || message.tags.includes("checkpoint")) return "finished";
   return undefined;
 }
@@ -234,11 +50,11 @@ function wmKind(kind: wm.Outcome["kind"]): EndKind {
 }
 
 function wmText(outcome: wm.Outcome): string {
-  return "message" in outcome ? outcome.message.body : outcome.tail;
+  return "message" in outcome && outcome.message ? outcome.message.body : "tail" in outcome ? outcome.tail : "";
 }
 
 function wmCursor(outcome: wm.Outcome): string {
-  return "message" in outcome ? outcome.message.id : "wm:" + outcome.kind + ":" + Date.now();
+  return "message" in outcome && outcome.message ? outcome.message.id : "wm:" + outcome.kind + ":" + Date.now();
 }
 
 function abortError(signal: AbortSignal): Error {
@@ -269,51 +85,26 @@ async function turnEndWm(ids: string[], options: TurnEndOptions): Promise<TurnEn
   }
 }
 
-/** Wait for the first child turn end after its cursor. IDs are Paseo agent IDs or workmux run/handle topics. */
+/** Wait for the first child turn end after its cursor. IDs are workmux run/handle topics. */
 export async function turnEnd(ids: string[], options: TurnEndOptions = {}): Promise<TurnEnd> {
   if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => !id))
     throw new Error("children.turnEnd requires child IDs");
-  if (options.signal?.aborted) throw abortError(options.signal);
-  const hosts = new Set(ids.map(backendFor));
-  if (hosts.size !== 1) throw new Error("children.turnEnd cannot wait across execution hosts");
-  const host = [...hosts][0];
-  if (host === "wm") return turnEndWm(ids, options);
-
-  const client = await paseo.connect({ reconnect: { enabled: true } });
-  if (options.signal?.aborted) { await client.close(); throw abortError(options.signal); }
-  const waits = ids.map((id) => watchPaseoAgent(client, id, options.after?.[id]));
-  const signal = options.signal;
-  let abortListener: (() => void) | undefined;
-  try {
-    const races: Array<Promise<TurnEnd>> = waits.map((wait) => wait.promise);
-    if (signal) races.push(new Promise<TurnEnd>((_resolve, reject) => {
-      abortListener = () => reject(abortError(signal));
-      signal.addEventListener("abort", abortListener, { once: true });
-    }));
-    return await Promise.race(races);
-  } finally {
-    if (signal && abortListener) signal.removeEventListener("abort", abortListener);
-    await Promise.all(waits.map((wait) => wait.stop()));
-    await client.close();
-  }
+  return turnEndWm(ids, options);
 }
 
 /** Read a child's most recent terminal turn, useful when reattaching after a daemon restart. */
 export async function last(id: string): Promise<TurnEnd | null> {
-  const host = backendFor(id);
-  if (host === "wm") return lastWm(id);
-  return paseo.withClient((client) => readPaseoEnd(client, id));
+  return lastWm(id);
 }
 
-/** Send a follow-up to a child using its execution host. */
+/** Send a follow-up: to a wm worker's pane, or for session/<id> a waking board message. */
 export async function send(id: string, text: string): Promise<void> {
   if (typeof text !== "string") throw new Error("children.send requires text");
-  const host = backendFor(id);
-  if (host === "wm") {
-    const target = wmTarget(id);
-    const worker = wm.attach(target.run, target.handle);
-    try { await worker.send(text); } finally { worker.drop(); }
+  if (id.startsWith("session/")) {
+    post({ topic: id, tags: [], from: { name: process.env.PI_BOARD_NAME ?? "ab" }, body: text });
     return;
   }
-  await paseo.withClient(async (client) => client.agents.ref(paseoId(id)).send(text));
+  const target = wmTarget(id);
+  const worker = wm.attach(target.run, target.handle);
+  try { await worker.send(text); } finally { worker.drop(); }
 }

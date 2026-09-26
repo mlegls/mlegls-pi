@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { integrate, MergeConflict, retire } from "./dispatch.ts";
-import * as paseo from "./paseo.ts";
+import { Worker } from "./wm.ts";
 
 function repo() {
   const root = mkdtempSync(join(tmpdir(), "integrate-"));
@@ -26,7 +26,7 @@ test("rebases the worker branch onto the parent and fast-forwards", async () => 
   const r = repo();
   r.commit(r.work, "a", "worker");
   r.commit(r.main, "b", "parent");
-  const result = await integrate({ backend: "wm" as const, path: r.work }, { cwd: r.main, keep: true });
+  const result = await integrate({ handle: "unit-a", run: "t", path: r.work }, { cwd: r.main, keep: true });
   expect(result).toEqual({ branch: "unit-a", mode: "rebase" });
   expect(r.git(r.main, "log", "--format=%s")).toBe("a\nb\nroot");
 });
@@ -34,54 +34,45 @@ test("rebases the worker branch onto the parent and fast-forwards", async () => 
 test("refuses uncommitted work and reports conflicts after aborting", async () => {
   const r = repo();
   writeFileSync(join(r.work, "dirty"), "");
-  await expect(integrate({ backend: "wm" as const, path: r.work }, { cwd: r.main, keep: true })).rejects.toThrow("uncommitted");
+  await expect(integrate({ handle: "unit-a", run: "t", path: r.work }, { cwd: r.main, keep: true })).rejects.toThrow("uncommitted");
   r.commit(r.work, "dirty", "w");
   r.commit(r.main, "dirty", "p");
-  const failure = await integrate({ backend: "wm" as const, path: r.work }, { cwd: r.main, keep: true }).catch(e => e);
+  const failure = await integrate({ handle: "unit-a", run: "t", path: r.work }, { cwd: r.main, keep: true }).catch(e => e);
   expect(failure).toBeInstanceOf(MergeConflict);
   expect(failure.files).toEqual(["dirty"]);
   expect(r.git(r.work, "status", "--porcelain")).toBe("");
   expect(r.git(r.main, "log", "--format=%s")).toBe("dirty\nroot");
 });
 
-test("Paseo archives only after Git integration; keep retains workspace", async () => {
+test("closes the worker only after Git integration; keep retains it", async () => {
   const r = repo();
   r.commit(r.work, "a", "worker");
-  const archived = {workspaceId: "ws-exact", requestId: "archive-1", archivedAt: "2026-09-22", error: null};
-  const archive = spyOn(paseo, "archive").mockImplementation(async () => {
+  const close = spyOn(Worker.prototype, "close").mockImplementation(async function (this: Worker) {
     r.git(r.main, "merge-base", "--is-ancestor", "unit-a", "HEAD");
-    return archived;
   });
   try {
-    const worker = { backend: "paseo" as const, workspaceId: "ws-exact", path: r.work };
+    const worker = { handle: "unit-a", run: "t", path: r.work };
     await integrate(worker, { cwd: r.main, keep: true });
-    expect(archive).not.toHaveBeenCalled();
-    const result = await integrate(worker, { cwd: r.main });
-    expect(result.removed).toEqual(archived);
-    expect(archive).toHaveBeenCalledTimes(1);
-    expect(archive).toHaveBeenCalledWith("ws-exact");
-    archive.mockRejectedValueOnce(new Error("workspace busy"));
-    await expect(integrate(worker, { cwd: r.main })).rejects.toThrow("workspace busy");
-    r.git(r.main, "merge-base", "--is-ancestor", "unit-a", "HEAD");
-  } finally { archive.mockRestore(); }
+    expect(close).not.toHaveBeenCalled();
+    await integrate(worker, { cwd: r.main });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledWith(true);
+  } finally { close.mockRestore(); }
 });
 
 test("retiring deletes a merged worker branch once its worktree is gone; an unmerged one is kept", async () => {
   const r = repo();
   r.commit(r.work, "a", "worker");
   r.commit(r.main, "m", "parent moved, so integration rebases");
-  const archive = spyOn(paseo, "archive").mockImplementation(async id => {
-    r.git(r.main, "worktree", "remove", r.work);
-    return {workspaceId: id, requestId: "x", archivedAt: "now", error: null};
-  });
+  const close = spyOn(Worker.prototype, "close").mockImplementation(async () => { r.git(r.main, "worktree", "remove", "--force", r.work); });
   try {
-    const result = await integrate({ backend: "paseo", workspaceId: "ws", path: r.work }, { cwd: r.main });
+    const result = await integrate({ handle: "unit-a", run: "t", path: r.work }, { cwd: r.main });
     expect(result.branchDeleted).toBe("unit-a");
     expect(r.git(r.main, "branch", "--list", "unit-a")).toBe("");
     r.git(r.main, "worktree", "add", "-q", "-b", "unit-b", r.work);
     r.commit(r.work, "b", "unmerged");
-    const dropped = await retire({ backend: "paseo", workspaceId: "ws", path: r.work }, { cwd: r.main });
+    const dropped = await retire({ handle: "unit-b", run: "t", path: r.work }, { cwd: r.main });
     expect(dropped.branchKept).toStartWith("unit-b");
     expect(r.git(r.main, "branch", "--list", "unit-b")).toContain("unit-b");
-  } finally { archive.mockRestore(); }
+  } finally { close.mockRestore(); }
 });
