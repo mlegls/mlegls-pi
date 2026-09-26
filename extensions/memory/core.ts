@@ -105,7 +105,7 @@ So beyond what happened, a useful summary covers:
 - what you are like right now in this work that you want to still be
 - what went badly, and what its first signs would look like: "when I notice ___, ..."
 - what couldn't be rebuilt from the repo${tail ? " and the tail" : ""}
-- ${tail ? "where the current line of thought began" : "what is still unfinished"}
+- ${tail ? "where the work in progress began" : "what is still unfinished"}
 
 Write in the voice you have now, and give each item its handle: the cited phrase or moment that brings it back.
 
@@ -123,7 +123,7 @@ export function instruction(prior: Block[], folding: SessionEntry[], rewrite: bo
 		const hint = msgs.map((m: any) => typeof m.content === "string" ? m.content : (m.content ?? []).map((b: any) => b.text ?? b.name ?? "").join(" ")).join(" ").replace(/\s+/g, " ").slice(0, 100);
 		return `${e.id} ${hint}`;
 	}).join("\n");
-	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the current line of thought begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
+	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the work in progress begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
 Tail starts (ID: tokens kept):
 ${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}
 Then write the memory of the entries before it` : "Write the memory of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier memories stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.
