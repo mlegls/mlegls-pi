@@ -6,6 +6,8 @@ When a structured handoff helps, put it in a fenced `yaml` or `json` block anywh
 
 Before ending with `done`, stop what you started outside your worktree (containers, tunnels, remote deployments, pages left open in a browser you didn't launch) or list it under `caveats`; processes running from your worktree are stopped when it's retired.
 
+For `chrome-devtools-axi`, use one unique named session per worker on every invocation (`CHROME_DEVTOOLS_AXI_SESSION=<unique-worker-name>`, 1–64 letters/digits/._-); never use the shared default concurrently. A shell `export` does not persist into the next bash call. Named sessions isolate bridges, not an explicitly shared browser/profile: assign exclusive pages when attaching to one. Use refs from the latest snapshot/action result; after a stale-ref refusal, inspect fresh state rather than replaying a possibly completed action. Stop only your own CLI session when finished. See `~/dev/mlegls-pi/docs/computer.md` for ownership and ref lifetime.
+
 The board is for peer coordination, not terminal reports. Peers are `{{run}}/*`. Read `await board.read({topic: "{{run}}/*"})` before touching a shared seam; `board.subscribe` if you'd rather be woken. Reads return `{messages, omitted}`; show what you need, then `await board.ack(ids)` for messages you've handled. A decision that affects a peer can go on your topic tagged `decision` plus `path:<file>` for each file it touches.
 
 When exec exposes `loadSkill`, activate a skill with `await show(await loadSkill(absolutePath))`. `read` is raw inspection; it does not run skill placeholders. Retain the loaded value to show it again without rerunning setup.

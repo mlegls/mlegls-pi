@@ -1,0 +1,206 @@
+[
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "open",
+      "http://127.0.0.1:57142/a.html"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  url: \"http://127.0.0.1:57142/a.html\"\n  refs: 5\nsnapshot:\nuid=g1:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g1:1_1 StaticText \"Email\"\n  uid=g1:1_2 textbox \"Email\" value=\"old\"\n  uid=g1:1_3 button \"Probe\"\n  uid=g1:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g1:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g1:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-fd230bd6ab87",
+    "args": [
+      "open",
+      "http://127.0.0.1:57142/b.html"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner B\n  url: \"http://127.0.0.1:57142/b.html\"\n  refs: 2\nsnapshot:\nuid=g1:1_0 RootWebArea \"Owner B\" url=\"http://127.0.0.1:57142/b.html\"\n  uid=g1:1_1 button \"Other\"\nhelp[2]:\n  Run `chrome-devtools-axi click @g1:1_1` to click the \"Other\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "snapshot"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g2:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g2:1_1 StaticText \"Email\"\n  uid=g2:1_2 textbox \"Email\" value=\"old\"\n  uid=g2:1_3 button \"Probe\"\n  uid=g2:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g2:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g2:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "screenshot",
+      "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/browser-ownership-ilna9y5s/shot.png"
+    ],
+    "code": 0,
+    "out": "screenshot: /private/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/browser-ownership-ilna9y5s/shot.png\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "click",
+      "@g2:1_3"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g3:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g3:1_1 StaticText \"Email\"\n  uid=g3:1_2 textbox \"Email\" value=\"old\"\n  uid=g3:1_3 button \"Probe\" focusable focused\n  uid=g3:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g3:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g3:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "snapshot"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g4:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g4:1_1 StaticText \"Email\"\n  uid=g4:1_2 textbox \"Email\" value=\"old\"\n  uid=g4:1_3 button \"Probe\" focusable focused\n  uid=g4:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g4:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g4:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "eval",
+      "document.title"
+    ],
+    "code": 0,
+    "out": "result: \"\\\"Owner A\\\"\"\nhelp[1]:\n  Run `chrome-devtools-axi snapshot` to see current page state\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "click",
+      "@g4:1_3"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g5:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g5:1_1 StaticText \"Email\"\n  uid=g5:1_2 textbox \"Email\" value=\"old\"\n  uid=g5:1_3 button \"Probe\" focusable focused\n  uid=g5:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g5:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g5:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "snapshot"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g6:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g6:1_1 StaticText \"Email\"\n  uid=g6:1_2 textbox \"Email\" value=\"old\"\n  uid=g6:1_3 button \"Probe\" focusable focused\n  uid=g6:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g6:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g6:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "wait",
+      "50"
+    ],
+    "code": 0,
+    "out": "waited: \"50\"\nhelp[1]:\n  Run `chrome-devtools-axi snapshot` to see current page state\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "click",
+      "@g6:1_3"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g7:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g7:1_1 StaticText \"Email\"\n  uid=g7:1_2 textbox \"Email\" value=\"old\"\n  uid=g7:1_3 button \"Probe\" focusable focused\n  uid=g7:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g7:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g7:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "eval",
+      "document.title"
+    ],
+    "code": 0,
+    "out": "result: \"\\\"Owner A\\\"\"\nhelp[1]:\n  Run `chrome-devtools-axi snapshot` to see current page state\n",
+    "err": ""
+  },
+  {
+    "session": "friction-fd230bd6ab87",
+    "args": [
+      "eval",
+      "document.title"
+    ],
+    "code": 0,
+    "out": "result: \"\\\"Owner B\\\"\"\nhelp[1]:\n  Run `chrome-devtools-axi snapshot` to see current page state\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "snapshot"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g8:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g8:1_1 StaticText \"Email\"\n  uid=g8:1_2 textbox \"Email\" value=\"old\"\n  uid=g8:1_3 button \"Probe\" focusable focused\n  uid=g8:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g8:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g8:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "fill",
+      "@g8:1_2",
+      "replacement"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g9:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g9:1_1 StaticText \"Email\"\n  uid=g9:1_2 textbox \"Email\" focusable focused value=\"replacement\"\n  uid=g9:1_3 button \"Probe\"\n  uid=g9:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi press Enter` to submit the form\n  Run `chrome-devtools-axi click @g9:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "eval",
+      "document.querySelector(\"input\").value"
+    ],
+    "code": 0,
+    "out": "result: \"\\\"replacement\\\"\"\nhelp[1]:\n  Run `chrome-devtools-axi snapshot` to see current page state\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "snapshot"
+    ],
+    "code": 0,
+    "out": "page:\n  title: Owner A\n  refs: 5\nsnapshot:\nuid=g10:1_0 RootWebArea \"Owner A\" url=\"http://127.0.0.1:57142/a.html\"\n  uid=g10:1_1 StaticText \"Email\"\n  uid=g10:1_2 textbox \"Email\" focusable focused value=\"replacement\"\n  uid=g10:1_3 button \"Probe\"\n  uid=g10:1_4 StaticText \"Idle\"\nhelp[3]:\n  Run `chrome-devtools-axi fill @g10:1_2 \"text\"` to fill the \"Email\" field\n  Run `chrome-devtools-axi click @g10:1_3` to click the \"Probe\" button\n  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval \"() => { ...; return result }\"`\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "eval",
+      "document.querySelector(\"#status\").textContent=\"Changed\""
+    ],
+    "code": 0,
+    "out": "result: \"\\\"Changed\\\"\"\nhelp[1]:\n  Run `chrome-devtools-axi snapshot` to see current page state\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "click",
+      "@g10:1_3"
+    ],
+    "code": 1,
+    "out": "error: \"Stale ref @g10:1_3: from snapshot generation 10, current is 11. Re-snapshot to get fresh refs.\"\ncode: STALE_REF\nhelp[1]: \"Run `chrome-devtools-axi snapshot` to capture current refs, then retry the action\"\n",
+    "err": ""
+  },
+  {
+    "session": "friction-e0301677b405",
+    "args": [
+      "stop"
+    ],
+    "code": 0,
+    "out": "status: stopped\n",
+    "err": ""
+  },
+  {
+    "session": "friction-fd230bd6ab87",
+    "args": [
+      "stop"
+    ],
+    "code": 0,
+    "out": "status: stopped\n",
+    "err": ""
+  }
+]

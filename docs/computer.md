@@ -4,6 +4,34 @@ Use `computer.run/step/walk` for goal-directed browser and desktop interaction.
 Use direct tools for inspection, setup, deterministic replay, debugging, or
 unsupported actions. When a browser CLI is needed, prefer `chrome-devtools-axi`.
 
+## Browser CLI ownership and refs
+
+`chrome-devtools-axi` already supports named sessions. Set
+`CHROME_DEVTOOLS_AXI_SESSION` to a unique worker name (1–64 letters/digits/._-)
+on **every invocation**, or export it within each shell call. Shell exports do
+not survive the next bash tool call. The default session shares the selected
+page and snapshot state with every other default-session caller; `newpage`
+alone does not give a worker ownership of that selection.
+
+With the default isolated launch mode, named sessions own separate bridges and
+browsers. `AUTO_CONNECT`, `BROWSER_URL`, `USER_DATA_DIR` and shared MCP endpoints
+can still point separate sessions at the same browser/profile. Naming is not a
+page lock: use an exclusively assigned page or isolated project setup. Check
+`pages` and the URL before judging a project story; stop only sessions you own.
+
+Refs identify a snapshot, not stable locators. Use the latest snapshot or
+snapshot returned by an action. `fill` followed by `click` with an older ref can
+fail because filling changes the page. A DOM mutation can invalidate refs even
+without another CLI command. On `STALE_REF`, inspect current state before
+retrying: the preceding action may already have succeeded. For deterministic
+replay, `chrome-devtools-axi run` supports CSS selectors without snapshot refs;
+this does not solve shared-page ownership.
+
+On 0.1.35, an isolated static-page probe retained usable refs across screenshot,
+read-only eval and wait; plain-input fill replaced its value. Mutating another
+DOM node invalidated the ref as designed. These results do not establish
+controlled-input or highly dynamic application behavior. [Evidence](research/browser-cli-ownership-2026-09-26.md).
+
 ## From bash
 
 ```sh
