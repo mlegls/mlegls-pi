@@ -32,7 +32,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		const ctx: any = {
 			cwd, model: { id: "model", provider: "test", maxTokens: 16000 }, getSystemPrompt: () => "Unchanged system prompt",
 			ui: { notify: (s: string) => notices.push(s) },
-			sessionManager: { getSessionId: () => "session", getLeafId: () => branch.at(-1)?.id, getBranch: () => branch },
+			sessionManager: { getSessionDir: () => cwd, getSessionId: () => "session", getLeafId: () => branch.at(-1)?.id, getBranch: () => branch },
 			modelRegistry: { streamSimple(_model: any, context: any) {
 				sent = context;
 				const prompt = context.messages.at(-1).content as string;
@@ -87,6 +87,8 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		invalidTail = false; citeTail = true;
 		expect(await fold()).toEqual({ cancel: true });
 		expect(notices.at(-1)).toContain("invalid original-source pointers");
+		expect(notices.at(-1)).toContain("in the retained tail");
+		expect(notices.at(-1)).toContain("(output: ");
 		expect(branch).toHaveLength(before);
 		citeTail = false; blocked = true;
 		const retried = await fold();

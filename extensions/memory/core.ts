@@ -85,9 +85,9 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	if (!text.trim()) throw new Error("Missing memory prose");
 	const cited = citations(text);
 	const priorIds = new Set(rewrite ? [] : [...prior.map(b => b.id), ...claims(prior).map(c => c.id)]);
-	const evidence = cited.filter(id => sources.has(id));
-	if (!evidence.length || cited.some(id => !sources.has(id) && !priorIds.has(id)))
-		throw new Error("Memory has missing or invalid original-source pointers");
+	const evidence = cited.filter(id => sources.has(id)), bad = cited.filter(id => !sources.has(id) && !priorIds.has(id));
+	if (!evidence.length || bad.length)
+		throw new Error(`Memory has missing or invalid original-source pointers${bad.length ? `: ${bad.join(", ")}` : " (no valid citation)"}`);
 	return { id: randomUUID(), timestamp: Date.now(), covers, text: text.trim(), sources: evidence,
 		supersedes: cited.filter(id => !sources.has(id)), recall: "lib" };
 }

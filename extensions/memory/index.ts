@@ -1,10 +1,10 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { buildSessionContext, convertToLlm, sessionEntryToContextMessages } from "@earendil-works/pi-coding-agent";
 import type { Context } from "@earendil-works/pi-ai";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { KIND, splitCheckpoint, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
+import { KIND, splitCheckpoint, citations, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
 interface Settings { enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
 function settings(cwd: string): Required<Settings> {
@@ -53,6 +53,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	pi.on("session_before_compact", async (event, ctx) => {
 		if (busy) return { cancel: true };
 		busy = true;
+		let output: string | undefined;
 		try {
 			const s = settings(ctx.cwd);
 			if (!s.enabled) return;
@@ -105,7 +106,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				throw new Error("Memory cancelled: session or conversation changed");
 			if (response.stopReason !== "stop" || response.content.some((b: any) => b.type === "toolCall"))
 				throw new Error(`Memory generation did not finish cleanly: ${response.errorMessage ?? response.stopReason}`);
-			const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
+			const text = output = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
 			const checkpoint = splitCheckpoint(text);
 			const chosen = choices.find(c => c.id === checkpoint.tail);
 			if (!chosen) throw new Error("Invalid tail start: begin with a `tail: ID` line naming a listed start");
@@ -117,7 +118,12 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			// Prior evidence remains addressable, but never across an unrelated branch.
 			const branchIds = new Set(sourceEntries(branch).map(e => e.id));
 			for (const c of claims(prior)) for (const id of c.sources) if (branchIds.has(id)) allowed.add(id);
-			const block = parseBlock(checkpoint.text, allowed, prior, rewrite, folding.map(e => e.id));
+			const retained = new Set(visible.slice(chosen.index).map(e => e.id));
+			let block;
+			try { block = parseBlock(checkpoint.text, allowed, prior, rewrite, folding.map(e => e.id)); } catch (e) {
+				const inTail = citations(checkpoint.text).filter(id => retained.has(id));
+				throw new Error(`${e instanceof Error ? e.message : e}${inTail.length ? ` (in the retained tail: ${inTail.join(", ")})` : ""}`);
+			}
 			if (rewrite && roughTokens(renderMemory([block])) >= s.memoryTokens) throw new Error("Rewrite exceeds memory budget; old context retained");
 			// Imported summaries cannot be safely dropped without original provenance.
 			const blocks = [...(rewrite ? prior.filter(b => b.legacy !== undefined) : prior), block];
@@ -129,7 +135,12 @@ export default function memoryExtension(pi: ExtensionAPI) {
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };
 		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
+			let message = error instanceof Error ? error.message : String(error);
+			if (output !== undefined) {
+				const file = join(ctx.sessionManager.getSessionDir?.() ?? tmpdir(), `memory-failed-${ctx.sessionManager.getSessionId()}-${Date.now()}.md`);
+				writeFileSync(file, output);
+				message += ` (output: ${file})`;
+			}
 			// A filter block on both prompts is about the session, not the checkpoint: let Pi's own summarizer (a separate, serialized request) try.
 			if (BLOCKED.test(message) && !event.signal.aborted) {
 				ctx.ui.notify("Memory checkpoint blocked by provider filter; falling back to Pi's native compaction", "warning");
