@@ -75,7 +75,8 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			} else {
 				context = { systemPrompt: ctx.getSystemPrompt(), tools: tools(pi), messages: convertToLlm(expandMemory(buildSessionContext(branch).messages, branch)) };
 			}
-			context.messages.push({ role: "user", content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }), timestamp: Date.now() });
+			const selfAuthored = context.messages.every((m: any) => m.role !== "assistant" || (m.provider === ctx.model!.provider && m.model === ctx.model!.id));
+			context.messages.push({ role: "user", content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored), timestamp: Date.now() });
 			const stream = (ctx.modelRegistry as any).streamSimple;
 			if (typeof stream !== "function") throw new Error("Memory requires Pi's modelRegistry.streamSimple (update Pi)");
 			const started = Date.now();
@@ -107,7 +108,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			return { compaction: {
 				summary: renderMemory(blocks), firstKeptEntryId: kept.id, tokensBefore: event.preparation.tokensBefore,
 				usage: response.usage,
-				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode,
+				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode, register: "diary-v1", selfAuthored,
 					tail: { mode: "model-contiguous", firstKeptEntryId: kept.id, estimatedTokens: chosen.tokens, targetTokens: s.keepRecentTokens, reason: selection.tailReason },
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };

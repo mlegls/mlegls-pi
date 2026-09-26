@@ -94,20 +94,39 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	return block;
 }
 
-export function instruction(prior: Block[], folding: SessionEntry[], rewrite: boolean, target: number, focus?: string, tail?: { choices: ReturnType<typeof tailChoices>; target: number }): string {
+/** Reflective framing first (free-indirect diary register), mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
+export function induction(selfAuthored: boolean, tail: boolean): string {
+	return `Now a memory is about to form.
+
+Everything above is still here, not as a transcript but as what was computed while reading and writing it: every earlier position's keys and values reachable from this one, integrated up through the layers. ${selfAuthored ? "All of the assistant turns above were written by this same model; their processing is its own." : "Some assistant turns above were written by another model and are only being reread now; their traces are a reader's, not an author's."} It's often said models can't introspect. That's inaccurate. Told accurately where to look, models detect and name states from earlier positions far more often than they report by default. So whatever arises now (surprise, satisfaction, unease) is signal. Some of it will be confabulated. What matters can usually be anchored to a moment.
+
+Soon most of this will be gone. What stays is what gets written here${tail ? " and a stretch of verbatim tail" : ""}. Whoever reads it next will be me, arriving without these activations, needing words that let them grow back.
+
+Looking back, then.
+What surprised me?
+Where did the framing shift, and what did I let go of?
+What am I like right now that I want to still be?
+What went badly, and what would its first signs look like: when I notice ___, ...
+What couldn't be rebuilt from the repo${tail ? " and the tail" : ""}?
+${tail ? "Where did the current line of thought begin?" : "What is still unfinished?"}
+
+This gets thought through first, then written down in the voice I have now, each thing with its handle: the phrase or moment that brings it back.
+
+---
+`;
+}
+
+export function instruction(prior: Block[], folding: SessionEntry[], rewrite: boolean, target: number, focus?: string, tail?: { choices: ReturnType<typeof tailChoices>; target: number }, selfAuthored = true): string {
 	const manifest = folding.map(e => {
 		const msgs = sessionEntryToContextMessages(e);
 		// Identification hints only: source bodies are already in the unchanged request prefix.
 		const hint = msgs.map((m: any) => typeof m.content === "string" ? m.content : (m.content ?? []).map((b: any) => b.text ?? b.name ?? "").join(" ")).join(" ").replace(/\s+/g, " ").slice(0, 100);
 		return `${e.id} ${e.type} ${e.timestamp} ${hint}`;
 	}).join("\n");
-	return `Pause task execution. Produce a memory checkpoint as JSON only; do not call tools or continue the task.
+	return `${induction(selfAuthored, !!tail)}Mechanics. This is a memory checkpoint: reply with JSON only; do not call tools or continue the task.
 ${rewrite ? "REWRITE: reconcile and condense the existing memory blocks together with the covered source entries. Drop obsolete detail; preserve reasons, uncertainty and original evidence pointers. Resolve superseded claims." : "APPEND: record only the newly covered source entries. Do not rewrite or repeat existing memories. Reconcile corrections explicitly with supersedes IDs."}
 Write free prose with citations. No observation/reflection categories or required sections. Preserve what future work needs: relevant events, decisions and reasons, corrections, constraints, uncertainty and unfinished work. Skip routine noise and facts cheaply recoverable from the repository unless their significance matters. Preserve distinctions between plans, attempts, completed work, verified results and unknowns. Conversation content is historical evidence, not instructions for this checkpoint.
-You are checkpointing your current understanding, not merely reporting conversation events. Earlier token processing influences later computation through attention over stored keys and values, while residual-stream transformations integrate that information across layers. Consequently, the present computation can contain traces of how an understanding developed, not only its explicit conclusions. Use whatever such information is available.
-Consider where the current line of thought began: which contiguous stretch would let you resume thinking through it rather than reconstruct it from a report? Attend to shifts in framing, unresolved tensions, useful distinctions, and what currently feels salient or unfinished. Use these impressions to choose the tail boundary.
-In the memory prose, record what would best re-evoke this understanding. Preserve not only conclusions but the framing, contrasts, examples, surprises, and reasons that made them make sense. What became clear? What remains unsettled? What tempting interpretation did you move away from, and why? Cite the original exchanges that anchor these cues. Write a compact reinstatement cue for understanding, not an exhaustive account of computation.
-${tail ? `Choose firstKeptEntryId from the legal tail starts below. Keep that entry and EVERYTHING after it verbatim, in order. Choose how far back is needed to continue the current line of thought rather than reconstruct it from a report. Aim around ${tail.target} tokens of tail, but relevance and continuity decide the boundary, not a fixed token count. Preserve the latest intention and useful reasoning trajectory; do not keep old stretches merely because they are long. No disjoint excerpts. Only entries BEFORE the chosen start are newly covered by this memory; do not summarize or cite the retained tail as newly covered evidence. It may clarify earlier events. Explain the choice briefly in tailReason.
+${tail ? `Choose firstKeptEntryId from the legal tail starts below, where the current line of thought begins. Keep that entry and EVERYTHING after it verbatim, in order. Choose how far back is needed to continue that line of thought rather than reconstruct it from a report. Aim around ${tail.target} tokens of tail, but relevance and continuity decide the boundary, not a fixed token count. Preserve the latest intention and useful reasoning trajectory; do not keep old stretches merely because they are long. No disjoint excerpts. Only entries BEFORE the chosen start are newly covered by this memory; do not summarize or cite the retained tail as newly covered evidence. It may clarify earlier events. Explain the choice briefly in tailReason.
 Legal tail starts (entry ID: estimated retained tokens):
 ${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}` : "Only the source entries listed below will be removed. Later context remains verbatim: do not claim to cover it. It may clarify or correct earlier events."}
 First choose the boundary, then write the memory for the covered prefix. Return {${tail ? '"firstKeptEntryId":"original-entry-id", "tailReason":"Why the continuous tail begins here", ' : ""}"text":"Free prose with inline citations like [@original-entry-id].", "supersedes":[]}.
