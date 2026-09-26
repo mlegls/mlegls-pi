@@ -4,7 +4,7 @@ Bash is cheaper to express actions in, but there is no clear end-to-end token wi
 
 This measures resource footprints, not tokens per successfully completed task. The transcripts do not supply a comparable completion denominator.
 
-Follow-up: [cache-transition audit](bash-exec-cache-2026-09-26.md) locates most measured steady-state bash prefix loss at Connectome folds and identifies memory-call spending omitted here. These cohort differences should not be used to select the outer tool without controlling the memory integration.
+Follow-up: [cache and model investigation](bash-exec-cache-2026-09-26.md) finds Connectome folds dominate the cache shortfall, adds memory-write spend missing here, and shows that batching confounds the apparent Luna/Sol disadvantage. These tables alone are not grounds for model-specific tool routing.
 
 ## Sample
 
