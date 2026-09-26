@@ -197,15 +197,20 @@ export async function run(job: JobContext) {
  const toVerify = async (c: Child, report: string) => {
   const issue = snapshot(input).find(i => i.slug === c.slug)!;
   // Re-verifying a child already in verify reuses its `<slug>-verify` handle: retire that worker and
-  // its branch first, keeping its commits by starting the new verifier at their tip.
+  // move its branch aside to a recovery ref first (the handle's branch name must be free), start the
+  // new verifier at that tip, and delete the recovery ref only once the launch succeeded.
   const reverify = c.phase === "verify" && c.handle.handle === c.slug + "-verify";
+  let recovery: string | undefined;
   const base = git(c.handle.path, reverify ? "rev-parse" : "branch", reverify ? "HEAD" : "--show-current");
   if (reverify) {
    const branch = git(c.handle.path, "branch", "--show-current");
    await retire(c.handle);
-   if (branch) try { git(input.cwd, "branch", "-D", branch); } catch {}
+   if (branch && git(input.cwd, "branch", "--list", branch)) { recovery = branch + "-reverify-" + base.slice(0, 8); git(input.cwd, "branch", "-M", branch, recovery); }
   }
-  const handle = await launch(c.slug, "verify", verifyPrompt(c.slug, readFileSync(issue.file, "utf8"), report), base, "agent", "verify");
+  let handle: Handle;
+  try { handle = await launch(c.slug, "verify", verifyPrompt(c.slug, readFileSync(issue.file, "utf8"), report), base, "agent", "verify"); }
+  catch (error) { throw new Error(String(error) + (recovery ? "; the previous verifier's commits are on branch " + recovery : "; resume from " + base)); }
+  if (recovery) try { git(input.cwd, "branch", "-D", recovery); } catch {}
   if (!reverify) (c.previous ??= []).push(c.handle);
   Object.assign(c, { handle, phase: "verify", cursor: handle.cursor, evidence: undefined, acceptedHead: undefined, visualReviewed: false });
   await save();
