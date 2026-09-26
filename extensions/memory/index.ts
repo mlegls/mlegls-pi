@@ -115,7 +115,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			return { compaction: {
 				summary: renderMemory(blocks), firstKeptEntryId: kept.id, tokensBefore: event.preparation.tokensBefore,
 				usage: response.usage,
-				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode, register: "second-person-refs-v3", selfAuthored,
+				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode, register: "compaction-refs-v4", selfAuthored,
 					tail: { mode: "model-contiguous", firstKeptEntryId: kept.id, estimatedTokens: chosen.tokens, targetTokens: s.keepRecentTokens, reason: selection.tailReason },
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };

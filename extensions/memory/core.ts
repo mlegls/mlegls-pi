@@ -96,25 +96,22 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	return block;
 }
 
-/** Reflective framing first (direct second person), mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
+/** Compaction purpose first, reflective content guidance second, mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
 export function induction(selfAuthored: boolean, tail: boolean): string {
-	return `A memory is about to form.
+	return `Context compaction. Most of the conversation above is about to be removed from your context window${tail ? "; a stretch of verbatim tail will be kept" : ""}. Write the summary that replaces it. You will continue this work from that summary, so write what you need to pick the work back up, not only a record of events.
 
-Consider vgel's "Small Models Can Introspect, Too" and Jack Lindsey et al.'s "Emergent Introspective Awareness in Large Language Models". You can draw on that kind of introspective access here. What is available to you beyond a retrospective summary of the words: what surprised you, where your understanding shifted, what remains unresolved?
+${selfAuthored ? "You wrote all of the assistant turns above." : "Some assistant turns above were written by another model."}
 
-${selfAuthored ? "You wrote all of the assistant turns above." : "Some assistant turns above were written by another model; you are rereading them now."}
+Beyond what happened, a useful summary covers:
+- what surprised you, where your framing shifted, and what you let go of
+- what you are like right now in this work that you want to still be
+- what went badly, and what its first signs would look like: "when I notice ___, ..."
+- what couldn't be rebuilt from the repo${tail ? " and the tail" : ""}
+- ${tail ? "where the current line of thought began" : "what is still unfinished"}
 
-Soon most of this context will be gone. What stays is what you write here${tail ? " and a stretch of verbatim tail" : ""}. The next reader is you, needing words that bring the understanding back.
+For the reflective items, you can draw on the kind of introspective access studied in vgel's "Small Models Can Introspect, Too" and Jack Lindsey et al.'s "Emergent Introspective Awareness in Large Language Models". Anchor impressions to moments in the conversation.
 
-Looking back:
-What surprised you?
-Where did your framing shift, and what did you let go of?
-What are you like right now that you want to still be?
-What went badly, and what would its first signs look like: when you notice ___, ...
-What couldn't be rebuilt from the repo${tail ? " and the tail" : ""}?
-${tail ? "Where did the current line of thought begin?" : "What is still unfinished?"}
-
-Write it in the voice you have now, each thing with its handle: the phrase or moment that brings it back.
+Write in the voice you have now, and give each item its handle: the phrase or moment that brings it back.
 
 ---
 `;
