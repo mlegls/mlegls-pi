@@ -18,6 +18,7 @@ import { compileQuery, parseTags } from "./query";
 import { logSize, noteRead, readFrom, send, topics, type Message } from "./store";
 import { parse } from "../report.ts";
 import { mailbox } from "./mailbox";
+import { scopes } from "./scopes";
 import { execFile } from "node:child_process";
 
 interface Subscription {
@@ -181,8 +182,10 @@ export function install(pi: ExtensionAPI) {
 		// Every session has a mailbox (mail/xxxxxxxx): supervision loops, ab tree, `ab mail`, and
 		// other sessions reach it there. Shown in pi's footer and, under tmux, the status bar.
 		const box = mailbox(sessionId);
-		if (!subs.some((s) => s.topic === box && !s.tags)) subs.push({ topic: box, wake: true });
-		if (ctx.hasUI) ctx.ui.setStatus("mailbox", "✉ " + box);
+		// Plus the worktree and ticket it works in (lib/board/scopes): shared channels, on trial.
+		const shared = scopes(ctx.cwd);
+		for (const topic of [box, ...shared]) if (!subs.some((s) => s.topic === topic && !s.tags)) subs.push({ topic, wake: true });
+		if (ctx.hasUI) ctx.ui.setStatus("mailbox", ["✉ " + box, ...shared.map((t) => "# " + t)].join("  "));
 		if (process.env.TMUX_PANE) execFile("tmux", ["set", "-p", "-t", process.env.TMUX_PANE, "@mailbox", box], () => {});
 		if (!restoredSubs || subs.length !== restoredSubs.length) persistSubs();
 		for (const id of seen) pending.delete(id);

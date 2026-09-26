@@ -290,6 +290,20 @@ if (!command || command === "--help" || command === "-h" || command === "help") 
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
 const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, tree, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise,
 	mail: async (a: string[]) => {
+		if (a[0] === "--stats") {
+			// How the channels get used: posts and distinct senders per kind (mail, wt, ticket).
+			const { readAll } = await import("../lib/board/store.ts");
+			const kinds = new Map<string, { posts: number; topics: Set<string>; senders: Set<string> }>();
+			for (const m of readAll()) {
+				const kind = m.topic.split("/")[0]!;
+				if (!["mail", "wt", "ticket"].includes(kind)) continue;
+				const k = kinds.get(kind) ?? { posts: 0, topics: new Set(), senders: new Set() };
+				k.posts++; k.topics.add(m.topic); k.senders.add(m.from.session ?? m.from.name ?? "?");
+				kinds.set(kind, k);
+			}
+			for (const [kind, k] of kinds) console.log(`${kind}\t${k.posts} posts\t${k.topics.size} topics\t${k.senders.size} senders`);
+			return;
+		}
 		const [to, ...words] = a;
 		const body = words.length ? words.join(" ") : (await Bun.stdin.text()).trimEnd();
 		if (!to || !body) fail("usage: ab mail <mailbox> <text...>   (or text on stdin)");

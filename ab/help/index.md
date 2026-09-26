@@ -13,7 +13,7 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab daemon [status|stop ID|shutdown] manage the per-user job daemon
   ab job start TYPE JSON  start a restartable job
   ab supervise start TICKET  run a subtree's implement → verify → integrate loop, waking this agent on exceptions
-  ab mail MAILBOX TEXT       message a pi session (its mail/xxxxxxxx topic, shown in its footer and tmux status)
+  ab mail TO TEXT           message a session (mail/xxxxxxxx) or its worktree/ticket channel
 
 ab CMD --help for each. Plain shell covers the rest: fd, rg, cat > f <<'EOF', sed, jq, git.
 The same code is importable from bun/node/zx: lib/*.ts, extensions/exec/source.ts.

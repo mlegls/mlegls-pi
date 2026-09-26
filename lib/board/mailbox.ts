@@ -7,10 +7,11 @@ export function mailbox(sessionId: string): string {
 	return "mail/" + sessionId.replaceAll("-", "").slice(-8);
 }
 
-/** Post to a mailbox (mail/xxxxxxxx, bare xxxxxxxx, or a full session id), signed with the sender's
+/** Post to a mailbox (mail/xxxxxxxx, bare xxxxxxxx, or a full session id) or any other topic
+ * (wt/<repo>/<branch>, ticket/<repo>/<slug>: lib/board/scopes), signed with the sender's
  * mailbox when it's a pi session, so the reader can reply. */
 export function mail(to: string, body: string, from: { session?: string; name?: string } = {}): Message {
-	const topic = to.startsWith("mail/") ? to : /^[0-9a-f]{8}$/i.test(to) ? "mail/" + to.toLowerCase() : mailbox(to);
+	const topic = to.includes("/") ? to : /^[0-9a-f]{8}$/i.test(to) ? "mail/" + to.toLowerCase() : mailbox(to);
 	const session = from.session ?? process.env.PI_SESSION_ID;
 	return send({ topic, tags: [], from: { ...(session && { session }), name: from.name ?? (session ? mailbox(session) : "ab") }, body });
 }
