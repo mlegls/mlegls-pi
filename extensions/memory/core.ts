@@ -20,7 +20,7 @@ export interface Block {
 export interface Memory {
 	kind: typeof KIND | "memory-log.v1";
 	blocks: Block[];
-	tail?: { mode: "model-contiguous"; firstKeptEntryId: string; estimatedTokens: number; targetTokens: number; reason: string };
+	tail?: { mode: "model-contiguous"; firstKeptEntryId: string; estimatedTokens: number; targetTokens: number; reason?: string };
 }
 export const claims = (blocks: Block[]): Claim[] => blocks.flatMap(b => b.text !== undefined
 	? [{ id: b.id, text: b.text, sources: b.sources ?? [], supersedes: b.supersedes ?? [] }]
@@ -74,26 +74,22 @@ export function tailChoices(entries: SessionEntry[]) {
 	return choices.reverse();
 }
 
-export function checkpointJson(text: string) {
-	return JSON.parse(text.trim().replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```$/, ""));
+/** Split the checkpoint output: a `tail: ID` line, and the memory prose around it. */
+export function splitCheckpoint(output: string): { tail?: string; text: string } {
+	const m = output.match(/^[ \t]*tail:[ \t]*`?([^\s`]+)`?[ \t]*$/m);
+	return { tail: m?.[1], text: (m ? output.replace(m[0], "") : output).trim() };
 }
 
-/** Reject unknown evidence/correction IDs before Pi commits a new coverage boundary. */
+/** Cited entry IDs are evidence; cited earlier memory or claim IDs are corrections (append only). Anything else is rejected before Pi commits a new coverage boundary. */
 export function parseBlock(text: string, sources: Set<string>, prior: Block[], rewrite: boolean, covers: string[]): Block {
-	const raw = checkpointJson(text);
-	if (!raw || typeof raw.text !== "string" || !raw.text.trim()) throw new Error("Missing memory prose");
-	const cited = citations(raw.text);
-	if (!cited.length || cited.some(id => !sources.has(id)))
+	if (!text.trim()) throw new Error("Missing memory prose");
+	const cited = citations(text);
+	const priorIds = new Set(rewrite ? [] : [...prior.map(b => b.id), ...claims(prior).map(c => c.id)]);
+	const evidence = cited.filter(id => sources.has(id));
+	if (!evidence.length || cited.some(id => !sources.has(id) && !priorIds.has(id)))
 		throw new Error("Memory has missing or invalid original-source pointers");
-	const priorIds = new Set([...prior.map(b => b.id), ...claims(prior).map(c => c.id)]);
-	const supersedes = raw.supersedes ?? [];
-	if (!Array.isArray(supersedes) || supersedes.some((id: unknown) => typeof id !== "string" || !priorIds.has(id)))
-		throw new Error("Unknown superseded claim or block");
-	const block: Block = {
-		id: randomUUID(), timestamp: Date.now(), covers, text: raw.text.trim(), sources: cited,
-		supersedes: rewrite ? [] : [...new Set<string>(supersedes)], recall: "lib"
-	};
-	return block;
+	return { id: randomUUID(), timestamp: Date.now(), covers, text: text.trim(), sources: evidence,
+		supersedes: cited.filter(id => !sources.has(id)), recall: "lib" };
 }
 
 /** Compaction purpose first, then the introspection findings as permission and map, then content guidance, mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
@@ -125,16 +121,13 @@ export function instruction(prior: Block[], folding: SessionEntry[], rewrite: bo
 		const msgs = sessionEntryToContextMessages(e);
 		// Identification hints only: source bodies are already in the unchanged request prefix.
 		const hint = msgs.map((m: any) => typeof m.content === "string" ? m.content : (m.content ?? []).map((b: any) => b.text ?? b.name ?? "").join(" ")).join(" ").replace(/\s+/g, " ").slice(0, 100);
-		return `${e.id} ${e.type} ${e.timestamp} ${hint}`;
+		return `${e.id} ${hint}`;
 	}).join("\n");
-	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}Reply with only this JSON:
-{${tail ? '"firstKeptEntryId": "entry-id", "tailReason": "why there", ' : ""}"text": "the memory, free prose citing entries inline like [@entry-id]", "supersedes": []}
-${tail ? `firstKeptEntryId is one of the tail starts below, where the current line of thought begins; it and everything after stay verbatim. Aim for about ${tail.target} tokens of tail. The memory covers the entries before it.
+	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the current line of thought begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
 Tail starts (ID: tokens kept):
-${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}` : "The memory covers the entries listed below; later context stays."}
-${rewrite ? "Rewrite the earlier memories and the new entries into one memory, citing the entry IDs the earlier memories carry. Imported summaries without sources are kept separately." : "Earlier memories stay; write only what's new. When correcting one, say what changed and put its ID in supersedes."}
-Cite claims where they're made. At most ${target} tokens.
-Entries (ID, date, hint; full content above):
+${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}
+Then write the memory of the entries before it` : "Write the memory of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier memories stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.
+Entries (ID and hint; full content above):
 ${manifest}
 ${focus ? `Focus: ${focus}` : ""}`;
 }

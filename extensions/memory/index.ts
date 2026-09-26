@@ -4,7 +4,7 @@ import type { Context } from "@earendil-works/pi-ai";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { KIND, checkpointJson, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
+import { KIND, splitCheckpoint, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
 interface Settings { enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
 function settings(cwd: string): Required<Settings> {
@@ -30,7 +30,7 @@ function tools(pi: ExtensionAPI) {
 	});
 }
 
-const REGISTER = "compaction-om-v7";
+const REGISTER = "compaction-om-v8";
 const BLOCKED = /reverse engineering|duplicating model outputs/i;
 
 export default function memoryExtension(pi: ExtensionAPI) {
@@ -106,10 +106,9 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			if (response.stopReason !== "stop" || response.content.some((b: any) => b.type === "toolCall"))
 				throw new Error(`Memory generation did not finish cleanly: ${response.errorMessage ?? response.stopReason}`);
 			const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
-			const selection = checkpointJson(text);
-			const chosen = choices.find(c => c.id === selection.firstKeptEntryId);
-			if (!chosen) throw new Error("Invalid tail start: choose a listed, tool-safe entry ID");
-			if (typeof selection.tailReason !== "string" || !selection.tailReason.trim()) throw new Error("Missing tail selection reason");
+			const checkpoint = splitCheckpoint(text);
+			const chosen = choices.find(c => c.id === checkpoint.tail);
+			if (!chosen) throw new Error("Invalid tail start: begin with a `tail: ID` line naming a listed start");
 			const kept = visible[chosen.index], folding = sourceEntries(visible.slice(0, chosen.index));
 			if (!folding.length && !rewrite) throw new Error("Chosen tail leaves nothing to fold; context unchanged");
 			prior = [...prior, ...visible.slice(0, chosen.index).flatMap(e => e.type === "branch_summary"
@@ -118,7 +117,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			// Prior evidence remains addressable, but never across an unrelated branch.
 			const branchIds = new Set(sourceEntries(branch).map(e => e.id));
 			for (const c of claims(prior)) for (const id of c.sources) if (branchIds.has(id)) allowed.add(id);
-			const block = parseBlock(text, allowed, prior, rewrite, folding.map(e => e.id));
+			const block = parseBlock(checkpoint.text, allowed, prior, rewrite, folding.map(e => e.id));
 			if (rewrite && roughTokens(renderMemory([block])) >= s.memoryTokens) throw new Error("Rewrite exceeds memory budget; old context retained");
 			// Imported summaries cannot be safely dropped without original provenance.
 			const blocks = [...(rewrite ? prior.filter(b => b.legacy !== undefined) : prior), block];
@@ -126,7 +125,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				summary: renderMemory(blocks), firstKeptEntryId: kept.id, tokensBefore: event.preparation.tokensBefore,
 				usage: response.usage,
 				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode, register, selfAuthored,
-					tail: { mode: "model-contiguous", firstKeptEntryId: kept.id, estimatedTokens: chosen.tokens, targetTokens: s.keepRecentTokens, reason: selection.tailReason },
+					tail: { mode: "model-contiguous", firstKeptEntryId: kept.id, estimatedTokens: chosen.tokens, targetTokens: s.keepRecentTokens },
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };
 		} catch (error) {
@@ -149,7 +148,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				return;
 			}
 			const memory = memoryOf(ctx.sessionManager.getBranch()), blocks = memory?.blocks ?? [];
-			ctx.ui.notify(`${blocks.length} memory blocks, ~${roughTokens(renderMemory(blocks))} tokens.${memory?.tail ? ` Last chosen tail: ~${memory.tail.estimatedTokens} tokens from ${memory.tail.firstKeptEntryId}. ${memory.tail.reason}` : ""} /memory fold | rewrite [focus]`, "info");
+			ctx.ui.notify(`${blocks.length} memory blocks, ~${roughTokens(renderMemory(blocks))} tokens.${memory?.tail ? ` Last chosen tail: ~${memory.tail.estimatedTokens} tokens from ${memory.tail.firstKeptEntryId}.${memory.tail.reason ? ` ${memory.tail.reason}` : ""}` : ""} /memory fold | rewrite [focus]`, "info");
 		},
 	});
 }

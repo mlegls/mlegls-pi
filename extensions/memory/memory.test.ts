@@ -40,7 +40,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 				const visible = visibleEntries(branch);
 				const tail = tailChoices(visible).find(c => sourceEntries(visible.slice(0, c.index)).length)!;
 				const id = sourceEntries(visible.slice(0, tail.index))[0].id;
-				return { result: async () => assistant(JSON.stringify({ text: `Port 4567, not verified. [@${invalid ? "missing" : citeTail ? tail.id : id}]`, supersedes: [], firstKeptEntryId: invalidTail ? "missing" : tail.id, tailReason: "Keep the ongoing exchange intact." })) };
+				return { result: async () => assistant(`tail: ${invalidTail ? "missing" : tail.id}\n\nPort 4567, not verified. [@${invalid ? "missing" : citeTail ? tail.id : id}]`) };
 			} },
 		};
 		memoryExtension(pi);
@@ -53,7 +53,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(sent.messages.slice(0, firstContext.length)).toEqual(firstContext);
 		expect(sent.systemPrompt).toBe("Unchanged system prompt");
 		expect(one.compaction.details.prefixMode).toBe("captured");
-		expect(one.compaction.details.register).toBe("compaction-om-v7");
+		expect(one.compaction.details.register).toBe("compaction-om-v8");
 		expect(sent.messages.at(-1).content).toContain('vgel, "Small Models Can Introspect, Too"');
 		expect(sent.messages.at(-1).content).toContain('Jack Lindsey et al., "Emergent Introspective Awareness in Large Language Models"');
 		expect(one.compaction.usage).toEqual(usage);
@@ -90,21 +90,23 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(branch).toHaveLength(before);
 		citeTail = false; blocked = true;
 		const retried = await fold();
-		expect(retried.compaction.details.register).toBe("compaction-om-v7-fallback-plain");
+		expect(retried.compaction.details.register).toBe("compaction-om-v8-fallback-plain");
 		expect(sent.messages.at(-1).content).not.toContain("vgel");
 		expect(sent.messages.at(-1).content).toStartWith("Your context is about to be compacted");
-		expect(sent.messages.filter((m: any) => typeof m.content === "string" && m.content.includes("Reply with only this JSON"))).toHaveLength(1);
+		expect(sent.messages.filter((m: any) => typeof m.content === "string" && m.content.includes("Tail starts"))).toHaveLength(1);
 	} finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
-test("rewrite retains direct evidence; unknown supersession/source references fail", () => {
-	const first = parseBlock(JSON.stringify({ text: "Port 3000. [@original]" }), new Set(["original"]), [], false, ["original"]);
-	const json = JSON.stringify({ text: "Port 4567 instead. [@original] [@correction]", supersedes: [first.id] });
-	const revised = parseBlock(json, new Set(["original", "correction"]), [first], true, ["correction"]);
-	expect(revised.sources).toEqual(["original", "correction"]);
+test("rewrite retains direct evidence; unknown or rewrite-time correction references fail", () => {
+	const first = parseBlock("Port 3000. [@original]", new Set(["original"]), [], false, ["original"]);
+	const correction = `Port 4567 instead, correcting [@${first.id}]. [@original] [@correction]`;
+	const appended = parseBlock(correction, new Set(["original", "correction"]), [first], false, ["correction"]);
+	expect(appended.sources).toEqual(["original", "correction"]);
+	expect(appended.supersedes).toEqual([first.id]);
+	const revised = parseBlock("Port 4567 instead. [@original] [@correction]", new Set(["original", "correction"]), [first], true, ["correction"]);
 	expect(revised.supersedes).toEqual([]);
-	expect(() => parseBlock(json, new Set(["correction"]), [first], true, [])).toThrow("source pointers");
-	expect(() => parseBlock(json, new Set(["original", "correction"]), [], false, [])).toThrow("superseded claim");
+	expect(() => parseBlock(correction, new Set(["original", "correction"]), [first], true, [])).toThrow("source pointers");
+	expect(() => parseBlock(correction, new Set(["correction"]), [], false, [])).toThrow("source pointers");
 });
 
 test("V1 blocks retain their rendered prefix and can be corrected or rewritten as prose", () => {
@@ -114,19 +116,18 @@ test("V1 blocks retain their rendered prefix and can be corrected or rewritten a
 		summary: "old envelope", details: { kind: "memory-log.v1", blocks: [old] } }];
 	const expected = "Historical memory old. Later explicit corrections supersede earlier claims; plans are not completed work. Use memory_recall for original evidence.\nObservations:\n[old:o0] Port 3000\nSources: source\nReflection / activity log:\n";
 	expect(expandMemory([{ role: "compactionSummary" }], branch)[0].content).toBe(expected);
-	const text = "The port changed to 4567; deployment remains unverified. [@source] [@correction]";
-	const json = JSON.stringify({ text, supersedes: ["old:o0"] });
-	const appended = parseBlock(json, new Set(["source", "correction"]), [old], false, ["correction"]);
+	const text = "The port changed to 4567, correcting [@old:o0]; deployment remains unverified. [@source] [@correction]";
+	const appended = parseBlock(text, new Set(["source", "correction"]), [old], false, ["correction"]);
 	expect(appended.text).toBe(text);
 	expect(appended.supersedes).toEqual(["old:o0"]);
 	branch[0].details = { kind: KIND, blocks: [old, appended] };
 	expect(expandMemory([{ role: "compactionSummary" }], branch)[0].content).toBe(expected);
-	const rewritten = parseBlock(json, new Set(["source", "correction"]), [old, appended], true, ["correction"]);
+	const rewritten = parseBlock("The port is 4567; deployment remains unverified. [@source] [@correction]", new Set(["source", "correction"]), [old, appended], true, ["correction"]);
 	expect(rewritten.sources).toEqual(["source", "correction"]);
 	expect(rewritten.supersedes).toEqual([]);
 	expect(renderBlock(rewritten)).not.toContain("Observations:");
-	expect(() => parseBlock('{"text":"Uncited prose"}', new Set(["source"]), [], false, [])).toThrow("source pointers");
-	expect(() => parseBlock('{"observations":[],"reflections":[]}', new Set(), [], false, [])).toThrow("Missing memory prose");
+	expect(() => parseBlock("Uncited prose", new Set(["source"]), [], false, [])).toThrow("source pointers");
+	expect(() => parseBlock("  ", new Set(), [], false, [])).toThrow("Missing memory prose");
 });
 
 test("tail starts exclude tool results and old summaries, preserving call/result groups", () => {
@@ -166,7 +167,7 @@ test("compaction tolerates metadata appends but rejects changed context and abor
 					else if (change === "abort") controller.abort();
 					else if (change === "branch") branch.pop();
 					else branch.push({ type: change === "metadata" ? "custom" : change, id: "new", parentId: "answer", customType: "board-cursor", data: { offset: 123 } });
-					return assistant(JSON.stringify({ text: "Port 4567. [@user]", firstKeptEntryId: "answer", tailReason: "Keep the reply." }));
+					return assistant("tail: answer\nPort 4567. [@user]");
 				} }; } },
 			};
 			memoryExtension({ on: (name: string, fn: any) => hooks.set(name, fn), registerCommand() {}, getActiveTools: () => [], getAllTools: () => [], getThinkingLevel: () => "off" } as any);
