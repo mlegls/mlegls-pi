@@ -44,7 +44,7 @@ export function expandMemory(messages: any[], branch: SessionEntry[]): any[] {
 }
 export function visibleEntries(branch: SessionEntry[]) { return buildContextEntries(branch); }
 export function sourceEntries(entries: SessionEntry[]) {
-	return entries.filter(e => e.type !== "compaction" && sessionEntryToContextMessages(e).length > 0);
+	return entries.filter(e => e.type !== "compaction" && e.type !== "branch_summary" && sessionEntryToContextMessages(e).length > 0);
 }
 
 /** Reject unknown evidence/correction IDs before Pi commits a new coverage boundary. */

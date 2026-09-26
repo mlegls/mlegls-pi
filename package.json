@@ -26,10 +26,10 @@
       "./extensions/exec/index.ts",
       "./extensions/bash/index.ts",
       "./extensions/featherless/index.ts",
-      "./extensions/connectome/index.ts",
       "./extensions/fence/index.ts",
       "./extensions/system-prompt/index.ts",
-      "./extensions/workspace/index.ts"
+      "./extensions/workspace/index.ts",
+      "./extensions/memory/index.ts"
     ],
     "skills": [
       "./skills/enabled/pi/pi",

@@ -1,5 +1,7 @@
 # connectome
 
+Not loaded by default. The package currently uses [memory](../memory/README.md); explicitly replace that extension with this one to return to Connectome. Existing Chronicle stores are retained.
+
 Uses Anima Labs' [context-manager](https://github.com/anima-research/context-manager) (the memory layer of [Connectome](https://animalabs.ai/connectome/)) as pi's memory and compaction backend.
 
 - `/workspace` keeps the current life, including its memories and folding state, across projects and subsequent resume. An explicit `use` or `default` clears that binding. Actual forks do not inherit the workspace binding; named lives still share by name.

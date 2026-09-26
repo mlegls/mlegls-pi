@@ -4,8 +4,10 @@ Personal exec libraries, skills, prompts, themes, agents, and user-level harness
 
 Exec-facing capabilities install their host integrations through explicit
 `install(host)` exports in `lib/*/host.ts`; obsolete adapters live in
-`extensions/disabled/`. Connectome, featherless, fence, system-prompt, and workspace commands remain
+`extensions/disabled/`. Memory, featherless, fence, system-prompt, and workspace commands remain
 standalone extensions for their Pi-facing commands and providers. See [host libraries](extensions/exec/README.md#host-libraries).
+
+[Memory](extensions/memory/README.md) provides one-shot append-only compaction and original-turn recall. Connectome remains available in `extensions/connectome/` but is not loaded by default; do not enable both compaction backends.
 
 
 Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [delivery](docs/delivery.md), and [session preparation](docs/session-preparation.md).

@@ -23,6 +23,7 @@ Global `~/.pi/agent/settings.json` and project `.pi/settings.json`, under `memor
 
 ```json
 {
+  "compaction": { "keepRecentTokens": 2000 },
   "memory": {
     "enabled": true,
     "keepRecentTokens": 2000,
@@ -36,7 +37,7 @@ Global `~/.pi/agent/settings.json` and project `.pi/settings.json`, under `memor
 
 Sizes except the provider output cap are approximate targets (characters/4). A fold becomes a rewrite when the existing memory reaches `memoryTokens`; a newly appended block can cross that threshold until the next fold. `rewriteTokens` is deliberately lower, leaving room for subsequent blocks. A rewrite that still exceeds `memoryTokens` is rejected. The output cap also needs room for reasoning and JSON, not just rendered memory.
 
-Pi's ordinary automatic-compaction triggers still apply. Topic-boundary folding is explicit; there is no additional automatic trigger or background production. The extension uses Pi's tool-safe cut-point selection with its own smaller tail. If there is nothing outside that tail, it declines to compact.
+Pi's ordinary automatic-compaction triggers still apply. Topic-boundary folding is explicit; there is no additional automatic trigger or background production. Set native `compaction.keepRecentTokens` to the same small tail size (or smaller): Pi checks whether there is anything to compact before invoking extension hooks. Leaving its 20k default prevents short conversations from reaching this hook. The extension uses Pi's tool-safe cut-point selection with its own tail target; if nothing lies outside that tail, it declines to compact.
 
 Malformed JSON, invalid source/supersession IDs, interrupted/length-limited generation, tool calls and branch changes cancel compaction rather than falling back to a lossy native summary. The prior context is retained. Failed-generation spend is not recorded in a successful compaction entry.
 
@@ -44,7 +45,7 @@ Malformed JSON, invalid source/supersession IDs, interrupted/length-limited gene
 
 The package loads this extension instead of Connectome. Do not also load Connectome or observational-memory compaction hooks. Existing Connectome stores are untouched; named lives and `PI_CONNECTOME` routing are not implemented here. Use a new session for the first trial if the old session relied on Connectome to fit its full history into context. Reconstructing that history may otherwise exceed the provider window; this extension does not silently truncate it.
 
-Existing native/OM compaction summaries are preserved as an explicitly unprovenanced legacy block on the first fold. They survive rewrites rather than being dropped or assigned fabricated source IDs. A large legacy summary may prevent memory from reaching the intended budget; a fresh session avoids that migration constraint.
+Existing native/OM compaction summaries and folded branch summaries are preserved as explicitly unprovenanced legacy blocks. They survive rewrites rather than being dropped or assigned fabricated original-turn IDs. A large legacy summary may prevent memory from reaching the intended budget; a fresh session avoids that migration constraint.
 
 Disabling generation (`memory.enabled: false`) delegates future compactions to Pi but still expands already-saved memory blocks identically. Removing the extension entirely leaves a readable native compaction summary; structured block rendering and `memory_recall` require the extension.
 
@@ -58,3 +59,5 @@ bun node_modules/typescript/bin/tsc --noEmit --skipLibCheck --target es2023 \
 ```
 
 The smoke test drives context capture, two successive compactions, stable block rendering after resume, source recall and rejection of invalid pointers through the extension hooks with a stub model. It does not establish real-provider cache hit rates or long-term memory fidelity.
+
+A September 26 live smoke through Pi RPC and GPT-6 Luna also persisted two consecutive folds, preserved the first block unchanged, and retained a plan-versus-verification distinction. The second memory call used the captured prefix and reported 1,792 cache-read tokens, 514 fresh input tokens and 75 output tokens. This is a small working-path check, not a cache-efficiency benchmark. Native `compaction.keepRecentTokens` had to be lowered before the short synthetic session reached the extension hook.

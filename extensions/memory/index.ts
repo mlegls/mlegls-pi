@@ -61,7 +61,8 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			const cut = findCutPoint(visible, 0, visible.length, s.keepRecentTokens).firstKeptEntryIndex;
 			const kept = visible[cut];
 			const folding = sourceEntries(visible.slice(0, cut));
-			const prior = previousBlocks(branch);
+			const prior = [...previousBlocks(branch), ...visible.slice(0, cut).flatMap(e => e.type === "branch_summary"
+				? [{ id: `legacy-${e.id}`, timestamp: Date.parse(e.timestamp), covers: [], observations: [], reflections: [], legacy: e.summary }] : [])];
 			const rewrite = forceRewrite || roughTokens(renderMemory(prior)) >= s.memoryTokens;
 			forceRewrite = false;
 			if (!kept || (!folding.length && !rewrite)) throw new Error("Nothing to fold outside the retained tail");
