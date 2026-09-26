@@ -1,2 +1,8 @@
 #!/bin/sh
+# Some tmux servers start panes with a cwd that can't be resolved (PWD=".", getcwd fails),
+# which makes Bun's process.cwd() throw. Re-enter the directory by absolute path.
+if ! /bin/pwd -P >/dev/null 2>&1; then
+	case "$PWD" in /*) dir=$PWD ;; *) dir=$( [ -n "$TMUX" ] && tmux display -p -t "${TMUX_PANE:-}" '#{pane_current_path}' 2>/dev/null) ;; esac
+	cd "${dir:-$HOME}" 2>/dev/null || cd "$HOME"
+fi
 exec bun "$(dirname "$(readlink -f "$0")")/../ab/main.ts" "$@"
