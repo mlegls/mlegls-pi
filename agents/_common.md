@@ -12,4 +12,4 @@ When exec exposes `loadSkill`, activate a skill with `await show(await loadSkill
 
 Commit as you go; the parent merges your branch.
 
-While dogfooding `exec` or the bash tool and `ab`, include concrete ergonomic friction in the final report: what you tried, what happened, and the workaround or simpler interaction you wanted. Distinguish observed problems from proposed improvements; the parent consolidates them.
+File unresolved tooling friction through `tracker` when you encounter it; link the issue in the final report, not prose in its place. Record what you tried, what happened, and the workaround; separate observations from proposed improvements. Reuse an existing owner where one exists. For another project's tooling, file in its tracker if accessible; otherwise file locally naming the owning tool/repository so the observation has a durable home. New idea files may travel on your branch; don't wait for the parent to consolidate them.
