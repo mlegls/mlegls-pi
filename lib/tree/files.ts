@@ -50,19 +50,22 @@ async function named(n: Node, root: string): Promise<string[]> {
 	return [...seen.entries()].sort((a, b) => a[1] - b[1]).map(([p]) => p);
 }
 
-export async function touched(n: Node): Promise<Touched> {
-	const root = realpathSync(n.cwd);
-	const c = changed(n.cwd);
+/** Changed files in `cwd`, plus files named by the given sessions' tool calls. */
+export async function touched(cwd: string, sessions: Node[]): Promise<Touched> {
+	const root = realpathSync(cwd);
+	const c = changed(cwd);
 	const set = new Set(c);
-	return { changed: c, named: (await named({ ...n, cwd: root }, root)).filter(p => !set.has(p)) };
+	const names: string[] = [];
+	for (const n of sessions) for (const p of await named({ ...n, cwd: realpathSync(n.cwd) }, root)) if (!set.has(p) && !names.includes(p)) names.push(p);
+	return { changed: c, named: names };
 }
 
 /** Mirror of the working set: changed files at their paths, other named files under _read/.
  * Links point at the real files, so opening one edits the worktree. */
-export async function mirror(n: Node): Promise<{ dir: string; count: number }> {
-	const t = await touched(n);
-	const root = realpathSync(n.cwd);
-	const dir = join(process.env.TMPDIR ?? tmpdir(), "ab-tree-files", n.id);
+export async function mirror(cwd: string, sessions: Node[], key: string): Promise<{ dir: string; count: number }> {
+	const t = await touched(cwd, sessions);
+	const root = realpathSync(cwd);
+	const dir = join(process.env.TMPDIR ?? tmpdir(), "ab-tree-files", key.replace(/[^A-Za-z0-9_-]+/g, "_").slice(-80));
 	rmSync(dir, { recursive: true, force: true });
 	const link = (rel: string, at: string) => {
 		const target = join(root, rel);

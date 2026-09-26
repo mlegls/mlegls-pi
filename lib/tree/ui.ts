@@ -1,224 +1,368 @@
-// ab tree's TUI: one list of session rows (lib/tree/view.ts) with actions on the selected node,
-// rendered two ways. The dashboard is full-screen with a live preview and closes after a jump;
-// the sidebar is a narrow persistent list that runs tools in tmux popups. UI state (mode,
-// folds, preview size) persists in ~/.local/state/ab-tree/ui.json.
+// ab tree's TUI. Workspaces (worktrees ↔ tmux sessions) are the navigation tree; each holds
+// windows with agents and terminals.
+//   dashboard: workspace tree on the left, the selected workspace's windows and agents on the
+//              right (l/→ to enter it), a live preview underneath; closes after a jump.
+//   sidebar:   the workspace tree only, one click to switch; stays open (see bin/ab-sidebar).
+//   agents:    every agent grouped by state, across workspaces (s in the dashboard).
+// Mouse: click selects (a second click, or any click in the sidebar, opens), wheel scrolls,
+// clicking a fold arrow folds. UI state persists in ~/.local/state/ab-tree/ui.json.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { parseKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { graph, type Node } from "./graph";
-import { age, attention, ICON, rows, type Mode, type Row } from "./view";
+import { age, attention, ICON, matcher, rows as agentRows, type Row } from "./view";
+import { label, home, workspaces, type Window, type Workspace } from "./workspaces";
 import * as act from "./actions";
 
 const STATE = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab-tree", "ui.json");
-interface Saved { mode: Mode; sidebarMode: Mode; collapsed: string[]; preview: number }
+interface Saved { collapsed: string[]; preview: number; view: "workspaces" | "agents" }
+
+type Left = { kind: "project"; project: string; count: number } | { kind: "ws"; w: Workspace; depth: number };
+type Right = { kind: "window"; win: Window } | { kind: "agent"; n: Node; depth: number };
+
+const c = (code: string, s: string) => `\x1b[${code}m${s}\x1b[0m`;
+const STATE_COLOR: Record<string, string> = { working: "32", idle: "33", live: "36", parked: "34", ended: "90", gone: "90" };
+const RANK = ["needs", "blocked", "working", "idle", "live"];
+
+/** Most urgent thing in a workspace, for its row. */
+function rollup(w: Workspace): { icon: string; counts: string } {
+	const live = w.agents.filter(n => n.state === "working" || n.state === "idle" || n.state === "live");
+	const keys = live.map(n => attention(n) === "needs" ? "needs" : attention(n) === "blocked" ? "blocked" : n.state);
+	const top = keys.sort((a, b) => RANK.indexOf(a) - RANK.indexOf(b))[0];
+	const icon = top === "needs" ? c("1;31", "!") : top === "blocked" ? c("31", "⊘") : top ? c(STATE_COLOR[top]!, ICON[top as keyof typeof ICON]) : w.session ? c("37", "□") : c("34", "◇");
+	const n = (s: string) => live.filter(x => x.state === s).length;
+	const counts = [n("working") && c("32", n("working") + "●"), n("idle") && c("33", n("idle") + "○"), n("live") && c("36", n("live") + "◌")].filter(Boolean).join(" ");
+	return { icon, counts };
+}
 
 export async function ui(opts: { sidebar?: boolean; query?: string }) {
-	const saved: Saved = { mode: "tree", sidebarMode: "projects", collapsed: [], preview: 55, ...(() => { try { return JSON.parse(readFileSync(STATE, "utf8")); } catch { return {}; } })() };
+	const saved: Saved = { collapsed: [], preview: 45, view: "workspaces", ...(() => { try { return JSON.parse(readFileSync(STATE, "utf8")); } catch { return {}; } })() };
 	const sidebar = !!opts.sidebar;
-	let mode: Mode = sidebar ? saved.sidebarMode : saved.mode;
 	const collapsed = new Set(saved.collapsed);
 	let preview = saved.preview;
+	let view: Saved["view"] = sidebar ? "workspaces" : saved.view;
 	let query = opts.query ?? "";
-	let input: { kind: "filter" | "send"; text: string } | undefined;
+	let input: { kind: "filter" | "send" | "branch" | "confirm"; text: string; then?: (text: string) => void; prompt?: string } | undefined;
 	let nodes = new Map<string, Node>();
-	let list: Row[] = [];
-	let selected: string | undefined; // node id or "h:<label>"
+	let spaces = new Map<string, Workspace>();
+	let left: Left[] = [], right: Right[] = [], agents: Row[] = [];
+	let selLeft: string | undefined, selRight = 0, selAgent: string | undefined;
+	let focus: "left" | "right" = "left";
 	let message = "";
-	let all = false;
 	let help = false;
+	let current: string | undefined;
+	let geometry: { y: number; x0: number; x1: number; act: (dbl: boolean) => void; fold?: () => void; foldX?: number }[] = [];
 
 	const save = () => {
 		mkdirSync(dirname(STATE), { recursive: true });
-		writeFileSync(STATE, JSON.stringify({ ...saved, [sidebar ? "sidebarMode" : "mode"]: mode, collapsed: [...collapsed], preview }));
+		writeFileSync(STATE, JSON.stringify({ ...saved, collapsed: [...collapsed], preview, ...(sidebar ? {} : { view }) }));
 	};
-	const key = (r: Row) => r.node ? r.node.id : "h:" + r.label;
-	const foldKey = (r: Row) => r.node ? r.node.id : (mode === "status" ? "status:" : "project:") + r.label;
-	const index = () => Math.max(0, list.findIndex(r => key(r) === selected));
-	const current = () => list[index()];
+	const leftKey = (r: Left) => r.kind === "project" ? "project:" + r.project : r.w.key;
+
+	const buildLeft = () => {
+		const match = query ? matcher(query) : undefined;
+		const ok = (w: Workspace) => !match || w.agents.some(match) || [label(w), w.project, w.branch ?? "", w.path].join(" ").toLowerCase().includes(query.toLowerCase());
+		const shown = new Set([...spaces.values()].filter(ok).map(w => w.key));
+		for (const k of [...shown]) { let p = spaces.get(k)?.parent; while (p && spaces.has(p) && !shown.has(p)) { shown.add(p); p = spaces.get(p)!.parent; } }
+		const roots = [...shown].map(k => spaces.get(k)!).filter(w => !w.parent || !shown.has(w.parent));
+		const byProject = new Map<string, Workspace[]>();
+		const recency = (w: Workspace): string => [w.updated, ...w.children.filter(k => spaces.has(k)).map(k => recency(spaces.get(k)!))].sort().pop()!;
+		for (const w of roots.sort((a, b) => recency(b).localeCompare(recency(a)))) { if (!byProject.has(w.project)) byProject.set(w.project, []); byProject.get(w.project)!.push(w); }
+		left = [];
+		for (const [project, list] of byProject) {
+			const count = [...shown].filter(k => spaces.get(k)!.project === project).length;
+			left.push({ kind: "project", project, count });
+			if (collapsed.has("project:" + project)) continue;
+			const walk = (w: Workspace, depth: number) => {
+				left.push({ kind: "ws", w, depth });
+				if (collapsed.has(w.key)) return;
+				for (const k of w.children.filter(k => shown.has(k)).sort((a, b) => recency(spaces.get(b)!).localeCompare(recency(spaces.get(a)!)))) walk(spaces.get(k)!, depth + 1);
+			};
+			for (const w of list.sort((a, b) => Number(b.main) - Number(a.main))) walk(w, 1);
+		}
+		if (!left.some(r => leftKey(r) === selLeft)) selLeft = (left.find(r => r.kind === "ws" && r.w.session === current) ?? left.find(r => r.kind === "ws") ?? left[0]) && leftKey((left.find(r => r.kind === "ws" && r.w.session === current) ?? left.find(r => r.kind === "ws") ?? left[0])!);
+	};
+	const selectedWs = (): Workspace | undefined => { const r = left.find(x => leftKey(x) === selLeft); return r?.kind === "ws" ? r.w : undefined; };
+	const buildRight = () => {
+		const w = selectedWs();
+		right = [];
+		if (!w) return;
+		const inPane = new Set<string>();
+		for (const win of w.windows) { right.push({ kind: "window", win }); for (const p of win.panes) if (p.agent) inPane.add(p.agent.id); }
+		const rest = w.agents.filter(n => !inPane.has(n.id));
+		const ids = new Set(rest.map(n => n.id));
+		const walk = (n: Node, depth: number) => { right.push({ kind: "agent", n, depth }); for (const k of n.children) { const ch = rest.find(x => x.id === k); if (ch) walk(ch, depth + 1); } };
+		for (const n of rest) if (!n.parent || !ids.has(n.parent)) walk(n, 0);
+		selRight = Math.min(selRight, Math.max(0, right.length - 1));
+	};
 	const rebuild = () => {
-		list = rows(nodes, mode, { query, all, collapsed });
-		if (!list.some(r => key(r) === selected)) selected = list.find(r => r.node)?.node!.id ?? (list[0] && key(list[0]));
+		buildLeft(); buildRight();
+		agents = agentRows(nodes, "status", { query: query || undefined, collapsed: new Set(collapsed) });
+		if (!agents.some(r => r.node?.id === selAgent)) selAgent = agents.find(r => r.node)?.node!.id;
 	};
 
 	let refreshing = false, lastPaseo = 0;
 	const refresh = async () => {
-		if (refreshing) return;
+		if (refreshing || input) return;
 		refreshing = true;
 		try {
-			const paseo = Date.now() - lastPaseo > 30_000;
-			nodes = await graph({ paseo });
+			const paseo = Date.now() - lastPaseo > 60_000;
+			nodes = await graph({ paseo, days: 2 });
 			if (paseo) lastPaseo = Date.now();
+			spaces = workspaces(nodes);
+			current = act.currentSession();
 			rebuild();
 			draw();
-		} finally { refreshing = false; }
+		} catch (e) { message = String(e); draw(); }
+		finally { refreshing = false; }
 	};
 
 	const out = process.stdout;
-	const color = (code: string, s: string) => `\x1b[${code}m${s}\x1b[0m`;
-	const stateColor: Record<string, string> = { working: "32", idle: "33", live: "36", parked: "34", ended: "90", gone: "90" };
+	const W = () => out.columns || 80, H = () => out.rows || 24;
 
-	const nodeLine = (r: Row, width: number): string => {
-		const n = r.node!;
-		const att = attention(n);
-		const flag = att === "needs" ? color("1;31", " !") : att === "blocked" ? color("31", " ⊘") : att === "done" ? color("32", " ✓") : n.orphan ? color("35", " orphan") : "";
-		const folded = n.children.length && collapsed.has(n.id) ? color("90", ` +${n.children.length}`) : "";
-		const right = sidebar ? " " + age(n.updated) : `  ${age(n.updated).padStart(4)}  ${(n.model?.split("/").pop() ?? "").slice(0, 16).padEnd(16)}`;
-		const indent = sidebar ? " ".repeat(Math.max(0, r.depth - 1)) : "  ".repeat(r.depth);
-		const title = r.match === false ? color("90", n.title) : n.title;
-		const left = `${indent}${color(stateColor[n.state]!, ICON[n.state])} ${title.replace(/\s+/g, " ")}`;
-		const tail = flag + folded;
-		const room = width - visibleWidth(right) - visibleWidth(tail) - 1;
-		return truncateToWidth(left, Math.max(8, room), "…", true) + tail + color("90", right);
+	const leftLine = (r: Left, width: number): string => {
+		if (r.kind === "project") return truncateToWidth(c("1", `${collapsed.has("project:" + r.project) ? "▸" : "▾"} ${r.project}`) + c("90", ` ${r.count}`), width);
+		const w = r.w, { icon, counts } = rollup(w);
+		const fold = w.children.length ? (collapsed.has(w.key) ? "▸" : "▾") : " ";
+		const here = w.session && w.session === current ? c("1;35", "▌") : " ";
+		const diff = w.diff && (w.diff.add || w.diff.del) ? c("32", "+" + w.diff.add) + c("31", "−" + w.diff.del) : "";
+		const rightText = sidebar ? [counts].filter(Boolean).join(" ") : [counts, diff, c("90", age(w.updated).padStart(4))].filter(Boolean).join(" ");
+		const name = w.session ? label(w) : c("90", label(w));
+		const l = `${here}${" ".repeat(Math.max(0, r.depth - 1) * (sidebar ? 1 : 2))}${fold}${icon} ${name}`;
+		const room = width - visibleWidth(rightText) - 1;
+		return truncateToWidth(l, Math.max(6, room), "…", true) + " " + rightText;
 	};
-	const headerLine = (r: Row, width: number): string => {
-		const members = mode === "tree" ? [] : [];
-		void members;
-		const fold = collapsed.has(foldKey(r)) ? "▸" : "▾";
-		return truncateToWidth(color("1", `${fold} ${r.label}`) + color("90", ` ${r.count}`), width);
+	const agentText = (n: Node) => {
+		const a = attention(n);
+		const flag = a === "needs" ? c("1;31", " !") : a === "blocked" ? c("31", " ⊘") : n.orphan ? c("35", " orphan") : "";
+		return `${c(STATE_COLOR[n.state]!, ICON[n.state])} ${n.title.replace(/\s+/g, " ")}${flag}`;
+	};
+	const rightLine = (r: Right, width: number, w: Workspace): string => {
+		if (r.kind === "window") {
+			const agent = r.win.panes.find(p => p.agent)?.agent;
+			const what = agent ? agentText(agent) : r.win.panes.map(p => p.command + (p.path !== w.path ? " " + c("90", home(p.path)) : "")).join(c("90", " │ "));
+			const l = `${r.win.active ? c("1", "*") : " "}${c("1", String(r.win.index))} ${c("90", r.win.name.padEnd(10).slice(0, 10))} ${what}`;
+			return truncateToWidth(l, width - 5, "…", true) + c("90", agent ? age(agent.updated).padStart(5) : "");
+		}
+		const l = `  ${"  ".repeat(r.depth)}${agentText(r.n)}${c("90", r.n.state === "parked" || r.n.state === "ended" ? "  ↵ resume" : r.n.paseoAgent && r.n.pid ? "  paseo" : "")}`;
+		return truncateToWidth(l, width - 5, "…", true) + c("90", age(r.n.updated).padStart(5));
 	};
 
-	const previewLines = (n: Node, height: number, width: number): string[] => {
-		const meta = [
-			color("1", n.title.replace(/\s+/g, " ")),
-			color("90", `${n.state}${n.pid ? " pid " + n.pid : ""}${n.pane ? " " + n.pane : ""}  ${n.model ?? ""}  ${n.parentKind ? "via " + n.parentKind : "root"}  ${n.cwd.replace(homedir(), "~")}`),
-			...(n.report ? [color("33", `[${n.report.tag}] ${n.report.body.replace(/\s+/g, " ")}`)] : []),
-			"",
-		];
-		const body = act.capture(n, height) ?? (n.lastText ?? "").split("\n");
-		const lines = [...meta, ...body.slice(-(height - meta.length))];
+	const previewFor = (height: number, width: number): string[] => {
+		const w = selectedWs();
+		let pane: string | undefined, n: Node | undefined, head: string[] = [];
+		if (view === "agents") n = nodes.get(selAgent ?? "");
+		else if (focus === "right" && right[selRight]) {
+			const r = right[selRight]!;
+			if (r.kind === "window") { const p = r.win.panes.find(p => p.active) ?? r.win.panes[0]; pane = p?.id; n = p?.agent; }
+			else n = r.n;
+		} else if (w) {
+			const win = w.windows.find(x => x.active) ?? w.windows[0];
+			pane = win?.panes.find(p => p.active)?.id;
+			head = [c("1", label(w)) + c("90", `  ${w.branch ?? ""}  ${home(w.path)}${w.parent ? "  ← " + label(spaces.get(w.parent) ?? w) : ""}`)];
+		}
+		if (n) head = [c("1", n.title.replace(/\s+/g, " ")), c("90", `${n.state}${n.pid ? " pid " + n.pid : ""}  ${n.model ?? ""}  ${n.parentKind ? "via " + n.parentKind : "root"}  ${home(n.cwd)}`), ...(n.report ? [c("33", `[${n.report.tag}] ${n.report.body.replace(/\s+/g, " ")}`)] : [])];
+		pane ??= n?.pane;
+		const body = (pane && act.capturePane(pane, height)) || (n?.lastText ?? "").split("\n");
+		while (body.length && !body[body.length - 1]!.trim()) body.pop();
+		const lines = [...head, "", ...body.slice(-(height - head.length - 1))];
 		return lines.slice(0, height).map(l => truncateToWidth(l, width));
 	};
 
 	function draw() {
-		const width = out.columns || 80, height = out.rows || 24;
-		const footerText = input ? (input.kind === "filter" ? "/" : "send> ") + input.text + "█"
-			: message || (sidebar ? `[${mode}] ${query ? "/" + query + " " : ""}? help` : `[${mode}] ${query ? "/" + query + "  " : ""}enter open  z park  i send  d diff  w wip  f files  y yazi  e nvim  o zed  / filter  tab mode  ? help`);
-		const footer = truncateToWidth(color("7", " " + footerText), width, "", true);
-		let listHeight = height - 1;
-		let pv: string[] = [];
+		const width = W(), height = H();
+		geometry = [];
+		const hint = sidebar ? `? help` : view === "agents" ? "enter open  i send  z park  s workspaces  / filter  ? help"
+			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s agents  ? help"
+			: "enter open  i send  z park  x kill window  h back  ? help";
+		const footerText = input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
+		const footer = truncateToWidth(c("7", " " + footerText), width, "", true);
 		if (help) {
-			const lines = HELP.split("\n");
-			out.write("\x1b[H\x1b[2J" + lines.slice(0, height - 1).map(l => truncateToWidth(l, width)).join("\r\n") + "\x1b[" + height + ";1H" + footer);
+			out.write("\x1b[H\x1b[2J" + HELP.split("\n").slice(0, height - 1).map(l => truncateToWidth(l, width)).join("\r\n") + `\x1b[${height};1H` + footer);
 			return;
 		}
-		const n = current()?.node;
-		if (!sidebar && n) {
-			const ph = Math.floor(height * preview / 100);
-			listHeight = height - 1 - ph;
-			pv = [color("90", "─".repeat(width)), ...previewLines(n, ph - 1, width)];
+		const screen: string[] = [];
+		const listHeight = sidebar ? height - 1 : height - 1 - Math.floor(height * preview / 100);
+		const hl = (s: string, w: number, on: boolean, dim = false) => on ? `\x1b[48;5;${dim ? 236 : 238}m` + truncateToWidth(s.replace(/\x1b\[0m/g, `\x1b[0m\x1b[48;5;${dim ? 236 : 238}m`), w, "", true) + "\x1b[0m" : truncateToWidth(s, w, "", true);
+		const window = <T,>(list: T[], at: number, h: number) => { const top = Math.max(0, Math.min(at - Math.floor(h / 2), list.length - h)); return { top, items: list.slice(top, top + h) }; };
+
+		if (view === "agents" && !sidebar) {
+			const at = Math.max(0, agents.findIndex(r => r.node?.id === selAgent));
+			const { top, items } = window(agents, at, listHeight);
+			items.forEach((r, i) => {
+				const y = i + 1;
+				const text = r.kind === "header" ? c("1", `${collapsed.has("status:" + r.label) ? "▸" : "▾"} ${r.label}`) + c("90", ` ${r.count}`) : "  " + agentText(r.node!) + c("90", "  " + (spaces.get([...spaces.keys()].find(k => r.node!.cwd.startsWith(k)) ?? "") ? label(spaces.get([...spaces.keys()].find(k => r.node!.cwd.startsWith(k))!)!) : home(r.node!.cwd)) + "  " + age(r.node!.updated));
+				screen.push(hl(text, width, top + i === at));
+				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (r.node) { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } else { toggle("status:" + r.label); } } });
+			});
+			while (screen.length < listHeight) screen.push("");
+		} else {
+			const lw = sidebar ? width : Math.max(30, Math.floor(width * 0.42));
+			const rw = width - lw - 1;
+			const at = Math.max(0, left.findIndex(r => leftKey(r) === selLeft));
+			const L = window(left, at, listHeight);
+			const w = selectedWs();
+			const R = window(right, selRight, listHeight);
+			for (let i = 0; i < listHeight; i++) {
+				const r = L.items[i];
+				let line = r ? hl(leftLine(r, lw), lw, L.top + i === at, focus === "right") : " ".repeat(lw);
+				if (r) {
+					const idx = L.top + i;
+					geometry.push({ y: i + 1, x0: 0, x1: lw, act: (dbl) => { const same = selLeft === leftKey(r); selLeft = leftKey(r); focus = "left"; buildRight(); if (r.kind === "project") toggle("project:" + r.project); else if (sidebar || (dbl && same)) openLeft(); void idx; },
+						fold: r.kind === "ws" && r.w.children.length ? () => toggle(r.w.key) : undefined, foldX: r.kind === "ws" ? 1 + Math.max(0, r.depth - 1) * (sidebar ? 1 : 2) : 0 });
+				}
+				if (!sidebar) {
+					const rr = R.items[i];
+					line += c("90", "│") + (rr && w ? hl(rightLine(rr, rw, w), rw, R.top + i === selRight && focus === "right") : " ".repeat(rw));
+					if (rr) { const idx = R.top + i; geometry.push({ y: i + 1, x0: lw + 1, x1: width, act: (dbl) => { const same = focus === "right" && selRight === idx; selRight = idx; focus = "right"; if (dbl && same) openRight(); } }); }
+				}
+				screen.push(line);
+			}
 		}
-		const at = index();
-		const top = Math.max(0, Math.min(at - Math.floor(listHeight / 2), list.length - listHeight));
-		const shown = list.slice(top, top + listHeight).map((r, i) => {
-			const text = r.kind === "header" ? headerLine(r, width) : nodeLine(r, width);
-			return top + i === at ? "\x1b[48;5;237m" + truncateToWidth(text.replace(/\x1b\[0m/g, "\x1b[0m\x1b[48;5;237m"), width, "", true) + "\x1b[0m" : text;
-		});
-		while (shown.length < listHeight) shown.push("");
-		out.write("\x1b[H\x1b[2J" + [...shown, ...pv].slice(0, height - 1).join("\x1b[0m\r\n") + "\x1b[0m\x1b[" + height + ";1H" + footer);
+		if (!sidebar) {
+			const ph = height - 1 - listHeight;
+			screen.push(c("90", "─".repeat(width)), ...previewFor(ph - 1, width));
+		}
+		out.write("\x1b[H\x1b[2J" + screen.slice(0, height - 1).join("\x1b[0m\r\n") + `\x1b[0m\x1b[${height};1H` + footer);
 	}
 
-	const move = (d: number) => {
-		if (!list.length) return;
-		selected = key(list[Math.max(0, Math.min(list.length - 1, index() + d))]!);
-	};
-	const nodeRows = () => list.filter(r => r.node);
+	const toggle = (k: string) => { collapsed.has(k) ? collapsed.delete(k) : collapsed.add(k); rebuild(); };
+	const done = () => { if (!sidebar) quit(); };
+	const attempt = (f: () => string | void) => { try { const m = f(); if (m) { message = m; return false; } return true; } catch (e: any) { message = String(e?.stderr || e?.message || e).trim().split("\n")[0]!; return false; } };
+	const openLeft = () => { const r = left.find(x => leftKey(x) === selLeft); if (!r) return; if (r.kind === "project") return toggle(leftKey(r)); if (attempt(() => act.openWorkspace(r.w))) { current = act.currentSession(); done(); } };
+	const openAgent = (n: Node) => { const w = spaces.get([...spaces.keys()].sort((a, b) => b.length - a.length).find(k => n.cwd.startsWith(k)) ?? ""); if (attempt(() => act.open(n, w))) done(); };
+	const openRight = () => { const r = right[selRight]; if (!r) return; if (r.kind === "window") { if (attempt(() => act.openWindow(r.win))) done(); } else openAgent(r.n); };
+	const selectedAgent = (): Node | undefined => view === "agents" ? nodes.get(selAgent ?? "") : focus === "right" ? (right[selRight]?.kind === "agent" ? (right[selRight] as any).n : (right[selRight] as any)?.win?.panes.find((p: any) => p.agent)?.agent) : undefined;
+	const selectedPane = (): string | undefined => { const r = right[selRight]; return focus === "right" && r?.kind === "window" ? (r.win.panes.find(p => p.active) ?? r.win.panes[0])?.id : undefined; };
 
 	const suspend = (f: () => void) => {
-		out.write("\x1b[?25h\x1b[?1049l");
+		out.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l");
 		process.stdin.setRawMode(false);
-		try { f(); } finally {
-			process.stdin.setRawMode(true);
-			out.write("\x1b[?1049h\x1b[?25l");
-			draw();
-		}
+		try { f(); } finally { process.stdin.setRawMode(true); out.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h"); draw(); }
 	};
-	const quit = () => {
-		save();
-		out.write("\x1b[?25h\x1b[?1049l");
-		process.exit(0);
-	};
-	const tool = (kind: Parameters<typeof act.tool>[0]) => {
-		const n = current()?.node;
-		if (!n) return;
-		try {
-			const line = act.tool(kind, n);
-			if (sidebar || line.startsWith("zed ")) act.run(line, "popup");
-			else suspend(() => act.run(line, "here"));
-		} catch (e) { message = String(e); }
+	const quit = () => { save(); out.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l"); process.exit(0); };
+	const runTool = (line: string) => { if (sidebar || line.startsWith("zed ")) act.run(line, "popup"); else suspend(() => act.run(line, "here")); };
+	const wsTool = (kind: Parameters<typeof act.tool>[0]) => {
+		const w = selectedWs();
+		if (!w || w.key.startsWith("tmux:")) return;
+		const parent = w.parent ? spaces.get(w.parent) : undefined;
+		attempt(() => runTool(act.tool(kind, { id: w.key, cwd: w.path }, parent?.branch)));
 	};
 
-	const handle = (data: string) => {
+	const handleKey = (data: string) => {
 		const k = parseKey(data) ?? data;
 		message = "";
 		if (input) {
 			if (k === "escape") { if (input.kind === "filter") query = ""; input = undefined; }
-			else if (k === "enter") {
-				if (input.kind === "send") { const n = current()?.node; message = n ? act.send(n, input.text) ?? "sent" : ""; }
-				input = undefined;
-			} else if (k === "backspace") input.text = input.text.slice(0, -1);
-			else if (data.length === 1 && data >= " ") input.text += data;
-			else if (data.length > 1 && !data.startsWith("\x1b")) input.text += data; // paste
+			else if (k === "enter") { const i = input; input = undefined; if (i.kind === "filter") {} else i.then?.(i.text); }
+			else if (k === "backspace") input.text = input.text.slice(0, -1);
+			else if (!data.startsWith("\x1b") && data >= " ") input.text += data;
 			if (input?.kind === "filter") query = input.text;
 			rebuild(); draw(); return;
 		}
 		if (help) { help = false; draw(); return; }
-		const r = current();
+		const w = selectedWs();
+		const moveLeft = (d: number) => { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); selRight = 0; buildRight(); };
+		const moveAgent = (d: number) => { const list = agents; const i = Math.max(0, Math.min(list.length - 1, Math.max(0, list.findIndex(r => r.node?.id === selAgent)) + d)); const r = list[i]; if (r?.node) selAgent = r.node.id; else if (r) { const next = list[i + Math.sign(d)]; if (next?.node) selAgent = next.node.id; } };
+		const move = (d: number) => view === "agents" ? moveAgent(d) : focus === "right" ? (selRight = Math.max(0, Math.min(right.length - 1, selRight + d))) : moveLeft(d);
 		switch (k) {
-			case "q": case "escape": case "ctrl+c": return quit();
+			case "q": case "ctrl+c": return quit();
+			case "escape": if (focus === "right") focus = "left"; else if (!sidebar) return quit(); break;
 			case "?": help = true; break;
 			case "j": case "down": move(1); break;
 			case "k": case "up": move(-1); break;
 			case "ctrl+d": case "pageDown": move(10); break;
 			case "ctrl+u": case "pageUp": move(-10); break;
-			case "g": case "home": selected = list[0] && key(list[0]); break;
-			case "G": case "end": selected = list.length ? key(list[list.length - 1]!) : undefined; break;
-			case "tab": mode = mode === "tree" ? "projects" : mode === "projects" ? "status" : "tree"; rebuild(); break;
-			case "t": mode = "tree"; rebuild(); break;
-			case "p": mode = "projects"; rebuild(); break;
-			case "s": mode = "status"; rebuild(); break;
-			case "a": all = !all; message = all ? "showing everything in the window" : "showing active and recent"; rebuild(); break;
+			case "g": case "home": move(-1e6); break;
+			case "G": case "end": move(1e6); break;
+			case "l": case "right":
+				if (view === "workspaces" && !sidebar && focus === "left" && right.length) focus = "right";
+				else if (focus === "left") { const r = left.find(x => leftKey(x) === selLeft); if (r) { collapsed.delete(leftKey(r)); rebuild(); } }
+				break;
+			case "h": case "left":
+				if (focus === "right") focus = "left";
+				else { const r = left.find(x => leftKey(x) === selLeft); if (r) { const k2 = leftKey(r); if ((r.kind === "project" || r.w.children.length) && !collapsed.has(k2)) { collapsed.add(k2); rebuild(); } else { const i = left.indexOf(r); const up = left.slice(0, i).reverse().find(x => x.kind === "project" || (r.kind === "ws" && x.kind === "ws" && x.depth < r.depth)); if (up) selLeft = leftKey(up); buildRight(); } } }
+				break;
+			case "space": if (focus === "left") { const r = left.find(x => leftKey(x) === selLeft); if (r) toggle(leftKey(r)); } break;
+			case "s": case "tab": if (!sidebar) { view = view === "agents" ? "workspaces" : "agents"; focus = "left"; } break;
 			case "/": input = { kind: "filter", text: query }; break;
-			case "h": case "left": if (r) { if (r.node && !(r.node.children.length && !collapsed.has(r.node.id))) { const parent = list.slice(0, index()).reverse().find(x => x.depth < r.depth); if (parent) selected = key(parent); } else collapsed.add(foldKey(r)); rebuild(); } break;
-			case "l": case "right": if (r) { collapsed.delete(foldKey(r)); rebuild(); } break;
-			case "space": if (r) { const f = foldKey(r); collapsed.has(f) ? collapsed.delete(f) : collapsed.add(f); rebuild(); } break;
-			case "H": for (const x of list) if (x.kind === "header") collapsed.add(foldKey(x)); rebuild(); break;
-			case "L": collapsed.clear(); rebuild(); break;
-			case "enter": if (r?.node) { try { const m = act.open(r.node); if (m) message = m; else if (!sidebar) return quit(); } catch (e) { message = String(e); } } else if (r) { const f = foldKey(r); collapsed.has(f) ? collapsed.delete(f) : collapsed.add(f); rebuild(); } break;
-			case "z": if (r?.node) { message = act.park(r.node) ?? "parked"; setTimeout(refresh, 500); } break;
-			case "i": if (r?.node) input = { kind: "send", text: "" }; break;
-			case "d": tool("diff"); break;
-			case "w": tool("wip"); break;
-			case "y": tool("files"); break;
-			case "f": if (r?.node) { const n = r.node; message = "collecting files…"; draw(); void import("./files").then(async f => {
-				const m = await f.mirror(n);
-				message = m.count ? "" : "no files found for this session";
-				if (!m.count) return draw();
-				const line = "cd " + JSON.stringify(m.dir) + " && yazi";
-				if (sidebar) act.run(line, "popup"); else suspend(() => act.run(line, "here"));
+			case "enter": if (view === "agents") { const n = nodes.get(selAgent ?? ""); if (n) openAgent(n); } else focus === "right" ? openRight() : openLeft(); break;
+			case "i": {
+				const n = selectedAgent(), pane = selectedPane();
+				if (!n && !pane) { message = "select a window or agent (l)"; break; }
+				input = { kind: "send", text: "", prompt: "send> ", then: t => { message = pane ? (attempt(() => act.sendToPane(pane, t)) ? "sent" : message) : act.send(n!, t) ?? "sent"; } };
+				break;
+			}
+			case "z": { const n = selectedAgent(); if (n) { message = act.park(n) ?? "parked"; setTimeout(refresh, 500); } break; }
+			case "n": if (w && !w.key.startsWith("tmux:")) { if (attempt(() => act.newWindow(w, "pi", "pi"))) done(); } break;
+			case "c": if (w) { if (attempt(() => act.newWindow(w))) done(); } break;
+			case "N": if (w && !w.key.startsWith("tmux:")) input = { kind: "branch", text: "", prompt: `new worktree off ${w.branch ?? label(w)}: `, then: name => {
+				if (!name.trim()) return;
+				const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'";
+				runTool(`cd ${q(w.path)} && workmux add ${q(name.trim())} --session -C ${w.branch ? "--base " + q(w.branch) : ""}`);
+				void refresh();
+			} }; break;
+			case "m": if (w && w.parent) { const p = spaces.get(w.parent); input = { kind: "confirm", text: "", prompt: `merge ${label(w)} into ${p?.branch ?? label(p!)}? [y/N] `, then: a => { if (a.trim() !== "y") return; const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'"; runTool(`cd ${q(w.path)} && workmux merge ${p?.branch ? "--into " + q(p.branch) : ""}; printf 'press enter '; read -r _`); void refresh(); } }; } break;
+			case "x":
+				if (focus === "right") { const r = right[selRight]; if (r?.kind === "window") input = { kind: "confirm", text: "", prompt: `kill window ${r.win.index} (${r.win.name})? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killWindow(r.win)); void refresh(); } }; }
+				else if (w?.session) input = { kind: "confirm", text: "", prompt: `close ${w.session} (worktree stays)? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killSession(w)); void refresh(); } };
+				break;
+			case "d": wsTool("diff"); break;
+			case "w": wsTool("wip"); break;
+			case "y": wsTool("files"); break;
+			case "e": wsTool("edit"); break;
+			case "o": wsTool("zed"); break;
+			case "f": if (w && !w.key.startsWith("tmux:")) { message = "collecting files…"; draw(); void import("./files").then(async f => {
+				const m = await f.mirror(w.path, w.agents, w.key);
+				message = m.count ? "" : "no files found";
+				if (m.count) runTool("cd " + JSON.stringify(m.dir) + " && yazi");
+				draw();
 			}).catch(e => { message = String(e); draw(); }); } break;
-			case "e": tool("edit"); break;
-			case "o": tool("zed"); break;
-			case "+": case "=": preview = Math.min(85, preview + 5); break;
+			case "+": case "=": preview = Math.min(80, preview + 5); break;
 			case "-": preview = Math.max(15, preview - 5); break;
 			case "r": void refresh(); break;
 			default:
-				if (/^[1-9]$/.test(k)) { const target = nodeRows()[Number(k) - 1]; if (target) { selected = key(target); try { const m = act.open(target.node!); if (m) message = m; else if (!sidebar) return quit(); } catch (e) { message = String(e); } } }
+				if (/^[1-9]$/.test(k) && w) { const win = w.windows.find(x => x.index === Number(k)); if (win && attempt(() => act.openWindow(win))) done(); }
 		}
+		draw();
+	};
+
+	let lastClick = { y: -1, x: -1, at: 0 };
+	const handleMouse = (data: string) => {
+		const m = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/.exec(data);
+		if (!m || m[4] !== "M") return;
+		const b = Number(m[1]), x = Number(m[2]) - 1, y = Number(m[3]);
+		message = "";
+		if (b === 64 || b === 65) {
+			const d = b === 64 ? -3 : 3;
+			const inRight = !sidebar && view === "workspaces" && geometry.some(g => g.y === y && g.x0 > 0 && x >= g.x0);
+			if (inRight) selRight = Math.max(0, Math.min(right.length - 1, selRight + d));
+			else if (view === "agents") { for (let i = 0; i < Math.abs(d); i++) handleKey(d > 0 ? "j" : "k"); return; }
+			else { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); buildRight(); }
+			draw(); return;
+		}
+		if (b !== 0) return;
+		const g = geometry.find(g => g.y === y && x >= g.x0 && x < g.x1);
+		const dbl = Date.now() - lastClick.at < 400 && lastClick.y === y;
+		lastClick = { y, x, at: Date.now() };
+		if (!g) return;
+		if (g.fold && g.foldX !== undefined && Math.abs(x - g.foldX) <= 1) g.fold();
+		else g.act(dbl || true);
 		draw();
 	};
 
 	process.stdin.setRawMode(true);
 	process.stdin.setEncoding("utf8");
-	process.stdin.on("data", (chunk: string) => { for (const k of keys(chunk)) handle(k); });
+	process.stdin.on("data", (chunk: string) => { for (const k of keys(chunk)) k.startsWith("\x1b[<") ? handleMouse(k) : handleKey(k); });
 	out.on("resize", draw);
-	out.write("\x1b[?1049h\x1b[?25l");
+	out.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h");
 	message = "loading…";
 	draw();
 	await refresh();
 	if (message === "loading…") { message = ""; draw(); }
-	setInterval(refresh, 3000);
+	setInterval(refresh, sidebar ? 4000 : 2500);
 }
 
 /** Split a stdin chunk into single keys: several arrive together when typed fast or sent by tmux. */
@@ -228,7 +372,7 @@ function keys(chunk: string): string[] {
 	for (let i = 0; i < chars.length; i++) {
 		if (chars[i] === "\x1b" && (chars[i + 1] === "[" || chars[i + 1] === "O")) {
 			let j = i + 2;
-			while (j < chars.length && !/[@-~]/.test(chars[j]!)) j++;
+			while (j < chars.length && !/[@-~]/.test(chars[j]!) || (j < chars.length && chars[j] === "<" && j === i + 2)) j++;
 			out.push(chars.slice(i, j + 1).join(""));
 			i = j;
 		} else if (chars[i] === "\x1b" && chars[i + 1] && chars[i + 1] !== "\x1b") { out.push(chars[i]! + chars[i + 1]); i++; }
@@ -237,23 +381,20 @@ function keys(chunk: string): string[] {
 	return out;
 }
 
-const HELP = `ab tree — sessions as a tree
+const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their windows, their agents
 
-  j/k ↑/↓  move          ctrl-d/u  page        g/G  top/bottom
-  enter    open: focus its tmux pane, or reopen a parked session (pi --session)
-  1-9      open the nth session
-  h/l      fold/unfold (h on a leaf goes to its parent)   space toggle   H/L all
-  tab      cycle tree → projects → status    t/p/s  pick one
-  /        filter: key:value (state project model kind run orphan), fuzzy words, !negate
-  a        toggle all sessions in the window vs active + recent
+  j/k ↑/↓  move      ctrl-d/u  page      g/G  top/bottom      mouse: click, wheel
+  enter    open the workspace (its tmux session, created if parked) / the window / agent
+  l/→      into the workspace's windows and agents   h/←  back, fold, or up a level
+  space    fold      1-9  jump to that window of the selected workspace
+  s tab    agents across all workspaces, grouped by state   / filter (key:value, words)
 
-  z        park: stop the process, keep worktree and session (Paseo agents are archived)
-  i        send a message to the agent (pasted into its pane, or via Paseo)
-  d        review the branch in tuicr (from its merge-base); w  review uncommitted changes
-           exported comments can be sent straight back to the agent
-  f        the session's files in yazi: what it changed, at their paths, and what it read
-           or ran on under _read/ (links into the worktree, so edits are real)
-  y yazi   e nvim   o zed, all in the session's directory
-  +/-      preview size (dashboard)   r refresh   q quit
+  workspace   n new pi   c new terminal   N new worktree off it (workmux, session mode)
+              m merge into its parent (workmux merge)   x close its tmux session
+              d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
+              y yazi   e nvim   o zed
+  window      i send a line to its pane   x kill it
+  agent       i send   z park (stop; Paseo agents are archived)   enter resume (pi --session)
 
-  ● working ○ idle ◌ live in Paseo ◇ parked · ended × gone   ! needs you ⊘ blocked ✓ done`;
+  ! needs you ⊘ blocked ● working ○ idle ◌ running in Paseo □ open ◇ parked   ▌ you are here
+  +/- preview size   r refresh   q quit`;

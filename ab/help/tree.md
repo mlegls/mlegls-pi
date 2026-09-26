@@ -20,9 +20,9 @@ its ancestors.
   ab tree -m status              grouped by state, orphans near the top
   ab tree project:concept !state:gone
 
-The TUI (? inside it for keys) opens sessions in tmux (focus their pane, or reopen a parked
-one with pi --session in a window of a session named after the project), parks them, sends
-them messages, and opens tuicr/yazi/nvim/zed in their directory; tuicr's exported review can
-go straight back to the agent. Bind it in tmux, e.g.
-  bind t display-popup -E -w 90% -h 90% "ab tree ui"
-  bind T split-window -hbf -l 36 "ab tree ui --sidebar"
+The TUI (? inside it for keys) is organized by workspace: one per git worktree, nested by
+the branch it came from, each shown as its tmux session. The dashboard (prefix-t) has the
+workspace tree on the left and the selected workspace's windows and agents on the right
+(l to move in), with a live preview; s switches to all agents grouped by state. The
+sidebar is the tree alone: a click switches to that workspace. bin/ab-sidebar keeps one
+sidebar pane following you between windows (prefix-T toggles it, remembered). Mouse works.

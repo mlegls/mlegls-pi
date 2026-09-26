@@ -6,6 +6,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Node } from "./graph";
+import type { Window, Workspace } from "./workspaces";
 
 /** ab is on PATH inside pi sessions only; tool lines run from plain shells and tmux popups. */
 const AB = fileURLToPath(new URL("../../bin/ab", import.meta.url));
@@ -30,23 +31,69 @@ export function paneAlive(pane?: string): pane is string {
 
 const slug = (s: string) => s.replace(/[^A-Za-z0-9_-]+/g, "-").slice(0, 40) || "pi";
 
-/** Focus the node's pane, or reopen a parked/ended session in tmux. Returns a message on refusal. */
-export function open(n: Node): string | undefined {
+/** The workspace's tmux session, created (detached, tagged with its path) if it has none. */
+export function ensureSession(w: Workspace): string {
+	if (w.session && quiet(() => tmux("has-session", "-t", "=" + w.session))) return w.session;
+	let name = slug(w.project + "-" + (w.main ? "main" : (w.branch ?? w.path).split("/").pop()!));
+	for (let i = 2; quiet(() => tmux("has-session", "-t", "=" + name)); i++) name = name.replace(/-\d+$/, "") + "-" + i;
+	tmux("new-session", "-d", "-s", name, "-c", w.path);
+	tmux("set-option", "-t", name, "@ab-workspace", w.path);
+	return name;
+}
+
+export function switchTo(session: string, target?: string): void {
+	tmux(...withClient(["switch-client", "-t", "=" + session]));
+	if (target) { quiet(() => tmux("select-window", "-t", target)); quiet(() => tmux("select-pane", "-t", target)); }
+}
+
+export function openWorkspace(w: Workspace): void { switchTo(ensureSession(w)); }
+
+export function openWindow(win: Window): void { switchTo(win.session, `${win.session}:${win.index}`); }
+
+/** New window in the workspace: pi, a shell, or a given command. */
+export function newWindow(w: Workspace, command?: string, name?: string): void {
+	const session = ensureSession(w);
+	const args = ["new-window", "-P", "-F", "#{pane_id}", "-t", session + ":", "-c", w.path];
+	if (name) args.push("-n", name);
+	// Through an interactive shell so PATH matches a terminal (pi comes from mise), and the
+	// window stays as a shell when the command exits.
+	const shell = process.env.SHELL || "/bin/zsh";
+	const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'";
+	if (command) args.push(`${shell} -ic ${q(command + "; exec " + shell + " -i")}`);
+	const pane = tmux(...args);
+	switchTo(session, pane);
+}
+
+/** Focus the node's pane, or resume it with pi --session in a new window of its workspace. */
+export function open(n: Node, w?: Workspace): string | undefined {
 	if (paneAlive(n.pane)) {
 		const session = tmux("display-message", "-p", "-t", n.pane, "#{session_name}");
-		tmux(...withClient(["switch-client", "-t", session]));
-		tmux("select-window", "-t", n.pane);
-		tmux("select-pane", "-t", n.pane);
+		switchTo(session, n.pane);
 		return;
 	}
-	if (n.pid) return n.paseoAgent ? "running in Paseo; park it here first to take it over in tmux" : `running as pid ${n.pid} outside tmux`;
+	if (n.pid) return n.paseoAgent ? "running in Paseo; z parks it, then enter resumes it here" : `running as pid ${n.pid} outside tmux`;
 	if (!existsSync(n.cwd)) return "its directory is gone: " + n.cwd;
-	const session = slug(n.project);
-	if (!quiet(() => tmux("has-session", "-t", "=" + session))) tmux("new-session", "-d", "-s", session, "-c", n.cwd);
-	const pane = tmux("new-window", "-P", "-F", "#{pane_id}", "-t", session + ":", "-c", n.cwd, "-n", slug(n.handle ?? n.title),
-		"pi --session " + JSON.stringify(n.file));
-	tmux(...withClient(["switch-client", "-t", session]));
-	tmux("select-window", "-t", pane);
+	if (!w) return "no workspace for " + n.cwd;
+	newWindow(w, "pi --session " + JSON.stringify(n.file), slug((n.handle ?? n.title).slice(0, 24)));
+}
+
+export function killWindow(win: Window): void { tmux("kill-window", "-t", `${win.session}:${win.index}`); }
+export function killSession(w: Workspace): void { if (w.session) tmux("kill-session", "-t", "=" + w.session); }
+
+/** Paste text into a pane and press enter. */
+export function sendToPane(pane: string, text: string): void {
+	execFileSync("tmux", ["load-buffer", "-b", "ab-tree", "-"], { input: text });
+	tmux("paste-buffer", "-p", "-d", "-b", "ab-tree", "-t", pane);
+	tmux("send-keys", "-t", pane, "Enter");
+}
+
+/** Session the current client is looking at. */
+export function currentSession(): string | undefined {
+	try { const c = client(); return tmux("display-message", "-p", ...(c ? ["-c", c] : []), "#{session_name}"); } catch { return undefined; }
+}
+
+export function capturePane(pane: string, lines: number): string[] | undefined {
+	try { return tmux("capture-pane", "-e", "-p", "-J", "-t", pane, "-S", "-" + lines).split("\n"); } catch { return undefined; }
 }
 
 /** Stop the session's process, keeping its worktree and file: it can be reopened later. */
@@ -62,12 +109,7 @@ export function park(n: Node): string | undefined {
 /** Put text in front of the agent as a user message: pasted into its pane, or sent through Paseo. */
 export function send(n: Node, text: string): string | undefined {
 	if (!text.trim()) return "nothing to send";
-	if (paneAlive(n.pane)) {
-		execFileSync("tmux", ["load-buffer", "-b", "ab-tree", "-"], { input: text });
-		tmux("paste-buffer", "-p", "-d", "-b", "ab-tree", "-t", n.pane);
-		tmux("send-keys", "-t", n.pane, "Enter");
-		return;
-	}
+	if (paneAlive(n.pane)) { sendToPane(n.pane, text); return; }
 	if (n.paseoAgent && n.pid) {
 		const r = spawnSync("paseo", ["send", n.paseoAgent, "--no-wait", text], { encoding: "utf8" });
 		return r.status === 0 ? undefined : "paseo send failed: " + (r.stderr || r.stdout).trim();
@@ -93,7 +135,7 @@ export function capture(n: Node, lines: number): string[] | undefined {
 }
 
 /** Shell command lines for the side tools, run in the node's cwd. */
-export function tool(kind: "diff" | "wip" | "files" | "edit" | "zed", n: Node): string {
+export function tool(kind: "diff" | "wip" | "files" | "edit" | "zed", n: { id: string; cwd: string }, against?: string): string {
 	const q = (s: string) => "'" + s.replace(/'/g, "'\\''") + "'";
 	const cd = "cd " + q(n.cwd) + " && ";
 	switch (kind) {
@@ -102,14 +144,14 @@ export function tool(kind: "diff" | "wip" | "files" | "edit" | "zed", n: Node): 
 		case "zed": return "zed " + q(n.cwd);
 		case "wip": return cd + reviewed("tuicr --no-update-check --stdout -w", n);
 		case "diff": {
-			const base = reviewBase(n.cwd);
+			const base = against ? execFileSync("git", ["-C", n.cwd, "merge-base", "HEAD", against], { encoding: "utf8" }).trim() : reviewBase(n.cwd);
 			return cd + reviewed(base ? `tuicr --no-update-check --stdout -r ${base}..HEAD` : "tuicr --no-update-check --stdout -w", n);
 		}
 	}
 }
 
 /** Run tuicr, then offer its exported review to the agent. */
-function reviewed(cmd: string, n: Node): string {
+function reviewed(cmd: string, n: { id: string }): string {
 	const file = `\${TMPDIR:-/tmp}/ab-tree-review-${n.id}.md`;
 	return `${cmd} > "${file}"; if [ -s "${file}" ]; then printf 'send review to the agent? [y/N] '; read -r a; [ "$a" = y ] && ${AB} tree send ${n.id} < "${file}"; fi`;
 }
