@@ -49,7 +49,9 @@ export default async function (pi: ExtensionAPI) {
 		clearTimeout(flushTimer);
 		flushTimer = undefined;
 		if (running || busy || queue.every(event => event.passive)) return;
+		const current = generation;
 		const { content, handles, wake } = await drain(lastCtx);
+		if (current !== generation) return;
 		// Output the conversation already accounted for is shown to the user without starting a turn.
 		pi.sendMessage({ customType: "exec-output", content, display: true, details: { handles } }, { triggerTurn: wake, deliverAs: "followUp" });
 	}
@@ -60,6 +62,9 @@ export default async function (pi: ExtensionAPI) {
 
 	async function reset(ctx?: ExtensionContext, session = false) {
 		generation++;
+		clearTimeout(flushTimer); flushTimer = undefined;
+		queue = [];
+		lastCtx = ctx;
 		const old = kernel;
 		kernel = undefined;
 		await old?.dispose();

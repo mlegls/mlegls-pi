@@ -64,6 +64,7 @@ export default function (pi: ExtensionAPI) {
 	const SETTLE_MS = 500, MAX_SETTLE_MS = 2000;
 	let settle: ReturnType<typeof setTimeout> | undefined, firstLate = 0;
 	let lastCtx: ExtensionContext | undefined;
+	let generation = 0;
 	const jobs = new Map<string, Job>();
 	const ingress = createIngress({
 		record: event => pi.appendEntry("exec-ingress", event),
@@ -71,6 +72,8 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		lastCtx = ctx;
+		busy = false;
 		const file = ctx.sessionManager.getSessionFile();
 		state = file ? file.replace(/\.jsonl$/, "") + ".ab" : state;
 		sessionId = ctx.sessionManager.getSessionId();
@@ -79,7 +82,13 @@ export default function (pi: ExtensionAPI) {
 	});
 	pi.on("agent_start", async () => { busy = true; });
 	pi.on("agent_settled", async (_event, ctx) => { busy = false; lastCtx = ctx; await flush(); });
-	pi.on("session_shutdown", async () => { for (const job of jobs.values()) kill(job); });
+	pi.on("session_shutdown", async () => {
+		generation++;
+		clearTimeout(settle); settle = undefined;
+		late = [];
+		lastCtx = undefined;
+		for (const job of jobs.values()) kill(job);
+	});
 
 	function start(command: string, cwd: string): Job {
 		const handle = "h" + next++;
@@ -153,8 +162,12 @@ export default function (pi: ExtensionAPI) {
 
 	async function drain(ctx: ExtensionContext | undefined): Promise<ContentBlock[]> {
 		const ready = late; late = [];
+		const current = generation;
 		const out: ContentBlock[] = [];
-		for (const { job, code } of ready) out.push(...await output(job, code, ctx));
+		for (const { job, code } of ready) {
+			if (current !== generation) break;
+			out.push(...await output(job, code, ctx));
+		}
 		return out;
 	}
 
@@ -169,7 +182,9 @@ export default function (pi: ExtensionAPI) {
 	async function flush() {
 		clearTimeout(settle); settle = undefined;
 		if (busy || !late.length) return;
+		const current = generation;
 		const content = await drain(lastCtx);
+		if (current !== generation) return;
 		pi.sendMessage({ customType: "bash-output", content, display: true }, { triggerTurn: true, deliverAs: "followUp" });
 	}
 
@@ -191,6 +206,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 		async execute(_id, { command, wait, focus, raw }, signal, _onUpdate, ctx) {
 			lastCtx = ctx;
+			const current = generation;
 			const job = start(command, ctx.cwd);
 			const window = Math.max(0, wait ?? YIELD_S) * 1000;
 			let timer: ReturnType<typeof setTimeout> | undefined, poll: ReturnType<typeof setInterval> | undefined;
@@ -204,7 +220,7 @@ export default function (pi: ExtensionAPI) {
 			if (outcome === "yield") {
 				const running = await output(job, undefined, ctx, { raw: true });
 				job.detached = true;
-				void job.done.then(code => { late.push({ job, code }); schedule(); });
+				void job.done.then(code => { if (current !== generation) return; late.push({ job, code }); schedule(); });
 				return { content: [...earlier, ...running], details: { handle: job.handle, pid: job.pid, running: true } };
 			}
 			const code = outcome === "abort" ? "interrupted" : outcome;
