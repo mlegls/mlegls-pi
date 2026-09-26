@@ -180,6 +180,17 @@ async function job(args: string[]) {
 // the owner's resume commands live under the checkout's git dir, keyed by ticket.
 // Session views over lib/tree: every pi session with its parent, project and live state.
 async function tree(args: string[]) {
+	if (args[0] === "ui") return (await import("../lib/tree/ui.ts")).ui({ sidebar: args.includes("--sidebar"), query: args.slice(1).filter(a => a !== "--sidebar").join(" ") });
+	if (args[0] === "open" || args[0] === "park" || args[0] === "send") {
+		const { graph } = await import("../lib/tree/graph.ts");
+		const act = await import("../lib/tree/actions.ts");
+		const node = [...(await graph()).values()].find(n => n.id === args[1] || n.id.startsWith(args[1] ?? "\0"));
+		if (!node) fail("no session " + args[1]);
+		const text = args[0] === "send" ? (args.slice(2).join(" ") || await Bun.stdin.text()) : "";
+		const message = args[0] === "open" ? act.open(node) : args[0] === "park" ? act.park(node) : act.send(node, text);
+		if (message) fail(message);
+		return;
+	}
 	const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
 		mode: { type: "string", short: "m", default: "tree" }, all: { type: "boolean", short: "a" },
 		json: { type: "boolean" }, days: { type: "string" }, hours: { type: "string" } } });

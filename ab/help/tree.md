@@ -1,3 +1,5 @@
+ab tree ui [--sidebar] [QUERY]      interactive: dashboard, or a narrow persistent sidebar
+ab tree open|park|send ID [TEXT]    act on one session (send reads stdin without TEXT)
 ab tree [-m tree|projects|status] [-a] [--json] [--days N] [--hours N] [QUERY...]
 
 Every pi session on this machine as a node: its parent (wm spawn, the bash tool that
@@ -17,3 +19,10 @@ its ancestors.
   ab tree state:needs            what's waiting on me
   ab tree -m status              grouped by state, orphans near the top
   ab tree project:concept !state:gone
+
+The TUI (? inside it for keys) opens sessions in tmux (focus their pane, or reopen a parked
+one with pi --session in a window of a session named after the project), parks them, sends
+them messages, and opens tuicr/yazi/nvim/zed in their directory; tuicr's exported review can
+go straight back to the agent. Bind it in tmux, e.g.
+  bind t display-popup -E -w 90% -h 90% "ab tree ui"
+  bind T split-window -hbf -l 36 "ab tree ui --sidebar"
