@@ -40,16 +40,16 @@ type Right = { kind: "window"; win: Window } | { kind: "agent"; n: Node; depth: 
 
 const c = (code: string, s: string) => `\x1b[${code}m${s}\x1b[0m`;
 const STATE_COLOR: Record<string, string> = { working: "32", idle: "33", live: "36", resumable: "90", gone: "90" };
-const RANK = ["needs", "blocked", "working", "idle", "live"];
+const RANK = ["needs", "blocked", "working", "idle"];
 
 /** Most urgent thing in a workspace, for its row. */
 function rollup(w: Workspace): { icon: string; counts: string } {
-	const live = w.agents.filter(n => n.state === "working" || n.state === "idle" || n.state === "live");
+	const live = w.agents.filter(n => n.state === "working" || n.state === "idle");
 	const keys = live.map(n => attention(n) === "needs" ? "needs" : attention(n) === "blocked" ? "blocked" : n.state);
 	const top = keys.sort((a, b) => RANK.indexOf(a) - RANK.indexOf(b))[0];
 	const icon = top === "needs" ? c("1;31", "!") : top === "blocked" ? c("31", "⊘") : top ? c(STATE_COLOR[top]!, ICON[top as keyof typeof ICON]) : w.session ? c("37", "□") : c("34", "◇");
 	const n = (s: string) => live.filter(x => x.state === s).length;
-	const counts = [n("working") && c("32", n("working") + "●"), n("idle") && c("33", n("idle") + "○"), n("live") && c("36", n("live") + "◌")].filter(Boolean).join(" ");
+	const counts = [n("working") && c("32", n("working") + "●"), n("idle") && c("33", n("idle") + "○")].filter(Boolean).join(" ");
 	return { icon, counts };
 }
 
@@ -123,14 +123,12 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		if (!agents.some(r => r.node?.id === selAgent)) selAgent = agents.find(r => r.node)?.node!.id;
 	};
 
-	let refreshing = false, lastPaseo = 0;
+	let refreshing = false;
 	const refresh = async () => {
 		if (refreshing || input) return;
 		refreshing = true;
 		try {
-			const paseo = Date.now() - lastPaseo > 60_000;
-			nodes = await graph({ paseo, days: 2 });
-			if (paseo) lastPaseo = Date.now();
+			nodes = await graph({ days: 2 });
 			spaces = workspaces(nodes, loadProjects());
 			const was = current;
 			current = act.currentSession();
@@ -169,7 +167,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const l = `${r.win.active ? c("1", "*") : " "}${c("1", String(r.win.index))} ${c("90", r.win.name.padEnd(10).slice(0, 10))} ${what}`;
 			return truncateToWidth(l, width - 5, "…", true) + c("90", agent ? age(agent.updated).padStart(5) : "");
 		}
-		const l = `  ${"  ".repeat(r.depth)}${agentText(r.n)}${c("90", r.n.state === "resumable" ? "  ↵ resume" : r.n.paseoAgent && r.n.pid ? "  paseo" : "")}`;
+		const l = `  ${"  ".repeat(r.depth)}${agentText(r.n)}${c("90", r.n.state === "resumable" ? "  ↵ resume" : r.n.pid && !r.n.pane ? "  headless" : "")}`;
 		return truncateToWidth(l, width - 5, "…", true) + c("90", age(r.n.updated).padStart(5));
 	};
 
@@ -348,7 +346,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				const pane = selectedPane() ?? (n?.pane && act.paneAlive(n.pane) ? n.pane : undefined) ?? (focus === "left" && w ? (w.windows.find(x => x.active) ?? w.windows[0])?.panes.find(p => p.active)?.id : undefined);
 				if (pane) { pass = pane; passTimer = setInterval(draw, 250); break; }
 				if (!n) { message = "select a window or agent (l)"; break; }
-				input = { kind: "send", text: "", prompt: "send (no pane; via Paseo)> ", then: t => { message = act.send(n, t) ?? "sent"; } };
+				input = { kind: "send", text: "", prompt: "send (no pane; via its board topic)> ", then: t => { message = act.send(n, t) ?? "sent"; } };
 				break;
 			}
 			case "z": { const n = selectedAgent(); if (n) { message = act.park(n) ?? "parked"; setTimeout(refresh, 500); } break; }
@@ -518,8 +516,8 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
               d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
               y yazi   e nvim   o zed
   i        type into the selected window/agent's pane from here (esc returns); an agent
-           without a pane (running in Paseo) gets a one-line message instead
-  window   x kill it           agent   z park (stop; Paseo agents are archived)   enter resume
+           without a pane (headless) gets a one-line board message instead
+  window   x kill it           agent   z park (stop the process; the session stays resumable)   enter resume
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
   sidebar  s toggles workspaces / agents; j/k ↑/↓ wheel switch workspaces or select agents
@@ -529,5 +527,5 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
            it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept
   tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window
 
-  ! needs you ⊘ blocked ● working ○ idle ◌ running in Paseo · resumable   workspaces: □ open ◇ parked (no tmux session)   ▌ you are here
+  ! needs you ⊘ blocked ● working ○ idle · resumable   workspaces: □ open ◇ parked (no tmux session)   ▌ you are here
   +/- preview size   r refresh   q quit`;

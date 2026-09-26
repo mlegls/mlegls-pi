@@ -15,7 +15,6 @@ export interface Live {
 	state: "working" | "idle";
 	since: string;
 	tmuxPane?: string;
-	paseoAgent?: string;
 }
 
 export function liveDir(): string {

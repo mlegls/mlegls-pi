@@ -1,5 +1,5 @@
 // The end of a pi session as a transcript, for previews of agents without a pane (parked,
-// ended, or running headless in Paseo): recent user/assistant text and one line per tool call.
+// ended, or running headless): recent user/assistant text and one line per tool call.
 
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 

@@ -4,7 +4,7 @@
 // render this; nothing here depends on the multiplexer.
 //
 // Sources: session jsonl headers/meta (parent links: wm's session-meta.parentSession, the bash
-// tool's PI_SESSION_ID as invokedBy, pi's fork header, Paseo's parent-agent label), live records
+// tool's PI_SESSION_ID as invokedBy, pi's fork header), live records
 // from lib/session-meta/live.ts, the board log, and git for project names. Parsed files are cached
 // by (mtime, size) in ~/.cache/ab-tree/index.json.
 
@@ -15,9 +15,9 @@ import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "../session-meta/live";
 import { logPath } from "../board/store";
 
-/** working/idle: a pi with a live record; live: running in Paseo, turn state unknown;
+/** working/idle: a pi with a live record;
  * resumable: no process, reopen with pi --session; gone: its directory was deleted. */
-export type State = "working" | "idle" | "live" | "resumable" | "gone";
+export type State = "working" | "idle" | "resumable" | "gone";
 export interface Node {
 	id: string;
 	file: string;
@@ -28,10 +28,9 @@ export interface Node {
 	created: string;
 	updated: string;
 	parent?: string;
-	parentKind?: "spawn" | "invoked" | "fork" | "paseo";
+	parentKind?: "spawn" | "invoked" | "fork";
 	run?: string;
 	handle?: string;
-	paseoAgent?: string;
 	state: State;
 	pid?: number;
 	pane?: string;
@@ -46,9 +45,9 @@ interface Parsed {
 	mtimeMs: number; size: number;
 	id: string; cwd: string; created: string; forkOf?: string; name?: string; firstUser?: string;
 	model?: string; lastText?: string;
-	meta?: { run?: string; handle?: string; parentSession?: string; paseoAgent?: string; invokedBy?: string };
+	meta?: { run?: string; handle?: string; parentSession?: string; invokedBy?: string };
 }
-interface Cache { files: Record<string, Parsed>; projects: Record<string, string>; paseoParents: Record<string, string>; paseoSessions: Record<string, string>; paseoTitles: Record<string, string> }
+interface Cache { files: Record<string, Parsed>; projects: Record<string, string> }
 
 const SESSIONS = join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi/agent"), "sessions");
 const CACHE = join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "ab-tree", "index.json");
@@ -90,8 +89,8 @@ function parse(file: string, mtimeMs: number, size: number): Parsed | undefined 
 }
 
 function load(): Cache {
-	const empty = (): Cache => ({ files: {}, projects: {}, paseoParents: {}, paseoSessions: {}, paseoTitles: {} });
-	try { return { ...empty(), ...JSON.parse(readFileSync(CACHE, "utf8")) }; }
+	const empty = (): Cache => ({ files: {}, projects: {} });
+	try { const c = JSON.parse(readFileSync(CACHE, "utf8")); return { files: c.files ?? {}, projects: c.projects ?? {} }; }
 	catch { return empty(); }
 }
 
@@ -133,43 +132,13 @@ function reports(): Map<string, { tag: string; ts: string; body: string }> {
 	return out;
 }
 
-/** Paseo's parent labels, merged into the cache so they outlive the agents. Best effort, 3s. */
-async function paseoParents(cache: Cache): Promise<void> {
-	try {
-		const { withClient } = await import("../paseo.ts");
-		const entries = await Promise.race([
-			withClient(async c => {
-				const all = [];
-				let cursor: string | null | undefined;
-				do {
-					const page = await c.agents.list({ filter: { includeArchived: true }, page: { limit: 200, ...(cursor ? { cursor } : {}) } } as any);
-					all.push(...page.entries);
-					cursor = page.pageInfo.hasMore ? page.pageInfo.nextCursor : undefined;
-				} while (cursor && all.length < 5000);
-				return all;
-			}),
-			new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
-		]);
-		for (const { agent } of entries) {
-			const parent = agent.labels?.["paseo.parent-agent-id"];
-			if (parent) cache.paseoParents[agent.id] = parent;
-			// Imported sessions record their agent id late in the file; Paseo knows the pi session directly.
-			const session = agent.persistence?.sessionId ?? agent.runtimeInfo?.sessionId;
-			if (session) cache.paseoSessions[agent.id] = session;
-			if (agent.title) cache.paseoTitles[agent.id] = agent.title;
-		}
-	} catch {}
-}
-
-export interface Options { days?: number; paseo?: boolean }
+export interface Options { days?: number }
 
 export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	const cache = load();
 	const since = Date.now() - (options.days ?? 3) * 86_400_000;
 	const live = readLive();
 	const liveBySession = new Map<string, Live>(live.map(l => [l.sessionId, l]));
-	const paseoProcs = paseoProcesses();
-	if (options.paseo !== false) await paseoParents(cache);
 
 	// Files in the window, live ones, and (below) ancestors of either.
 	const byId = new Map<string, string>();
@@ -209,55 +178,37 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	}
 	for (const l of live) if (l.sessionFile) want.add(l.sessionFile);
 
-	const paseoSession = new Map<string, string>(Object.entries(cache.paseoSessions));
 	const parentOf = (p: Parsed): { id?: string; kind?: Node["parentKind"] } => {
 		if (p.meta?.parentSession) return { id: p.meta.parentSession, kind: "spawn" };
-		if (p.meta?.paseoAgent && cache.paseoParents[p.meta.paseoAgent]) return { id: "paseo:" + cache.paseoParents[p.meta.paseoAgent], kind: "paseo" };
 		if (p.meta?.invokedBy && p.meta.invokedBy !== p.id) return { id: p.meta.invokedBy, kind: "invoked" };
 		if (p.forkOf) return { id: basename(p.forkOf).slice(basename(p.forkOf).indexOf("_") + 1, -6), kind: "fork" };
 		return {};
 	};
-	// Paseo parents are agent ids; resolving one to its session needs every session's agent id.
-	// Parsed once, then cached by mtime, so this is a stat per file after the first run.
-	if (Object.keys(cache.paseoParents).length) for (const path of files) {
-		const p = read(path);
-		if (p?.meta?.paseoAgent && (!paseoSession.has(p.meta.paseoAgent) || p.created > read(byId.get(paseoSession.get(p.meta.paseoAgent)!)!)!.created)) {
-			paseoSession.set(p.meta.paseoAgent, p.id);
-		}
-	}
 	// Pull in ancestors so every shown node has its chain.
 	const queue = [...want];
 	while (queue.length) {
 		const p = read(queue.pop()!);
 		if (!p) continue;
-		let { id } = parentOf(p);
-		if (id?.startsWith("paseo:")) id = paseoSession.get(id.slice(6));
+		const { id } = parentOf(p);
 		const path = id ? byId.get(id) : undefined;
 		if (path && !want.has(path)) { want.add(path); queue.push(path); }
 	}
 
-	// Several agents can share a session (archive then import): prefer the one with a process.
-	const agentOf = new Map<string, string>();
-	for (const [agent, session] of Object.entries(cache.paseoSessions)) if (!agentOf.has(session) || paseoProcs.has(agent)) agentOf.set(session, agent);
 	const board = reports();
 	const nodes = new Map<string, Node>();
 	for (const path of want) {
 		const p = read(path);
 		if (!p) continue;
-		let { id: parent, kind } = parentOf(p);
-		if (parent?.startsWith("paseo:")) parent = paseoSession.get(parent.slice(6)) ?? parent;
-		// Paseo's own mapping wins: an imported session keeps the meta of the agent that first ran it.
-		const paseoAgent = agentOf.get(p.id) ?? p.meta?.paseoAgent;
-		const proc = paseoAgent ? paseoProcs.get(paseoAgent) : undefined;
-		const l = liveBySession.get(p.id) ?? (proc ? { pid: proc, state: "live" as const, tmuxPane: undefined } : undefined);
+		const { id: parent, kind } = parentOf(p);
+		const l = liveBySession.get(p.id);
 		const exists = existsSync(p.cwd);
 		const state: State = l ? l.state : !exists ? "gone" : "resumable";
 		const run = p.meta?.run, handle = p.meta?.handle;
 		nodes.set(p.id, {
 			id: p.id, file: path, cwd: p.cwd, project: project(p.cwd, cache),
-			title: p.name ?? (paseoAgent ? cache.paseoTitles[paseoAgent] : undefined) ?? (run && handle ? run + "/" + handle : undefined) ?? p.firstUser?.split("\n")[0] ?? "(empty)",
+			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
-			parent, parentKind: kind, run, handle, paseoAgent,
+			parent, parentKind: kind, run, handle,
 			state, pid: l?.pid, pane: l?.tmuxPane, report: run && handle ? board.get(run + "/" + handle) : undefined,
 			lastText: p.lastText, children: [],
 		});
@@ -266,7 +217,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		const parent = node.parent ? nodes.get(node.parent) : undefined;
 		if (parent) parent.children.push(node.id);
 		// Kept: running, or resumable inside an unmerged worktree (work still pending).
-		const kept = (x: Node) => x.state === "working" || x.state === "idle" || x.state === "live" || (x.state === "resumable" && isWorktree(x.cwd));
+		const kept = (x: Node) => x.state === "working" || x.state === "idle" || (x.state === "resumable" && isWorktree(x.cwd));
 		const alive = kept(node);
 		const parentAlive = parent && kept(parent);
 		if (alive && node.parent && node.parentKind !== "fork" && !parentAlive) node.orphan = true;
@@ -276,23 +227,6 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	mkdirSync(dirname(CACHE), { recursive: true });
 	writeFileSync(CACHE, JSON.stringify(cache));
 	return nodes;
-}
-
-/** Paseo agent id → pi pid, for processes started before live records existed. Only pi processes
- * the Paseo daemon started directly: pi run from an agent's bash tool inherits PASEO_AGENT_ID too. */
-function paseoProcesses(): Map<string, number> {
-	const out = new Map<string, number>();
-	try {
-		const rows = execFileSync("ps", ["-Ao", "pid=,ppid=,command=", "-ww", "-E"], { encoding: "utf8", maxBuffer: 1 << 26 }).split("\n")
-			.map(line => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)).filter(Boolean).map(m => ({ pid: Number(m![1]), ppid: Number(m![2]), command: m![3]! }));
-		const command = new Map(rows.map(r => [r.pid, r.command]));
-		for (const r of rows) {
-			if (!r.command.includes("pi-coding-agent")) continue;
-			const id = /PASEO_AGENT_ID=(\S+)/.exec(r.command)?.[1];
-			if (id && /Paseo/.test(command.get(r.ppid) ?? "")) out.set(id, r.pid);
-		}
-	} catch {}
-	return out;
 }
 
 const worktrees = new Map<string, boolean>();

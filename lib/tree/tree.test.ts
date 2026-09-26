@@ -34,7 +34,7 @@ describe("graph", () => {
 	test("links spawn and invoked parents, and marks live children of ended parents as orphans", async () => {
 		writeLive({ pid: process.pid, sessionId: "orphan", cwd, state: "working", since: new Date().toISOString() });
 		writeLive({ pid: process.ppid, sessionId: "parent", cwd, state: "idle", since: new Date().toISOString() });
-		const g = await graph({ paseo: false });
+		const g = await graph();
 		expect(g.get("child")!.parent).toBe("parent");
 		expect(g.get("headless")!.parentKind).toBe("invoked");
 		expect(g.get("parent")!.children).toEqual(["child"]);
@@ -45,7 +45,7 @@ describe("graph", () => {
 	});
 
 	test("tree rows nest children and a query keeps ancestors", async () => {
-		const g = await graph({ paseo: false });
+		const g = await graph();
 		const text = rows(g, "tree", { all: true }).map(line);
 		expect(text.some(l => l.startsWith("    ") && l.includes("summarize"))).toBe(true);
 		const hit = rows(g, "tree", { query: "summ" });

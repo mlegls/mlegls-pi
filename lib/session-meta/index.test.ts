@@ -35,12 +35,6 @@ describe("spawnMeta", () => {
 		expect(spawnMeta({ PI_WM_RUN: "r" })).toBeUndefined();
 	});
 
-	test("reads Paseo's agent id, alone or beside wm's", () => {
-		expect(spawnMeta({ PASEO_AGENT_ID: "p1" })).toEqual({ paseoAgent: "p1" });
-		expect(spawnMeta({ PASEO_AGENT_ID: "p1", PI_WM_RUN: "r", PI_WM_HANDLE: "h" }))
-			.toEqual({ run: "r", handle: "h", agent: undefined, parentSession: undefined, paseoAgent: "p1" });
-	});
-
 	test("omits optional provenance", () => {
 		expect(spawnMeta({ PI_WM_RUN: "r", PI_WM_HANDLE: "h" })).toEqual({ run: "r", handle: "h", agent: undefined, parentSession: undefined });
 	});
@@ -48,7 +42,7 @@ describe("spawnMeta", () => {
 
 describe("extension", () => {
 	test("records one entry at session start", () => {
-		withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PASEO_AGENT_ID: undefined }, () => {
+		withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PI_SESSION_ID: undefined }, () => {
 			const h = host();
 			sessionMeta(h.api);
 			h.start();
@@ -58,8 +52,8 @@ describe("extension", () => {
 		});
 	});
 
-	test("stays absent without wm or Paseo env", () => {
-		withEnv({ PI_WM_RUN: undefined, PI_WM_HANDLE: undefined, PASEO_AGENT_ID: undefined }, () => {
+	test("stays absent without wm env or an invoking session", () => {
+		withEnv({ PI_WM_RUN: undefined, PI_WM_HANDLE: undefined, PI_SESSION_ID: undefined }, () => {
 			const h = host();
 			sessionMeta(h.api);
 			expect(h.entries).toHaveLength(0);

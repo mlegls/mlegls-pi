@@ -2,8 +2,8 @@
 // each shown as a tmux session whose windows hold agents and terminals. The session graph
 // (graph.ts) supplies the agents; this joins them to worktrees and tmux panes.
 //
-// A worktree's parent: workmux's recorded base branch, else a branch-name prefix (Paseo's
-// run/handle), else the older worktree it shares the newest merge-base with (else the main
+// A worktree's parent: workmux's recorded base branch, else a branch-name prefix (a
+// run/handle branch), else the older worktree it shares the newest merge-base with (else the main
 // checkout). tmux sessions map to a workspace by the @ab-workspace option we set on sessions we
 // create, else by their session path, else by where their panes are.
 
@@ -144,7 +144,7 @@ function parentsOfPids(): Map<number, number> {
 	return out;
 }
 
-const ACTIVE = new Set(["working", "idle", "live"]);
+const ACTIVE = new Set(["working", "idle"]);
 
 export function workspaces(nodes: Map<string, Node>, opts: { recent?: number; pinned?: string[]; hidden?: string[] } = {}): Map<string, Workspace> {
 	const panes = tmuxPanes().filter(p => !p.sidebar);

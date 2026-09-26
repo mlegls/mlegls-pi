@@ -2,6 +2,7 @@
 // specific is here, and it is tmux: panes come from live records (TMUX_PANE), parked sessions
 // reopen as `pi --session <file>` in a window of a tmux session named after the project.
 
+import { send as boardSend } from "../board/store";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -71,7 +72,7 @@ export function open(n: Node, w?: Workspace): string | undefined {
 		switchTo(session, n.pane);
 		return;
 	}
-	if (n.pid) return n.paseoAgent ? "running in Paseo; z parks it, then enter resumes it here" : `running as pid ${n.pid} outside tmux`;
+	if (n.pid) return `running as pid ${n.pid} outside tmux; z stops it, then enter resumes it here`;
 	if (!existsSync(n.cwd)) return "its directory is gone: " + n.cwd;
 	if (!w) return "no workspace for " + n.cwd;
 	newWindow(w, "pi --session " + JSON.stringify(n.file), slug((n.handle ?? n.title).slice(0, 24)));
@@ -98,22 +99,16 @@ export function capturePane(pane: string, lines: number): string[] | undefined {
 
 /** Stop the session's process, keeping its worktree and file: it can be reopened later. */
 export function park(n: Node): string | undefined {
-	if (n.paseoAgent && n.pid && !paneAlive(n.pane)) {
-		const r = spawnSync("paseo", ["archive", n.paseoAgent], { encoding: "utf8" });
-		if (r.status !== 0) return "paseo archive failed: " + (r.stderr || r.stdout).trim();
-	}
 	if (n.pid) quiet(() => process.kill(n.pid!, "SIGTERM"));
 	else return "not running";
 }
 
-/** Put text in front of the agent as a user message: pasted into its pane, or sent through Paseo. */
+/** Put text in front of the agent as a user message: pasted into its pane, or for a headless pi a
+ * waking board message on session/<id> (every session subscribes to its own). */
 export function send(n: Node, text: string): string | undefined {
 	if (!text.trim()) return "nothing to send";
 	if (paneAlive(n.pane)) { sendToPane(n.pane, text); return; }
-	if (n.paseoAgent && n.pid) {
-		const r = spawnSync("paseo", ["send", n.paseoAgent, "--no-wait", text], { encoding: "utf8" });
-		return r.status === 0 ? undefined : "paseo send failed: " + (r.stderr || r.stdout).trim();
-	}
+	if (n.pid) { boardSend({ topic: "session/" + n.id, tags: [], from: { name: "ab tree" }, body: text }); return; }
 	return "not running; open it first";
 }
 
