@@ -9,6 +9,7 @@ import { create as createIngress } from "../../lib/ingress.ts";
 import { segments } from "../../lib/raw.ts";
 import { createImageFile, detectImageMimeType, type ContentBlock } from "../exec/image";
 import { ingressContext } from "../exec/ingress-context";
+import { filterReads } from "../ingress-policy";
 
 // One asynchronous bash tool, after Unreal Agent: a call returns when its command
 // finishes or after a yield window with a handle; a detached command's result is
@@ -82,6 +83,7 @@ export default function (pi: ExtensionAPI) {
 	});
 	pi.on("agent_start", async () => { busy = true; });
 	pi.on("agent_settled", async (_event, ctx) => { busy = false; lastCtx = ctx; await flush(); });
+	pi.on("model_select", async (_event, ctx) => { lastCtx = ctx; });
 	pi.on("session_shutdown", async () => {
 		generation++;
 		clearTimeout(settle); settle = undefined;
@@ -136,7 +138,7 @@ export default function (pi: ExtensionAPI) {
 		const loose = parts.filter(p => !p.raw), looseBytes = loose.reduce((n, p) => n + Buffer.byteLength(p.text), 0);
 		// Exact regions spend the budget first; the rest shares what is left in proportion to size.
 		const budget = (p: { text: string }) => Math.max(1024, Math.floor((BUDGET - rawBytes) * Buffer.byteLength(p.text) / Math.max(1, looseBytes)));
-		text = (await Promise.all(parts.map(p => p.raw || options.raw || !ctx ? p.text : ingress.filter(p.text, ingressContext(ctx, job.command), budget(p), options.focus)))).join("");
+		text = (await Promise.all(parts.map(p => p.raw || options.raw || !ctx || !filterReads(ctx.model) ? p.text : ingress.filter(p.text, ingressContext(ctx, job.command), budget(p), options.focus)))).join("");
 		const notes: string[] = [];
 		if (job.detached) notes.push(job.handle + " finished after " + Math.round((Date.now() - job.started) / 1000) + "s: " + job.command.split("\n")[0].slice(0, 120));
 		if (code === undefined) notes.push(job.handle + " still running (pid " + job.pid + ", " + Math.round((Date.now() - job.started) / 1000) + "s); its result arrives when it finishes — don't poll. kill -- -" + job.pid + " stops it; output so far is in " + job.log);

@@ -12,12 +12,16 @@ test("focus crosses the exec VM boundary, supplements context, and leaves raw/va
   await writeFile(join(cwd, ".pi/exec/ingress.ts"),
     'export function create() { return { filter(text, query, budget, focus) { return JSON.stringify({text, query, focus}); }, pull(id) { return "original:" + id; } }; }');
   const kernel = new Kernel({ cwd, modules: [], ledger: [], persist() {} });
+  kernel.setIngressEnabled(false);
   const run = async (code: string, query = "implicit context") => {
     const result = await kernel.execute(code, { query });
     expect(result.error).toBeUndefined();
     return result.output;
   };
   try {
+    expect(await run('await show("source", {focus:"editing"});')).toBe("source\n");
+    expect(await run('await show({content(){return [{type:"text", text:"blocks"}]}}, {focus:"editing"});')).toBe("blocks\n");
+    kernel.setIngressEnabled(true);
     expect(JSON.parse(await run('await show(Promise.resolve("source"), {focus:"cancellation"});')))
       .toEqual({text:"source", query:"implicit context", focus:"cancellation"});
     expect(JSON.parse(await run('await show("source", {focus:"architecture"});', "")))
@@ -32,5 +36,10 @@ test("focus crosses the exec VM boundary, supplements context, and leaves raw/va
     expect(await run('await show.pull("ing-original");')).toBe("original:ing-original\n");
     expect(JSON.parse(await run('await show({content(){return [{type:"text", text:"content block"}]}}, {focus:"blocks"});')))
       .toEqual({text:"content block", query:"implicit context", focus:"blocks"});
+    const pending = run('await show(new Promise(resolve => setTimeout(() => resolve("late source"), 30)), {focus:"editing"});');
+    kernel.setIngressEnabled(false);
+    expect(await pending).toBe("late source\n");
+    expect(await run('await show.large("source", {focus:"editing"});')).toBe("source\n");
+    expect(await run('await show.pull("ing-original");')).toBe("original:ing-original\n");
   } finally { await kernel.dispose(); await rm(cwd, { recursive: true, force: true }); }
 }, 15000);

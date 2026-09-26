@@ -28,6 +28,7 @@ let exec;
 let active;
 let ingress;
 let ingressQuery = "";
+let ingressEnabled = true;
 const transpiler = new Bun.Transpiler({ loader: "ts" });
 const protectedDisplay = new WeakSet();
 const protect = value => { protectedDisplay.add(value); return value; };
@@ -188,9 +189,9 @@ function isPromise(value) {
 function display(value, raw = false, query = scope.getStore()?.query ?? ingressQuery, focus, budget = OUTPUT_LIMIT) {
 	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query, focus, budget));
 	const rendered = value && typeof value.content === "function" ? value.content() : render(value);
-	if (raw || (!query && !focus) || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
+	if (!ingressEnabled || raw || (!query && !focus) || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
 	return Promise.resolve(rendered).then(async result => {
-		if (protectedDisplay.has(result)) return result;
+		if (!ingressEnabled || protectedDisplay.has(result)) return result;
 		if (!Array.isArray(result)) return ingress.filter(String(result), query, budget, focus);
 		const filtered = await Promise.all(result.map(async block => block.type === "text"
 			? { ...block, text: await ingress.filter(block.text, query, budget, focus) } : block));
@@ -448,6 +449,7 @@ async function write(path, content) {
 }
 
 async function initialize(message) {
+	ingressEnabled = message.ingressEnabled ?? true;
 	const reader = message.profile === "reader";
 	modules = new Set((message.modules ?? DEFAULT_MODULES).filter(name => name !== "board" && name !== "wm" && (!reader || name === "fs" || name === "exa")));
 	if (typeof Bun === "undefined") throw new Error("the exec kernel runs on Bun");
@@ -557,6 +559,7 @@ function execute(message) {
 process.on("message", (message) => {
 	if (message.type === "init") initialize(message).catch((error) => send({ type: "fatal", error: errorText(error) }));
 	else if (message.type === "execute") execute(message);
+	else if (message.type === "ingress-policy") ingressEnabled = message.enabled;
 	else if (message.type === "response") resolveMessage(message);
 	else if (message.type === "ping") send({ type: "pong", nonce: message.nonce });
 });

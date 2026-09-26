@@ -10,6 +10,12 @@ Reload the extension (/reload or restart Pi) to update the advertised API. A ker
 reset loads the new runtime and library. Jev uses the existing JEV_API_KEY or
 Cloudflare credentials supported by lib/decide.ts.
 
+Bash and exec enable read filtering only when the current model ID contains
+`sol`, `astra`, `opus`, `fable`, or `sonnet` (case-insensitive). Other or unknown
+models bypass Jev and compression, even with explicit focus. Ordinary output caps
+and recovery handles remain available. Model switches update pending displays;
+already rendered output is not rewritten. Async novelty/wake judgments are separate.
+
 ~~~ts
 await show(await read("lib/ingress.ts"), { focus: "understand the architecture" });
 await show(await read("lib/ingress.ts"), { focus: "inspect budget handling before editing" });

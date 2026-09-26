@@ -132,9 +132,16 @@ export class Kernel {
 	private pinging = false;
 	private sequence = 0;
 	private disposed = false;
+	private ingressEnabled = true;
 
 	constructor(private readonly options: KernelOptions) {
 		for (const entry of options.ledger) this.entries.set(entry.path, entry);
+	}
+
+	/** Update pending displays too; already rendered output is not rewritten. */
+	setIngressEnabled(enabled: boolean) {
+		this.ingressEnabled = enabled;
+		if (this.child?.connected) this.child.send({ type: "ingress-policy", enabled }, () => {});
 	}
 
 	/**
@@ -246,7 +253,7 @@ export class Kernel {
 				reject(new Error(error));
 				if (this.child === child) void this.stop(error);
 			});
-			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], modules: this.options.modules, profile: this.options.profile });
+			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], modules: this.options.modules, profile: this.options.profile, ingressEnabled: this.ingressEnabled });
 		});
 		return this.ready;
 	}
