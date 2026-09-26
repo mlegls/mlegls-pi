@@ -218,7 +218,8 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
 		const footer = truncateToWidth(c("7", " " + footerText), width, "", true);
 		if (help) {
-			out.write("\x1b[H\x1b[2J" + HELP.split("\n").slice(0, height - 1).map(l => truncateToWidth(l, width)).join("\r\n") + `\x1b[${height};1H` + footer);
+			const text = sidebar ? SIDEBAR_HELP : HELP;
+			out.write("\x1b[H\x1b[2J" + text.split("\n").slice(0, height - 1).map(l => truncateToWidth(l, width)).join("\r\n") + `\x1b[${height};1H` + footer);
 			return;
 		}
 		const screen: string[] = [];
@@ -573,6 +574,29 @@ function keys(chunk: string): string[] {
 	return out;
 }
 
+const SIDEBAR_HELP = `ab tree · sidebar
+
+workspaces · live tmux
+ j/k ↑/↓  switch session
+ h/l ←/→  prev/next window
+ enter   open  esc focus tmux
+
+s/tab  workspace/status/tree
+ j/k    follow live agent
+ h/l    fold/expand in tree
+ enter  open or resume agent
+
+n/c    new pi / terminal
+N/m    worktree / merge parent
+x/X    close window / session
+p/U    prune one / all idle
+i/z    type/send / park agent
+/      filter       space fold
+P/D    add / hide project
+r/R    refresh / reload   q quit
+! needs you  ⊘ blocked
+● working  ○ idle  · resumable
+□ open     ◇ parked  ▌ here`;
 const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their windows, their agents
 
   j/k ↑/↓  move      ctrl-d/u  page      g/G  top/bottom      mouse: click, wheel
