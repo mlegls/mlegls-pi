@@ -1,7 +1,8 @@
 // Launch a parent-planned ready wave as wm workers. No reading, routing, dependency graph, or retries.
 import { execFile, execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { HANDOFF_KEYS } from "./report.ts";
 import { assertAssignment, type RouteOptions } from "./route.ts";
@@ -36,6 +37,8 @@ export interface Options {
 /** A submitted worker. Plain data, so it survives being persisted (supervision state); reattach with wm.attach(run, handle). */
 export interface Handle {
   handle: string; run: string; path: string;
+  /** tmux session holding the worker's window; defaults to the run's slug. */
+  session?: string;
   /** The topic's last report before launch: topics are reused (redispatch, a restarted run), so
    * pass it as children.turnEnd's `after` cursor or an old report reads as this worker's. */
   cursor?: string;
@@ -125,9 +128,20 @@ export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
 export interface Integration { branch: string; mode: "rebase" | "merge"; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string }
-export async function integrate(worker: Handle,
+/** A receipt's Handle, or a bare handle name looked up among this checkout's worktrees and workmux windows. */
+async function handleOf(worker: Handle | string, cwd: string): Promise<Handle> {
+  if (typeof worker !== "string") return worker;
+  const path = resolve(cwd, "..", basename(cwd) + "__worktrees", worker);
+  if (!existsSync(path)) throw new Error("no worker " + worker + ": " + path + " does not exist; pass the receipt's {run, handle, path}");
+  const wm = await import("./wm.ts");
+  const entry = (await wm.workmuxStatus(cwd)).find(e => basename(e.workdir || e.worktree || "") === worker || e.branch === worker);
+  return { handle: worker, path, run: entry?.session ?? worker, session: entry?.session };
+}
+
+export async function integrate(given: Handle | string,
     options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean } = {}): Promise<Integration> {
   const cwd = resolve(options.cwd ?? process.cwd());
+  const worker = await handleOf(given, cwd);
   const mode = options.mode ?? "rebase";
   const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
     execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
@@ -158,27 +172,30 @@ export async function integrate(worker: Handle,
 async function killLeftovers(path: string, cwd: string): Promise<number[]> {
   const root = resolve(path);
   if (!root || root === "/" || cwd === root || cwd.startsWith(root + "/")) return [];
+  // Closing moves the worktree to .workmux_trash_<name>_<pid>_<ts> first, so its processes report that path.
+  const trash = join(resolve(root, ".."), ".workmux_trash_" + basename(root) + "_");
   const listing = await new Promise<string>(done => execFile("lsof", ["-d", "cwd", "-Fpn"], (_, out) => done(out ?? "")));
   const pids: number[] = [];
   let pid = 0;
   for (const line of listing.split("\n")) {
     if (line[0] === "p") pid = Number(line.slice(1));
-    else if (line[0] === "n" && pid && pid !== process.pid && (line.slice(1) === root || line.slice(1).startsWith(root + "/"))) pids.push(pid);
+    else if (line[0] === "n" && pid && pid !== process.pid && (line.slice(1) === root || line.slice(1).startsWith(root + "/") || line.slice(1).startsWith(trash))) pids.push(pid);
   }
   for (const id of pids) try { process.kill(id, "SIGTERM"); } catch {}
   return pids;
 }
 /** Retire a worker's host resources, then delete its branch if all its patches are in HEAD.
  * An unmerged or still-checked-out branch is kept and reported in `branchKept`; that is not an error. */
-export async function retire(worker: Handle, options: { cwd?: string; branch?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
+export async function retire(given: Handle | string, options: { cwd?: string; branch?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
   const cwd = resolve(options.cwd ?? process.cwd());
+  const worker = await handleOf(given, cwd);
   const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
     execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
   const branch = options.branch ?? (await git(worker.path, "branch", "--show-current")).out;
   const result: Awaited<ReturnType<typeof retire>> = {};
   const wm = await import("./wm.ts");
   // Keep the branch here: whether it goes depends on its patches being upstream, decided below.
-  result.removed = await wm.attach(worker.run, worker.handle, cwd).close(true);
+  result.removed = await wm.attach(worker.run, worker.handle, cwd, worker.session).close(true);
   result.killed = await killLeftovers(worker.path, cwd);
   if (branch) {
     await git(cwd, "worktree", "prune");
