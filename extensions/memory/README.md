@@ -2,20 +2,22 @@
 
 One-shot cited prose and reconciliation at compaction. No background model calls or separate memory database: Pi's session tree owns the blocks, original entries and branch history.
 
-- `/compact [focus]` or `/memory fold [focus]`: append one new memory block, retaining a short verbatim tail.
+- `/compact [focus]` or `/memory fold [focus]`: append one new memory block. In the same call, the model chooses where the continuous verbatim tail begins.
 - `/memory rewrite [focus]`: consolidate existing blocks and the folded suffix in one call.
-- `/memory`: block count and approximate memory size.
+- `/memory`: block count, approximate memory size, and the last chosen tail's size and rationale.
 - `show(memory.recall({ids, offset?, limit?}))` in exec, or `ab memory recall ID... [--offset N] [--limit N]`: retrieve cited originals on the invocation's branch. Long text is paginated; images and reasoning are not returned. This replaces the standalone `memory_recall` tool.
 
 Recall uses normal model-dependent output filtering: `show.raw(...)` or `ab raw ab memory recall ID` requests exact text; `show.pull` / `ab pull` recovers previously skimmed output. The library itself returns unfiltered text. Bash supplies the session file and leaf; exec retains a separate leaf for each asynchronous cell and passes it to its shells. Offline reads require explicit `sessionFile`/`leafId` or `--session FILE --leaf ID`; there is no latest-session/branch guess. Persisted session logs are required.
 
 Memory is free prose with inline original-entry citations (`[@entry-id]`), not separate observation/reflection buckets. Prompt guidelines steer relevance and fidelity; the format does not classify facts. Coverage metadata tracks which turns were folded. Corrections name earlier blocks (or V1 claim IDs) and state exactly what changed, without invalidating unrelated material. Rewrites reconcile those corrections and keep direct source pointers, not chains of summaries.
 
-New checkpoints use `memory-log.v2`, with a small JSON envelope: `{"text":"Prose with [@source-id] citations.","supersedes":[]}`. Source IDs are extracted from the prose and validated against available originals. Existing V1 observation/reflection blocks keep their IDs, content and exact rendering until a rewrite converts them to prose; no migration call is required.
+New checkpoints use `memory-log.v2`, generated as `{"firstKeptEntryId":"source-id","tailReason":"Why this boundary","text":"Prose with [@source-id] citations.","supersedes":[]}`. The model selects one legal original-entry boundary; everything from there onward remains verbatim and in order. Memory covers only entries before it. Source IDs are validated against that covered prefix and existing memory provenance. A boundary cannot begin at a tool result. Unknown boundaries and citations into the newly retained tail reject the checkpoint, rather than silently moving the cut. Existing blocks render unchanged; no migration call is required.
 
 ## Context and cache
 
 Normal calls contain separate stable user messages for each memory block, followed by the recent history. Appending a block leaves older block bodies and timestamps unchanged. The replaced suffix and retained tail still require processing after the cut. A rewrite intentionally invalidates the memory prefix.
+
+Tail selection favors retaining the recent reasoning trajectory needed to continue work, not just isolated useful facts. This version permits only a continuous suffix, not disjoint excerpts. Each successful compaction records `tail.mode: model-contiguous`, its starting ID, estimated tokens, guidance target and model rationale. These records distinguish this policy from earlier fixed-tail compactions for later comparison; representational continuity or a felt benefit is not established by cache-hit tests.
 
 The extension captures the latest context-hook messages, effective system prompt and active tool definitions. At compaction it appends subsequent session entries and a checkpoint instruction to that captured prefix, then makes one request through Pi's model registry using the current model, thinking level and session ID. Tools remain advertised for prefix stability, but are never executed by the memory call; any returned tool call invalidates the checkpoint.
 
@@ -41,7 +43,7 @@ Global `~/.pi/agent/settings.json` and project `.pi/settings.json`, under `memor
 
 Sizes except the provider output cap are approximate targets (characters/4). A fold becomes a rewrite when the existing memory reaches `memoryTokens`; a newly appended block can cross that threshold until the next fold. `rewriteTokens` is deliberately lower, leaving room for subsequent blocks. A rewrite that still exceeds `memoryTokens` is rejected. The output cap also needs room for reasoning and JSON, not just rendered memory.
 
-Pi's ordinary automatic-compaction triggers still apply. Topic-boundary folding is explicit; there is no additional automatic trigger or background production. Set native `compaction.keepRecentTokens` to the same small tail size (or smaller): Pi checks whether there is anything to compact before invoking extension hooks. Leaving its 20k default prevents short conversations from reaching this hook. The extension uses Pi's tool-safe cut-point selection with its own tail target; if nothing lies outside that tail, it declines to compact.
+Pi's ordinary automatic-compaction triggers still apply. Topic-boundary folding is explicit, with no background production. `memory.keepRecentTokens` (default 2000) now gives the model soft size guidance, not a mechanical cut or hard cap. The model may retain more or less. Native `compaction.keepRecentTokens` remains a separate eligibility gate: Pi prepares a cut before invoking extension hooks. Keep that setting small to let short conversations reach the hook; the final boundary is model-selected. If the chosen suffix leaves nothing new to fold, an append is cancelled without changing context.
 
 Malformed JSON, invalid source/supersession IDs, interrupted/length-limited generation, tool calls and branch changes cancel compaction rather than falling back to a lossy native summary. The prior context is retained. Failed-generation spend is not recorded in a successful compaction entry.
 

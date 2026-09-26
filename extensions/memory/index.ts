@@ -1,10 +1,10 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { buildSessionContext, convertToLlm, findCutPoint, sessionEntryToContextMessages } from "@earendil-works/pi-coding-agent";
+import { buildSessionContext, convertToLlm, sessionEntryToContextMessages } from "@earendil-works/pi-coding-agent";
 import type { Context } from "@earendil-works/pi-ai";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { KIND, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, visibleEntries } from "./core.ts";
+import { KIND, checkpointJson, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
 interface Settings { enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
 function settings(cwd: string): Required<Settings> {
@@ -57,18 +57,12 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			const branch = event.branchEntries;
 			const leaf = ctx.sessionManager.getLeafId();
 			const visible = visibleEntries(branch);
-			const cut = findCutPoint(visible, 0, visible.length, s.keepRecentTokens).firstKeptEntryIndex;
-			const kept = visible[cut];
-			const folding = sourceEntries(visible.slice(0, cut));
-			const prior = [...previousBlocks(branch), ...visible.slice(0, cut).flatMap(e => e.type === "branch_summary"
-				? [{ id: `legacy-${e.id}`, timestamp: Date.parse(e.timestamp), covers: [], observations: [], reflections: [], legacy: e.summary }] : [])];
+			const choices = tailChoices(visible);
+			let prior = previousBlocks(branch);
 			const rewrite = forceRewrite || roughTokens(renderMemory(prior)) >= s.memoryTokens;
 			forceRewrite = false;
-			if (!kept || (!folding.length && !rewrite)) throw new Error("Nothing to fold outside the retained tail");
-			const allowed = new Set(folding.map(e => e.id));
-			// Existing evidence stays addressable after consolidation, but never across an unrelated branch.
-			const branchIds = new Set(sourceEntries(branch).map(e => e.id));
-			for (const c of claims(prior)) for (const id of c.sources) if (branchIds.has(id)) allowed.add(id);
+			if (!choices.length || (!rewrite && !choices.some(c => sourceEntries(visible.slice(0, c.index)).length)))
+				throw new Error("Nothing to fold outside a continuous tail");
 			let context: Context;
 			let prefixMode = "reconstructed";
 			const anchor = snapshot?.leaf ? branch.findIndex(e => e.id === snapshot!.leaf) : -1;
@@ -81,7 +75,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			} else {
 				context = { systemPrompt: ctx.getSystemPrompt(), tools: tools(pi), messages: convertToLlm(expandMemory(buildSessionContext(branch).messages, branch)) };
 			}
-			context.messages.push({ role: "user", content: instruction(prior, folding, rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions), timestamp: Date.now() });
+			context.messages.push({ role: "user", content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }), timestamp: Date.now() });
 			const stream = (ctx.modelRegistry as any).streamSimple;
 			if (typeof stream !== "function") throw new Error("Memory requires Pi's modelRegistry.streamSimple (update Pi)");
 			const started = Date.now();
@@ -94,6 +88,18 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			if (response.stopReason !== "stop" || response.content.some((b: any) => b.type === "toolCall"))
 				throw new Error(`Memory generation did not finish cleanly: ${response.errorMessage ?? response.stopReason}`);
 			const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
+			const selection = checkpointJson(text);
+			const chosen = choices.find(c => c.id === selection.firstKeptEntryId);
+			if (!chosen) throw new Error("Invalid tail start: choose a listed, tool-safe entry ID");
+			if (typeof selection.tailReason !== "string" || !selection.tailReason.trim()) throw new Error("Missing tail selection reason");
+			const kept = visible[chosen.index], folding = sourceEntries(visible.slice(0, chosen.index));
+			if (!folding.length && !rewrite) throw new Error("Chosen tail leaves nothing to fold; context unchanged");
+			prior = [...prior, ...visible.slice(0, chosen.index).flatMap(e => e.type === "branch_summary"
+				? [{ id: `legacy-${e.id}`, timestamp: Date.parse(e.timestamp), covers: [], observations: [], reflections: [], legacy: e.summary }] : [])];
+			const allowed = new Set(folding.map(e => e.id));
+			// Prior evidence remains addressable, but never across an unrelated branch.
+			const branchIds = new Set(sourceEntries(branch).map(e => e.id));
+			for (const c of claims(prior)) for (const id of c.sources) if (branchIds.has(id)) allowed.add(id);
 			const block = parseBlock(text, allowed, prior, rewrite, folding.map(e => e.id));
 			if (rewrite && roughTokens(renderMemory([block])) >= s.memoryTokens) throw new Error("Rewrite exceeds memory budget; old context retained");
 			// Imported summaries cannot be safely dropped without original provenance.
@@ -102,6 +108,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				summary: renderMemory(blocks), firstKeptEntryId: kept.id, tokensBefore: event.preparation.tokensBefore,
 				usage: response.usage,
 				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode,
+					tail: { mode: "model-contiguous", firstKeptEntryId: kept.id, estimatedTokens: chosen.tokens, targetTokens: s.keepRecentTokens, reason: selection.tailReason },
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };
 		} catch (error) {
@@ -123,8 +130,8 @@ export default function memoryExtension(pi: ExtensionAPI) {
 					onComplete: () => { forceRewrite = false; }, onError: () => { forceRewrite = false; } });
 				return;
 			}
-			const blocks = memoryOf(ctx.sessionManager.getBranch())?.blocks ?? [];
-			ctx.ui.notify(`${blocks.length} memory blocks, ~${roughTokens(renderMemory(blocks))} tokens. /memory fold | rewrite [focus]`, "info");
+			const memory = memoryOf(ctx.sessionManager.getBranch()), blocks = memory?.blocks ?? [];
+			ctx.ui.notify(`${blocks.length} memory blocks, ~${roughTokens(renderMemory(blocks))} tokens.${memory?.tail ? ` Last chosen tail: ~${memory.tail.estimatedTokens} tokens from ${memory.tail.firstKeptEntryId}. ${memory.tail.reason}` : ""} /memory fold | rewrite [focus]`, "info");
 		},
 	});
 }

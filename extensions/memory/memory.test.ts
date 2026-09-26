@@ -4,12 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildSessionContext, convertToLlm } from "@earendil-works/pi-coding-agent";
 import memoryExtension from "./index.ts";
-import { KIND, expandMemory, parseBlock, renderBlock } from "./core.ts";
+import { KIND, expandMemory, parseBlock, renderBlock, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
 const usage = { input: 100, output: 10, cacheRead: 50, cacheWrite: 0, totalTokens: 160, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
 const assistant = (text: string) => ({ role: "assistant", content: [{ type: "text", text }], api: "openai-responses", provider: "test", model: "model", usage, stopReason: "stop", timestamp: 1 });
 
- test("append, resume, cache-prefix reuse and failed checkpoint", async () => {
+test("model-selected contiguous tail, stable append/resume and failed checkpoint", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "memory-test-"));
 	try {
 		mkdirSync(join(cwd, ".pi"));
@@ -28,7 +28,7 @@ const assistant = (text: string) => ({ role: "assistant", content: [{ type: "tex
 			registerTool: (tool: any) => registered.set(tool.name, tool),
 			getActiveTools: () => [...registered.keys()], getAllTools: () => [...registered.values()], getThinkingLevel: () => "off",
 		};
-		let sent: any; let invalid = false; let notices: string[] = [];
+		let sent: any; let invalid = false, invalidTail = false, citeTail = false; let notices: string[] = [];
 		const ctx: any = {
 			cwd, model: { id: "model", provider: "test", maxTokens: 16000 }, getSystemPrompt: () => "Unchanged system prompt",
 			ui: { notify: (s: string) => notices.push(s) },
@@ -36,8 +36,10 @@ const assistant = (text: string) => ({ role: "assistant", content: [{ type: "tex
 			modelRegistry: { streamSimple(_model: any, context: any) {
 				sent = context;
 				const prompt = context.messages.at(-1).content as string;
-				const id = prompt.split("Covered source entries (IDs, dates and identification hints; full content is above):\n")[1].split(" ")[0];
-				return { result: async () => assistant(JSON.stringify({ text: `Port 4567, not verified. [@${invalid ? "missing" : id}]`, supersedes: [] })) };
+				const visible = visibleEntries(branch);
+				const tail = tailChoices(visible).find(c => sourceEntries(visible.slice(0, c.index)).length)!;
+				const id = sourceEntries(visible.slice(0, tail.index))[0].id;
+				return { result: async () => assistant(JSON.stringify({ text: `Port 4567, not verified. [@${invalid ? "missing" : citeTail ? tail.id : id}]`, supersedes: [], firstKeptEntryId: invalidTail ? "missing" : tail.id, tailReason: "Keep the ongoing exchange intact." })) };
 			} },
 		};
 		memoryExtension(pi);
@@ -51,10 +53,14 @@ const assistant = (text: string) => ({ role: "assistant", content: [{ type: "tex
 		expect(sent.systemPrompt).toBe("Unchanged system prompt");
 		expect(one.compaction.details.prefixMode).toBe("captured");
 		expect(one.compaction.usage).toEqual(usage);
+		expect(one.compaction.firstKeptEntryId).toBe("e1");
+		expect(one.compaction.details.tail.estimatedTokens).toBeGreaterThan(1);
+		expect(one.compaction.details.blocks[0].covers).toEqual(["e0"]);
 		add("compaction", one.compaction);
 		const firstBlock = one.compaction.details.blocks[0];
 		const resumed = expandMemory(buildSessionContext(branch).messages, branch);
 		expect(resumed[0].content).toBe(renderBlock(firstBlock));
+		expect(resumed.slice(1)).toEqual(firstContext.slice(1).concat({ ...branch.find(e => e.id === "e3").message }));
 		add("message", { message: { role: "user", content: "New topic", timestamp: 3 } });
 		hooks.get("context")({ messages: buildSessionContext(branch).messages }, ctx);
 		add("message", { message: assistant("Next task.") });
@@ -71,6 +77,13 @@ const assistant = (text: string) => ({ role: "assistant", content: [{ type: "tex
 		expect(await fold()).toEqual({ cancel: true });
 		expect(branch).toHaveLength(before);
 		expect(notices.at(-1)).toContain("invalid original-source pointers");
+		invalid = false; invalidTail = true;
+		expect(await fold()).toEqual({ cancel: true });
+		expect(notices.at(-1)).toContain("Invalid tail start");
+		invalidTail = false; citeTail = true;
+		expect(await fold()).toEqual({ cancel: true });
+		expect(notices.at(-1)).toContain("invalid original-source pointers");
+		expect(branch).toHaveLength(before);
 	} finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
@@ -104,4 +117,18 @@ test("V1 blocks retain their rendered prefix and can be corrected or rewritten a
 	expect(renderBlock(rewritten)).not.toContain("Observations:");
 	expect(() => parseBlock('{"text":"Uncited prose"}', new Set(["source"]), [], false, [])).toThrow("source pointers");
 	expect(() => parseBlock('{"observations":[],"reflections":[]}', new Set(), [], false, [])).toThrow("Missing memory prose");
+});
+
+test("tail starts exclude tool results and old summaries, preserving call/result groups", () => {
+	const entries: any[] = [
+		{ type: "compaction", id: "memory", summary: "prior memory", tokensBefore: 10, timestamp: new Date(1).toISOString() },
+		{ type: "message", id: "user", message: { role: "user", content: "Check it", timestamp: 1 } },
+		{ type: "message", id: "call", message: { ...assistant(""), content: [{ type: "toolCall", id: "c", name: "bash", arguments: { command: "true" } }] } },
+		{ type: "message", id: "result", message: { role: "toolResult", toolCallId: "c", toolName: "bash", content: [{ type: "text", text: "ok" }], isError: false, timestamp: 1 } },
+		{ type: "message", id: "answer", message: assistant("Checked.") },
+	];
+	const choices = tailChoices(entries);
+	expect(choices.map(c => c.id)).toEqual(["user", "call", "answer"]);
+	expect(entries.slice(choices[1].index).map(e => e.id)).toEqual(["call", "result", "answer"]);
+	expect(choices[0].tokens).toBeGreaterThan(choices[2].tokens);
 });
