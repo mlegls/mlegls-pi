@@ -22,6 +22,7 @@ decisions:
 - 2026-09-23: implement → verify → integrate needs no LLM step when Jev gates pass. The verifier is launched under the supervisor, not the implementer. Any caveat in a handoff wakes the LLM at first; relax with data.
 - 2026-09-23: workers signal by ending the turn. A first-word sentinel (`done`, `blocked`, `needs-input`) plus a structured handoff block found anywhere in the last message; schema output isn't expected pure (fences, preamble).
 - 2026-09-23: no review step; lints, including Jev lints, suffice. Review would be another step beside verify.
+- 2026-09-26: visual acceptance now separates the encounter collector from a fresh visual reviewer over committed screenshots/state. This is not a source-diff review stage. Nonvisual encounters integrate without an extra reviewer. Packet and recovery contract: [[projects/mlegls-pi/verification-evidence]].
 - 2026-09-23: exception handling: steer if simple, answer from context, or consult a frontier oracle; solved ones go to the child and nobody else. Otherwise escalate. The interactive root differs only in reporting status when asked and escalating to the human.
 - 2026-09-23: `supervise` operating point is GLM 5.3 Flash high on trial, opus 5.5 medium if it can't hold the process (`869e6a7`).
 

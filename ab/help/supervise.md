@@ -5,7 +5,7 @@ ab supervise stop <ticket>
 
 Run from the owning agent's checkout. The ab daemon runs the loop in
 lib/jobs/supervise.ts: it dispatches the ticket's ready children (non-leaves get
-supervise), takes each leaf implement → verify → integrate, and messages the
+supervise), takes each leaf implement → encounter → visual review when rendered → integrate, and messages the
 owning pi session (in its mailbox, mail/xxxxxxxx) only on exceptions and
 when the subtree is done. Children are wm workers with the owner as parent session. To handle an exception, steer the
 child directly (its next turn end returns to the loop) or queue a resume action.
@@ -19,3 +19,10 @@ that child and resume. Closure travels on the child's branch. Completion state i
 saved before worker cleanup; a crash during cleanup may leave resources to retire.
 Missing worktree paths and reported worker exits are parked as unreachable, not
 silently discarded. Resume explicitly after inspecting what already landed.
+
+Verification commits an evidence packet under docs/attachments/<ticket>/; closure
+links it from the ticket. Visual encounters get a fresh visual-reviewer before
+integration. `resume … integrate` retries accepted work, not an acceptance bypass;
+changed work needs `resume … verify`. Old carried workers without the evidence
+handoff are parked for an updated report, not grandfathered into acceptance.
+See ~/dev/mlegls-pi/docs/verification-evidence.md for the packet and handoff schema.

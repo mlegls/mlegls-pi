@@ -6,7 +6,7 @@
 // its mailbox (mail/xxxxxxxx, lib/board/mailbox).
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, realpathSync, watch } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
 import { dispatch, integrate, retire as retireWorker, topic, type Handle } from "../dispatch.ts";
 import * as route from "../route.ts";
@@ -16,15 +16,16 @@ import type { JobContext } from "../daemon.ts";
 import { resolveSession } from "../session-meta/identity";
 
 export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; carried?: State | null }
-type Phase = "implement" | "verify" | "supervise";
-interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; waiting?: string; unreachable?: boolean }
+type Phase = "implement" | "verify" | "visual-review" | "supervise";
+interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; visualReviewed?: boolean }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]> }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
-const HACK = "Hacking session: reach the ticket's first use fast and try it; no systematic audit. Commit coherent chunks on your branch.";
+const HACK = "Hacking session: reach the ticket's first use fast and try it; no systematic audit. Commit coherent chunks on your branch. Your parent alone integrates this branch; do not merge or push the canonical checkout.";
+const EXECUTION_STANCES = ["fill", "auto-routine", "technical", "auto", "compile", "prune", "research", "session-triage"];
 
 interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; effectiveStage: string }
 function snapshot(input: Input): Issue[] {
@@ -53,8 +54,24 @@ async function commitRetrying(cwd: string, ...args: string[]) {
  }
 }
 const caveats = (h: Record<string, unknown> | null): string[] => { const c = h?.caveats; return Array.isArray(c) ? c.map(x => typeof x === "string" ? x : JSON.stringify(x)) : c && !/^(none|no|\[\])$/i.test(String(c).trim()) ? [String(c)] : []; };
-// Verifier outcomes live under handoff.stories as held/failed/unobservable per story; anything but held needs the owner.
-const unheld = (h: Record<string, unknown> | null) => { const s = JSON.stringify(h?.stories ?? null); return s === "null" || /"(failed|unobservable)"|:\s*"?(failed|unobservable)/i.test(s); };
+// Unknown, empty, or prose-only outcomes are not acceptance.
+const unheld = (h: Record<string, unknown> | null) => !Array.isArray(h?.stories) || !h.stories.length || h.stories.some(s => !s || typeof s.story !== "string" || !s.story.trim() || s.outcome !== "held");
+function evidencePacket(cwd: string, handoff: Record<string, unknown> | null) {
+ const e = handoff?.evidence as { path?: unknown; visual?: unknown; shots?: unknown } | undefined;
+ if (!e || typeof e.visual !== "boolean" || !Array.isArray(e.shots) || (e.visual && !e.shots.length) || (!e.visual && e.shots.length)) throw new Error("Evidence needs path, visual boolean, and shots (nonempty for visual journeys)");
+ const tracked = (p: unknown) => {
+  if (typeof p !== "string" || !p.startsWith("docs/attachments/") || p.split("/").includes("..")) throw new Error("Evidence must live under docs/attachments: " + p);
+  const full = resolve(cwd, p);
+  if (!existsSync(full) || !realpathSync(full).startsWith(realpathSync(cwd) + "/")) throw new Error("Missing or external evidence: " + p);
+  git(cwd, "cat-file", "-e", "HEAD:" + p);
+  return p;
+ };
+ const path = tracked(e.path);
+ if (!path.endsWith(".md")) throw new Error("Evidence index must be Markdown");
+ const shots = e.shots.map(tracked);
+ if (shots.some(p => !/\.(png|jpe?g|webp)$/i.test(p))) throw new Error("Shots must name image files, not directories");
+ return { path, visual: e.visual, shots };
+}
 // Workers record what they met on the way in prose; digesting it is the owner's, since the loop reads no diffs.
 // Advisory Jev findings over the subtree: observations that link no owning issue, and bodies turning into logs.
 function residuals(input: Input): string {
@@ -103,9 +120,9 @@ export async function run(job: JobContext) {
    "\nSteer it directly (its next turn end returns to the loop), or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
  };
  const launch = async (slug: string, phase: Phase, prompt: string, base: string, assignee?: string | null, stance?: string) => {
-  const prepared = await route.prepare(prompt, { assignee: assignee ?? undefined, stance });
+  const prepared = await route.prepare(prompt, { assignee: assignee ?? undefined, stance, allowedStances: phase === "implement" ? EXECUTION_STANCES : [stance!] });
   if (prepared.kind !== "ready") throw new Error("routing needs triage for " + slug);
-  const receipt = await dispatch([{ handle: phase === "verify" ? slug + "-verify" : slug, prompt, agent: prepared.agent, model: prepared.model, effort: prepared.effort, base }],
+  const receipt = await dispatch([{ handle: phase === "implement" || phase === "supervise" ? slug : slug + "-" + phase + (state.children[slug]?.previous?.length ? "-" + state.children[slug].previous!.length : ""), prompt, agent: prepared.agent, model: prepared.model, effort: prepared.effort, base }],
    { run: input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent });
   if (!receipt.submitted[0]) throw new Error("launch failed for " + slug + ": " + (receipt.failed?.error ?? "pending"));
   state.metrics.launched++;
@@ -113,25 +130,36 @@ export async function run(job: JobContext) {
  };
  // Unmerged branches (drop, redispatch) survive for the owner to inspect; merged ones are deleted.
  const retire = async (h: Handle) => { await retireWorker(h, { cwd: input.cwd }).catch(e => job.log("retire " + h.handle + ": " + e)); };
- const close = async (slug: string, cwd: string) => {
+ const close = async (slug: string, cwd: string, evidence?: string) => {
   const issue = snapshot({ ...input, cwd }).find(i => i.slug === slug);
   if (!issue || !existsSync(issue.file)) throw new Error("Missing child issue " + slug + " in " + cwd);
   if (!issue.done) {
    // A shared/external tracker cannot ride this branch; refuse before writing outside it.
    git(cwd, "ls-files", "--error-unmatch", "--", issue.file);
-   writeFileSync(issue.file, readFileSync(issue.file, "utf8").replace(/^stage: \w+$/m, "stage: done"));
+   let body = readFileSync(issue.file, "utf8").replace(/^stage: \w+$/m, "stage: done");
+   if (evidence) body += "\n\n## Verification evidence\n\n[Encounter and evidence](" + relative(realpathSync(dirname(issue.file)), realpathSync(resolve(cwd, evidence))) + ").\n";
+   writeFileSync(issue.file, body);
    await commitRetrying(cwd, "-qm", "Close " + slug, "--", issue.file);
   }
  };
  const carried = () => { const l = listCaveats(state.caveats); return l ? "\nCaveats the children reported, integrated anyway; file each as an idea or link its owner:\n" + l : ""; };
  const verifyPrompt = (slug: string, ticket: string, report: string) => ["Verify the ticket below: " + HACK,
-  "Your branch starts at the implementer's commits. First use as the ticket's user; record what you observe; update guides/replays only where the encounter earns them. " + HANDOFF + "stories: each story or promise you checked with held, failed or unobservable; caveats: [] when there are none (residuals the loop carries on; a failed story is what stops it).",
+  "Your branch starts at the implementer's commits. Use the prepared environment; check its deployment kind, persona, seed and entry point before running setup. Wait for setup to finish. Missing preparation is unfinished delivery work, not a reason to substitute regression tests for the encounter. Follow docs/verification-evidence.md in the harness repository for the evidence packet and exact handoff schema. Commit a packet under docs/attachments/" + slug + "/ and link it from the ticket. Declare evidence.visual true for any rendered UI journey; a separate visual reviewer judges those screenshots. " + HANDOFF + "stories must be a nonempty array of {story, outcome}, with outcome held, failed or unobservable. evidence: {path: <repo-relative Markdown index>, visual: <boolean>, shots: [<repo-relative image paths>]}. An honest account of missing measurements is not the requested measurement. Unmet requirements stay blocked unless the contract is explicitly changed; caveats cannot waive them.",
   "Ticket " + slug + ":\n\n" + ticket, "Implementer's report:\n\n" + report].join("\n\n");
  const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
+  let packet: ReturnType<typeof evidencePacket> | undefined;
+  if (c.phase !== "supervise") {
+   if (!c.acceptedHead || c.acceptedHead !== git(handle.path, "rev-parse", "HEAD") || unheld(c.evidence ?? null)) return except(c, "fresh verification required before integration");
+   packet = evidencePacket(handle.path, c.evidence ?? null);
+   if (packet.visual && !c.visualReviewed) return except(c, "visual review required before integration");
+  }
   // Failed preparation keeps both the owner HEAD and the child's resources intact.
   const attempt = () => integrate(handle, { cwd: input.cwd, keep: true, prepare: async worker => {
+   // The loop owns this clean rebase; keep retries bound to the rebased revision.
+   if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
    if (input.test) execFileSync("bash", ["-lc", input.test], { cwd: worker.path, stdio: "pipe" });
-   await close(c.slug, worker.path);
+   await close(c.slug, worker.path, packet?.path);
+   if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
   } });
   try { await attempt(); }
   catch (error: any) {
@@ -142,6 +170,7 @@ export async function run(job: JobContext) {
   // Crash after saving may leave resources behind, but never a saved handle we already retired.
   await retire(handle);
   if (c.implementer) await retire(c.implementer);
+  for (const old of c.previous ?? []) await retire(old);
  });
 
  // Pending owner commands (resume) are applied between turn ends.
@@ -154,11 +183,11 @@ export async function run(job: JobContext) {
    const c = state.children[cmd.child];
    if (!c) { await wake("resume: no live child " + cmd.child); continue; }
    c.waiting = undefined; c.unreachable = undefined;
-   if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); delete state.children[c.slug]; }
+   if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; }
    try {
     if (cmd.action === "integrate") await integrateChild(c, c.handle);
     else if (cmd.action === "verify") await toVerify(c, (await children.last(topic(c.handle)))?.text ?? "");
-    else if (cmd.action === "redispatch") { await retire(c.handle); delete state.children[c.slug]; }
+    else if (cmd.action === "redispatch") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; }
    } catch (error) { await except(c, "resume failed", String(error)); }
   }
   applied = all.length; await save();
@@ -167,7 +196,19 @@ export async function run(job: JobContext) {
   const issue = snapshot(input).find(i => i.slug === c.slug)!;
   const branch = git(c.handle.path, "branch", "--show-current");
   const handle = await launch(c.slug, "verify", verifyPrompt(c.slug, readFileSync(issue.file, "utf8"), report), branch, "agent", "verify");
-  Object.assign(c, { implementer: c.handle, handle, phase: "verify", cursor: handle.cursor });
+  (c.previous ??= []).push(c.handle);
+  Object.assign(c, { handle, phase: "verify", cursor: handle.cursor, evidence: undefined, acceptedHead: undefined, visualReviewed: false });
+  await save();
+ };
+ const toVisualReview = async (c: Child, report: string) => {
+  const issue = snapshot(input).find(i => i.slug === c.slug)!;
+  const packet = evidencePacket(c.handle.path, c.evidence ?? null);
+  const prompt = ["Judge the collected visual evidence against this ticket. This is acceptance, not an open-ended design audit. Do not edit product code or weaken the contract. Open the actual screenshots (use lib/cards.ts for contact sheets); the collector's held outcomes are claims, not your verdict. Request missing states rather than infer them.",
+   "Read ~/dev/mlegls-pi/docs/verification-evidence.md. Commit your per-claim judgment and image references to the packet index " + packet.path + ". Only that index may change. For this supervised review, use the shared handoff rather than data: {blocking,nits}: stories: [{story: <claim>, outcome: held|failed|unobservable}], evidence: " + JSON.stringify(packet) + ", caveats: []. End blocked for failed or unobservable requirements; done only when all required visual claims hold. A small regression can affect fewer than 2% of pixels: changing a gate's tolerance needs a known-bad probe or an explicitly unverified sensitivity claim.",
+   "Ticket:\n" + readFileSync(issue.file, "utf8"), "Collector report:\n" + report].join("\n\n");
+  const handle = await launch(c.slug, "visual-review", prompt, c.acceptedHead!, "agent:visual-reviewer", "visual-reviewer");
+  (c.previous ??= []).push(c.handle);
+  Object.assign(c, { handle, phase: "visual-review", cursor: handle.cursor });
   await save();
  };
 
@@ -183,7 +224,7 @@ export async function run(job: JobContext) {
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
     ? HACK + "\n\nSupervise the subtree of " + i.file + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ": run ab supervise start " + i.slug + " and handle what it wakes you with; end your turn with done when it reports the subtree done.\n\n" + readFileSync(i.file, "utf8")
-    : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + HANDOFF + "commit, setup (how to try it), stories, caveats: [] when there are none. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
+    : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + HANDOFF + "commit, setup (deployment kind, owned target, persona/auth, seed/state and runnable entry point), stories, caveats: [] when there are none. Prepare first-use setup before handoff, including Cloud vs anonymous-local requirements; never include secret values in evidence. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
    try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor }; }
    catch (error) { await wake("could not launch " + i.slug + ": " + error); }
    await save();
@@ -216,7 +257,10 @@ export async function run(job: JobContext) {
   finally { watcher?.close(); job.signal.removeEventListener("abort", abort); }
   lostWatches = 0;
   const c = watched[ids.indexOf(end.id)];
-  c.cursor = end.cursor; c.waiting = undefined; await save();
+  c.cursor = end.cursor; c.waiting = undefined;
+  if (c.phase === "verify") { c.evidence = undefined; c.acceptedHead = undefined; c.visualReviewed = false; }
+  if (c.phase === "visual-review") c.visualReviewed = false;
+  await save();
   if (end.unreachable) { c.unreachable = true; await except(c, "unreachable", end.text); continue; }
   await (async () => {
   const r = parse(end.text);
@@ -230,8 +274,22 @@ export async function run(job: JobContext) {
    else await toVerify(c, end.text);
   } else if (c.phase === "verify") {
    note(c.slug, caveats(r.handoff));
-   if (unheld(r.handoff)) await except(c, "verification did not hold cleanly", end.text);
+   if (unheld(r.handoff)) { await except(c, "verification did not hold cleanly", end.text); return; }
+   const packet = evidencePacket(c.handle.path, r.handoff);
+   if (git(c.handle.path, "status", "--porcelain")) { await except(c, "evidence must be committed", end.text); return; }
+   c.evidence = r.handoff!; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); c.visualReviewed = false;
+   await save();
+   if (packet.visual) await toVisualReview(c, end.text);
    else await integrateChild(c, c.handle);
+  } else if (c.phase === "visual-review") {
+   note(c.slug, caveats(r.handoff));
+   if (unheld(r.handoff)) { await except(c, "visual acceptance did not hold", end.text); return; }
+   const packet = evidencePacket(c.handle.path, c.evidence ?? null);
+   const changed = git(c.handle.path, "diff", "--name-only", c.acceptedHead!, "HEAD").split("\n").filter(Boolean);
+   if (!changed.includes(packet.path) || changed.some(p => p !== packet.path) || git(c.handle.path, "status", "--porcelain")) { await except(c, "review must commit its judgment to the evidence index only", end.text); return; }
+   c.visualReviewed = true; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD");
+   await save();
+   await integrateChild(c, c.handle);
   } else await integrateChild(c, c.handle);
   })().catch(error => except(c, "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
  }

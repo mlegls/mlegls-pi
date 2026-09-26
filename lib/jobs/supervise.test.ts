@@ -24,13 +24,15 @@ test("supervision closes on branches, serializes integration, and retains failed
  mkdirSync(main);git(main,'init','-q','-b','main');git(main,'config','user.name','test');git(main,'config','user.email','test@example.invalid');
  mkdirSync(join(main,'docs/issues'),{recursive:true});
  for(const s of ['a','b','c','d','e'])writeFileSync(join(main,'docs/issues',s+'.md'),'---\\nstage: ticket\\n---\\n');
+ mkdirSync(join(main,'docs/attachments'),{recursive:true});
+ for(const s of ['a','b','c','d'])writeFileSync(join(main,'docs/attachments',s+'.md'),'First-use evidence for '+s);
  git(main,'add','.');git(main,'commit','-qm','Initial');
  const paths={};for(const s of ['a','b','c','d']){paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);writeFileSync(join(paths[s],s),s);git(paths[s],'add',s);git(paths[s],'commit','-qm','Implement '+s);}
  paths.e=join(root,'already-retired');
  const real=await import(${JSON.stringify(resolve("lib/dispatch.ts"))});const integrate=real.integrate;
  let active=0,max=0;const saved={},retired=[],controls=new Map(),messages=[];
  mock.module(${JSON.stringify(resolve("lib/dispatch.ts"))},()=>({...real,integrate:async(...args)=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,20));return await integrate(...args);}finally{active--;}},retire:async h=>{expect(saved[h.handle].children[h.handle]).toBeUndefined();expect(saved[h.handle].integrated).toContain(h.handle);expect(existsSync(h.path)).toBe(true);expect(git(main,'rev-parse','HEAD')).toBe(git(h.path,'rev-parse','HEAD'));retired.push(h.handle);return {};}}));
- mock.module(${JSON.stringify(resolve("lib/children.ts"))},()=>({turnEnd:async ids=>({id:ids[0],kind:'finished',cursor:'done',text:'done\\n'+String.fromCharCode(96).repeat(3)+'yaml\\nstories:\\n  sample: held\\n'+String.fromCharCode(96).repeat(3)}),last:async()=>null,send:async(owner,text)=>{messages.push(text);if(text.includes('integration failed')||text.includes('unreachable'))controls.get(owner).abort();}}));
+ mock.module(${JSON.stringify(resolve("lib/children.ts"))},()=>({turnEnd:async ids=>({id:ids[0],kind:'finished',cursor:'done',text:'done\\n'+String.fromCharCode(96).repeat(3)+'json\\n'+JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/'+ids[0].split('/').pop()+'.md',visual:false,shots:[]}})+'\\n'+String.fromCharCode(96).repeat(3)}),last:async()=>null,send:async(owner,text)=>{messages.push(text);if(text.includes('integration failed')||text.includes('unreachable')||text.includes('verification')||text.includes('loop error'))controls.get(owner).abort();}}));
  const {run}=await import(${JSON.stringify(resolve("lib/jobs/supervise.ts"))});
  async function loop(s,cwd=main,test='test -f '+s){
   const control=new AbortController();controls.set(s,control);
