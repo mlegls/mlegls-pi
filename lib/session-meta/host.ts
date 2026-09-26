@@ -19,6 +19,8 @@ export interface SpawnMeta {
 	parentSession?: string;
 	/** Session whose tool call started this pi (PI_SESSION_ID from the bash tool's env): headless children. */
 	invokedBy?: string;
+	/** Pi launch mode, persisted for status views after the process exits. */
+	mode?: ExtensionContext["mode"];
 }
 
 /** Spawn provenance from wm's env or the invoking session, or undefined for a session nobody spawned. */
@@ -39,15 +41,14 @@ export function install(pi: ExtensionAPI) {
 		const sm = ctx.sessionManager;
 		try {
 			writeLive({ pid: process.pid, sessionId: sm.getSessionId(), sessionFile: sm.getSessionFile(), cwd: sm.getCwd(), state,
-				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE });
+				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, mode: ctx.mode });
 		} catch {}
 	};
 	pi.on("session_start", (_event, c) => {
 		ctx = c;
 		live("idle");
-		if (!meta) return;
 		const recorded = c.sessionManager.getBranch().some((entry) => entry.type === "custom" && entry.customType === SPAWN_META);
-		if (!recorded) pi.appendEntry(SPAWN_META, meta);
+		if (!recorded) pi.appendEntry(SPAWN_META, { ...meta, mode: c.mode });
 	});
 	pi.on("agent_start", () => live("working"));
 	pi.on("agent_end", () => live("idle"));

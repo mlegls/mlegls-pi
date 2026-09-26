@@ -35,7 +35,7 @@ esac
 		const row = (session: string, tag: string, pane: string) => [session, repo, tag, "0", "shell", "1", pane, "0", "zsh", repo, "1", ""].join("\t");
 		writeFileSync(panes, [row("free", "", "%1"), row("repo", "", "%3"), row("tagged", repo, "%2")].join("\n") + "\n");
 		const now = new Date().toISOString();
-		const live: Node = { id: "live", file: "", cwd: repo, project: "repo", title: "live", created: now, updated: now, state: "idle", pane: "%1", children: [] };
+		const live: Node = { id: "live", file: "", cwd: repo, project: "repo", title: "live", created: now, updated: now, state: "idle", interactive: true, pane: "%1", children: [] };
 		const ws = workspaces(new Map([[live.id, live]]), { pinned: [repo] });
 		const free = ws.get("tmux:free")!;
 		expect(free.project).toBe("tmux");

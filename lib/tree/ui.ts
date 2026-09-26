@@ -229,9 +229,9 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const { top, items } = window(agents, at, listHeight);
 			items.forEach((r, i) => {
 				const y = i + 1;
-				const text = view === "tree" ? treeLine(r) : r.kind === "header" ? c("1", `${collapsed.has("status:" + r.label) ? "▸" : "▾"} ${r.label}`) + c("90", ` ${r.count}`) : "  " + agentText(r.node!) + c("90", "  " + (workspaceFor(r.node) ? label(workspaceFor(r.node)!) : home(r.node!.cwd)) + "  " + age(r.node!.updated));
+				const text = view === "tree" ? treeLine(r) : r.kind === "header" ? "  ".repeat(r.depth) + c("1", `${collapsed.has(r.key!) ? "▸" : "▾"} ${r.label}`) + c("90", ` ${r.count}`) : "  ".repeat(r.depth) + agentText(r.node!) + c("90", "  " + (workspaceFor(r.node) ? label(workspaceFor(r.node)!) : home(r.node!.cwd)) + "  " + age(r.node!.updated));
 				screen.push(hl(sidebar ? truncateToWidth(text, width) : text, width, top + i === at));
-				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (view === "tree") selTree = treeKey(r); if (r.node) { if (sidebar) { selAgent = r.node.id; openAgent(r.node); } else { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } } else { toggle(view === "tree" ? treeKey(r) : "status:" + r.label); } },
+				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (view === "tree") selTree = treeKey(r); if (r.node) { if (sidebar) { selAgent = r.node.id; openAgent(r.node); } else { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } } else { toggle(view === "tree" ? treeKey(r) : r.key!); } },
 					fold: view === "tree" && r.node && (r.count ?? 1) > 1 ? () => toggle(treeKey(r)) : undefined,
 					foldX: view === "tree" ? r.node ? r.depth : 0 : undefined });
 			});

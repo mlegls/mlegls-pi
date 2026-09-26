@@ -15,6 +15,7 @@ export interface Live {
 	state: "working" | "idle";
 	since: string;
 	tmuxPane?: string;
+	mode?: "tui" | "rpc" | "json" | "print";
 }
 
 export function liveDir(): string {

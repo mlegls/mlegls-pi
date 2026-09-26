@@ -11,6 +11,10 @@ one without a process still shows:
   × gone (cwd deleted)
   !  waiting on you (board needs-input/checkpoint)   ⊘ blocked   orphan: running or pending in a worktree, parent is neither
 
+Interactive means pi's TUI mode, not "has no parent": a spawned worker can have a TUI.
+For older sessions without recorded mode, invoked children default to non-interactive and
+others to interactive.
+
 Without a query it shows active sessions plus resumable ones from the last --hours (12);
 -a shows everything in the --days window (3). QUERY terms are ANDed: key:value for
 state, project, model, kind (spawn/invoked/fork/root), run, orphan; bare words
@@ -18,15 +22,16 @@ fuzzy-match title, project and cwd; a leading ! negates. In tree mode a match ke
 its ancestors.
 
   ab tree state:needs            what's waiting on me
-  ab tree -m status              grouped by state, orphans near the top
+  ab tree -m status              interactive first, then non-interactive; each grouped by state
   ab tree project:concept !state:gone
 
 The TUI (? inside it for keys) has three views (s cycles): workspaces (git worktrees,
-with tmux sessions and windows), agents by status, and sessions grouped by project with
-parent/child nesting. The session tree sorts sibling subtrees by their most urgent session;
-collapsed nodes and projects show needs-you counts. A child in another project starts a
-root there, with a reference to its parent. The dashboard (prefix-t) shows a live preview;
-the sidebar is a Ghostty split beside tmux. In workspace view j/k switch workspaces;
+with tmux sessions and windows), agents grouped by interactive vs non-interactive sessions,
+then by status, and sessions grouped by project with parent/child nesting. The session tree
+sorts sibling subtrees by urgency; folded nodes and projects show needs-you counts. A child in
+another project starts a root there, with a reference to its parent. The dashboard
+(prefix-t) shows a live preview; the sidebar is a Ghostty split beside tmux. In workspace view
+j/k switch workspaces;
 in session views j/k select agents (or project headers in the tree) and switch to live
 agent windows immediately. Enter opens or resumes one; h/l fold and expand the session tree.
 x closes the selected window, X its session;

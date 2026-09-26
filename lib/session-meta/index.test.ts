@@ -8,12 +8,12 @@ type Entry = { type: "custom"; customType: string; data: unknown };
 function host() {
 	const entries: Entry[] = [];
 	const handlers = new Map<string, Handler>();
-	const ctx = { sessionManager: { getBranch: () => entries } } as unknown as ExtensionContext;
+	const ctx = { mode: "tui", sessionManager: { getBranch: () => entries } } as unknown as ExtensionContext;
 	const api = {
 		on: (name: string, handler: Handler) => handlers.set(name, handler),
 		appendEntry: (customType: string, data: unknown) => entries.push({ type: "custom", customType, data: structuredClone(data) }),
 	} as unknown as ExtensionAPI;
-	return { entries, api, start: () => handlers.get("session_start")!({}, ctx) };
+	return { entries, api, start: (mode: ExtensionContext["mode"] = "tui") => handlers.get("session_start")!({}, { ...ctx, mode }) };
 }
 
 function withEnv(vars: Record<string, string | undefined>, run: () => void) {
@@ -46,17 +46,20 @@ describe("extension", () => {
 			const h = host();
 			sessionMeta(h.api);
 			h.start();
-			expect(h.entries).toEqual([{ type: "custom", customType: "session-meta", data: { run: "run", handle: "handle", agent: "auto", parentSession: undefined } }]);
+			expect(h.entries).toEqual([{ type: "custom", customType: "session-meta", data: { run: "run", handle: "handle", agent: "auto", parentSession: undefined, mode: "tui" } }]);
 			h.start();
 			expect(h.entries).toHaveLength(1);
 		});
 	});
 
-	test("stays absent without wm env or an invoking session", () => {
+	test("records launch mode without spawn metadata, only once across resumes", () => {
 		withEnv({ PI_WM_RUN: undefined, PI_WM_HANDLE: undefined, PI_SESSION_ID: undefined }, () => {
 			const h = host();
 			sessionMeta(h.api);
-			expect(h.entries).toHaveLength(0);
+			h.start("print");
+			expect(h.entries).toEqual([{ type: "custom", customType: "session-meta", data: { mode: "print" } }]);
+			h.start("tui");
+			expect(h.entries).toHaveLength(1);
 		});
 	});
 });

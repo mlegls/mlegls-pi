@@ -1,14 +1,14 @@
 // Session rows shared by CLI and TUI.
 //   tree      project headers, parentage, sibling subtrees sorted by urgency
 //   projects  project headers, sessions by recency
-//   status    state headers (needs you first), sessions by recency
+//   status    interactive then non-interactive, each grouped by state (needs you first)
 // Filter terms: `key:value` (state, project, model, kind, orphan) or free text matched as a
 // subsequence of the title/project/cwd, like fzf. A matching node keeps its ancestors in tree.
 
 import type { Node, State } from "./graph";
 
 export type Mode = "tree" | "projects" | "status";
-export interface Row { kind: "header" | "node"; depth: number; label: string; node?: Node; count?: number; match?: boolean; urgency?: string; needs?: number }
+export interface Row { kind: "header" | "node"; depth: number; label: string; key?: string; node?: Node; count?: number; match?: boolean; urgency?: string; needs?: number }
 
 const ACTIVE: State[] = ["working", "idle"];
 export const STATE_ORDER: State[] = ["working", "idle", "resumable", "gone"];
@@ -114,12 +114,26 @@ export function rows(nodes: Map<string, Node>, mode: Mode, opts: { query?: strin
 		return out;
 	}
 	const list = [...shown].map(id => nodes.get(id)!);
-	const groups = mode === "projects" ? group(list, n => n.project)
-		: new Map([...group(list, n => attention(n) === "needs" ? "needs you" : n.orphan ? "orphan" : n.state)]
-			.sort(([a], [b]) => rank(a) - rank(b)));
-	for (const [label, members] of groups) {
+	if (mode === "status") {
+		for (const [label, members] of [["interactive", list.filter(n => n.interactive)], ["non-interactive", list.filter(n => !n.interactive)]] as const) {
+			if (!members.length) continue;
+			const key = "status:" + label;
+			out.push({ kind: "header", depth: 0, label, key, count: members.length });
+			if (collapsed.has(key)) continue;
+			const groups = [...group(members, n => attention(n) === "needs" ? "needs you" : n.orphan ? "orphan" : n.state)]
+				.sort(([a], [b]) => rank(a) - rank(b));
+			for (const [state, sessions] of groups) {
+				const subkey = key + ":" + state;
+				out.push({ kind: "header", depth: 1, label: state, key: subkey, count: sessions.length });
+				if (!collapsed.has(subkey)) for (const n of sessions.sort(recent))
+					out.push({ kind: "node", depth: 2, label: n.title, node: n, match: true });
+			}
+		}
+		return out;
+	}
+	for (const [label, members] of group(list, n => n.project)) {
 		out.push({ kind: "header", depth: 0, label, count: members.length });
-		if (collapsed.has((mode === "projects" ? "project:" : "status:") + label)) continue;
+		if (collapsed.has("project:" + label)) continue;
 		for (const n of members.sort(recent)) out.push({ kind: "node", depth: 1, label: n.title, node: n, match: true });
 	}
 	return out;
@@ -151,7 +165,7 @@ export const ICON: Record<State, string> = { working: "●", idle: "○", resuma
 
 /** Plain-text line for a row, for the CLI and for tests. */
 export function line(r: Row): string {
-	if (r.kind === "header") return `${r.label} (${r.count})`;
+	if (r.kind === "header") return "  ".repeat(r.depth) + `${r.label} (${r.count})`;
 	const n = r.node!;
 	const flag = attention(n) === "needs" ? " !" : attention(n) === "blocked" ? " ⊘" : n.orphan ? " orphan" : "";
 	const model = n.model ? " " + n.model.split("/").pop() : "";

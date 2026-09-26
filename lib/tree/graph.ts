@@ -32,6 +32,8 @@ export interface Node {
 	run?: string;
 	handle?: string;
 	state: State;
+	/** Whether the current (or original) pi process had an interactive TUI. */
+	interactive: boolean;
 	pid?: number;
 	pane?: string;
 	report?: { tag: string; ts: string; body: string };
@@ -45,7 +47,7 @@ interface Parsed {
 	mtimeMs: number; size: number;
 	id: string; cwd: string; created: string; forkOf?: string; name?: string; firstUser?: string;
 	model?: string; lastText?: string;
-	meta?: { run?: string; handle?: string; parentSession?: string; invokedBy?: string };
+	meta?: { run?: string; handle?: string; parentSession?: string; invokedBy?: string; mode?: Live["mode"] };
 }
 interface Cache { files: Record<string, Parsed>; projects: Record<string, string> }
 
@@ -209,7 +211,8 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
 			parent, parentKind: kind, run, handle,
-			state, pid: l?.pid, pane: l?.tmuxPane, report: run && handle ? board.get(run + "/" + handle) : undefined,
+			state, interactive: (l?.mode ?? p.meta?.mode ?? (p.meta?.invokedBy ? "print" : "tui")) === "tui",
+			pid: l?.pid, pane: l?.tmuxPane, report: run && handle ? board.get(run + "/" + handle) : undefined,
 			lastText: p.lastText, children: [],
 		});
 	}

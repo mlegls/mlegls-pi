@@ -25,14 +25,14 @@ const meta = (data: object) => ({ type: "custom", customType: "session-meta", da
 const user = (text: string) => ({ type: "message", message: { role: "user", content: text } });
 
 session("parent", [user("plan the thing")]);
-session("child", [meta({ run: "r", handle: "a", parentSession: "parent" }), user("do a")]);
-session("headless", [meta({ invokedBy: "child" }), user("summarize")]);
+session("child", [meta({ run: "r", handle: "a", parentSession: "parent", mode: "tui" }), user("do a")]);
+session("headless", [meta({ invokedBy: "child", mode: "print" }), user("summarize")]);
 session("orphan", [meta({ run: "r", handle: "b", parentSession: "dead" }), user("do b")]);
 session("dead", [user("gone parent")]);
 
 describe("graph", () => {
 	test("links spawn and invoked parents, and marks live children of ended parents as orphans", async () => {
-		writeLive({ pid: process.pid, sessionId: "orphan", cwd, state: "working", since: new Date().toISOString() });
+		writeLive({ pid: process.pid, sessionId: "orphan", cwd, state: "working", since: new Date().toISOString(), mode: "print" });
 		writeLive({ pid: process.ppid, sessionId: "parent", cwd, state: "idle", since: new Date().toISOString() });
 		const g = await graph();
 		expect(g.get("child")!.parent).toBe("parent");
@@ -52,6 +52,21 @@ describe("graph", () => {
 		expect(hit.filter(r => r.kind === "node").map(r => r.node!.id)).toEqual(["parent", "child", "headless"]);
 		expect(hit.find(r => r.node?.id === "parent")!.match).toBe(false);
 		expect(rows(g, "status", { query: "state:orphan" }).filter(r => r.node).map(r => r.node!.id)).toEqual(["orphan"]);
+	});
+	test("status puts interactive sessions first, keeping state groups distinct", async () => {
+		const g = await graph();
+		const r = rows(g, "status", { all: true });
+		expect(g.get("child")!.interactive).toBe(true); // Spawned does not imply headless.
+		expect(g.get("headless")!.interactive).toBe(false);
+		expect(g.get("orphan")!.interactive).toBe(false); // Live mode overrides legacy metadata.
+		expect(r.filter(x => x.depth === 0).map(x => x.label)).toEqual(["interactive", "non-interactive"]);
+		expect(r.findIndex(x => x.node?.id === "child")).toBeLessThan(r.findIndex(x => x.node?.id === "headless"));
+		expect(r.filter(x => x.label === "resumable" && x.kind === "header").map(x => x.key))
+			.toEqual(["status:interactive:resumable", "status:non-interactive:resumable"]);
+		expect(rows(g, "status", { all: true, collapsed: new Set(["status:non-interactive:resumable"]) })
+			.some(x => x.node?.id === "headless")).toBe(false);
+		const text = r.map(line);
+		expect(text.some(x => x === "  resumable (2)")).toBe(true);
 	});
 	test("project trees prioritize urgent descendants without moving them from their parent", async () => {
 		const g = await graph();
