@@ -39,7 +39,8 @@ n/c/N create a pi window, terminal, or worktree. On a project heading in either 
 view, they use the main checkout.
 The tmux heading in workspace view stays visible even when there are no free sessions.
 Select it and press n to create a free pi session or c for a free terminal session, both
-starting in ~. Existing free sessions stay under tmux even when their panes are in a repo;
-on an existing free session, n/c add windows starting in ~.
+starting in ~. Sessions with no matching project workspace stay under tmux; navigating into
+a project from a free session can move it under that project on refresh. On an existing
+free session, n/c add windows starting in ~.
 Mouse works; ? shows the keys.
 The sidebar's r refreshes data; R reloads code in the same split (no pane restart).

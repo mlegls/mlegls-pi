@@ -7,7 +7,7 @@ import type { Node } from "./graph";
 import { newFreeSession, newWindow } from "./actions";
 import { workspaces } from "./workspaces";
 
-test("free tmux sessions stay under tmux even inside repos; new windows start at home", () => {
+test("tmux sessions join projects by session or pane workspace, and free sessions start at home", () => {
 	const dir = mkdtempSync(join(tmpdir(), "ab-tree-tmux-"));
 	const oldPath = process.env.PATH;
 	const oldTmux = process.env.TMUX;
@@ -33,18 +33,23 @@ esac
 		process.env.AB_TMUX_LOG = log;
 		process.env.PATH = bin + ":" + oldPath;
 		process.env.TMUX = "test";
-		const row = (session: string, tag: string, pane: string) => [session, repo, tag, "0", "shell", "1", pane, "0", "zsh", repo, "1", ""].join("\t");
-		writeFileSync(panes, [row("free", "", "%1"), row("repo", "", "%3"), row("tagged", repo, "%2")].join("\n") + "\n");
+		const row = (session: string, tag: string, pane: string, sessionPath = repo, panePath = repo) => [session, sessionPath, tag, "0", "shell", "1", pane, "0", "zsh", panePath, "1", ""].join("\t");
+		writeFileSync(panes, row("wander", "", "%4", homedir(), repo) + "\n");
+		const discovered = workspaces(new Map()); // neither pinned nor an agent: find the repo from the pane
+		expect(discovered.get(repo)?.windows[0]?.session).toBe("wander");
+		writeFileSync(panes, [row("free", "", "%1", homedir(), homedir()), row("repo", "", "%3"), row("wander", "", "%4", homedir(), repo), row("tagged", repo, "%2")].join("\n") + "\n");
 		const now = new Date().toISOString();
-		const live: Node = { id: "live", file: "", cwd: repo, project: "repo", title: "live", created: now, updated: now, state: "idle", interactive: true, pane: "%1", children: [] };
+		const live: Node = { id: "live", file: "", cwd: repo, project: "repo", title: "live", created: now, updated: now, state: "idle", interactive: true, pane: "%4", children: [] };
 		const ws = workspaces(new Map([[live.id, live]]), { pinned: [repo] });
 		const free = ws.get("tmux:free")!;
 		expect(free.project).toBe("tmux");
-		expect(ws.get("tmux:repo")?.session).toBe("repo");
+		expect(ws.has("tmux:repo")).toBe(false);
+		expect(ws.has("tmux:wander")).toBe(false);
 		expect(free.windows[0]?.session).toBe("free");
-		expect(free.agents.map(n => n.id)).toEqual(["live"]);
+		expect(free.agents).toEqual([]);
 		expect(ws.get(repo)?.session).toBe("tagged");
-		expect(ws.get(repo)?.agents).toEqual([]);
+		expect(ws.get(repo)?.windows.map(win => win.session)).toEqual(["repo", "wander", "tagged"]);
+		expect(ws.get(repo)?.agents.map(n => n.id)).toEqual(["live"]);
 		newWindow(free);
 		newWindow(free, "pi", "pi");
 		newWindow(ws.get(repo)!);

@@ -558,6 +558,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
               y yazi   e nvim   o zed
   project    n/c/N use its main checkout (workspace view or project session tree)
   tmux       always shown in workspace view; n/c on its heading create free sessions in ~
+           sessions with a matching project session/pane path appear under that project
   i        type into the selected window/agent's pane from here (esc returns); an agent
            without a pane (headless) gets a one-line board message instead
   window   x kill it           agent   z park (stop the process; the session stays resumable)   enter resume
