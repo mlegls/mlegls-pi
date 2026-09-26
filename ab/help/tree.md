@@ -35,6 +35,9 @@ j/k switch workspaces;
 in session views j/k select agents (or project headers in the tree) and switch to live
 agent windows immediately. Enter opens or resumes one; h/l fold and expand the session tree.
 x closes the selected window, X its session;
+p on a parked worktree removes it if clean and idle; U removes all such worktrees in dashboard
+projects (including those hidden by the recent-activity filter). Both ask for confirmation,
+leave dirty or busy worktrees alone, and keep branches. Neither key removes the main checkout.
 n/c/N create a pi window, terminal, or worktree. On a project heading in either project
 view, they use the main checkout.
 The tmux heading in workspace view stays visible even when there are no free sessions.

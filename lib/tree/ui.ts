@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { parseKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { graph, type Node } from "./graph";
 import { age, attention, ICON, matcher, rows as agentRows, type Row } from "./view";
-import { label, home, workspaces, type Window, type Workspace } from "./workspaces";
+import { label, home, workspaces, unattachedWorktrees, type Window, type Workspace } from "./workspaces";
 import * as act from "./actions";
 import { transcriptTail } from "./tail";
 import { execFileSync } from "node:child_process";
@@ -212,8 +212,8 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	function draw() {
 		const width = W(), height = H();
 		geometry = [];
-		const hint = sidebar ? "s views  r refresh  R reload  ? help" : view !== "workspaces" ? "enter open  i send  z park  s views  / filter  ? help"
-			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s views  ? help"
+		const hint = sidebar ? "s views  p prune  U prune idle  r refresh  R reload  ? help" : view !== "workspaces" ? "enter open  i send  z park  p prune  U prune idle  s views  / filter  ? help"
+			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  p prune  U prune idle  s views  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
 		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
 		const footer = truncateToWidth(c("7", " " + footerText), width, "", true);
@@ -409,6 +409,35 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				else message = "no window selected";
 				break;
 			}
+			case "p": {
+				if (!w || w.main || w.key.startsWith("tmux:")) { message = "select a worktree"; break; }
+				const candidate = unattachedWorktrees(spaces).find(t => t.path === w.path);
+				if (!candidate) { message = "worktree has an attached window or live agent"; break; }
+				input = { kind: "confirm", text: "", prompt: `remove worktree ${label(w)}? (clean only; branch stays) [Enter] `, then: () => {
+					attempt(() => {
+						if (!unattachedWorktrees(spaces).some(t => t.path === candidate.path)) return "worktree now attached";
+						return `worktree ${act.pruneWorktree(candidate.root, candidate.path)}`;
+					});
+					void refresh();
+				} };
+				break;
+			}
+			case "U": {
+				const candidates = unattachedWorktrees(spaces);
+				if (!candidates.length) { message = "no unattached worktrees in dashboard projects"; break; }
+				input = { kind: "confirm", text: "", prompt: `remove ${candidates.length} unattached worktree(s)? (dirty/busy skipped; branches stay) [Enter] `, then: () => {
+					const counts = { removed: 0, dirty: 0, busy: 0, skipped: 0, errors: 0 };
+					for (const candidate of candidates) {
+						try {
+							if (!unattachedWorktrees(spaces).some(t => t.path === candidate.path)) { counts.skipped++; continue; }
+							counts[act.pruneWorktree(candidate.root, candidate.path)]++;
+						} catch { counts.errors++; }
+					}
+					message = Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(", ");
+					void refresh();
+				} };
+				break;
+			}
 			case "X":
 				if (w?.session) input = { kind: "confirm", text: "", prompt: sidebar ? `close ${w.session}? [Enter to confirm] ` : `close ${w.session} (worktree stays)? [Enter to confirm] `, then: () => { attempt(() => act.killSession(w)); void refresh(); } };
 				else message = "no session selected";
@@ -554,6 +583,8 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
 
   workspace   n new pi   c new terminal   N new worktree off it (workmux, session mode)
               m merge into its parent (workmux merge)   x close its active window   X close its tmux session
+              p prune selected unattached worktree   U prune all unattached worktrees in dashboard projects
+              pruning skips dirty or busy worktrees, keeps branches, and never removes the main checkout
               d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
               y yazi   e nvim   o zed
   project    n/c/N use its main checkout (workspace view or project session tree)
@@ -567,6 +598,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ visits headings and live sessions
            h/l ←/→: windows in workspace view, fold/expand in session tree; enter opens/resumes
            x closes the active window (or selected agent's window); X closes its session
+           p prunes selected unattached worktree; U prunes all unattached worktrees in dashboard projects
            n new pi   c new terminal   N new worktree (selected workspace/agent's workspace)
            it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept
   tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window

@@ -4,7 +4,7 @@
 
 import { mail } from "../board/mailbox";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import type { Node } from "./graph";
@@ -93,6 +93,21 @@ export function open(n: Node, w?: Workspace): string | undefined {
 export function killWindow(win: Window): void { tmux("kill-window", "-t", `${win.session}:${win.index}`); }
 export function killSession(w: Workspace): void { if (w.session) tmux("kill-session", "-t", "=" + w.session); }
 
+/** Remove only a clean, idle worktree. Git preserves its branch; never force removal. */
+export function pruneWorktree(root: string, path: string): "removed" | "dirty" | "busy" {
+	const realPath = realpathSync(path);
+	const listed = execFileSync("git", ["-C", root, "worktree", "list", "--porcelain"], { encoding: "utf8" });
+	if (realPath === realpathSync(root) || !listed.split("\n").includes(`worktree ${realPath}`)) {
+		throw new Error(`not a worktree of ${root}: ${path}`);
+	}
+	// tmux attachment and headless pi state are checked by the caller. Refuse to orphan
+	// detached servers/watchers (or a terminal with its cwd in this worktree).
+	const listing = execFileSync("lsof", ["-d", "cwd", "-Fpn"], { encoding: "utf8" });
+	if (listing.split("\n").some(line => line.startsWith("n") && (line.slice(1) === realPath || line.slice(1).startsWith(realPath + "/")))) return "busy";
+	if (execFileSync("git", ["-C", realPath, "status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" }).trim()) return "dirty";
+	execFileSync("git", ["-C", root, "worktree", "remove", realPath], { encoding: "utf8" });
+	return "removed";
+}
 /** Paste text into a pane and press enter. */
 export function sendToPane(pane: string, text: string): void {
 	execFileSync("tmux", ["load-buffer", "-b", "ab-tree", "-"], { input: text });

@@ -57,6 +57,24 @@ function worktrees(root: string): Tree[] {
 	return out;
 }
 
+/** Parked worktrees, including ones hidden from the dashboard by the recent-activity filter.
+ * A session tag or pane cwd anywhere inside a worktree counts as attached. */
+export function unattachedWorktrees(spaces: Map<string, Workspace>): { root: string; path: string }[] {
+	const panes = tmuxPanes();
+	const result: { root: string; path: string }[] = [];
+	for (const w of spaces.values()) {
+		if (!w.main || w.key.startsWith("tmux:")) continue;
+		const root = real(w.path);
+		for (const t of worktrees(root)) {
+			if (t.path === root) continue;
+			if (panes.some(p => [p.path, p.sessionPath, p.tag && real(p.tag)].some(path => path && within(t.path, path)))) continue;
+			if (spaces.get(t.path)?.agents.some(n => n.pid)) continue;
+			result.push({ root, path: t.path });
+		}
+	}
+	return result;
+}
+
 /** Main checkout for any path in a repo. */
 function repoRoot(path: string): string | undefined {
 	const common = git(path, "rev-parse", "--path-format=absolute", "--git-common-dir");
