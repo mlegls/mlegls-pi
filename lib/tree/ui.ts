@@ -413,10 +413,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			case "p": {
 				if (!w || w.main || w.key.startsWith("tmux:")) { message = "select a worktree"; break; }
 				const candidate = unattachedWorktrees(spaces).find(t => t.path === w.path);
-				if (!candidate) { message = "worktree has an attached window or live agent"; break; }
+				if (!candidate) { message = "worktree has a live process"; break; }
 				input = { kind: "confirm", text: "", prompt: `remove worktree ${label(w)}? (clean only; branch stays) [Enter] `, then: () => {
 					attempt(() => {
-						if (!unattachedWorktrees(spaces).some(t => t.path === candidate.path)) return "worktree now attached";
+						if (!unattachedWorktrees(spaces).some(t => t.path === candidate.path)) return "worktree now has a live process";
 						return `worktree ${act.pruneWorktree(candidate.root, candidate.path)}`;
 					});
 					void refresh();
@@ -425,8 +425,8 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			}
 			case "U": {
 				const candidates = unattachedWorktrees(spaces);
-				if (!candidates.length) { message = "no unattached worktrees in dashboard projects"; break; }
-				input = { kind: "confirm", text: "", prompt: `remove ${candidates.length} unattached worktree(s)? (dirty/busy skipped; branches stay) [Enter] `, then: () => {
+				if (!candidates.length) { message = "no idle worktrees in dashboard projects"; break; }
+				input = { kind: "confirm", text: "", prompt: `remove ${candidates.length} worktree(s)? (dirty/busy skipped; branches stay) [Enter] `, then: () => {
 					const counts = { removed: 0, dirty: 0, busy: 0, skipped: 0, errors: 0 };
 					for (const candidate of candidates) {
 						try {
@@ -607,7 +607,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
 
   workspace   n new pi   c new terminal   N new worktree off it (workmux, session mode)
               m merge into its parent (workmux merge)   x close its active window   X close its tmux session
-              p prune selected unattached worktree   U prune all unattached worktrees in dashboard projects
+              p prune selected idle worktree   U prune all idle worktrees in dashboard projects
               pruning skips dirty or busy worktrees, keeps branches, and never removes the main checkout
               d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
               y yazi   e nvim   o zed
@@ -622,7 +622,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ visits headings and live sessions
            h/l ←/→: windows in workspace view, fold/expand in session tree; enter opens/resumes
            x closes the active window (or selected agent's window); X closes its session
-           p prunes selected unattached worktree; U prunes all unattached worktrees in dashboard projects
+           p prunes selected idle worktree; U prunes all idle worktrees in dashboard projects
            n new pi   c new terminal   N new worktree (selected workspace/agent's workspace)
            it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept
   tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window

@@ -57,8 +57,8 @@ function worktrees(root: string): Tree[] {
 	return out;
 }
 
-/** Parked worktrees, including ones hidden from the dashboard by the recent-activity filter.
- * A session tag or pane cwd anywhere inside a worktree counts as attached. */
+/** Worktrees without live agents, including ones hidden by the recent-activity filter.
+ * Terminal windows alone do not make a worktree busy; pruning checks processes. */
 export function unattachedWorktrees(spaces: Map<string, Workspace>): { root: string; path: string }[] {
 	const panes = tmuxPanes();
 	const result: { root: string; path: string }[] = [];
@@ -67,7 +67,7 @@ export function unattachedWorktrees(spaces: Map<string, Workspace>): { root: str
 		const root = real(w.path);
 		for (const t of worktrees(root)) {
 			if (t.path === root) continue;
-			if (panes.some(p => [p.path, p.sessionPath, p.tag && real(p.tag)].some(path => path && within(t.path, path)))) continue;
+			if (panes.some(p => !/^(ba|z|fi|da|k)?sh$/.test(p.command) && [p.path, p.sessionPath, p.tag && real(p.tag)].some(path => path && within(t.path, path)))) continue;
 			if (spaces.get(t.path)?.agents.some(n => n.pid)) continue;
 			result.push({ root, path: t.path });
 		}

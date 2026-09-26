@@ -100,10 +100,20 @@ export function pruneWorktree(root: string, path: string): "removed" | "dirty" |
 	if (realPath === realpathSync(root) || !listed.split("\n").includes(`worktree ${realPath}`)) {
 		throw new Error(`not a worktree of ${root}: ${path}`);
 	}
-	// tmux attachment and headless pi state are checked by the caller. Refuse to orphan
-	// detached servers/watchers (or a terminal with its cwd in this worktree).
+	// Ignore only idle tmux pane shells, not arbitrary shells or background jobs.
+	const processes = execFileSync("ps", ["-axo", "pid=,ppid=,comm="], { encoding: "utf8" })
+		.trim().split("\n").map(line => line.trim().split(/\s+/));
+	const parents = new Set(processes.map(([, ppid]) => Number(ppid)));
+	const shells = new Set(processes.filter(([, , command]) => /(^|\/|-)(ba|z|fi|da|k)?sh$/.test(command ?? "")).map(([pid]) => Number(pid)));
+	let panes = "";
+	try { panes = tmux("list-panes", "-a", "-F", "#{pane_pid}"); } catch { /* No tmux server. */ }
+	const idle = new Set(panes.split("\n").map(Number).filter(pid => shells.has(pid) && !parents.has(pid)));
 	const listing = execFileSync("lsof", ["-d", "cwd", "-Fpn"], { encoding: "utf8" });
-	if (listing.split("\n").some(line => line.startsWith("n") && (line.slice(1) === realPath || line.slice(1).startsWith(realPath + "/")))) return "busy";
+	let pid = 0;
+	for (const line of listing.split("\n")) {
+		if (line.startsWith("p")) pid = Number(line.slice(1));
+		if (line.startsWith("n") && !idle.has(pid) && (line.slice(1) === realPath || line.slice(1).startsWith(realPath + "/"))) return "busy";
+	}
 	if (execFileSync("git", ["-C", realPath, "status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" }).trim()) return "dirty";
 	execFileSync("git", ["-C", root, "worktree", "remove", realPath], { encoding: "utf8" });
 	return "removed";
