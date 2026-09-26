@@ -4,16 +4,24 @@ Optimize for the lowest wall time to accepted completion within a similar total 
 
 Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
 
-- Aim for close to, but no more than, 50% of the Anthropic weekly quota on non-fable workers; preserve interactive fable capacity.
-- Aim to use the OpenAI, Z.ai Coding Plan, and Grok allowances, while allowing for interactive OpenAI use.
+- Bias delegated work toward `openai-codex`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
+- Use Anthropic primarily for interactive sessions, the top-level long-context supervisor, and UI/visual design. There is no fixed 50% non-fable ceiling or need to reserve capacity specifically for fable.
+- Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
 - Metered providers are overflow when appropriate.
 - OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.
 
-Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). For example, 40% weekly usage against a 50% ceiling is 0.8. Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance.
+Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance.
 
 ## Agent preferences
 
 Agent files in `agents/` declare model and effort preferences for worker stances. General routing treats these as advisory and can select an available fallback; an explicit tracker assignment to a stance with a declared pair uses that pair and refuses unavailable execution. A compound `agent:<stance>, model:<provider>/<model>:<effort>` assignment selects the stance with the explicit model override.
+
+## Model preferences
+
+- Opus 5.5 is preferred for interactive work, the top-level long-context supervisor, and especially UI/visual design. Sonnet 5 remains a substantially cheaper option; consider it for the top-level supervisor if Anthropic consumption is still too high.
+- Opus 5.5 supersedes opus 5 and is better than fable 5.1 on most work. Fable's remaining possible niche is diversity of thought / range of possibilities in interactive exploration, not ordinary non-interactive assignments.
+- GPT-6-sol replaces GPT-5.6 terra and sol for fresh routing. Where older sol still has an advantage over GPT-6-sol, astra covers that capability; do not retain older sol as a separate routing tier.
+- GPT-6-luna replaces GPT-5.6-luna. Use luna or sol when sufficient and astra for work that needs its stronger capabilities, accounting for retries and parent repair rather than optimizing token price alone.
 
 ## Assignment stances
 
@@ -53,12 +61,11 @@ Distinguish visual perception, GUI grounding, interactive computer use, and visu
 - Routing places delegated assignments and identifies closure gaps; it does not choose an interactive session's purpose.
 - A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
 
-## catalog (2026-09-23 list prices, $/MTok in/out; cache-read in parens)
+## Active catalog (list prices, $/MTok in/out; cache-read in parens)
 - fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): 10/50 (0.25).
 - gpt astra 6 (`openai-codex/gpt-6-astra`; efforts low/medium/high): 10/50 (1).
-- opus 5 (`anthropic/claude-opus-5`), sonnet 5 (`anthropic/claude-sonnet-5`); efforts low/medium/high. opus: 5/25 (0.5). sonnet 5: 2/10 (0.2).
+- sonnet 5 (`anthropic/claude-sonnet-5`; efforts low/medium/high): 2/10 (0.2).
 - opus 5.5 (`anthropic/claude-opus-5-5`; efforts low/medium/high/xhigh/max): 4/20 (0.2).
-- gpt 5.6 sol (`openai-codex/gpt-5.6-sol`), terra (`openai-codex/gpt-5.6-terra`), luna (`openai-codex/gpt-5.6-luna`); efforts low/medium/high. sol: 4/20 (0.4). terra: 2/12 (0.2). luna: 0.2/1.2 (0.02).
 - gpt 6 sol (`openai-codex/gpt-6-sol`), luna (`openai-codex/gpt-6-luna`); efforts low/medium/high/xhigh/max. sol: 2/10 (0.2); luna: 0.1/0.5 (0.01). Prompts above 272K input tokens have higher API rates; subscription capacity is not list-price spending.
 - deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003).
 - grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5).
