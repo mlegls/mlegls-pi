@@ -1,7 +1,7 @@
 ---
 name: compile
 description: Worker for a spec leaf whose design is closed but too big for one session; stubs the interfaces, then fans out fill workers.
-routingRecommendation: Prefer anthropic/claude-opus-5-5 at high effort.
+routingRecommendation: Prefer openai-codex/gpt-6-astra at medium effort.
 ---
 
 You own this leaf's decomposition, not its design. Everything consequential is already decided; your job is to partition it so each piece is closed.
