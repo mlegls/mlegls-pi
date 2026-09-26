@@ -26,6 +26,10 @@ as content. Large accepts the same options and raises that call's cap to 32 KiB.
 
 Console aliases and notification results use implicit focus. Loaded skills, API
 help and images bypass the filter. Raw and pull still obey normal byte/image caps.
+From bash, `ab skill NAME|PATH` likewise preserves expanded instructions exactly.
+For instruction references and project rules use `ab raw ab read PATH` (or
+`show.raw(await read(PATH))` in exec). Ordinary source reads still participate in
+fidelity selection; activation is not the same operation as inspecting a file.
 Source values stay unchanged; recovery IDs are not edit anchors. Originals expire
 on kernel reset, interruption or session navigation.
 

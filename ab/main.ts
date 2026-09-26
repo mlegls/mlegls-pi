@@ -123,7 +123,7 @@ async function skill(args: string[]) {
 		return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", exitCode: r.status, stdoutTruncated: false, stderrTruncated: false };
 	};
 	const loaded = await createSkillLoader(cwd, runShell, (v: unknown) => v)(path);
-	console.log(loaded.text);
+	console.log(exact(loaded.text));
 }
 
 async function code(args: string[]) {

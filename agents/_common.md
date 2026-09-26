@@ -10,7 +10,7 @@ For `chrome-devtools-axi`, use one unique named session per worker on every invo
 
 The board is for peer coordination, not terminal reports. Peers are `{{run}}/*`. Read `await board.read({topic: "{{run}}/*"})` before touching a shared seam; `board.subscribe` if you'd rather be woken. Reads return `{messages, omitted}`; show what you need, then `await board.ack(ids)` for messages you've handled. A decision that affects a peer can go on your topic tagged `decision` plus `path:<file>` for each file it touches.
 
-When exec exposes `loadSkill`, activate a skill with `await show(await loadSkill(absolutePath))`. `read` is raw inspection; it does not run skill placeholders. Retain the loaded value to show it again without rerunning setup.
+When exec exposes `loadSkill`, activate a skill with `await show(await loadSkill(absolutePath))`. From bash use `ab skill NAME|PATH`. Both preserve loaded instructions verbatim and expand skill placeholders. Plain `read` does not activate a skill. Read instruction references and project rules exactly (`ab raw ab read PATH` in bash, `show.raw(await read(PATH))` in exec); do not follow a token-deleted rule. Retain loaded values rather than rerunning activation just to reread.
 
 Commit as you go; the parent merges your branch.
 
