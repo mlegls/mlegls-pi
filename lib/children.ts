@@ -77,7 +77,7 @@ async function turnEndWm(ids: string[], options: TurnEndOptions): Promise<TurnEn
       if (options.signal?.aborted) throw abortError(options.signal);
       for (const [worker, outcome] of events) {
         const id = targets.find((target) => target.topic === worker.topic)?.id ?? worker.handle;
-        const end: TurnEnd = { id, kind: wmKind(outcome.kind), text: wmText(outcome), cursor: wmCursor(outcome) };
+        const end: TurnEnd = { id, kind: wmKind(outcome.kind), text: wmText(outcome), cursor: wmCursor(outcome), ...(outcome.kind === "exited" ? { unreachable: true as const } : {}) };
         if (!options.after?.[id] || options.after[id] !== end.cursor) return end;
       }
     }

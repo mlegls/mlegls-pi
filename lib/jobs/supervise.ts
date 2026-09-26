@@ -5,7 +5,7 @@
 // Children are wm workers spawned with the owner as parent session; the owner is woken on
 // its mailbox (mail/xxxxxxxx, lib/board/mailbox).
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, watch } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, realpathSync, watch } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { dispatch, integrate, retire as retireWorker, topic, type Handle } from "../dispatch.ts";
@@ -34,10 +34,10 @@ function snapshot(input: Input): Issue[] {
 }
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 // Every loop runs in the one ab daemon, and loops over the same repository commit to the same checkout;
-// integration, the tests after it and the close commit run one loop at a time per repository.
+// preparation and integration run one loop at a time per repository (including symlink aliases).
 const repoTurns = new Map<string, Promise<unknown>>();
 function serialized<T>(cwd: string, fn: () => Promise<T>): Promise<T> {
- const key = resolve(cwd, git(cwd, "rev-parse", "--git-common-dir"));
+ const key = realpathSync(resolve(cwd, git(cwd, "rev-parse", "--git-common-dir")));
  const run = (repoTurns.get(key) ?? Promise.resolve()).catch(() => {}).then(fn);
  repoTurns.set(key, run);
  return run;
@@ -113,11 +113,14 @@ export async function run(job: JobContext) {
  };
  // Unmerged branches (drop, redispatch) survive for the owner to inspect; merged ones are deleted.
  const retire = async (h: Handle) => { await retireWorker(h, { cwd: input.cwd }).catch(e => job.log("retire " + h.handle + ": " + e)); };
- const close = async (slug: string) => {
-  const issue = snapshot(input).find(i => i.slug === slug);
-  if (issue && !issue.done && existsSync(issue.file)) {
+ const close = async (slug: string, cwd: string) => {
+  const issue = snapshot({ ...input, cwd }).find(i => i.slug === slug);
+  if (!issue || !existsSync(issue.file)) throw new Error("Missing child issue " + slug + " in " + cwd);
+  if (!issue.done) {
+   // A shared/external tracker cannot ride this branch; refuse before writing outside it.
+   git(cwd, "ls-files", "--error-unmatch", "--", issue.file);
    writeFileSync(issue.file, readFileSync(issue.file, "utf8").replace(/^stage: \w+$/m, "stage: done"));
-   await commitRetrying(input.cwd, "-qm", "Close " + slug, "--", issue.file);
+   await commitRetrying(cwd, "-qm", "Close " + slug, "--", issue.file);
   }
  };
  const carried = () => { const l = listCaveats(state.caveats); return l ? "\nCaveats the children reported, integrated anyway; file each as an idea or link its owner:\n" + l : ""; };
@@ -125,17 +128,20 @@ export async function run(job: JobContext) {
   "Your branch starts at the implementer's commits. First use as the ticket's user; record what you observe; update guides/replays only where the encounter earns them. " + HANDOFF + "stories: each story or promise you checked with held, failed or unobservable; caveats: [] when there are none (residuals the loop carries on; a failed story is what stops it).",
   "Ticket " + slug + ":\n\n" + ticket, "Implementer's report:\n\n" + report].join("\n\n");
  const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
-  // A commit landing between the rebase and the fast-forward fails the merge; rebasing again settles it.
-  try { await integrate(handle, { cwd: input.cwd }).catch(error => error?.name === "MergeConflict" ? Promise.reject(error) : integrate(handle, { cwd: input.cwd })); }
-  catch (error) { return except(c, "integration failed", String(error)); }
-  if (c.implementer) await retire(c.implementer);
-  if (input.test) {
-   try { execFileSync("bash", ["-lc", input.test], { cwd: input.cwd, stdio: "pipe" }); }
-   catch (error: any) { return except(c, "tests fail after integrating " + c.slug, String(error.stdout ?? "") + String(error.stderr ?? "")); }
+  // Failed preparation keeps both the owner HEAD and the child's resources intact.
+  const attempt = () => integrate(handle, { cwd: input.cwd, keep: true, prepare: async worker => {
+   if (input.test) execFileSync("bash", ["-lc", input.test], { cwd: worker.path, stdio: "pipe" });
+   await close(c.slug, worker.path);
+  } });
+  try { await attempt(); }
+  catch (error: any) {
+   return except(c, "integration failed", String(error) + "\n" + String(error.stdout ?? "") + String(error.stderr ?? ""));
   }
-  await close(c.slug);
   delete state.children[c.slug]; state.integrated.push(c.slug); state.metrics.completed++;
   await save();
+  // Crash after saving may leave resources behind, but never a saved handle we already retired.
+  await retire(handle);
+  if (c.implementer) await retire(c.implementer);
  });
 
  // Pending owner commands (resume) are applied between turn ends.
@@ -149,9 +155,11 @@ export async function run(job: JobContext) {
    if (!c) { await wake("resume: no live child " + cmd.child); continue; }
    c.waiting = undefined; c.unreachable = undefined;
    if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); delete state.children[c.slug]; }
-   else if (cmd.action === "integrate") await integrateChild(c, c.handle);
-   else if (cmd.action === "verify") await toVerify(c, (await children.last(topic(c.handle)))?.text ?? "");
-   else if (cmd.action === "redispatch") { await retire(c.handle); delete state.children[c.slug]; }
+   try {
+    if (cmd.action === "integrate") await integrateChild(c, c.handle);
+    else if (cmd.action === "verify") await toVerify(c, (await children.last(topic(c.handle)))?.text ?? "");
+    else if (cmd.action === "redispatch") { await retire(c.handle); delete state.children[c.slug]; }
+   } catch (error) { await except(c, "resume failed", String(error)); }
   }
   applied = all.length; await save();
  };
@@ -183,6 +191,11 @@ export async function run(job: JobContext) {
   const live = Object.values(state.children);
   if (!live.length) break;
   // A child the host cannot read sends no turn end; it waits for a resume command like any exception.
+  for (const c of live) if (!c.unreachable && !existsSync(c.handle.path)) {
+   c.unreachable = true;
+   await except(c, "unreachable", "Worker worktree is missing: " + c.handle.path);
+  }
+  if (job.signal.aborted) return;
   const watched = live.filter(c => !c.unreachable);
   const ids = watched.map(c => topic(c.handle));
   const cursors = Object.fromEntries(watched.filter(c => c.cursor).map(c => [topic(c.handle), c.cursor!]));

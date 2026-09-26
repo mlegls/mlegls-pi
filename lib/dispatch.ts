@@ -123,7 +123,9 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 }
 
 /** Merge a settled worker's branch into the parent checkout, then retire its host resources.
- * Uncommitted work in the worktree refuses; conflicts abort and throw with the conflicted files. */
+ * Uncommitted work refuses; conflicts abort. Optional prepare runs on the child after
+ * rebase (or before a merge-mode merge), before touching the parent; it must leave clean commits.
+ * keep leaves cleanup to the caller, e.g. after persisting supervision state. */
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
@@ -139,13 +141,19 @@ async function handleOf(worker: Handle | string, cwd: string): Promise<Handle> {
 }
 
 export async function integrate(given: Handle | string,
-    options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean } = {}): Promise<Integration> {
+    options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean; prepare?: (worker: Handle) => Promise<void> } = {}): Promise<Integration> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const worker = await handleOf(given, cwd);
   const mode = options.mode ?? "rebase";
   const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
     execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
   const conflicted = async (dir: string) => (await git(dir, "diff", "--name-only", "--diff-filter=U")).out.split("\n").filter(Boolean);
+  // Prepare the settled branch after rebasing, while the owner and worker still exist.
+  const prepare = async () => {
+    await options.prepare?.(worker);
+    const dirty = await git(worker.path, "status", "--porcelain");
+    if (dirty.code || dirty.out) throw new Error("integrate: preparation left uncommitted changes in " + worker.path + "\n" + dirty.out);
+  };
   const dirty = await git(worker.path, "status", "--porcelain");
   if (dirty.out) throw new Error("integrate: uncommitted changes in " + worker.path + "\n" + dirty.out);
   const branch = (await git(worker.path, "branch", "--show-current")).out;
@@ -154,9 +162,11 @@ export async function integrate(given: Handle | string,
     const base = (await git(cwd, "rev-parse", "HEAD")).out;
     const rebase = await git(worker.path, "rebase", base);
     if (rebase.code) { const files = await conflicted(worker.path); await git(worker.path, "rebase", "--abort"); throw new MergeConflict(branch, files); }
+    await prepare();
     const ff = await git(cwd, "merge", "--ff-only", branch);
     if (ff.code) throw new Error("integrate: ff-only merge of " + branch + " failed: " + ff.err);
   } else {
+    await prepare();
     const merge = await git(cwd, "merge", "--no-ff", "--no-edit", branch);
     if (merge.code) { const files = await conflicted(cwd); await git(cwd, "merge", "--abort"); throw new MergeConflict(branch, files); }
   }
