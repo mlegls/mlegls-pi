@@ -53,7 +53,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(sent.messages.slice(0, firstContext.length)).toEqual(firstContext);
 		expect(sent.systemPrompt).toBe("Unchanged system prompt");
 		expect(one.compaction.details.prefixMode).toBe("captured");
-		expect(one.compaction.details.register).toBe("compaction-om-v6");
+		expect(one.compaction.details.register).toBe("compaction-om-v7");
 		expect(sent.messages.at(-1).content).toContain('vgel, "Small Models Can Introspect, Too"');
 		expect(sent.messages.at(-1).content).toContain('Jack Lindsey et al., "Emergent Introspective Awareness in Large Language Models"');
 		expect(one.compaction.usage).toEqual(usage);
@@ -90,10 +90,10 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(branch).toHaveLength(before);
 		citeTail = false; blocked = true;
 		const retried = await fold();
-		expect(retried.compaction.details.register).toBe("compaction-om-v6-fallback-plain");
+		expect(retried.compaction.details.register).toBe("compaction-om-v7-fallback-plain");
 		expect(sent.messages.at(-1).content).not.toContain("vgel");
 		expect(sent.messages.at(-1).content).toStartWith("Your context is about to be compacted");
-		expect(sent.messages.filter((m: any) => typeof m.content === "string" && m.content.includes("Mechanics."))).toHaveLength(1);
+		expect(sent.messages.filter((m: any) => typeof m.content === "string" && m.content.includes("Reply with only this JSON"))).toHaveLength(1);
 	} finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 

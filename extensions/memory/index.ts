@@ -30,7 +30,7 @@ function tools(pi: ExtensionAPI) {
 	});
 }
 
-const REGISTER = "compaction-om-v6";
+const REGISTER = "compaction-om-v7";
 const BLOCKED = /reverse engineering|duplicating model outputs/i;
 
 export default function memoryExtension(pi: ExtensionAPI) {
