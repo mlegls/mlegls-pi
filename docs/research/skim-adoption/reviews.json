@@ -1,0 +1,63 @@
+[
+  {
+    "session": "01a0dd6d-7fc7-77bb-a4da-858a9ebc3f9f",
+    "classification": "narrowed exact recovery, followed by sustained whole-call raw use; motive for persistence unrecorded",
+    "lines": [9, 10, 11, 12, 14, 18, 19, 20, 21, 22, 23],
+    "observation": "Broad connectome search omitted; a narrower hysteresis search finds nothing. Raw dependency search locates the definition. A subsequent source read is skimmed; the agent rereads six definition lines raw before explaining the slack threshold. 130/135 calls use raw:true, but the transcript does not say why that preference persists.",
+    "pullCorrection": "The lexical pull candidate at line 297 is an example inside a newly written file, not a recovery invocation. No actual pull identified."
+  },
+  {
+    "session": "01a0de22-780c-730b-8fb3-78d4fd46e8e0",
+    "classification": "pre-existing raw preference; later mixed use",
+    "lines": [10, 12, 13, 14, 15, 17, 19, 22],
+    "observation": "First call is raw before any filtered response. After a broad historical prompt search is skimmed, reads the prompt-library implementation raw and narrows the session query. Continues mixing raw and filtered calls (11/26 whole-call raw). The first raw use cannot have been caused by this session's filtering."
+  },
+  {
+    "session": "01a0ddca-4f99-714a-be5c-46535cc1fc2a",
+    "classification": "successful pull plus narrowed raw refetch for factual grounding; no blanket switch",
+    "lines": [22, 23, 24, 25, 26, 27, 56],
+    "observation": "Article arrives as 50% and 75% skims. The next call pulls one passage, then refetches the article with code blocks removed and extracts experiment/control lines raw. The following answer cites the recovered numerical comparisons and caveats. Later raw use checks newly rendered prompt text. This demonstrates recovery before claims, not that every scientific claim in the answer is correct."
+  },
+  {
+    "session": "01a0dd27-5497-7430-9ef6-2be30e0e383a",
+    "classification": "omitted relevant code recovered by narrowed raw reread; no blanket switch",
+    "lines": [55, 56, 57, 58, 59, 60],
+    "observation": "Reads recording-tool implementation while planning label-change timing; all source chunks are omitted. Rereads lines 370–410 via ab raw, then reasons about pre-write versus post-write state and follows the host/theory interface. Uses per-command exact reads rather than whole-call raw or pull."
+  },
+  {
+    "session": "01a0dd1f-096b-76a6-9574-f6f60eb8fa08",
+    "classification": "targeted exact inspection after omission; no blanket switch",
+    "lines": [17, 18, 19, 20, 21, 23, 37, 40],
+    "observation": "Route admission code is omitted during a model-availability investigation. Rereads the relevant route span plus dispatch and its tests raw. Then distinguishes selectable model pairs from fixed operating-point recommendations; later obtains anchored reads before edits. Exact inspection is appropriate; the extra read is not proof of confused beliefs."
+  },
+  {
+    "session": "01a0dd10-99d0-77f6-b564-52291637e92c",
+    "classification": "pre-edit exact inspection, not an established reaction to skim damage",
+    "lines": [34, 35, 36, 38, 39],
+    "observation": "First whole-call raw read inspects precedent Markdown/CSS immediately before implementation. The preceding result is a normal exact grep result plus an install still running; no complaint or failed recovery ties this raw choice to filtering. It returns to normal filtered reads on the next call."
+  },
+  {
+    "session": "01a0dd5f-697a-700e-9739-1d70cfadae57",
+    "classification": "narrowed focused reread, no raw or pull",
+    "lines": [9, 11, 12, 13, 14, 15, 16],
+    "observation": "The report's reproduction section and docs map are omitted while its main evidence remains exact. The next call narrows to report lines 5–55 with reproduction focus, recovering the reproduction paragraph, then edits the report's coverage claims. No raw or pull call in the 12-call window. Subsequent edit-DSL mistakes are not evidence of skim confusion."
+  },
+  {
+    "session": "01a0dd5e-d8e5-7519-9381-dc00f297b560",
+    "classification": "exact instruction recovery and successful later pull; no blanket switch",
+    "lines": [8, 9, 10, 11, 115, 116, 117],
+    "observation": "AGENTS commands/testing arrives as a 75% skim. The next turn requests full AGENTS through ab raw while other reads remain filtered. Later pulls a Podman failure log and launches the cached image by its recovered immutable ID to bypass registry credential lookup. This traces recovery into the next action, not eventual test success."
+  },
+  {
+    "session": "01a0dd4f-a25f-7035-8329-77eb209b4461",
+    "classification": "repeated omitted read, recognized detail loss, later successful pull; no blanket switch",
+    "lines": [14, 15, 17, 18, 20, 48, 51, 53, 419, 421, 422, 423],
+    "observation": "A docs-map read is omitted; repeating it through tail is omitted again. Later explicitly says the skim loses CSS details, then reads mockup CSS ranges raw. Later pulls computer-use guidance and starts the browser CLI with a named session. These show recovery overhead and usable recovery, not an observed reversed belief."
+  },
+  {
+    "session": "01a0dd4b-4249-734c-ba5d-8cc9797572f9",
+    "classification": "initial exact-instruction preference; later failed recovery invocation",
+    "lines": [15, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33],
+    "observation": "Raw tracker references precede the first filtered response, so that initial choice is not rejection. Later sees omitted lint output and says it will read raw, but the rerun contains neither raw:true nor ab raw. That result is omitted again. Writes lint JSON to a file and reads it with explicit focus, recovering the first report's fresh status and empty findings. The missing raw request is a caller mistake, not a broken raw escape hatch."
+  }
+]
