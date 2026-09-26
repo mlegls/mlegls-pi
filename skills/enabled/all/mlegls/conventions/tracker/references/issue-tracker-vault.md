@@ -30,7 +30,7 @@ Omit stage only when all residual work is delegated to children; null is invalid
 
 `check` also flags a spec or ticket whose effective stage is lower than its own (it names the child: refinement never lowers a node, so that child moves out of the tree), a `docs/frictions.md` beside a vault tracker, and a new uncommitted issue without `author`.
 
-`check` rewrites vault-absolute issue links left dangling by archiving or un-archiving to where the issue now is, and prints each as `fixed`.
+`check` is read-only: it reports dangling links and available archive/heading repairs, exiting nonzero for findings. `check --fix` applies those link repairs and prints each as `fixed`; other diagnostics still require review. Same-project vault links resolve against the checkout being checked (same Git common directory and repository-relative docs path), not the canonical checkout behind the vault symlink. Other projects resolve through the vault. An absent local target never falls back to its canonical copy.
 
 The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
 

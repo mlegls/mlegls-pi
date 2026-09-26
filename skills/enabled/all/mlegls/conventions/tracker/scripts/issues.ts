@@ -4,7 +4,7 @@
 //   issues frontier [slug]  execution-ready agent-permitted subtrees, unblocked and unclaimed
 //   issues mine [slug]      explicit human/user assignments, including shaping work
 //   issues tree [slug]      subtree under slug (or every root), children in dependency order
-//   issues check            dangling links and anchors across docs/, blockers already done, archive consistency, stale claims
+//   issues check [--fix]    read-only diagnostics; --fix applies archive-link and heading repairs
 //   issues outline          the project's outliner note against the tracker: each linked bullet's state, unlinked intent, uncovered issues
 //
 // [slug] scopes to that issue's subtree.
@@ -13,7 +13,7 @@
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, basename, dirname, resolve } from "node:path";
+import { join, basename, dirname, resolve, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, parseDocument, visit } from "yaml";
 
@@ -249,9 +249,8 @@ function tree(root: Issue | undefined, all: Map<string, Issue>, depth = 0): stri
 
 // Every [[link]] and [[link#Heading]] under docs/, resolved as Obsidian does: by
 // basename, disambiguated by the link's trailing path segments; fenced code ignored.
-// A vault-absolute issue link left dangling by archiving (or un-archiving) is
-// rewritten to where the issue now is, and reported as fixed.
-function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) => void) {
+// Repairs are opt-in; checking a branch must not rewrite it against canonical state.
+function checkLinks(docs: string, say: (s: string) => void, repair: boolean) {
   const files: string[] = [];
   const walk = (d: string) => {
     for (const name of readdirSync(d)) {
@@ -270,11 +269,30 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
     const b = basename(f, ".md");
     byBase.set(b, [...(byBase.get(b) ?? []), f]);
   }
+  // A vault project points at docs in one checkout. Match both repository and
+  // repository-relative directory, so sibling projects in a monorepo stay distinct.
+  const identity = (path: string): string | undefined => {
+    const p = spawnSync("git", ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir", "--show-toplevel"], { encoding: "utf8" });
+    if (p.status !== 0) return undefined;
+    const [common, top] = p.stdout.trim().split("\n");
+    return realpathSync(common) + "\n" + relative(realpathSync(top), realpathSync(path));
+  };
+  const ownIdentity = identity(docs);
+  const projectRoots = new Map<string, string>();
+  const projectRoot = (name: string) => {
+    if (!projectRoots.has(name)) {
+      const path = join(vault, "projects", name);
+      const local = existsSync(path) && (realpathSync(path) === realpathSync(docs) || (ownIdentity !== undefined && identity(path) === ownIdentity));
+      projectRoots.set(name, local ? docs : path);
+    }
+    return projectRoots.get(name)!;
+  };
   const resolveLink = (target: string): string | undefined => {
     const segs = target.split("/");
-    if (segs[0] === "projects" && existsSync(join(vault, ...segs.slice(0, 2)))) {
-      // A note is named without its extension; any other file (an attachment script, an image) with it.
-      return [join(vault, target + ".md"), join(vault, target)].find((p) => existsSync(p) && statSync(p).isFile());
+    if (segs[0] === "projects" && segs.length >= 3) {
+      // Never fall back to a local namesake for an explicit foreign project.
+      const path = join(projectRoot(segs[1]), ...segs.slice(2));
+      return [path + ".md", path].find((p) => existsSync(p) && statSync(p).isFile());
     }
     const cands = byBase.get(segs[segs.length - 1]) ?? [];
     if (cands.length <= 1) return cands[0];
@@ -321,13 +339,14 @@ function checkLinks(docs: string, say: (s: string) => void, fixed: (s: string) =
       }
     }
     if (!fixes.size && !anchors.size) continue;
+    const fixed = (s: string) => repair ? console.log("fixed " + s) : say("repair available (check --fix): " + s);
     let out = raw;
     for (const [from, to] of anchors) { out = out.split(from).join(to); fixed(`${rel}: ${from}]] -> ${to}]]`); }
     for (const [from, to] of fixes) {
       for (const end of ["]]", "#", "|", "\\|"]) out = out.split("[[" + from + end).join("[[" + to + end);
       fixed(`${rel}: [[${from}]] -> [[${to}]]`);
     }
-    writeFileSync(f, out);
+    if (repair) writeFileSync(f, out);
   }
 }
 
@@ -397,7 +416,9 @@ function outline(note: string, all: Map<string, Issue>): string[] {
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
-const [cmd, arg] = args.filter(a => a !== "--json");
+const repair = args.includes("--fix");
+const [cmd, arg] = args.filter(a => a !== "--json" && a !== "--fix");
+if (repair && cmd !== "check") throw new Error("--fix is only supported by check");
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);
 flight = inflight(dir, slug => !all.has(slug) || all.get(slug)!.archived || complete(all.get(slug)!, all));
@@ -478,7 +499,7 @@ if (cmd !== "lint") switch (cmd) {
     // Observations are issues in a vault project; a side log is read by nobody who triages.
     if (existsSync(join(dirname(dir), "frictions.md"))) say("docs/frictions.md: frictions in a vault project are stage: idea issues");
     for (const slug of uncommitted(dir)) if (all.has(slug) && !all.get(slug)!.author) say(`${slug}: new issue without author provenance`);
-    checkLinks(dirname(dir), say, (s) => console.log("fixed " + s));
+    checkLinks(dirname(dir), say, repair);
     if (!bad) console.log("ok");
     else process.exitCode = 1;
     break;
@@ -491,6 +512,6 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check | outline [--json]");
+    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix] | outline [--json]");
     process.exitCode = 2;
 }

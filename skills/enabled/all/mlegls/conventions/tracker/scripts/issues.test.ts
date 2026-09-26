@@ -24,6 +24,8 @@ mkdirSync(join(issues, "archive"), { recursive: true });
 mkdirSync(join(issues, "attachments"));
 put("attachments/evidence", "A note, not an issue.\n");
 put("blocker", frontmatter("stage: idea"));
+mkdirSync(join(vault, "projects"), { recursive: true });
+symlinkSync(join(cwd, "docs"), join(vault, "projects/fixture"));
 afterAll(() => { rmSync(cwd, { recursive: true, force: true }); rmSync(vault, { recursive: true, force: true }); });
 
 test("cross-project evidence links resolve through the vault, not a local namesake", () => {
@@ -36,16 +38,19 @@ test("cross-project evidence links resolve through the vault, not a local namesa
   expect(checked.out).not.toContain("delivery");
   expect(checked.out).toContain("[[projects/other/blocker]] does not exist");
   rmSync(evidence);
-  symlinkSync(join(cwd, "docs"), join(vault, "projects/fixture"));
   writeFileSync(join(cwd, "docs/issues/archive/gone.md"), "---\nstage: done\n---\n");
   writeFileSync(evidence, "[[projects/fixture/issues/gone]] [[projects/fixture/issues/gone|alias]]\n");
-  const fixed = run("check");
+  const before = readFileSync(evidence, "utf8");
+  const checkedMove = run("check");
+  expect(checkedMove.code).toBe(1);
+  expect(checkedMove.out).toContain("repair available (check --fix)");
+  expect(readFileSync(evidence, "utf8")).toBe(before);
+  const fixed = run("check --fix");
   expect(fixed.out).toContain("fixed migration.md: [[projects/fixture/issues/gone]] -> [[projects/fixture/issues/archive/gone]]");
   expect(fixed.out).not.toContain("does not exist");
   expect(readFileSync(evidence, "utf8")).toBe("[[projects/fixture/issues/archive/gone]] [[projects/fixture/issues/archive/gone|alias]]\n");
   rmSync(evidence);
   rmSync(join(cwd, "docs/issues/archive/gone.md"));
-  rmSync(join(vault, "projects/fixture"));
 });
 
 test("format-equivalent dependencies preserve all queries", () => {
@@ -317,17 +322,81 @@ test("work in flight elsewhere leaves the frontier: supervise children, closes o
   p.done();
 }, 30_000);
 
-test("check rewrites a unique slugged heading anchor to the heading text, and names an oversized open body", () => {
+test("check proposes a unique heading repair without writing; --fix applies it", () => {
   const p = project({
     "issues/target.md": frontmatter("stage: idea") + "\n## Frontend replacement mid-turn — 2026-09-25\n\n## Twin one\n\n## Twin: one\n",
     "issues/linker.md": frontmatter("stage: idea") + "[[projects/fixture/issues/target#frontend-replacement-mid-turn-2026-09-25|x]] [[projects/fixture/issues/target#twin-one]]\n" + "x".repeat(33_000),
   });
   symlinkSync(join(p.root, "docs"), join(vault, "projects/fixture-anchors"));
   p.write({ "issues/linker.md": readFileSync(join(p.root, "docs/issues/linker.md"), "utf8").replaceAll("projects/fixture/", "projects/fixture-anchors/") });
+  const before = readFileSync(join(p.root, "docs/issues/linker.md"), "utf8");
   const out = p.check();
+  expect(out).toContain("repair available (check --fix)");
+  expect(readFileSync(join(p.root, "docs/issues/linker.md"), "utf8")).toBe(before);
+  Bun.spawnSync([process.execPath, cli, "check", "--fix"], { cwd: p.root, env: { ...process.env, TRACKER_VAULT: vault } });
   expect(readFileSync(join(p.root, "docs/issues/linker.md"), "utf8")).toContain("[[projects/fixture-anchors/issues/target#Frontend replacement mid-turn — 2026-09-25|x]]");
   expect(out).toContain("target#twin-one]] has no such heading");
   expect(out).toContain("linker: body is 33KB");
   rmSync(join(vault, "projects/fixture-anchors"));
   p.done();
+}, 30_000);
+test("worktree links use branch docs; foreign projects retain vault state", () => {
+  const p = project({
+    "issues/moved.md": frontmatter("stage: done"),
+    "issues/deleted.md": frontmatter("stage: idea"),
+    "guide.md": "# Canonical heading\n",
+  }, true);
+  const branch = p.root + "-branch";
+  const sh = (...args: string[]) => {
+    const r = Bun.spawnSync(["git", "-C", p.root, ...args]);
+    expect(r.exitCode).toBe(0);
+  };
+  const link = join(vault, "projects/branch-fixture");
+  const sibling = join(vault, "projects/sibling-fixture");
+  try {
+    mkdirSync(join(p.root, "sibling/docs"), { recursive: true });
+    writeFileSync(join(p.root, "sibling/docs/guide.md"), "# Sibling heading\n");
+    symlinkSync(join(p.root, "sibling/docs"), sibling);
+    symlinkSync(join(p.root, "docs"), link);
+    sh("worktree", "add", "--detach", branch);
+    mkdirSync(join(branch, "docs/issues/archive"));
+    rmSync(join(branch, "docs/issues/moved.md"));
+    rmSync(join(branch, "docs/issues/deleted.md"));
+    writeFileSync(join(branch, "docs/issues/archive/moved.md"), frontmatter("stage: done"));
+    writeFileSync(join(branch, "docs/guide.md"), "# Branch heading\n");
+    mkdirSync(join(branch, "docs/attachments"));
+    writeFileSync(join(branch, "docs/attachments/probe.ts"), "export {};\n");
+    const evidence = join(branch, "docs/evidence.md");
+    const text = [
+      "[[projects/branch-fixture/issues/archive/moved]]",
+      "[[projects/branch-fixture/issues/moved|old link]]",
+      "[[projects/branch-fixture/guide#Branch heading]]",
+      "[[projects/branch-fixture/attachments/probe.ts]]",
+      "[[projects/branch-fixture/issues/deleted]]",
+      "[[projects/sibling-fixture/guide#Sibling heading]]",
+      "[[projects/unmapped/guide]]",
+    ].join("\n");
+    writeFileSync(evidence, text);
+    const check = (...args: string[]) => Bun.spawnSync([process.execPath, cli, "check", ...args], {
+      cwd: branch, env: { ...process.env, TRACKER_VAULT: vault },
+    });
+    const result = check();
+    const out = result.stdout.toString();
+    expect(result.exitCode).toBe(1);
+    expect(out).toContain("[[projects/branch-fixture/issues/deleted]] does not exist");
+    expect(out).toContain("[[projects/unmapped/guide]] does not exist");
+    expect(out).toContain("[[projects/branch-fixture/issues/moved]] -> [[projects/branch-fixture/issues/archive/moved]]");
+    expect(out).not.toContain("has no such heading");
+    expect(out).not.toContain("probe.ts");
+    expect(out).not.toContain("sibling-fixture");
+    expect(readFileSync(evidence, "utf8")).toBe(text);
+    check("--fix");
+    expect(readFileSync(evidence, "utf8")).toBe(text.replace("issues/moved|", "issues/archive/moved|"));
+    expect(readFileSync(join(p.root, "docs/issues/moved.md"), "utf8")).toBe(frontmatter("stage: done"));
+  } finally {
+    sh("worktree", "remove", "--force", branch);
+    rmSync(link, { force: true });
+    rmSync(sibling, { force: true });
+    p.done();
+  }
 }, 30_000);
