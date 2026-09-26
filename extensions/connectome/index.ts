@@ -538,6 +538,8 @@ export default function (pi: ExtensionAPI) {
 	});
 	// Chronicle owns forgetting; pi's compaction would summarize a view we already replace.
 	pi.on("session_before_compact", async () => (life ? { cancel: true } : undefined));
+	// Other extensions (fence) ask whether a life owns this session's context.
+	pi.events.on("connectome:query", (q) => { (q as { active?: boolean }).active = !!life; });
 
 	// /tree navigation = time travel in the life: branch the store at the newest message the
 	// new leaf has in common with it.
