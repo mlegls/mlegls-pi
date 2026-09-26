@@ -84,7 +84,7 @@ export function assigned(options: RouteOptions = {}) {
     throw new Error('Unknown assigned agent: ' + parsed.stance);
   const execution = parsed.execution ?? (parsed.stance ? operatingPoint(parsed.stance) : undefined);
   if (execution) {
-    if (!candidates(section(policy, 'catalog')).some(c => c.model === execution.model && c.effort === execution.effort))
+    if (!candidates(section(policy, 'Active catalog')).some(c => c.model === execution.model && c.effort === execution.effort))
       throw new Error('Unknown assigned model or effort: ' + execution.model + ':' + execution.effort);
     const provider = execution.model.split('/')[0];
     if (Object.hasOwn(options.unavailableProviders ?? {}, provider)) throw new Error('Assigned provider unavailable: ' + provider);
@@ -119,7 +119,7 @@ async function select(workflow: string, block: string, options: RouteOptions,
       throw new Error('Invalid usage fraction for ' + provider);
     }
   }
-  const choices = candidates(section(policy, 'catalog'))
+  const choices = candidates(section(policy, 'Active catalog'))
     .filter(candidate => !Object.hasOwn(unavailableProviders, candidate.model.split('/')[0]))
     .map(candidate => {
       const provider = candidate.model.split('/')[0];
