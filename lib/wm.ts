@@ -23,7 +23,7 @@ import { logSize, readFrom, type Message } from "./board/store";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: Message } // checkpoint: fenced on context; paused for a follow-up like needs-input
-	| { kind: "idle"; tail: string } // agent finished a turn without reporting
+	| { kind: "idle"; tail: string; message?: Message } // turn ended without a status: the pi's turn-end post (message), or for other commands a quiet pane
 	| { kind: "exited"; tail: string }; // pi process gone
 
 export interface SpawnOptions {
@@ -188,8 +188,9 @@ class Poller {
 			this.cursor = offset;
 			for (const m of messages) {
 				const tag = TERMINAL.find((t) => m.tags.includes(t));
-				if (!tag) continue;
-				for (const w of this.workers) if (w.topic === m.topic) w.emit({ kind: tag, message: m });
+				// pi workers post every turn end (lib/board/host.ts); one without a status is idle, with its text.
+				const o: Outcome | undefined = tag ? { kind: tag, message: m } : m.tags.includes("turn-end") ? { kind: "idle", tail: m.body, message: m } : undefined;
+				if (o) for (const w of this.workers) if (w.topic === m.topic) w.emit(o);
 			}
 			const byCwd = new Map<string, Promise<StatusEntry[]>>();
 			const panes = await livePanes();
@@ -222,6 +223,8 @@ export class Worker {
 	private reportedAfterIdle = false;
 	private lastReportTs = 0;
 	private sawAgent = false; // pane has run something other than a shell, so a shell now means pi exited
+	/** Infer idle turns from workmux status. Only for explicit commands: pi workers post their own turn ends. */
+	quietIsIdle = false;
 
 	constructor(
 		readonly run: string,
@@ -271,7 +274,7 @@ export class Worker {
 				return;
 			}
 		}
-		if (!entry) return;
+		if (!entry || !this.quietIsIdle) return;
 		if (entry.status === "working") {
 			this.idleSince = undefined;
 			this.reportedAfterIdle = false;
@@ -453,7 +456,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	if (o.command === undefined && (!o.model?.includes("/") || !o.effort))
 		throw new Error("wm.spawn requires routed model (provider/model) and effort, or an explicit command");
 	const quote = (text: string) => "'" + text.replaceAll("'", "'\"'\"'") + "'";
-	let cmd = o.command ?? "pi --model " + quote(o.model!) + " --thinking " + quote(o.effort!) + " --tools exec,ls";
+	let cmd = o.command ?? "pi --model " + quote(o.model!) + " --thinking " + quote(o.effort!);
 	if (!cmd.trim()) throw new Error("command must not be empty");
 	const cwd = resolve(o.cwd ?? process.cwd());
 	const session = o.session ?? slug(o.run);
@@ -461,6 +464,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	await excludeWm(cwd);
 	// Own the board window before workmux starts the agent, or a fast report is consumed by a ticking poller against nobody.
 	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
+	w.quietIsIdle = o.command !== undefined;
 	try {
 		let text = o.prompt;
 		if (o.from === "summary") {

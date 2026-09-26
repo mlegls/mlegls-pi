@@ -1,4 +1,3 @@
-import { executionHost } from "../execution-host.ts";
 // Board: a shared pubsub log for coordinating pi sessions and scripts.
 //
 // Topics are paths (`compile/run-3/unit-a`), messages carry tags, and a session
@@ -16,7 +15,8 @@ import { basename } from "node:path";
 import { type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { compileQuery, parseTags } from "./query";
-import { logSize, noteRead, readFrom, topics, type Message } from "./store";
+import { logSize, noteRead, readFrom, send, topics, type Message } from "./store";
+import { parse } from "../report.ts";
 
 interface Subscription {
 	topic: string;
@@ -46,7 +46,6 @@ function subKey(s: Subscription): string {
 }
 
 export function install(pi: ExtensionAPI) {
-	if (executionHost() !== "wm") return;
 	let subs: Subscription[] = [];
 	let cursor = 0; // byte offset into the log
 	let context: ExtensionContext | undefined;
@@ -177,7 +176,10 @@ export function install(pi: ExtensionAPI) {
 		// A spawned worker (PI_BOARD_TOPIC set by its parent) starts subscribed with wake to its own
 		// topic, so the parent's follow-ups and needs-input answers reach it without it asking.
 		subs = restoredSubs ?? (process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []);
-		if (!restoredSubs && subs.length) persistSubs();
+		// Every session is addressable at session/<id> (supervision loops and scripts wake their owner there).
+		const direct = `session/${sessionId}`;
+		if (!subs.some((s) => s.topic === direct && !s.tags)) subs.push({ topic: direct, wake: true });
+		if (!restoredSubs || subs.length !== restoredSubs.length) persistSubs();
 		for (const id of seen) pending.delete(id);
 		rebuildMatchers();
 	}
@@ -195,6 +197,21 @@ export function install(pi: ExtensionAPI) {
 		collect();
 		const messages = takePending();
 		if (messages.length) return { message: notification(messages) };
+	});
+
+	// A spawned worker reports by ending its turn: its last assistant message goes to its own topic,
+	// tagged with the status it starts with (done/blocked/needs-input) or `turn-end` when it has none,
+	// so the parent (wm's poller, children.turnEnd, a supervision loop) reads the report, not a pane.
+	pi.on("agent_end", (event) => {
+		const topic = process.env.PI_BOARD_TOPIC;
+		if (!topic) return;
+		const last = [...event.messages].reverse().find((m) => (m as { role?: string }).role === "assistant") as { content?: unknown } | undefined;
+		const content = last?.content;
+		const text = typeof content === "string" ? content
+			: Array.isArray(content) ? content.filter((c) => c?.type === "text").map((c) => c.text as string).join("\n") : "";
+		if (!text.trim()) return;
+		const status = parse(text).status;
+		send({ topic, tags: [status ?? "turn-end"], from: reader(), body: text });
 	});
 
 	pi.on("session_shutdown", () => {

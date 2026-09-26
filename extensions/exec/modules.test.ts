@@ -35,29 +35,6 @@ test("project .pi/exec shadows lib by name, extras are project.*, and another cw
 	}
 }, 20000);
 
-test("resolveModules drops wm/board while Paseo is the host", async () => {
-	const { resolveModules, MODULES } = await import("./modules");
-	expect(resolveModules(undefined, undefined, {})).toEqual([...MODULES]);
-	const paseo = resolveModules(undefined, undefined, { PI_EXECUTION_HOST: "paseo" });
-	expect(paseo).not.toContain("board");
-	expect(paseo).not.toContain("wm");
-	expect(paseo).toContain("sh");
-	expect(resolveModules("board,wm", undefined, { PASEO_AGENT_ID: "p" })).toEqual([]);
-});
-
-
-test("coordination instructions follow the host", async () => {
-  const { resolveModules, describeModules } = await import("./modules");
-  const { executionHost } = await import("../../lib/execution-host");
-  const env = { PASEO_AGENT_ID: "parent" };
-  expect(executionHost(env)).toBe("paseo");
-  expect(resolveModules("board,wm", undefined, env)).toEqual([]);
-  expect(describeModules([], "default", env)).toContain("paseo.withClient");
-  expect(describeModules([], "default", {})).not.toContain("paseo.withClient");
-  expect(describeModules([], "default", { PI_EXECUTION_HOST: "paseo" })).toContain("paseo.withClient");
-  expect(describeModules([], "reader", env)).not.toContain("paseo.withClient");
-});
-
 // Session audit: UI journeys went straight to raw actions because only ui was advertised.
 test("exec advertises delegated computer use, except in the read-only profile", async () => {
   const { describeModules } = await import("./modules");

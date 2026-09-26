@@ -33,7 +33,7 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent workers share a ne
 		report("a", "second");
 		report("b", "third");
 		const rest = await wait(workers, { mode: "all", timeoutMs: 5000 });
-		expect([...rest.values()].map(o => "message" in o ? o.message.body : o.kind).sort()).toEqual(["second", "third"]);
+		expect([...rest.values()].map(o => "message" in o && o.message ? o.message.body : o.kind).sort()).toEqual(["second", "third"]);
 		await Promise.all(workers.map(w => w.close()));
 		expect((await command(["git", "worktree", "list", "--porcelain"], cwd)).match(/^worktree /gm)).toHaveLength(1);
 	} finally {

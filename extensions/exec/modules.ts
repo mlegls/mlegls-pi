@@ -1,4 +1,3 @@
-import { executionHost } from "../../lib/execution-host.ts";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,13 +26,10 @@ function parse(value: unknown, flag: string, fallback: readonly ExecModule[]): r
 }
 
 /** Select the advertised/callable surface, not a security sandbox. Deny wins. */
-/** Native hosts substitute their own coordination; standalone retains wm/board. */
-export const HOST_MODULES: readonly ExecModule[] = ["board", "wm"];
 
 export function resolveModules(allow?: unknown, deny?: unknown, env: NodeJS.ProcessEnv = process.env): ExecModule[] {
 	const allowed = new Set(parse(allow, "--exec-modules", MODULES));
 	const denied = new Set(parse(deny, "--exec-deny-modules", []));
-	if (executionHost(env) !== "wm") for (const m of HOST_MODULES) denied.add(m);
 	return MODULES.filter(name => allowed.has(name) && !denied.has(name));
 }
 
@@ -130,7 +126,6 @@ export function describeModules(modules: readonly ExecModule[], profile: ExecPro
 		"Read skill files as reference only: this profile does not execute their shell placeholders.",
 	].join("\n");
 	return [
-		...(executionHost(env) === "paseo" ? ["Workers run on Paseo (PASEO_AGENT_ID or PI_EXECUTION_HOST=paseo); use the native SDK via paseo.withClient(c => ...): c.agents.ref(ID).waitForFinish(), .timeline.refetch(), .send(message). Use paseo.connect() for streaming and close it in finally; the paseo CLI's wait/logs/send do the same from a shell. dispatch.dispatch launches prepared assignments; retain native receipts, inspect uncertain creation before retrying. Parent owns dependencies and concurrency. A completed turn is not assignment completion: workers end the turn with done/blocked/needs-input first; a question is a needs-input turn end, not a send to the parent. See docs/paseo.md. wm/board are replaced while Paseo is the host."] : ["Standalone coordination uses wm/board; dispatch.dispatch launches prepared assignments with explicit model/effort and parent-scoped capacity. See docs/dispatch.md."]),
 		"TypeScript execution with fresh scope per call and a persistent kernel. Local variables and functions do not persist between calls; their names may be redeclared in later calls. Retain values/promises explicitly with state.name = value; inspect Object.keys(state), delete state.name to release. Only show(...) or console.log(...) emits output; other stdout/stderr a cell writes is collapsed to one [io: …] line, show.pull(\"cN.io\") for the text. Operations are not transactional: earlier side effects and state writes survive a later error. Never blindly retry a failed cell.",
 		"Cells never time out; results are asynchronous. Each exec call is cell cN and each show/console.log call in it is handle cN.k. The tool result returns when the cell and its shows finish, or after 10s with whatever has been shown plus the pending handles; later output then arrives by handle at the next exec result, or wakes you if you are idle. Cells run concurrently in one kernel: a later cell may start while an earlier one still writes state. Not calling show means you do not need to see the result; errors are always reported. Late output the conversation already accounts for arrives collapsed to its handle and first line, without waking you; show.pull(\"c7.2\") re-shows any handle. show.sync(...) holds this result until that value is shown; wait(\"c7\", \"c8.2\") holds it until those handles settle (c7 = the cell body and all its shows). Prefer doing other work, or ending your turn, over waiting. A user message arriving while a result is held yields it at once. Interrupting detaches running cells without waking you later; only a kernel that cannot answer within 1s is reset (state cleared, shells stopped). Host-owned terminals are unaffected.",
 		"Enabled modules: " + (modules.join(", ") || "none") + ". Module selection limits the provided API, not imports or OS access.",
