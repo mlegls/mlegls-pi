@@ -4,7 +4,11 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { Node } from "./graph";
+
+/** ab is on PATH inside pi sessions only; tool lines run from plain shells and tmux popups. */
+const AB = fileURLToPath(new URL("../../bin/ab", import.meta.url));
 
 const tmux = (...args: string[]) => execFileSync("tmux", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 const quiet = (f: () => unknown) => { try { f(); return true; } catch { return false; } };
@@ -107,7 +111,7 @@ export function tool(kind: "diff" | "wip" | "files" | "edit" | "zed", n: Node): 
 /** Run tuicr, then offer its exported review to the agent. */
 function reviewed(cmd: string, n: Node): string {
 	const file = `\${TMPDIR:-/tmp}/ab-tree-review-${n.id}.md`;
-	return `${cmd} > "${file}"; if [ -s "${file}" ]; then printf 'send review to the agent? [y/N] '; read -r a; [ "$a" = y ] && ab tree send ${n.id} < "${file}"; fi`;
+	return `${cmd} > "${file}"; if [ -s "${file}" ]; then printf 'send review to the agent? [y/N] '; read -r a; [ "$a" = y ] && ${AB} tree send ${n.id} < "${file}"; fi`;
 }
 
 /** Run a tool line: in a tmux popup over the current client (sidebar), or in this terminal (dashboard). */

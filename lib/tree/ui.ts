@@ -94,7 +94,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	function draw() {
 		const width = out.columns || 80, height = out.rows || 24;
 		const footerText = input ? (input.kind === "filter" ? "/" : "send> ") + input.text + "█"
-			: message || (sidebar ? `[${mode}] ${query ? "/" + query + " " : ""}? help` : `[${mode}] ${query ? "/" + query + "  " : ""}enter open  z park  i send  d diff  w wip  y yazi  e nvim  o zed  / filter  tab mode  ? help`);
+			: message || (sidebar ? `[${mode}] ${query ? "/" + query + " " : ""}? help` : `[${mode}] ${query ? "/" + query + "  " : ""}enter open  z park  i send  d diff  w wip  f files  y yazi  e nvim  o zed  / filter  tab mode  ? help`);
 		const footer = truncateToWidth(color("7", " " + footerText), width, "", true);
 		let listHeight = height - 1;
 		let pv: string[] = [];
@@ -191,6 +191,13 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			case "d": tool("diff"); break;
 			case "w": tool("wip"); break;
 			case "y": tool("files"); break;
+			case "f": if (r?.node) { const n = r.node; message = "collecting files…"; draw(); void import("./files").then(async f => {
+				const m = await f.mirror(n);
+				message = m.count ? "" : "no files found for this session";
+				if (!m.count) return draw();
+				const line = "cd " + JSON.stringify(m.dir) + " && yazi";
+				if (sidebar) act.run(line, "popup"); else suspend(() => act.run(line, "here"));
+			}).catch(e => { message = String(e); draw(); }); } break;
 			case "e": tool("edit"); break;
 			case "o": tool("zed"); break;
 			case "+": case "=": preview = Math.min(85, preview + 5); break;
@@ -244,6 +251,8 @@ const HELP = `ab tree — sessions as a tree
   i        send a message to the agent (pasted into its pane, or via Paseo)
   d        review the branch in tuicr (from its merge-base); w  review uncommitted changes
            exported comments can be sent straight back to the agent
+  f        the session's files in yazi: what it changed, at their paths, and what it read
+           or ran on under _read/ (links into the worktree, so edits are real)
   y yazi   e nvim   o zed, all in the session's directory
   +/-      preview size (dashboard)   r refresh   q quit
 
