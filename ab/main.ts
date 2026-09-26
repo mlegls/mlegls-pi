@@ -14,7 +14,7 @@ const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
 const stateDir = process.env.AB_SESSION_STATE ?? process.env.AB_STATE ?? join(abStateRoot, createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise", "tree"];
+const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise", "tree", "mail"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -218,8 +218,8 @@ async function supervise(args: string[]) {
 	if (verb === "start" && ticket) {
 		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" } } });
 		const session = process.env.PI_SESSION_ID;
-		if (!session) fail("supervise start runs from the owning pi session (PI_SESSION_ID): it is woken on board topic session/<id>");
-		const owner = "session/" + session;
+		if (!session) fail("supervise start runs from the owning pi session (PI_SESSION_ID): it is woken in its mailbox");
+		const owner = (await import("../lib/board/mailbox.ts")).mailbox(session);
 		// One loop per ticket per repository: loops started from sibling worktrees would dispatch the same children twice.
 		const common = (dir: string) => { const r = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: dir, encoding: "utf8" }); return r.status === 0 ? r.stdout.trim() : dir; };
 		const here = common(top);
@@ -288,7 +288,14 @@ async function lib(args: string[]) {
 const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
-const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, tree, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise };
+const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, tree, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise,
+	mail: async (a: string[]) => {
+		const [to, ...words] = a;
+		const body = words.length ? words.join(" ") : (await Bun.stdin.text()).trimEnd();
+		if (!to || !body) fail("usage: ab mail <mailbox> <text...>   (or text on stdin)");
+		const m = (await import("../lib/board/mailbox.ts")).mail(to, body);
+		console.log(m.topic + " " + m.id);
+	} };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
 catch (error) { fail(error instanceof Error ? error.message : String(error)); }

@@ -17,6 +17,8 @@ import { Text } from "@earendil-works/pi-tui";
 import { compileQuery, parseTags } from "./query";
 import { logSize, noteRead, readFrom, send, topics, type Message } from "./store";
 import { parse } from "../report.ts";
+import { mailbox } from "./mailbox";
+import { execFile } from "node:child_process";
 
 interface Subscription {
 	topic: string;
@@ -176,9 +178,12 @@ export function install(pi: ExtensionAPI) {
 		// A spawned worker (PI_BOARD_TOPIC set by its parent) starts subscribed with wake to its own
 		// topic, so the parent's follow-ups and needs-input answers reach it without it asking.
 		subs = restoredSubs ?? (process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []);
-		// Every session is addressable at session/<id> (supervision loops and scripts wake their owner there).
-		const direct = `session/${sessionId}`;
-		if (!subs.some((s) => s.topic === direct && !s.tags)) subs.push({ topic: direct, wake: true });
+		// Every session has a mailbox (mail/xxxxxxxx): supervision loops, ab tree, `ab mail`, and
+		// other sessions reach it there. Shown in pi's footer and, under tmux, the status bar.
+		const box = mailbox(sessionId);
+		if (!subs.some((s) => s.topic === box && !s.tags)) subs.push({ topic: box, wake: true });
+		if (ctx.hasUI) ctx.ui.setStatus("mailbox", "✉ " + box);
+		if (process.env.TMUX_PANE) execFile("tmux", ["set", "-p", "-t", process.env.TMUX_PANE, "@mailbox", box], () => {});
 		if (!restoredSubs || subs.length !== restoredSubs.length) persistSubs();
 		for (const id of seen) pending.delete(id);
 		rebuildMatchers();

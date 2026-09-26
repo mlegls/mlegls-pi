@@ -1,7 +1,8 @@
 // Children's turn ends and follow-ups over the board: a child is a wm worker, named by its
-// run/handle topic, or any session by session/<id>.
+// run/handle topic, or any session by its mailbox (mail/xxxxxxxx).
 import * as wm from "./wm.ts";
-import { readAll, send as post, type Message } from "./board/store";
+import { readAll, type Message } from "./board/store";
+import { mail } from "./board/mailbox";
 
 export interface TurnEnd {
   id: string;
@@ -97,11 +98,11 @@ export async function last(id: string): Promise<TurnEnd | null> {
   return lastWm(id);
 }
 
-/** Send a follow-up: to a wm worker's pane, or for session/<id> a waking board message. */
+/** Send a follow-up: to a wm worker's pane, or to a mailbox (mail/xxxxxxxx) as a waking board message. */
 export async function send(id: string, text: string): Promise<void> {
   if (typeof text !== "string") throw new Error("children.send requires text");
-  if (id.startsWith("session/")) {
-    post({ topic: id, tags: [], from: { name: process.env.PI_BOARD_NAME ?? "ab" }, body: text });
+  if (id.startsWith("mail/")) {
+    mail(id, text, { name: process.env.PI_BOARD_NAME });
     return;
   }
   const target = wmTarget(id);

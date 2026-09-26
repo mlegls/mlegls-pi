@@ -15,4 +15,4 @@ host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is e
 
 ## hosts
 
-Workers run as `wm` workers (workmux + tmux) and report over the board; `dispatch.dispatch` launches prepared assignments. Every session also listens on board topic `session/<id>`, which is how scripts (supervision loops, `ab tree` sends) reach it.
+Workers run as `wm` workers (workmux + tmux) and report over the board; `dispatch.dispatch` launches prepared assignments. Every session also listens on its mailbox, board topic `mail/<last 8 hex of its session id>` (`lib/board/mailbox`), shown in its footer and the tmux status bar; `ab mail <to> <text>` sends to one, signed with your own so the reader can reply.

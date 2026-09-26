@@ -2,7 +2,7 @@
 // specific is here, and it is tmux: panes come from live records (TMUX_PANE), parked sessions
 // reopen as `pi --session <file>` in a window of a tmux session named after the project.
 
-import { send as boardSend } from "../board/store";
+import { mail } from "../board/mailbox";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -104,11 +104,11 @@ export function park(n: Node): string | undefined {
 }
 
 /** Put text in front of the agent as a user message: pasted into its pane, or for a headless pi a
- * waking board message on session/<id> (every session subscribes to its own). */
+ * waking message in its mailbox. */
 export function send(n: Node, text: string): string | undefined {
 	if (!text.trim()) return "nothing to send";
 	if (paneAlive(n.pane)) { sendToPane(n.pane, text); return; }
-	if (n.pid) { boardSend({ topic: "session/" + n.id, tags: [], from: { name: "ab tree" }, body: text }); return; }
+	if (n.pid) { mail(n.id, text, { name: "ab tree" }); return; }
 	return "not running; open it first";
 }
 

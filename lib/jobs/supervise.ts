@@ -3,7 +3,7 @@
 //   ab supervise start <ticket> [--budget N] [--test CMD]   (from the owning agent)
 //   ab supervise status | resume <job> <child> verify|integrate|drop|redispatch
 // Children are wm workers spawned with the owner as parent session; the owner is woken on
-// board topic session/<its session id>.
+// its mailbox (mail/xxxxxxxx, lib/board/mailbox).
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, watch } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
