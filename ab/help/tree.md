@@ -26,4 +26,5 @@ the branch it came from, each shown as its tmux session. The dashboard (prefix-t
 workspace tree on the left and the selected workspace's windows and agents on the right
 (l to move in), with a live preview; s switches to all agents grouped by state. The
 sidebar is the tree alone, in a Ghostty split beside tmux: j/k switch workspaces, a click
-goes there. Mouse works.
+opens one. n/c/N create a pi window, terminal window, or worktree; click their footer labels
+or use the keys. Mouse works.

@@ -199,11 +199,17 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	function draw() {
 		const width = W(), height = H();
 		geometry = [];
-		const hint = sidebar ? `? help` : view === "agents" ? "enter open  i send  z park  s workspaces  / filter  ? help"
+		const hint = sidebar ? "n pi  c term  N branch  ? help" : view === "agents" ? "enter open  i send  z park  s workspaces  / filter  ? help"
 			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s agents  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
 		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
 		const footer = truncateToWidth(c("7", " " + footerText), width, "", true);
+		if (sidebar && !pass && !input && !message && !help) {
+			for (const [key, text] of [["n", "n pi"], ["c", "c term"], ["N", "N branch"]] as const) {
+				const x0 = 1 + (query ? visibleWidth("/" + query + "  ") : 0) + hint.indexOf(text);
+				if (x0 + text.length <= width) geometry.push({ y: height, x0, x1: x0 + text.length, act: () => handleKey(key) });
+			}
+		}
 		if (help) {
 			out.write("\x1b[H\x1b[2J" + HELP.split("\n").slice(0, height - 1).map(l => truncateToWidth(l, width)).join("\r\n") + `\x1b[${height};1H` + footer);
 			return;
@@ -351,12 +357,13 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				break;
 			}
 			case "z": { const n = selectedAgent(); if (n) { message = act.park(n) ?? "parked"; setTimeout(refresh, 500); } break; }
-			case "n": if (w && !w.key.startsWith("tmux:")) { if (attempt(() => act.newWindow(w, "pi", "pi"))) done(); } break;
-			case "c": if (w) { if (attempt(() => act.newWindow(w))) done(); } break;
-			case "N": if (w && !w.key.startsWith("tmux:")) input = { kind: "branch", text: "", prompt: `new worktree off ${w.branch ?? label(w)}: `, then: name => {
+			case "n": if (w && !w.key.startsWith("tmux:")) { if (attempt(() => act.newWindow(w, "pi", "pi"))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
+			case "c": if (w) { if (attempt(() => act.newWindow(w))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
+			case "N": if (w && !w.key.startsWith("tmux:")) input = { kind: "branch", text: "", prompt: sidebar ? "new branch: " : `new worktree off ${w.branch ?? label(w)}: `, then: name => {
 				if (!name.trim()) return;
 				const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'";
 				runTool(`cd ${q(w.path)} && workmux add ${q(name.trim())} --session -C ${w.branch ? "--base " + q(w.branch) : ""}`);
+				if (sidebar) leaveSidebar();
 				void refresh();
 			} }; break;
 			case "m": if (w && w.parent) { const p = spaces.get(w.parent); input = { kind: "confirm", text: "", prompt: `merge ${label(w)} into ${p?.branch ?? label(p!)}? [y/N] `, then: a => { if (a.trim() !== "y") return; const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'"; runTool(`cd ${q(w.path)} && workmux merge ${p?.branch ? "--into " + q(p.branch) : ""}; printf 'press enter '; read -r _`); void refresh(); } }; } break;
@@ -513,6 +520,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
 
   sidebar  j/k ↑/↓ wheel: switch to the next/previous open workspace (focus stays here)
            h/l ←/→: previous/next window   enter/esc/click: go there and back to tmux
+           n new pi   c new terminal   N new worktree (footer actions are clickable)
            it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept
   tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window
 
