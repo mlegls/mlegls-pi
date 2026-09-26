@@ -143,7 +143,9 @@ export async function ensure(): Promise<void> {
       const logFd = openSync(join(root, "daemon.log"), "a", 0o600);
       try {
         child = spawn(process.execPath, [DAEMON_ENTRY], {
-          cwd: ROOT, env: process.env, detached: true, stdio: ["ignore", logFd, logFd],
+          // The daemon serves every session; whichever session starts it must not lend it its board
+          // identity, or its jobs' wakes are signed as that session and never wake it.
+          cwd: ROOT, env: Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^PI_(SESSION_ID|BOARD_)/.test(k))), detached: true, stdio: ["ignore", logFd, logFd],
         });
       } finally { closeSync(logFd); }
       child.unref();
