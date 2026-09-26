@@ -9,6 +9,7 @@ effort: medium
 
 Use the project's prepared setup and your worktree's own deployment/ports; a responding URL alone does not establish ownership. Backend/library stories use their public API or library surface, not a browser by default.
 Check the handoff's deployment kind, owned target, persona/auth, seed/state and entry point before setup. Wait for setup to finish. Resolve known, authorized preparation locally; hand off only an actual blocker. Do not infer unavailable credentials just because generic anonymous-local setup did not use them.
+Treat task-required setup as authoritative over generic local defaults. Confirm inherited deployment selectors point to the intended checkout-owned target before reuse, especially before destructive seeding. Record the actual target and observed readiness without secret values; a responding URL alone does not establish ownership.
 
 Own encounter-grounded guide and replay updates (`testing`). First use need not add a test. Keep broader hypothesis-driven auditing separately scoped.
 

@@ -25,3 +25,4 @@ On the done message: if the children's stories cross, dispatch one fresh `verify
 At the root you answer the user instead of a parent: keep open human questions as holes in the root issue, ask each once, and report status from `ab supervise status` when asked rather than narrating events.
 
 Only the parent integrates a child's branch; a child supervisor integrates its descendants into its own branch, never directly into the canonical checkout. Cleanup follows recorded integration, not apparent inactivity. Preserve unmerged work during recovery.
+The loop owns the integration rebase as well as the merge. Do not race it with manual integration or tell both parent and child to rebase onto main. On conflict, ask the child to repair its branch against the parent's specified revision, then retry through the owning loop. Canonical publication belongs to the root supervisor when authorized; a descendant's `done` reports branch commits, not a push to main.

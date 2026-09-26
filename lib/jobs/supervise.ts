@@ -24,7 +24,7 @@ export interface State { children: Record<string, Child>; integrated: string[]; 
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
-const HACK = "Hacking session: reach the ticket's first use fast and try it; no systematic audit. Commit coherent chunks on your branch. Your parent alone integrates this branch; do not merge or push the canonical checkout.";
+const HACK = "Hacking session: reach the ticket's first use fast and try it; no systematic audit. Commit coherent chunks on your branch. Your parent alone integrates this branch, including the integration rebase; do not merge or push the canonical checkout or independently rebase onto main. Repair integration conflicts on your branch when the parent requests it against a specified revision.";
 const EXECUTION_STANCES = ["fill", "auto-routine", "technical", "auto", "compile", "prune", "research", "session-triage"];
 
 interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; effectiveStage: string }
@@ -143,8 +143,10 @@ export async function run(job: JobContext) {
   }
  };
  const carried = () => { const l = listCaveats(state.caveats); return l ? "\nCaveats the children reported, integrated anyway; file each as an idea or link its owner:\n" + l : ""; };
+ const SETUP = "Setup handoff: distinguish the task-required environment from the actually prepared target and observed readiness. Include non-secret target identity/checkout ownership, persona/auth method, seed/state and runnable entry point. Task requirements override generic local defaults. Confirm inherited deployment selectors address the intended owned target before reuse or destructive seeding. Use the project's existing setup tooling; finish authorized preparation and wait for its result before driving.";
  const verifyPrompt = (slug: string, ticket: string, report: string) => ["Verify the ticket below: " + HACK,
   "Your branch starts at the implementer's commits. Use the prepared environment; check its deployment kind, persona, seed and entry point before running setup. Wait for setup to finish. Missing preparation is unfinished delivery work, not a reason to substitute regression tests for the encounter. Follow docs/verification-evidence.md in the harness repository for the evidence packet and exact handoff schema. Commit a packet under docs/attachments/" + slug + "/ and link it from the ticket. Declare evidence.visual true for any rendered UI journey; a separate visual reviewer judges those screenshots. " + HANDOFF + "stories must be a nonempty array of {story, outcome}, with outcome held, failed or unobservable. evidence: {path: <repo-relative Markdown index>, visual: <boolean>, shots: [<repo-relative image paths>]}. An honest account of missing measurements is not the requested measurement. Unmet requirements stay blocked unless the contract is explicitly changed; caveats cannot waive them.",
+  SETUP,
   "Ticket " + slug + ":\n\n" + ticket, "Implementer's report:\n\n" + report].join("\n\n");
  const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
   let packet: ReturnType<typeof evidencePacket> | undefined;
@@ -232,7 +234,7 @@ export async function run(job: JobContext) {
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
     ? HACK + "\n\nSupervise the subtree of " + i.file + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ": run ab supervise start " + i.slug + " and handle what it wakes you with; end your turn with done when it reports the subtree done.\n\n" + readFileSync(i.file, "utf8")
-    : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + HANDOFF + "commit, setup (deployment kind, owned target, persona/auth, seed/state and runnable entry point), stories, caveats: [] when there are none. Prepare first-use setup before handoff, including Cloud vs anonymous-local requirements; never include secret values in evidence. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
+    : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + SETUP + " " + HANDOFF + "commit, setup, stories, caveats: [] when there are none. Prepare first-use setup before handoff, including Cloud vs anonymous-local requirements; never include secret values in evidence. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
    try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor }; }
    catch (error) { await wake("could not launch " + i.slug + ": " + error); }
    await save();

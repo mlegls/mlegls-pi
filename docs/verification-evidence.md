@@ -3,6 +3,7 @@
 Supervision runs implementation → fresh encounter → visual judgment when the journey is rendered → integration. The encounter worker uses the project's prepared setup, Jev for semantic navigation and existing Playwright replays where appropriate. The visual reviewer opens the actual images; a collector's `held` is not a visual verdict. Backend-only journeys use API, CLI or library evidence without an extra visual worker.
 
 Before driving, check the handoff's deployment kind and owned target, persona/authentication, seed or restored state, and runnable entry point. Do not substitute anonymous-local setup for a Cloud requirement. Wait for setup to finish. Resolve known, authorized preparation locally rather than handing it back by default. Never publish credentials or private account data in evidence; use test personas or redact before committing.
+The setup handoff distinguishes the task's required environment from what was actually prepared: deployment kind, non-secret target identifier and checkout ownership, persona/auth method, seed/state, launch command or entry URL, and observed readiness (or the still-running setup and what remains). The requirement wins over a generic setup default. Before reusing inherited selectors or credentials, confirm they address the intended checkout-owned target; before destructive seeding, establish ownership explicitly. Reuse the project's setup tooling rather than inventing another launcher. Unknown readiness is not a failed encounter: finish authorized setup and observe its result before driving.
 
 ## Packet
 
