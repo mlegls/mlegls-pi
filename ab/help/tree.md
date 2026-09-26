@@ -42,3 +42,4 @@ Select it and press n to create a free pi session or c for a free terminal sessi
 starting in ~. Existing free sessions stay under tmux even when their panes are in a repo;
 on an existing free session, n/c add windows starting in ~.
 Mouse works; ? shows the keys.
+The sidebar's r refreshes data; R reloads code in the same split (no pane restart).

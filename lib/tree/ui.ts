@@ -212,7 +212,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	function draw() {
 		const width = W(), height = H();
 		geometry = [];
-		const hint = sidebar ? "s views  ? help" : view !== "workspaces" ? "enter open  i send  z park  s views  / filter  ? help"
+		const hint = sidebar ? "s views  r refresh  R reload  ? help" : view !== "workspaces" ? "enter open  i send  z park  s views  / filter  ? help"
 			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s views  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
 		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
@@ -283,7 +283,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		process.stdin.setRawMode(false);
 		try { f(); } finally { process.stdin.setRawMode(true); out.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h"); draw(); }
 	};
-	const quit = () => { save(); out.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l"); process.exit(0); };
+	const quit = (status = 0) => { save(); out.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l"); process.exit(status); };
 	const runTool = (line: string) => { if (sidebar || line.startsWith("zed ")) act.run(line, "popup"); else suspend(() => act.run(line, "here")); };
 	const wsTool = (kind: Parameters<typeof act.tool>[0]) => {
 		const w = selectedWs();
@@ -448,6 +448,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			case "+": case "=": preview = Math.min(80, preview + 5); break;
 			case "-": preview = Math.max(15, preview - 5); break;
 			case "r": void refresh(); break;
+			case "R": if (sidebar) quit(75); break; // bin/ab relaunches the sidebar in this split
 			default:
 				if (/^[1-9]$/.test(k) && w) { const win = w.windows.find(x => x.index === Number(k)); if (win && attempt(() => act.openWindow(win))) done(); }
 		}
@@ -570,4 +571,4 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window
 
   ! needs you ⊘ blocked ● working ○ idle · resumable   workspaces: □ open ◇ parked (no tmux session)   ▌ you are here
-  +/- preview size   r refresh   q quit`;
+  +/- preview size   r refresh data   R reload sidebar code   q quit`;

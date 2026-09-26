@@ -5,4 +5,16 @@ if ! /bin/pwd -P >/dev/null 2>&1; then
 	case "$PWD" in /*) dir=$PWD ;; *) dir=$( [ -n "$TMUX" ] && tmux display -p -t "${TMUX_PANE:-}" '#{pane_current_path}' 2>/dev/null) ;; esac
 	cd "${dir:-$HOME}" 2>/dev/null || cd "$HOME"
 fi
+if [ "$1" = tree ] && [ "$2" = ui ]; then
+	for arg do
+		if [ "$arg" = --sidebar ]; then
+			# 75 asks for a fresh Bun process without closing the Ghostty split.
+			while :; do
+				bun "$(dirname "$(readlink -f "$0")")/../ab/main.ts" "$@"
+				status=$?
+				[ "$status" -eq 75 ] || exit "$status"
+			done
+		fi
+	done
+fi
 exec bun "$(dirname "$(readlink -f "$0")")/../ab/main.ts" "$@"
