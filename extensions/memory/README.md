@@ -47,7 +47,7 @@ Sizes except the provider output cap are approximate targets (characters/4). A f
 
 Pi's ordinary automatic-compaction triggers still apply. Topic-boundary folding is explicit, with no background production. `memory.keepRecentTokens` (default 2000) now gives the model soft size guidance, not a mechanical cut or hard cap. The model may retain more or less. Native `compaction.keepRecentTokens` remains a separate eligibility gate: Pi prepares a cut before invoking extension hooks. Keep that setting small to let short conversations reach the hook; the final boundary is model-selected. If the chosen suffix leaves nothing new to fold, an append is cancelled without changing context.
 
-A missing tail line, invalid source/supersession IDs, interrupted/length-limited generation, tool calls and branch changes cancel compaction rather than falling back to a lossy native summary. The prior context is retained. Failed-generation spend is not recorded in a successful compaction entry.
+A missing tail line, invalid source/supersession IDs, interrupted/length-limited generation, tool calls and branch changes cancel compaction rather than falling back to a lossy native summary. The exception is a provider filter block on both the full and plain checkpoint prompts: that is about the session, so Pi's native summarizer (a separate request over the serialized conversation) gets to try, and the next fold treats its summary as an imported legacy block. The prior context is retained. Failed-generation spend is not recorded in a successful compaction entry.
 
 ## Switching backends
 

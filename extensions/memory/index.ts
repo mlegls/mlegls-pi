@@ -129,8 +129,14 @@ export default function memoryExtension(pi: ExtensionAPI) {
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };
 		} catch (error) {
-			// Never fall through to native summarization after an invalid/failed checkpoint.
-			ctx.ui.notify(`Memory not compacted: ${error instanceof Error ? error.message : error}`, "warning");
+			const message = error instanceof Error ? error.message : String(error);
+			// A filter block on both prompts is about the session, not the checkpoint: let Pi's own summarizer (a separate, serialized request) try.
+			if (BLOCKED.test(message) && !event.signal.aborted) {
+				ctx.ui.notify("Memory checkpoint blocked by provider filter; falling back to Pi's native compaction", "warning");
+				return;
+			}
+			// Otherwise never fall through to native summarization after an invalid/failed checkpoint.
+			ctx.ui.notify(`Memory not compacted: ${message}`, "warning");
 			return { cancel: true };
 		} finally { busy = false; forceRewrite = false; }
 	});

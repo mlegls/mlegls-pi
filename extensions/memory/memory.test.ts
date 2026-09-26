@@ -28,7 +28,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 			registerTool: (tool: any) => registered.set(tool.name, tool),
 			getActiveTools: () => [...registered.keys()], getAllTools: () => [...registered.values()], getThinkingLevel: () => "off",
 		};
-		let sent: any; let blocked = false, invalid = false, invalidTail = false, citeTail = false; let notices: string[] = [];
+		let sent: any; let blockedAll = false, blocked = false, invalid = false, invalidTail = false, citeTail = false; let notices: string[] = [];
 		const ctx: any = {
 			cwd, model: { id: "model", provider: "test", maxTokens: 16000 }, getSystemPrompt: () => "Unchanged system prompt",
 			ui: { notify: (s: string) => notices.push(s) },
@@ -36,7 +36,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 			modelRegistry: { streamSimple(_model: any, context: any) {
 				sent = context;
 				const prompt = context.messages.at(-1).content as string;
-				if (blocked && prompt.includes("vgel")) return { result: async () => ({ ...assistant(""), stopReason: "error", errorMessage: "This request was blocked as it seems to violate Anthropic's Terms of Service restrictions on reverse engineering or duplicating model outputs." }) };
+				if (blockedAll || blocked && prompt.includes("vgel")) return { result: async () => ({ ...assistant(""), stopReason: "error", errorMessage: "This request was blocked as it seems to violate Anthropic's Terms of Service restrictions on reverse engineering or duplicating model outputs." }) };
 				const visible = visibleEntries(branch);
 				const tail = tailChoices(visible).find(c => sourceEntries(visible.slice(0, c.index)).length)!;
 				const id = sourceEntries(visible.slice(0, tail.index))[0].id;
@@ -94,6 +94,9 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(sent.messages.at(-1).content).not.toContain("vgel");
 		expect(sent.messages.at(-1).content).toStartWith("Your context is about to be compacted");
 		expect(sent.messages.filter((m: any) => typeof m.content === "string" && m.content.includes("Tail starts"))).toHaveLength(1);
+		blockedAll = true;
+		expect(await fold()).toBeUndefined();
+		expect(notices.at(-1)).toContain("falling back to Pi's native compaction");
 	} finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
