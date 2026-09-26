@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: session:2026-09-26T09-29-46-063Z_01a0dd0c-9b4f-7795-aad1-0299963801cf
 ---
 
@@ -7,4 +7,8 @@ During Concept's humanize-identifiers verification, the browser driver supplied 
 
 Source: session `01a0dcd4-0439-7190-9c55-0aa636998bd6`, sibling `.ab/computer/2026-09-26T08-33-16-576Z-33a975.browser.jsonl`. The controller enumerates every supplied input for every editable field in `lib/computer/browser-runner.ts`. Do not assume field-label matching is a sufficient remedy: field names and supplied-input names need not match. Existing project authentication via `--browser` can avoid replaying sign-in for unrelated product verification; it does not fix arbitrary form driving.
 
-Impact observed: failed sign-in drive. No live reproduction or general reliability estimate yet. [Recovery review](../research/session-friction-review-2026-09-26.md).
+Mitigated: replay reproduced code→Email while the page said “Sending code…”. Removing the CLI's always-undefined resolver callback changed the winning action to wait (.64); explicit current-field/transition guidance increased it to .74. Empty-Email and Continue choices remained correct, and synthetic code-field/renamed-input controls selected the expected inputs. No field-label matching heuristic or confidence gate was added.
+
+13 CLI/runner tests pass, including the real CLI request's absence of a nonexistent resolver capability. This is a bounded decision-level mitigation, not a live sign-in verification or general form-driving guarantee: the revised request still gave the wrong input .15 probability. That residual model-selection risk is accepted for this change; callers can use project-owned authentication or the existing beforeAction gate. [Reconstructed requests, results and limits](../research/browser-input-selection-2026-09-26.md).
+
+[Recovery review](../research/session-friction-review-2026-09-26.md).

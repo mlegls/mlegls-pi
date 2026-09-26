@@ -60,3 +60,38 @@ test.each([false, true])("project browser setup is cleaned up on completion or o
         expect(rows.at(-1).status).toBe(result.status);
     } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("browser CLI does not offer a resolver it cannot call", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "computer-input-test-"));
+    const module = join(dir, "setup.ts");
+    const requests: any[] = [];
+    const server = Bun.serve({ port: 0, async fetch(req) {
+        const raw = await req.json() as any, body = raw.input ?? raw;
+        requests.push(body);
+        return Response.json({ answers: {
+            next: { type: "choice", choice: "needs-input", probabilities: Object.fromEntries(Object.keys(body.questions.next.criteria).map(k => [k, k === "needs-input" ? 1 : 0])) },
+            showing: { type: "noul", noul: 0 },
+        } });
+    } });
+    writeFileSync(module, `export default async () => ({
+        page: {
+            url: () => 'http://fixture.invalid/', title: async () => 'Sign in',
+            waitForLoadState: async () => {},
+            locator: () => ({ ariaSnapshot: async () => '- textbox "Email"', ariaSnapshotJSON: async () => [{role:'textbox',name:'Email'}] }),
+        }, close: async () => {},
+    });`);
+    try {
+        const options = { module, goal: "Sign in", until: "Account is visible", inputs: {}, hidden: [], maxSteps: 1, timeoutMs: 5000, dir, json: true, decision: { url: server.url.href, apiKey: "test" } };
+        const script = `import {driveBrowser} from ${JSON.stringify(resolve("ab/computer-browser.ts"))}; await driveBrowser(${JSON.stringify(options)});`;
+        const proc = Bun.spawn([process.execPath, "-e", script], { stdout: "pipe", stderr: "pipe" });
+        const stdout = await new Response(proc.stdout).text();
+        const stderr = await new Response(proc.stderr).text();
+        expect(await proc.exited).toBe(1);
+        expect(stderr).not.toContain("error");
+        expect(JSON.parse(stdout).status).toBe("needs-input");
+        expect(requests).toHaveLength(1);
+        expect(requests[0].state.textResolverAvailable).toBe(false);
+        expect(Object.values(requests[0].questions.next.criteria).join(" ")).not.toContain("parent text resolver");
+        expect(requests[0].questions.next.instructions).toContain("wait for the intended field");
+    } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
+});

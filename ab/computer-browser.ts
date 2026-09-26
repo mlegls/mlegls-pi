@@ -62,7 +62,7 @@ export async function driveBrowser(options: Options) {
         signal.throwIfAborted();
         if (typeof session.page.locator("body").ariaSnapshotJSON !== "function") throw new Error("This browser adapter requires Playwright ariaSnapshotJSON (1.63+); use the project's current Playwright via --browser ./setup.ts");
         const result = await run({ ui: browser(session.page), apps: ["page"], goal: options.goal, until: options.until,
-            inputs: options.inputs, hidden: options.hidden, resolveInput: () => undefined,
+            inputs: options.inputs, hidden: options.hidden,
             verify: session.verify, signal, maxSteps: options.maxSteps, timeoutMs: options.timeoutMs, decision: options.decision,
             onEvent(event) {
                 appendFileSync(trace, JSON.stringify(hide(event)) + "\n");
