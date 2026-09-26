@@ -1,13 +1,15 @@
 # Memory log
 
-One-shot observation, reflection and reconciliation at compaction. No background model calls or separate memory database: Pi's session tree owns the blocks, original entries and branch history.
+One-shot cited prose and reconciliation at compaction. No background model calls or separate memory database: Pi's session tree owns the blocks, original entries and branch history.
 
 - `/compact [focus]` or `/memory fold [focus]`: append one new memory block, retaining a short verbatim tail.
 - `/memory rewrite [focus]`: consolidate existing blocks and the folded suffix in one call.
-- `/memory`: block/claim counts and approximate memory size.
+- `/memory`: block count and approximate memory size.
 - `memory_recall({ids, offset?, limit?})`: retrieve original entry IDs cited by memory, on the current branch. Long text is paginated; images and reasoning are not returned.
 
-Observations retain surprising or indispensable facts, constraints, corrections and uncertainty. Reflections summarize activity, decisions/reasons and unfinished work. Each claim cites original entries. Corrections explicitly supersede earlier claim IDs. Rewrites resolve those relationships and keep direct original-entry pointers, not chains of summaries.
+Memory is free prose with inline original-entry citations (`[@entry-id]`), not separate observation/reflection buckets. Prompt guidelines steer relevance and fidelity; the format does not classify facts. Coverage metadata tracks which turns were folded. Corrections name earlier blocks (or V1 claim IDs) and state exactly what changed, without invalidating unrelated material. Rewrites reconcile those corrections and keep direct source pointers, not chains of summaries.
+
+New checkpoints use `memory-log.v2`, with a small JSON envelope: `{"text":"Prose with [@source-id] citations.","supersedes":[]}`. Source IDs are extracted from the prose and validated against available originals. Existing V1 observation/reflection blocks keep their IDs, content and exact rendering until a rewrite converts them to prose; no migration call is required.
 
 ## Context and cache
 

@@ -125,7 +125,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				return;
 			}
 			const blocks = memoryOf(ctx.sessionManager.getBranch())?.blocks ?? [];
-			ctx.ui.notify(`${blocks.length} memory blocks, ${claims(blocks).length} claims, ~${roughTokens(renderMemory(blocks))} tokens. /memory fold | rewrite [focus]`, "info");
+			ctx.ui.notify(`${blocks.length} memory blocks, ~${roughTokens(renderMemory(blocks))} tokens. /memory fold | rewrite [focus]`, "info");
 		},
 	});
 	pi.registerTool({

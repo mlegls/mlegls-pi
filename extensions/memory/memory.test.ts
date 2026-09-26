@@ -37,7 +37,7 @@ test("append, resume, cache-prefix reuse, original recall and failed checkpoint"
 				sent = context;
 				const prompt = context.messages.at(-1).content as string;
 				const id = prompt.split("Covered source entries (IDs, dates and identification hints; full content is above):\n")[1].split(" ")[0];
-				return { result: async () => assistant(JSON.stringify({ observations: [{ text: "Port 4567, not verified.", sources: [invalid ? "missing" : id] }], reflections: [] })) };
+				return { result: async () => assistant(JSON.stringify({ text: `Port 4567, not verified. [@${invalid ? "missing" : id}]`, supersedes: [] })) };
 			} },
 		};
 		memoryExtension(pi);
@@ -77,11 +77,33 @@ test("append, resume, cache-prefix reuse, original recall and failed checkpoint"
 });
 
 test("rewrite retains direct evidence; unknown supersession/source references fail", () => {
-	const first = parseBlock(JSON.stringify({ observations: [{ text: "Port 3000", sources: ["original"] }], reflections: [] }), new Set(["original"]), [], false, ["original"]);
-	const json = JSON.stringify({ observations: [{ text: "Port 4567 instead", sources: ["original", "correction"], supersedes: [first.observations[0].id] }], reflections: [] });
+	const first = parseBlock(JSON.stringify({ text: "Port 3000. [@original]" }), new Set(["original"]), [], false, ["original"]);
+	const json = JSON.stringify({ text: "Port 4567 instead. [@original] [@correction]", supersedes: [first.id] });
 	const revised = parseBlock(json, new Set(["original", "correction"]), [first], true, ["correction"]);
-	expect(revised.observations[0].sources).toEqual(["original", "correction"]);
-	expect(revised.observations[0].supersedes).toEqual([]);
+	expect(revised.sources).toEqual(["original", "correction"]);
+	expect(revised.supersedes).toEqual([]);
 	expect(() => parseBlock(json, new Set(["correction"]), [first], true, [])).toThrow("source pointers");
 	expect(() => parseBlock(json, new Set(["original", "correction"]), [], false, [])).toThrow("superseded claim");
+});
+
+test("V1 blocks retain their rendered prefix and can be corrected or rewritten as prose", () => {
+	const old = { id: "old", timestamp: 1, covers: ["source"],
+		observations: [{ id: "old:o0", text: "Port 3000", sources: ["source"], supersedes: [] }], reflections: [] };
+	const branch: any[] = [{ type: "compaction", id: "cut", timestamp: new Date(1).toISOString(),
+		summary: "old envelope", details: { kind: "memory-log.v1", blocks: [old] } }];
+	const expected = "Historical memory old. Later explicit corrections supersede earlier claims; plans are not completed work. Use memory_recall for original evidence.\nObservations:\n[old:o0] Port 3000\nSources: source\nReflection / activity log:\n";
+	expect(expandMemory([{ role: "compactionSummary" }], branch)[0].content).toBe(expected);
+	const text = "The port changed to 4567; deployment remains unverified. [@source] [@correction]";
+	const json = JSON.stringify({ text, supersedes: ["old:o0"] });
+	const appended = parseBlock(json, new Set(["source", "correction"]), [old], false, ["correction"]);
+	expect(appended.text).toBe(text);
+	expect(appended.supersedes).toEqual(["old:o0"]);
+	branch[0].details = { kind: KIND, blocks: [old, appended] };
+	expect(expandMemory([{ role: "compactionSummary" }], branch)[0].content).toBe(expected);
+	const rewritten = parseBlock(json, new Set(["source", "correction"]), [old, appended], true, ["correction"]);
+	expect(rewritten.sources).toEqual(["source", "correction"]);
+	expect(rewritten.supersedes).toEqual([]);
+	expect(renderBlock(rewritten)).not.toContain("Observations:");
+	expect(() => parseBlock('{"text":"Uncited prose"}', new Set(["source"]), [], false, [])).toThrow("source pointers");
+	expect(() => parseBlock('{"observations":[],"reflections":[]}', new Set(), [], false, [])).toThrow("Missing memory prose");
 });
