@@ -26,6 +26,8 @@ The name is resolved at session start and the life opens at the first model call
 
 Settings go under `connectome` in `~/.pi/agent/settings.json` or `<cwd>/.pi/settings.json`: `identity` (a name), `enabled`, `dir`, `agentName`, `budgetRatio` (default 0.5), `budgetTokens`, `reserveForResponse`, `strategy` (passthrough overrides for `AutobiographicalConfig`).
 
+Settings are read when a life opens. Existing lives survive `/reload`; after changing strategy settings, restart/resume Pi or use `/connectome off` then `/connectome default` to reopen with the new defaults. The store and memories are retained. `strategy.logEffectiveConfig: true` writes initialization provenance to the life's `lib.log`.
+
 ## Inspection
 
 `/connectome` shows the store, summary levels, pending work and render stats. Each life directory (`~/.pi/agent/connectome/<identity>/`) contains:

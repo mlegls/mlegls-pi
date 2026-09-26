@@ -370,6 +370,8 @@ export default function (pi: ExtensionAPI) {
 				...settings.strategy,
 			} as any);
 			let cm: ContextManager;
+			// Initialization emits config provenance; route it to this life before opening the store.
+			LIB_LOG.path = join(path, "lib.log");
 			try {
 				cm = await ContextManager.open({ path: join(path, "store"), strategy, membrane: membraneFor(holder) as any });
 			} catch (e) {
@@ -378,7 +380,6 @@ export default function (pi: ExtensionAPI) {
 				showStatus(ctx);
 				return;
 			}
-			LIB_LOG.path = join(path, "lib.log");
 			l = { path, cm, holder, originals: new Map(), ingested: new Map() };
 			holder.originals = l.originals;
 			reindex(l);
