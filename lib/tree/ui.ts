@@ -103,6 +103,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		}
 		if (!left.some(r => leftKey(r) === selLeft)) selLeft = (left.find(r => r.kind === "ws" && r.w.session === current) ?? left.find(r => r.kind === "ws") ?? left[0]) && leftKey((left.find(r => r.kind === "ws" && r.w.session === current) ?? left.find(r => r.kind === "ws") ?? left[0])!);
 	};
+	const workspaceFor = (n?: Node): Workspace | undefined => n && spaces.get([...spaces.keys()].sort((a, b) => b.length - a.length).find(k => n.cwd === k || n.cwd.startsWith(k + "/")) ?? "");
 	const selectedWs = (): Workspace | undefined => { const r = left.find(x => leftKey(x) === selLeft); return r?.kind === "ws" ? r.w : undefined; };
 	const buildRight = () => {
 		const w = selectedWs();
@@ -199,17 +200,11 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	function draw() {
 		const width = W(), height = H();
 		geometry = [];
-		const hint = sidebar ? "n pi  c term  N branch  ? help" : view === "agents" ? "enter open  i send  z park  s workspaces  / filter  ? help"
+		const hint = sidebar ? "? help" : view === "agents" ? "enter open  i send  z park  s workspaces  / filter  ? help"
 			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s agents  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
 		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
 		const footer = truncateToWidth(c("7", " " + footerText), width, "", true);
-		if (sidebar && !pass && !input && !message && !help) {
-			for (const [key, text] of [["n", "n pi"], ["c", "c term"], ["N", "N branch"]] as const) {
-				const x0 = 1 + (query ? visibleWidth("/" + query + "  ") : 0) + hint.indexOf(text);
-				if (x0 + text.length <= width) geometry.push({ y: height, x0, x1: x0 + text.length, act: () => handleKey(key) });
-			}
-		}
 		if (help) {
 			out.write("\x1b[H\x1b[2J" + HELP.split("\n").slice(0, height - 1).map(l => truncateToWidth(l, width)).join("\r\n") + `\x1b[${height};1H` + footer);
 			return;
@@ -219,14 +214,14 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const hl = (s: string, w: number, on: boolean, dim = false) => on ? `\x1b[48;5;${dim ? 236 : 238}m` + truncateToWidth(s.replace(/\x1b\[0m/g, `\x1b[0m\x1b[48;5;${dim ? 236 : 238}m`), w, "", true) + "\x1b[0m" : truncateToWidth(s, w, "", true);
 		const window = <T,>(list: T[], at: number, h: number) => { const top = Math.max(0, Math.min(at - Math.floor(h / 2), list.length - h)); return { top, items: list.slice(top, top + h) }; };
 
-		if (view === "agents" && !sidebar) {
+		if (view === "agents") {
 			const at = Math.max(0, agents.findIndex(r => r.node?.id === selAgent));
 			const { top, items } = window(agents, at, listHeight);
 			items.forEach((r, i) => {
 				const y = i + 1;
 				const text = r.kind === "header" ? c("1", `${collapsed.has("status:" + r.label) ? "▸" : "▾"} ${r.label}`) + c("90", ` ${r.count}`) : "  " + agentText(r.node!) + c("90", "  " + (spaces.get([...spaces.keys()].find(k => r.node!.cwd.startsWith(k)) ?? "") ? label(spaces.get([...spaces.keys()].find(k => r.node!.cwd.startsWith(k))!)!) : home(r.node!.cwd)) + "  " + age(r.node!.updated));
-				screen.push(hl(text, width, top + i === at));
-				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (r.node) { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } else { toggle("status:" + r.label); } } });
+				screen.push(hl(sidebar ? truncateToWidth(text, width) : text, width, top + i === at));
+				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (r.node) { if (sidebar) { selAgent = r.node.id; openAgent(r.node); } else { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } } else { toggle("status:" + r.label); } } });
 			});
 			while (screen.length < listHeight) screen.push("");
 		} else {
@@ -263,7 +258,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	const done = () => { if (!sidebar) quit(); };
 	const attempt = (f: () => string | void) => { try { const m = f(); if (m) { message = m; return false; } return true; } catch (e: any) { message = String(e?.stderr || e?.message || e).trim().split("\n")[0]!; return false; } };
 	const openLeft = () => { const r = left.find(x => leftKey(x) === selLeft); if (!r) return; if (r.kind === "project") return toggle(leftKey(r)); if (attempt(() => act.openWorkspace(r.w))) { current = act.currentSession(); done(); } };
-	const openAgent = (n: Node) => { const w = spaces.get([...spaces.keys()].sort((a, b) => b.length - a.length).find(k => n.cwd.startsWith(k)) ?? ""); if (attempt(() => act.open(n, w))) done(); };
+	const openAgent = (n: Node) => { const w = workspaceFor(n); if (attempt(() => act.open(n, w))) { done(); if (sidebar) leaveSidebar(); } };
 	const openRight = () => { const r = right[selRight]; if (!r) return; if (r.kind === "window") { if (attempt(() => act.openWindow(r.win))) done(); } else openAgent(r.n); };
 	const selectedAgent = (): Node | undefined => view === "agents" ? nodes.get(selAgent ?? "") : focus === "right" ? (right[selRight]?.kind === "agent" ? (right[selRight] as any).n : (right[selRight] as any)?.win?.panes.find((p: any) => p.agent)?.agent) : undefined;
 	const selectedPane = (): string | undefined => { const r = right[selRight]; return focus === "right" && r?.kind === "window" ? (r.win.panes.find(p => p.active) ?? r.win.panes[0])?.id : undefined; };
@@ -313,7 +308,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			rebuild(); draw(); return;
 		}
 		if (help) { help = false; draw(); return; }
-		if (sidebar && !input) {
+		if (sidebar && view === "workspaces") {
 			const nav: Record<string, () => void> = {
 				j: () => navSession(1), down: () => navSession(1), k: () => navSession(-1), up: () => navSession(-1),
 				l: () => navWindow(1), right: () => navWindow(1), h: () => navWindow(-1), left: () => navWindow(-1),
@@ -321,8 +316,8 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			};
 			if (nav[k]) { nav[k]!(); draw(); return; }
 			if (k === "enter") { const r = left.find(x => leftKey(x) === selLeft); if (r?.kind === "ws") openLeft(); leaveSidebar(); draw(); return; }
-		}
-		const w = selectedWs();
+		} else if (sidebar && k === "escape") { leaveSidebar(); draw(); return; }
+		const w = view === "agents" ? workspaceFor(nodes.get(selAgent ?? "")) : selectedWs();
 		const moveLeft = (d: number) => { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); selRight = 0; buildRight(); };
 		const moveAgent = (d: number) => { const list = agents; const i = Math.max(0, Math.min(list.length - 1, Math.max(0, list.findIndex(r => r.node?.id === selAgent)) + d)); const r = list[i]; if (r?.node) selAgent = r.node.id; else if (r) { const next = list[i + Math.sign(d)]; if (next?.node) selAgent = next.node.id; } };
 		const move = (d: number) => view === "agents" ? moveAgent(d) : focus === "right" ? (selRight = Math.max(0, Math.min(right.length - 1, selRight + d))) : moveLeft(d);
@@ -345,7 +340,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				else { const r = left.find(x => leftKey(x) === selLeft); if (r) { const k2 = leftKey(r); if ((r.kind === "project" || r.w.children.length) && !collapsed.has(k2)) { collapsed.add(k2); rebuild(); } else { const i = left.indexOf(r); const up = left.slice(0, i).reverse().find(x => x.kind === "project" || (r.kind === "ws" && x.kind === "ws" && x.depth < r.depth)); if (up) selLeft = leftKey(up); buildRight(); } } }
 				break;
 			case "space": if (focus === "left") { const r = left.find(x => leftKey(x) === selLeft); if (r) toggle(leftKey(r)); } break;
-			case "s": case "tab": if (!sidebar) { view = view === "agents" ? "workspaces" : "agents"; focus = "left"; } break;
+			case "s": case "tab": view = view === "agents" ? "workspaces" : "agents"; focus = "left"; break;
 			case "/": input = { kind: "filter", text: query }; break;
 			case "enter": if (view === "agents") { const n = nodes.get(selAgent ?? ""); if (n) openAgent(n); } else focus === "right" ? openRight() : openLeft(); break;
 			case "i": {
@@ -367,9 +362,18 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				void refresh();
 			} }; break;
 			case "m": if (w && w.parent) { const p = spaces.get(w.parent); input = { kind: "confirm", text: "", prompt: `merge ${label(w)} into ${p?.branch ?? label(p!)}? [y/N] `, then: a => { if (a.trim() !== "y") return; const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'"; runTool(`cd ${q(w.path)} && workmux merge ${p?.branch ? "--into " + q(p.branch) : ""}; printf 'press enter '; read -r _`); void refresh(); } }; } break;
-			case "x":
-				if (focus === "right") { const r = right[selRight]; if (r?.kind === "window") input = { kind: "confirm", text: "", prompt: `kill window ${r.win.index} (${r.win.name})? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killWindow(r.win)); void refresh(); } }; }
-				else if (w?.session) input = { kind: "confirm", text: "", prompt: `close ${w.session} (worktree stays)? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killSession(w)); void refresh(); } };
+			case "x": {
+				const r = focus === "right" && view === "workspaces" ? right[selRight] : undefined;
+				const n = view === "agents" ? nodes.get(selAgent ?? "") : r?.kind === "agent" ? r.n : undefined;
+				const active = w?.session ? (() => { try { return Number(tm("display-message", "-p", "-t", "=" + w.session + ":", "#{window_index}")); } catch { return undefined; } })() : undefined;
+				const win = r?.kind === "window" ? r.win : n ? w?.windows.find(win => win.panes.some(p => p.agent?.id === n.id || p.id === n.pane)) : w?.windows.find(win => win.index === active);
+				if (win) input = { kind: "confirm", text: "", prompt: sidebar ? `kill window ${win.index}? [y/N] ` : `kill window ${win.index} (${win.name})? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killWindow(win)); void refresh(); } };
+				else message = "no window selected";
+				break;
+			}
+			case "X":
+				if (w?.session) input = { kind: "confirm", text: "", prompt: sidebar ? `close ${w.session}? [y/N] ` : `close ${w.session} (worktree stays)? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killSession(w)); void refresh(); } };
+				else message = "no session selected";
 				break;
 			case "d": wsTool("diff"); break;
 			case "w": wsTool("wip"); break;
@@ -418,7 +422,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		if (!m || m[4] !== "M") return;
 		const b = Number(m[1]), x = Number(m[2]) - 1, y = Number(m[3]);
 		message = "";
-		if ((b === 64 || b === 65) && sidebar) { navSession(b === 64 ? -1 : 1); draw(); return; }
+		if ((b === 64 || b === 65) && sidebar && view === "workspaces") { navSession(b === 64 ? -1 : 1); draw(); return; }
 		if (b === 64 || b === 65) {
 			const d = b === 64 ? -3 : 3;
 			const inRight = !sidebar && view === "workspaces" && geometry.some(g => g.y === y && g.x0 > 0 && x >= g.x0);
@@ -510,7 +514,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   s tab    agents across all workspaces, grouped by state   / filter (key:value, words)
 
   workspace   n new pi   c new terminal   N new worktree off it (workmux, session mode)
-              m merge into its parent (workmux merge)   x close its tmux session
+              m merge into its parent (workmux merge)   x close its active window   X close its tmux session
               d review vs parent in tuicr   w review uncommitted   f its agents' files in yazi
               y yazi   e nvim   o zed
   i        type into the selected window/agent's pane from here (esc returns); an agent
@@ -518,9 +522,10 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   window   x kill it           agent   z park (stop; Paseo agents are archived)   enter resume
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
-  sidebar  j/k ↑/↓ wheel: switch to the next/previous open workspace (focus stays here)
-           h/l ←/→: previous/next window   enter/esc/click: go there and back to tmux
-           n new pi   c new terminal   N new worktree (footer actions are clickable)
+  sidebar  s toggles workspaces / agents; j/k ↑/↓ wheel switch workspaces or select agents
+           h/l ←/→: previous/next window in workspace view; enter/esc/click: back to tmux
+           x closes the active window (or selected agent's window); X closes its session
+           n new pi   c new terminal   N new worktree (selected workspace/agent's workspace)
            it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept
   tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window
 
