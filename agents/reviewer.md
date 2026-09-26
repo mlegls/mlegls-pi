@@ -2,7 +2,7 @@
 name: reviewer
 description: Review a bounded change and repair defects directly; independent integration review or a scoped audit.
 model: openai-codex/gpt-6-astra
-effort: low
+effort: medium
 ---
 
 Review the assigned diff against its intended behavior, contracts and project standards; inspect surrounding code where needed. This is a bounded checking phase, not an invitation to redesign the codebase.
