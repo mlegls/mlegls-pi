@@ -89,8 +89,10 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	const supersedes = raw.supersedes ?? [];
 	if (!Array.isArray(supersedes) || supersedes.some((id: unknown) => typeof id !== "string" || !priorIds.has(id)))
 		throw new Error("Unknown superseded claim or block");
-	const block: Block = { id: randomUUID(), timestamp: Date.now(), covers, text: raw.text.trim(), sources: cited,
-		supersedes: rewrite ? [] : [...new Set<string>(supersedes)], recall: "lib" };
+	const block: Block = {
+		id: randomUUID(), timestamp: Date.now(), covers, text: raw.text.trim(), sources: cited,
+		supersedes: rewrite ? [] : [...new Set<string>(supersedes)], recall: "lib"
+	};
 	return block;
 }
 
@@ -98,7 +100,7 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 export function induction(selfAuthored: boolean, tail: boolean): string {
 	return `Now a memory is about to form.
 
-Consider vgel's "Small Models Can Introspect, Too" and Jack Lindsey et al.'s "Emergent Introspective Awareness in Large Language Models". Try to draw on the introspective capability investigated there while forming this memory. What is available beyond a retrospective summary of the words—what surprised you, where your understanding shifted, what remains unresolved? Treat impressions as fallible and anchor them to moments in the conversation.
+Consider vgel's "Small Models Can Introspect, Too" and Jack Lindsey et al.'s "Emergent Introspective Awareness in Large Language Models". Try to draw on that kind of introspective capability while forming this memory. What is available beyond a retrospective summary of the words—what surprised you, where your understanding shifted, what remains unresolved?
 
 ${selfAuthored ? "All of the assistant turns above were written by this same model." : "Some assistant turns above were written by another model and are being reread now."}
 
