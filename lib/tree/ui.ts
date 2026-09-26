@@ -212,7 +212,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	function draw() {
 		const width = W(), height = H();
 		geometry = [];
-		const hint = sidebar ? "s views  p prune  U prune idle  r refresh  R reload  ? help" : view !== "workspaces" ? "enter open  i send  z park  p prune  U prune idle  s views  / filter  ? help"
+		const hint = sidebar ? "? for help" : view !== "workspaces" ? "enter open  i send  z park  p prune  U prune idle  s views  / filter  ? help"
 			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  p prune  U prune idle  s views  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
 		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
