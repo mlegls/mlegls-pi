@@ -307,6 +307,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const session = current ?? act.currentSession();
 		if (session) attempt(() => { tm("select-window", "-t", "=" + session + ":" + (d > 0 ? "+" : "-")); });
 	};
+	const navAgent = () => {
+		const n = selectedAgent();
+		if (n && act.paneAlive(n.pane)) attempt(() => act.open(n, workspaceFor(n)));
+	};
 	const leaveSidebar = () => { if (ghostty.inGhostty()) ghostty.focusMain(); };
 
 	const handleKey = (data: string) => {
@@ -316,6 +320,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			if (k === "escape") { if (input.kind === "filter") query = ""; input = undefined; }
 			else if (k === "enter") { const i = input; input = undefined; if (i.kind === "filter") {} else i.then?.(i.text); }
 			else if (k === "backspace") input.text = input.text.slice(0, -1);
+			else if (input.kind === "confirm" && (k === "y" || k === "n")) { const i = input; input = undefined; i.then?.(k); }
 			else if (!data.startsWith("\x1b") && data >= " ") input.text += data;
 			if (input?.kind === "filter") query = input.text;
 			rebuild(); draw(); return;
@@ -340,6 +345,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			} else if (view === "agents") moveAgent(d);
 			else if (focus === "right") selRight = Math.max(0, Math.min(right.length - 1, selRight + d));
 			else moveLeft(d);
+			if (sidebar && view !== "workspaces") navAgent();
 		};
 		switch (k) {
 			case "q": case "ctrl+c": return quit();
@@ -394,12 +400,12 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				const n = view !== "workspaces" ? selectedAgent() : r?.kind === "agent" ? r.n : undefined;
 				const active = w?.session ? (() => { try { return Number(tm("display-message", "-p", "-t", "=" + w.session + ":", "#{window_index}")); } catch { return undefined; } })() : undefined;
 				const win = r?.kind === "window" ? r.win : n ? w?.windows.find(win => win.panes.some(p => p.agent?.id === n.id || p.id === n.pane)) : w?.windows.find(win => win.index === active);
-				if (win) input = { kind: "confirm", text: "", prompt: sidebar ? `kill window ${win.index}? [y/N] ` : `kill window ${win.index} (${win.name})? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killWindow(win)); void refresh(); } };
+				if (win) input = { kind: "confirm", text: "", prompt: sidebar ? `kill window ${win.index}? [Y/n] ` : `kill window ${win.index} (${win.name})? [Y/n] `, then: a => { if (a.trim().toLowerCase() !== "n") attempt(() => act.killWindow(win)); void refresh(); } };
 				else message = "no window selected";
 				break;
 			}
 			case "X":
-				if (w?.session) input = { kind: "confirm", text: "", prompt: sidebar ? `close ${w.session}? [y/N] ` : `close ${w.session} (worktree stays)? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killSession(w)); void refresh(); } };
+				if (w?.session) input = { kind: "confirm", text: "", prompt: sidebar ? `close ${w.session}? [Y/n] ` : `close ${w.session} (worktree stays)? [Y/n] `, then: a => { if (a.trim().toLowerCase() !== "n") attempt(() => act.killSession(w)); void refresh(); } };
 				else message = "no session selected";
 				break;
 			case "d": wsTool("diff"); break;
@@ -549,8 +555,8 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   window   x kill it           agent   z park (stop the process; the session stays resumable)   enter resume
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
-  sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ wheel navigates
-           h/l ←/→: windows in workspace view, fold/expand in session tree; enter opens
+  sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ wheel switches live sessions
+           h/l ←/→: windows in workspace view, fold/expand in session tree; enter opens/resumes
            x closes the active window (or selected agent's window); X closes its session
            n new pi   c new terminal   N new worktree (selected workspace/agent's workspace)
            it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept

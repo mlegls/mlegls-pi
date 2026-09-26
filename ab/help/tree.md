@@ -27,7 +27,8 @@ parent/child nesting. The session tree sorts sibling subtrees by their most urge
 collapsed nodes and projects show needs-you counts. A child in another project starts a
 root there, with a reference to its parent. The dashboard (prefix-t) shows a live preview;
 the sidebar is a Ghostty split beside tmux. In workspace view j/k switch workspaces;
-in session views they select agents (or project headers in the tree). Click or enter opens
-one; h/l fold and expand the session tree. x closes the selected window, X its session;
+in session views j/k select agents (or project headers in the tree) and switch to live
+agent windows immediately. Enter opens or resumes one; h/l fold and expand the session tree.
+x closes the selected window, X its session;
 n/c/N create a pi window, terminal, or worktree.
 Mouse works; ? shows the keys.
