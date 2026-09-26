@@ -4,16 +4,27 @@ import { create, type Event } from "../../../lib/ingress.ts";
 import { createCompressor } from "../../../lib/skim.ts";
 import { cases } from "./cases.ts";
 
+const middle = process.argv.includes("--middle");
 console.log(JSON.stringify({ type: "manifest", revision: Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout.toString().trim(), timestamp: new Date().toISOString(), runs: 2 }));
 const compressor = createCompressor();
 try {
   for (const c of cases) {
     // Direct compression is a stress control, not evidence of selection by the live judge.
-    const direct = await compressor.compress([.75, .5, .25].map(rate => ({ text: c.text, rate: rate as .75 | .5 | .25 })));
-    console.log(JSON.stringify({ type: "compression", id: c.id, outputs: direct.map((text, i) => ({ rate: [.75, .5, .25][i], text, exactEvidence: c.evidence.map(e => text.includes(e)) })) }));
-    for (const intent of ["task", "focus", "orientation"] as const) {
-      const query = intent === "task" ? c.task : "Get an overview of the project's tooling and development workflow.";
-      const focus = intent === "focus" ? c.task : undefined;
+    if (!middle) {
+      const direct = await compressor.compress([.75, .5, .25].map(rate => ({ text: c.text, rate: rate as .75 | .5 | .25 })));
+      console.log(JSON.stringify({ type: "compression", id: c.id, outputs: direct.map((text, i) => ({ rate: [.75, .5, .25][i], text, exactEvidence: c.evidence.map(e => text.includes(e)) })) }));
+    }
+    const topic = c.text.split("\n")[0].replace(/^# /, "").toLowerCase();
+    const readings = middle ? [
+      { intent: "explain", query: `Explain the ${topic} described in this document.`, focus: undefined },
+      { intent: "summary", query: `Summarize this document's approach to ${topic}.`, focus: undefined },
+      { intent: "topic-orientation", query: `I'm getting oriented in this repository's ${topic}. Read this section for background.`, focus: undefined },
+    ] : [
+      { intent: "task", query: c.task, focus: undefined },
+      { intent: "focus", query: "Get an overview of the project's tooling and development workflow.", focus: c.task },
+      { intent: "orientation", query: "Get an overview of the project's tooling and development workflow.", focus: undefined },
+    ];
+    for (const { intent, query, focus } of readings) {
       for (let run = 0; run < 2; run++) {
         const events: Event[] = [];
         const reader = create({ record: e => events.push(e) });

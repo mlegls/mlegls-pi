@@ -1,0 +1,12 @@
+exact    1713B  recorded 25% cues  replay 100% verbatim | 100% verbatim  pwd; git status --short; ls -la | head -45; rg -n -i 'chrome
+exact    1481B  recorded 25% cues  replay 100% verbatim | 100% verbatim  pwd; ls -la; find . -name calc.ts -print; git status --short
+exact    1845B  recorded 25% cues  replay 100% verbatim | 100% verbatim  cd /Users/mlegls/dev/mlegls-pi && ls && git log --oneline | 
+exact    3204B  recorded 25% cues  replay 100% verbatim | 100% verbatim  cd /tmp && for r in oguzalp7/frontier-axi kunchenguid/tasks-
+exact    4712B  recorded 25% cues×2  replay 100% verbatim×2 | 100% verbatim×2  cd /Users/mlegls/dev/mmon/concept; git log --oneline -25; ec
+exact    4427B  recorded 71% verbatim,cues,skim75×3  replay 84% omit,cues,verbatim×2,skim75 | 87% omit,skim75×2,verbatim×2  cat > design.md <<'EOF'
+exact     573B  recorded 25% cues  replay 100% verbatim | 100% verbatim  grep -rl "disable-model-invocation" skills/ | head; ls ~/.cl
+exact    7356B  recorded 39% skim50,cues  replay 100% verbatim×2 | 100% verbatim×2  grep -n 'fn \|"converge"\|"count"\|"data"\|"broadcast"\|zero
+skim     1264B  recorded 25% cues  replay 100% verbatim | 100% verbatim  exa-cli search 'programming language scoped algebra interpre
+skim      946B  recorded 25% cues  replay 100% verbatim | 100% verbatim  exa-cli search 'Lean local scoped notation instances coercio
+skim    41151B  recorded 27% omit×5,cues×7,skim50,skim75×2  replay 22% omit×12,verbatim×3 | 22% omit×12,verbatim×3  pgrep -alf 'Google Chrome|Chrome Helper|chrome-devtools' | h
+skim    41144B  recorded 3% omit×10,skim75  replay 14% omit×9,verbatim×2 | 4% omit×10,verbatim  cd ~/.pi/agent/sessions; for f in $(find . -name '*.jsonl' -
