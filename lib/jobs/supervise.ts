@@ -13,8 +13,9 @@ import * as route from "../route.ts";
 import * as children from "../children.ts";
 import { parse } from "../report.ts";
 import type { JobContext } from "../daemon.ts";
+import { resolveSession } from "../session-meta/identity";
 
-export interface Input { ticket: string; cwd: string; owner: string; budget: number; test?: string; commands: string; carried?: State | null }
+export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; carried?: State | null }
 type Phase = "implement" | "verify" | "supervise";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; waiting?: string; unreachable?: boolean }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
@@ -72,6 +73,9 @@ const HANDOFF = "End with the status sentinel and a fenced yaml handoff (agents/
 export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
+ // Older persisted jobs stored only a delivery address. Never use the daemon's own session as parent.
+ const parent = input.ownerSession ?? resolveSession(input.owner, (await import("../tree/graph").then(m => m.graph())).keys());
+ if (!parent) throw new Error("Cannot resolve supervisor session: " + input.owner);
  const save = () => job.save(state);
  const note = (slug: string, found: string[]) => { if (found.length) (state.caveats ??= {})[slug] = [...(state.caveats[slug] ?? []), ...found]; };
  // Wakes are delivered in order; an owner mid-turn ("already has an active run") or a dropped connection
@@ -102,7 +106,7 @@ export async function run(job: JobContext) {
   const prepared = await route.prepare(prompt, { assignee: assignee ?? undefined, stance });
   if (prepared.kind !== "ready") throw new Error("routing needs triage for " + slug);
   const receipt = await dispatch([{ handle: phase === "verify" ? slug + "-verify" : slug, prompt, agent: prepared.agent, model: prepared.model, effort: prepared.effort, base }],
-   { run: input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent: input.owner.replace(/^session\//, "") });
+   { run: input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent });
   if (!receipt.submitted[0]) throw new Error("launch failed for " + slug + ": " + (receipt.failed?.error ?? "pending"));
   state.metrics.launched++;
   return receipt.submitted[0];

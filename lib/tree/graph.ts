@@ -14,6 +14,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "../session-meta/live";
 import { logPath } from "../board/store";
+import { resolveSession } from "../session-meta/identity";
 
 /** working/idle: a pi with a live record;
  * resumable: no process, reopen with pi --session; gone: its directory was deleted. */
@@ -32,7 +33,7 @@ export interface Node {
 	run?: string;
 	handle?: string;
 	state: State;
-	/** Whether the current (or original) pi process had an interactive TUI. */
+	/** User-facing session: not agent-spawned, and not running headless. */
 	interactive: boolean;
 	pid?: number;
 	pane?: string;
@@ -181,7 +182,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	for (const l of live) if (l.sessionFile) want.add(l.sessionFile);
 
 	const parentOf = (p: Parsed): { id?: string; kind?: Node["parentKind"] } => {
-		if (p.meta?.parentSession) return { id: p.meta.parentSession, kind: "spawn" };
+		if (p.meta?.parentSession) return { id: resolveSession(p.meta.parentSession, byId.keys()) ?? p.meta.parentSession, kind: "spawn" };
 		if (p.meta?.invokedBy && p.meta.invokedBy !== p.id) return { id: p.meta.invokedBy, kind: "invoked" };
 		if (p.forkOf) return { id: basename(p.forkOf).slice(basename(p.forkOf).indexOf("_") + 1, -6), kind: "fork" };
 		return {};
@@ -211,7 +212,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
 			parent, parentKind: kind, run, handle,
-			state, interactive: (l?.mode ?? p.meta?.mode ?? (p.meta?.invokedBy ? "print" : "tui")) === "tui",
+			state, interactive: kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
 			pid: l?.pid, pane: l?.tmuxPane, report: run && handle ? board.get(run + "/" + handle) : undefined,
 			lastText: p.lastText, children: [],
 		});

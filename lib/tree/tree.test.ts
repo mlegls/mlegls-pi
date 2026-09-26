@@ -56,11 +56,12 @@ describe("graph", () => {
 	test("status puts interactive sessions first, keeping state groups distinct", async () => {
 		const g = await graph();
 		const r = rows(g, "status", { all: true });
-		expect(g.get("child")!.interactive).toBe(true); // Spawned does not imply headless.
+		expect(g.get("parent")!.interactive).toBe(true);
+		expect(g.get("child")!.interactive).toBe(false); // A worker's TUI does not make it user-spawned.
 		expect(g.get("headless")!.interactive).toBe(false);
-		expect(g.get("orphan")!.interactive).toBe(false); // Live mode overrides legacy metadata.
+		expect(g.get("orphan")!.interactive).toBe(false);
 		expect(r.filter(x => x.depth === 0).map(x => x.label)).toEqual(["interactive", "non-interactive"]);
-		expect(r.findIndex(x => x.node?.id === "child")).toBeLessThan(r.findIndex(x => x.node?.id === "headless"));
+		expect(r.findIndex(x => x.node?.id === "parent")).toBeLessThan(r.findIndex(x => x.node?.id === "headless"));
 		expect(r.filter(x => x.label === "resumable" && x.kind === "header").map(x => x.key))
 			.toEqual(["status:interactive:resumable", "status:non-interactive:resumable"]);
 		expect(rows(g, "status", { all: true, collapsed: new Set(["status:non-interactive:resumable"]) })
@@ -105,4 +106,20 @@ describe("graph", () => {
 		expect(r.findIndex(x => x.kind === "header" && x.label === "another")).toBeLessThan(r.findIndex(x => x.node === child));
 		expect(rows(g, "tree", { query: "project:another" }).filter(x => x.node).map(x => x.node!.id)).toEqual(["child"]);
 	});
+});
+
+test("legacy mailbox parents join the live supervisor", async () => {
+	const parent = "00000000-0000-7000-8000-0000168492b9";
+	session(parent, [user("supervisor")], "2020-01-01T00:00:00Z");
+	session("mail-child", [meta({ parentSession: "mail/168492b9", mode: "tui" })]);
+	writeLive({ pid: process.ppid, sessionId: parent, cwd, state: "idle", since: new Date().toISOString() });
+	writeLive({ pid: process.pid, sessionId: "mail-child", cwd, state: "working", since: new Date().toISOString(), mode: "tui" });
+	const g = await graph();
+	expect(g.get("mail-child")!.parent).toBe(parent);
+	expect(g.get("mail-child")!.orphan).toBeUndefined();
+	expect(g.get("mail-child")!.interactive).toBe(false);
+	expect(g.get(parent)!.children).toEqual(["mail-child"]);
+	const nested = rows(g, "tree", { all: true });
+	expect(nested.find(r => r.node?.id === "mail-child")!.depth)
+		.toBe(nested.find(r => r.node?.id === parent)!.depth + 1);
 });

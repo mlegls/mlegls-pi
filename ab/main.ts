@@ -228,7 +228,7 @@ async function supervise(args: string[]) {
 		const previous = jobs.at(-1);
 		mkdirSync(dir, { recursive: true });
 		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
-		const input = { ticket, cwd: top, owner, budget: Number(values.budget ?? 3), test: values.test, commands: join(dir, ticket + ".commands.jsonl"), carried: previous?.state ?? null };
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 3), test: values.test, commands: join(dir, ticket + ".commands.jsonl"), carried: previous?.state ?? null };
 		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
 		console.log(record.id + " " + record.status + (previous ? " (continuing " + previous.id + ")" : ""));
 		return;

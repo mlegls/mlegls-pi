@@ -11,9 +11,9 @@ one without a process still shows:
   × gone (cwd deleted)
   !  waiting on you (board needs-input/checkpoint)   ⊘ blocked   orphan: running or pending in a worktree, parent is neither
 
-Interactive means pi's TUI mode, not "has no parent": a spawned worker can have a TUI.
-For older sessions without recorded mode, invoked children default to non-interactive and
-others to interactive.
+Interactive groups user-facing sessions; agent-spawned workers are non-interactive even
+when they have a TUI. Headless sessions are also non-interactive. Forks alone do not
+imply agent ownership.
 
 Without a query it shows active sessions plus resumable ones from the last --hours (12);
 -a shows everything in the --days window (3). QUERY terms are ANDed: key:value for
