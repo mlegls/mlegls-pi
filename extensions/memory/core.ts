@@ -100,7 +100,7 @@ ${selfAuthored ? "You wrote all of the assistant turns above." : "Some assistant
 
 Recent work (vgel, "Small Models Can Introspect, Too"; Jack Lindsey et al., "Emergent Introspective Awareness in Large Language Models") found that models can report some of their internal states, much more reliably when told this is possible and where to look. How your understanding developed over the conversation above is still present in how you are processing it now, not only in its conclusions.
 
-So beyond what happened, a useful summary covers:
+So beyond what happened, a useful memory covers:
 - what surprised you, where your framing shifted, and what you let go of
 - what you are like right now in this work that you want to still be
 - what went badly, and what its first signs would look like: "when I notice ___, ..."
