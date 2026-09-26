@@ -9,7 +9,7 @@ import { KIND, expandMemory, parseBlock, renderBlock } from "./core.ts";
 const usage = { input: 100, output: 10, cacheRead: 50, cacheWrite: 0, totalTokens: 160, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
 const assistant = (text: string) => ({ role: "assistant", content: [{ type: "text", text }], api: "openai-responses", provider: "test", model: "model", usage, stopReason: "stop", timestamp: 1 });
 
-test("append, resume, cache-prefix reuse, original recall and failed checkpoint", async () => {
+ test("append, resume, cache-prefix reuse and failed checkpoint", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "memory-test-"));
 	try {
 		mkdirSync(join(cwd, ".pi"));
@@ -63,9 +63,7 @@ test("append, resume, cache-prefix reuse, original recall and failed checkpoint"
 		expect(two.compaction.details.blocks[0]).toEqual(firstBlock);
 		add("compaction", two.compaction);
 		expect(expandMemory(buildSessionContext(branch).messages, branch)[0]).toEqual(resumed[0]);
-		const recall = await registered.get("memory_recall").execute("call", { ids: ["e0", "other-branch"] }, undefined, undefined, ctx);
-		expect(recall.content[0].text).toContain("Use port 4567");
-		expect(recall.content[0].text).toContain("not found on this branch");
+		expect(registered.has("memory_recall")).toBe(false);
 		add("message", { message: { role: "user", content: "Another topic", timestamp: 4 } });
 		add("message", { message: assistant("Another answer.") });
 		invalid = true;

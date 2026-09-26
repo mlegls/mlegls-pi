@@ -401,7 +401,8 @@ function runShell(command, options = {}) {
 	if (typeof command !== "string") throw new TypeError("sh expects a command string or tagged template");
 	const promise = new Promise((resolve, reject) => {
 		// Inherit the kernel process group so reset kills shells and their children.
-		const child = spawn("bash", ["-c", command], { cwd: process.cwd(), ...options, stdio: ["ignore", "pipe", "pipe"] });
+		const child = spawn("bash", ["-c", command], { cwd: process.cwd(), ...options,
+			env: { ...process.env, ...options.env, PI_SESSION_LEAF: scope.getStore()?.sessionLeaf ?? "" }, stdio: ["ignore", "pipe", "pipe"] });
 		const partial = (stream) => (text) => send({ type: "shell-output", shell: child.pid, stream, text });
 		const stdout = capture(child.stdout, partial("stdout"));
 		const stderr = capture(child.stderr, partial("stderr"));
@@ -482,7 +483,7 @@ async function initialize(message) {
 		// Bun Shell quotes interpolated values as arguments and rejects on nonzero exit (use .nothrow()).
 		// Quiet by default: kernel stdout is diagnostics, not cell output. Untraced: tracing would
 		// replace the ShellPromise and lose .nothrow()/.text()/.lines().
-		capabilities.$ = Object.assign((strings, ...values) => Bun.$(strings, ...values).quiet(), { escape: Bun.$.escape, braces: Bun.$.braces, ShellError: Bun.$.ShellError });
+		capabilities.$ = Object.assign((strings, ...values) => Bun.$(strings, ...values).env({ ...process.env, PI_SESSION_LEAF: scope.getStore()?.sessionLeaf ?? "" }).quiet(), { escape: Bun.$.escape, braces: Bun.$.braces, ShellError: Bun.$.ShellError });
 	}
 	for (const [namespace, methods] of Object.entries(services)) {
 		if ((reader && namespace !== "exa") || (namespace !== "host" && !modules.has(namespace))) continue;
@@ -510,6 +511,7 @@ async function initialize(message) {
 	if (!reader) capabilities.project = Object.freeze(project);
 	exec = Object.freeze(capabilities);
 	Object.defineProperty(globalThis, Symbol.for("pi.exec"), { value: exec, writable: false, configurable: false });
+	Object.defineProperty(globalThis, Symbol.for("pi.exec.session"), { value: () => ({ sessionFile: process.env.PI_SESSION_FILE, leafId: scope.getStore()?.sessionLeaf }) });
 	// Errors thrown outside a cell's promise chain (timers, emitters) belong to the cell that scheduled them.
 	const orphan = (error) => {
 		const cell = scope.getStore() || active;
@@ -523,8 +525,10 @@ async function initialize(message) {
 
 function execute(message) {
 	ingressQuery = message.query ?? "";
+	// The leaf belongs to this cell, not whichever concurrent cell ran last.
 	const cell = {
 		query: ingressQuery,
+		sessionLeaf: message.sessionLeaf,
 		id: message.id, calls: 0, images: 0, imageBytes: 0, deliver: send, budgets: new Map(), truncated: false, finished: false, finishing: false, pending: new Set(),
 		async finish(error) {
 			if (cell.finished || cell.finishing) return;

@@ -167,6 +167,7 @@ export default async function (pi: ExtensionAPI) {
 				try {
 					result = await kernel!.execute(code, {
 						id: cell, signal, query: ingressContext(ctx, code),
+						sessionLeaf: ctx.sessionManager.getLeafId(),
 						yieldMs: Number(process.env.PI_EXEC_YIELD_MS) || undefined,
 						onUpdate: trace => onUpdate?.({ content: [], details: { trace } }),
 						detach: () => ctx.hasPendingMessages(),

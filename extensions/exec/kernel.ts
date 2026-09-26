@@ -53,6 +53,7 @@ export interface ExecuteOptions {
 	signal?: AbortSignal;
 	onUpdate?: (trace: KernelTrace) => void;
 	query?: string;
+	sessionLeaf?: string | null;
 	/** Yield with partial output after this long unless a show.sync/wait is pending (default 10s). */
 	yieldMs?: number;
 	/** Polled while the result is held; true yields immediately (e.g. the user queued a steer). */
@@ -387,7 +388,7 @@ export class Kernel {
 				void this.start().then(() => {
 					if (this.cells.get(id) !== cell) return;
 					started = Date.now();
-					this.child?.send({ type: "execute", id, code, query: options.query ?? "" }, (error) => {
+					this.child?.send({ type: "execute", id, code, query: options.query ?? "", sessionLeaf: options.sessionLeaf ?? null }, (error) => {
 						if (error) cell.finish(String(error));
 					});
 				}, (error) => cell.finish(String(error)));

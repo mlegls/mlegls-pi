@@ -5,7 +5,9 @@ One-shot cited prose and reconciliation at compaction. No background model calls
 - `/compact [focus]` or `/memory fold [focus]`: append one new memory block, retaining a short verbatim tail.
 - `/memory rewrite [focus]`: consolidate existing blocks and the folded suffix in one call.
 - `/memory`: block count and approximate memory size.
-- `memory_recall({ids, offset?, limit?})`: retrieve original entry IDs cited by memory, on the current branch. Long text is paginated; images and reasoning are not returned.
+- `show(memory.recall({ids, offset?, limit?}))` in exec, or `ab memory recall ID... [--offset N] [--limit N]`: retrieve cited originals on the invocation's branch. Long text is paginated; images and reasoning are not returned. This replaces the standalone `memory_recall` tool.
+
+Recall uses normal model-dependent output filtering: `show.raw(...)` or `ab raw ab memory recall ID` requests exact text; `show.pull` / `ab pull` recovers previously skimmed output. The library itself returns unfiltered text. Bash supplies the session file and leaf; exec retains a separate leaf for each asynchronous cell and passes it to its shells. Offline reads require explicit `sessionFile`/`leafId` or `--session FILE --leaf ID`; there is no latest-session/branch guess. Persisted session logs are required.
 
 Memory is free prose with inline original-entry citations (`[@entry-id]`), not separate observation/reflection buckets. Prompt guidelines steer relevance and fidelity; the format does not classify facts. Coverage metadata tracks which turns were folded. Corrections name earlier blocks (or V1 claim IDs) and state exactly what changed, without invalidating unrelated material. Rewrites reconcile those corrections and keep direct source pointers, not chains of summaries.
 
@@ -49,17 +51,17 @@ The package loads this extension instead of Connectome. Do not also load Connect
 
 Existing native/OM compaction summaries and folded branch summaries are preserved as explicitly unprovenanced legacy blocks. They survive rewrites rather than being dropped or assigned fabricated original-turn IDs. A large legacy summary may prevent memory from reaching the intended budget; a fresh session avoids that migration constraint.
 
-Disabling generation (`memory.enabled: false`) delegates future compactions to Pi but still expands already-saved memory blocks identically. Removing the extension entirely leaves a readable native compaction summary; structured block rendering and `memory_recall` require the extension.
+Disabling generation (`memory.enabled: false`) delegates future compactions to Pi but still expands already-saved memory blocks identically. Removing the extension entirely leaves a readable native compaction summary. The lib/ab recall reader works independently of the memory extension. Older blocks retain their original rendering (including historical `memory_recall` wording); use lib/ab for those citations too.
 
 ## Development
 
 ```sh
-bun test extensions/memory
+bun test extensions/memory lib/memory.test.ts
 bun node_modules/typescript/bin/tsc --noEmit --skipLibCheck --target es2023 \
   --module esnext --moduleResolution bundler --allowImportingTsExtensions \
   --types bun-types extensions/memory/index.ts extensions/memory/core.ts extensions/memory/memory.test.ts
 ```
 
-The smoke test drives context capture, two successive compactions, stable block rendering after resume, source recall and rejection of invalid pointers through the extension hooks with a stub model. It does not establish real-provider cache hit rates or long-term memory fidelity.
+The compaction smoke drives context capture, two successive folds, stable rendering after resume and invalid-pointer rejection with a stub model. `lib/memory.test.ts` exercises recall, pagination, ancestry, omitted reasoning/images, CLI access and concurrent exec cells with separate branch coordinates. These tests do not establish real-provider cache hit rates or long-term memory fidelity.
 
 A September 26 live smoke through Pi RPC and GPT-6 Luna also persisted two consecutive folds, preserved the first block unchanged, and retained a plan-versus-verification distinction. The second memory call used the captured prefix and reported 1,792 cache-read tokens, 514 fresh input tokens and 75 output tokens. This is a small working-path check, not a cache-efficiency benchmark. Native `compaction.keepRecentTokens` had to be lowered before the short synthetic session reached the extension hook.

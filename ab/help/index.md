@@ -10,6 +10,7 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab computer "INTENT"      Jev-driven browser (--url/--browser) or explicit native window
   ab pull ING-ID            original text behind a skimmed/omitted output page
   ab lib MODULE [FN] [ARG]  call a lib/ export; ARGs parse as JSON when they can
+  ab memory recall ID...    cited original turns on this session's branch
   ab daemon [status|stop ID|shutdown] manage the per-user job daemon
   ab job start TYPE JSON  start a restartable job
   ab supervise start TICKET  run a subtree's implement → verify → integrate loop, waking this agent on exceptions

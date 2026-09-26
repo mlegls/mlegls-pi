@@ -16,7 +16,7 @@ const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
 const stateDir = process.env.AB_SESSION_STATE ?? process.env.AB_STATE ?? join(abStateRoot, createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "daemon", "job", "supervise", "tree", "mail"];
+const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "memory", "daemon", "job", "supervise", "tree", "mail"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -295,6 +295,7 @@ const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if (args.includes("--help") || args.includes("-h")) { console.log(help(command)); process.exit(0); }
 const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, tree, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise,
+	memory: (a: string[]) => import("./memory.ts").then(m => m.memory(a)),
 	mail: async (a: string[]) => {
 		if (a[0] === "--stats") {
 			// How the channels get used: posts and distinct senders per kind (mail, wt, ticket).

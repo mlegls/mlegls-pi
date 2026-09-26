@@ -17,7 +17,7 @@ test("shutdown discards detached completions before they access stale context", 
 		get sessionManager() {
 			reads++;
 			if (stale) throw new Error("stale context");
-			return { getSessionFile: () => join(dir, "session.jsonl"), getSessionId: () => "test", buildContextEntries: () => [] };
+			return { getSessionFile: () => join(dir, "session.jsonl"), getSessionId: () => "test", getLeafId: () => "test-leaf", buildContextEntries: () => [] };
 		},
 	};
 	try {
@@ -48,6 +48,7 @@ test("cheap-model focused output bypasses ingress before collecting context", as
 		cwd: dir, model: { id: "gpt-6-luna" }, hasPendingMessages: () => false,
 		sessionManager: {
 			getSessionFile: () => join(dir, "session.jsonl"), getSessionId: () => "test",
+			getLeafId: () => "test-leaf",
 			buildContextEntries() { throw new Error("bypassed reads must not collect judge context"); },
 		},
 	};
@@ -57,6 +58,8 @@ test("cheap-model focused output bypasses ingress before collecting context", as
 		await handlers.session_start({}, ctx);
 		const result = await tool.execute("test", { command: "printf '%0600d' 0", focus: "inspect exactly" }, undefined, undefined, ctx);
 		expect(result.content[0].text).toBe("0".repeat(600));
+		const coordinates = await tool.execute("coords", { command: 'printf "%s|%s" "$PI_SESSION_FILE" "$PI_SESSION_LEAF"' }, undefined, undefined, ctx);
+		expect(coordinates.content[0].text).toBe(join(dir, "session.jsonl") + "|test-leaf");
 	} finally {
 		await handlers.session_shutdown?.();
 		if (previous === undefined) delete process.env.PI_TOOL_MODE;

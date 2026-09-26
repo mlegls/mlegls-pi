@@ -10,6 +10,8 @@ export interface Block {
 	text?: string;
 	sources?: string[];
 	supersedes?: string[];
+	/** Preserve the rendering of blocks written before recall moved to lib/ab. */
+	recall?: "lib";
 	/** V1 blocks remain byte-stable until rewritten. */
 	observations?: Claim[];
 	reflections?: Claim[];
@@ -22,7 +24,7 @@ export const claims = (blocks: Block[]): Claim[] => blocks.flatMap(b => b.text !
 export const citations = (text: string): string[] => [...new Set([...text.matchAll(/\[@([^\]\s]+)\]/g)].map(m => m[1]))];
 export const roughTokens = (text: string) => Math.ceil(text.length / 4);
 export function renderBlock(b: Block): string {
-	if (b.text !== undefined) return `Historical memory ${b.id}. Use memory_recall for cited original entries. Explicit corrections below replace only the described earlier statements, not entire blocks.\n${b.supersedes?.length ? `Corrects: ${b.supersedes.join(", ")}\n` : ""}${b.text}`;
+	if (b.text !== undefined) return `Historical memory ${b.id}. ${b.recall === "lib" ? "Use memory.recall({ids:[ID]}) via exec or ab memory recall ID" : "Use memory_recall"} for cited original entries. Explicit corrections below replace only the described earlier statements, not entire blocks.\n${b.supersedes?.length ? `Corrects: ${b.supersedes.join(", ")}\n` : ""}${b.text}`;
 	const section = (name: string, items: Claim[]) => `${name}:\n${items.map(c =>
 		`[${c.id}] ${c.text}\nSources: ${c.sources.join(", ")}${c.supersedes.length ? `; supersedes: ${c.supersedes.join(", ")}` : ""}`).join("\n")}`;
 	return `Historical memory ${b.id}. Later explicit corrections supersede earlier claims; plans are not completed work. Use memory_recall for original evidence.\n` +
@@ -67,7 +69,7 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	if (!Array.isArray(supersedes) || supersedes.some((id: unknown) => typeof id !== "string" || !priorIds.has(id)))
 		throw new Error("Unknown superseded claim or block");
 	const block: Block = { id: randomUUID(), timestamp: Date.now(), covers, text: raw.text.trim(), sources: cited,
-		supersedes: rewrite ? [] : [...new Set<string>(supersedes)] };
+		supersedes: rewrite ? [] : [...new Set<string>(supersedes)], recall: "lib" };
 	return block;
 }
 

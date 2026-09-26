@@ -102,7 +102,8 @@ export default function (pi: ExtensionAPI) {
 		// e.g. GNU userland on macOS, where models expect GNU sed/grep/date.
 		const path = [BIN, process.env.PI_BASH_PATH, process.env.PATH].filter(Boolean).join(":");
 		// PI_SESSION_ID lets commands record provenance (e.g. tracker `author: session:<id>`).
-		const env = { ...process.env, PATH: path, AB_STATE: abStateRoot, AB_SESSION_STATE: state, AB_OUT: attach, ...(sessionId && { PI_SESSION_ID: sessionId }) };
+		const env = { ...process.env, PATH: path, AB_STATE: abStateRoot, AB_SESSION_STATE: state, AB_OUT: attach, ...(sessionId && { PI_SESSION_ID: sessionId }),
+			PI_SESSION_FILE: lastCtx?.sessionManager.getSessionFile() ?? "", PI_SESSION_LEAF: lastCtx?.sessionManager.getLeafId() ?? "" };
 		// Own process group, so interrupting kills the command's children too.
 		const child = spawn("bash", ["-c", PRELUDE + command], { cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
 		const file = createWriteStream(log);
@@ -199,7 +200,7 @@ export default function (pi: ExtensionAPI) {
 			"Output is read with attention to the conversation: skimmed or omitted parts carry an ing-… id that ab pull recovers. A skim is not evidence for edits or exact claims: ab pull the page you need rather than rerunning the command. To keep one command's output exact, CMD | ab raw, or ab raw CMD ARG… to include its stderr and exit status; raw: true makes the whole call exact. focus names what to look for. Long output keeps head and tail; the full log path is shown.",
 			"Read and search files with ab read PATH[:50-80] and ab grep PATTERN rather than cat/sed/head: every row carries an anchor (N abcd│text), and ab edit targets anchors, so a change sends only its new lines, with no old text to quote and no whole-file rewrite. ab edit takes hunks on stdin (ab edit <<'EOF' ... EOF): =abcd or =abcd wxyz replaces, -abcd deletes, >abcd / <abcd insert after/before; hunks are separated by a blank line and a stale anchor is rejected, never misapplied. Create new files with cat > path <<'EOF'.",
 			"Edit bodies are literal new text, not unified diffs: omit +/− markers and old/context lines. A single anchor replaces one old line, even with a multiline body; use both endpoints for an old block. Escape header-like content before its sigil (e.g. an indented \\<time).",
-			"ab also has images (ab view), skills (ab skill), a TypeScript code graph (ab code) and lib/ adapters; ab CMD --help for each. exa-cli for web search.",
+			"ab also has images (ab view), skills (ab skill), a TypeScript code graph (ab code), original memory evidence (ab memory recall ID; replaces memory_recall) and lib/ adapters; ab CMD --help for each. exa-cli for web search.",
 		].join("\n"),
 		parameters: Type.Object({
 			command: Type.String({ description: "Bash source; runs with bash -c in the workspace." }),

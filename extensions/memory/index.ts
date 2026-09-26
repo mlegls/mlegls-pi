@@ -1,7 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { buildSessionContext, convertToLlm, findCutPoint, sessionEntryToContextMessages } from "@earendil-works/pi-coding-agent";
-import type { Context, Message } from "@earendil-works/pi-ai";
-import { Type } from "typebox";
+import type { Context } from "@earendil-works/pi-ai";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -126,23 +125,6 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			}
 			const blocks = memoryOf(ctx.sessionManager.getBranch())?.blocks ?? [];
 			ctx.ui.notify(`${blocks.length} memory blocks, ~${roughTokens(renderMemory(blocks))} tokens. /memory fold | rewrite [focus]`, "info");
-		},
-	});
-	pi.registerTool({
-		name: "memory_recall", label: "Memory recall",
-		description: "Retrieve original session entries cited by memory source IDs. Current branch only; paginate long text with offset/limit. Does not retrieve hidden reasoning.",
-		parameters: Type.Object({ ids: Type.Array(Type.String(), { minItems: 1, maxItems: 8 }), offset: Type.Optional(Type.Integer({ minimum: 0 })), limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20000 })) }),
-		async execute(_id, args, _signal, _update, ctx) {
-			const branch = new Map(ctx.sessionManager.getBranch().map(e => [e.id, e]));
-			const records = args.ids.map(id => {
-				const entry = branch.get(id);
-				if (!entry || !sourceEntries([entry]).length) return { id, error: "Original entry not found on this branch" };
-				const messages = convertToLlm(sessionEntryToContextMessages(entry)).map((m: Message) => ({ role: m.role,
-					content: typeof m.content === "string" ? m.content : m.content.filter(b => b.type !== "thinking").map(b => b.type === "image" ? { type: "image", omitted: true } : b) }));
-				return { id, timestamp: entry.timestamp, messages };
-			});
-			const body = JSON.stringify(records, null, 2), offset = args.offset ?? 0, limit = args.limit ?? 12000;
-			return { content: [{ type: "text", text: body.slice(offset, offset + limit) + (offset + limit < body.length ? `\n[More: memory_recall with the same ids and offset=${offset + limit}]` : "") }], details: { totalChars: body.length, offset } };
 		},
 	});
 }
