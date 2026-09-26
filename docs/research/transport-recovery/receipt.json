@@ -1,0 +1,99 @@
+{
+  "session": "2026-09-25T02-32-04-565Z_01a0d667-d6d5-73e2-875e-e00ee6248ccc.jsonl",
+  "sessionEntries": [
+    {
+      "line": 301,
+      "timestamp": "2026-09-25T03:48:05.988Z",
+      "type": "custom",
+      "role": null,
+      "data": {
+        "paseoAgent": "97e2e1e0-915e-48c2-8bd3-0f9ecd53c817"
+      },
+      "text": ""
+    },
+    {
+      "line": 499,
+      "timestamp": "2026-09-25T04:43:23.426Z",
+      "type": "message",
+      "role": "user",
+      "data": null,
+      "text": "supervise dogfooding-to-public-release (job supervise-dogfooding-to-public-release-mugdi0t1): supervise capture-learner-and-tutor-friction-reports-in-convex-for-manual-review: loop error: Agent 97e2e1e0-915e-48c2-8bd3-0f9ecd53c817 already has an active run\n\nAll three subtree issues are `stage: done`, tree clean. Restarting the loop to formalize:\n\nchild agent 8b7c8ef9-2f29-499a-a2d5-612abc1326e7, worktree /Users/mlegls/.paseo/worktrees/0tlsrsf6/dogfooding-to-public-release-capture-learner-and\nSteer it directly (its next turn end returns to the loop), or: ab supervise resume dogfooding-to-public-release capture-learner-and-tutor-friction-reports-in-convex-for-manual-review verify|integrate|drop|redispatch"
+    },
+    {
+      "line": 738,
+      "timestamp": "2026-09-25T06:23:27.608Z",
+      "type": "message",
+      "role": "toolResult",
+      "data": null,
+      "text": "supervise-whole-application-ui-component-library-and-stack-mugdi0uk failed Connection ended switch-pages-immediately-and-load-their-content-lazily:verify"
+    },
+    {
+      "line": 863,
+      "timestamp": "2026-09-25T06:52:18.357Z",
+      "type": "message",
+      "role": "toolResult",
+      "data": null,
+      "text": "[ingress unavailable: kept original output]\nsupervise-refine-settings-preferences-model-configuration-and-persisted-appearance-mugkshxp failed Command failed: git -C /Users/mlegls/dev/mmon/concept commit -qm Close restore-the-settings-study-portal-host -- /Users/mlegls/dev/mmon/concept/docs/i restore-the-settings-study-portal-host:verify\nsupervise-refine-the-chat-session-layout-with-a-scripted-llm-provider-mugdi0rj failed Agent 97e2e1e0-915e-48c2-8bd3-0f9ecd53c817 already has an active run start-a-session-from-a-proposed-skill:supervise measure-the-compaction-threshold:implement\nsupervise-settle-action-owned-turn-deployment-recovery-mugkshsp failed Connection ended recover-action-owned-turns-after-native-terminal-failure:implement"
+    },
+    {
+      "line": 1049,
+      "timestamp": "2026-09-25T09:46:24.061Z",
+      "type": "message",
+      "role": "user",
+      "data": null,
+      "text": "my network cut out for a bit. please restore everything"
+    }
+  ],
+  "daemonLog": "~/.local/state/ab/daemon.log",
+  "daemonEntries": [
+    {
+      "line": 39,
+      "text": "ab daemon: job failed supervise-whole-application-ui-component-library-and-stack-mugdi0uk DaemonConnectionError: Connection ended"
+    },
+    {
+      "line": 131,
+      "text": "ab daemon: job failed supervise-dogfooding-to-public-release-mugdi0t1 Error: Agent 97e2e1e0-915e-48c2-8bd3-0f9ecd53c817 already has an active run"
+    },
+    {
+      "line": 229,
+      "text": "ab daemon: job failed supervise-settle-action-owned-turn-deployment-recovery-mugkshsp DaemonConnectionError: Connection ended"
+    },
+    {
+      "line": 230,
+      "text": "ab daemon: job failed supervise-start-a-session-from-a-proposed-skill-muge9xag Error: Agent 409779b8-61f8-4368-b965-5e482b9abe30 already has an active run"
+    },
+    {
+      "line": 231,
+      "text": "ab daemon: job failed supervise-refine-the-chat-session-layout-with-a-scripted-llm-provider-mugdi0rj Error: Agent 97e2e1e0-915e-48c2-8bd3-0f9ecd53c817 already has an active run"
+    },
+    {
+      "line": 501,
+      "text": "ab daemon: job failed supervise-refine-the-list-and-overview-layouts-over-mocked-data-mugtje1u Error: Cannot replace agent 97e2e1e0-915e-48c2-8bd3-0f9ecd53c817 because its active run cancellation was not acknowledged"
+    },
+    {
+      "line": 511,
+      "text": "[supervise-generalize-node-memory-to-source-backed-tagged-observations-mugz6alb] wake deferred (1): Error: Cannot replace agent 97e2e1e0-915e-48c2-8bd3-0f9ecd53c817 because its active run cancellation was not acknowledged"
+    },
+    {
+      "line": 516,
+      "text": "[supervise-refine-the-chat-session-layout-with-a-scripted-llm-provider-mugdi0rj] retire replace-session-exclusion-with-operation-level-conflicts: DaemonConnectionError: Timeout waiting for message (60000ms)"
+    },
+    {
+      "line": 517,
+      "text": "[supervise-promote-main-through-staging-to-production-mugzt58v] wake deferred (1): Error: Connection timed out"
+    },
+    {
+      "line": 523,
+      "text": "[supervise-refine-the-chat-session-layout-with-a-scripted-llm-provider-mugdi0rj] wake deferred (1): Error: Agent 97e2e1e0-915e-48c2-8bd3-0f9ecd53c817 already has an active run"
+    }
+  ],
+  "currentChecks": {
+    "source": "ef0c3b3bf19ed772483964976fda442d25132da5",
+    "probe": "bun docs/research/transport-recovery/probe.ts",
+    "results": [
+      "board: busy owner queues two real mailbox writes; restored state delivers once in order when idle",
+      "loop: failed watch retries; failed notification retries while next watch proceeds; child/cursor retained, no redispatch"
+    ],
+    "focusedTests": "20 passed across lib/children.test.ts, lib/wm-reattach.test.ts, lib/wm.test.ts, lib/jobs/supervise.test.ts, lib/board/store.test.ts"
+  }
+}
