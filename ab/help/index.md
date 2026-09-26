@@ -5,7 +5,7 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab edit < hunks           replace/insert/delete lines by anchor
   ab raw [CMD ARG...]       exact output past the bash tool's filter (or CMD | ab raw)
   ab view IMAGE...          attach images to the tool result
-  ab skill PATH             load a SKILL.md with its dynamic shell blocks expanded
+  ab skill PATH|NAME        load a SKILL.md (bare names fall back to global Pi skills)
   ab code VERB [NAME]       TypeScript definitions and checker-resolved references
   ab computer "INTENT"      Jev-driven browser (--url/--browser) or explicit native window
   ab pull ING-ID            original text behind a skimmed/omitted output page

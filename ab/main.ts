@@ -112,13 +112,17 @@ async function view(args: string[]) {
 }
 
 async function skill(args: string[]) {
-	if (!args[0]) fail("skill needs a SKILL.md path or directory");
+	if (!args[0]) fail("skill needs a SKILL.md path, directory, or name");
+	const name = args[0];
+	const path = !name.includes("/") && !existsSync(resolve(cwd, name))
+		? join(homedir(), ".pi/agent/skills", name)
+		: name;
 	const { createSkillLoader } = await import("../extensions/exec/skill-loader.cjs");
 	const runShell = async (command: string, options: any) => {
 		const r = spawnSync("bash", ["-c", command], { ...options, encoding: "utf8", maxBuffer: 1 << 20 });
 		return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", exitCode: r.status, stdoutTruncated: false, stderrTruncated: false };
 	};
-	const loaded = await createSkillLoader(cwd, runShell, (v: unknown) => v)(args[0]);
+	const loaded = await createSkillLoader(cwd, runShell, (v: unknown) => v)(path);
 	console.log(loaded.text);
 }
 
