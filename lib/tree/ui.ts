@@ -317,10 +317,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const k = parseKey(data) ?? data;
 		message = "";
 		if (input) {
-			if (k === "escape") { if (input.kind === "filter") query = ""; input = undefined; }
-			else if (k === "enter") { const i = input; input = undefined; if (i.kind === "filter") {} else i.then?.(i.text); }
+			if (input.kind === "confirm") { const i = input; input = undefined; if (k === "enter") i.then?.(""); }
+			else if (k === "escape") { if (input.kind === "filter") query = ""; input = undefined; }
+			else if (k === "enter") { const i = input; input = undefined; if (i.kind !== "filter") i.then?.(i.text); }
 			else if (k === "backspace") input.text = input.text.slice(0, -1);
-			else if (input.kind === "confirm" && (k === "y" || k === "n")) { const i = input; input = undefined; i.then?.(k); }
 			else if (!data.startsWith("\x1b") && data >= " ") input.text += data;
 			if (input?.kind === "filter") query = input.text;
 			rebuild(); draw(); return;
@@ -394,18 +394,18 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				if (sidebar) leaveSidebar();
 				void refresh();
 			} }; break;
-			case "m": if (w && w.parent) { const p = spaces.get(w.parent); input = { kind: "confirm", text: "", prompt: `merge ${label(w)} into ${p?.branch ?? label(p!)}? [y/N] `, then: a => { if (a.trim() !== "y") return; const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'"; runTool(`cd ${q(w.path)} && workmux merge ${p?.branch ? "--into " + q(p.branch) : ""}; printf 'press enter '; read -r _`); void refresh(); } }; } break;
+			case "m": if (w && w.parent) { const p = spaces.get(w.parent); input = { kind: "confirm", text: "", prompt: `merge ${label(w)} into ${p?.branch ?? label(p!)}? [Enter to confirm] `, then: () => { const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'"; runTool(`cd ${q(w.path)} && workmux merge ${p?.branch ? "--into " + q(p.branch) : ""}; printf 'press enter '; read -r _`); void refresh(); } }; } break;
 			case "x": {
 				const r = focus === "right" && view === "workspaces" ? right[selRight] : undefined;
 				const n = view !== "workspaces" ? selectedAgent() : r?.kind === "agent" ? r.n : undefined;
 				const active = w?.session ? (() => { try { return Number(tm("display-message", "-p", "-t", "=" + w.session + ":", "#{window_index}")); } catch { return undefined; } })() : undefined;
 				const win = r?.kind === "window" ? r.win : n ? w?.windows.find(win => win.panes.some(p => p.agent?.id === n.id || p.id === n.pane)) : w?.windows.find(win => win.index === active);
-				if (win) input = { kind: "confirm", text: "", prompt: sidebar ? `kill window ${win.index}? [Y/n] ` : `kill window ${win.index} (${win.name})? [Y/n] `, then: a => { if (a.trim().toLowerCase() !== "n") attempt(() => act.killWindow(win)); void refresh(); } };
+				if (win) input = { kind: "confirm", text: "", prompt: sidebar ? `kill window ${win.index}? [Enter to confirm] ` : `kill window ${win.index} (${win.name})? [Enter to confirm] `, then: () => { attempt(() => act.killWindow(win)); void refresh(); } };
 				else message = "no window selected";
 				break;
 			}
 			case "X":
-				if (w?.session) input = { kind: "confirm", text: "", prompt: sidebar ? `close ${w.session}? [Y/n] ` : `close ${w.session} (worktree stays)? [Y/n] `, then: a => { if (a.trim().toLowerCase() !== "n") attempt(() => act.killSession(w)); void refresh(); } };
+				if (w?.session) input = { kind: "confirm", text: "", prompt: sidebar ? `close ${w.session}? [Enter to confirm] ` : `close ${w.session} (worktree stays)? [Enter to confirm] `, then: () => { attempt(() => act.killSession(w)); void refresh(); } };
 				else message = "no session selected";
 				break;
 			case "d": wsTool("diff"); break;
