@@ -160,11 +160,12 @@ export async function integrate(given: Handle | string,
   if (!branch) throw new Error("integrate: detached HEAD in " + worker.path);
   if (mode === "rebase") {
     const base = (await git(cwd, "rev-parse", "HEAD")).out;
-    // A branch that already contains the base (the child merged it to resolve conflicts) needs no rebase;
-    // rebasing would drop that merge and replay the conflicting commits.
+    // A branch that has merged the base before (a child resolving conflicts) is brought up to date by merging
+    // the base into it: rebasing would drop those merges and replay the commits into the conflicts they resolved.
+    const merged = (await git(worker.path, "rev-list", "--merges", "--count", base + "..HEAD")).out !== "0";
     const contains = (await git(worker.path, "merge-base", "--is-ancestor", base, "HEAD")).code === 0;
-    const rebase = contains ? { code: 0 } : await git(worker.path, "rebase", base);
-    if (rebase.code) { const files = await conflicted(worker.path); await git(worker.path, "rebase", "--abort"); throw new MergeConflict(branch, files); }
+    const update = contains ? { code: 0 } : merged ? await git(worker.path, "merge", "--no-edit", "--no-verify", base) : await git(worker.path, "rebase", base);
+    if (update.code) { const files = await conflicted(worker.path); await git(worker.path, merged ? "merge" : "rebase", "--abort"); throw new MergeConflict(branch, files); }
     await prepare();
     const ff = await git(cwd, "merge", "--ff-only", branch);
     if (ff.code) throw new Error("integrate: ff-only merge of " + branch + " failed: " + ff.err);
