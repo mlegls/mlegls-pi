@@ -124,7 +124,7 @@ interface TmuxPane { session: string; sessionPath: string; tag: string; window: 
 
 function tmuxPanes(): TmuxPane[] {
 	try {
-		const f = ["#{session_name}", "#{session_path}", "#{@ab-workspace}", "#{window_index}", "#{window_name}", "#{window_active}", "#{pane_id}", "#{pane_pid}", "#{pane_current_command}", "#{pane_current_path}", "#{pane_active}", "#{@ab-sidebar-pane}"].join("\t");
+		const f = ["#{session_name}", "#{session_path}", "#{@ab-workspace}", "#{window_index}", "#{window_name}", "#{window_active}", "#{pane_id}", "#{pane_pid}", "#{pane_current_command}", "#{pane_current_path}", "#{pane_active}", ""].join("\t");
 		return execFileSync("tmux", ["list-panes", "-a", "-F", f], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean).map(l => {
 			const [session, sessionPath, tag, window, windowName, windowActive, pane, pid, command, path, paneActive, sidebar] = l.split("\t");
 			return { session: session!, sessionPath: real(sessionPath!), tag: tag!, window: Number(window), windowName: windowName!, windowActive: windowActive === "1", pane: pane!, pid: Number(pid), command: command!, path: real(path!), paneActive: paneActive === "1", sidebar: sidebar === "1" };

@@ -1,4 +1,5 @@
 ab tree ui [--sidebar] [QUERY]      interactive: dashboard, or a narrow persistent sidebar
+ab tree sidebar                     open the sidebar as a Ghostty split left of the focused terminal
 ab tree open|park|send ID [TEXT]    act on one session (send reads stdin without TEXT)
 ab tree [-m tree|projects|status] [-a] [--json] [--days N] [--hours N] [QUERY...]
 
@@ -24,5 +25,5 @@ The TUI (? inside it for keys) is organized by workspace: one per git worktree, 
 the branch it came from, each shown as its tmux session. The dashboard (prefix-t) has the
 workspace tree on the left and the selected workspace's windows and agents on the right
 (l to move in), with a live preview; s switches to all agents grouped by state. The
-sidebar is the tree alone: a click switches to that workspace. bin/ab-sidebar keeps one
-sidebar pane following you between windows (prefix-T toggles it, remembered). Mouse works.
+sidebar is the tree alone, in a Ghostty split beside tmux: j/k switch workspaces, a click
+goes there. Mouse works.

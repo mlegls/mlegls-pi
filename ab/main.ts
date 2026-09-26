@@ -180,6 +180,7 @@ async function job(args: string[]) {
 // the owner's resume commands live under the checkout's git dir, keyed by ticket.
 // Session views over lib/tree: every pi session with its parent, project and live state.
 async function tree(args: string[]) {
+	if (args[0] === "sidebar") return (await import("../lib/tree/ghostty.ts")).openSidebar();
 	if (args[0] === "ui") return (await import("../lib/tree/ui.ts")).ui({ sidebar: args.includes("--sidebar"), query: args.slice(1).filter(a => a !== "--sidebar").join(" ") });
 	if (args[0] === "open" || args[0] === "park" || args[0] === "send") {
 		const { graph } = await import("../lib/tree/graph.ts");

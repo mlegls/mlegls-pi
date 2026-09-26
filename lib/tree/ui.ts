@@ -19,9 +19,7 @@ import { transcriptTail } from "./tail";
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const SIDEBAR_BIN = fileURLToPath(new URL("../../bin/ab-sidebar", import.meta.url));
+import * as ghostty from "./ghostty";
 
 const STATE = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab-tree", "ui.json");
 const PROJECTS = join(dirname(STATE), "projects.json");
@@ -35,7 +33,7 @@ function resolveProject(text: string): string | undefined {
 	if (existsSync(t)) return realpathSync(resolve(t));
 	try { return execFileSync("zoxide", ["query", ...t.split(/\s+/)], { encoding: "utf8" }).trim() || undefined; } catch { return undefined; }
 }
-interface Saved { collapsed: string[]; preview: number; view: "workspaces" | "agents" }
+interface Saved { collapsed: string[]; preview: number; view: "workspaces" | "agents"; sidebarWidth?: number }
 
 type Left = { kind: "project"; project: string; count: number } | { kind: "ws"; w: Workspace; depth: number };
 type Right = { kind: "window"; win: Window } | { kind: "agent"; n: Node; depth: number };
@@ -237,7 +235,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				let line = r ? hl(leftLine(r, lw), lw, L.top + i === at, focus === "right") : " ".repeat(lw);
 				if (r) {
 					const idx = L.top + i;
-					geometry.push({ y: i + 1, x0: 0, x1: lw, act: (dbl) => { const same = selLeft === leftKey(r); selLeft = leftKey(r); focus = "left"; buildRight(); if (r.kind === "project") toggle("project:" + r.project); else if (sidebar || (dbl && same)) openLeft(); void idx; },
+					geometry.push({ y: i + 1, x0: 0, x1: lw, act: (dbl) => { const same = selLeft === leftKey(r); selLeft = leftKey(r); focus = "left"; buildRight(); if (r.kind === "project") toggle("project:" + r.project); else if (sidebar) { openLeft(); leaveSidebar(); } else if (dbl && same) openLeft(); void idx; },
 						fold: r.kind === "ws" && r.w.children.length ? () => toggle(r.w.key) : undefined, foldX: r.kind === "ws" ? 1 + Math.max(0, r.depth - 1) * (sidebar ? 1 : 2) : 0 });
 				}
 				if (!sidebar) {
@@ -278,37 +276,24 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		attempt(() => runTool(act.tool(kind, { id: w.key, cwd: w.path }, parent?.branch)));
 	};
 
-	// Sidebar navigation: moving the selection switches the client there right away and keeps
-	// the keyboard in the sidebar (it is moved into the new window first).
-	const self = process.env.TMUX_PANE;
+	// Sidebar navigation: moving the selection switches the tmux client there right away; the
+	// keyboard stays here (the sidebar is a Ghostty split outside tmux) until enter/esc/click.
 	const tm = (...a: string[]) => execFileSync("tmux", a, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-	const followAndFocus = (session: string) => {
-		if (!self) return;
-		try {
-			const win = tm("display", "-p", "-t", "=" + session + ":", "#{window_id}");
-			execFileSync(SIDEBAR_BIN, ["follow", win], { stdio: "ignore" });
-			tm("select-pane", "-t", self);
-		} catch {}
-	};
 	const navSession = (d: number) => {
-		// Only workspaces with a session: parked ones open with a click or from the dashboard.
+		// Only workspaces with a session: parked ones open with enter or a click.
 		const ws = left.filter((r): r is Extract<Left, { kind: "ws" }> => r.kind === "ws" && !!r.w.session);
 		if (!ws.length) return;
 		const at = ws.findIndex(r => r.w.key === selLeft);
 		const from = at >= 0 ? at : Math.max(0, ws.findIndex(r => r.w.session === current));
 		const to = ws[Math.max(0, Math.min(ws.length - 1, from + d))]!;
 		selLeft = to.w.key;
-		try { const s = to.w.session!; act.switchTo(s); current = s; followAndFocus(s); } catch (e) { message = String(e); }
+		try { const s = to.w.session!; act.switchTo(s); current = s; } catch (e) { message = String(e); }
 	};
 	const navWindow = (d: number) => {
-		if (!self) return;
-		try {
-			const session = tm("display", "-p", "-t", self, "#{session_name}");
-			tm("select-window", "-t", "=" + session + ":" + (d > 0 ? "+" : "-"));
-			followAndFocus(session);
-		} catch {}
+		const session = current ?? act.currentSession();
+		if (session) attempt(() => { tm("select-window", "-t", "=" + session + ":" + (d > 0 ? "+" : "-")); });
 	};
-	const leaveSidebar = () => { if (self) { try { tm("select-pane", "-t", self, "-R"); } catch {} } };
+	const leaveSidebar = () => { if (ghostty.inGhostty()) ghostty.focusMain(); };
 
 	const handleKey = (data: string) => {
 		const k = parseKey(data) ?? data;
@@ -329,7 +314,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				escape: leaveSidebar,
 			};
 			if (nav[k]) { nav[k]!(); draw(); return; }
-			if (k === "enter") { const r = left.find(x => leftKey(x) === selLeft); if (r?.kind === "ws" && !r.w.session) openLeft(); leaveSidebar(); draw(); return; }
+			if (k === "enter") { const r = left.find(x => leftKey(x) === selLeft); if (r?.kind === "ws") openLeft(); leaveSidebar(); draw(); return; }
 		}
 		const w = selectedWs();
 		const moveLeft = (d: number) => { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); selRight = 0; buildRight(); };
@@ -458,7 +443,33 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		}
 		for (const k of keys(chunk)) k.startsWith("\x1b[<") ? handleMouse(k) : handleKey(k);
 	});
-	out.on("resize", draw);
+	let widthTimer: ReturnType<typeof setTimeout> | undefined, sizing = false;
+	out.on("resize", () => {
+		draw();
+		// Remember the width you drag the sidebar to.
+		if (sidebar && ghostty.inGhostty() && !sizing) { clearTimeout(widthTimer); widthTimer = setTimeout(() => { saved.sidebarWidth = W(); save(); }, 800); }
+	});
+	if (sidebar && ghostty.inGhostty()) {
+		out.write(`\x1b]2;${ghostty.TITLE}\x07`);
+		// A new split starts at half the window: step the divider toward the remembered width,
+		// re-estimating points per column from each step.
+		sizing = true;
+		void (async () => {
+			const target = saved.sidebarWidth ?? 38;
+			let per = 8;
+			for (let i = 0; i < 6; i++) {
+				await new Promise(r => setTimeout(r, 400));
+				const diff = target - W();
+				if (Math.abs(diff) <= 1) break;
+				const before = W();
+				ghostty.resizeSidebar(diff * per);
+				await new Promise(r => setTimeout(r, 400));
+				const moved = W() - before;
+				if (moved) per = Math.min(40, Math.max(2, Math.abs(per * diff / moved)));
+			}
+			setTimeout(() => { sizing = false; }, 1000);
+		})();
+	}
 	out.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h");
 	message = "loading…";
 	draw();
@@ -501,8 +512,8 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
   sidebar  j/k ↑/↓ wheel: switch to the next/previous open workspace (focus stays here)
-           h/l ←/→: previous/next window   enter/esc: back to the pane   click: go there
-           prefix s puts the keyboard here, prefix T shows/hides it
+           h/l ←/→: previous/next window   enter/esc/click: go there and back to tmux
+           it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept
   tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window
 
   ! needs you ⊘ blocked ● working ○ idle ◌ running in Paseo · resumable   workspaces: □ open ◇ parked (no tmux session)   ▌ you are here
