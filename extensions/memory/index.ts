@@ -30,6 +30,9 @@ function tools(pi: ExtensionAPI) {
 	});
 }
 
+const REGISTER = "compaction-om-v6";
+const BLOCKED = /reverse engineering|duplicating model outputs/i;
+
 export default function memoryExtension(pi: ExtensionAPI) {
 	let snapshot: Snapshot | undefined;
 	let busy = false;
@@ -77,15 +80,22 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				context = { systemPrompt: ctx.getSystemPrompt(), tools: tools(pi), messages: convertToLlm(expandMemory(buildSessionContext(branch).messages, branch)) };
 			}
 			const selfAuthored = context.messages.every((m: any) => m.role !== "assistant" || (m.provider === ctx.model!.provider && m.model === ctx.model!.id));
-			context.messages.push({ role: "user", content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored), timestamp: Date.now() });
 			const stream = (ctx.modelRegistry as any).streamSimple;
 			if (typeof stream !== "function") throw new Error("Memory requires Pi's modelRegistry.streamSimple (update Pi)");
 			const started = Date.now();
-			const response = await stream.call(ctx.modelRegistry, ctx.model, context, {
-				signal: event.signal, sessionId: ctx.sessionManager.getSessionId(),
-				reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(),
-				maxTokens: Math.min(s.maxOutputTokens, ctx.model.maxTokens || s.maxOutputTokens),
-			}).result();
+			let response: any, register = REGISTER;
+			// Anthropic's output-duplication filter sometimes blocks the introspective induction; retry once without it.
+			for (const introspective of [true, false]) {
+				const request = { ...context, messages: [...context.messages, { role: "user", content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored, introspective), timestamp: Date.now() }] };
+				response = await stream.call(ctx.modelRegistry, ctx.model, request, {
+					signal: event.signal, sessionId: ctx.sessionManager.getSessionId(),
+					reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(),
+					maxTokens: Math.min(s.maxOutputTokens, ctx.model.maxTokens || s.maxOutputTokens),
+				}).result();
+				if (!introspective || event.signal.aborted || !BLOCKED.test(response.errorMessage ?? "")) break;
+				register = `${REGISTER}-fallback-plain`;
+				ctx.ui.notify("Memory checkpoint blocked by provider filter; retrying without the introspective induction", "warning");
+			}
 			if (event.signal.aborted) throw new Error("Memory cancelled: request aborted");
 			const current = ctx.sessionManager.getBranch();
 			const originalLeaf = current.findIndex(e => e.id === leaf);
@@ -115,7 +125,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			return { compaction: {
 				summary: renderMemory(blocks), firstKeptEntryId: kept.id, tokensBefore: event.preparation.tokensBefore,
 				usage: response.usage,
-				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode, register: "compaction-om-v6", selfAuthored,
+				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode, register, selfAuthored,
 					tail: { mode: "model-contiguous", firstKeptEntryId: kept.id, estimatedTokens: chosen.tokens, targetTokens: s.keepRecentTokens, reason: selection.tailReason },
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };
