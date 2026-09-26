@@ -53,4 +53,41 @@ describe("graph", () => {
 		expect(hit.find(r => r.node?.id === "parent")!.match).toBe(false);
 		expect(rows(g, "status", { query: "state:orphan" }).filter(r => r.node).map(r => r.node!.id)).toEqual(["orphan"]);
 	});
+	test("project trees prioritize urgent descendants without moving them from their parent", async () => {
+		const g = await graph();
+		const parent = g.get("parent")!, child = g.get("child")!, headless = g.get("headless")!;
+		const orphan = g.get("orphan")!, sibling = g.get("dead")!;
+		parent.state = "idle";
+		child.state = "working";
+		child.report = { tag: "needs-input", ts: new Date().toISOString(), body: "question" };
+		orphan.project = "other";
+		orphan.state = "working";
+		sibling.parent = parent.id;
+		sibling.state = "working";
+		parent.children.push(sibling.id);
+		const r = rows(g, "tree", { all: true });
+		const project = r.find(x => x.kind === "header" && x.label === parent.project)!;
+		expect(project.urgency).toBe("needs you");
+		expect(project.needs).toBe(1);
+		expect(r.find(x => x.node === parent)!.needs).toBe(1);
+		expect(r.find(x => x.node === parent)!.depth).toBe(1);
+		expect(r.find(x => x.node === child)!.depth).toBe(2);
+		expect(r.find(x => x.node === headless)!.depth).toBe(3);
+		expect(r.findIndex(x => x.node === child)).toBeLessThan(r.findIndex(x => x.node === sibling));
+		const folded = rows(g, "tree", { all: true, collapsed: new Set(["tree:session:parent"]) });
+		expect(folded.find(x => x.node === parent)!.needs).toBe(1);
+		expect(folded.some(x => x.node === child)).toBe(false);
+		const filtered = rows(g, "tree", { query: "summ" });
+		expect(filtered.filter(x => x.node).map(x => x.node!.id)).toEqual(["parent", "child", "headless"]);
+	});
+
+	test("cross-project children are roots in their own project, not under the parent's header", async () => {
+		const g = await graph();
+		const child = g.get("child")!;
+		child.project = "another";
+		const r = rows(g, "tree", { all: true });
+		expect(r.find(x => x.node === child)!.depth).toBe(1);
+		expect(r.findIndex(x => x.kind === "header" && x.label === "another")).toBeLessThan(r.findIndex(x => x.node === child));
+		expect(rows(g, "tree", { query: "project:another" }).filter(x => x.node).map(x => x.node!.id)).toEqual(["child"]);
+	});
 });

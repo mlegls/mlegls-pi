@@ -1,8 +1,7 @@
-// ab tree's TUI. Workspaces (worktrees ↔ tmux sessions) are the navigation tree; each holds
-// windows with agents and terminals.
+// ab tree's TUI. Workspaces (worktrees ↔ tmux sessions) hold windows with agents and terminals.
 //   dashboard: workspace tree on the left, the selected workspace's windows and agents on the
 //              right (l/→ to enter it), a live preview underneath; closes after a jump.
-//   sidebar:   the workspace tree only, one click to switch; stays open (see bin/ab-sidebar).
+//   sidebar:   workspace, status, or project/session tree; stays open (Ghostty split).
 //   agents:    every agent grouped by state, across workspaces (s in the dashboard).
 // Mouse: click selects (a second click, or any click in the sidebar, opens), wheel scrolls,
 // clicking a fold arrow folds. UI state persists in ~/.local/state/ab-tree/ui.json.
@@ -33,8 +32,7 @@ function resolveProject(text: string): string | undefined {
 	if (existsSync(t)) return realpathSync(resolve(t));
 	try { return execFileSync("zoxide", ["query", ...t.split(/\s+/)], { encoding: "utf8" }).trim() || undefined; } catch { return undefined; }
 }
-interface Saved { collapsed: string[]; preview: number; view: "workspaces" | "agents"; sidebarWidth?: number }
-
+interface Saved { collapsed: string[]; preview: number; view: "workspaces" | "agents" | "tree"; sidebarView?: "workspaces" | "agents" | "tree"; sidebarWidth?: number }
 type Left = { kind: "project"; project: string; count: number } | { kind: "ws"; w: Workspace; depth: number };
 type Right = { kind: "window"; win: Window } | { kind: "agent"; n: Node; depth: number };
 
@@ -58,7 +56,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	const sidebar = !!opts.sidebar;
 	const collapsed = new Set(saved.collapsed);
 	let preview = saved.preview;
-	let view: Saved["view"] = sidebar ? "workspaces" : saved.view;
+	let view: Saved["view"] = sidebar ? saved.sidebarView ?? "workspaces" : saved.view;
 	let query = opts.query ?? "";
 	let input: { kind: "filter" | "send" | "branch" | "confirm"; text: string; then?: (text: string) => void; prompt?: string } | undefined;
 	/** Pane the keyboard is passed through to (i on a window or agent with a pane). */
@@ -67,7 +65,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	let nodes = new Map<string, Node>();
 	let spaces = new Map<string, Workspace>();
 	let left: Left[] = [], right: Right[] = [], agents: Row[] = [];
-	let selLeft: string | undefined, selRight = 0, selAgent: string | undefined;
+	let selLeft: string | undefined, selRight = 0, selAgent: string | undefined, selTree: string | undefined;
 	let focus: "left" | "right" = "left";
 	let message = "";
 	let help = false;
@@ -76,7 +74,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 
 	const save = () => {
 		mkdirSync(dirname(STATE), { recursive: true });
-		writeFileSync(STATE, JSON.stringify({ ...saved, collapsed: [...collapsed], preview, ...(sidebar ? {} : { view }) }));
+		writeFileSync(STATE, JSON.stringify({ ...saved, collapsed: [...collapsed], preview, ...(sidebar ? { sidebarView: view } : { view }) }));
 	};
 	const leftKey = (r: Left) => r.kind === "project" ? "project:" + r.project : r.w.key;
 
@@ -119,8 +117,9 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	};
 	const rebuild = () => {
 		buildLeft(); buildRight();
-		agents = agentRows(nodes, "status", { query: query || undefined, collapsed: new Set(collapsed) });
+		agents = agentRows(nodes, view === "tree" ? "tree" : "status", { query: query || undefined, collapsed: new Set(collapsed) });
 		if (!agents.some(r => r.node?.id === selAgent)) selAgent = agents.find(r => r.node)?.node!.id;
+		if (view === "tree" && !agents.some(r => treeKey(r) === selTree)) selTree = agents.find(r => r.node?.id === selAgent)?.node ? "tree:session:" + selAgent : agents[0] && treeKey(agents[0]);
 	};
 
 	let refreshing = false;
@@ -160,6 +159,18 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const flag = a === "needs" ? c("1;31", " !") : a === "blocked" ? c("31", " ⊘") : n.orphan ? c("35", " orphan") : "";
 		return `${c(STATE_COLOR[n.state]!, ICON[n.state])} ${n.title.replace(/\s+/g, " ")}${flag}`;
 	};
+	const treeKey = (r: Row) => r.node ? "tree:session:" + r.node.id : "tree:project:" + r.label;
+	const selectedTree = () => agents.find(r => treeKey(r) === selTree);
+	const treeLine = (r: Row): string => {
+		const badge = r.needs ? c("1;31", ` !${r.needs}`) : r.urgency === "blocked" ? c("31", " ⊘") : r.urgency === "orphan" ? c("35", " orphan") : "";
+		if (!r.node) return c("1", `${collapsed.has(treeKey(r)) ? "▸" : "▾"}`) + badge + c("1", ` ${r.label}`) + c("90", ` ${r.count}`);
+		const n = r.node;
+		const children = (r.count ?? 1) > 1;
+		const fold = children ? (collapsed.has(treeKey(r)) ? "▸" : "▾") : " ";
+		const parent = n.parent && nodes.get(n.parent)?.project !== n.project ? nodes.get(n.parent) : undefined;
+		const origin = parent ? c("90", ` ↖${parent.project}`) : "";
+		return `${" ".repeat(r.depth)}${fold}${c(STATE_COLOR[n.state]!, ICON[n.state])}${badge}${origin} ${n.title.replace(/\s+/g, " ")}`;
+	};
 	const rightLine = (r: Right, width: number, w: Workspace): string => {
 		if (r.kind === "window") {
 			const agent = r.win.panes.find(p => p.agent)?.agent;
@@ -174,12 +185,13 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	const previewFor = (height: number, width: number): string[] => {
 		const w = selectedWs();
 		let pane: string | undefined, n: Node | undefined, head: string[] = [];
-		if (view === "agents") n = nodes.get(selAgent ?? "");
+		if (view === "tree") n = selectedTree()?.node;
+		else if (view === "agents") n = nodes.get(selAgent ?? "");
 		else if (focus === "right" && right[selRight]) {
 			const r = right[selRight]!;
 			if (r.kind === "window") { const p = r.win.panes.find(p => p.active) ?? r.win.panes[0]; pane = p?.id; n = p?.agent; }
 			else n = r.n;
-		} else if (w) {
+		} else if (view === "workspaces" && w) {
 			const win = w.windows.find(x => x.active) ?? w.windows[0];
 			pane = win?.panes.find(p => p.active)?.id;
 			if (!pane) n = w.agents[0]; // parked workspace: its latest agent's transcript
@@ -198,8 +210,8 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	function draw() {
 		const width = W(), height = H();
 		geometry = [];
-		const hint = sidebar ? "? help" : view === "agents" ? "enter open  i send  z park  s workspaces  / filter  ? help"
-			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s agents  ? help"
+		const hint = sidebar ? "s views  ? help" : view !== "workspaces" ? "enter open  i send  z park  s views  / filter  ? help"
+			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  d diff  f files  y yazi  e nvim  o zed  s views  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
 		const footerText = pass ? "typing into " + pass + " — esc to return" : input ? (input.prompt ?? (input.kind === "filter" ? "/" : "> ")) + input.text + "█" : message || `${query ? "/" + query + "  " : ""}${hint}`;
 		const footer = truncateToWidth(c("7", " " + footerText), width, "", true);
@@ -212,14 +224,16 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const hl = (s: string, w: number, on: boolean, dim = false) => on ? `\x1b[48;5;${dim ? 236 : 238}m` + truncateToWidth(s.replace(/\x1b\[0m/g, `\x1b[0m\x1b[48;5;${dim ? 236 : 238}m`), w, "", true) + "\x1b[0m" : truncateToWidth(s, w, "", true);
 		const window = <T,>(list: T[], at: number, h: number) => { const top = Math.max(0, Math.min(at - Math.floor(h / 2), list.length - h)); return { top, items: list.slice(top, top + h) }; };
 
-		if (view === "agents") {
-			const at = Math.max(0, agents.findIndex(r => r.node?.id === selAgent));
+		if (view !== "workspaces") {
+			const at = Math.max(0, agents.findIndex(r => view === "tree" ? treeKey(r) === selTree : r.node?.id === selAgent));
 			const { top, items } = window(agents, at, listHeight);
 			items.forEach((r, i) => {
 				const y = i + 1;
-				const text = r.kind === "header" ? c("1", `${collapsed.has("status:" + r.label) ? "▸" : "▾"} ${r.label}`) + c("90", ` ${r.count}`) : "  " + agentText(r.node!) + c("90", "  " + (spaces.get([...spaces.keys()].find(k => r.node!.cwd.startsWith(k)) ?? "") ? label(spaces.get([...spaces.keys()].find(k => r.node!.cwd.startsWith(k))!)!) : home(r.node!.cwd)) + "  " + age(r.node!.updated));
+				const text = view === "tree" ? treeLine(r) : r.kind === "header" ? c("1", `${collapsed.has("status:" + r.label) ? "▸" : "▾"} ${r.label}`) + c("90", ` ${r.count}`) : "  " + agentText(r.node!) + c("90", "  " + (workspaceFor(r.node) ? label(workspaceFor(r.node)!) : home(r.node!.cwd)) + "  " + age(r.node!.updated));
 				screen.push(hl(sidebar ? truncateToWidth(text, width) : text, width, top + i === at));
-				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (r.node) { if (sidebar) { selAgent = r.node.id; openAgent(r.node); } else { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } } else { toggle("status:" + r.label); } } });
+				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (view === "tree") selTree = treeKey(r); if (r.node) { if (sidebar) { selAgent = r.node.id; openAgent(r.node); } else { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } } else { toggle(view === "tree" ? treeKey(r) : "status:" + r.label); } },
+					fold: view === "tree" && r.node && (r.count ?? 1) > 1 ? () => toggle(treeKey(r)) : undefined,
+					foldX: view === "tree" ? r.node ? r.depth : 0 : undefined });
 			});
 			while (screen.length < listHeight) screen.push("");
 		} else {
@@ -252,13 +266,14 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		out.write("\x1b[H\x1b[2J" + screen.slice(0, height - 1).join("\x1b[0m\r\n") + `\x1b[0m\x1b[${height};1H` + footer);
 	}
 
-	const toggle = (k: string) => { collapsed.has(k) ? collapsed.delete(k) : collapsed.add(k); rebuild(); };
+	const toggle = (k: string) => { collapsed.has(k) ? collapsed.delete(k) : collapsed.add(k); rebuild(); save(); };
+	const toggleExpand = (r: Row) => { if ((r.count ?? 1) > 1) { collapsed.delete(treeKey(r)); rebuild(); save(); } };
 	const done = () => { if (!sidebar) quit(); };
 	const attempt = (f: () => string | void) => { try { const m = f(); if (m) { message = m; return false; } return true; } catch (e: any) { message = String(e?.stderr || e?.message || e).trim().split("\n")[0]!; return false; } };
 	const openLeft = () => { const r = left.find(x => leftKey(x) === selLeft); if (!r) return; if (r.kind === "project") return toggle(leftKey(r)); if (attempt(() => act.openWorkspace(r.w))) { current = act.currentSession(); done(); } };
 	const openAgent = (n: Node) => { const w = workspaceFor(n); if (attempt(() => act.open(n, w))) { done(); if (sidebar) leaveSidebar(); } };
 	const openRight = () => { const r = right[selRight]; if (!r) return; if (r.kind === "window") { if (attempt(() => act.openWindow(r.win))) done(); } else openAgent(r.n); };
-	const selectedAgent = (): Node | undefined => view === "agents" ? nodes.get(selAgent ?? "") : focus === "right" ? (right[selRight]?.kind === "agent" ? (right[selRight] as any).n : (right[selRight] as any)?.win?.panes.find((p: any) => p.agent)?.agent) : undefined;
+	const selectedAgent = (): Node | undefined => view === "tree" ? selectedTree()?.node : view === "agents" ? nodes.get(selAgent ?? "") : focus === "right" ? (right[selRight]?.kind === "agent" ? (right[selRight] as any).n : (right[selRight] as any)?.win?.panes.find((p: any) => p.agent)?.agent) : undefined;
 	const selectedPane = (): string | undefined => { const r = right[selRight]; return focus === "right" && r?.kind === "window" ? (r.win.panes.find(p => p.active) ?? r.win.panes[0])?.id : undefined; };
 
 	const suspend = (f: () => void) => {
@@ -315,10 +330,17 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			if (nav[k]) { nav[k]!(); draw(); return; }
 			if (k === "enter") { const r = left.find(x => leftKey(x) === selLeft); if (r?.kind === "ws") openLeft(); leaveSidebar(); draw(); return; }
 		} else if (sidebar && k === "escape") { leaveSidebar(); draw(); return; }
-		const w = view === "agents" ? workspaceFor(nodes.get(selAgent ?? "")) : selectedWs();
+		const w = view !== "workspaces" ? workspaceFor(selectedAgent()) : selectedWs();
 		const moveLeft = (d: number) => { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); selRight = 0; buildRight(); };
 		const moveAgent = (d: number) => { const list = agents; const i = Math.max(0, Math.min(list.length - 1, Math.max(0, list.findIndex(r => r.node?.id === selAgent)) + d)); const r = list[i]; if (r?.node) selAgent = r.node.id; else if (r) { const next = list[i + Math.sign(d)]; if (next?.node) selAgent = next.node.id; } };
-		const move = (d: number) => view === "agents" ? moveAgent(d) : focus === "right" ? (selRight = Math.max(0, Math.min(right.length - 1, selRight + d))) : moveLeft(d);
+		const move = (d: number) => {
+			if (view === "tree") {
+				const i = Math.max(0, Math.min(agents.length - 1, Math.max(0, agents.findIndex(r => treeKey(r) === selTree)) + d));
+				selTree = agents[i] && treeKey(agents[i]!);
+			} else if (view === "agents") moveAgent(d);
+			else if (focus === "right") selRight = Math.max(0, Math.min(right.length - 1, selRight + d));
+			else moveLeft(d);
+		};
 		switch (k) {
 			case "q": case "ctrl+c": return quit();
 			case "escape": if (focus === "right") focus = "left"; else if (!sidebar) return quit(); break;
@@ -330,17 +352,24 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			case "g": case "home": move(-1e6); break;
 			case "G": case "end": move(1e6); break;
 			case "l": case "right":
-				if (view === "workspaces" && !sidebar && focus === "left" && right.length) focus = "right";
+				if (view === "tree") { const r = selectedTree(); if (r) toggleExpand(r); }
+				else if (view === "workspaces" && !sidebar && focus === "left" && right.length) focus = "right";
 				else if (focus === "left") { const r = left.find(x => leftKey(x) === selLeft); if (r) { collapsed.delete(leftKey(r)); rebuild(); } }
 				break;
 			case "h": case "left":
-				if (focus === "right") focus = "left";
+				if (view === "tree") {
+					const r = selectedTree();
+					if (r && !collapsed.has(treeKey(r)) && (!r.node || (r.count ?? 1) > 1)) toggle(treeKey(r));
+					else if (r?.node?.parent && nodes.get(r.node.parent)?.project === r.node.project && agents.some(x => x.node?.id === r.node!.parent)) selTree = "tree:session:" + r.node.parent;
+					else if (r?.node) selTree = "tree:project:" + r.node.project;
+				}
+				else if (focus === "right") focus = "left";
 				else { const r = left.find(x => leftKey(x) === selLeft); if (r) { const k2 = leftKey(r); if ((r.kind === "project" || r.w.children.length) && !collapsed.has(k2)) { collapsed.add(k2); rebuild(); } else { const i = left.indexOf(r); const up = left.slice(0, i).reverse().find(x => x.kind === "project" || (r.kind === "ws" && x.kind === "ws" && x.depth < r.depth)); if (up) selLeft = leftKey(up); buildRight(); } } }
 				break;
-			case "space": if (focus === "left") { const r = left.find(x => leftKey(x) === selLeft); if (r) toggle(leftKey(r)); } break;
-			case "s": case "tab": view = view === "agents" ? "workspaces" : "agents"; focus = "left"; break;
+			case "space": if (view === "tree") { const r = selectedTree(); if (r && (!r.node || (r.count ?? 1) > 1)) toggle(treeKey(r)); } else if (focus === "left") { const r = left.find(x => leftKey(x) === selLeft); if (r) toggle(leftKey(r)); } break;
+			case "s": case "tab": view = view === "workspaces" ? "agents" : view === "agents" ? "tree" : "workspaces"; focus = "left"; rebuild(); save(); break;
 			case "/": input = { kind: "filter", text: query }; break;
-			case "enter": if (view === "agents") { const n = nodes.get(selAgent ?? ""); if (n) openAgent(n); } else focus === "right" ? openRight() : openLeft(); break;
+			case "enter": if (view === "tree") { const r = selectedTree(); if (r?.node) openAgent(r.node); else if (r) toggle(treeKey(r)); } else if (view === "agents") { const n = nodes.get(selAgent ?? ""); if (n) openAgent(n); } else focus === "right" ? openRight() : openLeft(); break;
 			case "i": {
 				const n = selectedAgent();
 				const pane = selectedPane() ?? (n?.pane && act.paneAlive(n.pane) ? n.pane : undefined) ?? (focus === "left" && w ? (w.windows.find(x => x.active) ?? w.windows[0])?.panes.find(p => p.active)?.id : undefined);
@@ -362,7 +391,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			case "m": if (w && w.parent) { const p = spaces.get(w.parent); input = { kind: "confirm", text: "", prompt: `merge ${label(w)} into ${p?.branch ?? label(p!)}? [y/N] `, then: a => { if (a.trim() !== "y") return; const q = (x: string) => "'" + x.replace(/'/g, "'\\''") + "'"; runTool(`cd ${q(w.path)} && workmux merge ${p?.branch ? "--into " + q(p.branch) : ""}; printf 'press enter '; read -r _`); void refresh(); } }; } break;
 			case "x": {
 				const r = focus === "right" && view === "workspaces" ? right[selRight] : undefined;
-				const n = view === "agents" ? nodes.get(selAgent ?? "") : r?.kind === "agent" ? r.n : undefined;
+				const n = view !== "workspaces" ? selectedAgent() : r?.kind === "agent" ? r.n : undefined;
 				const active = w?.session ? (() => { try { return Number(tm("display-message", "-p", "-t", "=" + w.session + ":", "#{window_index}")); } catch { return undefined; } })() : undefined;
 				const win = r?.kind === "window" ? r.win : n ? w?.windows.find(win => win.panes.some(p => p.agent?.id === n.id || p.id === n.pane)) : w?.windows.find(win => win.index === active);
 				if (win) input = { kind: "confirm", text: "", prompt: sidebar ? `kill window ${win.index}? [y/N] ` : `kill window ${win.index} (${win.name})? [y/N] `, then: a => { if (a.trim() === "y") attempt(() => act.killWindow(win)); void refresh(); } };
@@ -425,7 +454,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const d = b === 64 ? -3 : 3;
 			const inRight = !sidebar && view === "workspaces" && geometry.some(g => g.y === y && g.x0 > 0 && x >= g.x0);
 			if (inRight) selRight = Math.max(0, Math.min(right.length - 1, selRight + d));
-			else if (view === "agents") { for (let i = 0; i < Math.abs(d); i++) handleKey(d > 0 ? "j" : "k"); return; }
+			else if (view !== "workspaces") { for (let i = 0; i < Math.abs(d); i++) handleKey(d > 0 ? "j" : "k"); return; }
 			else { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); buildRight(); }
 			draw(); return;
 		}
@@ -509,7 +538,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   enter    open the workspace (its tmux session, created if parked) / the window / agent
   l/→      into the workspace's windows and agents   h/←  back, fold, or up a level
   space    fold      1-9  jump to that window of the selected workspace
-  s tab    agents across all workspaces, grouped by state   / filter (key:value, words)
+  s tab    cycle workspaces → agents by status → sessions by project/parentage   / filter
 
   workspace   n new pi   c new terminal   N new worktree off it (workmux, session mode)
               m merge into its parent (workmux merge)   x close its active window   X close its tmux session
@@ -520,8 +549,8 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   window   x kill it           agent   z park (stop the process; the session stays resumable)   enter resume
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
-  sidebar  s toggles workspaces / agents; j/k ↑/↓ wheel switch workspaces or select agents
-           h/l ←/→: previous/next window in workspace view; enter/esc/click: back to tmux
+  sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ wheel navigates
+           h/l ←/→: windows in workspace view, fold/expand in session tree; enter opens
            x closes the active window (or selected agent's window); X closes its session
            n new pi   c new terminal   N new worktree (selected workspace/agent's workspace)
            it's a Ghostty split (ab tree sidebar opens one); drag to resize, width is kept

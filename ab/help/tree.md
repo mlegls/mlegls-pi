@@ -21,11 +21,13 @@ its ancestors.
   ab tree -m status              grouped by state, orphans near the top
   ab tree project:concept !state:gone
 
-The TUI (? inside it for keys) is organized by workspace: one per git worktree, nested by
-the branch it came from, each shown as its tmux session. The dashboard (prefix-t) has the
-workspace tree on the left and the selected workspace's windows and agents on the right
-(l to move in), with a live preview; s switches to all agents grouped by state. The
-sidebar is the tree alone, in a Ghostty split beside tmux: j/k switch workspaces, a click
-opens one. s switches to agents grouped by state; x closes the active window (or selected
-agent's window), X closes its session. n/c/N create a pi window, terminal, or worktree.
+The TUI (? inside it for keys) has three views (s cycles): workspaces (git worktrees,
+with tmux sessions and windows), agents by status, and sessions grouped by project with
+parent/child nesting. The session tree sorts sibling subtrees by their most urgent session;
+collapsed nodes and projects show needs-you counts. A child in another project starts a
+root there, with a reference to its parent. The dashboard (prefix-t) shows a live preview;
+the sidebar is a Ghostty split beside tmux. In workspace view j/k switch workspaces;
+in session views they select agents (or project headers in the tree). Click or enter opens
+one; h/l fold and expand the session tree. x closes the selected window, X its session;
+n/c/N create a pi window, terminal, or worktree.
 Mouse works; ? shows the keys.

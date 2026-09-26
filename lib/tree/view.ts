@@ -1,6 +1,5 @@
-// Rows for the session views: one list of items (with depth for the tree) that the CLI, the
-// sidebar and the dashboard render differently. Three organizations over the same nodes:
-//   tree      parentage, roots grouped under their project
+// Session rows shared by CLI and TUI.
+//   tree      project headers, parentage, sibling subtrees sorted by urgency
 //   projects  project headers, sessions by recency
 //   status    state headers (needs you first), sessions by recency
 // Filter terms: `key:value` (state, project, model, kind, orphan) or free text matched as a
@@ -9,7 +8,7 @@
 import type { Node, State } from "./graph";
 
 export type Mode = "tree" | "projects" | "status";
-export interface Row { kind: "header" | "node"; depth: number; label: string; node?: Node; count?: number; match?: boolean }
+export interface Row { kind: "header" | "node"; depth: number; label: string; node?: Node; count?: number; match?: boolean; urgency?: string; needs?: number }
 
 const ACTIVE: State[] = ["working", "idle"];
 export const STATE_ORDER: State[] = ["working", "idle", "resumable", "gone"];
@@ -47,6 +46,10 @@ export function matcher(query: string): (n: Node) => boolean {
 
 const recent = (a: Node, b: Node) => b.updated.localeCompare(a.updated);
 
+/** Attention order for a session and its descendants. */
+export function priority(n: Node): string {
+	return attention(n) === "needs" ? "needs you" : attention(n) === "blocked" ? "blocked" : n.orphan ? "orphan" : n.state;
+}
 /** Nodes worth showing without a filter: active ones, plus sessions ended in the last `hours`. */
 export function visible(nodes: Map<string, Node>, opts: { all?: boolean; hours?: number } = {}): Set<string> {
 	const cutoff = new Date(Date.now() - (opts.hours ?? 12) * 3_600_000).toISOString();
@@ -65,23 +68,48 @@ export function rows(nodes: Map<string, Node>, mode: Mode, opts: { query?: strin
 	const out: Row[] = [];
 
 	if (mode === "tree") {
-		// Keep ancestors of shown nodes so the chain reads.
+		// Keep same-project ancestors; cross-project children start a new project tree.
 		for (const id of [...shown]) {
-			let p = nodes.get(id)?.parent;
-			while (p && nodes.has(p) && !shown.has(p)) { shown.add(p); p = nodes.get(p)!.parent; }
+			let n = nodes.get(id)!;
+			while (n.parent && nodes.get(n.parent)?.project === n.project && !shown.has(n.parent)) {
+				shown.add(n.parent);
+				n = nodes.get(n.parent)!;
+			}
 		}
-		const roots = [...shown].map(id => nodes.get(id)!).filter(n => !n.parent || !shown.has(n.parent));
-		const byProject = group(roots, n => n.project);
-		for (const [project, list] of byProject) {
-			const key = "project:" + project;
-			out.push({ kind: "header", depth: 0, label: project, count: countTree(list, nodes, shown) });
-			if (collapsed.has(key)) continue;
-			const walk = (n: Node, depth: number) => {
-				out.push({ kind: "node", depth, label: n.title, node: n, match: hits.has(n.id) });
-				if (collapsed.has(n.id)) return;
-				for (const c of n.children) if (shown.has(c)) walk(nodes.get(c)!, depth + 1);
+		const children = (n: Node) => n.children.map(id => nodes.get(id)!).filter(c => shown.has(c.id) && c.project === n.project);
+		type Summary = { urgency: string; needs: number; count: number; updated: string };
+		const summaries = new Map<string, Summary>();
+		const summary = (n: Node): Summary => {
+			const cached = summaries.get(n.id);
+			if (cached) return cached;
+			const own = priority(n);
+			const descendants = children(n).map(summary);
+			const result = {
+				urgency: [own, ...descendants.map(s => s.urgency)].sort((a, b) => rank(a) - rank(b))[0]!,
+				needs: Number(own === "needs you") + descendants.reduce((sum, s) => sum + s.needs, 0),
+				count: 1 + descendants.reduce((sum, s) => sum + s.count, 0),
+				updated: [n.updated, ...descendants.map(s => s.updated)].sort().pop()!,
 			};
-			for (const n of list.sort(recent)) walk(n, 1);
+			summaries.set(n.id, result);
+			return result;
+		};
+		const compare = (a: Node, b: Node) => rank(summary(a).urgency) - rank(summary(b).urgency)
+			|| summary(b).updated.localeCompare(summary(a).updated) || a.id.localeCompare(b.id);
+		const roots = [...shown].map(id => nodes.get(id)!).filter(n => !n.parent || !shown.has(n.parent) || nodes.get(n.parent)?.project !== n.project);
+		const byProject = group(roots, n => n.project);
+		const projects = [...byProject].sort(([, a], [, b]) => compare(a.sort(compare)[0]!, b.sort(compare)[0]!));
+		for (const [project, list] of projects) {
+			const stats = list.map(summary);
+			out.push({ kind: "header", depth: 0, label: project,
+				count: stats.reduce((sum, s) => sum + s.count, 0),
+				needs: stats.reduce((sum, s) => sum + s.needs, 0), urgency: summary(list[0]!).urgency });
+			if (collapsed.has("tree:project:" + project)) continue;
+			const walk = (n: Node, depth: number) => {
+				out.push({ kind: "node", depth, label: n.title, node: n, match: hits.has(n.id), ...summary(n) });
+				if (collapsed.has("tree:session:" + n.id)) return;
+				for (const c of children(n).sort(compare)) walk(c, depth + 1);
+			};
+			for (const n of list) walk(n, 1);
 		}
 		return out;
 	}
@@ -98,7 +126,7 @@ export function rows(nodes: Map<string, Node>, mode: Mode, opts: { query?: strin
 }
 
 function rank(label: string): number {
-	const order = ["needs you", "orphan", ...STATE_ORDER];
+	const order = ["needs you", "blocked", "orphan", ...STATE_ORDER];
 	const i = order.indexOf(label);
 	return i < 0 ? order.length : i;
 }
@@ -112,13 +140,6 @@ function group(list: Node[], key: (n: Node) => string): Map<string, Node[]> {
 		m.get(k)!.push(n);
 	}
 	return m;
-}
-
-function countTree(roots: Node[], nodes: Map<string, Node>, shown: Set<string>): number {
-	let n = 0;
-	const walk = (x: Node) => { n++; for (const c of x.children) if (shown.has(c)) walk(nodes.get(c)!); };
-	roots.forEach(walk);
-	return n;
 }
 
 export function age(iso: string): string {
