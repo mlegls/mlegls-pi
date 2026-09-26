@@ -222,7 +222,7 @@ async function supervise(args: string[]) {
 	const dir = join(gitDir, "ab-supervise");
 	const jobs = (await api.status()).filter(j => j.type === "supervise" && (j.input as any).cwd === top && (!ticket || (j.input as any).ticket === ticket));
 	if (verb === "start" && ticket) {
-		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" } } });
+		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" }, "commands-applied": { type: "string" } } });
 		const session = process.env.PI_SESSION_ID;
 		if (!session) fail("supervise start runs from the owning pi session (PI_SESSION_ID): it is woken in its mailbox");
 		const owner = (await import("../lib/board/mailbox.ts")).mailbox(session);
@@ -234,7 +234,12 @@ async function supervise(args: string[]) {
 		const previous = jobs.at(-1);
 		mkdirSync(dir, { recursive: true });
 		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
-		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 3), test: values.test, commands: join(dir, ticket + ".commands.jsonl"), carried: previous?.state ?? null };
+		const commandsApplied = values["commands-applied"] === undefined ? undefined : Number(values["commands-applied"]);
+		const commands = join(dir, ticket + ".commands.jsonl");
+		const count = existsSync(commands) ? readFileSync(commands, "utf8").split("\n").filter(Boolean).length : 0;
+		if (commandsApplied !== undefined && (!Number.isSafeInteger(commandsApplied) || commandsApplied < 0 || commandsApplied > count)) fail("--commands-applied must be a record count between 0 and " + count);
+		if (!previous && count && commandsApplied === undefined) fail("existing command log without job state: inspect " + commands + " and start with --commands-applied N");
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 3), test: values.test, commands, commandsApplied, carried: previous?.state ?? null };
 		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
 		console.log(record.id + " " + record.status + (previous ? " (continuing " + previous.id + ")" : ""));
 		return;
@@ -244,6 +249,7 @@ async function supervise(args: string[]) {
 		for (const j of jobs) {
 			const s = j.state as any;
 			console.log(j.id + " " + j.status + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : ""));
+			if (s) console.log("  commands applied: " + (s.commandsApplied ?? "unknown") + (s.commandInFlight === undefined ? "" : "; in flight: " + s.commandInFlight));
 			for (const c of Object.values<any>(s?.children ?? {})) console.log("  " + c.slug + " " + c.phase + " " + (c.handle.run + "/" + c.handle.handle) + (c.waiting ? " waiting: " + c.waiting : ""));
 		}
 		return;
@@ -256,7 +262,7 @@ async function supervise(args: string[]) {
 		return;
 	}
 	if (verb === "stop" && ticket) { for (const j of jobs.filter(j => j.status === "running")) console.log(JSON.stringify((await api.stop(j.id)).status)); return; }
-	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | stop <ticket>");
+	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | stop <ticket>");
 }
 
 

@@ -15,12 +15,12 @@ import { parse } from "../report.ts";
 import type { JobContext } from "../daemon.ts";
 import { resolveSession } from "../session-meta/identity";
 
-export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; carried?: State | null }
+export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; commandsApplied?: number; carried?: State | null }
 type Phase = "implement" | "verify" | "visual-review" | "supervise";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; visualReviewed?: boolean }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
-export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]> }
+export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -177,22 +177,28 @@ export async function run(job: JobContext) {
 
  // Pending owner commands (resume) are applied between turn ends.
  const file = input.commands;
- let applied = 0;
+ // Cursor counts completed command records, not records merely present at startup.
  const commands = (): Command[] => existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(l => JSON.parse(l)) : [];
  const apply = async () => {
   const all = commands();
-  for (const cmd of all.slice(applied)) {
+  for (let index = state.commandsApplied!; index < all.length && !job.signal.aborted; index++) {
+   const cmd = all[index];
+   state.commandInFlight = index + 1;
+   await save(); // An interrupted side effect must not be blindly replayed.
    const c = state.children[cmd.child];
-   if (!c) { await wake("resume: no live child " + cmd.child); continue; }
-   c.waiting = undefined; c.unreachable = undefined;
-   if (cmd.action === "drop") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; }
-   try {
-    if (cmd.action === "integrate") await integrateChild(c, c.handle);
-    else if (cmd.action === "verify") await toVerify(c, (await children.last(topic(c.handle)))?.text ?? "");
-    else if (cmd.action === "redispatch") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; }
-   } catch (error) { await except(c, "resume failed", String(error)); }
+   if (!c) await wake("resume: no live child " + cmd.child);
+   else {
+    c.waiting = undefined; c.unreachable = undefined;
+    try {
+     if (cmd.action === "drop" || cmd.action === "redispatch") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; }
+     else if (cmd.action === "integrate") await integrateChild(c, c.handle);
+     else if (cmd.action === "verify") await toVerify(c, (await children.last(topic(c.handle)))?.text ?? "");
+    } catch (error) { await except(c, "resume failed", String(error)); }
+   }
+   state.commandsApplied = index + 1;
+   delete state.commandInFlight;
+   await save();
   }
-  applied = all.length; await save();
  };
  const toVerify = async (c: Child, report: string) => {
   const issue = snapshot(input).find(i => i.slug === c.slug)!;
@@ -227,7 +233,24 @@ export async function run(job: JobContext) {
   await save();
  };
 
- applied = commands().length; // commands issued before a restart were applied then
+ const count = commands().length;
+ // Explicit reconciliation is used only on a new job, never reapplied on daemon restart.
+ if (job.state == null && input.commandsApplied !== undefined) {
+  if (!Number.isSafeInteger(input.commandsApplied) || input.commandsApplied < 0 || input.commandsApplied > count) throw new Error("commandsApplied must be a record count between 0 and " + count);
+  state.commandsApplied = input.commandsApplied;
+  delete state.commandInFlight;
+ }
+ const ambiguous = state.commandInFlight !== undefined ? "interrupted command " + state.commandInFlight
+  : state.commandsApplied === undefined && (job.state != null || input.carried != null) && count ? "legacy log has no acknowledgement cursor"
+  : state.commandsApplied !== undefined && (!Number.isSafeInteger(state.commandsApplied) || state.commandsApplied < 0 || state.commandsApplied > count) ? "invalid cursor or truncated command log" : undefined;
+ if (ambiguous) {
+  const message = "command reconciliation required: " + ambiguous + ". Inspect worker/Git state and " + file + " (" + count + " records). Then ab supervise start " + input.ticket + " --commands-applied N, where N is the inspected prefix to leave behind; records after N will run. Do not guess or blindly replay destructive commands.";
+  await wake(message);
+  await deliveries;
+  throw new Error(message);
+ }
+ state.commandsApplied ??= 0;
+ await save();
  let lostWatches = 0;
  while (!job.signal.aborted) {
   await apply();
