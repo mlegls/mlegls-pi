@@ -1,5 +1,5 @@
 // Session graph: every pi session as a node, joined to its parent, project, live process and
-// last board report. Sessions are files, so a parked session (no process) is still a node and
+// last board report. Sessions are files, so a resumable session (no process) is still a node and
 // an orphan (live, but its parent has ended) is visible. Views (ab tree, sidebar, dashboard)
 // render this; nothing here depends on the multiplexer.
 //
@@ -15,7 +15,9 @@ import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "../session-meta/live";
 import { logPath } from "../board/store";
 
-export type State = "working" | "idle" | "live" | "parked" | "ended" | "gone";
+/** working/idle: a pi with a live record; live: running in Paseo, turn state unknown;
+ * resumable: no process, reopen with pi --session; gone: its directory was deleted. */
+export type State = "working" | "idle" | "live" | "resumable" | "gone";
 export interface Node {
 	id: string;
 	file: string;
@@ -249,7 +251,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		const proc = paseoAgent ? paseoProcs.get(paseoAgent) : undefined;
 		const l = liveBySession.get(p.id) ?? (proc ? { pid: proc, state: "live" as const, tmuxPane: undefined } : undefined);
 		const exists = existsSync(p.cwd);
-		const state: State = l ? l.state : !exists ? "gone" : isWorktree(p.cwd) ? "parked" : "ended";
+		const state: State = l ? l.state : !exists ? "gone" : "resumable";
 		const run = p.meta?.run, handle = p.meta?.handle;
 		nodes.set(p.id, {
 			id: p.id, file: path, cwd: p.cwd, project: project(p.cwd, cache),
@@ -263,8 +265,10 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	for (const node of nodes.values()) {
 		const parent = node.parent ? nodes.get(node.parent) : undefined;
 		if (parent) parent.children.push(node.id);
-		const alive = node.state === "working" || node.state === "idle" || node.state === "live" || node.state === "parked";
-		const parentAlive = parent && ["working", "idle", "live", "parked"].includes(parent.state);
+		// Kept: running, or resumable inside an unmerged worktree (work still pending).
+		const kept = (x: Node) => x.state === "working" || x.state === "idle" || x.state === "live" || (x.state === "resumable" && isWorktree(x.cwd));
+		const alive = kept(node);
+		const parentAlive = parent && kept(parent);
 		if (alive && node.parent && node.parentKind !== "fork" && !parentAlive) node.orphan = true;
 	}
 	for (const node of nodes.values()) node.children.sort((a, b) => nodes.get(a)!.created.localeCompare(nodes.get(b)!.created));

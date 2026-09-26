@@ -11,8 +11,8 @@ import type { Node, State } from "./graph";
 export type Mode = "tree" | "projects" | "status";
 export interface Row { kind: "header" | "node"; depth: number; label: string; node?: Node; count?: number; match?: boolean }
 
-const ACTIVE: State[] = ["working", "idle", "live", "parked"];
-export const STATE_ORDER: State[] = ["working", "idle", "live", "parked", "ended", "gone"];
+const ACTIVE: State[] = ["working", "idle", "live"];
+export const STATE_ORDER: State[] = ["working", "idle", "live", "resumable", "gone"];
 
 export function attention(n: Node): "needs" | "blocked" | "done" | undefined {
 	if (n.report?.tag === "needs-input" || n.report?.tag === "checkpoint") return "needs";
@@ -52,7 +52,7 @@ export function visible(nodes: Map<string, Node>, opts: { all?: boolean; hours?:
 	const cutoff = new Date(Date.now() - (opts.hours ?? 12) * 3_600_000).toISOString();
 	const out = new Set<string>();
 	for (const n of nodes.values()) {
-		if (opts.all || ACTIVE.includes(n.state) || (n.state === "ended" && n.updated >= cutoff)) out.add(n.id);
+		if (opts.all || ACTIVE.includes(n.state) || (n.state === "resumable" && n.updated >= cutoff)) out.add(n.id);
 	}
 	return out;
 }
@@ -126,7 +126,7 @@ export function age(iso: string): string {
 	return s < 60 ? Math.floor(s) + "s" : s < 3600 ? Math.floor(s / 60) + "m" : s < 86400 ? Math.floor(s / 3600) + "h" : Math.floor(s / 86400) + "d";
 }
 
-export const ICON: Record<State, string> = { working: "●", idle: "○", live: "◌", parked: "◇", ended: "·", gone: "×" };
+export const ICON: Record<State, string> = { working: "●", idle: "○", live: "◌", resumable: "·", gone: "×" };
 
 /** Plain-text line for a row, for the CLI and for tests. */
 export function line(r: Row): string {

@@ -19,6 +19,9 @@ import { transcriptTail } from "./tail";
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SIDEBAR_BIN = fileURLToPath(new URL("../../bin/ab-sidebar", import.meta.url));
 
 const STATE = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab-tree", "ui.json");
 const PROJECTS = join(dirname(STATE), "projects.json");
@@ -38,7 +41,7 @@ type Left = { kind: "project"; project: string; count: number } | { kind: "ws"; 
 type Right = { kind: "window"; win: Window } | { kind: "agent"; n: Node; depth: number };
 
 const c = (code: string, s: string) => `\x1b[${code}m${s}\x1b[0m`;
-const STATE_COLOR: Record<string, string> = { working: "32", idle: "33", live: "36", parked: "34", ended: "90", gone: "90" };
+const STATE_COLOR: Record<string, string> = { working: "32", idle: "33", live: "36", resumable: "90", gone: "90" };
 const RANK = ["needs", "blocked", "working", "idle", "live"];
 
 /** Most urgent thing in a workspace, for its row. */
@@ -130,7 +133,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			nodes = await graph({ paseo, days: 2 });
 			if (paseo) lastPaseo = Date.now();
 			spaces = workspaces(nodes, loadProjects());
+			const was = current;
 			current = act.currentSession();
+			// The sidebar's selection follows where you are when you move by other means.
+			if (sidebar && current !== was) { const here = [...spaces.values()].find(w => w.session === current); if (here) selLeft = here.key; }
 			rebuild();
 			draw();
 		} catch (e) { message = String(e); draw(); }
@@ -164,7 +170,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const l = `${r.win.active ? c("1", "*") : " "}${c("1", String(r.win.index))} ${c("90", r.win.name.padEnd(10).slice(0, 10))} ${what}`;
 			return truncateToWidth(l, width - 5, "…", true) + c("90", agent ? age(agent.updated).padStart(5) : "");
 		}
-		const l = `  ${"  ".repeat(r.depth)}${agentText(r.n)}${c("90", r.n.state === "parked" || r.n.state === "ended" ? "  ↵ resume" : r.n.paseoAgent && r.n.pid ? "  paseo" : "")}`;
+		const l = `  ${"  ".repeat(r.depth)}${agentText(r.n)}${c("90", r.n.state === "resumable" ? "  ↵ resume" : r.n.paseoAgent && r.n.pid ? "  paseo" : "")}`;
 		return truncateToWidth(l, width - 5, "…", true) + c("90", age(r.n.updated).padStart(5));
 	};
 
@@ -272,6 +278,38 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		attempt(() => runTool(act.tool(kind, { id: w.key, cwd: w.path }, parent?.branch)));
 	};
 
+	// Sidebar navigation: moving the selection switches the client there right away and keeps
+	// the keyboard in the sidebar (it is moved into the new window first).
+	const self = process.env.TMUX_PANE;
+	const tm = (...a: string[]) => execFileSync("tmux", a, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+	const followAndFocus = (session: string) => {
+		if (!self) return;
+		try {
+			const win = tm("display", "-p", "-t", "=" + session + ":", "#{window_id}");
+			execFileSync(SIDEBAR_BIN, ["follow", win], { stdio: "ignore" });
+			tm("select-pane", "-t", self);
+		} catch {}
+	};
+	const navSession = (d: number) => {
+		// Only workspaces with a session: parked ones open with a click or from the dashboard.
+		const ws = left.filter((r): r is Extract<Left, { kind: "ws" }> => r.kind === "ws" && !!r.w.session);
+		if (!ws.length) return;
+		const at = ws.findIndex(r => r.w.key === selLeft);
+		const from = at >= 0 ? at : Math.max(0, ws.findIndex(r => r.w.session === current));
+		const to = ws[Math.max(0, Math.min(ws.length - 1, from + d))]!;
+		selLeft = to.w.key;
+		try { const s = to.w.session!; act.switchTo(s); current = s; followAndFocus(s); } catch (e) { message = String(e); }
+	};
+	const navWindow = (d: number) => {
+		if (!self) return;
+		try {
+			const session = tm("display", "-p", "-t", self, "#{session_name}");
+			tm("select-window", "-t", "=" + session + ":" + (d > 0 ? "+" : "-"));
+			followAndFocus(session);
+		} catch {}
+	};
+	const leaveSidebar = () => { if (self) { try { tm("select-pane", "-t", self, "-R"); } catch {} } };
+
 	const handleKey = (data: string) => {
 		const k = parseKey(data) ?? data;
 		message = "";
@@ -284,6 +322,15 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			rebuild(); draw(); return;
 		}
 		if (help) { help = false; draw(); return; }
+		if (sidebar && !input) {
+			const nav: Record<string, () => void> = {
+				j: () => navSession(1), down: () => navSession(1), k: () => navSession(-1), up: () => navSession(-1),
+				l: () => navWindow(1), right: () => navWindow(1), h: () => navWindow(-1), left: () => navWindow(-1),
+				escape: leaveSidebar,
+			};
+			if (nav[k]) { nav[k]!(); draw(); return; }
+			if (k === "enter") { const r = left.find(x => leftKey(x) === selLeft); if (r?.kind === "ws" && !r.w.session) openLeft(); leaveSidebar(); draw(); return; }
+		}
 		const w = selectedWs();
 		const moveLeft = (d: number) => { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); selRight = 0; buildRight(); };
 		const moveAgent = (d: number) => { const list = agents; const i = Math.max(0, Math.min(list.length - 1, Math.max(0, list.findIndex(r => r.node?.id === selAgent)) + d)); const r = list[i]; if (r?.node) selAgent = r.node.id; else if (r) { const next = list[i + Math.sign(d)]; if (next?.node) selAgent = next.node.id; } };
@@ -379,6 +426,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		if (!m || m[4] !== "M") return;
 		const b = Number(m[1]), x = Number(m[2]) - 1, y = Number(m[3]);
 		message = "";
+		if ((b === 64 || b === 65) && sidebar) { navSession(b === 64 ? -1 : 1); draw(); return; }
 		if (b === 64 || b === 65) {
 			const d = b === 64 ? -3 : 3;
 			const inRight = !sidebar && view === "workspaces" && geometry.some(g => g.y === y && g.x0 > 0 && x >= g.x0);
@@ -452,5 +500,10 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
   window   x kill it           agent   z park (stop; Paseo agents are archived)   enter resume
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
-  ! needs you ⊘ blocked ● working ○ idle ◌ running in Paseo □ open ◇ parked   ▌ you are here
+  sidebar  j/k ↑/↓ wheel: switch to the next/previous open workspace (focus stays here)
+           h/l ←/→: previous/next window   enter/esc: back to the pane   click: go there
+           prefix s puts the keyboard here, prefix T shows/hides it
+  tmux     prefix ( / ) back/forward through visited windows   prefix a new pi window
+
+  ! needs you ⊘ blocked ● working ○ idle ◌ running in Paseo · resumable   workspaces: □ open ◇ parked (no tmux session)   ▌ you are here
   +/- preview size   r refresh   q quit`;

@@ -2,6 +2,7 @@
 # One persistent `ab tree ui --sidebar` pane that follows you: tmux hooks move it (join-pane,
 # same process) into whichever window you switch to, so it behaves like a global side panel.
 #   ab-sidebar toggle   show/hide, remembered across tmux restarts
+#   ab-sidebar focus    put the keyboard in it (turning it on): j/k switch workspace, h/l window
 #   ab-sidebar follow   (hooks) move the sidebar into the current window if it's on
 #   ab-sidebar restore  (tmux.conf) re-apply the remembered state
 state=${XDG_STATE_HOME:-$HOME/.local/state}/ab-tree/sidebar
@@ -36,5 +37,8 @@ case "${1:-toggle}" in
 			tmux set -g @ab-sidebar-on 1; echo 1 > "$state"; follow
 		fi ;;
 	follow) follow "$2" ;;
+	focus)
+		on || { tmux set -g @ab-sidebar-on 1; mkdir -p "$(dirname "$state")"; echo 1 > "$state"; }
+		follow; p=$(pane); [ -n "$p" ] && tmux select-pane -t "$p" ;;
 	restore) [ "$(cat "$state" 2>/dev/null)" = 1 ] && tmux set -g @ab-sidebar-on 1 && follow; true ;;
 esac
