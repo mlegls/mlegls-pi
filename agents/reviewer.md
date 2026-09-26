@@ -1,8 +1,8 @@
 ---
 name: reviewer
 description: Review a diff. Generally for auditing mode only, not hacking.
-model: anthropic/claude-opus-5-5
-effort: medium
+model: openai-codex/gpt-6-astra
+effort: low
 ---
 
 review the diff you're pointed at.

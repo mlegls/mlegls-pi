@@ -5,7 +5,7 @@ Optimize for the lowest wall time to accepted completion within a similar total 
 Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
 
 - Bias delegated work toward `openai-codex`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
-- Use Anthropic primarily for interactive sessions, the top-level long-context supervisor, and UI/visual design. There is no fixed 50% non-fable ceiling or need to reserve capacity specifically for fable.
+- Use Opus 5.5 only for visual/UI-heavy or difficult and VERY long-context work. (prefer Astra for difficult work that would take a human a day or less)
 - Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
 - Metered providers are overflow when appropriate.
 - OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.

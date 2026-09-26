@@ -1,7 +1,7 @@
 ---
 name: prune
 description: Use for large refactors where less or similar code is added than removed/changed.
-model: anthropic/claude-opus-5-5
+model: openai-codex/gpt-6-astra
 effort: medium
 ---
 
