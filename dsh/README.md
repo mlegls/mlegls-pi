@@ -14,6 +14,13 @@ export DSH_HOME="$PWD/dsh/.local/home"
 dsh web --patch "$PWD/dsh/cordis.yml" --no-open --host 127.0.0.1 --port 0
 ```
 
+For a real DeepSeek model turn, add `--patch "$PWD/dsh/provider.deepseek.yml"`
+to that command and set `DSH_TOOLS_MODE=ptc`. The committed overlay reads
+`DEEPSEEK_API_KEY` from the launch environment (never put its value in the file);
+it selects `deepseek-official` / `deepseek-flash` and disables the two optional
+request-extension plugins implicated in the local Web preparation failure. This
+overlay is for local verification, not the anonymous no-provider setup above.
+
 The isolated `DSH_HOME` avoids inherited profiles, credentials and selected
 presets. The server prints a local login URL; keep its token private. This
 spike requires anonymous-local Web, not Cloud. No provider credential is needed

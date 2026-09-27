@@ -1,16 +1,36 @@
-# Shell and transform: verification encounter
+# PTC shell and transform: real model encounter
 
 ## Setup and readiness
 
-Tested checkout `dsh-ptc-shell-and-transform-edits-verify` at `49011a8` plus this packet update. Required deployment per project handoff: anonymous-local dsh Web, no provider credential. Target: this worktree, loopback Web, isolated `dsh/.local/home`; no inherited selector. Persona: no-provider host-plugin diagnostic agent (not an authenticated model persona). Seed recreated as `dsh/.local/fixture/{a,b}.ts`, each exporting `foo(1)` / `foo(2)`. Entry point: `PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" dsh web --patch "$PWD/dsh/cordis.yml" --no-open --host 127.0.0.1 --port 0`.
+Fresh verifier encounter on branch `dsh-ptc-shell-and-transform-edits-verify`, starting at `710463f`. Required deployment: local dsh Web with PTC and a real model turn. Actual target: this worktree's isolated `dsh/.local/home`, Web on loopback `127.0.0.1:49465`, and workspace explicitly redirected from the inherited external default to this worktree's `dsh/.local/fixture`. No external workspace was used for the task. Persona/auth: local anonymous Web identity plus DeepSeek API key read from the environment by `dsh/provider.deepseek.yml`; no secret is stored in config or evidence. Seed: `a.ts` and `b.ts` held `foo(1)` and `foo(2)`. The new workspace session showed Hashline preset, DeepSeek-V41-Flash model, and Workspace Write access.
 
-Root and pinned dsh setup both completed; Web reported ready at loopback port 49268. I stopped that process after readiness. The prior worker's ignored trial patch/plugin and its session log are not present in this fresh worktree, so I could not dispatch its `run_code` program from the prepared entry point. No model credentials were inferred missing or requested.
+`bun run setup` and `bun run --cwd dsh setup` completed. Web reported ready at `127.0.0.1:49354` with committed `dsh/cordis.yml` and `dsh/provider.deepseek.yml`, `DSH_TOOLS_MODE=ptc`. I discovered the isolated home inherited a workspace path outside this checkout; before creating the task session, stopped Web and changed only the isolated home workspace record to this checkout's fixture path, cleared its old session association, and restarted. Web reported ready at `127.0.0.1:49465`. The selected workspace shown in Web was `PTC fixture`. The earlier, wrongly targeted Web page was closed; no task/session was created there. After encounter, Web and the owned browser session were stopped.
 
-## Required claims
+Launch command (run from repo root):
 
-- One program greps, transforms matches in two files, then runs tests: **unobservable in this fresh encounter**. Earlier implementer packet records a held diagnostic run, but that is not fresh verification evidence.
-- Nested calls each appear as `tool/ptc-dispatch`: **unobservable**; the prior packet records the old session log, unavailable here.
-- Shell result includes stdout/stderr/code and completes command: **unobservable** in this encounter.
+```sh
+PATH="$PWD/dsh/node_modules/.bin:$PATH" \
+DSH_HOME="$PWD/dsh/.local/home" DSH_TOOLS_MODE=ptc \
+DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+  dsh web --patch "$PWD/dsh/cordis.yml" --patch "$PWD/dsh/provider.deepseek.yml" \
+  --no-open --host 127.0.0.1 --port 0
+```
 
-No UI journey or screenshots. No code defect was exposed to repair. Known setup friction: ignored encounter plugin/seed artifacts did not travel with this worktree; I recreated only the documented seed and did not fabricate the missing diagnostic plugin.
-Earlier implementer evidence is not evidence from this fresh encounter; see claims above. The documented diagnostic recipe describes a temporary host plugin, but that ignored plugin and log were not in this checkout. The local entry point observed ready at loopback port 49268 and was stopped.
+## Stories and observations
+
+Asked the model in Web to perform one `run_code` program: grep the two fixture files, transform `foo($A)` to `bar($A)` in both, then run the `lib/outline-read` test suite through `tools.shell` with a pipe. The model completed successfully.
+
+- Grep found one `foo` call in each fixture file.
+- Transform matched 2 sites in 2 files and changed them to `bar(1)` and `bar(2)`. A subsequent program read confirmed exact on-disk lines.
+- Shell ran `bun test /Users/mlegls/dev/mlegls-pi__worktrees/dsh-ptc-shell-and-transform-edits-verify/lib/outline-read | cat`: `code: 0`, `timedOut: false`, `truncated: false`; stdout and stderr both nonempty; 55 tests passed across 6 files.
+- Web trajectory shows a single `run_code` root with separate nested `grep` calls (one per file), `transform`, and `shell` rows. These are `SUBTOOL` entries in the UI trajectory corresponding to the nested dispatch sequence; no proxy implementation or manually run code was used.
+- No implementation gap exposed; no repair was needed.
+
+Screenshots are actual rendered Web interaction states (therefore `visual: true`):
+
+- [01-model-turn.png](01-model-turn.png) — completed model answer with transformed contents and shell result fields.
+- [02-trajectory.png](02-trajectory.png) — one `run_code` and individual nested grep/transform/shell entries.
+
+## Reusable provider setup
+
+Committed `dsh/provider.deepseek.yml` and a README reference. It uses `apiKeyEnv: DEEPSEEK_API_KEY`, selects `deepseek-official` / `deepseek-flash`, and disables `session-log-deepseek` plus `plugin-package-inventory-deepseek`, matching the documented workaround in `docs/issues/dsh-web-deepseek-extension-preparation-fails.md`. The previous provider prep failure was not separately reproduced in this encounter; the overlay-enabled model turn succeeded.
