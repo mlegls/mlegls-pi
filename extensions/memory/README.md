@@ -25,6 +25,8 @@ The extension captures the latest context-hook messages, effective system prompt
 
 After reload/model changes/branch switches, a compatible captured prefix may be unavailable. In that case it reconstructs context from Pi's session tree. Successful compaction details record `prefixMode: captured | reconstructed`, operation, model, latency and usage; usage is also returned to Pi. No provider-specific compaction endpoint is used, and no explicit cache-disable option is set. Actual cache hits remain provider-dependent; context-hook equality is not proof of identical provider payloads, especially with other transforming extensions.
 
+Old tool outputs are elided only when the prompt cache is already cold. If a user message arrives at least `memory.elide.idleSeconds` (default 330, just past Anthropic's 5-minute TTL) after the previous message, tool results of at least `minTokens` from before the last `keepTurns` user turns are replaced with a pointer (`ab memory recall ENTRY-ID`). Tool calls and result messages stay in place, only the bodies change. This is computed purely from message timestamps on the branch: gaps never move, so the rendering changes only at a new cold gap and stays byte-stable between them, whether after a reload or on another branch. The rewrite therefore lands when the provider would re-prefill anyway. OpenAI's automatic cache can outlive five minutes, so there the rewrite may still cost some cache reads. Compaction sees the elided bodies; the compaction call can't recall them yet, since it doesn't execute tools.
+
 ## Settings
 
 Global `~/.pi/agent/settings.json` and project `.pi/settings.json`, under `memory`:
@@ -38,7 +40,8 @@ Global `~/.pi/agent/settings.json` and project `.pi/settings.json`, under `memor
     "blockTokens": 2000,
     "memoryTokens": 12000,
     "rewriteTokens": 6000,
-    "maxOutputTokens": 12000
+    "maxOutputTokens": 12000,
+    "elide": { "enabled": true, "idleSeconds": 330, "minTokens": 500, "keepTurns": 1 }
   }
 }
 ```

@@ -131,3 +131,29 @@ Entries (ID and hint; full content above):
 ${manifest}
 ${focus ? `Focus: ${focus}` : ""}`;
 }
+
+export interface ElideOptions { idleMs: number; minTokens: number; keepTurns: number }
+/**
+ * Replace old tool-result bodies with recall pointers, but only behind idle gaps long enough for the provider's prompt
+ * cache to have expired, so the rewrite costs no extra cache writes. A pure function of the branch: gaps never move,
+ * so the rendering only changes at a new cold gap and stays byte-stable between them.
+ */
+export function elideCold(messages: any[], branch: SessionEntry[], o: ElideOptions): { messages: any[]; elided: number } {
+	const entryOf = new Map<string, string>();
+	for (const e of branch) if (e.type === "message" && e.message.role === "toolResult") entryOf.set(e.message.toolCallId, e.id);
+	const users = messages.flatMap((m, i) => m.role === "user" ? [i] : []);
+	let cut = -1;
+	users.forEach((i, k) => {
+		if (i > 0 && k >= o.keepTurns && messages[i].timestamp - messages[i - 1].timestamp >= o.idleMs) cut = Math.max(cut, users[k - o.keepTurns]);
+	});
+	let elided = 0;
+	const out = messages.map((m, i) => {
+		const id = m.role === "toolResult" ? entryOf.get(m.toolCallId) : undefined;
+		if (i >= cut || !id) return m;
+		const tokens = estimateTokens(m);
+		if (tokens < o.minTokens) return m;
+		elided++;
+		return { ...m, content: [{ type: "text", text: `[Output (~${tokens} tokens) elided after the prompt cache went cold. Recall: ab memory recall ${id}]` }] };
+	});
+	return { messages: out, elided };
+}

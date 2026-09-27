@@ -4,10 +4,11 @@ import type { Context } from "@earendil-works/pi-ai";
 import { readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { KIND, splitCheckpoint, citations, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
+import { KIND, elideCold, splitCheckpoint, citations, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
-interface Settings { enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
-function settings(cwd: string): Required<Settings> {
+interface Elide { enabled: boolean; idleSeconds: number; minTokens: number; keepTurns: number }
+interface Settings { elide?: Partial<Elide>; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
+function settings(cwd: string): Required<Settings> & { elide: Elide } {
 	const read = (path: string): Settings => {
 		try { return JSON.parse(readFileSync(path, "utf8")).memory ?? {}; }
 		catch (e: any) { if (e.code === "ENOENT") return {}; throw e; }
@@ -17,10 +18,16 @@ function settings(cwd: string): Required<Settings> {
 	for (const k of ["memoryTokens", "rewriteTokens", "blockTokens", "keepRecentTokens", "maxOutputTokens"] as const)
 		if (!Number.isFinite(s[k]) || s[k] < 1) throw new Error(`memory.${k} must be positive`);
 	if (s.rewriteTokens >= s.memoryTokens) throw new Error("memory.rewriteTokens must be below memory.memoryTokens");
-	return s;
+	const elide = { enabled: true, idleSeconds: 330, minTokens: 500, keepTurns: 1, ...s.elide };
+	for (const k of ["idleSeconds", "minTokens", "keepTurns"] as const)
+		if (!Number.isFinite(elide[k]) || elide[k] < 0) throw new Error(`memory.elide.${k} must be nonnegative`);
+	return { ...s, elide };
 }
 interface Snapshot { session: string; leaf: string | null; model: string; context: Context }
 const modelKey = (ctx: ExtensionContext) => `${ctx.model?.provider}/${ctx.model?.id}`;
+function elide(messages: any[], branch: any[], s: ReturnType<typeof settings>) {
+	return s.elide.enabled ? elideCold(messages, branch, { idleMs: s.elide.idleSeconds * 1000, minTokens: s.elide.minTokens, keepTurns: s.elide.keepTurns }) : { messages, elided: 0 };
+}
 function tools(pi: ExtensionAPI) {
 	const all = new Map(pi.getAllTools().map(t => [t.name, t]));
 	return pi.getActiveTools().map(name => {
@@ -37,13 +44,17 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let snapshot: Snapshot | undefined;
 	let busy = false;
 	let forceRewrite = false;
-	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; });
+	let elidedCount = 0;
+	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; elidedCount = 0; });
 	pi.on("session_compact", () => { snapshot = undefined; });
 	pi.on("context", (event, ctx) => {
 		// Even when disabled, render already-persisted blocks identically.
-		const branch = ctx.sessionManager.getBranch();
-		const messages = expandMemory(event.messages, branch);
-		if (settings(ctx.cwd).enabled) snapshot = {
+		const branch = ctx.sessionManager.getBranch(), s = settings(ctx.cwd);
+		const cold = elide(event.messages, branch, s);
+		if (cold.elided > elidedCount) ctx.ui.notify(`Cache was cold: elided ${cold.elided - elidedCount} old tool outputs (${cold.elided} total)`, "info");
+		elidedCount = cold.elided;
+		const messages = expandMemory(cold.messages, branch);
+		if (s.enabled) snapshot = {
 			session: ctx.sessionManager.getSessionId(), leaf: ctx.sessionManager.getLeafId(), model: modelKey(ctx),
 			context: structuredClone({ systemPrompt: ctx.getSystemPrompt(), messages: convertToLlm(messages), tools: tools(pi) }),
 		};
@@ -78,7 +89,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				context.messages.push(...convertToLlm(additions.flatMap(sessionEntryToContextMessages)));
 				prefixMode = "captured";
 			} else {
-				context = { systemPrompt: ctx.getSystemPrompt(), tools: tools(pi), messages: convertToLlm(expandMemory(buildSessionContext(branch).messages, branch)) };
+				context = { systemPrompt: ctx.getSystemPrompt(), tools: tools(pi), messages: convertToLlm(expandMemory(elide(buildSessionContext(branch).messages, branch, s).messages, branch)) };
 			}
 			const selfAuthored = context.messages.every((m: any) => m.role !== "assistant" || (m.provider === ctx.model!.provider && m.model === ctx.model!.id));
 			const stream = (ctx.modelRegistry as any).streamSimple;
