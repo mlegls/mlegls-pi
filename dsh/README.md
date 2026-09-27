@@ -180,6 +180,6 @@ before treating delivery as durable.
 The focused host contract test is `bun test board/index.test.ts` from `dsh/`.
 
 The pinned `dsh-session` 0.1.7-rc.2 release drops `{ ignorable: true }` from
-`Session.append()` options. Board state must not be relied on across session
-replay until the companion local append patch is applied; retain its Bun
-`patchedDependencies` entry and lock metadata when combining dsh package changes.
+`Session.append()` options; `patches/@deepseek-ai%2Fdsh-session@0.1.7-rc.2.patch`
+(Bun `patchedDependencies`) restores it. Keep that entry and its lock metadata
+when combining dsh package changes.
