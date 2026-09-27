@@ -114,6 +114,30 @@ Programs can also call `await tools.skim({ text, focus })`. Use
 `await tools.pull({ id })` in a later program to recover a retained page verbatim.
 The local spill backend stores originals outside context. Locator lookup is scoped to the live agent and does not survive a restart.
 
+## Live headless turn
+
+`provider.deepseek.yml` selects `deepseek-official` / `deepseek-flash` and resolves
+`DEEPSEEK_API_KEY` from the launching environment; it stores no key. It disables
+the two optional request-extension contributors that failed preparation together
+on the pinned dsh release; see
+[`dsh-web-deepseek-extension-preparation-fails.md`](../docs/issues/dsh-web-deepseek-extension-preparation-fails.md).
+
+From the repository root, after `bun run --cwd dsh setup`:
+
+```sh
+: "${DEEPSEEK_API_KEY:?export the key in the launching environment}"
+export PATH="$PWD/dsh/node_modules/.bin:$PATH"
+export DSH_HOME="$PWD/dsh/.local/headless-home"
+export DSH_TOOLS_MODE=ptc
+install -d -m 700 "$DSH_HOME"
+dsh --profile headless \
+  --patch "$PWD/dsh/cordis.yml" \
+  --patch "$PWD/dsh/provider.deepseek.yml" \
+  "Use run_code to print DSH_LIVE_MODEL_OK, then report it."
+```
+
+A real skim additionally uses the configured ingress decision service and local
+LLMLingua cache; failures preserve the original `run_code` result.
 ## Loading and development
 `dsh/hashline/index.ts` imports shared `lib/outline-read` source relatively.
 `bun run --cwd dsh build` bundles that source into `dsh/dist/hashline.js`
