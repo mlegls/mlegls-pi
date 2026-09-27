@@ -244,6 +244,27 @@ async function supervise(args: string[]) {
 		console.log(record.id + " " + record.status + (previous ? " (continuing " + previous.id + ")" : ""));
 		return;
 	}
+	if (verb === "loop") {
+		const target = given && !given.startsWith("--") ? ticket : "";
+		const { values } = parseArgs({ args: target ? rest : [given, ...rest].filter(Boolean), options: { budget: { type: "string" }, timebox: { type: "string" }, test: { type: "string" }, model: { type: "string" }, effort: { type: "string" }, status: { type: "boolean" }, stop: { type: "boolean" } } });
+		const name = "loop-" + (target || "all").replace(/[^A-Za-z0-9_-]/g, "-");
+		const loops = (await api.status()).filter(j => j.type === "loop" && (j.input as any).cwd === top && (j.input as any).target === target);
+		const running = loops.find(j => j.status === "running");
+		const ledger = join(dir, name + ".jsonl");
+		if (values.stop) { if (running) console.log(JSON.stringify((await api.stop(running.id)).status)); else console.log("no running " + name); return; }
+		if (values.status) {
+			for (const j of loops.slice(-3)) { const s = j.state as any; console.log(j.id + " " + j.status + (j.error ? " " + j.error : "") + (s ? " iteration " + s.iteration + ", triages " + s.triages + (s.batch ? ", batch " + s.batch.items.join(" ") : "") + ", held " + (Object.keys(s.held).join(" ") || "-") : "")); }
+			if (existsSync(ledger)) console.log(readFileSync(ledger, "utf8").trimEnd().split("\n").slice(-15).join("\n"));
+			return;
+		}
+		if (running) fail("already looping " + (target || "the whole tracker") + " (" + running.id + "); ab supervise loop " + (target ? target + " " : "") + "--status | --stop");
+		const triager = (await import("../lib/agents.ts")).agent("supervise");
+		mkdirSync(dir, { recursive: true });
+		const input = { target, cwd: top, ownerSession: process.env.PI_SESSION_ID, budget: Number(values.budget ?? 3), timebox: Number(values.timebox ?? 60), test: values.test, model: values.model ?? triager?.model ?? fail("no triage model: pass --model"), effort: values.effort ?? triager?.effort ?? "high", ledger, commands: join(dir, name + ".commands.jsonl"), run: name, carried: loops.at(-1)?.state ?? null };
+		const record = await api.start("loop", input, { id: name + "-" + Date.now().toString(36), stateFile: join(dir, name + "-" + Date.now().toString(36) + ".json") });
+		console.log(record.id + " " + record.status + (input.carried ? " (continuing " + loops.at(-1)!.id + ")" : "") + "\nledger: " + ledger);
+		return;
+	}
 	if (verb === "status" || !verb) {
 		if (!jobs.length) return console.log("no supervision jobs here");
 		for (const j of jobs) {
@@ -262,7 +283,7 @@ async function supervise(args: string[]) {
 		return;
 	}
 	if (verb === "stop" && ticket) { for (const j of jobs.filter(j => j.status === "running")) console.log(JSON.stringify((await api.stop(j.id)).status)); return; }
-	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | stop <ticket>");
+	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | stop <ticket> | loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E] [--status | --stop]");
 }
 
 
