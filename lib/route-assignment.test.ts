@@ -30,7 +30,7 @@ test('agent preferences are eligible catalog pairs', () => {
   const policy = readFileSync(join(root, 'routing.md'), 'utf8');
   const catalog = policy.split('## Active catalog ')[1];
   const available = candidates(catalog);
-  for (const file of readdirSync(join(root, 'agents')).filter(f => !f.startsWith('_'))) {
+  for (const file of readdirSync(join(root, 'agents')).filter(f => f.endsWith('.md') && !f.startsWith('_'))) {
     const preference = agent(file.replace(/\.md$/, ''));
     if (!preference?.model || !preference.effort) throw new Error(`Incomplete preference: ${file}`);
     expect(available).toContainEqual({ model: preference.model, effort: preference.effort });

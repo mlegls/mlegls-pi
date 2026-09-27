@@ -1,6 +1,6 @@
 # Verification evidence
 
-Supervision runs implementation → fresh encounter → visual judgment when the journey is rendered → integration. The encounter worker uses the project's prepared setup, Jev for semantic navigation and existing Playwright replays where appropriate. The visual reviewer opens the actual images; a collector's `held` is not a visual verdict. Backend-only journeys use API, CLI or library evidence without an extra visual worker.
+Supervision runs implement → drive → review → integration, each step an agent role (`agents/roles/`). The driver uses the changed product as its user would without reading the implementation, commits the packet below with its frictions, expectations and black-box tests, and repairs nothing. The reviewer reads that log together with the diff, repairs directly, re-drives what it changed and refreshes the packet. Integration requires the reviewer's handoff with every story held on its final head, and runs the driver's tests on that head. Backend-only journeys use API, CLI or library evidence; rendered journeys route to a visual reviewer.
 
 Before driving, check the handoff's deployment kind and owned target, persona/authentication, seed or restored state, and runnable entry point. Do not substitute anonymous-local setup for a Cloud requirement. Wait for setup to finish. Resolve known, authorized preparation locally rather than handing it back by default. Never publish credentials or private account data in evidence; use test personas or redact before committing.
 The setup handoff distinguishes the task's required environment from what was actually prepared: deployment kind, non-secret target identifier and checkout ownership, persona/auth method, seed/state, launch command or entry URL, and observed readiness (or the still-running setup and what remains). The requirement wins over a generic setup default. Before reusing inherited selectors or credentials, confirm they address the intended checkout-owned target; before destructive seeding, establish ownership explicitly. Reuse the project's setup tooling rather than inventing another launcher. Unknown readiness is not a failed encounter: finish authorized setup and observe its result before driving.
@@ -18,7 +18,7 @@ The index records:
 
 A few well-chosen frames usually suffice. Keep broad device/locale matrices and hypothesis-driven audits separately scoped. Existing Playwright recording and `bun ~/dev/mlegls-pi/lib/cards.ts <shots-dir>` cover traces and labeled contact sheets; preserve the originals for close inspection.
 
-For supervised verification, use this handoff (paths are repository-relative files, not directories):
+For supervised driving and review, use this handoff (paths are repository-relative files, not directories). The driver adds `frictions` and `expectations` and may report `failed` stories; the reviewer reports every story `held`, and may set `redrive: true` once when its repairs changed behavior the tests don't cover:
 
 ```yaml
 stories:
@@ -32,14 +32,16 @@ evidence:
   shots:
     - docs/attachments/example-ticket/01-session-response.png
     - docs/attachments/example-ticket/02-session-sending.png
+tests:
+  - bun test e2e/composer.test.ts
 caveats: []
 ```
 
 Use `held`, `failed` or `unobservable` exactly. For a nonvisual journey set `visual: false` and `shots: []`; still commit the evidence index. Any rendered UI journey is visual, even if the collector's checks use DOM assertions. Report every required claim, not just the ones that passed. An honest description of missing measurements is not the requested measurement: end `blocked`, or obtain an explicit contract change. Caveats do not waive acceptance requirements.
 
-## Visual judgment and recovery
+## Review and recovery
 
-A fresh visual reviewer receives the ticket and packet. Open the actual screenshots (contact sheets first when useful) and judge the required claims. If you have the context and authority to repair a gap, repair it directly, re-drive the affected behavior and refresh the evidence. Collect missing states yourself when practical. Commit the repairs and your judgment with current image references to the packet index. Pre-fix images cannot establish a repaired outcome. Use the same `stories`/`evidence` handoff, not the standalone reviewer's `data: {blocking, nits}` format. Missing states remain `unobservable` until observed. Unrelated improvements are nonblocking observations with their own owner.
+The reviewer receives the ticket, the diff and the driver's packet. For visual packets it is a visual reviewer. Open the actual screenshots (contact sheets first when useful) and judge the required claims. If you have the context and authority to repair a gap, repair it directly, re-drive the affected behavior and refresh the evidence. Collect missing states yourself when practical. Commit the repairs and your judgment with current image references to the packet index. Pre-fix images cannot establish a repaired outcome. Use the same `stories`/`evidence` handoff, not the standalone reviewer's `data: {blocking, nits}` format. Missing states remain `unobservable` until observed. Unrelated improvements are nonblocking observations with their own owner.
 
 A handoff should buy missing capability, context, authority or lower total cost, not preserve role purity. Repair size alone does not decide it. Use `resume … verify` when a fresh collector is actually useful; scope changes go to shaping. A reviewer's repair does not automatically require another reviewer: re-drive what changed, refresh the evidence, and finish. The loop retains earlier workers until integration or explicit disposal. `resume … integrate` retries an accepted integration; it does not waive acceptance, and edits after acceptance need updated evidence.
 

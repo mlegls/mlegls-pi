@@ -258,7 +258,7 @@ async function supervise(args: string[]) {
 			return;
 		}
 		if (running) fail("already looping " + (target || "the whole tracker") + " (" + running.id + "); ab supervise loop " + (target ? target + " " : "") + "--status | --stop");
-		const triager = (await import("../lib/agents.ts")).agent("supervise");
+		const triager = (await import("../lib/agents.ts")).agent("triage");
 		mkdirSync(dir, { recursive: true });
 		const input = { target, cwd: top, ownerSession: process.env.PI_SESSION_ID, budget: Number(values.budget ?? 3), timebox: Number(values.timebox ?? 60), test: values.test, model: values.model ?? triager?.model ?? fail("no triage model: pass --model"), effort: values.effort ?? triager?.effort ?? "high", ledger, commands: join(dir, name + ".commands.jsonl"), run: name, carried: loops.at(-1)?.state ?? null };
 		const record = await api.start("loop", input, { id: name + "-" + Date.now().toString(36), stateFile: join(dir, name + "-" + Date.now().toString(36) + ".json") });
