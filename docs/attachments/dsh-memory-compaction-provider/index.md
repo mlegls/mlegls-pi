@@ -124,5 +124,26 @@ model turns: direct host PTC dispatch needs the
   [existing owner](../../issues/board-acks-are-a-host-runtime-event.md).
 
 Runtime cost: one 125-line provider, nine overlay lines, one stock query-tool
+
+## Fresh supervised encounter
+
+Tested revision `3b9f6c2`. The required deployment was local dsh Web with model
+credentials; this run used a new worker-owned checkout target at
+`127.0.0.1:50348`, anonymous token-authenticated Web, and `dsh/.local/home`.
+The inherited prepared home, provider patch and parent/fork sessions described
+above were absent in this worktree. I completed `bun run --cwd dsh setup`, rebuilt
+the provider, recreated its ignored local provider configuration, and waited for
+`dsh web` readiness. The Web UI opened successfully; a fresh one-turn interaction
+returned `READY` from the configured default model (see [ready UI](01-web-ready.png)
+and [completed turn](02-first-turn.png)). The observed UI model was
+`DeepSeek-V41-Flash`; the missing prepared DeepSeek trial sessions could not be
+assumed available or substituted.
+
+This only establishes basic Web/model readiness, not the ticket's acceptance
+journey. The persisted calibration archive, lineage sessions and trial workspace
+weren't present, and this first-use run did not seed a replacement long-history
+session or drive compaction/fork recall. Consequently each required story remains
+**unobservable** in the fresh encounter. No screenshot is represented as evidence
+of compaction. The temporary Web process and browser CLI session were stopped.
 package, and the small session append patch. Shared Pi code and prompts are
 unchanged. No recall index or persistent test harness was added.
