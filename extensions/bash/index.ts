@@ -151,6 +151,10 @@ export default function (pi: ExtensionAPI) {
 			for (const line of readFileSync(job.attach, "utf8").split("\n")) {
 				if (!line) continue;
 				const event = JSON.parse(line);
+				if (event.type === "ingress-pull" && typeof event.id === "string") {
+					pi.appendEntry("exec-ingress", { type: "pull", id: event.id });
+					continue;
+				}
 				if (event.type !== "image") continue;
 				try {
 					const mime = await detectImageMimeType(event.path);

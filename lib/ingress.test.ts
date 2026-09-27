@@ -85,3 +85,19 @@ test("failure preserves original evidence, while diffs and tiny output bypass ju
   expect(await reader.filter("diff --git a/file b/file\n" + text, "q")).toBe("diff --git a/file b/file\n" + text);
   expect(events).toHaveLength(1);
 });
+
+test("whole-output floors preserve small reads without disabling confident large omissions", async () => {
+  for (const [size, confidence, mode] of [[1000, .9, "verbatim"], [3000, .9, "skim75"], [6000, .5, "cues"], [6000, .9, "omit"]] as const) {
+    const events: Event[] = [];
+    const reader = create({
+      chunk: text => [{ text, label: "output" }],
+      judge: async () => [{ mode: "omit", excerpt: 0, dist: { omit: confidence, verbatim: 1 - confidence, skim75: 0, skim50: 0, cues: 0 } }],
+      compress: async jobs => jobs.map(() => "useful preview"),
+      record: event => events.push(event),
+    });
+    await reader.filter("x".repeat(size), "inspect output");
+    const event = events.find(e => e.type === "filter");
+    expect(event?.type === "filter" && event.pages[0].mode).toBe(mode);
+    reader.dispose();
+  }
+});

@@ -292,6 +292,7 @@ function pull(args: string[]) {
 		const file = join(stateDir, "ingress", id);
 		if (!existsSync(file)) fail("unknown page " + id + " (pages are kept per session in $AB_SESSION_STATE/ingress)");
 		process.stdout.write(exact(readFileSync(file, "utf8")));
+		attach({ type: "ingress-pull", id });
 	}
 }
 
