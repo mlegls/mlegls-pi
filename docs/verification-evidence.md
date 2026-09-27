@@ -33,7 +33,7 @@ evidence:
     - docs/attachments/example-ticket/01-session-response.png
     - docs/attachments/example-ticket/02-session-sending.png
 tests:
-  - bun test e2e/composer.test.ts
+  - e2e/composer.test.ts
 caveats: []
 ```
 

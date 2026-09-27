@@ -17,7 +17,7 @@ import { agent, roleBody } from "../agents.ts";
 export interface Input { carried?: State | null; target: string; cwd: string; ownerSession?: string; budget: number; timebox: number; test?: string; model: string; effort: string; ledger: string; commands: string; run: string }
 interface Batch { items: string[]; deadline: number; state: unknown; notes?: Record<string, string> }
 // tests: every earlier batch's driver tests; each later integration gate runs them all.
-export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number; tests?: string[] }
+export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number; tests?: string[]; unjoined?: supervise.Input["unjoined"] }
 interface Issue { slug: string; file: string; partOf: string | null; frontier: boolean; done: boolean; archived?: boolean; priority?: string | null; effectiveStage: string }
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -104,11 +104,14 @@ export async function run(job: JobContext) {
   const sub: JobContext = {
    id: job.id + "-" + state.iteration, signal: job.signal, log: job.log, state: b.state,
    save: async s => { b.state = s; await save(); },
-   input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", ownerSession: input.ownerSession, budget: b.items.length, test: input.test, commands: input.commands, items: b.items, ledger: input.ledger, deadline: b.deadline, notes: b.notes, tests: state.tests, joinTimeboxMs: input.timebox * 60_000 } satisfies supervise.Input,
+   input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", ownerSession: input.ownerSession, budget: b.items.length, test: input.test, commands: input.commands, items: b.items, ledger: input.ledger, deadline: b.deadline, notes: b.notes, tests: state.tests, joinTimeboxMs: input.timebox * 60_000, unjoined: state.unjoined } satisfies supervise.Input,
   };
   await supervise.run(sub);
   if (job.signal.aborted) return;
-  state.tests = [...new Set([...(state.tests ?? []), ...((b.state as supervise.State | null)?.tests ?? [])])];
+  const done = b.state as supervise.State | null;
+  state.tests = [...new Set([...(state.tests ?? []), ...(done?.tests ?? [])])];
+  if (done?.join?.done) delete state.unjoined;
+  else if (done?.integrated.length) state.unjoined = { slugs: [...(state.unjoined?.slugs ?? []), ...done.integrated], base: state.unjoined?.base ?? done.base!, reviews: { ...state.unjoined?.reviews, ...done.reviews } };
   delete state.batch; state.iteration++;
   await save();
  }

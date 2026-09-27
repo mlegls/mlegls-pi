@@ -5,7 +5,7 @@
 // Children are wm workers spawned with the owner as parent session; the owner is woken on
 // its mailbox (mail/xxxxxxxx, lib/board/mailbox).
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, readFileSync, writeFileSync, realpathSync, watch } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync, realpathSync, statSync, watch } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { basename, dirname, join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
@@ -24,7 +24,9 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
  // Per-ticket notes from the loop's triage, passed to the implementer.
  notes?: Record<string, string>;
  // Test commands from earlier batches; every integration gate runs all of them. The join's own timebox (batch mode).
- tests?: string[]; joinTimeboxMs?: number }
+ tests?: string[]; joinTimeboxMs?: number;
+ // Landed in earlier batches whose join was skipped: the next join covers them too, from their base.
+ unjoined?: { slugs: string[]; base: string; reviews: Record<string, unknown> } }
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
@@ -92,12 +94,23 @@ async function commitRetrying(cwd: string, ...args: string[]) {
 }
 const caveats = (h: Record<string, unknown> | null): string[] => { const c = h?.caveats; return Array.isArray(c) ? c.map(x => typeof x === "string" ? x : JSON.stringify(x)) : c && !/^(none|no|\[\])$/i.test(String(c).trim()) ? [String(c)] : []; };
 // The driver's black-box tests: commands the integration gate runs on the reviewer's final head.
-const testCommands = (h: Record<string, unknown> | null | undefined): string[] => Array.isArray(h?.tests) ? h.tests.filter((t): t is string => typeof t === "string" && !!t.trim()) : [];
+// Handoff `tests` name committed test files (repository-relative); anything else (prose, commands) is not run.
+const testCommands = (h: Record<string, unknown> | null | undefined): string[] => Array.isArray(h?.tests) ? h.tests.filter((t): t is string => typeof t === "string" && /^[\w./-]+$/.test(t.trim()) && !t.includes("..")).map(t => t.trim()) : [];
+// How the gate runs one test file; files that no longer exist (tidied away) are skipped.
+function testRun(cwd: string, file: string): string[] | null {
+ const full = resolve(cwd, file);
+ if (!existsSync(full) || !statSync(full).isFile()) return null;
+ if (/\.test\.[cm]?[jt]sx?$/.test(file)) return ["bun", "test", "./" + file];
+ if (statSync(full).mode & 0o111) return ["./" + file];
+ if (file.endsWith(".sh")) return ["sh", file];
+ return null;
+}
 const yaml = (value: unknown) => "```json\n" + JSON.stringify(value ?? null, null, 1) + "\n```";
 // Unknown, empty, or prose-only outcomes are not acceptance.
 const unheld = (h: Record<string, unknown> | null) => !Array.isArray(h?.stories) || !h.stories.length || h.stories.some(s => !s || typeof s.story !== "string" || !s.story.trim() || s.outcome !== "held");
 function evidencePacket(cwd: string, handoff: Record<string, unknown> | null) {
  const e = handoff?.evidence as { path?: unknown; visual?: unknown; shots?: unknown } | undefined;
+ if (e && e.visual === false && e.shots === undefined) e.shots = [];
  if (!e || typeof e.visual !== "boolean" || !Array.isArray(e.shots) || (e.visual && !e.shots.length) || (!e.visual && e.shots.length)) throw new Error("Evidence needs path, visual boolean, and shots (nonempty for visual journeys)");
  const tracked = (p: unknown) => {
   if (typeof p !== "string" || !p.startsWith("docs/attachments/") || p.split("/").includes("..")) throw new Error("Evidence must live under docs/attachments: " + p);
@@ -244,7 +257,11 @@ const checkStartup = async (live: Child[]) => {
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
    // The driver's tests are the contract the reviewer's edits answer to; they gate integration mechanically.
    // Earlier siblings' tests too, so one child can't silently break another's contract.
-   for (const command of new Set([input.test, ...(input.tests ?? []), ...(state.tests ?? []), ...testCommands(c.evidence)].filter(Boolean) as string[])) execFileSync("bash", ["-lc", command], { cwd: worker.path, stdio: "pipe" });
+   if (input.test) execFileSync("bash", ["-lc", input.test], { cwd: worker.path, stdio: "pipe" });
+   else for (const file of new Set([...(input.tests ?? []), ...(state.tests ?? []), ...testCommands(c.evidence)])) {
+    const run = testRun(worker.path, file);
+    if (run) execFileSync(run[0], run.slice(1), { cwd: worker.path, stdio: "pipe" });
+   }
    if (!isJoin(c)) await close(c.slug, worker.path, packet?.path);
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
   } });
@@ -310,17 +327,17 @@ const checkStartup = async (live: Child[]) => {
  // stories (tree only: a batch has no spec of its own); consolidation needs at least two changes to relate.
  const joinScope = () => {
   const node = input.ticket && !input.items ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
-  const landed = state.integrated.map(slug => "- " + slug + ": " + JSON.stringify(state.reviews?.[slug] ?? {})).join("\n");
+  const landed = [...(input.unjoined?.slugs ?? []), ...state.integrated].map(slug => "- " + slug + ": " + JSON.stringify(state.reviews?.[slug] ?? input.unjoined?.reviews[slug] ?? {})).join("\n");
   return [node ? "Node " + node.slug + " (" + node.file + "), whose children have all been integrated:\n\n" + readFileSync(node.file, "utf8") : "One cycle of a synchronous ticket loop integrated these independent tickets together (issue files under docs/issues/).",
    "Landed, with each leaf review's summary:\n" + landed,
-   "Tests every change must keep passing: " + JSON.stringify([input.test, ...(input.tests ?? []), ...(state.tests ?? [])].filter(Boolean))].join("\n\n");
+   "Tests every change must keep passing: " + (input.test ?? JSON.stringify([...(input.tests ?? []), ...(state.tests ?? [])]))].join("\n\n");
  };
  const startJoin = async (): Promise<boolean> => {
   const key = ((input.ticket || input.run || "cycle") + "-join-" + Date.now().toString(36)).replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^[^A-Za-z0-9]+/, "");
   const node = input.ticket && !input.items ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
   const leafOnly = state.integrated.length === 1 && state.integrated[0] === input.ticket;
   const drive = !!node && !leafOnly && /\bstories\//.test(readFileSync(node.file, "utf8"));
-  const consolidate = state.integrated.length >= 2;
+  const consolidate = (input.unjoined?.slugs.length ?? 0) + state.integrated.length >= 2;
   state.join = { key, drive, ...(batch && input.joinTimeboxMs ? { deadline: Date.now() + input.joinTimeboxMs } : {}) };
   if (!drive && !consolidate) { state.join.skipped = leafOnly ? "single leaf" : "fewer than two changes landed and no crossing stories"; await save(); if (batch) record({ kind: "join-skipped", reason: state.join.skipped }); return false; }
   const head = git(input.cwd, "rev-parse", "HEAD");
@@ -337,7 +354,7 @@ const checkStartup = async (live: Child[]) => {
   return !!state.children[key];
  };
  const consolidatePrompt = (driven: Record<string, unknown> | null, report: string) => [joinScope(),
-  "The combined change: git diff " + state.base + "..HEAD in your worktree.",
+  "The combined change: git diff " + (input.unjoined?.base ?? state.base) + "..HEAD in your worktree.",
   ...(driven ? ["Integration driver's handoff:\n" + yaml(driven), "Integration driver's final message:\n\n" + report.slice(-4000)] : [])].join("\n\n");
  const joinTurn = async (c: Child, r: ReturnType<typeof parse>, text: string) => {
   if (c.phase === "drive") {
@@ -345,7 +362,7 @@ const checkStartup = async (live: Child[]) => {
    c.drive = r.handoff!;
    const failed = (r.handoff!.stories as { outcome?: string }[]).some(s => s.outcome !== "held");
    // Nothing to repair and nothing to relate: the drive's evidence is the join.
-   if (!failed && state.integrated.length < 2) { c.evidence = { ...r.handoff! }; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); await save(); await integrateChild(c, c.handle); return; }
+   if (!failed && (input.unjoined?.slugs.length ?? 0) + state.integrated.length < 2) { c.evidence = { ...r.handoff! }; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); await save(); await integrateChild(c, c.handle); return; }
    const handle = await launch(c.slug, "consolidate", consolidatePrompt(c.drive, text), git(c.handle.path, "rev-parse", "HEAD"));
    (c.previous ??= []).push(c.handle);
    Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } });

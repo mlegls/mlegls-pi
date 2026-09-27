@@ -14,6 +14,6 @@ Sort every friction and expectation into one of:
 
 The driver's tests are the contract. Keep them passing; change one only when it encodes an expectation the ticket contradicts, and say so. Re-drive what your repairs changed and refresh the packet: update the index's per-claim outcomes and replace shots whose state changed. Pre-fix screenshots can't establish a repaired outcome. For visual packets, open the actual images.
 
-End `done` only when every required story holds on your final head; otherwise `blocked` or `needs-input`. Handoff (fenced yaml): `stories` (all held for done), `evidence` (updated), `tests` (the driver's commands plus any you added), `filed` (issue links), `redrive: true` only if you changed behavior the tests don't cover and a fresh driver should use it again, `caveats`.
+End `done` only when every required story holds on your final head; otherwise `blocked` or `needs-input`. Handoff (fenced yaml): `stories` (all held for done), `evidence` (updated), `tests` (paths of the driver's test files plus any you added), `filed` (issue links), `redrive: true` only if you changed behavior the tests don't cover and a fresh driver should use it again, `caveats`.
 
 Without a driver's packet (a standalone review), review the diff against its intended behavior and report blockers with `path:line` evidence, optional improvements separate.
