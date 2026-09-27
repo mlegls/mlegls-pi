@@ -1,5 +1,5 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
 part-of: "[[projects/mlegls-pi/issues/dsh-port]]"
@@ -17,6 +17,29 @@ Done when an over-budget `run_code` result comes back skimmed with a locator tha
 
 ## Result
 
-The dsh overlay now installs the local spill backend and a top-level skim plugin. Successful `run_code` results over 4 KiB pass through `lib/ingress`; PTC programs can call `skim` and recover returned `ing-…` pages verbatim with `pull`. Local spill files hold the originals; a per-live-agent `WeakMap` maps ids to spill refs, so recall survives PTC cells but restart recovery is not established.
+The dsh overlay registers top-level `skim` and the local spill backend. Successful
+`run_code` results over 4 KiB pass through `lib/ingress` before compaction; PTC
+programs can call `tools.skim` and recover returned `ing-…` pages with `tools.pull`.
+A per-live-agent `WeakMap` maps ids to spill refs, so recall lasts across PTC cells;
+restart recovery is not established.
 
-Verification: the focused ingress tests (5), strict TypeScript check, and dsh plugin build passed. An ephemeral smoke exercised the bundled explicit tool and `run_code` post-execute hook with fake evaluator, compressor, and spill-store services; each returned page recalled verbatim. An isolated local Web server started and loopback `/` returned 401 at the local auth gate, then was stopped. No authenticated model-driven PTC turn or real `LocalSpillStore` interaction was exercised; fresh verification should establish the model-visible first use.
+The first live headless attempt exposed a bug in the over-budget fallback:
+`createHash()` received result text instead of a digest algorithm and returned
+`Error: Digest method not supported`. Commit `fa81064` fixes the locator hash to
+SHA-256. The final live run exercised the filtered-page path; the fallback-specific
+runtime branch was not rerun after this fix.
+
+Live verification used the committed headless skim overlay and DeepSeek provider
+patch with `DEEPSEEK_API_KEY`. In one real PTC program, `tools.skim` returned an id
+and nested `tools.pull` returned an exact substring of its source
+(`explicitPageExact: true`). That page was archived background and correctly did
+not contain the active marker. The same program printed an oversized report; the
+post-execute hook returned an `ing-…` omission locator. A later `run_code` pulled it
+and verified the unique marker and a complete report section (`containsMarker: true`,
+`containsFullSection: true`, 34,777 chars). This exercised the real local spill
+service across PTC cells.
+
+Verification: `bun-axi test lib/ingress.test.ts` passed all 5 tests; focused strict
+TypeScript checking and the dsh plugin build passed. The live `deepseek-flash`
+headless turn, provider setup, and headless-specific overlay are documented in
+`dsh/README.md`. The separate Web hashline overlay was not model-driven here.
