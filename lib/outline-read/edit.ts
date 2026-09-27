@@ -6,7 +6,7 @@ import { Type } from "typebox";
 import { ANCHOR_LENGTH, ALPHABET, formatRow, stripPastedPrefix } from "./anchors";
 import type { Ledger } from "./ledger";
 
-const GRAMMAR = `Hunks separated by one blank line. A hunk is a header line, then the new lines:
+const GRAMMAR = `A hunk is a header line followed by its new text. Bodies may contain multiple lines, including blank lines; only a blank line followed by a hunk header starts another hunk:
   =abcd         replace line abcd
   =abcd wxyz    replace abcd..wxyz inclusive
   -abcd wxyz    delete abcd..wxyz (no body)

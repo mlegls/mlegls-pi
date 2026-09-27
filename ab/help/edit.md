@@ -22,8 +22,9 @@ Hunks come from stdin (use a quoted heredoc, so nothing in the body is interpret
 
 `=a` replaces a line, `=a b` an inclusive range, `-a` / `-a b` delete, `>a` inserts
 after, `<a` before. a/b are four-character anchors from ab read/grep, not line
-numbers. Separate hunks with a blank line. A body line that looks like a header must
-be escaped with a backslash immediately before its sigil, after indentation:
+numbers. Bodies may contain multiple lines, including blank lines. Only a blank
+line followed by a hunk header starts another hunk. A body line that looks like a
+header must be escaped with a backslash immediately before its sigil, after indentation:
 
     \<time
       dateTime={value}
