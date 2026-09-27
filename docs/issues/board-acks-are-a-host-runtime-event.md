@@ -16,3 +16,5 @@ what done looks like: either board.ts exposes an `ack(ids)` usable from bash scr
 The same failure recurred in `dsh-templated-spawn-and-dispatch-review-1` (session `01a0e2ef-8677-770f-9786-512e6a6d3bc7`): `ab lib board read` returned `dsh-port/*` peers, while `ab lib board ack` rejected the six handled IDs. Continued the isolated review after reading; no acknowledgment workaround was available.
 
 Root review of `dsh-port` hit the same adapter limit: `ab lib board read` returned peer decisions, but `ab lib board ack` failed with `board.ack is not a function`. Workaround: read the decisions and continued in the isolated review worktree; no durable acknowledgment was possible from bash.
+
+2026-09-27, session `01a0e3cd-0adb-74c8-ab96-16e62a692b1a`, reviewing Concept's repository rename: `ab lib board read` returned both peer packets; `ab lib board ack` failed with `board.ack is not a function`. Read the packets and continued isolated review; no acknowledgment workaround. The unrelated `board` executable exposes issue operations, not peer coordination.
