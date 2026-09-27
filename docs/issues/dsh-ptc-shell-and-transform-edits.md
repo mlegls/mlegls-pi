@@ -1,5 +1,5 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
 part-of: "[[projects/mlegls-pi/issues/dsh-port]]"
@@ -15,3 +15,7 @@ Intensional edits. Edit tools are extensional: every site is listed. The intenti
 Done when one program can grep, transform matching sites across several files and run the tests, with each nested call visible as its own `tool/ptc-dispatch` entry.
 
 **Verification:** [[projects/mlegls-pi/issues/dsh-ptc-shell-and-transform-edits/attachments/index]] records the fresh setup/readiness and unobservable required behaviors; the prior ignored diagnostic plugin/log were unavailable in this checkout.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/dsh-ptc-shell-and-transform-edits/index.md).
