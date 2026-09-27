@@ -18,3 +18,5 @@ The same failure recurred in `dsh-templated-spawn-and-dispatch-review-1` (sessio
 Root review of `dsh-port` hit the same adapter limit: `ab lib board read` returned peer decisions, but `ab lib board ack` failed with `board.ack is not a function`. Workaround: read the decisions and continued in the isolated review worktree; no durable acknowledgment was possible from bash.
 
 2026-09-27, session `01a0e3cd-0adb-74c8-ab96-16e62a692b1a`, reviewing Concept's repository rename: `ab lib board read` returned both peer packets; `ab lib board ack` failed with `board.ack is not a function`. Read the packets and continued isolated review; no acknowledgment workaround. The unrelated `board` executable exposes issue operations, not peer coordination.
+
+2026-09-27, Concept consolidation `loop-all-join-muk2rc0d-consolidate`: `ab lib board read` returned peer reviews, but `ab lib board ack '["muk2jl5q-dxup8h","muk2ququ-bt38wh"]'` failed with `board.ack is not a function`. Inspected the relevant reviews and continued the isolated structural pass without acknowledgment.
