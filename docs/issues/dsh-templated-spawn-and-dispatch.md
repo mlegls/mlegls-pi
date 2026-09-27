@@ -37,3 +37,7 @@ The optional `dsh/dispatch.yml` declares research/fill capability and routing de
 Frictions: [[projects/mlegls-pi/issues/dsh-continuable-child-preset-and-workspace-seam]], [[projects/mlegls-pi/issues/dsh-headless-exits-before-continuable-children-settle]], [[projects/mlegls-pi/issues/dsh-schema-optional-array-materializes-empty-allowlist]], [[projects/mlegls-pi/issues/dsh-preset-relative-plugin-loading]], [[projects/mlegls-pi/issues/supervised-workers-cannot-read-peer-board-from-bash]].
 
 The read-only tool allowlist is not a filesystem security boundary; inherited PTC Node access is tracked in [[projects/mlegls-pi/issues/dsh-read-only-preset-does-not-constrain-ptc-node-access]].
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/dsh-templated-spawn-and-dispatch/index.md).

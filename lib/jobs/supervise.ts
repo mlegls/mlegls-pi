@@ -26,7 +26,9 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
  // Test commands from earlier batches; every integration gate runs all of them. The join's own timebox (batch mode).
  tests?: string[]; joinTimeboxMs?: number;
  // Landed in earlier batches whose join was skipped: the next join covers them too, from their base.
- unjoined?: { slugs: string[]; base: string; reviews: Record<string, unknown> } }
+ unjoined?: { slugs: string[]; base: string; reviews: Record<string, unknown> };
+ // A subtree loop's final join: no items, and the ticket is the node whose crossing stories the join drives.
+ nodeJoin?: boolean }
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
@@ -76,7 +78,7 @@ const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, 
 // Every loop runs in the one ab daemon, and loops over the same repository commit to the same checkout;
 // preparation and integration run one loop at a time per repository (including symlink aliases).
 const repoTurns = new Map<string, Promise<unknown>>();
-function serialized<T>(cwd: string, fn: () => Promise<T>): Promise<T> {
+export function serialized<T>(cwd: string, fn: () => Promise<T>): Promise<T> {
  const key = realpathSync(resolve(cwd, git(cwd, "rev-parse", "--git-common-dir")));
  const run = (repoTurns.get(key) ?? Promise.resolve()).catch(() => {}).then(fn);
  repoTurns.set(key, run);
@@ -86,7 +88,7 @@ const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>(done => {
  const t = setTimeout(done, ms); signal?.addEventListener("abort", () => { clearTimeout(t); done(); }, { once: true });
 });
 // Sessions outside the daemon (the owner, a human) also commit there; a lost ref or index lock is retried.
-async function commitRetrying(cwd: string, ...args: string[]) {
+export async function commitRetrying(cwd: string, ...args: string[]) {
  for (let attempt = 1; ; attempt++) {
   try { return git(cwd, "commit", ...args); }
   catch (error) { if (attempt >= 5 || !/cannot lock ref|index\.lock/.test(String(error))) throw error; await sleep(1000 * attempt); }
@@ -326,16 +328,18 @@ const checkStartup = async (live: Child[]) => {
 
  // The join runs once the node's children (or the batch) have landed. The driver takes the node's own crossing
  // stories (tree only: a batch has no spec of its own); consolidation needs at least two changes to relate.
+ // Workers run in their own worktrees: an absolute path would point them at the owner's checkout.
+ const rel = (file: string) => relative(realpathSync(input.cwd), realpathSync(file));
  const joinScope = () => {
-  const node = input.ticket && !input.items ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
+  const node = input.ticket && (!input.items || input.nodeJoin) ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
   const landed = [...(input.unjoined?.slugs ?? []), ...state.integrated].map(slug => "- " + slug + ": " + JSON.stringify(state.reviews?.[slug] ?? input.unjoined?.reviews[slug] ?? {})).join("\n");
-  return [node ? "Node " + node.slug + " (" + node.file + "), whose children have all been integrated:\n\n" + readFileSync(node.file, "utf8") : "One cycle of a synchronous ticket loop integrated these independent tickets together (issue files under docs/issues/).",
+  return [node ? "Node " + node.slug + " (" + rel(node.file) + "), whose children have all been integrated:\n\n" + readFileSync(node.file, "utf8") : "One cycle of a synchronous ticket loop integrated these independent tickets together (issue files under docs/issues/).",
    "Landed, with each leaf review's summary:\n" + landed,
    "Tests every change must keep passing: " + (input.test ?? JSON.stringify([...(input.tests ?? []), ...(state.tests ?? [])]))].join("\n\n");
  };
  const startJoin = async (): Promise<boolean> => {
   const key = ((input.ticket || input.run || "cycle") + "-join-" + Date.now().toString(36)).replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^[^A-Za-z0-9]+/, "");
-  const node = input.ticket && !input.items ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
+  const node = input.ticket && (!input.items || input.nodeJoin) ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
   const leafOnly = state.integrated.length === 1 && state.integrated[0] === input.ticket;
   const drive = !!node && !leafOnly && /\bstories\//.test(readFileSync(node.file, "utf8"));
   const consolidate = (input.unjoined?.slugs.length ?? 0) + state.integrated.length >= 2;
@@ -355,7 +359,7 @@ const checkStartup = async (live: Child[]) => {
   return !!state.children[key];
  };
  const consolidatePrompt = (driven: Record<string, unknown> | null, report: string) => [joinScope(),
-  "The combined change: git diff " + (input.unjoined?.base ?? state.base) + "..HEAD in your worktree.",
+  "The combined change: git diff " + (input.unjoined?.base ?? state.base) + "..HEAD in your worktree." + (batch ? " Other loops may integrate into the same branch concurrently, so that diff can include their work: consolidate what the tickets above changed, and leave the rest." : ""),
   ...(driven ? ["Integration driver's handoff:\n" + yaml(driven), "Integration driver's final message:\n\n" + report.slice(-4000)] : [])].join("\n\n");
  const joinTurn = async (c: Child, r: ReturnType<typeof parse>, text: string) => {
   if (c.phase === "drive") {
@@ -410,8 +414,8 @@ const checkStartup = async (live: Child[]) => {
    if (Object.keys(state.children).length >= input.budget) break;
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
-    ? "Supervise the subtree of " + i.file + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ".\n\n" + readFileSync(i.file, "utf8")
-    : "Ticket " + i.file + ":\n\n" + readFileSync(i.file, "utf8") + (input.notes?.[i.slug] ? "\n\nNote from the loop's triage: " + input.notes[i.slug] : "");
+    ? "Supervise the subtree of " + rel(i.file) + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ".\n\n" + readFileSync(i.file, "utf8")
+    : "Ticket " + rel(i.file) + ":\n\n" + readFileSync(i.file, "utf8") + (input.notes?.[i.slug] ? "\n\nNote from the loop's triage: " + input.notes[i.slug] : "");
    try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } }; }
    catch (error) {
     if (batch) { (state.deferred ??= {})[i.slug] = "launch failed"; record({ kind: "deferred", slug: i.slug, phase: "launch", reason: "launch failed: " + error }); }
