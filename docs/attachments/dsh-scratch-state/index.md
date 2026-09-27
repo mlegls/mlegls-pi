@@ -27,3 +27,11 @@ Tested revision: rebased `dsh-scratch-state-verify` branch, including scratch ov
 - [08 — trajectory confirms post-restart `scratch_get` returned absent](08-final-trajectory.png)
 
 No fork was tested because persistence was chosen to be memory-only, not lineage-persistent. The local server and the worker's browser session are stopped after capture.
+
+## Visual review
+
+Reviewed the original screenshots at full resolution (cropped, not only the contact sheet).
+
+- **Two `run_code` calls in one live session: held.** 03 shows the chat answer `found: true` with the exact value `{"rows":[2,3,5],"total":10}`. 04 shows the reason: two separate `# run_code` rows ("Store verify value…" → `scratch_put`, "Retrieve verify value…" → `scratch_get`), and each has its nested tool call and result. Neither the model nor the harness merged them.
+- **Persistence choice recorded: held.** Memory-only is recorded in the issue Result with its reason: `Session.append()` has no ignorable plugin events. That matches `dsh/scratch/index.ts`, where a `WeakMap` is keyed by the live Session and nothing is appended. 05/07 show `found: true` after a page reload. 08 shows `found: false value: undefined` / "No scratch value for this key." from the tool itself after the service restarted. The model's own claim about restarts appears in the trajectory but is not used as evidence.
+- Repair: the issue Result said values do not survive "reload", which contradicted 05. It now says they survive a browser page reload of a live session but not session restore after a restart. The wording was the only change, so no re-drive was needed.

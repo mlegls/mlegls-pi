@@ -15,7 +15,9 @@ by the live Session object. A later `run_code` in the same live session can read
 what an earlier program stored. Scratch state is intentionally memory-only: the
 current `Session.append()` API cannot mark plugin events ignorable, and required
 custom events would make older readers refuse a session. Values therefore do not
-survive reload, restart, or plugin replacement; forks start empty. Revisit with a
+custom events would make older readers refuse a session. Values survive a browser
+page reload while the session stays live, but not session restore after a process
+restart, or plugin replacement; forks start empty. Revisit with a
 session-sidecar backend or a compatible ignorable-event API if lineage persistence
 becomes necessary.
 
