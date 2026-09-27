@@ -23,3 +23,8 @@ The explicit `/compact` command remains native; pressure and overflow use memory
 
 Setup needs the pinned append-marker patch:
 [[projects/mlegls-pi/issues/dsh-session-append-ignorable]].
+
+First-use result: [evidence packet](../attachments/dsh-memory-compaction-provider/index.md).
+A live Web model compacted 49,047 estimated prefix tokens, preserved its checkpoint
+and verbatim tail, and recalled a cited original from the parent and a fork.
+Both final sessions reloaded. Fresh supervised verification remains.

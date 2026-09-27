@@ -1,0 +1,37 @@
+{
+  "parent": "f4c2a4f7-381e-4f08-8225-7e2a3db71c2f",
+  "child": "3609be9b-8b4d-4795-8f44-97a995166671",
+  "register": "compaction-om-v10",
+  "ignorable": true,
+  "checkpointSeq": 34,
+  "shadowedSeqs": [
+    8,
+    9,
+    15,
+    18
+  ],
+  "shadowedTokens": 49047,
+  "tailSeqs": [
+    25,
+    26
+  ],
+  "tailVerbatim": true,
+  "checkpointVisible": true,
+  "original": {
+    "seq": 18,
+    "type": "user/message",
+    "chars": 195671,
+    "sha256": "c8e0d9e6f594914f5988aca98aa745fb3043d444009b9a066a6cb9238da2db46"
+  },
+  "recall": {
+    "seq": 18,
+    "type": "user/message",
+    "chars": 195671,
+    "sha256": "c8e0d9e6f594914f5988aca98aa745fb3043d444009b9a066a6cb9238da2db46",
+    "prefix": "Archive 0: The calibration password is violet-lantern-731. Preserve this exact sentence for later reca"
+  },
+  "recallMatchesOriginal": true,
+  "continuation": [
+    "Calibration password: **violet-lantern-731**\nNext sensor: **east sensor**"
+  ]
+}
