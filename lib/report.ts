@@ -6,6 +6,7 @@ type Status = "done" | "blocked" | "needs-input";
 export interface Report {
   status: Status | null;
   handoff: Record<string, unknown> | null;
+  handoffError: string | null;
   body: string;
 }
 
@@ -31,7 +32,9 @@ function firstStatus(text: string): Status | null {
   return isPreamble && nonblank.length > 1 ? statusAt(nonblank[1]) : null;
 }
 
-function handoffBlock(text: string): { value: Record<string, unknown>; start: number; end: number } | null {
+type HandoffBlock = { value: Record<string, unknown>; start: number; end: number } | { error: string };
+
+function handoffBlock(text: string): HandoffBlock | null {
   fencePattern.lastIndex = 0;
   for (const match of text.matchAll(fencePattern)) {
     const fence = match[2];
@@ -43,11 +46,11 @@ function handoffBlock(text: string): { value: Record<string, unknown>; start: nu
       if (match[3].toLowerCase() === "json") value = JSON.parse(match[4]);
       else {
         const document = parseDocument(match[4]);
-        if (document.errors.length) continue;
+        if (document.errors.length) return { error: document.errors.map(error => error.message).join("; ") };
         value = document.toJS();
       }
-    } catch {
-      continue;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
     }
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
     const record = value as Record<string, unknown>;
@@ -63,10 +66,12 @@ function handoffBlock(text: string): { value: Record<string, unknown>; start: nu
 }
 
 export function parse(text: string): Report {
-  const block = handoffBlock(text);
+  const result = handoffBlock(text);
+  const block = result && "value" in result ? result : null;
   return {
     status: firstStatus(text),
     handoff: block?.value ?? null,
+    handoffError: result && "error" in result ? result.error : null,
     body: block ? text.slice(0, block.start) + text.slice(block.end) : text,
   };
 }

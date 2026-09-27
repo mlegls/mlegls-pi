@@ -407,6 +407,7 @@ const checkStartup = async (live: Child[]) => {
   await (async () => {
   const r = parse(end.text);
   if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
+  if (r.handoffError) { await except(c, "handoff block did not parse: " + r.handoffError, end.text); return; }
   // A child supervisor ends its turn while its own loop runs; only a status sentinel reports.
   if (c.phase === "supervise" && r.status === null) return;
   if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); return; }
