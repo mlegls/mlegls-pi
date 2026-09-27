@@ -358,3 +358,25 @@ The first checkpoint's concise durable record was:
 `checkpointSeq: 34` is the durable replacement; event 34 contained the provider-generated summary/checkpoint and selected tail, event 35 closed native surface replacement and event 36 appended the ignorable memory record. User continuation seq 38 and assistant response seq 40 followed. The second marker at seq 50 used checkpoint seq 48 and retained user request seq 38 as tail. Fork logs included seq 36 and 50 before its new user input. Model-generated output did run beyond the requested 300 lines (through 420), but it was ordinary real session output and the provider compacted it successfully.
 
 The restored provider UI usage fell from 11.8K to 7.3K following compaction. Same-session read returned seq 9 text exactly: `Trial fact: notebook label amber-tern-731; east sensor active. Synthetic test data only; do not write files. Acknowledge it, then list 300 concise numbered lines about calibration notebooks to create enough ordinary session context.` Fork read returned the same bytes/JSON. No changes were made to user files; all prompts stipulated synthetic data and no file writes. The temporary Web process and owned browser were stopped after collecting screenshots.
+
+## Visual review of the current-revision rerun (2026-09-27)
+
+Reviewed [12](12-parent-compaction-and-recall.png) and [11](11-fork-verbatim-recall.png) (1200×2029 full-page, dark theme, en locale, live interaction) against the ticket, then checked them against the durable logs. The chat view never marks a compaction, so 11/12 alone establish only the recall answers. The collector's log excerpt above is a hand-condensed record (it lifts `covers` out of `blocks` and gives the tail as event 25 only), and the source logs lived only in the collector worktree's gitignored `dsh/.local/home`. To close both gaps I:
+
+- decompressed the parent and fork logs and committed the relevant events, with a replay of the surface operations, as [rerun-3-log.json](rerun-3-log.json);
+- copied that home into this worktree, reopened it in `dsh web` (same pinned dsh, `cordis.yml` + `trial-memory.yml`, no new model turns) and captured the Trajectory tab of both sessions at 1200×1000: [13](13-parent-trajectory-compactions.png) (parent) and [14](14-fork-trajectory-inherited-and-read.png) (fork). This is restored state from the collector's run, not a new encounter.
+
+| Claim | Outcome | Evidence |
+| --- | --- | --- |
+| Long session in `dsh web` compacts through the memory provider | held | 13 shows `COMPACTED` rows whose summaries begin `Historical memory a9b27dc0…` (the memory register's recall header) at turns 2→3 and 3→4, each followed by the checkpoint `CONTEXT` row. Log: `compaction/start` 32 → `user/message` 34 `replace 9..16` → `compaction/end` 35 → ignorable `memory/checkpoint` 36 (`register: compaction-om-v10`, covers `…:9`, `…:10`, `…:16`); second pass 48/50. Triggered at turn start (pre-step pressure). |
+| Continuation carries checkpoint and verbatim tail | held | Replayed surface for the continuation request (before 39): `[8, 34, 25, 26, 38]`: system, checkpoint, the unchanged original tail events 25 (user) and 26 (assistant), then the new user message. Usage fell from 11,843 total tokens (26) to 7,268 (40); answer 40 restates `amber-tern-731` / east sensor active in 12. |
+| Cited original turn recalled verbatim (parent) | held | 12 shows the JSON; 13 shows the `session_event_read` subtool row. Dispatch 58 `session_event_read({session_id: session-3547ea2d…, seq: 9})`, `isError: false`; its JSON body parses equal to logged event 9, and answer 62 contains the original text verbatim. At that point event 9 was off-surface (`[8, 48, 38, 40, 52, 53]`), so the answer came from the read, not from context. |
+| Recalled verbatim from a forked session | held | Fork header `parentSession` = parent, `isSeeded: true`; `session/end-seed` 65 `inherited: true`; lines for seq 0–64 are byte-identical to the parent's, including both `memory/checkpoint` records. 14 shows the inherited compactions and the fork's own turn 5 `session_event_read` subtool call. Fork dispatch 76 (a new call ID) parses equal to event 9; answer 80 contains it verbatim (lower block in 11). |
+
+Nonblocking observations (dsh Web, not this provider):
+
+- 11: the upper half is the inherited parent answer, identical to the fork's own below it. Only the timestamps and 14's turn 5 tell them apart. The fork's sidebar row is clipped on the left (`ɪebook context test (1)`) while hover actions show, and the header title matches the parent.
+- 12: chat has no compaction marker; a user sees one only in Trajectory (13).
+- 13/14: the first attempt (22/23) was rejected as `summary is not smaller than the shadowed content`. That's expected at the trial's ~100-token threshold, and the row is marked red.
+
+Overflow (`agent/request-error`) and the provider-filter fallback are still not forced; the ticket's done-when does not require them.

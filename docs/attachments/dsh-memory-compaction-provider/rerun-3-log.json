@@ -1,0 +1,234 @@
+{
+  "source": "decompressed from dsh-memory-compaction-provider-verify-2 dsh/.local/home session logs (synthetic data)",
+  "parent": {
+    "header": {
+      "type": "session",
+      "version": 4,
+      "id": "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c",
+      "createdAt": 1790507050923,
+      "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/dsh-memory-compaction-provider-verify-2",
+      "isSeeded": false,
+      "delegationDepth": 0,
+      "agentPreset": "hashline"
+    },
+    "firstAttemptRejected": [
+      {
+        "type": "compaction/start",
+        "seq": 22,
+        "time": 1790507287372,
+        "data": {
+          "compactionId": "64ab968a-3110-4b28-8be2-ca8981a185c8",
+          "turn": 2
+        }
+      },
+      {
+        "type": "compaction/end",
+        "seq": 23,
+        "time": 1790507287372,
+        "data": {
+          "compactionId": "64ab968a-3110-4b28-8be2-ca8981a185c8",
+          "turn": 2,
+          "error": "summary is not smaller than the shadowed content (1197 estimated framed tokens >= 204)"
+        }
+      }
+    ],
+    "compaction1": [
+      {
+        "type": "compaction/start",
+        "seq": 32,
+        "time": 1790507405680,
+        "data": {
+          "compactionId": "18830f14-486f-4ea4-818f-eefdc7a9230f",
+          "turn": 3
+        }
+      },
+      {
+        "type": "user/message",
+        "seq": 34,
+        "surfaceOp": {
+          "op": "replace",
+          "startSeq": 9,
+          "endSeq": 16
+        }
+      },
+      {
+        "type": "compaction/end",
+        "seq": 35,
+        "time": 1790507405682,
+        "data": {
+          "compactionId": "18830f14-486f-4ea4-818f-eefdc7a9230f",
+          "turn": 3
+        }
+      },
+      {
+        "type": "memory/checkpoint",
+        "seq": 36,
+        "time": 1790507405682,
+        "data": {
+          "version": 1,
+          "checkpointSeq": 34,
+          "blocks": [
+            {
+              "id": "a9b27dc0-c9e7-4ce9-b2e8-3bc26414c9d6",
+              "covers": [
+                "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c:9",
+                "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c:10",
+                "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c:16"
+              ]
+            }
+          ],
+          "register": "compaction-om-v10",
+          "selfAuthored": true,
+          "operation": "append",
+          "tail": "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c:25"
+        },
+        "ignorable": true
+      }
+    ],
+    "surfaceForContinuationRequest39": [
+      8,
+      34,
+      25,
+      26,
+      38
+    ],
+    "tailVerbatim": [
+      {
+        "type": "user/message",
+        "seq": 25,
+        "surfaceOp": "append"
+      },
+      {
+        "type": "assistant/message",
+        "seq": 26,
+        "surfaceOp": "append"
+      }
+    ],
+    "continuationUser38": {
+      "type": "user/message",
+      "seq": 38,
+      "time": 1790507405683,
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Summarize the notebook practices in three points and restate the trial fact."
+          }
+        ],
+        "source": {
+          "kind": "user",
+          "rpcId": "56acd5e2-e7f8-4f14-a79f-b0d47ec9027b",
+          "clientTimeZone": "Asia/Shanghai"
+        },
+        "role": "user",
+        "id": "1a29e4ae-d3d8-417e-bbce-1c33599f8fc2"
+      },
+      "surfaceOp": "append"
+    },
+    "usageBefore26": {
+      "inputTokens": 247,
+      "outputTokens": 2124,
+      "cacheReadTokens": 9472,
+      "cacheWriteTokens": 0,
+      "totalTokens": 11843
+    },
+    "usageAfter40": {
+      "inputTokens": 3449,
+      "outputTokens": 235,
+      "cacheReadTokens": 3584,
+      "cacheWriteTokens": 0,
+      "totalTokens": 7268
+    },
+    "compaction2": [
+      {
+        "type": "user/message",
+        "seq": 48,
+        "surfaceOp": {
+          "op": "replace",
+          "startSeq": 34,
+          "endSeq": 26
+        }
+      },
+      {
+        "version": 1,
+        "checkpointSeq": 48,
+        "register": "compaction-om-v10",
+        "selfAuthored": true,
+        "operation": "append",
+        "tail": "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c:38"
+      }
+    ],
+    "surfaceForRecallRequest54": [
+      8,
+      48,
+      38,
+      40,
+      52,
+      53
+    ],
+    "original9": {
+      "type": "user/message",
+      "seq": 9,
+      "time": 1790507213171,
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Trial fact: notebook label amber-tern-731; east sensor active. Synthetic test data only; do not write files. Acknowledge it, then list 300 concise numbered lines about calibration notebooks to create enough ordinary session context."
+          }
+        ],
+        "source": {
+          "kind": "user",
+          "rpcId": "34f85440-f7a3-41e7-991c-340d8a658cda",
+          "clientTimeZone": "Asia/Shanghai"
+        },
+        "role": "user",
+        "id": "8b4a9f63-2be1-46ab-95ba-cd924a138e8f"
+      },
+      "surfaceOp": "append"
+    },
+    "recallDispatch58": {
+      "name": "session_event_read",
+      "arguments": {
+        "session_id": "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c",
+        "seq": 9
+      },
+      "isError": false
+    }
+  },
+  "fork": {
+    "header": {
+      "type": "session",
+      "version": 4,
+      "id": "session-ea42e01c-22f5-48fa-94b0-4d77ff732bbd",
+      "createdAt": 1790507494620,
+      "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/dsh-memory-compaction-provider-verify-2",
+      "parentSession": "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c",
+      "isSeeded": true,
+      "delegationDepth": 0,
+      "agentPreset": "hashline"
+    },
+    "endSeed": {
+      "type": "session/end-seed",
+      "seq": 65,
+      "time": 1790507474452,
+      "data": {
+        "inherited": true
+      }
+    },
+    "prefixIdenticalToParentThroughSeq": 64,
+    "recallDispatch76": {
+      "name": "session_event_read",
+      "arguments": {
+        "session_id": "session-3547ea2d-4da0-4a1c-833e-771f490d0d5c",
+        "seq": 9
+      },
+      "isError": false
+    }
+  },
+  "checks": {
+    "parentDispatchJsonEqualsOriginal9": true,
+    "forkDispatchJsonEqualsOriginal9": true,
+    "answers62and80ContainOriginalTextVerbatim": true
+  }
+}
