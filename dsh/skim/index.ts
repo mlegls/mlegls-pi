@@ -100,7 +100,7 @@ export function apply(ctx: Context) {
     }
 
     const owner = state(exec);
-    const id = `ing-${createHash(original).update(focus).digest('hex').slice(0, 16)}`;
+    const id = `ing-${createHash('sha256').update(original).update(focus).digest('hex').slice(0, 16)}`;
     if (!owner.refs.has(id)) {
       try {
         const ref = await ctx.spillStore.saveText({
