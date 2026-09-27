@@ -38,7 +38,7 @@ Interpret supplied evidence; do not invent missing context or closure. Prefer a 
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.
 - `supervise`: A non-leaf, agent-ready subtree: delegate its children, integrate them into one branch, and verify it before reporting up.
 - `reviewer`: Review a change against its contract (and the driver's log when there is one) and repair it directly; non-visual work.
-- `verify`: Drive changed behavior as its user would, without reading the implementation; record outcomes, frictions and expectations, and write black-box tests.
+- `verify`: Drive changed behavior as its user would, without reading the implementation; write predictions before first use; record outcomes, frictions, expectations and replayable checks (the reviewer encodes them as tests).
 - `visual-reviewer`: Review and repair work whose acceptance is what a user sees: rendered surface, layout, visual coherence, usability. Choose it when the driver's packet is visual.
 - `session-triage`: The recorded plan is insufficient: resolve missing acceptance, conflicting dependencies/interfaces, or decisions outside delegated authority. Return a decision and updated issues for supervision to resume.
 

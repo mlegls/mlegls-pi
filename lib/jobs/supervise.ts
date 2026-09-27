@@ -95,7 +95,7 @@ export async function commitRetrying(cwd: string, ...args: string[]) {
  }
 }
 const caveats = (h: Record<string, unknown> | null): string[] => { const c = h?.caveats; return Array.isArray(c) ? c.map(x => typeof x === "string" ? x : JSON.stringify(x)) : c && !/^(none|no|\[\])$/i.test(String(c).trim()) ? [String(c)] : []; };
-// The driver's black-box tests: commands the integration gate runs on the reviewer's final head.
+// Tests encoding the driver's checks (written by the reviewer; older drivers wrote their own): the integration gate runs them on the reviewer's final head.
 // Handoff `tests` name committed test files (repository-relative); anything else (prose, commands) is not run.
 const testCommands = (h: Record<string, unknown> | null | undefined): string[] => Array.isArray(h?.tests) ? h.tests.filter((t): t is string => typeof t === "string" && /^[\w./-]+$/.test(t.trim()) && !t.includes("..")).map(t => t.trim()) : [];
 // How the gate runs one test file; files that no longer exist (tidied away) are skipped.
@@ -258,7 +258,7 @@ const checkStartup = async (live: Child[]) => {
   const attempt = () => integrate(handle, { cwd: input.cwd, keep: true, prepare: async worker => {
    // The loop owns this clean rebase; keep retries bound to the rebased revision.
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
-   // The driver's tests are the contract the reviewer's edits answer to; they gate integration mechanically.
+   // The tests encoding the driver's checks are the contract; they gate integration mechanically.
    // Earlier siblings' tests too, so one child can't silently break another's contract.
    if (input.test) execFileSync("bash", ["-lc", input.test], { cwd: worker.path, stdio: "pipe" });
    else for (const file of new Set([...(input.tests ?? []), ...(state.tests ?? []), ...testCommands(c.evidence)])) {

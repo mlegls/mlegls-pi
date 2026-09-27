@@ -1,8 +1,8 @@
 ---
 name: verify
-description: Drive changed behavior as its user would and record what happens: first-use encounters, frictions, black-box tests.
-model: openai-codex/gpt-6-luna
-effort: medium
+description: Drive changed behavior as its user would and record what happens: first-use encounters, frictions, expectations, replayable checks.
+model: openai-codex/gpt-6-sol
+effort: high
 role: drive
 ---
 
