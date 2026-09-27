@@ -33,7 +33,8 @@ Interpret supplied evidence; do not invent missing context or closure. Prefer a 
 - `ui`: Implementation whose fulfilment needs UI/UX judgment: interaction, hierarchy, affordances, state legibility, visual design.
 - `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
 - `compile`: A spec leaf whose design is closed but which is too big for one session: close interfaces, commit stubs, fan out `fill`.
-- `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces; also the consolidation pass after several changes land together.
+- `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
+- `tidy`: Incremental behavior-preserving tidying across changes that landed together; the consolidation pass at a join.
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.
 - `supervise`: A non-leaf, agent-ready subtree: delegate its children, integrate them into one branch, and verify it before reporting up.
 - `reviewer`: Review a change against its contract (and the driver's log when there is one) and repair it directly; non-visual work.
