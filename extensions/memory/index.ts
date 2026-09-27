@@ -4,6 +4,7 @@ import type { Context } from "@earendil-works/pi-ai";
 import { readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { focus, supervising, worthFolding } from "./hibernate.ts";
 import { KIND, elideCold, splitCheckpoint, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
 interface Elide { enabled: boolean; idleSeconds: Record<string, number>; minTokens: number; keepTurns: number }
@@ -17,8 +18,9 @@ function cacheSeconds(long: boolean): Record<string, number> {
 	const anthropic = long ? 3630 : 330, openai = long ? 86700 : 3660;
 	return { default: 86400, anthropic, "amazon-bedrock": anthropic, xai: 330, openai, "openai-codex": openai, "azure-openai-responses": openai };
 }
-interface Settings { journal?: boolean; elide?: Partial<Omit<Elide, "idleSeconds">> & { idleSeconds?: number | Record<string, number> }; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
-export function settings(cwd: string): Required<Settings> & { elide: Elide } {
+interface Hibernate { enabled: boolean; expectedIdleSeconds: number; minTokens: number }
+interface Settings { hibernate?: Partial<Hibernate>; journal?: boolean; elide?: Partial<Omit<Elide, "idleSeconds">> & { idleSeconds?: number | Record<string, number> }; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
+export function settings(cwd: string): Required<Settings> & { elide: Elide; hibernate: Hibernate } {
 	const read = (path: string): Settings => {
 		try { return JSON.parse(readFileSync(path, "utf8")).memory ?? {}; }
 		catch (e: any) { if (e.code === "ENOENT") return {}; throw e; }
@@ -35,7 +37,11 @@ export function settings(cwd: string): Required<Settings> & { elide: Elide } {
 		if (!Number.isFinite(elide[k]) || elide[k] < 0) throw new Error(`memory.elide.${k} must be nonnegative`);
 	for (const [k, v] of Object.entries(elide.idleSeconds))
 		if (!Number.isFinite(v) || v < 0) throw new Error(`memory.elide.idleSeconds.${k} must be nonnegative`);
-	return { ...s, elide };
+	// Supervisor waits are usually tens of minutes; providers with unknown cache lifetimes (a day by default) never qualify.
+	const hibernate = { enabled: true, expectedIdleSeconds: 1800, minTokens: 4000, ...s.hibernate };
+	for (const k of ["expectedIdleSeconds", "minTokens"] as const)
+		if (!Number.isFinite(hibernate[k]) || hibernate[k] < 0) throw new Error(`memory.hibernate.${k} must be nonnegative`);
+	return { ...s, elide, hibernate };
 }
 interface Snapshot { session: string; leaf: string | null; model: string; context: Context }
 const modelKey = (ctx: ExtensionContext) => `${ctx.model?.provider}/${ctx.model?.id}`;
@@ -59,6 +65,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let busy = false;
 	let forceRewrite = false;
 	let elidedCount = 0;
+	let hibernating = false;
 	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; elidedCount = 0; });
 	pi.on("session_compact", () => { snapshot = undefined; });
 	pi.on("context", (event, ctx) => {
@@ -150,7 +157,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			return { compaction: {
 				summary: renderMemory(blocks), firstKeptEntryId: kept.id, tokensBefore: event.preparation.tokensBefore,
 				usage: response.usage,
-				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", prefixMode, register, selfAuthored,
+				details: { kind: KIND, blocks, operation: rewrite ? "rewrite" : "append", ...(hibernating ? { trigger: "hibernate" } : {}), prefixMode, register, selfAuthored,
 					tail: { mode: "model-contiguous", firstKeptEntryId: kept.id, estimatedTokens: chosen.tokens, targetTokens: s.keepRecentTokens },
 					model: modelKey(ctx), ms: Date.now() - started, usage: response.usage },
 			} };
@@ -169,7 +176,21 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			// Otherwise never fall through to native summarization after an invalid/failed checkpoint.
 			ctx.ui.notify(`Memory not compacted: ${message}`, "warning");
 			return { cancel: true };
-		} finally { busy = false; forceRewrite = false; }
+		} finally { busy = false; forceRewrite = false; hibernating = false; }
+	});
+
+	// Hibernate when this session supervises live children and the wait will outlast the cache.
+	pi.on("agent_settled", (_event, ctx) => {
+		const s = settings(ctx.cwd);
+		if (!s.enabled || !s.hibernate.enabled || busy || !ctx.model || ctx.hasPendingMessages()) return;
+		const jobs = supervising(ctx.sessionManager.getSessionId());
+		if (!jobs.length) return;
+		const provider = ctx.model.provider, cache = s.elide.idleSeconds[provider] ?? s.elide.idleSeconds.default;
+		const foldable = tailChoices(visibleEntries(ctx.sessionManager.getBranch()))[0]?.tokens ?? 0;
+		if (!worthFolding({ expectedIdleSeconds: s.hibernate.expectedIdleSeconds, cacheSeconds: cache, foldableTokens: foldable, minTokens: s.hibernate.minTokens })) return;
+		ctx.ui.notify(`Hibernating: folding ~${foldable} tokens while waiting on ${jobs.map(j => j.ticket).join(", ")}`, "info");
+		hibernating = true;
+		ctx.compact({ customInstructions: focus(jobs), onError: () => { hibernating = false; } });
 	});
 
 	pi.registerCommand("memory", {
