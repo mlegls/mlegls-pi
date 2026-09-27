@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { focus, supervising, worthFolding } from "./hibernate.ts";
+import { trimImages, CHECKPOINT_BYTES } from "./images.ts";
 import { KIND, elideCold, splitCheckpoint, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
 interface Elide { enabled: boolean; idleSeconds: Record<string, number>; minTokens: number; keepTurns: number }
@@ -74,7 +75,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 		const cold = elide(event.messages, branch, s);
 		if (cold.elided > elidedCount) ctx.ui.notify(`Cache was cold: elided ${cold.elided - elidedCount} old tool outputs (${cold.elided} total)`, "info");
 		elidedCount = cold.elided;
-		const messages = expandMemory(cold.messages, branch);
+		const { messages } = trimImages({ systemPrompt: ctx.getSystemPrompt(), tools: tools(pi), messages: expandMemory(cold.messages, branch) });
 		if (s.enabled) snapshot = {
 			session: ctx.sessionManager.getSessionId(), leaf: ctx.sessionManager.getLeafId(), model: modelKey(ctx),
 			context: structuredClone({ systemPrompt: ctx.getSystemPrompt(), messages: convertToLlm(messages), tools: tools(pi) }),
@@ -119,7 +120,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			let response: any, register = REGISTER;
 			// Anthropic's output-duplication filter sometimes blocks the introspective induction; retry once without it.
 			for (const introspective of [true, false]) {
-				const request = { ...context, messages: [...context.messages, { role: "user", content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored, introspective), timestamp: Date.now() }] };
+				const request = trimImages({ ...context, messages: [...context.messages, { role: "user" as const, content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored, introspective), timestamp: Date.now() }] }, CHECKPOINT_BYTES);
 				response = await stream.call(ctx.modelRegistry, ctx.model, request, {
 					signal: event.signal, sessionId: ctx.sessionManager.getSessionId(),
 					reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(),
