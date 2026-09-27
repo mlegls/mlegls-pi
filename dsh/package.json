@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "setup": "bun install --frozen-lockfile && bun run build",
-    "build": "bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js && bun build transform/index.ts --target=node --packages=external --outfile=dist/transform.js && bun build scratch/index.ts --target=node --packages=external --outfile=dist/scratch.js && bun build memory/index.ts --target=node --packages=external --outfile=dist/memory.js",
+    "build": "bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js && bun build transform/index.ts --target=node --packages=external --outfile=dist/transform.js && bun build scratch/index.ts --target=node --packages=external --outfile=dist/scratch.js && bun build memory/index.ts --target=node --packages=external --outfile=dist/memory.js && bun build skim/index.ts --target=node --packages=external --outfile=dist/skim.js && cp ../lib/skim-worker.py dist/skim-worker.py",
     "dsh": "dsh"
   },
   "dependencies": {
@@ -13,6 +13,8 @@
     "@deepseek-ai/dsh": "0.1.7-rc.2",
     "@deepseek-ai/dsh-tool-session-query": "0.1.7-rc.2",
     "@deepseek-ai/dsh-tools": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-spill": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-spill-local": "0.1.7-rc.2",
     "diff": "8.0.2"
   },
   "trustedDependencies": [

@@ -105,6 +105,15 @@ Edits are not transactionally rolled back across files, just like `edit`.
 The host-side hashline edit is trusted local filesystem access, not the dsh
 shell sandbox. Every nested binding call is a `tool/ptc-dispatch` entry.
 
+## Skim and recall
+
+Successful `run_code` results over 4 KiB are skimmed before entering context. When
+filtering completes but cannot fit a result, its full text is replaced with a
+spill-backed `ing-…` locator. Skim or spill failures keep the original result.
+Programs can also call `await tools.skim({ text, focus })`. Use
+`await tools.pull({ id })` in a later program to recover a retained page verbatim.
+The local spill backend stores originals outside context. Locator lookup is scoped to the live agent and does not survive a restart.
+
 ## Loading and development
 `dsh/hashline/index.ts` imports shared `lib/outline-read` source relatively.
 `bun run --cwd dsh build` bundles that source into `dsh/dist/hashline.js`

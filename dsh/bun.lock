@@ -8,6 +8,8 @@
         "@ast-grep/cli": "0.40.4",
         "@deepseek-ai/cordis": "4.0.4",
         "@deepseek-ai/dsh": "0.1.7-rc.2",
+        "@deepseek-ai/dsh-spill": "0.1.7-rc.2",
+        "@deepseek-ai/dsh-spill-local": "0.1.7-rc.2",
         "@deepseek-ai/dsh-tool-session-query": "0.1.7-rc.2",
         "@deepseek-ai/dsh-tools": "0.1.7-rc.2",
         "diff": "8.0.2",

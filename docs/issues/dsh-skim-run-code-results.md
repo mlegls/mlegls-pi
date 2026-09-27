@@ -10,7 +10,13 @@ The skim/attention layer from `lib/skim.ts` and `lib/ingress.ts`, applied to wha
 
 - automatic budget skimming when a `run_code` result (logs + value) is over budget: `tools/post-execute` or `finalizeContent` on `run_code`
 - an explicit `skim(text, focus)` tool the program can call, so `focus` is an argument in code rather than a tool-call parameter
-- full text stored outside context with a locator, i.e. the `ing-…` recall id. dsh's `spill` family (`packages/spill`) already does this; use it rather than a second store.
+- full text stored outside context with a locator, i.e. the `ing-…` recall id. The pinned npm distribution supplies `@deepseek-ai/dsh-spill` and `@deepseek-ai/dsh-spill-local`; its abstract store only writes and returns a locator, so the overlay maps live-agent ids to local spill refs for retrieval.
 - skimming in place of `compaction-tool-result-pruner`'s truncation of old results
 
 Done when an over-budget `run_code` result comes back skimmed with a locator that a later program can pull verbatim, and an explicit `skim` call works inside a program. Whether skimming degrades anything is a separate question: [[projects/mlegls-pi/issues/skim-friction-vs-savings]].
+
+## Result
+
+The dsh overlay now installs the local spill backend and a top-level skim plugin. Successful `run_code` results over 4 KiB pass through `lib/ingress`; PTC programs can call `skim` and recover returned `ing-…` pages verbatim with `pull`. Local spill files hold the originals; a per-live-agent `WeakMap` maps ids to spill refs, so recall survives PTC cells but restart recovery is not established.
+
+Verification: the focused ingress tests (5), strict TypeScript check, and dsh plugin build passed. An ephemeral smoke exercised the bundled explicit tool and `run_code` post-execute hook with fake evaluator, compressor, and spill-store services; each returned page recalled verbatim. An isolated local Web server started and loopback `/` returned 401 at the local auth gate, then was stopped. No authenticated model-driven PTC turn or real `LocalSpillStore` interaction was exercised; fresh verification should establish the model-visible first use.

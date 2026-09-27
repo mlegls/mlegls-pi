@@ -20,6 +20,10 @@
   config:
     default: hashline
 - insert:
+    - id: spill-local
+      name: '@deepseek-ai/dsh-spill-local'
+    - id: skim
+      name: './dist/skim.js'
     - id: hashline
       name: './dist/hashline.js'
     - id: transform

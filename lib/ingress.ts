@@ -21,7 +21,9 @@ export interface Options {
   record?: (event: Event) => void;
   compress?: (jobs: SkimJob[]) => Promise<string[]>;
   /** Called with each retained original, for hosts that serve pulls outside this process. */
-  retain?: (id: string, text: string) => void;
+  retain?: (id: string, text: string) => void | Promise<void>;
+  /** Resolve retained originals from an external store instead of keeping a second in-memory copy. */
+  retrieve?: (id: string) => string | undefined | Promise<string | undefined>;
 }
 
 const body = (line: string) => line.replace(/^\d+ [a-z0-9]+│/, "");
@@ -309,15 +311,26 @@ export function create(options: Options = {}) {
         result = { output: text, retained: new Map() };
         for (const page of pages) if (page.mode !== "verbatim") { page.mode = "verbatim"; page.reason = "overhead"; }
       }
-      for (const [id, original] of result.retained) { originals.set(id, original); options.retain?.(id, original); }
+      for (const [id, original] of result.retained) {
+        if (options.retrieve === undefined) originals.set(id, original);
+        await options.retain?.(id, original);
+      }
       record({ type: "filter", version: 3, query, focus, budget, elapsedMs: Date.now() - started,
         inputBytes: bytes(text), outputBytes: bytes(result.output), pages });
       return result.output;
     },
     dispose() { compressor.dispose(); originals.clear(); },
+    /** Synchronous lookup from this kernel's in-memory cache. */
     pull(id: string): string {
       const text = originals.get(id);
-      if (text === undefined) throw new Error("Unknown ingress page " + id + "; pages expire on kernel reset");
+      if (text === undefined) throw new Error("Unknown ingress page " + id);
+      record({ type: "pull", id });
+      return text;
+    },
+    /** Async lookup; delegates to the external store when retrieve is configured. */
+    async recall(id: string): Promise<string> {
+      const text = options.retrieve ? await options.retrieve(id) : originals.get(id);
+      if (text === undefined) throw new Error("Unknown ingress page " + id);
       record({ type: "pull", id });
       return text;
     },

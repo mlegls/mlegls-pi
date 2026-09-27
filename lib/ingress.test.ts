@@ -74,6 +74,26 @@ test("tiny headings stay, omitted runs share a recoverable handle, exact evidenc
   expect(Buffer.byteLength(out)).toBeLessThan(Buffer.byteLength(text));
 });
 
+test("external retention recalls originals without an in-memory copy", async () => {
+  const text = "# Runtime\n\n## Related\n\n## Cancellation\n\n" + "Abort must terminate the subprocess group.\n".repeat(20)
+    + "\n## History\n\n" + "An older transport is no longer used.\n".repeat(20)
+    + "\n## Archive\n\n" + "The original prototype ran in another process.\n".repeat(20);
+  const external = new Map<string, string>();
+  const reader = create({
+    judge: async cs => cs.map(c => {
+      const exact = c.label.includes("Cancellation");
+      return { mode: exact ? "verbatim" : "omit", dist: { verbatim: exact ? 1 : 0, skim75: 0, skim50: 0, cues: 0, omit: exact ? 0 : 1 }, excerpt: 0 };
+    }),
+    async retain(id, original) { external.set(id, original); },
+    async retrieve(id) { return external.get(id); },
+  });
+  const output = await reader.filter(text, "inspect cancellation", 600);
+  const id = output.match(/ing-[a-f0-9]+/)?.[0];
+  expect(id).toBeDefined();
+  expect(await reader.recall(id!)).toBe(chunk(text).slice(3).map(c => c.text).join(""));
+  expect(() => reader.pull(id!)).toThrow("Unknown ingress page");
+});
+
 // Reading must remain possible when the decision service fails.
 test("failure preserves original evidence, while diffs and tiny output bypass judgments", async () => {
   const events: Event[] = [];
