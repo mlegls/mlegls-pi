@@ -2,7 +2,6 @@
 stage: idea
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
-part-of: "[[projects/mlegls-pi/issues/dsh-port]]"
 ---
 
 During the earlier supervised attempt, a fresh worker-owned `DSH_HOME` selected
