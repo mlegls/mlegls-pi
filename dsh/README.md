@@ -20,10 +20,10 @@ spike requires anonymous-local Web, not Cloud. No provider credential is needed
 to start Web or dispatch a tool program from a host plugin. An interactive
 model conversation additionally needs a provider configured in dsh settings.
 
-`hashline` is the default and only enabled preset. Its callable tools are
-`read`, `write`, `edit`; PTC exposes `run_code`. Stock filesystem tools and
-`fs-observation-policy` are absent. This deliberately small preset does not
-include shell, search, delegation, or the other later port capabilities.
+`hashline` is the default and only enabled preset. PTC exposes `run_code`,
+with `read`, `write`, `edit`, `grep`, `glob`, `transform`, and `shell` inside programs.
+Stock filesystem mutation tools and `fs-observation-policy` remain absent.
+The stock `grep`/`glob` are dsh's ripgrep-backed search bindings.
 
 ## First program
 
@@ -49,13 +49,51 @@ Ledgers are isolated per live agent and survive PTC cells, not agent restart or
 plugin replacement. Reread after either. This is local trusted-host filesystem
 access, not a replacement for dsh's sandboxed fs provider.
 
-## Loading and development
+## Grep, transform, test in one program
 
+Given two TypeScript files containing `foo(1)` and `foo(2)`, run this with
+`description: "Rewrite foo calls and run tests"`:
+
+```ts
+const hits = await tools.grep({ pattern: "foo", path: "src" });
+const files = [...new Set(hits.matches.map(m => m.path))];
+console.log(await tools.transform({ files, pattern: "foo($A)", rewrite: "bar($A)", language: "ts" }));
+const quote = v => "'" + String(v).replaceAll("'", "'\\''") + "'";
+const $ = (parts, ...values) => tools.shell({
+  command: parts.reduce((s, part, i) => s + (i ? quote(values[i - 1]) : "") + part, ""),
+});
+const test = await $`bun test lib/outline-read | cat`;
+console.log(test);
+if (test.code !== 0 || test.truncated || test.timedOut) throw new Error("tests failed or incomplete");
+```
+
+`$` is a local template wrapper over the `shell` JSON binding (the PTC SDK
+cannot transport functions). Quoted interpolations are single shell arguments;
+literal template text remains bash syntax, including pipes. `shell` uses dsh's
+configured shell executor, managed environment, session workspace and standing
+sandbox policy. It does not request approval to escalate: no background jobs or
+sandbox-permission override. It reports stdout/stderr separately, exit code,
+truncation and timeout; check the latter two before trusting a successful code.
+
+`transform` runs the installed ast-grep CLI against each named file in dsh's
+shell sandbox using stdin (never `-U`), applies replacement byte offsets to
+in-memory copies, then submits one structured multi-file hashline edit batch.
+Anchors share the same per-agent ledger as `read` and `edit`; the combined diff
+comes back in one tool result. JSON tool arguments cannot contain a callback:
+for a custom line function, compute hunks from `tools.read` inside the program
+and submit them to `tools.edit`. Transform rejects overlapping matches,
+truncated search output, duplicate paths, and trailing-newline changes.
+Edits are not transactionally rolled back across files, just like `edit`.
+The host-side hashline edit is trusted local filesystem access, not the dsh
+shell sandbox. Every nested binding call is a `tool/ptc-dispatch` entry.
+
+## Loading and development
 `dsh/hashline/index.ts` imports shared `lib/outline-read` source relatively.
-`bun run --cwd dsh build` bundles that source into `dsh/dist/hashline.js`, leaving
-package imports external. `@deepseek-ai/*` resolves from `dsh/node_modules`;
-the shared edit module still imports the root pi package. No clone symlinks or
-ambient `NODE_PATH` are used.
+`bun run --cwd dsh build` bundles that source into `dsh/dist/hashline.js`
+and builds `dsh/dist/transform.js`, leaving package imports external.
+`@deepseek-ai/*` resolves from `dsh/node_modules`; the shared edit module
+still imports the root pi package. No clone symlinks or ambient `NODE_PATH`
+are used.
 
 The overlay loads the built plugin at top level. Relative plugin names nested
 inside a preset failed in this release; see
