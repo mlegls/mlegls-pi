@@ -57,3 +57,7 @@ Fresh verifier packet: [`docs/attachments/dsh-board-host/index.md`](../attachmen
 ### Fresh verifier run
 
 A fresh local encounter has now confirmed all three required stories against this checkout. Pi and DSH posted in both directions on one shared topic; a real Web session completed a turn, sat idle on a wake subscription, and then rendered the exact Pi post in its next turn; and one subscribed child produced `started`, an aborted `turn-end`, and `exited` on its own mailbox after cancellation. The API surface in this headless DSH profile returned a continuable subagent, not a job, so `job_kill` could not target it; `interrupt_agent` cancelled that child and the full mailbox readback confirmed its lifecycle. The independent setup, exact bodies, readbacks, captions and screenshots are in [`docs/attachments/dsh-board-host/index.md`](../attachments/dsh-board-host/index.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/dsh-board-host/index.md).
