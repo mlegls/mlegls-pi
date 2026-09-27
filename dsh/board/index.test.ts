@@ -51,7 +51,12 @@ function makeAgent(id: string): any {
     header: { cwd: dir },
     events: [],
     append(type: string, data: any, options?: any) {
-      const event = { type, data };
+      const event = type.startsWith('board/')
+        ? JSON.parse(JSON.stringify({ type, data }, (_key, value) => {
+          assert.notEqual(value, undefined, 'board session events must omit undefined fields');
+          return value;
+        }))
+        : { type, data };
       this.events.push(event);
       if (projection) states.set(this, projection.apply(ctx.sessionProjections.stateOf(this, 'board'), event));
       handlers.get('session/event')?.(this, event);
@@ -85,6 +90,8 @@ try {
   await handlers.get('agent/created')!({ agent: sender, source: 'startup' });
   await handlers.get('agent/created')!({ agent: receiver, source: 'startup' });
   await tool('board_subscribe', { topic: 'smoke/wake' }, receiver);
+  const subscriptionEvent = receiver.session.events.filter((event: any) => event.type === 'board/subscriptions').at(-1);
+  assert.deepEqual(subscriptionEvent.data.subscriptions.find((item: any) => item.topic === 'smoke/wake'), { topic: 'smoke/wake', wake: true });
   await tool('board_send', { topic: 'smoke/wake', body: 'full read retracts' }, sender);
   await sleep(1_150);
   assert.equal(receiver.inbox.nextTurn.length, 1, 'matching wake is queued');

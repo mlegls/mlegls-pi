@@ -219,7 +219,11 @@ async function initialize(ctx: Context, agent: Agent): Promise<void> {
 async function subscribe(ctx: Context, agent: Agent, args: { topic: string; tags?: string; wake?: boolean; remove?: boolean }): Promise<Subscription[]> {
   parseTags(args.tags);
   const old = subscriptions(ctx, agent);
-  const sub: Subscription = { topic: args.topic, tags: args.tags || undefined, wake: args.wake ?? true };
+  const sub: Subscription = {
+    topic: args.topic,
+    ...(args.tags ? { tags: args.tags } : {}),
+    wake: args.wake ?? true,
+  };
   const next = old.filter((item) => subKey(item) !== subKey(sub));
   if (!args.remove) next.push(sub);
   append(agent.session, SUBS, { subscriptions: next });
