@@ -1,8 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { Ledger } from '../../lib/outline-read/ledger';
+import { state } from './state';
 import { executeEdits } from '../../lib/outline-read/edit';
 
 export const name = 'hashline';
@@ -10,13 +10,6 @@ export const inject = ['tools'];
 
 export function apply(ctx: Context) {
   // PTC cells are stateless; anchors belong to the live agent, not a cell or process.
-  const ledgers = new WeakMap<object, Ledger>();
-  function state(exec: ToolExecution) {
-    if (!exec.agent) throw new Error('Hashline tools require an agent');
-    let ledger = ledgers.get(exec.agent);
-    if (!ledger) ledgers.set(exec.agent, ledger = new Ledger());
-    return { ledger, cwd: exec.agent.session.header.cwd ?? process.cwd() };
-  }
 
   ctx.tools.register(defineTool({
     name: 'read',

@@ -8,6 +8,8 @@
   disabled: true
 - id: preset-minimal
   disabled: true
+- id: tool-fs-search
+  disabled: false
 - id: preset-ptc
   disabled: true
 - id: preset-cordis
@@ -18,12 +20,14 @@
 - insert:
     - id: hashline
       name: './dist/hashline.js'
+    - id: transform
+      name: './dist/transform.js'
     - id: preset-hashline
       name: '@deepseek-ai/dsh-agent-preset'
       config:
         id: hashline
         name: Hashline
-        description: Hashline read/edit/write through run_code; no stock fs tools.
+        description: Hashline read/edit/write, ast-grep transform, grep and sandboxed shell through run_code.
         plugins:
           - id: tool-presentation
             name: '@deepseek-ai/dsh-agent-tool-presentation'
