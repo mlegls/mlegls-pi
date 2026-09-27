@@ -17,6 +17,7 @@ import type { JobContext } from "../daemon.ts";
 import { resolveSession } from "../session-meta/identity";
 import { SPAWN_META } from "../session-meta/host";
 import { workmuxStatus } from "../wm.ts";
+import { tracer } from "./events.ts";
 export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; commandsApplied?: number; carried?: State | null;
  // Batch mode (lib/jobs/loop.ts): run exactly these items, and on any exception defer the child (retire it,
  // keep its branch, append to the ledger) instead of waking an owner. The run returns when the batch drains.
@@ -148,6 +149,8 @@ export async function run(job: JobContext) {
  // Older persisted jobs stored only a delivery address. Never use the daemon's own session as parent.
  const batch = !!input.ledger;
  const record = (entry: Record<string, unknown>) => appendFileSync(input.ledger!, JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n");
+ const trace = tracer(input.commands, { job: job.id, run: input.run ?? input.ticket, mode: batch ? "batch" : "dataflow" });
+ trace("start", { budget: input.budget, resumed: job.state != null, ...(input.items ? { items: input.items } : {}) });
  const parent = input.ownerSession ?? (batch ? undefined : resolveSession(input.owner, (await import("../tree/graph").then(m => m.graph())).keys()));
  if (!parent && !batch) throw new Error("Cannot resolve supervisor session: " + input.owner);
  const save = () => job.save(state);
@@ -172,6 +175,7 @@ export async function run(job: JobContext) {
  const retireAll = async (c: Child) => { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); };
  const wake = async (text: string) => {
   if (batch) { record({ kind: "note", text }); return; }
+  trace("wake", { about: text.split("\n")[0].slice(0, 120) });
   const message = "supervise " + input.ticket + " (job " + job.id + "): " + text;
   state.metrics.wakes++; state.metrics.ownerBytes += Buffer.byteLength(message);
   deliveries = deliveries.then(() => deliver(message));
@@ -180,11 +184,13 @@ export async function run(job: JobContext) {
  const except = async (c: Child, reason: string, text = "") => {
   if (batch && state.children[c.slug] !== c) return; // already deferred this turn
   c.waiting = reason;
+  trace("exception", { slug: c.slug, phase: c.phase, reason: reason.slice(0, 200) });
   if (batch) {
    // Deferral unwinds the child: its unmerged branch survives for the next triage (redispatch starts fresh).
    record({ kind: "deferred", slug: c.slug, phase: c.phase, reason, branch: c.handle.handle, report: text.slice(-1500) });
    delete state.children[c.slug]; (state.deferred ??= {})[c.slug] = reason;
    await save();
+   trace("child-end", { slug: c.slug, outcome: "deferred" });
    await retireAll(c);
    return;
   }
@@ -242,6 +248,7 @@ const checkStartup = async (live: Child[]) => {
    { run: input.run ?? input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent });
   if (!receipt.submitted[0]) throw new Error("launch failed for " + slug + ": " + (receipt.failed?.error ?? "pending"));
   state.metrics.launched++;
+  trace("launch", { slug, phase, handle: receipt.submitted[0].handle, model: prepared.model });
   state.metrics.peak = Math.max(state.metrics.peak ?? 0, Object.keys(state.children).length + (state.children[slug] ? 0 : 1));
   return receipt.submitted[0];
  };
@@ -260,10 +267,11 @@ const checkStartup = async (live: Child[]) => {
   }
  };
  const carried = () => { const l = listCaveats(state.caveats); return l ? "\nCaveats the children reported, integrated anyway; file each as an idea or link its owner:\n" + l : ""; };
- const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
+ const integrateChild = (c: Child, handle: Handle) => { trace("integrate-queued", { slug: c.slug }); return serialized(input.cwd, async () => {
+  trace("integrate-start", { slug: c.slug });
   let packet: ReturnType<typeof evidencePacket> | undefined;
   if (c.phase !== "supervise") {
-   if (!c.acceptedHead || c.acceptedHead !== git(handle.path, "rev-parse", "HEAD") || (!isJoin(c) && unheld(c.evidence ?? null))) return except(c, "an accepted review of the current head is required before integration");
+   if (!c.acceptedHead || c.acceptedHead !== git(handle.path, "rev-parse", "HEAD") || (!isJoin(c) && unheld(c.evidence ?? null))) { trace("integrate-end", { slug: c.slug, ok: false }); return except(c, "an accepted review of the current head is required before integration"); }
    if (!isJoin(c)) packet = evidencePacket(handle.path, c.evidence ?? null);
   }
   // Failed preparation keeps both the owner HEAD and the child's resources intact.
@@ -282,6 +290,7 @@ const checkStartup = async (live: Child[]) => {
   } });
   try { await attempt(); }
   catch (error: any) {
+   trace("integrate-end", { slug: c.slug, ok: false });
    return except(c, "integration failed", String(error) + "\n" + String(error.stdout ?? "") + String(error.stderr ?? ""));
   }
   delete state.children[c.slug];
@@ -293,12 +302,13 @@ const checkStartup = async (live: Child[]) => {
   }
   // Save before recording: a restart between them must not resume a child that already landed.
   await save();
+  trace("integrate-end", { slug: c.slug, ok: true }); trace("child-end", { slug: c.slug, outcome: isJoin(c) ? "joined" : "integrated" });
   if (batch) record({ kind: isJoin(c) ? "joined" : "integrated", slug: c.slug, head: git(input.cwd, "rev-parse", "--short", "HEAD"), ...(isJoin(c) ? { changes: c.evidence?.changes, filed: c.evidence?.filed } : {}) });
   // Crash after saving may leave resources behind, but never a saved handle we already retired.
   await retire(handle);
   if (c.implementer) await retire(c.implementer);
   for (const old of c.previous ?? []) await retire(old);
- });
+ }); };
 
  // Pending owner commands (resume) are applied between turn ends.
  const file = input.commands;
@@ -311,11 +321,12 @@ const checkStartup = async (live: Child[]) => {
    state.commandInFlight = index + 1;
    await save(); // An interrupted side effect must not be blindly replayed.
    const c = state.children[cmd.child];
+   trace("command", { slug: cmd.child, action: cmd.action, live: !!c });
    if (!c) await wake("resume: no live child " + cmd.child);
    else {
     c.waiting = undefined; c.unreachable = undefined;
     try {
-     if (cmd.action === "drop" || cmd.action === "redispatch") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; }
+     if (cmd.action === "drop" || cmd.action === "redispatch") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; trace("child-end", { slug: c.slug, outcome: cmd.action }); }
      else if (cmd.action === "integrate") await integrateChild(c, c.handle);
      else if (cmd.action === "verify") await toDrive(c);
     } catch (error) { await except(c, "resume failed", String(error)); }
@@ -492,6 +503,7 @@ const checkStartup = async (live: Child[]) => {
   if (!end.unreachable) c.cursor = end.cursor;
   c.waiting = undefined;
   c.unreachable = undefined;
+  trace("turn", { slug: c.slug, phase: c.phase, end: end.unreachable ? "unreachable" : end.kind, ...(end.unreachable ? {} : { status: parse(end.text).status }) });
   if (c.phase === "review") { c.evidence = undefined; c.acceptedHead = undefined; }
   await save();
   if (end.unreachable) { c.unreachable = true; await except(c, "unreachable", end.text); continue; }
@@ -531,6 +543,7 @@ const checkStartup = async (live: Child[]) => {
  }
  if (job.signal.aborted) return;
  const open = workItems(snapshot(input), input).filter(i => !i.done);
+ trace("finish", { integrated: state.integrated.length, deferred: Object.keys(state.deferred ?? {}).length, open: open.length, metrics: state.metrics });
  if (batch) { record({ kind: "barrier", tests: state.tests ?? [], integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();

@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import type { JobContext } from "../daemon.ts";
 import * as supervise from "./supervise.ts";
 import { agent, roleBody } from "../agents.ts";
+import { tracer } from "./events.ts";
 
 export interface Input { carried?: State | null; target: string;
  // A subtree loop, run by its parent's barrier: it triages the node's children and returns once its subtree has
@@ -125,6 +126,7 @@ export async function run(job: JobContext) {
  if (!job.state) { delete state.harness; delete state.outcome; delete state.final; } // a fresh start gets a clean count
  if (state.outcome) return;
  const record = (entry: Record<string, unknown>) => appendFileSync(input.ledger, JSON.stringify({ at: new Date().toISOString(), iteration: state.iteration, ...entry }) + "\n");
+ const trace = tracer(input.commands, { job: job.id, run: input.run, mode: "loop" });
  // No parent session for workers: the loop watches them itself, and a parent would get every retired worker's exit mail.
  const sub = (id: string, over: Partial<supervise.Input>, get: () => unknown, set: (s: unknown) => void): JobContext => ({
   id, signal: job.signal, log: job.log, state: get(), save: async s => { set(s); await save(); },
@@ -160,13 +162,14 @@ export async function run(job: JobContext) {
    const ready = candidates(input, issues).filter(i => state.held[i.slug] !== hash(i.file));
    if (!ready.length) {
     if (input.nested) return finish("no ready work");
-    if (!idle) record({ kind: "idle" });
+    if (!idle) { record({ kind: "idle" }); trace("idle"); }
     idle = true; await changed(input.cwd, job.signal); continue;
    }
    let t: Triage;
-   try { t = await triage(input, ready, issues, job.signal); state.triages++; }
+   trace("triage-start", { iteration: state.iteration, ready: ready.length });
+   try { t = await triage(input, ready, issues, job.signal); state.triages++; trace("triage-end", { iteration: state.iteration, batch: t.batch, hold: t.hold.length }); }
    catch (error) {
-    record({ kind: "triage-failed", error: String(error).slice(0, 500) });
+    record({ kind: "triage-failed", error: String(error).slice(0, 500) }); trace("triage-end", { iteration: state.iteration, failed: true });
     if (input.nested) return finish("triage failed");
     await changed(input.cwd, job.signal); continue;
    }
@@ -179,7 +182,7 @@ export async function run(job: JobContext) {
    if (!t.batch.length) {
     await save();
     if (input.nested) return finish("triage picked nothing");
-    if (!idle) record({ kind: "idle" }); idle = true; await changed(input.cwd, job.signal); continue;
+    if (!idle) { record({ kind: "idle" }); trace("idle"); } idle = true; await changed(input.cwd, job.signal); continue;
    }
    idle = false;
    const nodes = t.batch.filter(slug => isNode(issues, slug));
@@ -201,7 +204,9 @@ export async function run(job: JobContext) {
    }).then(() => { if (!job.signal.aborted) record({ kind: "subtree", slug, outcome: b.nodes![slug]?.outcome }); }));
   }
   // Barrier: every leaf and subtree settles before the next triage. A failed subtree fails this loop after its siblings settle.
+  trace("barrier-start", { iteration: state.iteration, items: b.items, nodes: Object.keys(b.nodes ?? {}), deadline: new Date(b.deadline).toISOString() });
   const settled = await Promise.allSettled(runs);
+  trace("barrier-end", { iteration: state.iteration });
   if (job.signal.aborted) return;
   const failed = settled.find(r => r.status === "rejected") as PromiseRejectedResult | undefined;
   const done = b.state as supervise.State | null;
