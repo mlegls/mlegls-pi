@@ -17,13 +17,13 @@ function cacheSeconds(long: boolean): Record<string, number> {
 	const anthropic = long ? 3630 : 330, openai = long ? 86700 : 3660;
 	return { default: 86400, anthropic, "amazon-bedrock": anthropic, xai: 330, openai, "openai-codex": openai, "azure-openai-responses": openai };
 }
-interface Settings { elide?: Partial<Omit<Elide, "idleSeconds">> & { idleSeconds?: number | Record<string, number> }; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
-function settings(cwd: string): Required<Settings> & { elide: Elide } {
+interface Settings { journal?: boolean; elide?: Partial<Omit<Elide, "idleSeconds">> & { idleSeconds?: number | Record<string, number> }; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
+export function settings(cwd: string): Required<Settings> & { elide: Elide } {
 	const read = (path: string): Settings => {
 		try { return JSON.parse(readFileSync(path, "utf8")).memory ?? {}; }
 		catch (e: any) { if (e.code === "ENOENT") return {}; throw e; }
 	};
-	const s = { enabled: true, memoryTokens: 12000, rewriteTokens: 6000, blockTokens: 2000, keepRecentTokens: 2000, maxOutputTokens: 12000,
+	const s = { enabled: true, journal: true, memoryTokens: 12000, rewriteTokens: 6000, blockTokens: 2000, keepRecentTokens: 2000, maxOutputTokens: 12000,
 		...read(join(homedir(), ".pi/agent/settings.json")), ...read(join(cwd, ".pi/settings.json")) };
 	for (const k of ["memoryTokens", "rewriteTokens", "blockTokens", "keepRecentTokens", "maxOutputTokens"] as const)
 		if (!Number.isFinite(s[k]) || s[k] < 1) throw new Error(`memory.${k} must be positive`);

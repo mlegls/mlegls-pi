@@ -10,6 +10,7 @@ import { renderCall, renderResult } from "./render";
 import { ingressContext } from "./ingress-context";
 import { filterReads } from "../ingress-policy";
 import { deliver } from "./delivery";
+import { settings as memorySettings } from "../memory/index.ts";
 
 const ENTRY_TYPE = "outline-read";
 const REPLACED = new Set(["write", "session_spawn", "session_wait", "session", "find_roots", "observe_ui", "search_ui", "expand_ui", "inspect_ui", "act_ui", "read_text", "wait_for", "launch_browser", "navigate_browser", "evaluate_browser", "bash", "sh", "read", "edit", "grep", "find", "exa_search", "exa_contents", "wm_spawn", "wm_wait", "wm", "board_send", "board_read", "board_list", "board_subscribe"]);
@@ -145,13 +146,16 @@ export default async function (pi: ExtensionAPI) {
 		if (event.toolName === "exec" && (event.details as { error?: string } | undefined)?.error) return { isError: true };
 	});
 
+	function journal() {
+		try { return memorySettings(process.cwd()).journal; } catch { return false; }
+	}
 	function registerExec() {
 		pi.registerTool({
 			name: "exec",
 			label: "exec",
 			renderCall,
 			renderResult,
-			description: describeModules(modules, profile) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
+			description: describeModules(modules, profile, process.env, journal()) + (configurationError ? "\nConfiguration error: " + configurationError : ""),
 			parameters: Type.Object({
 				code: Type.String({ description: "TypeScript to evaluate in the persistent kernel. Use show(...) to emit results." }),
 			}),

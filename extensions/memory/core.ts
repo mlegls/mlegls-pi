@@ -120,7 +120,7 @@ export function instruction(prior: Block[], folding: SessionEntry[], rewrite: bo
 	const manifest = folding.map(e => {
 		const msgs = sessionEntryToContextMessages(e);
 		// Identification hints only: source bodies are already in the unchanged request prefix.
-		const hint = msgs.map((m: any) => typeof m.content === "string" ? m.content : (m.content ?? []).map((b: any) => b.text ?? b.name ?? "").join(" ")).join(" ").replace(/\s+/g, " ").slice(0, 100);
+		const hint = msgs.map((m: any) => typeof m.content === "string" ? m.content : (m.content ?? []).map((b: any) => b.type === "toolCall" ? `${b.name} ${JSON.stringify(b.arguments)}` : b.text ?? "").join(" ")).join(" ").replace(/\s+/g, " ").slice(0, 100);
 		return `${e.id} ${hint}`;
 	}).join("\n");
 	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the work in progress begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.

@@ -46,3 +46,9 @@ export function recall(options: RecallOptions): string {
 	return body.slice(offset, offset + limit) + (offset + limit < body.length
 		? `\n[More: memory.recall with the same IDs and offset=${offset + limit}, or ab memory recall IDS --offset ${offset + limit}; ${body.length} total characters]` : "");
 }
+
+/** A note to the session's later self. Nothing is stored here: the call's own arguments are the record, kept in the session tree and citable by entry ID. */
+export function note(text: string): string {
+	if (typeof text !== "string" || !text.trim()) throw new Error("note requires text");
+	return "Noted.";
+}
