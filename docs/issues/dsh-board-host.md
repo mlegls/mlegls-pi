@@ -51,3 +51,5 @@ Anonymous-local dsh Web ran against this checkout in isolated `dsh/.local/board-
 The first Web launch inherited pi's `PI_BOARD_TOPIC`, so DSH lifecycle reports went to the pi worktree topic. The verifier now starts via `env -u PI_BOARD_TOPIC -u PI_BOARD_NAME -u PI_WM_RUN -u PI_WM_HANDLE -u PI_WM_AGENT -u PI_WM_PARENT_SESSION`, and the plugin routes per DSH Session ID rather than process environment. The initial `sleep 90` child timed out naturally before a kill; the acceptance run used `sleep 600` and killed it promptly, distinguishing cancellation from normal disposal.
 
 A prior Web shutdown with a live child emitted an uncaught `projection registration is not active` error during cancellation. The `job_kill` child-disposal acceptance above passed; Web shutdown while a child is active remains unverified.
+
+Fresh verifier encounter and setup/evidence limitations: [`docs/attachments/dsh-board-host/index.md`](../attachments/dsh-board-host/index.md).
