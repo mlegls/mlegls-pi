@@ -1,39 +1,74 @@
 # Hashline PTC first use — supervised verification
 
-Fresh verification at `b12888e` (implementation plus this verifier's prepared checkout).
-The required deployment is anonymous-local dsh Web with PTC and the hashline
-preset; Cloud and provider credentials are not required. This is a CLI/host-tool
-story, so no browser or visual evidence is applicable.
+Fresh supervised encounter on `b12888e` with the worker-owned checkout and its
+isolated dsh home. The required surface is anonymous-local dsh Web with PTC and
+the hashline preset. A model turn used `DEEPSEEK_API_KEY`; its value is not
+recorded. No Cloud selectors or the user's real `~/.dsh` provider settings/profile
+were reused. Since this verification drove the rendered Web UI, the packet
+includes screenshots for visual review.
 
 ## Setup and readiness
 
-Target: this worker-owned checkout `dsh-hashline-tools-spike-verify`, isolated
-`dsh/.local/home`, loopback Web listener on OS-selected port 62971. `bun run
-setup` and `bun run --cwd dsh setup` completed; dsh 0.1.7-rc.2 plugin build
-completed. The local anonymous Web server started successfully and announced
-its loopback URL; its generated login token is deliberately omitted. Seed:
-`dsh/.local/example.txt` contained `alpha\nbeta\n`. Entry point:
+`bun run setup` and `bun run --cwd dsh setup` completed, building the pinned
+`@deepseek-ai/dsh` 0.1.7-rc.2 plugin. Target: this worker-owned checkout
+`dsh-hashline-tools-spike-verify`, isolated `dsh/.local/home`, loopback Web on
+OS-selected port 63822. The anonymous local login completed using the generated
+Web URL. The isolated home initially contained a default workspace pointing at
+`/Users/mlegls/Documents/deepseek-harness/default-workspace`; before sending a
+prompt, I changed only the isolated workspace record to this checkout. No
+sessions were created in the external workspace. The fixture was seeded as
+`alpha\nbeta\n`.
+
+The launch used the committed Cordis overlay plus an ignored local provider
+patch: `llm-deepseek-api-key` reads `DEEPSEEK_API_KEY`, and
+`agent-default-model` selects `deepseek-official` / `deepseek-flash`. Entry point:
 
 ```sh
-PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" \
-  dsh web --patch "$PWD/dsh/cordis.yml" --no-open --host 127.0.0.1 --port 0
+PATH="$PWD/dsh/node_modules/.bin:$PATH" \
+DSH_HOME="$PWD/dsh/.local/home" DSH_TOOLS_MODE=ptc \
+DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
+  dsh web --patch "$PWD/dsh/cordis.yml" --patch "$PWD/dsh/.local/provider.yml" \
+    --no-open --host 127.0.0.1 --port 0
 ```
 
-The Web process was stopped after readiness observation. No inherited selectors
-or credentials were reused.
+Two setup attempts failed before tools ran: the initial default `deepseek` route
+had no adapter; after selecting `deepseek-official`, request-extension preparation
+failed. The successful run used a local-only overlay disabling the optional
+`session-log-deepseek` and `plugin-package-inventory-deepseek` contributors. The
+cause of their preparation failure was not isolated; this is a workaround, not a
+claim that those plugins work. No other task behavior was changed.
 
-## Required encounter
+## Encounter: read, compute, edit, reread
 
-The implementation packet's [first-use log](first-use.log) records a successful
-real `run_code` dispatch, structured read, computed anchor edit and resulting
-file contents. This verifier prepared and started the Web target but did not
-reproduce that dispatch through the running dsh agent's public interaction
-surface. Therefore the required end-to-end behavior remains **unobservable in
-this supervised encounter**; the implementation self-check is not fresh
-acceptance. No repair or test change was made.
+In the Hashline Web session, I asked the model to read
+`dsh/.local/example.txt`, find `beta`, compute an edit from its returned hash
+anchor to replace it with `gamma`, apply it, and reread, using only hashline
+tools. The model completed in one `run_code` program. The trajectory shows:
 
-Existing setup and PTC friction owners are linked from the ticket. No UI was
-rendered; screenshots are not applicable.
+- `read` returned structured rows `{n, hash, text}`: `alpha` at anchor `g7mm`,
+  `beta` at `gkvq`.
+- The same program computed `=gkvq\ngamma`, invoked `edit`, and reread.
+- The reread kept alpha's anchor and returned gamma with a changed anchor (`gphh`).
+- The final file at `dsh/.local/example.txt` was exactly `alpha\ngamma\n`.
+
+The Web trajectory's `TOOL run_code` row and nested `SUBTOOL read`, `SUBTOOL edit`,
+and `SUBTOOL read` rows are visible in [02-trajectory.png](02-trajectory.png).
+The completed chat and result are in [01-success.png](01-success.png). These are
+live interaction states, not seeded output or a mock. No code repair was needed,
+and no new replay assertion was warranted on first use. The earlier
+[implementation first-use log](first-use.log) remains self-check context only.
+
+## Visual evidence
+
+- [01-success.png](01-success.png) — completed Web turn, computed anchor hunk, and
+  structured reread result.
+- [02-trajectory.png](02-trajectory.png) — actual `run_code` and nested hashline
+  tool dispatch sequence.
+
+The encounter's browser/host setup friction is tracked at
+[dsh-web-deepseek-extension-preparation-fails](../../issues/dsh-web-deepseek-extension-preparation-fails.md).
+The earlier preset-loading and environment typecheck issues remain linked from
+the ticket. Visual review of the committed screenshots is pending.
 
 ## Prior implementation evidence
 
@@ -42,8 +77,9 @@ for the implementer's self-check. They are context, not claims observed afresh
 here.
 
 Implementation self-check at `b12888e`, starting from
-`b660fa565010060df3c65951a0c6713a369ecabc`. Fresh supervised verification is separate.
-No browser was driven; this is a host-tool/CLI journey.
+This is the implementer's self-check at `b12888e`, starting from
+`b660fa565010060df3c65951a0c6713a369ecabc`; it predates this supervised Web
+encounter and is retained as context only.
 
 ## Setup
 

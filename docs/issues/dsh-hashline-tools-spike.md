@@ -15,12 +15,11 @@ First end-to-end dsh plugin: the hashline `read`/`write`/`edit` from `lib/outlin
 ## Result
 
 The npm 0.1.7-rc.2 overlay starts Web with the hashline preset. A real `run_code`
-call read structured lines, computed a hunk from the returned anchor and applied
-it; the visible registry was exactly `read`, `edit`, `write`, `run_code`.
+program read structured lines, computed a hunk from the returned anchor, and
+applied it; the visible registry was exactly `read`, `edit`, `write`, `run_code`.
 Layout decisions are recorded in [[projects/mlegls-pi/issues/dsh-port]];
 setup and the program are in `dsh/README.md`.
 
-[Implementation first-use packet](../attachments/dsh-hashline-tools-spike/index.md).
-Fresh supervised verification remains separate. Friction:
-[[projects/mlegls-pi/issues/dsh-preset-relative-plugin-loading]] and
-[[projects/mlegls-pi/issues/root-typecheck-obsidian-environment]].
+[Fresh supervised Web encounter and evidence](../attachments/dsh-hashline-tools-spike/index.md): the model read `beta`, applied an anchor-derived `gamma` edit in one PTC program, and reread `alpha\ngamma\n`. Trajectory shows `run_code` and nested `read`/`edit`/`read`; screenshots are included for visual review. The verifier configured an isolated DeepSeek API-key route and disabled two ancillary request-extension contributors after their preparation failed; the failure cause remains unisolated ([[projects/mlegls-pi/issues/dsh-web-deepseek-extension-preparation-fails]]).
+
+Friction owners: [[projects/mlegls-pi/issues/dsh-preset-relative-plugin-loading]], [[projects/mlegls-pi/issues/root-typecheck-obsidian-environment]], and [[projects/mlegls-pi/issues/dsh-web-deepseek-extension-preparation-fails]].
