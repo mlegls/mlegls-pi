@@ -1,0 +1,10 @@
+# The local Web verifier may be headless even when its host has a display.
+# Keep Add workspace in the browser instead of opening a native chooser.
+# Use the in-app picker in headless or browser-only local Web runs.
+- id: directory-picker
+  disabled: true
+- insert:
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: directory-picker-browse-ui
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'

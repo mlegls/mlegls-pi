@@ -164,10 +164,12 @@ First-use verification for this ticket: [dsh skim/run_code encounter](../docs/at
 
 `dsh/board/index.ts` uses the shared `lib/board` append-only store, so pi and dsh
 sessions see the same messages. It registers `board_send`, `board_read`,
-`board_list`, `board_subscribe`, and `board_ack`. New agents wake on `PI_BOARD_TOPIC`
-when set, their `mail/<session-suffix>` topic, and the matching worktree/project scopes.
-Quiet subscriptions wait for the next agent step rather than queueing a wake. Agent
-start, exit, crash, and turn-end reports go to the current board topic.
+`board_list`, `board_subscribe`, and `board_ack`. Each DSH session subscribes to its own
+`mail/<session-suffix>` topic, derived from that DSH Session ID, plus worktree/project
+scopes derived from its own `cwd`. Lifecycle reports go to the same session mailbox.
+Do not pass pi's process-level identity variables to DSH Web; one Web host can own many
+DSH sessions. The live-verification setup is in `board/verification/README.md`.
+Quiet subscriptions wait for the next agent step rather than queueing a wake.
 
 A full `board_read` acknowledges the returned messages and retracts any matching
 queued wake; `fields: "meta"` is observational, and `board_ack` is the explicit

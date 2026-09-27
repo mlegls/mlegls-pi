@@ -10,9 +10,13 @@ import type { Context } from '@deepseek-ai/cordis';
 test('board host queues, retracts, and persists shared messages', async () => {
 const oldDir = process.env.PI_BOARD_DIR;
 const oldTopic = process.env.PI_BOARD_TOPIC;
+const oldName = process.env.PI_BOARD_NAME;
+const oldHandle = process.env.PI_WM_HANDLE;
 const dir = mkdtempSync(join(tmpdir(), 'dsh-board-smoke-'));
 process.env.PI_BOARD_DIR = dir;
-process.env.PI_BOARD_TOPIC = 'smoke/lifecycle';
+process.env.PI_BOARD_TOPIC = 'smoke/pi-process-topic';
+process.env.PI_BOARD_NAME = 'pi-process-name';
+process.env.PI_WM_HANDLE = 'pi-process-handle';
 
 const handlers = new Map<string, (...args: any[]) => any>();
 const tools = new Map<string, any>();
@@ -113,6 +117,7 @@ try {
 
   const quiet = makeAgent('session-quiet');
   await handlers.get('agent/created')!({ agent: quiet, source: 'startup' });
+  assert.deepEqual(states.get(quiet.session).subscriptions, [{ topic: 'mail/ionquiet', wake: true }]);
   await tool('board_subscribe', { topic: 'smoke/quiet', wake: false }, quiet);
   await tool('board_send', { topic: 'smoke/quiet', body: 'quiet delivery at pre-step' }, sender);
   await sleep(1_150);
@@ -127,10 +132,15 @@ try {
   handlers.get('session/event')!(receiver.session, { type: 'turn/end', data: { turn: 4, reason: { kind: 'stop' } } });
   handlers.get('agent/error')!({ agent: receiver, error: new Error('smoke crash') });
   handlers.get('agent/disposed')!({ agent: receiver });
-  const reports = readBoard({ topic: 'smoke/lifecycle' }).messages;
-  assert(reports.some((message) => message.body === 'READY'));
-  assert(reports.some((message) => message.tags.includes('crashed')));
-  assert(reports.some((message) => message.tags.includes('exited')));
+  const receiverReports = readBoard({ topic: 'mail/receiver' }).messages;
+  assert(receiverReports.some((message) => message.body === 'READY'));
+  assert(receiverReports.some((message) => message.tags.includes('crashed')));
+  assert(receiverReports.some((message) => message.tags.includes('exited')));
+  assert(receiverReports.every((message) => message.from.session === receiver.session.id));
+  assert.equal(readBoard({ topic: 'smoke/pi-process-topic' }).messages.length, 0, 'DSH ignores the parent pi process topic');
+  const senderReports = readBoard({ topic: 'mail/onsender' }).messages;
+  assert(senderReports.some((message) => message.from.session === sender.session.id));
+  assert(senderReports.every((message) => message.from.name !== 'pi-process-name'));
   const customWrites = receiver.session.writes.filter((event: any) => event.type.startsWith('board/'));
   assert(customWrites.length > 0);
   assert(customWrites.every((event: any) => event.options?.ignorable === true), 'all board projection events are ignorable');
@@ -142,5 +152,7 @@ try {
   rmSync(dir, { recursive: true, force: true });
   if (oldDir === undefined) delete process.env.PI_BOARD_DIR; else process.env.PI_BOARD_DIR = oldDir;
   if (oldTopic === undefined) delete process.env.PI_BOARD_TOPIC; else process.env.PI_BOARD_TOPIC = oldTopic;
+  if (oldName === undefined) delete process.env.PI_BOARD_NAME; else process.env.PI_BOARD_NAME = oldName;
+  if (oldHandle === undefined) delete process.env.PI_WM_HANDLE; else process.env.PI_WM_HANDLE = oldHandle;
 }
 });

@@ -85,9 +85,9 @@ function append<T extends BoardEvent>(session: Session, type: T, data: BoardData
 }
 
 function cwd(agent: Agent): string { return agent.session.header.cwd || process.cwd(); }
-function agentName(agent: Agent): string { return process.env.PI_BOARD_NAME ?? basename(cwd(agent)); }
-function topic(agent: Agent): string { return process.env.PI_BOARD_TOPIC || mailbox(agent.id); }
-function reader(agent: Agent) { return { session: agent.id, name: agentName(agent), cwd: cwd(agent) }; }
+function agentName(agent: Agent): string { return basename(cwd(agent)); }
+function topic(agent: Agent): string { return mailbox(agent.session.id); }
+function reader(agent: Agent) { return { session: agent.session.id, name: agentName(agent), cwd: cwd(agent) }; }
 function runtime(agent: Agent): { last?: { turn: number; text: string } } {
   let value = runtimeStates.get(agent);
   if (!value) runtimeStates.set(agent, value = {});
@@ -102,7 +102,7 @@ function stateOf(ctx: Context, agent: Agent): BoardState {
 }
 function subKey(sub: Subscription): string { return `${sub.topic} :: ${sub.tags ?? ''}`; }
 function defaultSubs(agent: Agent): Subscription[] {
-  const paths = [process.env.PI_BOARD_TOPIC, mailbox(agent.id), ...scopes(cwd(agent))].filter((value): value is string => !!value);
+  const paths = [mailbox(agent.session.id), ...scopes(cwd(agent), {})];
   return [...new Map(paths.map((path) => [path, { topic: path, wake: true }])).values()];
 }
 function subscriptions(ctx: Context, agent: Agent): Subscription[] {
