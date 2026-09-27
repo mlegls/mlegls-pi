@@ -80,14 +80,15 @@ async function read(args: string[]) {
 async function grep(args: string[]) {
 	const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
 		"ignore-case": { type: "boolean", short: "i" }, "line-number": { type: "boolean", short: "n" }, fixed: { type: "boolean", short: "F" },
+		"files-with-matches": { type: "boolean", short: "l" }, include: { type: "string" },
 		glob: { type: "string", short: "g" }, limit: { type: "string", short: "m" }, context: { type: "string", short: "C" },
 	} });
 	const [pattern, ...paths] = positionals;
 	if (!pattern) fail("grep needs a pattern");
 	const api = await source();
-	let hits: any = await api.grep(pattern, paths.length ? paths : undefined, { ignoreCase: values["ignore-case"], literal: values.fixed, glob: values.glob, limit: values.limit ? Number(values.limit) : undefined });
+	let hits: any = await api.grep(pattern, paths.length ? paths : undefined, { ignoreCase: values["ignore-case"], literal: values.fixed, glob: values.glob ?? values.include, limit: values.limit ? Number(values.limit) : undefined });
 	if (values.context) hits = hits.context(Number(values.context));
-	console.log(hits.render());
+	console.log(values["files-with-matches"] ? [...new Set(hits.rows.map((row: any) => row.path))].join("\n") : hits.render());
 	if (!hits.rows.length) process.exitCode = 1;
 }
 
