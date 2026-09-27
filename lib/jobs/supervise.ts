@@ -36,6 +36,11 @@ function snapshot(input: Input): Issue[] {
  // hide them (and a redispatched child's surviving branch) from it.
  return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8", env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } })).issues;
 }
+// When a ticket has no direct children, it is the loop's single leaf.
+function workItems(issues: Issue[], ticket: string): Issue[] {
+ const direct = issues.filter(i => i.partOf === ticket);
+ return direct.length ? direct : issues.filter(i => i.slug === ticket);
+}
 const STARTUP_META = (entry: { type: string; customType?: string; data?: unknown }, handle: Handle) => {
  if (entry.type !== "custom" || entry.customType !== SPAWN_META || !entry.data || typeof entry.data !== "object") return false;
  const meta = entry.data as { run?: unknown; handle?: unknown };
@@ -304,7 +309,7 @@ const checkStartup = async (live: Child[]) => {
   // Fill the budget from the subtree's frontier: direct children only; non-leaves get supervise.
   const issues = snapshot(input);
   const head = git(input.cwd, "rev-parse", "HEAD");
-  for (const i of issues.filter(i => i.partOf === input.ticket && i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug))) {
+  for (const i of workItems(issues, input.ticket).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug))) {
    if (Object.keys(state.children).length >= input.budget) break;
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
@@ -386,7 +391,7 @@ const checkStartup = async (live: Child[]) => {
   })().catch(error => except(c, "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
  }
  if (job.signal.aborted) return;
- const open = snapshot(input).filter(i => i.partOf === input.ticket && !i.done);
+ const open = workItems(snapshot(input), input.ticket).filter(i => !i.done);
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();
  await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide." + carried() + residuals(input));
