@@ -30,7 +30,7 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
-export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
+export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>;
  // Join: once this node's (or batch's) children have landed, drive its crossing stories and consolidate the combined change.
@@ -228,6 +228,7 @@ const checkStartup = async (live: Child[]) => {
    { run: input.run ?? input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent });
   if (!receipt.submitted[0]) throw new Error("launch failed for " + slug + ": " + (receipt.failed?.error ?? "pending"));
   state.metrics.launched++;
+  state.metrics.peak = Math.max(state.metrics.peak ?? 0, Object.keys(state.children).length + (state.children[slug] ? 0 : 1));
   return receipt.submitted[0];
  };
  // Unmerged branches (drop, redispatch) survive for the owner to inspect; merged ones are deleted.
