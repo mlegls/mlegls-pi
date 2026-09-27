@@ -3,7 +3,6 @@ stage: done
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
 part-of: "[[projects/mlegls-pi/issues/dsh-port]]"
-blocked-by: ["[[projects/mlegls-pi/issues/dsh-hashline-tools-spike]]"]
 ---
 
 The skim/attention layer from `lib/skim.ts` and `lib/ingress.ts`, applied to what reaches the model in dsh. In PTC the model already chooses what it prints, so split it:
