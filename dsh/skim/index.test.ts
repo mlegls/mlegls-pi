@@ -40,7 +40,11 @@ test('SHA-256 fallback retains original once; replay/fork pull is exact and prin
     await host.post(exec, result, async () => ({ kind: 'accept' }));
     expect(host.writes()).toBe(1);
     for (const name of ['skim-parent', 'skim-fork']) {
-      const restored = { session: Session.create(SessionId(name), session.snapshotEvents()) };
+      const seed = session.snapshotEvents();
+      const fork = name !== session.id;
+      const restored = { session: Session.create(SessionId(name), seed,
+        { ...session.header, id: SessionId(name), isSeeded: fork, ...(fork ? { parentSession: session.id } : {}) },
+        fork ? seed.length as any : undefined) };
       const freshHost = harness(dir);
       const pull = await freshHost.tools.get('pull').execute({ id }, { agent: restored, rootCallId: 'recall' });
       expect(pull).toBe(original);

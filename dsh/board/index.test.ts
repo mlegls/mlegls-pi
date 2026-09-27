@@ -49,11 +49,11 @@ const ctx: any = {
 };
 apply(ctx as Context);
 
-function makeAgent(id: string): any {
+function makeAgent(id: string, events: any[] = []): any {
   const session: any = {
     id,
     header: { cwd: dir },
-    events: [],
+    events,
     append(type: string, data: any, options?: any) {
       const event = type.startsWith('board/')
         ? JSON.parse(JSON.stringify({ type, data }, (_key, value) => {
@@ -150,6 +150,12 @@ try {
   assert(replayed.seen.includes(meta.messages.at(-1).id));
   const forkState = projection.apply(replayed, { type: 'session/end-seed', data: { inherited: true } });
   assert.deepEqual(forkState, projection.init(), 'fork starts with its own subscriptions and delivery cursor');
+  const fork = makeAgent('session-fork', [...receiver.session.events, { type: 'session/end-seed', data: { inherited: true } }]);
+  fork.inbox.nextTurn.push({ id: 'inherited-wake', source: { kind: 'board', form: 'notice', boardMessageIds: [piMessage.id] } });
+  await handlers.get('agent/created')!({ agent: fork, source: 'fork' });
+  assert.deepEqual(states.get(fork.session).subscriptions, [{ topic: 'mail/sionfork', wake: true }]);
+  assert.deepEqual(states.get(fork.session).seen, []);
+  assert.equal(fork.inbox.nextTurn.length, 0, 'fork retracts inherited parent board wake');
 } finally {
   for (const cleanup of cleanups) cleanup();
   rmSync(dir, { recursive: true, force: true });

@@ -32,9 +32,10 @@ model conversation additionally needs a provider configured in dsh settings.
 
 `hashline` is the default and only enabled preset. PTC exposes `run_code`,
 with `read`, `write`, `edit`, `grep`, `glob`, `transform`, `shell`, `scratch_get`,
-`scratch_put`, `scratch_delete`, `scratch_list` and the stock session-query tools
-inside programs. Stock filesystem mutation tools and `fs-observation-policy`
-remain absent. The stock `grep`/`glob` are dsh's ripgrep-backed search bindings.
+`scratch_put`, `scratch_delete`, `scratch_list`, `skim`, `pull`, the `board_*`
+bindings and stock session-query tools inside programs. Stock filesystem mutation
+tools and `fs-observation-policy` remain absent. The stock `grep`/`glob` are dsh's
+ripgrep-backed search bindings.
 Automatic context compaction uses [autobiographical memory](memory/README.md).
 
 ## First program
@@ -147,7 +148,8 @@ LLMLingua cache; failures preserve the original `run_code` result.
 ## Loading and development
 `dsh/hashline/index.ts` imports shared `lib/outline-read` source relatively.
 `bun run --cwd dsh build` bundles that source into `dsh/dist/hashline.js`
-and builds `dsh/dist/transform.js`, leaving package imports external.
+and all capability bundles: transform, scratch, memory, skim, board, dispatch,
+and dispatch-template. The build leaves package imports external.
 `@deepseek-ai/*` resolves from `dsh/node_modules`; the shared edit module
 still imports the root pi package. No clone symlinks or ambient `NODE_PATH`
 are used.
@@ -189,7 +191,7 @@ The focused host contract test is `bun test board/index.test.ts` from `dsh/`.
 The pinned `dsh-session` 0.1.7-rc.2 release drops `{ ignorable: true }` from
 `Session.append()` options; `patches/@deepseek-ai%2Fdsh-session@0.1.7-rc.2.patch`
 (Bun `patchedDependencies`) restores it for board, memory checkpoints, and skim
-locator records. Keep that entry and its lock metadata
+locator records. Keep that entry and its lock metadata when combining package changes.
 
 ## Preset-routed children
 
