@@ -66,3 +66,25 @@ Residuals have owners, outside this ticket's execution tree:
 Spill retention is bounded by upstream local-file cleanup (default 30 days).
 Scratch and hashline ledgers remain intentionally ephemeral. No acceptance claim
 is made for semantic skim quality or host-process-death isolation.
+
+## Final clean-checkout check
+
+After removing the duplicate spill backend, a clean checkout of `6d7ddec` ran
+`cd dsh && bun run setup` again, then one fresh headless DeepSeek PTC turn with
+all six inherited identity variables unset. [Exact public calls/results](final.json)
+show one `run_code` completing hashline edit/readback, scratch put/get, explicit
+skim/exact pull, and board_send. All four checks are **held**. The [Pi-side
+readback](final-board.json) confirms `DSH_ROOT_FINAL_OK` from the new DSH session.
+No duplicate hashline registration warning occurred. Setup rebuilt all eight
+bundles; no runtime change followed this check.
+
+51 focused tests passed (49 regressions/driver assertions plus 2 overlay checks).
+Strict TypeScript checking also passed for dispatch/template. Tracker check has
+no dsh findings; four unrelated stale prerequisites remain in supervision issues.
+Moved the existing default-workspace idea out of the dsh-port execution tree and
+removed completed spike prerequisites/broken evidence link from child tickets.
+
+Both headless processes exited. No Web, browser, child, tunnel or container was
+started. Owned temporary spill files were removed after replay verification;
+worktree-local ignored homes and fixtures remain for retirement. The two verification
+board posts remain in the shared append-only log.

@@ -1,0 +1,19 @@
+{
+  "messages": [
+    {
+      "id": "muju97xh-bphymr",
+      "ts": "2026-09-27T13:12:36.197Z",
+      "topic": "verify/dsh-port-root-review/final",
+      "body": "DSH_ROOT_FINAL_OK",
+      "tags": [],
+      "from": {
+        "session": "session-d34e571a-7941-4b62-b32d-89d794b671ea",
+        "name": "dsh-port-root-review",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review"
+      },
+      "line": 1996
+    }
+  ],
+  "omitted": 0,
+  "total": 1
+}

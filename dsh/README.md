@@ -135,7 +135,9 @@ export PATH="$PWD/dsh/node_modules/.bin:$PATH"
 export DSH_HOME="$PWD/dsh/.local/headless-home"
 export DSH_TOOLS_MODE=ptc
 install -d -m 700 "$DSH_HOME"
-dsh --profile headless \
+env -u PI_BOARD_TOPIC -u PI_BOARD_NAME \
+  -u PI_WM_RUN -u PI_WM_HANDLE -u PI_WM_AGENT -u PI_WM_PARENT_SESSION \
+  dsh --profile headless \
   --patch "$PWD/dsh/cordis.yml" \
   --patch "$PWD/dsh/cordis.headless.yml" \
   --patch "$PWD/dsh/provider.deepseek.yml" \

@@ -3,13 +3,13 @@ bun install v1.4.2 (744846f84)
 Resolving dependencies
 Resolved, downloaded and extracted [2]
 
-Checked 524 installs across 597 packages (no changes) [68.00ms]
+Checked 524 installs across 597 packages (no changes) [62.00ms]
 $ bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js && bun build transform/index.ts --target=node --packages=external --outfile=dist/transform.js && bun build scratch/index.ts --target=node --packages=external --outfile=dist/scratch.js && bun build memory/index.ts --target=node --packages=external --outfile=dist/memory.js && bun build skim/index.ts --target=node --packages=external --outfile=dist/skim.js && cp ../lib/skim-worker.py dist/skim-worker.py && bun build board/index.ts --target=node --packages=external --outfile=dist/board.js && bun build dispatch/index.ts --target=node --packages=external --outfile=dist/dispatch.js && bun build dispatch/template.ts --target=node --packages=external --outfile=dist/dispatch-template.js
 Bundled 5 modules in 3ms
 
   hashline.js  23.89 KB  (entry point)
 
-Bundled 5 modules in 3ms
+Bundled 5 modules in 2ms
 
   transform.js  24.40 KB  (entry point)
 
@@ -25,7 +25,7 @@ Bundled 4 modules in 3ms
 
   skim.js  28.17 KB  (entry point)
 
-Bundled 6 modules in 2ms
+Bundled 6 modules in 3ms
 
   board.js  28.63 KB  (entry point)
 
@@ -33,7 +33,6 @@ Bundled 9 modules in 3ms
 
   dispatch.js  23.33 KB  (entry point)
 
-Bundled 1 module in 1ms
+Bundled 1 module in 2ms
 
   dispatch-template.js  1.14 KB  (entry point)
-
