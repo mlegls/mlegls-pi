@@ -44,6 +44,12 @@ function formatMessage(m: Message & { line?: number }, options: { data?: boolean
 	return `${formatHead(m)}\n${m.body}${data}`;
 }
 
+/** How to answer from any tool mode: bash-only sessions have no board API, but ab mail works everywhere. */
+function replyHint(m: Message): string {
+	const to = m.from.session ? mailbox(m.from.session) : m.from.name?.startsWith("mail/") ? m.from.name : undefined;
+	return to ? `\nreply: ab mail ${to} TEXT` : "";
+}
+
 function subKey(s: Subscription): string {
 	return `${s.topic} :: ${s.tags ?? ""}`;
 }
@@ -115,7 +121,7 @@ export function install(pi: ExtensionAPI) {
 	function notification(messages: Message[]) {
 		return {
 			customType: "board",
-			content: messages.map((m) => `[board] ${formatMessage(m)}`).join("\n\n"),
+			content: messages.map((m) => `[board] ${formatMessage(m)}${replyHint(m)}`).join("\n\n"),
 			display: true,
 			details: { messages },
 		};
