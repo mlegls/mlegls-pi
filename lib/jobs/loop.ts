@@ -125,9 +125,10 @@ export async function run(job: JobContext) {
  if (!job.state) { delete state.harness; delete state.outcome; delete state.final; } // a fresh start gets a clean count
  if (state.outcome) return;
  const record = (entry: Record<string, unknown>) => appendFileSync(input.ledger, JSON.stringify({ at: new Date().toISOString(), iteration: state.iteration, ...entry }) + "\n");
+ // No parent session for workers: the loop watches them itself, and a parent would get every retired worker's exit mail.
  const sub = (id: string, over: Partial<supervise.Input>, get: () => unknown, set: (s: unknown) => void): JobContext => ({
   id, signal: job.signal, log: job.log, state: get(), save: async s => { set(s); await save(); },
-  input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", ownerSession: input.ownerSession, budget: 1, test: input.test, commands: input.commands, ledger: input.ledger, tests: state.tests, joinTimeboxMs: input.timebox * 60_000, unjoined: state.unjoined, ...over } satisfies supervise.Input,
+  input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", budget: 1, test: input.test, commands: input.commands, ledger: input.ledger, tests: state.tests, joinTimeboxMs: input.timebox * 60_000, unjoined: state.unjoined, ...over } satisfies supervise.Input,
  });
  const landed = (done: supervise.State | null) => {
   state.tests = [...new Set([...(state.tests ?? []), ...(done?.tests ?? [])])];
