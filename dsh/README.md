@@ -131,13 +131,14 @@ export DSH_HOME="$PWD/dsh/.local/headless-home"
 export DSH_TOOLS_MODE=ptc
 install -d -m 700 "$DSH_HOME"
 dsh --profile headless \
-  --patch "$PWD/dsh/cordis.yml" \
+  --patch "$PWD/dsh/cordis.skim-headless.yml" \
   --patch "$PWD/dsh/provider.deepseek.yml" \
   "Use run_code to print DSH_LIVE_MODEL_OK, then report it."
 ```
 
 A real skim additionally uses the configured ingress decision service and local
 LLMLingua cache; failures preserve the original `run_code` result.
+
 ## Loading and development
 `dsh/hashline/index.ts` imports shared `lib/outline-read` source relatively.
 `bun run --cwd dsh build` bundles that source into `dsh/dist/hashline.js`

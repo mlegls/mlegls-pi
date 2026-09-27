@@ -1,0 +1,7 @@
+# Minimal headless PTC overlay for exercising skim without the Web hashline preset.
+- id: tools
+  config:
+    mode: ptc
+- insert:
+    - id: skim
+      name: './dist/skim.js'
