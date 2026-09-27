@@ -1,3 +1,7 @@
+- id: spill-policy
+  disabled: true
+- id: tool-result-pruner
+  disabled: true
 # Minimal headless PTC overlay for exercising skim without the Web hashline preset.
 - id: tools
   config:

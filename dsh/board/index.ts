@@ -58,8 +58,10 @@ type BoardData = {
 };
 
 const projection = {
-  key: 'board' as const, stateVersion: 1, stateSchema, init: emptyState,
+  key: 'board' as const, stateVersion: 2, stateSchema, init: emptyState,
   apply(state: BoardState, event: SessionEvent): BoardState {
+    // A fork inherits history, not its parent's live delivery identity or inbox.
+    if (event.type === 'session/end-seed' && event.data.inherited) return emptyState();
     if (event.type === SUBS) return { ...state, subscriptions: event.data.subscriptions };
     if (event.type === CURSOR) return { ...state, offset: event.data.offset, pending: event.data.pending };
     if (event.type === SEEN) return withSeen(state, event.data.ids);

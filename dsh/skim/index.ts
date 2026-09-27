@@ -5,33 +5,48 @@ import { create as createIngress } from '../../lib/ingress.ts';
 import type { SpillRef } from '@deepseek-ai/dsh-spill';
 import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools';
 
+declare module '@deepseek-ai/dsh-session/types' {
+  interface SessionEventMap {
+    'skim/retained': { id: string; ref: SpillRef };
+  }
+}
 export const name = 'skim';
-export const inject = ['tools', 'spillStore'];
+export const inject = ['tools', 'spillStore', 'sessions'];
 
 const runCodeBudget = 4096;
-type State = { refs: Map<string, SpillRef> };
+const RETAINED = 'skim/retained';
+type State = { refs: Map<string, SpillRef>; recalled: Set<string> };
 
 export function apply(ctx: Context) {
   const states = new WeakMap<object, State>();
 
+  async function retain(exec: ToolExecution, owner: State, id: string, text: string) {
+    if (owner.refs.has(id)) return;
+    const ref = await ctx.spillStore.saveText({
+      owner: { sessionId: exec.agent!.session.header.id },
+      source: { kind: 'tool', toolName: exec.name, callId: exec.callId, label: id },
+      suggestedName: `${id}.txt`, content: text,
+    });
+    exec.agent!.session.append(RETAINED, { id, ref }, { ignorable: true });
+    if (!await ctx.sessions.flush(exec.agent!.session)) throw new Error('Skim retention requires session persistence');
+    owner.refs.set(id, ref);
+  }
   function state(exec: ToolExecution) {
     if (!exec.agent) throw new Error('Skim tools require an agent');
     let value = states.get(exec.agent);
-    if (!value) states.set(exec.agent, value = { refs: new Map() });
+    if (!value) {
+      const refs = new Map<string, SpillRef>();
+      for (const event of exec.agent.session.snapshotEvents()) {
+        if (event.type === RETAINED) refs.set(event.data.id, event.data.ref);
+      }
+      states.set(exec.agent, value = { refs, recalled: new Set() });
+    }
     return value;
   }
 
   function ingress(exec: ToolExecution, owner: State) {
     return createIngress({
-      async retain(id, text) {
-        const ref = await ctx.spillStore.saveText({
-          owner: { sessionId: exec.agent!.session.header.id },
-          source: { kind: 'tool', toolName: exec.name, callId: exec.callId, label: id },
-          suggestedName: `${id}.txt`,
-          content: text,
-        });
-        owner.refs.set(id, ref);
-      },
+      async retain(id, text) { await retain(exec, owner, id, text); },
       async retrieve(id) {
         const ref = owner.refs.get(id);
         return ref ? readFile(ref.locator, 'utf8') : undefined;
@@ -69,7 +84,9 @@ export function apply(ctx: Context) {
     async execute({ id }, exec) {
       const kernel = ingress(exec, state(exec));
       try {
-        return await kernel.recall(id);
+        const text = await kernel.recall(id);
+        if (exec.rootCallId) state(exec).recalled.add(exec.rootCallId);
+        return text;
       } finally {
         kernel.dispose();
       }
@@ -78,6 +95,8 @@ export function apply(ctx: Context) {
 
   ctx.on('tools/post-execute', async (exec, result, next) => {
     const decision = await next();
+    // An explicit pull is a request for exact output, not another attention pass.
+    if (exec.name === 'run_code' && exec.agent && state(exec).recalled.delete(exec.callId)) return decision;
     if (exec.name !== 'run_code' || result.isError || decision.kind !== 'accept') return decision;
     if ('value' in decision) return decision;
     const content = decision.content ?? result.content;
@@ -103,13 +122,7 @@ export function apply(ctx: Context) {
     const id = `ing-${createHash('sha256').update(original).update(focus).digest('hex').slice(0, 16)}`;
     if (!owner.refs.has(id)) {
       try {
-        const ref = await ctx.spillStore.saveText({
-          owner: { sessionId: exec.agent!.session.header.id },
-          source: { kind: 'tool', toolName: exec.name, callId: exec.callId, label: 'result' },
-          suggestedName: 'run_code.txt',
-          content: original,
-        });
-        owner.refs.set(id, ref);
+        await retain(exec, owner, id, original);
       } catch (error) {
         ctx.logger.warn(`run_code result spill unavailable; keeping the full result: ${String(error)}`);
         return decision;

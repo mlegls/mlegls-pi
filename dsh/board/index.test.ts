@@ -1,6 +1,6 @@
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { apply } from './index';
@@ -102,6 +102,7 @@ try {
   assert.match(await tool('board_read', { topic: 'smoke/wake' }, receiver), /full read retracts/);
   assert.equal(receiver.inbox.nextTurn.length, 0, 'full read retracts the queued wake');
 
+  appendFileSync(join(dir, 'log.jsonl'), '{"topic":"smoke/wake","tags":null}\n');
   const piMessage = writeBoard({ topic: 'smoke/wake', tags: [], from: { session: 'pi-side', name: 'pi' }, body: 'shared pi store' });
   await sleep(1_150);
   const shared = JSON.parse(await tool('board_read', { topic: 'smoke/wake' }, receiver));
@@ -147,6 +148,8 @@ try {
   let replayed = projection.init();
   for (const event of receiver.session.events) replayed = projection.apply(replayed, event);
   assert(replayed.seen.includes(meta.messages.at(-1).id));
+  const forkState = projection.apply(replayed, { type: 'session/end-seed', data: { inherited: true } });
+  assert.deepEqual(forkState, projection.init(), 'fork starts with its own subscriptions and delivery cursor');
 } finally {
   for (const cleanup of cleanups) cleanup();
   rmSync(dir, { recursive: true, force: true });

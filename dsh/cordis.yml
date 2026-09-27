@@ -1,3 +1,12 @@
+# Skim owns result retention; do not truncate its originals before filtering.
+- id: spill-policy
+  disabled: true
+- id: tool-result-pruner
+  disabled: true
+- id: tool-fs
+  disabled: true
+- id: tool-str-replace-editor
+  disabled: true
 # Use a dedicated preset rather than inheriting stock fs registrations.
 - id: tools
   config:

@@ -1,0 +1,6 @@
+# Apply after cordis.yml: dsh-base has no preset registry, unlike Web.
+- insert:
+    - id: agent-preset-registry
+      name: '@deepseek-ai/dsh-agent-preset-registry'
+      config:
+        default: hashline

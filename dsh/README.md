@@ -63,8 +63,8 @@ hashline write implementation in `lib/outline-read` to wrap.
 PTC's generated SDK. Values are lossless JSON, keyed within the live Session; use
 string handle ids for objects owned by other host services. Scratch state lives in
 host memory only, does not survive session reload or restart, and forks start empty.
-Plugin replacement also discards it; reread after replacement. This is separate from
-Scratch state is separate from local trusted-host filesystem access; it is not a
+Plugin replacement also discards it; reread after replacement. Scratch state is
+separate from local trusted-host filesystem access; it is not a
 replacement for dsh's sandboxed fs provider.
 
 ## Grep, transform, test in one program
@@ -112,7 +112,11 @@ filtering completes but cannot fit a result, its full text is replaced with a
 spill-backed `ing-…` locator. Skim or spill failures keep the original result.
 Programs can also call `await tools.skim({ text, focus })`. Use
 `await tools.pull({ id })` in a later program to recover a retained page verbatim.
-The local spill backend stores originals outside context. Locator lookup is scoped to the live agent and does not survive a restart.
+Originals use the local dsh spill backend; locator mappings are ignorable session
+records and replay on reload/fork (until spill cleanup expires the files). The
+stock spill policy and old-result pruner are disabled: they would truncate before
+skimming. A program that calls `pull` successfully opts its printed result out of
+automatic skimming; print only the exact portion you need.
 
 ## Live headless turn
 
@@ -131,7 +135,8 @@ export DSH_HOME="$PWD/dsh/.local/headless-home"
 export DSH_TOOLS_MODE=ptc
 install -d -m 700 "$DSH_HOME"
 dsh --profile headless \
-  --patch "$PWD/dsh/cordis.skim-headless.yml" \
+  --patch "$PWD/dsh/cordis.yml" \
+  --patch "$PWD/dsh/cordis.headless.yml" \
   --patch "$PWD/dsh/provider.deepseek.yml" \
   "Use run_code to print DSH_LIVE_MODEL_OK, then report it."
 ```
@@ -176,13 +181,15 @@ queued wake; `fields: "meta"` is observational, and `board_ack` is the explicit
 acknowledgment path. Subscriptions, cursor, pending messages, and seen IDs live in
 ignorable session events. Polling and inbox mutations await `ctx.sessions.flush()`
 before treating delivery as durable.
+Forks start fresh board subscriptions and delivery state at the inherited-history
+boundary; replay of the same session restores its existing delivery state.
 
 The focused host contract test is `bun test board/index.test.ts` from `dsh/`.
 
 The pinned `dsh-session` 0.1.7-rc.2 release drops `{ ignorable: true }` from
 `Session.append()` options; `patches/@deepseek-ai%2Fdsh-session@0.1.7-rc.2.patch`
-(Bun `patchedDependencies`) restores it. Keep that entry and its lock metadata
-when combining dsh package changes.
+(Bun `patchedDependencies`) restores it for board, memory checkpoints, and skim
+locator records. Keep that entry and its lock metadata
 
 ## Preset-routed children
 
