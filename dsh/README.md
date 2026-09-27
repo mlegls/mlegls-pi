@@ -157,3 +157,5 @@ Typed `defineTool.output.schema` supplies both PTC return types and validation;
 Rebuild and restart after code changes. dsh watches profile configuration by
 default, but its module HMR roots are opt-in; source edits are not automatically
 rebuilt. HMR was not exercised in the spike.
+
+First-use verification for this ticket: [dsh skim/run_code encounter](../docs/attachments/dsh-skim-run-code-results/index.md).
