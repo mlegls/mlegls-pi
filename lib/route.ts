@@ -155,6 +155,9 @@ async function select(workflow: string, block: string, options: RouteOptions,
 export async function prepareRole(role: string, task: string, options: RouteOptions = {}) {
   const eligible = byRole(role).map(a => a.name);
   if (!eligible.length) throw new Error('No agents fill role ' + role);
+  const catalog = criteriaFor(policyFor(options).policy, 'Assignment stances');
+  const uncatalogued = eligible.filter(a => !Object.hasOwn(catalog, a));
+  if (uncatalogued.length) throw new Error('Agents with role ' + role + ' lack a routing.md Assignment stances criterion: ' + uncatalogued.join(', '));
   const pin = Object.hasOwn(options, 'assignee') ? assigned(options) : {};
   // An agent pin binds its agent's role; a bare model pin binds the implementer.
   const binds = pin.stance ? eligible.includes(pin.stance) : role === 'implement';

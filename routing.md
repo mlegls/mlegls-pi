@@ -30,6 +30,7 @@ Interpret supplied evidence; do not invent missing context or closure. Prefer a 
 - `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
 - `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
 - `technical`: Clear acceptance criterion but difficult technical fulfillment, including novel algorithms, complex systems, or exacting UI implementation.
+- `ui`: Implementation whose fulfilment needs UI/UX judgment: interaction, hierarchy, affordances, state legibility, visual design.
 - `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
 - `compile`: A spec leaf whose design is closed but which is too big for one session: close interfaces, commit stubs, fan out `fill`.
 - `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
