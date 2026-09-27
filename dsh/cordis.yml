@@ -1,0 +1,30 @@
+# Use a dedicated preset rather than inheriting stock fs registrations.
+- id: tools
+  config:
+    mode: ptc
+- id: fs-observation-policy
+  disabled: true
+- id: preset-standard
+  disabled: true
+- id: preset-minimal
+  disabled: true
+- id: preset-ptc
+  disabled: true
+- id: preset-cordis
+  disabled: true
+- id: agent-preset-registry
+  config:
+    default: hashline
+- insert:
+    - id: hashline
+      name: './dist/hashline.js'
+    - id: preset-hashline
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: hashline
+        name: Hashline
+        plugins:
+          - id: tool-presentation
+            name: '@deepseek-ai/dsh-agent-tool-presentation'
+            config:
+              mode: ptc

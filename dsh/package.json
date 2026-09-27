@@ -1,0 +1,19 @@
+{
+  "name": "mlegls-dsh",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "bun install --frozen-lockfile && bun run build",
+    "build": "bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js",
+    "dsh": "dsh"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-tools": "0.1.7-rc.2",
+    "@deepseek-ai/cordis": "4.0.4",
+    "diff": "8.0.2"
+  },
+  "trustedDependencies": [
+    "@deepseek-ai/dsh-subprocess-local"
+  ]
+}
