@@ -1,0 +1,102 @@
+diff --git a/lib/index.js b/lib/index.js
+index 20b9619b4b548d9dbb705409050df500d6efb520..d4351766e1dcddece454381c425e477d25036959 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -508,7 +508,8 @@ const SUBAGENT_DELEGATION_CONTEXT = "You are a delegated subagent: your permissi
+ * @param composition - the per-child persona and tool filter to install.
+ */
+ function applyChildComposition(childCtx, parent, composition) {
+-	childCtx.get("agentPresets")?.composeFrom(childCtx, parent.ctx);
++	const presets = childCtx.get('agentPresets');
++	if (!presets?.composedPreset(childCtx)) presets?.composeFrom(childCtx, parent.ctx);
+ 	childCtx.systemPrompt.context({
+ 		name: "subagent:delegation",
+ 		order: childCtx.systemPrompt.getContextOrder("SUBAGENT_DELEGATION"),
+@@ -1065,11 +1066,14 @@ var ContinuableActivationRegistry = class {
+ 	async materializeTracked(inputs, parentLineage, pool, releaseSlot) {
+ 		const { childId, provider, parent, create } = inputs;
+ 		inputs.signal.throwIfAborted();
+-		const setup = (childCtx, child) => {
++		const setup = async (childCtx, child) => {
+ 			if (create !== void 0) {
+ 				child.session.append("subagent/descriptor", create.descriptor);
+ 				appendDelegatedPolicyOverrides(child.session, create.delegatedPolicies);
+ 			}
++			const presets = childCtx.get('agentPresets');
++			const preset = child.session.header.agentPreset;
++			if (presets && preset && preset !== presets.composedPreset(parent.ctx)) await presets.mount(childCtx, preset);
+ 			applyChildComposition(childCtx, parent, inputs.composition);
+ 		};
+ 		const observer = this.observeActivation(provider, childId, parent);
+@@ -1722,7 +1726,7 @@ var SubagentContinuationManager = class {
+ 						parent,
+ 						create: {
+ 							seed,
+-							meta: childSessionMeta(parent, childDepth, prepared.seed !== void 0),
++							meta: { ...childSessionMeta(parent, childDepth, prepared.seed !== void 0), ...prepared.cwd !== void 0 ? { cwd: prepared.cwd } : {}, ...prepared.agentPreset !== void 0 ? { agentPreset: prepared.agentPreset } : {} },
+ 							inheritedEventCount,
+ 							delegatedPolicies,
+ 							descriptor
+diff --git a/lib/types/child-agent.js b/lib/types/child-agent.js
+index ba900519f84e44b7f1ce820bff7573a77cc31411..bd5ac8a79d3f4bdec45bd2a70b65a0f66a391f85 100644
+--- a/lib/types/child-agent.js
++++ b/lib/types/child-agent.js
+@@ -155,7 +155,8 @@ export const SUBAGENT_DELEGATION_CONTEXT = 'You are a delegated subagent: your p
+  * @param composition - the per-child persona and tool filter to install.
+  */
+ export function applyChildComposition(childCtx, parent, composition) {
+-    childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx);
++    const presets = childCtx.get('agentPresets');
++    if (!presets?.composedPreset(childCtx)) presets?.composeFrom(childCtx, parent.ctx);
+     childCtx.systemPrompt.context({
+         name: 'subagent:delegation',
+         order: childCtx.systemPrompt.getContextOrder('SUBAGENT_DELEGATION'),
+diff --git a/lib/types/continuation-activation.js b/lib/types/continuation-activation.js
+index c5ad830918b2590bbb3d993bebc0f44c0c663067..3a526ccda5d43ce1d8173f1989da9d4767d35527 100644
+--- a/lib/types/continuation-activation.js
++++ b/lib/types/continuation-activation.js
+@@ -437,13 +437,16 @@ export class ContinuableActivationRegistry {
+     async materializeTracked(inputs, parentLineage, pool, releaseSlot) {
+         const { childId, provider, parent, create } = inputs;
+         inputs.signal.throwIfAborted();
+-        const setup = (childCtx, child) => {
++        const setup = async (childCtx, child) => {
+             // Only fresh creation appends the descriptor and delegated policy after
+             // the inherited marker; a cold resume replays those persisted events.
+             if (create !== undefined) {
+                 child.session.append('subagent/descriptor', create.descriptor);
+                 appendDelegatedPolicyOverrides(child.session, create.delegatedPolicies);
+             }
++            const presets = childCtx.get('agentPresets');
++            const preset = child.session.header.agentPreset;
++            if (presets && preset && preset !== presets.composedPreset(parent.ctx)) await presets.mount(childCtx, preset);
+             applyChildComposition(childCtx, parent, inputs.composition);
+         };
+         const observer = this.observeActivation(provider, childId, parent);
+diff --git a/lib/types/continuation.js b/lib/types/continuation.js
+index 81987b96e181c60eb54e389bd61ffab23b58e4a4..a7cdb1e9425261b03521269be3f72e1bdd18579a 100644
+--- a/lib/types/continuation.js
++++ b/lib/types/continuation.js
+@@ -159,7 +159,7 @@ export class SubagentContinuationManager {
+                     parent,
+                     create: {
+                         seed,
+-                        meta: childSessionMeta(parent, childDepth, prepared.seed !== undefined),
++                        meta: { ...childSessionMeta(parent, childDepth, prepared.seed !== undefined), ...prepared.cwd !== undefined ? { cwd: prepared.cwd } : {}, ...prepared.agentPreset !== undefined ? { agentPreset: prepared.agentPreset } : {} },
+                         inheritedEventCount,
+                         delegatedPolicies,
+                         descriptor,
+diff --git a/lib/types/types.d.ts b/lib/types/types.d.ts
+index 1bf1e4586a78385cd011745ff488e542ad4611ed..5450f659f9532c612a8c729628b6e4225986259b 100644
+--- a/lib/types/types.d.ts
++++ b/lib/types/types.d.ts
+@@ -223,6 +223,9 @@ export interface ContinuableCreateRequest {
+  * manager owns the child's whole lifecycle after preparation.
+  */
+ export interface ContinuableCreateSpec {
++    /** Provider-owned workspace and preset, persisted for cold continuation. */
++    readonly cwd?: string;
++    readonly agentPreset?: string;
+     /**
+      * Completed-turn prefix of the parent's log to seed the child session with,
+      * or absent for a fresh child. Same durable contract as

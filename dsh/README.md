@@ -183,3 +183,9 @@ The pinned `dsh-session` 0.1.7-rc.2 release drops `{ ignorable: true }` from
 `Session.append()` options; `patches/@deepseek-ai%2Fdsh-session@0.1.7-rc.2.patch`
 (Bun `patchedDependencies`) restores it. Keep that entry and its lock metadata
 when combining dsh package changes.
+
+## Preset-routed children
+
+The optional [dispatch overlay](dispatch/README.md) routes assignments through
+`routing.md` into continuable research/writing presets, with board subscriptions
+and per-writing-child Git worktrees. It includes a Web/headless launcher.

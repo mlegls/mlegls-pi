@@ -1,0 +1,68 @@
+# Apply after cordis.yml (Web or headless). Child capabilities live in presets;
+# the host owns concurrency admission and the router owns stance/model selection.
+- id: subagent
+  config:
+    maxActiveSubagents: 4
+    maxDepth: 3
+- id: preset-hashline
+  config:
+    id: hashline
+    name: Hashline
+    plugins:
+      - id: tool-presentation
+        name: '@deepseek-ai/dsh-agent-tool-presentation'
+        config:
+          mode: ptc
+      - id: dispatch-controls
+        name: '@deepseek-ai/dsh-tool-subagent-control'
+- insert:
+    - id: dispatch
+      name: './dist/dispatch.js'
+      config:
+        presets: [dispatch-research, dispatch-fill]
+        maxDepth: 3
+    - id: preset-dispatch-research
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: dispatch-research
+        description: Read-only evidence gathering with board reporting.
+        plugins:
+          - id: tool-presentation
+            name: '@deepseek-ai/dsh-agent-tool-presentation'
+            config:
+              mode: ptc
+          - id: dispatch-template
+            name: './dist/dispatch-template.js'
+            config:
+              stance: research
+              model: deepseek/deepseek-flash
+              effort: low
+              writing: false
+              tools: [read, grep, board_send, board_read, board_list, board_subscribe, board_ack]
+              prompt: >-
+                Gather evidence for the assignment; do not modify files. Return a
+                self-contained result. The board host publishes your final answer
+                on your session mailbox; your parent is subscribed to that topic.
+    - id: preset-dispatch-fill
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: dispatch-fill
+        description: Closed implementation in a dedicated Git worktree.
+        plugins:
+          - id: tool-presentation
+            name: '@deepseek-ai/dsh-agent-tool-presentation'
+            config:
+              mode: ptc
+          - id: dispatch-template
+            name: './dist/dispatch-template.js'
+            config:
+              stance: fill
+              model: deepseek/deepseek-flash
+              effort: high
+              writing: true
+              prompt: >-
+                Implement the supplied edit contract in your assigned worktree.
+                Commit coherent changes. Do not merge, rebase, push or remove the
+                worktree: your parent owns integration and retirement. Return the
+                commit IDs and result. The board host publishes your final answer
+                on your session mailbox; your parent is subscribed to that topic.
