@@ -88,8 +88,10 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	const evidence = cited.filter(id => sources.has(id)), bad = cited.filter(id => !sources.has(id) && !priorIds.has(id));
 	if (!evidence.length || bad.length)
 		throw new Error(`Memory has missing or invalid original-source pointers${bad.length ? `: ${bad.join(", ")}` : " (no valid citation)"}`);
-	return { id: randomUUID(), timestamp: Date.now(), covers, text: text.trim(), sources: evidence,
-		supersedes: cited.filter(id => !sources.has(id)), recall: "lib" };
+	return {
+		id: randomUUID(), timestamp: Date.now(), covers, text: text.trim(), sources: evidence,
+		supersedes: cited.filter(id => !sources.has(id)), recall: "lib"
+	};
 }
 
 /** Compaction purpose first, then the introspection findings as permission and map, then content guidance, mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
@@ -126,8 +128,7 @@ export function instruction(prior: Block[], folding: SessionEntry[], rewrite: bo
 	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the work in progress begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
 Tail starts (ID: tokens kept):
 ${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}
-Choose the boundary before writing. Entry IDs are permanent on this session branch: citations into the retained tail are valid and remain recallable after later compactions. Avoid repeating the tail just to preserve it.
-Then write the memory of the entries before it` : "Write the memory of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier memories stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.
+Choose the boundary before writing. Then write the memory of the entries before it` : "Write the memory of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier memories stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.
 Entries (ID and hint; full content above):
 ${manifest}
 ${focus ? `Focus: ${focus}` : ""}`;
