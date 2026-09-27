@@ -6,6 +6,7 @@
 // its mailbox (mail/xxxxxxxx, lib/board/mailbox).
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, realpathSync, watch } from "node:fs";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { basename, dirname, join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
 import { dispatch, integrate, retire as retireWorker, topic, type Handle } from "../dispatch.ts";
@@ -14,10 +15,11 @@ import * as children from "../children.ts";
 import { parse } from "../report.ts";
 import type { JobContext } from "../daemon.ts";
 import { resolveSession } from "../session-meta/identity";
-
+import { SPAWN_META } from "../session-meta/host";
+import { workmuxStatus } from "../wm.ts";
 export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; commandsApplied?: number; carried?: State | null }
 type Phase = "implement" | "verify" | "visual-review" | "supervise";
-interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; visualReviewed?: boolean }
+interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; visualReviewed?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number }
@@ -26,12 +28,32 @@ export type Command = { child: string; action: "verify" | "integrate" | "drop" |
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const HACK = "Hacking session: reach the ticket's first use fast and try it; no systematic audit. Commit coherent chunks on your branch. Your parent alone integrates this branch, including the integration rebase; do not merge or push the canonical checkout or independently rebase onto main. Repair integration conflicts on your branch when the parent requests it against a specified revision.";
 const EXECUTION_STANCES = ["fill", "auto-routine", "technical", "auto", "compile", "prune", "research", "session-triage"];
-
+const STARTUP_GRACE_MS = 30_000;
+const STARTUP_POLL_MS = 5_000;
 interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; effectiveStage: string }
 function snapshot(input: Input): Issue[] {
  // The loop's own state is authoritative for its children; the tracker's derived in-flight claims would
  // hide them (and a redispatched child's surviving branch) from it.
  return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8", env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } })).issues;
+}
+const STARTUP_META = (entry: { type: string; customType?: string; data?: unknown }, handle: Handle) => {
+ if (entry.type !== "custom" || entry.customType !== SPAWN_META || !entry.data || typeof entry.data !== "object") return false;
+ const meta = entry.data as { run?: unknown; handle?: unknown };
+ return meta.run === handle.run && meta.handle === handle.handle;
+};
+async function hasPiSession(handle: Handle) {
+ const sessions = await SessionManager.list(handle.path);
+ return sessions.some(session => {
+  try { return SessionManager.open(session.path).getEntries().some(entry => STARTUP_META(entry, handle)); }
+  catch { return false; }
+ });
+}
+async function paneTail(cwd: string, handle: Handle) {
+ const worker = (await workmuxStatus(cwd).catch(() => [])).find(entry => entry.worktree === handle.handle || resolve(entry.workdir) === resolve(handle.path));
+ const session = handle.session ?? handle.run.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "");
+ const target = worker?.pane_id || (session ? session + ":" + handle.handle : "");
+ if (!target) return "";
+ return execFileSync("tmux", ["capture-pane", "-p", "-J", "-S", "-100", "-t", target], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trimEnd();
 }
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 // Every loop runs in the one ab daemon, and loops over the same repository commit to the same checkout;
@@ -119,6 +141,31 @@ export async function run(job: JobContext) {
    "\n\nchild " + topic(c.handle) + ", worktree " + c.handle.path +
    "\nSteer it directly (its next turn end returns to the loop), or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
  };
+const checkStartup = async (live: Child[]) => {
+ let changed = false;
+ for (const c of live) {
+  if (!c.startup) { c.startup = { launchedAt: Date.now(), mode: "pi" }; changed = true; }
+  else if (!c.startup.mode) { c.startup.mode = "pi"; changed = true; }
+ }
+ if (changed) await save();
+ for (const c of live) {
+  const startup = c.startup!;
+  if (startup.mode === "command" || startup.sessionFound || startup.reported || Date.now() - startup.launchedAt < STARTUP_GRACE_MS) continue;
+  try {
+   if (await hasPiSession(c.handle)) { startup.sessionFound = true; await save(); continue; }
+  } catch (error) {
+   startup.checkedAt = Date.now();
+   job.log("startup session check failed (" + c.slug + "): " + error);
+   await save();
+   continue;
+  }
+  let text = "";
+  try { text = await paneTail(input.cwd, c.handle); }
+  catch (error) { text = "Could not capture worker pane: " + error; job.log(text); }
+  startup.reported = true;
+  await except(c, "worker did not start within " + (STARTUP_GRACE_MS / 1000) + "s (no pi session found)", text);
+ }
+};
  const launch = async (slug: string, phase: Phase, prompt: string, base: string, assignee?: string | null, stance?: string) => {
   const prepared = await route.prepare(prompt, { assignee: assignee ?? undefined, stance, allowedStances: phase === "implement" ? EXECUTION_STANCES : [stance!] });
   if (prepared.kind !== "ready") throw new Error("routing needs triage for " + slug);
@@ -263,7 +310,7 @@ export async function run(job: JobContext) {
    const prompt = nonleaf
     ? HACK + "\n\nSupervise the subtree of " + i.file + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ": read the supervise skill and honor the root supervisor's review boundaries recorded or linked in the issue. Run ab supervise start " + i.slug + " and handle what it wakes you with. The loop's done message means descendants are integrated; complete assigned integration reviews, integrate repairs and refresh affected verification before ending your turn with done.\n\n" + readFileSync(i.file, "utf8")
     : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + SETUP + " " + HANDOFF + "commit, setup, stories, caveats: [] when there are none. Prepare first-use setup before handoff, including Cloud vs anonymous-local requirements; never include secret values in evidence. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
-   try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor }; }
+   try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } }; }
    catch (error) { await wake("could not launch " + i.slug + ": " + error); }
    await save();
   }
@@ -276,12 +323,17 @@ export async function run(job: JobContext) {
   }
   if (job.signal.aborted) return;
   const watched = live.filter(c => !c.unreachable);
+  await checkStartup(watched);
+  if (job.signal.aborted) return;
   const ids = watched.map(c => topic(c.handle));
   const cursors = Object.fromEntries(watched.filter(c => c.cursor).map(c => [topic(c.handle), c.cursor!]));
   const stop = new AbortController();
   const abort = () => stop.abort();
   job.signal.addEventListener("abort", abort);
   const watcher = watch(dirname(file), (_, name) => { if (name === basename(file)) stop.abort(); });
+  const pendingStartup = watched.filter(c => c.startup?.mode !== "command" && !c.startup?.sessionFound && !c.startup?.reported);
+  const nextStartupCheck = pendingStartup.length ? Math.min(...pendingStartup.map(c => c.startup!.checkedAt ? c.startup!.checkedAt + STARTUP_POLL_MS : c.startup!.launchedAt + STARTUP_GRACE_MS)) : undefined;
+  const startupTimer = nextStartupCheck === undefined ? undefined : setTimeout(abort, Math.max(1, Math.min(STARTUP_POLL_MS, nextStartupCheck - Date.now())));
   let end: children.TurnEnd;
   try { end = ids.length ? await children.turnEnd(ids, { cwd: input.cwd, after: cursors, signal: stop.signal }) : await new Promise<never>((_, reject) => stop.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); }
   catch (error) {
@@ -292,7 +344,7 @@ export async function run(job: JobContext) {
    await sleep(Math.min(60_000, 2000 * lostWatches), job.signal);
    continue;
   }
-  finally { watcher?.close(); job.signal.removeEventListener("abort", abort); }
+  finally { if (startupTimer) clearTimeout(startupTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
   lostWatches = 0;
   const c = watched[ids.indexOf(end.id)];
   c.cursor = end.cursor; c.waiting = undefined;
