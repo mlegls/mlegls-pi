@@ -1,4 +1,45 @@
-# Hashline PTC first use
+# Hashline PTC first use — supervised verification
+
+Fresh verification at `b12888e` (implementation plus this verifier's prepared checkout).
+The required deployment is anonymous-local dsh Web with PTC and the hashline
+preset; Cloud and provider credentials are not required. This is a CLI/host-tool
+story, so no browser or visual evidence is applicable.
+
+## Setup and readiness
+
+Target: this worker-owned checkout `dsh-hashline-tools-spike-verify`, isolated
+`dsh/.local/home`, loopback Web listener on OS-selected port 62971. `bun run
+setup` and `bun run --cwd dsh setup` completed; dsh 0.1.7-rc.2 plugin build
+completed. The local anonymous Web server started successfully and announced
+its loopback URL; its generated login token is deliberately omitted. Seed:
+`dsh/.local/example.txt` contained `alpha\nbeta\n`. Entry point:
+
+```sh
+PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" \
+  dsh web --patch "$PWD/dsh/cordis.yml" --no-open --host 127.0.0.1 --port 0
+```
+
+The Web process was stopped after readiness observation. No inherited selectors
+or credentials were reused.
+
+## Required encounter
+
+The implementation packet's [first-use log](first-use.log) records a successful
+real `run_code` dispatch, structured read, computed anchor edit and resulting
+file contents. This verifier prepared and started the Web target but did not
+reproduce that dispatch through the running dsh agent's public interaction
+surface. Therefore the required end-to-end behavior remains **unobservable in
+this supervised encounter**; the implementation self-check is not fresh
+acceptance. No repair or test change was made.
+
+Existing setup and PTC friction owners are linked from the ticket. No UI was
+rendered; screenshots are not applicable.
+
+## Prior implementation evidence
+
+See [first-use.log](first-use.log) and the implementation packet's test notes
+for the implementer's self-check. They are context, not claims observed afresh
+here.
 
 Implementation self-check at `b12888e`, starting from
 `b660fa565010060df3c65951a0c6713a369ecabc`. Fresh supervised verification is separate.
