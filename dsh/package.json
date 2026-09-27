@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "setup": "bun install --frozen-lockfile && bun run build",
-    "build": "bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js && bun build transform/index.ts --target=node --packages=external --outfile=dist/transform.js",
+    "build": "bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js && bun build transform/index.ts --target=node --packages=external --outfile=dist/transform.js && bun build scratch/index.ts --target=node --packages=external --outfile=dist/scratch.js",
     "dsh": "dsh"
   },
   "dependencies": {

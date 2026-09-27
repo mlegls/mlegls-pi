@@ -22,12 +22,18 @@
       name: './dist/hashline.js'
     - id: transform
       name: './dist/transform.js'
+    - id: scratch
+      name: './dist/scratch.js'
+    - id: transform
+      name: './dist/transform.js'
+    - id: scratch
+      name: './dist/scratch.js'
     - id: preset-hashline
       name: '@deepseek-ai/dsh-agent-preset'
       config:
         id: hashline
         name: Hashline
-        description: Hashline read/edit/write, ast-grep transform, grep and sandboxed shell through run_code.
+        description: Hashline read/edit/write, ast-grep transform, grep and sandboxed shell, plus session scratch tools through run_code.
         plugins:
           - id: tool-presentation
             name: '@deepseek-ai/dsh-agent-tool-presentation'

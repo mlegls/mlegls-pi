@@ -28,6 +28,9 @@ to start Web or dispatch a tool program from a host plugin. An interactive
 model conversation additionally needs a provider configured in dsh settings.
 
 `hashline` is the default and only enabled preset. PTC exposes `run_code`,
+with `read`, `write`, `edit`, `grep`, `glob`, `transform`, `shell`, `scratch_get`,
+`scratch_put`, `scratch_delete`, and `scratch_list` inside programs.
+Stock filesystem mutation tools and `fs-observation-policy` remain absent.
 with `read`, `write`, `edit`, `grep`, `glob`, `transform`, and `shell` inside programs.
 Stock filesystem mutation tools and `fs-observation-policy` remain absent.
 The stock `grep`/`glob` are dsh's ripgrep-backed search bindings.
@@ -52,7 +55,12 @@ staleness reconciliation and mutation queue as `ab edit`. `write` creates new
 files exclusively; existing files must be read and edited. There is no separate
 hashline write implementation in `lib/outline-read` to wrap.
 
-Ledgers are isolated per live agent and survive PTC cells, not agent restart or
+## Scratch state
+
+`scratch_get`, `scratch_put`, `scratch_delete`, and `scratch_list` are host tools in
+PTC's generated SDK. Values are lossless JSON, keyed within the live Session; use
+string handle ids for objects owned by other host services. Scratch state lives in
+host memory only, does not survive session reload or restart, and forks start empty.
 plugin replacement. Reread after either. This is local trusted-host filesystem
 access, not a replacement for dsh's sandboxed fs provider.
 
