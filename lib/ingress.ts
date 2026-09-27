@@ -299,7 +299,7 @@ export function create(options: Options = {}) {
       let result = render();
       if (budget !== undefined && bytes(result.output) > budget) {
         // Do not demote exact evidence to meet a cap. Peripheral sketches yield first.
-        for (const page of [...pages].filter(p => peripheral(p.mode)).sort((a, b) => b.judgment.dist.omit - a.judgment.dist.omit)) {
+        for (const page of [...pages].filter(p => peripheral(p.mode) && p.reason !== "whole-omit").sort((a, b) => b.judgment.dist.omit - a.judgment.dist.omit)) {
           page.mode = "omit"; page.reason = "budget";
           result = render();
           if (bytes(result.output) <= budget) break;
