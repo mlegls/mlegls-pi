@@ -6,7 +6,7 @@
 //   ab supervise loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E]
 // Without a target the whole tracker is in scope; with nothing to do the loop idles until docs/issues changes.
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, existsSync, readFileSync, watch } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, watch, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -17,7 +17,7 @@ import { agent, roleBody } from "../agents.ts";
 export interface Input { carried?: State | null; target: string; cwd: string; ownerSession?: string; budget: number; timebox: number; test?: string; model: string; effort: string; ledger: string; commands: string; run: string }
 interface Batch { items: string[]; deadline: number; state: unknown; notes?: Record<string, string> }
 // tests: every earlier batch's driver tests; each later integration gate runs them all.
-export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number; tests?: string[]; unjoined?: supervise.Input["unjoined"] }
+export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number; harness?: number; tests?: string[]; unjoined?: supervise.Input["unjoined"] }
 interface Issue { slug: string; file: string; partOf: string | null; frontier: boolean; done: boolean; archived?: boolean; priority?: string | null; effectiveStage: string }
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -29,6 +29,21 @@ function candidates(input: Input): Issue[] {
  const issues: Issue[] = JSON.parse(execFileSync("bun", [TRACKER, "snapshot", ...(input.target ? [input.target] : []), "--json"], { cwd: input.cwd, encoding: "utf8" })).issues;
  return issues.filter(i => i.frontier && !i.done && !i.archived && !issues.some(j => j.partOf === i.slug && !j.done));
 }
+
+/** A hold becomes the author's to answer: the question goes into the issue and the issue goes to the human, so
+ * the tracker (not the ledger) is the inbox and frontier skips it until it's handed back. */
+export function holdOnIssue(cwd: string, file: string, question: string, iteration: number) {
+	const text = readFileSync(file, "utf8");
+	const m = /^---\n([\s\S]*?)\n---\n?/.exec(text);
+	if (!m) throw new Error("no frontmatter in " + file);
+	const fm = /^assignee:.*$/m.test(m[1]) ? m[1].replace(/^assignee:.*$/m, "assignee: human") : m[1] + "\nassignee: human";
+	const body = text.slice(m[0].length).trimEnd();
+	writeFileSync(file, "---\n" + fm + "\n---\n" + body + "\n\nQuestion from `ab supervise loop` (iteration " + iteration + ", " + new Date().toISOString().slice(0, 10) + "): " + question + " Answer here and set `assignee: agent` to send it back.\n");
+	execFileSync("git", ["commit", "-qm", "hold " + file.replace(/.*\//, "").replace(/\.md$/, "") + ": question for the author", "--", file], { cwd, stdio: "ignore" });
+}
+
+// Deferrals the harness caused, not the ticket. Triage can't fix these by retrying or holding tickets.
+export const HARNESS = /^(launch failed|worker did not start|unreachable|resume failed|loop error)/;
 
 function ledgerTail(file: string, n = 60) {
  if (!existsSync(file)) return "(empty: first iteration)";
@@ -81,6 +96,7 @@ export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { iteration: 0, held: {}, triages: 0 };
  const save = () => job.save(state);
+ if (!job.state) delete state.harness; // a fresh start after a harness stop gets a clean count
  const record = (entry: Record<string, unknown>) => appendFileSync(input.ledger, JSON.stringify({ at: new Date().toISOString(), iteration: state.iteration, ...entry }) + "\n");
  let idle = false;
  while (!job.signal.aborted) {
@@ -93,7 +109,11 @@ export async function run(job: JobContext) {
    let t: Triage;
    try { t = await triage(input, ready, job.signal); state.triages++; }
    catch (error) { record({ kind: "triage-failed", error: String(error).slice(0, 500) }); await changed(input.cwd, job.signal); continue; }
-   for (const h of t.hold) { const i = ready.find(i => i.slug === h.slug)!; state.held[h.slug] = hash(i.file); }
+   for (const h of t.hold) {
+    const i = ready.find(i => i.slug === h.slug)!;
+    try { holdOnIssue(input.cwd, i.file, h.question, state.iteration); }
+    catch (error) { state.held[h.slug] = hash(i.file); record({ kind: "hold-unfiled", slug: h.slug, error: String(error).slice(0, 300) }); }
+   }
    record({ kind: "triage", ready: ready.map(i => i.slug), batch: t.batch, hold: t.hold, context: t.context, notes: t.notes });
    if (!t.batch.length) { await save(); if (!idle) record({ kind: "idle" }); idle = true; await changed(input.cwd, job.signal); continue; }
    idle = false;
@@ -113,6 +133,14 @@ export async function run(job: JobContext) {
   if (done?.join?.done) delete state.unjoined;
   else if (done?.integrated.length) state.unjoined = { slugs: [...(state.unjoined?.slugs ?? []), ...done.integrated], base: state.unjoined?.base ?? done.base!, reviews: { ...state.unjoined?.reviews, ...done.reviews } };
   delete state.batch; state.iteration++;
+  // Harness breakage stops the loop instead of churning the backlog: two harness deferrals in a row
+  // (in one batch or across consecutive ones) mean the next batch would most likely fail the same way.
+  const harness = Object.entries(done?.deferred ?? {}).filter(([, reason]) => HARNESS.test(reason));
+  state.harness = harness.length ? (state.harness ?? 0) + harness.length : 0;
   await save();
+  if (state.harness >= 2) {
+   record({ kind: "stopped", reason: "harness", deferred: Object.fromEntries(harness) });
+   throw new Error("stopped after repeated harness failures (" + harness.map(([s, r]) => s + ": " + r).join("; ") + "); fix the harness, then ab supervise loop again");
+  }
  }
 }

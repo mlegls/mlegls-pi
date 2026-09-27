@@ -56,3 +56,5 @@ Trial on a scratch repo of case converters, five tickets over four cycles:
 - Handoff fields were fragile in two ways that failed otherwise-accepted tickets: a nonvisual packet without `shots`, and prose under `tests` executed as shell. `tests` now names committed test files.
 - Workers following the friction-filing rule appended observations to issues in this repository from scratch repos. Test runs need that rule scoped to their own repo.
 - The tree's join drive (crossing stories) hasn't been tried yet; it needs a supervise run with an owner.
+
+Escalation in the loop (2026-09-27): nothing interrupts the human. What a child would wake a tree owner about is deferred to the ledger, and the next triage retries or holds it. A hold now writes the question into the issue, sets `assignee: human` and commits that file, so the tracker is the inbox and frontier skips the ticket until it's handed back. Deferrals whose reason is a harness failure (launch failed, worker did not start, unreachable, resume failed, loop error) are counted instead, and two in a row, in one batch or consecutive ones, stop the loop with a `stopped` ledger entry.
