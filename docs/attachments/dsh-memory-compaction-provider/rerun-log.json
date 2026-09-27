@@ -1,0 +1,233 @@
+{
+  "note": "Excerpt of the durable dsh session logs behind screenshots 06/07/08 (decompressed session.v4.jsonl.zstd from the verify worktree home). Synthetic data; no credentials.",
+  "parent": {
+    "header": {
+      "type": "session",
+      "version": 4,
+      "id": "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a",
+      "createdAt": 1790504515033,
+      "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/dsh-memory-compaction-provider-verify",
+      "isSeeded": false,
+      "delegationDepth": 0
+    },
+    "originalEvent8": "Trial fact: The notebook label is amber-tern-731. The east sensor is active. This is synthetic test data; do not write files.",
+    "compaction": [
+      {
+        "seq": 21,
+        "type": "compaction/start",
+        "data": {
+          "compactionId": "75502949-ccff-45a2-be9b-eb6d3294d877",
+          "turn": 2
+        }
+      },
+      {
+        "seq": 22,
+        "type": "compaction/end",
+        "data": {
+          "compactionId": "75502949-ccff-45a2-be9b-eb6d3294d877",
+          "turn": 2,
+          "error": "summary is not smaller than the shadowed content (740 estimated framed tokens >= 178)"
+        }
+      },
+      {
+        "seq": 31,
+        "type": "compaction/start",
+        "data": {
+          "compactionId": "f7d573ec-1ce7-4b37-a297-f57f0e052f5a",
+          "turn": 3
+        }
+      },
+      {
+        "seq": 32,
+        "type": "compaction/summary",
+        "data": {
+          "summary": ""
+        }
+      },
+      {
+        "seq": 34,
+        "type": "compaction/end",
+        "data": {
+          "compactionId": "f7d573ec-1ce7-4b37-a297-f57f0e052f5a",
+          "turn": 3
+        }
+      },
+      {
+        "seq": 35,
+        "type": "memory/checkpoint",
+        "ignorable": true,
+        "data": {
+          "version": 1,
+          "checkpointSeq": 33,
+          "blocks": [
+            {
+              "id": "5745eccb-8d35-4467-a555-f782cfc107f4",
+              "covers": [
+                "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:8",
+                "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:9",
+                "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:15",
+                "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:24"
+              ],
+              "text": "This session is itself a memory-compaction verification run, in the worktree `dsh-memory-compaction-provider-verify`. Almost nothing in it is real work; the substance is a small set of trial facts plus the runtime policy, and both of my turns so far have been pure acknowledgment with no tool calls. The work in progress began at [@session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:8]: the user declared a \"Trial fact\" — notebook label `amber-tern-731`, east sensor active — and closed with \"synthetic test data; do not write files.\" I answered [@session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:15] with a tw… [2882 chars]"
+            }
+          ]
+        }
+      }
+    ],
+    "modelSurfaceOps": [
+      {
+        "seq": 7,
+        "type": "system/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 8,
+        "type": "user/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 9,
+        "type": "user/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 15,
+        "type": "assistant/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 24,
+        "type": "user/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 25,
+        "type": "assistant/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 33,
+        "type": "user/message",
+        "surfaceOp": {
+          "op": "replace",
+          "startSeq": 8,
+          "endSeq": 24
+        },
+        "sourceEventSeqs": [
+          31,
+          32,
+          8,
+          9,
+          15,
+          24
+        ]
+      },
+      {
+        "seq": 37,
+        "type": "user/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 39,
+        "type": "assistant/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 46,
+        "type": "user/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 47,
+        "type": "user/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 48,
+        "type": "assistant/message",
+        "surfaceOp": "append"
+      },
+      {
+        "seq": 52,
+        "type": "tool/result",
+        "surfaceOp": "append",
+        "sourceEventSeqs": [
+          49
+        ]
+      },
+      {
+        "seq": 57,
+        "type": "assistant/message",
+        "surfaceOp": "append"
+      }
+    ],
+    "continuation": {
+      "seq": 39,
+      "text": "- **Notebook label:** `amber-tern-731`\n- **East sensor:** active\n\nNo files written.",
+      "usage": {
+        "inputTokens": 1224,
+        "outputTokens": 32,
+        "cacheReadTokens": 2816,
+        "cacheWriteTokens": 0,
+        "totalTokens": 4072
+      }
+    },
+    "verbatimReads": [
+      {
+        "seq": 51,
+        "name": "session_event_read",
+        "arguments": {
+          "session_id": "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a",
+          "seq": 8
+        },
+        "isError": false,
+        "resultContainsOriginal": true
+      }
+    ],
+    "answersContainingOriginal": [
+      57
+    ]
+  },
+  "fork": {
+    "header": {
+      "type": "session",
+      "version": 4,
+      "id": "session-0e3383c3-6221-4ecc-9832-6f813334ec6b",
+      "createdAt": 1790505091440,
+      "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/dsh-memory-compaction-provider-verify",
+      "parentSession": "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a",
+      "isSeeded": true,
+      "delegationDepth": 0
+    },
+    "seedEnd": 60,
+    "inheritedEventsIdenticalToParent": 60,
+    "parentEventCount": 60,
+    "memoryCheckpoints": [
+      {
+        "seq": 35,
+        "ignorable": true
+      }
+    ],
+    "verbatimReads": [
+      {
+        "seq": 73,
+        "name": "session_event_read",
+        "arguments": {
+          "session_id": "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a",
+          "seq": 8
+        },
+        "isError": false,
+        "resultContainsOriginal": true
+      }
+    ],
+    "answersContainingOriginal": [
+      79
+    ]
+  },
+  "laterRejectedCompactions": [
+    "summary is not smaller than the shadowed content (740 estimated framed tokens >= 178)",
+    "summary is not smaller than the shadowed content (1977 estimated framed tokens >= 1181)",
+    "summary is not smaller than the shadowed content (2031 estimated framed tokens >= 1641)",
+    "summary is not smaller than the shadowed content (1916 estimated framed tokens >= 1724)"
+  ]
+}

@@ -124,6 +124,8 @@ model turns: direct host PTC dispatch needs the
   [existing owner](../../issues/board-acks-are-a-host-runtime-event.md).
 
 Runtime cost: one 125-line provider, nine overlay lines, one stock query-tool
+package, and the small session append patch. Shared Pi code and prompts are
+unchanged. No recall index or persistent test harness was added.
 
 ## Fresh supervised encounter
 
@@ -145,8 +147,6 @@ weren't present, and this first-use run did not seed a replacement long-history
 session or drive compaction/fork recall. Consequently each required story remains
 **unobservable** in the fresh encounter. No screenshot is represented as evidence
 of compaction. The temporary Web process and browser CLI session were stopped.
-package, and the small session append patch. Shared Pi code and prompts are
-unchanged. No recall index or persistent test harness was added.
 
 ## Follow-up supervised encounter
 
@@ -177,7 +177,8 @@ mocked model output.
 In an earlier session, the default workspace pointed outside the checkout. A user
 asked “Remember: the relay switch is labeled copper-moth.” The model chose to create
 `MEMORY.md` there via `tools.write`; that exact file was removed. Its source and
-producer are established below. See
+producer are established below. See the
+[workspace ownership issue](../../issues/dsh-web-default-workspace-outside-home.md).
 
 ### Initial UI states
 
@@ -186,7 +187,6 @@ producer are established below. See
 - [03](03-padded-session.png): fact-bearing archive session before compaction.
 - [04](04-compacted-continuation.png): compacted conversation and continuation.
 - [05](05-fork-session.png): fork created in the first attempt; recall was not verified then.
-[workspace ownership issue](../../issues/dsh-web-default-workspace-outside-home.md).
 
 ### Reproduction for the successful checkpoint
 
@@ -275,3 +275,38 @@ parent recall, and fork recall ([06](06-owned-workspace-compacted.png),
 
 The preceding reproduction and handoff describe the earlier attempt only; their
 workspace and fork-read limitations were resolved by the rerun above.
+
+## Visual review of the `36319c6` rerun
+
+Reviewed 06, 08 and 07 (1200×2029 full-page captures, dark theme, en locale)
+against the ticket, together with the durable session logs behind them. The chat
+UI does not show the checkpoint or the collapsed `run_code` calls, so the logs are
+what establish compaction and the tool read; the screenshots establish what the
+Web user sees. Log excerpt: [rerun-log.json](rerun-log.json), decompressed from
+the verify worktree's `dsh/.local/home` sessions (synthetic data, no credentials).
+
+| Claim | Outcome | Evidence |
+| --- | --- | --- |
+| Long session in `dsh web` compacts through the memory provider | held | Parent events 31–35: `compaction/summary`, checkpoint `user/message` 33 with `surfaceOp: replace 8..24`, ignorable `memory/checkpoint` 35 citing `session-e3b7f2c6…:8`. [06](06-owned-workspace-compacted.png) shows the context meter at 0% after the padded turn. |
+| Continuation carries checkpoint and verbatim tail | held | Model surface after compaction is system 7, checkpoint 33, unchanged tail assistant 25, then user 37. Continuation 39 answered `amber-tern-731` / east sensor active (fact exists only in replaced event 8) with 1,224 + 2,816 cached input tokens; visible in [06](06-owned-workspace-compacted.png). |
+| Cited original turn recalled verbatim (parent) | held | Dispatch 51 `session_event_read({session_id: "session-e3b7f2c6…", seq: 8})`, `isError: false`, result contains the exact original; answer 57 contains it verbatim; visible in [08](08-parent-verbatim-read.png). |
+| Recall from a forked session | held | Fork `session-0e3383c3…` header has `parentSession` = parent, `isSeeded: true`; all 60 parent events are byte-identical in the fork prefix (seed end 60), including `memory/checkpoint` 35. Fork dispatch 73 read the parent citation without error; answer 79 is verbatim; visible in [07](07-fork-verbatim-read.png). |
+
+Nonblocking observations (dsh Web / trial configuration, not this provider):
+
+- 06: nothing in the chat marks the compaction; the padded message is still
+  rendered in full and only the context meter shows 0%. A Web user can't tell a
+  checkpoint happened or what it said. Smallest fix belongs to dsh Web: a
+  compaction divider linking to the checkpoint.
+- 07: the header title is truncated to the same text as the parent, so the fork
+  is only identifiable by the highlighted sidebar row, whose title is clipped on
+  the left (`ɪnd east sensor details`) while hover actions are shown.
+- 07/08: the `run_code` call is collapsed under “Took 31s”; the screenshot alone
+  cannot distinguish a tool read from recitation (the log does).
+- With the trial `thresholdRatio: 0.001`, every later step retried compaction and
+  the native writer rejected it (`summary is not smaller than the shadowed
+  content`, four times across parent and fork; see `laterRejectedCompactions`).
+  Expected for the trial overlay, but each rejection spends a model call.
+
+Overflow (`agent/request-error`) and provider-filter fallback remain unforced, as
+recorded under Checks and limits; the ticket's done-when does not require them.
