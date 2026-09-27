@@ -163,33 +163,37 @@ A later same-session request used `run_code` and `tools.session_event_read` with
 `session_id` and returned the original user event text verbatim. Passing the
 checkpoint's unprefixed ID explicitly failed as outside the caller workspace.
 
-A separate fresh session after the first attempted ID fix emitted citations with a
-doubled `session-session-` prefix. This prompted a normalization change in
-`dsh/memory/index.ts` to handle both observed `session.id` shapes. The subsequent
-fresh session compacted via native fallback and did not append a memory checkpoint,
-so the normalized citation change is not yet re-driven. The ticket's citation
-claim is therefore not held for the repaired code. A fork was created from the
-fresh session; citation recall from that fork was not completed.
 
-Screenshots show the rendered Web journey; archive input is synthetic user text,
-not a mocked model output. The model also wrote one unrequested workspace memory
-file during a later session. The workspace pointed outside the checkout despite
-isolated `DSH_HOME`; that exact file was removed. See
+Initial attempts (historical): one citation lacked `session-`; another carried a
+`session-session-` prefix, and the follow-up native-fallback run had no checkpoint.
+The fork created in that attempt had not been read. Commit `36319c6` normalized the
+observed session-ID forms; the successful checkpoint and fork read are documented
+below.
 
-### UI states
+
+Screenshots show rendered Web states; archive input was synthetic user text, not a
+mocked model output.
+
+In an earlier session, the default workspace pointed outside the checkout. A user
+asked “Remember: the relay switch is labeled copper-moth.” The model chose to create
+`MEMORY.md` there via `tools.write`; that exact file was removed. Its source and
+producer are established below. See
+
+### Initial UI states
 
 - [01](01-web-ready.png): new anonymous Web session.
 - [02](02-first-turn.png): basic model response before the memory trial.
 - [03](03-padded-session.png): fact-bearing archive session before compaction.
 - [04](04-compacted-continuation.png): compacted conversation and continuation.
-- [05](05-fork-session.png): forked conversation surface; recall from this fork remains unverified.
+- [05](05-fork-session.png): fork created in the first attempt; recall was not verified then.
 [workspace ownership issue](../../issues/dsh-web-default-workspace-outside-home.md).
 
 ### Reproduction for the successful checkpoint
 
-The checkpoint encounter ran at revision `3b9f6c2` with the overlay below; the
-later ID-framing repair is commit `36319c6` and has not yet passed a new
-checkpoint-and-recall journey.
+
+The original checkpoint ran at `3b9f6c2` and exposed the citation issue. This
+reproduction command is the same local Web setup, but the completed rerun used
+`36319c6` after adding/selecting the checkout-rooted workspace described below.
 
 ```sh
 bun run --cwd dsh setup
@@ -198,11 +202,76 @@ PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" \
   --no-open --host 127.0.0.1 --port 0
 ```
 
-This local Web server was worker-owned (`127.0.0.1:52301` for the final trial
-process), anonymous/token-authenticated, and stopped after the encounter. The
-session store was isolated under `dsh/.local/home`; however, its selected workspace
-resolved to `/Users/mlegls/Documents/deepseek-harness/default-workspace`, outside
-the checkout. The one file created there by the model was removed. Do not reuse this
-workspace as an owned test target until the Web workspace ownership issue is
-resolved. The separate screenshot of the fork records session creation, not a
-successful cross-session read.
+After the first idle Web launch initializes `workspace.json`, stop Web and add/select
+the checkout workspace before any model turn. Restart Web with the command above and
+verify its selection in the sidebar. From the repository root:
+
+```sh
+bun -e '
+const p = "dsh/.local/home/storages/workspace.json";
+const x = JSON.parse(await Bun.file(p).text());
+const id = "01b01687-61e7-437c-841e-793449c513ad";
+const now = new Date().toISOString();
+x.global.workspaceIds = [...new Set([...x.global.workspaceIds, id])];
+x.global.defaultWorkspaceId = id;
+x.tables.workspaces[id] ??= { path: process.cwd(), title: "dsh-memory-compaction-provider-verify", sessionIds: [], createdAt: now, updatedAt: now };
+x.tables.workspaces[id].path = process.cwd();
+x.tables.workspaces[id].title = "dsh-memory-compaction-provider-verify";
+x.tables.workspaces[id].updatedAt = now;
+await Bun.write(p, JSON.stringify(x, null, 2) + "\n");
+'
+```
+
+
+The original server was anonymous/token-authenticated and used isolated
+`dsh/.local/home`, but selected `/Users/mlegls/Documents/deepseek-harness/default-workspace`
+outside the checkout. This historical target was not reused for the rerun. The exact
+`MEMORY.md` created in that workspace was removed; see the attribution above.
+
+## Successful fresh rerun on `36319c6`
+
+The handoff above predates the retry. Before any model turn, I added workspace
+`01b01687-61e7-437c-841e-793449c513ad` to `dsh/.local/home/storages/workspace.json`
+and selected it as default. Its path is this checkout; Web showed this workspace
+selected, and the session header records the same checkout as `cwd`.
+
+In `session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a`, synthetic user event 8 gave the
+fact `amber-tern-731`; event 24 supplied 192,699 characters of synthetic archive
+padding. The real provider appended `memory/checkpoint` event 35: register
+`compaction-om-v10`, operation `append`, checkpoint sequence 33, tail through event
+25. Its source citation is now correctly framed as
+`session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:8`. The next answer preserved the
+fact and tail. A same-session `run_code` call to
+`tools.session_event_read({session_id: "session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a", seq: 8})`
+returned the original event; the assistant reproduced its text exactly.
+
+I branched from the latest parent answer. Fork
+`session-0e3383c3-6221-4ecc-9832-6f813334ec6b` has `parentSession` set to the
+source session, `isSeeded: true`, the inherited `memory/checkpoint` event, and a
+checkout-rooted `cwd`. From that fork, the same `session_event_read` call against
+the source citation returned the original event verbatim; the assistant reproduced
+the same text. Both reads used the public `session-` ID and passed. This holds the
+citation normalization fix and fork recall requirement.
+
+### `MEMORY.md` attribution
+
+The earlier file was not written by a default memory contributor or by
+`dsh/memory/index.ts`. In the old session
+`session-8930f63a-f761-4d68-acad-ae99fdd34eee`, the user said
+“Remember: the relay switch is labeled copper-moth.” The model chose to persist it:
+its `run_code` dispatched `tools.write` for `MEMORY.md` (event 25), then read it back
+(event 27). The configured Hashline preset exposes ordinary file tools; the memory
+provider only generates a checkpoint and appends `memory/checkpoint` to the session.
+There is no separate automatic contributor to disable, and no provider file-write
+bug. `dsh/trial-memory.yml` therefore retains the provider needed for this trial.
+The prior “unrequested” description refers to the model-chosen file persistence and
+location, not an unsolicited memory contribution.
+
+The checkout-owned workspace workaround resolved the setup hazard for this rerun;
+the old default workspace remains external and was not used. Its ownership issue is
+still documented separately. Screenshots show the rendered compacted continuation,
+parent recall, and fork recall ([06](06-owned-workspace-compacted.png),
+[08](08-parent-verbatim-read.png), [07](07-fork-verbatim-read.png)).
+
+The preceding reproduction and handoff describe the earlier attempt only; their
+workspace and fork-read limitations were resolved by the rerun above.

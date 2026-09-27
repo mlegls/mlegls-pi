@@ -26,21 +26,30 @@ Setup needs the pinned append-marker patch:
 
 First-use result: [evidence packet](../attachments/dsh-memory-compaction-provider/index.md).
 
-Fresh supervised encounter (2026-09-27): local Web with a low-threshold trial
-overlay compacted a padded session. Durable `memory/checkpoint` seq 122 preserved
-a citation to original event 8; continuation answered the early facts, and a
-same-session `session_event_read` returned the source text verbatim after an
-initial explicit-ID attempt failed. The fork journey remains unverified. The
-encounter exposed inconsistent `session.id` framing: one session's checkpoint
-references omitted the public `session-` prefix; a later session produced a
-`session-session-` prefix. `dsh/memory/index.ts` now normalizes both forms, but a
-memory checkpoint with the normalized citations has not yet been observed. See
+
+Initial attempt (historical): a local low-threshold Web session compacted at
+`memory/checkpoint` seq 122 and recovered a same-session source after correcting the
+lookup request. One later run exposed inconsistent ID framing; `36319c6` normalized
+both observed forms. At that point the fix and fork recall remained unverified. The
+successful fresh rerun below supersedes that status. See
 [supervised evidence](../attachments/dsh-memory-compaction-provider/index.md).
 
-Setup friction: `dsh web` used an external default workspace despite isolated
-`DSH_HOME`; a model turn created one unrequested `MEMORY.md` there. That exact new
-file was removed. The owned-target preparation gap is recorded in
-[[projects/mlegls-pi/issues/dsh-web-default-workspace-outside-home]]. Do not resume
-agent turns until the Web workspace is checkout-owned.
-and verbatim tail, and recalled a cited original from the parent and a fork.
-Both final sessions reloaded. Fresh supervised verification remains.
+
+Initial supervised attempt (historical): `dsh web` selected an external default
+workspace despite isolated `DSH_HOME`. Its memory citation/fork acceptance was
+unverified then. The exact created `MEMORY.md` was removed. A checkout-rooted
+workspace was configured before turns in the successful rerun below. The external
+default-workspace behavior remains tracked in
+[[projects/mlegls-pi/issues/dsh-web-default-workspace-outside-home]].
+
+Successful fresh rerun (2026-09-27), on `36319c6`: before model turns, added and
+selected a Web workspace rooted at this checkout. Provider checkpoint seq 35 cited
+`session-e3b7f2c6-2ad4-4cc9-b061-2ae60818a72a:8`; continuation preserved the fact
+and tail. Same-session and forked `session_event_read` calls using the public
+`session-` ID both returned the original event verbatim. Fork
+`session-0e3383c3-6221-4ecc-9832-6f813334ec6b` inherited the checkpoint and points
+to the parent. See [updated evidence](../attachments/dsh-memory-compaction-provider/index.md).
+
+`MEMORY.md` was model-chosen `tools.write` after the user asked it to “Remember” a
+fact; neither a built-in memory contributor nor the compaction provider wrote it.
+The evidence packet traces the dispatch.
