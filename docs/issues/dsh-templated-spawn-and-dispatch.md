@@ -26,6 +26,8 @@ The optional `dsh/dispatch.yml` declares research/fill capability and routing de
 
 **After:** the [implementation self-check](../../dsh/dispatch/verification/first-use.md) launched a three-child PTC wave, returned handles while the parent was idle, observed an idle-parent wake and board readback, exercised read-only tools and writer shell cwd, and observed a failed child's crashed/error-turn-end/exited records. Existing route/dispatch tests (9) and board test (1), build, frozen install and focused strict typecheck pass. Independent acceptance remains with [[projects/mlegls-pi/issues/dsh-port]].
 
+**Independent drive:** [session packet](../attachments/dsh-templated-spawn-and-dispatch/index.md) and executable black-box assertion `dsh/dispatch/verification/dispatch-story.test.ts`.
+
 ### Danger
 
 **Door:** two-way. Overlay is opt-in; successful child worktrees persist until parent retirement.
