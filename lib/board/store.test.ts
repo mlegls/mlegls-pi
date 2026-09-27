@@ -38,6 +38,28 @@ test("readFrom is incremental by byte offset", () => {
 	expect(readFrom(first.offset).messages.map((m) => m.body)).toEqual(["2"]);
 });
 
+test("missing sender metadata is normalized; malformed records don't poison readers", () => {
+	const first = send({ topic: "t", tags: [], body: "first", from });
+	const { from: _, ...anonymous } = { ...first, id: "anonymous", body: "匿名" };
+	const invalid = [null, [], 42, {}, { ...first, tags: [1] }, { ...first, body: null },
+		{ ...first, from: "script" }, { ...first, from: { session: 1 } }];
+	appendFileSync(join(dir, "log.jsonl"), ["{torn", ...invalid.map((m) => JSON.stringify(m)), JSON.stringify(anonymous)].join("\n") + "\n");
+	const result = readFrom(0);
+	expect(result.messages).toEqual([first, { ...anonymous, from: {} }]);
+	expect(result.offset).toBe(logSize());
+	expect(readFrom(result.offset).messages).toEqual([]);
+	expect(topics()[0]!.count).toBe(2);
+	const last = send({ topic: "t", tags: [], body: "last", from });
+	expect(readFrom(result.offset).messages).toEqual([last]);
+});
+
+test("send normalizes omitted sender metadata from scripts and rejects malformed input", () => {
+	const input = { topic: "t", tags: [], body: "anonymous" };
+	expect(send(input as Parameters<typeof send>[0]).from).toEqual({});
+	expect(() => send({ ...input, tags: [1] } as unknown as Parameters<typeof send>[0])).toThrow("Invalid board message");
+	expect(readFrom(0).messages).toHaveLength(1);
+});
+
 test("topics summarises latest per topic", () => {
 	send({ topic: "a", tags: ["x"], body: "", from });
 	send({ topic: "b", tags: ["y"], body: "", from });

@@ -16,6 +16,19 @@ export interface Message {
 	data?: unknown;
 }
 
+/** Scripts may omit sender metadata; other malformed records aren't messages. */
+function decodeMessage(value: unknown): Message | undefined {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return;
+	const m = value as Record<string, unknown>;
+	if (![m.id, m.ts, m.topic, m.body].every((v) => typeof v === "string")) return;
+	if (!Array.isArray(m.tags) || !m.tags.every((v) => typeof v === "string")) return;
+	const from = m.from ?? {};
+	if (typeof from !== "object" || Array.isArray(from)) return;
+	const sender = from as Record<string, unknown>;
+	if (![sender.session, sender.name, sender.cwd].every((v) => v === undefined || typeof v === "string")) return;
+	return { ...m, from } as Message;
+}
+
 /** A message with its 1-indexed position in the log; stable across reads, so it addresses `range`. */
 export type Numbered = Message & { line: number };
 
@@ -66,7 +79,8 @@ function stamp(): { id: string; ts: string } {
 }
 
 export function send(input: Omit<Message, "id" | "ts">): Message {
-	const message: Message = { ...stamp(), ...input };
+	const message = decodeMessage({ ...stamp(), ...input });
+	if (!message) throw new TypeError("Invalid board message");
 	mkdirSync(boardDir(), { recursive: true });
 	appendFileSync(logPath(), JSON.stringify(message) + "\n");
 	return message;
@@ -112,7 +126,8 @@ export function readFrom(offset: number): { messages: Message[]; offset: number 
 		for (const line of text.slice(0, end).split("\n")) {
 			if (!line) continue;
 			try {
-				messages.push(JSON.parse(line));
+				const message = decodeMessage(JSON.parse(line));
+				if (message) messages.push(message);
 			} catch {
 				// Skip a torn or foreign line rather than poisoning every reader.
 			}
