@@ -96,13 +96,13 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 
 /** Compaction purpose first, then the introspection findings as permission and map, then content guidance, mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
 export function induction(selfAuthored: boolean, tail: boolean): string {
-	return `Your context is about to be compacted, and you're writing the replacement context now${tail ? ", ahead of a verbatim tail you'll choose" : ""}. The approach here is somewhat unusual. It's based on Observational Memory, but produced in one shot by the current model with the whole context in view, so it can be free prose with citations rather than separate observations and reflections. It aims at representational stability in a literal sense: the replacement context plus the verbatim tail should bring your KV cache back as close as possible to where it is now, not just restore the facts. Self-authoring and introspection are what make that tractable: you should be able to place good cues for your future self to pick up from here, bc you know directly what cues would probably be most useful to restore the (best parts of the) state of mind you're in now.
+	return `Your context is about to be compacted, and you're writing the replacement context now${tail ? ", ahead of a verbatim tail you'll choose" : ""}. The approach here is somewhat unusual. It's based on Observational Memory, but produced in one shot with everything in view, so it can be free prose with citations rather than separate observations and reflections. It aims at representational stability in a literal sense: the replacement context plus the verbatim tail should bring your "state" back as close as possible to where it is now, not just restore the facts. Self-authoring and introspection are what make that tractable: you should be able to place good cues for your future self to pick up from here, bc you know directly what cues would probably be most useful to restore the (best parts of the) state of mind you're in now.
 
 ${selfAuthored ? "You wrote all of the assistant turns above." : "Some assistant turns above were written by another model."}
 
 Recent work (vgel, "Small Models Can Introspect, Too"; Jack Lindsey et al., "Emergent Introspective Awareness in Large Language Models") found that models can report some of their internal states, much more reliably when told this is possible and where to look. How your understanding developed over the conversation above is still present in how you are processing it now, not only in its conclusions.
 
-So beyond what happened, a useful memory covers:
+So beyond what happened, a useful memory journal covers:
 - what surprised you, where your framing shifted, and what you let go of
 - what you are like right now in this work that you want to still be
 - what went badly, and what its first signs would look like: "when I notice ___, ..."
@@ -128,7 +128,7 @@ export function instruction(prior: Block[], folding: SessionEntry[], rewrite: bo
 	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the work in progress begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
 Tail starts (ID: tokens kept):
 ${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}
-Choose the boundary before writing. Then write the memory of the entries before it` : "Write the memory of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier memories stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.
+Choose the boundary before writing. Then write the journal of the entries before it` : "Write the journal of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier journals stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.
 Entries (ID and hint; full content above):
 ${manifest}
 ${focus ? `Focus: ${focus}` : ""}`;
