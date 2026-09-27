@@ -25,6 +25,22 @@ Setup needs the pinned append-marker patch:
 [[projects/mlegls-pi/issues/dsh-session-append-ignorable]].
 
 First-use result: [evidence packet](../attachments/dsh-memory-compaction-provider/index.md).
-A live Web model compacted 49,047 estimated prefix tokens, preserved its checkpoint
+
+Fresh supervised encounter (2026-09-27): local Web with a low-threshold trial
+overlay compacted a padded session. Durable `memory/checkpoint` seq 122 preserved
+a citation to original event 8; continuation answered the early facts, and a
+same-session `session_event_read` returned the source text verbatim after an
+initial explicit-ID attempt failed. The fork journey remains unverified. The
+encounter exposed inconsistent `session.id` framing: one session's checkpoint
+references omitted the public `session-` prefix; a later session produced a
+`session-session-` prefix. `dsh/memory/index.ts` now normalizes both forms, but a
+memory checkpoint with the normalized citations has not yet been observed. See
+[supervised evidence](../attachments/dsh-memory-compaction-provider/index.md).
+
+Setup friction: `dsh web` used an external default workspace despite isolated
+`DSH_HOME`; a model turn created one unrequested `MEMORY.md` there. That exact new
+file was removed. The owned-target preparation gap is recorded in
+[[projects/mlegls-pi/issues/dsh-web-default-workspace-outside-home]]. Do not resume
+agent turns until the Web workspace is checkout-owned.
 and verbatim tail, and recalled a cited original from the parent and a fork.
 Both final sessions reloaded. Fresh supervised verification remains.

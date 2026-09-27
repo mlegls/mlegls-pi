@@ -147,3 +147,62 @@ session or drive compaction/fork recall. Consequently each required story remain
 of compaction. The temporary Web process and browser CLI session were stopped.
 package, and the small session append patch. Shared Pi code and prompts are
 unchanged. No recall index or persistent test harness was added.
+
+## Follow-up supervised encounter
+
+The low-threshold overlay is committed as `dsh/trial-memory.yml`; it sets
+`thresholdRatio: 0.001` and `retainTokens: 64` for this trial only. In the owned
+local Web session `Field notebook amber tern facts` (session
+`session-a44dfe96-c94f-408c-9084-40954b2fbb4d`), the initial distinct facts and two
+synthetic padding messages were followed by a successful provider checkpoint at
+seq 122. It used register `compaction-om-v10`, append operation, cited source seq 8,
+covered 26 source nodes, and retained tail through assistant event 111. The
+continuation showed the checkpoint facts and preserved both archive histories;
+UI shows context usage returning from 2% to 0% ([compacted UI](04-compacted-continuation.png)).
+A later same-session request used `run_code` and `tools.session_event_read` with no
+`session_id` and returned the original user event text verbatim. Passing the
+checkpoint's unprefixed ID explicitly failed as outside the caller workspace.
+
+A separate fresh session after the first attempted ID fix emitted citations with a
+doubled `session-session-` prefix. This prompted a normalization change in
+`dsh/memory/index.ts` to handle both observed `session.id` shapes. The subsequent
+fresh session compacted via native fallback and did not append a memory checkpoint,
+so the normalized citation change is not yet re-driven. The ticket's citation
+claim is therefore not held for the repaired code. A fork was created from the
+fresh session; citation recall from that fork was not completed.
+
+Screenshots show the rendered Web journey; archive input is synthetic user text,
+not a mocked model output. The model also wrote one unrequested workspace memory
+file during a later session. The workspace pointed outside the checkout despite
+isolated `DSH_HOME`; that exact file was removed. See
+
+### UI states
+
+- [01](01-web-ready.png): new anonymous Web session.
+- [02](02-first-turn.png): basic model response before the memory trial.
+- [03](03-padded-session.png): fact-bearing archive session before compaction.
+- [04](04-compacted-continuation.png): compacted conversation and continuation.
+- [05](05-fork-session.png): forked conversation surface; recall from this fork remains unverified.
+[workspace ownership issue](../../issues/dsh-web-default-workspace-outside-home.md).
+
+### Reproduction for the successful checkpoint
+
+The checkpoint encounter ran at revision `3b9f6c2` with the overlay below; the
+later ID-framing repair is commit `36319c6` and has not yet passed a new
+checkpoint-and-recall journey.
+
+```sh
+bun run --cwd dsh setup
+PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" \
+  dsh web --patch "$PWD/dsh/cordis.yml" --patch "$PWD/dsh/trial-memory.yml" \
+  --no-open --host 127.0.0.1 --port 0
+```
+
+This local Web server was worker-owned (`127.0.0.1:52301` for the final trial
+process), anonymous/token-authenticated, and stopped after the encounter. The
+session store was isolated under `dsh/.local/home`; however, its selected workspace
+resolved to `/Users/mlegls/Documents/deepseek-harness/default-workspace`, outside
+the checkout. The one file created there by the model was removed. Do not reuse this
+workspace as an owned test target until the Web workspace ownership issue is
+resolved. The separate screenshot of the fork records session creation, not a
+successful cross-session read.
