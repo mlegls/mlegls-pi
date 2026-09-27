@@ -4,6 +4,8 @@
     mode: ptc
 - id: fs-observation-policy
   disabled: true
+- id: compaction-basic
+  disabled: true
 - id: preset-standard
   disabled: true
 - id: preset-minimal
@@ -24,6 +26,13 @@
       name: './dist/transform.js'
     - id: scratch
       name: './dist/scratch.js'
+    - id: memory
+      name: './dist/memory.js'
+      config:
+        headroomTokens: 8192
+        maxTokens: 8192
+    - id: tool-session-query
+      name: '@deepseek-ai/dsh-tool-session-query'
     - id: preset-hashline
       name: '@deepseek-ai/dsh-agent-preset'
       config:

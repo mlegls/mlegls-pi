@@ -1,0 +1,25 @@
+diff --git a/lib/index.js b/lib/index.js
+index 48bc365ca7021dcf0d69a2d07ac49995034357c4..7aa573ba0750f921dded039c456c182469488f6c 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -1401,6 +1401,7 @@ var Session = class Session {
+ 	append(type, data, ...opts) {
+ 		const surfaceOpts = opts[0];
+ 		const surfaceMetadata = {
++            ...surfaceOpts?.ignorable === true ? { ignorable: true } : {},
+ 			...surfaceOpts?.sourceEventSeqs === void 0 ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
+ 			...surfaceOpts?.surfaceOp === void 0 ? {} : { surfaceOp: surfaceOpts.surfaceOp }
+ 		};
+diff --git a/lib/types/index.d.ts b/lib/types/index.d.ts
+index 3d6aa837b6ab4c40b4c84c178a9579e261731010..9a23f9532aa48ec5a70926a5a31a6548fa038b93 100644
+--- a/lib/types/index.d.ts
++++ b/lib/types/index.d.ts
+@@ -243,7 +243,7 @@ export declare class Session {
+      *   append reentered while this acceptance/publication boundary is open also
+      *   rejects before the log changes.
+      */
+-    append<T extends SessionEventType>(type: T, data: SessionEventMap[T], ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []): SessionEvent<T>;
++    append<T extends SessionEventType>(type: T, data: SessionEventMap[T], ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T> & { ignorable?: true }] : [opts?: { ignorable?: true }]): SessionEvent<T>;
+     /** Cached fold of the request-header events — see {@link requestHeader}. */
+     private headerFold;
+     /** Log position (events consumed) the header fold has reached. */
