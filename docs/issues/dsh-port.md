@@ -1,5 +1,5 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
 priority: 2
