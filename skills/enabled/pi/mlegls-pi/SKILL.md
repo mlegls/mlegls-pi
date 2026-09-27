@@ -16,3 +16,7 @@ host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is e
 ## hosts
 
 Workers run as `wm` workers (workmux + tmux) and report over the board; `dispatch.dispatch` launches prepared assignments. Every session also listens on its mailbox, board topic `mail/<last 8 hex of its session id>` (`lib/board/mailbox`), shown in its footer and the tmux status bar; `ab mail <to> <text>` sends to one, signed with your own so the reader can reply.
+
+Worker handoffs separate observations from hypotheses. For data claims, include the identifiers actually joined (for example Session → thread → messages), not just a row count. “53 messages exist on thread X; its Session ownership is unchecked” is evidence; “Session Y lost its messages” is not established by that count.
+
+Use a dedicated worktree for source edits. Before committing shared tracker changes in the canonical checkout, inspect the staged paths; other sessions may be staging there concurrently. Do not include their changes in your commit.
