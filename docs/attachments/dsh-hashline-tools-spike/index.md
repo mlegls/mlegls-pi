@@ -64,11 +64,45 @@ and no new replay assertion was warranted on first use. The earlier
   structured reread result.
 - [02-trajectory.png](02-trajectory.png) — actual `run_code` and nested hashline
   tool dispatch sequence.
+- [03-direct-tools.png](03-direct-tools.png) — the same session's Initial System
+  Prompt → Tools tab: `run_code` is the only directly callable tool.
+- [04-sdk-bindings.png](04-sdk-bindings.png) — the same prompt's PTC SDK bindings:
+  `ToolName` is exactly `edit`, `read`, `write`, and `read` returns
+  `{n, hash, text}[]`.
+- [05-preset-menu.png](05-preset-menu.png) — fresh launch after the review repair:
+  Hashline is the only preset and now describes itself.
 
 The encounter's browser/host setup friction is tracked at
 [dsh-web-deepseek-extension-preparation-fails](../../issues/dsh-web-deepseek-extension-preparation-fails.md).
 The earlier preset-loading and environment typecheck issues remain linked from
-the ticket. Visual review of the committed screenshots is pending.
+the ticket.
+
+## Visual review
+
+Reviewed `01`/`02` and the persisted session log. 03–05 were collected by the
+reviewer from a copy of the collector's isolated dsh home, launched with the same
+overlay and provider patch. 03 and 04 show the recorded session from the live
+turn, restored, not a new model turn. 05 is a fresh launch after the repair; no
+new model turn was sent.
+
+| Claim | Outcome | Evidence |
+| --- | --- | --- |
+| `dsh web --patch dsh/cordis.yml` starts with the hashline tools and the stock fs tools absent | held | 03: `run_code` is the only direct tool. 04: the SDK declares only `edit`/`read`/`write`. The request header in the session log lists only `run_code`. 05: stock presets are gone from the picker. |
+| `read` returns structured lines usable without the model copying anchors | held | 04 `ToolOutputMap.read`. 02: the run_code result prints `{"n":2,"hash":"gkvq","text":"beta"}`. |
+| One `run_code` program reads, computes an edit from the returned anchors and applies it | held | 02: one TOOL `run_code` with SUBTOOL `read`, `edit`, `read`. The logged program builds ``=${target.hash}\n${newText}`` from the `read` result. The model had seen no anchors before that call, so it could not have copied them. 01: reread `gamma` has anchor `gphh`. |
+| Layout settled and recorded in dsh-port | held (documentary) | `docs/issues/dsh-port.md`, decision of 2026-09-27: npm 0.1.7-rc.2, independent package (not a Bun workspace), Bun bundles `../../lib/` into `dsh/dist/`. |
+| Cordis/PTC friction reported | held (documentary) | [dsh-preset-relative-plugin-loading](../../issues/dsh-preset-relative-plugin-loading.md) and [dsh-web-deepseek-extension-preparation-fails](../../issues/dsh-web-deepseek-extension-preparation-fails.md). HMR was not exercised (see below). |
+
+Repair: the preset picker showed "No description." under the only preset (visible
+before the fix; not committed). `dsh/cordis.yml` now gives `preset-hashline` a
+`description`, and I re-drove it with a fresh launch (05). There were no
+blocking findings.
+
+Nonblocking: the trajectory shows SUBTOOL `read` results in the anchored text
+rendering (`1 g7mm│alpha`), while the program receives JSON rows. The sandbox
+still reports the workspace as the collector's checkout, because the home was
+copied: a session log's identity is bound to its cwd path, so the session cannot
+be relocated into another checkout.
 
 ## Prior implementation evidence
 
@@ -76,7 +110,6 @@ See [first-use.log](first-use.log) and the implementation packet's test notes
 for the implementer's self-check. They are context, not claims observed afresh
 here.
 
-Implementation self-check at `b12888e`, starting from
 This is the implementer's self-check at `b12888e`, starting from
 `b660fa565010060df3c65951a0c6713a369ecabc`; it predates this supervised Web
 encounter and is retained as context only.

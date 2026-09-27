@@ -23,6 +23,7 @@
       config:
         id: hashline
         name: Hashline
+        description: Hashline read/edit/write through run_code; no stock fs tools.
         plugins:
           - id: tool-presentation
             name: '@deepseek-ai/dsh-agent-tool-presentation'
