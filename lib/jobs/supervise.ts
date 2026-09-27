@@ -5,7 +5,7 @@
 // Children are wm workers spawned with the owner as parent session; the owner is woken on
 // its mailbox (mail/xxxxxxxx, lib/board/mailbox).
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, realpathSync, watch } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync, realpathSync, watch } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { basename, dirname, join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
@@ -17,12 +17,15 @@ import type { JobContext } from "../daemon.ts";
 import { resolveSession } from "../session-meta/identity";
 import { SPAWN_META } from "../session-meta/host";
 import { workmuxStatus } from "../wm.ts";
-export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; commandsApplied?: number; carried?: State | null }
+export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; commandsApplied?: number; carried?: State | null;
+ // Batch mode (lib/jobs/loop.ts): run exactly these items, and on any exception defer the child (retire it,
+ // keep its branch, append to the ledger) instead of waking an owner. The run returns when the batch drains.
+ items?: string[]; ledger?: string; deadline?: number; run?: string }
 type Phase = "implement" | "verify" | "visual-review" | "supervise";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; visualReviewed?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
-export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number }
+export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string> }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -34,12 +37,13 @@ interface Issue { slug: string; file: string; partOf: string | null; assignee?: 
 function snapshot(input: Input): Issue[] {
  // The loop's own state is authoritative for its children; the tracker's derived in-flight claims would
  // hide them (and a redispatched child's surviving branch) from it.
- return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8", env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } })).issues;
+ return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", ...(input.ticket ? [input.ticket] : []), "--json"], { cwd: input.cwd, encoding: "utf8", env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } })).issues;
 }
 // When a ticket has no direct children, it is the loop's single leaf.
-function workItems(issues: Issue[], ticket: string): Issue[] {
- const direct = issues.filter(i => i.partOf === ticket);
- return direct.length ? direct : issues.filter(i => i.slug === ticket);
+function workItems(issues: Issue[], input: Input): Issue[] {
+ if (input.items) return issues.filter(i => input.items!.includes(i.slug));
+ const direct = issues.filter(i => i.partOf === input.ticket);
+ return direct.length ? direct : issues.filter(i => i.slug === input.ticket);
 }
 const STARTUP_META = (entry: { type: string; customType?: string; data?: unknown }, handle: Handle) => {
  if (entry.type !== "custom" || entry.customType !== SPAWN_META || !entry.data || typeof entry.data !== "object") return false;
@@ -118,10 +122,12 @@ export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
  // Older persisted jobs stored only a delivery address. Never use the daemon's own session as parent.
- const parent = input.ownerSession ?? resolveSession(input.owner, (await import("../tree/graph").then(m => m.graph())).keys());
- if (!parent) throw new Error("Cannot resolve supervisor session: " + input.owner);
+ const batch = !!input.ledger;
+ const record = (entry: Record<string, unknown>) => appendFileSync(input.ledger!, JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n");
+ const parent = input.ownerSession ?? (batch ? undefined : resolveSession(input.owner, (await import("../tree/graph").then(m => m.graph())).keys()));
+ if (!parent && !batch) throw new Error("Cannot resolve supervisor session: " + input.owner);
  const save = () => job.save(state);
- const note = (slug: string, found: string[]) => { if (found.length) (state.caveats ??= {})[slug] = [...(state.caveats[slug] ?? []), ...found]; };
+ const note = (slug: string, found: string[]) => { if (!found.length) return; (state.caveats ??= {})[slug] = [...(state.caveats[slug] ?? []), ...found]; if (batch) record({ kind: "caveats", slug, caveats: found }); };
  // Wakes are delivered in order; an owner mid-turn ("already has an active run") or a dropped connection
  // defers delivery rather than failing the loop, which keeps handling other children meanwhile.
  let deliveries: Promise<void> = Promise.resolve();
@@ -134,7 +140,9 @@ export async function run(job: JobContext) {
    }
   }
  };
+ const retireAll = async (c: Child) => { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); };
  const wake = async (text: string) => {
+  if (batch) { record({ kind: "note", text }); return; }
   const message = "supervise " + input.ticket + " (job " + job.id + "): " + text;
   state.metrics.wakes++; state.metrics.ownerBytes += Buffer.byteLength(message);
   deliveries = deliveries.then(() => deliver(message));
@@ -142,6 +150,14 @@ export async function run(job: JobContext) {
  };
  const except = async (c: Child, reason: string, text = "") => {
   c.waiting = reason;
+  if (batch) {
+   // Deferral unwinds the child: its unmerged branch survives for the next triage (redispatch starts fresh).
+   record({ kind: "deferred", slug: c.slug, phase: c.phase, reason, branch: c.handle.handle, report: text.slice(-1500) });
+   delete state.children[c.slug]; (state.deferred ??= {})[c.slug] = reason;
+   await save();
+   await retireAll(c);
+   return;
+  }
   await wake(c.phase + " " + c.slug + ": " + reason + "\n\n" + text.slice(-3000) +
    "\n\nchild " + topic(c.handle) + ", worktree " + c.handle.path +
    "\nSteer it directly (its next turn end returns to the loop), or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
@@ -175,7 +191,7 @@ const checkStartup = async (live: Child[]) => {
   const prepared = await route.prepare(prompt, { assignee: assignee ?? undefined, stance, allowedStances: phase === "implement" ? EXECUTION_STANCES : [stance!] });
   if (prepared.kind !== "ready") throw new Error("routing needs triage for " + slug);
   const receipt = await dispatch([{ handle: phase === "implement" || phase === "supervise" ? slug : slug + "-" + phase + (state.children[slug]?.previous?.length ? "-" + state.children[slug].previous!.length : ""), prompt, agent: prepared.agent, model: prepared.model, effort: prepared.effort, base }],
-   { run: input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent });
+   { run: input.run ?? input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent });
   if (!receipt.submitted[0]) throw new Error("launch failed for " + slug + ": " + (receipt.failed?.error ?? "pending"));
   state.metrics.launched++;
   return receipt.submitted[0];
@@ -220,6 +236,7 @@ const checkStartup = async (live: Child[]) => {
    return except(c, "integration failed", String(error) + "\n" + String(error.stdout ?? "") + String(error.stderr ?? ""));
   }
   delete state.children[c.slug]; state.integrated.push(c.slug); state.metrics.completed++;
+  if (batch) record({ kind: "integrated", slug: c.slug, head: git(input.cwd, "rev-parse", "--short", "HEAD") });
   await save();
   // Crash after saving may leave resources behind, but never a saved handle we already retired.
   await retire(handle);
@@ -306,17 +323,23 @@ const checkStartup = async (live: Child[]) => {
  let lostWatches = 0;
  while (!job.signal.aborted) {
   await apply();
+  // Timebox: stragglers are deferred like any exception, so the barrier waits at most until the deadline.
+  if (input.deadline && Date.now() >= input.deadline) for (const c of Object.values(state.children)) await except(c, "timeboxed");
   // Fill the budget from the subtree's frontier: direct children only; non-leaves get supervise.
   const issues = snapshot(input);
   const head = git(input.cwd, "rev-parse", "HEAD");
-  for (const i of workItems(issues, input.ticket).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug))) {
+  for (const i of workItems(issues, input).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug) && !state.deferred?.[i.slug])) {
+   if (input.deadline && Date.now() >= input.deadline) break;
    if (Object.keys(state.children).length >= input.budget) break;
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
     ? HACK + "\n\nSupervise the subtree of " + i.file + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ": read the supervise skill and honor the root supervisor's review boundaries recorded or linked in the issue. Run ab supervise start " + i.slug + " and handle what it wakes you with. The loop's done message means descendants are integrated; complete assigned integration reviews, integrate repairs and refresh affected verification before ending your turn with done.\n\n" + readFileSync(i.file, "utf8")
     : HACK + " Existing regressions and lints only; no new permanent acceptance tests; a fresh verifier follows you. " + SETUP + " " + HANDOFF + "commit, setup, stories, caveats: [] when there are none. Prepare first-use setup before handoff, including Cloud vs anonymous-local requirements; never include secret values in evidence. Caveats are residuals the loop carries on, not stops: if the ticket's contract is not met, end blocked (or needs-input) instead of done.\n\nTicket " + i.file + ":\n\n" + readFileSync(i.file, "utf8");
    try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee, nonleaf ? "supervise" : undefined); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } }; }
-   catch (error) { await wake("could not launch " + i.slug + ": " + error); }
+   catch (error) {
+    if (batch) { (state.deferred ??= {})[i.slug] = "launch failed"; record({ kind: "deferred", slug: i.slug, phase: "launch", reason: "launch failed: " + error }); }
+    else await wake("could not launch " + i.slug + ": " + error);
+   }
    await save();
   }
   const live = Object.values(state.children);
@@ -339,6 +362,7 @@ const checkStartup = async (live: Child[]) => {
   const pendingStartup = watched.filter(c => c.startup?.mode !== "command" && !c.startup?.sessionFound && !c.startup?.reported);
   const nextStartupCheck = pendingStartup.length ? Math.min(...pendingStartup.map(c => c.startup!.checkedAt ? c.startup!.checkedAt + STARTUP_POLL_MS : c.startup!.launchedAt + STARTUP_GRACE_MS)) : undefined;
   const startupTimer = nextStartupCheck === undefined ? undefined : setTimeout(abort, Math.max(1, Math.min(STARTUP_POLL_MS, nextStartupCheck - Date.now())));
+  const deadlineTimer = input.deadline ? setTimeout(abort, Math.max(1, input.deadline - Date.now())) : undefined;
   let end: children.TurnEnd;
   try { end = ids.length ? await children.turnEnd(ids, { cwd: input.cwd, after: cursors, signal: stop.signal }) : await new Promise<never>((_, reject) => stop.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); }
   catch (error) {
@@ -349,7 +373,7 @@ const checkStartup = async (live: Child[]) => {
    await sleep(Math.min(60_000, 2000 * lostWatches), job.signal);
    continue;
   }
-  finally { if (startupTimer) clearTimeout(startupTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
+  finally { if (startupTimer) clearTimeout(startupTimer); if (deadlineTimer) clearTimeout(deadlineTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
   lostWatches = 0;
   const c = watched[ids.indexOf(end.id)];
   c.cursor = end.cursor; c.waiting = undefined;
@@ -391,7 +415,8 @@ const checkStartup = async (live: Child[]) => {
   })().catch(error => except(c, "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
  }
  if (job.signal.aborted) return;
- const open = workItems(snapshot(input), input.ticket).filter(i => !i.done);
+ const open = workItems(snapshot(input), input).filter(i => !i.done);
+ if (batch) { record({ kind: "barrier", integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();
  await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide." + carried() + residuals(input));
