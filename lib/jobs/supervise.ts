@@ -22,13 +22,18 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
  // keep its branch, append to the ledger) instead of waking an owner. The run returns when the batch drains.
  items?: string[]; ledger?: string; deadline?: number; run?: string;
  // Per-ticket notes from the loop's triage, passed to the implementer.
- notes?: Record<string, string> }
+ notes?: Record<string, string>;
+ // Test commands from earlier batches; every integration gate runs all of them. The join's own timebox (batch mode).
+ tests?: string[]; joinTimeboxMs?: number }
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
-type Phase = "implement" | "drive" | "review" | "supervise";
+type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
-export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string> }
+export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>;
+ // Join: once this node's (or batch's) children have landed, drive its crossing stories and consolidate the combined change.
+ base?: string; tests?: string[]; reviews?: Record<string, unknown>; setups?: Record<string, unknown>;
+ join?: { key: string; drive: boolean; deadline?: number; skipped?: string; done?: boolean } }
 export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -130,6 +135,9 @@ export async function run(job: JobContext) {
  const parent = input.ownerSession ?? (batch ? undefined : resolveSession(input.owner, (await import("../tree/graph").then(m => m.graph())).keys()));
  if (!parent && !batch) throw new Error("Cannot resolve supervisor session: " + input.owner);
  const save = () => job.save(state);
+ state.base ??= git(input.cwd, "rev-parse", "HEAD");
+ const deadline = () => state.join?.deadline ?? input.deadline;
+ const isJoin = (c: Child) => c.slug === state.join?.key;
  // Jobs persisted before the drive/review split: their verify or visual-review child already collects acceptance.
  for (const c of Object.values(state.children)) if (["verify", "visual-review"].includes(c.phase as string)) c.phase = "review";
  const note = (slug: string, found: string[]) => { if (!found.length) return; (state.caveats ??= {})[slug] = [...(state.caveats[slug] ?? []), ...found]; if (batch) record({ kind: "caveats", slug, caveats: found }); };
@@ -227,24 +235,31 @@ const checkStartup = async (live: Child[]) => {
  const integrateChild = (c: Child, handle: Handle) => serialized(input.cwd, async () => {
   let packet: ReturnType<typeof evidencePacket> | undefined;
   if (c.phase !== "supervise") {
-   if (!c.acceptedHead || c.acceptedHead !== git(handle.path, "rev-parse", "HEAD") || unheld(c.evidence ?? null)) return except(c, "an accepted review of the current head is required before integration");
-   packet = evidencePacket(handle.path, c.evidence ?? null);
+   if (!c.acceptedHead || c.acceptedHead !== git(handle.path, "rev-parse", "HEAD") || (!isJoin(c) && unheld(c.evidence ?? null))) return except(c, "an accepted review of the current head is required before integration");
+   if (!isJoin(c)) packet = evidencePacket(handle.path, c.evidence ?? null);
   }
   // Failed preparation keeps both the owner HEAD and the child's resources intact.
   const attempt = () => integrate(handle, { cwd: input.cwd, keep: true, prepare: async worker => {
    // The loop owns this clean rebase; keep retries bound to the rebased revision.
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
    // The driver's tests are the contract the reviewer's edits answer to; they gate integration mechanically.
-   for (const command of [input.test, ...testCommands(c.evidence)].filter(Boolean) as string[]) execFileSync("bash", ["-lc", command], { cwd: worker.path, stdio: "pipe" });
-   await close(c.slug, worker.path, packet?.path);
+   // Earlier siblings' tests too, so one child can't silently break another's contract.
+   for (const command of new Set([input.test, ...(input.tests ?? []), ...(state.tests ?? []), ...testCommands(c.evidence)].filter(Boolean) as string[])) execFileSync("bash", ["-lc", command], { cwd: worker.path, stdio: "pipe" });
+   if (!isJoin(c)) await close(c.slug, worker.path, packet?.path);
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
   } });
   try { await attempt(); }
   catch (error: any) {
    return except(c, "integration failed", String(error) + "\n" + String(error.stdout ?? "") + String(error.stderr ?? ""));
   }
-  delete state.children[c.slug]; state.integrated.push(c.slug); state.metrics.completed++;
-  if (batch) record({ kind: "integrated", slug: c.slug, head: git(input.cwd, "rev-parse", "--short", "HEAD") });
+  delete state.children[c.slug];
+  state.tests = [...new Set([...(state.tests ?? []), ...testCommands(c.evidence)])];
+  if (isJoin(c)) state.join!.done = true;
+  else {
+   state.integrated.push(c.slug); state.metrics.completed++;
+   if (c.evidence) (state.reviews ??= {})[c.slug] = { stories: c.evidence.stories, filed: c.evidence.filed, caveats: c.evidence.caveats };
+  }
+  if (batch) record({ kind: isJoin(c) ? "joined" : "integrated", slug: c.slug, head: git(input.cwd, "rev-parse", "--short", "HEAD"), ...(isJoin(c) ? { changes: c.evidence?.changes, filed: c.evidence?.filed } : {}) });
   await save();
   // Crash after saving may leave resources behind, but never a saved handle we already retired.
   await retire(handle);
@@ -291,6 +306,60 @@ const checkStartup = async (live: Child[]) => {
   "The change: git diff " + git(input.cwd, "merge-base", "HEAD", git(c.handle.path, "rev-parse", "HEAD")) + "..HEAD in your worktree.",
   "Driver's handoff:\n" + yaml(c.drive), "Driver's final message:\n\n" + report.slice(-4000)].join("\n\n"));
 
+ // The join runs once the node's children (or the batch) have landed. The driver takes the node's own crossing
+ // stories (tree only: a batch has no spec of its own); consolidation needs at least two changes to relate.
+ const joinScope = () => {
+  const node = input.ticket && !input.items ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
+  const landed = state.integrated.map(slug => "- " + slug + ": " + JSON.stringify(state.reviews?.[slug] ?? {})).join("\n");
+  return [node ? "Node " + node.slug + " (" + node.file + "), whose children have all been integrated:\n\n" + readFileSync(node.file, "utf8") : "One cycle of a synchronous ticket loop integrated these independent tickets together (issue files under docs/issues/).",
+   "Landed, with each leaf review's summary:\n" + landed,
+   "Tests every change must keep passing: " + JSON.stringify([input.test, ...(input.tests ?? []), ...(state.tests ?? [])].filter(Boolean))].join("\n\n");
+ };
+ const startJoin = async (): Promise<boolean> => {
+  const key = ((input.ticket || input.run || "cycle") + "-join-" + Date.now().toString(36)).replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^[^A-Za-z0-9]+/, "");
+  const node = input.ticket && !input.items ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
+  const leafOnly = state.integrated.length === 1 && state.integrated[0] === input.ticket;
+  const drive = !!node && !leafOnly && /\bstories\//.test(readFileSync(node.file, "utf8"));
+  const consolidate = state.integrated.length >= 2;
+  state.join = { key, drive, ...(batch && input.joinTimeboxMs ? { deadline: Date.now() + input.joinTimeboxMs } : {}) };
+  if (!drive && !consolidate) { state.join.skipped = leafOnly ? "single leaf" : "fewer than two changes landed and no crossing stories"; await save(); if (batch) record({ kind: "join-skipped", reason: state.join.skipped }); return false; }
+  const head = git(input.cwd, "rev-parse", "HEAD");
+  const phase = drive ? "drive" : "consolidate";
+  const prompt = drive ? [joinScope(), "Drive the node's own stories: journeys that cross its children. The children's own stories were already driven and are covered by the tests above; don't redrive them. If the node has no story beyond its children's, report `stories: []` and say so.",
+   "Setup handoffs from the children's implementers:\n" + yaml(state.setups ?? {})].join("\n\n") : consolidatePrompt(null, "");
+  try {
+   const handle = await launch(key, phase, prompt, head);
+   state.children[key] = { slug: key, phase, handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } };
+  } catch (error) {
+   state.join.skipped = "launch failed: " + error; if (batch) record({ kind: "join-skipped", reason: state.join.skipped }); else await wake("could not launch the join: " + error);
+  }
+  await save();
+  return !!state.children[key];
+ };
+ const consolidatePrompt = (driven: Record<string, unknown> | null, report: string) => [joinScope(),
+  "The combined change: git diff " + state.base + "..HEAD in your worktree.",
+  ...(driven ? ["Integration driver's handoff:\n" + yaml(driven), "Integration driver's final message:\n\n" + report.slice(-4000)] : [])].join("\n\n");
+ const joinTurn = async (c: Child, r: ReturnType<typeof parse>, text: string) => {
+  if (c.phase === "drive") {
+   if (!Array.isArray(r.handoff?.stories)) { await except(c, "integration driver reported no story outcomes", text); return; }
+   c.drive = r.handoff!;
+   const failed = (r.handoff!.stories as { outcome?: string }[]).some(s => s.outcome !== "held");
+   // Nothing to repair and nothing to relate: the drive's evidence is the join.
+   if (!failed && state.integrated.length < 2) { c.evidence = { ...r.handoff! }; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); await save(); await integrateChild(c, c.handle); return; }
+   const handle = await launch(c.slug, "consolidate", consolidatePrompt(c.drive, text), git(c.handle.path, "rev-parse", "HEAD"));
+   (c.previous ??= []).push(c.handle);
+   Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } });
+   await save();
+  } else {
+   const drove = Array.isArray(c.drive?.stories) && (c.drive!.stories as unknown[]).length > 0;
+   if (drove && unheld(r.handoff)) { await except(c, "consolidation did not end with every crossing story held", text); return; }
+   c.evidence = { ...r.handoff!, tests: testCommands(r.handoff) };
+   c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD");
+   await save();
+   await integrateChild(c, c.handle);
+  }
+ };
+
  const count = commands().length;
  // Explicit reconciliation is used only on a new job, never reapplied on daemon restart.
  if (job.state == null && input.commandsApplied !== undefined) {
@@ -313,12 +382,13 @@ const checkStartup = async (live: Child[]) => {
  while (!job.signal.aborted) {
   await apply();
   // Timebox: stragglers are deferred like any exception, so the barrier waits at most until the deadline.
-  if (input.deadline && Date.now() >= input.deadline) for (const c of Object.values(state.children)) await except(c, "timeboxed");
+  const due = deadline();
+  if (due && Date.now() >= due) for (const c of Object.values(state.children)) await except(c, "timeboxed");
   // Fill the budget from the subtree's frontier: direct children only; non-leaves get supervise.
   const issues = snapshot(input);
   const head = git(input.cwd, "rev-parse", "HEAD");
   for (const i of workItems(issues, input).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug) && !state.deferred?.[i.slug])) {
-   if (input.deadline && Date.now() >= input.deadline) break;
+   if (state.join || (input.deadline && Date.now() >= input.deadline)) break;
    if (Object.keys(state.children).length >= input.budget) break;
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
@@ -332,7 +402,11 @@ const checkStartup = async (live: Child[]) => {
    await save();
   }
   const live = Object.values(state.children);
-  if (!live.length) break;
+  if (!live.length) {
+   const complete = !workItems(snapshot(input), input).some(i => !i.done && !state.deferred?.[i.slug]);
+   if (!state.join && (batch || complete) && await startJoin()) continue;
+   break;
+  }
   // A missing worktree cannot restart until restored; existing worktrees can re-enter on a fresh report.
   for (const c of live) if (!c.unreachable && !existsSync(c.handle.path)) {
    c.cursor ??= (await children.last(topic(c.handle)))?.cursor;
@@ -355,7 +429,8 @@ const checkStartup = async (live: Child[]) => {
   const pendingStartup = watched.filter(c => c.startup?.mode !== "command" && !c.startup?.sessionFound && !c.startup?.reported);
   const nextStartupCheck = pendingStartup.length ? Math.min(...pendingStartup.map(c => c.startup!.checkedAt ? c.startup!.checkedAt + STARTUP_POLL_MS : c.startup!.launchedAt + STARTUP_GRACE_MS)) : undefined;
   const startupTimer = nextStartupCheck === undefined ? undefined : setTimeout(abort, Math.max(1, Math.min(STARTUP_POLL_MS, nextStartupCheck - Date.now())));
-  const deadlineTimer = input.deadline ? setTimeout(abort, Math.max(1, input.deadline - Date.now())) : undefined;
+  const until = deadline();
+  const deadlineTimer = until ? setTimeout(abort, Math.max(1, until - Date.now())) : undefined;
   let end: children.TurnEnd;
   try {
    // Never pass unreachable panes to turnEnd: a dead worker returns unreachable immediately. Wait for a
@@ -392,7 +467,8 @@ const checkStartup = async (live: Child[]) => {
   if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); return; }
   note(c.slug, caveats(r.handoff));
   if (c.phase !== "supervise" && git(c.handle.path, "status", "--porcelain")) { await except(c, c.phase + " done with uncommitted changes", end.text); return; }
-  if (c.phase === "implement") { c.setup = r.handoff?.setup ?? null; await toDrive(c); }
+  if (isJoin(c)) { await joinTurn(c, r, end.text); return; }
+  if (c.phase === "implement") { c.setup = r.handoff?.setup ?? null; (state.setups ??= {})[c.slug] = c.setup; await toDrive(c); }
   else if (c.phase === "drive") {
    // Failed stories are the reviewer's to repair; only an unusable log stops the pipeline.
    const stories = r.handoff?.stories;
@@ -413,9 +489,9 @@ const checkStartup = async (live: Child[]) => {
  }
  if (job.signal.aborted) return;
  const open = workItems(snapshot(input), input).filter(i => !i.done);
- if (batch) { record({ kind: "barrier", integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
+ if (batch) { record({ kind: "barrier", tests: state.tests ?? [], integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();
- await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + ". Crossing-story verification is yours to decide." + carried() + residuals(input));
+ await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + "" + (state.join?.done ? ", joined (" + (state.join.drive ? "crossing stories driven, " : "") + "consolidated)" : state.join?.skipped ? ", join skipped: " + state.join.skipped : "") + "." + carried() + residuals(input));
  await deliveries;
 }

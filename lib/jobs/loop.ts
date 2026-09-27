@@ -1,7 +1,8 @@
 // Synchronous ticket loop (bulk-synchronous, Ralph-style): each iteration triages the ready frontier into one
 // mutually independent batch, runs it through implement → drive → review → integrate as a parallel map (supervise's
-// script in batch mode), and joins at a barrier. Exceptions never wake anyone: the child is deferred (branch
-// kept) and recorded in the loop's ledger, which the next triage reads. The ledger is also triage's journal.
+// script in batch mode), and joins at a barrier, where a consolidation pass relates what landed together.
+// Exceptions never wake anyone: the child is deferred (branch kept) and recorded in the loop's ledger, which
+// the next triage reads. The ledger is also triage's journal.
 //   ab supervise loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E]
 // Without a target the whole tracker is in scope; with nothing to do the loop idles until docs/issues changes.
 import { execFileSync, spawn } from "node:child_process";
@@ -15,7 +16,8 @@ import { agent, roleBody } from "../agents.ts";
 
 export interface Input { carried?: State | null; target: string; cwd: string; ownerSession?: string; budget: number; timebox: number; test?: string; model: string; effort: string; ledger: string; commands: string; run: string }
 interface Batch { items: string[]; deadline: number; state: unknown; notes?: Record<string, string> }
-export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number }
+// tests: every earlier batch's driver tests; each later integration gate runs them all.
+export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number; tests?: string[] }
 interface Issue { slug: string; file: string; partOf: string | null; frontier: boolean; done: boolean; archived?: boolean; priority?: string | null; effectiveStage: string }
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -102,10 +104,11 @@ export async function run(job: JobContext) {
   const sub: JobContext = {
    id: job.id + "-" + state.iteration, signal: job.signal, log: job.log, state: b.state,
    save: async s => { b.state = s; await save(); },
-   input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", ownerSession: input.ownerSession, budget: b.items.length, test: input.test, commands: input.commands, items: b.items, ledger: input.ledger, deadline: b.deadline, notes: b.notes } satisfies supervise.Input,
+   input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", ownerSession: input.ownerSession, budget: b.items.length, test: input.test, commands: input.commands, items: b.items, ledger: input.ledger, deadline: b.deadline, notes: b.notes, tests: state.tests, joinTimeboxMs: input.timebox * 60_000 } satisfies supervise.Input,
   };
   await supervise.run(sub);
   if (job.signal.aborted) return;
+  state.tests = [...new Set([...(state.tests ?? []), ...((b.state as supervise.State | null)?.tests ?? [])])];
   delete state.batch; state.iteration++;
   await save();
  }
