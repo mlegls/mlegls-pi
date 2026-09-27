@@ -126,7 +126,7 @@ export function instruction(prior: Block[], folding: SessionEntry[], rewrite: bo
 	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the work in progress begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
 Tail starts (ID: tokens kept):
 ${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}
-Choose the boundary before writing: cite only entries before your chosen tail start (or earlier memory IDs when correcting them). Do not cite entries in the retained tail; they remain available verbatim.
+Choose the boundary before writing. Entry IDs are permanent on this session branch: citations into the retained tail are valid and remain recallable after later compactions. Avoid repeating the tail just to preserve it.
 Then write the memory of the entries before it` : "Write the memory of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier memories stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.
 Entries (ID and hint; full content above):
 ${manifest}

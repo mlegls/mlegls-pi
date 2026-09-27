@@ -4,7 +4,7 @@ import type { Context } from "@earendil-works/pi-ai";
 import { readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { KIND, elideCold, splitCheckpoint, citations, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
+import { KIND, elideCold, splitCheckpoint, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
 interface Elide { enabled: boolean; idleSeconds: Record<string, number>; minTokens: number; keepTurns: number }
 /**
@@ -51,7 +51,7 @@ function tools(pi: ExtensionAPI) {
 	});
 }
 
-const REGISTER = "compaction-om-v10";
+const REGISTER = "compaction-om-v11";
 const BLOCKED = /reverse engineering|duplicating model outputs/i;
 
 export default function memoryExtension(pi: ExtensionAPI) {
@@ -139,16 +139,11 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			if (!folding.length && !rewrite) throw new Error("Chosen tail leaves nothing to fold; context unchanged");
 			prior = [...prior, ...visible.slice(0, chosen.index).flatMap(e => e.type === "branch_summary"
 				? [{ id: `legacy-${e.id}`, timestamp: Date.parse(e.timestamp), covers: [], observations: [], reflections: [], legacy: e.summary }] : [])];
-			const allowed = new Set(folding.map(e => e.id));
+			const allowed = new Set(sourceEntries(visible).map(e => e.id));
 			// Prior evidence remains addressable, but never across an unrelated branch.
 			const branchIds = new Set(sourceEntries(branch).map(e => e.id));
 			for (const c of claims(prior)) for (const id of c.sources) if (branchIds.has(id)) allowed.add(id);
-			const retained = new Set(visible.slice(chosen.index).map(e => e.id));
-			let block;
-			try { block = parseBlock(checkpoint.text, allowed, prior, rewrite, folding.map(e => e.id)); } catch (e) {
-				const inTail = citations(checkpoint.text).filter(id => retained.has(id));
-				throw new Error(`${e instanceof Error ? e.message : e}${inTail.length ? ` (in the retained tail: ${inTail.join(", ")})` : ""}`);
-			}
+			const block = parseBlock(checkpoint.text, allowed, prior, rewrite, folding.map(e => e.id));
 			if (rewrite && roughTokens(renderMemory([block])) >= s.memoryTokens) throw new Error("Rewrite exceeds memory budget; old context retained");
 			// Imported summaries cannot be safely dropped without original provenance.
 			const blocks = [...(rewrite ? prior.filter(b => b.legacy !== undefined) : prior), block];
