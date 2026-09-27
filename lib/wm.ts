@@ -17,7 +17,8 @@
 import { execFile } from "node:child_process";
 import { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { logSize, readFrom, type Message } from "./board/store";
 
@@ -461,6 +462,19 @@ async function ensureSession(name: string, cwd: string) {
 	}
 }
 
+// pi asks "Trust project folder?" on first launch in an untrusted folder, and a headless worker
+// sits at that prompt forever without a session file. Worktrees of a trusted repo hold the same
+// code, so extend the repo's trust to its __worktrees folder; an untrusted repo still prompts.
+export function trustWorktrees(cwd: string, file = join(homedir(), ".pi", "agent", "trust.json")) {
+	if (!existsSync(file)) return;
+	const trust = JSON.parse(readFileSync(file, "utf8")) as Record<string, boolean>;
+	const trusted = (dir: string) => Object.entries(trust).some(([k, v]) => v && (dir === k || dir.startsWith(k + "/")));
+	const wt = resolve(cwd, "..", `${basename(cwd)}__worktrees`);
+	if (!trusted(cwd) || trusted(wt)) return;
+	trust[wt] = true;
+	writeFileSync(file, JSON.stringify(trust, null, 2) + "\n");
+}
+
 /** Workers write scratch under `.wm/<handle>/`; keep it out of every worktree's status without touching .gitignore. */
 async function excludeWm(cwd: string) {
 	const r = await sh("git", ["rev-parse", "--git-common-dir"], cwd);
@@ -487,6 +501,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const session = o.session ?? slug(o.run);
 	await ensureSession(session, cwd);
 	await excludeWm(cwd);
+	trustWorktrees(cwd);
 	// Own the board window before workmux starts the agent, or a fast report is consumed by a ticking poller against nobody.
 	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
 	w.quietIsIdle = o.command !== undefined;
