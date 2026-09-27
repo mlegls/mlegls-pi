@@ -58,3 +58,17 @@ Trial on a scratch repo of case converters, five tickets over four cycles:
 - The tree's join drive (crossing stories) hasn't been tried yet; it needs a supervise run with an owner.
 
 Escalation in the loop (2026-09-27): nothing interrupts the human. What a child would wake a tree owner about is deferred to the ledger, and the next triage retries or holds it. A hold now writes the question into the issue, sets `assignee: human` and commits that file, so the tracker is the inbox and frontier skips the ticket until it's handed back. Deferrals whose reason is a harness failure (launch failed, worker did not start, unreachable, resume failed, loop error) are counted instead, and two in a row, in one batch or consecutive ones, stop the loop with a `stopped` ledger entry.
+
+## Recursive loop (2026-09-27)
+
+The loop had much lower throughput than the tree, which suggested reframing the tree version:
+
+- the outer loop is the script, not an interactive supervisor, but it dispatches "top level nodes" in the sense of the interactive supervisor, rather than leaves
+- each node is the same script, recursively until leaves
+- nodes in this sense behave like the ralph loop script, in that they're only woken when *all* children are done, and with a fresh context, retriaging its children. this includes the top level, and the top level runs in a loop
+
+Keys: structured concurrency (a node is a nursery), decomposable BSP / Multi-BSP (nested submachines sync on their own barriers). It's C with an empty journal that wakes only at barriers. Expected wins over the flat loop: barriers become local (a straggler holds only its siblings), collision reasoning becomes local (siblings were designed together; the flat triager picked 2 of 48 ready tickets), and the join lands at every node. The pressure point is a parent's barrier over a long subtree; stale synchronous parallel is the known relaxation, not used yet.
+
+Built in `lib/jobs/loop.ts`: candidates are the target's direct children (the tracker's roots at the top): ready leaves, and nodes with ready work below. Leaves go to one supervise batch; each node runs as a nested loop in-process (state inside the parent's batch, ledger `loop-<node>.jsonl`), with half the parent's budget and the parent triage's note. A nested loop returns when its subtree has no ready work; if its children are all done it runs a final node join (crossing stories if the node links stories, consolidation of what's unjoined) and closes the node. The top-level triager (`triage`, Opus) organizes the whole cycle; nested loops use `node-triage` (GLM).
+
+Found on the way: supervise gave workers the issue's absolute path, so workers in worktrees edited the owner's checkout and later merges failed; prompts now use repo-relative paths. And a restart between recording `integrated` and saving state resumed the landed child as unreachable; state is saved first now.

@@ -36,7 +36,7 @@ const hash = (file: string) => createHash("sha256").update(readFileSync(file)).d
 function snapshot(input: Input): Issue[] {
  return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", ...(input.target ? [input.target] : []), "--json"], { cwd: input.cwd, encoding: "utf8" })).issues;
 }
-function candidates(input: Input, issues = snapshot(input)): Issue[] {
+export function candidates(input: Input, issues = snapshot(input)): Issue[] {
  const open = (i: Issue) => !i.done && !i.archived;
  const kids = (slug: string) => issues.filter(j => j.partOf === slug && open(j));
  const ready = (i: Issue): boolean => { const k = kids(i.slug); return k.length ? k.some(ready) : i.frontier; };
@@ -45,7 +45,8 @@ function candidates(input: Input, issues = snapshot(input)): Issue[] {
  const scope = input.target && !top.length && !input.nested ? issues.filter(i => i.slug === input.target) : top;
  return scope.filter(i => open(i) && ready(i));
 }
-const isNode = (issues: Issue[], slug: string) => issues.some(j => j.partOf === slug && !j.done && !j.archived);
+// A node stays a node after its children are done: its own loop still owes the final join and closes it.
+export const isNode = (issues: Issue[], slug: string) => issues.some(j => j.partOf === slug && !j.archived);
 
 /** A hold becomes the author's to answer: the question goes into the issue and the issue goes to the human, so
  * the tracker (not the ledger) is the inbox and frontier skips it until it's handed back. */

@@ -279,8 +279,9 @@ const checkStartup = async (live: Child[]) => {
    state.integrated.push(c.slug); state.metrics.completed++;
    if (c.evidence) (state.reviews ??= {})[c.slug] = { stories: c.evidence.stories, filed: c.evidence.filed, caveats: c.evidence.caveats };
   }
-  if (batch) record({ kind: isJoin(c) ? "joined" : "integrated", slug: c.slug, head: git(input.cwd, "rev-parse", "--short", "HEAD"), ...(isJoin(c) ? { changes: c.evidence?.changes, filed: c.evidence?.filed } : {}) });
+  // Save before recording: a restart between them must not resume a child that already landed.
   await save();
+  if (batch) record({ kind: isJoin(c) ? "joined" : "integrated", slug: c.slug, head: git(input.cwd, "rev-parse", "--short", "HEAD"), ...(isJoin(c) ? { changes: c.evidence?.changes, filed: c.evidence?.filed } : {}) });
   // Crash after saving may leave resources behind, but never a saved handle we already retired.
   await retire(handle);
   if (c.implementer) await retire(c.implementer);
