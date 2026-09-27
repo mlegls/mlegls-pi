@@ -43,3 +43,7 @@ Verification: `bun-axi test lib/ingress.test.ts` passed all 5 tests; focused str
 TypeScript checking and the dsh plugin build passed. The live `deepseek-flash`
 headless turn, provider setup, and headless-specific overlay are documented in
 `dsh/README.md`. The separate Web hashline overlay was not model-driven here.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/dsh-skim-run-code-results/index.md).
