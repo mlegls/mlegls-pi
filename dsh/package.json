@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "setup": "bun install --frozen-lockfile && bun run build",
-    "build": "bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js && bun build transform/index.ts --target=node --packages=external --outfile=dist/transform.js && bun build scratch/index.ts --target=node --packages=external --outfile=dist/scratch.js && bun build memory/index.ts --target=node --packages=external --outfile=dist/memory.js && bun build skim/index.ts --target=node --packages=external --outfile=dist/skim.js && cp ../lib/skim-worker.py dist/skim-worker.py",
+    "build": "bun build hashline/index.ts --target=node --packages=external --outfile=dist/hashline.js && bun build transform/index.ts --target=node --packages=external --outfile=dist/transform.js && bun build scratch/index.ts --target=node --packages=external --outfile=dist/scratch.js && bun build memory/index.ts --target=node --packages=external --outfile=dist/memory.js && bun build skim/index.ts --target=node --packages=external --outfile=dist/skim.js && cp ../lib/skim-worker.py dist/skim-worker.py && bun build board/index.ts --target=node --packages=external --outfile=dist/board.js",
     "dsh": "dsh"
   },
   "dependencies": {

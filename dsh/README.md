@@ -159,3 +159,25 @@ default, but its module HMR roots are opt-in; source edits are not automatically
 rebuilt. HMR was not exercised in the spike.
 
 First-use verification for this ticket: [dsh skim/run_code encounter](../docs/attachments/dsh-skim-run-code-results/index.md).
+
+## Shared board
+
+`dsh/board/index.ts` uses the shared `lib/board` append-only store, so pi and dsh
+sessions see the same messages. It registers `board_send`, `board_read`,
+`board_list`, `board_subscribe`, and `board_ack`. New agents wake on `PI_BOARD_TOPIC`
+when set, their `mail/<session-suffix>` topic, and the matching worktree/project scopes.
+Quiet subscriptions wait for the next agent step rather than queueing a wake. Agent
+start, exit, crash, and turn-end reports go to the current board topic.
+
+A full `board_read` acknowledges the returned messages and retracts any matching
+queued wake; `fields: "meta"` is observational, and `board_ack` is the explicit
+acknowledgment path. Subscriptions, cursor, pending messages, and seen IDs live in
+ignorable session events. Polling and inbox mutations await `ctx.sessions.flush()`
+before treating delivery as durable.
+
+The focused host contract test is `bun test board/index.test.ts` from `dsh/`.
+
+The pinned `dsh-session` 0.1.7-rc.2 release drops `{ ignorable: true }` from
+`Session.append()` options. Board state must not be relied on across session
+replay until the companion local append patch is applied; retain its Bun
+`patchedDependencies` entry and lock metadata when combining dsh package changes.
