@@ -26,7 +26,7 @@ env -u PI_BOARD_TOPIC -u PI_BOARD_NAME \
     --no-open --host 127.0.0.1 --port 0
 ```
 
-Keep the printed login token private. Open the local URL in the verifier browser, use the in-app workspace picker to select this checkout, and choose the Hashline preset. `web.yml` replaces the native directory chooser with the browser picker. `child-tools.yml` adds one-shot `subagent` and `job_*` controls to the custom Hashline preset; adding them only as host plugins does not expose them to that preset.
+Keep the printed login token private. Open the local URL in the verifier browser and choose the Hashline preset. `web.yml` requests the browser directory picker, but if the running build still opens its native chooser, use the checkout workspace initialization below instead of selecting an arbitrary path. `child-tools.yml` adds one-shot `subagent` and `job_*` controls to the custom Hashline preset; adding them only as host plugins does not expose them to that preset.
 
 ## Stories
 
@@ -38,3 +38,15 @@ Use a unique `verify/<run>/...` topic prefix and explicit Pi mailbox sender. The
 - **Child disposal:** call the `subagent` tool once with `run_in_background: true`. Its single PTC program subscribes with wake and posts a tagged readiness message, then stays busy in a long shell sleep. Read that exact readiness post to obtain `from.session`, derive its mailbox as `mail/` plus the session ID with hyphens removed and sliced to the last eight characters, then `job_kill` that exact job and wait for it to settle. Full-read the derived mailbox and check for `started`, `turn-end` with an aborted reason, and `exited` from the same child session. Kill before the PTC shell timeout; a sleep that times out naturally tests normal disposal, not cancellation.
 
 The focused host regression is `bun test board/index.test.ts` from `dsh/`. Stop the Web process and the named verifier browser session after the encounter.
+
+### Checkout workspace initialization
+
+If a fresh Web `DSH_HOME` opens only the default workspace and the chooser patch still opens the native picker, do not select an arbitrary path. Start Web once against the isolated home so it initializes `storages/workspace.json`, stop that server, then use the checkout-owned helper and restart Web:
+
+```sh
+DSH_HOME="$PWD/dsh/.local/board-host-verify" bun dsh/add-workspace.ts "$PWD" board-host-verify
+```
+
+The helper selects this checkout as the default workspace. Restart is required because the running Web process keeps the workspace store in memory. Keep using the same port-0 loopback launch and the six explicit `env -u` selectors above.
+
+For the shared-topic exchange, send a unique Pi message with `bun lib/board.ts send <topic> --body <body>`, have a DSH session `board_read` it and `board_send` a reply to that same topic, then use `bun lib/board.ts read --topic <topic> --fields full` to confirm both messages. For idle wake, create a DSH session that subscribes with `wake: true`, let its turn finish, then post from Pi; the next DSH turn should contain the exact post. A screenshot is useful for the visible wake in Web; the shared-store exchange and lifecycle records are established by board readback.
