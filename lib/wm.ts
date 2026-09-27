@@ -15,7 +15,7 @@
 // CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status|agents ...
 
 import { execFile } from "node:child_process";
-import { agent, AGENTS_DIR, type Agent } from "./agents.ts";
+import { agent, AGENTS_DIR, roleBody, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -35,6 +35,7 @@ export interface SpawnOptions {
 	effort?: string;
 	command?: string; // explicit process; mutually exclusive with model/effort
 	agent?: string; // name of a stance file in AGENTS_DIR
+	role?: string; // which of the agent's roles this spawn fills (default: its first)
 	base?: string; // git ref to branch from
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // tmux session; default slug of run
@@ -109,8 +110,10 @@ function fill(text: string, run: string, handle: string): string {
 	return text.replaceAll("{{run}}", run).replaceAll("{{handle}}", handle).replaceAll("{{topic}}", `${run}/${handle}`).trim();
 }
 
-export function prompt(o: { run: string; handle: string; prompt: string; agent?: Agent }): string {
-	return [o.agent && fill(o.agent.body, o.run, o.handle), o.prompt, common(o.run, o.handle)].filter(Boolean).join("\n\n---\n\n");
+/** Universal preamble, then the role's procedure, then the agent's competency, then the task. */
+export function prompt(o: { run: string; handle: string; prompt: string; agent?: Agent; role?: string }): string {
+	const role = o.role ?? o.agent?.roles[0];
+	return [common(o.run, o.handle), role && fill(roleBody(role), o.run, o.handle), o.agent && fill(o.agent.body, o.run, o.handle), o.prompt].filter(Boolean).join("\n\n---\n\n");
 }
 
 /** Env exported into the worker's agent command: board identity, spawn provenance, and the fence's checkpoint ratio. */

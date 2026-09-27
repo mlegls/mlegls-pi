@@ -3,6 +3,7 @@ name: auto
 description: General auftragstaktik worker for ambiguous tasks.
 model: openai-codex/gpt-6-sol
 effort: high
+role: implement
 ---
 
 When the assignment spans more than one session, decompose it into tracker children and `supervise` them; otherwise `implement` it.

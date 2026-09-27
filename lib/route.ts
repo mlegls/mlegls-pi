@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { decide, type State } from './decide.ts';
 import { effectiveCost, usage } from './pool.ts';
-import { agent } from './agents.ts';
+import { agent, byRole } from './agents.ts';
 
 function section(note: string, heading: string) {
   const lines = note.split('\n');
@@ -151,6 +151,20 @@ async function select(workflow: string, block: string, options: RouteOptions,
 }
 
 /** Admission for a fresh worker. A recorded stance bypasses classification, not model routing. */
+/** Admission for one pipeline role: candidates are the agents declaring it; a pin binds only its own role's step. */
+export async function prepareRole(role: string, task: string, options: RouteOptions = {}) {
+  const eligible = byRole(role).map(a => a.name);
+  if (!eligible.length) throw new Error('No agents fill role ' + role);
+  const catalog = criteriaFor(policyFor(options).policy, 'Assignment stances');
+  const uncatalogued = eligible.filter(a => !Object.hasOwn(catalog, a));
+  if (uncatalogued.length) throw new Error('Agents with role ' + role + ' lack a routing.md Assignment stances criterion: ' + uncatalogued.join(', '));
+  const pin = Object.hasOwn(options, 'assignee') ? assigned(options) : {};
+  // An agent pin binds its agent's role; a bare model pin binds the implementer.
+  const binds = pin.stance ? eligible.includes(pin.stance) : role === 'implement';
+  const scoped = binds ? options : { ...options, assignee: 'agent' };
+  return prepare(task, { ...scoped, stance: eligible.length === 1 ? eligible[0] : undefined, allowedStances: eligible });
+}
+
 export async function prepare(task: string, options: RouteOptions & { stance?: string; allowedStances?: readonly string[] } = {}) {
   if (!task.trim()) throw new Error('Assignment context is required');
   const constraint = assigned(options);

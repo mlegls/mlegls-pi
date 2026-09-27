@@ -16,6 +16,8 @@ export interface Assignment {
   prompt: string;
   /** Optional roster stance; execution comes from model and effort. */
   agent?: string;
+  /** Which of the agent's roles this assignment fills (agents/roles/); default its first. */
+  role?: string;
   model: string;
   effort: string;
   base?: string;
@@ -110,7 +112,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       const wm = await import("./wm.ts");
       const cursor = (await (await import("./children.ts")).last(options.run + "/" + task.handle))?.cursor;
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
-        agent: task.agent, base: task.base, model: task.model, effort: task.effort, cwd, parentSession: parent });
+        agent: task.agent, role: task.role, base: task.base, model: task.model, effort: task.effort, cwd, parentSession: parent });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, ...(cursor && { cursor }) });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {

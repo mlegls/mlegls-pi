@@ -37,3 +37,22 @@ Metrics: total and coordination $, wall clock, slot utilization, tickets accepte
 - A loop started from a shell has no parent session, so its workers aren't attached in `ab tree`.
 - Startup-check exceptions are disabled in batch mode (a false "not started" killed a working verifier in the first trial). A dead worker holds its slot until the timebox.
 - The daemon imports job modules once; changing `lib/jobs/*.ts` needs `ab daemon shutdown`.
+
+## Pipeline roles (2026-09-27, branch pipeline-roles)
+
+Both arms now run each leaf as implement → drive → review → integrate, with prompts composed from `agents/_common.md`, `agents/roles/<role>.md` and the agent body, so the per-ticket pipeline is the same across arms. In a first trial on a one-ticket scratch repo, the driver recorded two frictions (extra arguments silently ignored, multiline titles emitting several lines) and committed black-box tests. The reviewer fixed both, extended the tests and refreshed the packet, and the integration gate ran the tests.
+
+- The loop can't tell harness failures from ticket problems. A deterministic launch error (an agent with a role but no routing.md criterion) was retried for three iterations, then held with a question to the ticket's author. Deferral reasons need a class, harness vs. ticket, and harness failures should stop the loop instead of the ticket.
+- Stance criteria live in routing.md and agent descriptions separately; `prepareRole` now fails loudly when an agent declaring a role has no criterion, but the two sources can still drift.
+
+## Joins (2026-09-27)
+
+The join step: once a node's children, or a loop batch, have landed, an integration driver drives the node's own crossing stories (tree only) and `tidy` makes a behavior-preserving consolidation pass (`agents/roles/consolidate.md`). Leaf review is about behavioral correctness; the join looks for duplication between children, unnecessary or inconsistent abstraction, and opportunities for simplification. In the loop, cycles with fewer than two landings accumulate, and the next join covers everything since the last one.
+
+Trial on a scratch repo of case converters, five tickets over four cycles:
+
+- The triager repeatedly told parallel implementers not to extract a shared helper, since siblings would collide on it. That deferred duplication is exactly the join's job, so the loop creates the work its join does.
+- With accumulation, a join over kebab/constant/title extracted `words.awk` (+16/−37) with outputs unchanged. It left the older snake/camel/slug scripts alone and missed that `kebab.sh` duplicates `slug.sh`: it stayed inside its diff. The role now asks it to search for existing code doing the same thing.
+- Handoff fields were fragile in two ways that failed otherwise-accepted tickets: a nonvisual packet without `shots`, and prose under `tests` executed as shell. `tests` now names committed test files.
+- Workers following the friction-filing rule appended observations to issues in this repository from scratch repos. Test runs need that rule scoped to their own repo.
+- The tree's join drive (crossing stories) hasn't been tried yet; it needs a supervise run with an owner.

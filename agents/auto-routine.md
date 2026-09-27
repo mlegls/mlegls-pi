@@ -3,6 +3,7 @@ name: auto
 description: General auftragstaktik worker for straightforward tasks.
 model: openai-codex/gpt-6-luna
 effort: max
+role: implement
 ---
 
 start with `implement`.

@@ -1,7 +1,8 @@
 // Synchronous ticket loop (bulk-synchronous, Ralph-style): each iteration triages the ready frontier into one
-// mutually independent batch, runs it through implement → verify → integrate as a parallel map (supervise's
-// script in batch mode), and joins at a barrier. Exceptions never wake anyone: the child is deferred (branch
-// kept) and recorded in the loop's ledger, which the next triage reads. The ledger is also triage's journal.
+// mutually independent batch, runs it through implement → drive → review → integrate as a parallel map (supervise's
+// script in batch mode), and joins at a barrier, where a consolidation pass relates what landed together.
+// Exceptions never wake anyone: the child is deferred (branch kept) and recorded in the loop's ledger, which
+// the next triage reads. The ledger is also triage's journal.
 //   ab supervise loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E]
 // Without a target the whole tracker is in scope; with nothing to do the loop idles until docs/issues changes.
 import { execFileSync, spawn } from "node:child_process";
@@ -11,10 +12,12 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import type { JobContext } from "../daemon.ts";
 import * as supervise from "./supervise.ts";
+import { agent, roleBody } from "../agents.ts";
 
 export interface Input { carried?: State | null; target: string; cwd: string; ownerSession?: string; budget: number; timebox: number; test?: string; model: string; effort: string; ledger: string; commands: string; run: string }
-interface Batch { items: string[]; deadline: number; state: unknown }
-export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number }
+interface Batch { items: string[]; deadline: number; state: unknown; notes?: Record<string, string> }
+// tests: every earlier batch's driver tests; each later integration gate runs them all.
+export interface State { iteration: number; batch?: Batch; held: Record<string, string>; triages: number; tests?: string[]; unjoined?: supervise.Input["unjoined"] }
 interface Issue { slug: string; file: string; partOf: string | null; frontier: boolean; done: boolean; archived?: boolean; priority?: string | null; effectiveStage: string }
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -45,23 +48,22 @@ function pi(prompt: string, model: string, effort: string, signal: AbortSignal):
  });
 }
 
-interface Triage { batch: string[]; hold: { slug: string; question: string }[]; notes: string }
+interface Triage { batch: string[]; hold: { slug: string; question: string }[]; context: Record<string, string>; notes: string }
 async function triage(input: Input, ready: Issue[], signal: AbortSignal): Promise<Triage> {
  const tickets = ready.map(i => "### " + i.slug + " (priority " + (i.priority ?? "?") + ", stage " + i.effectiveStage + (i.partOf ? ", part of " + i.partOf : "") + ")\n" + readFileSync(i.file, "utf8").slice(0, 2500)).join("\n\n");
+ const triager = agent("triage");
  const prompt = [
-  "You triage one iteration of a synchronous ticket loop. Everything you pick runs in parallel on separate branches from the same base, each through implement → verify → integrate, and the iteration ends when all of them integrate or are deferred. Choose the highest-priority batch of at most " + input.budget + " tickets that are mutually independent: no two should change the same interface, data shape or files in ways that conflict semantically. Textual merge conflicts are cheap (the ticket is deferred and retried); semantic collisions are not. Prefer tickets of similar expected size in one batch, since the barrier waits for the slowest (timebox " + input.timebox + " min).",
-  "Hold a ticket instead when it cannot succeed without its author: the ledger shows it deferred for needs-input, blocked, or a contract problem, and its text has not answered that. A held ticket is skipped until its file changes. Give each hold the specific question the author must answer.",
-  "A ticket deferred for a transient reason (timeboxed, merge conflict, flaky environment, launch failure) may be retried.",
-  "notes: short durable observations future triages should know (ordering constraints you discovered, recurring causes). They are recorded in the ledger, which is your journal: read earlier triage notes below and do not re-derive what they settle.",
-  "Reply with only a JSON object: {\"batch\": [slug...], \"hold\": [{\"slug\": ..., \"question\": ...}], \"notes\": \"...\"}.",
+  roleBody("triage"), triager?.body,
+  "Budget: " + input.budget + " tickets. Timebox: " + input.timebox + " min.",
   "## Loop ledger (most recent last, JSON lines)\n\n" + ledgerTail(input.ledger),
   "## Ready tickets\n\n" + tickets,
- ].join("\n\n");
+ ].filter(Boolean).join("\n\n");
  const text = await pi(prompt, input.model, input.effort, signal);
  const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
  const t = JSON.parse(json) as Triage;
  const known = new Set(ready.map(i => i.slug));
- return { batch: (t.batch ?? []).filter(s => known.has(s)).slice(0, input.budget), hold: (t.hold ?? []).filter(h => known.has(h?.slug)), notes: t.notes ?? "" };
+ const batch = (t.batch ?? []).filter(s => known.has(s)).slice(0, input.budget);
+ return { batch, hold: (t.hold ?? []).filter(h => known.has(h?.slug)), context: Object.fromEntries(Object.entries(t.context ?? {}).filter(([s, n]) => batch.includes(s) && typeof n === "string")), notes: t.notes ?? "" };
 }
 
 // Idle until the tracker changes (a new or edited ticket, an integration closing one), or a safety interval.
@@ -92,20 +94,24 @@ export async function run(job: JobContext) {
    try { t = await triage(input, ready, job.signal); state.triages++; }
    catch (error) { record({ kind: "triage-failed", error: String(error).slice(0, 500) }); await changed(input.cwd, job.signal); continue; }
    for (const h of t.hold) { const i = ready.find(i => i.slug === h.slug)!; state.held[h.slug] = hash(i.file); }
-   record({ kind: "triage", ready: ready.map(i => i.slug), batch: t.batch, hold: t.hold, notes: t.notes });
+   record({ kind: "triage", ready: ready.map(i => i.slug), batch: t.batch, hold: t.hold, context: t.context, notes: t.notes });
    if (!t.batch.length) { await save(); if (!idle) record({ kind: "idle" }); idle = true; await changed(input.cwd, job.signal); continue; }
    idle = false;
-   state.batch = { items: t.batch, deadline: Date.now() + input.timebox * 60_000, state: null };
+   state.batch = { items: t.batch, deadline: Date.now() + input.timebox * 60_000, state: null, notes: t.context };
    await save();
   }
   const b = state.batch;
   const sub: JobContext = {
    id: job.id + "-" + state.iteration, signal: job.signal, log: job.log, state: b.state,
    save: async s => { b.state = s; await save(); },
-   input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", ownerSession: input.ownerSession, budget: b.items.length, test: input.test, commands: input.commands, items: b.items, ledger: input.ledger, deadline: b.deadline } satisfies supervise.Input,
+   input: { ticket: input.target, run: input.run, cwd: input.cwd, owner: "", ownerSession: input.ownerSession, budget: b.items.length, test: input.test, commands: input.commands, items: b.items, ledger: input.ledger, deadline: b.deadline, notes: b.notes, tests: state.tests, joinTimeboxMs: input.timebox * 60_000, unjoined: state.unjoined } satisfies supervise.Input,
   };
   await supervise.run(sub);
   if (job.signal.aborted) return;
+  const done = b.state as supervise.State | null;
+  state.tests = [...new Set([...(state.tests ?? []), ...(done?.tests ?? [])])];
+  if (done?.join?.done) delete state.unjoined;
+  else if (done?.integrated.length) state.unjoined = { slugs: [...(state.unjoined?.slugs ?? []), ...done.integrated], base: state.unjoined?.base ?? done.base!, reviews: { ...state.unjoined?.reviews, ...done.reviews } };
   delete state.batch; state.iteration++;
   await save();
  }
