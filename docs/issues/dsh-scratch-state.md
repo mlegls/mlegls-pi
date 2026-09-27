@@ -19,6 +19,17 @@ survive reload, restart, or plugin replacement; forks start empty. Revisit with 
 session-sidecar backend or a compatible ignorable-event API if lineage persistence
 becomes necessary.
 
+[Supervised encounter evidence](../attachments/dsh-scratch-state/index.md).
+Scratch tools (`scratch_get`, `scratch_put`, `scratch_delete`, `scratch_list`) are
+registered in the hashline PTC preset and store lossless JSON in host memory keyed
+by the live Session object. A later `run_code` in the same live session can read
+what an earlier program stored. Scratch state is intentionally memory-only: the
+current `Session.append()` API cannot mark plugin events ignorable, and required
+custom events would make older readers refuse a session. Values therefore do not
+survive reload, restart, or plugin replacement; forks start empty. Revisit with a
+session-sidecar backend or a compatible ignorable-event API if lineage persistence
+becomes necessary.
+
 ## First use
 
 With the pinned dsh packages, two `ToolRuntime.execute` calls to `run_code` used
