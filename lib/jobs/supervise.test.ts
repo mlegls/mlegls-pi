@@ -38,13 +38,14 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
  mock.module(${JSON.stringify(resolve("lib/dispatch.ts"))},()=>({...real,integrate:async(...args)=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,20));return await integrate(...args);}finally{active--;}},retire:async h=>{expect(saved[h.handle].children[h.handle]).toBeUndefined();expect(saved[h.handle].integrated).toContain(h.handle);expect(existsSync(h.path)).toBe(true);expect(git(main,'rev-parse','HEAD')).toBe(git(h.path,'rev-parse','HEAD'));retired.push(h.handle);return {};}}));
  mock.module(${JSON.stringify(resolve("lib/children.ts"))},()=>({
   turnEnd:async (ids,options)=>{
+   turns.push(ids[0]);
    const id=ids[0];
    if(id.endsWith('/h')){
-    turns.push(id);
     if(turns.filter(turn=>turn===id).length===1)return {id,kind:'finished',cursor:'checkpoint',text:'checkpoint'+String.fromCharCode(10)+'intermediate report'};
     return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});
    }
    const fence=String.fromCharCode(96).repeat(3);
+   if(id.endsWith('/a') && turns.filter(t=>t===id).length<=2)return {id,kind:'finished',cursor:'bad-'+turns.length,text:'done'+String.fromCharCode(10)+fence+'json'+String.fromCharCode(10)+JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/a.md',visual:true,updated:true}})+String.fromCharCode(10)+fence};
    return {id,kind:'finished',cursor:'done',text:'done'+String.fromCharCode(10)+fence+(id.endsWith('/g')?'yaml':'json')+String.fromCharCode(10)+(id.endsWith('/g')?'plain scalar containing {rows: [2, 3, 5], total: 10}':JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/'+id.split('/').pop()+'.md',visual:false,shots:[]}}))+String.fromCharCode(10)+fence};
   },
   waitForTurnEnd:async(ids,options)=>{waitIds.push(ids[0]);if(ids[0].endsWith('/f'))return {id:ids[0],kind:'finished',cursor:'restart-report',text:'done'};return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});},
@@ -60,6 +61,8 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
  }
  const alias=join(root,'alias');symlinkSync(main,alias);
  await Promise.all([loop('a'),loop('b',alias)]);
+ expect(messages.filter(m=>m.startsWith('invalid evidence handoff:'))).toHaveLength(2);
+ expect(saved.a.metrics.completed).toBe(1);
  expect(max).toBe(1);expect(retired.sort()).toEqual(['a','b']);
  for(const s of ['a','b']){expect(readFileSync(join(main,'docs/issues',s+'.md'),'utf8')).toContain('stage: done');expect(saved[s].finished).toBe(true);expect(git(main,'log','--format=%s')).toContain('Close '+s);}
  await loop('f',main,'true',{children:{f:{slug:'f',phase:'supervise',handle:{run:'root-f',handle:'f',path:paths.f},cursor:'wm:exited:'+Date.parse('2026-09-27T09:30:00.000Z'),unreachable:true,waiting:'unreachable'}},integrated:[],metrics:{wakes:0,ownerBytes:0,launched:0,completed:0}});

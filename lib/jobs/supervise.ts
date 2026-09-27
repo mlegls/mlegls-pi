@@ -32,6 +32,7 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
+interface Child { reportRepairs?: number }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>;
@@ -196,6 +197,17 @@ export async function run(job: JobContext) {
      : "Steer it directly (its next turn end returns to the loop)") +
    ", or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
  };
+ const repairEvidence = async (c: Child, handoff: Record<string, unknown> | null, text: string) => {
+  try { evidencePacket(c.handle.path, handoff); return true; }
+  catch (error) {
+   const reason = "invalid evidence handoff: " + (error instanceof Error ? error.message : String(error));
+   if ((c.reportRepairs ?? 0) >= 2) { await except(c, reason, text); return false; }
+   c.reportRepairs = (c.reportRepairs ?? 0) + 1;
+   await save();
+   await children.send(topic(c.handle), reason + "\nRepair your handoff and report again in this same checkout. Keep completed work; do not reimplement it. Supply complete fenced YAML: evidence.path (committed docs/attachments/ Markdown index), evidence.visual (boolean), evidence.shots (committed image paths, nonempty when visual; [] otherwise). Include every story with exact outcome: held only when established on the final head; qualifications belong in caveats. Never invent evidence or weaken a required visual journey. Collect missing evidence or report blocked. Report done only when required stories hold.");
+   return false;
+  }
+ };
 const checkStartup = async (live: Child[]) => {
  let changed = false;
  for (const c of live) {
@@ -319,6 +331,7 @@ const checkStartup = async (live: Child[]) => {
   const handle = await launch(c.slug, phase, prompt, base, snapshot(input).find(i => i.slug === c.slug)?.assignee);
   (c.previous ??= []).push(c.handle);
   Object.assign(c, { handle, phase, cursor: handle.cursor, evidence: undefined, acceptedHead: undefined, startup: { launchedAt: Date.now(), mode: "pi" } });
+  c.reportRepairs = 0;
   await save();
  };
  // The driver gets the ticket and the implementer's setup, not the implementer's claims or the code.
@@ -502,12 +515,12 @@ const checkStartup = async (live: Child[]) => {
    // Failed stories are the reviewer's to repair; only an unusable log stops the pipeline.
    const stories = r.handoff?.stories;
    if (!Array.isArray(stories) || !stories.length) { await except(c, "driver reported no story outcomes", end.text); return; }
-   evidencePacket(c.handle.path, r.handoff);
+   if (!await repairEvidence(c, r.handoff, end.text)) return;
    c.drive = r.handoff!;
    await toReview(c, end.text);
   } else if (c.phase === "review") {
    if (unheld(r.handoff)) { await except(c, "review did not end with every story held", end.text); return; }
-   evidencePacket(c.handle.path, r.handoff);
+   if (!await repairEvidence(c, r.handoff, end.text)) return;
    if (r.handoff!.redrive === true && !c.redriven) { c.redriven = true; await toDrive(c); return; }
    c.evidence = { ...r.handoff!, tests: [...new Set([...testCommands(c.drive), ...testCommands(r.handoff)])] };
    c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD");
