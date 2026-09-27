@@ -54,3 +54,14 @@ test('tracker launches require eligibility and preserve the selected stance/mode
   await expect(dispatch([{ ...task, assignee: 'agent:fill' }], options)).rejects.toThrow('conflicts');
   await expect(prepare('An edit', { assignee: 'agent:fill', stance: 'auto' })).rejects.toThrow('conflicts');
 });
+
+test('host preset defaults override roster defaults without overriding explicit pins', async () => {
+  const preferences = { fill: { model: 'deepseek/deepseek-flash', effort: 'low' } };
+  const options = { preferences, allowedStances: ['fill'], assignee: 'agent:fill' };
+  const selected = await prepare('A bounded edit', options);
+  expect([selected.stance, selected.model, selected.effort]).toEqual(['fill', 'deepseek/deepseek-flash', 'low']);
+  const pinned = await prepare('A bounded edit', { ...options, assignee: 'agent:fill, model:zai/glm-5.3-flash:high' });
+  expect([pinned.model, pinned.effort]).toEqual(['zai/glm-5.3-flash', 'high']);
+  expect(() => assigned({ ...options, unavailableProviders: { deepseek: 'offline' } })).toThrow('unavailable');
+  expect(assigned({ assignee: 'agent:research', preferences })).toEqual(assigned({ assignee: 'agent:research' }));
+});

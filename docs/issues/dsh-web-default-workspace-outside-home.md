@@ -23,3 +23,5 @@ stopped, I added and selected a row in `dsh/.local/home/storages/workspace.json`
 Web displayed that workspace and the new session header's `cwd` matched the
 checkout. This fixes the target for that encounter, not dsh's external default.
 A supported launch-time owned-workspace option remains worth tracking.
+
+The dispatch driver's fresh-home encounter also required stopping Web, registering the checkout with `dsh/add-workspace.ts`, and restarting with the probe patch. This is setup friction owned by the same launch-time workspace seam, not a dispatch failure. See [dispatch evidence](../attachments/dsh-templated-spawn-and-dispatch/index.md).
