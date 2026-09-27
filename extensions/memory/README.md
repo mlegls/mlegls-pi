@@ -25,7 +25,9 @@ The extension captures the latest context-hook messages, effective system prompt
 
 After reload/model changes/branch switches, a compatible captured prefix may be unavailable. In that case it reconstructs context from Pi's session tree. Successful compaction details record `prefixMode: captured | reconstructed`, operation, model, latency and usage; usage is also returned to Pi. No provider-specific compaction endpoint is used, and no explicit cache-disable option is set. Actual cache hits remain provider-dependent; context-hook equality is not proof of identical provider payloads, especially with other transforming extensions.
 
-Old tool outputs are elided only when the prompt cache is already cold. If a user message arrives at least `memory.elide.idleSeconds` (default 330, just past Anthropic's 5-minute TTL) after the previous message, tool results of at least `minTokens` from before the last `keepTurns` user turns are replaced with a pointer (`ab memory recall ENTRY-ID`). Tool calls and result messages stay in place, only the bodies change. This is computed purely from message timestamps on the branch: gaps never move, so the rendering changes only at a new cold gap and stays byte-stable between them, whether after a reload or on another branch. The rewrite therefore lands when the provider would re-prefill anyway. OpenAI's automatic cache can outlive five minutes, so there the rewrite may still cost some cache reads. Compaction sees the elided bodies; the compaction call can't recall them yet, since it doesn't execute tools.
+Old tool outputs are elided only when the prompt cache is already cold. If a user message arrives after an idle gap longer than the cache lifetime of the provider that served the last assistant message before it, tool results of at least `minTokens` from before the last `keepTurns` user turns are replaced with a pointer (`ab memory recall ENTRY-ID`). Tool calls and result messages stay in place, only the bodies change. This is computed purely from the branch (message timestamps and providers): gaps never move, so the rendering changes only at a new cold gap and stays byte-stable between them, whether after a reload or on another branch. The rewrite therefore lands when the provider would re-prefill anyway. Compaction sees the elided bodies; the compaction call can't recall them yet, since it doesn't execute tools.
+
+Default lifetimes err long, so they under-elide: Anthropic, Bedrock and xAI 330s (a 5-minute TTL refreshed on each hit); OpenAI, Codex and Azure 3660s (OpenAI: "5-10 minutes of inactivity, up to one hour"). Anything unpublished or best-effort (DeepSeek's "hours to days", Z.ai, Gemini implicit caching, routers) falls back to a day. With `PI_CACHE_RETENTION=long`, Pi requests 1h Anthropic and 24h OpenAI retention, and the defaults follow. `idleSeconds` accepts an object of provider overrides (plus `default`), or a single number for every provider.
 
 ## Settings
 
@@ -41,7 +43,7 @@ Global `~/.pi/agent/settings.json` and project `.pi/settings.json`, under `memor
     "memoryTokens": 12000,
     "rewriteTokens": 6000,
     "maxOutputTokens": 12000,
-    "elide": { "enabled": true, "idleSeconds": 330, "minTokens": 500, "keepTurns": 1 }
+    "elide": { "enabled": true, "idleSeconds": { "openai-codex": 3660, "default": 86400 }, "minTokens": 500, "keepTurns": 1 }
   }
 }
 ```

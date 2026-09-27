@@ -195,7 +195,7 @@ test("tool outputs are elided only behind cold gaps, keeping recent turns and sm
 	const result = (id: string, text: string, t: number) => ({ role: "toolResult", toolCallId: id, toolName: "bash", content: [{ type: "text", text }], isError: false, timestamp: t });
 	add({ role: "user", content: "a", timestamp: 0 }); add(call("c1", 1)); add(result("c1", big, 2)); add(result("c1s", "small", 2));
 	add({ role: "user", content: "b", timestamp: 3 }); add(call("c2", 4)); add(result("c2", big, 5));
-	const messages = () => branch.map(e => e.message), o = { idleMs: 1000, minTokens: 500, keepTurns: 1 };
+	const messages = () => branch.map(e => e.message), o = { idleMs: (p: string) => p === "test" ? 1000 : Infinity, minTokens: 500, keepTurns: 1 };
 	expect(elideCold(messages(), branch, o).elided).toBe(0);
 	add({ role: "user", content: "c", timestamp: 5000 });
 	const warm = elideCold(messages(), branch, o);
@@ -203,6 +203,7 @@ test("tool outputs are elided only behind cold gaps, keeping recent turns and sm
 	expect(warm.messages[2].content[0].text).toContain("ab memory recall e2");
 	expect(warm.messages[3].content[0].text).toBe("small");
 	expect(warm.messages[6].content[0].text).toBe(big);
+	expect(elideCold(messages(), branch, { ...o, idleMs: () => 10000 }).elided).toBe(0);
 	add(call("c3", 5001)); add(result("c3", big, 5002)); add({ role: "user", content: "d", timestamp: 5003 });
 	expect(JSON.stringify(elideCold(messages(), branch, o).messages.slice(0, 8))).toBe(JSON.stringify(warm.messages));
 });

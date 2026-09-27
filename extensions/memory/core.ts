@@ -132,7 +132,7 @@ ${manifest}
 ${focus ? `Focus: ${focus}` : ""}`;
 }
 
-export interface ElideOptions { idleMs: number; minTokens: number; keepTurns: number }
+export interface ElideOptions { /** Idle time after which the named provider's prompt cache is assumed gone. */ idleMs: (provider: string) => number; minTokens: number; keepTurns: number }
 /**
  * Replace old tool-result bodies with recall pointers, but only behind idle gaps long enough for the provider's prompt
  * cache to have expired, so the rewrite costs no extra cache writes. A pure function of the branch: gaps never move,
@@ -142,9 +142,12 @@ export function elideCold(messages: any[], branch: SessionEntry[], o: ElideOptio
 	const entryOf = new Map<string, string>();
 	for (const e of branch) if (e.type === "message" && e.message.role === "toolResult") entryOf.set(e.message.toolCallId, e.id);
 	const users = messages.flatMap((m, i) => m.role === "user" ? [i] : []);
-	let cut = -1;
+	// A gap is judged by the provider whose cache was warm before it: the last assistant message's, fixed in history.
+	let cut = -1, provider: string | undefined;
 	users.forEach((i, k) => {
-		if (i > 0 && k >= o.keepTurns && messages[i].timestamp - messages[i - 1].timestamp >= o.idleMs) cut = Math.max(cut, users[k - o.keepTurns]);
+		for (let j = i - 1; j >= 0 && provider === undefined; j--) if (messages[j].role === "assistant") provider = messages[j].provider;
+		if (i > 0 && k >= o.keepTurns && provider !== undefined && messages[i].timestamp - messages[i - 1].timestamp >= o.idleMs(provider)) cut = Math.max(cut, users[k - o.keepTurns]);
+		provider = undefined;
 	});
 	let elided = 0;
 	const out = messages.map((m, i) => {

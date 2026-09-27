@@ -6,8 +6,18 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { KIND, elideCold, splitCheckpoint, citations, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
-interface Elide { enabled: boolean; idleSeconds: number; minTokens: number; keepTurns: number }
-interface Settings { elide?: Partial<Elide>; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
+interface Elide { enabled: boolean; idleSeconds: Record<string, number>; minTokens: number; keepTurns: number }
+/**
+ * Seconds of inactivity after which each provider's prompt cache is assumed expired, erring long (under-eliding).
+ * Anthropic/xAI: 5 min TTL refreshed on hit (Anthropic 1h under long retention). OpenAI: "5-10 minutes of inactivity,
+ * up to one hour" in memory, 24h under long retention. Unpublished or best-effort caches (DeepSeek: hours to days;
+ * Z.ai, Gemini implicit, routers) fall back to a day. Pi requests long retention via PI_CACHE_RETENTION=long.
+ */
+function cacheSeconds(long: boolean): Record<string, number> {
+	const anthropic = long ? 3630 : 330, openai = long ? 86700 : 3660;
+	return { default: 86400, anthropic, "amazon-bedrock": anthropic, xai: 330, openai, "openai-codex": openai, "azure-openai-responses": openai };
+}
+interface Settings { elide?: Partial<Omit<Elide, "idleSeconds">> & { idleSeconds?: number | Record<string, number> }; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
 function settings(cwd: string): Required<Settings> & { elide: Elide } {
 	const read = (path: string): Settings => {
 		try { return JSON.parse(readFileSync(path, "utf8")).memory ?? {}; }
@@ -18,15 +28,19 @@ function settings(cwd: string): Required<Settings> & { elide: Elide } {
 	for (const k of ["memoryTokens", "rewriteTokens", "blockTokens", "keepRecentTokens", "maxOutputTokens"] as const)
 		if (!Number.isFinite(s[k]) || s[k] < 1) throw new Error(`memory.${k} must be positive`);
 	if (s.rewriteTokens >= s.memoryTokens) throw new Error("memory.rewriteTokens must be below memory.memoryTokens");
-	const elide = { enabled: true, idleSeconds: 330, minTokens: 500, keepTurns: 1, ...s.elide };
-	for (const k of ["idleSeconds", "minTokens", "keepTurns"] as const)
+	const idle = s.elide?.idleSeconds;
+	const elide = { enabled: true, minTokens: 500, keepTurns: 1, ...s.elide,
+		idleSeconds: typeof idle === "number" ? { default: idle } : { ...cacheSeconds(process.env.PI_CACHE_RETENTION === "long"), ...idle } };
+	for (const k of ["minTokens", "keepTurns"] as const)
 		if (!Number.isFinite(elide[k]) || elide[k] < 0) throw new Error(`memory.elide.${k} must be nonnegative`);
+	for (const [k, v] of Object.entries(elide.idleSeconds))
+		if (!Number.isFinite(v) || v < 0) throw new Error(`memory.elide.idleSeconds.${k} must be nonnegative`);
 	return { ...s, elide };
 }
 interface Snapshot { session: string; leaf: string | null; model: string; context: Context }
 const modelKey = (ctx: ExtensionContext) => `${ctx.model?.provider}/${ctx.model?.id}`;
 function elide(messages: any[], branch: any[], s: ReturnType<typeof settings>) {
-	return s.elide.enabled ? elideCold(messages, branch, { idleMs: s.elide.idleSeconds * 1000, minTokens: s.elide.minTokens, keepTurns: s.elide.keepTurns }) : { messages, elided: 0 };
+	return s.elide.enabled ? elideCold(messages, branch, { idleMs: p => (s.elide.idleSeconds[p] ?? s.elide.idleSeconds.default) * 1000, minTokens: s.elide.minTokens, keepTurns: s.elide.keepTurns }) : { messages, elided: 0 };
 }
 function tools(pi: ExtensionAPI) {
 	const all = new Map(pi.getAllTools().map(t => [t.name, t]));
