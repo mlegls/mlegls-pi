@@ -110,8 +110,8 @@ model turns: direct host PTC dispatch needs the
 - Root typecheck remains blocked by unchanged Obsidian tracker ambient types:
   [existing owner](../../issues/root-typecheck-obsidian-environment.md).
 - Tracker structural check reported existing done-dependency links; this ticket's
-  resolved hashline blocker was removed. Semantic lint completed; its superseded
-  advisory does not describe this port (the shared prompt variants remain open).
+  resolved hashline blocker was removed. Final semantic lint completed with a
+  `completed` advisory; the ticket stays open for fresh supervised verification.
 - No new permanent acceptance tests. Overflow and provider-filter fallback are
   implemented through the inherited native hooks, but were not forced in this
   first-use encounter. Rewrites at the 12k memory budget were not exercised.
