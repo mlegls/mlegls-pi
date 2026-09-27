@@ -10,6 +10,7 @@ import { join } from "node:path";
 export interface Live {
 	pid: number;
 	sessionId: string;
+	parentSession?: string;
 	sessionFile?: string;
 	cwd: string;
 	state: "working" | "idle";

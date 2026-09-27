@@ -8,7 +8,9 @@
 // resumed session keeps the entry it already has.
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { removeLive, writeLive } from "./live";
+import { readLive, removeLive, writeLive, type Live } from "./live";
+import { mailbox } from "../board/mailbox";
+import { send } from "../board/store";
 
 export const SPAWN_META = "session-meta";
 
@@ -35,24 +37,42 @@ export function spawnMeta(env: Record<string, string | undefined> = process.env)
 
 export function install(pi: ExtensionAPI) {
 	const meta = spawnMeta();
+	let parentSession = meta?.parentSession ?? meta?.invokedBy;
+	let children = new Map<number, Live>();
+	let monitor: ReturnType<typeof setInterval> | undefined;
 	let ctx: ExtensionContext | undefined;
 	const live = (state: "working" | "idle") => {
 		if (!ctx) return;
 		const sm = ctx.sessionManager;
 		try {
 			writeLive({ pid: process.pid, sessionId: sm.getSessionId(), sessionFile: sm.getSessionFile(), cwd: sm.getCwd(), state,
-				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, mode: ctx.mode });
+				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, mode: ctx.mode, parentSession });
 		} catch {}
 	};
 	pi.on("session_start", (_event, c) => {
 		ctx = c;
+		const saved = c.sessionManager.getBranch().find((entry) => entry.type === "custom" && entry.customType === SPAWN_META);
+		if (saved?.type === "custom") {
+			const provenance = saved.data as SpawnMeta;
+			parentSession = provenance.parentSession ?? provenance.invokedBy ?? parentSession;
+		}
+		clearInterval(monitor);
+		children.clear();
+		monitor = setInterval(() => {
+			const next = new Map(readLive().filter(child => child.parentSession === c.sessionManager.getSessionId()).map(child => [child.pid, child]));
+			for (const [pid, child] of children) if (!next.has(pid)) {
+				send({ topic: mailbox(c.sessionManager.getSessionId()), tags: ["child-exit"], from: { name: "child-monitor" }, body: `Child process exited: ${child.sessionId} (pid ${pid}, last state ${child.state}).\nWorkspace: ${child.cwd}\n${child.tmuxPane ? "Pane: " + child.tmuxPane : "No tmux pane recorded"}. Inspect its report before resuming; process exit alone does not establish a crash.` });
+			}
+			children = next;
+		}, 5000);
+		monitor.unref();
 		live("idle");
 		const recorded = c.sessionManager.getBranch().some((entry) => entry.type === "custom" && entry.customType === SPAWN_META);
 		if (!recorded) pi.appendEntry(SPAWN_META, { ...meta, mode: c.mode });
 	});
 	pi.on("agent_start", () => live("working"));
 	pi.on("agent_end", () => live("idle"));
-	pi.on("session_shutdown", () => removeLive());
+	pi.on("session_shutdown", () => { clearInterval(monitor); removeLive(); });
 	process.once("exit", () => removeLive());
 }
 
