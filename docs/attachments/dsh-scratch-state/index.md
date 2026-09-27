@@ -1,16 +1,29 @@
-# dsh scratch-state encounter
+# dsh scratch-state first-use verification
 
-Tested revision: `cf7365d` on `dsh-scratch-state-verify` (includes implementation commits `826982a`, `cf7365d`).
+Tested revision: rebased `dsh-scratch-state-verify` branch, including scratch overlay on main's `dsh` tools. `bun run --cwd dsh setup` completed with frozen install and plugin build.
 
-## Setup and encounter
+## Setup and target
 
-Task-required surface: dsh's `run_code` across two programs in one live session, using the pinned local dsh packages; no Cloud or provider credentials are specified for direct tool dispatch. Prepared target: this worktree's local dsh package, isolated `DSH_HOME` at `dsh/.local/home`; no seed/session was prepared. `bun run --cwd dsh setup` completed (frozen install and plugin build). The project's documented Web entry point started on `127.0.0.1:51287`; unauthenticated `/` returned 401 and the generated local login URL redirected (303). This confirmed server readiness, not an authenticated persona or an executable `run_code` session. Server was stopped; port no longer responds.
+- Required: worker-owned local dsh Web with a configured DeepSeek model, PTC mode, and the ticket's live-session `run_code` workflow.
+- Target: this checkout's dsh package and isolated `DSH_HOME` at `dsh/.local/home`; local Web initially on `127.0.0.1:51517`, then restarted on `127.0.0.1:52050`. No external/cloud target.
+- Persona/auth: Web's generated local login token URL (used to authenticate the local session); model set by the committed `provider.deepseek.yml`, reading `DEEPSEEK_API_KEY` from the environment. No secret values recorded.
+- Seed/state: a fresh local session wrote key `verify-dsh-scratch-20260927` with JSON `{rows:[2,3,5],total:10}`. The same session was restored after Web service restart with the same `DSH_HOME`.
+- Entry point, from repo root: `PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" DSH_TOOLS_MODE=ptc dsh web --patch "$PWD/dsh/cordis.yml" --patch "$PWD/dsh/provider.deepseek.yml" --no-open --host 127.0.0.1 --port 0`. Open the full login URL printed by the server, including its token; do not use the bare root.
+- Readiness: local login URL loaded the authenticated DeepSeek Harness UI; its Hashline preset and model selector were visible. Model requests and nested PTC dispatches succeeded. After restart, the saved session appeared in the UI and accepted another model-backed turn.
 
-Runnable entry point: from repo root, `PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" dsh web --patch "$PWD/dsh/cordis.yml" --no-open --host 127.0.0.1 --port 0`.
+## Claims and observations
 
-## Claims
+- **Two `run_code` calls in one live session:** held. Asked the model to store the JSON with `scratch_put` in one call, then read it with `scratch_get` in a second. The second result was `found: true`, exact value `{"rows":[2,3,5],"total":10}`. The session trajectory shows two `run_code` `tool/ptc-dispatch` entries and nested `scratch_put` / `scratch_get` calls.
+- **Persistence choice:** memory-only; no scratch state is appended as a session event. The page reload alone retained the value in the still-live session. After stopping the Web service, starting a new process with the same `DSH_HOME`, reopening the saved session and issuing a fresh `run_code` read, `scratch_get` returned `found: false`. This establishes loss across session restoration/process restart; event persistence and fork inheritance are not expected under the chosen design. The existing API rationale is recorded in [`docs/issues/dsh-scratch-state.md`](../../issues/dsh-scratch-state.md).
 
-- One `run_code` stores a JSON intermediate and a later `run_code` reads it in the same session: **unobservable in this encounter**. The implementer's report says this passed using `ToolRuntime.execute` and an inline runtime, but that is not a fresh encounter through the Node PTC backend or a model-backed Web turn. No encounter evidence supports changing the claim to held here.
-- Persistence choice: **unobservable in this encounter**. The implementation's issue note records memory-only semantics, but this encounter did not exercise reload or fork behavior. The recorded rationale is that `Session.append()` cannot mark plugin events ignorable and required custom events risk compatibility.
+## Screenshots
 
-No UI journey was performed; no screenshots apply. The prepared setup's required first-use execution surface remains to be driven.
+- [01 — authenticated Web home, ready for first use](01-ready.png)
+- [02 — requested two-call prompt](02-prompt.png)
+- [03 — successful JSON roundtrip in Chat](03-roundtrip.png)
+- [04 — trajectory with both dispatches and nested tool results](04-trajectory.png)
+- [05 — page reload retained state in the still-live session](05-page-reload.png)
+- [07 — restored session after server restart; value absent](07-process-restart.png)
+- [08 — trajectory confirms post-restart `scratch_get` returned absent](08-final-trajectory.png)
+
+No fork was tested because persistence was chosen to be memory-only, not lineage-persistent. The local server and the worker's browser session are stopped after capture.

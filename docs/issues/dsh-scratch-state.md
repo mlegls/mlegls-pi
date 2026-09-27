@@ -20,23 +20,17 @@ session-sidecar backend or a compatible ignorable-event API if lineage persisten
 becomes necessary.
 
 [Supervised encounter evidence](../attachments/dsh-scratch-state/index.md).
-Scratch tools (`scratch_get`, `scratch_put`, `scratch_delete`, `scratch_list`) are
-registered in the hashline PTC preset and store lossless JSON in host memory keyed
-by the live Session object. A later `run_code` in the same live session can read
-what an earlier program stored. Scratch state is intentionally memory-only: the
-current `Session.append()` API cannot mark plugin events ignorable, and required
-custom events would make older readers refuse a session. Values therefore do not
-survive reload, restart, or plugin replacement; forks start empty. Revisit with a
-session-sidecar backend or a compatible ignorable-event API if lineage persistence
-becomes necessary.
 
 ## First use
+A fresh model-backed Web encounter used the authenticated local login URL and two
+separate `run_code` calls. The first stored `{ rows: [2, 3, 5], total: 10 }`;
+the second returned it intact (`found: true`). The trajectory showed both
+`tool/ptc-dispatch` entries and their nested `scratch_put` / `scratch_get` calls.
 
-With the pinned dsh packages, two `ToolRuntime.execute` calls to `run_code` used
-one agent/session. The first stored `{ rows: [2, 3, 5], total: 10 }`; the second
-read and returned `10`. The actual dsh PTC dispatch bridge and scratch tools ran
-with an inline test runtime; this was not a model-backed Web turn or a test of
-the Node PTC process backend. An isolated anonymous-local Web server started,
-but an unauthenticated HTTP probe returned 401; the process was stopped.
+A browser page reload kept the live session's scratch value. After restarting the
+Web service with the same `DSH_HOME`, reopening the saved session and reading the
+key returned `found: false`. This matches memory-only storage; no scratch events
+were persisted and forks need not inherit it. Screenshots and exact setup are in
+the [encounter packet](../attachments/dsh-scratch-state/index.md).
 
 Done when one `run_code` stores an intermediate result and a later one reads it back in the same session. Check whether it should persist as session events (ignorable) so it survives reload and forks with lineage, or live only in memory; record the choice.

@@ -31,8 +31,6 @@ model conversation additionally needs a provider configured in dsh settings.
 with `read`, `write`, `edit`, `grep`, `glob`, `transform`, `shell`, `scratch_get`,
 `scratch_put`, `scratch_delete`, and `scratch_list` inside programs.
 Stock filesystem mutation tools and `fs-observation-policy` remain absent.
-with `read`, `write`, `edit`, `grep`, `glob`, `transform`, and `shell` inside programs.
-Stock filesystem mutation tools and `fs-observation-policy` remain absent.
 The stock `grep`/`glob` are dsh's ripgrep-backed search bindings.
 
 ## First program
@@ -61,8 +59,9 @@ hashline write implementation in `lib/outline-read` to wrap.
 PTC's generated SDK. Values are lossless JSON, keyed within the live Session; use
 string handle ids for objects owned by other host services. Scratch state lives in
 host memory only, does not survive session reload or restart, and forks start empty.
-plugin replacement. Reread after either. This is local trusted-host filesystem
-access, not a replacement for dsh's sandboxed fs provider.
+Plugin replacement also discards it; reread after replacement. This is separate from
+Scratch state is separate from local trusted-host filesystem access; it is not a
+replacement for dsh's sandboxed fs provider.
 
 ## Grep, transform, test in one program
 

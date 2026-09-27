@@ -24,10 +24,6 @@
       name: './dist/transform.js'
     - id: scratch
       name: './dist/scratch.js'
-    - id: transform
-      name: './dist/transform.js'
-    - id: scratch
-      name: './dist/scratch.js'
     - id: preset-hashline
       name: '@deepseek-ai/dsh-agent-preset'
       config:
