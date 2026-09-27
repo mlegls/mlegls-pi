@@ -329,3 +329,9 @@ PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" \
   dsh web --patch "$PWD/dsh/cordis.yml" --patch "$PWD/dsh/provider.deepseek.yml" \
   --no-open --host 127.0.0.1 --port 0
 ```
+
+## Workspace preparation follow-up (2026-09-27)
+
+The verifier followed the setup instructions and confirmed the isolated store initially had no workspaces. After Web initialized it, the existing `Default workspace` entry pointed outside this checkout (`/Users/mlegls/Documents/deepseek-harness/default-workspace`); it was preserved and not selected. I added a distinct workspace for this checkout, selected it, restarted Web to load the selection, and confirmed its name in the sidebar. The composer showed `DeepSeek-V41-Flash`; an actual model turn acknowledged the synthetic fact `amber-tern-731` / `east sensor active` without writing files. Screenshot: [owned-workspace first turn](10-owned-workspace-first-turn.png).
+
+I added `dsh/add-workspace.ts` to make this non-destructive preparation reproducible. It requires `DSH_HOME` and an explicit checkout path, adds a new UUID workspace and selects it while preserving existing workspace records. Invoke with `DSH_HOME="$PWD/dsh/.local/home" bun dsh/add-workspace.ts "$PWD"` after the first Web launch creates the store; restart Web afterward. This addresses workspace setup only. The attempt to inject a 192k-character padding string through the browser CLI disconnected its socket and did not establish a successful compaction. Compaction, checkpoint/tail continuity and same-session/fork citation reads remain **unobservable** on this rebased revision; the earlier pre-rebase packet evidence is not substituted.
