@@ -149,6 +149,7 @@ export async function run(job: JobContext) {
   await save();
  };
  const except = async (c: Child, reason: string, text = "") => {
+  if (batch && state.children[c.slug] !== c) return; // already deferred this turn
   c.waiting = reason;
   if (batch) {
    // Deferral unwinds the child: its unmerged branch survives for the next triage (redispatch starts fresh).
@@ -171,6 +172,8 @@ const checkStartup = async (live: Child[]) => {
  if (changed) await save();
  for (const c of live) {
   const startup = c.startup!;
+  // Deferral kills the worker, so a false "not started" costs a whole attempt; in batch mode the timebox bounds a dead worker instead.
+  if (batch) continue;
   if (startup.mode === "command" || startup.sessionFound || startup.reported || Date.now() - startup.launchedAt < STARTUP_GRACE_MS) continue;
   try {
    if (await hasPiSession(c.handle)) { startup.sessionFound = true; await save(); continue; }
