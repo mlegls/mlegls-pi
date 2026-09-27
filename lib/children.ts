@@ -1,7 +1,7 @@
 // Children's turn ends and follow-ups over the board: a child is a wm worker, named by its
 // run/handle topic, or any session by its mailbox (mail/xxxxxxxx).
 import * as wm from "./wm.ts";
-import { readAll, type Message } from "./board/store";
+import { readAll, readFrom, waitFor as waitForBoard, type Message } from "./board/store";
 import { mail } from "./board/mailbox";
 
 export interface TurnEnd {
@@ -26,6 +26,20 @@ function terminalMessage(message: Message): EndKind | undefined {
   if (message.tags.includes("done") || message.tags.includes("blocked") || message.tags.includes("turn-end") ||
       message.tags.includes("needs-input") || message.tags.includes("checkpoint")) return "finished";
   return undefined;
+}
+const TERMINAL_QUERY = "done | blocked | turn-end | needs-input | checkpoint";
+
+function fromMessage(id: string, message: Message): TurnEnd {
+  const kind = terminalMessage(message);
+  if (!kind) throw new Error("Not a terminal child message: " + message.id);
+  return { id, kind, text: message.body, cursor: message.id };
+}
+function followsCursor(message: Message, cursor: string | undefined): boolean {
+  if (!cursor) return true;
+  if (cursor === message.id) return false;
+  // Older supervise states saved a synthetic workmux exit cursor instead of the last board cursor.
+  const endedAt = /^wm:[^:]+:(\d+)$/.exec(cursor)?.[1];
+  return endedAt ? Date.parse(message.ts) > Number(endedAt) : true;
 }
 
 function wmTarget(id: string): { run: string; handle: string; topic: string } {
@@ -93,6 +107,41 @@ export async function turnEnd(ids: string[], options: TurnEndOptions = {}): Prom
   if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => !id))
     throw new Error("children.turnEnd requires child IDs");
   return turnEndWm(ids, options);
+}
+/** Wait for a new board report on these child topics, without attaching to dead workers. */
+export async function waitForTurnEnd(ids: string[], options: TurnEndOptions = {}): Promise<TurnEnd> {
+  if (options.signal?.aborted) throw abortError(options.signal);
+  if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => !id))
+    throw new Error("children.waitForTurnEnd requires child IDs");
+
+  // Snapshot the log before checking for a report: anything appended after this offset is waitable,
+  // including a report racing with the check below.
+  const snapshot = readFrom(0);
+  const newestFirst = [...snapshot.messages].reverse();
+  for (const id of ids) {
+    const target = wmTarget(id);
+    const message = newestFirst.find((item) => item.topic === target.topic && terminalMessage(item));
+    if (message && followsCursor(message, options.after?.[id])) return fromMessage(id, message);
+  }
+
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (options.signal?.aborted) abort();
+  else options.signal?.addEventListener("abort", abort, { once: true });
+  try {
+    return await Promise.race(ids.map(async (id) => {
+      const target = wmTarget(id);
+      const message = await waitForBoard({ topic: target.topic, tags: TERMINAL_QUERY }, {
+        fromOffset: snapshot.offset,
+        signal: controller.signal,
+      });
+      if (!message || controller.signal.aborted) throw abortError(controller.signal);
+      return fromMessage(id, message);
+    }));
+  } finally {
+    controller.abort();
+    options.signal?.removeEventListener("abort", abort);
+  }
 }
 
 /** Read a child's most recent terminal turn, useful when reattaching after a daemon restart. */

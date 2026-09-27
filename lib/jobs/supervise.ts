@@ -161,7 +161,12 @@ export async function run(job: JobContext) {
   }
   await wake(c.phase + " " + c.slug + ": " + reason + "\n\n" + text.slice(-3000) +
    "\n\nchild " + topic(c.handle) + ", worktree " + c.handle.path +
-   "\nSteer it directly (its next turn end returns to the loop), or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
+   (c.unreachable
+     ? (existsSync(c.handle.path)
+       ? "Restart it in its existing worktree; its next report on this topic returns to the loop"
+       : "After restoring its worktree, restart it there; its next report on this topic returns to the loop")
+     : "Steer it directly (its next turn end returns to the loop)") +
+   ", or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
  };
 const checkStartup = async (live: Child[]) => {
  let changed = false;
@@ -347,17 +352,21 @@ const checkStartup = async (live: Child[]) => {
   }
   const live = Object.values(state.children);
   if (!live.length) break;
-  // A child the host cannot read sends no turn end; it waits for a resume command like any exception.
+  // A missing worktree cannot restart until restored; existing worktrees can re-enter on a fresh report.
   for (const c of live) if (!c.unreachable && !existsSync(c.handle.path)) {
+   c.cursor ??= (await children.last(topic(c.handle)))?.cursor;
    c.unreachable = true;
    await except(c, "unreachable", "Worker worktree is missing: " + c.handle.path);
   }
   if (job.signal.aborted) return;
   const watched = live.filter(c => !c.unreachable);
+  const recovering = live.filter(c => c.unreachable);
   await checkStartup(watched);
   if (job.signal.aborted) return;
   const ids = watched.map(c => topic(c.handle));
+  const recoveryIds = recovering.map(c => topic(c.handle));
   const cursors = Object.fromEntries(watched.filter(c => c.cursor).map(c => [topic(c.handle), c.cursor!]));
+  const recoveryCursors = Object.fromEntries(recovering.filter(c => c.cursor).map(c => [topic(c.handle), c.cursor!]));
   const stop = new AbortController();
   const abort = () => stop.abort();
   job.signal.addEventListener("abort", abort);
@@ -367,7 +376,15 @@ const checkStartup = async (live: Child[]) => {
   const startupTimer = nextStartupCheck === undefined ? undefined : setTimeout(abort, Math.max(1, Math.min(STARTUP_POLL_MS, nextStartupCheck - Date.now())));
   const deadlineTimer = input.deadline ? setTimeout(abort, Math.max(1, input.deadline - Date.now())) : undefined;
   let end: children.TurnEnd;
-  try { end = ids.length ? await children.turnEnd(ids, { cwd: input.cwd, after: cursors, signal: stop.signal }) : await new Promise<never>((_, reject) => stop.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); }
+  try {
+   // Never pass unreachable panes to turnEnd: a dead worker returns unreachable immediately. Wait for a
+   // later topic report separately so an idle dead child neither spins nor gets re-woken.
+   const waits = [
+    ...(ids.length ? [children.turnEnd(ids, { cwd: input.cwd, after: cursors, signal: stop.signal })] : []),
+    ...(recoveryIds.length ? [children.waitForTurnEnd(recoveryIds, { after: recoveryCursors, signal: stop.signal })] : []),
+   ];
+   end = await Promise.race(waits);
+  }
   catch (error) {
    if (stop.signal.aborted) continue;
    // A dropped host connection is not a child's failure: back off and watch again, telling the owner once.
@@ -376,10 +393,13 @@ const checkStartup = async (live: Child[]) => {
    await sleep(Math.min(60_000, 2000 * lostWatches), job.signal);
    continue;
   }
-  finally { if (startupTimer) clearTimeout(startupTimer); if (deadlineTimer) clearTimeout(deadlineTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
+  finally { stop.abort(); if (startupTimer) clearTimeout(startupTimer); if (deadlineTimer) clearTimeout(deadlineTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
   lostWatches = 0;
-  const c = watched[ids.indexOf(end.id)];
-  c.cursor = end.cursor; c.waiting = undefined;
+  const c = live.find(child => topic(child.handle) === end.id)!;
+  // Exit cursors are not board reports; keep the previous report cursor for restart detection.
+  if (!end.unreachable) c.cursor = end.cursor;
+  c.waiting = undefined;
+  c.unreachable = undefined;
   if (c.phase === "verify") { c.evidence = undefined; c.acceptedHead = undefined; c.visualReviewed = false; }
   if (c.phase === "visual-review") c.visualReviewed = false;
   await save();

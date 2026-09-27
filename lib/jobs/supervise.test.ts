@@ -23,33 +23,35 @@ test("supervision closes on branches, serializes integration, and retains failed
  const git=(cwd,...args)=>execFileSync('git',['-C',cwd,...args],{encoding:'utf8',stdio:'pipe'}).trim();
  mkdirSync(main);git(main,'init','-q','-b','main');git(main,'config','user.name','test');git(main,'config','user.email','test@example.invalid');
  mkdirSync(join(main,'docs/issues'),{recursive:true});
- for(const s of ['a','b','c','d','e'])writeFileSync(join(main,'docs/issues',s+'.md'),'---\\nstage: ticket\\n---\\n');
+ for(const s of ['a','b','c','d','e','f'])writeFileSync(join(main,'docs/issues',s+'.md'),'---\\nstage: ticket\\n---\\n');
  mkdirSync(join(main,'docs/attachments'),{recursive:true});
- for(const s of ['a','b','c','d'])writeFileSync(join(main,'docs/attachments',s+'.md'),'First-use evidence for '+s);
+ for(const s of ['a','b','c','d','f'])writeFileSync(join(main,'docs/attachments',s+'.md'),'First-use evidence for '+s);
  git(main,'add','.');git(main,'commit','-qm','Initial');
- const paths={};for(const s of ['a','b','c','d']){paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);writeFileSync(join(paths[s],s),s);git(paths[s],'add',s);git(paths[s],'commit','-qm','Implement '+s);}
+ const paths={};for(const s of ['a','b','c','d','f']){paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);writeFileSync(join(paths[s],s),s);git(paths[s],'add',s);git(paths[s],'commit','-qm','Implement '+s);}
  paths.e=join(root,'already-retired');
  const real=await import(${JSON.stringify(resolve("lib/dispatch.ts"))});const integrate=real.integrate;
- let active=0,max=0;const saved={},retired=[],controls=new Map(),messages=[];
+ let active=0,max=0;const saved={},retired=[],controls=new Map(),messages=[],waitIds=[];
  mock.module(${JSON.stringify(resolve("lib/dispatch.ts"))},()=>({...real,integrate:async(...args)=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,20));return await integrate(...args);}finally{active--;}},retire:async h=>{expect(saved[h.handle].children[h.handle]).toBeUndefined();expect(saved[h.handle].integrated).toContain(h.handle);expect(existsSync(h.path)).toBe(true);expect(git(main,'rev-parse','HEAD')).toBe(git(h.path,'rev-parse','HEAD'));retired.push(h.handle);return {};}}));
- mock.module(${JSON.stringify(resolve("lib/children.ts"))},()=>({turnEnd:async ids=>({id:ids[0],kind:'finished',cursor:'done',text:'done\\n'+String.fromCharCode(96).repeat(3)+'json\\n'+JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/'+ids[0].split('/').pop()+'.md',visual:false,shots:[]}})+'\\n'+String.fromCharCode(96).repeat(3)}),last:async()=>null,send:async(owner,text)=>{messages.push(text);if(text.includes('integration failed')||text.includes('unreachable')||text.includes('verification')||text.includes('loop error'))controls.get(owner).abort();}}));
+ mock.module(${JSON.stringify(resolve("lib/children.ts"))},()=>({turnEnd:async ids=>({id:ids[0],kind:'finished',cursor:'done',text:'done\\n'+String.fromCharCode(96).repeat(3)+'json\\n'+JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/'+ids[0].split('/').pop()+'.md',visual:false,shots:[]}})+'\\n'+String.fromCharCode(96).repeat(3)}),waitForTurnEnd:async(ids,options)=>{waitIds.push(ids[0]);if(ids[0].endsWith('/f'))return {id:ids[0],kind:'finished',cursor:'restart-report',text:'done'};return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});},last:async()=>null,send:async(owner,text)=>{messages.push(text);if(text.includes('integration failed')||text.includes('verification')||text.includes('loop error'))controls.get(owner).abort();}}));
  const {run}=await import(${JSON.stringify(resolve("lib/jobs/supervise.ts"))});
- async function loop(s,cwd=main,test='test -f '+s){
+ async function loop(s,cwd=main,test='test -f '+s,initial){
   const control=new AbortController();controls.set(s,control);
   const commands=join(root,s+'.commands');writeFileSync(commands,'');
-  const state={children:{[s]:{slug:s,phase:'verify',handle:{run:'root-'+s,handle:s,path:paths[s]}}},integrated:[],metrics:{wakes:0,ownerBytes:0,launched:0,completed:0}};
+  const state=initial??{children:{[s]:{slug:s,phase:'verify',handle:{run:'root-'+s,handle:s,path:paths[s]}}},integrated:[],metrics:{wakes:0,ownerBytes:0,launched:0,completed:0}};
   await run({id:s,input:{ticket:'root-'+s,cwd,owner:s,ownerSession:'test-parent',budget:1,test,commands},state,signal:control.signal,save:async x=>{saved[s]=structuredClone(x);},log:()=>{}});
  }
  const alias=join(root,'alias');symlinkSync(main,alias);
  await Promise.all([loop('a'),loop('b',alias)]);
  expect(max).toBe(1);expect(retired.sort()).toEqual(['a','b']);
  for(const s of ['a','b']){expect(readFileSync(join(main,'docs/issues',s+'.md'),'utf8')).toContain('stage: done');expect(saved[s].finished).toBe(true);expect(git(main,'log','--format=%s')).toContain('Close '+s);}
+ await loop('f',main,'true',{children:{f:{slug:'f',phase:'supervise',handle:{run:'root-f',handle:'f',path:paths.f},cursor:'wm:exited:'+Date.parse('2026-09-27T09:30:00.000Z'),unreachable:true,waiting:'unreachable'}},integrated:[],metrics:{wakes:0,ownerBytes:0,launched:0,completed:0}});
+ expect(saved.f.finished).toBe(true);expect(saved.f.integrated).toContain('f');expect(readFileSync(join(main,'docs/issues/f.md'),'utf8')).toContain('stage: done');expect(waitIds.filter(id=>id==='root-f/f')).toHaveLength(1);
  const head=git(main,'rev-parse','HEAD');
  await loop('c',main,'echo failure >&2; exit 1');
  expect(git(main,'rev-parse','HEAD')).toBe(head);expect(saved.c.children.c.waiting).toBe('integration failed');expect(readFileSync(join(paths.c,'docs/issues/c.md'),'utf8')).toContain('stage: ticket');expect(retired).not.toContain('c');
  const hooks=join(root,'hooks');mkdirSync(hooks);writeFileSync(join(hooks,'pre-commit'),'#!/bin/sh\\nexit 1\\n');chmodSync(join(hooks,'pre-commit'),0o755);git(main,'config','core.hooksPath',hooks);
  await loop('d');expect(git(main,'rev-parse','HEAD')).toBe(head);expect(saved.d.children.d.waiting).toBe('integration failed');expect(existsSync(paths.d)).toBe(true);expect(git(paths.d,'status','--porcelain')).toContain('docs/issues/d.md');expect(retired).not.toContain('d');
- await loop('e');expect(saved.e.children.e.unreachable).toBe(true);expect(messages.filter(m=>m.includes('unreachable'))).toHaveLength(1);
+ const stopE=setTimeout(()=>controls.get('e').abort(),100);await loop('e');clearTimeout(stopE);expect(saved.e.children.e.unreachable).toBe(true);expect(messages.filter(m=>m.includes('unreachable'))).toHaveLength(1);expect(waitIds.filter(id=>id==='root-e/e')).toHaveLength(1);
  console.log('parallel closures, failed tests, failed close hook, missing carried worktree: passed');
  `);
  try {
