@@ -44,6 +44,9 @@ Writing children get a Git worktree from the parent's repository HEAD and a
 handle exposes both cwd and branch; the parent owns integration and removal.
 Failed preparation removes its worktree only when no durable child exists.
 This is cwd isolation, not process or absolute-path isolation.
+The research allowlist is not a filesystem security boundary: PTC Node access
+still inherits the parent's sandbox policy. See
+[the policy gap](../../docs/issues/dsh-read-only-preset-does-not-constrain-ptc-node-access.md).
 
 The narrow `dsh-subagent` Bun patch lets provider preparation select a durable
 cwd and preset, and binds that preset on activation. See

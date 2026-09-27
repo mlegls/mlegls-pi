@@ -13,7 +13,7 @@ export const Config = z.object({
   writing: z.boolean().default(true),
   prompt: z.string().required(),
   skills: z.array(z.string()).default([]),
-  tools: z.array(z.string()).default(undefined),
+  tools: z.union([z.array(z.string()), z.const(undefined)]).default(undefined),
 });
 export interface Config { stance: string; model: string; effort: string; writing: boolean; prompt: string; skills: string[]; tools?: string[] }
 export const name = 'dispatch-template';

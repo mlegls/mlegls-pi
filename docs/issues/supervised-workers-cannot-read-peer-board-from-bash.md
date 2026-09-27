@@ -10,3 +10,5 @@ On 2026-09-27 in `dsh-scratch-state`, the same board API remained unavailable; `
 ## Observation — 2026-09-27
 
 A later bash-only worker read the run topic via `bun -e` and `lib/board/store.ts`'s `read` export, recording the read with `noteRead`. This satisfied pre-edit inspection, but could not acknowledge messages: `board.ack` updates the Pi session's host-backed seen state. Direct store access is a read workaround; host-backed acknowledgement or a CLI remains open.
+
+In `dsh-templated-spawn-and-dispatch`, `ab lib board read '{"topic":"dsh-port/*"}'` succeeded, but `ab lib board ack '["mujob4x8-dymx7g","mujrzq7s-b4uk7x","mujshwkv-vkrbpe"]'` failed with `board.ack is not a function`. Reading and posting work through the CLI adapter; acknowledgement still has no bash equivalent. Origin: session:01a0e2d3-2fe3-706a-8616-9394e05449d1.
