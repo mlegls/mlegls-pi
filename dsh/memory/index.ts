@@ -6,13 +6,13 @@ import type {} from '@deepseek-ai/dsh-token-meter';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import type { SessionSeq } from '@deepseek-ai/dsh-session';
 
+import { instruction, splitCheckpoint, parseBlock, roughTokens, type Block } from '../../extensions/memory/core';
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'memory/checkpoint': { version: 1; checkpointSeq: SessionSeq; blocks: Block[]; register: string;
       selfAuthored: boolean; operation: string; tail: string };
   }
 }
-import { instruction, splitCheckpoint, parseBlock, roughTokens, type Block } from '../../extensions/memory/core';
 
 const REGISTER = 'compaction-om-v10';
 const BLOCKED = /reverse engineering|duplicating model outputs/i;
@@ -20,7 +20,7 @@ const RECORD = 'memory/checkpoint';
 const textOf = (m: any) => typeof m.content === 'string' ? m.content :
   (m.content ?? []).map((b: any) => b.type === 'text' ? b.text : b.type === 'tool-call' ? JSON.stringify(b) : '').join('\n');
 const render = (blocks: Block[]) => blocks.map(b =>
-  `Historical memory ${b.id}. Recall [@SESSION:SEQ] with session_event_read({session_id: SESSION, seq: SEQ}) for the full original event. Explicit corrections replace only the described earlier statements.\n${b.text}`).join('\n\n');
+  `Historical memory ${b.id}. Recall [@SESSION:SEQ] with tools.session_event_read({session_id: SESSION, seq: SEQ}) inside run_code for the full original event. Explicit corrections replace only the described earlier statements.\n${b.text}`).join('\n\n');
 
 /** Native pressure/overflow policy and transaction writer; only checkpoint production changes. */
 export default class MemoryCompaction extends BasicCompactionEngine {
@@ -103,9 +103,12 @@ export default class MemoryCompaction extends BasicCompactionEngine {
     const chosen = choices.find(c => c.id === generated.checkpoint.tail);
     if (!chosen) throw new Error('Memory chose an invalid tail');
     const covered = nodes.slice(startIndex, chosen.index);
-    const sources = new Set(covered.filter(seq => !checkpointSeqs.has(seq)).map(id));
+    // Tail references can explain the folded history; coverage still needs original prefix evidence.
+    const sources = new Set(entries.map(entry => entry.id));
     for (const block of prior) for (const source of block.sources ?? []) sources.add(source);
     const block = parseBlock(generated.checkpoint.text, sources, prior, rewrite, covered.map(id));
+    if (!block.sources?.some(source => covered.some(seq => id(seq) === source)))
+      throw new Error('Memory must cite at least one newly folded original entry');
     const blocks = [...(rewrite ? [] : prior), block];
     if (rewrite && roughTokens(render(blocks)) >= 12000) throw new Error('Memory rewrite exceeds budget');
     this.prepared.set(agent, { summary: [{ type: 'text', text: render(blocks) }],

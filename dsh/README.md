@@ -29,9 +29,10 @@ model conversation additionally needs a provider configured in dsh settings.
 
 `hashline` is the default and only enabled preset. PTC exposes `run_code`,
 with `read`, `write`, `edit`, `grep`, `glob`, `transform`, `shell`, `scratch_get`,
-`scratch_put`, `scratch_delete`, and `scratch_list` inside programs.
-Stock filesystem mutation tools and `fs-observation-policy` remain absent.
-The stock `grep`/`glob` are dsh's ripgrep-backed search bindings.
+`scratch_put`, `scratch_delete`, `scratch_list` and the stock session-query tools
+inside programs. Stock filesystem mutation tools and `fs-observation-policy`
+remain absent. The stock `grep`/`glob` are dsh's ripgrep-backed search bindings.
+Automatic context compaction uses [autobiographical memory](memory/README.md).
 
 ## First program
 
