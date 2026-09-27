@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
 part-of: "[[projects/mlegls-pi/issues/dsh-port]]"
@@ -23,3 +23,7 @@ setup and the program are in `dsh/README.md`.
 [Fresh supervised Web encounter and evidence](../attachments/dsh-hashline-tools-spike/index.md): the model read `beta`, applied an anchor-derived `gamma` edit in one PTC program, and reread `alpha\ngamma\n`. Trajectory shows `run_code` and nested `read`/`edit`/`read`; screenshots are included for visual review. The verifier configured an isolated DeepSeek API-key route and disabled two ancillary request-extension contributors after their preparation failed; the failure cause remains unisolated ([[projects/mlegls-pi/issues/dsh-web-deepseek-extension-preparation-fails]]).
 
 Friction owners: [[projects/mlegls-pi/issues/dsh-preset-relative-plugin-loading]], [[projects/mlegls-pi/issues/root-typecheck-obsidian-environment]], and [[projects/mlegls-pi/issues/dsh-web-deepseek-extension-preparation-fails]].
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/dsh-hashline-tools-spike/index.md).
