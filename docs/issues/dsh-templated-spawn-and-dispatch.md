@@ -41,3 +41,6 @@ The read-only tool allowlist is not a filesystem security boundary; inherited PT
 ## Verification evidence
 
 [Encounter and evidence](../attachments/dsh-templated-spawn-and-dispatch/index.md).
+
+Unisolated paths are tracked in
+[[projects/mlegls-pi/issues/dsh-dispatch-unexercised-admission-and-resume]].

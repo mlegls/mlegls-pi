@@ -1,0 +1,74 @@
+{
+  "hashline": [
+    {
+      "disabled": false,
+      "name": "file:///Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review/dsh/dist/hashline.js"
+    }
+  ],
+  "transform": [
+    {
+      "disabled": false,
+      "name": "file:///Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review/dsh/dist/transform.js"
+    }
+  ],
+  "scratch": [
+    {
+      "disabled": false,
+      "name": "file:///Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review/dsh/dist/scratch.js"
+    }
+  ],
+  "memory": [
+    {
+      "disabled": false,
+      "name": "file:///Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review/dsh/dist/memory.js"
+    }
+  ],
+  "skim": [
+    {
+      "disabled": false,
+      "name": "file:///Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review/dsh/dist/skim.js"
+    }
+  ],
+  "board": [
+    {
+      "disabled": false,
+      "name": "file:///Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review/dsh/dist/board.js"
+    }
+  ],
+  "spill-local": [
+    {
+      "disabled": false,
+      "name": "@deepseek-ai/dsh-spill-local"
+    }
+  ],
+  "tool-fs": [
+    {
+      "disabled": true,
+      "name": "@deepseek-ai/dsh-tool-fs"
+    }
+  ],
+  "spill-policy": [
+    {
+      "disabled": true,
+      "name": "@deepseek-ai/dsh-spill-policy"
+    }
+  ],
+  "tool-result-pruner": [
+    {
+      "disabled": true,
+      "name": "@deepseek-ai/dsh-compaction-tool-result-pruner"
+    }
+  ],
+  "compaction-basic": [
+    {
+      "disabled": true,
+      "name": "@deepseek-ai/dsh-compaction-basic"
+    }
+  ],
+  "agent-preset-registry": [
+    {
+      "disabled": false,
+      "name": "@deepseek-ai/dsh-agent-preset-registry"
+    }
+  ]
+}

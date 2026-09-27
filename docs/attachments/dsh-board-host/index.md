@@ -13,3 +13,13 @@ The headless setup and a fresh Web session both used this checkout's DSH code an
 ## Evidence and cleanup
 
 The images show the real DSH Web chat before and after the idle wake. The shared board readbacks are recorded above with unique message IDs and exact bodies. Web and the named browser session were stopped after the encounter; no Web listener remains. No implementation repair was needed.
+
+## Root integration review
+
+The [root packet](../dsh-port-root-review/index.md) re-drives shared-store sending
+and adds regressions for malformed records and fork-local subscriptions. A fork
+now resets inherited delivery state and retracts inherited board notices rather
+than listening on its parent's mailbox. Same-session replay remains durable.
+The Web images above establish the original idle-wake journey, not this new
+backend fork regression. All three original stories remain **held**; the root
+review did not repeat the unchanged child-monitor journey.

@@ -1,0 +1,26 @@
+[
+  {
+    "type": "session",
+    "sessionId": "session-4bdb51e2-1382-4955-8887-ddd34d914e64",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/dsh-port-root-review"
+  },
+  {
+    "type": "tool_call",
+    "callId": "call_00_bFLVbkeP7mXMrI0UuOaL9680",
+    "tool": "run_code",
+    "input": {
+      "code": "\nconst text = await tools.pull({id:\"ing-efaa2733a46a9744\"});\nconst expected = \"diff --git a/x b/x\\n\" + \"+ROOT_REVIEW_PAYLOAD\\n\".repeat(8000);\nif(text!==expected) throw new Error(\"reload mismatch\");\nconst scratch = await tools.scratch_get({key:\"review\"});\nif(scratch.found) throw new Error(\"scratch should be memory only\");\nconsole.log({replayExact:true,length:text.length,scratchEmpty:true});\n",
+      "description": "Verify persisted pull and memory-only scratch after reload"
+    }
+  },
+  {
+    "type": "tool_result",
+    "callId": "call_00_bFLVbkeP7mXMrI0UuOaL9680",
+    "status": "completed",
+    "result": "{ replayExact: true, length: 168019, scratchEmpty: true }"
+  },
+  {
+    "type": "final",
+    "text": "Done. The single `run_code` confirmed:\n\n- `pull(\"ing-efaa2733a46a9744\")` replayed the exact 168019-character payload after the process reload.\n- `scratch_get(\"review\")` returned `found: false`, confirming scratch state is memory-only and did not survive the reload.\n\nOutput: `{ replayExact: true, length: 168019, scratchEmpty: true }`"
+  }
+]

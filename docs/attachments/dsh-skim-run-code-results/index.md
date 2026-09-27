@@ -21,3 +21,11 @@ Action: in a PTC program, called `tools.skim({text: "y".repeat(7000), focus: "co
 ## Evidence and limits
 
 This is a backend/library journey; no UI was rendered, so no screenshots. Live evidence was observed in the headless dsh JSON stream. The agent made one intermediate malformed PTC program (syntax error), corrected it, then completed the pull checks. Locators are scoped to the live agent; restart recovery was not tested. The encounter verified the exact large-result fallback and explicit skim retention/recall behavior, not broader filtering quality.
+
+## Combined-overlay repair
+
+Root review found stock spill/pruning still composing with ingress and live-only
+locator mappings. Both are repaired. The [root packet](../dsh-port-root-review/index.md)
+re-drives automatic SHA-256 retention, explicit skim, unskimmed printed pull and
+process-restart recall on `e04beee`; both original stories remain **held**. No
+screenshots apply to this backend journey.

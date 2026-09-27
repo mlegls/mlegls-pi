@@ -20,14 +20,13 @@ Done when an over-budget `run_code` result comes back skimmed with a locator tha
 The dsh overlay registers top-level `skim` and the local spill backend. Successful
 `run_code` results over 4 KiB pass through `lib/ingress` before compaction; PTC
 programs can call `tools.skim` and recover returned `ing-…` pages with `tools.pull`.
-A per-live-agent `WeakMap` maps ids to spill refs, so recall lasts across PTC cells;
-restart recovery is not established.
+Locator mappings are ignorable session records backed by the dsh spill store.
+They survive reload and fork until the spill backend's files expire.
 
-The first live headless attempt exposed a bug in the over-budget fallback:
-`createHash()` received result text instead of a digest algorithm and returned
-`Error: Digest method not supported`. Commit `fa81064` fixes the locator hash to
-SHA-256. The final live run exercised the filtered-page path; the fallback-specific
-runtime branch was not rerun after this fix.
+Root review forced the SHA-256 fallback with a 168,019-character diff, recovered it
+exactly, printed an 11,000-character slice without another skim/spill, then restarted
+the process and recovered the same locator again. The stock spill policy and
+old-result pruner are disabled so ingress sees originals, not their previews.
 
 Live verification used the committed headless skim overlay and DeepSeek provider
 patch with `DEEPSEEK_API_KEY`. In one real PTC program, `tools.skim` returned an id
@@ -47,3 +46,5 @@ headless turn, provider setup, and headless-specific overlay are documented in
 ## Verification evidence
 
 [Encounter and evidence](../attachments/dsh-skim-run-code-results/index.md).
+
+[Combined-overlay repair and replay evidence](../attachments/dsh-port-root-review/index.md).

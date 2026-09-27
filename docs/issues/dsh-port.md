@@ -33,3 +33,7 @@ shape: `dsh/` holds one Cordis plugin module per capability plus `dsh/cordis.yml
 review boundaries: one, at this root, over the combined delta from 19cc62b, owned by the root supervisor, before reporting to the user. The reviewer gets extra attention on persistence and replay ([[projects/mlegls-pi/issues/dsh-memory-compaction-provider]], [[projects/mlegls-pi/issues/dsh-scratch-state]]) and concurrency/shared state ([[projects/mlegls-pi/issues/dsh-board-host]], since pi and dsh sessions share one board store). The spike's layout contract isn't reviewed separately; dependents build on its recorded decisions and report friction with it.
 
 Related upstream frictions found along the way: [[projects/mlegls-pi/issues/dsh-web-default-workspace-outside-home]], [[projects/mlegls-pi/issues/dsh-web-deepseek-extension-preparation-fails]].
+
+## Root review
+
+[Combined delta review and live integration check](../attachments/dsh-port-root-review/index.md).

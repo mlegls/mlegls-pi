@@ -1,0 +1,87 @@
+bun test v1.4.2 (744846f84)
+
+dsh/session-patch.test.ts:
+(pass) installed session patch preserves every overlay log-only event through JSON replay [0.91ms]
+
+lib/dispatch.test.ts:
+(pass) rebases the worker branch onto the parent and fast-forwards [172.99ms]
+(pass) refuses uncommitted work and reports conflicts after aborting [166.89ms]
+(pass) closes the worker only after Git integration; keep retains it [432.41ms]
+(pass) retiring deletes a merged worker branch once its worktree is gone; an unmerged one is kept [491.85ms]
+
+lib/board.test.ts:
+(pass) cli send then meta-read round-trips json [17.02ms]
+(pass) cli wait requires from-offset [7.55ms]
+(pass) cli rejects non-integer numeric flags [37.47ms]
+
+lib/route-assignment.test.ts:
+(pass) a fill assignment can use its default or an independently pinned model [2.01ms]
+(pass) explicit agent assignments read model and effort from agent files [0.93ms]
+(pass) agent preferences are eligible catalog pairs [0.87ms]
+(pass) unavailable assignments do not fall back and shorthand is not guessed [0.24ms]
+(pass) tracker launches require eligibility and preserve the selected stance/model [0.53ms]
+(pass) host preset defaults override roster defaults without overriding explicit pins [0.42ms]
+
+lib/ingress.test.ts:
+(pass) records and sections remain lossless reading units [1.21ms]
+(pass) recorded focused reads retain exact evidence or fallback excerpts when compression fails [2.53ms]
+(pass) tiny headings stay, omitted runs share a recoverable handle, exact evidence survives budget pressure [0.21ms]
+(pass) external retention recalls originals without an in-memory copy [0.20ms]
+(pass) failure preserves original evidence, while diffs and tiny output bypass judgments [0.29ms]
+(pass) whole-output floors preserve small reads without disabling confident large omissions [0.24ms]
+
+dsh/board/index.test.ts:
+(pass) board host queues, retracts, and persists shared messages [4668.74ms]
+
+dsh/skim/index.test.ts:
+(pass) SHA-256 fallback retains original once; replay/fork pull is exact and printed pull is not skimmed again [2.41ms]
+
+extensions/memory/memory.test.ts:
+(pass) model-selected contiguous tail, stable append/resume and failed checkpoint [3.68ms]
+(pass) rewrite retains direct evidence; unknown or rewrite-time correction references fail [0.10ms]
+(pass) V1 blocks retain their rendered prefix and can be corrected or rewritten as prose [0.10ms]
+(pass) tail starts exclude tool results and old summaries, preserving call/result groups [0.06ms]
+(pass) compaction tolerates metadata appends but rejects changed context and aborts [1.02ms]
+(pass) tool outputs are elided only behind cold gaps, keeping recent turns and small results [0.13ms]
+
+lib/board/store.test.ts:
+(pass) send then read round-trips with query [0.66ms]
+(pass) readFrom is incremental by byte offset [0.31ms]
+(pass) missing sender metadata is normalized; malformed records don't poison readers [0.44ms]
+(pass) send normalizes omitted sender metadata from scripts and rejects malformed input [0.25ms]
+(pass) topics summarises latest per topic [0.27ms]
+(pass) waitFor resolves on a matching message and times out otherwise [1504.23ms]
+(pass) waitFor fromOffset sees messages already logged [0.51ms]
+(pass) meta drops data and slices body [0.31ms]
+(pass) query reports what the limit dropped [0.42ms]
+(pass) reads and acks log beside the message log with the reader [0.52ms]
+(pass) readReadEvents tolerates an absent file and torn lines [0.34ms]
+
+lib/board/query.test.ts:
+(pass) matchTopic > exact and single-segment glob [0.02ms]
+(pass) matchTopic > globstar [0.02ms]
+(pass) parseTags / evalTags > empty matches all [0.01ms]
+(pass) parseTags / evalTags > single tag [0.02ms]
+(pass) parseTags / evalTags > precedence: ! > & > | [0.06ms]
+(pass) parseTags / evalTags > comma is and; namespaced tags [0.02ms]
+(pass) parseTags / evalTags > tag-name array is AND; empty is unrestricted [0.03ms]
+(pass) parseTags / evalTags > errors [0.03ms]
+(pass) compileQuery combines topic and tags [0.02ms]
+
+dsh/dispatch/verification/dispatch-story.test.ts:
+(pass) live dispatch story evidence > dispatch admits a wave before settlement and exposes monitor failure [0.32ms]
+
+ 49 pass
+ 0 fail
+ 307 expect() calls
+Ran 49 tests across 11 files. [7.77s]
+bun test v1.4.2 (744846f84)
+
+dsh/overlay.test.ts:
+(pass) combined headless overlay mounts each capability once [70.10ms]
+(pass) combined web overlay mounts each capability once [73.61ms]
+
+ 2 pass
+ 0 fail
+ 48 expect() calls
+Ran 2 tests across 1 file. [164.00ms]
