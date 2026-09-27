@@ -1,0 +1,21 @@
+# Local supervised memory-provider encounter. Full config is intentional because
+# the later Cordis patch replaces the memory entry's config.
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+- id: session-log-deepseek
+  disabled: true
+- id: plugin-package-inventory-deepseek
+  disabled: true
+- id: memory
+  config:
+    thresholdRatio: 0.001
+    retainTokens: 64
+    headroomTokens: 8192
+    maxTokens: 8192
+    compactionRetries: 0

@@ -38,7 +38,8 @@ export default class MemoryCompaction extends BasicCompactionEngine {
     if (startIndex < 0) throw new Error('Memory start is not on the surface');
     const measurement = this.ctx.tokenMeter.measure(session);
     const messages = nodes.map(seq => session.deriveEventMessage(events[seq]));
-    const id = (seq: number) => `${session.id}:${seq}`;
+    const sessionId = session.id.startsWith('session-') ? session.id : `session-${session.id}`;
+    const id = (seq: number) => `${sessionId}:${seq}`;
     // Only records whose replacement is still visible apply. Forks inherit both exactly.
     const prior: Block[] = [];
     const checkpointSeqs = new Set<number>();
