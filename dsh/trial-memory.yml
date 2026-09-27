@@ -14,8 +14,8 @@
   disabled: true
 - id: memory
   config:
-    thresholdRatio: 0.001
-    retainTokens: 64
+    thresholdRatio: 0.0001
+    retainTokens: 2
     headroomTokens: 8192
     maxTokens: 8192
     compactionRetries: 0

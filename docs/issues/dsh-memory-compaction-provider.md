@@ -53,3 +53,5 @@ to the parent. See [updated evidence](../attachments/dsh-memory-compaction-provi
 `MEMORY.md` was model-chosen `tools.write` after the user asked it to “Remember” a
 fact; neither a built-in memory contributor nor the compaction provider wrote it.
 The evidence packet traces the dispatch.
+
+Current-revision verifier rerun: after adding/selecting an owned Web workspace and lowering the trial-only pressure threshold, a real model conversation compacted through memory, continued with checkpoint and tail, then recalled the cited source exactly in-session and from a seeded fork. See [current verifier evidence](../attachments/dsh-memory-compaction-provider/index.md#current-revision-verifier-rerun-2026-09-27).
