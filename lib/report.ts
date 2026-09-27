@@ -2,7 +2,7 @@ import { parseDocument } from "yaml";
 
 export const HANDOFF_KEYS = ["commit", "setup", "stories", "evidence", "caveats", "question"] as const;
 
-type Status = "done" | "blocked" | "needs-input";
+type Status = "done" | "blocked" | "needs-input" | "checkpoint";
 export interface Report {
   status: Status | null;
   handoff: Record<string, unknown> | null;
@@ -18,7 +18,7 @@ function firstStatus(text: string): Status | null {
   const nonblank = lines.filter(line => line.trim());
   const statusAt = (line: string): Status | null => {
     const token = line.trim().replace(/^(?:(?:>+\s*)|(?:#{1,6}\s*)|(?:[-+*]\s+)|(?:\*\*|__|\*|_))*/, "");
-    const match = /^(done|blocked|needs-input)(?=$|[\s*_`:#—–.!?,;])/i.exec(token);
+    const match = /^(done|blocked|needs-input|checkpoint)(?=$|[\s*_`:#—–.!?,;])/i.exec(token);
     return match ? match[1].toLowerCase() as Status : null;
   };
   if (!nonblank.length) return null;

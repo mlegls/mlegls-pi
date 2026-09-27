@@ -15,3 +15,7 @@ test("surfaces malformed fenced handoff parse errors", () => {
   const json = parse("done\n```json\n{\"stories\": ]\n```");
   expect(json.handoffError).toContain("JSON");
 });
+
+test("recognizes checkpoint as a report status", () => {
+  expect(parse("checkpoint").status).toBe("checkpoint");
+});
