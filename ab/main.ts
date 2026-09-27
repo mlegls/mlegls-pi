@@ -240,7 +240,7 @@ async function supervise(args: string[]) {
 		const count = existsSync(commands) ? readFileSync(commands, "utf8").split("\n").filter(Boolean).length : 0;
 		if (commandsApplied !== undefined && (!Number.isSafeInteger(commandsApplied) || commandsApplied < 0 || commandsApplied > count)) fail("--commands-applied must be a record count between 0 and " + count);
 		if (!previous && count && commandsApplied === undefined) fail("existing command log without job state: inspect " + commands + " and start with --commands-applied N");
-		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 3), test: values.test, commands, commandsApplied, carried: previous?.state ?? null };
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 8), test: values.test, commands, commandsApplied, carried: previous?.state ?? null };
 		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
 		console.log(record.id + " " + record.status + (previous ? " (continuing " + previous.id + ")" : ""));
 		return;
