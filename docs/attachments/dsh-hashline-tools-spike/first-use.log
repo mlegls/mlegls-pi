@@ -1,0 +1,3 @@
+HASHLINE_TOOLS ["read","edit","write","run_code"]
+HASHLINE_RESULT {"isError":false,"content":[{"type":"text","text":"example.txt: 1 edit applied (2 → 2 lines).\n@@ 2 → 2 @@\n 37mm│alpha\n-beta\n+33ui│BETA\n[\n  { n: 1, hash: '37mm', text: 'alpha' },\n  { n: 2, hash: '33ui', text: 'BETA' }\n]"}],"value":{"logs":["example.txt: 1 edit applied (2 → 2 lines).\n@@ 2 → 2 @@\n 37mm│alpha\n-beta\n+33ui│BETA","[\n  { n: 1, hash: '37mm', text: 'alpha' },\n  { n: 2, hash: '33ui', text: 'BETA' }\n]"],"sandbox":{"mode":"workspace-write","denied":false,"enforcement":"full"}}}
+HASHLINE_DISK "alpha\nBETA\n"

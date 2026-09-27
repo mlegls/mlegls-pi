@@ -11,3 +11,16 @@ First end-to-end dsh plugin: the hashline `read`/`write`/`edit` from `lib/outlin
 - Hashes already enforce read-before-write staleness, so `tool-fs`, `tool-str-replace-editor` and `fs-observation-policy` go (`ctx.tools.restrict()` or leaving them out of the overlay).
 - Settle and record in [[projects/mlegls-pi/issues/dsh-port]]: which dsh runs the overlay (the `bunx` 0.1.5 build, a newer npm rc, or the local clone built at 477b4f4; the docs describe the clone), how `dsh/` resolves `@deepseek-ai/*` packages, whether `dsh/` is a bun workspace, how plugins import `lib/`, and the pinned version. The later tickets build on this layout.
 - Report friction with Cordis/PTC as you find it (tool schema, result shaping, HMR); later tickets read the report.
+
+## Result
+
+The npm 0.1.7-rc.2 overlay starts Web with the hashline preset. A real `run_code`
+call read structured lines, computed a hunk from the returned anchor and applied
+it; the visible registry was exactly `read`, `edit`, `write`, `run_code`.
+Layout decisions are recorded in [[projects/mlegls-pi/issues/dsh-port]];
+setup and the program are in `dsh/README.md`.
+
+[Implementation first-use packet](../attachments/dsh-hashline-tools-spike/index.md).
+Fresh supervised verification remains separate. Friction:
+[[projects/mlegls-pi/issues/dsh-preset-relative-plugin-loading]] and
+[[projects/mlegls-pi/issues/root-typecheck-obsidian-environment]].
