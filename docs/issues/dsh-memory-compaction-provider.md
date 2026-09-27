@@ -1,5 +1,5 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
 part-of: "[[projects/mlegls-pi/issues/dsh-port]]"
@@ -55,3 +55,7 @@ fact; neither a built-in memory contributor nor the compaction provider wrote it
 The evidence packet traces the dispatch.
 
 Current-revision verifier rerun: after adding/selecting an owned Web workspace and lowering the trial-only pressure threshold, a real model conversation compacted through memory, continued with checkpoint and tail, then recalled the cited source exactly in-session and from a seeded fork. See [current verifier evidence](../attachments/dsh-memory-compaction-provider/index.md#current-revision-verifier-rerun-2026-09-27).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/dsh-memory-compaction-provider/index.md).
