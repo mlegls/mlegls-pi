@@ -310,3 +310,22 @@ Nonblocking observations (dsh Web / trial configuration, not this provider):
 
 Overflow (`agent/request-error`) and provider-filter fallback remain unforced, as
 recorded under Checks and limits; the ticket's done-when does not require them.
+
+## Verification branch encounter (2026-09-27)
+
+Tested revision: `34293d5` (`dsh-memory-compaction-provider-verify-2`). Required target was local authenticated-model dsh Web. Prepared target was this worktree's pinned dsh 0.1.7-rc.2 with isolated `dsh/.local/home`, anonymous token-authenticated Web, DeepSeek provider patch, and an environment-provided key (value withheld). `bun run setup` and `bun run --cwd dsh setup` completed; the patched server bound `127.0.0.1:57910`. This was a fresh home: its workspace store had no workspaces, so no prior session or checkout ownership was assumed. The actual Web entry was reached; its new-session composer initially showed the stock “Default workspace” and model “DeepSeek-V41-Flash”, not the provider/workspace already proven in the earlier packet.
+
+| Claim | Action and observation | Result |
+|---|---|---|
+| Long session compacts through memory and continuation preserves checkpoint plus verbatim tail | Not driven. The fresh workspace/model mismatch required setting up and confirming an owned workspace before model turns; this encounter did not complete that preparation or compaction. | unobservable |
+| Cited original turn can be recalled verbatim in same session and fork | Not driven in this encounter. | unobservable |
+
+[Web entry screenshot](09-verifier-web-entry.png) records the actual rendered first-use state, not acceptance evidence. Earlier packet sections record prior successful runs on pre-rebase revisions; this worker did not re-drive those claims after rebase. No inference from earlier screenshots is made here. Web was stopped after this encounter.
+
+Setup command (from repository root):
+
+```sh
+PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" \
+  dsh web --patch "$PWD/dsh/cordis.yml" --patch "$PWD/dsh/provider.deepseek.yml" \
+  --no-open --host 127.0.0.1 --port 0
+```
