@@ -1,16 +1,16 @@
-# Shell and transform: first use
+# Shell and transform: verification encounter
 
-Worker checkout `dsh-ptc-shell-and-transform-edits`, pinned `@deepseek-ai/dsh` 0.1.7-rc.2. Anonymous-local Web, no Cloud target, no provider credential. `bun run setup` and `bun run --cwd dsh setup` completed. An isolated `dsh/.local/home` was created under this checkout. Trial files `dsh/.local/fixture/{a,b}.ts` start as `export const a = foo(1);` and `export const b = foo(2);`; the setup fixture is reset to that seed after the trial. No inherited deployment selector was used.
+## Setup and readiness
 
-Start normal Web from the repository root:
+Tested checkout `dsh-ptc-shell-and-transform-edits-verify` at `49011a8` plus this packet update. Required deployment per project handoff: anonymous-local dsh Web, no provider credential. Target: this worktree, loopback Web, isolated `dsh/.local/home`; no inherited selector. Persona: no-provider host-plugin diagnostic agent (not an authenticated model persona). Seed recreated as `dsh/.local/fixture/{a,b}.ts`, each exporting `foo(1)` / `foo(2)`. Entry point: `PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" dsh web --patch "$PWD/dsh/cordis.yml" --no-open --host 127.0.0.1 --port 0`.
 
-```sh
-PATH="$PWD/dsh/node_modules/.bin:$PATH" DSH_HOME="$PWD/dsh/.local/home" \
-  dsh web --patch "$PWD/dsh/cordis.yml" --no-open --host 127.0.0.1 --port 0
-```
+Root and pinned dsh setup both completed; Web reported ready at loopback port 49268. I stopped that process after readiness. The prior worker's ignored trial patch/plugin and its session log are not present in this fresh worktree, so I could not dispatch its `run_code` program from the prepared entry point. No model credentials were inferred missing or requested.
 
-Web started on loopback and printed a local token URL; the token is not recorded. To replay the no-provider model-free first use, append `--patch "$PWD/dsh/.local/trial.yml"`. The ignored temporary host plugin in that patch creates a live `hashline` agent and dispatches a single `run_code` program through `ctx.tools.execute`. It is diagnostic setup, not production overlay. It writes `dsh/.local/trial.json` and an isolated dsh session log; no user credentials or provider calls are used.
+## Required claims
 
-The program called `tools.grep({pattern:'foo',path:'dsh/.local/fixture'})`, then `tools.transform({files:['dsh/.local/fixture/a.ts','dsh/.local/fixture/b.ts'],pattern:'foo($A)',rewrite:'bar($A)',language:'ts'})`, then a local `$` template wrapping `tools.shell` for ``bun test lib/outline-read | cat``. It completed with `isError: false`: grep found both files, transform reported two matches/two edited files (`bar(1)`/`bar(2)`), shell reported `code: 0`, `truncated: false`, `timedOut: false`, and 55 passing tests. The persisted dsh session `trial-1790501064866` logged `tool/ptc-dispatch` seq 4 `grep`, seq 6 `transform`, seq 8 `shell`, each with `isError: false` and the same root call id. `bunx tsc` on the two plugin entry points (strict, bundler, bun-types) and `git diff --check` passed. `bun-axi test lib/outline-read`: 55 passed. No screenshot or interactive model turn in this packet; a fresh verifier follows.
+- One program greps, transforms matches in two files, then runs tests: **unobservable in this fresh encounter**. Earlier implementer packet records a held diagnostic run, but that is not fresh verification evidence.
+- Nested calls each appear as `tool/ptc-dispatch`: **unobservable**; the prior packet records the old session log, unavailable here.
+- Shell result includes stdout/stderr/code and completes command: **unobservable** in this encounter.
 
-The shell binding does not expose a sandbox escalation request, and the transform's host filesystem write follows hashline's existing trusted-host edit policy rather than the shell sandbox. Multi-file edits have the hashline partial-failure behavior; no cross-file rollback.
+No UI journey or screenshots. No code defect was exposed to repair. Known setup friction: ignored encounter plugin/seed artifacts did not travel with this worktree; I recreated only the documented seed and did not fabricate the missing diagnostic plugin.
+Earlier implementer evidence is not evidence from this fresh encounter; see claims above. The documented diagnostic recipe describes a temporary host plugin, but that ignored plugin and log were not in this checkout. The local entry point observed ready at loopback port 49268 and was stopped.
