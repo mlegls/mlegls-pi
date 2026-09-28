@@ -2,6 +2,9 @@ import { BasicCompactionEngine } from '@deepseek-ai/dsh-compaction-basic';
 import { toolPairingBalancedBefore } from '@deepseek-ai/dsh-compaction';
 import { BlockAssembler } from '@deepseek-ai/dsh-llm';
 import { isDeepStrictEqual } from 'node:util';
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type {} from '@deepseek-ai/dsh-token-meter';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import type { SessionSeq } from '@deepseek-ai/dsh-session';
@@ -13,6 +16,14 @@ declare module '@deepseek-ai/dsh-session' {
       selfAuthored: boolean; operation: string; tail: string };
   }
 }
+
+/** Partial output up to a filter block, for reviewing where it trips. Returns the file, or nothing if no text streamed. */
+const dumpBlocked = (sessionId: string, register: string, error: unknown, ms: number, blocks: any[]) => {
+  if (!blocks.some(b => b.text?.trim())) return undefined;
+  const file = join(tmpdir(), `dsh-memory-blocked-${sessionId}-${Date.now()}.md`);
+  writeFileSync(file, `register: ${register}\nerror: ${String(error)}\nms: ${ms}\n\n${blocks.map(b => b.type === 'reasoning' ? `<thinking>\n${b.text}\n</thinking>` : b.text).join('\n\n')}`);
+  return file;
+};
 
 const REGISTER = 'compaction-om-v10';
 const BLOCKED = /reverse engineering|duplicating model outputs/i;
@@ -76,8 +87,8 @@ export default class MemoryCompaction extends BasicCompactionEngine {
     let generated: any;
     let register = REGISTER;
     for (const impersonal of [false, true]) {
+      const assembler = new BlockAssembler(), started = Date.now();
       try {
-        const assembler = new BlockAssembler();
         const prompt = instruction(prior, entries as any, rewrite, rewrite ? 8000 : 3000, undefined,
           { choices, target: this.config.retainTokens ?? 16000 }, selfAuthored, impersonal);
         for await (const chunk of this.ctx.llm.stream({
@@ -94,6 +105,8 @@ export default class MemoryCompaction extends BasicCompactionEngine {
         break;
       } catch (error) {
         if (signal?.aborted || !BLOCKED.test(String(error))) throw error;
+        const file = dumpBlocked(session.id, register, error, Date.now() - started, assembler.interruptedBlocks());
+        if (file) this.ctx.logger.warn(`memory checkpoint blocked; partial output: ${file}`);
         if (impersonal) return super.compactRegion(start, end, agent, signal);
         register = `${REGISTER}-fallback-impersonal`;
       }
