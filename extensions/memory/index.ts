@@ -126,6 +126,12 @@ export default function memoryExtension(pi: ExtensionAPI) {
 					reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(),
 					maxTokens: Math.min(s.maxOutputTokens, ctx.model.maxTokens || s.maxOutputTokens),
 				}).result();
+				if (response.stopReason === "error" && response.content?.some((b: any) => b.text || b.thinking)) {
+					// Partial output up to the block, for reviewing where the filter trips.
+					const file = join(ctx.sessionManager.getSessionDir?.() ?? tmpdir(), `memory-blocked-${ctx.sessionManager.getSessionId()}-${Date.now()}.md`);
+					writeFileSync(file, `register: ${register}\nerror: ${response.errorMessage}\noutput tokens: ${response.usage?.output ?? "?"}\nms: ${Date.now() - started}\n\n${response.content.map((b: any) => b.type === "thinking" ? `<thinking>\n${b.thinking}\n</thinking>` : b.text ?? "").join("\n\n")}`);
+					ctx.ui.notify(`Memory checkpoint partial output: ${file}`, "info");
+				}
 				if (impersonal || event.signal.aborted || !BLOCKED.test(response.errorMessage ?? "")) break;
 				register = `${REGISTER}-fallback-impersonal`;
 				ctx.ui.notify("Memory checkpoint blocked by provider filter; retrying in third/first-plural person", "warning");
