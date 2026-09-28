@@ -251,7 +251,7 @@ transactions and failed code must not be blindly replayed. Reset clears state.
 
 ## Retrieval and output limits
 
-Use `jg "repository question" .` for semantic code discovery; use exact grep and
+Use `ab jg "repository question" .` for semantic code discovery with edit anchors; use exact grep and
 bounded source reads when the symbol or location is already known.
 
 Displayed text is verbatim. Each show call keeps its 8 KiB cap (`show.large`: 32 KiB).

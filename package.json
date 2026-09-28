@@ -68,5 +68,8 @@
   "type": "module",
   "optionalDependencies": {
     "@trycua/cua-driver": "0.28.2"
+  },
+  "patchedDependencies": {
+    "@dzhng/jevgrep@0.4.2": "patches/@dzhng%2Fjevgrep@0.4.2.patch"
   }
 }

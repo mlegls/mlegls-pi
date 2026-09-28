@@ -3,13 +3,16 @@
 Jevgrep replaces implicit output skimming with explicit repository search:
 
 ```sh
-jg "How does cancellation reach running jobs?" .
+ab jg "How does cancellation reach running jobs?" .
 ```
 
 `bin/jg` runs the pinned package dependency. Run `jg auth` in a terminal to choose
 and authenticate a provider; `jg doctor` checks connectivity. Repository content
 is sent to that provider. For known names or paths, use exact grep and bounded reads.
 Jevgrep excerpts are verbatim but relevance rankings are not completeness guarantees.
+`ab jg` attaches session edit anchors only to whole-line excerpts verified against
+current file bytes. Partial and stale excerpts remain unanchored. The pinned
+Bun patch adds `jg --json`; retrieval and ranking are unchanged.
 
 Bash output keeps an 8 KiB head and 32 KiB tail; the original remains in the
 session's `.ab/out` log. Exec keeps 8 KiB per show call (`show.large`: 32 KiB),

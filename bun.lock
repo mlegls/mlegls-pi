@@ -31,6 +31,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@dzhng/jevgrep@0.4.2": "patches/@dzhng%2Fjevgrep@0.4.2.patch",
+  },
   "packages": {
     "@animalabs/chronicle": ["@animalabs/chronicle@0.4.0", "", {}, "sha512-Ka0jPHjo2fxWfketjea5q32qcwCTTf9dncAGAk9WfSHWAwCkDMbw6IQDHWrNmfzAt8+7z8llkfmPVy1taophMA=="],
 

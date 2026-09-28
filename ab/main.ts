@@ -16,7 +16,7 @@ const ROOT = resolve(HERE, "..");
 const cwd = process.cwd();
 const abStateRoot = process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab");
 const stateDir = process.env.AB_SESSION_STATE ?? process.env.AB_STATE ?? join(abStateRoot, createHash("sha1").update(cwd).digest("hex").slice(0, 12));
-const COMMANDS = ["read", "grep", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "memory", "daemon", "job", "supervise", "tree", "mail", "check", "service"];
+const COMMANDS = ["read", "grep", "jg", "edit", "raw", "view", "skill", "code", "computer", "pull", "lib", "memory", "daemon", "job", "supervise", "tree", "mail", "check", "service"];
 
 function help(command?: string): string {
 	const file = join(HERE, "help", (command ?? "index") + ".md");
@@ -351,6 +351,7 @@ const [command, ...args] = process.argv.slice(2);
 if (!command || command === "--help" || command === "-h" || command === "help") { console.log(help(command === "help" ? args[0] : undefined)); process.exit(0); }
 if ((command === "check" || command === "service" ? args.slice(0, args.indexOf("--") < 0 ? args.length : args.indexOf("--")) : args).some(a => a === "--help" || a === "-h")) { console.log(help(command)); process.exit(0); }
 const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, view, skill, code, tree, computer: (a: string[]) => import("./computer.ts").then(c => c.computer(a, stateDir, fail)), pull, lib, daemon, job, supervise,
+  jg: async (a) => { const { jevgrep } = await import("./jevgrep.ts"); await jevgrep(a, source); },
   check: (a) => import("./resources.ts").then(m => m.resources("check", a)),
   service: (a) => import("./resources.ts").then(m => m.resources("service", a)),
 	memory: (a: string[]) => import("./memory.ts").then(m => m.memory(a)),

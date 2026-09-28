@@ -2,6 +2,7 @@ ab — anchored file tools and library adapters for shell-driven agents
 
   ab read PATH[:SEL]...     anchored lines; outline for long files
   ab grep PATTERN [PATH]... anchored matches, directly editable
+  ab jg "QUESTION" [ROOT]  semantic discovery with directly editable excerpts
   ab edit < hunks           replace/insert/delete lines by anchor
   ab raw [CMD ARG...]       exact output past the bash tool's filter (or CMD | ab raw)
   ab view IMAGE...          attach images to the tool result
