@@ -4,7 +4,8 @@
 //   ab supervise status | resume <job> <child> verify|integrate|drop|redispatch
 // Children are wm workers spawned with the owner as parent session; the owner is woken on
 // its mailbox (mail/xxxxxxxx, lib/board/mailbox).
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { appendFileSync, existsSync, readFileSync, writeFileSync, realpathSync, statSync, watch } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { basename, dirname, join, resolve, relative } from "node:path";
@@ -76,6 +77,10 @@ async function paneTail(cwd: string, handle: Handle) {
  if (!target) return "";
  return execFileSync("tmux", ["capture-pane", "-p", "-J", "-S", "-100", "-t", target], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trimEnd();
 }
+// Long subprocesses (test gates, Jev lint) must not block the daemon's event loop: an unresponsive daemon
+// gets killed and replaced by the next client's ensure(), interrupting every job it hosts.
+const exec = promisify(execFile);
+const RUN = { maxBuffer: 64 * 1024 * 1024 };
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 // Every loop runs in the one ab daemon, and loops over the same repository commit to the same checkout;
 // preparation and integration run one loop at a time per repository (including symlink aliases).
@@ -131,9 +136,9 @@ function evidencePacket(cwd: string, handoff: Record<string, unknown> | null) {
 }
 // Workers record what they met on the way in prose; digesting it is the owner's, since the loop reads no diffs.
 // Advisory Jev findings over the subtree: observations that link no owning issue, and bodies turning into logs.
-function residuals(input: Input): string {
+async function residuals(input: Input): Promise<string> {
  try {
-  const { reports } = JSON.parse(execFileSync("bun", [TRACKER, "lint", input.ticket, "--json"], { cwd: input.cwd, encoding: "utf8", timeout: 300_000 }));
+  const { reports } = JSON.parse((await exec("bun", [TRACKER, "lint", input.ticket, "--json"], { ...RUN, cwd: input.cwd, encoding: "utf8", timeout: 300_000 })).stdout);
   const found = (reports as { slug: string; entry?: { findings: { kind: string; probability: number }[] } }[])
    .flatMap(r => (r.entry?.findings ?? []).filter(f => f.kind === "unowned" || f.kind === "journal").map(f => r.slug + " " + f.kind + " p=" + f.probability.toFixed(2)));
   return found.length ? "\nFile each unowned observation as an idea or link its owner; move a log's records to attachments:\n" + found.join("\n") : "";
@@ -280,10 +285,10 @@ const checkStartup = async (live: Child[]) => {
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
    // The tests encoding the driver's checks are the contract; they gate integration mechanically.
    // Earlier siblings' tests too, so one child can't silently break another's contract.
-   if (input.test) execFileSync("bash", ["-lc", input.test], { cwd: worker.path, stdio: "pipe" });
+   if (input.test) await exec("bash", ["-lc", input.test], { ...RUN, cwd: worker.path });
    else for (const file of new Set([...(input.tests ?? []), ...(state.tests ?? []), ...testCommands(c.evidence)])) {
-    const run = testRun(worker.path, file);
-    if (run) execFileSync(run[0], run.slice(1), { cwd: worker.path, stdio: "pipe" });
+    const command = testRun(worker.path, file);
+    if (command) await exec(command[0], command.slice(1), { ...RUN, cwd: worker.path });
    }
    if (!isJoin(c)) await close(c.slug, worker.path, packet?.path);
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
@@ -425,6 +430,12 @@ const checkStartup = async (live: Child[]) => {
  }
  state.commandsApplied ??= 0;
  await save();
+ // An accepted head with no exception means the review (or join) was accepted and integration had not
+ // finished: the daemon restarted mid-gate. Its turn end is already consumed, so re-enter integration.
+ for (const c of Object.values(state.children)) if (c.acceptedHead && !c.waiting && c.phase !== "supervise" && !job.signal.aborted) {
+  trace("integrate-resumed", { slug: c.slug });
+  await integrateChild(c, c.handle);
+ }
  let lostWatches = 0;
  while (!job.signal.aborted) {
   await apply();
@@ -547,6 +558,6 @@ const checkStartup = async (live: Child[]) => {
  if (batch) { record({ kind: "barrier", tests: state.tests ?? [], integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();
- await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + "" + (state.join?.done ? ", joined (" + (state.join.drive ? "crossing stories driven, " : "") + "consolidated)" : state.join?.skipped ? ", join skipped: " + state.join.skipped : "") + "." + carried() + residuals(input));
+ await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + "" + (state.join?.done ? ", joined (" + (state.join.drive ? "crossing stories driven, " : "") + "consolidated)" : state.join?.skipped ? ", join skipped: " + state.join.skipped : "") + "." + carried() + await residuals(input));
  await deliveries;
 }
