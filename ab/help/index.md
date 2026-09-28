@@ -13,6 +13,8 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab memory recall ID...    cited original turns on this session's branch
   ab daemon [status|stop ID|shutdown] manage the per-user job daemon
   ab job start TYPE JSON  start a restartable job
+  ab check -- CMD ARG...    run heavy checks through the shared two-slot queue
+  ab service start -- CMD  start a dev server with a stop handle and finite lifetime
   ab supervise start TICKET  run a subtree's implement → verify → integrate loop, waking this agent on exceptions
   ab mail TO TEXT           message a session (mail/xxxxxxxx) or its worktree/ticket channel
 

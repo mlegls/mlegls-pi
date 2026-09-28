@@ -6,6 +6,7 @@ import { createConnection, createServer, type Socket } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import { Resources, type Submission } from "./resources/host.ts";
 
 export interface JobContext {
   id: string;
@@ -194,6 +195,21 @@ export async function shutdown(): Promise<void> {
   await request<boolean>({ method: "shutdown" });
 }
 
+let resourceReady: Promise<void> | undefined;
+/** Local execution RPC; unlike jobs, executions are deliberately not restartable. */
+export async function resource<T = unknown>(message: {
+  action: "submit"; input: Submission;
+} | { action: "list" } | { action: "get" | "stop"; id: string; client?: string }
+  | { action: "release"; id: string; client: string }): Promise<T> {
+  await (resourceReady ??= ensure().catch(error => { resourceReady = undefined; throw error; }));
+  try { return await request<T>({ method: "resource", ...message }); }
+  catch (error) {
+    if (error instanceof Error && error.message === "unknown ab daemon request")
+      throw new Error("ab daemon predates check/service; restart it at a safe orchestration boundary (ab daemon shutdown), then retry");
+    throw error;
+  }
+}
+
 function writeAtomic(path: string, value: unknown) {
   ensureDirectory(dirname(path));
   const temporary = path + "." + process.pid + "." + randomUUID() + ".tmp";
@@ -214,6 +230,8 @@ export async function runDaemon(): Promise<void> {
   const controllers = new Map<string, AbortController>();
   let writeQueue = Promise.resolve();
   let stopping = false;
+  const resources = new Resources(join(root, "executions"));
+  process.once("exit", () => resources.close());
 
   const owner = liveOwner();
   if (owner !== undefined && owner !== process.pid) {
@@ -277,6 +295,17 @@ export async function runDaemon(): Promise<void> {
 
   async function handle(message: any): Promise<{ value?: unknown; shutdown?: boolean }> {
     switch (message?.method) {
+      case "resource": {
+        if (stopping) throw new Error("daemon shutting down");
+        switch (message.action) {
+          case "submit": return { value: resources.submit(message.input) };
+          case "list": return { value: resources.list() };
+          case "get": return { value: resources.get(message.id, message.client) };
+          case "stop": resources.stop(message.id); return { value: true };
+          case "release": resources.release(message.id, message.client); return { value: true };
+          default: throw new Error("unknown resource action");
+        }
+      }
       case "status": return { value: [...records.values()].map(publicRecord).sort((a, b) => a.id.localeCompare(b.id)) };
       case "start": {
         if (!validType(message.type) || !validId(message.id)) throw new Error("invalid job type or id");

@@ -12,6 +12,27 @@ standalone extensions for their Pi-facing commands and providers. See [host libr
 
 Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [delivery](docs/delivery.md), and [session preparation](docs/session-preparation.md).
 
+## Local execution resources
+
+`ab check -- bun-axi run typecheck` admits a heavy command through the per-user
+daemon's two-slot queue, independent of orchestration budgets. Wrap existing
+checks without changing their cadence. Children share the slot; commands that
+bypass the wrapper remain unconstrained.
+
+`ab check --share INPUT-IDENTITY -- COMMAND...` coalesces overlapping checks on
+the same frozen clean revision. The identity must also cover ignored inputs and
+environment; this is opt-in singleflight, not a result cache. See `ab check --help`.
+
+`ab service start -- COMMAND...` runs a foreground dev server with an explicit
+stop ID and a default 30-minute lifetime. Stop it after the drive, even on
+failure; retain the setup recipe rather than the resident environment. These
+services aren't check jobs and don't consume the two slots.
+
+The commands require a daemon started from this version. An already-running
+daemon must be restarted at a safe orchestration boundary; upgrading the source
+does not restart it or change existing executions. See `ab service --help` for
+process-group and crash-cleanup limitations.
+
 ## Development
 
 With Bun available, run `bun run setup`, then `bun test`. Tracker CLI tests: `bun run test:tracker`.
