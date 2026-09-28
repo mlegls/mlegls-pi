@@ -1,0 +1,9 @@
+---
+stage: idea
+assignee: agent
+author: "session:01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76"
+---
+
+On 2026-09-28 the TypeSafe Decision API returned HTTP 503 for a stretch. A 503 at a supervised child's launch (a Jev classification in the launch path) failed the whole supervise job. For Concept's contrast tickets (check-edition-contrast-floors-across-hues and its resolve-stark-to-soft follow-up), that left the work parked until the API recovered. The same outage showed up in children's handoffs as "residual lint unavailable", which is harmless because those lints are advisory. Related transient failure: [[projects/mlegls-pi/issues/jev-decision-api-returns-http-520-during-browser-drive]].
+
+Done when a 5xx or network failure from the Decision API at launch is retried with backoff, or the step it feeds is skipped as advisory. It should not end the job. A persistent outage should surface once as a clear "Decision API unavailable" state that the owner can resume.
