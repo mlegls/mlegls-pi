@@ -30,3 +30,5 @@ Root review of `dsh-port` hit the same adapter limit: `ab lib board read` return
 2026-09-28, Concept `settings-saved-confirmation-never-appears-review-1`: `ab lib board read` returned all three peer packets; `ab lib board ack` failed with `board.ack is not a function`. Read the packets and continued isolated review without acknowledgment.
 
 2026-09-28, Concept `show-safe-material-lineage-in-published-captures-review-1`: `ab lib board read` returned both peer packets; `ab lib board ack` failed with `board.ack is not a function`. Listing exports confirmed no acknowledgment operation. Read the packets and continued isolated review without acknowledgment.
+
+2026-09-28, Concept `capture-and-publish-mission-suggestion-metadata`, session `01a0e941-6e21-7664-ac0b-969f780e44d6`: `ab lib board read` returned the three parent packets, while `ab lib board ack` failed with `board.ack is not a function`. Listing exports confirmed no ack. Read the packets and published the implemented interface through `board.send`; acknowledgment remains unavailable from bash.
