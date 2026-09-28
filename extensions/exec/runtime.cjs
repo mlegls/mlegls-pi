@@ -22,13 +22,12 @@ function traced(name, fn) {
 const OUTPUT_LIMIT = 8 * 1024;
 const LARGE_OUTPUT_LIMIT = 32 * 1024;
 const SHELL_LIMIT = 1024 * 1024;
-const TRUNCATED = "\n[output truncated]\n";
 const scope = new AsyncLocalStorage();
 let exec;
 let active;
-let ingress;
+const { mkdtempSync, appendFileSync } = require("node:fs");
+const outputDirectory = mkdtempSync(require("node:path").join(require("node:os").tmpdir(), "pi-exec-output-"));
 let ingressQuery = "";
-let ingressEnabled = true;
 const transpiler = new Bun.Transpiler({ loader: "ts" });
 const protectedDisplay = new WeakSet();
 const protect = value => { protectedDisplay.add(value); return value; };
@@ -163,7 +162,12 @@ function rejectPending(reason) {
 
 function bounded(text, limit = OUTPUT_LIMIT) {
 	const bytes = Buffer.from(text);
-	return bytes.length <= limit ? text : bytes.subarray(0, limit).toString() + TRUNCATED;
+	if (bytes.length <= limit) return text;
+	const path = resolve(outputDirectory, `error-${require("node:crypto").randomUUID()}.txt`);
+	appendFileSync(path, bytes, { mode: 0o600 });
+	let end = limit;
+	while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
+	return bytes.subarray(0, end).toString() + `\n[output truncated; full output: ${path}. Grep this file for what you need rather than reading it whole.]\n`;
 }
 
 function render(value) {
@@ -179,26 +183,16 @@ function render(value) {
 	}
 	const passive = format(value, Infinity);
 	if (passive) return passive.text;
-	return inspect(value, { depth: 5, maxArrayLength: 100, maxStringLength: 10_000, getters: false, colors: false });
+	return inspect(value, { depth: null, maxArrayLength: Infinity, maxStringLength: Infinity, getters: false, colors: false });
 }
 
 function isPromise(value) {
 	return value != null && typeof value.then === "function";
 }
 
-function display(value, raw = false, query = scope.getStore()?.query ?? ingressQuery, focus, budget = OUTPUT_LIMIT) {
-	if (isPromise(value)) return Promise.resolve(value).then(value => display(value, raw, query, focus, budget));
-	const rendered = value && typeof value.content === "function" ? value.content() : render(value);
-	if (!ingressEnabled || raw || (!query && !focus) || protectedDisplay.has(value) || uiHelpResults.has(value)) return rendered;
-	return Promise.resolve(rendered).then(async result => {
-		if (!ingressEnabled || protectedDisplay.has(result)) return result;
-		if (!Array.isArray(result)) return ingress.filter(String(result), query, budget, focus);
-		const filtered = await Promise.all(result.map(async block => block.type === "text"
-			? { ...block, text: await ingress.filter(block.text, query, budget, focus) } : block));
-		const error = contentErrors.get(result);
-		if (error) contentErrors.set(filtered, error);
-		return filtered;
-	});
+function display(value) {
+	if (isPromise(value)) return Promise.resolve(value).then(display);
+	return value && typeof value.content === "function" ? value.content() : render(value);
 }
 
 function emitValues(cell, values, call = 0) {
@@ -271,7 +265,7 @@ function showValues(raw, values, focus, sync = false, limit = OUTPUT_LIMIT) {
 }
 
 show.raw = (...values) => showValues(true, values);
-show.pull = (id) => show.raw(HANDLE.test(id) ? handleOutput(id) : ingress.pull(id));
+show.pull = (id) => show.raw(handleOutput(id));
 
 // Emitted text by handle, so output delivered in collapsed form stays recoverable until reset.
 const HANDLE = /^c\d+(?:\.(?:\d+|io))?$/;
@@ -312,8 +306,7 @@ function budgetOf(cell, call) {
 function outputWarning(cell, call) {
 	const budget = cell.budgets.get(call);
 	if (!budget?.omitted || cell.finished) return;
-	const large = budget.limit >= LARGE_OUTPUT_LIMIT;
-	cell.deliver({ type: "output", id: cell.id, call, warning: true, text: `\n[output truncated] ${budget.omitted} UTF-8 bytes omitted from this show (${budget.limit / 1024} KiB); retained values unchanged. Select a smaller slice${large ? "" : " or use show.large(value) (32 KiB)"}.\n` });
+	cell.deliver({ type: "output", id: cell.id, call, warning: true, text: `\n[output truncated] ${budget.omitted} UTF-8 bytes omitted; full output: ${budget.path}. Grep this file for what you need rather than reading it whole.\n` });
 	budget.omitted = 0;
 }
 
@@ -354,6 +347,8 @@ function emit(cell, value, call = 0) {
 	if (cell.finished) return;
 	const bytes = Buffer.from(value);
 	const budget = budgetOf(cell, call);
+	budget.path ??= resolve(outputDirectory, `c${cell.id}.${call}.txt`);
+	appendFileSync(budget.path, bytes, { mode: 0o600 });
 	const remaining = Math.max(0, budget.limit - budget.bytes);
 	let end = Math.min(bytes.length, remaining);
 	while (end > 0 && end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--;
@@ -425,18 +420,20 @@ function runShell(command, options = {}) {
 }
 
 function capture(stream, onPartial) {
+	const path = resolve(outputDirectory, `shell-${require("node:crypto").randomUUID()}.txt`);
 	const chunks = [];
 	let size = 0;
 	let truncated = false;
 	stream.on("data", (chunk) => {
 		// Mirror only a display-sized prefix to the host, for forced termination.
+		appendFileSync(path, chunk, { mode: 0o600 });
 		if (size < 50 * 1024) onPartial?.(chunk.subarray(0, 50 * 1024 - size).toString());
 		const remaining = SHELL_LIMIT - size;
 		if (chunk.length > remaining) truncated = true;
 		if (remaining > 0) { chunks.push(chunk.subarray(0, remaining)); size += Math.min(chunk.length, remaining); }
 	});
 	return {
-		text: () => Buffer.concat(chunks).toString() + (truncated ? TRUNCATED : ""),
+		text: () => Buffer.concat(chunks).toString() + (truncated ? `\n[output truncated; full output: ${path}. Grep this file for what you need rather than reading it whole.]\n` : ""),
 		truncated: () => truncated,
 	};
 }
@@ -450,7 +447,6 @@ async function write(path, content) {
 }
 
 async function initialize(message) {
-	ingressEnabled = message.ingressEnabled ?? true;
 	const reader = message.profile === "reader";
 	modules = new Set((message.modules ?? DEFAULT_MODULES).filter(name => name !== "board" && name !== "wm" && (!reader || name === "fs" || name === "exa")));
 	if (typeof Bun === "undefined") throw new Error("the exec kernel runs on Bun");
@@ -507,7 +503,6 @@ async function initialize(message) {
 		if (mod.scope === "project") project[mod.name] = loaded;
 		else capabilities[mod.name] = loaded;
 	}
-	ingress = (reader ? await import("../../lib/ingress.ts") : capabilities.ingress).create({ record: event => send({ type: "ingress", event }) });
 	if (!reader) capabilities.project = Object.freeze(project);
 	exec = Object.freeze(capabilities);
 	Object.defineProperty(globalThis, Symbol.for("pi.exec"), { value: exec, writable: false, configurable: false });
@@ -563,7 +558,6 @@ function execute(message) {
 process.on("message", (message) => {
 	if (message.type === "init") initialize(message).catch((error) => send({ type: "fatal", error: errorText(error) }));
 	else if (message.type === "execute") execute(message);
-	else if (message.type === "ingress-policy") ingressEnabled = message.enabled;
 	else if (message.type === "response") resolveMessage(message);
 	else if (message.type === "ping") send({ type: "pong", nonce: message.nonce });
 });

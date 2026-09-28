@@ -5,11 +5,8 @@ import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFi
 import { readFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { create as createIngress } from "../../lib/ingress.ts";
 import { segments } from "../../lib/raw.ts";
 import { createImageFile, detectImageMimeType, type ContentBlock } from "../exec/image";
-import { ingressContext } from "../exec/ingress-context";
-import { filterReads } from "../ingress-policy";
 
 // One asynchronous bash tool, after Unreal Agent: a call returns when its command
 // finishes or after a yield window with a handle; a detached command's result is
@@ -18,7 +15,7 @@ import { filterReads } from "../ingress-policy";
 
 const BIN = resolve(dirname(new URL(import.meta.url).pathname), "../../bin");
 const REPLACED = ["read", "edit", "write", "grep", "find", "ls", "exec"];
-const HEAD = 8 * 1024, TAIL = 32 * 1024, BUDGET = 16 * 1024;
+const HEAD = 8 * 1024, TAIL = 32 * 1024;
 // An unhandled failure anywhere in a composed command reports itself and the script goes on
 // (unlike set -e). ERR skips if/while conditions and the left of && and ||, so expected
 // failures stay quiet; set -E carries the trap into functions and substitutions (a failing
@@ -67,10 +64,6 @@ export default function (pi: ExtensionAPI) {
 	let lastCtx: ExtensionContext | undefined;
 	let generation = 0;
 	const jobs = new Map<string, Job>();
-	const ingress = createIngress({
-		record: event => pi.appendEntry("exec-ingress", event),
-		retain: (id, text) => { mkdirSync(join(state, "ingress"), { recursive: true }); writeFileSync(join(state, "ingress", id), text); },
-	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		lastCtx = ctx;
@@ -132,14 +125,12 @@ export default function (pi: ExtensionAPI) {
 		let text = collapseReports(readFileSync(job.log, "utf8"));
 		if (Buffer.byteLength(text) > HEAD + TAIL) {
 			const buffer = Buffer.from(text);
-			text = buffer.subarray(0, HEAD).toString() + "\n…[" + (buffer.length - HEAD - TAIL) + " bytes omitted; full output: " + job.log + "]…\n" + buffer.subarray(buffer.length - TAIL).toString();
+			let head = HEAD, tail = buffer.length - TAIL;
+			while (head > 0 && (buffer[head] & 0xc0) === 0x80) head--;
+			while (tail < buffer.length && (buffer[tail] & 0xc0) === 0x80) tail++;
+			text = buffer.subarray(0, head).toString() + "\n…[" + (tail - head) + " bytes omitted; full output: " + job.log + ". Grep this file for what you need rather than reading it whole.]…\n" + buffer.subarray(tail).toString();
 		}
-		const parts = segments(text);
-		const rawBytes = parts.reduce((n, p) => n + (p.raw ? Buffer.byteLength(p.text) : 0), 0);
-		const loose = parts.filter(p => !p.raw), looseBytes = loose.reduce((n, p) => n + Buffer.byteLength(p.text), 0);
-		// Exact regions spend the budget first; the rest shares what is left in proportion to size.
-		const budget = (p: { text: string }) => Math.max(1024, Math.floor((BUDGET - rawBytes) * Buffer.byteLength(p.text) / Math.max(1, looseBytes)));
-		text = (await Promise.all(parts.map(p => p.raw || options.raw || !ctx || !filterReads(ctx.model) ? p.text : ingress.filter(p.text, ingressContext(ctx, job.command), budget(p), options.focus)))).join("");
+		text = segments(text).map(p => p.text).join("");
 		const notes: string[] = [];
 		if (job.detached) notes.push(job.handle + " finished after " + Math.round((Date.now() - job.started) / 1000) + "s: " + job.command.split("\n")[0].slice(0, 120));
 		if (code === undefined) notes.push(job.handle + " still running (pid " + job.pid + ", " + Math.round((Date.now() - job.started) / 1000) + "s); its result arrives when it finishes — don't poll. kill -- -" + job.pid + " stops it; output so far is in " + job.log);
@@ -201,7 +192,7 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Run a bash command in the workspace (GNU userland: coreutils, sed -i, mktemp take GNU flags, not macOS BSD ones). The call returns when the command finishes, or after wait seconds (default " + YIELD_S + ") with a handle while it keeps running; its result then arrives by itself. Don't poll or sleep for it. Independent commands can be parallel calls in one turn.",
 			"A failing command inside a script prints [exit N at line L: cmd] and the script continues; conditions and || handle failures silently. Identical reports collapse into the first, suffixed ×N.",
-			"Output is read with attention to the conversation: skimmed or omitted parts carry an ing-… id that ab pull recovers. A skim is not evidence for edits or exact claims: ab pull the page you need rather than rerunning the command. To keep one command's output exact, CMD | ab raw, or ab raw CMD ARG… to include its stderr and exit status; raw: true makes the whole call exact. focus names what to look for. Long output keeps head and tail; the full log path is shown.",
+			"Output is verbatim, with long output truncated to head and tail. The complete output is saved at the shown log path: grep it for what you need rather than reading it whole. Use jg \"repository question\" . for semantic code discovery; use ab grep for exact matches and ab read for bounded source with edit anchors.",
 			"Read and search files with ab read PATH[:50-80] and ab grep PATTERN rather than cat/sed/head: every row carries an anchor (N abcd│text), and ab edit targets anchors, so a change sends only its new lines, with no old text to quote and no whole-file rewrite. ab edit takes hunks on stdin (ab edit <<'EOF' ... EOF): =abcd or =abcd wxyz replaces, -abcd deletes, >abcd / <abcd insert after/before; hunks are separated by a blank line and a stale anchor is rejected, never misapplied. Create new files with cat > path <<'EOF'.",
 			"Edit bodies are literal new text and may contain multiple lines, including blank lines. Only a blank line followed by a hunk header starts another hunk. Bodies are not unified diffs: omit +/− markers and old/context lines. A single anchor replaces one old line, even with a multiline body; use both endpoints for an old block. Escape header-like content before its sigil (e.g. an indented \\<time).",
 			"ab also has images (ab view), skills (ab skill), a TypeScript code graph (ab code), original memory evidence (ab memory recall ID; replaces memory_recall) and lib/ adapters; ab CMD --help for each. exa-cli for web search.",
@@ -209,8 +200,8 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({
 			command: Type.String({ description: "Bash source; runs with bash -c in the workspace." }),
 			wait: Type.Optional(Type.Number({ description: "Seconds to wait before returning a handle (default " + YIELD_S + ", 0 returns immediately)." })),
-			focus: Type.Optional(Type.String({ description: "What to look for in the output." })),
-			raw: Type.Optional(Type.Boolean({ description: "Exact output, no attention filtering." })),
+			focus: Type.Optional(Type.String({ description: "Deprecated; output is no longer semantically filtered." })),
+			raw: Type.Optional(Type.Boolean({ description: "Compatibility option; all output is verbatim within size caps." })),
 		}),
 		async execute(_id, { command, wait, focus, raw }, signal, _onUpdate, ctx) {
 			lastCtx = ctx;

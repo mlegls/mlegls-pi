@@ -8,7 +8,6 @@ import { createComputerUseBridge } from "./computer-use";
 import { MODULES, resolveModules, describeModules, resolveProfile, type ExecProfile, type ExecModule } from "./modules";
 import { renderCall, renderResult } from "./render";
 import { ingressContext } from "./ingress-context";
-import { filterReads } from "../ingress-policy";
 import { deliver } from "./delivery";
 import { settings as memorySettings } from "../memory/index.ts";
 
@@ -118,7 +117,6 @@ export default async function (pi: ExtensionAPI) {
 				scheduleFlush();
 			},
 		});
-		kernel.setIngressEnabled(filterReads(ctx.model));
 	}
 
 	pi.on("session_start", async (_event, ctx) => {
@@ -129,7 +127,6 @@ export default async function (pi: ExtensionAPI) {
 	pi.on("agent_settled", async (_event, ctx) => { busy = false; lastCtx = ctx; await flush(); });
 	pi.on("model_select", async (event, ctx) => {
 		lastCtx = ctx;
-		kernel?.setIngressEnabled(filterReads(event.model));
 	});
 	pi.on("session_tree", async (_event, ctx) => { await reset(ctx, true); });
 	pi.on("session_shutdown", async () => { await reset(undefined, true); });
@@ -162,7 +159,6 @@ export default async function (pi: ExtensionAPI) {
 			async execute(_id, { code }, signal, onUpdate, ctx) {
 				if (configurationError) throw new Error(configurationError);
 				if (!kernel) await reset(ctx);
-				kernel!.setIngressEnabled(filterReads(ctx.model));
 				const cell = nextCell++;
 				origins.set(cell, code.slice(0, 1500));
 				lastCtx = ctx;

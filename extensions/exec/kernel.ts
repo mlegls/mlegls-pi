@@ -133,17 +133,13 @@ export class Kernel {
 	private pinging = false;
 	private sequence = 0;
 	private disposed = false;
-	private ingressEnabled = true;
 
 	constructor(private readonly options: KernelOptions) {
 		for (const entry of options.ledger) this.entries.set(entry.path, entry);
 	}
 
-	/** Update pending displays too; already rendered output is not rewritten. */
-	setIngressEnabled(enabled: boolean) {
-		this.ingressEnabled = enabled;
-		if (this.child?.connected) this.child.send({ type: "ingress-policy", enabled }, () => {});
-	}
+	/** Compatibility with integrations predating verbatim output. */
+	setIngressEnabled(_enabled: boolean) {}
 
 	/**
 	 * Run one cell. Cells run concurrently in one kernel; the result settles when the cell
@@ -177,7 +173,7 @@ export class Kernel {
 		if (this.ready) return this.ready;
 		const child = fork(fileURLToPath(new URL("./runtime.cjs", import.meta.url)), [], {
 			cwd: this.options.cwd,
-			env: { ...process.env, PI_SESSION_FILE: this.options.sessionFile ?? "" },
+			env: { ...process.env, PATH: fileURLToPath(new URL("../../bin/", import.meta.url)) + ":" + process.env.PATH, PI_SESSION_FILE: this.options.sessionFile ?? "" },
 			// The kernel runs on Bun whatever runs pi. A Bun-compiled pi's execPath is pi itself, so find bun on PATH.
 			execPath: basename(process.execPath) === "bun" ? process.execPath : "bun",
 			execArgv: [],
@@ -254,7 +250,7 @@ export class Kernel {
 				reject(new Error(error));
 				if (this.child === child) void this.stop(error);
 			});
-			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], modules: this.options.modules, profile: this.options.profile, ingressEnabled: this.ingressEnabled });
+			child.send({ type: "init", cwd: this.options.cwd, ledger: [...this.entries.values()], modules: this.options.modules, profile: this.options.profile });
 		});
 		return this.ready;
 	}

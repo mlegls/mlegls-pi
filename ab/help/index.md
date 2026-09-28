@@ -8,7 +8,7 @@ ab — anchored file tools and library adapters for shell-driven agents
   ab skill PATH|NAME        load a SKILL.md (bare names fall back to global Pi skills)
   ab code VERB [NAME]       TypeScript definitions and checker-resolved references
   ab computer "INTENT"      Jev-driven browser (--url/--browser) or explicit native window
-  ab pull ING-ID            original text behind a skimmed/omitted output page
+  ab pull ING-ID            recover historical skimmed output pages
   ab lib MODULE [FN] [ARG]  call a lib/ export; ARGs parse as JSON when they can
   ab memory recall ID...    cited original turns on this session's branch
   ab daemon [status|stop ID|shutdown] manage the per-user job daemon

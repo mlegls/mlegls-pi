@@ -249,43 +249,19 @@ The kernel, imports, and asynchronous work persist. Local declarations do not.
 State writes and other side effects survive a later error; calls are not
 transactions and failed code must not be blindly replayed. Reset clears state.
 
-## Foveated reading
+## Retrieval and output limits
 
-Read with an intent, not just a search term:
+Use `jg "repository question" .` for semantic code discovery; use exact grep and
+bounded source reads when the symbol or location is already known.
 
-~~~ts
-await show(await read("src/example.ts"), { focus: "inspect cancellation before editing" });
-await show(state.document, { focus: "understand the architecture" });
-await show(state.document);             // infer attention from the session
-await show.pull("ing-0123456789abcdef"); // exact skimmed/omitted original, no rescoring
-await show.raw(state.result);           // no semantic transformation
-~~~
+Displayed text is verbatim. Each show call keeps its 8 KiB cap (`show.large`: 32 KiB).
+The complete rendered output is saved in a private temporary directory; truncation
+notices give its path. Grep that file for what you need rather than reading it whole.
+Shell captures over 1 MiB also retain their complete stream in a temporary file.
+`show.raw` remains compatible, and trailing `{focus: string}` options are ignored.
+`show.pull` accepts output handles, not historical `ing-` pages.
 
-Jev chooses 100/75/50/25/0% retention. A persistent local LLMLingua-2 worker
-compresses text at the middle levels; 25% is explicitly keyword cues, not assertions.
-Focus supplements the conversation tail and current cell. Skims can lose qualifiers
-and relationships: pull the original before relying on details. Code, tables and
-anchored source are token-deleted too, so compressed source is not editable evidence:
-edit through retained rows, or show verbatim first. Headings and recovery
-handles remain visible, and original retained values never change.
-
-One-time local setup: `uv run --no-project --python 3.12 --script lib/skim-worker.py --setup`
-from this package. Normal reads run offline and reuse the loaded model until reset.
-Unavailable compression falls back to labeled source excerpts; see
-[setup, limits and replay](../../docs/ingress.md).
-
-A trailing object containing only a string `focus` field is reserved as options
-when another value precedes it. Other variadic values—including trailing strings—
-remain content. Use `show.raw` to display that object literally alongside other
-values. `show.large` accepts the same focus option and raises the display cap.
-Console aliases and notifications infer focus from context.
-
-Raw/pull still obey byte/image caps. Loaded skills and images bypass filtering.
-Missing credentials, scorer failure, or timeout keeps the original with a warning.
-Rendering counts notice overhead in UTF-8 bytes and never expands a successful
-filtered read. Under budget pressure peripheral skims yield before exact passages;
-ordinary display truncation can still cut an oversized result.
-[Policy, setup, and verification](../../docs/ingress.md).
+See [retrieval setup and output limits](../../docs/ingress.md).
 
 ## Reserved API names
 

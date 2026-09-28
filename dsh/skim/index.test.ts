@@ -23,17 +23,19 @@ function harness(dir: string) {
   return { tools, post, writes: () => writes };
 }
 
-test('SHA-256 fallback retains original once; replay/fork pull is exact and printed pull is not skimmed again', async () => {
+test('truncation retains original once; replay/fork pull stays exact', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-skim-review-'));
   try {
     const host = harness(dir);
     const session = Session.create(SessionId('skim-parent'));
     const agent = { session };
     const exec = { agent, name: 'run_code', callId: 'outer', arguments: { code: 'print exact diff', description: 'diff' } };
-    // Ingress deliberately preserves diffs: force the fallback, with no external judge.
+    // Large results retain an exact original without an external judge.
     const original = 'diff --git a/x b/x\n' + '+retained marker\n'.repeat(8000);
     const result = { content: [{ type: 'text', text: original }], isError: false };
     const decision = await host.post(exec, result, async () => ({ kind: 'accept' }));
+    expect(decision.content[0].text).toContain('Grep this file');
+    expect(Buffer.byteLength(decision.content[0].text)).toBeLessThanOrEqual(4096);
     const id = decision.content[0].text.match(/ing-[a-f0-9]{16}/)[0];
     expect(host.writes()).toBe(1);
     expect(session.snapshotEvents().filter(e => e.type === 'skim/retained').every(e => e.ignorable)).toBe(true);

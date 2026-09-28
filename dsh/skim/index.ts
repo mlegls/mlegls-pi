@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { create as createIngress } from '../../lib/ingress.ts';
 import type { SpillRef } from '@deepseek-ai/dsh-spill';
 import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools';
 
@@ -44,28 +43,21 @@ export function apply(ctx: Context) {
     return value;
   }
 
-  function ingress(exec: ToolExecution, owner: State) {
-    return createIngress({
-      async retain(id, text) { await retain(exec, owner, id, text); },
-      async retrieve(id) {
-        const ref = owner.refs.get(id);
-        return ref ? readFile(ref.locator, 'utf8') : undefined;
-      },
-    });
-  }
-
-  async function skim(exec: ToolExecution, text: string, query: string, focus: string, budget?: number) {
-    const kernel = ingress(exec, state(exec));
-    try {
-      return await kernel.filter(text, query, budget, focus);
-    } finally {
-      kernel.dispose();
-    }
+  async function skim(exec: ToolExecution, text: string, _query: string, _focus: string, budget = runCodeBudget) {
+    const bytes = Buffer.from(text);
+    if (bytes.length <= budget) return text;
+    const owner = state(exec);
+    const id = `ing-${createHash('sha256').update(text).digest('hex').slice(0, 16)}`;
+    await retain(exec, owner, id, text);
+    const notice = `\n[output truncated; ${id}; full output: ${owner.refs.get(id)!.locator}. Grep this file for what you need rather than reading it whole.]`;
+    let end = Math.max(0, budget - Buffer.byteLength(notice));
+    while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
+    return bytes.subarray(0, end).toString() + notice;
   }
 
   ctx.tools.register(defineTool({
     name: 'skim',
-    description: 'Skim text for the supplied focus. Incomplete pages carry ing-… ids; use pull({ id }) to recover them verbatim.',
+    description: 'Display text with a size cap and a searchable saved original. Legacy name; no semantic skimming. Use jg for repository discovery.',
     parameters: {
       text: { type: 'string', required: true },
       focus: { type: 'string', required: true },
@@ -82,14 +74,10 @@ export function apply(ctx: Context) {
     parameters: { id: { type: 'string', required: true } },
     output: { schema: { type: 'string' }, render: (_args, text) => [{ type: 'text', text }] },
     async execute({ id }, exec) {
-      const kernel = ingress(exec, state(exec));
-      try {
-        const text = await kernel.recall(id);
-        if (exec.rootCallId) state(exec).recalled.add(exec.rootCallId);
-        return text;
-      } finally {
-        kernel.dispose();
-      }
+      const ref = state(exec).refs.get(id);
+      if (!ref) throw new Error('Unknown ingress page ' + id);
+      if (exec.rootCallId) state(exec).recalled.add(exec.rootCallId);
+      return readFile(ref.locator, 'utf8');
     },
   }));
 
@@ -104,33 +92,12 @@ export function apply(ctx: Context) {
     const original = content.map(block => block.type === 'text' ? block.text : '').join('');
     if (Buffer.byteLength(original, 'utf8') <= runCodeBudget) return decision;
 
-    const args = exec.arguments as { code?: unknown; description?: unknown };
-    const description = typeof args.description === 'string' ? args.description : 'run_code result';
-    const focus = typeof args.code === 'string' ? args.code : description;
-    let filtered: string;
     try {
-      filtered = await skim(exec, original, description, focus, runCodeBudget);
+      const text = await skim(exec, original, '', '', runCodeBudget);
+      return { ...decision, content: [{ type: 'text', text }] };
     } catch (error) {
-      ctx.logger.warn(`run_code skim unavailable; keeping the full result: ${String(error)}`);
+      ctx.logger.warn(`run_code result spill unavailable; keeping the full result: ${String(error)}`);
       return decision;
     }
-    if (filtered !== original && Buffer.byteLength(filtered, 'utf8') <= runCodeBudget) {
-      return { ...decision, content: [{ type: 'text', text: filtered }] };
-    }
-
-    const owner = state(exec);
-    const id = `ing-${createHash('sha256').update(original).update(focus).digest('hex').slice(0, 16)}`;
-    if (!owner.refs.has(id)) {
-      try {
-        await retain(exec, owner, id, original);
-      } catch (error) {
-        ctx.logger.warn(`run_code result spill unavailable; keeping the full result: ${String(error)}`);
-        return decision;
-      }
-    }
-    return {
-      ...decision,
-      content: [{ type: 'text', text: `[run_code result exceeded ${runCodeBudget} bytes; full result retained as ${id}. Use tools.pull({ id: "${id}" }) to recover it verbatim.]` }],
-    };
   }, { prepend: true });
 }

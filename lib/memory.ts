@@ -1,5 +1,5 @@
-// Original session evidence. Rendering/filtering belongs to show() or the bash ingress,
-// not this reader: skims must retain an exact recovery path.
+// Original session evidence. Rendering and output caps belong to show() or bash,
+// not this reader.
 import { readFileSync } from "node:fs";
 import { convertToLlm, sessionEntryToContextMessages, type SessionEntry } from "@earendil-works/pi-coding-agent";
 

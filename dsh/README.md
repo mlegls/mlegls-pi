@@ -106,18 +106,17 @@ Edits are not transactionally rolled back across files, just like `edit`.
 The host-side hashline edit is trusted local filesystem access, not the dsh
 shell sandbox. Every nested binding call is a `tool/ptc-dispatch` entry.
 
-## Skim and recall
+## Output limits and recall
 
-Successful `run_code` results over 4 KiB are skimmed before entering context. When
-filtering completes but cannot fit a result, its full text is replaced with a
-spill-backed `ing-…` locator. Skim or spill failures keep the original result.
-Programs can also call `await tools.skim({ text, focus })`. Use
-`await tools.pull({ id })` in a later program to recover a retained page verbatim.
-Originals use the local dsh spill backend; locator mappings are ignorable session
-records and replay on reload/fork (until spill cleanup expires the files). The
-stock spill policy and old-result pruner are disabled: they would truncate before
-skimming. A program that calls `pull` successfully opts its printed result out of
-automatic skimming; print only the exact portion you need.
+Successful text-only `run_code` results over 4 KiB are truncated, with the full
+original saved by dsh's spill store. Grep the path in the notice for what is needed
+rather than reading it whole. Spill failures keep the original result.
+
+`tools.skim({text, focus})` is a compatibility name for this same size cap; focus
+is ignored. `tools.pull({id})` still recovers retained originals across reload/fork
+until spill cleanup expires them. Programs using pull should print only the needed
+slice. No semantic scoring or token deletion runs on results. Use `jg` through the
+shell for repository discovery (add the root package's `bin` directory to PATH).
 
 ## Live headless turn
 
@@ -144,8 +143,7 @@ env -u PI_BOARD_TOPIC -u PI_BOARD_NAME \
   "Use run_code to print DSH_LIVE_MODEL_OK, then report it."
 ```
 
-A real skim additionally uses the configured ingress decision service and local
-LLMLingua cache; failures preserve the original `run_code` result.
+Output truncation requires no model credentials or local compression worker.
 
 ## Loading and development
 `dsh/hashline/index.ts` imports shared `lib/outline-read` source relatively.

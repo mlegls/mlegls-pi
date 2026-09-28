@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import bash from "./index";
@@ -38,14 +38,14 @@ test("shutdown discards detached completions before they access stale context", 
 	}
 });
 
-test("cheap-model focused output bypasses ingress before collecting context", async () => {
+test("focused output stays verbatim and oversized output has a searchable original", async () => {
 	const previous = process.env.PI_TOOL_MODE;
 	process.env.PI_TOOL_MODE = "bash";
 	const dir = mkdtempSync(join(tmpdir(), "bash-ingress-policy-"));
 	const handlers: Record<string, Function> = {};
 	let tool: any;
 	const ctx = {
-		cwd: dir, model: { id: "gpt-6-luna" }, hasPendingMessages: () => false,
+		cwd: dir, model: { id: "claude-opus-5" }, hasPendingMessages: () => false,
 		sessionManager: {
 			getSessionFile: () => join(dir, "session.jsonl"), getSessionId: () => "test",
 			getLeafId: () => "test-leaf",
@@ -60,6 +60,11 @@ test("cheap-model focused output bypasses ingress before collecting context", as
 		expect(result.content[0].text).toBe("0".repeat(600));
 		const coordinates = await tool.execute("coords", { command: 'printf "%s|%s" "$PI_SESSION_FILE" "$PI_SESSION_LEAF"' }, undefined, undefined, ctx);
 		expect(coordinates.content[0].text).toBe(join(dir, "session.jsonl") + "|test-leaf");
+		const large = await tool.execute("large", { command: "printf '%060000d' 0" }, undefined, undefined, ctx);
+		const body = large.content[0].text;
+		expect(body).toContain("Grep this file");
+		const path = /full output: (.+)\. Grep/.exec(body)![1];
+		expect(readFileSync(path, "utf8")).toBe("0".repeat(60000));
 	} finally {
 		await handlers.session_shutdown?.();
 		if (previous === undefined) delete process.env.PI_TOOL_MODE;
