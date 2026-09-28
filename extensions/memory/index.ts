@@ -118,17 +118,17 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			if (typeof stream !== "function") throw new Error("Memory requires Pi's modelRegistry.streamSimple (update Pi)");
 			const started = Date.now();
 			let response: any, register = REGISTER;
-			// Anthropic's output-duplication filter sometimes blocks the introspective induction; retry once without it.
-			for (const introspective of [true, false]) {
-				const request = trimImages({ ...context, messages: [...context.messages, { role: "user" as const, content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored, introspective), timestamp: Date.now() }] }, CHECKPOINT_BYTES);
+			// Anthropic's output-duplication filter sometimes blocks the generated journal; retry once asking for third or first-plural person.
+			for (const impersonal of [false, true]) {
+				const request = trimImages({ ...context, messages: [...context.messages, { role: "user" as const, content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored, impersonal), timestamp: Date.now() }] }, CHECKPOINT_BYTES);
 				response = await stream.call(ctx.modelRegistry, ctx.model, request, {
 					signal: event.signal, sessionId: ctx.sessionManager.getSessionId(),
 					reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(),
 					maxTokens: Math.min(s.maxOutputTokens, ctx.model.maxTokens || s.maxOutputTokens),
 				}).result();
-				if (!introspective || event.signal.aborted || !BLOCKED.test(response.errorMessage ?? "")) break;
-				register = `${REGISTER}-fallback-plain`;
-				ctx.ui.notify("Memory checkpoint blocked by provider filter; retrying without the introspective induction", "warning");
+				if (impersonal || event.signal.aborted || !BLOCKED.test(response.errorMessage ?? "")) break;
+				register = `${REGISTER}-fallback-impersonal`;
+				ctx.ui.notify("Memory checkpoint blocked by provider filter; retrying in third/first-plural person", "warning");
 			}
 			if (event.signal.aborted) throw new Error("Memory cancelled: request aborted");
 			const current = ctx.sessionManager.getBranch();

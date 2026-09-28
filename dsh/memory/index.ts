@@ -75,11 +75,11 @@ export default class MemoryCompaction extends BasicCompactionEngine {
     }
     let generated: any;
     let register = REGISTER;
-    for (const introspective of [true, false]) {
+    for (const impersonal of [false, true]) {
       try {
         const assembler = new BlockAssembler();
         const prompt = instruction(prior, entries as any, rewrite, rewrite ? 8000 : 3000, undefined,
-          { choices, target: this.config.retainTokens ?? 16000 }, selfAuthored, introspective);
+          { choices, target: this.config.retainTokens ?? 16000 }, selfAuthored, impersonal);
         for await (const chunk of this.ctx.llm.stream({
           provider: target.provider, model: target.model,
           messages: [...messages.filter(m => m !== null), { role: 'user', content: [{ type: 'text', text: prompt }] }],
@@ -94,8 +94,8 @@ export default class MemoryCompaction extends BasicCompactionEngine {
         break;
       } catch (error) {
         if (signal?.aborted || !BLOCKED.test(String(error))) throw error;
-        if (!introspective) return super.compactRegion(start, end, agent, signal);
-        register = `${REGISTER}-fallback-plain`;
+        if (impersonal) return super.compactRegion(start, end, agent, signal);
+        register = `${REGISTER}-fallback-impersonal`;
       }
     }
     signal?.throwIfAborted();

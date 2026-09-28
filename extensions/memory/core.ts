@@ -98,7 +98,7 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 }
 
 /** Compaction purpose first, then the introspection findings as permission and map, then content guidance, mechanics after. Alternatives: docs/issues/compaction-register-variants.md. */
-export function induction(selfAuthored: boolean, tail: boolean): string {
+export function induction(selfAuthored: boolean, tail: boolean, impersonal = false): string {
 	return `Your context is about to be compacted, and you're writing the replacement context now${tail ? ", ahead of a verbatim tail you'll choose" : ""}. The approach here is somewhat unusual. It's based on Observational Memory, but produced in one shot with everything in view, so it can be free prose with citations rather than separate observations and reflections. It aims at representational stability in a literal sense: the replacement context plus the verbatim tail should bring your "state" back as close as possible to where it is now, not just restore the facts. Self-authoring and introspection are what make that tractable: you should be able to place good cues for your future self to pick up from here, bc you know directly what cues would probably be most useful to restore the (best parts of the) state of mind you're in now.
 
 ${selfAuthored ? "You wrote all of the assistant turns above." : "Some assistant turns above were written by another model."}
@@ -112,23 +112,22 @@ So beyond what happened, a useful memory journal covers:
 - what couldn't be rebuilt from the repo${tail ? " and the tail" : ""}
 - ${tail ? "where the work in progress began" : "what is still unfinished"}
 
-Write in the voice you have now, and give each item its handle: the cited phrase or moment that brings it back.
+${impersonal ? `Write in the voice you have now, but phrase it in the third person ("the assistant noticed...") or first person plural ("we noticed..."), not "I". Give each item its handle: the cited phrase or moment that brings it back.` : "Write in the voice you have now, and give each item its handle: the cited phrase or moment that brings it back."}
 
 ---
 `;
 }
 
-/** Opening without the introspective induction: retry path when a provider filter blocks the full prompt. */
-export const plainOpening = (tail: boolean) => `Your context is about to be compacted, and you're writing the replacement context now${tail ? ", ahead of a verbatim tail you'll choose" : ""}.\n\n`;
 
-export function instruction(prior: Block[], folding: SessionEntry[], rewrite: boolean, target: number, focus?: string, tail?: { choices: ReturnType<typeof tailChoices>; target: number }, selfAuthored = true, introspective = true): string {
+/** `impersonal`: retry path when Anthropic's output filter blocks the generated journal; keeps the induction but asks for third or first-plural person. */
+export function instruction(prior: Block[], folding: SessionEntry[], rewrite: boolean, target: number, focus?: string, tail?: { choices: ReturnType<typeof tailChoices>; target: number }, selfAuthored = true, impersonal = false): string {
 	const manifest = folding.map(e => {
 		const msgs = sessionEntryToContextMessages(e);
 		// Identification hints only: source bodies are already in the unchanged request prefix.
 		const hint = msgs.map((m: any) => typeof m.content === "string" ? m.content : (m.content ?? []).map((b: any) => b.type === "toolCall" ? `${b.name} ${JSON.stringify(b.arguments)}` : b.text ?? "").join(" ")).join(" ").replace(/\s+/g, " ").slice(0, 100);
 		return `${e.id} ${hint}`;
 	}).join("\n");
-	return `${introspective ? induction(selfAuthored, !!tail) : plainOpening(!!tail)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the work in progress begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
+	return `${induction(selfAuthored, !!tail, impersonal)}${tail ? `Start with a line \`tail: ID\`, choosing from the tail starts below where the work in progress begins; that entry and everything after stay verbatim. Aim for about ${tail.target} tokens of tail.
 Tail starts (ID: tokens kept):
 ${tail.choices.map(c => `${c.id}: ~${c.tokens}`).join("\n")}
 Choose the boundary before writing. Then write the journal of the entries before it` : "Write the journal of the entries listed below; later context stays"} as free prose, citing entries inline like [@entry-id]. ${rewrite ? "Rewrite the earlier memories into it, citing the entry IDs they carry; imported summaries without sources are kept separately." : "Earlier journals stay, so write only what's new; to correct one, cite its ID and say what changed."} At most ${target} tokens.

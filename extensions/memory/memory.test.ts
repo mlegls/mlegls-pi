@@ -37,7 +37,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 			modelRegistry: { streamSimple(_model: any, context: any) {
 				sent = context;
 				const prompt = context.messages.at(-1).content as string;
-				if (blockedAll || blocked && prompt.includes("vgel")) return { result: async () => ({ ...assistant(""), stopReason: "error", errorMessage: "This request was blocked as it seems to violate Anthropic's Terms of Service restrictions on reverse engineering or duplicating model outputs." }) };
+				if (blockedAll || blocked && !prompt.includes("first person plural")) return { result: async () => ({ ...assistant(""), stopReason: "error", errorMessage: "This request was blocked as it seems to violate Anthropic's Terms of Service restrictions on reverse engineering or duplicating model outputs." }) };
 				const visible = visibleEntries(branch);
 				const tail = tailChoices(visible).find(c => sourceEntries(visible.slice(0, c.index)).length)!;
 				const id = sourceEntries(visible.slice(0, tail.index))[0].id;
@@ -97,9 +97,9 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(tailCited.compaction.details.blocks.at(-1).covers).not.toContain(tailCited.compaction.firstKeptEntryId);
 		citeTail = false; blocked = true;
 		const retried = await fold();
-		expect(retried.compaction.details.register).toBe("compaction-om-v11-fallback-plain");
-		expect(sent.messages.at(-1).content).not.toContain("vgel");
-		expect(sent.messages.at(-1).content).toStartWith("Your context is about to be compacted");
+		expect(retried.compaction.details.register).toBe("compaction-om-v11-fallback-impersonal");
+		expect(sent.messages.at(-1).content).toContain("vgel");
+		expect(sent.messages.at(-1).content).toContain("first person plural");
 		expect(sent.messages.filter((m: any) => typeof m.content === "string" && m.content.includes("Tail starts"))).toHaveLength(1);
 		blockedAll = true;
 		expect(await fold()).toBeUndefined();
