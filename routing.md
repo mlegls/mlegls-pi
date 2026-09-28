@@ -5,7 +5,7 @@ Optimize for the lowest wall time to accepted completion within a similar total 
 Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
 
 - Bias delegated work toward `openai-codex`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
-- Use Opus 5.5 only for visual/UI-heavy or difficult and VERY long-context work. (prefer Astra for difficult work that would take a human a day or less)
+- Use Opus 5.5 only for work requiring visual/design taste, visual review, or difficult and VERY long-context work. UI implementation from an existing design, including simple UI adjustments, should use sol or luna when sufficient. (prefer Astra for difficult work that would take a human a day or less)
 - Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
 - Metered providers are overflow when appropriate.
 - OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.
@@ -18,7 +18,7 @@ Agent files in `agents/` declare model and effort preferences for worker stances
 
 ## Model preferences
 
-- Opus 5.5 is preferred for interactive work, the top-level long-context supervisor, and especially UI/visual design. Sonnet 5 remains a substantially cheaper option; consider it for the top-level supervisor if Anthropic consumption is still too high.
+- Opus 5.5 is preferred for interactive work, the top-level long-context supervisor, UI/UX decisions requiring design taste, and visual review—not UI implementation merely because it touches a rendered surface. Sonnet 5 remains a substantially cheaper option; consider it for the top-level supervisor if Anthropic consumption is still too high.
 - Opus 5.5 supersedes opus 5 and is better than fable 5.1 on most work. Fable's remaining possible niche is diversity of thought / range of possibilities in interactive exploration, not ordinary non-interactive assignments.
 - GPT-6-sol replaces GPT-5.6 terra and sol for fresh routing. Where older sol still has an advantage over GPT-6-sol, astra covers that capability; do not retain older sol as a separate routing tier.
 - GPT-6-luna replaces GPT-5.6-luna. Use luna or sol when sufficient and astra for work that needs its stronger capabilities, accounting for retries and parent repair rather than optimizing token price alone.
@@ -30,7 +30,7 @@ Interpret supplied evidence; do not invent missing context or closure. Prefer a 
 - `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
 - `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
 - `technical`: Clear acceptance criterion but difficult technical fulfillment, including novel algorithms, complex systems, or exacting UI implementation.
-- `ui`: Implementation whose fulfilment needs UI/UX judgment: interaction, hierarchy, affordances, state legibility, visual design.
+- `ui`: Work where design taste must actually be exercised: choosing interaction, hierarchy, affordances, state legibility, or visual design. Not implementation from an existing design or simple UI adjustments with settled intent; use `fill`, `auto-routine`, or `auto` with luna or sol when sufficient, and `technical` for hard technical fulfillment. Keep rendered acceptance with `visual-reviewer` on Opus.
 - `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
 - `compile`: A spec leaf whose design is closed but which is too big for one session: close interfaces, commit stubs, fan out `fill`.
 - `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
