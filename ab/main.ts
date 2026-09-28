@@ -283,8 +283,35 @@ async function supervise(args: string[]) {
 		console.log("queued " + rest[1] + " " + rest[0]);
 		return;
 	}
+	if (verb === "adopt" && ticket && rest.length >= 2) {
+		// ab supervise adopt <ticket> <child> <run/handle>... [--phase P]: the last handle is the current worker.
+		const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { phase: { type: "string" } } });
+		const [child, ...ids] = positionals;
+		const handles = ids.map(id => { const at = id.lastIndexOf("/"); return at > 0 ? { run: id.slice(0, at), handle: id.slice(at + 1) } : fail("handle must be run/handle: " + id); });
+		const current = handles.at(-1)!.handle;
+		const phase = values.phase ?? (current.endsWith("-review") ? "review" : current.endsWith("-drive") ? "drive" : current === child ? "implement" : fail("cannot infer the phase of " + current + ": pass --phase implement|drive|review"));
+		if (!["implement", "drive", "review"].includes(phase)) fail("--phase must be implement, drive or review");
+		const command = JSON.stringify({ child, action: "adopt", phase, handles }) + "\n";
+		const running = jobs.find(j => j.status === "running");
+		if (running) { appendFileSync((running.input as any).commands, command); console.log("queued adopt " + child + " at " + phase); return; }
+		// Not running: start one (continuing earlier state if any) with the adoption as its first pending command.
+		const session = process.env.PI_SESSION_ID ?? fail("supervise adopt runs from the owning pi session (PI_SESSION_ID): it is woken in its mailbox");
+		const commands = join(dir, ticket + ".commands.jsonl");
+		mkdirSync(dir, { recursive: true });
+		const count = existsSync(commands) ? readFileSync(commands, "utf8").split("\n").filter(Boolean).length : 0;
+		const previous = jobs.at(-1);
+		const saved = (previous?.state as any)?.commandsApplied;
+		if (count && (saved === undefined ? true : saved !== count)) fail("command log " + commands + " has records the last job did not acknowledge; reconcile with ab supervise start " + ticket + " --commands-applied N first");
+		appendFileSync(commands, command);
+		const owner = (await import("../lib/board/mailbox.ts")).mailbox(session);
+		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: 16, commands, commandsApplied: count, carried: previous?.state ?? null };
+		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
+		console.log(record.id + " " + record.status + " adopting " + child + " at " + phase);
+		return;
+	}
 	if (verb === "stop" && ticket) { for (const j of jobs.filter(j => j.status === "running")) console.log(JSON.stringify((await api.stop(j.id)).status)); return; }
-	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | stop <ticket> | loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E] [--status | --stop]");
+	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | adopt <ticket> <child> <run/handle>... [--phase implement|drive|review] | stop <ticket> | loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E] [--status | --stop]");
 }
 
 

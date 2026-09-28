@@ -41,7 +41,10 @@ export interface State { children: Record<string, Child>; integrated: string[]; 
  // Join: once this node's (or batch's) children have landed, drive its crossing stories and consolidate the combined change.
  base?: string; tests?: string[]; reviews?: Record<string, unknown>; setups?: Record<string, unknown>;
  join?: { key: string; drive: boolean; deadline?: number; skipped?: string; done?: boolean } }
-export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" };
+export type Command = { child: string; action: "verify" | "integrate" | "drop" | "redispatch" }
+ // Adopt a worker this loop didn't launch (an orphan of a dead loop, a hand dispatch) at its phase. The last
+ // handle is current; earlier ones (e.g. the implementer behind a driver) are retired with it after integration.
+ | { child: string; action: "adopt"; phase: "implement" | "drive" | "review"; handles: { run: string; handle: string }[] };
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const STARTUP_GRACE_MS = 30_000;
@@ -315,7 +318,18 @@ const checkStartup = async (live: Child[]) => {
   for (const old of c.previous ?? []) await retire(old);
  }); };
 
- // Pending owner commands (resume) are applied between turn ends.
+ // No cursor: the first watch consumes the worker's latest report, so a worker that already finished its
+ // phase advances at once and a running one is awaited.
+ const adopt = async (cmd: Extract<Command, { action: "adopt" }>, live?: Child) => {
+  if (live) return wake("adopt: " + cmd.child + " is already live here (" + live.phase + " " + topic(live.handle) + ")");
+  const handles = cmd.handles.map(h => ({ ...h, path: resolve(input.cwd, "..", basename(input.cwd) + "__worktrees", h.handle) }));
+  const missing = handles.find(h => !existsSync(h.path));
+  if (missing) return wake("adopt: no worktree for " + missing.run + "/" + missing.handle + " at " + missing.path);
+  state.children[cmd.child] = { slug: cmd.child, phase: cmd.phase, handle: handles.at(-1)!, previous: handles.slice(0, -1), startup: { launchedAt: Date.now(), mode: "pi", sessionFound: true } };
+  trace("adopt", { slug: cmd.child, phase: cmd.phase, handles: handles.map(h => h.run + "/" + h.handle) });
+ };
+
+ // Pending owner commands (resume, adopt) are applied between turn ends.
  const file = input.commands;
  // Cursor counts completed command records, not records merely present at startup.
  const commands = (): Command[] => existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(l => JSON.parse(l)) : [];
@@ -327,7 +341,8 @@ const checkStartup = async (live: Child[]) => {
    await save(); // An interrupted side effect must not be blindly replayed.
    const c = state.children[cmd.child];
    trace("command", { slug: cmd.child, action: cmd.action, live: !!c });
-   if (!c) await wake("resume: no live child " + cmd.child);
+   if (cmd.action === "adopt") await adopt(cmd, c);
+   else if (!c) await wake("resume: no live child " + cmd.child);
    else {
     c.waiting = undefined; c.unreachable = undefined;
     try {

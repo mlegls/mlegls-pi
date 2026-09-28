@@ -75,6 +75,14 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
  const hooks=join(root,'hooks');mkdirSync(hooks);writeFileSync(join(hooks,'pre-commit'),'#!/bin/sh\\nexit 1\\n');chmodSync(join(hooks,'pre-commit'),0o755);git(main,'config','core.hooksPath',hooks);
  await loop('d');expect(git(main,'rev-parse','HEAD')).toBe(head);expect(saved.d.children.d.waiting).toBe('integration failed');expect(existsSync(paths.d)).toBe(true);expect(git(paths.d,'status','--porcelain')).toContain('docs/issues/d.md');expect(retired).not.toContain('d');
  const stopE=setTimeout(()=>controls.get('e').abort(),100);await loop('e');clearTimeout(stopE);expect(saved.e.children.e.unreachable).toBe(true);expect(messages.filter(m=>m.includes('unreachable'))).toHaveLength(1);expect(waitIds.filter(id=>id==='root-e/e')).toHaveLength(1);
+ // Adoption: a review worker launched outside this loop, already finished, is taken from its report through integration.
+ git(main,'config','--unset','core.hooksPath');
+ writeFileSync(join(main,'docs/issues/i.md'),'---\\nstage: ticket\\n---\\n');writeFileSync(join(main,'docs/attachments/i.md'),'First-use evidence for i');git(main,'add','.');git(main,'commit','-qm','Add i');
+ paths.i=join(root,'main__worktrees','i');git(main,'worktree','add','-qb','i',paths.i);writeFileSync(join(paths.i,'i'),'i');git(paths.i,'add','i');git(paths.i,'commit','-qm','Implement i');
+ {const control=new AbortController();controls.set('i',control);const commands=join(root,'i.commands');
+  writeFileSync(commands,JSON.stringify({child:'i',action:'adopt',phase:'review',handles:[{run:'root-i',handle:'i'}]})+String.fromCharCode(10));
+  await run({id:'i',input:{ticket:'root-i',cwd:main,owner:'i',ownerSession:'test-parent',budget:1,test:'test -f i',commands,commandsApplied:0},state:null,signal:control.signal,save:async x=>{saved.i=structuredClone(x);},log:()=>{}});}
+ expect(saved.i.integrated).toEqual(['i']);expect(readFileSync(join(main,'docs/issues/i.md'),'utf8')).toContain('stage: done');expect(retired).toContain('i');
  console.log('parallel closures, failed tests, failed close hook, missing carried worktree: passed');
  `);
  try {

@@ -1,6 +1,7 @@
 ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N]
 ab supervise status [ticket]
 ab supervise resume <ticket> <child> verify|integrate|drop|redispatch
+ab supervise adopt <ticket> <child> <run/handle>... [--phase implement|drive|review]
 ab supervise stop <ticket>
 
 Run from the owning agent's checkout. The ab daemon runs the loop in
@@ -10,6 +11,11 @@ owning pi session (in its mailbox, mail/xxxxxxxx) only on exceptions and
 when the subtree is done. Children are wm workers with the owner as parent session. To handle an exception, steer the
 child directly (its next turn end returns to the loop) or queue a resume action.
 A new start continues from the ticket's last job state.
+
+`adopt` takes over a worker the loop didn't launch, e.g. an orphan of a dead loop, at its phase (inferred from
+the handle's -drive/-review suffix): the loop consumes the worker's latest report, so a finished phase advances at
+once. List earlier workers first (implement before drive); they're retired with it after integration. It queues
+into a running supervision of <ticket> or starts one; a lone leaf can be its own ticket.
 Resume acknowledgements are saved per command. Commands queued before a daemon restart remain pending. An interrupted command's effects may already have happened; the loop stops and reports its 1-based record number rather than replaying it. Legacy nonempty logs without a cursor also require reconciliation. Inspect the reported JSONL log and worker/Git state, then `start <ticket> --commands-applied N` to leave the first N records behind and execute the remainder. This is an explicit recovery override, not a routine start option. An acknowledged command may have reported failure; queue a new resume after repairing its blocker. Do not truncate or replace the command log.
 
 Integration is serialized per repository inside the daemon. `--test CMD` runs in
