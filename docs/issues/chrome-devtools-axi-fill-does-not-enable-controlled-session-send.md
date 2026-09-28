@@ -1,0 +1,8 @@
+---
+stage: idea
+author: session:01a0e9e2-1441-750e-a18c-170a67cca2d2
+---
+
+On 2026-09-28, `chrome-devtools-axi` in a unique named browser session (`drive-feature-use-recommendation-with-an-evaluator-learner-drive`) filled the Common Concept Session's `textarea[name=message]` with a nonempty 200-character message. The accessibility snapshot displayed the new textarea value, but the `Send` button stayed disabled even after 1.5 seconds. `click` + `press Meta+A` / `press Control+KeyA` did not select all in that textarea; subsequent `type` inserted text into the old value and enabled Send. The working route was setting the textarea's selection range through browser evaluation and typing the replacement as a real keyboard action. Subsequent empty-composer `type` calls worked normally. This is a controlled textarea, unlike the plain input checked by [[browser-cli-target-and-reference-lifetime-friction]]. No claim that the app's Send state is defective; the browser CLI may be setting the DOM value without the expected input event.
+
+Replay on a controlled React textarea with a Send button disabled while the draft is empty: `snapshot`, `fill @<textarea> 'hello'`, fresh `snapshot` (read textarea value and Send disabled state), then `type '!'`, fresh `snapshot` (compare value and Send state). Accept fill replacing the entire value and propagating the same input/change semantics as ordinary typing. Check Meta/Control select-all separately on macOS. Do not reuse stale refs. The product drive used `type` for remaining turns. Source encounter: `concept/docs/attachments/drive-feature-use-recommendation-with-an-evaluator-learner/driver-log.md` on the `drive-feature-use-recommendation-with-an-evaluator-learner-drive` branch.
