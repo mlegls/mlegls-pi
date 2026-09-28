@@ -197,7 +197,8 @@ export class TmuxTerminalManager {
 	private async tmux(args: string[], options: { input?: string; signal?: AbortSignal } = {}): Promise<CommandResult> {
 		if (options.signal?.aborted) throw new Error("Terminal operation cancelled");
 		return await new Promise((resolveCommand, reject) => {
-			const child = spawn("tmux", ["-L", this.serverName, ...args], {
+			// Managed servers must not load interactive user hooks or defaults.
+			const child = spawn("tmux", ["-L", this.serverName, "-f", "/dev/null", ...args], {
 				stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
 			});
 			let stdout = "";

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TmuxTerminalManager, tmuxAvailable } from "./tmux";
@@ -18,6 +18,35 @@ afterEach(async () => {
 });
 
 describe.skipIf(!tmuxAvailable())("TmuxTerminalManager", () => {
+	test("ignores user config that creates extra sessions", async () => {
+		const home = await mkdtemp(join(tmpdir(), "pi-terminal-config-"));
+		const instance = manager();
+		try {
+			await mkdir(join(home, "tmux"));
+			const config = 'set-hook -g session-created \'if-shell -F "#{==:#{server_sessions},1}" "new-session -d -s spare"\'\n';
+			await writeFile(join(home, ".tmux.conf"), config);
+			await writeFile(join(home, "tmux", "tmux.conf"), config);
+			const script = `
+				import { TmuxTerminalManager } from ${JSON.stringify(import.meta.dir + "/tmux.ts")};
+				const manager = new TmuxTerminalManager(${JSON.stringify(instance.serverName)});
+				await manager.spawn({name:"only", command:"sh", cwd:${JSON.stringify(home)}});
+				console.log(JSON.stringify((await manager.list()).map(t => t.id)));
+			`;
+			const child = Bun.spawn([process.execPath, "-e", script], {
+				env: { ...process.env, HOME: home, XDG_CONFIG_HOME: home },
+				stdout: "pipe", stderr: "pipe",
+			});
+			const [stdout, stderr, code] = await Promise.all([
+				new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited,
+			]);
+			expect(stderr).toBe("");
+			expect(code).toBe(0);
+			expect(JSON.parse(stdout)).toEqual(["only"]);
+		} finally {
+			await instance.killServer();
+			await rm(home, { recursive: true, force: true });
+		}
+	});
 	test("captures output and exit status from a completed command", async () => {
 		const instance = manager();
 		const cwd = await mkdtemp(join(tmpdir(), "pi-terminal-test-"));
