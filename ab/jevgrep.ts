@@ -50,13 +50,22 @@ export async function renderRetrieval(result: Retrieval, api: SourceAPI): Promis
 	return out.join("\n\n");
 }
 
+export const DEFAULT_SOURCE_BYTES = 8192;
+export function retrievalArgs(args: string[]): string[] {
+	const end = args.indexOf("--");
+	const options = end < 0 ? args : args.slice(0, end);
+	const explicit = options.some(arg => arg === "--max-source-bytes" || arg.startsWith("--max-source-bytes="));
+	return ["--json", ...(explicit ? [] : ["--max-source-bytes", String(DEFAULT_SOURCE_BYTES)]), ...args];
+}
 export async function jevgrep(args: string[], source: () => Promise<SourceAPI>) {
 	if (!args.length) throw new Error('usage: ab jg "question" [root] [search options]');
-	const child = Bun.spawn([resolve(import.meta.dir, "../bin/jg"), "--json", ...args], { stdout: "pipe", stderr: "inherit", stdin: "ignore" });
+	const started = Date.now();
+	const child = Bun.spawn([resolve(import.meta.dir, "../bin/jg"), ...retrievalArgs(args)], { stdout: "pipe", stderr: "inherit", stdin: "ignore" });
 	const [text, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
 	let result: Retrieval;
 	try { result = JSON.parse(text); }
 	catch { process.stdout.write(text); process.exitCode = code || 1; return; }
 	console.log(await renderRetrieval(result, await source()));
+	console.error(`jg ${JSON.stringify(args[0])}: ${((Date.now() - started) / 1000).toFixed(1)}s, ${result.files.length} files, exit ${code}`);
 	process.exitCode = code;
 }

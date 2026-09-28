@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSourceAPI } from "../extensions/exec/source";
 import { Ledger } from "../lib/outline-read/ledger";
-import { renderRetrieval, type Retrieval } from "./jevgrep";
+import { renderRetrieval, retrievalArgs, DEFAULT_SOURCE_BYTES, type Retrieval } from "./jevgrep";
 
 test("retrieval anchors share the ledger, survive restore, and edit exact Unicode evidence", async () => {
 	const root = await mkdtemp(join(tmpdir(), "ab-jg-"));
@@ -51,7 +51,18 @@ test("patched JSON renderer retains ordering, source budget, and metadata withou
 	expect(json.files[0].excerpts[0].source).toBe("hello");
 	expect(json.files[1].excerpts).toEqual([]);
 	expect(json.files[1].omitted).toBe(true);
+	expect(json.introduction).toContain('"low"');
+	expect(json.closing).toContain('"low"');
 	expect(json.introduction).toContain("discovery incomplete");
 	expect(json.closing).toContain("End context.");
 	expect(render(result)).toContain("```\nhello\n```");
+});
+
+test("wrapper bounds source by default and preserves explicit budgets", () => {
+	expect(retrievalArgs(["question", "."])).toEqual(["--json", "--max-source-bytes", String(DEFAULT_SOURCE_BYTES), "question", "."]);
+	for (const option of [["--max-source-bytes", "0"], ["--max-source-bytes=1024"]]) {
+		const args = ["question", ".", ...option];
+		expect(retrievalArgs(args)).toEqual(["--json", ...args]);
+	}
+	expect(retrievalArgs(["question", "--", "--max-source-bytes=0"])).toEqual(["--json", "--max-source-bytes", String(DEFAULT_SOURCE_BYTES), "question", "--", "--max-source-bytes=0"]);
 });

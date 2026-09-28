@@ -6,6 +6,11 @@ Repository content is sent to the configured provider.
 
 Search options are passed to jg (see jg --help), including --max-source-bytes,
 --concurrency, --hidden, --no-ignore, and --no-cache. Root defaults to cwd.
+Source excerpts default to 8192 bytes; --max-source-bytes N overrides this,
+and 0 requests unlimited source. Ranked files and declaration locations remain
+available when excerpts are omitted. This bounds presentation, not search work
+or provider cost. A completion line reports the query, elapsed time, file count
+and exit status; retrieval still waits for the complete upstream result.
 
 Whole-line excerpts matching the current file are rendered like ab read and can
 be used directly with ab edit. Stale, unavailable, and partial excerpts remain
