@@ -3,6 +3,7 @@ import { buildSessionContext, convertToLlm, sessionEntryToContextMessages } from
 import type { Context } from "@earendil-works/pi-ai";
 import { readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
+import { compareCheckpoint, logAttempt, saveCapture, type CheckpointCapture } from "./experiment.ts";
 import { join } from "node:path";
 import { focus, supervising, worthFolding } from "./hibernate.ts";
 import { trimImages, CHECKPOINT_BYTES } from "./images.ts";
@@ -67,6 +68,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let forceRewrite = false;
 	let elidedCount = 0;
 	let hibernating = false;
+	let captureRequests = false;
 	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; elidedCount = 0; });
 	pi.on("session_compact", () => { snapshot = undefined; });
 	pi.on("context", (event, ctx) => {
@@ -118,18 +120,30 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			if (typeof stream !== "function") throw new Error("Memory requires Pi's modelRegistry.streamSimple (update Pi)");
 			const started = Date.now();
 			let response: any, register = REGISTER;
-			// Anthropic's output-duplication filter sometimes blocks the generated journal; retry once asking for third or first-plural person.
+			const timestamp = Date.now();
+			const requests = [false, true].map(impersonal => trimImages({ ...context, messages: [...context.messages, { role: "user" as const, content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored, impersonal), timestamp }] }, CHECKPOINT_BYTES)) as [Context, Context];
+			const options = { sessionId: session, reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(), maxTokens: Math.min(s.maxOutputTokens, ctx.model.maxTokens || s.maxOutputTokens) };
+			const capture: CheckpointCapture = { version: 1, session, leaf, model, trigger: hibernating ? "hibernate" : "compact", register, options, requests };
+			const dir = ctx.sessionManager.getSessionDir?.() ?? tmpdir();
+			const captureFile = join(dir, `memory-checkpoint-${session}-${timestamp}.json`);
+			let captured = false;
+			const save = () => {
+				if (captured) return;
+				try { saveCapture(captureFile, capture); captured = true; ctx.ui.notify(`Memory checkpoint captured: ${captureFile}`, "info"); }
+				catch (error) { ctx.ui.notify(`Memory capture failed: ${error}`, "warning"); }
+			};
+			if (captureRequests) save();
 			for (const impersonal of [false, true]) {
-				const request = trimImages({ ...context, messages: [...context.messages, { role: "user" as const, content: instruction(prior, sourceEntries(visible), rewrite, rewrite ? s.rewriteTokens : s.blockTokens, event.customInstructions, { choices, target: s.keepRecentTokens }, selfAuthored, impersonal), timestamp: Date.now() }] }, CHECKPOINT_BYTES);
-				response = await stream.call(ctx.modelRegistry, ctx.model, request, {
-					signal: event.signal, sessionId: ctx.sessionManager.getSessionId(),
-					reasoning: pi.getThinkingLevel() === "off" ? undefined : pi.getThinkingLevel(),
-					maxTokens: Math.min(s.maxOutputTokens, ctx.model.maxTokens || s.maxOutputTokens),
-				}).result();
+				const request = requests[impersonal ? 1 : 0], attemptStarted = Date.now();
+				try { response = await stream.call(ctx.modelRegistry, ctx.model, request, { ...options, signal: event.signal }).result(); }
+				catch (error) { response = { stopReason: "error", errorMessage: String(error), content: [] }; }
+				try { logAttempt(join(dir, "memory-attempts.jsonl"), { session, leaf, model, trigger: capture.trigger, register, checkpoint: captureFile, attempt: impersonal ? 2 : 1 }, request, attemptStarted, response); }
+				catch (error) { ctx.ui.notify(`Memory attempt logging failed: ${error}`, "warning"); }
+				if (BLOCKED.test(response.errorMessage ?? "")) save();
 				if (response.stopReason === "error" && response.content?.some((b: any) => b.text || b.thinking)) {
 					// Partial output up to the block, for reviewing where the filter trips.
 					const file = join(ctx.sessionManager.getSessionDir?.() ?? tmpdir(), `memory-blocked-${ctx.sessionManager.getSessionId()}-${Date.now()}.md`);
-					writeFileSync(file, `register: ${register}\nerror: ${response.errorMessage}\noutput tokens: ${response.usage?.output ?? "?"}\nms: ${Date.now() - started}\n\n${response.content.map((b: any) => b.type === "thinking" ? `<thinking>\n${b.thinking}\n</thinking>` : b.text ?? "").join("\n\n")}`);
+					writeFileSync(file, `register: ${register}\nerror: ${response.errorMessage}\noutput tokens: ${response.usage?.output ?? "?"}\nms: ${Date.now() - attemptStarted}\n\n${response.content.map((b: any) => b.type === "thinking" ? `<thinking>\n${b.thinking}\n</thinking>` : b.text ?? "").join("\n\n")}`, { mode: 0o600 });
 					ctx.ui.notify(`Memory checkpoint partial output: ${file}`, "info");
 				}
 				if (impersonal || event.signal.aborted || !BLOCKED.test(response.errorMessage ?? "")) break;
@@ -201,9 +215,34 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("memory", {
-		description: "Append-only memory: status | fold [focus] | rewrite [focus]",
+		description: "Append-only memory: status | fold [focus] | rewrite [focus] | capture | compare FILE [rounds]",
 		handler: async (args, ctx) => {
 			const [command = "status", ...focus] = args.trim().split(/\s+/).filter(Boolean);
+			if (args.trim() === "capture") {
+				captureRequests = !captureRequests;
+				ctx.ui.notify(`Capture all memory checkpoint requests: ${captureRequests ? "on" : "off"}. Blocked requests are always captured locally.`, "info");
+				return;
+			}
+			if (args.startsWith("compare ")) {
+				if (busy) { ctx.ui.notify("Memory is busy", "warning"); return; }
+				const match = args.match(/^compare\s+(.+?)(?:\s+([1-5]))?$/)!;
+				const file = match[1], rounds = Number(match[2] ?? 1);
+				busy = true;
+				try {
+					const capture = JSON.parse(readFileSync(file, "utf8")) as CheckpointCapture;
+					if (capture.version !== 1 || capture.requests?.length !== 2 || capture.model !== modelKey(ctx)) throw new Error("Capture requires its original model and two request variants");
+					const output = `${file}.compare-${Date.now()}.jsonl`;
+					ctx.ui.notify(`Comparing ${rounds} paired rounds (${rounds * 2} model calls); results: ${output}`, "info");
+					await compareCheckpoint(capture, rounds, (request, options) => (ctx.modelRegistry as any).streamSimple(ctx.model, request, { ...options, signal: AbortSignal.timeout(180_000) }).result(),
+						(variant, round, request, started, response) => {
+							logAttempt(output, { checkpoint: file, model: capture.model, trigger: capture.trigger, variant, round }, request, started, response);
+							writeFileSync(`${output}.${round}-${variant}.json`, JSON.stringify(response), { mode: 0o600 });
+							ctx.ui.notify(`${round}/${rounds} ${variant}: ${response.stopReason}${response.errorMessage ? ` — ${response.errorMessage}` : ""}`, "info");
+						});
+				} catch (error) { ctx.ui.notify(`Memory comparison failed: ${error}`, "warning"); }
+				finally { busy = false; }
+				return;
+			}
 			if (command === "fold" || command === "rewrite") {
 				await ctx.waitForIdle();
 				if (!settings(ctx.cwd).enabled) { ctx.ui.notify("Memory is disabled in settings", "warning"); return; }

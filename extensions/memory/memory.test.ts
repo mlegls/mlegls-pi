@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildSessionContext, convertToLlm } from "@earendil-works/pi-coding-agent";
@@ -104,6 +104,14 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		blockedAll = true;
 		expect(await fold()).toBeUndefined();
 		expect(notices.at(-1)).toContain("falling back to Pi's native compaction");
+		const attempts = readFileSync(join(cwd, "memory-attempts.jsonl"), "utf8").trim().split("\n").map(line => JSON.parse(line));
+		expect(attempts.slice(-2).map(a => a.attempt)).toEqual([1, 2]);
+		expect(attempts.at(-1).error).toContain("reverse engineering");
+		const captureFile = readdirSync(cwd).find(f => f.startsWith("memory-checkpoint-"))!;
+		const capture = JSON.parse(readFileSync(join(cwd, captureFile), "utf8"));
+		expect(capture.requests).toHaveLength(2);
+		expect(capture.requests[0].messages.at(-1).content).not.toContain("first person plural");
+		expect(capture.requests[1].messages.at(-1).content).toContain("first person plural");
 	} finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
