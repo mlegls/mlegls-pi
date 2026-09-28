@@ -11,3 +11,5 @@ author: "session:01a0e82e-355d-76ee-884c-e3e6e0f99a82"
 - pin-this-edition-lasts-one-document had two prose paragraphs, then `done` on its own line, then a handoff block with `status: done`.
 
 Either the prompt pieces should make "sentinel first" unmissable, or the parser should accept a lone sentinel line or a handoff block's `status:` field anywhere in the final message, as the spec says.
+
+2026-09-26: a fifth shape, from server-render-the-signed-in-pages: prose, then the handoff block, then `done` as the last line. A trailing sentinel fails the same way.
