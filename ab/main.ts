@@ -240,7 +240,7 @@ async function supervise(args: string[]) {
 		const count = existsSync(commands) ? readFileSync(commands, "utf8").split("\n").filter(Boolean).length : 0;
 		if (commandsApplied !== undefined && (!Number.isSafeInteger(commandsApplied) || commandsApplied < 0 || commandsApplied > count)) fail("--commands-applied must be a record count between 0 and " + count);
 		if (!previous && count && commandsApplied === undefined) fail("existing command log without job state: inspect " + commands + " and start with --commands-applied N");
-		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 16), test: values.test, commands, commandsApplied, carried: previous?.state ?? null };
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 8), test: values.test, commands, commandsApplied, carried: previous?.state ?? null };
 		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
 		console.log(record.id + " " + record.status + (previous ? " (continuing " + previous.id + ")" : ""));
 		return;
@@ -261,7 +261,7 @@ async function supervise(args: string[]) {
 		if (running) fail("already looping " + (target || "the whole tracker") + " (" + running.id + "); ab supervise loop " + (target ? target + " " : "") + "--status | --stop");
 		const triager = (await import("../lib/agents.ts")).agent("triage");
 		mkdirSync(dir, { recursive: true });
-		const input = { target, cwd: top, ownerSession: process.env.PI_SESSION_ID, budget: Number(values.budget ?? 16), timebox: Number(values.timebox ?? 60), test: values.test, model: values.model ?? triager?.model ?? fail("no triage model: pass --model"), effort: values.effort ?? triager?.effort ?? "high", ledger, commands: join(dir, name + ".commands.jsonl"), run: name, carried: loops.at(-1)?.state ?? null };
+		const input = { target, cwd: top, ownerSession: process.env.PI_SESSION_ID, budget: Number(values.budget ?? 8), timebox: Number(values.timebox ?? 60), test: values.test, model: values.model ?? triager?.model ?? fail("no triage model: pass --model"), effort: values.effort ?? triager?.effort ?? "high", ledger, commands: join(dir, name + ".commands.jsonl"), run: name, carried: loops.at(-1)?.state ?? null };
 		const record = await api.start("loop", input, { id: name + "-" + Date.now().toString(36), stateFile: join(dir, name + "-" + Date.now().toString(36) + ".json") });
 		console.log(record.id + " " + record.status + (input.carried ? " (continuing " + loops.at(-1)!.id + ")" : "") + "\nledger: " + ledger);
 		return;
@@ -305,7 +305,7 @@ async function supervise(args: string[]) {
 		appendFileSync(commands, command);
 		const owner = (await import("../lib/board/mailbox.ts")).mailbox(session);
 		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
-		const input = { ticket, cwd: top, owner, ownerSession: session, budget: 16, commands, commandsApplied: count, carried: previous?.state ?? null };
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: 8, commands, commandsApplied: count, carried: previous?.state ?? null };
 		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
 		console.log(record.id + " " + record.status + " adopting " + child + " at " + phase);
 		return;
