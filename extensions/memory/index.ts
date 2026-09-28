@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { compareCheckpoint, logAttempt, saveCapture, type CheckpointCapture } from "./experiment.ts";
 import { join } from "node:path";
-import { focus, supervising, worthFolding } from "./hibernate.ts";
+import { focus, supervising, cacheIdleSeconds } from "./hibernate.ts";
 import { trimImages, CHECKPOINT_BYTES } from "./images.ts";
 import { KIND, elideCold, splitCheckpoint, claims, expandMemory, instruction, memoryOf, parseBlock, previousBlocks, renderMemory, roughTokens, sourceEntries, tailChoices, visibleEntries } from "./core.ts";
 
@@ -20,7 +20,7 @@ function cacheSeconds(long: boolean): Record<string, number> {
 	const anthropic = long ? 3630 : 330, openai = long ? 86700 : 3660;
 	return { default: 86400, anthropic, "amazon-bedrock": anthropic, xai: 330, openai, "openai-codex": openai, "azure-openai-responses": openai };
 }
-interface Hibernate { enabled: boolean; expectedIdleSeconds: number; minTokens: number }
+interface Hibernate { enabled: boolean; minTokens: number }
 interface Settings { hibernate?: Partial<Hibernate>; journal?: boolean; elide?: Partial<Omit<Elide, "idleSeconds">> & { idleSeconds?: number | Record<string, number> }; enabled?: boolean; memoryTokens?: number; rewriteTokens?: number; blockTokens?: number; keepRecentTokens?: number; maxOutputTokens?: number }
 export function settings(cwd: string): Required<Settings> & { elide: Elide; hibernate: Hibernate } {
 	const read = (path: string): Settings => {
@@ -39,9 +39,8 @@ export function settings(cwd: string): Required<Settings> & { elide: Elide; hibe
 		if (!Number.isFinite(elide[k]) || elide[k] < 0) throw new Error(`memory.elide.${k} must be nonnegative`);
 	for (const [k, v] of Object.entries(elide.idleSeconds))
 		if (!Number.isFinite(v) || v < 0) throw new Error(`memory.elide.idleSeconds.${k} must be nonnegative`);
-	// Supervisor waits are usually tens of minutes; providers with unknown cache lifetimes (a day by default) never qualify.
-	const hibernate = { enabled: true, expectedIdleSeconds: 1800, minTokens: 4000, ...s.hibernate };
-	for (const k of ["expectedIdleSeconds", "minTokens"] as const)
+	const hibernate = { enabled: true, minTokens: 4000, ...s.hibernate };
+	for (const k of ["minTokens"] as const)
 		if (!Number.isFinite(hibernate[k]) || hibernate[k] < 0) throw new Error(`memory.hibernate.${k} must be nonnegative`);
 	return { ...s, elide, hibernate };
 }
@@ -69,6 +68,10 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let elidedCount = 0;
 	let hibernating = false;
 	let captureRequests = false;
+	let idleTimer: ReturnType<typeof setTimeout> | undefined;
+	const cancelHibernate = () => { clearTimeout(idleTimer); idleTimer = undefined; };
+	for (const event of ["agent_start", "session_start", "session_switch", "session_shutdown", "model_select", "session_compact"] as const)
+		pi.on(event, cancelHibernate);
 	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; elidedCount = 0; });
 	pi.on("session_compact", () => { snapshot = undefined; });
 	pi.on("context", (event, ctx) => {
@@ -86,6 +89,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_before_compact", async (event, ctx) => {
+		cancelHibernate();
 		if (busy) return { cancel: true };
 		busy = true;
 		let output: string | undefined;
@@ -200,18 +204,27 @@ export default function memoryExtension(pi: ExtensionAPI) {
 		} finally { busy = false; forceRewrite = false; hibernating = false; }
 	});
 
-	// Hibernate when this session supervises live children and the wait will outlast the cache.
+	// Preserve the warm prefix until the supervisor has actually been idle for a cache lifetime.
 	pi.on("agent_settled", (_event, ctx) => {
+		cancelHibernate();
 		const s = settings(ctx.cwd);
 		if (!s.enabled || !s.hibernate.enabled || busy || !ctx.model || ctx.hasPendingMessages()) return;
-		const jobs = supervising(ctx.sessionManager.getSessionId());
-		if (!jobs.length) return;
-		const provider = ctx.model.provider, cache = s.elide.idleSeconds[provider] ?? s.elide.idleSeconds.default;
-		const foldable = tailChoices(visibleEntries(ctx.sessionManager.getBranch()))[0]?.tokens ?? 0;
-		if (!worthFolding({ expectedIdleSeconds: s.hibernate.expectedIdleSeconds, cacheSeconds: cache, foldableTokens: foldable, minTokens: s.hibernate.minTokens })) return;
-		ctx.ui.notify(`Hibernating: folding ~${foldable} tokens while waiting on ${jobs.map(j => j.ticket).join(", ")}`, "info");
-		hibernating = true;
-		ctx.compact({ customInstructions: focus(jobs), onError: () => { hibernating = false; } });
+		const session = ctx.sessionManager.getSessionId(), model = modelKey(ctx);
+		if (!supervising(session).length) return;
+		idleTimer = setTimeout(() => {
+			idleTimer = undefined;
+			const current = settings(ctx.cwd);
+			if (!current.enabled || !current.hibernate.enabled || busy || !ctx.isIdle() || ctx.hasPendingMessages()
+				|| ctx.sessionManager.getSessionId() !== session || modelKey(ctx) !== model) return;
+			const jobs = supervising(session);
+			if (!jobs.length) return;
+			const foldable = tailChoices(visibleEntries(ctx.sessionManager.getBranch()))[0]?.tokens ?? 0;
+			if (foldable < current.hibernate.minTokens) return;
+			ctx.ui.notify(`Hibernating: folding ~${foldable} tokens while waiting on ${jobs.map(j => j.ticket).join(", ")}`, "info");
+			hibernating = true;
+			ctx.compact({ customInstructions: focus(jobs), onError: () => { hibernating = false; } });
+		}, cacheIdleSeconds(ctx.model.provider) * 1000);
+		idleTimer.unref?.();
 	});
 
 	pi.registerCommand("memory", {

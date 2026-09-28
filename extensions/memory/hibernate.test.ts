@@ -1,8 +1,8 @@
-import { test, expect } from "bun:test";
+import { test, expect, jest } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { supervising, worthFolding } from "./hibernate.ts";
+import { supervising, cacheIdleSeconds } from "./hibernate.ts";
 import { parseBlock } from "./core.ts";
 
 test("finds running supervise jobs with live children owned by this session", () => {
@@ -20,10 +20,11 @@ test("finds running supervise jobs with live children owned by this session", ()
 	expect(supervising("me", join(root, "nothing"))).toEqual([]);
 });
 
-test("folds only when the wait outlasts the cache and there is enough to fold", () => {
-	expect(worthFolding({ expectedIdleSeconds: 1800, cacheSeconds: 330, foldableTokens: 5000, minTokens: 4000 })).toBe(true);
-	expect(worthFolding({ expectedIdleSeconds: 1800, cacheSeconds: 86400, foldableTokens: 5000, minTokens: 4000 })).toBe(false);
-	expect(worthFolding({ expectedIdleSeconds: 1800, cacheSeconds: 330, foldableTokens: 100, minTokens: 4000 })).toBe(false);
+test("supervisor cache lifetimes", () => {
+	expect(cacheIdleSeconds("anthropic")).toBe(300);
+	expect(cacheIdleSeconds("amazon-bedrock")).toBe(300);
+	for (const provider of ["openai", "openai-codex", "zai", "xai", "unknown"])
+		expect(cacheIdleSeconds(provider)).toBe(3600);
 });
 
 test("external artifact citations are accepted but are neither evidence nor corrections", () => {
@@ -33,7 +34,10 @@ test("external artifact citations are accepted but are neither evidence nor corr
 	expect(() => parseBlock("Only [@issue:x].", new Set(["e1"]), [], false, [])).toThrow();
 });
 
-test("agent_settled folds a supervisor once, then not again right after", async () => {
+test("supervisor waits for cache expiry, resets on activity, and cancels on shutdown", async () => {
+	jest.useFakeTimers();
+	const oldState = process.env.AB_STATE;
+	try {
 	const root = mkdtempSync(join(tmpdir(), "hibernate-"));
 	const f = join(root, "supervise-a.json");
 	writeFileSync(f, JSON.stringify({ id: "a", type: "supervise", status: "running", input: { ticket: "t", ownerSession: "s" }, state: { children: { x: {} } } }));
@@ -48,16 +52,34 @@ test("agent_settled folds a supervisor once, then not again right after", async 
 		{ type: "message", id: "e1", parentId: "e0", timestamp: new Date().toISOString(), message: { role: "user", content: "waiting", timestamp: 2 } },
 	];
 	const calls: any[] = [];
-	const ctx: any = { cwd: root, model: { provider: "anthropic", id: "m" }, hasPendingMessages: () => false, ui: { notify() {} },
+	const ctx: any = { cwd: root, model: { provider: "anthropic", id: "m" }, isIdle: () => true, hasPendingMessages: () => false, ui: { notify() {} },
 		sessionManager: { getSessionId: () => "s", getBranch: () => branch }, compact: (o: any) => calls.push(o) };
 	hooks.get("agent_settled")({}, ctx);
+	expect(calls).toHaveLength(0);
+	jest.advanceTimersByTime(299_999);
+	expect(calls).toHaveLength(0);
+	hooks.get("agent_start")({}, ctx);
+	jest.advanceTimersByTime(1);
+	expect(calls).toHaveLength(0);
+	hooks.get("agent_settled")({}, ctx);
+	jest.advanceTimersByTime(300_000);
 	expect(calls).toHaveLength(1);
 	expect(calls[0].customInstructions).toContain("t: x");
-	branch = [...branch, { type: "compaction", id: "c", parentId: "e1", timestamp: new Date().toISOString(), summary: "memory ".repeat(6000), firstKeptEntryId: "e1", tokensBefore: 9000 }];
-	hooks.get("agent_settled")({}, ctx);
+	jest.advanceTimersByTime(300_000);
 	expect(calls).toHaveLength(1);
 	ctx.model.provider = "zai";
-	branch = branch.slice(0, 2);
 	hooks.get("agent_settled")({}, ctx);
+	jest.advanceTimersByTime(3_599_999);
 	expect(calls).toHaveLength(1);
+	jest.advanceTimersByTime(1);
+	expect(calls).toHaveLength(2);
+	hooks.get("agent_settled")({}, ctx);
+	hooks.get("session_shutdown")({}, ctx);
+	jest.advanceTimersByTime(3_600_000);
+	expect(calls).toHaveLength(2);
+	} finally {
+		jest.useRealTimers();
+		if (oldState === undefined) delete process.env.AB_STATE;
+		else process.env.AB_STATE = oldState;
+	}
 });
