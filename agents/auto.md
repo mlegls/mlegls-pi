@@ -6,7 +6,7 @@ effort: high
 role: implement
 ---
 
-When the assignment spans more than one session, decompose it into tracker children and `supervise` them; otherwise `implement` it.
+When the assignment spans more than one session, decompose it into tracker children (under a supervise loop, hand them back as the implement role says; otherwise `supervise` them); otherwise `implement` it.
 
 think of sessions as being in 3 modes:
 

@@ -12,7 +12,7 @@ test("supervision closes on branches, serializes integration, and retains failed
  writeFileSync(join(tracker, "issues.ts"), `
  import {readdirSync,readFileSync} from 'node:fs';import {join} from 'node:path';
  const dir=join(process.cwd(),'docs/issues');
- console.log(JSON.stringify(process.argv.includes('lint')?{reports:[]}:{issues:readdirSync(dir).map(name=>({slug:name.slice(0,-3),file:join(dir,name),partOf:'root-'+name.slice(0,-3),frontier:false,done:readFileSync(join(dir,name),'utf8').includes('stage: done'),effectiveStage:'ticket'}))}));
+ console.log(JSON.stringify(process.argv.includes('lint')?{reports:[]}:{issues:readdirSync(dir).map(name=>{const t=readFileSync(join(dir,name),'utf8');return {slug:name.slice(0,-3),file:join(dir,name),partOf:/part-of: (\\S+)/.exec(t)?.[1]??'root-'+name.slice(0,-3),frontier:false,done:t.includes('stage: done'),effectiveStage:/stage: (\\w+)/.exec(t)?.[1]??'ticket'};})}));
  `);
  const script = join(root, "probe.ts");
  writeFileSync(script, `
@@ -35,7 +35,7 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
  paths.e=join(root,'already-retired');
  const real=await import(${JSON.stringify(resolve("lib/dispatch.ts"))});const integrate=real.integrate;
  let active=0,max=0;const saved={},retired=[],controls=new Map(),messages=[],waitIds=[],turns=[];
- mock.module(${JSON.stringify(resolve("lib/dispatch.ts"))},()=>({...real,integrate:async(...args)=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,20));return await integrate(...args);}finally{active--;}},retire:async h=>{expect(saved[h.handle].children[h.handle]).toBeUndefined();expect(saved[h.handle].integrated).toContain(h.handle);expect(existsSync(h.path)).toBe(true);expect(git(main,'rev-parse','HEAD')).toBe(git(h.path,'rev-parse','HEAD'));retired.push(h.handle);return {};}}));
+ mock.module(${JSON.stringify(resolve("lib/dispatch.ts"))},()=>({...real,integrate:async(...args)=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,20));return await integrate(...args);}finally{active--;}},retire:async h=>{expect(saved[h.handle].children[h.handle]).toBeUndefined();expect(saved[h.handle].integrated.includes(h.handle)||!!saved[h.handle].decomposed?.includes(h.handle)).toBe(true);expect(existsSync(h.path)).toBe(true);expect(git(main,'rev-parse','HEAD')).toBe(git(h.path,'rev-parse','HEAD'));retired.push(h.handle);return {};}}));
  mock.module(${JSON.stringify(resolve("lib/children.ts"))},()=>({
   turnEnd:async (ids,options)=>{
    turns.push(ids[0]);
@@ -50,7 +50,7 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
   },
   waitForTurnEnd:async(ids,options)=>{waitIds.push(ids[0]);if(ids[0].endsWith('/f'))return {id:ids[0],kind:'finished',cursor:'restart-report',text:'done'};return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});},
   last:async()=>null,
-  send:async(owner,text)=>{messages.push(text);if(text.includes('checkpoint from'))setTimeout(()=>controls.get(owner).abort(),50);else if(text.includes('integration failed')||text.includes('verification')||text.includes('loop error')||text.includes('handoff block did not parse'))controls.get(owner).abort();}
+  send:async(owner,text)=>{messages.push(text);if(text.includes('checkpoint from'))setTimeout(()=>controls.get(owner).abort(),50);else if(text.includes('integration failed')||text.includes('verification')||text.includes('loop error')||text.includes('handoff block did not parse')||text.includes('decomposed with'))controls.get(owner).abort();}
  }));
  const {run}=await import(${JSON.stringify(resolve("lib/jobs/supervise.ts"))});
  async function loop(s,cwd=main,test='test -f '+s,initial){
@@ -83,6 +83,15 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
   writeFileSync(commands,JSON.stringify({child:'i',action:'adopt',phase:'review',handles:[{run:'root-i',handle:'i'}]})+String.fromCharCode(10));
   await run({id:'i',input:{ticket:'root-i',cwd:main,owner:'i',ownerSession:'test-parent',budget:1,test:'test -f i',commands,commandsApplied:0},state:null,signal:control.signal,save:async x=>{saved.i=structuredClone(x);},log:()=>{}});}
  expect(saved.i.integrated).toEqual(['i']);expect(readFileSync(join(main,'docs/issues/i.md'),'utf8')).toContain('stage: done');expect(retired).toContain('i');
+ // Decomposition: a spec leaf's implementer commits children instead of a change; only the tracker lands, unreviewed.
+ for(const s of ['j','k'])writeFileSync(join(main,'docs/issues',s+'.md'),'---\\nstage: spec\\n---\\n');git(main,'add','.');git(main,'commit','-qm','Add j k');
+ for(const s of ['j','k']){paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);writeFileSync(join(paths[s],'docs/issues',s+'1.md'),'---\\nstage: ticket\\npart-of: '+s+'\\n---\\n');git(paths[s],'add','.');git(paths[s],'commit','-qm','Decompose '+s);}
+ writeFileSync(join(paths.k,'k'),'k');git(paths.k,'add','k');git(paths.k,'commit','-qm','Also code');
+ const implementing=s=>({children:{[s]:{slug:s,phase:'implement',handle:{run:'root-'+s,handle:s,path:paths[s]}}},integrated:[],metrics:{wakes:0,ownerBytes:0,launched:0,completed:0}});
+ await loop('j',main,'true',implementing('j'));
+ expect(saved.j.decomposed).toEqual(['j']);expect(saved.j.integrated).toEqual([]);expect(existsSync(join(main,'docs/issues/j1.md'))).toBe(true);expect(retired).toContain('j');expect(readFileSync(join(main,'docs/issues/j.md'),'utf8')).toContain('stage: spec');
+ await loop('k',main,'true',implementing('k'));
+ expect(existsSync(join(main,'docs/issues/k1.md'))).toBe(false);expect(saved.k.children.k.waiting).toContain('decomposed with changes outside the tracker (k)');expect(retired).not.toContain('k');
  console.log('parallel closures, failed tests, failed close hook, missing carried worktree: passed');
  `);
  try {

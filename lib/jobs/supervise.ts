@@ -38,6 +38,9 @@ interface Child { reportRepairs?: number }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>;
+ // Spec leaves whose implementer committed children instead of a change: they are nodes now, and in batch mode
+ // they return to the loop, whose next triage runs them as subtrees.
+ decomposed?: string[];
  // Join: once this node's (or batch's) children have landed, drive its crossing stories and consolidate the combined change.
  base?: string; tests?: string[]; reviews?: Record<string, unknown>; setups?: Record<string, unknown>;
  join?: { key: string; drive: boolean; deadline?: number; skipped?: string; done?: boolean } }
@@ -317,6 +320,23 @@ const checkStartup = async (live: Child[]) => {
   if (c.implementer) await retire(c.implementer);
   for (const old of c.previous ?? []) await retire(old);
  }); };
+ // An implementer that decomposed its spec leaf lands only tracker changes, without drive or review: the
+ // children get their own. Any other change on the branch goes through the normal pipeline instead.
+ const decompose = (c: Child, kids: Issue[], after: Issue[]) => serialized(input.cwd, async () => {
+  const dirs = [...new Set(after.map(i => dirname(relative(realpathSync(c.handle.path), realpathSync(i.file)))))];
+  const base = git(c.handle.path, "merge-base", "HEAD", git(input.cwd, "rev-parse", "HEAD"));
+  const outside = git(c.handle.path, "diff", "--name-only", base, "HEAD").split("\n").filter(f => f && !dirs.some(d => f === d || f.startsWith(d + "/")));
+  if (outside.length) return except(c, "decomposed with changes outside the tracker (" + outside.slice(0, 5).join(", ") + "); land children only, or implement the leaf whole");
+  trace("integrate-start", { slug: c.slug, decomposed: kids.map(k => k.slug) });
+  try { await integrate(c.handle, { cwd: input.cwd, keep: true, prepare: async worker => { if (input.test) await exec("bash", ["-lc", input.test], { ...RUN, cwd: worker.path }); } }); }
+  catch (error: any) { trace("integrate-end", { slug: c.slug, ok: false }); return except(c, "integration of the decomposition failed", String(error) + "\n" + String(error.stdout ?? "") + String(error.stderr ?? "")); }
+  delete state.children[c.slug];
+  (state.decomposed ??= []).push(c.slug);
+  await save();
+  trace("integrate-end", { slug: c.slug, ok: true }); trace("child-end", { slug: c.slug, outcome: "decomposed" });
+  if (batch) record({ kind: "decomposed", slug: c.slug, children: kids.map(k => k.slug), head: git(input.cwd, "rev-parse", "--short", "HEAD") });
+  await retire(c.handle);
+ });
 
  // No cursor: the first watch consumes the worker's latest report, so a worker that already finished its
  // phase advances at once and a running one is awaited.
@@ -460,13 +480,13 @@ const checkStartup = async (live: Child[]) => {
   // Fill the budget from the subtree's frontier: direct children only; non-leaves get supervise.
   const issues = snapshot(input);
   const head = git(input.cwd, "rev-parse", "HEAD");
-  for (const i of workItems(issues, input).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug) && !state.deferred?.[i.slug])) {
+  for (const i of workItems(issues, input).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug) && !state.deferred?.[i.slug] && !(batch && state.decomposed?.includes(i.slug)))) {
    if (state.join || (input.deadline && Date.now() >= input.deadline)) break;
    if (Object.keys(state.children).length >= input.budget) break;
    const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
    const prompt = nonleaf
     ? "Supervise the subtree of " + rel(i.file) + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ".\n\n" + readFileSync(i.file, "utf8")
-    : "Ticket " + rel(i.file) + ":\n\n" + readFileSync(i.file, "utf8") + (input.notes?.[i.slug] ? "\n\nNote from the loop's triage: " + input.notes[i.slug] : "");
+    : (i.effectiveStage === "spec" ? "Spec leaf " : "Ticket ") + rel(i.file) + ":\n\n" + readFileSync(i.file, "utf8") + (input.notes?.[i.slug] ? "\n\nNote from the loop's triage: " + input.notes[i.slug] : "");
    try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } }; }
    catch (error) {
     if (batch) { (state.deferred ??= {})[i.slug] = "launch failed"; record({ kind: "deferred", slug: i.slug, phase: "launch", reason: "launch failed: " + error }); }
@@ -548,7 +568,12 @@ const checkStartup = async (live: Child[]) => {
   note(c.slug, caveats(r.handoff));
   if (c.phase !== "supervise" && git(c.handle.path, "status", "--porcelain")) { await except(c, c.phase + " done with uncommitted changes", end.text); return; }
   if (isJoin(c)) { await joinTurn(c, r, end.text); return; }
-  if (c.phase === "implement") { c.setup = r.handoff?.setup ?? null; (state.setups ??= {})[c.slug] = c.setup; await toDrive(c); }
+  if (c.phase === "implement") {
+   const after = snapshot({ ...input, cwd: c.handle.path });
+   const kids = after.filter(i => i.partOf === c.slug && !i.done);
+   if (kids.length) { await decompose(c, kids, after); return; }
+   c.setup = r.handoff?.setup ?? null; (state.setups ??= {})[c.slug] = c.setup; await toDrive(c);
+  }
   else if (c.phase === "drive") {
    // Failed stories are the reviewer's to repair; only an unusable log stops the pipeline.
    const stories = r.handoff?.stories;
