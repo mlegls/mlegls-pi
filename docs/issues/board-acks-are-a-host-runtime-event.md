@@ -26,3 +26,7 @@ Root review of `dsh-port` hit the same adapter limit: `ab lib board read` return
 2026-09-28, Concept `refused-stale-acceptance-leaves-the-card-staged-review-1`: `ab lib board read` returned three peer messages; `ab lib board ack` failed with `board.ack is not a function`. Listing the module exports confirmed acknowledgment is unavailable. Workaround: read the peer packets and continue isolated review without acknowledgment.
 
 2026-09-28, Concept `update-the-report-a-problem-guide-for-the-profile-menu-review-1`: `ab lib board read` returned the three peer packets; `ab lib board ack` failed with `board.ack is not a function`. Read the packets and continued isolated review without acknowledgment.
+
+2026-09-28, Concept `settings-saved-confirmation-never-appears-review-1`: `ab lib board read` returned all three peer packets; `ab lib board ack` failed with `board.ack is not a function`. Read the packets and continued isolated review without acknowledgment.
+
+2026-09-28, Concept `show-safe-material-lineage-in-published-captures-review-1`: `ab lib board read` returned both peer packets; `ab lib board ack` failed with `board.ack is not a function`. Listing exports confirmed no acknowledgment operation. Read the packets and continued isolated review without acknowledgment.
