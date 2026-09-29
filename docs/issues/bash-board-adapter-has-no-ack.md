@@ -47,3 +47,5 @@ Align bash worker instructions with the adapter's cursor/ack semantics, or expos
 2026-09-29, Concept visit-edition implementation (`01a0ed6a-655a-743b-90e5-445e4130eb87`): read all five parent packets; `ab lib board ack` failed with `board.ack is not a function`. Export listing confirms no ack. Continued from handled packets without acknowledgement.
 
 2026-09-29, Concept host-loss review (`01a0ed74-87dc-746c-b237-2aaef0ee03c0`): read all 14 peer messages; acknowledging handled decision/drive IDs via `ab lib board ack` failed with `board.ack is not a function`. Continued isolated review from the read packets without acknowledgement.
+
+2026-09-29, Concept usable-seed review (`01a0ed78-27e3-7608-aa58-58375487891c`): peer read succeeded; `ab lib board ack` failed with `board.ack is not a function`. Export discovery confirmed no ack. Continued isolated review from handled packets without acknowledgement.
