@@ -17,3 +17,33 @@ Align bash worker instructions with the adapter's cursor/ack semantics, or expos
 2026-09-28, Concept map/Hub review (`01a0e9b2-221b-71cd-912e-980175aac7bb`): `ab lib board read` returned peer decisions and packets; acknowledgment of two handled message IDs failed with `board.ack is not a function`. Continued isolated review without acknowledgment.
 
 2026-09-29, Concept dependency-preparation review (`01a0eb50-57ed-74fc-9e00-14ab87341be3`): `ab lib board read` returned both peer packets, but acknowledging their IDs still failed with `board.ack is not a function`. Continued the isolated review from those packets; no acknowledgement workaround.
+
+2026-09-29, Concept screenshot-packet review (`01a0eb54-19c0-769a-96b6-53d127a69c9f`): read both peer packets through `ab lib board read`; `ab lib board ack` again failed with `board.ack is not a function`. Export discovery confirmed no ack. Continued the isolated review from the read packets without acknowledgement.
+
+2026-09-29, Concept scripted-provider review (`01a0eb61-6e41-70cc-a1dd-b8dd35926ce2`): read both peer packets; `ab lib board ack` failed with `board.ack is not a function`. Export discovery again has no ack. Continued from the handled messages without acknowledgement.
+
+2026-09-29, Concept default-adoption review (`01a0eb70-c407-7595-b47e-e4ea003b9378`): read the implementation and drive packets; `ab lib board ack` failed with `board.ack is not a function`. Export discovery confirmed no ack. Continued from the handled messages without acknowledgement.
+
+2026-09-29, Concept local-provider-proxy review (`01a0eba1-f10a-755a-a8e9-e4c2d71d6301`): read all three peer packets with `ab lib board read`; acknowledging their IDs failed with `board.ack is not a function`. Export discovery confirmed no ack. Continued the isolated review from the read packets without acknowledgement.
+
+2026-09-29, Concept `/ncept/zh/` review (`01a0ebc3-8928-7678-afa8-cf098e678bc1`): read all five packets; `ab lib board ack` again failed with `board.ack is not a function`. Export listing confirmed no ack. Continued from the read packets without acknowledgement.
+
+2026-09-29, Concept Mission-overview replay review (`01a0ebee-6ffb-75ea-a426-f87305076ebd`): read both peer packets; `ab lib board ack` failed with `board.ack is not a function`. Export listing confirmed no ack. Continued isolated review from the handled packets without acknowledgement.
+
+2026-09-29, Concept variant-metadata review (`01a0ebfb-c0b3-75a5-bf0b-9f30834fd597`): read all three peer packets; `ab lib board ack` failed with `board.ack is not a function`. Continued the isolated review from those packets without acknowledgement.
+
+2026-09-29, Concept contrast-control implementation (`01a0ed1f-66f2-74d8-8b36-5d921d1e17a0`): read all four parent messages using `ab lib board read`; `ab lib board ack` returned `board.ack is not a function`. Continued from the read messages and sent the shared input decision through `board.send`.
+
+2026-09-29, Concept applet restart implementation (`01a0ed36-1a58-77ad-a960-37cc2d6cc3f0`): read three parent packets; `ab lib board ack` failed with `board.ack is not a function`. Export listing confirms no acknowledgement operation. Continued from the read packets.
+
+2026-09-29, Concept contrast-control review (`01a0ed46-7665-7066-ac0b-5189a9734949`): peer read succeeded; `ab lib board ack` failed with `board.ack is not a function`. Continued from handled packets without acknowledgement.
+
+2026-09-29, Concept applet restart review (`01a0ed4e-e262-74f1-b164-6a6a84f2b64f`): read all seven parent/peer messages. `ab lib board ack` with their IDs failed with `board.ack is not a function`; continued isolated review from the read packets without acknowledgement.
+
+2026-09-29, Concept scheduled-work review (`01a0ed56-19e9-750d-a749-b707085b6bd9`): read all ten peer messages; `ab lib board ack` failed with `board.ack is not a function`. Continued from the handled packets without acknowledgement.
+
+2026-09-29, Concept applet host-loss implementation (`01a0ed58-5bc5-76cf-8fea-5a9c531304b1`): read all nine peer messages; `ab lib board ack` failed with `board.ack is not a function`. Continued from the handled packets without acknowledgement.
+
+2026-09-29, Concept visit-edition implementation (`01a0ed6a-655a-743b-90e5-445e4130eb87`): read all five parent packets; `ab lib board ack` failed with `board.ack is not a function`. Export listing confirms no ack. Continued from handled packets without acknowledgement.
+
+2026-09-29, Concept host-loss review (`01a0ed74-87dc-746c-b237-2aaef0ee03c0`): read all 14 peer messages; acknowledging handled decision/drive IDs via `ab lib board ack` failed with `board.ack is not a function`. Continued isolated review from the read packets without acknowledgement.
