@@ -145,7 +145,7 @@ No processes or external resources were started by this observer.
 
 ## Friction
 
-`ab mail c7a4ad76` warned that it could not confirm a live subscriber; Concept's actual reply established delivery in this instance. Existing owner: [[projects/mlegls-pi/issues/make-undeliverable-mail-status-visible-to-scripts]]. Do not treat the warning alone as proof that the owner is dead.
+`ab mail c7a4ad76` warned that it could not confirm a live subscriber; Concept's actual reply established delivery in this instance. Existing owner: [[projects/mlegls-pi/issues/archive/make-undeliverable-mail-status-visible-to-scripts]]. Do not treat the warning alone as proof that the owner is dead.
 
 The accepted CLI collector's null setup and ambient-checkout discovery recur under [[projects/mlegls-pi/issues/supervised-study-drive-lacks-setup-handoff]]. Its existing owner now links this encounter. No new tooling system or routing-default change was made.
 

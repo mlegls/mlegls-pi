@@ -29,3 +29,5 @@ Three existing supervised deliveries now have retained packets: CLI ab-edit, nam
 
 **Door:** two-way. Only reports, measurement data and friction ideas changed.
 **Blast radius:** docs. No product code or permanent tests changed; parent alone integrates this branch.
+
+disposition, 2026-09-30: done via supervise job muo6hjve (fd702f7). Unowned nonvisual-collapse recommendation filed as [[projects/mlegls-pi/issues/collapse-test-existence-only-review-into-a-gate]]; same-reviewer image judgment owned by [[projects/mlegls-pi/issues/visual-review-accepts-packet-with-unopened-collected-frames]]. Concept's small-defects packet "all 20 originals" (actually 19 + a duplicate) reported to its owner.
