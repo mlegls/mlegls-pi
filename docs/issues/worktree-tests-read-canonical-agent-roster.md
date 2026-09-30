@@ -13,3 +13,7 @@ Workaround: `PI_AGENTS_DIR="$PWD/agents"` made both checks pass; `PI_AGENTS_DIR=
 Possible improvement: project regressions can select the checkout's roster explicitly; whether `lib/agents.ts` should change its runtime default is a separate decision.
 
 ticket contract, 2026-09-30: tests that validate the agent roster against the routing catalog read the roster from the checkout under test, not `~/.pi/agent/agents` (which points at the canonical checkout). Also covers the duplicate [[projects/mlegls-pi/issues/archive/route-assignment-tests-read-host-roster-against-project-catalog]].
+
+## Result
+
+Driver evidence: [checkout-owned roster validation](../attachments/worktree-tests-read-canonical-agent-roster/index.md). Default entry point passed 9/9; the roster/catalog validator passed with 38 assertions even when `PI_AGENTS_DIR` selected a nonexistent host roster. Runtime-routing tests elsewhere in the same file still depend on that host selector.

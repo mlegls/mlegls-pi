@@ -1,0 +1,10 @@
+bun test v1.4.2 (744846f84)
+
+lib/route-assignment.test.ts:
+(pass) every agent has a model list of catalogued entries [2.33ms]
+
+ 1 pass
+ 8 filtered out
+ 0 fail
+ 38 expect() calls
+Ran 1 test across 1 file. [31.00ms]

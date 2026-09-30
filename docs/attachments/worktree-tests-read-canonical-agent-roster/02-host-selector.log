@@ -1,0 +1,9 @@
+tests: "5 failed, 4 passed (19ms) across 1 file"
+failures[5]{at,test,message}:
+  "route-assignment.test.ts:15:26",a fill assignment can use its model line or an independently pinned model,No model list for fill
+  "route-assignment.test.ts:27:26","an agent pin keeps its model list, fallbacks included",No model list for fill
+  "route-assignment.test.ts:34:12",delegated work keeps the interactive reserve for the time left in each window,No model list for auto
+  "route-assignment.test.ts:48:17","a banked reset counts as a full window until it expires, and its first use notifies once",No model list for auto
+  "route-assignment.test.ts:99:24",a role pick replaces the Decision API but yields to an agent pin for that role,"ENOENT: no such file or directory, scandir '/Users/mlegls/dev/mlegls-pi__worktrees/worktree-tests-read-canonical-agent-roster-drive/.wm/drive-missing-roster-72a0e40'"
+log: /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/bun-axi/worktree-tests-read-canonical-agent-roster-drive-f34373ef/test.log
+help[1]: "Run `bun-axi test lib/route-assignment.test.ts -t \"a fill assignment can use its model line or an independently pinned model\"` to rerun the first failure"

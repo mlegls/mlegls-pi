@@ -1,0 +1,17 @@
+bun test v1.4.2 (744846f84)
+
+lib/route-assignment.test.ts:
+(pass) a fill assignment can use its model line or an independently pinned model [4.93ms]
+(pass) an agent pin keeps its model list, fallbacks included [0.57ms]
+(pass) delegated work keeps the interactive reserve for the time left in each window [1.89ms]
+(pass) a banked reset counts as a full window until it expires, and its first use notifies once [1.74ms]
+(pass) every agent has a model list of catalogued entries [1.53ms]
+(pass) unavailable model pins do not fall back and shorthand is not guessed [0.32ms]
+(pass) tracker launches require eligibility and preserve the selected stance/model [0.51ms]
+(pass) host model lines override the roster without overriding explicit pins [0.36ms]
+(pass) a role pick replaces the Decision API but yields to an agent pin for that role [4.89ms]
+
+ 9 pass
+ 0 fail
+ 76 expect() calls
+Ran 9 tests across 1 file. [43.00ms]
