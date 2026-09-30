@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0f0e6-ff49-7153-ac68-f9c15a6a4520
 priority: 3
@@ -12,3 +12,5 @@ Workaround: inspected fresh state, hovered the earlier Fork with `chrome-devtool
 Transient traces (worker session directory `~/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-keep-implicit-learning-feedback-readable-drive--/2026-09-30T06-01-05-609Z_01a0f0e6-ff49-7153-ac68-f9c15a6a4520.ab/computer/`): `2026-09-30T06-07-20-175Z-40d1ec.browser.jsonl` skipped the prerequisite; `2026-09-30T06-08-20-668Z-8e9524.browser.jsonl` pressed Fork after hover. Durable product evidence: [[projects/concept/attachments/keep-implicit-learning-feedback-readable/index]].
 
 Observation, not diagnosis: check whether candidate discovery omits opacity-hidden actions and whether a compound intent may send before its stated prerequisite is satisfied. A replay should keep the original continuation until Fork, then submit exactly once; if Fork cannot be discovered, stop rather than skipping it.
+
+disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.

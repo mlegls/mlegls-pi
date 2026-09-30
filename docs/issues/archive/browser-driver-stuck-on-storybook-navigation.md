@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: session:01a0e340-7537-76bd-8c17-168e7e6656f9
 ---
 
@@ -10,3 +10,5 @@ Workaround: a named `chrome-devtools-axi` session clicked Overview and Draft sta
 2026-09-29, a second Storybook encounter, this time before any action: while driving Concept's `give-storybook-a-worktree-owned-port`, `ab computer --url 'http://127.0.0.1:6007/?path=/story/application-catalog--appearance' …` waited for the app three times and then stopped `stuck` with zero actions. The server was ready, and `chrome-devtools-axi` on the same URL showed the loaded preview, controls and heading. It hasn't been established whether this was a transient compilation wait or the driver treating Storybook's shell as an app that never finishes loading instead of looking at the preview iframe. Trace: `~/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-give-storybook-a-worktree-owned-port-drive--/2026-09-29T03-55-46-394Z_01a0eb4d-e75a-750e-9b30-a108447366ef.ab/computer/2026-09-29T03-58-12-142Z-02bd96.browser.jsonl`.
 
 2026-09-29, a third Storybook encounter, while driving Concept's `make-the-catalog-visual-gate-see-token-changes-without-flaking`: `ab computer --url http://127.0.0.1:6217/ --until 'The catalog controls story is rendered in its preview' 'Open the catalog controls story in Storybook; inspect the visible light and dark variants without changing any tokens'` navigated to `?path=/story/application-catalog--chips`, then returned `stuck` after two waits and zero actions. Its trace contained the sidebar `Controls` link and a loaded chips iframe. Local Storybook on a worktree-owned port, no auth. Workaround: a named `chrome-devtools-axi` session navigated from Chips to Controls and selected dark via the toolbar.
+
+disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.
