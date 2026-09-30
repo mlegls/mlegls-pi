@@ -16,4 +16,4 @@ ticket contract, 2026-09-30: tests that validate the agent roster against the ro
 
 ## Result
 
-Driver evidence: [checkout-owned roster validation](../attachments/worktree-tests-read-canonical-agent-roster/index.md). Default entry point passed 9/9; the roster/catalog validator passed with 38 assertions even when `PI_AGENTS_DIR` selected a nonexistent host roster. Runtime-routing tests elsewhere in the same file still depend on that host selector.
+Driver and review evidence: [checkout-owned roster validation](../attachments/worktree-tests-read-canonical-agent-roster/index.md). `bunfig.toml` preloads `lib/test-preload.ts`, which defaults `PI_AGENTS_DIR` to the checkout's `agents/` for `bun test`; with a stale host roster the route-assignment file went from 2 failures to 9 passes, and `bun test lib` passes (197, 0 fail).

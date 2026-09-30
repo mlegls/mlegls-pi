@@ -53,3 +53,18 @@ Evidence: [default entry point](01-default.log), [host-selector probe](02-host-s
 - No source, tests, fixtures or implementation diff were opened. Failure diagnostics themselves included source excerpts.
 - No full-library run was performed in this drive; the entry point and roster isolation were the scope.
 - No server, container, tunnel or browser was started. All commands have finished; no external cleanup is required.
+
+## Review
+
+The driver's held outcome did not hold up against the ticket's actual failure. The ticket's two failures were `prepare(... agent:fill ...)` cases (`Unknown assigned model or effort`, ineligible preference), which resolve the roster through `AGENTS_DIR` (`lib/agents.ts`, fixed at import from `PI_AGENTS_DIR` or `~/.pi/agent/agents`). Commit 72a0e40 only re-pointed the one static roster/catalog test at `agents/`; the routing cases still read the host roster. The default run passed only because the canonical roster happened to match this checkout's for `fill` at drive time (`diff -r agents /Users/mlegls/dev/mlegls-pi/agents` differs only in `_common.md` and `research.md`).
+
+Reproduction of the ticket's failure with a stale host roster (`HOME` set to a temp dir whose `.pi/agent/agents` is a copy of `agents/` with `fill.md` given `model: openai-codex/gpt-6.1-sol:xhigh`, absent from `routing.md`):
+
+- Under 72a0e40: `HOME=$H bun test lib/route-assignment.test.ts` → 7 pass, 2 fail (`a fill assignment can use its model line…`, `an agent pin keeps its model list, fallbacks included`).
+- After the repair below: same command → 9 pass, 0 fail.
+
+Repair: reverted 72a0e40 (its hand-rolled frontmatter parser duplicated `agent()`), and added `bunfig.toml` + `lib/test-preload.ts`, which default `PI_AGENTS_DIR` to the checkout's `agents/` for every `bun test` run from the checkout root (an explicit `PI_AGENTS_DIR` still wins; runtime defaults in `lib/agents.ts` are unchanged). A preload is needed because `AGENTS_DIR` is a module-level constant and bun shares one module registry across test files, so setting the variable inside one test file is order-dependent.
+
+Full library run on the final head: `bun test lib` → 197 pass, 3 skip, 0 fail (200 tests, 40 files).
+
+Retained tests: none new. The existing route-assignment cases are the replay; the stale-host reproduction above needs a rigged `HOME`, so it is left here as evidence. Driver checks 2–3 (nonexistent selector) are superseded: an explicit `PI_AGENTS_DIR` is honoured by design, so those five runtime failures under a bogus selector are expected.
