@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/test-suite-hygiene]]"
@@ -17,3 +17,7 @@ ticket contract, 2026-09-30: tests that validate the agent roster against the ro
 ## Result
 
 Driver and review evidence: [checkout-owned roster validation](../attachments/worktree-tests-read-canonical-agent-roster/index.md). `bunfig.toml` preloads `lib/test-preload.ts`, which defaults `PI_AGENTS_DIR` to the checkout's `agents/` for `bun test`; with a stale host roster the route-assignment file went from 2 failures to 9 passes, and `bun test lib` passes (197, 0 fail).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/worktree-tests-read-canonical-agent-roster/index.md).
