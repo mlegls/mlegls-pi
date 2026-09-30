@@ -74,17 +74,21 @@ test('unavailable model pins do not fall back and shorthand is not guessed', asy
 test('tracker launches require eligibility and preserve the selected stance/model', async () => {
   // A regression must fail this test without starting a real worker.
   let launches = 0;
-  mock.module(fileURLToPath(new URL('./wm.ts', import.meta.url)), () => ({
-    spawn: async () => { launches++; throw new Error('launch stub reached'); },
-  }));
-  const task = { handle: 'probe', issue: 'example', prompt: 'Must not launch', agent: 'fill', model: 'openai-codex/gpt-6.1-sol', effort: 'high' };
-  const options = { run: 'run_test', maxConcurrent: 1, active: [] };
-  await expect(dispatch([task], options)).rejects.toThrow('Unassigned');
-  for (const assignee of ['human', 'user:mlegls', 'session:original'])
-    await expect(dispatch([{ ...task, assignee }], options)).rejects.toThrow('human or exact existing session');
-  await expect(dispatch([{ ...task, assignee: 'agent:fill' }], options)).rejects.toThrow('conflicts');
-  await expect(prepare('An edit', { assignee: 'agent:fill', stance: 'auto' })).rejects.toThrow('conflicts');
-  expect(launches).toBe(0);
+  const wmPath = fileURLToPath(new URL('./wm.ts', import.meta.url));
+  const realWm = { ...await import('./wm.ts') };
+  mock.module(wmPath, () => ({ ...realWm, spawn: async () => { launches++; throw new Error('launch stub reached'); } }));
+  try {
+    const task = { handle: 'probe', issue: 'example', prompt: 'Must not launch', agent: 'fill', model: 'openai-codex/gpt-6.1-sol', effort: 'high' };
+    const options = { run: 'run_test', maxConcurrent: 1, active: [] };
+    await expect(dispatch([task], options)).rejects.toThrow('Unassigned');
+    for (const assignee of ['human', 'user:mlegls', 'session:original'])
+      await expect(dispatch([{ ...task, assignee }], options)).rejects.toThrow('human or exact existing session');
+    await expect(dispatch([{ ...task, assignee: 'agent:fill' }], options)).rejects.toThrow('conflicts');
+    await expect(prepare('An edit', { assignee: 'agent:fill', stance: 'auto' })).rejects.toThrow('conflicts');
+    expect(launches).toBe(0);
+  } finally {
+    mock.module(wmPath, () => realWm);
+  }
 });
 
 test('host model lines override the roster without overriding explicit pins', async () => {

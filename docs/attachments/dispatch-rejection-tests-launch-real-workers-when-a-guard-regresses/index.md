@@ -43,3 +43,10 @@ Story: a rejection test cannot launch a real worker when its guard stops rejecti
 ## Limits and cleanup
 
 No source mutations, product repairs or new tests. No external resource was started deliberately. No evidence of a test-created resource requiring cleanup was observed. No rendered UI was used (`visual: false`, `shots: []`). The counterfactual remains unmeasured; this packet does not certify the contract.
+
+## Review (2026-09-30)
+
+- **Counterfactual, executed.** Disabled the model/effort check in `assertAssignment` (`lib/route.ts`, `if (false && allowed && …)`) and ran `bun test lib/route-assignment.test.ts`. The tracker-eligibility case failed at the `agent:fill` `rejects.toThrow('conflicts')` line ("Received promise that resolved"); 8 pass, 1 fail. The launch stub was reached (dispatch swallowed its throw into the receipt) and no `probe` worktree appeared under `mlegls-pi__worktrees/`. Guard restored afterward. This was repeated on the final head. Contract story: **held**.
+- **Defect repaired.** `mock.module` on `lib/wm.ts` persists for the rest of the bun process, so the partial stub (only `spawn`) would leak into later test files that import `wm`. The stub now spreads the real module, and the test restores the real module in `finally`. Commit: "Restore real wm after the dispatch rejection test".
+- Post-repair: ordinary run 9 pass; `bun test lib` 197 pass, 3 skip, 0 fail.
+- New tests: none; the existing case is the retained check.
