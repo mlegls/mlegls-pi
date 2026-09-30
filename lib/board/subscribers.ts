@@ -34,6 +34,5 @@ export function subscriberStatus(destination: string): SubscriberStatus {
 		}
 		unknown = true;
 	}
-	}
 	return unknown ? "unknown" : "none";
 }
