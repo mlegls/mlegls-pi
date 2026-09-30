@@ -1,0 +1,29 @@
+n=40 R_all=1,198,142,082 save_all=1,102,368,576 (92.0%)
+knee* within 5 calls of a steer: 1/40; slope-knee near steer: 4/40; cp near steer: 6/40
+knee*/n median=0.04 x@knee/xmax median=0.17
+session                                           n            R   k*      x@k*         save    %R steer~ miss       $
+concept__worktrees-transcript-capture-feasibil  583  231,720,892 k300=201 save300= 195,158,067 0.842  None    4  136.80
+concept__worktrees-hook-emission-snapshots      424  159,620,858 k300=132 save300= 133,997,291 0.839  None    6  109.17
+concept__worktrees-browser-route-shell          287   60,519,183 k300=241 save300=  12,887,823 0.212  None    4   42.42
+i-webapp__worktrees-vertex-176                  337   60,049,918 k300=197 save300=  21,558,007 0.359  None    4   39.10
+concept__worktrees-native-materials             260   56,101,579 k300=232 save300=   8,048,531 0.143  None    1   33.27
+concept__worktrees-browser-consolidation        355   54,095,774 k300=207 save300=  16,422,822 0.303  None   13   45.69
+i-webapp__worktrees-byok-177                    322   50,590,136 k300=187 save300=  12,824,826 0.253  None    4   34.55
+i-webapp__worktrees-integration-178             259   43,579,811 k300=185 save300=   6,434,714 0.147  None    1   27.34
+concept__worktrees-hub-projections              238   39,419,525 k300=172 save300=   6,087,607 0.154  None    3   27.43
+concept__worktrees-acceptance-value-bounds      194   37,315,997 k300=167 save300=   4,392,950 0.117  None    3   24.14
+concept__worktrees-ui-board                     206   35,861,405 k300=None save300=           0  None  None    1   22.01
+concept__worktrees-materials-repair-plan        188   33,638,887 k300=169 save300=   2,193,485 0.065     1    2   22.58
+concept__worktrees-hub-precedence-repair        155   27,924,249 k300=None save300=           0  None     4    1   18.85
+concept__worktrees-patch-storage-closure        159   25,523,154 k300=None save300=           0  None  None    5   20.00
+concept__worktrees-agent-save-repair            141   24,507,645 k300=None save300=           0  None  None    1   16.55
+concept__worktrees-acceptance-quota-boundary    179   24,954,860 k300=None save300=           0  None     5    1   16.05
+concept__worktrees-public-hub-routes            142   24,145,209 k300=None save300=           0  None     3    2   17.35
+concept__worktrees-stream-redaction-design      134   21,904,123 k300=123 save300=     906,281 0.041  None   13   31.57
+policy knees: x>=100k save=1,044,243,577 (87%) | x>=200k save=750,417,573 (63%) | x>=300k save=420,912,404 (35%)
+TTL misses: n=103 cacheWrite re-pay mass=14,545,969 input mass=342
+...
+concept__worktrees-prune-ui-tests                60    3,613,713    5    25,421    2,874,728 79.6%   None    2    3.62
+concept__worktrees-hub-join                      52    3,468,188    5    37,354    2,708,069 78.1%   None    0    2.81
+concept__worktrees-hub-final-review              21    1,430,519    5    47,503      984,629 68.8%   None    0    2.20
+concept__worktrees-hub-publisher-review          22    1,160,047    5    32,775      717,926 61.9%   None    0    1.59
