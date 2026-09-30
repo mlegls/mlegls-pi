@@ -12,7 +12,7 @@ test("mail CLI warns on undeliverable topics and accepts the waiting review work
  const repo = join(root, "sample");
  const state = join(root, "state");
  const data = join(root, "data");
- const env = { ...process.env, XDG_STATE_HOME: state, XDG_DATA_HOME: data, AB_STATE: join(root, "ab"), AB_SESSION_STATE: join(root, "session"), PI_SESSION_ID: "", PI_WM_HANDLE: "" };
+ const env: NodeJS.ProcessEnv = { ...process.env, XDG_STATE_HOME: state, XDG_DATA_HOME: data, AB_STATE: join(root, "ab"), AB_SESSION_STATE: join(root, "session"), PI_SESSION_ID: "", PI_WM_HANDLE: "" };
  delete env.PI_BOARD_DIR;
  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
  const mail = (destination: string) => {
