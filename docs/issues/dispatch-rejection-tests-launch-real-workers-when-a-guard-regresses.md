@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/test-suite-hygiene]]"
@@ -15,3 +15,7 @@ ticket contract, 2026-09-30: a rejection test can't launch a real worker when it
 ## Result
 
 Driver packet: [dispatch rejection first-use drive](../attachments/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses/index.md). The supplied CLI passed nine tests twice, including the tracker-eligibility case, and the historical `probe` path remained absent. The safety claim under a guard regression is **unobservable** in this drive: no regression-control entry point was supplied. Review must establish that counterfactual; ordinary green tests alone do not establish it.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses/index.md).
