@@ -131,7 +131,7 @@ export class TrackerView extends BasesView {
     const badge = row.createSpan({ cls: "trk-badge", text: i.legacy ? `legacy: ${i.next ?? "unset"}` : `own ${i.ownStage === undefined ? "—" : String(i.ownStage)} · tree ${i.effectiveStage}` });
     badge.style.background = quiet ? "var(--background-secondary)" : ACTOR_COLOR[i.actor];
     badge.style.color = quiet ? "var(--text-muted)" : "var(--text-on-accent)";
-    badge.title = i.errors.join("; ") || `assignee: ${i.assignee ?? "unassigned"}`;
+    badge.title = i.errors.join("; ") || `own stage · subtree stage\nassignee: ${i.assignee ?? "unassigned"}`;
     this.link(row, i);
     if (showProject) row.createSpan({ cls: "trk-proj", text: i.project });
     const meta = (text: string, title?: string, icon?: string) => {
@@ -140,7 +140,7 @@ export class TrackerView extends BasesView {
       s.appendText(text);
       if (title) s.title = title;
     };
-    meta(`p${i.priority ?? "?"}`);
+    meta(`p${i.priority ?? "?"}`, i.priority === undefined ? "priority unset" : "priority");
     if (i.children.length) meta(`${i.children.filter((c) => c.subtreeDone).length}/${i.children.length} subissues`, "Direct subissues whose entire subtree is done (including filtered-out issues)");
     if (i.unblocksAll > 0) meta(String(i.unblocksAll), "open issues this unblocks", "lucide-arrow-up-from-line");
     if (i.errors.length) meta("invalid", i.errors.join("; "), "lucide-alert-triangle");
