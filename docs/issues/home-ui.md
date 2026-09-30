@@ -20,4 +20,6 @@ decisions:
 - 2026-09-18: operon rejected as the tracker (too heavy, pipeline-only kanban, time-only gantt); frontmatter stays canonical, views are plugins or ours.
 - 2026-09-20: the obsidian half is specified in the [[control plane]] project note (four block commands: comment, propose, session, implement; CriticMarkup + shell commands + local rest api for v0). this issue keeps the tmux cockpit half.
 
-decision, 2026-09-30: the cockpit is workmux/tmux + `ab tree` + Obsidian. The Obsidian remainder is agent-owned ([[projects/mlegls-pi/issues/tracker-obsidian-plugin]], [[projects/mlegls-pi/issues/obsidian-implement-sink]]); a DSH cockpit ([[projects/mlegls-pi/issues/dsh-supervision-tree-ui]]) is deferred.
+decision, 2026-09-30: the cockpit is workmux/tmux + `ab tree` + Obsidian. The Obsidian remainder is agent-owned ([[projects/mlegls-pi/issues/tracker-obsidian-plugin]], [[projects/mlegls-pi/issues/archive/obsidian-implement-sink]]); a DSH cockpit ([[projects/mlegls-pi/issues/dsh-supervision-tree-ui]]) is deferred.
+
+decision, 2026-09-30 (later): Obsidian is a read surface for the tracker ([[projects/mlegls-pi/issues/tracker-obsidian-plugin]] continues), not an interactive cockpit. Capture is one flat "top of mind" note (`~/obsidian/projects/top of mind.md`) processed from a chat harness, with processed items removed; [[projects/mlegls-pi/issues/archive/obsidian-implement-sink]] is dropped, and the outliner plans/fleeting/efforts model behind [[projects/mlegls-pi/issues/reconcile]] is off the main path.
