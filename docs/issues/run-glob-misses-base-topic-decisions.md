@@ -13,3 +13,9 @@ The worker preamble still teaches `{{run}}/*` (`agents/_common.md`), as do `docs
 Possible fixes: teach `{{run}}/**` (also matches nested runs' topics, more noise), or make decisions always go on `<run>/<handle>` so `<run>/*` is complete. Prior art: MQTT's `a/#` matches `a` itself; `+` (like `*`) doesn't.
 
 ticket contract, 2026-09-30: peers read base-topic decisions: the worker preamble (`agents/_common.md`), `docs/dispatch.md` and the multi-agent skill teach a pattern that matches the run's base topic and its children (e.g. `{{run}}/**`), or `matchTopic` treats `x/*` as including `x` if that's the better contract. Pick one, apply it everywhere it's taught, and test it.
+
+## Result
+
+Teach `<run>/**` in the worker preamble, dispatch docs and multi-agent skill; keep `matchTopic` unchanged. Instructions explicitly include base-topic decisions and nested descendants, and keep decision reads separate from report tag filters.
+
+[Implementation first use and replay](../attachments/run-glob-misses-base-topic-decisions/index.md): isolated CLI board returned base, peer and nested decisions with globstar; the old single-segment pattern missed the base. Existing board regressions: 30 pass, 0 fail.
