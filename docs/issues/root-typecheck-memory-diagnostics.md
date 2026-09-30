@@ -9,3 +9,5 @@ On 2026-09-30, the drive and review of [[projects/mlegls-pi/issues/root-board-st
 Owner: the memory extension's typing. Workaround for the board review: inspect diagnostics for the changed file and run the focused board suite; this does not resolve the memory errors. Proposed follow-up: reconcile the fixture narrowing and event registration with the installed Pi types without suppressing the root check.
 
 Evidence: [board review packet](../attachments/root-board-store-fixture-typecheck/index.md).
+
+2026-09-30: after [[projects/mlegls-pi/issues/memory-agent-settled-uses-stale-ctx]] (`e3f7630`) its review saw no diagnostics left in `extensions/memory/index.ts`; `images.test.ts:13` remains. Duplicate capture: [[projects/mlegls-pi/issues/root-typecheck-memory-image-fixture]].
