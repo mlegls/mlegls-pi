@@ -30,6 +30,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 			getActiveTools: () => [...registered.keys()], getAllTools: () => [...registered.values()], getThinkingLevel: () => "off",
 		};
 		let sent: any; let blockedAll = false, blocked = false, invalid = false, invalidTail = false, citeTail = false, citeOnlyTail = false; let notices: string[] = [];
+		let candidate: ReturnType<typeof assistant> | undefined;
 		const ctx: any = {
 			cwd, model: { id: "model", provider: "test", maxTokens: 16000 }, getSystemPrompt: () => "Unchanged system prompt",
 			ui: { notify: (s: string) => notices.push(s) },
@@ -38,6 +39,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 				sent = context;
 				const prompt = context.messages.at(-1).content as string;
 				if (blockedAll || blocked && !prompt.includes("first person plural")) return { result: async () => ({ ...assistant(""), stopReason: "error", errorMessage: "This request was blocked as it seems to violate Anthropic's Terms of Service restrictions on reverse engineering or duplicating model outputs." }) };
+				if (candidate) return { result: async () => candidate };
 				const visible = visibleEntries(branch);
 				const tail = tailChoices(visible).find(c => sourceEntries(visible.slice(0, c.index)).length)!;
 				const id = sourceEntries(visible.slice(0, tail.index))[0].id;
@@ -49,6 +51,24 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		hooks.get("context")({ messages: buildSessionContext(branch).messages }, ctx);
 		add("message", { message: assistant("Ready.") });
 		const fold = () => hooks.get("session_before_compact")({ branchEntries: branch, preparation: { tokensBefore: 1234 }, signal: new AbortController().signal }, ctx);
+		// Drive packet docs/attachments/memory-checkpoint-cites-retained-tail/index.md,
+		// checks 2–3: reject the actual candidate, not merely its requested focus.
+		const original = structuredClone(branch);
+		for (const rejected of [
+			assistant("tail: e2\nOnly retained facts. [@e2] [@e3]"),
+			assistant("tail: e2\nMixed facts with an unknown ID. [@e0] [@e2] [@missing]"),
+			assistant("Missing boundary. [@e0] [@e2]"),
+			assistant("tail: e0\nNo entries folded. [@e0] [@e2]"),
+			{ ...assistant("tail: e2\nTruncated mixed facts. [@e0] [@e2]"), stopReason: "length" },
+		]) {
+			candidate = rejected;
+			expect(await fold()).toEqual({ cancel: true });
+			expect(branch).toEqual(original);
+			expect(buildSessionContext(branch).messages).toEqual(buildSessionContext(original).messages);
+		}
+		candidate = undefined;
+		// Check 1: retry with mixed provenance; the tail stays verbatim and both
+		// cited originals remain recallable after persisting the returned compaction.
 		citeTail = true;
 		const one = await fold();
 		expect(one.cancel).toBeUndefined();
@@ -78,7 +98,10 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(two.compaction.details.blocks[1].covers).toEqual(["e1"]);
 		const sessionFile = join(cwd, "session.jsonl");
 		writeFileSync(sessionFile, branch.map(e => JSON.stringify(e)).join("\n"));
-		expect(recall({ sessionFile, leafId: branch.at(-1).id, ids: firstBlock.sources })).toContain("I will use 4567; not verified yet.");
+		const recalled = JSON.parse(recall({ sessionFile, leafId: branch.at(-1).id, ids: firstBlock.sources }));
+		expect(recalled.map((entry: any) => entry.id)).toEqual(["e1", "e0"]);
+		expect(recalled[0].messages).toEqual([{ role: "assistant", content: [{ type: "text", text: "I will use 4567; not verified yet." }] }]);
+		expect(recalled[1].messages).toEqual([{ role: "user", content: "Use port 4567, not 3000." }]);
 		expect(expandMemory(buildSessionContext(branch).messages, branch)[0]).toEqual(resumed[0]);
 		expect(registered.has("memory_recall")).toBe(false);
 		add("message", { message: { role: "user", content: "Another topic", timestamp: 4 } });
@@ -95,6 +118,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		citeOnlyTail = true;
 		expect(await fold()).toEqual({ cancel: true });
 		expect(notices.at(-1)).toContain("newly folded source");
+		expect(branch).toHaveLength(before);
 		citeOnlyTail = false;
 		const tailCited = await fold();
 		expect(tailCited.compaction.details.blocks.at(-1).sources).toEqual([tailCited.compaction.firstKeptEntryId, tailCited.compaction.details.blocks.at(-1).covers[0]]);

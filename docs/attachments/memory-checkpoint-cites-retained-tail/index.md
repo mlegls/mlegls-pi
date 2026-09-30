@@ -42,3 +42,20 @@ In a third fresh persisted Pi session, I supplied ten ordinary archive/retained 
 3. **Other fail-closed cases, not driven:** A candidate with an unknown citation, missing `tail:` line, or a boundary that folds nothing should leave the original session unmodified and report cancellation. This live-model drive did not produce those outputs; force candidates through a controlled public provider in a separate check rather than treating a successful model response as coverage.
 
 Nonvisual CLI/API journey; no screenshots. The long raw RPC stream and private session files remain in ignored `.wm/`, not this packet. This index preserves the selected status, IDs, boundaries, and citations needed to judge the stories.
+
+## Review replay
+
+Reviewed the change from `dd0836cf` through `1199804` together with the first-use record. No production defect found; shared prompts remain unchanged. Citation eligibility still comes from visible originals plus branch-local prior evidence; acceptance additionally requires a citation in the newly folded coverage.
+
+`extensions/memory/memory.test.ts`, “model-selected contiguous tail, stable append/resume and failed checkpoint”, replays checks 1–3 through Pi's registered `session_before_compact` extension hook with controlled model responses. The accepted response returns mixed provenance without covering its retained-tail citation, preserves the tail on resume, and both original messages remain readable through public `memory.recall` after session persistence. Tail-only output cancels on both fresh and already compacted histories; a retry with mixed citations succeeds. Unknown IDs alongside valid citations, a missing boundary, a boundary folding nothing, and truncated output also cancel without modifying the branch or visible conversation.
+
+This is a deterministic extension-API replay, not another live-provider RPC drive. The original live RPC evidence above remains the end-user confirmation. No production behavior changed during review.
+
+Disposition of the first-use expectations/frictions:
+
+- Mixed-source acceptance, retained-tail preservation, recall, rejection and retry: held; encoded in the replay.
+- Short-session gating: outside citation validation; filed as [[projects/mlegls-pi/issues/memory-short-session-compaction-gate]].
+- Focus not inducing tail-only citations: outside this change; recorded with the existing [[projects/mlegls-pi/issues/compaction-register-variants]] owner. Tests supply the actual candidate rather than assuming focus compliance.
+- Nonspecific cancellation and capture discovery: remains owned by [[projects/mlegls-pi/issues/memory-cancelled-checkpoint-capture-discovery]].
+
+Validation: `ab check -- bun test extensions/memory lib/memory.test.ts` — 17 passed, 0 failed, 164 assertions. The first replay exposed an incorrect test expectation (recall preserves a user message's string content, rather than converting it to text blocks); the expectation was corrected and the complete affected suite rerun. No servers, browsers or external deployments were started during review.
