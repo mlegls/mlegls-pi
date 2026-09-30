@@ -19,8 +19,11 @@ export function scopes(cwd: string, env: NodeJS.ProcessEnv = process.env): strin
 	const branch = git(cwd, "symbolic-ref", "--short", "-q", "HEAD");
 	const out: string[] = [];
 	if (branch) out.push(`wt/${repo}/${branch}`);
-	// A verifier works its implementer's ticket; branches may carry a run/ prefix.
-	for (const name of [env.PI_WM_HANDLE, branch?.split("/").pop()]) {
+	// A verifier or supervision phase works its implementer's ticket; branch names may
+	// carry a run/ prefix. Prefer exact names before stripping phase suffixes.
+	const candidate = branch?.split("/").pop();
+	const phaseTicket = candidate?.replace(/-(?:drive|review|consolidate)(?:-\d+)?$/, "");
+	for (const name of [env.PI_WM_HANDLE, candidate, phaseTicket]) {
 		const slug = name?.replace(/-verify$/, "");
 		if (slug && existsSync(join(top, "docs/issues", slug + ".md"))) { out.push(`ticket/${repo}/${slug}`); break; }
 	}

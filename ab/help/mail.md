@@ -8,6 +8,10 @@ Message a pi session, or a channel of sessions. Every session subscribes with wa
 All are shown in its footer (✉ mailbox, # channels); the mailbox is also in the tmux status
 bar. A message starts the reader's next turn, or waits for the current one to end.
 
+Ticket mail is shared: implement, drive, review, and consolidation worktrees for a
+supervised issue join the issue's topic, while each phase has its own worktree address.
+To steer one waiting worker, prefer the exact worktree address in exception mail.
+
 The destination is a topic, an eight-hex mailbox, or a full session ID; text can come from stdin.
 From a pi session the message is signed with your own mailbox, so readers can reply.
 `ab mail` warns when it finds no live subscriber, or cannot verify subscriptions for

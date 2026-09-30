@@ -82,6 +82,7 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
  expect(saved.f.finished).toBe(true);expect(saved.f.integrated).toContain('f');expect(readFileSync(join(main,'docs/issues/f.md'),'utf8')).toContain('stage: done');expect(waitIds.filter(id=>id==='root-f/f')).toHaveLength(1);
  const head=git(main,'rev-parse','HEAD');
  await loop('c',main,'echo failure >&2; exit 1');
+ expect(messages.some(m => m.includes("Waiting worker: ab mail wt/main/c TEXT") && m.includes("integration failed"))).toBe(true);
  expect(git(main,'rev-parse','HEAD')).toBe(head);expect(saved.c.children.c.waiting).toBe('integration failed');expect(readFileSync(join(paths.c,'docs/issues/c.md'),'utf8')).toContain('stage: ticket');expect(retired).not.toContain('c');
 await loop('g');expect(saved.g.children.g.waiting).toContain('handoff block did not parse:');expect(messages.some(m=>m.includes('handoff block did not parse:'))).toBe(true);
 await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(turns.filter(id=>id==='root-h/h')).toHaveLength(2);expect(messages.some(m=>m.includes('checkpoint from review h:')&&m.includes('intermediate report'))).toBe(true);expect(saved.h.children.h.unreachable).toBeUndefined();
