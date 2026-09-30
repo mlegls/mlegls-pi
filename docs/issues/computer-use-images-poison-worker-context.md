@@ -11,3 +11,7 @@ The first [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]] worker 
 Nothing warns before a session gets into this state, and the drive/review roles don't say to save captures to files instead of viewing them. Possible owners: the computer tooling (return a file path rather than inline image content by default), the worker roles, or a size/image-count watch in `lib/jobs/supervise.ts`. Detecting the resulting silent death is [[projects/mlegls-pi/issues/parent-waits-on-worker-that-died-without-a-report]].
 
 ticket contract, 2026-09-30: workers can't silently grow a session the provider will reject. The drive, review and implement roles say to save screenshots and accessibility dumps to files and load an image only when judging it; and the loop warns the owner once when a worker's session file passes a size threshold (for example 20 MB), naming the session, so the owner can steer or redispatch before it dies.
+
+## Result
+
+First-use drive: [evidence packet](../attachments/computer-use-images-poison-worker-context/index.md). All three role instructions contain the capture guidance. The supplied regression entry point passed, but did not expose the oversized-session scenario; owner-warning and once-only behavior remain unobservable pending reproducible setup.
