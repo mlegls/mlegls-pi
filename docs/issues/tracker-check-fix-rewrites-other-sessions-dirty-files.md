@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/small-ab-cli-fixes]]"
@@ -15,3 +15,7 @@ ticket contract, 2026-09-30: `issues.ts check --fix` can be limited to links who
 ## Result
 
 Scoped `check --fix <moved paths>` rewrites only links and done `blocked-by` entries targeting those paths; the archive instructions use it. The first-use drive found unrelated done blockers still removed; repaired in review and covered by `issues.test.ts`. [Verification packet](../attachments/tracker-check-fix-rewrites-other-sessions-dirty-files/index.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/tracker-check-fix-rewrites-other-sessions-dirty-files/index.md).
