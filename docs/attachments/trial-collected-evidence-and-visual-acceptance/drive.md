@@ -55,3 +55,16 @@ Expectation formed while reading the small-defects packet: “opened all 20 PNGs
 No services, browsers, containers, tunnels or deployments were started. Only worktree-local scratch files were created. No product repairs or automated tests were written. This packet is nonvisual because its driven surface is the CLI report; the two underlying rendered deliveries keep their own visual packets.
 
 Packet-writing note: after appending receipt results, an edit using earlier receipt anchors was safely refused with “Nothing was modified.” A fresh bounded read supplied the current anchors and the edit succeeded. This was expected stale-anchor protection, not unresolved tooling failure.
+
+## Review
+
+Reviewed `6caba304..93eb590` (docs, measurement JSON and three friction ideas; no code or tests changed). Independent rechecks, not reruns of the driver's receipts:
+
+- All six JSON files parse; `git diff --check` clean; no credential-shaped strings in them.
+- Sums recomputed from the report's tables: workers plus windows 0.14764748 + 4.810598 + 10.19999912 = 15.1582446; collector-only 0.0812872 + 2.7988684 + 1.9966336 = 4.8767892; "collector-only understates nonvisual worker subtotal by about 45%" (0.0813 / 0.1476 = 55%) holds. Story counts (9+1+1 = 11, 10+2+2 = 14) hold.
+- CLI packet at `a0079b34` reads from Git and hashes to the recorded SHA-256. Small-defects supplement `86cbf0a5` is a commit and an ancestor of Concept HEAD; frames 06 and 10 have the same SHA-256 (`7651c864…`), as the report says.
+- Wikilinks introduced by the diff resolve to files in `docs/issues/`. `browser-driver-stuck-on-storybook-navigation`, which does not resolve, is pre-existing in three other issues and not part of this change.
+
+No repairs. Retained tests: none. Every check here confirms a one-time trial measurement (hashes, costs, retirement) and is already recorded in `drive-receipts.txt`. None guards behavior a later change could break. The "20 originals" wording in the Concept small-defects packet is outside this repository; the trial report states the 19-original count correctly, so no edit or issue was needed.
+
+Image judgment was not re-performed: the trial's judgments are the Opus medium sessions bound by receipts, and this review opened no images.
