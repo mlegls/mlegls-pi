@@ -1,8 +1,7 @@
 ---
 name: reviewer
 description: Review a change against its contract and the driver's log, repairing defects directly; also standalone diff review or a scoped audit.
-model: anthropic/claude-sonnet-5-5
-effort: high
+model: prefer anthropic/claude-sonnet-5-5:high. if anthropic is overutilized, use openai-codex/gpt-6.1-sol:high
 role: review
 ---
 

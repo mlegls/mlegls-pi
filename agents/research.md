@@ -1,8 +1,7 @@
 ---
 name: research
 description: "查源壓縮。以壓縮碼委派：研究問＋必要上下文；語/概念/符碼任取，人讀無涉。"
-model: zai/glm-5.3-flash
-effort: high
+model: prefer zai/glm-5.3-flash:high. if z.ai is overutilized, use openai-codex/gpt-6-luna:high
 role: implement
 ---
 

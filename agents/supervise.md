@@ -1,8 +1,7 @@
 ---
 name: supervise
 description: Supervisor for an agent-ready issue subtree; delegates its children and integrates them into its branch.
-model: openai-codex/gpt-6.1-sol
-effort: high
+model: prefer openai-codex/gpt-6.1-sol:high. if oai is overutilized, use anthropic/claude-opus-5-5:medium
 role: supervise
 ---
 

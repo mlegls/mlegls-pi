@@ -49,7 +49,7 @@ These tools do not transfer memory, compact history, change models in place, man
 
 `await route.continuation(context, { policyPath?, usage? })` returns `action`, `p`, `dist`, and `policyPath`. Supply current model/effort, assignment, latest report, remaining work, context relevance, and available cache/handoff evidence. It only advises continue/consult/replace: it never switches models, compacts, launches, or closes sessions. For consult/replace, prepare the actual handoff and admit it with `prepare`; do not route the old full transcript again.
 
-`await route.route(workflow, task, { policyPath, usage })` in exec; both options are optional. `usage` is a provider-keyed map of normalized fractions or null. The default policy path is this package’s root `routing.md`, independent of the current directory.
+`await route.route(agent, task, { policyPath, usage, unavailableProviders })` in exec; options are optional. It chooses among the candidates named in the agent file's `model:` line, reading the line against `usage`, a provider-keyed map of normalized fractions or null; a line with one available candidate needs no judgment. The default policy path is this package’s root `routing.md`, independent of the current directory.
 
 Returns `model`, `effort`, winning probability `p`, and `dist` keyed by `provider/model@effort`, plus `policyPath` and the supplied usage snapshot. Probabilities compare alternatives, not overall correctness; no uncalibrated confidence gate is imposed.
 
@@ -57,9 +57,9 @@ CLI: `bun lib/route.ts <workflow> <task text> [policy-path]`.
 
 ## Maintaining routing policy
 
-`routing.md` is input to the router, not documentation for its callers. `lib/route.ts` reads it at call time; edits need no reload and no Obsidian notes are loaded. Keep decision criteria and model guidance there, including observed workflow costs and evidence provenance. Prices and model opinions are guidance, not capability guarantees.
+`routing.md` is input to the router, not documentation for its callers. `lib/route.ts` reads it and the agent files at call time; edits need no reload and no Obsidian notes are loaded. Model choice lives in each agent's `model:` line; the reasoning behind those lines is in `docs/models.md`.
 
-The Assignment stances and Continuation actions sections use machine-read bullets of the form "- \`label\`: criterion". Catalog bullets name Pi model IDs in backticks as `provider/model` and their effort sets; those pairs define the candidate set. Obtain IDs from `pi --list-models`.
+The Assignment stances and Continuation actions sections use machine-read bullets of the form "- \`label\`: criterion". Catalog bullets name Pi model IDs in backticks as `provider/model` and their effort sets; every pair a model line names must be one of them. Obtain IDs from `pi --list-models`.
 
 Usage is supplied by the caller as a fraction of each provider’s routing ceiling, not necessarily its full quota. The router does not fetch usage or reserve capacity.
 
@@ -68,7 +68,7 @@ Usage is supplied by the caller as a fraction of each provider’s routing ceili
 Pass each issue's own `assignee` to `route.prepare`, even when absent. Omission of the option is reserved for non-tracker calls; an explicitly absent value is unassigned and refuses automatic routing. Pass `issue` and the returned `assignee` into dispatch. Re-read child assignments during recursive decomposition: a parent's selector is not inherited permission.
 
 - `agent`: ordinary agent admission.
-- `agent:fill`: the named prompt/workflow and its policy model (the implementation operating point where defined).
+- `agent:fill`: the named prompt/workflow and its model line, fallbacks included.
 - `model:zai/glm-5.3-flash:high`: exact execution; prompt/workflow still comes from admission or a supplied stance.
 - `agent:fill, model:zai/glm-5.3-flash:high`: that workflow with an explicit model override. Component order is immaterial.
 - `human`, `user:<name>`, `session:<id>`: not fresh agent admission. Hand to the human or recover/resume the exact assigned session; changing context requires explicit reassignment.

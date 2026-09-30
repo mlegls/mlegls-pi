@@ -1,8 +1,7 @@
 ---
 name: technical
 description: Execute work whose acceptance criterion is clear (metric, stub, contract...) but whose fulfilment is hard and requires strong reasoning (complex systems, difficult or novel algorithms, performance optimization).
-model: openai-codex/gpt-6.1-sol
-effort: xhigh
+model: prefer openai-codex/gpt-6.1-sol:xhigh. if oai is overutilized, use anthropic/claude-opus-5-5:medium
 role: implement
 ---
 

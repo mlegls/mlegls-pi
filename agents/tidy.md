@@ -1,8 +1,7 @@
 ---
 name: tidy
 description: Incremental, behavior-preserving tidying across changes that landed together: extract the shared piece, align names and conventions, inline what doesn't earn its keep.
-model: anthropic/claude-sonnet-5-5
-effort: high
+model: prefer anthropic/claude-sonnet-5-5:high. if anthropic is overutilized, use openai-codex/gpt-6.1-sol:high
 role: consolidate
 ---
 

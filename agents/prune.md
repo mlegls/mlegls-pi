@@ -1,8 +1,7 @@
 ---
 name: prune
 description: Use for large refactors where less or similar code is added than removed/changed.
-model: openai-codex/gpt-6.1-sol
-effort: high
+model: prefer openai-codex/gpt-6.1-sol:high. if oai is overutilized, use anthropic/claude-sonnet-5-5:high or zai/glm-5.3-flash:high
 role: implement
 ---
 

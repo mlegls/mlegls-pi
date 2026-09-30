@@ -2,12 +2,14 @@ import { test, expect } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { agent } from './agents.ts';
+import { agent, executions } from './agents.ts';
 import { candidates, prepare, route, assigned } from './route.ts';
 import { dispatch } from './dispatch.ts';
 
-test('a fill assignment can use its default or an independently pinned model', async () => {
-  const standard = await prepare('A supplied bounded edit', { assignee: 'agent:fill' });
+const onlyOai = { unavailableProviders: { zai: 'test', deepseek: 'test', anthropic: 'test' } };
+
+test('a fill assignment can use its model line or an independently pinned model', async () => {
+  const standard = await prepare('A supplied bounded edit', { assignee: 'agent:fill', ...onlyOai });
   if (standard.kind !== "ready") throw new Error("Expected ready assignment");
   expect([standard.agent, standard.model, standard.effort]).toEqual(['fill', 'openai-codex/gpt-6-luna', 'high']);
   const override = await prepare('The same bounded edit', { assignee: 'agent:fill, model:zai/glm-5.3-flash:high' });
@@ -17,28 +19,26 @@ test('a fill assignment can use its default or an independently pinned model', a
   expect((await route('research', 'Evidence only', { assignee: 'model:zai/glm-5.3-flash:high' })).model).toBe('zai/glm-5.3-flash');
 });
 
-test('explicit agent assignments read model and effort from agent files', () => {
-  for (const stance of ['compile', 'technical', 'research', 'verify']) {
-    const preference = agent(stance);
-    if (!preference?.model || !preference.effort) throw new Error(`Incomplete preference: ${stance}`);
-    expect(assigned({ assignee: `agent:${stance}` }).execution).toEqual({ model: preference.model, effort: preference.effort });
-  }
+test('an agent pin keeps its model line, fallbacks included', async () => {
+  expect(assigned({ assignee: 'agent:fill' })).toEqual({ stance: 'fill', execution: undefined });
+  const fallback = await prepare('A bounded edit', { assignee: 'agent:fill', unavailableProviders: { 'openai-codex': 'test', deepseek: 'test' } });
+  expect([fallback.model, fallback.effort]).toEqual(['zai/glm-5.3-flash', 'high']);
+  await expect(prepare('A bounded edit', { assignee: 'agent:fill', usage: { 'openai-codex': 1, zai: 1, deepseek: 1 } })).rejects.toThrow('ceiling');
 });
 
-test('agent preferences are eligible catalog pairs', () => {
+test('every agent has a model line of catalogued candidates', () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const policy = readFileSync(join(root, 'routing.md'), 'utf8');
-  const catalog = policy.split('## Active catalog ')[1];
-  const available = candidates(catalog);
+  const available = candidates(policy.split('## Active catalog ')[1]);
   for (const file of readdirSync(join(root, 'agents')).filter(f => f.endsWith('.md') && !f.startsWith('_'))) {
-    const preference = agent(file.replace(/\.md$/, ''));
-    if (!preference?.model || !preference.effort) throw new Error(`Incomplete preference: ${file}`);
-    expect(available).toContainEqual({ model: preference.model, effort: preference.effort });
+    const line = agent(file.replace(/\.md$/, ''))?.routing;
+    if (!line) throw new Error(`No model line: ${file}`);
+    for (const execution of executions(line)) expect(available).toContainEqual(execution);
   }
 });
 
-test('unavailable assignments do not fall back and shorthand is not guessed', () => {
-  expect(() => assigned({ assignee: 'agent:fill', unavailableProviders: { 'openai-codex': 'unavailable' } })).toThrow('unavailable');
+test('unavailable model pins do not fall back and shorthand is not guessed', () => {
+  expect(() => assigned({ assignee: 'model:openai-codex/gpt-6-luna:high', unavailableProviders: { 'openai-codex': 'unavailable' } })).toThrow('unavailable');
   expect(() => assigned({ assignee: 'model:zai/glm-5.3-flash:high', usage: { zai: 1 } })).toThrow('ceiling');
   for (const assignee of ['fill', 'glm-5.3-flash:high', 'agent:fill, agent:auto', 'model:zai/glm-5.3-flash:high, model:zai/glm-5.3-flash:high'])
     expect(() => assigned({ assignee })).toThrow('selector');
@@ -46,7 +46,7 @@ test('unavailable assignments do not fall back and shorthand is not guessed', ()
 });
 
 test('tracker launches require eligibility and preserve the selected stance/model', async () => {
-  const task = { handle: 'probe', issue: 'example', prompt: 'Must not launch', agent: 'fill', model: 'zai/glm-5.3-flash', effort: 'high' };
+  const task = { handle: 'probe', issue: 'example', prompt: 'Must not launch', agent: 'fill', model: 'openai-codex/gpt-6.1-sol', effort: 'high' };
   const options = { run: 'run_test', maxConcurrent: 1, active: [] };
   await expect(dispatch([task], options)).rejects.toThrow('Unassigned');
   for (const assignee of ['human', 'user:mlegls', 'session:original'])
@@ -55,13 +55,12 @@ test('tracker launches require eligibility and preserve the selected stance/mode
   await expect(prepare('An edit', { assignee: 'agent:fill', stance: 'auto' })).rejects.toThrow('conflicts');
 });
 
-test('host preset defaults override roster defaults without overriding explicit pins', async () => {
-  const preferences = { fill: { model: 'deepseek/deepseek-flash', effort: 'low' } };
+test('host model lines override the roster without overriding explicit pins', async () => {
+  const preferences = { fill: 'prefer deepseek/deepseek-flash:low' };
   const options = { preferences, allowedStances: ['fill'], assignee: 'agent:fill' };
   const selected = await prepare('A bounded edit', options);
   expect([selected.stance, selected.model, selected.effort]).toEqual(['fill', 'deepseek/deepseek-flash', 'low']);
   const pinned = await prepare('A bounded edit', { ...options, assignee: 'agent:fill, model:zai/glm-5.3-flash:high' });
   expect([pinned.model, pinned.effort]).toEqual(['zai/glm-5.3-flash', 'high']);
-  expect(() => assigned({ ...options, unavailableProviders: { deepseek: 'offline' } })).toThrow('unavailable');
-  expect(assigned({ assignee: 'agent:research', preferences })).toEqual(assigned({ assignee: 'agent:research' }));
+  await expect(prepare('A bounded edit', { ...options, unavailableProviders: { deepseek: 'offline' } })).rejects.toThrow('ceiling');
 });

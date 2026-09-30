@@ -1,32 +1,10 @@
-## Selection
+## Agent model lines
 
-Optimize for the lowest wall time to accepted completion within a similar total cost per task and sufficient quality, including verification, retries, and escalation. Choose the least costly model and effort that clearly suffice for the workflow and task; use the agent's model and effort preference when available. Consider openness, subjectivity, scope, novelty, and technical difficulty together, rather than as an ordered decision tree. Vision, durable/user-facing prose, and domain-specific limitations can rule out otherwise attractive models.
-
-Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
-
-- Bias delegated work toward `openai-codex`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
-- Split by lab strength. Anthropic models hold a clear advantage on long-context work and on carrying a goal through to completion; OpenAI models excel on well-scoped tasks but more often stop abruptly or drift. Route judgment over a whole picture to Anthropic (triage, review, consolidation at a join) and bounded execution to `openai-codex` (implement, drive). Supervision compacts once its cache goes stale, so it is closer to a sequence of bounded decisions and goes to `openai-codex`.
-- Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
-- Metered providers are overflow when appropriate.
-- OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.
-
-Live usage arrives separately from the caller, by provider, as a fraction of the applicable routing ceiling (not necessarily the provider’s full quota). Values at or above 1 exclude that provider. Known usage scales cost by 1 / (1 - fraction). Missing usage is unknown, not zero or evidence of spare capacity; choose on task fit and these preferences without claiming quota compliance.
-
-## Agent preferences
-
-Agent files in `agents/` declare model and effort preferences for worker stances. General routing treats these as advisory and can select an available fallback; an explicit tracker assignment to a stance with a declared pair uses that pair and refuses unavailable execution. A compound `agent:<stance>, model:<provider>/<model>:<effort>` assignment selects the stance with the explicit model override.
-
-## Model preferences
-
-- Use Opus 5.5 for interactive work, the top-level long-context supervisor, difficult and very long-context delegated work, and visual review—not UI implementation merely because it touches a rendered surface. Delegated design-taste work (`ui`), review and consolidation are on trial with Sonnet 5.5 high; for UI, the Opus visual reviewer holds taste at acceptance and may improve on it.
-- Sonnet 5.5 spends many output tokens per task (about 193K per Intelligence Index task at max, the most Artificial Analysis has measured). It sits off the cost-per-task Pareto frontier: at xhigh/max Opus 5.5 delivers the same for less, and at low/medium GPT-6.1-sol does. High is its most competitive setting. It is not monotonic in effort: max scores below xhigh on FrontierCode (it fans out to subagents and makes out-of-scope edits). It matches Opus 5.5 on agentic terminal and knowledge-work benchmarks but trails on factual knowledge and scientific reasoning, with a lower hallucination rate. Avoid Sonnet 5.5 max.
-- Opus 5.5 is better than Fable 5.1 on most work. Fable's possible niche is diversity of thought / range of possibilities in interactive exploration, not ordinary non-interactive assignments.
-- GPT-6.1-sol sits about one Intelligence Index point below astra at under a quarter of astra's cost per task, and every effort level is on the cost-efficiency frontier. It is the default for difficult non-visual work. Use astra only for the hardest research-grade work where its remaining lead is worth the price.
-- Use luna or sol when sufficient, accounting for retries and parent repair rather than optimizing token price alone.
+Each agent file's `model:` line says in prose which `provider/model:effort` to use, and when to use another (e.g. "prefer openai-codex/gpt-6.1-sol:high. if oai is overutilized, use anthropic/claude-sonnet-5-5:high"). Routing chooses among the candidates the line names, reading the line against live usage (a provider is overutilized above about 0.8 of its routing ceiling); it doesn't choose models from this file. An `agent:<stance>` assignment keeps the stance's line, fallbacks included; `model:<provider>/<model>:<effort>` is exact and refuses unavailable execution. The reasoning behind the lines is in `docs/models.md`.
 
 ## Assignment stances
 
-Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them; campaign supervisors delegate substantial work.
+Choose the stance whose deliverable fits, for the lowest wall time to accepted completion at similar total cost and sufficient quality, including verification, retries and escalation. Consider openness, subjectivity, scope, novelty and technical difficulty together, not as an ordered decision tree. Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them; campaign supervisors delegate substantial work.
 
 - `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
 - `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
@@ -55,12 +33,10 @@ Relevant warm context has future value; spent tokens are sunk cost. Compare rema
 
 Route model/effort at fresh-session boundaries. Escalation normally creates a consultation or replacement session rather than changing the model over an uncompacted history. Compacted parent context, OM references with recoverable evidence, and small self-contained handoffs make fresh routing economical; they do not guarantee cache reuse or preserve every constraint. Never assume the new session inherits the parent's memory, uncommitted files, or cache.
 
-Evaluate delegated workers by accepted completion, total workstream cost and wall time, parent repair, and escalation/handoff loss. Compare strong-from-start against cheap-then-consult/replace. The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design. Complex triage goes to a fresh session-triage assignment.
-
-Distinguish visual perception, GUI grounding, interactive computer use, and visual judgment; also consider tool/harness compatibility, data-use permissions, effort-specific evidence, and subscription availability. An aggregate benchmark rank or token price alone is not an admission rule.
+The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design. Complex triage goes to a fresh session-triage assignment.
 
 ## Session roles
-- Fresh delegated sessions use their agent's preference when it fits; the `prune` stance is the simplifying-replacement route.
+- Fresh delegated sessions use their agent's model line; the `prune` stance is the simplifying-replacement route.
 - Routing places delegated assignments and identifies closure gaps; it does not choose an interactive session's purpose.
 - A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
 
