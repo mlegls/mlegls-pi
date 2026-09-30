@@ -26,3 +26,7 @@ review at fixed template (09-15 factor-finish unit reviews, glm on materials U1/
 Acceptance: glm and astra review blockers were acted on symmetrically (u2 glm chain: 2 repairs + 2 re-reviews; u4 astra P2 repaired inside U5); no verdict was ever overturned by a later model. Silent no-report rounds hit both price classes (u6-review astra "done pending report" → parent bought u6-review-2; guard-review-2 glm silent → -3). Review is 1–7% of the unit cost it gates — not a cost lever.
 
 Routing implication: keep a flash-class reviewer (GLM plan) as the default for bounded diff reviews, escalate to sol/astra for the audit shape; retry-at-flash beats paying up front ($0.003 dead attempts, symmetric failure). Verify-story stays on sonnet/sol-class — zero cross-model evidence, its cost is cache-read volume (~30M tok ≈ $6 of sonnet's $7.4 median), and only a purpose-built same-story-two-drivers round can test cheaper drivers. Pin expected depth in stance files: effort/tool budget moved review depth more than model choice.
+
+## Result — supervised drive
+
+[First-use packet](../attachments/role-model-spikiness/index.md), driven at `aa3946d`: corpus/matching, measurements and complete parent-acceptance evidence failed; routing recommendations are present. The packet records the wrong-model re-review row, the per-pair median discrepancy, missing replay/acceptance ledger, and sampled blocker uptake that held. Static, nonvisual; no product repairs.

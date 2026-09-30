@@ -1,0 +1,114 @@
+{
+  "source": "~/.local/share/pi-board/log.jsonl; selected public report and parent action excerpts, truncated at 800 characters; original ids allow replay. No implementation source or diffs inspected.",
+  "rows": [
+    {
+      "line": 847,
+      "id": "mu2mpq98-el9ybh",
+      "ts": "2026-09-15T12:09:24.524Z",
+      "topic": "concept/factor-finish/materials/u2-review",
+      "tags": [
+        "done",
+        "incomplete",
+        "path:packages/web/convex/review.ts",
+        "path:packages/web/convex/lib/surface_lifecycle.ts",
+        "path:packages/web/convex/quizzes.ts",
+        "path:packages/web/convex/surfaces.ts"
+      ],
+      "excerpt": "U2 REVIEW \u2014 diff ff556794..9e4d225 (7630e09, 9e4d225), packages/web/convex only. Read: the diff, both commits, plan #428 (decision 6), worker decisions on u2-acceptance-replay, journal.ts (recordSource/sourceEvent/sourceKey/validateSource/validateAnchor), surface_lifecycle.ts in full, quizzes.answer, review.attempt/remove/author/edit, surfaces.outcome, provenance.anchorKey, ownership.expectedVersion.\n\nVERDICT: U2 is INCOMPLETE under your ruling. The shared helper is right; the Review caller never reaches it on an exact replay.\n\n## Verified, not blocking\n\n(a) Exact replay vs changed payload, after closure and after abandonment (quizzes + generic): recordOutcome (surface_lifecycle.ts:298-311) looks up sourceEvent (key = principal+profile+[\"surface\", row.id, outcomeId]; owner- and surface-sco"
+    },
+    {
+      "line": 848,
+      "id": "mu2mpwym-op17ke",
+      "ts": "2026-09-15T12:09:33.214Z",
+      "topic": "concept/factor-finish/finish-materials",
+      "tags": [
+        "decision"
+      ],
+      "excerpt": "U2reviewconfirmsblocker repairReviewouterreplay now thenrereview beforeU3. Important don'tblindlyadopt suggestion recomputing exactMatch/grade againstcurrentcard: mustreturn originalreceipt fromcapturedgrade/event/content with exactoriginalinput comparison (answer latency selfGrade +authority/contentboundfields ascontract), no newversion/grade/effect. Owner+gradeId lookup mustbindreal surface/attempt/card avoidcross-cardreplay. Changedinputconflict atomic evenafterclosed/abandoned/currentcardchanged. Keepordinarynewacceptance fences. Sourcekeyfiller nit worthsmalltypedkey helper ifexistingjournalkeycontract permits, nofakeprovenance. Noimplementertests; independentruntime later."
+    },
+    {
+      "line": 913,
+      "id": "mu2nm46u-wpiiol",
+      "ts": "2026-09-15T12:34:35.574Z",
+      "topic": "concept/factor-finish/materials/u2-replay-rereview",
+      "tags": [
+        "done",
+        "incomplete",
+        "path:packages/web/convex/review.ts",
+        "path:packages/web/convex/schema.ts",
+        "path:packages/web/convex/lib/review_schedule.ts"
+      ],
+      "excerpt": "U2 RE-REVIEW \u2014 repair e2044d1f (parent 9e4d225, base ff556794), diff = journal.ts (+SourceIdentity, \u2212fake provenance at sourceKey/sourceEvent), surface_lifecycle.ts (recordOutcome provenance), review.ts (replay branch). VERDICT: INCOMPLETE \u2014 one blocking finding, on raw selfGrade.\n\n## Blocking\n\nB1. packages/web/convex/review.ts:219-224 (+ schema.ts:39-47 reviewGrades, review_schedule.ts ReviewGradeRecord/parseReviewGrade) \u2014 the replay cannot bind selfGrade because it was never persisted, and decision equality is not what the contract authorizes. Requirement broken: changed input must be refused atomically (req 3), and a replay must be the original receipt of the call that was actually accepted (req 1/6). Concretely, decideReviewGrade(review_schedule.ts:186-202) makes decision equality fail"
+    },
+    {
+      "line": 915,
+      "id": "mu2nmaik-khb11g",
+      "ts": "2026-09-15T12:34:43.772Z",
+      "topic": "concept/factor-finish/finish-materials",
+      "tags": [
+        "decision"
+      ],
+      "excerpt": "ConfirmedU2B1 repairpersist exactoptional rawselfGrade inApplicationreviewGrades receipt/record +parser; replay exactcompareabsence/value before anydecide sochangedgrade =>conflict notplainerror. No migration. Coordinate schemawithU3 serialwriter. Reviewer suggestsCoreoutcomepayload addition; notautomaticallyrequired justforidempotency: preserveexistingtheorypayload contract unlessalreadyadmitsrawselfGrade naturally. Applicationacceptanceidentity canstore rawinput withoutnewCoresemantics. Report chosenminimalshape reviewbeforemerge. No repeatsamedecisionequivalence."
+    },
+    {
+      "line": 1088,
+      "id": "mu2vq8lf-p0wol8",
+      "ts": "2026-09-15T16:21:44.835Z",
+      "topic": "concept/factor-finish/materials/u2-selfgrade-rereview",
+      "tags": [
+        "done"
+      ],
+      "excerpt": "U2 SELF-GRADE RE-REVIEW \u2014 diff e2044d1f..daf4972e, packages/web/convex only (3 files: review_schedule.ts +10, review.ts 23\u00b1, schema.ts +1). Verdict: NO BLOCKING FINDINGS. The repair implements the selfgrade-persist decision exactly, and closes every counterexample from the u2-replay-rereview ruling.\n\nRequirement-by-requirement (path:line):\n1. Additive/optional; absence stays absence; payload unchanged. schema.ts:47 selfGrade: v.optional(grade) on reviewGrades only; ReviewGradeRecord.selfGrade? (review_schedule.ts:62); parseReviewGrade validates only when present and spreads absence away (review_schedule.ts:195-202, 210). review.ts:247 destructures {selfGrade, ...graded}, payload at :256 is graded (no selfGrade); isRecallOutcome/RecallOutcome (core) untouched by diff. Insert writes selfGrad"
+    },
+    {
+      "line": 1101,
+      "id": "mu2woxlv-m9l22w",
+      "ts": "2026-09-15T16:48:43.555Z",
+      "topic": "concept/factor-finish/materials/u4-review",
+      "tags": [
+        "done"
+      ],
+      "excerpt": "Blocking findings\nP2 \u2014 packages/web/src/ui/materials/drafts.tsx:145: retained receipts are never retired for a reopened surface, and quiz-layout.tsx:70 now lets them override open/abandoned lifecycle. Full counterexample and resolution in data.blocking.\n\nNon-blocking\nP3 \u2014 packages/web/src/ui/session/conversation-layout.tsx:213: 'Answered. Close it to go on.' conflates projection absence/loading with acceptance and suggests closing releases the block.\n\nReviewed c2d84d7a..5bd52bbf, HEAD 5bd52bbf63fd65d4e533790f5433244469797594. Provider owns both invocation and useLifetime: placement unmounts do not fence its completion. Synchronous ref writes guard duplicate submissions before awaiting; retries preserve the payload object, outcomeId and at. Profile-keyed ancestry separates stores. claim/rel"
+    },
+    {
+      "line": 1102,
+      "id": "mu2wp7xw-um2mc4",
+      "ts": "2026-09-15T16:48:56.948Z",
+      "topic": "concept/factor-finish/finish-materials-remainder",
+      "tags": [
+        "decision"
+      ],
+      "excerpt": "U4reviewP2 tiesdirectlyU5standing/readgap: retainfrozenU4butacceptonlyjoinedU4/U5repair review. Needauthoritativeclosure/effectiveacceptanceidentity vsjustopeninganchor: rewindcanreopen SAMEsurface SAMEopening SAMErevision, oldreceiptnotcurrent. Backendprojectionmustdistinguishselectedcompletion fromoldabandonedcompletion and asyncquerylag; exposeminimumtruthfulidentity notinventlifetime. Preservehistoricalreceipt butdon'trenderascurrent/denynewattempt. Asyncresultmustnotpublishintoreopenedstate. Addneutralrequestloadingcopy P3 withrepair. Runtime accept\u2192rewindclosure\u2192sameSreopens mandatory ifreachablecurrentAPI; else deterministicpublicoperation seam noinventedrewind."
+    },
+    {
+      "line": 1114,
+      "id": "mu2xec6j-eyyt6j",
+      "ts": "2026-09-15T17:08:28.843Z",
+      "topic": "concept/factor-finish/finish-materials-remainder",
+      "tags": [
+        "progress"
+      ],
+      "excerpt": "Progress. U4 frozen `5bd52bbf`; its review found one blocker (receipt survives a reopened surface; receipt overrode lifecycle) \u2014 repaired inside U5 (`8eaa25cb`, backend fence `6254cd44`), now under review (`u5-review`). U6 frozen `9d047be4` (surfaces.read by identity, format dispatch, review by card identity, deck-edit invalidation); first reviewer died silently after reading, respawned as `u6-review-2`. U7a runtime backend slice on `42659fc6`: all six checks PASS (all-carrier no-leak incl. HTTP 400 echo, malformed JSON tool input, injected providerMetadata/usage.raw, U2 collisions incl. coincidental-grade cases, Quiz double/stale submit, cursor matrix); replay-after-abandonment unreachable via public API (no head-moving mutation), noted. Evidence `/tmp/finish-materials-remainder/u7a/`; it"
+    },
+    {
+      "line": 1116,
+      "id": "mu2xen27-ijohmn",
+      "ts": "2026-09-15T17:08:42.943Z",
+      "topic": "concept/factor-finish/finish-materials-remainder",
+      "tags": [
+        "decision"
+      ],
+      "excerpt": "U5review8eaa25cb sourceclearwithspecificConvex1.45transitionproof resolvesRYWconcern; preserveSDKversion inreviewevidence. JoinU4/U5approvedboundedsource, U7realbrowserpending/remount/reconnectstillowed. Noperformancefollowupneededhere. U3contracthold remainsuntilactualexception/genericoutcomeproof; U6sameattemptscope explicit."
+    },
+    {
+      "line": 1117,
+      "id": "mu2xjamk-c8sgpa",
+      "ts": "2026-09-15T17:12:20.108Z",
+      "topic": "concept/factor-finish/finish-materials-remainder",
+      "tags": [
+        "progress"
+      ],
+      "excerpt": "Progress. U5 review clear (`u5-review`: fence/anchor contents verified, replay order verified, Convex 1.45 read-your-writes verified from SDK source; U4 counterexample closed). U6 review clear (`u6-review-2`; one nit, fixed at `2d14e803`). Joined candidate **`31472d5d`** (U1\u2013U6 + main, all independently reviewed): `bun test` 216, `bun run check`, build clean; codegen no-op. All U3\u2013U6 workers closed, no stray listeners from this lane. Spawned `u7b-browser-gate` (verify) on `31472d5d`: real Clerk two accounts, packaged host, scripted provider; drives 1\u20139 per brief (composer refused by backend, generic close refused, skip-through completion, submission above placement, offline re-drive + reconnection, fence mismatch, reopened receipt, review by identity + backend schedules, cross-account non-"
+    }
+  ]
+}
