@@ -1,6 +1,22 @@
 {
-  "openai-codex": { "quota": "codex", "noninteractive": 0.8 },
-  "anthropic": { "quota": "claude", "noninteractive": 0.5 },
-  "zai": { "quota": "zai", "noninteractive": 0.9 },
-  "xai": { "quota": "grok", "noninteractive": 0.9 }
+  "openai-codex": {
+    "quota": "codex",
+    "noninteractive": 0.8,
+    "resets": [
+      "2026-10-04",
+      "2026-10-05"
+    ]
+  },
+  "anthropic": {
+    "quota": "claude",
+    "noninteractive": 0.5
+  },
+  "zai": {
+    "quota": "zai",
+    "noninteractive": 0.9
+  },
+  "xai": {
+    "quota": "grok",
+    "noninteractive": 0.9
+  }
 }

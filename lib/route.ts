@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { decide, type State } from './decide.ts';
-import { admits, windows as quotaWindows, type Windows } from './allocation.ts';
+import { allocation as readAllocation, gate, noticeBankedReset, windows as quotaWindows, type Allocation, type Windows } from './allocation.ts';
 import { agent, byRole, executions } from './agents.ts';
 
 function section(note: string, heading: string) {
@@ -31,6 +31,10 @@ export interface RouteOptions {
   usage?: Record<string, number | null>;
   /** Quota windows by pi provider; read from quota-axi when omitted. */
   windows?: Windows;
+  /** Delegated shares and banked resets; `allocation.json` when omitted. */
+  allocation?: Allocation;
+  /** Receives the banked-reset notice; a desktop notification when omitted. */
+  notify?: (text: string) => void;
   /** Host-declared model lists by stance, in the agent-file `model:` form; omitted stances keep the roster's list. */
   preferences?: Record<string, string>;
   // Coordinator-owned provider exclusions for this run; delete an entry to restore it.
@@ -116,9 +120,13 @@ async function select(workflow: string, _task: string, options: RouteOptions,
   if (!listed.length) throw new Error('No model list for ' + workflow);
   for (const c of listed)
     if (!catalog.some(k => k.model === c.model && k.effort === c.effort)) throw new Error('Uncatalogued model or effort for ' + workflow + ': ' + c.model + ':' + c.effort);
-  const current = options.windows ?? quotaWindows();
+  const alloc = options.allocation ?? readAllocation();
+  const current = options.windows ?? quotaWindows(alloc);
   const unavailableProviders = { ...options.unavailableProviders };
-  const chosen = listed.find(c => !Object.hasOwn(unavailableProviders, c.model.split('/')[0]) && admits(c.model, current));
+  const gated = listed.filter(c => !Object.hasOwn(unavailableProviders, c.model.split('/')[0])).map(c => ({ c, g: gate(c.model, current, alloc) }));
+  const hit = gated.find(x => x.g.admits);
+  if (hit) noticeBankedReset(hit.c.model.split('/')[0], hit.g, current, options.notify);
+  const chosen = hit?.c;
   if (!chosen) throw new Error(constraint.execution ? 'Assigned execution unavailable: its provider is excluded or past its delegated share'
     : 'No model in the ' + workflow + ' list has delegated capacity left');
   return { model: chosen.model, effort: chosen.effort, p: 1, dist: { [chosen.model + '@' + chosen.effort]: 1 }, policyPath, windows: current, unavailableProviders };

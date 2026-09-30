@@ -61,7 +61,7 @@ CLI: `bun lib/route.ts <workflow> <task text> [policy-path]`.
 
 The Assignment stances and Continuation actions sections use machine-read bullets of the form "- \`label\`: criterion". Catalog bullets name Pi model IDs in backticks as `provider/model` and their effort sets; every pair a model list names must be one of them. Obtain IDs from `pi --list-models`.
 
-`allocation.json` maps each pi provider to its `quota-axi` provider and the share of each quota window delegated work may use. The rest is kept for interactive use over the time left in the window: delegated work may use a provider while every applicable window has more than `(1 - share) × timeRemainingPercent` left. Providers without an entry or readable windows aren't gated.
+`allocation.json` maps each pi provider to its `quota-axi` provider and the share of each quota window delegated work may use. The rest is kept for interactive use over the time left in the window: delegated work may use a provider while every applicable window has more than `(1 - share) × timeRemainingPercent` left. Providers without an entry or readable windows aren't gated. An entry's `resets` lists the expiry of each banked full reset; each unexpired one counts as another full window. When delegated work is admitted only because of the bank, a desktop notification (once per provider and reset) asks you to redeem the earliest-expiring reset when the window runs out; remove it from the list once redeemed.
 
 ## Tracker assignment
 
