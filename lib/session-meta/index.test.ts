@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { SessionManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,6 +7,8 @@ import { install as sessionMeta, spawnMeta } from "./host";
 
 type Handler = (event: unknown, ctx: ExtensionContext) => void;
 type Entry = { type: "custom"; customType: string; data: unknown };
+const active = new Set<() => void>();
+afterEach(() => { for (const stop of active) stop(); active.clear(); });
 
 function host(manager?: SessionManager) {
 	const entries: Entry[] = [];
@@ -19,6 +21,8 @@ function host(manager?: SessionManager) {
 			manager?.appendCustomEntry(customType, data);
 		},
 	} as unknown as ExtensionAPI;
+	const stop = () => handlers.get("session_shutdown")?.({}, ctx);
+	active.add(stop);
 	return { entries, api, start: (mode: ExtensionContext["mode"] = "tui") => handlers.get("session_start")!({}, { ...ctx, mode }) };
 }
 

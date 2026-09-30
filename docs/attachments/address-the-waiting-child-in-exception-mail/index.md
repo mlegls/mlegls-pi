@@ -74,3 +74,7 @@ Exception address: the existing `lib/jobs/supervise.test.ts` drives an integrati
 
 Final affected check: `env -u PI_WM_PARENT_SESSION ab check -- bun test lib/board lib/jobs/supervise.test.ts lib/session-meta` — 33 pass, 0 fail. (`PI_WM_PARENT_SESSION` is inherited from this worker and breaks an unchanged session-meta fixture when retained.)
 `ab check -- bunx tsc --noEmit` remains red on unrelated `extensions/memory`, `extensions/obsidian-tracker` and `lib/board/store.test.ts` diagnostics; the mail-drive fixture's own environment typing was fixed in this pass.
+
+## Integration rebase — 2026-09-30
+
+Rebased this review onto main `b9a00d6`. Resolved `lib/jobs/supervise.ts` by retaining main's Decision API outage pause/resume and wake-delivery/stale-wait tracking while keeping the exact `Waiting worker: ab mail wt/… TEXT` address in the exception message. The ticket conflict retained main's review-boundary wording and the first-drive link. A combined regression run exposed a test-harness leak: the session-meta extension fixture started a five-second child-monitor interval without shutting it down, which threw when the longer supervise suite ran beside the real Pi mail replay. `lib/session-meta/index.test.ts` now shuts down every fixture after each test. The combined `lib/jobs/supervise*.test.ts`, `lib/report*.test.ts`, `lib/board`, and `lib/session-meta` run passed 53 tests, including the Decision API outage replay and owner-visible waiting-worker command. No live supervised waiting child was added; the same end-to-end resumption caveat applies.
