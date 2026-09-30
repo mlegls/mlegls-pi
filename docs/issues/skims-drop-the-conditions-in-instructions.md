@@ -1,7 +1,11 @@
 ---
-stage: idea
+stage: done
 author: session:2026-09-24T07-05-04-311Z_01a0d23b-6a37-75f1-bad0-4832beff35f3
 ---
+
+## Disposition
+
+Superseded by `a3d28ac`: implicit token skimming was removed from Pi and DSH; [[projects/mlegls-pi/ingress]] specifies verbatim output caps and full-file recovery. The historical fidelity and adoption results below remain evidence, not calibration promises for a removed runtime. Whether to pursue compression research separately remains [[projects/mlegls-pi/issues/skim-friction-vs-savings]].
 
 Ingress skims can drop the words an instruction turns on, and skill text gets skimmed. On 2026-09-23 a `verify-story` worker (gpt-6-luna, medium; session `2026-09-23T04-35-48-178Z_01a0cc8c-6551-73ae-8b88-2bd59a1f7cbd`, JSONL line 11) read `project-docs`' rule "frictions - Ousterhout symptoms or deferred costs, recorded for later triage. issues in a vault project (`tracker`), one-liners in `docs/frictions.md` otherwise." as the skim "frictions Ousterhout symptoms deferred costs recorded later triage. issues vault project`tracker one-liners `docs/frictions. md` otherwise." It then searched for `docs/frictions.md`, found none, and created one in Concept, a vault project (`6b514ef9`). Later Opus workers read the rule in full and still appended to the file that now existed. Another verifier that day (`01a0ccc1…`, line 14) got "issues in vault project (`tracker one-liners in `docs/frictions. md`.", with "otherwise" gone.
 

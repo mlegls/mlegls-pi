@@ -1,7 +1,11 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 ---
+
+## Disposition
+
+Superseded by `a3d28ac`: implicit relevance scoring and token skimming were removed from Pi and DSH. [[projects/mlegls-pi/ingress]] now specifies verbatim output caps with full-file recovery and explicit Jevgrep retrieval. The five-level policy this study would calibrate no longer runs. No measurement was performed; any future retrieval evaluation needs a contract for the current system.
 
 can jev separate the files a session acted on from the ones it read and never referenced? the audit labeled 3648 unique `read` calls: 58% acted on, 24% never referenced. for a sample of sessions, reconstruct the conversation state at each read, chunk the file, score with jev, and check whether the kept set covers the acted-on files and drops the never-referenced ones. report precision/recall at several thresholds and the calibration curve.
 

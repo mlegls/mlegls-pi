@@ -4,6 +4,8 @@ assignee: human
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
 ---
 
+Current question: is a separate compression study still wanted after `a3d28ac` removed implicit skimming from Pi and DSH? [[projects/mlegls-pi/ingress]] is now verbatim output caps plus explicit retrieval. The proposal below is research into an alternative, not maintenance of the current output path. Recommendation: defer until a concrete reading task needs more than bounded reads and full-output recovery.
+
 Agents keep reporting friction with skimmed output, but empirically skimming saves a lot of tokens with no noticeable degradation. Unclear how much is it feeling weird vs actually needing improvement. One observation: on prose docs (dsh's READMEs) skims read as keyword soup, and learning an API from them depended on what happened to survive; on code and structured text they were fine. Related: [[projects/mlegls-pi/issues/skims-drop-the-conditions-in-instructions]].
 
 Ways to separate the two:

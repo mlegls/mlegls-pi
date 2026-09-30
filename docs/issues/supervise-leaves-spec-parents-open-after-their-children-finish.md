@@ -1,8 +1,12 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: "session:concept-tend"
 ---
+
+## Result
+
+Fulfilled by `d76fdf5`: archived children count as finished, and a node's own residual runs after its children rather than being silently skipped. [[projects/mlegls-pi/issues/spec-with-only-done-children-closes-without-implementing]] records the same repair. First runs and the remaining longitudinal questions belong to [[projects/mlegls-pi/issues/audit-node-residual-runs-in-supervise]].
 
 Found 2026-09-29 while Concept's `tend` dispatched every frontier spec. Seven Concept specs were on the frontier (`effective:spec`, agent-assigned, no claims) only because their own `stage` is `spec`; every child was already done. `ab supervise start` could advance none of them, in two ways:
 

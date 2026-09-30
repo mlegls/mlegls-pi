@@ -3,7 +3,6 @@ stage: done
 assignee: agent
 author: session:01a0cd1a-8da4-701c-8253-d1ab9fd2b4e6
 part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
-blocked-by: ["[[projects/mlegls-pi/issues/ab-daemon]]", "[[projects/mlegls-pi/issues/host-child-events]]", "[[projects/mlegls-pi/issues/worker-turn-end-report]]"]
 ---
 
 The loop as an `ab daemon` job, replacing `lib/supervise.ts`: `ab supervise start <ticket>` from the owning LLM agent, `status`, `resume` after the owner answers. Shape and decisions are in the parent.
