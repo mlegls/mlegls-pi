@@ -29,3 +29,7 @@ No persistent resources were started.
 [Driver predictions, session log, expectations, frictions and replayable checks](driver.md). CLI receipts: [root setup](driver-setup.log), [root discovery](driver-root-test.log). No rendered UI was involved.
 
 Driver outcome: root exclusion and setup-doc boundary held with `dsh/node_modules` absent before and after root setup/discovery. The driver run gave 353 pass, 3 skip, 2 fail and 1 error across 78 files. The old-report failure reproduced in isolation; the existing lifecycle flake gave pass/fail/pass. See [driver.md](driver.md) for expectations, frictions, all replay commands and receipts.
+
+## Review
+
+Diff reviewed against the ticket contract; no repairs. Root `bun test`: 354 pass, 3 skip, 1 fail (the existing prearchive report path), no `dsh/` paths or DeepSeek import errors. The documented `bun test --cwd dsh` form discovers dsh's 5 test files from the package directory and, with dependencies unprepared, fails on missing `@deepseek-ai/dsh-session` and `dsh/node_modules/.bin/dsh`, which is the expected unprepared behavior. `bunfig.toml` isn't needed there: the root preload only sets `PI_AGENTS_DIR`, which dsh tests don't use. The oversized-output flake passed this run and stays with its owner. No tests retained: the ignore pattern only confirms this ticket's design outcome, already recorded here.
