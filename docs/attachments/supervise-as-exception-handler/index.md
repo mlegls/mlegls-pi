@@ -21,7 +21,7 @@ The skill, `agents/supervise.md`, pipeline role and CLI help now agree: the scri
 
 Tracker semantic lint was refreshed before the parent ruling. At that point its suspected completion was not justified because the required real-campaign measurement remained open. The parent then explicitly separated that comparison from this delivery. The quoted status-free supervisor behavior was recorded as fixed, not an unowned defect.
 
-Repository-wide tracker `check` exited 1: an inline-code `[[parent]]` example was treated as a live link, and three archive-link repairs were offered. The inline-code defect is owned by [[projects/mlegls-pi/issues/tracker-check-flags-inline-fixture-wikilinks]] in the active `small-ab-cli-fixes` campaign; safe/scoped repair belongs to its prerequisite [[projects/mlegls-pi/issues/tracker-check-fix-rewrites-other-sessions-dirty-files]]. No blanket `check --fix` was run over peers' files. This check is not reported as passed.
+Repository-wide tracker `check` exited 1: an inline-code `[[parent]]` example was treated as a live link, and three archive-link repairs were offered. The inline-code defect is owned by [[projects/mlegls-pi/issues/archive/tracker-check-flags-inline-fixture-wikilinks]] in the active `small-ab-cli-fixes` campaign; safe/scoped repair belongs to its prerequisite [[projects/mlegls-pi/issues/archive/tracker-check-fix-rewrites-other-sessions-dirty-files]]. No blanket `check --fix` was run over peers' files. This check is not reported as passed.
 
 ## Campaign comparison deferred by the parent
 

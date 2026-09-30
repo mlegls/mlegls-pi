@@ -2,7 +2,7 @@
 stage: done
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/small-ab-cli-fixes]]"
+part-of: "[[projects/mlegls-pi/issues/archive/small-ab-cli-fixes]]"
 author: session:01a0f227-6a60-775b-8d17-d8ee02ba0643
 ---
 
