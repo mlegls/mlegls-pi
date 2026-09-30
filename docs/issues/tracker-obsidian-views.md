@@ -18,3 +18,7 @@ First use: commit a reproducible disposable Obsidian vault setup with the built 
 Done: switching views and navigating away/back preserves collapse and pin state; all three surfaces open, hover and expose native link/file operations; filtering/grouping/sorting work and do not truncate rollups; subissue progress is visible. Existing frontier/mine/done/invalid/legacy/all views still work. Try these in Obsidian; driver/reviewer own systematic and rendered acceptance, not new permanent tests here.
 
 Existing checks: `ab check -- bun test lib/tracker-views.test.ts`; plugin build; plugin TypeScript config via the repository's installed TypeScript. Install plugin dependencies with its committed Bun lock if needed. The parity suite accepts `TRACKER_VAULT` and optional `TRACKER_PROJECT`; see `lib/tracker-views.test.ts`. Run CLI parity against a matching project/vault identity, not a worktree basename absent from the vault. Read the tracker lifecycle reference before any model change.
+
+## Result
+
+[First-use driver evidence](../attachments/tracker-obsidian-views/index.md). Rendering, grouping, progress, collapse and pin persistence observed; native menu/preview/split operations and complete legacy-mode membership await reviewer verification.
