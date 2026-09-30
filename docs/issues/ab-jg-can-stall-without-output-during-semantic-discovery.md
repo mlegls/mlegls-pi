@@ -20,3 +20,7 @@ Reproduced during [[projects/concept/issues/distinguish-retained-applet-openings
 shape, 2026-09-30: callers need a prompt failure they can fall back from, not a diagnosis of the stall. `ab/jevgrep.ts` gives the `jg` child a wall-clock deadline (default 180s, `--deadline SECONDS`, 0 off); on expiry it kills the child, prints the completion line with elapsed time and `deadline`, suggests exact search, and exits 2 (incomplete). Also owns [[projects/mlegls-pi/issues/ab-jg-repository-wide-search-resource-limit]]'s want. done: a query against a stubbed hanging `jg` returns within the deadline with exit 2; `ab jg --help` documents it.
 
 2026-09-30: `ab jg` is no longer advertised (bash tool description, package skill), so this deadline matters only for explicit use; lowered priority.
+
+## Result
+
+First-use CLI drive: [deadline evidence](../attachments/ab-jg-can-stall-without-output-during-semantic-discovery/index.md). A stubbed hanging `jg` returned exit 2 and an exact-search suggestion after explicit 1s/2s deadlines; help documented the 180s default and 0-off mode. The live search path and actual 180s expiry were not exercised.
