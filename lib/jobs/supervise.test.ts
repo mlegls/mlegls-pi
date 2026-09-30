@@ -35,24 +35,37 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
  paths.e=join(root,'already-retired');
  const real=await import(${JSON.stringify(resolve("lib/dispatch.ts"))});const integrate=real.integrate;
  let active=0,max=0;const saved={},retired=[],controls=new Map(),messages=[],waitIds=[],turns=[];
- mock.module(${JSON.stringify(resolve("lib/dispatch.ts"))},()=>({...real,integrate:async(...args)=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,20));return await integrate(...args);}finally{active--;}},retire:async h=>{expect(saved[h.handle].children[h.handle]).toBeUndefined();expect(saved[h.handle].integrated.includes(h.handle)||!!saved[h.handle].decomposed?.includes(h.handle)).toBe(true);expect(existsSync(h.path)).toBe(true);expect(git(main,'rev-parse','HEAD')).toBe(git(h.path,'rev-parse','HEAD'));retired.push(h.handle);return {};}}));
+ const reportCases=new Map(), routed=[];
+ const launchFixture=async(specs,options)=>({submitted:[{run:options.run,handle:specs[0].handle,path:paths['case-join']} ]});
+ mock.module(${JSON.stringify(resolve("lib/route.ts"))},()=>({prepareRole:async()=>({kind:'ready',agent:'test'})}));
+ mock.module(${JSON.stringify(resolve("lib/dispatch.ts"))},()=>({...real,dispatch:launchFixture,integrate:async(...args)=>{active++;max=Math.max(max,active);try{await new Promise(r=>setTimeout(r,20));return await integrate(...args);}finally{active--;}},retire:async h=>{expect(saved[h.handle].children[h.handle]).toBeUndefined();expect(saved[h.handle].integrated.includes(h.handle)||!!saved[h.handle].decomposed?.includes(h.handle)).toBe(true);expect(existsSync(h.path)).toBe(true);expect(git(main,'rev-parse','HEAD')).toBe(git(h.path,'rev-parse','HEAD'));retired.push(h.handle);return {};}}));
  mock.module(${JSON.stringify(resolve("lib/children.ts"))},()=>({
   turnEnd:async (ids,options)=>{
    turns.push(ids[0]);
    const id=ids[0];
+   if(reportCases.has(id)) {const queue=reportCases.get(id);if(!queue.length)throw new Error('Unexpected extra report request: '+id);return {id,kind:'finished',cursor:'case-'+queue.length,text:queue.shift()};}
    if(id.endsWith('/h')){
     if(turns.filter(turn=>turn===id).length===1)return {id,kind:'finished',cursor:'checkpoint',text:'checkpoint'+String.fromCharCode(10)+'intermediate report'};
     return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});
    }
    const fence=String.fromCharCode(96).repeat(3);
-   if(id.endsWith('/a') && turns.filter(t=>t===id).length<=2)return {id,kind:'finished',cursor:'bad-'+turns.length,text:'done'+String.fromCharCode(10)+fence+'json'+String.fromCharCode(10)+JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/a.md',visual:true,updated:true}})+String.fromCharCode(10)+fence};
+   if(id.endsWith('/a') && turns.filter(t=>t===id).length===1)return {id,kind:'finished',cursor:'bad-'+turns.length,text:'done'+String.fromCharCode(10)+fence+'json'+String.fromCharCode(10)+JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/a.md',visual:true,updated:true}})+String.fromCharCode(10)+fence};
    return {id,kind:'finished',cursor:'done',text:'done'+String.fromCharCode(10)+fence+(id.endsWith('/g')?'yaml':'json')+String.fromCharCode(10)+(id.endsWith('/g')?'plain scalar containing {rows: [2, 3, 5], total: 10}':JSON.stringify({stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/'+id.split('/').pop()+'.md',visual:false,shots:[]}}))+String.fromCharCode(10)+fence};
   },
   waitForTurnEnd:async(ids,options)=>{waitIds.push(ids[0]);if(ids[0].endsWith('/f'))return {id:ids[0],kind:'finished',cursor:'restart-report',text:'done'};return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});},
   last:async()=>null,
-  send:async(owner,text)=>{messages.push(text);if(text.includes('checkpoint from'))setTimeout(()=>controls.get(owner).abort(),50);else if(text.includes('integration failed')||text.includes('verification')||text.includes('loop error')||text.includes('handoff block did not parse')||text.includes('decomposed with'))controls.get(owner).abort();}
+  send:async(owner,text)=>{
+   routed.push({to:owner,text});messages.push(text);
+   // Stop a wrong second bounce too, so a retry-budget regression fails without hanging.
+   if(reportCases.has(owner)&&routed.filter(m=>m.to===owner).length>=2)controls.get(owner.split('/').pop().replace(/-consolidate$/,'')).abort();
+   if(!controls.has(owner))return;
+   if(owner.startsWith('case-'))controls.get(owner).abort();
+   else if(text.includes('checkpoint from'))setTimeout(()=>controls.get(owner).abort(),50);
+   else if(text.includes('integration failed')||text.includes('verification')||text.includes('loop error')||text.includes('handoff block did not parse')||text.includes('decomposed with'))controls.get(owner).abort();
+  }
  }));
  const {run}=await import(${JSON.stringify(resolve("lib/jobs/supervise.ts"))});
+ const {parse}=await import(${JSON.stringify(resolve("lib/report.ts"))});
  async function loop(s,cwd=main,test='test -f '+s,initial){
   const control=new AbortController();controls.set(s,control);
   const commands=join(root,s+'.commands');writeFileSync(commands,'');
@@ -61,7 +74,7 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
  }
  const alias=join(root,'alias');symlinkSync(main,alias);
  await Promise.all([loop('a'),loop('b',alias)]);
- expect(messages.filter(m=>m.startsWith('invalid evidence handoff:'))).toHaveLength(2);
+ expect(messages.filter(m=>m.startsWith('invalid evidence handoff:'))).toHaveLength(1);
  expect(saved.a.metrics.completed).toBe(1);
  expect(max).toBe(1);expect(retired.sort()).toEqual(['a','b']);
  for(const s of ['a','b']){expect(readFileSync(join(main,'docs/issues',s+'.md'),'utf8')).toContain('stage: done');expect(saved[s].finished).toBe(true);expect(git(main,'log','--format=%s')).toContain('Close '+s);}
@@ -92,6 +105,61 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
  expect(saved.j.decomposed).toEqual(['j']);expect(saved.j.integrated).toEqual([]);expect(existsSync(join(main,'docs/issues/j1.md'))).toBe(true);expect(retired).toContain('j');expect(readFileSync(join(main,'docs/issues/j.md'),'utf8')).toContain('stage: spec');
  await loop('k',main,'true',implementing('k'));
  expect(existsSync(join(main,'docs/issues/k1.md'))).toBe(false);expect(saved.k.children.k.waiting).toContain('decomposed with changes outside the tracker (k)');expect(retired).not.toContain('k');
+ // Replays checks 1–4 from docs/attachments/bounce-handoff-shape-errors-to-the-child/index.md.
+ // Observe report/mail boundaries, not validator internals; the supervisor and Git are real.
+ const fence=String.fromCharCode(96).repeat(3), nl=String.fromCharCode(10);
+ const report=h=>'done'+nl+fence+'json'+nl+JSON.stringify(h)+nl+fence;
+ for(const kind of ['late','stories','evidence','yaml','failed','unobservable','corrected']) {
+  const s='case-'+kind,id='root-'+s+'/'+s;
+  writeFileSync(join(main,'docs/issues',s+'.md'),'---'+nl+'stage: ticket'+nl+'---'+nl);
+  writeFileSync(join(main,'docs/attachments',s+'.md'),'Report routing evidence');git(main,'add','.');git(main,'commit','-qm','Add '+s);
+  paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);
+  const valid={stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/'+s+'.md',visual:false,shots:[]}};
+  const malformed={
+   late:report(valid).replace('done'+nl,'')+nl+'done',
+   corrected:report(valid).replace('done'+nl,'')+nl+'done',
+   stories:report({...valid,stories:['sample']}),
+   evidence:report({...valid,evidence:valid.evidence.path}),
+   yaml:'done'+nl+fence+'yaml'+nl+'stories:'+nl+'  - "quoted phrase" trailing words'+nl+fence,
+   failed:report({...valid,stories:[{story:'sample',outcome:'failed'}]}),
+   unobservable:report({...valid,stories:[{story:'sample',outcome:'unobservable'}]})
+  }[kind];
+  const truthful=['failed','unobservable'].includes(kind);
+  reportCases.set(id,truthful?[malformed]:[malformed,kind==='corrected'?report(valid):malformed]);
+  const start=routed.length;
+  await loop(s,main,'true');
+  const mail=routed.slice(start);
+  if(truthful){
+   expect(mail).toHaveLength(1);expect(mail[0].to).toBe(s);expect(mail[0].text).toContain('outcome is "'+kind+'"');
+  } else {
+   expect(mail[0].to).toBe(id);
+   const diagnostic={late:'first nonblank line',corrected:'first nonblank line',stories:'stories[0] is a string; expected {story, outcome}',evidence:'evidence is a string; expected {path, visual, shots}',yaml:'at line 2, column'}[kind];
+   expect(mail[0].text).toContain(diagnostic);
+   for(const field of ['docs/verification-evidence.md','stories:','outcome:','evidence:','path:','visual:','shots:','tests:','caveats:'])expect(mail[0].text).toContain(field);
+   const example=parse(mail[0].text).handoff;
+   expect(example.stories[0].outcome).toBe('held');expect(example.evidence).toMatchObject({visual:false,shots:[]});
+   expect(mail[0].text).toContain('Do not invent evidence');
+   if(kind==='corrected'){
+    expect(saved[s].integrated).toContain(s);expect(mail.filter(m=>m.to===s&&m.text.includes('still invalid'))).toHaveLength(0);
+   } else {
+    expect(mail).toHaveLength(2);expect(mail[1].to).toBe(s);expect(mail[1].text).toContain('still invalid');expect(mail[1].text).toContain(diagnostic);
+   }
+  }
+  console.log(JSON.stringify({scenario:kind,mail}));
+ }
+ // The corrected-report expectation also applies when a join driver hands off to a new consolidator.
+ {
+  const s='case-join',id='root-'+s+'/'+s,next=id+'-consolidate';
+  paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);
+  const bad=report({stories:['sample']}), fixed=report({stories:[{story:'sample',outcome:'failed'}]});
+  reportCases.set(id,[bad,fixed]);reportCases.set(next,[bad,bad]);
+  const start=routed.length;
+  await loop(s,main,'true',{children:{[s]:{slug:s,phase:'drive',handle:{run:'root-'+s,handle:s,path:paths[s]}}},join:{key:s,drive:true},integrated:[],metrics:{wakes:0,ownerBytes:0,launched:0,completed:0}});
+  const mail=routed.slice(start);
+  expect(mail.map(m=>m.to)).toEqual([id,next,s]);
+  expect(mail[1].text).toContain('stories[0] is a string');expect(mail[2].text).toContain('still invalid after two reports');
+  console.log(JSON.stringify({scenario:'join-new-child-budget',mail}));
+ }
  console.log('parallel closures, failed tests, failed close hook, missing carried worktree: passed');
  `);
  try {
@@ -100,5 +168,6 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
   const errors = await new Response(proc.stderr).text();
   expect({ code: await proc.exited, errors }).toEqual({ code: 0, errors: "" });
   expect(output).toContain("missing carried worktree: passed");
+  console.log(output);
  } finally { rmSync(root, { recursive: true, force: true }); }
 }, 30_000);

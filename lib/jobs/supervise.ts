@@ -267,10 +267,10 @@ export async function run(job: JobContext) {
   }
  };
  // Mirrors the supervised handoff schema in docs/verification-evidence.md.
- const reportSchema = "Required handoff form:\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held|failed|unobservable\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: true|false\n  shots: [docs/attachments/<ticket>/01-state.png]\n```\n\nFor a nonvisual journey use `visual: false` and `shots: []`; for a visual journey, list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established.";
+ const reportSchema = "Required handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks. For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established.";
  const repairReport = async (c: Child, reason: string, text: string, escalationReason = reason) => {
-  // Give the child two correction turns; only a repeated failure wakes the owner.
-  if ((c.reportRepairs ?? 0) >= 2) { await except(c, escalationReason + " (still invalid after two repair attempts)", text); return false; }
+  // One correction turn: the second malformed report wakes the owner.
+  if ((c.reportRepairs ?? 0) >= 1) { await except(c, escalationReason + " (still invalid after two reports)", text); return false; }
   c.reportRepairs = (c.reportRepairs ?? 0) + 1;
   await save();
   await children.send(topic(c.handle), reason + "\n\n" + reportSchema);
@@ -501,7 +501,7 @@ const checkStartup = async (live: Child[]) => {
   if (!failed && (input.unjoined?.slugs.length ?? 0) + state.integrated.length < 2) { c.evidence = { ...r.handoff! }; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); await save(); await integrateChild(c, c.handle); return; }
   const handle = await launch(c.slug, "consolidate", consolidatePrompt(c.drive, text), git(c.handle.path, "rev-parse", "HEAD"));
   (c.previous ??= []).push(c.handle);
-  Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } });
+  Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, reportRepairs: 0, startup: { launchedAt: Date.now(), mode: "pi" } });
   await save();
  } else {
   const drove = Array.isArray(c.drive?.stories) && (c.drive!.stories as unknown[]).length > 0;
