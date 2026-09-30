@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76
 ---
@@ -14,3 +14,6 @@ review boundary, 2026-09-30: the supervise-loop group (bounce-handoff-shape-erro
 
 Result (first-use drive): [evidence packet](../attachments/surface-stale-waits-after-owner-replies/index.md). The handed-off checkout had no supervision jobs; both wait-specific behaviors remained unobservable through its CLI entry point.
 
+## Verification evidence
+
+[Encounter and evidence](../attachments/surface-stale-waits-after-owner-replies/index.md).
