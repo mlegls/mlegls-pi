@@ -7,4 +7,4 @@ During [[projects/mlegls-pi/issues/tracker-obsidian-rollout]], `ab check -- bun 
 
 Owner: root test discovery/setup and `dsh/package.json`'s existing setup command. No optional package was installed just to hide this receipt. Other failures already have owners: [[projects/mlegls-pi/issues/disabled-watch-pr-tests-missing-commander]], [[projects/mlegls-pi/issues/worktree-tests-read-canonical-agent-roster]], [[projects/mlegls-pi/issues/session-terminal-regressions-fail-with-extra-shell-sessions]]. The last includes the same `sessionManager.getSessionId is not a function` callback error seen in this run.
 
-The affected plugin build and typecheck passed after its own locked dependencies were installed; its live parity failure is separately owned by [[projects/mlegls-pi/issues/tracker-parity-compares-derived-claims-with-frontmatter-only]]. No unrelated tests or behavior were deleted.
+The affected plugin build and typecheck passed after its own locked dependencies were installed; its live parity failure is separately owned by [[projects/mlegls-pi/issues/archive/tracker-parity-compares-derived-claims-with-frontmatter-only]]. No unrelated tests or behavior were deleted.

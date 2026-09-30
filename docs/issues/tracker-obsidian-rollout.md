@@ -3,8 +3,6 @@ stage: ticket
 assignee: agent
 author: session:01a0f08f-9962-73f5-8231-63e51693973d
 part-of: "[[projects/mlegls-pi/issues/tracker-obsidian-plugin]]"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/tracker-obsidian-views]]"
 ---
 
 Make the completed tree, board and network views the live tracker and retire the datacorejsx tracker notes and dependency. Depends on the renderer and reproducible fixture setup in [[projects/mlegls-pi/issues/tracker-obsidian-views]]. This child owns live-vault migration and reproducible deployment documentation/scripts under `extensions/obsidian-tracker/`; the renderer sibling owns view code.
@@ -19,8 +17,8 @@ First use is the user's local desktop Obsidian vault `~/obsidian`, no auth or se
 
 Done: live tree/board/network work; frontier/mine/done retain CLI semantics; obsolete tracker datacorejsx notes and datacore dependency are retired; reproducible startup and actual prepared target are recorded. Run the existing parity suite with `TRACKER_VAULT=$HOME/obsidian` and `TRACKER_PROJECT=$HOME/dev/mlegls-pi` through `ab check`, plus the plugin build. Report the directly opened entry URI, external changed files and any resource cleanup. Driver/reviewer own systematic acceptance; no new permanent tests.
 
-## Prepared target; acceptance blocked
+## Prepared target
 
 Live `~/obsidian/projects/Tracker.base` renders Tree, Board and Network with stable canonical plugin deployment; Datacore is disabled and no remaining render consumers were found. Saved Base configuration survived, and repeated prepare/rollback worked. [Implementation first use and external edits](../attachments/tracker-obsidian-rollout/index.md); [reproduction](../../extensions/obsidian-tracker/LIVE.md).
 
-Live CLI parity still fails on runtime-derived inflight claims: [[projects/mlegls-pi/issues/tracker-parity-compares-derived-claims-with-frontmatter-only]]. The renderer lists the supervised rollout scope in Frontier while the CLI excludes it. Rollout owns migration/setup, not the sibling's renderer; no code or parity gate was changed to conceal that conflict. The ticket remains open pending the renderer seam repair or an explicit contract ruling.
+resolved, 2026-09-30: the supervisor ruled that Obsidian remains a pure frontmatter read surface. Frontier represents metadata readiness; runtime/inflight claims remain a CLI dispatch concern. Existing snapshot/frontier/mine/done assertions now run the CLI with `TRACKER_NO_INFLIGHT=1`; the live suite passes all five tests. The renderer is unchanged. [[projects/mlegls-pi/issues/archive/tracker-parity-compares-derived-claims-with-frontmatter-only]] records the ruling.

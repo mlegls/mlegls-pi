@@ -85,7 +85,9 @@ function currentPages() {
 
 (available && process.env.TRACKER_PROJECT ? test : test.skip)("CLI snapshot parity against selected project vault", () => {
   const project = basename(process.env.TRACKER_PROJECT!);
-  const result = Bun.spawnSync(["bun", join(scripts, "issues.ts"), "snapshot", "--json"], { cwd: process.env.TRACKER_PROJECT });
+  // Parity is metadata parity; runtime/inflight claims belong to CLI dispatch.
+  const env = { ...process.env, TRACKER_NO_INFLIGHT: "1" };
+  const result = Bun.spawnSync(["bun", join(scripts, "issues.ts"), "snapshot", "--json"], { cwd: process.env.TRACKER_PROJECT, env });
   expect(result.exitCode, result.stderr.toString()).toBe(0);
   const snapshot = JSON.parse(result.stdout.toString());
   const m = model(currentPages());
@@ -102,7 +104,7 @@ function currentPages() {
     expect(blockers, String(i.slug)).toEqual([...i.blockers].sort());
   }
   for (const kind of ["frontier", "mine", "done"]) {
-    const selected = Bun.spawnSync(["bun", join(scripts, "issues.ts"), kind, "--json"], { cwd: process.env.TRACKER_PROJECT });
+    const selected = Bun.spawnSync(["bun", join(scripts, "issues.ts"), kind, "--json"], { cwd: process.env.TRACKER_PROJECT, env });
     expect(selected.exitCode, selected.stderr.toString()).toBe(0);
     expect(slugs(m[kind as "frontier" | "mine" | "done"].filter((i) => i.project === project)), kind).toEqual(slugs(JSON.parse(selected.stdout.toString()).issues));
   }
