@@ -21,6 +21,8 @@ First use: `~/obsidian/directing multi-agent work.md` has no `repo`/`directory` 
 
 A temporary fixture exercised moving a nested bullet without losing its child, marking done, removing, attaching a new issue, and reloading its tracker state. Existing tracker regressions: 17 passed. Focused library regressions: 12 passed. The full library suite, run through `ab check` with the worktree roster and inherited parent-session metadata removed, returned 165 passed, 2 skipped, 1 existing terminal failure; see [[projects/mlegls-pi/issues/session-terminal-regressions-fail-with-extra-shell-sessions]]. Root typecheck returned 56 existing diagnostics with no `lib/outliner.ts` or `lib/vault.ts` diagnostics; see [[projects/mlegls-pi/issues/root-typecheck-obsidian-environment]], [[projects/mlegls-pi/issues/root-board-store-fixture-typecheck]], and [[projects/mlegls-pi/issues/root-typecheck-memory-extension-errors]]. Worktree agent-roster friction is [[projects/mlegls-pi/issues/worktree-tests-read-canonical-agent-roster]].
 
+[First-use verification packet](../attachments/reconcile/index.md): live note unchanged without explicit acceptance; checkout-owned copy exercised move, mark and stale-write guard.
+
 ## decisions
 
 - 2026-09-20: vault now means reconcile; the skill is updated, with explicit supertag processing retained in a reference. No separate reconcile skill or introduce redirect. Library mechanics and live acceptance verification remain open.
