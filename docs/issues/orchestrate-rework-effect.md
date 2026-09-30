@@ -14,3 +14,7 @@ method: per run, before vs after: worker count, cost (session usage), checkpoint
 confounds to state, not fix: the agent roster changed daily 09-14..16 and opus left the worker roster on 09-16; routing changes (710bee5/869e6a7) landed after the rework. the paseo-era 09-23 campaign ([[projects/mlegls-pi/research/orchestration-audit-2026-09-23]]) is out of scope for this ticket but its coordination numbers answer the same question at larger scale.
 
 report 2026-09-30: [[docs/research/orchestrate-rework-effect]] — script and raw per-run table in docs/analysis/orchestrate-rework-effect/.
+
+## Result
+
+First-use CLI drive: [[docs/attachments/orchestrate-rework-effect/index]] — the supplied command runs and reproduces the published TSV, but the research narrative disagrees with those measurements on era totals, parent-cwd counts, after-era nesting and the prior-audit comparison. See the packet for outcomes and replay checks; no product repairs were made.
