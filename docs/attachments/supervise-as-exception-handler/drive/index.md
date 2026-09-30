@@ -61,3 +61,14 @@ These are **instruction-surface outcomes**, not evidence that a running model fo
 ## Cleanup and limits
 
 No services, campaigns, workers, deployments, browser pages or native windows were started. No cleanup handle exists. The entry lint refreshed the ordinary tracker cache; no tracker-wide fix, stage change or product repair was performed. Visual evidence: false; screenshots: none.
+
+## Review (appended; driver log above unchanged)
+
+Reviewed `git diff 6caba30..deb823c` against the ticket and the parent decision. No repairs needed.
+
+- Skill/stance/role/help agree; the removed pieces (owner-chosen review boundaries, owner-dispatched `verify-story`, owner code reading) are now script-owned: `lib/jobs/supervise.ts` joins (`state.join`, `drive`/`consolidate` phases) and the done wake lists residuals. No other doc or code references the removed "review boundaries" mechanism.
+- Behavior the skill relies on exists: `lib/jobs/supervise.ts:675` ignores a status-free turn end from a `supervise`-phase child; `ab mail <address>` is the wake's reply address; tracker `holes:` is the documented ledger (`issue-tracker-vault.md:60`).
+- The oracle command's flags exist in this `pi` (`--print --no-tools --no-extensions --no-skills --no-context-files --thinking`, `@file`), and `openai-codex/gpt-6-astra` and `anthropic/claude-fable-5-1` are listed by `pi --list-models`.
+- `ab check -- bun test lib/jobs/supervise.test.ts lib/report.test.ts ab/skill.test.ts`: 19 pass, 0 fail.
+- Retained tests: none. The driver's checks are instruction-copy outcomes of this ticket's design; nothing user-observable that a later change could break unnoticed. Left as evidence above.
+- Live-model compliance and the GLM comparison remain unmeasured, parent-owned.
