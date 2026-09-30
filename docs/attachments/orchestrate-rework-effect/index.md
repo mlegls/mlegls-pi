@@ -71,3 +71,26 @@ These are proposed observable checks, not tests written by the driver.
 ## Limits
 
 This is a first-use CLI/report drive, not an independent reimplementation or source audit. Agreement between CLI and TSV does not validate corpus joins or inference of dispatching parents; reviewer verification is needed for those. Required board coordination exposed implementer findings before execution. Historical input paths are shared, mutable local archives; the evidence records the observed outputs, not a private-data copy.
+
+## Review — 2026-09-30
+
+Reviewed the diff against the ticket with this log. Every contradiction the drive found was real, and two came from defects in the measurement itself, not only stale prose:
+
+- **Handle count measured the wrong thing.** `parent_cwds` counted non-worktree cwds that *posted on the board*. After the rework the root orchestrator usually never posts, hence the drive's seven zeros. The script now reads dispatchers from session spawn calls (`wm` op spawn, `wm_spawn`, exec `wm.spawn`, `wm[.ts] spawn <handle>`), taking for each worker handle the last spawn before its first board send. Result: every run with a resolvable dispatcher has exactly one root dispatcher, 18/18 before and 8/8 after; 24 of 223 handles are unresolved (22 factor-finish handles under leads with no archived session, both vault/mlegls-pi handles) and reported as such. The board-sender count stays as `board_parent_cwds` and is labeled as a proxy.
+- **Nested-topic depth was relative to the run name, not the matched prefix.** `concept/materials-closeout/materials-closeout` (the lead's own topic) counted as nested. Fixed: materials-closeout has 0 nested topics. Spawn calls show that its lead worktree *did* dispatch 5 of its 6 workers, though, so the report's "no 09-16+ run has any" nesting was still wrong. It now says nesting fell from one 115-handle tree to one 6-handle lead.
+- `verify-final`'s 3 "parent cwds" were `/var/folders/…/T/` temp dirs; they are now classified as temp (0 parent cwds, 6 null/temp sends). orca-probe's 2/1 is real: one of its two cwds sent without a session.
+- Report prose had been written against an earlier corpus (19 runs / 1127 sends / 177 sessions / $1260 / 7 parent sessions, handle-level done 190, before-mean $66). It now matches the CLI: 20 / 1134 / 178 / $1261 / 10 parent-side sessions, 191, $63. The 09-18 check reports 218 vs 217 as an untraced off-by-one, not as exact reproduction. The "30 prefixes" are 34 prefixes grouped into 29 runs.
+- Missing data is now explained in the report: the 5 missing before-era sessions are the board-freshness sender, one synthetic-session probe and the three verify-final probes (no worker cost lost), plus the 8 null/temp sends in factor-finish.
+- CLI frictions: `metrics.tsv` is now a plain table the script writes itself (it prints its path), with a `never_frac` column (`n/a` for zero-worker rows) and model counts as `model:count;…` sorted by count. Repeated runs are byte-identical.
+
+Frictions sorted: TSV shape, dict ordering, parent-cwd ambiguity, 30/29/28 reconciliation, implicit fractions and unexplained missing data were fixed here. Board-read contamination of predictions → [[projects/mlegls-pi/issues/driver-board-read-leaks-implementer-conclusions]] (idea). `tracker` unavailable: `tracker` is a skill whose vault adapter here is `docs/issues/`, so the driver's workaround *was* the interface. Its issue is now an idea about preamble wording.
+
+Re-drive after repairs: [cli-review.txt](cli-review.txt) (fresh run at the reviewed head). Checks 1–7 are encoded in `docs/analysis/orchestrate-rework-effect/test_metrics.py` (`python3 -m unittest docs/analysis/orchestrate-rework-effect/test_metrics.py`, 7 passed). They drive the CLI and compare its output, the TSV and the report cell by cell. The drive's new expectation (narrative agrees with measurements) is folded into check 3.
+
+| Story | Drive outcome | After review |
+|---|---|---|
+| Per-run before/after measurement table | held | held |
+| Exactly-one-handle interpretation | failed | held: spawn-call dispatchers, 1 root per resolved run in both eras, unresolved handles stated |
+| Extended checkpoint and never-done measurements | held | held: 13/183 vs 2/40, 47 vs 7 checkpoint sends, in the report |
+| Cost comparison and interpretation | failed | held: era totals, means and prior-audit comparison match the CLI; missing data explained |
+| CLI reproduction | held | held: byte-identical repeats, plain TSV, output path printed |
