@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0e217-e2af-7760-9a10-b4be54db2d0a
 ---
@@ -17,3 +17,7 @@ is whether Pi should make the same distinction between coverage and citation.
 decision, 2026-09-30: yes. Pi's validator (`extensions/memory`) accepts citations of visible retained-tail entries as provenance, as the dsh adapter does, while still requiring at least one newly folded original source; unknown IDs, incomplete output and nonshrinking replacements still fail closed. Shared prompts unchanged. done: a checkpoint citing a tail entry plus one folded source validates; one citing only tail entries is rejected, as tests.
 
 Result: first-use Pi RPC drive at [docs/attachments/memory-checkpoint-cites-retained-tail/index.md](../attachments/memory-checkpoint-cites-retained-tail/index.md). A live mixed folded/tail-cited checkpoint persisted; a live tail-only cited checkpoint was canceled without a compaction entry. Private generated candidates remain in the worker's ignored session directory, with selected IDs and outcomes recorded in the packet.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/memory-checkpoint-cites-retained-tail/index.md).
