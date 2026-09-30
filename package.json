@@ -33,8 +33,7 @@
     ],
     "skills": [
       "./skills/enabled/pi/pi",
-      "./skills/enabled/pi/mlegls-pi",
-      "./skills/enabled/pi/jevgrep"
+      "./skills/enabled/pi/mlegls-pi"
     ],
     "prompts": [
       "./prompts"

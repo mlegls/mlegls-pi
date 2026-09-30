@@ -1,4 +1,5 @@
 ---
+priority: 3
 stage: ticket
 assignee: agent
 author: "session:01a0ebd4-1dbc-708f-b2ad-c9569d585fdc"
@@ -17,3 +18,5 @@ Reproduced during [[projects/concept/issues/distinguish-retained-applet-openings
 2026-09-29, Concept edition consolidation (`01a0eeb2-107a-7696-873c-175434219389`): a font-preloading search over `.` and a cookie/schema search over `packages/web` produced no result before their caller groups were terminated after 278 and 131 seconds respectively. A prior narrower `packages/web/src` query completed in 38 seconds. Exact `ab grep`, imports and bounded reads completed the duplicate-code search; no cause established.
 
 shape, 2026-09-30: callers need a prompt failure they can fall back from, not a diagnosis of the stall. `ab/jevgrep.ts` gives the `jg` child a wall-clock deadline (default 180s, `--deadline SECONDS`, 0 off); on expiry it kills the child, prints the completion line with elapsed time and `deadline`, suggests exact search, and exits 2 (incomplete). Also owns [[projects/mlegls-pi/issues/ab-jg-repository-wide-search-resource-limit]]'s want. done: a query against a stubbed hanging `jg` returns within the deadline with exit 2; `ab jg --help` documents it.
+
+2026-09-30: `ab jg` is no longer advertised (bash tool description, package skill), so this deadline matters only for explicit use; lowered priority.
