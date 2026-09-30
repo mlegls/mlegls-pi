@@ -44,3 +44,17 @@ This was a CLI-only journey; no rendered UI or screenshots.
 2. Does `env` leak? Submit checks and a service with distinct synthetic marker variables, then parse both unfiltered lists. Accept that no receipt has an `env` key and neither raw output contains either marker; other receipt fields remain available.
 3. Does active filtering reflect a real queue? Start three checks that sleep long enough to overlap in the two-slot daemon, query `check list --status running,queued`, and accept only matching statuses including at least one `queued`; wait for all callers, query again and accept `[]`.
 4. Does service filtering track a stopped process? Start a foreground service that writes a readiness marker and sleeps; once ready, accept one matching `running` receipt in `service list --status running`. Stop its id, then accept none in `--status running` and one with `status: done` in `--status done`; no environment values in either receipt.
+
+## Review and automated replay (2026-09-30)
+
+Reviewed the delta from `dd0836cf8a49ce83d92a5c7af71bd25e4963ce21` alongside the first-use record, CLI exit path, daemon receipt projection and resource lifecycle. No product defect found in this bounded pass; product behavior is unchanged by review.
+
+`ab/resources.test.ts` now replays checks 1–4 through the checkout CLI with an isolated daemon and actual OS stdout pipes. Sixteen real historical submissions carry longer harmless argv so the compact JSON exceeds 65,536 bytes without 136 CLI round trips; the replay checks the complete count, commands, terminal receipts and environment omission. Three live callers hold the two slots until a release file is written, proving `running,queued` and the empty completed filter without a fixed job-duration race. A service writes a readiness marker, appears in `running`, then moves to `done` with its stop reason and timestamps. All five predictions remain met; no driver check was dropped.
+
+Final replay: `ab check -- bun test ab/resources.test.ts lib/resources` — **9 passed, 0 failed**, including the existing resource-host and CLI sharing/nesting checks (execution `5c2ea3c2-2557-43a7-b4fc-cd75917ce978`). The first test attempt exposed only a fixture-path mismatch on macOS (`/var` versus `/private/var`); the fixture now canonicalizes its temporary cwd before comparison. Both attempts shut down their isolated daemons; the successful replay explicitly stopped its service and released all callers.
+
+Frictions disposition:
+- Null setup handoff / checkout isolation: recorded with the existing separate `stage: idea` owner, [supervised-study-drive-lacks-setup-handoff](../../issues/supervised-study-drive-lacks-setup-handoff.md). No expansion of this ticket.
+- Start receipt versus readiness: handled here by retaining the process-written readiness marker in the automated replay; the documented distinction is correct, not a product defect.
+
+Final claims: complete machine-readable check list **held**; compact receipts without environment values **held**; check and service status filters **held**. Evidence remains CLI-only, with no screenshots or remaining review-owned processes.

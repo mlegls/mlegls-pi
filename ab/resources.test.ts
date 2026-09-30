@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Execution } from "../lib/resources/host.ts";
@@ -133,6 +133,87 @@ test("CLI retains running and queued waiters across daemon timeouts, but release
     for (const { child } of callers) if (child.exitCode === null) child.kill("SIGINT");
     await cli("daemon", "shutdown");
     await Promise.all(callers.map(c => c.result));
+    await Bun.sleep(100);
+    rmSync(state, { recursive: true, force: true });
+  }
+}, 60_000);
+
+// Replays checks 1–4 in docs/attachments/ab-check-list-truncates-machine-readable-json/index.md.
+test("CLI lists complete historical JSON, omits environments and filters live check/service states", async () => {
+  const state = realpathSync(mkdtempSync(join(tmpdir(), "ab-list-cli-")));
+  const main = join(import.meta.dir, "main.ts");
+  const marker = "private-list-environment-" + "x".repeat(7000);
+  const env = { ...process.env, AB_STATE: state, AB_CHECK_SLOT: "", AB_LIST_SENTINEL: marker };
+  async function cli(...args: string[]) {
+    const child = Bun.spawn([process.execPath, main, ...args], { cwd: state, env, stdout: "pipe", stderr: "pipe" });
+    const [out, err, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+    expect({ code, err: code ? err : "" }).toEqual({ code: 0, err: "" });
+    return out;
+  }
+  async function list(kind: "check" | "service", status?: string) {
+    const out = await cli(kind, "list", ...(status ? ["--status", status] : []));
+    expect(out).not.toContain(marker);
+    const entries = JSON.parse(out) as Execution[];
+    for (const entry of entries) {
+      expect(entry).not.toHaveProperty("env");
+      expect(entry.kind).toBe(kind);
+      expect(entry.cwd).toBe(state);
+      expect(entry.id).toBeString();
+      expect(entry.command).toBeArray();
+      expect(entry.submitted).toBeNumber();
+      expect(entry.log).toBeString();
+    }
+    return { out, entries };
+  }
+  async function until(predicate: () => Promise<boolean>) {
+    const deadline = Date.now() + 10_000;
+    while (!(await predicate())) {
+      if (Date.now() > deadline) throw new Error("list state did not converge");
+      await Bun.sleep(50);
+    }
+  }
+  const callers: Promise<string>[] = [];
+  let service: string | undefined;
+  try {
+    await cli("check", "list"); // Establish this checkout's isolated daemon before concurrent clients.
+    // Real submissions, with longer harmless argv to exceed the cutoff without 136 CLI round trips.
+    const command = ["/bin/sh", "-c", "exit 0", "history-" + "x".repeat(5000)];
+    for (let i = 0; i < 16; i++) await cli("check", "--", ...command);
+    const history = await list("check");
+    expect(Buffer.byteLength(history.out)).toBeGreaterThan(65536);
+    expect(history.entries).toHaveLength(16);
+    for (const entry of history.entries) {
+      expect(entry.command).toEqual(command);
+      expect(entry.status).toBe("done");
+      expect(entry.code).toBe(0);
+      expect(entry.started).toBeNumber();
+      expect(entry.ended).toBeNumber();
+    }
+    for (let i = 0; i < 3; i++) callers.push(cli("check", "--", "/bin/sh", "-c", "while [ ! -f release ]; do sleep 0.05; done"));
+    await until(async () => (await list("check", "running,queued")).entries.length === 3);
+    expect((await list("check", "running,queued")).entries.map(e => e.status).sort()).toEqual(["queued", "running", "running"]);
+    writeFileSync(join(state, "release"), "");
+    await Promise.all(callers);
+    expect((await list("check", "running,queued")).entries).toEqual([]);
+    expect((await list("check", "done")).entries).toHaveLength(19);
+
+    service = JSON.parse(await cli("service", "start", "--ttl", "30", "--", "/bin/sh", "-c", "touch ready; exec sleep 30")).id;
+    await until(async () => existsSync(join(state, "ready")));
+    expect((await list("service", "running")).entries.map(e => e.id)).toEqual([service!]);
+    expect((await list("service", "queued")).entries).toEqual([]);
+    await list("service");
+    await cli("service", "stop", service!);
+    await until(async () => (await list("service", "done")).entries.length === 1);
+    expect((await list("service", "running")).entries).toEqual([]);
+    const stopped = (await list("service")).entries;
+    expect(stopped[0]).toMatchObject({ id: service, status: "done", reason: "stopped" });
+    expect(stopped[0]!.code).toBeNumber();
+    expect(stopped[0]!.ended).toBeNumber();
+  } finally {
+    writeFileSync(join(state, "release"), "");
+    await Promise.allSettled(callers);
+    if (service) await cli("service", "stop", service);
+    await cli("daemon", "shutdown");
     await Bun.sleep(100);
     rmSync(state, { recursive: true, force: true });
   }
