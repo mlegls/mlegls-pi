@@ -2,7 +2,7 @@
 stage: done
 assignee: agent
 author: session:01a0f08f-9962-73f5-8231-63e51693973d
-part-of: "[[projects/mlegls-pi/issues/tracker-obsidian-plugin]]"
+part-of: "[[projects/mlegls-pi/issues/archive/tracker-obsidian-plugin]]"
 ---
 
 Complete the existing Bases tracker renderer: tree, board and network, with native issue links and subissue progress. The model and tree/network implementations already exist; do not replace them with another task model or ItemViews.

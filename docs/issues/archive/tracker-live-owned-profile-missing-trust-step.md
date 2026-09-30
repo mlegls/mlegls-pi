@@ -1,7 +1,7 @@
 ---
 stage: done
 author: session:01a0f242-7603-76bd-9e3c-706b0801c1e6
-part-of: "[[projects/mlegls-pi/issues/tracker-obsidian-rollout]]"
+part-of: "[[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]]"
 ---
 
 LIVE.md's isolated-HOME recipe opens the real Base in Restricted mode on a fresh profile. Tracker shows “Unknown view type: tracker”, including after the documented `plugin:reload` reports success. `plugins:restrict` says `on`; Settings → Community plugins offers “Exit Restricted mode”. The enabled-plugin list still includes tracker, which is not proof it loaded.

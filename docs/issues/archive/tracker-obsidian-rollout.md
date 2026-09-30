@@ -2,10 +2,10 @@
 stage: done
 assignee: agent
 author: session:01a0f08f-9962-73f5-8231-63e51693973d
-part-of: "[[projects/mlegls-pi/issues/tracker-obsidian-plugin]]"
+part-of: "[[projects/mlegls-pi/issues/archive/tracker-obsidian-plugin]]"
 ---
 
-Make the completed tree, board and network views the live tracker and retire the datacorejsx tracker notes and dependency. Depends on the renderer and reproducible fixture setup in [[projects/mlegls-pi/issues/tracker-obsidian-views]]. This child owns live-vault migration and reproducible deployment documentation/scripts under `extensions/obsidian-tracker/`; the renderer sibling owns view code.
+Make the completed tree, board and network views the live tracker and retire the datacorejsx tracker notes and dependency. Depends on the renderer and reproducible fixture setup in [[projects/mlegls-pi/issues/archive/tracker-obsidian-views]]. This child owns live-vault migration and reproducible deployment documentation/scripts under `extensions/obsidian-tracker/`; the renderer sibling owns view code.
 
 Observed 2026-09-30: `~/obsidian/projects/Tracker.base` already uses type `tracker` for tree, graph, frontier, mine, done and invalid. Its tree groups by `formula.project` and contains saved `toggled` paths; graph has `pinned`. `~/obsidian/tracker/` does not exist at that path. `~/obsidian/.obsidian/plugins/tracker` is a symlink to `/Users/mlegls/dev/mlegls-pi/extensions/obsidian-tracker/dist`. Both `tracker` and `datacore` are in `community-plugins.json`. These are observations, not permission to overwrite newer configuration; re-read before applying.
 

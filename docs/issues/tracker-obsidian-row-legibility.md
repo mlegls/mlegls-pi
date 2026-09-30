@@ -3,7 +3,7 @@ stage: idea
 author: session:tracker-obsidian-views-review-1
 ---
 
-From the first-use drive of [[projects/mlegls-pi/issues/tracker-obsidian-views]] ([packet](../attachments/tracker-obsidian-views/index.md)):
+From the first-use drive of [[projects/mlegls-pi/issues/archive/tracker-obsidian-views]] ([packet](../attachments/tracker-obsidian-views/index.md)):
 
 - `own done · tree ticket` looks contradictory until one understands own vs subtree stage. The review added hover titles (`own stage · subtree stage`, `priority unset`), but the visible text is unchanged.
 - Done rows are so dim they look disabled.

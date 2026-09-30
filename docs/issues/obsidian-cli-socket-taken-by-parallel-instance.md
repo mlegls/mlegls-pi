@@ -3,7 +3,7 @@ stage: idea
 author: session:tracker-obsidian-views-review-1
 ---
 
-Observation, during [[projects/mlegls-pi/issues/tracker-obsidian-views]] review: the desktop `obsidian` CLI (`/Applications/Obsidian.app/Contents/MacOS/obsidian-cli`) connects to `$HOME/.obsidian-cli.sock`. A parallel worker started a second Obsidian instance with only `--user-data-dir=<worktree>/.wm/obsidian-profile`; that instance rebound `~/.obsidian-cli.sock`, so every CLI call from other workers (including `obsidian version`) went to its profile and failed with "Command line interface is not enabled", although the main instance's `obsidian.json` still had `"cli": true`. The main instance kept running but became unreachable by CLI.
+Observation, during [[projects/mlegls-pi/issues/archive/tracker-obsidian-views]] review: the desktop `obsidian` CLI (`/Applications/Obsidian.app/Contents/MacOS/obsidian-cli`) connects to `$HOME/.obsidian-cli.sock`. A parallel worker started a second Obsidian instance with only `--user-data-dir=<worktree>/.wm/obsidian-profile`; that instance rebound `~/.obsidian-cli.sock`, so every CLI call from other workers (including `obsidian version`) went to its profile and failed with "Command line interface is not enabled", although the main instance's `obsidian.json` still had `"cli": true`. The main instance kept running but became unreachable by CLI.
 
 Workaround used: run an owned instance with its own home and profile, and give the CLI the same home:
 

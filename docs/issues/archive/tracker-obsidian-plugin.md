@@ -1,4 +1,5 @@
 ---
+stage: done
 assignee: agent
 part-of: "[[projects/mlegls-pi/issues/home-ui]]"
 ---
@@ -23,4 +24,6 @@ done: the three views (tree, board, network) exist for the live tracker, whichev
 
 decision, 2026-09-30: agent-owned; the cockpit is workmux/tmux + `ab tree` + Obsidian ([[projects/mlegls-pi/issues/home-ui]]).
 
-execution is partitioned into [[projects/mlegls-pi/issues/tracker-obsidian-views]] (renderer and disposable first-use setup) and [[projects/mlegls-pi/issues/tracker-obsidian-rollout]] (dependent live deployment and datacore retirement). No residual implementation remains in this container. Existing exported model types, Bases type `tracker`, mode names and persisted view-option keys are the shared seam; the children preserve them.
+execution is partitioned into [[projects/mlegls-pi/issues/archive/tracker-obsidian-views]] (renderer and disposable first-use setup) and [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]] (dependent live deployment and datacore retirement). No residual implementation remains in this container. Existing exported model types, Bases type `tracker`, mode names and persisted view-option keys are the shared seam; the children preserve them.
+
+closed, 2026-09-30: tree/board/network Bases views with native links and subissue progress (tracker-obsidian-views), live `~/obsidian` migrated with backup/rollback and datacorejsx retired (tracker-obsidian-rollout), consolidated in 3eac1de. Obsidian is a read surface; Frontier is metadata readiness only (TRACKER_NO_INFLIGHT in parity). Open follow-ups are filed as ideas: row legibility, search lost on note return, network legibility, owned-profile trust step, cua drag does not pin.
