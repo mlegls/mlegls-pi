@@ -3,14 +3,15 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { ExtensionRunner, SessionManager, type CompactOptions, type ExtensionError } from "@earendil-works/pi-coding-agent";
+import { KIND } from "./core.ts";
 import { loadExtensions } from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js";
 
 // Replays the replacement, ordinary idle and negative-eligibility checks in
 // docs/attachments/memory-agent-settled-uses-stale-ctx/index.md at Pi's extension boundary.
 // Real loader, runner (including stale-ctx enforcement) and session storage;
 // fake clock and model response: no provider request or terminal needed.
-interface SessionFixture { runner: ExtensionRunner; calls: CompactOptions[]; errors: ExtensionError[]; notices: string[]; attempts: () => Promise<any[]> }
-async function fixture(run: (f: { start: (tokens?: boolean, children?: boolean) => Promise<SessionFixture> }) => Promise<void>) {
+interface SessionFixture { manager: SessionManager; results: () => Promise<any[]>; runner: ExtensionRunner; calls: CompactOptions[]; errors: ExtensionError[]; notices: string[]; attempts: () => Promise<any[]> }
+async function fixture(run: (f: { start: (tokens?: boolean, children?: boolean, memory?: object) => Promise<SessionFixture> }) => Promise<void>) {
 	const root = mkdtempSync(join(tmpdir(), "memory-lifecycle-"));
 	const oldState = process.env.AB_STATE;
 	process.env.AB_STATE = root;
@@ -19,7 +20,8 @@ async function fixture(run: (f: { start: (tokens?: boolean, children?: boolean) 
 	const runners: ExtensionRunner[] = [];
 	jest.useFakeTimers();
 	try {
-		await run({ start: async (tokens = true, children = true) => {
+		await run({ start: async (tokens = true, children = true, memory = {}) => {
+			writeFileSync(join(root, ".pi/settings.json"), JSON.stringify({ memory: { enabled: true, hibernate: { enabled: true, minTokens: 4000 }, ...memory } }));
 			const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], root);
 			expect(loaded.errors).toEqual([]);
 			const dir = mkdtempSync(join(root, "session-"));
@@ -35,7 +37,7 @@ async function fixture(run: (f: { start: (tokens?: boolean, children?: boolean) 
 			runners.push(runner);
 			const calls: CompactOptions[] = [], errors: ExtensionError[] = [], notices: string[] = [];
 			runner.onError(error => errors.push(error));
-			const pending: Promise<unknown>[] = [];
+			const pending: Promise<any>[] = [];
 			runner.bindCore({ getThinkingLevel: () => "off", getAllTools: () => [], getActiveTools: () => [] } as any, {
 				getModel: () => ({ provider: "anthropic", id: "m" }), getScopedModels: () => [],
 				isIdle: () => true, hasPendingMessages: () => false,
@@ -48,7 +50,7 @@ async function fixture(run: (f: { start: (tokens?: boolean, children?: boolean) 
 			} as any);
 			runner.setUIContext({ ...runner.getUIContext(), notify: (text: string) => { notices.push(text); } });
 			await runner.emit({ type: "session_start", reason: "startup" });
-			return { runner, calls, errors, notices, attempts: async () => {
+			return { manager, results: () => Promise.all(pending), runner, calls, errors, notices, attempts: async () => {
 				await Promise.all(pending);
 				const ledger = join(dir, "memory-attempts.jsonl");
 				return existsSync(ledger) ? readFileSync(ledger, "utf8").trim().split("\n").map(line => JSON.parse(line)) : [];
@@ -133,3 +135,42 @@ for (const [name, tokens, children] of [["below threshold", false, true], ["with
 		expect(s.errors).toEqual([]);
 	}));
 }
+
+// Replays the ticket's empty-journal checks from docs/attachments/supervisor-hibernation-empty-journal/driver.md
+// (empty hibernate entry with no journal generation; surviving tail; safe cancellation), at Pi's extension boundary.
+const assistant = (text: string, timestamp: number) => ({ role: "assistant" as const, content: [{ type: "text" as const, text }], api: "x", provider: "anthropic", model: "m", timestamp,
+	usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: "stop" as const });
+
+test("journal:false hibernation persists an empty journal, drops the old one and keeps the latest user tail verbatim", () => fixture(async ({ start }) => {
+	const s = await start(true, true, { journal: false });
+	const [first] = s.manager.getBranch();
+	s.manager.appendCompaction("OLD JOURNAL", first.id, 1, { kind: KIND, blocks: [{ id: "old", timestamp: 1, covers: [first.id], text: "OLD JOURNAL", sources: [first.id] }] });
+	const latest = s.manager.appendMessage({ role: "user", content: "latest ask", timestamp: 3 });
+	s.manager.appendMessage(assistant("working", 4));
+	await s.runner.emit({ type: "agent_settled" });
+	jest.advanceTimersByTime(300_000);
+	const [result] = await s.results();
+	expect(result.compaction.summary).toBe("");
+	expect(result.compaction.firstKeptEntryId).toBe(latest);
+	expect(result.compaction.details).toMatchObject({ blocks: [], operation: "empty-journal", generation: "none", trigger: "hibernate",
+		tail: { firstKeptEntryId: latest } });
+	expect(JSON.stringify(result)).not.toContain("OLD JOURNAL");
+	// No checkpoint model call is made and nothing falls through to native summarization.
+	expect(await s.attempts()).toEqual([]);
+	expect(s.errors).toEqual([]);
+}));
+
+test("journal:false compaction is cancelled, not summarized, when aborted, with nothing outside the tail, or with no user-led tail", () => fixture(async ({ start }) => {
+	const s = await start(true, true, { journal: false });
+	const branchEntries = s.manager.getBranch();
+	const ask = (entries: any[], signal = new AbortController().signal) => s.runner.emit({ type: "session_before_compact", branchEntries: entries, preparation: { tokensBefore: 1 }, signal } as any);
+	const aborted = new AbortController();
+	aborted.abort();
+	expect(await ask(branchEntries, aborted.signal)).toEqual({ cancel: true });
+	expect(await ask(branchEntries.slice(1))).toEqual({ cancel: true });
+	s.manager.appendMessage(assistant("only assistant", 5));
+	expect(await ask(s.manager.getBranch().filter(e => e.type === "message" && e.message.role === "assistant"))).toEqual({ cancel: true });
+	expect(s.notices).toEqual([expect.stringContaining("request aborted"), expect.stringContaining("Nothing to fold"), expect.stringContaining("user message")]);
+	expect(await s.attempts()).toEqual([]);
+	expect(s.errors).toEqual([]);
+}));

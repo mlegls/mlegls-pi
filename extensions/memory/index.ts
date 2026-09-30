@@ -127,6 +127,8 @@ export default function memoryExtension(pi: ExtensionAPI) {
 					return entry.type === "message" && entry.message.role === "user";
 				});
 				if (!tail) throw new Error("Empty-journal compaction requires a continuous tail starting at a user message");
+				if (!sourceEntries(visible.slice(0, tail.index)).length && !previousBlocks(branch).length)
+					throw new Error("Nothing to fold outside a continuous tail");
 				checkCurrent();
 				return { compaction: {
 					summary: "", firstKeptEntryId: tail.id, tokensBefore: event.preparation.tokensBefore,
