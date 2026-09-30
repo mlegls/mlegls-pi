@@ -46,7 +46,7 @@ for (const [name, text, status, handoff, handoffError] of drivenReports) {
 
 // Additional public-surface encounters are recorded in the packet's review append.
 test("review replay: status-only handoff needs no unrelated key", () => {
-  for (const status of ["done", "blocked", "needs-input", "checkpoint"]) {
+  for (const status of ["done", "blocked", "needs-input", "checkpoint"] as const) {
     const report = parse(`\x60\x60\x60yaml\nstatus: ${status}\n\x60\x60\x60`);
     expect(report.status).toBe(status);
     expect(report.handoff).toEqual({ status });
