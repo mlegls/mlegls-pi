@@ -14,4 +14,6 @@ A later workaround parsed each complete leading object with `JSONDecoder.raw_dec
 
 shape, 2026-09-30: `ab/resources.ts` prints every stored `Execution` whole, including each submission's full `env`, so the list is huge and carries the caller's environment. Print a projection without `env` (id, kind, status, command, cwd, times, code, reason, log), make sure stdout is fully flushed before exit, and accept a status filter (`ab check list --status running,queued`). Same for `ab service list`. done: `ab check list | jq length` parses with many retained executions, and no env values appear.
 
+Result: [CLI drive evidence](../attachments/ab-check-list-truncates-machine-readable-json/index.md).
+
 review boundary, 2026-09-30: the ab check pair (ab-check-loses-waiter-after-daemon-timeout, ab-check-list-truncates-machine-readable-json) is reviewed once as a combined delta from `894e8c6` by the root tend session after both integrate. Leaves integrate without per-leaf review.
