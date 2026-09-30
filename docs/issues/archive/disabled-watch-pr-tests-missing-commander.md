@@ -10,4 +10,4 @@ Owner: mlegls-pi test discovery/setup. The worktree's configured setup had alrea
 
 Consider whether root test discovery should exclude optional disabled skills or whether their dependency setup should be documented. This is a setup/discovery observation, not a failure in the check waiter change.
 
-disposition, 2026-09-30: duplicate of [[projects/mlegls-pi/issues/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander]].
+disposition, 2026-09-30: duplicate of [[projects/mlegls-pi/issues/archive/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander]].

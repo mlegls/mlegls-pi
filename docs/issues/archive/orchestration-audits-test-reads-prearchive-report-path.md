@@ -4,7 +4,7 @@ assignee: agent
 author: session:01a0f2a7-c393-70df-a0c1-b55ccdb28f03
 ---
 
-During the first-use drive of [[projects/mlegls-pi/issues/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander]], after documented `bun run setup` completed, root `bun test` failed loading `analysis/orchestration-audits/joined-answer.test.ts`: ENOENT for `docs/issues/orchestration-audits.md`. The report is now at `docs/issues/archive/orchestration-audits.md`. Owner: this repository's orchestration-audits verification check, originating from [[projects/mlegls-pi/issues/archive/orchestration-audits]].
+During the first-use drive of [[projects/mlegls-pi/issues/archive/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander]], after documented `bun run setup` completed, root `bun test` failed loading `analysis/orchestration-audits/joined-answer.test.ts`: ENOENT for `docs/issues/orchestration-audits.md`. The report is now at `docs/issues/archive/orchestration-audits.md`. Owner: this repository's orchestration-audits verification check, originating from [[projects/mlegls-pi/issues/archive/orchestration-audits]].
 
 Observation: full discovery exited 1; rerunning that file with the other failing files reproduced the same missing-report error. No product repair was made in this read-only drive. The scoped `bun test ab` and `bun test ab lib/resources` commands passed, so they are a workaround only for checking the disabled-skill ticket, not for verifying orchestration-audits.
 

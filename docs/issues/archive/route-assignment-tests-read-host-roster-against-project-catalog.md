@@ -9,4 +9,4 @@ Rerunning `lib/route-assignment.test.ts` with `PI_AGENTS_DIR="$PWD/agents"` pass
 
 Should the project routing regressions pin `PI_AGENTS_DIR` to the checkout roster while leaving runtime host defaults unchanged?
 
-disposition, 2026-09-30: duplicate of [[projects/mlegls-pi/issues/worktree-tests-read-canonical-agent-roster]].
+disposition, 2026-09-30: duplicate of [[projects/mlegls-pi/issues/archive/worktree-tests-read-canonical-agent-roster]].

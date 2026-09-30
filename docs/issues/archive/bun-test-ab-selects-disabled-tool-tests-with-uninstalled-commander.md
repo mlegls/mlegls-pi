@@ -2,7 +2,7 @@
 stage: done
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/test-suite-hygiene]]"
+part-of: "[[projects/mlegls-pi/issues/archive/test-suite-hygiene]]"
 author: "session:01a0f0a3-40fd-704c-a4bb-6c7ef5dda151"
 ---
 
