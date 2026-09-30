@@ -1,5 +1,4 @@
 ---
-stage: spec
 assignee: agent
 part-of: "[[projects/mlegls-pi/issues/home-ui]]"
 ---
@@ -23,3 +22,5 @@ decisions:
 done: the three views (tree, board, network) exist for the live tracker, whichever way, and the datacorejsx notes are retired.
 
 decision, 2026-09-30: agent-owned; the cockpit is workmux/tmux + `ab tree` + Obsidian ([[projects/mlegls-pi/issues/home-ui]]).
+
+execution is partitioned into [[projects/mlegls-pi/issues/tracker-obsidian-views]] (renderer and disposable first-use setup) and [[projects/mlegls-pi/issues/tracker-obsidian-rollout]] (dependent live deployment and datacore retirement). No residual implementation remains in this container. Existing exported model types, Bases type `tracker`, mode names and persisted view-option keys are the shared seam; the children preserve them.
