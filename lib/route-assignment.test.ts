@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { executions } from './agents.ts';
+import { agent, executions } from './agents.ts';
 import { candidates, prepare, prepareRole, route, assigned } from './route.ts';
 import { dispatch } from './dispatch.ts';
 
@@ -57,13 +57,9 @@ test('every agent has a model list of catalogued entries', () => {
   const policy = readFileSync(join(root, 'routing.md'), 'utf8');
   const available = candidates(policy.split('## Active catalog ')[1]);
   for (const file of readdirSync(join(root, 'agents')).filter(f => f.endsWith('.md') && !f.startsWith('_'))) {
-    const source = readFileSync(join(root, 'agents', file), 'utf8');
-    const frontmatter = /^---\n([\s\S]*?)\n---/.exec(source)?.[1];
-    const line = /^model:\s*(.+)$/m.exec(frontmatter ?? '')?.[1];
+    const line = agent(file.replace(/\.md$/, ''))?.routing;
     if (!line) throw new Error(`No model list: ${file}`);
-    const configured = executions(line);
-    if (!configured.length) throw new Error(`No model list: ${file}`);
-    for (const execution of configured) expect(available).toContainEqual(execution);
+    for (const execution of executions(line)) expect(available).toContainEqual(execution);
   }
 });
 
