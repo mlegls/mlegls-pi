@@ -54,7 +54,7 @@ These predictions come from the ticket and setup command. The required peer-boar
 - Report says 30 curated prefixes, displays 29 measured rows, and summarizes only 28 runs (19+9). No reconciliation is given.
 - Fractions are provided implicitly as done/never counts, not directly per row. The reader must know `never/(done+never)` and not confuse handle totals with deduplicated session totals.
 - `missing=5` and `null_or_tmp=8` are visible without a reader-facing account of which evidence is unavailable or how it limits cost/parent attribution.
-- Tooling: `tracker --help` is unavailable on PATH. Durable issue: [tracker-command-unavailable-orchestrate-drive.md](../../issues/tracker-command-unavailable-orchestrate-drive.md). This did not block the product surface.
+- Tooling: `tracker --help` is unavailable on PATH. Durable issue: [tracker-command-unavailable-orchestrate-drive.md](../../issues/archive/tracker-command-unavailable-orchestrate-drive.md). This did not block the product surface.
 
 ## Replayable checks for review
 

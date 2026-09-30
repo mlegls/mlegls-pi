@@ -106,7 +106,7 @@ The report ends with an explicit bounded-review default, escalation proposal, un
 3. “Turns” is not defined; independent observations count assistant-message records. Failed attempts appear excluded from the role medians without a stated selection rule, despite being relevant to accepted completion.
 4. Eighteen Cartesian comparisons sound like eighteen independent matched encounters; pairing/dependency and the correct ratio statistic require reconstruction.
 5. Acceptance narratives lack per-pair parent IDs. Broad absence/causal claims cannot be followed to evidence from the report.
-6. Tooling: required `tracker` was unavailable. Tried PATH, `ab lib tracker`, and the guessed canonical CLI entry point; recorded locally as the fallback. The fallback copy was deduped 2026-09-30 into [tracker-command-unavailable-orchestrate-drive](../../issues/tracker-command-unavailable-orchestrate-drive.md), which already carried the same observation from the orchestrate-rework-effect drive.
+6. Tooling: required `tracker` was unavailable. Tried PATH, `ab lib tracker`, and the guessed canonical CLI entry point; recorded locally as the fallback. The fallback copy was deduped 2026-09-30 into [tracker-command-unavailable-orchestrate-drive](../../issues/archive/tracker-command-unavailable-orchestrate-drive.md), which already carried the same observation from the orchestrate-rework-effect drive.
 
 ## Replayable checks (for the reviewer to encode; no tests written)
 

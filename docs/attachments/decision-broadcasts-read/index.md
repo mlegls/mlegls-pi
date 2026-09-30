@@ -49,7 +49,7 @@ During use, expected analysis to reconcile with the report: **met**. Expected re
 - Extraction prints unscoped `acks: 449`; the report's requested scoped comparison is 34. CLI output does not label that distinction, and analysis does not print the 34/5 comparison.
 - Per-decision readers are UUID arrays in JSON, not a compact table with counts and readable peer names. Finding the historical session requires a filename glob; this worked, but is slower than a direct evidence link.
 - Report's final line says `frags.txt` is not committed; `git ls-files analysis/decision-broadcasts-read` lists it as tracked.
-- Tooling: `tracker --help` returned command-not-found (127). Reused the existing [tracker provisioning issue](../../issues/tracker-command-unavailable-orchestrate-drive.md), copied unchanged from peer commit `2f7b348` so the owner and workaround are durable in this branch. This did not block the CLI drive.
+- Tooling: `tracker --help` returned command-not-found (127). Reused the existing [tracker provisioning issue](../../issues/archive/tracker-command-unavailable-orchestrate-drive.md), copied unchanged from peer commit `2f7b348` so the owner and workaround are durable in this branch. This did not block the CLI drive.
 
 ## Replayable checks for review
 
