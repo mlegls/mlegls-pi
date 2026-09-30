@@ -10,3 +10,5 @@ During the supervision evidence workflow change, `bun-axi test lib` reported 148
 - `alerts once when output contains the configured literal` and `restores an exit alert after the process has already exited`: expected `fired`, received undefined.
 
 The failures are outside the changed supervision/routing modules; no clean-baseline comparison or cause diagnosis was performed. Do not infer timing flakiness from these receipts. Focused supervision/routing/integration tests and typecheck passed. Original run: session `01a0de2d-a2d2-7063-8b18-72c4b0fc2199`, command h15; isolated rerun h18. No shared terminal sessions were manually cleaned up as a workaround.
+
+2026-09-30: `ab check -- bun-axi test lib` on this checkout reported 162 passes, 4 failures, 2 skips and two load errors. The `lib/session/tmux.test.ts` load errors were `c.sessionManager.getSessionId is not a function` and `Unknown terminal session: one`. This overlaps the terminal-regression surface but has not been tied to the earlier extra-shell failures; no isolated rerun or cleanup was performed.
