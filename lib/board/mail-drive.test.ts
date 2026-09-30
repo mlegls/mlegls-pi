@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { scopes } from "./scopes";
 
-// Replays the driver's absent/live/exited CLI sends and its reviewer-ticket steer.
-test("mail CLI warns on undeliverable topics and accepts the waiting review worker's ticket", async () => {
+// Replays absent/uncertain/live/exited CLI sends and the review worker's ticket steer.
+test("mail CLI distinguishes definitely undeliverable sends and accepts the waiting review worker's ticket", async () => {
  const root = mkdtempSync(join(tmpdir(), "mail-drive-"));
  const priorState = process.env.XDG_STATE_HOME;
  const repo = join(root, "sample");
@@ -39,7 +39,7 @@ test("mail CLI warns on undeliverable topics and accepts the waiting review work
    expect(scopes(worktree, {}).includes(ticket)).toBe(true);
   }
   const absent = mail("ticket/sample/absent-review-1");
-  expect(absent.status).toBe(0);
+  expect(absent.status).toBe(1);
   expect(absent.out).toContain("ticket/sample/absent-review-1");
   expect(String(absent.err)).toContain("warning: no live subscribers");
   mkdirSync(join(state, "pi-live"), { recursive: true });
@@ -47,9 +47,11 @@ test("mail CLI warns on undeliverable topics and accepts the waiting review work
   const record = join(state, "pi-live", process.pid + ".json");
   // Earlier sessions cannot expose subscriptions: the CLI must not imply delivery.
   writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", since: new Date().toISOString() }));
-  expect(mail("ticket/sample/absent-review-1").err).toContain("could not confirm a live subscriber");
+  const uncertain = mail("ticket/sample/absent-review-1");
+  expect(uncertain.status).toBe(0);
+  expect(uncertain.err).toContain("could not confirm a live subscriber");
   writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", boardDir: join(data, "pi-board"), since: new Date().toISOString(), subscriptions: [{ topic: ticket, wake: false }] }));
-  expect(String(mail(ticket).err)).toContain("warning: no live subscribers");
+  expect(mail(ticket).status).toBe(1);
   writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", boardDir: join(data, "pi-board"), since: new Date().toISOString(), subscriptions: [
    { topic: "mail/abcd1234", wake: true }, ...scopes(review, {}).map(topic => ({ topic, wake: true }))
   ] }));
@@ -64,11 +66,15 @@ test("mail CLI warns on undeliverable topics and accepts the waiting review work
   writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", boardDir: join(root, "other-board"), since: new Date().toISOString(), subscriptions: [
    { topic: "mail/abcd1234", wake: true }, { topic: ticket, wake: true }
   ] }));
-  expect(mail(ticket).err).toContain("warning: no live subscribers");
-  expect(mail("mail/abcd1234").err).toContain("warning: no live subscribers");
+  expect(mail(ticket).status).toBe(1);
+  const wrongBoard = mail("mail/abcd1234");
+  expect(wrongBoard.status).toBe(1);
+  expect(wrongBoard.err).toContain("warning: no live subscribers");
   expect(readFileSync(join(data, "pi-board/log.jsonl"), "utf8")).toContain('"topic":"' + ticket + '"');
   rmSync(record);
-  expect(String(mail("mail/abcd1234").err)).toContain("warning: no live subscribers");
+  const exited = mail("mail/abcd1234");
+  expect(exited.status).toBe(1);
+  expect(String(exited.err)).toContain("warning: no live subscribers");
   // Driver check 3: the review worktree really starts a turn with the ticket steer,
   // not merely a successful post or a matching live-record fixture.
   const pi = Bun.spawn(["pi", "--mode", "rpc", "--no-context-files", "--no-skills", "--no-extensions",

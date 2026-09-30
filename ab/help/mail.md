@@ -14,9 +14,10 @@ To steer one waiting worker, prefer the exact worktree address in exception mail
 
 The destination is a topic, an eight-hex mailbox, or a full session ID; text can come from stdin.
 From a pi session the message is signed with your own mailbox, so readers can reply.
-`ab mail` warns when it finds no live subscriber, or cannot verify subscriptions for
-an older live session. The message is still recorded; it will not wake a reader that
-wasn't subscribed when it was sent.
+`ab mail` exits nonzero when it finds no live subscriber. For an older live session
+whose subscriptions cannot be verified, it only warns; uncertainty is not proof that
+no reader is listening. The message is still recorded, but it will not wake a reader
+that wasn't subscribed when sent. A live snapshot cannot prove that the reader consumed it.
 
 The worktree and ticket channels are on trial: --stats counts posts, topics and
 senders per kind, to see whether they get used beside direct mail.
