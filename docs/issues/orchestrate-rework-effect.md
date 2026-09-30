@@ -12,3 +12,5 @@ corpus: baseline = 09-14..09-15 board-era runs (the never-done exemplar is `conc
 method: per run, before vs after: worker count, cost (session usage), checkpoint count and never-done fraction (log.jsonl tags), and handle count (distinct parent cwds dispatching into the run). the 09-18 audit's own caveat was that 09-16 alone is "one day, not evidence yet" — the extended window is the point.
 
 confounds to state, not fix: the agent roster changed daily 09-14..16 and opus left the worker roster on 09-16; routing changes (710bee5/869e6a7) landed after the rework. the paseo-era 09-23 campaign ([[projects/mlegls-pi/research/orchestration-audit-2026-09-23]]) is out of scope for this ticket but its coordination numbers answer the same question at larger scale.
+
+report 2026-09-30: [[docs/research/orchestrate-rework-effect]] — script and raw per-run table in docs/analysis/orchestrate-rework-effect/.
