@@ -216,7 +216,7 @@ async function supervise(args: string[]) {
 	const api = await import("../lib/daemon.ts");
 	const [verb, given, ...rest] = args;
 	// An issue is named by its slug; a path to its file (docs/issues/<slug>.md) names the same issue.
-	const ticket = given && /\.md$/.test(given) ? basename(given, ".md") : given;
+	const ticket = !given || given.startsWith("--") ? undefined : /\.md$/.test(given) ? basename(given, ".md") : given;
 	const gitDir = spawnSync("git", ["rev-parse", "--absolute-git-dir"], { cwd, encoding: "utf8" }).stdout.trim();
 	const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).stdout.trim();
 	if (!gitDir || !top) fail("supervise runs in the owner's checkout");
@@ -276,8 +276,13 @@ async function supervise(args: string[]) {
 		return;
 	}
 	if (verb === "status" || !verb) {
-		if (!jobs.length) return console.log("no supervision jobs here");
-		for (const j of jobs) {
+		// Without a ticket, only live jobs (running or resumable): finished history is `--all`.
+		const all = args.includes("--all");
+		const scoped = all ? (await api.status()).filter(j => j.type === "supervise" && (j.input as any).cwd === top && (!ticket || (j.input as any).ticket === ticket)) : jobs;
+		const resumable = (j: typeof jobs[number]) => j.status === "completed" && Object.keys((j.state as any)?.decisionUnavailable ?? {}).length > 0;
+		const shown = ticket || all ? scoped : scoped.filter(j => j.status === "running" || resumable(j));
+		if (!scoped.length) return console.log("no supervision jobs here");
+		for (const j of shown) {
 			const s = j.state as any;
 			const unavailable = !!s?.decisionUnavailable && Object.keys(s.decisionUnavailable).length > 0;
 			console.log(j.id + (j.status === "completed" && unavailable ? " paused (resumable)" : " " + j.status) + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : ""));
@@ -285,6 +290,7 @@ async function supervise(args: string[]) {
 			if (s) console.log("  commands applied: " + (s.commandsApplied ?? "unknown") + (s.commandInFlight === undefined ? "" : "; in flight: " + s.commandInFlight));
 			for (const c of Object.values<any>(s?.children ?? {})) console.log("  " + c.slug + " " + c.phase + " " + (c.handle.run + "/" + c.handle.handle) + (c.waiting ? " waiting: " + c.waiting + " since " + (c.waitingSince ?? "unknown") : ""));
 		}
+		if (shown.length < scoped.length) console.log(`(${scoped.length - shown.length} finished jobs hidden; --all shows them)`);
 		return;
 	}
 	if (verb === "resume" && ticket && rest.length === 2 && ["verify", "integrate", "drop", "redispatch"].includes(rest[1])) {
@@ -322,7 +328,7 @@ async function supervise(args: string[]) {
 		return;
 	}
 	if (verb === "stop" && ticket) { for (const j of jobs.filter(j => j.status === "running")) console.log(JSON.stringify((await api.stop(j.id)).status)); return; }
-	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] [--pick role=agent]... | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | adopt <ticket> <child> <run/handle>... [--phase implement|drive|review] | stop <ticket> | loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E] [--status | --stop]");
+	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] [--pick role=agent]... | status [ticket] [--all] | resume <ticket> <child> verify|integrate|drop|redispatch | adopt <ticket> <child> <run/handle>... [--phase implement|drive|review] | stop <ticket> | loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E] [--status | --stop]");
 }
 
 

@@ -1,5 +1,5 @@
 ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N]
-ab supervise status [ticket]
+ab supervise status [ticket] [--all]   (without a ticket, live jobs only; --all adds finished history)
 ab supervise resume <ticket> <child> verify|integrate|drop|redispatch
 ab supervise adopt <ticket> <child> <run/handle>... [--phase implement|drive|review]
 ab supervise stop <ticket>
