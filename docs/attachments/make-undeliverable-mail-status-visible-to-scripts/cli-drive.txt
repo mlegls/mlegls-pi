@@ -1,0 +1,47 @@
+Target: /Users/mlegls/dev/mlegls-pi__worktrees/make-undeliverable-mail-status-visible-to-scripts-drive
+State: fresh temporary data/state/config directories; no shared state selectors reused
+$ bun ab/main.ts mail --stats
+exit: 0
+stdout: (empty)
+stderr: (empty)
+$ bun ab/main.ts mail ticket/first-use/definitely-absent first-use isolated undeliverable steer
+exit: 1
+stdout: ticket/first-use/definitely-absent muo6ru2r-l1fdag
+stderr: warning: no live subscribers for ticket/first-use/definitely-absent; message was recorded but cannot wake a reader
+$ bun ab/main.ts mail --stats
+exit: 0
+stdout: ticket	1 posts	1 topics	1 senders
+stderr: (empty)
+Pi RPC ready: {"type": "response", "command": "get_state", "success": true}
+persona: live local session without board extension
+cwd: /Users/mlegls/dev/mlegls-pi__worktrees/make-undeliverable-mail-status-visible-to-scripts-drive
+sessionId: 01a0f2aa-57e4-75ad-bfd0-3780f2bc22fe
+$ bun ab/main.ts mail mail/f2bc22fe first-use uncertain subscription probe
+exit: 0
+stdout: mail/f2bc22fe muo6rubg-4xnzeu
+stderr: warning: could not confirm a live subscriber for mail/f2bc22fe; message was recorded but may not be delivered
+Pi stopped; process awaited, returncode: 143
+Pi RPC ready: {"type": "response", "command": "get_state", "success": true}
+persona: live local board subscriber
+cwd: /Users/mlegls/dev/mlegls-pi__worktrees/make-undeliverable-mail-status-visible-to-scripts-drive
+sessionId: 01a0f2aa-591e-75f0-be95-419b3b25b96e
+$ bun ab/main.ts mail mail/3b25b96e first-use live mailbox probe
+exit: 0
+stdout: mail/3b25b96e muo6ruqj-xviabn
+stderr: (empty)
+$ bun ab/main.ts mail wt/mlegls-pi/make-undeliverable-mail-status-visible-to-scripts-drive first-use live worktree probe
+exit: 0
+stdout: wt/mlegls-pi/make-undeliverable-mail-status-visible-to-scripts-drive muo6rur0-ddjp66
+stderr: (empty)
+Pi stopped; process awaited, returncode: 143
+$ bun ab/main.ts mail mail/3b25b96e first-use exited mailbox probe
+exit: 1
+stdout: mail/3b25b96e muo6rurr-0j2erd
+stderr: warning: no live subscribers for mail/3b25b96e; message was recorded but cannot wake a reader
+$ bun ab/main.ts mail --stats
+exit: 0
+stdout: ticket	1 posts	1 topics	1 senders
+mail	3 posts	2 topics	1 senders
+wt	1 posts	1 topics	1 senders
+stderr: (empty)
+Cleanup: all owned Pi processes stopped; temporary state removed

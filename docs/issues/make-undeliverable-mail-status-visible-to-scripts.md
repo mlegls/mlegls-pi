@@ -11,3 +11,7 @@ In the second first-use drive of [[projects/mlegls-pi/issues/archive/address-the
 Consider a nonzero status for definitely undeliverable sends, or a structured delivery-status response. Preserve the distinction between recording a message and waking a reader: even a live subscriber snapshot cannot prove the next turn consumed a message. Meanwhile, inspect stderr as well as stdout when scripting `ab mail`.
 
 ticket contract, 2026-09-30: `ab mail` to a definitely unsubscribed address exits nonzero (or prints a structured delivery status on stdout), keeping the current warning, so a script capturing stdout doesn't see a success-looking id for an undeliverable steer. Keep the known false alarm for workers started before a daemon restart in mind: 'could not confirm a live subscriber' is not 'definitely undeliverable'.
+
+## Result
+
+[First-use CLI drive](../attachments/make-undeliverable-mail-status-visible-to-scripts/index.md): definitely absent and exited mailboxes returned exit 1 with the retained warning and recorded post; a live session with unknown subscription status retained exit 0 and its cautious warning; recognized live mailbox/worktree sends returned exit 0 without warnings. The packet separates recording/subscriber recognition from consumption and records setup friction.
