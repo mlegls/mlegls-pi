@@ -2,7 +2,8 @@
 
 Use `computer.run/step/walk` for goal-directed browser and desktop interaction.
 Use direct tools for inspection, setup, deterministic replay, debugging, or
-unsupported actions. When a browser CLI is needed, prefer `chrome-devtools-axi`.
+unsupported actions. For manual CLI interaction, use
+`chrome-devtools-axi` for browser pages and `cua-driver` for native windows.
 
 ## Browser CLI ownership and refs
 
@@ -31,6 +32,20 @@ On 0.1.35, an isolated static-page probe retained usable refs across screenshot,
 read-only eval and wait; plain-input fill replaced its value. Mutating another
 DOM node invalidated the ref as designed. These results do not establish
 controlled-input or highly dynamic application behavior. [Evidence](research/browser-cli-ownership-2026-09-26.md).
+
+## Manual native CLI
+
+Use [`cua-driver`](../skills/enabled/all/cua-driver/SKILL.md) for manual native interaction from bash. `ab computer` is the decision-model path; `cua-driver` is the observe-and-act path.
+
+```sh
+cua-driver list_windows '{"on_screen_only":true}'
+cua-driver get_window_state '{"pid":1234,"window_id":5678,"session":"native-1"}'
+# Use an element_token from that fresh state:
+cua-driver click '{"target":{"kind":"window","pid":1234,"window_id":5678},"element_token":"TOKEN","session":"native-1"}'
+cua-driver get_window_state '{"pid":1234,"window_id":5678,"session":"native-1"}'
+```
+
+Choose a worker-owned window. Carry its exact `pid` and `window_id` on observations, and use `target: {kind: "window", pid, window_id}` plus a fresh token for each action. Re-observe to verify; never fall back to desktop or frontmost input. On macOS, the CuaDriver app needs Accessibility and Screen Recording permission; `cua-driver permissions status` reports them.
 
 ## From bash
 
