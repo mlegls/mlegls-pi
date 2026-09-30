@@ -1,0 +1,41 @@
+$ bun ab/main.ts mail --stats
+exit 0
+stdout: (empty)
+stderr: (empty)
+CONFIRMED: empty isolated board
+$ bun ab/main.ts mail ticket/joined-acceptance/absent joined CLI acceptance
+exit 1
+stdout: ticket/joined-acceptance/absent muo8fgev-xhuu3e
+stderr: warning: no live subscribers for ticket/joined-acceptance/absent; message was recorded but cannot wake a reader
+CONFIRMED: absent mail recorded with definite-failure status
+CONFIRMED: Pi get_state readiness
+CONFIRMED: Pi returned sessionId
+Persona: unknown subscription state; sessionId: 01a0f2d4-c9ac-714e-b02a-0e2522eb9e1c
+$ bun ab/main.ts mail mail/22eb9e1c joined unknown-state probe
+exit 0
+stdout: mail/22eb9e1c muo8fgm9-4fnrs3
+stderr: warning: could not confirm a live subscriber for mail/22eb9e1c; message was recorded but may not be delivered
+CONFIRMED: unknown subscriptions warn without false failure
+Owned Pi stopped and awaited.
+CONFIRMED: Pi get_state readiness
+CONFIRMED: Pi returned sessionId
+Persona: recognized board subscriber; sessionId: 01a0f2d4-ca96-77e2-89d6-ba9e221e2a59
+$ bun ab/main.ts mail mail/221e2a59 joined live-mailbox probe
+exit 0
+stdout: mail/221e2a59 muo8fgtr-vj3ubl
+stderr: (empty)
+CONFIRMED: recognized live subscriber succeeds without warning
+Owned Pi stopped and awaited.
+$ bun ab/main.ts mail mail/221e2a59 joined stopped-mailbox probe
+exit 1
+stdout: mail/221e2a59 muo8fgu8-dstx5i
+stderr: warning: no live subscribers for mail/221e2a59; message was recorded but cannot wake a reader
+CONFIRMED: stopped subscriber fails but records the post
+$ bun ab/main.ts mail --stats
+exit 0
+stdout: ticket	1 posts	1 topics	1 senders
+mail	3 posts	2 topics	1 senders
+stderr: (empty)
+CONFIRMED: all four sends remain recorded
+Joined mail stories held; subscriber recognition is not consumption evidence.
+Cleanup: all owned Pi processes stopped; temporary mail state removed.

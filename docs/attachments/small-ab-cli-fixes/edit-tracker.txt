@@ -1,0 +1,97 @@
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/ab/main.ts read /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/.wm/tracker-scoped-drive/scoped-drive/docs/issues/mixed.md
+exit 0
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/.wm/tracker-scoped-drive/scoped-drive/docs/issues/mixed.md:
+1 uzgr│---
+2 uvnz│stage: ticket
+3 u6zz│assignee: agent
+4 uvc9│author: user:drive
+5 umjm│---
+6 uyu6│
+7 utnt│Selected A: [[projects/scoped-drive/issues/move-a]].
+8 utxy│Selected alias: [[projects/scoped-drive/issues/move-a|A]].
+9 uiev│Selected B: [[projects/scoped-drive/issues/move-b]].
+10 upt9│Old unrelated: [[projects/scoped-drive/issues/older]].
+11 u8jg│
+12 udz2│Another user is still writing this paragraph.
+13 uu9b│
+14 ucfu│Inline: `[[projects/scoped-drive/issues/move-a]]`.
+15 u5cj│Double: ``a ` marker [[projects/scoped-drive/issues/missing-double]]``.
+16 u3xm│
+17 uhh8│```markdown
+18 uqic│[[projects/scoped-drive/issues/move-a]]
+19 ugpk│[[projects/scoped-drive/issues/missing-fence]]
+20 u2hu│```
+
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/ab/main.ts edit
+exit 0
+.wm/tracker-scoped-drive/scoped-drive/docs/issues/mixed.md: 1 edit applied (20 → 20 lines).
+@@ 8-9 → 8-9 @@
+ uyu6│
+ utnt│Selected A: [[projects/scoped-drive/issues/move-a]].
+-Selected alias: [[projects/scoped-drive/issues/move-a|A]].
+-Selected B: [[projects/scoped-drive/issues/move-b]].
++uuup│| Selected table alias | [[projects/scoped-drive/issues/move-a\|A]] |
++uiev│Selected B: [[projects/scoped-drive/issues/move-b]].
+ upt9│Old unrelated: [[projects/scoped-drive/issues/older]].
+ u8jg│
+
+CONFIRMED: sigiled ab edit authored tracker link block
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/ab/main.ts edit
+exit 2
+ab: "=utxy =uiev": unknown anchors utxy; copy them from a fresh read of the intended range. Nothing was modified.
+
+CONFIRMED: reused anchors reject without writing
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/ab/main.ts read /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/.wm/joined-state/legacy.txt
+exit 0
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/.wm/joined-state/legacy.txt:
+1 7t7n│before
+2 7fhp│old one
+3 7vcv│old two
+4 7ata│old three
+5 77nu│after
+
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/ab/main.ts edit
+exit 0
+.wm/joined-state/legacy.txt: 1 edit applied (5 → 4 lines).
+@@ 2-4 → 2-3 @@
+ 7t7n│before
+-old one
+-old two
+-old three
++7q59│new first
++7dkx│new second
+ 77nu│after
+
+CONFIRMED: legacy block spelling remains accepted
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts check
+exit 1
+other-session: blocked-by older is done; remove it (check --fix)
+repair available (check --fix): issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/move-b]] -> [[projects/scoped-drive/issues/archive/move-b]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+
+CONFIRMED: read-only tracker checks live links but ignores missing code examples
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts check --fix docs/issues/archive/move-a.md /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/.wm/tracker-scoped-drive/scoped-drive/docs/issues/archive/move-b.md
+exit 1
+other-session: blocked-by older is done; remove it (check --fix without moved issue paths)
+issues/other-session.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+issues/mixed.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/move-b]] -> [[projects/scoped-drive/issues/archive/move-b]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+
+CONFIRMED: scoped repairs change only selected live targets, keep escaped alias, code and unrelated dirty blocker
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts check --fix
+exit 0
+fixed other-session: removed done blocked-by older
+fixed issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+ok
+
+CONFIRMED: unscoped fix clears unrelated live repairs/blockers but preserves code
+$ bun /Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes/skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts check
+exit 0
+ok
+
+CONFIRMED: final fixture check is clean
+Joined edit/tracker stories held.
