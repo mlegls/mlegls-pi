@@ -1,5 +1,7 @@
 ---
 stage: idea
+assignee: agent
+priority: 3
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
 ---
 

@@ -1,5 +1,7 @@
 ---
 stage: idea
+assignee: agent
+priority: 2
 author: session:01a0f0f1-30ca-77c1-8c28-86f09321af7d
 ---
 
@@ -13,3 +15,7 @@ A worker that dies on a provider error posts nothing to the board, and its paren
 The worker session file records the death (`stopReason: error`), but `wm.ts status` at 16:13 listed the dead worker as `done` beside workers that had reported, so process status alone does not distinguish a death from a report.
 
 Idea: whichever owner emits worker liveness to a parent (today `wm.ts status` and the board; `ab supervise` since) could post or wake on "worker session ended without a `done`/`blocked`/`needs-input` report". Related existing owner: [[projects/mlegls-pi/issues/archive/surface-stale-waits-after-owner-replies]] covers stale waits after replies, not deaths without a report.
+
+third case, 2026-09-30: the first [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]] worker died at 05:29Z on a provider `{"detail":"Bad Request"}` ([[projects/mlegls-pi/issues/computer-use-images-poison-worker-context]]). The pi process stayed alive and idle, so no child-exit fired and `ab supervise status` showed `implement` for about 6.5 h until the user asked why every child was idle. A steer mail revived it, and it died the same way within a minute; status again showed `implement`. The session file's mtime kept moving because `board-cursor` custom entries are appended after the death, so mtime is not a liveness signal either.
+
+Detection that would have caught all three: a worker session whose last `message` entry is an assistant turn with `stopReason: "error"`, followed only by `custom` entries for more than a few minutes, is a dead child and should produce exception mail. This is the same class of problem as [[projects/mlegls-pi/issues/worker-start-check-misses-long-first-turns]]: the loop reads a liveness signal that doesn't track the worker (the session `.jsonl` existing, or the pi process existing).
