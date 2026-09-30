@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/orchestration-audits]]"
@@ -40,3 +40,7 @@ Limits: "referenced later" is string-plus-prose judgment and overcounts easy fix
 ## Result
 
 First-use drive (2026-09-30): [verification packet](../attachments/review-output-acted-on/index.md). The driver found the durable answer, finding accounting and latency claims failing; the review pass rebuilt `## answer` with a per-finding ledger (23 findings, 22 scored) and corrected the range to 5–72 min. Packet has the review appended.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/review-output-acted-on/index.md).
