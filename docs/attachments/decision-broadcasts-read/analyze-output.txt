@@ -1,0 +1,40 @@
+decisions: 133  window 09-14T15:51..09-15T18:23
+peer pull evidence: 112 (84%);  peer push: 42 (32%);  both: 40;  neither: 19
+reached >=1 peer: 114 (86%);  >=3 peers: 62 (47%)
+reach distribution: {0: 19, 1: 33, 2: 19, 3: 5, 4: 3, 5: 12, 6: 11, 7: 7, 8: 6, 9: 4, 10: 6, 11: 3, 12: 3, 13: 2}
+conversation/spawn relays: 0;  quoted-in-send by non-sender: 1;  ack-msg per id: 0
+pull latency min: median 13.9  p10 0.8  p90 798.6
+push latency min: median 0.68
+per-topic rollup (decisions / reached / distinct readers):
+   26  26   3  concept/factor-finish/finish-materials
+   14  14  21  concept/factor-finish/materials
+   14   3   9  concept/factor-finish/finish-hub-remainder
+   13   5   6  concept/factor-finish/finish-private-hub
+   11  11  22  concept/factor-finish/browser-consolidation
+   11  11   1  concept/factor-finish/finish-materials-remainder
+    5   5  28  concept/factor-finish
+    4   4   7  concept/factor-finish/patch-safety-remainder
+    4   4  14  concept/factor-finish/hub-projection-repair
+    4   4  14  concept/factor-finish/stream-redaction-design
+neither-pull-nor-push decisions:
+  09-15T11:52 mu2m3sg6-4imklw concept/factor-finish/finish-private-hub (sender finish-private-hub)
+  09-15T12:07 mu2mn8lo-98i7gh concept/factor-finish/finish-private-hub (sender concept)
+  09-15T12:27 mu2ndi1i-z1qui8 concept/factor-finish/finish-private-hub (sender concept)
+  09-15T12:35 mu2nnpbz-5jdcua concept/factor-finish/finish-private-hub (sender concept)
+  09-15T13:14 mu2p0zzf-xfj2jp concept/factor-finish/finish-private-hub (sender concept)
+  09-15T13:25 mu2pf8yf-sysz37 concept/factor-finish/finish-private-hub (sender concept)
+  09-15T13:28 mu2pjf9n-ugvanc concept/factor-finish/finish-private-hub (sender concept)
+  09-15T13:37 mu2pudux-s579zz concept/factor-finish/finish-private-hub (sender concept)
+  09-15T14:09 mu2qzl0b-n2vh4a concept/factor-finish/finish-hub-remainder (sender finish-hub-remainder)
+  09-15T14:19 mu2rcwpt-nv1za9 concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T14:21 mu2rf47c-poeg57 concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T14:21 mu2rfdvz-ji970u concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T14:23 mu2ridtk-szc82g concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T14:35 mu2rxahp-onjs4z concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T15:15 mu2td20h-b466dn concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T15:21 mu2tkrrx-4pj7m1 concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T15:47 mu2uho9f-g2lt6p concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T15:50 mu2ulfcy-718xe2 concept/factor-finish/finish-hub-remainder (sender concept)
+  09-15T16:09 mu2vanxm-oo3aie concept/factor-finish/finish-hub-remainder (sender concept)
+
+exit_status=0

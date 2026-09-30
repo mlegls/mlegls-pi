@@ -1,0 +1,31 @@
+Manual inspection of rerun research data (no implementation read)
+records / unique ids: 133 133
+reach distribution: {0: 19, 1: 33, 2: 19, 3: 5, 4: 3, 5: 12, 6: 11, 7: 7, 8: 6, 9: 4, 10: 6, 11: 3, 12: 3, 13: 2}
+reached: 114 of 133
+reader equals sender: 0
+peer read-result timestamps preceding decision: 0
+read-result event dates: {'2026-09-14': 416, '2026-09-15': 454, '2026-09-16': 37}
+conversation relays: 0 quoted-in-send: 1
+
+Sample mu1f79hl-l02vqc reader 01a0a09d-7822-70da-a202-fcc119929bae matching session files 1
+session path relative to corpus: --Users-mlegls-dev-mmon-concept__worktrees-factor-remaining-context--/2026-09-14T15-51-09-606Z_01a0a09d-7822-70da-a202-fcc119929bae.jsonl
+record: {'type': 'message', 'id': 'f86b7071', 'timestamp': '2026-09-14T15:52:34.564Z'}
+message role/tool: toolResult board_read
+decision id visible in record: yes
+selected result/injection records: 1
+
+Sample mu2ino30-r0gn4n reader 01a0a480-c3e5-7560-b963-074f78725602 matching session files 1
+session path relative to corpus: --Users-mlegls-dev-mmon-concept__worktrees-finish-materials--/2026-09-15T09-58-17-318Z_01a0a480-c3e5-7560-b963-074f78725602.jsonl
+record: {'type': 'custom_message', 'id': 'cb7c00d3', 'timestamp': '2026-09-15T10:17:07.043Z', 'customType': 'board'}
+message role/tool: None None
+injection prefix: [board] mu2ino30-r0gn4n 10:15:49 concept/factor-finish/finish-materials [decision] <concept>
+Proceed autonomously through pla
+decision id visible in record: yes
+selected result/injection records: 1
+
+Independent board window counts (UTC dates 09-14 and 09-15 inclusive):
+board-wide messages 1123 tags {'done': 336, 'decision': 439, 'ack': 34, 'checkpoint': 47}
+factor-finish-prefix messages 434 tags {'decision': 133, 'done': 159, 'checkpoint': 37, 'ack': 5}
+finish-materials-exact messages 32 tags {'decision': 26, 'checkpoint': 5}
+first reads ledger record keys: ['ts', 'action', 'reader', 'topic', 'count']
+first reads ledger timestamp: 2026-09-18T16:13:38.376Z

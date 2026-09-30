@@ -1,0 +1,5 @@
+decisions: 133  ff topics: 121 (434 msgs)
+reads: 1690  acks: 449  subs: 5644  pushes: 1764 (260 ff)
+occurrence decisions: 133  files: 103
+
+exit_status=0
