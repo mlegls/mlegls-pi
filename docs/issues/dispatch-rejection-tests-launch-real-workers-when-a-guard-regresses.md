@@ -11,3 +11,7 @@ author: "session:01a0f08f-890e-7326-82fd-d04c698cf006"
 A rejection test shouldn't have launch as its failure mode: stub `wm.spawn` in that test (as `supervise.test.ts` mocks `route.ts`), or give dispatch a dry-run option the test uses.
 
 ticket contract, 2026-09-30: a rejection test can't launch a real worker when its guard stops rejecting: inject a launch stub or run the guard without the launch, so a regression fails the test and leaves nothing to clean up.
+
+## Result
+
+Driver packet: [dispatch rejection first-use drive](../attachments/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses/index.md). The supplied CLI passed nine tests twice, including the tracker-eligibility case, and the historical `probe` path remained absent. The safety claim under a guard regression is **unobservable** in this drive: no regression-control entry point was supplied. Review must establish that counterfactual; ordinary green tests alone do not establish it.
