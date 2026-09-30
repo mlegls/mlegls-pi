@@ -21,4 +21,4 @@ Existing checks: `ab check -- bun test lib/tracker-views.test.ts`; plugin build;
 
 ## Result
 
-[First-use driver evidence](../attachments/tracker-obsidian-views/index.md). Rendering, grouping, progress, collapse and pin persistence observed; native menu/preview/split operations and complete legacy-mode membership await reviewer verification.
+[First-use driver evidence](../attachments/tracker-obsidian-views/index.md). Rendering, grouping, progress, collapse and pin persistence observed. The review switched the context menu to Obsidian's link menu, confirmed that copy, preview and split work on all three surfaces and that each legacy mode lists the right issues, and fitted Board lanes to the pane.
