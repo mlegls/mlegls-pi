@@ -10,3 +10,5 @@ Owner: `mlegls-pi` supervision handoff, not the Application. The study feature-u
 Workaround: prepare the checkout-owned local deployment from project docs, report the adoption gap and independently exercise reachable operations. Proposed improvement: have the implementer supply the study drive's adopted official-Patch seed/operation readout and runnable entry point, or label the missing handoff as a deliberate setup task rather than passing `null`.
 
 Related: [[projects/mlegls-pi/issues/drive-handoff-names-the-implementers-worktree-ports]]. The Concept seed side is [[projects/concept/issues/seed-the-states-drives-keep-finding-empty]].
+
+Another encounter, 2026-09-30: the board fixture typecheck driver also received a literal `null` setup handoff. The ticket supplied the root typecheck command and README supplied `bun run setup`; the checkout-local, nonvisual journey completed without auth, seed or services. Workaround succeeded, but the setup had to be inferred. Evidence: [board drive packet](../attachments/root-board-store-fixture-typecheck/index.md). This is the same supervision handoff owner, not a board-store defect.

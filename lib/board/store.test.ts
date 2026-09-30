@@ -38,6 +38,8 @@ test("readFrom is incremental by byte offset", () => {
 	expect(readFrom(first.offset).messages.map((m) => m.body)).toEqual(["2"]);
 });
 
+// Replays the drive packet's omitted-sender reader check:
+// docs/attachments/root-board-store-fixture-typecheck/index.md.
 test("missing sender metadata is normalized; malformed records don't poison readers", () => {
 	const first = send({ topic: "t", tags: [], body: "first", from });
 	const { from: _, ...anonymous } = { ...first, id: "anonymous", body: "匿名" };
@@ -53,11 +55,13 @@ test("missing sender metadata is normalized; malformed records don't poison read
 	expect(readFrom(result.offset).messages).toEqual([last]);
 });
 
+// Replays the same packet's script-send check, including normalized readback.
 test("send normalizes omitted sender metadata from scripts and rejects malformed input", () => {
 	const input = { topic: "t", tags: [], body: "anonymous" };
-	expect(send(input as unknown as Parameters<typeof send>[0]).from).toEqual({});
+	const message = send(input as unknown as Parameters<typeof send>[0]);
+	expect(message.from).toEqual({});
 	expect(() => send({ ...input, tags: [1] } as unknown as Parameters<typeof send>[0])).toThrow("Invalid board message");
-	expect(readFrom(0).messages).toHaveLength(1);
+	expect(readFrom(0).messages).toEqual([{ ...message, ...input, from: {} }]);
 });
 
 test("topics summarises latest per topic", () => {
