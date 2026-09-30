@@ -1,0 +1,547 @@
+{
+  "capturedAt": "2026-09-30T14:12:50.889Z",
+  "issues": [
+    {
+      "slug": "dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses",
+          "claimedBy": "supervised implement by dispatch; dispatched dispatch (test-suite-hygiene, no commits yet)",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "run-glob-misses-base-topic-decisions",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "run-glob-misses-base-topic-decisions",
+          "claimedBy": "supervised drive by run-glob; dispatched run-glob (supervise-loop-reliability, +2); branch run-glob-misses-base-topic-decisions +2",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "run-glob-misses-base-topic-decisions",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "stopped-supervise-jobs-have-no-cleanup-path",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "stopped-supervise-jobs-have-no-cleanup-path",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": [
+        "supervisor-constraints-reach-workers-a-turn-late"
+      ]
+    },
+    {
+      "slug": "probe-conflicts-and-prepare-deps-around-integrate",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "probe-conflicts-and-prepare-deps-around-integrate",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": [
+        "stopped-supervise-jobs-have-no-cleanup-path"
+      ]
+    },
+    {
+      "slug": "small-ab-cli-fixes",
+      "ownStage": "spec",
+      "effectiveStage": "spec",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "tracker-check-fix-rewrites-other-sessions-dirty-files",
+          "claimedBy": "supervised implement by tracker-; dispatched tracker- (small-ab-cli-fixes, no commits yet)",
+          "derived": true
+        },
+        {
+          "slug": "make-undeliverable-mail-status-visible-to-scripts",
+          "claimedBy": "supervised drive by make-und; dispatched make-und (small-ab-cli-fixes, +1); branch make-undeliverable-mail-status-visible-to-scripts +1",
+          "derived": true
+        },
+        {
+          "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+          "claimedBy": "supervised drive by ab-edit-; dispatched ab-edit- (small-ab-cli-fixes, +1); branch ab-edit-block-replace-rejects-sigil-second-anchor +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "small-ab-cli-fixes",
+          "assignee": "agent"
+        },
+        {
+          "slug": "tracker-check-flags-inline-fixture-wikilinks",
+          "assignee": "agent"
+        },
+        {
+          "slug": "tracker-check-fix-rewrites-other-sessions-dirty-files",
+          "assignee": "agent"
+        },
+        {
+          "slug": "make-undeliverable-mail-status-visible-to-scripts",
+          "assignee": "agent"
+        },
+        {
+          "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "supervisor-constraints-reach-workers-a-turn-late",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "supervisor-constraints-reach-workers-a-turn-late",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": [
+        "worker-start-check-misses-long-first-turns"
+      ]
+    },
+    {
+      "slug": "worktree-tests-read-canonical-agent-roster",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "worktree-tests-read-canonical-agent-roster",
+          "claimedBy": "supervised drive by worktree; dispatched worktree (test-suite-hygiene, +1); branch worktree-tests-read-canonical-agent-roster +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "worktree-tests-read-canonical-agent-roster",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "tracker-check-flags-inline-fixture-wikilinks",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "tracker-check-flags-inline-fixture-wikilinks",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": [
+        "tracker-check-fix-rewrites-other-sessions-dirty-files"
+      ]
+    },
+    {
+      "slug": "tracker-check-fix-rewrites-other-sessions-dirty-files",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "tracker-check-fix-rewrites-other-sessions-dirty-files",
+          "claimedBy": "supervised implement by tracker-; dispatched tracker- (small-ab-cli-fixes, no commits yet)",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "tracker-check-fix-rewrites-other-sessions-dirty-files",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "computer-use-images-poison-worker-context",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "computer-use-images-poison-worker-context",
+          "claimedBy": "supervised implement by computer; dispatched computer (supervise-loop-reliability, no commits yet)",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "computer-use-images-poison-worker-context",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "make-undeliverable-mail-status-visible-to-scripts",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "make-undeliverable-mail-status-visible-to-scripts",
+          "claimedBy": "supervised drive by make-und; dispatched make-und (small-ab-cli-fixes, +1); branch make-undeliverable-mail-status-visible-to-scripts +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "make-undeliverable-mail-status-visible-to-scripts",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "loop-vs-supervision-tree",
+      "ownStage": "spec",
+      "effectiveStage": "spec",
+      "ready": true,
+      "eligible": false,
+      "frontier": false,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "loop-vs-supervision-tree",
+          "assignee": "human"
+        },
+        {
+          "slug": "supervisor-hibernation",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "worker-start-check-misses-long-first-turns",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "worker-start-check-misses-long-first-turns",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": [
+        "parent-waits-on-worker-that-died-without-a-report"
+      ]
+    },
+    {
+      "slug": "trial-collected-evidence-and-visual-acceptance",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "trial-collected-evidence-and-visual-acceptance",
+          "claimedBy": "supervised implement by trial-co; dispatched trial-co (trial-collected-evidence-and-visual-acceptance, +1); branch trial-collected-evidence-and-visual-acceptance +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "trial-collected-evidence-and-visual-acceptance",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "supervise-as-exception-handler",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "supervise-as-exception-handler",
+          "claimedBy": "supervised implement by supervis; dispatched supervis (scripted-supervision-loop, +1); branch supervise-as-exception-handler +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "supervise-as-exception-handler",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander",
+          "claimedBy": "supervised drive by bun-test; dispatched bun-test (test-suite-hygiene, +1); branch bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "parent-waits-on-worker-that-died-without-a-report",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "parent-waits-on-worker-that-died-without-a-report",
+          "claimedBy": "supervised implement by parent-w; dispatched parent-w (supervise-loop-reliability, no commits yet)",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "parent-waits-on-worker-that-died-without-a-report",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "root-bun-test-selects-unprepared-optional-dsh",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "root-bun-test-selects-unprepared-optional-dsh",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": [
+        "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander"
+      ]
+    },
+    {
+      "slug": "supervisor-hibernation",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": true,
+      "claims": [],
+      "selectors": [
+        {
+          "slug": "supervisor-hibernation",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "supervise-loop-reliability",
+      "ownStage": "spec",
+      "effectiveStage": "spec",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "run-glob-misses-base-topic-decisions",
+          "claimedBy": "supervised drive by run-glob; dispatched run-glob (supervise-loop-reliability, +2); branch run-glob-misses-base-topic-decisions +2",
+          "derived": true
+        },
+        {
+          "slug": "computer-use-images-poison-worker-context",
+          "claimedBy": "supervised implement by computer; dispatched computer (supervise-loop-reliability, no commits yet)",
+          "derived": true
+        },
+        {
+          "slug": "parent-waits-on-worker-that-died-without-a-report",
+          "claimedBy": "supervised implement by parent-w; dispatched parent-w (supervise-loop-reliability, no commits yet)",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "supervise-loop-reliability",
+          "assignee": "agent"
+        },
+        {
+          "slug": "run-glob-misses-base-topic-decisions",
+          "assignee": "agent"
+        },
+        {
+          "slug": "stopped-supervise-jobs-have-no-cleanup-path",
+          "assignee": "agent"
+        },
+        {
+          "slug": "probe-conflicts-and-prepare-deps-around-integrate",
+          "assignee": "agent"
+        },
+        {
+          "slug": "supervisor-constraints-reach-workers-a-turn-late",
+          "assignee": "agent"
+        },
+        {
+          "slug": "computer-use-images-poison-worker-context",
+          "assignee": "agent"
+        },
+        {
+          "slug": "worker-start-check-misses-long-first-turns",
+          "assignee": "agent"
+        },
+        {
+          "slug": "parent-waits-on-worker-that-died-without-a-report",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "ownStage": "ticket",
+      "effectiveStage": "ticket",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+          "claimedBy": "supervised drive by ab-edit-; dispatched ab-edit- (small-ab-cli-fixes, +1); branch ab-edit-block-replace-rejects-sigil-second-anchor +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "slug": "test-suite-hygiene",
+      "ownStage": "spec",
+      "effectiveStage": "spec",
+      "ready": true,
+      "eligible": true,
+      "frontier": false,
+      "claims": [
+        {
+          "slug": "dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses",
+          "claimedBy": "supervised implement by dispatch; dispatched dispatch (test-suite-hygiene, no commits yet)",
+          "derived": true
+        },
+        {
+          "slug": "worktree-tests-read-canonical-agent-roster",
+          "claimedBy": "supervised drive by worktree; dispatched worktree (test-suite-hygiene, +1); branch worktree-tests-read-canonical-agent-roster +1",
+          "derived": true
+        },
+        {
+          "slug": "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander",
+          "claimedBy": "supervised drive by bun-test; dispatched bun-test (test-suite-hygiene, +1); branch bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander +1",
+          "derived": true
+        }
+      ],
+      "selectors": [
+        {
+          "slug": "test-suite-hygiene",
+          "assignee": "agent"
+        },
+        {
+          "slug": "dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses",
+          "assignee": "agent"
+        },
+        {
+          "slug": "worktree-tests-read-canonical-agent-roster",
+          "assignee": "agent"
+        },
+        {
+          "slug": "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander",
+          "assignee": "agent"
+        },
+        {
+          "slug": "root-bun-test-selects-unprepared-optional-dsh",
+          "assignee": "agent"
+        }
+      ],
+      "blockers": []
+    }
+  ]
+}

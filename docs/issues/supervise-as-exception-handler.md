@@ -11,4 +11,7 @@ The interactive root is the same plus a ledger of open human questions, and stat
 
 first use: run a real campaign root on GLM 5.3 Flash; compare owner wakes, coordination cost and human-facing messages with [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]].
 
-2026-09-23: skill and stance rewritten; the loop ignores a child supervisor's status-free turn ends. Waiting on the real-campaign first use.
+Implementation: the skill, stance, pipeline role and CLI help describe an exception-only owner. The loop retains responsibility for drive/review and joins. Supervisor model defaults remain unchanged until the GLM trial supplies evidence. [Preparation and existing regression results](../attachments/supervise-as-exception-handler/index.md).
+
+holes:
+- Which unclaimed campaign should provide the GLM 5.3 Flash/high root first use? The local frontier is empty; existing agent-ready roots have live children. Recommendation: the next newly shaped campaign after this rewrite is integrated, without taking over an active owner's work. This blocks the first-use comparison and completion; asked in the implementation handoff.
