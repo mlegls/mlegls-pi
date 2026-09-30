@@ -86,7 +86,7 @@ Keep the current collector operating point until small-defects settles. The name
 
 Trial overhead itself had one avoidable decision loop: restart coordination preceded checking the already-running daemon's start time. A second `needs-input` report repeated the same pending question while the supervisor's first answer was already queued. Four worker boundary requests plus repeated owner clarification bought no new runtime capability. Check process/code freshness first next time. No duplicate product worker was launched and no shared target was killed.
 
-The supplemental judgment notice was sent on stdin to `ab mail` with an unsupported `--topic` argument. Only the flag text reached the observer, so another supervisor forwarded the result ten minutes later. This was malformed CLI use with no body preview, not a dropped correct message. Owner: [[projects/mlegls-pi/issues/ab-mail-ignores-stdin-body]].
+The supplemental judgment notice combined stdin with an unsupported `--topic` argument. That argument was treated as TEXT, which takes precedence over stdin; another supervisor forwarded the actual notice ten minutes later. Stdin itself is documented and works when no TEXT arguments are supplied. The friction is unsupported flag-like syntax becoming message text without warning, not lost stdin support or a dropped correct message. Owner: [[projects/mlegls-pi/issues/ab-mail-treats-unsupported-flags-as-body-text]].
 
 ## Remaining measurements
 
