@@ -1,0 +1,14 @@
+bun test v1.4.2 (744846f84)
+
+lib/tracker-views.test.ts:
+(pass) ready siblings survive a parent's shaping residual; own and subtree differ [1.02ms]
+(pass) compound constraints, omission, blockers, claims, deferred and done stay distinct [0.29ms]
+(pass) scope scheduling ignores internal edges, rejects cycles and preserves own mine filters [0.24ms]
+{"issues":1194,"frontier":15,"mine":22,"done":289,"legacy":1,"invalid":[]}
+(pass) current vault model loads [172.74ms]
+(pass) CLI snapshot parity against selected project vault [391.06ms]
+
+ 5 pass
+ 0 fail
+ 1751 expect() calls
+Ran 5 tests across 1 file. [588.00ms]

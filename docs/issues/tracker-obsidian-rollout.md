@@ -22,3 +22,7 @@ Done: live tree/board/network work; frontier/mine/done retain CLI semantics; obs
 Live `~/obsidian/projects/Tracker.base` renders Tree, Board and Network with stable canonical plugin deployment; Datacore is disabled and no remaining render consumers were found. Saved Base configuration survived, and repeated prepare/rollback worked. [Implementation first use and external edits](../attachments/tracker-obsidian-rollout/index.md); [reproduction](../../extensions/obsidian-tracker/LIVE.md).
 
 resolved, 2026-09-30: the supervisor ruled that Obsidian remains a pure frontmatter read surface. Frontier represents metadata readiness; runtime/inflight claims remain a CLI dispatch concern. Existing snapshot/frontier/mine/done assertions now run the CLI with `TRACKER_NO_INFLIGHT=1`; the live suite passes all five tests. The renderer is unchanged. [[projects/mlegls-pi/issues/archive/tracker-parity-compares-derived-claims-with-frontmatter-only]] records the ruling.
+
+## Independent drive result
+
+[First-use packet](../attachments/tracker-obsidian-rollout/drive/index.md): live views/navigation, saved collapse/options, filtered full-vault rollup and metadata parity held. Fresh-profile startup omitted plugin trust; pin persistence remained unobservable because native drag did not create a pin. Rollback refused newer workspace state as documented; full restoration was not exercised. Owned instance stopped and exclusively created regular live window closed.
