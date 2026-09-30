@@ -1,6 +1,7 @@
-import { basename, dirname } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { compileQuery } from "./query";
 import { mailbox } from "./mailbox";
+import { boardDir } from "./store";
 import { readLive, type BoardSubscription } from "../session-meta/live";
 import { scopes } from "./scopes";
 
@@ -23,6 +24,8 @@ export function subscriberStatus(destination: string): SubscriberStatus {
 	const scopeRepo = /^(?:wt|ticket)\/([^/]+)\//.exec(topic)?.[1];
 	let unknown = false;
 	for (const session of readLive()) {
+		if (!session.boardDir) { unknown = true; continue; }
+		if (session.boardDir !== resolve(boardDir())) continue;
 		if (session.subscriptions !== undefined) {
 			if (session.subscriptions.some(subscription => subscription.wake && matches(topic, subscription))) return "live";
 			continue;

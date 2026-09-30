@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { scopes } from "./scopes";
 
 // Replays the driver's absent/live/exited CLI sends and its reviewer-ticket steer.
-test("mail CLI warns on undeliverable topics and accepts the waiting review worker's ticket", () => {
+test("mail CLI warns on undeliverable topics and accepts the waiting review worker's ticket", async () => {
  const root = mkdtempSync(join(tmpdir(), "mail-drive-"));
  const priorState = process.env.XDG_STATE_HOME;
  const repo = join(root, "sample");
@@ -48,9 +48,9 @@ test("mail CLI warns on undeliverable topics and accepts the waiting review work
   // Earlier sessions cannot expose subscriptions: the CLI must not imply delivery.
   writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", since: new Date().toISOString() }));
   expect(mail("ticket/sample/absent-review-1").err).toContain("could not confirm a live subscriber");
-  writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", since: new Date().toISOString(), subscriptions: [{ topic: ticket, wake: false }] }));
+  writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", boardDir: join(data, "pi-board"), since: new Date().toISOString(), subscriptions: [{ topic: ticket, wake: false }] }));
   expect(String(mail(ticket).err)).toContain("warning: no live subscribers");
-  writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", since: new Date().toISOString(), subscriptions: [
+  writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", boardDir: join(data, "pi-board"), since: new Date().toISOString(), subscriptions: [
    { topic: "mail/abcd1234", wake: true }, ...scopes(review, {}).map(topic => ({ topic, wake: true }))
   ] }));
   for (const destination of ["mail/abcd1234", "wt/sample/feature-review-1", ticket]) {
@@ -59,12 +59,59 @@ test("mail CLI warns on undeliverable topics and accepts the waiting review work
    expect(result.out).toContain(destination);
    expect(result.err).toBe("");
   }
+  // Replay the driver's isolation preflight: a worker in a different board store
+  // must not be reported as a reader of this store even with a matching topic.
+  writeFileSync(record, JSON.stringify({ pid: process.pid, sessionId, cwd: review, state: "idle", boardDir: join(root, "other-board"), since: new Date().toISOString(), subscriptions: [
+   { topic: "mail/abcd1234", wake: true }, { topic: ticket, wake: true }
+  ] }));
+  expect(mail(ticket).err).toContain("warning: no live subscribers");
+  expect(mail("mail/abcd1234").err).toContain("warning: no live subscribers");
   expect(readFileSync(join(data, "pi-board/log.jsonl"), "utf8")).toContain('"topic":"' + ticket + '"');
   rmSync(record);
   expect(String(mail("mail/abcd1234").err)).toContain("warning: no live subscribers");
+  // Driver check 3: the review worktree really starts a turn with the ticket steer,
+  // not merely a successful post or a matching live-record fixture.
+  const pi = Bun.spawn(["pi", "--mode", "rpc", "--no-context-files", "--no-skills", "--no-extensions",
+   "-e", resolve("lib/board/host.ts"), "-e", resolve("lib/session-meta/host.ts"),
+   "--session-dir", join(root, "sessions")], {
+   cwd: review, env: { ...env, PI_OFFLINE: "1", PI_BOARD_TOPIC: "", PI_WM_PARENT_SESSION: "", PI_WM_RUN: "", PI_SESSION_ID: "" },
+   stdin: "pipe", stdout: "pipe", stderr: "pipe",
+  });
+  let rpcText = "";
+  const output = (async () => { for await (const chunk of pi.stdout) rpcText += Buffer.from(chunk).toString(); })();
+  try {
+   const live = join(state, "pi-live", pi.pid + ".json");
+   let ready = false;
+   for (let i = 0; i < 160; i++) {
+    if (existsSync(live)) {
+     const record = JSON.parse(readFileSync(live, "utf8"));
+     if (record.subscriptions?.some((s: { topic: string; wake: boolean }) => s.topic === ticket && s.wake)) { ready = true; break; }
+    }
+    await Bun.sleep(50);
+   }
+   expect(ready).toBe(true);
+   const result = mail(ticket);
+   expect(result.err).toBe("");
+   const id = result.out.trim().split(" ").at(-1)!;
+   let received = false;
+   for (let i = 0; i < 160; i++) {
+    const reads = join(data, "pi-board/reads.jsonl");
+    if (existsSync(reads) && readFileSync(reads, "utf8").split("\n").some(line => line.includes('"action":"ack"') && line.includes(id) && line.includes(review))) { received = true; break; }
+    await Bun.sleep(50);
+   }
+   expect(received).toBe(true);
+   for (let i = 0; i < 80 && !(rpcText.includes('"display":true') && rpcText.includes('owner steer') && rpcText.includes('"type":"turn_start"')); i++) await Bun.sleep(50);
+   expect(rpcText).toContain('owner steer');
+   expect(rpcText).toContain('"display":true');
+   expect(rpcText).toContain('"type":"turn_start"');
+  } finally {
+   pi.kill();
+   await pi.exited;
+   await output;
+  }
  } finally {
   if (priorState === undefined) delete process.env.XDG_STATE_HOME;
   else process.env.XDG_STATE_HOME = priorState;
   rmSync(root, { recursive: true, force: true });
  }
-});
+}, 20_000);

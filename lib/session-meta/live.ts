@@ -5,7 +5,8 @@
 
 import { mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { boardDir } from "../board/store";
 
 export interface BoardSubscription {
 	topic: string;
@@ -24,6 +25,8 @@ export interface Live {
 	tmuxPane?: string;
 	mode?: "tui" | "rpc" | "json" | "print";
 	subscriptions?: BoardSubscription[];
+	/** Store whose board host registered these subscriptions. */
+	boardDir?: string;
 }
 
 export function liveDir(): string {
@@ -39,7 +42,7 @@ export function writeLive(record: Live): void {
 		// Session-meta state writes preserve the board host's last subscription snapshot.
 		try {
 			const previous = JSON.parse(readFileSync(path, "utf8")) as Live;
-			if (previous.subscriptions) next = { ...record, subscriptions: previous.subscriptions };
+			if (previous.subscriptions) next = { ...record, subscriptions: previous.subscriptions, boardDir: previous.boardDir };
 		} catch {}
 	}
 	writeFileSync(path + ".tmp", JSON.stringify(next));
@@ -58,6 +61,7 @@ export function writeLiveSubscriptions(sessionId: string, cwd: string, subscript
 		state: previous.state ?? "idle",
 		since: previous.since ?? new Date().toISOString(),
 		subscriptions,
+		boardDir: resolve(boardDir()),
 	});
 }
 
