@@ -1,5 +1,8 @@
 # Supervisor hibernation C: first-use packet
 
+## Independent replay
+
+The independent driver at `fea1ca7` reached the Pi RPC surface but both fresh runs canceled the prerequisite H fold before selecting C. The C hibernation and wake are **unobservable in that replay**, not verified by the earlier implementer encounter below. [Predictions, session log, outcomes and replay checks](driver.md); [selected durable metadata](driver-results.json). Setup friction: [[projects/mlegls-pi/issues/empty-journal-drive-cancels-before-c-selector]].
 ## Setup
 
 The driver `drive.ts` prepares a disposable local project, fake live-child job, ledger and issue, then starts this checkout's `extensions/memory/index.ts` through the installed Pi CLI's public JSON-RPC session surface. It does not start a daemon, container, remote deployment or browser. It writes session data and private RPC transcripts only below a newly created system temp directory; the script prints that path and leaves it for inspection. No credentials are written by the driver.

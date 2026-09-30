@@ -1,0 +1,27 @@
+{
+  "revision": "fea1ca7",
+  "surface": "Pi public JSON-RPC via committed launch recipe",
+  "visual": false,
+  "attempts": [
+    {
+      "target": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervisor-hibernation-empty-journal-hFMasi",
+      "session": "01a0f2cc-f6c2-7664-a038-a1e48c537165",
+      "completedAgentTurns": 3,
+      "exitCode": 1,
+      "error": "Compaction cancelled",
+      "persistedCompactions": 0,
+      "checkpointAttempts": [{"trigger": "compact", "stopReason": "stop", "outputTokens": 383}],
+      "resultFilePresent": false
+    },
+    {
+      "target": "/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervisor-hibernation-empty-journal-MXv4CF",
+      "session": "01a0f2cd-aba2-754a-9e12-75390a1bf45c",
+      "completedAgentTurns": 3,
+      "exitCode": 1,
+      "error": "Compaction cancelled",
+      "persistedCompactions": 0,
+      "checkpointAttempts": [{"trigger": "compact", "stopReason": "stop", "outputTokens": 469}],
+      "resultFilePresent": false
+    }
+  ]
+}
