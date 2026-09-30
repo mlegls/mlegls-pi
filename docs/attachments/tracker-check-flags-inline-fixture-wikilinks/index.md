@@ -67,3 +67,7 @@ cd "$STATE/tracker-inline-drive"
 ## Cleanup and limits
 
 No browser, server or external process was started. Disposable fixture state was removed after the drive. Evidence is CLI-only: `visual: false`, `shots: []`. The screenshots already in the rollout packet were not part of this drive; no rendered UI claim was made. No implementation, diff, test contents or implementer fixture contents were read.
+
+## Review
+
+Read the diff with the log. Code masking, live-link diagnostics and the rollout un-escape hold as recorded. One defect in the position-based rewrite: repairing a moved link written as a table alias, `[[x\|alias]]`, dropped the backslash (`[[archive/x|alias]]`), which splits the table cell; the pre-change `--fix` preserved it. Repaired in `issues.ts` (the suffix keeps the escape) and replayed with a scratch vault holding an escaped alias, a plain alias, an anchor and a slug-anchor link: all four repairs now match the pre-change output. Retained as the unit test "check --fix keeps the escaped pipe of a table alias…" in `tracker/scripts/issues.test.ts`. Suite: 20 pass, 0 fail. The driver's seven checks stay as evidence; the code-example behavior is already covered by the driver's test.

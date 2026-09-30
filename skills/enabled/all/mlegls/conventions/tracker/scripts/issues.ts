@@ -412,7 +412,7 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
         if (repair && !canFixTarget(movedTo)) {
           if (first) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): [[${target}]] -> [[${alt}]]`);
         } else {
-          fixes.set(m.index!, { end, replacement: `[[${alt}${m[0].slice(2 + m[1].length)}`, message: `${rel}: [[${target}]] -> [[${alt}]]` });
+          fixes.set(m.index!, { end, replacement: `[[${alt}${m[1].endsWith("\\") ? "\\" : ""}${m[0].slice(2 + m[1].length)}`, message: `${rel}: [[${target}]] -> [[${alt}]]` });
         }
       }
       else if (!to) {

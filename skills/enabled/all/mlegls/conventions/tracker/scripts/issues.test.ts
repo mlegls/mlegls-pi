@@ -87,6 +87,17 @@ test("check ignores wikilinks in inline and fenced code, including when fixing o
   rmSync(moved);
 });
 
+test("check --fix keeps the escaped pipe of a table alias when repairing a moved link", () => {
+  const evidence = join(cwd, "docs/table-links.md");
+  const moved = join(issues, "archive/gone.md");
+  writeFileSync(moved, frontmatter("stage: done"));
+  writeFileSync(evidence, "| a |\n|---|\n| [[projects/fixture/issues/gone\\|alias]] [[projects/fixture/issues/gone|plain]] |\n");
+  run("check --fix");
+  expect(readFileSync(evidence, "utf8")).toBe("| a |\n|---|\n| [[projects/fixture/issues/archive/gone\\|alias]] [[projects/fixture/issues/archive/gone|plain]] |\n");
+  rmSync(evidence);
+  rmSync(moved);
+});
+
 // Replays the first-use drive of tracker-check-fix-rewrites-other-sessions-dirty-files (checks 2 and 5):
 // archiving must not rewrite another session's dirty files for unrelated targets.
 test("check --fix <moved paths> repairs only links and blockers targeting the moved issues", () => {
