@@ -78,3 +78,14 @@ A fresh exact-window snapshot supplied close-button token `s0000000b:2`. Backgro
 - [03-edited.png](03-edited.png): same live exact window after background token-targeted insertion. New and original text both readable; title partially clipped in the capture. No geometry/layout claim is made.
 
 State files retain only target metadata and AXWindow/AXTextArea rows; application-menu rows are omitted to avoid collecting unrelated recent-document data. Images were opened and visually checked. This is a single native first-use smoke, not an Electron compatibility or broad concurrency audit.
+
+## Review (2026-09-30)
+
+Read the driver's log against the diff. Nothing in the driver's outcomes was contradicted; no behavior changed, so no re-drive and the two shots stand (state unchanged).
+
+- **Repair:** `agents/roles/review.md` had the new native-UI rule glued onto the opening paragraph without a blank line; it is now its own paragraph.
+- **Tests:** [`lib/native-manual-path.test.ts`](../../../lib/native-manual-path.test.ts) replays checks 4 and 5 as unit-level contract tests (no live UI): both role files name all four forbidden operations, `cua-driver` and "stop and report"; `docs/computer.md` names `cua-driver` beside `chrome-devtools-axi`, the `get_window_state` recipe, `permissions status`, and links a skill file that exists. Checks 1–3 and 6 need a live worker-owned native window and stay manual replays above; encoding them as a suite would drive the shared CuaDriver daemon and a real app.
+- **Verified:** `cua-driver` 0.30.4 `permissions status` still reports Accessibility and Screen Recording granted.
+- **Limit:** the ticket's "refused or at least forbidden" is met by the forbidden half (role policy); no runtime refusal of System Events exists. Not filed as an issue: the ticket already scopes it that way.
+- **Friction sorted:** TextEdit restored documents → already filed as its own idea issue, outside this ticket. `cua-driver --help` not listing tool aliases → upstream observation, docs use aliases that worked; no action here.
+- **Skill copy:** `skills/enabled/all/cua-driver/` is an unchanged upstream copy pinned by `UPSTREAM.md`; not reviewed line by line.
