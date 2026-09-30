@@ -23,15 +23,17 @@ export function subscriberStatus(destination: string): SubscriberStatus {
 	const scopeRepo = /^(?:wt|ticket)\/([^/]+)\//.exec(topic)?.[1];
 	let unknown = false;
 	for (const session of readLive()) {
-		if (mailbox(session.sessionId) === topic) return "live";
-		if (session.subscriptions?.some(subscription => subscription.wake && matches(topic, subscription))) return "live";
-		if (session.subscriptions === undefined) {
-			// Older live records have no snapshot; infer the default worktree scope when possible.
-			if (scopeRepo && (basename(session.cwd) === scopeRepo || basename(dirname(session.cwd)) === scopeRepo + "__worktrees")) {
-				try { if (scopes(session.cwd, {}).includes(topic)) return "live"; } catch {}
-			}
-			unknown = true;
+		if (session.subscriptions !== undefined) {
+			if (session.subscriptions.some(subscription => subscription.wake && matches(topic, subscription))) return "live";
+			continue;
 		}
+		// Older live records predate snapshots; every session still has its default mailbox and scopes.
+		if (mailbox(session.sessionId) === topic) return "live";
+		if (scopeRepo && (basename(session.cwd) === scopeRepo || basename(dirname(session.cwd)) === scopeRepo + "__worktrees")) {
+			try { if (scopes(session.cwd, {}).includes(topic)) return "live"; } catch {}
+		}
+		unknown = true;
+	}
 	}
 	return unknown ? "unknown" : "none";
 }
