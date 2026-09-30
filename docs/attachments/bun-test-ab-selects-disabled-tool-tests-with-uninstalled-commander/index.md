@@ -26,16 +26,29 @@ These predictions come from the ticket and README only; no implementation, tests
 1. Ran `bun run setup`. Exit 0; all four installs reported no changes. [Setup output](setup.log). The checkout was ready before the first story command.
 2. Ran `ab check -- bun test ab`. Exit 0, 50 pass / 0 fail, 10 files, 53.53 seconds. [Complete CLI output](bun-test-ab.log). The runner listed active `ab/` tests and other substring matches, but no `skills/disabled/` test. Prediction 1 **met**.
 3. Ran `ab check -- bun test ab lib/resources`. Exit 0, 57 pass / 0 fail, 11 files, 55.94 seconds. [Complete CLI output](bun-test-ab-resources.log). Active `lib/resources/` and `ab/` test files remained selected; no `skills/disabled/` test appeared. Prediction 2 **met**.
-4. Started `ab check -- bun test` to drive full discovery. Completion pending. [CLI output](bun-test-all.log).
+4. Ran `ab check -- bun test`. Exit 1: 352 pass, 4 skip, 6 fail, 4 errors across 83 files in 117.10 seconds (the wrapper returned after about 151 seconds). [Complete CLI output](bun-test-all.log). No selected file was under `skills/disabled/`, and no `commander` import failure appeared. Prediction 3 **met** for disabled-skill discovery; the full suite was **not green**.
+5. Replayed all five failing files via `ab check -- bun test ./dsh/overlay.test.ts ./dsh/session-patch.test.ts ./dsh/board/index.test.ts ./dsh/skim/index.test.ts ./analysis/orchestration-audits/joined-answer.test.ts`. Exit 1: 0 pass, 6 fail, 4 errors; the same errors reproduced. [Failure replay](failures-rerun.log). Missing `dsh/node_modules/.bin/dsh`, `@deepseek-ai/dsh-session`, and `@deepseek-ai/dsh-tools` are already owned by [optional dsh setup/discovery](../../issues/root-bun-test-selects-unprepared-optional-dsh.md). The missing `docs/issues/orchestration-audits.md` report is filed as [prearchive verification path](../../issues/orchestration-audits-test-reads-prearchive-report-path.md). No failures were dismissed as flakes or repaired.
+
+### Required outcomes
+
+| Story | Outcome | Evidence |
+| --- | --- | --- |
+| `bun test ab` excludes disabled skills | held | [50 pass, 0 fail](bun-test-ab.log) |
+| `bun test ab lib/resources` excludes disabled skills | held | [57 pass, 0 fail](bun-test-ab-resources.log) |
+| `bun test` excludes disabled skills | held | [Full discovery output](bun-test-all.log); other failures described above |
+
+[Discovery summary](discovery-summary.log) counts the emitted test-file headers: 10, 11 and 83 respectively, with zero `skills/disabled/` paths and zero “Cannot find module/package 'commander'” errors. A plain text search for `commander` is misleading because the owned worktree name itself contains that word.
 
 ## Expectations formed during use
 
 - `ab` still means substring matching, not “only the ab directory”: **met**, consistent with the ticket. The first command also selected extension tests and the enabled tracker tests. Disabled extensions are not disabled skills and are outside this exclusion promise.
-- A normal affected-suite invocation should not require installing watch-pr's optional dependencies or spelling explicit test files: **met** for `bun test ab`.
+- A normal affected-suite invocation should not require installing watch-pr's optional dependencies or spelling explicit test files: **met** for both filtered commands.
+- The README's root setup should make a root test command runnable without missing-package/report errors: **not met**. Disabled-skill discovery still held, but the full suite reported optional dsh dependencies and a prearchive report path missing.
 
 ## Frictions
 
 - Bare `ab` still selects 10 files across several directories and takes about 54 seconds. The ticket explains why, but the command is still easy to misread as directory-scoped. This is not a failure of the requested disabled-skill exclusion.
+- Root `bun test` remains unsuitable as a green-baseline signal in this checkout after the documented setup. The two owners and replay evidence above distinguish that friction from this ticket's claim.
 
 ## Replayable checks
 
@@ -44,7 +57,13 @@ From the owned checkout, run `bun run setup`, then each of `ab check -- bun test
 - For each command, accept only if the listed test-file paths contain no `skills/disabled/` path and no disabled-watch-pr `commander` import failure. Do not merely inspect the total exit status.
 - Ensure discovery still lists active `ab/` test files, not an empty selection. For the combined command also expect `lib/resources/` test files.
 - Preserve any full-suite failure separately with its named file and rerun outcome; it must not be mistaken for proof of disabled-skill selection.
+- Replay the five named files using the exact command in step 5. Current observed failure: missing optional dsh executable/packages and missing prearchive report. A future repair should eliminate those missing-input errors and allow each intended check to execute; merely reducing discovered tests does not establish those checks passed.
 
 ## Cleanup
 
-No services, browsers, containers, tunnels or remote deployments started. CLI commands must finish before handoff. Evidence is nonvisual; screenshots are not applicable.
+All CLI commands finished. No services, browsers, containers, tunnels or remote deployments started. Evidence is nonvisual; screenshots are not applicable.
+
+## Limits
+
+- This is not a fully blind drive: the mandatory initial peer-board read exposed the implementer's filtered-suite pass counts before predictions were written. Predictions themselves use only the ticket and README. Existing owner: [driver board read leaks conclusions](../../issues/driver-board-read-leaks-implementer-conclusions.md).
+- The log establishes actual discovery for the three required commands on Bun 1.4.2, not other runners or explicit-file overrides.

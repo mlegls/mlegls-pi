@@ -1,0 +1,76 @@
+check 1dde5c17-82be-43cd-83e6-15c6dc3a8899 (running); log /Users/mlegls/.local/state/ab/executions/1dde5c17-82be-43cd-83e6-15c6dc3a8899.log
+bun test v1.4.2 (744846f84)
+
+dsh/overlay.test.ts:
+ 6 | for (const profile of ['headless', 'web']) test(`combined ${profile} overlay mounts each capability once`, () => {
+ 7 |   const root = resolve(import.meta.dir);
+ 8 |   mkdirSync(join(root, '.local'), { recursive: true });
+ 9 |   const home = mkdtempSync(join(root, '.local/overlay-test-'));
+10 |   try {
+11 |     const proc = Bun.spawnSync([join(root, 'node_modules/.bin/dsh'), '--profile', profile,
+                          ^
+error: ENOENT: no such file or directory, posix_spawn '/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/dsh/node_modules/.bin/dsh'
+      at <anonymous> (/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/dsh/overlay.test.ts:11:22)
+(fail) combined headless overlay mounts each capability once [0.84ms]
+ 6 | for (const profile of ['headless', 'web']) test(`combined ${profile} overlay mounts each capability once`, () => {
+ 7 |   const root = resolve(import.meta.dir);
+ 8 |   mkdirSync(join(root, '.local'), { recursive: true });
+ 9 |   const home = mkdtempSync(join(root, '.local/overlay-test-'));
+10 |   try {
+11 |     const proc = Bun.spawnSync([join(root, 'node_modules/.bin/dsh'), '--profile', profile,
+                          ^
+error: ENOENT: no such file or directory, posix_spawn '/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/dsh/node_modules/.bin/dsh'
+      at <anonymous> (/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/dsh/overlay.test.ts:11:22)
+(fail) combined web overlay mounts each capability once [0.19ms]
+
+dsh/session-patch.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@deepseek-ai/dsh-session' from '/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/dsh/session-patch.test.ts'
+-------------------------------
+
+
+dsh/board/index.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@deepseek-ai/dsh-tools' from '/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/dsh/board/index.ts'
+-------------------------------
+
+
+dsh/skim/index.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@deepseek-ai/dsh-session' from '/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/dsh/skim/index.test.ts'
+-------------------------------
+
+
+analysis/orchestration-audits/joined-answer.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+4 | // role-acceptance wording).
+5 | import { expect, test } from "bun:test";
+6 | import { readFileSync } from "node:fs";
+7 | 
+8 | const root = `${import.meta.dir}/../..`;
+9 | const joined = readFileSync(`${root}/docs/issues/orchestration-audits.md`, "utf8");
+                   ^
+ENOENT: no such file or directory, open '/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/analysis/orchestration-audits/../../docs/issues/orchestration-audits.md'
+    path: "/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/analysis/orchestration-audits/../../docs/issues/orchestration-audits.md",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at /Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander-drive/analysis/orchestration-audits/joined-answer.test.ts:9:16
+-------------------------------
+
+
+ 0 pass
+ 6 fail
+ 4 errors
+Ran 6 tests across 5 files. [21.00ms]
+
+runner exit: 1
