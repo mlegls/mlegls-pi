@@ -1,0 +1,322 @@
+[
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-native-materials--",
+  "work": "native-materials",
+  "nsteer": 3,
+  "nboard": 8,
+  "near10m": 3,
+  "med_gap": 35.865
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-browser-consolidation--",
+  "work": "browser-consolidation",
+  "nsteer": 18,
+  "nboard": 3,
+  "near10m": 14,
+  "med_gap": 374.92
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hub-projections--",
+  "work": "hub-projections",
+  "nsteer": 6,
+  "nboard": 3,
+  "near10m": 3,
+  "med_gap": 733.433
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-browser-route-shell--",
+  "work": "browser-route-shell",
+  "nsteer": 9,
+  "nboard": 2,
+  "near10m": 5,
+  "med_gap": 597.665
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-bulk-graph-projection--",
+  "work": "bulk-graph-projection",
+  "nsteer": 1,
+  "nboard": 2,
+  "near10m": 1,
+  "med_gap": 227.648
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-materials-repair-plan--",
+  "work": "materials-repair-plan",
+  "nsteer": 11,
+  "nboard": 2,
+  "near10m": 7,
+  "med_gap": 173.861
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-transcript-capture-feasibility--",
+  "work": "transcript-capture-feasibility",
+  "nsteer": 26,
+  "nboard": 2,
+  "near10m": 8,
+  "med_gap": 1283.502
+ },
+ {
+  "session": "--Users-mlegls-dev-arkhai-webapp__worktrees-byok-177--",
+  "work": "byok-177",
+  "nsteer": 6,
+  "nboard": 1,
+  "near10m": 2,
+  "med_gap": 652.314
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-acceptance-quota-boundary--",
+  "work": "acceptance-quota-boundary",
+  "nsteer": 2,
+  "nboard": 1,
+  "near10m": 1,
+  "med_gap": 1568.322
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-acceptance-value-bounds--",
+  "work": "acceptance-value-bounds",
+  "nsteer": 6,
+  "nboard": 1,
+  "near10m": 2,
+  "med_gap": 1911.1
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hook-emission-snapshots--",
+  "work": "hook-emission-snapshots",
+  "nsteer": 9,
+  "nboard": 1,
+  "near10m": 2,
+  "med_gap": 1296.82
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-public-hub-routes--",
+  "work": "public-hub-routes",
+  "nsteer": 3,
+  "nboard": 1,
+  "near10m": 1,
+  "med_gap": 998.054
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-stream-redaction-design--",
+  "work": "stream-redaction-design",
+  "nsteer": 7,
+  "nboard": 1,
+  "near10m": 2,
+  "med_gap": 18074.401
+ },
+ {
+  "session": "--Users-mlegls-dev-arkhai-webapp__worktrees-integration-178--",
+  "work": "integration-178",
+  "nsteer": 7,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-arkhai-webapp__worktrees-review-byok-177--",
+  "work": "review-byok-177",
+  "nsteer": 3,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-arkhai-webapp__worktrees-review-integration-178--",
+  "work": "review-integration-178",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-arkhai-webapp__worktrees-review-vertex-176--",
+  "work": "review-vertex-176",
+  "nsteer": 3,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-arkhai-webapp__worktrees-vertex-176--",
+  "work": "vertex-176",
+  "nsteer": 4,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-agent-save-design-review--",
+  "work": "agent-save-design-review",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-agent-save-diagnosis--",
+  "work": "agent-save-diagnosis",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-agent-save-repair--",
+  "work": "agent-save-repair",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-agent-save-review--",
+  "work": "agent-save-review",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-factor-prune--",
+  "work": "factor-prune",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hook-homing-revision--",
+  "work": "hook-homing-revision",
+  "nsteer": 3,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hub-final-review--",
+  "work": "hub-final-review",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hub-join--",
+  "work": "hub-join",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hub-precedence-repair--",
+  "work": "hub-precedence-repair",
+  "nsteer": 6,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hub-publisher-repair--",
+  "work": "hub-publisher-repair",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-hub-publisher-review--",
+  "work": "hub-publisher-review",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-patch-storage-closure--",
+  "work": "patch-storage-closure",
+  "nsteer": 3,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-projection-application-cutover--",
+  "work": "projection-application-cutover",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-prune-query-tests--",
+  "work": "prune-query-tests",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-prune-ui-tests--",
+  "work": "prune-ui-tests",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-ui-board--",
+  "work": "ui-board",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-ui-browse--",
+  "work": "ui-browse",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-ui-hub--",
+  "work": "ui-hub",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-ui-materials--",
+  "work": "ui-materials",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-ui-query--",
+  "work": "ui-query",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-ui-session--",
+  "work": "ui-session",
+  "nsteer": 0,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ },
+ {
+  "session": "--Users-mlegls-dev-mmon-concept__worktrees-ui-workspace--",
+  "work": "ui-workspace",
+  "nsteer": 1,
+  "nboard": 0,
+  "near10m": 0,
+  "med_gap": null
+ }
+]

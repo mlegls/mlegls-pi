@@ -1,0 +1,1922 @@
+[
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-transcript-capture-feasibility",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-transcript-capture-feasibility--/2026-09-14T09-17-33-951Z_01a09f35-1f75-741c-8405-04139c69cef6.jsonl",
+  "sid": "01a09f35-1f75-741c-8405-04139c69cef6",
+  "start": "2026-09-14T09:17:33.951Z",
+  "end": "2026-09-14T14:18:03.185Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 583,
+  "R": 231720892,
+  "cost": 136.79883725,
+  "P0": 12716,
+  "x1": 9929,
+  "xmax": 740244,
+  "xlast": 740244,
+  "knee_slope2": 38,
+  "knee_cp": 276,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T09:18:04.363Z",
+  "Ck": 116138,
+  "xk": 33707,
+  "cf": 8172523,
+  "save": 223548369,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 26,
+  "nmiss": 4,
+  "kx": {
+   "100": 60,
+   "200": 137,
+   "300": 201
+  },
+  "cfx": {
+   "100": 11249118,
+   "200": 21773386,
+   "300": 36562825
+  },
+  "save_x": {
+   "100": 220471774,
+   "200": 209947506,
+   "300": 195158067
+  },
+  "miss_w": 1080902,
+  "miss_in": 14,
+  "ntools": 558
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hook-emission-snapshots",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hook-emission-snapshots--/2026-09-14T06-13-41-937Z_01a09e8c-c9b0-76fb-b00a-2c12db0bc34d.jsonl",
+  "sid": "01a09e8c-c9b0-76fb-b00a-2c12db0bc34d",
+  "start": "2026-09-14T06:13:41.937Z",
+  "end": "2026-09-14T08:57:06.912Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 424,
+  "R": 159620858,
+  "cost": 109.1710765,
+  "P0": 10893,
+  "x1": 9780,
+  "xmax": 663283,
+  "xlast": 663283,
+  "knee_slope2": 25,
+  "knee_cp": 193,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T06:14:06.294Z",
+  "Ck": 90313,
+  "xk": 39183,
+  "cf": 5278580,
+  "save": 154342278,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 9,
+  "nmiss": 6,
+  "kx": {
+   "100": 19,
+   "200": 98,
+   "300": 132
+  },
+  "cfx": {
+   "100": 6087921,
+   "200": 17706266,
+   "300": 25623567
+  },
+  "save_x": {
+   "100": 153532937,
+   "200": 141914592,
+   "300": 133997291
+  },
+  "miss_w": 2875402,
+  "miss_in": 20,
+  "ntools": 406
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-browser-route-shell",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-browser-route-shell--/2026-09-14T11-06-46-562Z_01a09f99-1b9d-71de-937c-cb72705b9227.jsonl",
+  "sid": "01a09f99-1b9d-71de-937c-cb72705b9227",
+  "start": "2026-09-14T11:06:46.562Z",
+  "end": "2026-09-14T12:40:39.990Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 287,
+  "R": 60519183,
+  "cost": 42.4236715,
+  "P0": 12011,
+  "x1": 10288,
+  "xmax": 347032,
+  "xlast": 347032,
+  "knee_slope2": 19,
+  "knee_cp": 125,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T11:07:06.533Z",
+  "Ck": 90250,
+  "xk": 34276,
+  "cf": 3790108,
+  "save": 56729075,
+  "near_star": 5,
+  "near_slope": null,
+  "near_cp": 5,
+  "nsteers": 9,
+  "nmiss": 4,
+  "kx": {
+   "100": 34,
+   "200": 119,
+   "300": 241
+  },
+  "cfx": {
+   "100": 5638171,
+   "200": 17629479,
+   "300": 47631360
+  },
+  "save_x": {
+   "100": 54881012,
+   "200": 42889704,
+   "300": 12887823
+  },
+  "miss_w": 985125,
+  "miss_in": 14,
+  "ntools": 290
+ },
+ {
+  "name": "Users-mlegls-dev-arkhai-webapp__worktrees-vertex-176",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-arkhai-webapp__worktrees-vertex-176--/2026-09-15T03-45-33-545Z_01a0a32b-855b-7053-97d4-d10b6b6ee02c.jsonl",
+  "sid": "01a0a32b-855b-7053-97d4-d10b6b6ee02c",
+  "start": "2026-09-15T03:45:33.545Z",
+  "end": "2026-09-15T04:52:35.568Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 337,
+  "R": 60049918,
+  "cost": 39.10302275,
+  "P0": 12150,
+  "x1": 10938,
+  "xmax": 314546,
+  "xlast": 225301,
+  "knee_slope2": 31,
+  "knee_cp": 165,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T03:46:37.067Z",
+  "Ck": 83453,
+  "xk": 24478,
+  "cf": 4561085,
+  "save": 55488833,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 4,
+  "nmiss": 4,
+  "kx": {
+   "100": 41,
+   "200": 101,
+   "300": 197
+  },
+  "cfx": {
+   "100": 6101954,
+   "200": 14968335,
+   "300": 38491911
+  },
+  "save_x": {
+   "100": 53947964,
+   "200": 45081583,
+   "300": 21558007
+  },
+  "miss_w": 338706,
+  "miss_in": 16,
+  "ntools": 341
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-native-materials",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-native-materials--/2026-09-14T19-46-41-557Z_01a0a175-1b08-7737-a748-682fc54427de.jsonl",
+  "sid": "01a0a175-1b08-7737-a748-682fc54427de",
+  "start": "2026-09-14T19:46:41.557Z",
+  "end": "2026-09-14T20:59:15.347Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 260,
+  "R": 56101579,
+  "cost": 33.27101575,
+  "P0": 13014,
+  "x1": 10327,
+  "xmax": 325773,
+  "xlast": 325773,
+  "knee_slope2": 18,
+  "knee_cp": 118,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T19:47:15.205Z",
+  "Ck": 107832,
+  "xk": 44073,
+  "cf": 3708102,
+  "save": 52393477,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 3,
+  "nmiss": 1,
+  "kx": {
+   "100": 17,
+   "200": 108,
+   "300": 232
+  },
+  "cfx": {
+   "100": 4344020,
+   "200": 17540837,
+   "300": 48053048
+  },
+  "save_x": {
+   "100": 51757559,
+   "200": 38560742,
+   "300": 8048531
+  },
+  "miss_w": 5213,
+  "miss_in": 4,
+  "ntools": 275
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-browser-consolidation",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-browser-consolidation--/2026-09-14T15-55-29-943Z_01a0a0a1-7113-72b1-a2b7-54791b943673.jsonl",
+  "sid": "01a0a0a1-7113-72b1-a2b7-54791b943673",
+  "start": "2026-09-14T15:55:29.943Z",
+  "end": "2026-09-14T19:45:55.741Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 355,
+  "R": 54095774,
+  "cost": 45.685752,
+  "P0": 12968,
+  "x1": 10356,
+  "xmax": 316972,
+  "xlast": 162003,
+  "knee_slope2": 18,
+  "knee_cp": 187,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T15:55:50.579Z",
+  "Ck": 91584,
+  "xk": 29574,
+  "cf": 5019354,
+  "save": 49076420,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 18,
+  "nmiss": 13,
+  "kx": {
+   "100": 23,
+   "200": 127,
+   "300": 207
+  },
+  "cfx": {
+   "100": 6030326,
+   "200": 19402239,
+   "300": 37672952
+  },
+  "save_x": {
+   "100": 48065448,
+   "200": 34693535,
+   "300": 16422822
+  },
+  "miss_w": 1963967,
+  "miss_in": 34,
+  "ntools": 354
+ },
+ {
+  "name": "Users-mlegls-dev-arkhai-webapp__worktrees-byok-177",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-arkhai-webapp__worktrees-byok-177--/2026-09-15T03-45-33-545Z_01a0a32b-8561-76eb-90fd-984ce04af994.jsonl",
+  "sid": "01a0a32b-8561-76eb-90fd-984ce04af994",
+  "start": "2026-09-15T03:45:33.545Z",
+  "end": "2026-09-15T05:30:35.736Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 322,
+  "R": 50590136,
+  "cost": 34.54870175,
+  "P0": 12309,
+  "x1": 10993,
+  "xmax": 300838,
+  "xlast": 152859,
+  "knee_slope2": 21,
+  "knee_cp": 163,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T03:46:12.533Z",
+  "Ck": 80489,
+  "xk": 29751,
+  "cf": 4347375,
+  "save": 46242761,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 6,
+  "nmiss": 4,
+  "kx": {
+   "100": 24,
+   "200": 91,
+   "300": 187
+  },
+  "cfx": {
+   "100": 5378330,
+   "200": 15144413,
+   "300": 37765310
+  },
+  "save_x": {
+   "100": 45211806,
+   "200": 35445723,
+   "300": 12824826
+  },
+  "miss_w": 267753,
+  "miss_in": 14,
+  "ntools": 327
+ },
+ {
+  "name": "Users-mlegls-dev-arkhai-webapp__worktrees-integration-178",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-arkhai-webapp__worktrees-integration-178--/2026-09-15T05-04-48-987Z_01a0a374-155a-71df-83c0-d03f7d76e464.jsonl",
+  "sid": "01a0a374-155a-71df-83c0-d03f7d76e464",
+  "start": "2026-09-15T05:04:48.987Z",
+  "end": "2026-09-15T05:55:49.388Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 259,
+  "R": 43579811,
+  "cost": 27.34309425,
+  "P0": 15544,
+  "x1": 11204,
+  "xmax": 303766,
+  "xlast": 128195,
+  "knee_slope2": 22,
+  "knee_cp": 160,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T05:05:43.130Z",
+  "Ck": 130268,
+  "xk": 45300,
+  "cf": 4407536,
+  "save": 39172275,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": 2,
+  "nsteers": 7,
+  "nmiss": 1,
+  "kx": {
+   "100": 19,
+   "200": 92,
+   "300": 185
+  },
+  "cfx": {
+   "100": 5185322,
+   "200": 15061622,
+   "300": 37145097
+  },
+  "save_x": {
+   "100": 38394489,
+   "200": 28518189,
+   "300": 6434714
+  },
+  "miss_w": 48418,
+  "miss_in": 4,
+  "ntools": 266
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hub-projections",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hub-projections--/2026-09-14T19-46-53-389Z_01a0a175-494c-7113-96cf-a2ed1ced0bfd.jsonl",
+  "sid": "01a0a175-494c-7113-96cf-a2ed1ced0bfd",
+  "start": "2026-09-14T19:46:53.389Z",
+  "end": "2026-09-15T02:45:01.410Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 238,
+  "R": 39419525,
+  "cost": 27.429624999999998,
+  "P0": 12619,
+  "x1": 10366,
+  "xmax": 303354,
+  "xlast": 149526,
+  "knee_slope2": 12,
+  "knee_cp": 146,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T19:47:15.718Z",
+  "Ck": 79828,
+  "xk": 20493,
+  "cf": 3393702,
+  "save": 36025823,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 6,
+  "nmiss": 3,
+  "kx": {
+   "100": 24,
+   "200": 82,
+   "300": 172
+  },
+  "cfx": {
+   "100": 4279945,
+   "200": 12269286,
+   "300": 33331918
+  },
+  "save_x": {
+   "100": 35139580,
+   "200": 27150239,
+   "300": 6087607
+  },
+  "miss_w": 183536,
+  "miss_in": 12,
+  "ntools": 248
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-acceptance-value-bounds",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-acceptance-value-bounds--/2026-09-14T17-52-57-326Z_01a0a10c-f9ec-73e3-babd-8b3d32602c11.jsonl",
+  "sid": "01a0a10c-f9ec-73e3-babd-8b3d32602c11",
+  "start": "2026-09-14T17:52:57.326Z",
+  "end": "2026-09-14T18:41:15.915Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 194,
+  "R": 37315997,
+  "cost": 24.14450225,
+  "P0": 14183,
+  "x1": 10290,
+  "xmax": 313212,
+  "xlast": 74416,
+  "knee_slope2": 28,
+  "knee_cp": 70,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T17:53:28.312Z",
+  "Ck": 137563,
+  "xk": 42596,
+  "cf": 3100568,
+  "save": 34215429,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 6,
+  "nmiss": 3,
+  "kx": {
+   "100": 28,
+   "200": 76,
+   "300": 167
+  },
+  "cfx": {
+   "100": 4499440,
+   "200": 11756265,
+   "300": 32923047
+  },
+  "save_x": {
+   "100": 32816557,
+   "200": 25559732,
+   "300": 4392950
+  },
+  "miss_w": 74368,
+  "miss_in": 10,
+  "ntools": 210
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-ui-board",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-ui-board--/2026-09-14T17-51-40-321Z_01a0a10b-cd1b-77d6-a7aa-e06ff2213deb.jsonl",
+  "sid": "01a0a10b-cd1b-77d6-a7aa-e06ff2213deb",
+  "start": "2026-09-14T17:51:40.321Z",
+  "end": "2026-09-14T18:39:21.077Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 206,
+  "R": 35861405,
+  "cost": 22.01438875,
+  "P0": 14118,
+  "x1": 11146,
+  "xmax": 268149,
+  "xlast": 268149,
+  "knee_slope2": 20,
+  "knee_cp": 99,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T17:52:04.817Z",
+  "Ck": 102253,
+  "xk": 36989,
+  "cf": 3171131,
+  "save": 32690274,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 1,
+  "kx": {
+   "100": 19,
+   "200": 128,
+   "300": null
+  },
+  "cfx": {
+   "100": 3801386,
+   "200": 19216533,
+   "300": null
+  },
+  "save_x": {
+   "100": 32060019,
+   "200": 16644872,
+   "300": null
+  },
+  "miss_w": 6032,
+  "miss_in": 4,
+  "ntools": 218
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-materials-repair-plan",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-materials-repair-plan--/2026-09-14T20-55-02-219Z_01a0a1b3-ad3e-70ef-8aac-f722900db71c.jsonl",
+  "sid": "01a0a1b3-ad3e-70ef-8aac-f722900db71c",
+  "start": "2026-09-14T20:55:02.219Z",
+  "end": "2026-09-14T21:48:37.261Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 188,
+  "R": 33638887,
+  "cost": 22.57679975,
+  "P0": 15723,
+  "x1": 10324,
+  "xmax": 307525,
+  "xlast": 69205,
+  "knee_slope2": 20,
+  "knee_cp": 90,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T20:55:34.993Z",
+  "Ck": 102357,
+  "xk": 37251,
+  "cf": 3257956,
+  "save": 30380931,
+  "near_star": null,
+  "near_slope": 1,
+  "near_cp": null,
+  "nsteers": 11,
+  "nmiss": 2,
+  "kx": {
+   "100": 19,
+   "200": 105,
+   "300": 169
+  },
+  "cfx": {
+   "100": 3950522,
+   "200": 15933118,
+   "300": 31445402
+  },
+  "save_x": {
+   "100": 29688365,
+   "200": 17705769,
+   "300": 2193485
+  },
+  "miss_w": 51434,
+  "miss_in": 8,
+  "ntools": 203
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hub-precedence-repair",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hub-precedence-repair--/2026-09-15T02-45-08-180Z_01a0a2f4-33c8-7563-907c-d6bbf04be9bc.jsonl",
+  "sid": "01a0a2f4-33c8-7563-907c-d6bbf04be9bc",
+  "start": "2026-09-15T02:45:08.180Z",
+  "end": "2026-09-15T03:32:49.229Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 155,
+  "R": 27924249,
+  "cost": 18.8519195,
+  "P0": 19426,
+  "x1": 10280,
+  "xmax": 293156,
+  "xlast": 293156,
+  "knee_slope2": 15,
+  "knee_cp": 79,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T02:45:35.895Z",
+  "Ck": 139671,
+  "xk": 38484,
+  "cf": 3308243,
+  "save": 24616006,
+  "near_star": null,
+  "near_slope": 4,
+  "near_cp": 3,
+  "nsteers": 6,
+  "nmiss": 1,
+  "kx": {
+   "100": 15,
+   "200": 85,
+   "300": null
+  },
+  "cfx": {
+   "100": 3728771,
+   "200": 12245167,
+   "300": null
+  },
+  "save_x": {
+   "100": 24195478,
+   "200": 15679082,
+   "300": null
+  },
+  "miss_w": 5166,
+  "miss_in": 4,
+  "ntools": 159
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-patch-storage-closure",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-patch-storage-closure--/2026-09-14T15-55-45-931Z_01a0a0a1-af89-735c-b81d-4334001851a6.jsonl",
+  "sid": "01a0a0a1-af89-735c-b81d-4334001851a6",
+  "start": "2026-09-14T15:55:45.931Z",
+  "end": "2026-09-14T17:08:49.934Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 159,
+  "R": 25523154,
+  "cost": 20.001207,
+  "P0": 13194,
+  "x1": 10451,
+  "xmax": 272471,
+  "xlast": 272471,
+  "knee_slope2": 28,
+  "knee_cp": 76,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T15:56:16.169Z",
+  "Ck": 103363,
+  "xk": 32297,
+  "cf": 2375413,
+  "save": 23147741,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 3,
+  "nmiss": 5,
+  "kx": {
+   "100": 31,
+   "200": 107,
+   "300": null
+  },
+  "cfx": {
+   "100": 3905650,
+   "200": 14136177,
+   "300": null
+  },
+  "save_x": {
+   "100": 21617504,
+   "200": 11386977,
+   "300": null
+  },
+  "miss_w": 528748,
+  "miss_in": 12,
+  "ntools": 176
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-agent-save-repair",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-agent-save-repair--/2026-09-15T04-47-13-914Z_01a0a363-fbf7-707b-8316-1c893b7e40fc.jsonl",
+  "sid": "01a0a363-fbf7-707b-8316-1c893b7e40fc",
+  "start": "2026-09-15T04:47:13.914Z",
+  "end": "2026-09-15T05:14:17.575Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 141,
+  "R": 24507645,
+  "cost": 16.550705,
+  "P0": 12413,
+  "x1": 11167,
+  "xmax": 292921,
+  "xlast": 292921,
+  "knee_slope2": 26,
+  "knee_cp": 71,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T04:47:44.835Z",
+  "Ck": 141522,
+  "xk": 50374,
+  "cf": 2072237,
+  "save": 22435408,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 1,
+  "kx": {
+   "100": 25,
+   "200": 92,
+   "300": null
+  },
+  "cfx": {
+   "100": 3126146,
+   "200": 12651245,
+   "300": null
+  },
+  "save_x": {
+   "100": 21381499,
+   "200": 11856400,
+   "300": null
+  },
+  "miss_w": 23517,
+  "miss_in": 2,
+  "ntools": 148
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-acceptance-quota-boundary",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-acceptance-quota-boundary--/2026-09-14T17-22-22-706Z_01a0a0f0-fb72-76f9-b741-cdfe70fabffd.jsonl",
+  "sid": "01a0a0f0-fb72-76f9-b741-cdfe70fabffd",
+  "start": "2026-09-14T17:22:22.706Z",
+  "end": "2026-09-14T17:58:26.489Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 179,
+  "R": 24954860,
+  "cost": 16.0535875,
+  "P0": 13810,
+  "x1": 10526,
+  "xmax": 230430,
+  "xlast": 230430,
+  "knee_slope2": 34,
+  "knee_cp": 83,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T17:22:52.477Z",
+  "Ck": 117169,
+  "xk": 36246,
+  "cf": 2714293,
+  "save": 22240567,
+  "near_star": null,
+  "near_slope": 5,
+  "near_cp": null,
+  "nsteers": 2,
+  "nmiss": 1,
+  "kx": {
+   "100": 44,
+   "200": 148,
+   "300": null
+  },
+  "cfx": {
+   "100": 4842223,
+   "200": 18942737,
+   "300": null
+  },
+  "save_x": {
+   "100": 20112637,
+   "200": 6012123,
+   "300": null
+  },
+  "miss_w": 5412,
+  "miss_in": 4,
+  "ntools": 183
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-public-hub-routes",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-public-hub-routes--/2026-09-14T20-37-58-420Z_01a0a1a4-0e0e-73de-a7f4-68a970aa4a9e.jsonl",
+  "sid": "01a0a1a4-0e0e-73de-a7f4-68a970aa4a9e",
+  "start": "2026-09-14T20:37:58.420Z",
+  "end": "2026-09-14T21:28:13.703Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 142,
+  "R": 24145209,
+  "cost": 17.34998075,
+  "P0": 12272,
+  "x1": 10283,
+  "xmax": 249264,
+  "xlast": 249264,
+  "knee_slope2": 22,
+  "knee_cp": 49,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T20:38:31.929Z",
+  "Ck": 96256,
+  "xk": 37675,
+  "cf": 1989109,
+  "save": 22156100,
+  "near_star": null,
+  "near_slope": 3,
+  "near_cp": null,
+  "nsteers": 3,
+  "nmiss": 2,
+  "kx": {
+   "100": 20,
+   "200": 94,
+   "300": null
+  },
+  "cfx": {
+   "100": 2829640,
+   "200": 14314296,
+   "300": null
+  },
+  "save_x": {
+   "100": 21315569,
+   "200": 9830913,
+   "300": null
+  },
+  "miss_w": 223472,
+  "miss_in": 6,
+  "ntools": 149
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-stream-redaction-design",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-stream-redaction-design--/2026-09-14T21-47-43-464Z_01a0a1e3-e9df-77c3-b4d9-109cf36c40f3.jsonl",
+  "sid": "01a0a1e3-e9df-77c3-b4d9-109cf36c40f3",
+  "start": "2026-09-14T21:47:43.464Z",
+  "end": "2026-09-15T03:42:10.854Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 134,
+  "R": 21904123,
+  "cost": 31.57185275,
+  "P0": 16198,
+  "x1": 10446,
+  "xmax": 305098,
+  "xlast": 60008,
+  "knee_slope2": 25,
+  "knee_cp": 44,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T21:50:15.062Z",
+  "Ck": 142392,
+  "xk": 49094,
+  "cf": 2490666,
+  "save": 19413457,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": 1,
+  "nsteers": 7,
+  "nmiss": 13,
+  "kx": {
+   "100": 23,
+   "200": 62,
+   "300": 123
+  },
+  "cfx": {
+   "100": 3547416,
+   "200": 8830187,
+   "300": 20997842
+  },
+  "save_x": {
+   "100": 18356707,
+   "200": 13073936,
+   "300": 906281
+  },
+  "miss_w": 2443402,
+  "miss_in": 42,
+  "ntools": 132
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hook-homing-revision",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hook-homing-revision--/2026-09-14T06-13-39-529Z_01a09e8c-c048-70ef-b5b1-f268c5e40aef.jsonl",
+  "sid": "01a09e8c-c048-70ef-b5b1-f268c5e40aef",
+  "start": "2026-09-14T06:13:39.529Z",
+  "end": "2026-09-14T08:09:26.486Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 142,
+  "R": 17282195,
+  "cost": 24.4874575,
+  "P0": 10246,
+  "x1": 9233,
+  "xmax": 253340,
+  "xlast": 253340,
+  "knee_slope2": 15,
+  "knee_cp": 61,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T06:14:14.372Z",
+  "Ck": 80728,
+  "xk": 24120,
+  "cf": 1713650,
+  "save": 15568545,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": 1,
+  "nsteers": 3,
+  "nmiss": 10,
+  "kx": {
+   "100": 54,
+   "200": 113,
+   "300": null
+  },
+  "cfx": {
+   "100": 4556163,
+   "200": 12630833,
+   "300": null
+  },
+  "save_x": {
+   "100": 12726032,
+   "200": 4651362,
+   "300": null
+  },
+  "miss_w": 1894656,
+  "miss_in": 32,
+  "ntools": 138
+ },
+ {
+  "name": "Users-mlegls-dev-arkhai-webapp__worktrees-review-vertex-176",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-arkhai-webapp__worktrees-review-vertex-176--/2026-09-15T04-16-09-189Z_01a0a347-87e3-74fc-ad87-5e3e4b37e323.jsonl",
+  "sid": "01a0a347-87e3-74fc-ad87-5e3e4b37e323",
+  "start": "2026-09-15T04:16:09.189Z",
+  "end": "2026-09-15T04:53:29.698Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 100,
+  "R": 15779389,
+  "cost": 13.073672,
+  "P0": 12150,
+  "x1": 10918,
+  "xmax": 292289,
+  "xlast": 292289,
+  "knee_slope2": 21,
+  "knee_cp": 43,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T04:17:09.057Z",
+  "Ck": 105237,
+  "xk": 34009,
+  "cf": 1517767,
+  "save": 14261622,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 3,
+  "nmiss": 1,
+  "kx": {
+   "100": 32,
+   "200": 61,
+   "300": null
+  },
+  "cfx": {
+   "100": 2932891,
+   "200": 7238243,
+   "300": null
+  },
+  "save_x": {
+   "100": 12846498,
+   "200": 8541146,
+   "300": null
+  },
+  "miss_w": 218982,
+  "miss_in": 4,
+  "ntools": 112
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-ui-materials",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-ui-materials--/2026-09-14T16-44-31-618Z_01a0a0ce-53fa-765d-b7c6-41c8fb35f506.jsonl",
+  "sid": "01a0a0ce-53fa-765d-b7c6-41c8fb35f506",
+  "start": "2026-09-14T16:44:31.618Z",
+  "end": "2026-09-14T17:13:36.399Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 109,
+  "R": 14719677,
+  "cost": 10.36417975,
+  "P0": 14013,
+  "x1": 11232,
+  "xmax": 199461,
+  "xlast": 199461,
+  "knee_slope2": 12,
+  "knee_cp": 45,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T16:44:53.502Z",
+  "Ck": 104717,
+  "xk": 28358,
+  "cf": 1733172,
+  "save": 12986505,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 1,
+  "kx": {
+   "100": 17,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 2296925,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 12422752,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 6118,
+  "miss_in": 4,
+  "ntools": 112
+ },
+ {
+  "name": "Users-mlegls-dev-arkhai-webapp__worktrees-review-byok-177",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-arkhai-webapp__worktrees-review-byok-177--/2026-09-15T04-39-47-859Z_01a0a35d-2d91-7061-b24c-a9629ed7c9a6.jsonl",
+  "sid": "01a0a35d-2d91-7061-b24c-a9629ed7c9a6",
+  "start": "2026-09-15T04:39:47.859Z",
+  "end": "2026-09-15T05:33:47.465Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 99,
+  "R": 14340743,
+  "cost": 13.385439,
+  "P0": 14690,
+  "x1": 10976,
+  "xmax": 257251,
+  "xlast": 257251,
+  "knee_slope2": 39,
+  "knee_cp": 53,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T04:41:03.037Z",
+  "Ck": 128154,
+  "xk": 48818,
+  "cf": 1717447,
+  "save": 12623296,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": 3,
+  "nsteers": 3,
+  "nmiss": 2,
+  "kx": {
+   "100": 21,
+   "200": 72,
+   "300": null
+  },
+  "cfx": {
+   "100": 2768344,
+   "200": 9067295,
+   "300": null
+  },
+  "save_x": {
+   "100": 11572399,
+   "200": 5273448,
+   "300": null
+  },
+  "miss_w": 401139,
+  "miss_in": 8,
+  "ntools": 100
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-bulk-graph-projection",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-bulk-graph-projection--/2026-09-14T07-34-44-093Z_01a09ed6-fa7c-75af-a94d-b57056aac65d.jsonl",
+  "sid": "01a09ed6-fa7c-75af-a94d-b57056aac65d",
+  "start": "2026-09-14T07:34:44.093Z",
+  "end": "2026-09-14T08:01:25.400Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 126,
+  "R": 12996168,
+  "cost": 11.39853525,
+  "P0": 10366,
+  "x1": 9757,
+  "xmax": 182975,
+  "xlast": 182975,
+  "knee_slope2": 31,
+  "knee_cp": 67,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T07:35:08.549Z",
+  "Ck": 105068,
+  "xk": 33977,
+  "cf": 1508352,
+  "save": 11487816,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 4,
+  "kx": {
+   "100": 57,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 4857668,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 8138500,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 328999,
+  "miss_in": 12,
+  "ntools": 130
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-projection-application-cutover",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-projection-application-cutover--/2026-09-14T08-04-37-341Z_01a09ef2-575b-73f5-a26f-3f2fd4be0518.jsonl",
+  "sid": "01a09ef2-575b-73f5-a26f-3f2fd4be0518",
+  "start": "2026-09-14T08:04:37.341Z",
+  "end": "2026-09-14T08:34:43.825Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 119,
+  "R": 12910193,
+  "cost": 9.020584,
+  "P0": 10846,
+  "x1": 9958,
+  "xmax": 183131,
+  "xlast": 183131,
+  "knee_slope2": 41,
+  "knee_cp": 55,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T08:05:15.394Z",
+  "Ck": 132195,
+  "xk": 41251,
+  "cf": 1510519,
+  "save": 11399674,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 2,
+  "kx": {
+   "100": 47,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 3798748,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 9111445,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 27799,
+  "miss_in": 6,
+  "ntools": 124
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-ui-workspace",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-ui-workspace--/2026-09-14T16-08-08-412Z_01a0a0ad-03db-77fa-8d1f-3df7a787fdbd.jsonl",
+  "sid": "01a0a0ad-03db-77fa-8d1f-3df7a787fdbd",
+  "start": "2026-09-14T16:08:08.412Z",
+  "end": "2026-09-14T16:40:45.809Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 115,
+  "R": 12659055,
+  "cost": 8.61787875,
+  "P0": 13950,
+  "x1": 11173,
+  "xmax": 166173,
+  "xlast": 166173,
+  "knee_slope2": 15,
+  "knee_cp": 59,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T16:08:37.364Z",
+  "Ck": 105744,
+  "xk": 29734,
+  "cf": 1776683,
+  "save": 10882372,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 1,
+  "kx": {
+   "100": 39,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 3878117,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 8780938,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 6059,
+  "miss_in": 4,
+  "ntools": 123
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-agent-save-design-review",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-agent-save-design-review--/2026-09-15T04-27-31-011Z_01a0a351-ef42-72b1-9674-662bd89d61d8.jsonl",
+  "sid": "01a0a351-ef42-72b1-9674-662bd89d61d8",
+  "start": "2026-09-15T04:27:31.011Z",
+  "end": "2026-09-15T04:46:55.788Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 92,
+  "R": 9750312,
+  "cost": 7.8736584999999994,
+  "P0": 16871,
+  "x1": 10954,
+  "xmax": 194673,
+  "xlast": 194673,
+  "knee_slope2": 30,
+  "knee_cp": 43,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T04:27:57.882Z",
+  "Ck": 118089,
+  "xk": 33688,
+  "cf": 1746851,
+  "save": 8003461,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 0,
+  "kx": {
+   "100": 38,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 3031413,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 6718899,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 0,
+  "miss_in": 0,
+  "ntools": 97
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-ui-browse",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-ui-browse--/2026-09-14T17-19-32-171Z_01a0a0ee-6142-725a-8c13-6855a74a1b90.jsonl",
+  "sid": "01a0a0ee-6142-725a-8c13-6855a74a1b90",
+  "start": "2026-09-14T17:19:32.171Z",
+  "end": "2026-09-14T17:43:46.413Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 73,
+  "R": 9169890,
+  "cost": 6.72372875,
+  "P0": 14501,
+  "x1": 11725,
+  "xmax": 171267,
+  "xlast": 171267,
+  "knee_slope2": 12,
+  "knee_cp": 18,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T17:20:01.148Z",
+  "Ck": 106409,
+  "xk": 42976,
+  "cf": 1220768,
+  "save": 7949122,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 1,
+  "kx": {
+   "100": 10,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 1379190,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 7790700,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 6611,
+  "miss_in": 4,
+  "ntools": 82
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-ui-query",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-ui-query--/2026-09-14T16-07-49-893Z_01a0a0ac-bb82-757d-a636-7382238ad591.jsonl",
+  "sid": "01a0a0ac-bb82-757d-a636-7382238ad591",
+  "start": "2026-09-14T16:07:49.893Z",
+  "end": "2026-09-14T16:29:02.411Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 82,
+  "R": 7807782,
+  "cost": 6.0077022499999995,
+  "P0": 15340,
+  "x1": 10780,
+  "xmax": 138529,
+  "xlast": 138529,
+  "knee_slope2": 13,
+  "knee_cp": 31,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T16:08:20.805Z",
+  "Ck": 98510,
+  "xk": 28288,
+  "cf": 1389931,
+  "save": 6417851,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 1,
+  "kx": {
+   "100": 35,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 3160202,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 4647580,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 5666,
+  "miss_in": 4,
+  "ntools": 94
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-ui-session",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-ui-session--/2026-09-14T16-44-10-162Z_01a0a0ce-000d-774d-bd95-1ccb5a55ef68.jsonl",
+  "sid": "01a0a0ce-000d-774d-bd95-1ccb5a55ef68",
+  "start": "2026-09-14T16:44:10.162Z",
+  "end": "2026-09-14T17:06:00.754Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 77,
+  "R": 7574804,
+  "cost": 6.038857,
+  "P0": 13833,
+  "x1": 11059,
+  "xmax": 145292,
+  "xlast": 145292,
+  "knee_slope2": 34,
+  "knee_cp": 31,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T16:44:51.509Z",
+  "Ck": 102226,
+  "xk": 43519,
+  "cf": 1199975,
+  "save": 6374829,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 1,
+  "kx": {
+   "100": 33,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 2978016,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 4596788,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 5945,
+  "miss_in": 4,
+  "ntools": 87
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hub-publisher-repair",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hub-publisher-repair--/2026-09-15T03-32-10-445Z_01a0a31f-4446-7396-9cea-5143c387a175.jsonl",
+  "sid": "01a0a31f-4446-7396-9cea-5143c387a175",
+  "start": "2026-09-15T03:32:10.445Z",
+  "end": "2026-09-15T03:52:16.277Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 77,
+  "R": 7863500,
+  "cost": 5.824292499999999,
+  "P0": 19569,
+  "x1": 10941,
+  "xmax": 148292,
+  "xlast": 148292,
+  "knee_slope2": 17,
+  "knee_cp": 26,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T03:32:33.732Z",
+  "Ck": 117705,
+  "xk": 38497,
+  "cf": 1636468,
+  "save": 6227032,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 1,
+  "kx": {
+   "100": 23,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 2487087,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 5376413,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 10937,
+  "miss_in": 4,
+  "ntools": 81
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-ui-hub",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-ui-hub--/2026-09-14T17-19-44-965Z_01a0a0ee-9343-76fd-acef-3a27fc1b63ab.jsonl",
+  "sid": "01a0a0ee-9343-76fd-acef-3a27fc1b63ab",
+  "start": "2026-09-14T17:19:44.965Z",
+  "end": "2026-09-14T17:46:25.029Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 77,
+  "R": 7235900,
+  "cost": 6.44419625,
+  "P0": 13672,
+  "x1": 10843,
+  "xmax": 148754,
+  "xlast": 148754,
+  "knee_slope2": 20,
+  "knee_cp": 30,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T17:20:25.576Z",
+  "Ck": 105266,
+  "xk": 34428,
+  "cf": 1203976,
+  "save": 6031924,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 2,
+  "kx": {
+   "100": 41,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 3679366,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 3556534,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 144985,
+  "miss_in": 8,
+  "ntools": 83
+ },
+ {
+  "name": "Users-mlegls-dev-arkhai-webapp__worktrees-review-integration-178",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-arkhai-webapp__worktrees-review-integration-178--/2026-09-15T05-36-04-945Z_01a0a390-b550-76be-8f8c-bbb9ca81e7dd.jsonl",
+  "sid": "01a0a390-b550-76be-8f8c-bbb9ca81e7dd",
+  "start": "2026-09-15T05:36:04.945Z",
+  "end": "2026-09-15T05:58:07.068Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 77,
+  "R": 7029431,
+  "cost": 6.4365055,
+  "P0": 16224,
+  "x1": 10978,
+  "xmax": 155974,
+  "xlast": 155974,
+  "knee_slope2": 31,
+  "knee_cp": 36,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T05:37:12.524Z",
+  "Ck": 109441,
+  "xk": 33185,
+  "cf": 1400358,
+  "save": 5629073,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 1,
+  "kx": {
+   "100": 42,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 3411441,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 3617990,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 129281,
+  "miss_in": 4,
+  "ntools": 87
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-factor-prune",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-factor-prune--/2026-09-15T03-48-59-361Z_01a0a32e-a95a-7700-99f9-6363aac220f9.jsonl",
+  "sid": "01a0a32e-a95a-7700-99f9-6363aac220f9",
+  "start": "2026-09-15T03:48:59.361Z",
+  "end": "2026-09-15T04:06:07.999Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 61,
+  "R": 6876693,
+  "cost": 5.5811702499999996,
+  "P0": 26570,
+  "x1": 11077,
+  "xmax": 172908,
+  "xlast": 172908,
+  "knee_slope2": 57,
+  "knee_cp": 35,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T03:50:34.915Z",
+  "Ck": 205721,
+  "xk": 81640,
+  "cf": 1784909,
+  "save": 5091784,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 1,
+  "kx": {
+   "100": 16,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 2459190,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 4417503,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 15497,
+  "miss_in": 2,
+  "ntools": 70
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-prune-query-tests",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-prune-query-tests--/2026-09-14T08-56-10-638Z_01a09f21-8a82-737c-bd0b-325bd8f9d4ca.jsonl",
+  "sid": "01a09f21-8a82-737c-bd0b-325bd8f9d4ca",
+  "start": "2026-09-14T08:56:10.638Z",
+  "end": "2026-09-14T09:24:33.905Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 62,
+  "R": 4691996,
+  "cost": 4.64208175,
+  "P0": 10749,
+  "x1": 9499,
+  "xmax": 117213,
+  "xlast": 117213,
+  "knee_slope2": 23,
+  "knee_cp": 20,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T08:56:36.309Z",
+  "Ck": 81571,
+  "xk": 29494,
+  "cf": 781983,
+  "save": 3910013,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 2,
+  "kx": {
+   "100": 49,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 3653667,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 1038329,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 116841,
+  "miss_in": 8,
+  "ntools": 71
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-agent-save-review",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-agent-save-review--/2026-09-15T05-14-40-288Z_01a0a37d-1b1f-7171-b0ad-73a58b20672e.jsonl",
+  "sid": "01a0a37d-1b1f-7171-b0ad-73a58b20672e",
+  "start": "2026-09-15T05:14:40.288Z",
+  "end": "2026-09-15T05:27:03.871Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 50,
+  "R": 3800275,
+  "cost": 3.8843725,
+  "P0": 12469,
+  "x1": 10959,
+  "xmax": 137219,
+  "xlast": 137219,
+  "knee_slope2": 25,
+  "knee_cp": 23,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T05:15:22.463Z",
+  "Ck": 101257,
+  "xk": 35495,
+  "cf": 764086,
+  "save": 3036189,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 0,
+  "kx": {
+   "100": 35,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 2384849,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 1415426,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 0,
+  "miss_in": 0,
+  "ntools": 52
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-agent-save-diagnosis",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-agent-save-diagnosis--/2026-09-15T04-12-06-777Z_01a0a343-d4f8-7251-a19f-7bbbbcc6e22b.jsonl",
+  "sid": "01a0a343-d4f8-7251-a19f-7bbbbcc6e22b",
+  "start": "2026-09-15T04:12:06.777Z",
+  "end": "2026-09-15T04:27:08.110Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 50,
+  "R": 4508407,
+  "cost": 4.28891975,
+  "P0": 30205,
+  "x1": 10847,
+  "xmax": 142740,
+  "xlast": 142740,
+  "knee_slope2": 25,
+  "knee_cp": 23,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T04:12:49.510Z",
+  "Ck": 162689,
+  "xk": 43139,
+  "cf": 1621515,
+  "save": 2886892,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 1,
+  "kx": {
+   "100": 25,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 2408945,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 2099462,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 19362,
+  "miss_in": 2,
+  "ntools": 59
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-prune-ui-tests",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-prune-ui-tests--/2026-09-14T08-56-13-198Z_01a09f21-948d-72f7-812d-f695221ce747.jsonl",
+  "sid": "01a09f21-948d-72f7-812d-f695221ce747",
+  "start": "2026-09-14T08:56:13.198Z",
+  "end": "2026-09-14T09:23:49.159Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 60,
+  "R": 3613713,
+  "cost": 3.6164514999999997,
+  "P0": 10830,
+  "x1": 9578,
+  "xmax": 94231,
+  "xlast": 94231,
+  "knee_slope2": 23,
+  "knee_cp": 22,
+  "knee_star": 5,
+  "k_ts": "2026-09-14T08:56:34.698Z",
+  "Ck": 74525,
+  "xk": 25421,
+  "cf": 738985,
+  "save": 2874728,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 1,
+  "nmiss": 2,
+  "kx": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 96519,
+  "miss_in": 8,
+  "ntools": 66
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hub-join",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hub-join--/2026-09-15T03-58-09-729Z_01a0a337-0f40-7582-aa25-bfcbffaf8617.jsonl",
+  "sid": "01a0a337-0f40-7582-aa25-bfcbffaf8617",
+  "start": "2026-09-15T03:58:09.729Z",
+  "end": "2026-09-15T04:06:06.799Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 52,
+  "R": 3468188,
+  "cost": 2.81479275,
+  "P0": 12426,
+  "x1": 10968,
+  "xmax": 96302,
+  "xlast": 96302,
+  "knee_slope2": 44,
+  "knee_cp": 20,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T03:58:40.921Z",
+  "Ck": 117149,
+  "xk": 37354,
+  "cf": 760119,
+  "save": 2708069,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 0,
+  "kx": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 0,
+  "miss_in": 0,
+  "ntools": 58
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hub-final-review",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hub-final-review--/2026-09-15T04-06-40-196Z_01a0a33e-d944-74ac-9be0-1279b3e2f986.jsonl",
+  "sid": "01a0a33e-d944-74ac-9be0-1279b3e2f986",
+  "start": "2026-09-15T04:06:40.196Z",
+  "end": "2026-09-15T04:14:45.133Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 21,
+  "R": 1430519,
+  "cost": 2.2028232500000002,
+  "P0": 16726,
+  "x1": 10782,
+  "xmax": 113294,
+  "xlast": 113294,
+  "knee_slope2": null,
+  "knee_cp": 8,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T04:07:29.336Z",
+  "Ck": 112483,
+  "xk": 47503,
+  "cf": 445890,
+  "save": 984629,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 0,
+  "kx": {
+   "100": 15,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": 1008034,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": 422485,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 0,
+  "miss_in": 0,
+  "ntools": 35
+ },
+ {
+  "name": "Users-mlegls-dev-mmon-concept__worktrees-hub-publisher-review",
+  "file": "/Users/mlegls/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-hub-publisher-review--/2026-09-15T03-52-21-698Z_01a0a331-bfbe-764e-b4d2-b7dd6e8c5998.jsonl",
+  "sid": "01a0a331-bfbe-764e-b4d2-b7dd6e8c5998",
+  "start": "2026-09-15T03:52:21.698Z",
+  "end": "2026-09-15T03:57:53.234Z",
+  "models": [
+   "claude-opus-5"
+  ],
+  "n": 22,
+  "R": 1160047,
+  "cost": 1.59323475,
+  "P0": 16842,
+  "x1": 10800,
+  "xmax": 89160,
+  "xlast": 89160,
+  "knee_slope2": null,
+  "knee_cp": 9,
+  "knee_star": 5,
+  "k_ts": "2026-09-15T03:52:58.025Z",
+  "Ck": 99422,
+  "xk": 32775,
+  "cf": 442121,
+  "save": 717926,
+  "near_star": null,
+  "near_slope": null,
+  "near_cp": null,
+  "nsteers": 0,
+  "nmiss": 0,
+  "kx": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "cfx": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "save_x": {
+   "100": null,
+   "200": null,
+   "300": null
+  },
+  "miss_w": 0,
+  "miss_in": 0,
+  "ntools": 25
+ }
+]
