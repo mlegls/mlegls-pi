@@ -111,6 +111,7 @@ So beyond what happened, a useful memory journal covers:
 - what went badly, and what its first signs would look like: "when I notice ___, ..."
 - what couldn't be rebuilt from the repo${tail ? " and the tail" : ""}
 - ${tail ? "where the work in progress began" : "what is still unfinished"}
+- which standing rules you are carrying and where each came from: cite the user's turn or the document for a rule; one you inferred yourself says so, and a later user turn outranks it
 
 ${impersonal ? `Write in the voice you have now, but phrase it in the third person ("the assistant noticed...") or first person plural ("we noticed..."), not "I". Give each item its handle: the cited phrase or moment that brings it back.` : "Write in the voice you have now, and give each item its handle: the cited phrase or moment that brings it back."}
 
