@@ -39,3 +39,7 @@ Observed on 2026-09-30:
 The new read includes base and child decisions, includes nested descendants as documented, and excludes `other/peer`. The report filter excludes decisions, which is why the coordination examples omit it. This was a CLI first-use trial, not a live multi-worker delivery measurement. No visual surface is affected.
 
 Existing regressions: `ab check -- bun run test:board` — 30 pass, 0 fail, 142 expectations. `git diff --check` passed. No new permanent acceptance tests were added.
+
+## Independent drive
+
+[Predictions, actions, outcomes, frictions and replayable checks](drive.md), tested at `8b8438b77806884abc24b070845cf88cb7bb1783`. Both ticket stories held: the three instruction surfaces agree, and isolated CLI reads reach base/child decisions without crossing sibling-run boundaries. Selected output: [read replay](drive-cli.txt), [fresh waiting and Bash adapter](drive-wait.txt). Nonvisual; no screenshots. Host subscription delivery was not exercised in this Bash-only drive.

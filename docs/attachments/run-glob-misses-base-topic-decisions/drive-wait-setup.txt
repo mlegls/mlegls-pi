@@ -1,0 +1,7 @@
+
+Empty board cursor:
+{
+  "offset": 0
+}
+
+Public CLI wait usage:

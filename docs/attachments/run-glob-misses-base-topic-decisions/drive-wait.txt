@@ -1,0 +1,83 @@
+Owned temporary board: /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/tmp.1WRqjrA7dp
+
+Sibling topic should not wake run-wide wait:
+{
+  "id": "muo6pd3w-0r83o1",
+  "ts": "2026-09-30T14:12:09.500Z",
+  "topic": "trial-other/peer",
+  "body": "sibling run decision",
+  "tags": [
+    "decision"
+  ],
+  "from": {
+    "name": "glob-drive-wait",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+  }
+}
+Wait exit: 1
+]ab;raw
+/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/tmp.1WRqjrA7dp/wait-sibling.txt:
+1 waac│
+]ab;/raw
+
+Fresh cursor for base-topic wait:
+]ab;raw
+/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/tmp.1WRqjrA7dp/cursor.json:
+1 eh37│{
+2 e325│  "offset": 258
+3 e4yu│}
+]ab;/raw
+
+Base topic should wake run-wide wait:
+{
+  "id": "muo6pdvd-0tu6le",
+  "ts": "2026-09-30T14:12:10.489Z",
+  "topic": "trial",
+  "body": "fresh base decision",
+  "tags": [
+    "decision"
+  ],
+  "from": {
+    "name": "glob-drive-wait",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+  }
+}
+Wait exit: 0
+]ab;raw
+/var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/tmp.1WRqjrA7dp/wait-base.txt:
+1 8h37│{
+2 878s│  "id": "muo6pdvd-0tu6le",
+3 8dwj│  "ts": "2026-09-30T14:12:10.489Z",
+4 83n2│  "topic": "trial",
+5 8sug│  "body": "fresh base decision",
+6 87xr│  "tags": [
+7 85d3│    "decision"
+8 8vcr│  ],
+9 899s│  "from": {
+10 8qqm│    "name": "glob-drive-wait",
+11 894g│    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+12 8yeg│  }
+13 84yu│}
+]ab;/raw
+
+JSON adapter read taught in worker preamble:
+{
+  "messages": [
+    {
+      "id": "muo6pdvd-0tu6le",
+      "ts": "2026-09-30T14:12:10.489Z",
+      "topic": "trial",
+      "body": "fresh base decision",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-drive-wait",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "line": 2
+    }
+  ],
+  "omitted": 0,
+  "total": 1
+}

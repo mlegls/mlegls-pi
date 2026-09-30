@@ -1,0 +1,253 @@
+{
+  "id": "muo6nolx-lf5voj",
+  "ts": "2026-09-30T14:10:51.093Z",
+  "topic": "trial",
+  "body": "base decision",
+  "tags": [
+    "decision"
+  ],
+  "from": {
+    "name": "glob-first-use",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+  }
+}
+{
+  "id": "muo6nom5-5gqdjx",
+  "ts": "2026-09-30T14:10:51.101Z",
+  "topic": "trial/peer",
+  "body": "peer decision",
+  "tags": [
+    "decision"
+  ],
+  "from": {
+    "name": "glob-first-use",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+  }
+}
+{
+  "id": "muo6nome-k1vvmg",
+  "ts": "2026-09-30T14:10:51.110Z",
+  "topic": "trial/subrun/peer",
+  "body": "nested decision",
+  "tags": [
+    "decision"
+  ],
+  "from": {
+    "name": "glob-first-use",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+  }
+}
+{
+  "id": "muo6nomn-i5nrjd",
+  "ts": "2026-09-30T14:10:51.119Z",
+  "topic": "other/peer",
+  "body": "outside run",
+  "tags": [
+    "decision"
+  ],
+  "from": {
+    "name": "glob-first-use",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+  }
+}
+{
+  "id": "muo6nomw-yemnag",
+  "ts": "2026-09-30T14:10:51.128Z",
+  "topic": "trial/peer",
+  "body": "worker report",
+  "tags": [
+    "done"
+  ],
+  "from": {
+    "name": "glob-first-use",
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+  }
+}
+
+Old run-wide read:
+{
+  "messages": [
+    {
+      "id": "muo6nom5-5gqdjx",
+      "line": 2,
+      "ts": "2026-09-30T14:10:51.101Z",
+      "topic": "trial/peer",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "body": "peer decision"
+    },
+    {
+      "id": "muo6nomw-yemnag",
+      "line": 5,
+      "ts": "2026-09-30T14:10:51.128Z",
+      "topic": "trial/peer",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "body": "worker report"
+    }
+  ],
+  "omitted": 0,
+  "total": 2
+}
+
+New run-wide read:
+{
+  "messages": [
+    {
+      "id": "muo6nolx-lf5voj",
+      "line": 1,
+      "ts": "2026-09-30T14:10:51.093Z",
+      "topic": "trial",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "body": "base decision"
+    },
+    {
+      "id": "muo6nom5-5gqdjx",
+      "line": 2,
+      "ts": "2026-09-30T14:10:51.101Z",
+      "topic": "trial/peer",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "body": "peer decision"
+    },
+    {
+      "id": "muo6nome-k1vvmg",
+      "line": 3,
+      "ts": "2026-09-30T14:10:51.110Z",
+      "topic": "trial/subrun/peer",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "body": "nested decision"
+    },
+    {
+      "id": "muo6nomw-yemnag",
+      "line": 5,
+      "ts": "2026-09-30T14:10:51.128Z",
+      "topic": "trial/peer",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "body": "worker report"
+    }
+  ],
+  "omitted": 0,
+  "total": 4
+}
+
+Report-filtered read:
+{
+  "messages": [
+    {
+      "id": "muo6nomw-yemnag",
+      "line": 5,
+      "ts": "2026-09-30T14:10:51.128Z",
+      "topic": "trial/peer",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "body": "worker report"
+    }
+  ],
+  "omitted": 0,
+  "total": 1
+}
+
+New run-wide read, full content:
+{
+  "messages": [
+    {
+      "id": "muo6nolx-lf5voj",
+      "ts": "2026-09-30T14:10:51.093Z",
+      "topic": "trial",
+      "body": "base decision",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "line": 1
+    },
+    {
+      "id": "muo6nom5-5gqdjx",
+      "ts": "2026-09-30T14:10:51.101Z",
+      "topic": "trial/peer",
+      "body": "peer decision",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "line": 2
+    },
+    {
+      "id": "muo6nome-k1vvmg",
+      "ts": "2026-09-30T14:10:51.110Z",
+      "topic": "trial/subrun/peer",
+      "body": "nested decision",
+      "tags": [
+        "decision"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "line": 3
+    },
+    {
+      "id": "muo6nomw-yemnag",
+      "ts": "2026-09-30T14:10:51.128Z",
+      "topic": "trial/peer",
+      "body": "worker report",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "name": "glob-first-use",
+        "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions-drive"
+      },
+      "line": 5
+    }
+  ],
+  "omitted": 0,
+  "total": 4
+}
+
+CLI help:

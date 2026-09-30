@@ -19,3 +19,5 @@ ticket contract, 2026-09-30: peers read base-topic decisions: the worker preambl
 Teach `<run>/**` in the worker preamble, dispatch docs and multi-agent skill; keep `matchTopic` unchanged. Instructions explicitly include base-topic decisions and nested descendants, and keep decision reads separate from report tag filters.
 
 [Implementation first use and replay](../attachments/run-glob-misses-base-topic-decisions/index.md): isolated CLI board returned base, peer and nested decisions with globstar; the old single-segment pattern missed the base. Existing board regressions: 30 pass, 0 fail.
+
+[Independent drive](../attachments/run-glob-misses-base-topic-decisions/drive.md): both ticket stories held through delivered instructions and isolated CLI/Bash reads. Prediction log and replayable checks are in the packet. CLI waiting also reached a fresh base decision; host subscription lifecycle was not exercised. Discovery friction filed as [[projects/mlegls-pi/issues/board-cli-help-runs-required-argument-validation]].
