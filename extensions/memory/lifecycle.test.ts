@@ -1,5 +1,5 @@
 import { expect, jest, spyOn, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { ExtensionRunner, SessionManager, type CompactOptions, type ExtensionError } from "@earendil-works/pi-coding-agent";
@@ -8,8 +8,8 @@ import { loadExtensions } from "../../node_modules/@earendil-works/pi-coding-age
 // Replays the replacement, ordinary idle and negative-eligibility checks in
 // docs/attachments/memory-agent-settled-uses-stale-ctx/index.md at Pi's extension boundary.
 // Real loader, runner (including stale-ctx enforcement) and session storage;
-// fake clock and compaction sink: no provider request or terminal needed.
-interface SessionFixture { runner: ExtensionRunner; calls: CompactOptions[]; errors: ExtensionError[]; notices: string[] }
+// fake clock and model response: no provider request or terminal needed.
+interface SessionFixture { runner: ExtensionRunner; calls: CompactOptions[]; errors: ExtensionError[]; notices: string[]; attempts: () => Promise<any[]> }
 async function fixture(run: (f: { start: (tokens?: boolean, children?: boolean) => Promise<SessionFixture> }) => Promise<void>) {
 	const root = mkdtempSync(join(tmpdir(), "memory-lifecycle-"));
 	const oldState = process.env.AB_STATE;
@@ -22,24 +22,37 @@ async function fixture(run: (f: { start: (tokens?: boolean, children?: boolean) 
 		await run({ start: async (tokens = true, children = true) => {
 			const loaded = await loadExtensions([resolve(import.meta.dir, "index.ts")], root);
 			expect(loaded.errors).toEqual([]);
-			const manager = SessionManager.inMemory(root);
+			const dir = mkdtempSync(join(root, "session-"));
+			const manager = SessionManager.create(root, dir);
 			manager.appendMessage({ role: "user", content: tokens ? "word ".repeat(8000) : "short", timestamp: 1 });
 			manager.appendMessage({ role: "user", content: "waiting", timestamp: 2 });
 			const job = join(root, `supervise-${manager.getSessionId()}.json`);
 			writeFileSync(job, JSON.stringify({ id: "a", type: "supervise", status: "running", input: { ticket: "t", ownerSession: manager.getSessionId() }, state: { children: children ? { x: {} } : {} } }));
 			writeFileSync(join(root, "jobs.json"), JSON.stringify([job]));
-			const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, root, manager, {} as any);
+			const runner = new ExtensionRunner(loaded.extensions, loaded.runtime, root, manager, { streamSimple: () => ({ result: async () => ({
+				stopReason: "stop", content: [{ type: "text", text: `tail: ${manager.getLeafId()}\n\nWaiting on child x. [@${manager.getBranch()[0].id}]` }],
+			}) }) } as any);
 			runners.push(runner);
 			const calls: CompactOptions[] = [], errors: ExtensionError[] = [], notices: string[] = [];
 			runner.onError(error => errors.push(error));
-			runner.bindCore({} as any, {
+			const pending: Promise<unknown>[] = [];
+			runner.bindCore({ getThinkingLevel: () => "off", getAllTools: () => [], getActiveTools: () => [] } as any, {
 				getModel: () => ({ provider: "anthropic", id: "m" }), getScopedModels: () => [],
 				isIdle: () => true, hasPendingMessages: () => false,
-				compact: (options: CompactOptions) => calls.push(options),
+				getSystemPrompt: () => "",
+				compact: (options: CompactOptions) => {
+					calls.push(options);
+					pending.push(runner.emit({ type: "session_before_compact", branchEntries: manager.getBranch(),
+						preparation: { tokensBefore: 10000 }, signal: new AbortController().signal, customInstructions: options.customInstructions } as any));
+				},
 			} as any);
 			runner.setUIContext({ ...runner.getUIContext(), notify: (text: string) => { notices.push(text); } });
 			await runner.emit({ type: "session_start", reason: "startup" });
-			return { runner, calls, errors, notices };
+			return { runner, calls, errors, notices, attempts: async () => {
+				await Promise.all(pending);
+				const ledger = join(dir, "memory-attempts.jsonl");
+				return existsSync(ledger) ? readFileSync(ledger, "utf8").trim().split("\n").map(line => JSON.parse(line)) : [];
+			} };
 		} });
 	} finally {
 		for (const runner of runners) await runner.emit({ type: "session_shutdown", reason: "quit" });
@@ -69,12 +82,15 @@ for (const reason of ["resume", "reload"] as const) {
 		jest.advanceTimersByTime(300_000);
 		expect(old.calls).toEqual([]);
 		expect(replacement.calls).toEqual([]);
+		expect(await old.attempts()).toEqual([]);
+		expect(await replacement.attempts()).toEqual([]);
 		expect(old.notices).toEqual([]);
 		expect(replacement.notices).toEqual([]);
 		// New-session work uses its own fresh event context and idle interval.
 		await replacement.runner.emit({ type: "agent_settled" });
 		jest.advanceTimersByTime(300_000);
 		expect(replacement.calls).toHaveLength(1);
+		expect((await replacement.attempts()).map(a => a.trigger)).toEqual(["hibernate"]);
 		expect(replacement.calls[0].customInstructions).toContain("t: x");
 		expect(replacement.notices[0]).toContain("Hibernating: folding");
 		expect(replacement.errors).toEqual([]);
@@ -94,6 +110,7 @@ test("eligible idle hibernates once; activity resets the deadline; shutdown canc
 	expect(s.calls).toEqual([]);
 	jest.advanceTimersByTime(1);
 	expect(s.calls).toHaveLength(1);
+	expect((await s.attempts()).map(a => a.trigger)).toEqual(["hibernate"]);
 	expect(s.calls[0].customInstructions).toContain("t: x");
 	jest.advanceTimersByTime(300_000);
 	expect(s.calls).toHaveLength(1);
@@ -101,6 +118,7 @@ test("eligible idle hibernates once; activity resets the deadline; shutdown canc
 	await s.runner.emit({ type: "session_shutdown", reason: "quit" });
 	jest.advanceTimersByTime(300_000);
 	expect(s.calls).toHaveLength(1);
+	expect((await s.attempts()).map(a => a.trigger)).toEqual(["hibernate"]);
 	expect(s.errors).toEqual([]);
 }));
 
@@ -110,6 +128,7 @@ for (const [name, tokens, children] of [["below threshold", false, true], ["with
 		await s.runner.emit({ type: "agent_settled" });
 		jest.advanceTimersByTime(3_600_000);
 		expect(s.calls).toEqual([]);
+		expect(await s.attempts()).toEqual([]);
 		expect(s.notices).toEqual([]);
 		expect(s.errors).toEqual([]);
 	}));
