@@ -1,8 +1,8 @@
 ---
 name: tidy
 description: Incremental, behavior-preserving tidying across changes that landed together: extract the shared piece, align names and conventions, inline what doesn't earn its keep.
-model: anthropic/claude-opus-5-5
-effort: medium
+model: anthropic/claude-sonnet-5-5
+effort: high
 role: consolidate
 ---
 

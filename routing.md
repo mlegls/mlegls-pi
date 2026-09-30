@@ -19,7 +19,7 @@ Agent files in `agents/` declare model and effort preferences for worker stances
 
 ## Model preferences
 
-- Opus 5.5 is preferred for interactive work, the top-level long-context supervisor, UI/UX decisions requiring design taste, and visual review—not UI implementation merely because it touches a rendered surface.
+- Opus 5.5 is preferred for interactive work, the top-level long-context supervisor, and visual review—not UI implementation merely because it touches a rendered surface. Delegated design-taste work (`ui`), review and consolidation are on trial with Sonnet 5.5 high; for UI, the Opus visual reviewer holds taste at acceptance and may improve on it.
 - Sonnet 5.5 costs the same per token as Sonnet 5 and spends far more output tokens per task (about 193K per Intelligence Index task at max, the most Artificial Analysis has measured). It sits off the cost-per-task Pareto frontier: at xhigh/max Opus 5.5 delivers the same for less, and at low/medium GPT-6.1-sol does. High is its most competitive setting. It is not monotonic in effort: max scores below xhigh on FrontierCode (it fans out to subagents and makes out-of-scope edits). It matches Opus 5.5 on agentic terminal and knowledge-work benchmarks but trails on factual knowledge and scientific reasoning, with a lower hallucination rate. Avoid Sonnet 5.5 max.
 - Opus 5.5 supersedes opus 5 and is better than fable 5.1 on most work. Fable's remaining possible niche is diversity of thought / range of possibilities in interactive exploration, not ordinary non-interactive assignments.
 - GPT-6.1-sol replaces GPT-6-sol at the same token price (cheaper cache reads) and sits about one Intelligence Index point below astra at under a quarter of astra's cost per task; every effort level is on the cost-efficiency frontier. It is the default for difficult non-visual work, including what previously went to astra. Keep astra for the hardest research-grade work where its remaining lead is worth the price.
@@ -41,7 +41,7 @@ Interpret supplied evidence; do not invent missing context or closure. Prefer a 
 - `supervise`: A non-leaf, agent-ready subtree: delegate its children, integrate them into one branch, and verify it before reporting up.
 - `reviewer`: Review a change against its contract (and the driver's log when there is one) and repair it directly; non-visual work.
 - `verify`: Drive changed behavior as its user would, without reading the implementation; write predictions before first use; record outcomes, frictions, expectations and replayable checks (the reviewer encodes them as tests).
-- `visual-reviewer`: Review and repair work whose acceptance is what a user sees: rendered surface, layout, visual coherence, usability. Choose it when the driver's packet is visual.
+- `visual-reviewer`: Review and repair work whose acceptance is what a user sees: rendered surface, layout, visual coherence, usability. It also makes aesthetic improvements to the surface the change renders, not only corrections. Choose it when the driver's packet is visual.
 - `session-triage`: The recorded plan is insufficient: resolve missing acceptance, conflicting dependencies/interfaces, or decisions outside delegated authority. Return a decision and updated issues for supervision to resume.
 
 ## Continuation actions

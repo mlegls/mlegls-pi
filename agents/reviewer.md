@@ -1,8 +1,8 @@
 ---
 name: reviewer
 description: Review a change against its contract and the driver's log, repairing defects directly; also standalone diff review or a scoped audit.
-model: anthropic/claude-opus-5-5
-effort: medium
+model: anthropic/claude-sonnet-5-5
+effort: high
 role: review
 ---
 
