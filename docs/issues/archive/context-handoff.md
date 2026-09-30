@@ -1,6 +1,6 @@
 ---
 stage: done
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/archive/agentic-setup-reorg]]"
 ---
 
 a worker that starts with this session's transcript. `wm.spawn({fork: true, ...})` runs the agent as `pi --fork $PI_SESSION_ID` (the agent file's `runCommand` with `--fork` added; `PI_SESSION_ID` is already in the worker env). done when `advance` can be run as a forked child from an interactive session, its turns watched from the parent, and the parent can jump to where it ended.

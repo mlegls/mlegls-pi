@@ -1,7 +1,6 @@
 ---
 assignee: agent
 author: session:01a0cc04-cb45-71a4-b0d6-737d08a9055c
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 priority: 3
 ---
 

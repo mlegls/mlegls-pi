@@ -1,6 +1,6 @@
 ---
 stage: done
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/archive/agentic-setup-reorg]]"
 ---
 
 scripts import lib, agent prompts name lib functions, docs describe both: one repo. move skills (as sorted), agents, and agent-prompts from `~/.config/system-config` into this repo; system-config keeps the symlink and install layer. project-local plugins: "[[projects/mlegls-pi/issues/archive/exec-project-modules]]".

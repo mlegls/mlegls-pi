@@ -1,6 +1,6 @@
 ---
 stage: done
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/archive/agentic-setup-reorg]]"
 ---
 
 orchestrate steps 3–4 as a workflow script: wait → merge → test → classify with jev {clean, needs-merge-attention, needs-decision, respawn}. The script handles clean joins, one conflict handback, and bounded checkpoint respawns; decisions return to the coordinator with the report and a Jev-selected evidence excerpt.

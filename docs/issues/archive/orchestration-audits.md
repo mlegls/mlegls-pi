@@ -2,7 +2,7 @@
 priority: 3
 stage: done
 assignee: agent
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/archive/agentic-setup-reorg]]"
 ---
 
 hypotheses left open by [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]]. each is a session; split out when claimed.

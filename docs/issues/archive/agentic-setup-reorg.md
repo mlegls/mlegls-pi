@@ -1,10 +1,10 @@
 ---
-stage: goal
+stage: done
 assignee: human
 priority: 1
 ---
 
-A coherent harness-integrated library, skills and human surfaces reduce orchestration overhead. The repository merge and project-local exec modules are delivered; skills remain skills. Current dispatch uses workmux/tmux and the board ([[projects/mlegls-pi/dispatch]]); Orca and Paseo execution adapters are retired. The optional [[projects/mlegls-pi/issues/archive/dsh-port]] is delivered. Choosing the human cockpit remains open in [[projects/mlegls-pi/issues/home-ui]].
+A coherent harness-integrated library, skills and human surfaces reduce orchestration overhead. The repository merge and project-local exec modules are delivered; skills remain skills. Current dispatch uses workmux/tmux and the board ([[projects/mlegls-pi/dispatch]]); Orca and Paseo execution adapters are retired. The optional [[projects/mlegls-pi/issues/archive/dsh-port]] is delivered. Choosing the human cockpit remains open in [[projects/mlegls-pi/issues/archive/home-ui]].
 
 Residual work: reconcile the remaining human-surface choices and accept the composed workflow against the recorded orchestration costs. Children own bounded preparation, measurement and delivery; their results do not by themselves certify the whole workflow. The dated decisions below preserve the route, including superseded proposals.
 
@@ -17,7 +17,7 @@ Original decomposition, roughly in dependency order (archived links include deli
 4. "[[projects/mlegls-pi/issues/archive/supervision-join-script]]", "[[projects/mlegls-pi/issues/archive/dispatch-script]]" — orchestration as scripts.
 5. "[[projects/mlegls-pi/issues/archive/pool-aware-routing]]", "[[projects/mlegls-pi/issues/archive/campaign-coordinator]]".
 6. "[[projects/mlegls-pi/issues/archive/skills-triage]]" then "[[projects/mlegls-pi/issues/archive/repo-merge]]".
-7. "[[projects/mlegls-pi/issues/home-ui]]", "[[projects/mlegls-pi/issues/archive/operon-adapter]]" — the human surfaces; independent of the rest.
+7. "[[projects/mlegls-pi/issues/archive/home-ui]]", "[[projects/mlegls-pi/issues/archive/operon-adapter]]" — the human surfaces; independent of the rest.
 8. "[[projects/mlegls-pi/issues/archive/orchestration-audits]]" — remaining hypotheses; "[[projects/mlegls-pi/issues/archive/reranker-eval]]" gates how much of the filter to build.
 
 decisions:
@@ -34,3 +34,5 @@ decisions:
 - 2026-09-18: context-handoff landed: wm.spawn({from:"fork"|"summary"}), /jump <handle>. "[[projects/mlegls-pi/issues/archive/context-handoff]]".
 - 2026-09-18: exec-project-modules landed: `.pi/exec/<name>.ts` shadows `lib/<name>.ts` in the cell; new stems are `project.<name>`; `skills/mlegls-pi` documents layout/add/reload. "[[projects/mlegls-pi/issues/archive/exec-project-modules]]".
 - 2026-09-20: repo-merge landed: `agents/`, `skills/{enabled,disabled}`, `agent-prompts/` live here; system-config keeps relative symlinks and agents-apply. package skills stay `skills/pi` and `skills/mlegls-pi`. "[[projects/mlegls-pi/issues/archive/repo-merge]]".
+
+closed, 2026-09-30: all children delivered; [[projects/mlegls-pi/issues/archive/home-ui]] settled the human surfaces and [[projects/mlegls-pi/issues/archive/orchestration-audits]] recorded the orchestration costs. [[projects/mlegls-pi/issues/scripted-supervision-loop]] continues as its own tree.

@@ -9,4 +9,4 @@ A foldable per-project tree of sessions in dsh's web/desktop app, the view tmux 
 
 Open: sessions together with or separate from the terminal experience. dsh pieces to build from: the subagent panel, experimental terminal sidebar, jobs, dockkit multi-pane layout, UI slots in browser-side client plugins. Rendering is a client plugin; none of the pi TUI renderers carry over.
 
-decision, 2026-09-30: deferred; the cockpit is workmux/tmux + `ab tree` + Obsidian ([[projects/mlegls-pi/issues/home-ui]]).
+decision, 2026-09-30: deferred; the cockpit is workmux/tmux + `ab tree` + Obsidian ([[projects/mlegls-pi/issues/archive/home-ui]]).

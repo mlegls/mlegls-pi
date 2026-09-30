@@ -1,7 +1,7 @@
 ---
 stage: done
 assignee: agent
-part-of: "[[projects/mlegls-pi/issues/home-ui]]"
+part-of: "[[projects/mlegls-pi/issues/archive/home-ui]]"
 ---
 
 the vault half of home: issue views that keep state across navigation, render real internal links (copy, hover, open-in-pane), and show subissue rollups and progress. the current `tracker/Tracker.base` + `tracker/Graph` datacorejsx views cannot: a datacorejsx block lives in a note's reader, so it unmounts on every navigation, and it renders its own anchors rather than obsidian's. those are datacore limits, not polish.
@@ -22,7 +22,7 @@ decisions:
 
 done: the three views (tree, board, network) exist for the live tracker, whichever way, and the datacorejsx notes are retired.
 
-decision, 2026-09-30: agent-owned; the cockpit is workmux/tmux + `ab tree` + Obsidian ([[projects/mlegls-pi/issues/home-ui]]).
+decision, 2026-09-30: agent-owned; the cockpit is workmux/tmux + `ab tree` + Obsidian ([[projects/mlegls-pi/issues/archive/home-ui]]).
 
 execution is partitioned into [[projects/mlegls-pi/issues/archive/tracker-obsidian-views]] (renderer and disposable first-use setup) and [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]] (dependent live deployment and datacore retirement). No residual implementation remains in this container. Existing exported model types, Bases type `tracker`, mode names and persisted view-option keys are the shared seam; the children preserve them.
 

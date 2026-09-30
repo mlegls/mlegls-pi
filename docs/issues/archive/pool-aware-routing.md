@@ -1,7 +1,7 @@
 ---
 stage: done
 assignee: human
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/archive/agentic-setup-reorg]]"
 ---
 
 ## Disposition — 2026-09-22

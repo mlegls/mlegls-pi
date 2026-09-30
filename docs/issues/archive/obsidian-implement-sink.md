@@ -3,7 +3,7 @@ tags: [task]
 stage: done
 assignee: agent
 priority: 1
-part-of: "[[projects/mlegls-pi/issues/home-ui]]"
+part-of: "[[projects/mlegls-pi/issues/archive/home-ui]]"
 ---
 
 The implement-side actions (#implement on an efforts bullet, or the palette command on a block) launch supervised work and leave a link in the note so the session can be attached from pi. From the vault outliner [[directing multi-agent work]]. Use the current workmux dispatch backend ([[projects/mlegls-pi/dispatch]]), not the retired Orca adapter.

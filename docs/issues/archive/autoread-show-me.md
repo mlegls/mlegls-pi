@@ -1,7 +1,7 @@
 ---
 stage: done
 assignee: agent
-part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
+part-of: "[[projects/mlegls-pi/issues/archive/agentic-setup-reorg]]"
 ---
 
 autoread returns understanding for the parent’s next task, not snippets or a search transcript. Use labeled file/call trees, story sequences, and pseudocode where useful, with verified source references. The parent should begin useful work without repeating orientation.
