@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0ecc4-b401-74ba-9bf2-4cc7daed852e
 ---
@@ -11,3 +11,5 @@ During the [[projects/concept/issues/choose-a-confirmed-variant-on-read]] first-
 Workaround: through `chrome-devtools-axi eval`, set the rendered select's `value` to `source` (or the variant ID) and dispatch a bubbling `change` event; the UI and subsequent reload reflected the stored selection. See [[projects/concept/attachments/choose-a-confirmed-variant-on-read/index|drive packet]].
 
 Proposed improvement: support an explicit native select action (`selectOption` equivalent) and report option enabled state accurately, instead of making automation rely on DOM event synthesis. Verify against the Hub control with all three options, saving and reloading each value.
+
+disposition, 2026-09-30: not reproduced as a tool defect. On a minimal native `<select>`, the snapshot lists the options as `selectable` (not disabled), and `fill @<combobox> 'Source release'` selects it (value becomes `src`). Use `fill` on the combobox, not click plus arrow keys.

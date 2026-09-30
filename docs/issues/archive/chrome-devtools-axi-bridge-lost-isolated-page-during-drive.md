@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: "session:01a0eb51-171b-7603-81f9-eca82ea95313"
 ---
@@ -9,3 +9,5 @@ author: "session:01a0eb51-171b-7603-81f9-eca82ea95313"
 Origin: [[projects/concept/attachments/bring-the-scripted-provider-up-to-the-current-backend/index|scripted provider first-use drive]]. This repository is not the owning tool; investigate whether the bridge/browser exited, expired or reset, and how the CLI should expose the reason rather than silently reopening a blank browser. No root cause established.
 
 Related in this tracker: [[projects/mlegls-pi/issues/archive/chrome-devtools-axi-bridge-loses-page-and-fill-misses-composer]].
+
+disposition, 2026-09-30: reported upstream as a possible second occurrence on https://github.com/kunchenguid/chrome-devtools-axi/issues/158.
