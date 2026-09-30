@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/orchestration-audits]]"
@@ -18,3 +18,7 @@ report 2026-09-30: [[docs/research/orchestrate-rework-effect]] — script and ra
 ## Result
 
 First-use CLI drive: [[docs/attachments/orchestrate-rework-effect/index]] — the supplied command runs and reproduces the published TSV, but the research narrative disagrees with those measurements on era totals, parent-cwd counts, after-era nesting and the prior-audit comparison. See the packet for outcomes and replay checks; no product repairs were made.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/orchestrate-rework-effect/index.md).
