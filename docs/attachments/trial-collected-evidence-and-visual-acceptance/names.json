@@ -1,0 +1,516 @@
+{
+  "delivery": "name-things-by-their-names-not-ids",
+  "observedAt": "2026-09-30T15:05:35Z",
+  "owner": "mail/c7a4ad76",
+  "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+  "productAccepted": true,
+  "integratedCommit": "a36920105c31720355244f6abc9257a643affc2a",
+  "integratedAt": "2026-09-30T14:43:41.170Z",
+  "originalReviewHead": "4315fc9f",
+  "allThreeWorktreesRetired": true,
+  "retiredWorktreeNames": [
+    "name-things-by-their-names-not-ids",
+    "name-things-by-their-names-not-ids-drive",
+    "name-things-by-their-names-not-ids-review-1"
+  ],
+  "packet": {
+    "repository": "concept",
+    "path": "docs/attachments/name-things-by-their-names-not-ids/index.md",
+    "sha256": "aa33c6dac8b4d56198405585c591501bb62b40388418855d2e109a2503afe7a3",
+    "visual": true,
+    "retainedImages": [
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/01-author-seeded-en.png",
+        "sha256": "3450ea8ad815890063cc0735dc7e3db02e9a226d5827feb6ce96160e21be0d5d",
+        "gitBlob": "9b8e4e37632b2dbf1375d9147b576ddff71f0ecb"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/02-quiz-completed-en.png",
+        "sha256": "0f813efff7f5fb53f90679ce312070a08da59ed0d169ae27a6d72644801684ab",
+        "gitBlob": "62197b7c1dc98f9fb163f9b771e6061a5a2c71c1"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/03-attach-node-names.png",
+        "sha256": "e7363a7d878243f406d4e237b404c2707c23d1a077183d26474d469045b8bbc1",
+        "gitBlob": "d3df87ef7762b4c6a678fcea172341fbab586522"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/04-inspect-json.png",
+        "sha256": "1d56e3228f636a112f40840d9cf336901d9e873ca28df8c4de34ca1c897b0ad6",
+        "gitBlob": "ac4f65e7743c439179cdf45904e9fdd3c9b48c3b"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/05-release-exact-en.png",
+        "sha256": "89b618992454cdf981ccc410e228888798018590887636652d713508eb267db2",
+        "gitBlob": "02b28a597162ce4a02740615b9ac9452aa2b40ac"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/06-release-latest-en.png",
+        "sha256": "01d5edd63d79727da1dc8ff85b26f23537958670ba97a26992854d5632ce04ee",
+        "gitBlob": "28bffae8faf246155166956c4458663f2d0ea7be"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/07-variants-en.png",
+        "sha256": "249f54995a9c8ba87b4320330a0f9778f6c4d12a389c50cab7f19ee8a2c34a28",
+        "gitBlob": "48266e0bd19ae61198d0cff114a6c6574ce64f9b"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/08-srs-card-front.png",
+        "sha256": "f2fb2ee401658caca94ca24783817fb60c7b02d63a947df0c21beebc6a974cfb",
+        "gitBlob": "c7f453735f1fb1dfb83fb09710bacb2849c112dc"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/09-public-after-zh-setting.png",
+        "sha256": "89b618992454cdf981ccc410e228888798018590887636652d713508eb267db2",
+        "gitBlob": "02b28a597162ce4a02740615b9ac9452aa2b40ac"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/10-author-empty-en.png",
+        "sha256": "61cce38cbfe6e11d1a1c2b2bffb0b1879765e67f3a63b4960215cd416286b636",
+        "gitBlob": "ae0f680498c2fb5c4717a6699647ffb5f9831601"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/11-reading-picker-en.png",
+        "sha256": "30bd65bcf110b642bcf99d0f7fa16d92a8eaddcb0cf3a16233e7e0cc84e2fd23",
+        "gitBlob": "80e88e48705fb6b3be906dab519d48586bb85da9"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/12-release-private-zh.png",
+        "sha256": "7308b35ee68989604a6a5893bc2981c0f3a52de07d521f14fa022abadf547370",
+        "gitBlob": "8af90e972dcc610a281013be42165f6f9cd896b1"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/13-author-empty-zh.png",
+        "sha256": "1301d90f9a27c68bcd44fbe5dc44d008f98773f992609afb2e7cdc5768a16dde",
+        "gitBlob": "743e7176b9d82ef1d18a7d281d256103f3602e7d"
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/14-reading-picker-review-en.png",
+        "sha256": "6731441a82cfeb1d9d5ae48faf3d54d6d3df3c3594dfc53c094fc6ead6ab39e3",
+        "gitBlob": "5af8d3b474b014d35fa2934ac413b08cf0339045"
+      }
+    ]
+  },
+  "collectorOutcomes": [
+    {
+      "story": "Material hover title",
+      "outcome": "held"
+    },
+    {
+      "story": "Native review-card front",
+      "outcome": "held"
+    },
+    {
+      "story": "Attachment Node names",
+      "outcome": "held"
+    },
+    {
+      "story": "Suggested Mission targets",
+      "outcome": "held"
+    },
+    {
+      "story": "Variant list and reading picker",
+      "outcome": "failed"
+    },
+    {
+      "story": "Closed Quiz summaries",
+      "outcome": "held"
+    },
+    {
+      "story": "Inspect JSON and original text",
+      "outcome": "unobservable"
+    },
+    {
+      "story": "Release-map accessible name",
+      "outcome": "held"
+    },
+    {
+      "story": "Release-map descriptions",
+      "outcome": "held"
+    },
+    {
+      "story": "Publication stated once",
+      "outcome": "held"
+    },
+    {
+      "story": "Authoring empty wording",
+      "outcome": "held"
+    }
+  ],
+  "reviewerDeclaredOutcomes": [
+    {
+      "story": "Material hover title",
+      "outcome": "held"
+    },
+    {
+      "story": "Native review-card front",
+      "outcome": "held"
+    },
+    {
+      "story": "Attachment Node names",
+      "outcome": "held"
+    },
+    {
+      "story": "Suggested Mission targets",
+      "outcome": "held"
+    },
+    {
+      "story": "Variant list and reading picker",
+      "outcome": "held"
+    },
+    {
+      "story": "Closed Quiz summaries",
+      "outcome": "held"
+    },
+    {
+      "story": "Inspect JSON and original text",
+      "outcome": "held"
+    },
+    {
+      "story": "Release-map accessible name",
+      "outcome": "held"
+    },
+    {
+      "story": "Release-map descriptions",
+      "outcome": "held"
+    },
+    {
+      "story": "Publication stated once",
+      "outcome": "held"
+    },
+    {
+      "story": "Authoring empty wording",
+      "outcome": "held"
+    }
+  ],
+  "reviewerEvidence": {
+    "path": "docs/attachments/name-things-by-their-names-not-ids/index.md",
+    "visual": true,
+    "shots": [
+      "docs/attachments/name-things-by-their-names-not-ids/02-quiz-completed-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/03-attach-node-names.png",
+      "docs/attachments/name-things-by-their-names-not-ids/04-inspect-json.png",
+      "docs/attachments/name-things-by-their-names-not-ids/08-srs-card-front.png",
+      "docs/attachments/name-things-by-their-names-not-ids/11-reading-picker-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/12-release-private-zh.png",
+      "docs/attachments/name-things-by-their-names-not-ids/13-author-empty-zh.png",
+      "docs/attachments/name-things-by-their-names-not-ids/14-reading-picker-review-en.png"
+    ]
+  },
+  "visualJudgment": {
+    "completeForRequiredClaims": false,
+    "actualStrongerModelImageOpening": true,
+    "model": "anthropic/claude-opus-5-5",
+    "effort": "medium",
+    "session": "01a0f2b4-9632-7446-8907-390776bd5b92",
+    "openedAt": "2026-09-30T14:36:57.143Z",
+    "toolCall": "toolu_019e17wX5c8WVa6gByo5QVVj",
+    "toolResult": "5cd7ed3f",
+    "openedPath": "docs/attachments/name-things-by-their-names-not-ids/14-reading-picker-review-en.png",
+    "attachedImageSHA256": "6731441a82cfeb1d9d5ae48faf3d54d6d3df3c3594dfc53c094fc6ead6ab39e3",
+    "attachedBytesMatchIntegratedImage": true,
+    "committedJudgment": "A native closed <select> does not show its options in a screenshot; JSON is the evidence for the label.",
+    "collectorShotsOpened": [],
+    "collectorShotsNotOpened": [
+      "docs/attachments/name-things-by-their-names-not-ids/02-quiz-completed-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/03-attach-node-names.png",
+      "docs/attachments/name-things-by-their-names-not-ids/04-inspect-json.png",
+      "docs/attachments/name-things-by-their-names-not-ids/08-srs-card-front.png",
+      "docs/attachments/name-things-by-their-names-not-ids/11-reading-picker-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/12-release-private-zh.png",
+      "docs/attachments/name-things-by-their-names-not-ids/13-author-empty-zh.png"
+    ],
+    "missingJudgmentRequest": {
+      "message": "muo8e260-ql7js1",
+      "at": "2026-09-30T14:59:21Z",
+      "to": "mail/c7a4ad76",
+      "purpose": "Existing reviewer/supervisor path should append actual judgments of the retained candidate frames; no new collector or journey requested."
+    },
+    "friction": "docs/issues/visual-review-accepts-packet-with-unopened-collected-frames.md"
+  },
+  "reviewerRepairs": [
+    {
+      "what": "Reading-picker option includes both locale and access mode",
+      "integratedCommit": "659ca5c56208c3f89deae760267888fd5f1c215c",
+      "evidence": "Fresh browser re-drive; variant relation prepared through Convex operations used by the existing browser spec; English option text in DOM and a closed-select screenshot."
+    },
+    {
+      "what": "Inspect preserves plain non-JSON result line breaks",
+      "integratedCommit": "5a2269eadfa9e819e013a194602f66c355e97b8b",
+      "evidence": "New check through ChatTranscript in the existing component test; not a live plain-text tutor tool result."
+    },
+    {
+      "what": "Attachment dialog article error",
+      "integratedCommit": "7bc6dd69e7ac7bce16bebe86e6edc90bbd991d31",
+      "evidence": "Two-minute English copy fix; Chinese had no article error."
+    }
+  ],
+  "counts": {
+    "encounterUnits": "One complete collector pass and one successful targeted reviewer browser re-drive; not the number of individual UI actions or retry attempts.",
+    "collectorPasses": 1,
+    "successfulReviewerBrowserRedrives": 1,
+    "deterministicComponentReplaysAdded": 1,
+    "requiredDefectsRepaired": 2,
+    "incidentalDefectsRepaired": 1,
+    "newExpectationsDeferredAsProductChoice": 1,
+    "reviewerRequestsToCollector": 0,
+    "newCollectorOrReviewWorkersCommissionedForRepair": 0,
+    "roleHandoffs": 2,
+    "automaticImplementerReportCorrectionTurns": 1,
+    "ownerCommandsAppliedInLifecycle": 0,
+    "completionWakes": 1,
+    "restartMessagesDeliveredAfterCollectorFinished": 2,
+    "observerRequestsForMissingImageJudgment": 1
+  },
+  "documentedSetupFailureFacts": [
+    "Two service receipts vanished before expiry; restarted checkout-owned services (one grouped outage).",
+    "Initial browser adapter imported unavailable playwright; changed to installed @playwright/test before product encounter.",
+    "Computer model catalog returned max_tokens_exceeded; direct semantic Playwright fill recovered setup.",
+    "Original browser service hit its 30-minute lifetime; recreated owned browser and signed in again without reseeding.",
+    "Review ran full tests before setup produced .env; one official-publisher failure passed after mise run setup."
+  ],
+  "setupCountingLimit": "Five documented categories, including two vanished receipts. This is a packet-backed record, not an exhaustive audit of every failed tool/test attempt. Wait exhaustion after reaching the desired state is recorded as navigation/completion friction, not assumed to be auth failure.",
+  "pipelineEvents": [
+    {
+      "at": "2026-09-30T12:24:57.369Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2vi1a",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "budget": 8,
+      "resumed": false,
+      "kind": "start"
+    },
+    {
+      "at": "2026-09-30T12:25:09.982Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2vi1a",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "phase": "implement",
+      "handle": "name-things-by-their-names-not-ids",
+      "model": "openai-codex/gpt-6-luna",
+      "kind": "launch"
+    },
+    {
+      "at": "2026-09-30T12:25:29.494Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "budget": 8,
+      "resumed": false,
+      "kind": "start"
+    },
+    {
+      "at": "2026-09-30T13:34:50.642Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "phase": "implement",
+      "end": "finished",
+      "status": null,
+      "kind": "turn"
+    },
+    {
+      "at": "2026-09-30T13:39:40.722Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "phase": "implement",
+      "end": "finished",
+      "status": "done",
+      "kind": "turn"
+    },
+    {
+      "at": "2026-09-30T13:39:49.460Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "phase": "drive",
+      "handle": "name-things-by-their-names-not-ids-drive",
+      "model": "openai-codex/gpt-6.1-sol",
+      "kind": "launch"
+    },
+    {
+      "at": "2026-09-30T13:42:21.794Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "budget": 8,
+      "resumed": true,
+      "kind": "start"
+    },
+    {
+      "at": "2026-09-30T14:25:06.918Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "phase": "drive",
+      "end": "finished",
+      "status": "done",
+      "kind": "turn"
+    },
+    {
+      "at": "2026-09-30T14:25:15.753Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "phase": "review",
+      "handle": "name-things-by-their-names-not-ids-review-1",
+      "model": "anthropic/claude-opus-5-5",
+      "kind": "launch"
+    },
+    {
+      "at": "2026-09-30T14:37:36.477Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "phase": "review",
+      "end": "finished",
+      "status": "done",
+      "kind": "turn"
+    },
+    {
+      "at": "2026-09-30T14:37:36.554Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "kind": "integrate-queued"
+    },
+    {
+      "at": "2026-09-30T14:37:36.558Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "kind": "integrate-start"
+    },
+    {
+      "at": "2026-09-30T14:43:41.170Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "ok": true,
+      "kind": "integrate-end"
+    },
+    {
+      "at": "2026-09-30T14:43:41.170Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "slug": "name-things-by-their-names-not-ids",
+      "outcome": "integrated",
+      "kind": "child-end"
+    },
+    {
+      "at": "2026-09-30T14:43:59.016Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "integrated": 1,
+      "deferred": 0,
+      "open": 0,
+      "metrics": {
+        "wakes": 0,
+        "ownerBytes": 0,
+        "launched": 3,
+        "completed": 1,
+        "peak": 1
+      },
+      "kind": "finish"
+    },
+    {
+      "at": "2026-09-30T14:44:02.359Z",
+      "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "run": "name-things-by-their-names-not-ids",
+      "mode": "dataflow",
+      "about": "done: 1 children integrated at a3692010. metrics {\"wakes\":0,\"ownerBytes\":0,\"launched\":3,\"completed\":1,\"peak\":1}, join sk",
+      "kind": "wake"
+    }
+  ],
+  "launchToIntegrationSeconds": 8311.188,
+  "workers": [
+    {
+      "role": "implement",
+      "file": "~/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-name-things-by-their-names-not-ids--/2026-09-30T12-25-10-259Z_01a0f246-a173-7253-a475-720de88a792a.jsonl",
+      "session": "01a0f246-a173-7253-a475-720de88a792a",
+      "started": "2026-09-30T12:25:10.259Z",
+      "lastRecorded": "2026-09-30T14:43:45.190Z",
+      "models": [
+        {
+          "provider": "openai-codex",
+          "modelId": "gpt-6-luna"
+        }
+      ],
+      "efforts": [
+        "max"
+      ],
+      "assistantCalls": 219,
+      "recordedCostUSD": 0.43339779999999994,
+      "inputTokens": 855266,
+      "outputTokens": 148952,
+      "cacheReadTokens": 27339520,
+      "cacheWriteTokens": 0
+    },
+    {
+      "role": "collect",
+      "file": "~/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-name-things-by-their-names-not-ids-drive--/2026-09-30T13-39-50-163Z_01a0f28a-fd13-73f4-ac4e-7f65ac17ee20.jsonl",
+      "session": "01a0f28a-fd13-73f4-ac4e-7f65ac17ee20",
+      "started": "2026-09-30T13:39:50.163Z",
+      "lastRecorded": "2026-09-30T14:43:53.337Z",
+      "models": [
+        {
+          "provider": "openai-codex",
+          "modelId": "gpt-6.1-sol"
+        }
+      ],
+      "efforts": [
+        "high"
+      ],
+      "assistantCalls": 120,
+      "recordedCostUSD": 2.7988684,
+      "inputTokens": 402667,
+      "outputTokens": 39100,
+      "cacheReadTokens": 16025344,
+      "cacheWriteTokens": 0
+    },
+    {
+      "role": "review",
+      "file": "~/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept__worktrees-name-things-by-their-names-not-ids-review-1--/2026-09-30T14-25-16-338Z_01a0f2b4-9632-7446-8907-390776bd5b92.jsonl",
+      "session": "01a0f2b4-9632-7446-8907-390776bd5b92",
+      "started": "2026-09-30T14:25:16.338Z",
+      "lastRecorded": "2026-09-30T14:43:35.348Z",
+      "models": [
+        {
+          "provider": "anthropic",
+          "modelId": "claude-opus-5-5"
+        }
+      ],
+      "efforts": [
+        "medium"
+      ],
+      "assistantCalls": 37,
+      "recordedCostUSD": 1.1131548000000004,
+      "inputTokens": 76,
+      "outputTokens": 16286,
+      "cacheReadTokens": 2004054,
+      "cacheWriteTokens": 77264
+    }
+  ],
+  "acceptedProductDeliveryWorkerSubtotalUSD": 4.345421,
+  "costLimit": "Nominal harness assistant usage.cost.total for the three workers, including their repair/report turns. Not a bill. Excludes shared supervisor attribution, tool-side Jev/tutor calls, observer work and any subsequent missing-image-judgment turn.",
+  "trialAcceptanceComplete": false,
+  "caveats": [
+    "Picker option text is read from the DOM (14-reading-picker-review-en.json); a closed native select can't show its options in a screenshot. Chinese not re-driven; only the catalog word 'canonical' changes there.",
+    "Inspect plain-text preservation is covered by a component render test through ChatTranscript, not a live tutor tool returning plain text.",
+    "Full bun test: 1 failure (official-publisher 'refuses a different publisher deployment') came from the review worktree having no .env before mise run setup; it passes after setup.",
+    "The local Convex deployment owned by this worktree (3216/4408) is stopped; no remote resources."
+  ]
+}
