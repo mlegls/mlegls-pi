@@ -6,7 +6,7 @@
 // its mailbox (mail/xxxxxxxx, lib/board/mailbox).
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
-import { appendFileSync, existsSync, readFileSync, writeFileSync, realpathSync, statSync, watch } from "node:fs";
+import { appendFileSync, closeSync, existsSync, fstatSync, openSync, readFileSync, readSync, writeFileSync, realpathSync, statSync, watch } from "node:fs";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { basename, dirname, join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
@@ -38,7 +38,7 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
  nodeJoin?: boolean }
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
-interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; waitingSince?: string; exceptionMailAt?: string; staleWakeSentFor?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; sessionFile?: string; reported?: boolean; checkedAt?: number } }
+interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; waitingSince?: string; exceptionMailAt?: string; staleWakeSentFor?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; sessionFile?: string; reported?: boolean; checkedAt?: number }; sessionStartedAt?: number; dead?: { error: string; session: string; size: number; failedAt: string } }
 interface Child { reportRepairs?: number; warnedSessionFiles?: string[]; pendingSessionWarnings?: string[] }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
@@ -56,6 +56,7 @@ export type Command = { child: string; action: "verify" | "integrate" | "drop" |
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const STARTUP_GRACE_MS = 30_000;
+const WORKER_ERROR_GRACE_MS = 3 * 60_000;
 const STARTUP_POLL_MS = 5_000;
 const STALE_WAIT_MS = 30 * 60_000;
 // Session files grow while the loop waits on worker turn-end reports.
@@ -81,13 +82,47 @@ const STARTUP_META = (entry: { type: string; customType?: string; data?: unknown
  const meta = entry.data as { run?: unknown; handle?: unknown };
  return meta.run === handle.run && meta.handle === handle.handle;
 };
-async function piSessionFile(handle: Handle) {
+async function piSessionFile(handle: Handle, startedAt?: number) {
  const sessions = (await SessionManager.list(handle.path)).sort((a, b) => b.created.getTime() - a.created.getTime());
  for (const session of sessions) {
+  // A run/handle is reused on redispatch; don't take an older attempt's session for this worker's log.
+  if (startedAt !== undefined && session.created.getTime() <= startedAt) continue;
   try {
    if (SessionManager.open(session.path).getEntries().some(entry => STARTUP_META(entry, handle))) return session.path;
   } catch {}
  }
+}
+function lastNonCustomSessionEntry(path: string): any | undefined {
+ const fd = openSync(path, "r");
+ try {
+  let position = fstatSync(fd).size;
+  let pending = "";
+  while (position > 0) {
+   const length = Math.min(64 * 1024, position);
+   position -= length;
+   const chunk = Buffer.allocUnsafe(length);
+   readSync(fd, chunk, 0, length, position);
+   const lines = (chunk.toString("utf8") + pending).split("\n");
+   pending = lines.shift()!;
+   for (let i = lines.length - 1; i >= 0; i--) {
+    if (!lines[i].trim()) continue;
+    try { const entry = JSON.parse(lines[i]); if (entry.type !== "custom") return entry; }
+    catch { /* Ignore a partial or malformed trailing record. */ }
+   }
+  }
+  if (pending.trim()) {
+   try { const entry = JSON.parse(pending); if (entry.type !== "custom") return entry; }
+   catch { /* Ignore a partial or malformed first record. */ }
+  }
+ } finally { closeSync(fd); }
+}
+function assistantSessionFailure(path: string): { error: string; failedAt: string } | undefined {
+ const entry = lastNonCustomSessionEntry(path);
+ const message = entry?.type === "message" ? entry.message : undefined;
+ if (message?.role !== "assistant" || message.stopReason !== "error" || typeof entry.timestamp !== "string") return;
+ const failedAt = entry.timestamp;
+ if (!Number.isFinite(Date.parse(failedAt))) return;
+ return { error: typeof message.errorMessage === "string" && message.errorMessage ? message.errorMessage : "assistant stopReason: error", failedAt };
 }
 function workerAddress(handle: Handle, cwd: string): string | undefined {
  const existing = scopes(handle.path).find(value => value.startsWith("wt/"));
@@ -273,7 +308,9 @@ export async function run(job: JobContext) {
      ? (existsSync(c.handle.path)
        ? ". Restart it in its existing worktree before steering it; its next report on this topic returns to the loop"
        : ". After restoring its worktree, restart it there before steering it; its next report on this topic returns to the loop")
-     : ". Steer it directly; its next turn end returns to the loop") +
+     : c.dead
+       ? ". Its session ended on a provider error; redispatch starts a fresh session if steering this one repeats the failure"
+       : ". Steer it directly; its next turn end returns to the loop") +
    ", or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch", () => {
     if (c.waitingSince === waitingSince) c.exceptionMailAt = new Date().toISOString();
    });
@@ -345,7 +382,7 @@ const checkStartup = async (live: Child[]) => {
   if (startup.mode === "command") continue;
   if (!startup.sessionFile) {
    try {
-    startup.sessionFile = await piSessionFile(c.handle);
+    startup.sessionFile = await piSessionFile(c.handle, c.sessionStartedAt);
     if (startup.sessionFile) { startup.sessionFound = true; await save(); }
    } catch (error) {
     startup.checkedAt = Date.now();
@@ -369,6 +406,34 @@ const checkStartup = async (live: Child[]) => {
   catch (error) { text = "Could not capture worker pane: " + error; job.log(text); }
   startup.reported = true;
   await except(c, "worker did not start within " + (STARTUP_GRACE_MS / 1000) + "s (no pi session found)", text);
+ }
+};
+const checkWorkerFailures = async (live: Child[]) => {
+ for (const c of live) {
+  if (state.children[c.slug] !== c || c.unreachable || c.startup?.mode === "command") continue;
+  // checkStartup records the attempt's session file; until then there is nothing to read.
+  const sessionPath = c.startup?.sessionFile;
+  if (!sessionPath) continue;
+  let failure: ReturnType<typeof assistantSessionFailure>;
+  try { failure = assistantSessionFailure(sessionPath); }
+  catch (error) { job.log("worker session read failed (" + c.slug + "): " + error); continue; }
+  if (!failure) {
+   if (c.dead) { c.dead = undefined; await save(); }
+   continue;
+  }
+  const failedAt = Date.parse(failure.failedAt);
+  if (!Number.isFinite(failedAt) || Date.now() - failedAt < WORKER_ERROR_GRACE_MS) {
+   if (c.dead && c.dead.failedAt !== failure.failedAt) { c.dead = undefined; await save(); }
+   continue;
+  }
+  if (c.dead?.session === sessionPath && c.dead.failedAt === failure.failedAt) continue;
+  let size: number;
+  try { size = statSync(sessionPath).size; }
+  catch (error) { job.log("worker session stat failed (" + c.slug + "): " + error); continue; }
+  c.dead = { error: failure.error, session: sessionPath, size, failedAt: failure.failedAt };
+  await save();
+  await except(c, "worker session ended after provider error: " + failure.error,
+   "Provider error: " + failure.error + "\nSession file: " + sessionPath + "\nSession size: " + size + " bytes\nLast assistant error: " + failure.failedAt);
  }
 };
  const launch = async (slug: string, phase: Phase, prompt: string, base: string, assignee?: string | null) => {
@@ -499,9 +564,10 @@ const checkStartup = async (live: Child[]) => {
  const ticketText = (slug: string) => { const issue = snapshot(input).find(i => i.slug === slug)!; return "Ticket " + slug + " (" + issue.file + "):\n\n" + readFileSync(issue.file, "utf8"); };
  const advance = async (c: Child, phase: "drive" | "review", prompt: string) => {
   const base = git(c.handle.path, "rev-parse", "HEAD");
+  const sessionStartedAt = Date.now();
   const handle = await launch(c.slug, phase, prompt, base, snapshot(input).find(i => i.slug === c.slug)?.assignee);
   (c.previous ??= []).push(c.handle);
-  Object.assign(c, { handle, phase, cursor: handle.cursor, evidence: undefined, acceptedHead: undefined, startup: { launchedAt: Date.now(), mode: "pi" } });
+  Object.assign(c, { handle, phase, cursor: handle.cursor, evidence: undefined, acceptedHead: undefined, startup: { launchedAt: Date.now(), mode: "pi" }, sessionStartedAt, dead: undefined });
   c.reportRepairs = 0;
   await save();
  };
@@ -536,8 +602,9 @@ const checkStartup = async (live: Child[]) => {
   const prompt = drive ? [joinScope(), "Drive the node's own stories: journeys that cross its children. The children's own stories were already driven and are covered by the tests above; don't redrive them. If the node has no story beyond its children's, report `stories: []` and say so.",
    "Setup handoffs from the children's implementers:\n" + yaml(state.setups ?? {})].join("\n\n") : consolidatePrompt(null, "");
   try {
+   const sessionStartedAt = Date.now();
    const handle = await launch(key, phase, prompt, head);
-   state.children[key] = { slug: key, phase, handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } };
+   state.children[key] = { slug: key, phase, handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" }, sessionStartedAt };
   } catch (error) {
    if (error instanceof DecisionApiUnavailableError && !batch) (state.decisionUnavailable ??= {})[key] = error.message;
    else { state.join.skipped = "launch failed: " + error; if (batch) record({ kind: "join-skipped", reason: state.join.skipped }); else await wake("could not launch the join: " + error); }
@@ -560,9 +627,10 @@ const checkStartup = async (live: Child[]) => {
   const failed = (r.handoff!.stories as { outcome?: string }[]).some(s => s.outcome !== "held");
   // Nothing to repair and nothing to relate: the drive's evidence is the join.
   if (!failed && (input.unjoined?.slugs.length ?? 0) + state.integrated.length < 2) { c.evidence = { ...r.handoff! }; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); await save(); await integrateChild(c, c.handle); return; }
+  const sessionStartedAt = Date.now();
   const handle = await launch(c.slug, "consolidate", consolidatePrompt(c.drive, text), git(c.handle.path, "rev-parse", "HEAD"));
   (c.previous ??= []).push(c.handle);
-  Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, reportRepairs: 0, startup: { launchedAt: Date.now(), mode: "pi" } });
+  Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, reportRepairs: 0, startup: { launchedAt: Date.now(), mode: "pi" }, sessionStartedAt, dead: undefined });
   await save();
  } else {
   const drove = Array.isArray(c.drive?.stories) && (c.drive!.stories as unknown[]).length > 0;
@@ -628,7 +696,11 @@ const checkStartup = async (live: Child[]) => {
    const prompt = nonleaf
     ? "Supervise the subtree of " + rel(i.file) + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ".\n\n" + readFileSync(i.file, "utf8")
     : (i.effectiveStage === "spec" ? "Spec leaf " : "Ticket ") + rel(i.file) + ":\n\n" + readFileSync(i.file, "utf8") + (node ? "\n\nIts children are all done; what remains is its own stage (residual work, including its joined acceptance). Realize it, or commit spec/ticket children that partition it (the loop then runs them and returns here), or, when only acceptance remains, change nothing but drive that acceptance. Don't redo the children." : "") + (input.notes?.[i.slug] ? "\n\nNote from the loop's triage: " + input.notes[i.slug] : "");
-   try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } }; }
+   try {
+    const sessionStartedAt = Date.now();
+    const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee);
+    state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" }, sessionStartedAt };
+   }
    catch (error) {
     if (batch) { (state.deferred ??= {})[i.slug] = "launch failed"; record({ kind: "deferred", slug: i.slug, phase: "launch", reason: "launch failed: " + error }); }
     else if (error instanceof DecisionApiUnavailableError) (state.decisionUnavailable ??= {})[i.slug] = error.message;
@@ -652,6 +724,8 @@ const checkStartup = async (live: Child[]) => {
   const watched = live.filter(c => !c.unreachable);
   const recovering = live.filter(c => c.unreachable);
   await checkStartup(watched);
+  await checkWorkerFailures(watched);
+  if (Object.keys(state.children).length !== live.length) continue;
   if (job.signal.aborted) return;
   const ids = watched.map(c => topic(c.handle));
   const recoveryIds = recovering.map(c => topic(c.handle));
@@ -697,8 +771,7 @@ const checkStartup = async (live: Child[]) => {
   const c = live.find(child => topic(child.handle) === end.id)!;
   // Exit cursors are not board reports; keep the previous report cursor for restart detection.
   if (!end.unreachable) c.cursor = end.cursor;
-  c.waiting = undefined; c.waitingSince = undefined; c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined;
-  c.unreachable = undefined;
+  c.waiting = undefined; c.waitingSince = undefined; c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined; c.unreachable = undefined; c.dead = undefined;
   trace("turn", { slug: c.slug, phase: c.phase, end: end.unreachable ? "unreachable" : end.kind, ...(end.unreachable ? {} : { status: parse(end.text).status }) });
   if (c.phase === "review") { c.evidence = undefined; c.acceptedHead = undefined; }
   await save();
