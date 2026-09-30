@@ -33,3 +33,32 @@
 5. In the published report, accept a quote of the current fence ratio/override and a clear distinction between context-fraction and cumulative-read fencing; require explicit weekly-pool subscription caveat beside list-price dollars. Present first three elements exist, pool caveat absent.
 
 No UI journey or screenshots: `visual: false`, `shots: []`. No server or external resource started.
+
+## Review and redrive
+
+Reviewed the diff from `610b6f0` alongside the first-use log; repaired and re-drove at **6927e38** on `cache-read-fence-knee-review-1`. The first-use observations above are preserved, including their failed outcomes; this appendix records the current outcomes. Same local historical corpus, board log and Python 3.14.7; no service, seed, browser, remote target or authentication change.
+
+Commands (both exited 0):
+
+```sh
+python3 analysis/cache-read-fence-knee/final.py
+python3 analysis/cache-read-fence-knee/board_corr.py
+bun test analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts
+```
+
+The CLI commands and tests were run through `ab check`. Captures: [corrected final CLI](review-final-run.txt), [timestamped correlation CLI](review-board-run.txt), [automated replay](review-tests.txt). After both default CLI reruns, `git diff --exit-code -- analysis/cache-read-fence-knee` exited 0: no tracked output or bytecode changes.
+
+| required story | current outcome | observed result / evidence |
+|---|---|---|
+| corpus and tool-index curves | held | 40 sessions, R=1,198,142,082, $849.21; full 6,306-call curves map every tool index, including multi-tool ranges and no-tool calls. Named extremes remain 558/406 tools, 583/424 billed calls, 231,720,892/159,620,858 reads. [Full curves](../../../analysis/cache-read-fence-knee/curves.json), replay check 1. |
+| knee and steer/checkpoint correlation | held | Report now matches the data: slope call range 13–58 (38 present / 2 null), split fraction 0.247–0.618. Every candidate/policy knee has original steer/checkpoint timestamps, IDs, signed gaps and adjacent usage; absence is null. Transcript-capture's 300k point is call 202/tool 194 at 10:28:11.109Z, steer −591.263s, checkpoint +3136.062s, cache hit. [Timestamp links](../../../analysis/cache-read-fence-knee/board_corr.json), checks 2–3. |
+| respawn counterfactual | held | Three-call estimator returns 60,000, not 50,000. Independent per-call replay of every real policy matches each reported counterfactual and actual = counterfactual + saved. Corrected corpus savings 68.5%/56.3%/32.7% at 100k/200k/300k context. [All 40 actual/counterfactual rows, worst actual reads first](../../../analysis/cache-read-fence-knee/results.md), check 4. |
+| fence and price limits | held | Current system-config links and live extension checked. Report quotes PI_CHECKPOINT ratio/percentage override and 0.3/0.6 fallback, distinguishes context fraction from cumulative reads, explicitly states subscription weekly pools. Historic effective worker overrides/deployment cannot be inferred from commit timestamps. [Report](../../../analysis/cache-read-fence-knee/report.md), check 5. |
+
+Friction/expectation disposition: **F1–F5 fixed here**. Full worst-actual-read-first table replaces truncated stdout; all tools are mapped; ranges and indices are consistent; own/run checkpoint timestamps are exposed; tracked bytecode removed and reruns stay clean. The existing [rerun-dirties-checkout issue](../../issues/cache-read-fence-knee-rerun-dirties-checkout.md) is resolved, moved out of the ticket's execution tree. Its missing `tracker` binary was an adapter misunderstanding: Markdown vault files are this project's tracker. No new out-of-scope ideas or author questions arose. No replay check was dropped; checks 2–3 use the documented 1-based convention, and check 4's accounting identity is actual = sunk prefix + modeled replay + saved (not sunk prefix + saved alone).
+
+Further demonstrated corrections from reading surrounding data: repaired per-call charges invalidate the earlier “optimum is always search-floor / earlier always better” claim (now k*=5–81, only 1/40 at floor). There are 26 post-follow-up cache misses, so neither unconditional steer invalidation nor unconditional cache preservation is supported. Of 103 cache misses, 28 are first calls and only 46 others follow >300s gaps; withdrew “all misses are TTL.” Fence commit 20:11+08 is 12:11Z, before transcript-capture finished, not after it; withdrew “entire corpus is pre-fence” and the claimed equivalence to deployed fence+compaction. These corrections are in the report, not just caveats in this packet.
+
+Limits: this remains an optimistic warm-cache read-equivalent replay, with zero re-derivation overhead and a heuristic P0. It is not an actual respawn experiment or a dollar/pool savings forecast. User follow-ups are parent-steer proxies; board/run matching is a documented topic/cwd/lifetime heuristic. No intrinsic causal knee established; policies are explicitly stated in context tokens. Automated tests require the same local historical corpus and board log. No external resources started or left running. `visual: false`, `shots: []`.
+
+Tests: [CLI/artifact replay](../../../analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts) — five tests, all passed. The replay regenerates both CLI products into a temporary output directory, checks the published artifacts match byte-for-byte, and removes its temporary directory.

@@ -1,0 +1,13 @@
+bun test v1.4.2 (744846f84)
+
+analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts:
+(pass) CLI reproduces the corpus and complete billed-call to tool-index curves [1.88ms]
+(pass) published ranges agree with session results and use one-based call indices [0.23ms]
+(pass) policy knees link timestamped steers, own/run checkpoints and adjacent cache outcomes [0.27ms]
+(pass) fresh-prefix replay pays each growing call once, including the sunk prefix [178.25ms]
+(pass) all sessions/policies are published worst-first, economic limits explicit, reruns reproducible [3.33ms]
+
+ 5 pass
+ 0 fail
+ 26451 expect() calls
+Ran 5 tests across 1 file. [2.41s]

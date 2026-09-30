@@ -13,4 +13,4 @@ method: per session, cumulative cache-read tokens (cost ≈ Σ context-at-call-i
 
 limits: the live context fence (system-config) bounds context fraction, not cumulative reads — quote the current setting for contrast. list-price dollars, subscription models ride weekly pools; state the knee in tokens, not $.
 
-result: [first-use drive and replayable checks](../attachments/cache-read-fence-knee/index.md) (partial corpus and hypothesis rejection observed; tool-index curves, timestamped knee/checkpoint links, counterfactual accounting, and price caveat need review).
+result: [reviewed report](../../analysis/cache-read-fence-knee/report.md) and [complete first-use + review evidence](../attachments/cache-read-fence-knee/index.md). Full tool-index mappings and timestamped knee/checkpoint correlations; corrected per-call replay savings 68.5%/56.3%/32.7% at context 100k/200k/300k (optimistic read-equivalent model, not realized pool savings). No common steer-triggered intrinsic knee established. Withdrawn claims: all-at-search-floor optimum, all misses TTL, all steers cache-hit, entire corpus pre-fence. All four stories held; CLI/artifact regression suite passes.
