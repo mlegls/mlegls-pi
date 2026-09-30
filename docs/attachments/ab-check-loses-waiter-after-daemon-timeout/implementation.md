@@ -39,3 +39,8 @@ callers printed `daemon request timed out; retrying receipt`. After resumption:
 The isolated daemon was shut down and its temporary state removed.
 Existing focused regressions: `ab check -- bun test ab/resources.test.ts lib/resources`
 passed (8 tests, 36 assertions). No new permanent acceptance tests were added.
+The explicit-directory suite `ab check -- bun test ./ab ./lib/resources` passed
+(19 tests, 105 assertions). A bare `ab` filter also selected optional disabled
+skills and hit an unrelated missing dependency; see
+[the discovery/setup issue](../../issues/disabled-watch-pr-tests-missing-commander.md).
+`git diff --check` passed. No root lint scripts are configured in `package.json`.
