@@ -73,3 +73,5 @@ Here “owner mail” is delivery of the exception notice to the owner. An owner
 Replay: `ab check -- bun test lib/jobs/stale-waits.test.ts lib/jobs/supervise.test.ts lib/jobs/loop.test.ts` → **5 passed, 0 failed, 42 assertions**. The encounter first ran as an observation-producing fixture; its observed outputs then became the assertions. Initial fixture preparation needed command-mode startup metadata and canonicalized temporary paths; both are included in the replay.
 
 No services or external resources remain. The fixture aborts its loop and removes its disposable repository. Evidence remains nonvisual (`visual: false`, `shots: []`).
+
+Integration retry: rebased onto `fcc1962`, retaining its clarified review boundary and all acceptance additions. Re-ran the same three test files on the rebased code: **5 passed, 0 failed, 42 assertions**. Both story outcomes remain held.

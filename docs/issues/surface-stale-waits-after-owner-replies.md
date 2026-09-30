@@ -11,5 +11,6 @@ Fix: show `waiting: <reason> since <time>` in status. Re-wake the owner when an 
 triage, 2026-09-30: N is 30 minutes, re-woken once per exception (not repeatedly).
 
 review boundary, 2026-09-30: the supervise-loop group (bounce-handoff-shape-errors-to-the-child, address-the-waiting-child-in-exception-mail, supervise-job-dies-on-a-decision-api-503-at-child-launch, surface-stale-waits-after-owner-replies, turn-end-sentinel-parser-rejects-preambles) is reviewed once as a combined delta from `894e8c6` by the root tend session after all five integrate, before the next `ab daemon shutdown` loads them. This is a code review of the combined diff; each leaf's own acceptance review (evidence packet against the ticket) still runs.
+
 Result (first-use drive): [evidence packet](../attachments/surface-stale-waits-after-owner-replies/index.md). The handed-off checkout had no supervision jobs; both wait-specific behaviors remained unobservable through its CLI entry point.
 
