@@ -34,7 +34,8 @@ changed work needs `resume … verify`. Old carried workers without the evidence
 handoff are parked for an updated report, not grandfathered into acceptance.
 See ~/dev/mlegls-pi/docs/verification-evidence.md for the packet and handoff schema.
 
-Code-review boundaries are chosen and delegated by the root supervisor (`supervise`
-skill), not inserted at every leaf by this loop. A supervisor's subtree-done
-notification precedes its assigned integration review; it reports `done` upward
-only after review, repairs and affected verification are complete.
+The script owns drive/review and the subtree's joined stories and consolidation.
+The owning LLM resolves exceptions from tickets, decisions, reports and evidence;
+it does not read children's code, add reviews or narrate routine transitions.
+A supervisor reports `done` upward only after the subtree-done wake and disposal
+of its reported residuals. Waiting turns have no status sentinel.
