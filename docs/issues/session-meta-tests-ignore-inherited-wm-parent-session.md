@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0e1f9-7532-7020-9cfb-1028c0d6c727
 ---
@@ -11,3 +11,7 @@ Triage, 2026-09-30: `lib/session-meta/index.test.ts:45` still leaves `PI_WM_PARE
 ## Result
 
 [Session metadata isolation evidence](../attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md): focused tests pass with inherited and absent parent variables. Review replays fixture restoration in-process and inspects persisted session metadata with parent present and absent through Pi's session-manager API. Production code is unchanged.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md).
