@@ -29,16 +29,16 @@ test("Decision API retries transient failures but reports persistent outages", a
  // First-use check 1's connection reset: a fetch TypeError is retried before classification.
  const original = globalThis.fetch;
  let attempts = 0;
- globalThis.fetch = async (...args) => {
+ globalThis.fetch = Object.assign(async (...args: Parameters<typeof fetch>) => {
   if (++attempts < 3) throw new TypeError("synthetic connection reset");
   return original(...args);
- };
+ }, { preconnect: original.preconnect });
  const server = Bun.serve({ port: 0, fetch: () => Response.json(answer) });
  try {
   expect((await decide("Supervise this ticket", question, { apiKey: "fixture", url: server.url.toString() })).safe.choice).toBe("true");
   expect(attempts).toBe(3);
   attempts = 0;
-  globalThis.fetch = async () => { attempts++; throw new TypeError("synthetic connection reset"); };
+  globalThis.fetch = Object.assign(async () => { attempts++; throw new TypeError("synthetic connection reset"); }, { preconnect: original.preconnect });
   await expect(decide("Supervise this ticket", question, { apiKey: "fixture", url: server.url.toString() })).rejects.toThrow("Decision API unavailable: network failure after 4 attempts");
   expect(attempts).toBe(4);
  } finally { globalThis.fetch = original; server.stop(true); }

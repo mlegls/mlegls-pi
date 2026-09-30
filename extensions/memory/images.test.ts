@@ -10,7 +10,7 @@ test("oldest images go first; paths, latest image and original history survive",
 	] };
 	const original = JSON.stringify(context);
 	const result = trimImages(context, bytes(context) - 500);
-	expect(result.messages[0].content[0].text).toBe("/tmp/old.png");
+	expect((result.messages[0].content[0] as { text: string }).text).toBe("/tmp/old.png");
 	expect(result.messages[0].content[1].type).toBe("text");
 	expect(result.messages[1]).toBe(context.messages[1]);
 	expect(bytes(result)).toBeLessThanOrEqual(bytes(context) - 500);
