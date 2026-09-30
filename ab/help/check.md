@@ -21,9 +21,11 @@ For a frozen checkout with dependencies installed from its lockfile and no
 other inputs: ab check --share lockfile-install -- bun-axi run typecheck
 
 All callers see the same execution ID/log/exit status when sharing. Cancelling
-one waiter leaves the others running. No waiters for 30s cancels the execution,
-so cancel by stopping your waiting ab check caller; execution IDs are not
-ab daemon job IDs.
+one waiter leaves the others running. Stopping your waiting ab check caller
+releases it immediately; a caller that disappears without releasing expires
+after 30s. Execution IDs are not ab daemon job IDs. SIGINT exits the caller
+with 130; a running command is terminated with SIGTERM, so its receipt can
+instead record 143 with reason `no waiting callers`.
 A daemon-request timeout while waiting retries the same execution/client receipt,
 not the command. SIGINT/SIGTERM still release the caller. The 30s caller lease
 still applies; a longer outage can expire it. A daemon restart is not recoverable.

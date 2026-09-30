@@ -43,3 +43,47 @@ Launched a check caller for `/bin/sh -c 'sleep 40; echo should-not-print'` (rece
 3. Check the initial `bun ab/main.ts check -- /bin/echo ready` entry point against the same isolated target. Accept output `ready`, exit 0, and a single done code-0 receipt before other submissions.
 
 CLI-only journey: no rendered UI or screenshots. The timeout mechanism is a controlled surrogate, not a reproduction of the original daemon stall; this evidence speaks to waiter recovery and departure under an injected >5-second delay, not its production cause.
+
+## Review and automated replay — 2026-09-30
+
+Reviewed the timeout exception, polling loop, daemon request/ensure path, and resource
+lease/release lifecycle against this encounter. Recovery reuses the execution and
+client; it does not submit again. Other daemon errors remain terminal.
+
+Frictions resolved in scope:
+
+- Retry notice now says `retrying receipt until response or interruption (30s caller lease may expire)`.
+  It describes the retry policy without claiming ownership during an unobservable outage.
+- `ab check --help` now distinguishes the caller's SIGINT exit 130 from the running
+  command's possible SIGTERM receipt 143, and immediate release from lease expiry.
+  The differing codes are preserved, not normalized.
+- Fault injection remains test-only: the CLI regression below owns a fresh isolated
+  daemon and reproduces the pause directly. No production fault-injection command
+  is needed to replay the encounter. The underlying production delay remains unknown.
+
+All three suggested checks are encoded in `ab/resources.test.ts`, test
+`CLI retains running and queued waiters across daemon timeouts, but releases on SIGINT`.
+It launches the checkout-local CLI with fresh `AB_STATE` and empty `AB_CHECK_SLOT`,
+checks readiness, pauses two running checks and a queued exit-7 check for seven
+seconds, then pauses an intentionally interrupted caller for six seconds. Assertions
+cover original receipt IDs, no duplicates, exact output and exit codes, timeout
+notice, cancellation reason, and absence of the interrupted command's output.
+Cleanup resumes and shuts down only the isolated daemon and removes its temporary state.
+
+Replay on the reviewed changes: `ab check -- bun test ab/resources.test.ts lib/resources/host.test.ts`
+passed (9 tests, 77 assertions), execution `b8a57ff5-35f2-452a-85f6-50da02437f8b`.
+The changed notice was observed through the real CLI and asserted by the replay.
+Broader affected suite: `ab check -- bun test ./ab ./lib/resources` passed
+(20 tests, 147 assertions), execution `ea3b46dd-fd4a-4a99-bacb-76eb9853ad3c`.
+`git diff --check` passed. Both replays shut down their isolated daemons.
+
+Final claim outcomes:
+
+- Readiness: held — `ready`, exit 0, one done code-0 receipt.
+- Connected running and queued callers retain ownership across timeout: held.
+- Queued check executes once, preserving output and exit status: held.
+- SIGINT releases ownership: held — caller 130 and receipt `no waiting callers`.
+- Receipt listing exposes identity and status: held — no extra executions after recovery.
+
+No screenshots: CLI-only. The injected delay remains a surrogate for the unestablished
+production stall; outages beyond the existing thirty-second lease are not certified.

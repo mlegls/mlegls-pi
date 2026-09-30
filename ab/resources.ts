@@ -96,7 +96,7 @@ export async function resources(kind: "check" | "service", args: string[]) {
         if (!(error instanceof DaemonRequestTimeout)) throw error;
         // The request may have reached the daemon. Keep ownership and recover the
         // same receipt; submitting again could repeat a command with effects.
-        console.error(`check ${execution.id}: daemon request timed out; retrying receipt`);
+        console.error(`check ${execution.id}: daemon request timed out; retrying receipt until response or interruption (30s caller lease may expire)`);
         await delay(500);
         continue;
       }
