@@ -61,3 +61,7 @@ export AB_SESSION_STATE="$ROOT/.wm/joined-state/session"
 ## Cleanup and limits
 
 All owned Pi processes stopped and awaited; isolated mail state removed. Tracker and anchor scratch are removed after the final seed-readiness trial. No browser, server, container, tunnel, remote deployment or shared daemon was started or restarted. CLI-only evidence (`visual: false`, `shots: []`). Unknown mail subscriptions were exercised through a live metadata-only session, not a daemon restart; recognition is not evidence of consumption, neither of which the contract requires.
+
+## Independent first-use drive
+
+Retested `4a1e90c` through checkout-local CLI surfaces, without reading product source/tests. All four behavior stories held, including unrelated done-blocker preservation, live-link diagnostics next to ignored examples, and escaped table aliases. Existing joined regressions: **76 passed across 8 files**. [Predictions, encounters, frictions and replayable checks](drive.md), with [setup](drive-setup.txt), [anchor edits](drive-edit.txt), [tracker](drive-tracker.txt), [mail](drive-mail.txt) and [regression result](drive-regressions.txt). CLI-only (`visual: false`, `shots: []`); test assertion adequacy remains for reviewer inspection. The drive log records setup recovery and owner-tracker friction links.

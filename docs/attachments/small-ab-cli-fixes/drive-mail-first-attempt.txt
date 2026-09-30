@@ -1,0 +1,16 @@
+Owned target=/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/drive/mail; isolated data/state/config; offline Pi; no supplied authentication.
+{"command":["mail","--stats"],"stdout":"","stderr":"","exit":0}
+{"command":["mail","ticket/independent-drive/absent","offline steering probe"],"stdout":"ticket/independent-drive/absent muo8qlig-j6nela\n","stderr":"warning: no live subscribers for ticket/independent-drive/absent; message was recorded but cannot wake a reader\n","exit":1}
+{"command":["lib","board","read","{\"topic\":\"ticket/independent-drive/absent\"}"],"stdout":"{\n  \"messages\": [\n    {\n      \"id\": \"muo8qlig-j6nela\",\n      \"ts\": \"2026-09-30T15:09:06.280Z\",\n      \"topic\": \"ticket/independent-drive/absent\",\n      \"tags\": [],\n      \"from\": {\n        \"name\": \"ab\"\n      },\n      \"body\": \"offline steering probe\",\n      \"line\": 1\n    }\n  ],\n  \"omitted\": 0,\n  \"total\": 1\n}\n","stderr":"","exit":0}
+{"stopped":"aaaaaaaa-aaaa-4aaa-aaaa-aaaad00d0001","stderr":"error: Module not found \"/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/drive/mail/home/.local/share/mise/installs/npm-earendil-works-pi-coding-agent/latest/node_modules/@earendil-works/pi-coding-agent/dist/bun/cli.js\"\n"}
+22 |   const output = (async()=> {const reader=child.stdout.getReader();const dec=new TextDecoder();for (;;) {const r=await reader.read();if(r.done)break;buffer+=dec.decode(r.value);let n;while((n=buffer.indexOf('\n'))>=0) {const line=buffer.slice(0,n);buffer=buffer.slice(n+1);try{const p=JSON.parse(line);if(p.id==='readiness')readyResolve(p);}catch{}}}})();
+23 |   const errors=new Response(child.stderr).text();
+24 |   let timeout: ReturnType<typeof setTimeout>;
+25 |   try {
+26 |     child.stdin.write(JSON.stringify({id:'readiness',type:'get_state'})+'\n');
+27 |     const state=await Promise.race([ready,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('RPC readiness timeout')),20000)})]);
+                                                                                                          ^
+error: RPC readiness timeout
+      at <anonymous> (/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/drive/mail-drive.ts:27:102)
+
+Bun v1.4.2 (macOS arm64)

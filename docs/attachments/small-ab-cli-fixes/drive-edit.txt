@@ -1,0 +1,44 @@
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/drive/anchors.txt:
+1 bt7n│before
+2 bqji│first
+3 bqad│second
+4 b7nu│after
+
+Action: sigiled block replacement =bqji =bqad
+.wm/drive/anchors.txt: 1 edit applied (4 → 4 lines).
+@@ 2-3 → 2-3 @@
+ bt7n│before
+-first
+-second
++bay7│new-first
++bhb5│new-second
+ b7nu│after
+exit=0
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/drive/anchors.txt:
+1 bt7n│before
+2 bay7│new-first
+3 bhb5│new-second
+4 b7nu│after
+
+Action: stale block retry =bqji =bqad
+ab: "=bqji =bqad": unknown anchors bqji, bqad; copy them from a fresh read of the intended range. Nothing was modified.
+exit=2
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/drive/anchors.txt:
+1 bt7n│before
+2 bay7│new-first
+3 bhb5│new-second
+4 b7nu│after
+
+Action: legacy block replacement =bay7 bhb5
+.wm/drive/anchors.txt: 1 edit applied (4 → 3 lines).
+@@ 2-3 → 2 @@
+ bt7n│before
+-new-first
+-new-second
++bgkr│legacy
+ b7nu│after
+exit=0
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/drive/anchors.txt:
+1 bt7n│before
+2 bgkr│legacy
+3 b7nu│after

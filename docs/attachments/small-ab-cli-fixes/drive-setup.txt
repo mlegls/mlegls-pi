@@ -1,0 +1,27 @@
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/mixed.md:
+1 tzgr│---
+2 tvnz│stage: ticket
+3 t6zz│assignee: agent
+4 tvc9│author: user:drive
+5 tmjm│---
+6 tyu6│
+7 ttnt│Selected A: [[projects/scoped-drive/issues/move-a]].
+8 ttxy│Selected alias: [[projects/scoped-drive/issues/move-a|A]].
+9 tiev│Selected B: [[projects/scoped-drive/issues/move-b]].
+10 tpt9│Old unrelated: [[projects/scoped-drive/issues/older]].
+11 t8jg│
+12 tdz2│Another user is still writing this paragraph.
+13 tu9b│
+14 tcfu│Inline: `[[projects/scoped-drive/issues/move-a]]`.
+15 t5cj│Double: ``a ` marker [[projects/scoped-drive/issues/missing-double]]``.
+16 t3xm│
+17 thh8│```markdown
+18 tqic│[[projects/scoped-drive/issues/move-a]]
+19 tgpk│[[projects/scoped-drive/issues/missing-fence]]
+20 t2hu│```
+
+Seed ready: target=/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive
+home=/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/home
+AB_STATE=/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/joined-state/ab
+AB_SESSION_STATE=/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/joined-state/session

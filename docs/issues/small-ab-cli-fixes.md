@@ -10,3 +10,5 @@ Small agent-ergonomics fixes in `ab` and the tracker CLI, each observed in real 
 ## Result
 
 All four completed children hold together: sigiled/legacy anchor replacement, nonzero definitely-undeliverable mail, scoped tracker repairs and code-example masking. Joined CLI acceptance and replayable setup: [evidence packet](../attachments/small-ab-cli-fixes/index.md). Existing regressions: 76 passed across 8 files. No further implementation changes.
+
+Independent first-use CLI drive on `4a1e90c`: all four behavior stories held; joined regressions again passed 76/76. [Drive log](../attachments/small-ab-cli-fixes/drive.md) records predictions, observable outcomes, setup friction and replayable checks. Test assertion adequacy remains for review.

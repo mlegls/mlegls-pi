@@ -1,0 +1,201 @@
+Target=/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive
+Vault=/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/home/obsidian
+ M docs/issues/mixed.md
+ D docs/issues/move-a.md
+ D docs/issues/move-b.md
+ M docs/issues/other-session.md
+?? docs/issues/archive/move-a.md
+?? docs/issues/archive/move-b.md
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/mixed.md:
+1 tzgr│---
+2 tvnz│stage: ticket
+3 t6zz│assignee: agent
+4 tvc9│author: user:drive
+5 tmjm│---
+6 tyu6│
+7 ttnt│Selected A: [[projects/scoped-drive/issues/move-a]].
+8 ttxy│Selected alias: [[projects/scoped-drive/issues/move-a|A]].
+9 tiev│Selected B: [[projects/scoped-drive/issues/move-b]].
+10 tpt9│Old unrelated: [[projects/scoped-drive/issues/older]].
+11 t8jg│
+12 tdz2│Another user is still writing this paragraph.
+13 tu9b│
+14 tcfu│Inline: `[[projects/scoped-drive/issues/move-a]]`.
+15 t5cj│Double: ``a ` marker [[projects/scoped-drive/issues/missing-double]]``.
+16 t3xm│
+17 thh8│```markdown
+18 tqic│[[projects/scoped-drive/issues/move-a]]
+19 tgpk│[[projects/scoped-drive/issues/missing-fence]]
+20 t2hu│```
+
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/other-session.md:
+1 wzgr│---
+2 wvnz│stage: ticket
+3 w6zz│assignee: agent
+4 wj6z│blocked-by: ["[[projects/scoped-drive/issues/older]]"]
+5 wvc9│author: user:drive
+6 wmjm│---
+7 wyu6│
+8 wpt9│Old unrelated: [[projects/scoped-drive/issues/older]].
+9 w8jg│
+10 w6an│Another session owns this dirty file.
+fb36a71b51d629198ab183512deebb2ed425f4b43602aa2dd3c39ad97c67274f  docs/issues/mixed.md
+b2671789d4d227a37cd05a600ddb0c107578b0cfc9e7803830f160a1f523f23c  docs/issues/other-session.md
+
+Action: read-only check
+other-session: blocked-by older is done; remove it (check --fix)
+repair available (check --fix): issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/move-b]] -> [[projects/scoped-drive/issues/archive/move-b]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+exit=1
+fb36a71b51d629198ab183512deebb2ed425f4b43602aa2dd3c39ad97c67274f  docs/issues/mixed.md
+b2671789d4d227a37cd05a600ddb0c107578b0cfc9e7803830f160a1f523f23c  docs/issues/other-session.md
+
+Action: scoped fix A and B
+other-session: blocked-by older is done; remove it (check --fix without moved issue paths)
+issues/other-session.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+issues/mixed.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/move-b]] -> [[projects/scoped-drive/issues/archive/move-b]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+exit=1
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/mixed.md:
+1 tmb8│---
+2 t8se│stage: ticket
+3 t3uh│assignee: agent
+4 tqj9│author: user:drive
+5 t5hy│---
+6 t6r4│
+7 tr9e│Selected A: [[projects/scoped-drive/issues/archive/move-a]].
+8 tezv│Selected alias: [[projects/scoped-drive/issues/archive/move-a|A]].
+9 tg9m│Selected B: [[projects/scoped-drive/issues/archive/move-b]].
+10 txt8│Old unrelated: [[projects/scoped-drive/issues/older]].
+11 taaa│
+12 tr48│Another user is still writing this paragraph.
+13 taab│
+14 tykv│Inline: `[[projects/scoped-drive/issues/move-a]]`.
+15 tn26│Double: ``a ` marker [[projects/scoped-drive/issues/missing-double]]``.
+16 taac│
+17 tix6│```markdown
+18 thx3│[[projects/scoped-drive/issues/move-a]]
+19 tzap│[[projects/scoped-drive/issues/missing-fence]]
+20 twhn│```
+
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/other-session.md:
+1 wzgr│---
+2 wvnz│stage: ticket
+3 w6zz│assignee: agent
+4 wj6z│blocked-by: ["[[projects/scoped-drive/issues/older]]"]
+5 wvc9│author: user:drive
+6 wmjm│---
+7 wyu6│
+8 wpt9│Old unrelated: [[projects/scoped-drive/issues/older]].
+9 w8jg│
+10 w6an│Another session owns this dirty file.
+e9dd9da98b413d9de9abe85dde819c84c7b801054f63ec65108e32af690acc55  docs/issues/mixed.md
+b2671789d4d227a37cd05a600ddb0c107578b0cfc9e7803830f160a1f523f23c  docs/issues/other-session.md
+other-file-cmp-exit=0
+
+Action: code-only missing links plus live table alias
+other-session: blocked-by older is done; remove it (check --fix)
+repair available (check --fix): issues/examples.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+repair available (check --fix): issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+exit=1
+
+Action: add live missing link
+other-session: blocked-by older is done; remove it (check --fix)
+issues/examples.md: [[projects/scoped-drive/issues/missing-live]] does not exist
+repair available (check --fix): issues/examples.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+repair available (check --fix): issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+exit=1
+
+Action: remove live missing link and fix A table alias
+other-session: blocked-by older is done; remove it (check --fix without moved issue paths)
+fixed issues/examples.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+issues/other-session.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+issues/mixed.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+exit=1
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/examples.md:
+1 9zgr│---
+2 9mdt│stage: idea
+3 9vc9│author: user:drive
+4 9mjm│---
+5 96r4│
+6 9nph│Inline `[[projects/scoped-drive/issues/missing-inline]]`.
+7 9wwb│Double ``a ` marker [[projects/scoped-drive/issues/missing-double]]``.
+8 9aaa│
+9 9hh8│```markdown
+10 94ad│[[projects/scoped-drive/issues/missing-backticks]]
+11 92hu│```
+12 9aab│
+13 9e2i│~~~markdown
+14 9843│[[projects/scoped-drive/issues/missing-tildes]]
+15 9bw7│~~~
+16 9aac│
+17 9ieh│| Selected moved alias |
+18 9qux│| --- |
+19 97pz│| [[projects/scoped-drive/issues/archive/move-a\|table alias]] |
+
+Action: unscoped fix remaining findings
+fixed other-session: removed done blocked-by older
+fixed issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+ok
+exit=0
+ok
+exit=0
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/examples.md:
+1 9zgr│---
+2 9mdt│stage: idea
+3 9vc9│author: user:drive
+4 9mjm│---
+5 96r4│
+6 9nph│Inline `[[projects/scoped-drive/issues/missing-inline]]`.
+7 9wwb│Double ``a ` marker [[projects/scoped-drive/issues/missing-double]]``.
+8 9aaa│
+9 9hh8│```markdown
+10 94ad│[[projects/scoped-drive/issues/missing-backticks]]
+11 92hu│```
+12 9aab│
+13 9e2i│~~~markdown
+14 9843│[[projects/scoped-drive/issues/missing-tildes]]
+15 9bw7│~~~
+16 9aac│
+17 9ieh│| Selected moved alias |
+18 9qux│| --- |
+19 97pz│| [[projects/scoped-drive/issues/archive/move-a\|table alias]] |
+
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/mixed.md:
+1 t4x4│---
+2 t42p│stage: ticket
+3 tcdg│assignee: agent
+4 tqvw│author: user:drive
+5 taad│---
+6 taae│
+7 tix5│Selected A: [[projects/scoped-drive/issues/archive/move-a]].
+8 tp52│Selected alias: [[projects/scoped-drive/issues/archive/move-a|A]].
+9 tq59│Selected B: [[projects/scoped-drive/issues/archive/move-b]].
+10 tgas│Old unrelated: [[projects/scoped-drive/issues/archive/older]].
+11 taaf│
+12 twvk│Another user is still writing this paragraph.
+13 taag│
+14 tv4f│Inline: `[[projects/scoped-drive/issues/move-a]]`.
+15 th3g│Double: ``a ` marker [[projects/scoped-drive/issues/missing-double]]``.
+16 taah│
+17 ty8x│```markdown
+18 t4bz│[[projects/scoped-drive/issues/move-a]]
+19 tugd│[[projects/scoped-drive/issues/missing-fence]]
+20 t8h5│```
+
+/Users/mlegls/dev/mlegls-pi__worktrees/small-ab-cli-fixes-drive/.wm/tracker-scoped-drive/scoped-drive/docs/issues/other-session.md:
+1 wmb8│---
+2 w8se│stage: ticket
+3 w3uh│assignee: agent
+4 wqj9│author: user:drive
+5 w5hy│---
+6 wu9b│
+7 wgas│Old unrelated: [[projects/scoped-drive/issues/archive/older]].
+8 w3xm│
+9 wmkz│Another session owns this dirty file.
