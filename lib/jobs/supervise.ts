@@ -33,7 +33,7 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
  nodeJoin?: boolean }
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
-interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
+interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; waitingSince?: string; exceptionMailAt?: string; staleWakeSentFor?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
 interface Child { reportRepairs?: number }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
@@ -52,6 +52,7 @@ export type Command = { child: string; action: "verify" | "integrate" | "drop" |
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const STARTUP_GRACE_MS = 30_000;
 const STARTUP_POLL_MS = 5_000;
+const STALE_WAIT_MS = 30 * 60_000;
 interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; archived?: boolean; effectiveStage: string }
 // The tracker reports archived issues as not done; they contribute neutral done to their parent.
 const finished = (i: Issue) => i.done || !!i.archived;
@@ -180,6 +181,7 @@ export async function run(job: JobContext) {
  // Wakes are delivered in order; an owner mid-turn ("already has an active run") or a dropped connection
  // defers delivery rather than failing the loop, which keeps handling other children meanwhile.
  let deliveries: Promise<void> = Promise.resolve();
+ let wakeDeliveryChanged: (() => void) | undefined;
  const deliver = async (message: string) => {
   for (let attempt = 1; !job.signal.aborted; attempt++) {
    try { return await children.send(input.owner, message); }
@@ -190,17 +192,21 @@ export async function run(job: JobContext) {
   }
  };
  const retireAll = async (c: Child) => { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); };
- const wake = async (text: string) => {
+ const wake = async (text: string, onDelivered?: () => void) => {
   if (batch) { record({ kind: "note", text }); return; }
   trace("wake", { about: text.split("\n")[0].slice(0, 120) });
   const message = "supervise " + input.ticket + " (job " + job.id + "): " + text;
   state.metrics.wakes++; state.metrics.ownerBytes += Buffer.byteLength(message);
-  deliveries = deliveries.then(() => deliver(message));
+  deliveries = deliveries.then(async () => {
+   await deliver(message);
+   if (onDelivered && !job.signal.aborted) { onDelivered(); await save(); wakeDeliveryChanged?.(); }
+  });
   await save();
  };
  const except = async (c: Child, reason: string, text = "") => {
   if (batch && state.children[c.slug] !== c) return; // already deferred this turn
-  c.waiting = reason;
+  const waitingSince = new Date().toISOString();
+  c.waiting = reason; c.waitingSince = waitingSince; c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined;
   trace("exception", { slug: c.slug, phase: c.phase, reason: reason.slice(0, 200) });
   if (batch) {
    // Deferral unwinds the child: its unmerged branch survives for the next triage (redispatch starts fresh).
@@ -218,7 +224,24 @@ export async function run(job: JobContext) {
        ? "Restart it in its existing worktree; its next report on this topic returns to the loop"
        : "After restoring its worktree, restart it there; its next report on this topic returns to the loop")
      : "Steer it directly (its next turn end returns to the loop)") +
-   ", or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch");
+   ", or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch", () => {
+    if (c.waitingSince === waitingSince) c.exceptionMailAt = new Date().toISOString();
+   });
+ };
+ const reWakeStaleWaits = async () => {
+  const now = Date.now();
+  for (const c of Object.values(state.children)) {
+   if (!c.waiting || !c.waitingSince || !c.exceptionMailAt || c.staleWakeSentFor === c.waitingSince) continue;
+   const mailAt = Date.parse(c.exceptionMailAt);
+   if (!Number.isFinite(mailAt) || now < mailAt + STALE_WAIT_MS) continue;
+   const latest = await children.last(topic(c.handle));
+   if (latest && latest.cursor !== c.cursor) continue;
+   const waitingSince = c.waitingSince;
+   // Persist before queueing so a daemon restart can't repeatedly remind for one exception.
+   c.staleWakeSentFor = waitingSince;
+   await save();
+   await wake("stale wait: " + c.phase + " " + c.slug + " is still waiting: " + c.waiting + ". The exception notice was sent at " + c.exceptionMailAt + " and no child turn has arrived since; child " + topic(c.handle) + ", worktree " + c.handle.path + ". Check whether your steer reached it or queue a resume. This is the one reminder for this exception.");
+  }
  };
  const repairEvidence = async (c: Child, handoff: Record<string, unknown> | null, text: string) => {
   try { evidencePacket(c.handle.path, handoff); return true; }
@@ -370,7 +393,7 @@ const checkStartup = async (live: Child[]) => {
    if (cmd.action === "adopt") await adopt(cmd, c);
    else if (!c) await wake("resume: no live child " + cmd.child);
    else {
-    c.waiting = undefined; c.unreachable = undefined;
+    c.waiting = undefined; c.waitingSince = undefined; c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined; c.unreachable = undefined;
     try {
      if (cmd.action === "drop" || cmd.action === "redispatch") { await retire(c.handle); if (c.implementer) await retire(c.implementer); for (const old of c.previous ?? []) await retire(old); delete state.children[c.slug]; trace("child-end", { slug: c.slug, outcome: cmd.action }); }
      else if (cmd.action === "integrate") await integrateChild(c, c.handle);
@@ -481,6 +504,7 @@ const checkStartup = async (live: Child[]) => {
  let lostWatches = 0;
  while (!job.signal.aborted) {
   await apply();
+  await reWakeStaleWaits();
   // Timebox: stragglers are deferred like any exception, so the barrier waits at most until the deadline.
   const due = deadline();
   if (due && Date.now() >= due) for (const c of Object.values(state.children)) await except(c, "timeboxed");
@@ -525,12 +549,19 @@ const checkStartup = async (live: Child[]) => {
   const recoveryCursors = Object.fromEntries(recovering.filter(c => c.cursor).map(c => [topic(c.handle), c.cursor!]));
   const stop = new AbortController();
   const abort = () => stop.abort();
+  wakeDeliveryChanged = abort;
   job.signal.addEventListener("abort", abort);
   const watcher = watch(dirname(file), (_, name) => { if (name === basename(file)) stop.abort(); });
   const pendingStartup = watched.filter(c => c.startup?.mode !== "command" && !c.startup?.sessionFound && !c.startup?.reported);
   const nextStartupCheck = pendingStartup.length ? Math.min(...pendingStartup.map(c => c.startup!.checkedAt ? c.startup!.checkedAt + STARTUP_POLL_MS : c.startup!.launchedAt + STARTUP_GRACE_MS)) : undefined;
   const startupTimer = nextStartupCheck === undefined ? undefined : setTimeout(abort, Math.max(1, Math.min(STARTUP_POLL_MS, nextStartupCheck - Date.now())));
   const until = deadline();
+  const staleAt = Object.values(state.children).map(c => {
+   if (!c.waiting || !c.waitingSince || !c.exceptionMailAt || c.staleWakeSentFor === c.waitingSince) return undefined;
+   const mailAt = Date.parse(c.exceptionMailAt);
+   return Number.isFinite(mailAt) ? mailAt + STALE_WAIT_MS : undefined;
+  }).filter((at): at is number => at !== undefined).sort((a, b) => a - b)[0];
+  const staleTimer = staleAt === undefined ? undefined : setTimeout(abort, Math.max(1, staleAt - Date.now()));
   const deadlineTimer = until ? setTimeout(abort, Math.max(1, until - Date.now())) : undefined;
   let end: children.TurnEnd;
   try {
@@ -550,12 +581,12 @@ const checkStartup = async (live: Child[]) => {
    await sleep(Math.min(60_000, 2000 * lostWatches), job.signal);
    continue;
   }
-  finally { stop.abort(); if (startupTimer) clearTimeout(startupTimer); if (deadlineTimer) clearTimeout(deadlineTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
+  finally { if (wakeDeliveryChanged === abort) wakeDeliveryChanged = undefined; stop.abort(); if (startupTimer) clearTimeout(startupTimer); if (staleTimer) clearTimeout(staleTimer); if (deadlineTimer) clearTimeout(deadlineTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
   lostWatches = 0;
   const c = live.find(child => topic(child.handle) === end.id)!;
   // Exit cursors are not board reports; keep the previous report cursor for restart detection.
   if (!end.unreachable) c.cursor = end.cursor;
-  c.waiting = undefined;
+  c.waiting = undefined; c.waitingSince = undefined; c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined;
   c.unreachable = undefined;
   trace("turn", { slug: c.slug, phase: c.phase, end: end.unreachable ? "unreachable" : end.kind, ...(end.unreachable ? {} : { status: parse(end.text).status }) });
   if (c.phase === "review") { c.evidence = undefined; c.acceptedHead = undefined; }
@@ -566,7 +597,7 @@ const checkStartup = async (live: Child[]) => {
   if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
   if (r.handoffError) { await except(c, "handoff block did not parse: " + r.handoffError, end.text); return; }
   if (r.status === "checkpoint") {
-   c.waiting = "checkpoint";
+   c.waiting = "checkpoint"; c.waitingSince = new Date().toISOString(); c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined;
    await wake("checkpoint from " + c.phase + " " + c.slug + ":\n\n" + end.text);
    return;
   }
