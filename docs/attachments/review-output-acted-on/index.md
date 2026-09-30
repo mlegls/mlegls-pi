@@ -67,3 +67,21 @@ While using the product I formed two further expectations: a report's structured
 This was a source-blind static research drive, not a new review of the historical repositories. Exact repair semantics, archival contents, ancestry and the full-corpus 17/16 counts remain unverified here. The study's setup reached all report surfaces; missing durable output is a delivered-product failure, not an inaccessible target. Initial predictions were contaminated by the required peer-board read (recorded above).
 
 No containers, services, tunnels, browser pages or remote resources started. Shared data untouched. No product repair performed. Nonvisual packet: `visual: false`, `shots: []`.
+
+## Review (2026-09-30)
+
+Reviewed `ea318a2` against the ticket. All three failed stories were defects of the delivered answer, not of the sampled corpus; repaired in the ticket's `## answer` (commit following `ea318a2`).
+
+| Story / check | Outcome after review |
+|---|---|
+| Five glm-flash reports reachable | held (unchanged; re-resolved board ids and commit times) |
+| Parent-turn-first evidence | held (unchanged; answer now names the parent line for each report) |
+| Per-finding accounting | **repaired, held**: `## answer` lists every finding with a disposition. 23 findings = 16 fixed + 4 declined/substituted + 2 ignored + 1 excluded (reviewer asked for no change). Six U2 nits from the driver's list are now scored: u2-review nit 1 fixed (`e2044d1f`), nit 2 ignored, nit 3 excluded; u2-replay-rereview N1/N3 fixed (`daf4972e`), N2 ignored. Guard row corrected to 4 code / 1 substituted (fixes verified in `33cfc8bb`). |
+| Durable `## answer` | **repaired, held**: table with topic, timestamp, parent line, findings and dispositions is in `docs/issues/review-output-acted-on.md`; the ticket alone reproduces the study. |
+| Claimed repair latency | **repaired, held**: range is 5m06s–71m45s (median ≈10m per fixed finding); origin is the report timestamp. |
+
+Independent checks made in the review, from the target repos (`git show -s --format=%cI`, `git show <commit>:path`), not from the prior answer: the `+08:00` commit times converted to Z; `SourceIdentity` and filler removal in `e2044d1f`; `prior.selfGrade !== args.selfGrade` in `daf4972e`; validation still after `sourceEvent` lookup and `SourceIdentity` spacing unchanged at `1017cfef`; `setRefusal(undefined)`, `boundedLink` and comment rewrite in `33cfc8bb`; `4a00a731` `read.ts` author display; parent lines C:5370/5663/5672 and the guard-drive report.
+
+New observation for the answer's caveats: the forum-search blocker was the parent's own earlier objection (W:629 "same 403 blocker"), so that report confirmed rather than discovered it. Its accepted remedy was the parent's conditional wording, not the reviewer's probe.
+
+No tests: the deliverable is a static research answer over historical logs and repos; the repo has no suite for docs, and the checks (ledger arithmetic, ID/model resolution, timestamps) are re-runnable by reading the recorded commands. Unchanged: `visual: false`, no shots, no services started.
