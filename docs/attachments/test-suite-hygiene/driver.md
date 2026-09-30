@@ -138,3 +138,10 @@ browser sessions. The host `ab` daemon was inherited and left running. The
 empty-HOME probe directory was removed by its command. Test-internal temporary
 resources were managed by the suite; this drive did not independently audit
 those cleanup paths. All driver CLI invocations have finished.
+
+## Review (2026-09-30)
+
+- Re-ran `ab check -- bun test` on the review head: 357 pass, 3 skip, 0 fail (78 files, ~108 s). Joined story held.
+- Driver friction "dispatch child Result still describes pre-review uncertainty": fixed. The child's Result now states the reviewed counterfactual (guard disabled → case fails, stub reached, no `probe` worktree), matching its packet's Review section. This resolves the one "Not met" expectation above.
+- Queueing wall time: not a defect in the change; left as observed.
+- No tests added: the drive's checks are acceptance runs of the existing suite, already the contract; the doc-state checks (children done, READMEs) only confirm this ticket's outcome.

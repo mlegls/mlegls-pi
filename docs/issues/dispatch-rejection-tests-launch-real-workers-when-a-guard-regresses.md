@@ -14,7 +14,7 @@ ticket contract, 2026-09-30: a rejection test can't launch a real worker when it
 
 ## Result
 
-Driver packet: [dispatch rejection first-use drive](../attachments/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses/index.md). The supplied CLI passed nine tests twice, including the tracker-eligibility case, and the historical `probe` path remained absent. The safety claim under a guard regression is **unobservable** in this drive: no regression-control entry point was supplied. Review must establish that counterfactual; ordinary green tests alone do not establish it.
+The tracker-eligibility case runs against a launch stub, so a regressed guard fails the test instead of launching a worker. The [first-use drive](../attachments/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses/index.md) passed nine tests twice with the historical `probe` path absent. Review then ran the counterfactual: with the model/effort check in `assertAssignment` disabled, the case failed on `agent:fill` (8 pass, 1 fail), the stub was reached, and no `probe` worktree appeared. Contract held; details in the packet's Review section.
 
 ## Verification evidence
 
