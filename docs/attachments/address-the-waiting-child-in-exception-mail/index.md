@@ -59,3 +59,7 @@ Replayed the CLI encounter in an isolated `XDG_DATA_HOME`/`XDG_STATE_HOME` with 
 No real workmux review session or supervised waiting turn was launched in this review. The fixture establishes the routing and owner-visible exception text, not that a live Pi worker received and processed a steer or that a supervision job resumed. The first-use outcomes above remain the driver's observations, not retroactive live-delivery claims. No visual evidence applies.
 
 One preliminary CLI probe (`ticket/sample/absent-review-1`) used the shared board before the isolated test setup; its synthetic post was not deleted. All later sends used temporary stores removed by the test. No Pi worker or service was started for this review.
+
+## Second first-use drive — 2026-09-30
+
+[Fresh predictions and CLI replay on reviewed revision `64aa6af`](second-drive.md). The mail warning held in a temporary isolated store; a live drive-phase Pi session accepted its mailbox, worktree, and ticket messages without warning. The handed-off CLI entry point still did not create a supervised waiting child, so owner exception mail, review-phase receipt, and job resumption remain unobservable in this first-use drive.

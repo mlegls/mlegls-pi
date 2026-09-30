@@ -17,3 +17,4 @@ review boundary, 2026-09-30: the supervise-loop group (bounce-handoff-shape-erro
 
 Drive evidence: [first-use packet](../attachments/address-the-waiting-child-in-exception-mail/index.md). The setup isolation friction has its own owner: [[projects/mlegls-pi/issues/document-board-store-selector-for-mail-drives]].
 Review: [routing repair and CLI replay](../attachments/address-the-waiting-child-in-exception-mail/index.md#review--2026-09-30).
+Second first-use pass: [predictions and isolated CLI encounter](../attachments/address-the-waiting-child-in-exception-mail/second-drive.md).
