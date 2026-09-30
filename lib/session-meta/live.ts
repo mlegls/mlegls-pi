@@ -68,6 +68,24 @@ export function writeLiveSubscriptions(sessionId: string, cwd: string, subscript
 export function removeLive(pid = process.pid): void {
 	try { unlinkSync(join(liveDir(), pid + ".json")); } catch {}
 }
+/** An owner retiring a worker on purpose (lib/dispatch.ts retire) marks its live processes first, so the
+ * parent's child-exit monitor stays quiet: the owner already knows why the child is gone. Keyed by pid,
+ * checked against the session id so a reused pid can't swallow a real exit. */
+const retiredPath = (pid: number) => join(liveDir(), "retired", pid + ".txt");
+
+export function markRetired(record: Pick<Live, "pid" | "sessionId">): void {
+	mkdirSync(join(liveDir(), "retired"), { recursive: true });
+	writeFileSync(retiredPath(record.pid), record.sessionId);
+}
+
+/** True, and the mark consumed, if this exit was an announced retirement. */
+export function takeRetired(record: Pick<Live, "pid" | "sessionId">): boolean {
+	try {
+		const marked = readFileSync(retiredPath(record.pid), "utf8") === record.sessionId;
+		unlinkSync(retiredPath(record.pid));
+		return marked;
+	} catch { return false; }
+}
 
 /** Records whose process is still alive; stale ones are deleted on the way. */
 export function readLive(): Live[] {

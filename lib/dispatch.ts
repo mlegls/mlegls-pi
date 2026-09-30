@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
+import { markRetired, readLive } from "./session-meta/live.ts";
 import { HANDOFF_KEYS } from "./report.ts";
 import { assertAssignment, type RouteOptions } from "./route.ts";
 
@@ -211,6 +212,8 @@ export async function retire(given: Handle | string, options: { cwd?: string; br
   const result: Awaited<ReturnType<typeof retire>> = {};
   const wm = await import("./wm.ts");
   // Keep the branch here: whether it goes depends on its patches being upstream, decided below.
+  const root = resolve(worker.path);
+  for (const live of readLive()) if (live.cwd === root || live.cwd.startsWith(root + "/")) markRetired(live);
   result.removed = await wm.attach(worker.run, worker.handle, cwd, worker.session).close(true);
   result.killed = await killLeftovers(worker.path, cwd);
   if (branch) {

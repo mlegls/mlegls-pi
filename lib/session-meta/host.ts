@@ -8,7 +8,7 @@
 // resumed session keeps the entry it already has.
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { readLive, removeLive, writeLive, type Live } from "./live";
+import { readLive, removeLive, takeRetired, writeLive, type Live } from "./live";
 import { mailbox } from "../board/mailbox";
 import { send } from "../board/store";
 
@@ -60,7 +60,7 @@ export function install(pi: ExtensionAPI) {
 		children.clear();
 		monitor = setInterval(() => {
 			const next = new Map(readLive().filter(child => child.parentSession === c.sessionManager.getSessionId()).map(child => [child.pid, child]));
-			for (const [pid, child] of children) if (!next.has(pid)) {
+			for (const [pid, child] of children) if (!next.has(pid) && !takeRetired(child)) {
 				send({ topic: mailbox(c.sessionManager.getSessionId()), tags: ["child-exit"], from: { name: "child-monitor" }, body: `Child process exited: ${child.sessionId} (pid ${pid}, last state ${child.state}).\nWorkspace: ${child.cwd}\n${child.tmuxPane ? "Pane: " + child.tmuxPane : "No tmux pane recorded"}. Inspect its report before resuming; process exit alone does not establish a crash.` });
 			}
 			children = next;
