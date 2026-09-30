@@ -1,0 +1,51 @@
+filters:
+  and:
+    - file.inFolder("projects")
+    - file.path.contains("/issues/")
+views:
+  - type: tracker
+    name: Tree
+    mode: tree
+    showDone: true
+  - type: tracker
+    name: Board
+    mode: board
+    showDone: true
+    groupBy:
+      property: lane
+      direction: ASC
+    sort:
+      - property: file.name
+        direction: DESC
+  - type: tracker
+    name: Network
+    mode: graph
+    showDone: true
+  - type: tracker
+    name: Filtered board
+    mode: board
+    filters:
+      and:
+        - file.name == "parent"
+    groupBy:
+      property: lane
+      direction: ASC
+  - type: tracker
+    name: Frontier
+    mode: frontier
+  - type: tracker
+    name: Mine
+    mode: mine
+  - type: tracker
+    name: Done
+    mode: done
+  - type: tracker
+    name: Invalid
+    mode: invalid
+  - type: tracker
+    name: Legacy
+    mode: legacy
+  - type: tracker
+    name: All
+    mode: all
+    showDone: true

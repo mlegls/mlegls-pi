@@ -78,7 +78,7 @@ export class TrackerView extends BasesView {
     const nodes = [...m.issues.values()].filter((i) => visible.has(i.id) && !i.legacy && (showDone || !i.subtreeDone));
     this.graph ??= new Graph({
       pinned: this.option<Record<string, [number, number]>>("pinned", {}),
-      open: (i, ev) => this.app.workspace.openLinkText(i.id, "", Keymap.isModEvent(ev)),
+      open: (i, ev) => this.app.workspace.openLinkText(i.id, "", ev.button === 1 ? "tab" : Keymap.isModEvent(ev)),
       hover: (i, ev, el) => this.app.workspace.trigger("hover-link", { event: ev, source: "tracker", hoverParent: this, targetEl: el, linktext: i.id, sourcePath: "" }),
       menu: (i, ev) => this.fileMenu(i, ev),
       pin: (pinned) => this.config.set("pinned", pinned),

@@ -21,6 +21,7 @@ export class Graph {
   private pos = new Map<string, Pos>();
   private alpha = 1;
   private raf = 0;
+  private clickTimer: ReturnType<typeof setTimeout> | undefined;
   private drag: { id: string; moved: boolean; sx: number; sy: number } | null = null;
   private svg!: SVGSVGElement;
   private nodes: Issue[] = [];
@@ -80,9 +81,14 @@ export class Graph {
       t.textContent = this.hooks.label(n);
       if (progress) g.createSvg("text", { attr: { y: String(this.r(n) + 23), "text-anchor": "middle", "font-size": "10", fill: "var(--text-muted)" } }).textContent = progress.slice(3);
       g.addEventListener("pointerdown", (ev) => { if (ev.button !== 0) return; suppressClick = false; const p = this.point(ev); this.drag = { id: n.id, moved: false, sx: p.x, sy: p.y }; g.setPointerCapture(ev.pointerId); });
-      g.addEventListener("click", (ev) => { ev.preventDefault(); if (!suppressClick) this.hooks.open(n, ev); suppressClick = false; });
+      g.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        clearTimeout(this.clickTimer);
+        if (!suppressClick && ev.detail < 2) this.clickTimer = setTimeout(() => this.hooks.open(n, ev), 250);
+        suppressClick = false;
+      });
       g.addEventListener("auxclick", (ev) => { if (ev.button === 1) { ev.preventDefault(); this.hooks.open(n, ev); } });
-      g.addEventListener("dblclick", () => { this.pos.get(n.id)!.fixed = false; this.savePins(); this.reheat(); });
+      g.addEventListener("dblclick", (ev) => { ev.preventDefault(); clearTimeout(this.clickTimer); this.pos.get(n.id)!.fixed = false; this.savePins(); this.reheat(); });
       g.addEventListener("mouseover", (ev) => this.hooks.hover(n, ev, g));
       g.addEventListener("contextmenu", (ev) => this.hooks.menu(n, ev));
       this.els.set(n.id, { g, circle });
@@ -105,7 +111,7 @@ export class Graph {
     this.reheat();
   }
 
-  stop() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; }
+  stop() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; clearTimeout(this.clickTimer); }
 
   private r(n: Issue) { return 5 + 2.5 * Math.sqrt(n.unblocksAll); }
 
