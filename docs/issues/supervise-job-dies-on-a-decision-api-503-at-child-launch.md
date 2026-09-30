@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: "session:01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76"
 ---
@@ -13,3 +13,7 @@ triage, 2026-09-30: a 402 (credits exhausted, seen 2026-09-30 in [[projects/mleg
 review boundary, 2026-09-30: the supervise-loop group (bounce-handoff-shape-errors-to-the-child, address-the-waiting-child-in-exception-mail, supervise-job-dies-on-a-decision-api-503-at-child-launch, surface-stale-waits-after-owner-replies, turn-end-sentinel-parser-rejects-preambles) is reviewed once as a combined delta from `894e8c6` by the root tend session after all five integrate, before the next `ab daemon shutdown` loads them. This is a code review of the combined diff; each leaf's own acceptance review (evidence packet against the ticket) still runs.
 
 Result: [First-use Decision API outage drive](../attachments/supervise-job-dies-on-a-decision-api-503-at-child-launch/index.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/supervise-job-dies-on-a-decision-api-503-at-child-launch/index.md).
