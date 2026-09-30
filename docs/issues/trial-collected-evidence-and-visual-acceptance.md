@@ -12,3 +12,7 @@ Done when the three packets survive integration and worktree retirement, rendere
 Count avoidable handoffs and duplicated work as well: a reviewer repairing and re-driving directly is a success, not a violation of separation of duties. Identify stages that could be collapsed without losing a useful observation or judgment.
 
 The implementation's disposable Git/worktree smoke covered pipeline wiring, refusal of empty outcomes, missing-state rejection and direct reviewer repair with updated evidence. Its image was a fixture and worker transport was mocked: it establishes neither live image-review quality nor Jev navigation reliability.
+
+## Trial record
+
+[Preparation and report](../attachments/trial-collected-evidence-and-visual-acceptance/index.md). The shared-daemon restart is pending coordination; no trial delivery has been counted yet.
