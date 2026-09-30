@@ -1,0 +1,38 @@
+Report-drive artifact replay
+2026-09-30T16:43:34Z
+entrypoint_exit=0; report_rows=155
+nonvisual: packet hash MATCH 670b43d97378d730ba3fb4050e773ea082062e0634a28750d39b9e7199cb8cad
+nonvisual: recorded revision ancestor of canonical HEAD
+names: packet hash MATCH aa33c6dac8b4d56198405585c591501bb62b40388418855d2e109a2503afe7a3
+names: recorded revision ancestor of canonical HEAD
+names: 14 image hashes checked; 0 mismatches
+names-visual-judgment: packet hash MATCH c55dd4e8af729123fd0984f1ae579a534cdaad1d8d2841ae11251722f747ad63
+names-visual-judgment: recorded revision ancestor of canonical HEAD
+small-defects: packet hash MATCH 14db35d5b62213bc2c04a11273ef78df68f97a770819f08cc57cdd95cc75a4fc
+small-defects: recorded revision ancestor of canonical HEAD
+small-defects: 20 image hashes checked; 0 mismatches
+worktree absent /Users/mlegls/dev/mlegls-pi__worktrees/ab-edit-block-replace-rejects-sigil-second-anchor
+worktree absent /Users/mlegls/dev/mlegls-pi__worktrees/ab-edit-block-replace-rejects-sigil-second-anchor-drive
+worktree absent /Users/mlegls/dev/mlegls-pi__worktrees/ab-edit-block-replace-rejects-sigil-second-anchor-review-1
+worktree absent /Users/mlegls/dev/mmon/concept__worktrees/name-things-by-their-names-not-ids
+worktree absent /Users/mlegls/dev/mmon/concept__worktrees/name-things-by-their-names-not-ids-drive
+worktree absent /Users/mlegls/dev/mmon/concept__worktrees/name-things-by-their-names-not-ids-review-1
+worktree absent /Users/mlegls/dev/mmon/concept__worktrees/fix-small-application-state-and-error-defects
+worktree absent /Users/mlegls/dev/mmon/concept__worktrees/fix-small-application-state-and-error-defects-drive
+worktree absent /Users/mlegls/dev/mmon/concept__worktrees/fix-small-application-state-and-error-defects-review-1
+worker-only cost recomputation: 14.154048999999999
+workers plus reported bounded windows: 15.1582446
+names supervisor: 13/13 referenced image receipts match actual transcript payload hash and preceding Opus 5.5 medium tool-call context
+names original reviewer: 1/1 referenced image receipts match actual transcript payload hash and preceding Opus 5.5 medium tool-call context
+small-defects supervisor: 23/23 referenced image receipts match actual transcript payload hash and preceding Opus 5.5 medium tool-call context
+small-defects original reviewer: 8/8 referenced image receipts match actual transcript payload hash and preceding Opus 5.5 medium tool-call context
+nonvisual worker 1: transcript cost $0.01772658; recorded $0.01772658; match=True
+nonvisual worker 2: transcript cost $0.08128720; recorded $0.08128720; match=True
+nonvisual worker 3: transcript cost $0.04863370; recorded $0.04863370; match=True
+names worker 1: transcript cost $0.43339780; recorded $0.43339780; match=True
+names worker 2: transcript cost $2.79886840; recorded $2.79886840; match=True
+names worker 3: transcript cost $1.11315480; recorded $1.11315480; match=True
+small-defects worker 1: transcript cost $0.70718612; recorded $0.70718612; match=True
+small-defects worker 2: transcript cost $1.99663360; recorded $1.99663360; match=True
+small-defects worker 3: transcript cost $6.95716080; recorded $6.95716080; match=True
+names supplemental revision: 14 image hashes checked; 0 mismatches

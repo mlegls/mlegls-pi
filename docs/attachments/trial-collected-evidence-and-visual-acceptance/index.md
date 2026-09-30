@@ -152,3 +152,7 @@ The accepted CLI collector's null setup and ambient-checkout discovery recur und
 ## Checks
 
 Scoped tracker snapshots parsed successfully (`schemaVersion: 1`; trial stage/effective stage done, temporal-evidence friction stage idea); `git diff --check` passed. Final semantic lint reported only unowned 0.54 and journal 0.65 advisories. Reconciliation: all three original trial measurements now hold; explicit source-only and other evidence limits remain in the report with their owners, not as silently fulfilled native observations. The ticket contains one current result with before/after evidence; detailed measurements stay in attachments. No product code or permanent tests changed. Final report-note edits used the checkout-local CLI after the shared canonical entrypoint temporarily failed to parse; shared source was not touched.
+
+## Report drive
+
+[First-user report drive](drive.md) records setup, expectations, outcomes, frictions and replayable checks. [Artifact receipts](drive-receipts.txt) independently recheck packet/image retention, retired paths, actual stronger-model image payload provenance and all nine worker costs. This is a nonvisual CLI report encounter, not another Concept navigation pass or a new visual judgment.

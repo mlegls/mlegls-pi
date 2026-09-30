@@ -17,6 +17,8 @@ The implementation's disposable Git/worktree smoke covered pipeline wiring, refu
 
 Three existing supervised deliveries now have retained packets: CLI ab-edit, names and small-defects. Both rendered packets have actual Opus medium image judgments; [report](../attachments/trial-collected-evidence-and-visual-acceptance/index.md) records final handoffs, model/effort, setup failures, interventions, gaps, repairs, costs and retirement proof. Keep the current collector preference and direct reviewer repair/re-drive; move image judgment into the original review rather than relying on later supervisor passes. The nonvisual test-existence-only review is a candidate for a deterministic gate. No duplicate product worker, shared restart or routing change was made.
 
+[Report drive](../attachments/trial-collected-evidence-and-visual-acceptance/drive.md) reached the supplied CLI surface and rechecked durable assets, image-receipt provenance and worker costs. Its initial prediction-timing lapse and documentary frictions are recorded separately.
+
 ## Evidence
 
 **Before:** names collection left one failed and one unobservable claim; small-defects left two of each. Both rendered reviews needed supplemental judgment of retained images.
