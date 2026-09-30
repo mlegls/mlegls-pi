@@ -55,7 +55,7 @@ test("missing sender metadata is normalized; malformed records don't poison read
 
 test("send normalizes omitted sender metadata from scripts and rejects malformed input", () => {
 	const input = { topic: "t", tags: [], body: "anonymous" };
-	expect(send(input as Parameters<typeof send>[0]).from).toEqual({});
+	expect(send(input as unknown as Parameters<typeof send>[0]).from).toEqual({});
 	expect(() => send({ ...input, tags: [1] } as unknown as Parameters<typeof send>[0])).toThrow("Invalid board message");
 	expect(readFrom(0).messages).toHaveLength(1);
 });
