@@ -59,4 +59,4 @@ Fence commits: `a7391d2` at **2026-09-14T20:11:10+08:00 = 12:11:10Z**, `913c720`
 
 ## files
 
-`scan.py` (filter/parse; legacy CLI delegates to final), `final.py` (complete curves, knees, per-call estimator → sessions.json / curves.json / results.md), `board_corr.py` (timestamp links → board_corr.json). JSON policy keys are strings (`"100"`, `"200"`, `"300"`). Curves use session IDs, not worktree names, so restarts cannot overwrite each other. Generated Python bytecode is untracked/ignored. Tests: `bun test analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts`.
+`scan.py` (filter/parse), `final.py` (complete curves, knees, per-call estimator → sessions.json / curves.json / results.md), `board_corr.py` (timestamp links → board_corr.json). JSON policy keys are strings (`"100"`, `"200"`, `"300"`). Curves use session IDs, not worktree names, so restarts cannot overwrite each other. Generated Python bytecode is untracked/ignored. Tests: `bun test analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts`.

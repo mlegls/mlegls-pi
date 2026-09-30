@@ -3,7 +3,7 @@
 corpus: ~/.pi/agent/sessions, start-date 2026-09-14..16,
 model_change.modelId=claude-opus-5, __worktrees cwd.
 User follow-ups after the first prompt are steer proxies, mapped to the next
-assistant usage record. Estimation and curves live in final.py.
+assistant usage record. Estimation and curves live in final.py (the entry point).
 """
 import json, os, glob, sys
 
@@ -42,15 +42,15 @@ def parse(f):
                 if role == 'assistant' and m.get('usage'):
                     u = m['usage']
                     tools = sum(1 for c in (m.get('content') or []) if isinstance(c, dict) and c.get('type') in ('toolCall', 'toolUse', 'tool_call', 'tool_use'))
-                    calls.append(dict(ts=ts, s=u.get('cacheRead', 0), i=u.get('input', 0), o=u.get('output', 0),
-                                      w=u.get('cacheWrite', 0), r=u.get('reasoning', 0),
+                    calls.append(dict(ts=ts, s=u.get('cacheRead', 0), i=u.get('input', 0),
+                                      w=u.get('cacheWrite', 0),
                                       cost=(u.get('cost') or {}).get('total', 0), tools=tools,
                                       steer=False))
                 elif role == 'user':
                     texts = [c.get('text', '') for c in (m.get('content') or []) if isinstance(c, dict) and c.get('type') == 'text']
                     if texts and any(t_.strip() for t_ in texts):
                         if first_user_seen:
-                            steers.append(dict(ts=ts, chars=sum(len(t_) for t_ in texts), head=texts[0][:90].replace('\n', ' ')))
+                            steers.append(dict(ts=ts))
                         first_user_seen = True
     if not calls or cwd is None:
         return None
@@ -85,9 +85,3 @@ def linfit(xs, ys):
 
 def sse_res(xs, ys, a, b):
     return sum((y - (a * t + b)) ** 2 for t, y in zip(xs, ys))
-
-if __name__ == '__main__':
-    # Keep the original entry point on the same model as the published report.
-    sys.dont_write_bytecode = True
-    from final import main
-    main()
