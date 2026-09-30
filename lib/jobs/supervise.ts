@@ -52,17 +52,20 @@ export type Command = { child: string; action: "verify" | "integrate" | "drop" |
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const STARTUP_GRACE_MS = 30_000;
 const STARTUP_POLL_MS = 5_000;
-interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; effectiveStage: string }
+interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; archived?: boolean; effectiveStage: string }
+// The tracker reports archived issues as not done; they contribute neutral done to their parent.
+const finished = (i: Issue) => i.done || !!i.archived;
 function snapshot(input: Input): Issue[] {
  // The loop's own state is authoritative for its children; the tracker's derived in-flight claims would
  // hide them (and a redispatched child's surviving branch) from it.
  return JSON.parse(execFileSync("bun", [TRACKER, "snapshot", ...(input.ticket ? [input.ticket] : []), "--json"], { cwd: input.cwd, encoding: "utf8", env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } })).issues;
 }
-// When a ticket has no direct children, it is the loop's single leaf.
+// When a ticket has no unfinished direct children, it is the loop's single leaf: a node's own stage is residual
+// work that nothing else runs, so once its children are finished the node itself goes through implement.
 function workItems(issues: Issue[], input: Input): Issue[] {
  if (input.items) return issues.filter(i => input.items!.includes(i.slug));
  const direct = issues.filter(i => i.partOf === input.ticket);
- return direct.length ? direct : issues.filter(i => i.slug === input.ticket);
+ return direct.some(i => !finished(i)) ? direct : issues.filter(i => i.slug === input.ticket);
 }
 const STARTUP_META = (entry: { type: string; customType?: string; data?: unknown }, handle: Handle) => {
  if (entry.type !== "custom" || entry.customType !== SPAWN_META || !entry.data || typeof entry.data !== "object") return false;
@@ -157,6 +160,9 @@ const listCaveats = (all?: Record<string, string[]>) => Object.entries(all ?? {}
 export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
+ // A continuation of a finished run whose node still has work (its own residual, new children) runs it and
+ // joins again; a finished run with nothing open just finishes again.
+ if (!job.state && state.finished && !input.items && workItems(snapshot(input), input).some(i => !finished(i) && !state.integrated.includes(i.slug))) { state.finished = undefined; state.join = undefined; }
  // Older persisted jobs stored only a delivery address. Never use the daemon's own session as parent.
  const batch = !!input.ledger;
  const record = (entry: Record<string, unknown>) => appendFileSync(input.ledger!, JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n");
@@ -406,7 +412,8 @@ const checkStartup = async (live: Child[]) => {
   const key = ((input.ticket || input.run || "cycle") + "-join-" + Date.now().toString(36)).replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^[^A-Za-z0-9]+/, "");
   const node = input.ticket && (!input.items || input.nodeJoin) ? snapshot(input).find(i => i.slug === input.ticket) : undefined;
   const leafOnly = state.integrated.length === 1 && state.integrated[0] === input.ticket;
-  const drive = !!node && !leafOnly && /\bstories\//.test(readFileSync(node.file, "utf8"));
+  // A node whose own leaf ran (after its children) already drove its stories through drive and review.
+  const drive = !!node && !leafOnly && !state.integrated.includes(input.ticket) && /\bstories\//.test(readFileSync(node.file, "utf8"));
   const consolidate = (input.unjoined?.slugs.length ?? 0) + state.integrated.length >= 2;
   state.join = { key, drive, ...(batch && input.joinTimeboxMs ? { deadline: Date.now() + input.joinTimeboxMs } : {}) };
   if (!drive && !consolidate) { state.join.skipped = leafOnly ? "single leaf" : "fewer than two changes landed and no crossing stories"; await save(); if (batch) record({ kind: "join-skipped", reason: state.join.skipped }); return false; }
@@ -483,10 +490,11 @@ const checkStartup = async (live: Child[]) => {
   for (const i of workItems(issues, input).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug) && !state.deferred?.[i.slug] && !(batch && state.decomposed?.includes(i.slug)))) {
    if (state.join || (input.deadline && Date.now() >= input.deadline)) break;
    if (Object.keys(state.children).length >= input.budget) break;
-   const nonleaf = issues.some(j => j.partOf === i.slug && !j.done);
+   const nonleaf = issues.some(j => j.partOf === i.slug && !finished(j));
+   const node = issues.some(j => j.partOf === i.slug);
    const prompt = nonleaf
     ? "Supervise the subtree of " + rel(i.file) + " with a budget of " + Math.max(1, Math.floor(input.budget / 2)) + ".\n\n" + readFileSync(i.file, "utf8")
-    : (i.effectiveStage === "spec" ? "Spec leaf " : "Ticket ") + rel(i.file) + ":\n\n" + readFileSync(i.file, "utf8") + (input.notes?.[i.slug] ? "\n\nNote from the loop's triage: " + input.notes[i.slug] : "");
+    : (i.effectiveStage === "spec" ? "Spec leaf " : "Ticket ") + rel(i.file) + ":\n\n" + readFileSync(i.file, "utf8") + (node ? "\n\nIts children are all done; what remains is its own stage (residual work, including its joined acceptance). Realize it, or commit spec/ticket children that partition it (the loop then runs them and returns here), or, when only acceptance remains, change nothing but drive that acceptance. Don't redo the children." : "") + (input.notes?.[i.slug] ? "\n\nNote from the loop's triage: " + input.notes[i.slug] : "");
    try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } }; }
    catch (error) {
     if (batch) { (state.deferred ??= {})[i.slug] = "launch failed"; record({ kind: "deferred", slug: i.slug, phase: "launch", reason: "launch failed: " + error }); }
@@ -496,7 +504,7 @@ const checkStartup = async (live: Child[]) => {
   }
   const live = Object.values(state.children);
   if (!live.length) {
-   const complete = !workItems(snapshot(input), input).some(i => !i.done && !state.deferred?.[i.slug]);
+   const complete = !workItems(snapshot(input), input).some(i => !finished(i) && !state.deferred?.[i.slug]);
    if (!state.join && (batch || complete) && await startJoin()) continue;
    break;
   }
@@ -570,7 +578,7 @@ const checkStartup = async (live: Child[]) => {
   if (isJoin(c)) { await joinTurn(c, r, end.text); return; }
   if (c.phase === "implement") {
    const after = snapshot({ ...input, cwd: c.handle.path });
-   const kids = after.filter(i => i.partOf === c.slug && !i.done);
+   const kids = after.filter(i => i.partOf === c.slug && !finished(i));
    if (kids.length) { await decompose(c, kids, after); return; }
    c.setup = r.handoff?.setup ?? null; (state.setups ??= {})[c.slug] = c.setup; await toDrive(c);
   }
@@ -593,7 +601,7 @@ const checkStartup = async (live: Child[]) => {
   })().catch(error => except(c, "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
  }
  if (job.signal.aborted) return;
- const open = workItems(snapshot(input), input).filter(i => !i.done);
+ const open = workItems(snapshot(input), input).filter(i => !finished(i));
  trace("finish", { integrated: state.integrated.length, deferred: Object.keys(state.deferred ?? {}).length, open: open.length, metrics: state.metrics });
  if (batch) { record({ kind: "barrier", tests: state.tests ?? [], integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
