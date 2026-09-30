@@ -58,3 +58,27 @@ All messages were sent through `parse(text)` as the coordinator would consume a 
 4. Feed `Finished.\n\n\x60\x60\x60yaml\ncommit: abc123\n\x60\x60\x60\n\ndone`; accept `status === "done"` even though the sentinel is the last line. A first-line-only parser would fail this control.
 
 No rendered state, screenshots, persistent data or external resources were involved.
+
+## Review and re-drive, 2026-09-30
+
+Reviewed `dd0836cf..3a94e43` against the ticket and the log above. The original ten inputs now replay through the public `parse(text)` export in `lib/report.test.ts`; checks 1–4 all hold, including the exact recorded status, handoff and error fields. No driver check was dropped.
+
+Additional public-library encounters found three defects, repaired in this review:
+
+| Input (same string notation as above) | Before repair | Final re-drive |
+| --- | --- | --- |
+| `\x60\x60\x60yaml\nstatus: done\n\x60\x60\x60` | status null, no handoff | done, `{status: done}`, no error |
+| `Report:\ndone — committed` | status null (short-heading tolerance regressed) | done, no handoff, no error |
+| `done\n\x60\x60\x60yaml\ncaveats: \|\n  blocked\n\x60\x60\x60` | false conflict between done and caveat data | done, `{caveats: "blocked\n"}`, no error |
+
+The last row's `\|` escapes a Markdown table delimiter; the input has a plain `|`. A recognized handoff is now excluded from sentinel-line scanning without promoting later prose to the first word. Re-drive control: `\x60\x60\x60yaml\ncommit: abc123\n\x60\x60\x60\ndone with the first part, still working` returns null status and `{commit: abc123}`, with no error. These encounters are also automated in `lib/report.test.ts`; status-only handoffs replay all four supported statuses.
+
+Frictions and expectations disposition:
+
+- **Status-position, conflicts and missing-status predictions:** met, replayed automatically. Status-only handoffs now also work without an unrelated recognized key.
+- **Missing setup handoff:** outside this parser ticket; recorded with the existing idea [supervised-study-drive-lacks-setup-handoff](../../issues/supervised-study-drive-lacks-setup-handoff.md). The setup section above supplies the working library entry point.
+- **Expected malformed-handoff diagnostic:** separate idea [report-unrecognized-yaml-handoff-is-silent](../../issues/report-unrecognized-yaml-handoff-is-silent.md). `parseDocument(': "patch:title"')` actually produces `{"":"patch:title"}` with no errors; this is valid YAML with an unrecognized key, not a syntax error. Sentinel acceptance holds; deciding whether unrelated fenced mappings should be rejected is outside this ticket.
+
+Validation: `ab check -- bun test lib/report.test.ts lib/jobs/supervise.test.ts` passed (17 tests, 55 assertions, zero failures). The report suite contains every original drive replay and the review encounters. The existing supervision suite also passed; this is still library evidence, not a live child-mail bounce drive. No external resources or servers were started.
+
+Final claims: recorded sentinel positions and handoff-only status **held**; conflicting statuses produce a handoff error **held**; missing status is not guessed **held**.

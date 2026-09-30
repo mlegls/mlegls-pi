@@ -10,7 +10,7 @@ export interface Report {
   body: string;
 }
 
-const keySet = new Set<string>(HANDOFF_KEYS);
+const keySet = new Set<string>([...HANDOFF_KEYS, "status"]);
 const fencePattern = /^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(json|yaml|yml)[ \t]*\r?\n([\s\S]*?)^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(?=\r?$)/gim;
 
 function firstStatus(text: string, handoff: Record<string, unknown> | null): { status: Status | null; error: string | null } {
@@ -25,6 +25,13 @@ function firstStatus(text: string, handoff: Record<string, unknown> | null): { s
   if (nonblank.length) {
     const leading = statusAt(nonblank[0]);
     if (leading) candidates.push(leading);
+  }
+  // Preserve the existing short-heading tolerance for a sentinel followed by prose.
+  if (nonblank.length > 1 && (/^#{1,6}\s+/.test(nonblank[0].trim()) ||
+    /^(?:report|final report|worker report|result|status)\s*:?$/i.test(nonblank[0].trim()) ||
+    /:$/.test(nonblank[0].trim()))) {
+    const afterHeading = statusAt(nonblank[1]);
+    if (afterHeading) candidates.push(afterHeading);
   }
   for (const line of lines) {
     const candidate = statusAt(line);
@@ -78,11 +85,15 @@ function handoffBlock(text: string): HandoffBlock | null {
 export function parse(text: string): Report {
   const result = handoffBlock(text);
   const block = result && "value" in result ? result : null;
-  const parsedStatus = firstStatus(text, block?.value ?? null);
+  const body = block ? text.slice(0, block.start) + text.slice(block.end) : text;
+  // Keep a non-status placeholder so removing a leading handoff cannot promote
+  // later prose to the message's first word; its scalar values aren't sentinels.
+  const statusText = block ? text.slice(0, block.start) + "```\n" + text.slice(block.end) : text;
+  const parsedStatus = firstStatus(statusText, block?.value ?? null);
   return {
     status: parsedStatus.status,
     handoff: block?.value ?? null,
     handoffError: result && "error" in result ? result.error : parsedStatus.error,
-    body: block ? text.slice(0, block.start) + text.slice(block.end) : text,
+    body,
   };
 }
