@@ -92,8 +92,9 @@ export class TrackerView extends BasesView {
     if (!(file instanceof TFile)) return;
     const menu = new Menu();
     ev.preventDefault();
-    for (const [title, pane] of [["Open in new tab", "tab"], ["Open to the right", "split"], ["Open in new window", "window"]] as const) {
-      menu.addItem((item) => item.setTitle(title).setIcon("file-plus").onClick(() => this.app.workspace.getLeaf(pane).openFile(file)));
+    // The file-menu hook supplies file operations, including the desktop window action.
+    for (const [title, pane] of [["Open in new tab", "tab"], ["Open to the right", "split"]] as const) {
+      menu.addItem((item) => item.setSection("open").setTitle(title).setIcon("file-plus").onClick(() => this.app.workspace.getLeaf(pane).openFile(file)));
     }
     menu.addItem((item) => item.setTitle("Copy link").setIcon("link").onClick(() => navigator.clipboard.writeText(this.app.fileManager.generateMarkdownLink(file, ""))));
     menu.addItem((item) => item.setTitle("Copy Obsidian URL").setIcon("link").onClick(() => navigator.clipboard.writeText(`obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(file.path)}`)));
