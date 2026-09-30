@@ -59,9 +59,10 @@ inserted after b4nn
 inserted before b4nn
 ```
 
-`=` replaces a line or an inclusive range, `-` deletes one (no body), `>`
-inserts after, `<` before. A header may end with a separate `@path` token (`=abcd wxyz @src/file.ts`) to assert which
-file the anchors belong to. A file's anchors all start with the same
+`=` replaces one line or an inclusive range (`=abcd wxyz` or `=abcd =wxyz`);
+`-` deletes one line or an inclusive range (no body), `>` inserts after, `<` before.
+A header may end with a separate `@path` token (`=abcd wxyz @src/file.ts`) to
+assert which file the anchors belong to. A file's anchors all start with the same
 character (a hash of its path), so one from the wrong file looks wrong. A pasted read row (`=abcd│text`) works as a
 header. A blank line inside a body is content unless the line after it is a
 syntactic header. An unescaped header-like body line or lone `@path` is an error;

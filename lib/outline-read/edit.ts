@@ -8,7 +8,7 @@ import type { Ledger } from "./ledger";
 
 const GRAMMAR = `A hunk is a header line followed by its new text. Bodies may contain multiple lines, including blank lines; only a blank line followed by a hunk header starts another hunk:
   =abcd         replace line abcd
-  =abcd wxyz    replace abcd..wxyz inclusive
+  =abcd wxyz    replace abcd..wxyz inclusive (also =abcd =wxyz)
   -abcd wxyz    delete abcd..wxyz (no body)
   >abcd         insert after abcd
   <abcd         insert before abcd
@@ -58,6 +58,7 @@ function parseHeader(line: string): Omit<Hunk, "lines"> | undefined {
 	if (!mode) return undefined;
 	const tokens = head.slice(1).trim().split(/\s+/).filter(Boolean);
 	const path = tokens[tokens.length - 1]?.startsWith("@") ? tokens.pop()!.slice(1) : undefined;
+	if (mode === "replace" && tokens.length === 2 && tokens[1]!.startsWith("=")) tokens[1] = tokens[1]!.slice(1);
 	if (tokens.length === 0 || tokens.length > 2 || !tokens.every((t) => ANCHOR.test(t))) return undefined;
 	if (tokens.length === 2 && (mode === "after" || mode === "before")) return undefined;
 	return { header: head, from: tokens[0], to: tokens[1], mode, path };

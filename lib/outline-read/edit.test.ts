@@ -60,6 +60,7 @@ describe("parseHunks", () => {
 		expect(parseHunks("=aaaa\nx")).toEqual([{ header: "=aaaa", from: "aaaa", to: undefined, mode: "replace", path: undefined, lines: ["x"] }]);
 		expect(parseHunks("=aaaa @src/a.ts\nx")[0]).toMatchObject({ from: "aaaa", path: "src/a.ts" });
 		expect(parseHunks("=aaaa bbbb\nx\ny")[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x", "y"] });
+		expect(parseHunks("=aaaa =bbbb\nx")[0]).toMatchObject({ from: "aaaa", to: "bbbb", lines: ["x"] });
 		expect(parseHunks("-aaaa bbbb")[0]).toMatchObject({ mode: "delete", lines: [] });
 		expect(parseHunks(">aaaa\nx")[0]).toMatchObject({ mode: "after" });
 		expect(parseHunks("<aaaa\nx")[0]).toMatchObject({ mode: "before" });
@@ -126,7 +127,7 @@ describe("edit tool", () => {
 	test("a block replacement uses both endpoints and needs no diff markers", async () => {
 		const { file, read, edit } = setup();
 		const rows = await read();
-		const r = await edit(`=${rows[0]} ${rows[2]}\nfunction a() {\n  return 9;\n}`);
+		const r = await edit(`=${rows[0]} =${rows[2]}\nfunction a() {\n  return 9;\n}`);
 		expect(r.content[0].text).not.toContain("body resembles");
 		expect(readFileSync(file, "utf8")).toBe("function a() {\n  return 9;\n}\n\nfunction b() {\n  return 2;\n}\n");
 	});
