@@ -4,7 +4,7 @@
 //   issues frontier [slug]  execution-ready agent-permitted subtrees, unblocked and unclaimed
 //   issues mine [slug]      explicit human/user assignments, including shaping work
 //   issues tree [slug]      subtree under slug (or every root), children in dependency order
-//   issues check [--fix]    read-only diagnostics; --fix applies archive-link and heading repairs
+//   issues check [--fix]    read-only diagnostics; --fix applies archive-link and heading repairs and drops done blockers
 //   issues outline          the project's outliner note against the tracker: each linked bullet's state, unlinked intent, uncovered issues
 //
 // [slug] scopes to that issue's subtree.
@@ -15,7 +15,7 @@ import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpat
 import { homedir } from "node:os";
 import { join, basename, dirname, resolve, relative } from "node:path";
 import { spawnSync } from "node:child_process";
-import { isAlias, isMap, isScalar, parseDocument, visit } from "yaml";
+import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight } from "./inflight.ts";
@@ -250,6 +250,19 @@ function tree(root: Issue | undefined, all: Map<string, Issue>, depth = 0): stri
 // Every [[link]] and [[link#Heading]] under docs/, resolved as Obsidian does: by
 // basename, disambiguated by the link's trailing path segments; fenced code ignored.
 // Repairs are opt-in; checking a branch must not rewrite it against canonical state.
+
+// A done blocker no longer constrains scheduling; --fix drops it, leaving guards and live blockers in place.
+function dropBlockers(file: string, done: Set<string>) {
+  const text = readFileSync(file, "utf8");
+  const m = text.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m)!;
+  const start = m[0].indexOf("\n") + 1;
+  const doc = parseDocument(m[1]);
+  const seq = doc.get("blocked-by", true);
+  if (!isSeq(seq)) return;
+  seq.items = seq.items.filter((it) => !(isScalar(it) && typeof it.value === "string" && it.value.startsWith("[[") && done.has(slugOf(it.value))));
+  if (!seq.items.length) doc.delete("blocked-by");
+  writeFileSync(file, text.slice(0, start) + doc.toString() + text.slice(start + m[1].length));
+}
 function checkLinks(docs: string, say: (s: string) => void, repair: boolean) {
   const files: string[] = [];
   const walk = (d: string) => {
@@ -479,10 +492,13 @@ if (cmd !== "lint") switch (cmd) {
     for (const i of all.values()) {
       if (i.partOf && !all.has(i.partOf)) say(`${i.slug}: part-of ${i.partOf} does not exist`);
       if (!i.archived && i.partOf && all.get(i.partOf)?.archived) say(`${i.slug}: live issue has archived parent ${i.partOf}`);
+      const done = new Set<string>();
       for (const b of i.blockedBy) {
         if (!all.has(b)) say(`${i.slug}: blocked-by ${b} does not exist`);
-        else if (complete(all.get(b)!, all)) say(`${i.slug}: blocked-by ${b} is done; remove it`);
+        else if (complete(all.get(b)!, all)) done.add(b);
       }
+      if (done.size && repair) { dropBlockers(i.file, done); console.log(`fixed ${i.slug}: removed done blocked-by ${[...done].join(", ")}`); }
+      else for (const b of done) say(`${i.slug}: blocked-by ${b} is done; remove it (check --fix)`);
       if (i.next === "done" && !i.archived) say(`${i.slug}: done but not in archive/`);
       if (i.next && i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
       if (i.next && !KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);

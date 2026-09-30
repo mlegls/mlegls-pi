@@ -123,6 +123,17 @@ test("wrapped edges still receive graph checks and done blockers retain scheduli
   put("archive/blocker", frontmatter("stage: done"));
   expect(run("check").out).toContain("blocked-by blocker is done; remove it");
   expect(run("check").code).toBe(1);
+  put("task", frontmatter(`stage: ticket\nassignee: agent\nblocked-by: [\n  ${blocker}, # retained edge\n  "[[projects/fixture/issues/other]]",\n  "after: 2026-10-01",\n]`));
+  put("other", frontmatter("stage: idea"));
+  run("check --fix");
+  const kept = readFileSync(join(issues, "task.md"), "utf8");
+  expect(kept).not.toContain("blocker]]");
+  expect(kept).toContain("[[projects/fixture/issues/other]]");
+  expect(kept).toContain("after: 2026-10-01");
+  put("task", frontmatter(`stage: ticket\nassignee: agent\nblocked-by:\n  - ${blocker}\npriority: 2`));
+  expect(run("check --fix").out).toContain("fixed task: removed done blocked-by blocker");
+  expect(readFileSync(join(issues, "task.md"), "utf8")).toBe(frontmatter("stage: ticket\nassignee: agent\npriority: 2"));
+  rmSync(join(issues, "other.md"));
   expect(run("frontier").out).toContain("task");
 }, 30_000);
 
