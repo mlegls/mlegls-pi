@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/test-suite-hygiene]]"
@@ -15,3 +15,7 @@ ticket contract, 2026-09-30: tests under `skills/disabled/` aren't selected by `
 ## Result
 
 First-use CLI verification: [evidence packet](../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md).
