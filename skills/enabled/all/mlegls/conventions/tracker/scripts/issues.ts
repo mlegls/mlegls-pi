@@ -261,7 +261,7 @@ function dropBlockers(file: string, done: Set<string>) {
   if (!isSeq(seq)) return;
   seq.items = seq.items.filter((it) => !(isScalar(it) && typeof it.value === "string" && it.value.startsWith("[[") && done.has(slugOf(it.value))));
   if (!seq.items.length) doc.delete("blocked-by");
-  writeFileSync(file, text.slice(0, start) + doc.toString() + text.slice(start + m[1].length));
+  writeFileSync(file, text.slice(0, start) + doc.toString({ lineWidth: 0 }) + text.slice(start + m[1].length));
 }
 function checkLinks(docs: string, say: (s: string) => void, repair: boolean) {
   const files: string[] = [];
