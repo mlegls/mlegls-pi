@@ -15,7 +15,9 @@ The nonvisual delivery is not nominated yet. No duplicate work was claimed or di
 
 The active roster at preparation is unchanged: collector `openai-codex/gpt-6.1-sol:high`, fallback `anthropic/claude-sonnet-5-5:high`; visual reviewer `anthropic/claude-opus-5-5:medium`, fallback `openai-codex/gpt-6.1-sol:high`. Record actual executions, not these preferences, when measuring. A visual fallback to the collector's model would not establish this ticket's stronger-model comparison.
 
-Restart is not yet authorized by both owners. Shutdown also terminates running `ab service` and `ab check` process groups; job recovery does not restore those environments. At 14:11 UTC eight services were running: names drive (three), small-defects implementation (three), mission-history implementation (two). Two checks were running and two queued across the two repositories. Owners must arrange encounter/setup boundaries, not merely a gap between integrations. Concept was notified; no service, check or daemon was stopped by this observer.
+Restart is not yet authorized by both owners. Shutdown also terminates running `ab service` and `ab check` process groups; job recovery does not restore those environments. At 14:11 UTC eight services were running: names drive (three), small-defects implementation (three), mission-history implementation (two). Two checks were running and two queued across the two repositories. Owners must arrange encounter/setup boundaries, not merely a gap between integrations. No service, check or daemon was stopped by this observer.
+
+Concept acknowledged that gap (`muo6q9yi-ehken3`, 14:12:52 UTC), held its own commands and asked the four affected workers to send boundaries and start no new checks/services until `restart complete`. Its garden/prune driver confirmed a boundary at 14:13:52 UTC (`muo6rkqv-x1idkr`); the other three have not yet confirmed. Do not infer their readiness from this historical note; recheck live receipts.
 
 The next restart must launch from `/Users/mlegls/dev/mlegls-pi`, record its actual code revision and new PID, and reconcile each owner's saved commands. `e2f877c` (`--pick`) is an ancestor of the starting ref. Canonical checkout had unrelated dirty files at preparation; they are not this observer's changes.
 
@@ -52,3 +54,7 @@ No processes or external resources were started by this observer.
 ## Friction
 
 `ab mail c7a4ad76` warned that it could not confirm a live subscriber; Concept's actual reply established delivery in this instance. Existing owner: [[projects/mlegls-pi/issues/make-undeliverable-mail-status-visible-to-scripts]]. Do not treat the warning alone as proof that the owner is dead.
+
+## Checks
+
+The scoped tracker snapshot parsed successfully (`schemaVersion: 1`, ticket stage). Existing semantic lint ran on the ticket and linked packet. Its low-confidence `superseded` (0.57) and `unowned` (0.53) advisories both quoted the smoke limit and pending trial: neither supplies a superseding decision or an incidental defect outside the trial's contract. The trial remains open. No product code or permanent acceptance tests were changed.
