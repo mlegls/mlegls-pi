@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0e241-73c7-7479-87a5-cf190b2ec050
 ---
@@ -13,3 +13,7 @@ Triage, 2026-09-30: `lib/board/store.test.ts:58` still casts a deliberately send
 ## Result
 
 [First-use drive packet](../attachments/root-board-store-fixture-typecheck/index.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/root-board-store-fixture-typecheck/index.md).
