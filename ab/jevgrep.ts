@@ -51,21 +51,48 @@ export async function renderRetrieval(result: Retrieval, api: SourceAPI): Promis
 }
 
 export const DEFAULT_SOURCE_BYTES = 8192;
+export const DEFAULT_DEADLINE_SECONDS = 180;
 export function retrievalArgs(args: string[]): string[] {
 	const end = args.indexOf("--");
 	const options = end < 0 ? args : args.slice(0, end);
 	const explicit = options.some(arg => arg === "--max-source-bytes" || arg.startsWith("--max-source-bytes="));
 	return ["--json", ...(explicit ? [] : ["--max-source-bytes", String(DEFAULT_SOURCE_BYTES)]), ...args];
 }
+/** ab's own wall-clock budget for the jg child; --deadline is consumed here, never forwarded. */
+export function deadline(args: string[]): [number, string[]] {
+	const end = args.indexOf("--");
+	const head = end < 0 ? args : args.slice(0, end);
+	const rest: string[] = [];
+	let seconds = DEFAULT_DEADLINE_SECONDS;
+	for (let i = 0; i < head.length; i++) {
+		if (head[i] === "--deadline") seconds = Number(head[++i]);
+		else if (head[i].startsWith("--deadline=")) seconds = Number(head[i].slice(11));
+		else rest.push(head[i]);
+	}
+	if (!Number.isFinite(seconds) || seconds < 0) throw new Error("usage: --deadline SECONDS; 0 waits indefinitely");
+	return [seconds, end < 0 ? rest : [...rest, ...args.slice(end)]];
+}
 export async function jevgrep(args: string[], source: () => Promise<SourceAPI>) {
 	if (!args.length) throw new Error('usage: ab jg "question" [root] [search options]');
+	const [seconds, forwarded] = deadline(args);
 	const started = Date.now();
-	const child = Bun.spawn([resolve(import.meta.dir, "../bin/jg"), ...retrievalArgs(args)], { stdout: "pipe", stderr: "inherit", stdin: "ignore" });
-	const [text, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
+	const child = Bun.spawn([resolve(import.meta.dir, "../bin/jg"), ...retrievalArgs(forwarded)], { stdout: "pipe", stderr: "inherit", stdin: "ignore" });
+	const exited = Promise.all([new Response(child.stdout).text(), child.exited] as const);
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const outcome = await Promise.race([exited, new Promise<true>(expire => { if (seconds) timer = setTimeout(() => expire(true), seconds * 1000); })]);
+	clearTimeout(timer);
+	if (outcome === true) {
+		child.kill("SIGKILL");
+		console.error(`jg ${JSON.stringify(forwarded[0] ?? "")}: ${((Date.now() - started) / 1000).toFixed(1)}s, deadline ${seconds}s, killed before a result; use ab grep for exact search`);
+		process.exitCode = 2;
+		// SIGKILL the child but only briefly wait for the pipe: a stray grandchild can hold it open past the deadline.
+		await Promise.race([exited, new Promise(done => setTimeout(done, 1000))]);
+		return;
+	}
 	let result: Retrieval;
-	try { result = JSON.parse(text); }
-	catch { process.stdout.write(text); process.exitCode = code || 1; return; }
+	try { result = JSON.parse(outcome[0]); }
+	catch { process.stdout.write(outcome[0]); process.exitCode = outcome[1] || 1; return; }
 	console.log(await renderRetrieval(result, await source()));
-	console.error(`jg ${JSON.stringify(args[0])}: ${((Date.now() - started) / 1000).toFixed(1)}s, ${result.files.length} files, exit ${code}`);
-	process.exitCode = code;
+	console.error(`jg ${JSON.stringify(forwarded[0] ?? "")}: ${((Date.now() - started) / 1000).toFixed(1)}s, ${result.files.length} files, exit ${outcome[1]}`);
+	process.exitCode = outcome[1];
 }

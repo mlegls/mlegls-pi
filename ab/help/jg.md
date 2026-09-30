@@ -2,7 +2,11 @@ ab jg "question" [root] [search options]
 
 Semantic repository retrieval with session-owned edit anchors. Uses the pinned
 Jevgrep dependency and its saved credentials; run jg auth for initial setup.
-Repository content is sent to the configured provider.
+Repository content is sent to the configured provider. --deadline SECONDS is ab's
+own wall-clock bound on the whole retrieval, never passed to jg: default 180,
+0 waits indefinitely. On expiry the jg process is killed, a completion line with
+the elapsed time and deadline is printed, and the exit status is 2 (incomplete);
+fall back to exact ab grep.
 
 Search options are passed to jg (see jg --help), including --max-source-bytes,
 --concurrency, --hidden, --no-ignore, and --no-cache. Root defaults to cwd.
