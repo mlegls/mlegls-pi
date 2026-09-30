@@ -1,9 +1,9 @@
 // Force-directed SVG of the issue network. Solid arrows run blocker to dependent; dashed lines join
 // execution child to parent. Drag pins, double-click unpins, click opens. Colour follows the actor.
-import type { Issue } from "./model.ts";
+import { subissueProgress, type Issue } from "./model.ts";
 
 const NS = "http://www.w3.org/2000/svg";
-const ACTOR_COLOR = { agent: "var(--color-green)", me: "var(--color-blue)", nobody: "var(--text-faint)" };
+export const ACTOR_COLOR = { agent: "var(--color-green)", me: "var(--color-blue)", nobody: "var(--text-faint)" };
 
 type Pos = { x: number; y: number; vx: number; vy: number; fixed: boolean };
 type Edge = { from: string; to: string; kind: "part" | "blocks" };
@@ -74,12 +74,12 @@ export class Graph {
       g.setAttribute("href", n.id);
       g.dataset.href = n.id;
       this.svg.appendChild(g);
-      const progress = n.children.length ? ` · ${n.children.filter((c) => c.subtreeDone).length}/${n.children.length} subissues` : "";
-      g.createSvg("title").textContent = `${n.project}/${n.slug}\nown ${n.ownStage ?? "—"} · tree ${n.effectiveStage}${progress} · ${n.actor} · p${n.priority ?? "?"} · unblocks ${n.unblocksAll}`;
+      const progress = subissueProgress(n);
+      g.createSvg("title").textContent = `${n.project}/${n.slug}\nown ${n.ownStage ?? "—"} · tree ${n.effectiveStage}${progress && ` · ${progress}`} · ${n.actor} · p${n.priority ?? "?"} · unblocks ${n.unblocksAll}`;
       const circle = g.createSvg("circle", { attr: { r: String(this.r(n)), fill: n.subtreeDone ? "var(--background-modifier-border)" : ACTOR_COLOR[n.actor], "stroke-width": "1.5", opacity: n.subtreeDone ? "0.5" : "1" } });
       const t = g.createSvg("text", { attr: { y: String(this.r(n) + 11), "text-anchor": "middle", "font-size": "10", fill: "var(--text-muted)" } });
       t.textContent = this.hooks.label(n);
-      if (progress) g.createSvg("text", { attr: { y: String(this.r(n) + 23), "text-anchor": "middle", "font-size": "10", fill: "var(--text-muted)" } }).textContent = progress.slice(3);
+      if (progress) g.createSvg("text", { attr: { y: String(this.r(n) + 23), "text-anchor": "middle", "font-size": "10", fill: "var(--text-muted)" } }).textContent = progress;
       g.addEventListener("pointerdown", (ev) => { if (ev.button !== 0) return; suppressClick = false; const p = this.point(ev); this.drag = { id: n.id, moved: false, sx: p.x, sy: p.y }; g.setPointerCapture(ev.pointerId); });
       g.addEventListener("click", (ev) => {
         ev.preventDefault();
@@ -99,7 +99,7 @@ export class Graph {
       if (Math.hypot(p.x - this.drag.sx, p.y - this.drag.sy) > 3) this.drag.moved = true;
       if (this.drag.moved) { q.x = p.x; q.y = p.y; q.fixed = true; this.reheat(); }
     });
-    const up = (ev: PointerEvent) => {
+    const up = () => {
       const d = this.drag; this.drag = null;
       if (!d) return;
       suppressClick = d.moved;

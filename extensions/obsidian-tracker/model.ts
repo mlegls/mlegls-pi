@@ -139,3 +139,6 @@ export function model(notes: Note[], { includeDeferred = false } = {}): Model {
     projects: [...new Set(all.map((i) => i.project))].sort(),
   };
 }
+
+// "1/2 subissues": direct children whose entire subtree is done (filtering never hides a child from the count).
+export const subissueProgress = (i: Issue) => i.children.length ? `${i.children.filter((c) => c.subtreeDone).length}/${i.children.length} subissues` : "";

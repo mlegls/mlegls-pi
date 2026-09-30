@@ -1,11 +1,9 @@
 import { BasesView, Keymap, Menu, Plugin, TFile, setIcon, type QueryController } from "obsidian";
-import { model, type Issue, type Model } from "./model.ts";
-import { Graph } from "./graph.ts";
+import { model, subissueProgress, type Issue, type Model } from "./model.ts";
+import { ACTOR_COLOR, Graph } from "./graph.ts";
 
 export const MODES = ["tree", "board", "graph", "frontier", "mine", "done", "invalid", "legacy", "all"] as const;
 type Mode = (typeof MODES)[number];
-
-const ACTOR_COLOR = { agent: "var(--color-green)", me: "var(--color-blue)", nobody: "var(--text-faint)" };
 
 export class TrackerView extends BasesView {
   type = "tracker";
@@ -51,12 +49,12 @@ export class TrackerView extends BasesView {
     if (mode === "graph") return this.drawGraph(m, new Set(this.data.data.map(id)), showDone);
     this.graph?.stop(); this.graph = null;
     const groups = this.data.groupedData;
-    const grouped = groups.length > 1 || groups.some((g) => g.hasKey());
+    const boxed = mode === "board" || groups.length > 1 || groups.some((g) => g.hasKey());
     for (const g of groups) {
       const visible = new Set(g.entries.map(id));
       const keep = (i: Issue) => visible.has(i.id);
-      const into = grouped || mode === "board" ? this.root.createDiv({ cls: mode === "board" ? ["trk-group", "trk-column"] : "trk-group" }) : this.root;
-      if (grouped || mode === "board") into.createDiv({ cls: "trk-h", text: g.hasKey() ? String(g.key) : "Issues" });
+      const into = boxed ? this.root.createDiv({ cls: mode === "board" ? ["trk-group", "trk-column"] : "trk-group" }) : this.root;
+      if (boxed) into.createDiv({ cls: "trk-h", text: g.hasKey() ? String(g.key) : mode === "board" ? "Issues" : "—" });
       if (mode === "tree") {
         const roots = this.sorted(m.roots.filter((i) => !i.legacy && (showDone || !i.subtreeDone) && this.reaches(i, keep, showDone)));
         if (!roots.length) this.empty(into);
@@ -78,13 +76,19 @@ export class TrackerView extends BasesView {
     const nodes = [...m.issues.values()].filter((i) => visible.has(i.id) && !i.legacy && (showDone || !i.subtreeDone));
     this.graph ??= new Graph({
       pinned: this.option<Record<string, [number, number]>>("pinned", {}),
-      open: (i, ev) => this.app.workspace.openLinkText(i.id, "", ev.button === 1 ? "tab" : Keymap.isModEvent(ev)),
-      hover: (i, ev, el) => this.app.workspace.trigger("hover-link", { event: ev, source: "tracker", hoverParent: this, targetEl: el, linktext: i.id, sourcePath: "" }),
+      open: (i, ev) => this.open(i, ev),
+      hover: (i, ev, el) => this.hover(i, ev, el),
       menu: (i, ev) => this.fileMenu(i, ev),
       pin: (pinned) => this.config.set("pinned", pinned),
       label: (i) => i.slug,
     });
     this.graph.mount(this.root, nodes);
+  }
+
+  private open(i: Issue, ev: MouseEvent) { this.app.workspace.openLinkText(i.id, "", ev.button === 1 ? "tab" : Keymap.isModEvent(ev)); }
+
+  private hover(i: Issue, ev: MouseEvent, el: Element) {
+    this.app.workspace.trigger("hover-link", { event: ev, source: "tracker", hoverParent: this, targetEl: el, linktext: i.id, sourcePath: "" });
   }
 
   private fileMenu(i: Issue, ev: MouseEvent) {
@@ -141,7 +145,7 @@ export class TrackerView extends BasesView {
       if (title) s.title = title;
     };
     meta(`p${i.priority ?? "?"}`, i.priority === undefined ? "priority unset" : "priority");
-    if (i.children.length) meta(`${i.children.filter((c) => c.subtreeDone).length}/${i.children.length} subissues`, "Direct subissues whose entire subtree is done (including filtered-out issues)");
+    if (i.children.length) meta(subissueProgress(i), "Direct subissues whose entire subtree is done (including filtered-out issues)");
     if (i.unblocksAll > 0) meta(String(i.unblocksAll), "open issues this unblocks", "lucide-arrow-up-from-line");
     if (i.errors.length) meta("invalid", i.errors.join("; "), "lucide-alert-triangle");
     if (i.claimedBy) meta(String(i.claimedBy), undefined, "lucide-pickaxe");
@@ -153,9 +157,9 @@ export class TrackerView extends BasesView {
   private link(parent: HTMLElement, i: Issue) {
     const a = parent.createEl("a", { cls: ["trk-title", "internal-link"], text: i.slug, href: i.id });
     a.dataset.href = i.id;
-    a.addEventListener("click", (ev) => { ev.preventDefault(); this.app.workspace.openLinkText(i.id, "", Keymap.isModEvent(ev)); });
-    a.addEventListener("auxclick", (ev) => { if (ev.button === 1) { ev.preventDefault(); this.app.workspace.openLinkText(i.id, "", "tab"); } });
-    a.addEventListener("mouseover", (ev) => this.app.workspace.trigger("hover-link", { event: ev, source: "tracker", hoverParent: this, targetEl: a, linktext: i.id, sourcePath: "" }));
+    a.addEventListener("click", (ev) => { ev.preventDefault(); this.open(i, ev); });
+    a.addEventListener("auxclick", (ev) => { if (ev.button === 1) { ev.preventDefault(); this.open(i, ev); } });
+    a.addEventListener("mouseover", (ev) => this.hover(i, ev, a));
     a.addEventListener("contextmenu", (ev) => this.fileMenu(i, ev));
   }
 }
