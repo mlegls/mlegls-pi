@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/small-ab-cli-fixes]]"
@@ -15,3 +15,7 @@ ticket contract, 2026-09-30: `ab mail` to a definitely unsubscribed address exit
 ## Result
 
 [First-use CLI drive](../attachments/make-undeliverable-mail-status-visible-to-scripts/index.md): definitely absent and exited mailboxes returned exit 1 with the retained warning and recorded post; a live session with unknown subscription status retained exit 0 and its cautious warning; recognized live mailbox/worktree sends returned exit 0 without warnings. The packet separates recording/subscriber recognition from consumption and records setup friction.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/make-undeliverable-mail-status-visible-to-scripts/index.md).
