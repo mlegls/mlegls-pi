@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0f08f-9962-73f5-8231-63e51693973d
 part-of: "[[projects/mlegls-pi/issues/tracker-obsidian-plugin]]"
@@ -26,3 +26,7 @@ resolved, 2026-09-30: the supervisor ruled that Obsidian remains a pure frontmat
 ## Independent drive result
 
 [First-use packet](../attachments/tracker-obsidian-rollout/drive/index.md): live views/navigation, saved collapse/options, filtered full-vault rollup and metadata parity held. Fresh-profile startup omitted plugin trust; pin persistence remained unobservable because native drag did not create a pin. Rollback refused newer workspace state as documented; full restoration was not exercised. Owned instance stopped and exclusively created regular live window closed.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/tracker-obsidian-rollout/drive/index.md).
