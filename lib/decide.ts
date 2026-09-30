@@ -12,7 +12,57 @@ import { readFileSync } from 'node:fs';
 // Logprobs: OpenAI-compatible chat completions; OPENAI_API_KEY, DECIDE_MODEL, DECIDE_URL.
 // p is the winning option's probability, NOT Jev's distribution-derived confidence.
 // Score keeps its weighted score as well as the modal level in choice. Logprobs distributions
-// are conditional on the listed labels, not calibrated Jev probabilities. No automatic retry.
+// are conditional on the listed labels, not calibrated Jev probabilities. Retry transient API failures with bounded backoff.
+
+export class DecisionApiUnavailableError extends Error {
+	constructor(message: string) {
+		super(`Decision API unavailable: ${message}`);
+		this.name = 'DecisionApiUnavailableError';
+	}
+}
+
+const MAX_ATTEMPTS = 4;
+const BACKOFF_MS = [250, 500, 1000];
+
+function backoff(ms: number, signal?: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) return reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+		const timer = setTimeout(() => {
+			signal?.removeEventListener('abort', abort);
+			resolve();
+		}, ms);
+		const abort = () => {
+			clearTimeout(timer);
+			signal?.removeEventListener('abort', abort);
+			reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+		};
+		signal?.addEventListener('abort', abort, { once: true });
+	});
+}
+
+async function post(url: string, apiKey: string | undefined, body: unknown, signal?: AbortSignal): Promise<any> {
+	if (!apiKey) throw new Error('Missing API key (JEV_API_KEY, CLOUDFLARE_API_TOKEN, or OPENAI_API_KEY)');
+	for (let attempt = 1; ; attempt++) {
+		let response: Response;
+		try {
+			response = await fetch(url, {
+				method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+				body: JSON.stringify(body), signal,
+			});
+		} catch (error) {
+			if (signal?.aborted || !(error instanceof TypeError)) throw error;
+			if (attempt === MAX_ATTEMPTS) throw new DecisionApiUnavailableError(`network failure after ${attempt} attempts: ${error instanceof Error ? error.message : String(error)}`);
+			await backoff(BACKOFF_MS[attempt - 1], signal);
+			continue;
+		}
+		if (response.ok) return response.json();
+		const message = `Decision API: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`;
+		if (response.status === 402) throw new DecisionApiUnavailableError(`HTTP 402 after one attempt: ${message}`);
+		if (response.status < 500 || response.status > 599) throw new Error(message);
+		if (attempt === MAX_ATTEMPTS) throw new DecisionApiUnavailableError(`HTTP ${response.status} after ${attempt} attempts: ${message}`);
+		await backoff(BACKOFF_MS[attempt - 1], signal);
+	}
+}
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type State = string | Json[] | { [key: string]: Json };
@@ -73,16 +123,6 @@ function criteria(q: Question): Record<string, string | null> {
 	if (q.type === "noul") return { true: q.criteria?.true ?? "Yes", false: q.criteria?.false ?? "No" };
 	if (q.type === "score") return Object.fromEntries(q.criteria.map((v, i) => [String(i), v]));
 	return q.criteria;
-}
-
-async function post(url: string, apiKey: string | undefined, body: unknown, signal?: AbortSignal): Promise<any> {
-	if (!apiKey) throw new Error("Missing API key (JEV_API_KEY, CLOUDFLARE_API_TOKEN, or OPENAI_API_KEY)");
-	const response = await fetch(url, {
-		method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-		body: JSON.stringify(body), signal,
-	});
-	if (!response.ok) throw new Error(`Decision API: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`);
-	return response.json();
 }
 
 export function decide<Q extends Questions>(state: State, questions: Q, options: Options & { backend: "ask" }): Promise<Ask<Q>>;
