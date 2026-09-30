@@ -28,3 +28,5 @@ TextEdit restored unrelated documents into a new app instance; that setup/cleanu
 ## Verification evidence
 
 [Encounter and evidence](../attachments/native-computer-lacks-a-manual-llm-path/index.md).
+
+activated, 2026-09-30: ran `~/.config/system-config/scripts/agents-apply.sh`; `cua-driver` is now linked into the Claude, Codex and Pi skill dirs. Caveats triaged: TextEdit's leftover processes (PIDs 24702, 95075) are the textedit idea's subject; the unscoped-input rule is role policy only, as the ticket allowed.
