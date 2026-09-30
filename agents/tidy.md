@@ -1,7 +1,7 @@
 ---
 name: tidy
 description: Incremental, behavior-preserving tidying across changes that landed together: extract the shared piece, align names and conventions, inline what doesn't earn its keep.
-model: openai-codex/gpt-6-astra
+model: anthropic/claude-opus-5-5
 effort: medium
 role: consolidate
 ---

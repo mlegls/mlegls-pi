@@ -6,6 +6,7 @@ Subscription use is not the same as list-price spending. Prefer using available 
 
 - Bias delegated work toward `openai-codex`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
 - Use Opus 5.5 only for work requiring visual/design taste, visual review, or difficult and VERY long-context work. UI implementation from an existing design, including simple UI adjustments, should use sol or luna when sufficient.
+- Split by lab strength. Anthropic models still hold a clear advantage on long-context work and on carrying a goal through to completion; OpenAI models excel on well-scoped tasks but more often stop abruptly or drift. Route judgment over a whole picture to Anthropic (triage, review, consolidation at a join) and bounded execution to `openai-codex` (implement, drive). Supervision compacts once its cache goes stale, so it is closer to a sequence of bounded decisions and goes to `openai-codex`.
 - Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
 - Metered providers are overflow when appropriate.
 - OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.

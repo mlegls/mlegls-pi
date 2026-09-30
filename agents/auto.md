@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for ambiguous tasks.
-model: openai-codex/gpt-6-sol
+model: openai-codex/gpt-6.1-sol
 effort: high
 role: implement
 ---

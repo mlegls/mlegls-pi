@@ -1,8 +1,8 @@
 ---
 name: technical
 description: Execute work whose acceptance criterion is clear (metric, stub, contract...) but whose fulfilment is hard and requires strong reasoning (complex systems, difficult or novel algorithms, performance optimization).
-model: openai-codex/gpt-6-astra
-effort: medium
+model: openai-codex/gpt-6.1-sol
+effort: xhigh
 role: implement
 ---
 

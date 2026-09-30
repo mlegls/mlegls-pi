@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Review a change against its contract and the driver's log, repairing defects directly; also standalone diff review or a scoped audit.
-model: openai-codex/gpt-6-astra
+model: anthropic/claude-opus-5-5
 effort: medium
 role: review
 ---

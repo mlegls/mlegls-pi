@@ -1,8 +1,8 @@
 ---
 name: node-triage
 description: Triage inside one subtree of the synchronous ticket loop: picks each cycle's batch among a node's children.
-model: zai/glm-5.3-flash
-effort: high
+model: anthropic/claude-opus-5-5
+effort: low
 role: triage
 ---
 

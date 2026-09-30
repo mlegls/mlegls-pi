@@ -1,9 +1,8 @@
 ---
 name: supervise
 description: Supervisor for an agent-ready issue subtree; delegates its children and integrates them into its branch.
-model: zai/glm-5.3-flash
+model: openai-codex/gpt-6.1-sol
 effort: high
-routingNote: Trial; consult opus 5.5 medium if it cannot hold the process. Supervision follows recorded contracts rather than reconstructing design.
 role: supervise
 ---
 

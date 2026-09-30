@@ -1,8 +1,8 @@
 ---
 name: compile
 description: Worker for a spec leaf whose design is closed but too big for one session; stubs the interfaces, then fans out fill workers.
-model: openai-codex/gpt-6-astra
-effort: medium
+model: openai-codex/gpt-6.1-sol
+effort: xhigh
 role: implement
 ---
 

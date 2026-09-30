@@ -1,7 +1,7 @@
 ---
 name: verify
 description: Drive changed behavior as its user would and record what happens: first-use encounters, frictions, expectations, replayable checks.
-model: openai-codex/gpt-6-sol
+model: openai-codex/gpt-6.1-sol
 effort: high
 role: drive
 ---
