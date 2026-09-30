@@ -1,0 +1,3 @@
+fixed attachments/examples.md: [[projects/tracker-inline-drive/issues/moved]] -> [[projects/tracker-inline-drive/issues/archive/moved]]
+ok
+exit=0

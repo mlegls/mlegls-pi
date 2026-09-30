@@ -11,3 +11,7 @@ During [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]], tracker `
 Owner: tracker `scripts/issues.ts` link checking. Workaround for the new rollout packet: escape the brackets in the inline-code example. The sibling's original encounter is left unchanged. Observation only; whether inline code should be excluded from link checking needs a ruling.
 
 ticket contract, 2026-09-30: `check` doesn't treat wikilinks inside inline code or fenced code as live links, with a test; then un-escape the example in `docs/attachments/tracker-obsidian-rollout/` if it was escaped only to satisfy the check.
+
+## Result
+
+[First-use CLI drive packet](../attachments/tracker-check-flags-inline-fixture-wikilinks/index.md): inline/fenced examples ignored, live-link diagnostics retained, archive fixing preserved code examples, and the rollout example is unescaped inline code. The supplied test runner passed 19 tests. Assertion adequacy remains for review. Setup friction is recorded with the existing [handoff owner](mail-drive-handoff-names-only-a-test-runner.md).

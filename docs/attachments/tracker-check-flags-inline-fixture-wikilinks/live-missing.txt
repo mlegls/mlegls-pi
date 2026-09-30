@@ -1,0 +1,6 @@
+A live link following inline code: `literal` [[projects/tracker-inline-drive/issues/missing-live]].
+
+```markdown
+[[projects/tracker-inline-drive/issues/missing-fenced]]
+```
+A live link following a fence: [[projects/tracker-inline-drive/issues/missing-after-fence]].

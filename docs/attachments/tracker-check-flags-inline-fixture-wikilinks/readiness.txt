@@ -1,0 +1,27 @@
+bun test v1.4.2 (744846f84)
+
+skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts:
+(pass) cross-project evidence links resolve through the vault, not a local namesake [145.09ms]
+(pass) check ignores wikilinks in inline and fenced code, including when fixing other links [95.52ms]
+(pass) check --fix <moved paths> repairs only links and blockers targeting the moved issues [96.23ms]
+(pass) format-equivalent dependencies preserve all queries [3374.53ms]
+(pass) invalid frontmatter fails every query with a filename and no partial output [5007.00ms]
+(pass) wrapped edges still receive graph checks and done blockers retain scheduling semantics [418.35ms]
+(pass) unverified claims conservatively reserve execution [82.03ms]
+(pass) tagged guards are opaque: they block until removed and never resolve on their own [278.02ms]
+(pass) outline maps each linked bullet to its issue, flags unlinked intent among linked bullets, and lists open issues no bullet covers [42.52ms]
+(pass) subtree readiness, assignment, dependencies, scheduling and review remain separate [895.50ms]
+(pass) legacy is readable but never translated; selectors and structural omissions fail closed [716.99ms]
+(pass) human shaping uses own residual constraints, and archive cannot parent live work [142.20ms]
+(pass) historical provenance survives and duplicate identities fail before projection [100.92ms]
+(pass) a child cannot await completion of its own parent scope [47.49ms]
+(pass) check names the child that lowers a spec, and a side friction log [51.27ms]
+(pass) a new uncommitted issue needs author provenance; committed history is left alone [106.60ms]
+(pass) work in flight elsewhere leaves the frontier: supervise children, closes on branches, orphaned loops [252.07ms]
+(pass) check proposes a unique heading repair without writing; --fix applies it [102.04ms]
+(pass) worktree links use branch docs; foreign projects retain vault state [203.91ms]
+
+ 19 pass
+ 0 fail
+ 650 expect() calls
+Ran 19 tests across 1 file. [12.17s]

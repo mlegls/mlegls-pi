@@ -1,0 +1,23 @@
+# Link examples
+
+Valid live link: [[projects/tracker-inline-drive/issues/live]].
+
+Inline: `[[projects/tracker-inline-drive/issues/missing-single]]`.
+Double-backtick: ``a ` marker [[projects/tracker-inline-drive/issues/missing-double]]``.
+Inline short copied link: `[[parent]]`.
+
+```markdown
+[[projects/tracker-inline-drive/issues/missing-backtick-fence]]
+```
+
+~~~markdown
+[[projects/tracker-inline-drive/issues/missing-tilde-fence]]
+~~~
+
+   ```text
+   [[projects/tracker-inline-drive/issues/missing-indented-fence]]
+   ```
+
+Archive example: `[[projects/tracker-inline-drive/issues/moved]]`.
+
+Live archived target: [[projects/tracker-inline-drive/issues/archive/moved]].

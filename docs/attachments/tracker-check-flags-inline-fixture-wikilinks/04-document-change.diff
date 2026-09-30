@@ -1,0 +1,8 @@
+--- /Users/mlegls/dev/mlegls-pi__worktrees/tracker-check-flags-inline-fixture-wikilinks-drive/docs/attachments/tracker-check-flags-inline-fixture-wikilinks/examples-before-fix.md	2026-09-30 22:51:43.911124000 +0800
++++ /Users/mlegls/dev/mlegls-pi__worktrees/tracker-check-flags-inline-fixture-wikilinks-drive/docs/attachments/tracker-check-flags-inline-fixture-wikilinks/examples-after-fix.md	2026-09-30 22:51:44.026601000 +0800
+@@ -20,4 +20,4 @@
+ 
+ Archive example: `[[projects/tracker-inline-drive/issues/moved]]`.
+ 
+-Live archived target: [[projects/tracker-inline-drive/issues/moved]].
++Live archived target: [[projects/tracker-inline-drive/issues/archive/moved]].

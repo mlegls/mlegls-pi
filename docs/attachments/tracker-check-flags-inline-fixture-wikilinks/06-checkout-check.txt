@@ -1,0 +1,4 @@
+repair available (check --fix): issues/browser-driver-declines-completed-source-release-navigation.md: [[projects/mlegls-pi/issues/browser-driver-stuck-on-storybook-navigation]] -> [[projects/mlegls-pi/issues/archive/browser-driver-stuck-on-storybook-navigation]]
+repair available (check --fix): issues/computer-driver-omits-materials-navigation-candidates.md: [[projects/mlegls-pi/issues/browser-driver-stuck-on-storybook-navigation]] -> [[projects/mlegls-pi/issues/archive/browser-driver-stuck-on-storybook-navigation]]
+repair available (check --fix): issues/computer-safari-decision-api-max-tokens.md: [[projects/concept/issues/check-zh-cn-font-stacks-in-safari]] -> [[projects/concept/issues/archive/check-zh-cn-font-stacks-in-safari]]
+exit=1
