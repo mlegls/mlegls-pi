@@ -1,4 +1,5 @@
 ---
+priority: 3
 stage: spec
 assignee: human
 author: session:01a0e1fe-0bf2-7778-be0c-d6d1816ed631
@@ -73,3 +74,5 @@ Built in `lib/jobs/loop.ts`: candidates are the target's direct children (the tr
 Found on the way: supervise gave workers the issue's absolute path, so workers in worktrees edited the owner's checkout and later merges failed; prompts now use repo-relative paths. And a restart between recording `integrated` and saving state resumed the landed child as unreachable; state is saved first now.
 
 Drivers (2026-09-27, first two concept tickets): the useful tests came from the reviewer, not the driver. One driver never reached the Storybook surface (the implementer's entry was a menu path, not a loadable URL); the other wrote a smoke test plus a screenshot. The reviewer's tests were real, though one labelled black-box asserted markup. Testing vs. checking (Bach and Bolton): the driver now writes predictions before first use and records replayable checks, and the reviewer encodes those as tests of what the user observes. `verify` moved to gpt-6-sol high; try Sonnet 5.5 as the driver once it's out.
+
+decision, 2026-09-30: run after the current supervise operational repairs land; collect delivery and cost evidence meanwhile. Orchestration defaults unchanged.

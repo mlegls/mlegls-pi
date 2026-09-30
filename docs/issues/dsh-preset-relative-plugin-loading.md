@@ -1,4 +1,5 @@
 ---
+priority: 4
 stage: idea
 assignee: agent
 author: session:01a0e1e4-3397-74ac-bf94-15f9c9303681
@@ -23,3 +24,5 @@ relative module provenance. The useful diagnostic would name the resolved URL
 or underlying import/activation error, rather than only `never started`.
 
 During [[projects/mlegls-pi/issues/dsh-templated-spawn-and-dispatch]], absolute plain plugin paths inside the nested preset document worked. `dsh/dispatch/config.ts` generates the overlay with those names before launching. Using `!!js` for the nested name instead failed registry row validation. Origin: session:01a0e2d3-2fe3-706a-8616-9394e05449d1.
+
+decision, 2026-09-30: deferred while DSH isn't the daily harness (its upstream tracker is disabled).

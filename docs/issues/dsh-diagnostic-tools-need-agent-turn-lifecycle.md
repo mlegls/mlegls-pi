@@ -1,4 +1,5 @@
 ---
+priority: 4
 stage: idea
 assignee: agent
 author: session:01a0e217-e2af-7760-9a10-b4be54db2d0a
@@ -21,3 +22,5 @@ request-error hooks. Upstream's issue tracker is disabled (see
 Clarify the lifecycle precondition on direct host tool execution, or fail before
 writing dispatch events when no turn is open. Do not repair this by weakening
 persistence validation.
+
+decision, 2026-09-30: deferred while DSH isn't the daily harness (its upstream tracker is disabled).

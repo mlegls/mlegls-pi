@@ -1,4 +1,5 @@
 ---
+priority: 4
 stage: idea
 assignee: human
 author: session:2026-09-26T12-56-58-521Z_01a0ddca-4f99-714a-be5c-46535cc1fc2a
@@ -11,3 +12,5 @@ The continuous choice came from ~/dev/data/experiments/kv-diff (Qwen2.5 7B/14B):
 Untested: token-aligned V similarity inside a retained segment as a function of distance from its seam, for (a) the original full context, (b) memory + continuous tail, (c) memory + earlier excerpt + later excerpt. If the per-seam cost decays within a few dozen tokens, excerpts are cheap representationally and the question becomes behavioral (does the model follow the thread across gaps). The existing summary experiment compared positions by index across different sequences, which cannot answer this. kv_diff_extended.py's extraction and cos helpers should be reusable.
 
 Partial existing coverage: cited originals are already retrievable on demand through memory recall, which is disjoint access by retrieval rather than retention. CacheBlend and similar work measure the cost of concatenating separately computed KV chunks. That's not directly applicable to API providers (they re-prefill the text), but it's relevant for seam-recovery intuitions.
+
+decision, 2026-09-30: deferred until a concrete task needs it; name that task and its user when reopening.

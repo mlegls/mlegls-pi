@@ -1,4 +1,5 @@
 ---
+priority: 4
 stage: idea
 assignee: human
 author: run:run_a99780307abf
@@ -25,3 +26,5 @@ Origin: Cua-native backend/runner, 2026-09-22, run_a99780307abf;
 [computer composition](../computer.md), extensions/exec/cua-runtime.ts,
 lib/computer/native.ts. The Playwright controller remains separate so its
 locator replay and existing completion policy do not constrain the native API.
+
+decision, 2026-09-30: deferred until a concrete task needs it; name that task and its user when reopening.

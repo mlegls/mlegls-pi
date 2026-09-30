@@ -1,6 +1,6 @@
 ---
-stage: idea
-assignee: human
+stage: goal
+assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
@@ -19,3 +19,5 @@ decisions:
 - 2026-09-18: tmux + obsidian is home; bb deferred, not rejected.
 - 2026-09-18: operon rejected as the tracker (too heavy, pipeline-only kanban, time-only gantt); frontmatter stays canonical, views are plugins or ours.
 - 2026-09-20: the obsidian half is specified in the [[control plane]] project note (four block commands: comment, propose, session, implement; CriticMarkup + shell commands + local rest api for v0). this issue keeps the tmux cockpit half.
+
+decision, 2026-09-30: the cockpit is workmux/tmux + `ab tree` + Obsidian. The Obsidian remainder is agent-owned ([[projects/mlegls-pi/issues/tracker-obsidian-plugin]], [[projects/mlegls-pi/issues/obsidian-implement-sink]]); a DSH cockpit ([[projects/mlegls-pi/issues/dsh-supervision-tree-ui]]) is deferred.

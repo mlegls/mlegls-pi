@@ -1,4 +1,5 @@
 ---
+priority: 4
 stage: idea
 assignee: agent
 author: session:01a0e1a4-3d08-7254-a111-e7468d67a03e
@@ -24,3 +25,5 @@ checkout. This fixes the target for that encounter, not dsh's external default.
 A supported launch-time owned-workspace option remains worth tracking.
 
 The dispatch driver's fresh-home encounter also required stopping Web, registering the checkout with `dsh/add-workspace.ts`, and restarting with the probe patch. This is setup friction owned by the same launch-time workspace seam, not a dispatch failure. See [dispatch evidence](../attachments/dsh-templated-spawn-and-dispatch/index.md).
+
+decision, 2026-09-30: deferred while DSH isn't the daily harness (its upstream tracker is disabled).

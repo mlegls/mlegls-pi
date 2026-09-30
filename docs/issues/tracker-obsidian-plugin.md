@@ -1,6 +1,6 @@
 ---
 stage: spec
-assignee: human
+assignee: agent
 part-of: "[[projects/mlegls-pi/issues/home-ui]]"
 ---
 
@@ -21,3 +21,5 @@ decisions:
 - 2026-09-22: Bases custom views, not ItemViews. project-planner tried earlier and reverted (hard-coded board groupings, own task model).
 
 done: the three views (tree, board, network) exist for the live tracker, whichever way, and the datacorejsx notes are retired.
+
+decision, 2026-09-30: agent-owned; the cockpit is workmux/tmux + `ab tree` + Obsidian ([[projects/mlegls-pi/issues/home-ui]]).

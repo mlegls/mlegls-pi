@@ -1,4 +1,5 @@
 ---
+priority: 3
 stage: spec
 assignee: agent
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
@@ -13,3 +14,5 @@ hypotheses left open by [[projects/mlegls-pi/research/orchestration-audit-2026-0
 - model spikiness per role: same-shaped review and verify-story tasks across sonnet/astra/glm; parent acceptance vs cost. informs the current routing policy; the historical fixed role table in [[projects/mlegls-pi/issues/archive/pool-aware-routing]] is no longer an open delivery obligation.
 
 2026-09-22 scope: board-specific hypotheses concern the named historical runs, not current Orca messaging. Report corpus availability and limits; do not restart the retired backend to recreate evidence. Split these independently executable measurements before dispatching individual sessions.
+
+decision, 2026-09-30: run after the current supervise operational repairs land; collect delivery and cost evidence meanwhile. Orchestration defaults unchanged.
