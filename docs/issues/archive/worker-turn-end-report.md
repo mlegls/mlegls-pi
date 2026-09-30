@@ -2,7 +2,7 @@
 stage: done
 assignee: agent
 author: session:01a0cd1a-8da4-701c-8253-d1ab9fd2b4e6
-part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
+part-of: "[[projects/mlegls-pi/issues/archive/scripted-supervision-loop]]"
 ---
 
 Workers report by ending the turn: the last message starts with `done`, `blocked` or `needs-input`, and may carry a fenced handoff block anywhere in it (commit, runnable setup, affected stories, caveats, question). A parser finds the sentinel and the block tolerantly (preamble, fences, trailing prose); a missing sentinel is itself an exception, not a guess. Questions end the turn with `needs-input` instead of a mid-turn `send`; the answer arrives as the next message.

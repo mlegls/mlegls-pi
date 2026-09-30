@@ -35,4 +35,4 @@ decisions:
 - 2026-09-18: exec-project-modules landed: `.pi/exec/<name>.ts` shadows `lib/<name>.ts` in the cell; new stems are `project.<name>`; `skills/mlegls-pi` documents layout/add/reload. "[[projects/mlegls-pi/issues/archive/exec-project-modules]]".
 - 2026-09-20: repo-merge landed: `agents/`, `skills/{enabled,disabled}`, `agent-prompts/` live here; system-config keeps relative symlinks and agents-apply. package skills stay `skills/pi` and `skills/mlegls-pi`. "[[projects/mlegls-pi/issues/archive/repo-merge]]".
 
-closed, 2026-09-30: all children delivered; [[projects/mlegls-pi/issues/archive/home-ui]] settled the human surfaces and [[projects/mlegls-pi/issues/archive/orchestration-audits]] recorded the orchestration costs. [[projects/mlegls-pi/issues/scripted-supervision-loop]] continues as its own tree.
+closed, 2026-09-30: all children delivered; [[projects/mlegls-pi/issues/archive/home-ui]] settled the human surfaces and [[projects/mlegls-pi/issues/archive/orchestration-audits]] recorded the orchestration costs. [[projects/mlegls-pi/issues/archive/scripted-supervision-loop]] continues as its own tree.

@@ -2,7 +2,7 @@
 stage: done
 assignee: agent
 author: session:01a0cd1a-8da4-701c-8253-d1ab9fd2b4e6
-part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
+part-of: "[[projects/mlegls-pi/issues/archive/scripted-supervision-loop]]"
 ---
 
 `ab daemon`: one long-running process per user that hosts jobs outlasting any exec kernel or session. First job type is a supervision loop; others will want it too, so jobs are a small registry, not supervision-specific.

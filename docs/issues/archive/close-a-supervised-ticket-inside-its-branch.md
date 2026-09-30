@@ -2,7 +2,7 @@
 stage: done
 assignee: agent
 author: session:97e2e1e0-915e-48c2-8bd3-0f9ecd53c817
-part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
+part-of: "[[projects/mlegls-pi/issues/archive/scripted-supervision-loop]]"
 priority: 2
 ---
 

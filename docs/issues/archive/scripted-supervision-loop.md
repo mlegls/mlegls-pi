@@ -1,4 +1,5 @@
 ---
+stage: done
 assignee: agent
 author: session:01a0cc04-cb45-71a4-b0d6-737d08a9055c
 priority: 3
@@ -14,7 +15,7 @@ The gate was live runs of the `supervise` skill; the 2026-09-23 concept campaign
 
 The comparative execution study [[projects/mlegls-pi/issues/loop-vs-supervision-tree]] (including hibernation) is a separate experimental scope, not a prerequisite for delivering this loop.
 
-substeps: [[projects/mlegls-pi/issues/archive/ab-daemon]], [[projects/mlegls-pi/issues/archive/host-child-events]] and [[projects/mlegls-pi/issues/archive/worker-turn-end-report]] in parallel; then [[projects/mlegls-pi/issues/archive/supervision-phase-loop]]; then [[projects/mlegls-pi/issues/supervise-as-exception-handler]].
+substeps: [[projects/mlegls-pi/issues/archive/ab-daemon]], [[projects/mlegls-pi/issues/archive/host-child-events]] and [[projects/mlegls-pi/issues/archive/worker-turn-end-report]] in parallel; then [[projects/mlegls-pi/issues/archive/supervision-phase-loop]]; then [[projects/mlegls-pi/issues/archive/supervise-as-exception-handler]].
 
 decisions:
 - 2026-09-23: the script owns the loop. It runs in an `ab` daemon; the library lives in `lib/` (successor to `lib/supervise.ts`, which is workmux/board-bound).
@@ -48,3 +49,5 @@ exception:    blocked / needs-input / no sentinel / error / checkpoint / verify 
               owner: steer | answer | oracle → send to child; else escalate
 subtree done: one crossing-story verify if Jev sees crossings → single report up
 ```
+
+closed, 2026-09-30: all children delivered. The exception-only owner instructions landed in [[projects/mlegls-pi/issues/archive/supervise-as-exception-handler]]; the real-campaign comparison is [[projects/mlegls-pi/issues/compare-exception-only-supervisor-on-a-glm-campaign]], and the open holes moved to [[projects/mlegls-pi/issues/supervise-loop-open-holes]].

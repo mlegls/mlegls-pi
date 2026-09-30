@@ -2,7 +2,7 @@
 stage: done
 assignee: agent
 author: session:01a0cd1a-8da4-701c-8253-d1ab9fd2b4e6
-part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
+part-of: "[[projects/mlegls-pi/issues/archive/scripted-supervision-loop]]"
 ---
 
 The host seam the loop needs, behind the existing execution-host selection (Paseo, workmux; Orca retained only if free): launch a child under a given parent, subscribe to its turn ends (finish, error, closed, permission request), read its last assistant message, send it a message. Launch is `lib/dispatch` as is; the rest is a small adapter per backend.
