@@ -1,0 +1,4 @@
+issues/other-session.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+issues/mixed.md: repair available with a matching moved issue path (check --fix <moved issue paths>): [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/move-a]] -> [[projects/scoped-drive/issues/archive/move-a]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/move-b]] -> [[projects/scoped-drive/issues/archive/move-b]]

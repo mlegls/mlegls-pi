@@ -1,0 +1,27 @@
+diff --git a/docs/issues/mixed.md b/docs/issues/mixed.md
+index 6ce8ef0..7a2bd5e 100644
+--- a/docs/issues/mixed.md
++++ b/docs/issues/mixed.md
+@@ -4,7 +4,9 @@ assignee: agent
+ author: user:drive
+ ---
+ 
+-Selected A: [[projects/scoped-drive/issues/move-a]].
+-Selected alias: [[projects/scoped-drive/issues/move-a|A]].
+-Selected B: [[projects/scoped-drive/issues/move-b]].
++Selected A: [[projects/scoped-drive/issues/archive/move-a]].
++Selected alias: [[projects/scoped-drive/issues/archive/move-a|A]].
++Selected B: [[projects/scoped-drive/issues/archive/move-b]].
+ Old unrelated: [[projects/scoped-drive/issues/older]].
++
++Another user is still writing this paragraph.
+diff --git a/docs/issues/other-session.md b/docs/issues/other-session.md
+index 9fc3e3a..5131ff5 100644
+--- a/docs/issues/other-session.md
++++ b/docs/issues/other-session.md
+@@ -5,3 +5,5 @@ author: user:drive
+ ---
+ 
+ Old unrelated: [[projects/scoped-drive/issues/older]].
++
++Another session owns this dirty file.

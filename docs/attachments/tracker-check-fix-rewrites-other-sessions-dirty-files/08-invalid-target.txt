@@ -1,0 +1,12 @@
+265 | }
+266 | function movedIssuePaths(paths: string[]): Set<string> {
+267 |   const moved = new Set<string>();
+268 |   for (const path of paths) {
+269 |     const file = resolve(process.cwd(), path);
+270 |     if (!existsSync(file) || !statSync(file).isFile()) throw new Error(`moved issue path does not exist: ${path}`);
+                                                                       ^
+error: moved issue path does not exist: docs/issues/archive/does-not-exist.md
+      at movedIssuePaths (/Users/mlegls/dev/mlegls-pi__worktrees/tracker-check-fix-rewrites-other-sessions-dirty-files-drive/skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts:270:66)
+      at /Users/mlegls/dev/mlegls-pi__worktrees/tracker-check-fix-rewrites-other-sessions-dirty-files-drive/skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts:462:73
+
+Bun v1.4.2 (macOS arm64)

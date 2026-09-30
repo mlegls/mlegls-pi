@@ -1,0 +1,2 @@
+repair available (check --fix): issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+repair available (check --fix): issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]

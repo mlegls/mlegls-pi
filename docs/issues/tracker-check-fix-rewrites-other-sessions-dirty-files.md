@@ -11,3 +11,7 @@ author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
 Possible shape: `check --fix <moved paths>` (or `--only-links-to`), which rewrites only links whose targets are the given moved issues.
 
 ticket contract, 2026-09-30: `issues.ts check --fix` can be limited to links whose targets moved in this change (for example `check --fix <moved paths>`), and the tracker skill's archive instructions use it.
+
+## Result
+
+First-use drive: scoped archive-link rewrites and updated skill instructions hold, but scoped `check --fix` still removes unrelated done `blocked-by` links from other dirty files. The strict target-only rewrite story failed. [Verification packet](../attachments/tracker-check-fix-rewrites-other-sessions-dirty-files/index.md).

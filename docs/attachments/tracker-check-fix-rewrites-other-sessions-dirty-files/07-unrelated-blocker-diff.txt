@@ -1,0 +1,10 @@
+--- /Users/mlegls/dev/mlegls-pi__worktrees/tracker-check-fix-rewrites-other-sessions-dirty-files-drive/.wm/tracker-scoped-drive/blocked-before.md	2026-09-30 22:19:11.967179000 +0800
++++ docs/issues/blocked-dirty.md	2026-09-30 22:19:12.023304010 +0800
+@@ -2,7 +2,6 @@
+ stage: ticket
+ assignee: agent
+ author: user:drive
+-blocked-by: ["[[projects/scoped-drive/issues/unrelated-done]]"]
+ ---
+ 
+ Another session's uncommitted work, unrelated to archive moves.

@@ -1,0 +1,3 @@
+fixed issues/other-session.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+fixed issues/mixed.md: [[projects/scoped-drive/issues/older]] -> [[projects/scoped-drive/issues/archive/older]]
+ok
