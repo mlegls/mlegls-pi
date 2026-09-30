@@ -24,3 +24,4 @@ root run selected no dsh tests with its dependencies absent; 354 pass, 3 skip,
 1 fail (the separately owned prearchive orchestration-audits report path).
 
 First-use drive: [predictions and CLI encounter](../attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md).
+Root exclusion and setup documentation held with optional dependencies still absent. Driver root run: 353 pass, 3 skip, 2 fail and 1 error; failures are the existing [prearchive report](orchestration-audits-test-reads-prearchive-report-path.md) and [oversized-output flake](bash-lifecycle-oversized-output-test-flaky-under-load.md), with isolated replays recorded in the packet.

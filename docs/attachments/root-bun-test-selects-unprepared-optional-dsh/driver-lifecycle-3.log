@@ -1,0 +1,11 @@
+check 8a52c85e-79d2-4cfd-beed-cb19f9dd1625 (running); log /Users/mlegls/.local/state/ab/executions/8a52c85e-79d2-4cfd-beed-cb19f9dd1625.log
+bun test v1.4.2 (744846f84)
+
+extensions/bash/lifecycle.test.ts:
+(pass) shutdown discards detached completions before they access stale context [805.39ms]
+(pass) focused output stays verbatim and oversized output has a searchable original [17.79ms]
+
+ 2 pass
+ 0 fail
+ 6 expect() calls
+Ran 2 tests across 1 file. [1009.00ms]

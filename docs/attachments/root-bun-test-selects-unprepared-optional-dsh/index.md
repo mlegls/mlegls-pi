@@ -27,3 +27,5 @@ No persistent resources were started.
 ## First-use drive
 
 [Driver predictions, session log, expectations, frictions and replayable checks](driver.md). CLI receipts: [root setup](driver-setup.log), [root discovery](driver-root-test.log). No rendered UI was involved.
+
+Driver outcome: root exclusion and setup-doc boundary held with `dsh/node_modules` absent before and after root setup/discovery. The driver run gave 353 pass, 3 skip, 2 fail and 1 error across 78 files. The old-report failure reproduced in isolation; the existing lifecycle flake gave pass/fail/pass. See [driver.md](driver.md) for expectations, frictions, all replay commands and receipts.

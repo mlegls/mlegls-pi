@@ -1,0 +1,28 @@
+check b890d58d-e005-400f-9a28-27a498246db1 (running); log /Users/mlegls/.local/state/ab/executions/b890d58d-e005-400f-9a28-27a498246db1.log
+bun test v1.4.2 (744846f84)
+
+analysis/orchestration-audits/joined-answer.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+4 | // role-acceptance wording).
+5 | import { expect, test } from "bun:test";
+6 | import { readFileSync } from "node:fs";
+7 | 
+8 | const root = `${import.meta.dir}/../..`;
+9 | const joined = readFileSync(`${root}/docs/issues/orchestration-audits.md`, "utf8");
+                   ^
+ENOENT: no such file or directory, open '/Users/mlegls/dev/mlegls-pi__worktrees/root-bun-test-selects-unprepared-optional-dsh-drive/analysis/orchestration-audits/../../docs/issues/orchestration-audits.md'
+    path: "/Users/mlegls/dev/mlegls-pi__worktrees/root-bun-test-selects-unprepared-optional-dsh-drive/analysis/orchestration-audits/../../docs/issues/orchestration-audits.md",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at /Users/mlegls/dev/mlegls-pi__worktrees/root-bun-test-selects-unprepared-optional-dsh-drive/analysis/orchestration-audits/joined-answer.test.ts:9:16
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [4.00ms]

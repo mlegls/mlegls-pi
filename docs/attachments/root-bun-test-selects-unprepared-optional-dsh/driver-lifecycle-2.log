@@ -1,0 +1,24 @@
+check 464269ae-d7fe-4570-9ce3-6bc7ec764e2d (running); log /Users/mlegls/.local/state/ab/executions/464269ae-d7fe-4570-9ce3-6bc7ec764e2d.log
+bun test v1.4.2 (744846f84)
+
+extensions/bash/lifecycle.test.ts:
+(pass) shutdown discards detached completions before they access stale context [806.49ms]
+62 | 		expect(coordinates.content[0].text).toBe(join(dir, "session.jsonl") + "|test-leaf");
+63 | 		const large = await tool.execute("large", { command: "printf '%060000d' 0" }, undefined, undefined, ctx);
+64 | 		const body = large.content[0].text;
+65 | 		expect(body).toContain("Grep this file");
+66 | 		const path = /full output: (.+)\. Grep/.exec(body)![1];
+67 | 		expect(readFileSync(path, "utf8")).toBe("0".repeat(60000));
+                                          ^
+error: expect(received).toBe(expected)
+
+Expected: "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000... (53049 bytes truncated) ...00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000... (6552 bytes truncated) ...0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+Received: "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000... (53049 bytes truncated) ...0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+      at <anonymous> (/Users/mlegls/dev/mlegls-pi__worktrees/root-bun-test-selects-unprepared-optional-dsh-drive/extensions/bash/lifecycle.test.ts:67:38)
+(fail) focused output stays verbatim and oversized output has a searchable original [16.84ms]
+
+ 1 pass
+ 1 fail
+ 6 expect() calls
+Ran 2 tests across 1 file. [1007.00ms]
