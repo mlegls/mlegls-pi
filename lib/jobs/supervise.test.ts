@@ -109,7 +109,7 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
  // Observe report/mail boundaries, not validator internals; the supervisor and Git are real.
  const fence=String.fromCharCode(96).repeat(3), nl=String.fromCharCode(10);
  const report=h=>'done'+nl+fence+'json'+nl+JSON.stringify(h)+nl+fence;
- for(const kind of ['late','stories','evidence','yaml','failed','unobservable','corrected']) {
+ for(const kind of ['late','missing','stories','evidence','yaml','failed','unobservable','corrected']) {
   const s='case-'+kind,id='root-'+s+'/'+s;
   writeFileSync(join(main,'docs/issues',s+'.md'),'---'+nl+'stage: ticket'+nl+'---'+nl);
   writeFileSync(join(main,'docs/attachments',s+'.md'),'Report routing evidence');git(main,'add','.');git(main,'commit','-qm','Add '+s);
@@ -117,7 +117,8 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
   const valid={stories:[{story:'sample',outcome:'held'}],evidence:{path:'docs/attachments/'+s+'.md',visual:false,shots:[]}};
   const malformed={
    late:report(valid).replace('done'+nl,'')+nl+'done',
-   corrected:report(valid).replace('done'+nl,'')+nl+'done',
+   missing:report(valid).replace('done'+nl,''),
+   corrected:report(valid).replace('done'+nl,''),
    stories:report({...valid,stories:['sample']}),
    evidence:report({...valid,evidence:valid.evidence.path}),
    yaml:'done'+nl+fence+'yaml'+nl+'stories:'+nl+'  - "quoted phrase" trailing words'+nl+fence,
@@ -125,15 +126,19 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
    unobservable:report({...valid,stories:[{story:'sample',outcome:'unobservable'}]})
   }[kind];
   const truthful=['failed','unobservable'].includes(kind);
-  reportCases.set(id,truthful?[malformed]:[malformed,kind==='corrected'?report(valid):malformed]);
+  reportCases.set(id,truthful||kind==='late'?[malformed]:[malformed,kind==='corrected'?report(valid):malformed]);
   const start=routed.length;
   await loop(s,main,'true');
   const mail=routed.slice(start);
-  if(truthful){
+  if(kind==='late'){
+   // The sibling sentinel-parser ticket accepts a standalone trailing status.
+   expect(saved[s].integrated).toContain(s);expect(mail).toHaveLength(1);
+   expect(mail[0].to).toBe(s);expect(mail[0].text).toContain('done: 1 children integrated');
+  } else if(truthful){
    expect(mail).toHaveLength(1);expect(mail[0].to).toBe(s);expect(mail[0].text).toContain('outcome is "'+kind+'"');
   } else {
    expect(mail[0].to).toBe(id);
-   const diagnostic={late:'first nonblank line',corrected:'first nonblank line',stories:'stories[0] is a string; expected {story, outcome}',evidence:'evidence is a string; expected {path, visual, shots}',yaml:'at line 2, column'}[kind];
+   const diagnostic={missing:'first nonblank line',corrected:'first nonblank line',stories:'stories[0] is a string; expected {story, outcome}',evidence:'evidence is a string; expected {path, visual, shots}',yaml:'at line 2, column'}[kind];
    expect(mail[0].text).toContain(diagnostic);
    for(const field of ['docs/verification-evidence.md','stories:','outcome:','evidence:','path:','visual:','shots:','tests:','caveats:'])expect(mail[0].text).toContain(field);
    const example=parse(mail[0].text).handoff;
