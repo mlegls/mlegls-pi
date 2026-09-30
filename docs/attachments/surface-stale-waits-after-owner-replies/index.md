@@ -35,3 +35,41 @@ Local CLI, checkout `/Users/mlegls/dev/mlegls-pi__worktrees/surface-stale-waits-
 3. Repeat check 2 without owner mail; accept if no stale-owner-reply reminder is emitted. Then repeat with a child turn before 30 minutes; accept if no stale-wait reminder is emitted for the already-answered exception. A new exception should be eligible for its own one-time reminder.
 
 These are replay specifications, not checks passed by this drive. This packet is CLI-only (`visual: false`); no screenshots apply.
+
+## Acceptance review, 2026-09-30
+
+The root owner clarified that the deferred combined code review does not replace this acceptance review. The original first-use record above remains unchanged. This review closes its missing-state gap against production revision `71d10c1`; no production code repair was needed.
+
+### Isolated encounter and replay
+
+`lib/jobs/fixtures/stale-waits.ts` runs the real supervision job in a disposable Git repository, supplies child reports through a fixture transport, and reads the saved job through the real `ab supervise status fixture` CLI. Only tracker discovery, worker transport and the daemon's status response are fixtures. The CLI consumes the loop's saved value, not a separately invented waiting record. A controlled wall clock and scheduled callbacks advance together; these are simulated minutes, not an elapsed-time live-agent trial. No live daemon, owner mailbox or worker was modified.
+
+The fixture starts with one command-mode child and no wait, then reports `blocked`. Its first exception notice is deliberately withheld for 31 minutes. The replay observed:
+
+| Action / clock (UTC) | Visible result |
+| --- | --- |
+| Empty status | `no supervision jobs here` |
+| Child reports blocked at 12:00 | `leaf implement fixture/leaf waiting: blocked since 2026-09-30T12:00:00.000Z` |
+| Read status again at 12:31, before notice delivery | Same waiting line and timestamp; zero reminders |
+| Deliver exception notice at 12:31 | Owner receives notice; the reminder deadline starts here |
+| Advance to 13:00:59.999 | Zero reminders |
+| Advance to 13:01 | One owner message: `stale wait: implement leaf is still waiting: blocked. The exception notice was sent at 2026-09-30T12:31:00.000Z and no child turn has arrived since`; it names `fixture/leaf` and its worktree |
+| Advance another 30 minutes | Still one reminder |
+| Restart the loop from its saved state; advance another 30 minutes | Still one reminder |
+| New `needs-input` exception at 14:01; child reports `checkpoint` at 14:30; advance past that exception's deadline | Still one reminder; status now says `waiting: checkpoint since 2026-09-30T14:30:00.000Z` |
+| New blocked exception at 14:32 | Status says `waiting: blocked since 2026-09-30T14:32:00.000Z` |
+| Advance to 15:02, then another 30 minutes | Second exception receives its own reminder at 15:02; total remains two afterward |
+
+Here “owner mail” is delivery of the exception notice to the owner. An owner steer that produces no child turn adds no loop event. Actual owner-to-worker mailbox delivery is not exercised by this fixture.
+
+### Outcomes and ledger disposition
+
+- **Status shows when a child entered its waiting state — held.** The timestamp is visible and stable across reads, and a later exception has a new timestamp.
+- **Owner is re-woken once after 30 minutes without a child turn — held.** Observed the threshold, no early reminder, no repeat even across restart, cancellation on a child turn, and eligibility of a new exception.
+- **Empty-state expectation — met**, retained in the replay.
+- **Missing isolated setup friction — fixed here.** The committed disposable fixture reaches parked exceptions without dispatching a second live worker. No new production fixture command is needed.
+- **Driver checks 1–3 — retained**, encoded in `lib/jobs/stale-waits.test.ts` against CLI text and delivered owner messages. Transport and clock limits are explicit above; no check was dropped.
+
+Replay: `ab check -- bun test lib/jobs/stale-waits.test.ts lib/jobs/supervise.test.ts lib/jobs/loop.test.ts` → **5 passed, 0 failed, 42 assertions**. The encounter first ran as an observation-producing fixture; its observed outputs then became the assertions. Initial fixture preparation needed command-mode startup metadata and canonicalized temporary paths; both are included in the replay.
+
+No services or external resources remain. The fixture aborts its loop and removes its disposable repository. Evidence remains nonvisual (`visual: false`, `shots: []`).
