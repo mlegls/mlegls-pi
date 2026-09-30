@@ -14,3 +14,11 @@ Owner: root test discovery/setup and `dsh/package.json`'s existing setup command
 The affected plugin build and typecheck passed after its own locked dependencies were installed; its live parity failure is separately owned by [[projects/mlegls-pi/issues/archive/tracker-parity-compares-derived-claims-with-frontmatter-only]]. No unrelated tests or behavior were deleted.
 
 ticket contract, 2026-09-30: a root `bun test` either excludes the optional `dsh/` package or the root setup prepares it; decide which from how `dsh/` is meant to be used (it's optional), and say so in the setup docs.
+
+## Result
+
+Root Bun discovery excludes optional `dsh/**`; root setup remains unchanged.
+The root and dsh setup READMEs document separate opt-in setup and package-local tests.
+[Implementation checks](../attachments/root-bun-test-selects-unprepared-optional-dsh/index.md):
+root run selected no dsh tests with its dependencies absent; 354 pass, 3 skip,
+1 fail (the separately owned prearchive orchestration-audits report path).
