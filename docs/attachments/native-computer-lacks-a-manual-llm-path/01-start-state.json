@@ -1,0 +1,87 @@
+{
+  "app_name": "TextEdit",
+  "window_title": "native-computer-drive.txt",
+  "window_id": 16011,
+  "pid": 24702,
+  "snapshot_id": "s00000009",
+  "background_input": {
+    "exact_window": {
+      "pid": 24702,
+      "status": "matched",
+      "window_id": 16011
+    },
+    "observation": {
+      "frame_freshness": "unknown",
+      "one_shot_capture": "available"
+    },
+    "routes": [
+      {
+        "route": "accessibility",
+        "status": "available"
+      },
+      {
+        "route": "window_pointer",
+        "status": "available"
+      },
+      {
+        "reason": "same_pid_keyboard_ambiguity",
+        "route": "pid_keyboard",
+        "status": "refused"
+      }
+    ]
+  },
+  "element_count": 155,
+  "screenshot_width": 1322,
+  "screenshot_height": 866,
+  "screenshot_scale": 2,
+  "screenshot_frame_valid": true,
+  "excerpt_note": "Only exact window and AXTextArea rows retained; application-menu rows omitted.",
+  "elements": [
+    {
+      "actions": [
+        "AXRaise"
+      ],
+      "depth": 0,
+      "element_index": 0,
+      "element_token": "s00000009:0",
+      "frame": {
+        "h": 433,
+        "w": 661,
+        "x": 210,
+        "y": 138
+      },
+      "label": "native-computer-drive.txt",
+      "role": "AXWindow",
+      "screenshot_frame": {
+        "h": 866,
+        "w": 1322,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "actions": [
+        "AXShowMenu"
+      ],
+      "depth": 1,
+      "element_index": 1,
+      "element_token": "s00000009:1",
+      "frame": {
+        "h": 390,
+        "w": 646,
+        "x": 210,
+        "y": 166
+      },
+      "label": "Manual native drive start.",
+      "parent_index": 0,
+      "role": "AXTextArea",
+      "screenshot_frame": {
+        "h": 780,
+        "w": 1292,
+        "x": 0,
+        "y": 56
+      },
+      "value": "Manual native drive start."
+    }
+  ]
+}

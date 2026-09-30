@@ -1,0 +1,14 @@
+{
+  "elapsed_ms": 329,
+  "predicates": [
+    {
+      "index": 0,
+      "observed_json": "{\"element_index\":1,\"frame\":{\"h\":390.0,\"w\":646.0,\"x\":210.0,\"y\":166.0},\"label\":\"Manual native drive verified.Manual native drive start.\",\"role\":\"AXTextArea\",\"value\":\"Manual native drive verified.Manual native drive start.\"}",
+      "status": "satisfied",
+      "unknown_reason": null
+    }
+  ],
+  "samples": 1,
+  "stable": true,
+  "status": "satisfied"
+}

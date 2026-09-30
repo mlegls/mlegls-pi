@@ -1,0 +1,6 @@
+{
+  "code": "window_id_not_found",
+  "pid": 24702,
+  "suggestion": "call list_windows for current window_ids; the window may have closed",
+  "window_id": 0
+}

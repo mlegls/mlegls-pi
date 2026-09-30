@@ -1,0 +1,63 @@
+{
+  "current_space_id": 1,
+  "windows": [
+    {
+      "app_name": "TextEdit",
+      "bounds": {
+        "height": 491,
+        "width": 601,
+        "x": 152,
+        "y": 80
+      },
+      "current_space_id": 1,
+      "is_on_screen": true,
+      "layer": 0,
+      "on_current_space": true,
+      "pid": 24702,
+      "space_ids": [
+        1
+      ],
+      "title": "Untitled 2",
+      "window_id": 16010,
+      "z_index": 173
+    },
+    {
+      "app_name": "TextEdit",
+      "bounds": {
+        "height": 500,
+        "width": 500,
+        "x": 0,
+        "y": 482
+      },
+      "current_space_id": null,
+      "is_on_screen": false,
+      "layer": 0,
+      "on_current_space": null,
+      "pid": 24702,
+      "space_ids": null,
+      "title": "",
+      "window_id": 16008,
+      "z_index": 172
+    },
+    {
+      "app_name": "TextEdit",
+      "bounds": {
+        "height": 433,
+        "width": 661,
+        "x": 181,
+        "y": 109
+      },
+      "current_space_id": 1,
+      "is_on_screen": true,
+      "layer": 0,
+      "on_current_space": true,
+      "pid": 24702,
+      "space_ids": [
+        1
+      ],
+      "title": "cua-driver-native-smoke.2AX4ud.txt",
+      "window_id": 16009,
+      "z_index": 61
+    }
+  ]
+}

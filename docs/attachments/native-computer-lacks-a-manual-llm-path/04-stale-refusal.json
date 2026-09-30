@@ -1,0 +1,7 @@
+{
+  "refusal": {
+    "code": "stale_element_token",
+    "message": "element_token is stale; call get_window_state again to refresh"
+  },
+  "status": "refused"
+}
