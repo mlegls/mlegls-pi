@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: session:01a0e1f9-7532-7020-9cfb-1028c0d6c727
 ---
 
@@ -16,3 +16,5 @@ In `dsh-templated-spawn-and-dispatch`, `ab lib board read '{"topic":"dsh-port/*"
 The landing-design consolidation worker reproduced the adapter split on 2026-09-27: `ab lib board read '{"topic":"loop-review-the-landing-design/*"}'` returned all ten messages; acknowledging their IDs with `ab lib board ack` failed with `board.ack is not a function`. The worker inspected the read result before editing its isolated worktree; acknowledgement has no workaround. Origin: session:01a0e457-df23-776f-ab1d-15bd63960ab9.
 
 2026-09-29, Concept `find-why-clerk-testing-tokens-fail-signed-in-browser-specs` (`01a0ebc3-a6f0-759f-9eec-011ac3e74f8b`): the `board` CLI on PATH rejected every call with `identity: AGENT_REALM is invalid`. The spawned worker had no `AGENT_REALM`. The ticket had no shared seam, so nothing was blocked. Its suggested fixes: export a working `AGENT_REALM` to spawned workers, or have the spawn prompt say the board is unreachable.
+
+result, 2026-09-30: acknowledgement only settles subscription delivery inside a pi session, so a bash worker has nothing to acknowledge. `agents/_common.md` now gives the bash forms (`ab lib board read`, `ab lib board send` with `from`), says there is nothing to ack without exec, and names the PATH `board` as an unrelated tracker; `ab lib --help` no longer calls board host-bound.

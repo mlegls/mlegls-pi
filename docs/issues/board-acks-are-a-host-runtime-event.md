@@ -1,8 +1,7 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: "session:01a0dd4f-a25f-7035-8329-77eb209b4461"
-priority: 4
 ---
 
 Dispatch guidance tells workers to `await board.read(...)` then `await board.ack(ids)` for handled messages, but `lib/board.ts` re-exports only `{logSize, meta, read, readFrom, send, topics, waitFor}`. Acknowledgment is `acknowledge()` inside `lib/board/host.ts` — wired to the agent runtime's `board:seen` event, which records the reader's delivery state in the pi session's entries. A worker driving only from bash (this run: `bring-the-application-to-the-2026-09-26-design-review`) can read and its reads land in `reads.jsonl`, but it cannot ack, so delivery bookkeeping shows the messages pending forever and the guidance is unachievable from that mode.
@@ -32,3 +31,15 @@ Root review of `dsh-port` hit the same adapter limit: `ab lib board read` return
 2026-09-28, Concept `show-safe-material-lineage-in-published-captures-review-1`: `ab lib board read` returned both peer packets; `ab lib board ack` failed with `board.ack is not a function`. Listing exports confirmed no acknowledgment operation. Read the packets and continued isolated review without acknowledgment.
 
 2026-09-28, Concept `capture-and-publish-mission-suggestion-metadata`, session `01a0e941-6e21-7664-ac0b-969f780e44d6`: `ab lib board read` returned the three parent packets, while `ab lib board ack` failed with `board.ack is not a function`. Listing exports confirmed no ack. Read the packets and published the implemented interface through `board.send`; acknowledgment remains unavailable from bash.
+
+2026-09-28, Concept `capture-and-publish-mission-suggestion-metadata-review-1`: read seven peer messages with `ab lib board read`; `ab lib board ack` again returned `board.ack is not a function`. Continued the isolated review after reading; no acknowledgment workaround.
+
+2026-09-28, Concept `offer-and-accept-patch-mission-suggestions-review-1`: `ab lib board read` returned thirteen peer messages; `ab lib board ack` failed with `board.ack is not a function`. Read the decisions and continued isolated review; no acknowledgment workaround.
+
+2026-09-28, Concept `update-unrevised-missions-from-patch-suggestions`, session `01a0e9e2-8271-73d6-acac-177139e51086`: `ab lib board read` returned the preceding children's contracts; `ab lib board ack` failed with `board.ack is not a function`. Read the decisions and continued on the isolated worktree without acknowledgment.
+
+2026-09-28, Concept `update-unrevised-missions-from-patch-suggestions-review-1`: read nineteen peer messages with `ab lib board read`; `ab lib board ack` failed with `board.ack is not a function`. Continued isolated review after reading; no acknowledgment workaround.
+
+2026-09-28, Concept `let-a-published-patch-suggest-missions-join-multpanl-consolidate`: `ab lib board read` returned the integrated children's contracts; `ab lib board ack` failed with `board.ack is not a function`. Read the decisions and continued the isolated structural pass without acknowledgment.
+
+result, 2026-09-30: acknowledgement only settles subscription delivery inside a pi session, so a bash worker has nothing to acknowledge. `agents/_common.md` now gives the bash forms (`ab lib board read`, `ab lib board send` with `from`), says there is nothing to ack without exec, and names the PATH `board` as an unrelated tracker; `ab lib --help` no longer calls board host-bound.

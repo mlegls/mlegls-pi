@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0eaef-ac3e-7645-a3e1-500dfb66b962
 ---
@@ -13,3 +13,5 @@ Possible improvement: bound repository-wide discovery earlier or return a useful
 ## Encounter: keep-browser-spec-screenshots-out-of-committed-packets (concept)
 
 `ab jg 'browser specs screenshot artifact test-results evidence screenshot helper playwright' packages/web` returned after about 30 minutes with `Provider error: "Network request failed (connection unavailable or reset) (max concurrent requests: 32)"`, no relevant files, exit 2. Workaround again `ab grep`/`rg` for exact call sites. Same want: surface provider failure promptly so the caller can fall back to exact search.
+
+disposition, 2026-09-30: the want (fail promptly so the caller falls back to exact search) is owned by [[projects/mlegls-pi/issues/ab-jg-can-stall-without-output-during-semantic-discovery]]. No repair is claimed by closing this capture.

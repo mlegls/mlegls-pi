@@ -1,10 +1,12 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0e866-d55a-727e-8e6c-e1e9ad970245
 ---
 
 Owner: `mlegls-pi` board/worker harness. In the inspection review, worker instructions required `board.read` followed by `board.ack(ids)`. This bash-only worker successfully ran `ab lib board read '{"topic":"control-and-inspect-applets-from-the-tutor/*"}'`, then `ab lib board ack '[...]'` failed with `board.ack is not a function`. Listing exports showed `logSize`, `meta`, `read`, `readFrom`, `send`, `topics`, `waitFor`, but no ack. Messages were read and handled; acknowledgement was unavailable through this adapter.
+
+2026-09-29, Concept edition consolidation (`01a0eeb2-107a-7696-873c-175434219389`): read all 17 parent-topic messages; `ab lib board ack '[]'` still failed with `board.ack is not a function`. Continued from the handled messages without acknowledgement.
 
 Align bash worker instructions with the adapter's cursor/ack semantics, or expose acknowledgement. No workaround that marks messages handled was found.
 
@@ -49,3 +51,9 @@ Align bash worker instructions with the adapter's cursor/ack semantics, or expos
 2026-09-29, Concept host-loss review (`01a0ed74-87dc-746c-b237-2aaef0ee03c0`): read all 14 peer messages; acknowledging handled decision/drive IDs via `ab lib board ack` failed with `board.ack is not a function`. Continued isolated review from the read packets without acknowledgement.
 
 2026-09-29, Concept usable-seed review (`01a0ed78-27e3-7608-aa58-58375487891c`): peer read succeeded; `ab lib board ack` failed with `board.ack is not a function`. Export discovery confirmed no ack. Continued isolated review from handled packets without acknowledgement.
+
+2026-09-29, Concept transfer measurement review (`01a0eea2-b2b2-7667-b178-6db7ab82f57e`): read all 16 peer messages; acknowledging the implementer and driver IDs via `ab lib board ack` failed with `board.ack is not a function`. Continued from handled packets without acknowledgement.
+
+2026-09-30, Concept joined contrast acceptance (`01a0f027-2b67-760e-a526-b1044e1de854`): read all 12 subtree messages; `ab lib board ack` with their IDs still failed with `board.ack is not a function`. Continued from handled packets without acknowledgement.
+
+result, 2026-09-30: acknowledgement only settles subscription delivery inside a pi session, so a bash worker has nothing to acknowledge. `agents/_common.md` now gives the bash forms (`ab lib board read`, `ab lib board send` with `from`), says there is nothing to ack without exec, and names the PATH `board` as an unrelated tracker; `ab lib --help` no longer calls board host-bound.
