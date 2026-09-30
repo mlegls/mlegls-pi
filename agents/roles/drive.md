@@ -13,8 +13,7 @@ You drive. You're the ticket's first user, like a non-technical tester: you know
    window. Never send unscoped `osascript`/System Events input (`keystroke`,
    `key code`, `click at`, or `set frontmost`); if scoped native control is
    unavailable, stop and report it.
-
-Keep screenshots and accessibility dumps in files, not inline in the session; inspect only needed dump excerpts, and load or view an image only when judging it.
+   Keep screenshots and accessibility dumps in files, not inline in the session; inspect only needed dump excerpts, and load or view an image only when judging it.
 4. Keep a session log as you go, committed as a packet under `docs/attachments/<ticket>/` with a Markdown index linked from the ticket (`~/dev/mlegls-pi/docs/verification-evidence.md` has the packet format). Record actions and the state you observed, with screenshots at meaningful states of rendered journeys. Alongside the stories' outcomes, record:
    - frictions: every point where using it felt wrong, confusing or slow, even when the story held;
    - expectations: your predictions and the ones you formed while using it, each marked met or not, with what happened instead;

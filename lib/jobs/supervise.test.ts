@@ -18,7 +18,7 @@ test("supervision closes on branches, serializes integration, and retains failed
  writeFileSync(script, `
  import {mock,expect} from 'bun:test';
  import {mkdirSync,writeFileSync,existsSync,readFileSync,symlinkSync,chmodSync} from 'node:fs';
- import {join} from 'node:path';import {execFileSync} from 'node:child_process';
+ import {join,basename} from 'node:path';import {execFileSync} from 'node:child_process';
  const root=${JSON.stringify(root)}, main=join(root,'main');
  const git=(cwd,...args)=>execFileSync('git',['-C',cwd,...args],{encoding:'utf8',stdio:'pipe'}).trim();
  mkdirSync(main);git(main,'init','-q','-b','main');git(main,'config','user.name','test');git(main,'config','user.email','test@example.invalid');
@@ -44,6 +44,7 @@ paths.h=join(root,'h');git(main,'worktree','add','-qb','h',paths.h);writeFileSyn
    turns.push(ids[0]);
    const id=ids[0];
    if(reportCases.has(id)) {const queue=reportCases.get(id);if(!queue.length)throw new Error('Unexpected extra report request: '+id);return {id,kind:'finished',cursor:'case-'+queue.length,text:queue.shift()};}
+   if(id.endsWith('/big'))return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});
    if(id.endsWith('/h')){
     if(turns.filter(turn=>turn===id).length===1)return {id,kind:'finished',cursor:'checkpoint',text:'checkpoint'+String.fromCharCode(10)+'intermediate report'};
     return await new Promise((_,reject)=>{if(options.signal.aborted)reject(new Error('aborted'));else options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});
@@ -165,6 +166,29 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
   expect(mail.map(m=>m.to)).toEqual([id,next,s]);
   expect(mail[1].text).toContain('stories[0] is a string');expect(mail[2].text).toContain('still invalid after two reports');
   console.log(JSON.stringify({scenario:'join-new-child-budget',mail}));
+ }
+ // Replays the ticket's contract: a worker session past 20 MiB gets one owner warning naming it (docs/attachments/computer-use-images-poison-worker-context/index.md, check 3).
+ {
+  const {SessionManager}=await import('@earendil-works/pi-coding-agent');
+  const {SPAWN_META}=await import(${JSON.stringify(resolve("lib/session-meta/host.ts"))});
+  const s='big';paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);
+  const session=SessionManager.create(paths[s]);
+  session.appendMessage({role:'user',content:'hi',timestamp:1});session.appendCustomEntry(SPAWN_META,{run:'root-'+s,handle:s});
+  session.appendMessage({role:'assistant',content:[{type:'text',text:'x'}],timestamp:2});
+  const file=session.getSessionFile();
+  const initial=()=>({children:{[s]:{slug:s,phase:'review',handle:{run:'root-'+s,handle:s,path:paths[s]},startup:{launchedAt:0,mode:'pi'}}},integrated:[],metrics:{wakes:0,ownerBytes:0,launched:0,completed:0}});
+  const warnings=()=>messages.filter(m=>m.includes('large worker session'));
+  // Under the threshold: nothing is sent; stop the loop from outside.
+  const quiet=setTimeout(()=>controls.get(s).abort(),300);await loop(s,main,'true',initial());clearTimeout(quiet);
+  expect(warnings()).toHaveLength(0);
+  session.appendCustomEntry('padding','x'.repeat(21*1024*1024));
+  const delivered=setTimeout(()=>controls.get(s).abort(),500);await loop(s,main,'true',initial());clearTimeout(delivered);
+  expect(warnings()).toHaveLength(1);expect(saved[s].children[s].warnedSessionFiles).toEqual([file]);
+  expect(warnings()[0]).toContain(basename(file));expect(warnings()[0]).toContain('ab supervise resume root-'+s+' '+s+' redispatch');expect(warnings()[0]).toContain('ab mail ');
+  // A loop restart on the saved state must not repeat it.
+  const again=setTimeout(()=>controls.get(s).abort(),300);await loop(s,main,'true',saved[s]);clearTimeout(again);
+  expect(warnings()).toHaveLength(1);
+  console.log(JSON.stringify({scenario:'oversized-session',warning:warnings()[0]}));
  }
  console.log('parallel closures, failed tests, failed close hook, missing carried worktree: passed');
  `);

@@ -45,3 +45,12 @@ The story's seed cannot be recreated from the handoff: the only command runs exi
 ## Cleanup and limits
 
 No browser/native UI, dev server, container, real worker, or deployment was started. The supplied check completed. No screenshots apply. The role-file wording is observed; propagation into newly dispatched workers and oversized-session loop behavior are not established by this drive.
+
+## Review
+
+Reviewed at `7e1b677`, reading the diff with this log.
+
+- Repair (`agents/roles/drive.md`): the capture sentence had landed between numbered steps 3 and 4 and split the list; it is now part of step 3. `review.md` got a blank line before the next paragraph.
+- The unobservable story is now observable: the driver's supplied entry point, `ab check -- bun test ./lib/jobs/supervise.test.ts`, replays it as a scenario (`oversized-session`, printed with its warning text). A real `SessionManager` session carrying the worker's spawn metadata is checked under 20 MiB (no owner message), grown past it with a 21 MiB entry (exactly one owner message, containing the session file name, `ab mail <worker>` and `ab supervise resume <ticket> <slug> redispatch`, and the file recorded in `warnedSessionFiles`), then the loop is restarted on the saved state (still one message). Passes; with the threshold raised the scenario fails at the first warning assertion.
+- Design note: a warning whose delivery was interrupted (loop aborted before send completes) is retried after restart by design (`pendingSessionWarnings`), so delivery is at-least-once while the owner is reachable and once per file once delivered.
+- Story outcomes: role guidance held; owner warning held (previously unobservable, replayable check 3 above is now automated). Friction filed by the driver is unchanged: the general absence of committed setup recipes.

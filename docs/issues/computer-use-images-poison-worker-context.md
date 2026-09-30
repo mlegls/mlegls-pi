@@ -15,3 +15,5 @@ ticket contract, 2026-09-30: workers can't silently grow a session the provider 
 ## Result
 
 First-use drive: [evidence packet](../attachments/computer-use-images-poison-worker-context/index.md). All three role instructions contain the capture guidance. The supplied regression entry point passed, but did not expose the oversized-session scenario; owner-warning and once-only behavior remain unobservable pending reproducible setup.
+
+Review: the owner warning is replayed by the `oversized-session` scenario in `lib/jobs/supervise.test.ts` (below and above 20 MiB, once after restart); the drive-role capture sentence was moved into its numbered step.
