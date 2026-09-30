@@ -100,7 +100,8 @@
   "retired": false,
   "reviewerLaunch": {
     "at": "2026-09-30T14:25:15.753Z",
-    "model": "anthropic/claude-opus-5-5"
+    "model": "anthropic/claude-opus-5-5",
+    "effort": "medium"
   },
   "strongImageJudgment": "not yet observed"
 }
