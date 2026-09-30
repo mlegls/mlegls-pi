@@ -36,3 +36,27 @@ Ran the entry point in this worktree and waited for exit: Bun 1.4.2, three passe
 4. In a fresh review fixture, return a syntactically valid handoff containing a story outcome `failed` (repeat with `unobservable`). Accept an immediate owner wake preserving the truthful outcome, with no corrective request to child and no two-failure grace period.
 
 These are requested checks, not observed outputs. Evidence is this command log; `visual: false`, no shots.
+
+## Acceptance review — 2026-09-30
+
+The first-use record above is unchanged. Review used the real `run(JobContext)` supervisor, parser, Git repositories and worktrees with mocked worker report/mail transport. No shared daemon, live agent, browser or deployment was used. Replay: `ab check -- bun test lib/jobs/supervise.test.ts lib/report.test.ts`. The fixture now prints JSON records containing each scenario's outbound recipients and full messages, rather than only a generic pass count.
+
+Tested code revision: `54395b33e4710397899f311c069be0227bdd578c`. Final replay: Bun 1.4.2, three tests passed, zero failed, eight printed routing scenarios, 3.82 seconds. The supervisor's subprocess contains the boundary assertions; Bun's outer count of seven assertions does not include those subprocess assertions. Check execution: `2c743d14-61c4-4d85-a424-293f691aae26`.
+
+The first replay exposed an off-by-one: a second malformed report sent another correction to `root-case-late/case-late`, where check 1 expected the owner `case-late`. Fixed to allow one correction turn, then escalate on the second malformed report. The join continuation also inherited the previous driver's spent correction budget; its first malformed consolidation report woke the owner immediately. A replay reproduced that missing child message; new consolidators now start with their own budget. The schema example now uses real boolean/outcome values (not `true|false` / `held|failed|unobservable` strings) and includes reviewer tests, caveats and the source document reference.
+
+### Current claim outcomes
+
+| Claim / replay | Observed messages and result | Outcome |
+| --- | --- | --- |
+| Check 1: late sentinel, repeated | First recipient `root-case-late/case-late`: “missing or misplaced status sentinel: put `done` as the first nonblank line (not after the report)”, followed by schema. Second recipient `case-late`: “still invalid after two reports”. | held |
+| Check 2: string story | First recipient `root-case-stories/case-stories`: “stories[0] is a string; expected {story, outcome}”, followed by schema. Second recipient `case-stories`: same diagnostic and two-report escalation. | held |
+| Check 2: path-only evidence | First recipient `root-case-evidence/case-evidence`: “invalid evidence handoff: evidence is a string; expected {path, visual, shots}”, followed by schema. Second recipient `case-evidence`: same diagnostic and two-report escalation. | held |
+| Check 3: malformed quoted YAML item | First recipient `root-case-yaml/case-yaml`: “handoff YAML parse error: Unexpected scalar at node end at line 2, column 21”, including the source line and caret, followed by schema. Second recipient `case-yaml`: parser message and line retained in escalation. | held |
+| Check 4: truthful non-held reviews | `failed` and `unobservable` each produce exactly one message, to `case-failed` / `case-unobservable`, preserving the actual outcome. No child correction request. | held |
+| Corrected-report expectation | Late sentinel corrected on the second report integrates successfully. The only owner message is normal completion with one child integrated, not an exception. | held |
+| New child after corrected join report | Recipients in order: `root-case-join/case-join`, `root-case-join/case-join-consolidate`, `case-join`. A driver's correction does not spend the new consolidator's allowance. | held |
+
+All checks are encoded through report/mail boundaries in `lib/jobs/supervise.test.ts`. Each correction is checked for the schema fields and the prohibition on invented evidence; parsing the supplied example confirms an actual `held` outcome, boolean `visual: false`, and `shots: []`. Existing parser and integration/retention checks remain in the run. No requested check was dropped. The first prediction's “second failed correction” wording conflicts with its later explicit “second malformed report” checks; the ticket's “fails twice” and checks 1–3 determine the boundary.
+
+The driver's setup friction is fixed here for these scenarios by the observable mock-worker replay. The broader backend setup-handoff suggestion remains filed separately at [[projects/mlegls-pi/issues/backend-supervisor-test-entry-does-not-expose-handoff-routing]]. There are no other unresolved expectations or author questions. Temporary fixtures are removed by the test; no external resources remain.
