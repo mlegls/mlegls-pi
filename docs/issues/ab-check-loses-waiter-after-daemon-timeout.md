@@ -21,3 +21,7 @@ On retry, repository check `161cc3d0-ce78-4466-b40a-f7bd9f848d33` reached codege
 Concept chess review (`01a0e9ae-af9a-7405-a54b-8bde935fc6b2`): setup `d328c952-047e-497d-92da-c2b811b7b1d2` and affected regressions `1cdc31e1-e1a5-4529-abbd-d3e1552d3062` returned the same daemon timeout. Both receipts later showed code 130, `no waiting callers`, no start time and no log. Retried setup only after confirming cancellation; no shared daemon was stopped. A premature test retry confirmed dependencies were still absent, not a product test failure.
 
 review boundary, 2026-09-30: the ab check pair (ab-check-loses-waiter-after-daemon-timeout, ab-check-list-truncates-machine-readable-json) is reviewed once as a combined delta from `894e8c6` by the root tend session after both integrate. Leaves integrate without per-leaf review.
+
+## Result
+
+[First-use CLI drive and replayable checks](../attachments/ab-check-loses-waiter-after-daemon-timeout/index.md).
