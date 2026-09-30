@@ -32,6 +32,10 @@ Joint reading against the 2026-09-30 decision: nothing found overturns a current
 
 2026-09-22 scope closed: all five ran on the static 09-01..09-30 jsonl corpus with no backend restart; board-specific conclusions concern the named historical runs; corpus availability and limits are recorded per ticket and carry the 09-18 audit's caveats.
 
+## Result
+
+First-use joined-answer drive (2026-09-30): [verification packet](../attachments/orchestration-audits/index.md). All five child answers and reviewed packets are reachable. The joined decision-read and cache-knee summaries conflict with their reviewed child reports; the packet records the exact comparisons and replay checks. No product repairs were made.
+
 ## Verification evidence
 
 Per hypothesis: [review-output-acted-on](../attachments/review-output-acted-on/index.md), [decision-broadcasts-read](../attachments/decision-broadcasts-read/index.md), [cache-read-fence-knee](../attachments/cache-read-fence-knee/index.md), [orchestrate-rework-effect](../attachments/orchestrate-rework-effect/index.md), [role-model-spikiness](../attachments/role-model-spikiness/index.md).
