@@ -1,0 +1,202 @@
+{
+  "delivery": "ab-edit-block-replace-rejects-sigil-second-anchor",
+  "observedAt": "2026-09-30T14:21:26Z",
+  "owner": "mail/b9b312e4",
+  "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+  "integratedCommit": "a0079b34bd7886fbbd59025f808fa617c1646b5b",
+  "packet": {
+    "repository": "mlegls-pi",
+    "path": "docs/attachments/ab-edit-block-replace-rejects-sigil-second-anchor/index.md",
+    "sha256": "670b43d97378d730ba3fb4050e773ea082062e0634a28750d39b9e7199cb8cad",
+    "visual": false,
+    "shots": []
+  },
+  "allThreeWorktreesRetired": true,
+  "stories": [
+    {
+      "story": "Accept =a =b block replacement",
+      "outcome": "held"
+    },
+    {
+      "story": "Preserve =a b compatibility",
+      "outcome": "held"
+    },
+    {
+      "story": "Accompany change with a test",
+      "outcome": "held"
+    }
+  ],
+  "workers": [
+    {
+      "file": "~/.pi/agent/sessions/--Users-mlegls-dev-mlegls-pi__worktrees-ab-edit-block-replace-rejects-sigil-second-anchor--/2026-09-30T14-06-19-883Z_01a0f2a3-3eeb-768b-a488-fb43c22c2b7a.jsonl",
+      "session": "01a0f2a3-3eeb-768b-a488-fb43c22c2b7a",
+      "started": "2026-09-30T14:06:19.883Z",
+      "lastRecorded": "2026-09-30T14:16:00.271Z",
+      "models": [
+        {
+          "provider": "openai-codex",
+          "modelId": "gpt-6-luna"
+        }
+      ],
+      "efforts": [
+        "max"
+      ],
+      "assistantCalls": 21,
+      "recordedCostUSD": 0.017726579999999995,
+      "inputTokens": 64133,
+      "outputTokens": 11680,
+      "cacheReadTokens": 547328,
+      "cacheWriteTokens": 0
+    },
+    {
+      "file": "~/.pi/agent/sessions/--Users-mlegls-dev-mlegls-pi__worktrees-ab-edit-block-replace-rejects-sigil-second-anchor-drive--/2026-09-30T14-11-47-075Z_01a0f2a8-3d03-7588-8434-9c7f813ea96d.jsonl",
+      "session": "01a0f2a8-3d03-7588-8434-9c7f813ea96d",
+      "started": "2026-09-30T14:11:47.075Z",
+      "lastRecorded": "2026-09-30T14:16:00.991Z",
+      "models": [
+        {
+          "provider": "openai-codex",
+          "modelId": "gpt-6.1-sol"
+        }
+      ],
+      "efforts": [
+        "high"
+      ],
+      "assistantCalls": 12,
+      "recordedCostUSD": 0.08128720000000002,
+      "inputTokens": 17600,
+      "outputTokens": 3362,
+      "cacheReadTokens": 124672,
+      "cacheWriteTokens": 0
+    },
+    {
+      "file": "~/.pi/agent/sessions/--Users-mlegls-dev-mlegls-pi__worktrees-ab-edit-block-replace-rejects-sigil-second-anchor-review-1--/2026-09-30T14-15-42-514Z_01a0f2ab-d4b2-70a9-bad1-de7e6d394cc8.jsonl",
+      "session": "01a0f2ab-d4b2-70a9-bad1-de7e6d394cc8",
+      "started": "2026-09-30T14:15:42.514Z",
+      "lastRecorded": "2026-09-30T14:15:59.235Z",
+      "models": [
+        {
+          "provider": "anthropic",
+          "modelId": "claude-sonnet-5-5"
+        }
+      ],
+      "efforts": [
+        "high"
+      ],
+      "assistantCalls": 4,
+      "recordedCostUSD": 0.0486337,
+      "inputTokens": 10,
+      "outputTokens": 1320,
+      "cacheReadTokens": 33631,
+      "cacheWriteTokens": 11475
+    }
+  ],
+  "workerCostUSD": 0.14764748,
+  "costExcludes": [
+    "attributable parent cost (shared parent)",
+    "tool-side model calls",
+    "this observation trial"
+  ],
+  "events": [
+    {
+      "at": "2026-09-30T14:06:19.127Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "phase": "implement",
+      "handle": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "model": "openai-codex/gpt-6-luna",
+      "kind": "launch"
+    },
+    {
+      "at": "2026-09-30T14:11:42.910Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "phase": "implement",
+      "end": "finished",
+      "status": "done",
+      "kind": "turn"
+    },
+    {
+      "at": "2026-09-30T14:11:46.398Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "phase": "drive",
+      "handle": "ab-edit-block-replace-rejects-sigil-second-anchor-drive",
+      "model": "openai-codex/gpt-6.1-sol",
+      "kind": "launch"
+    },
+    {
+      "at": "2026-09-30T14:15:34.162Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "phase": "drive",
+      "end": "finished",
+      "status": "done",
+      "kind": "turn"
+    },
+    {
+      "at": "2026-09-30T14:15:41.861Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "phase": "review",
+      "handle": "ab-edit-block-replace-rejects-sigil-second-anchor-review-1",
+      "model": "anthropic/claude-sonnet-5-5",
+      "kind": "launch"
+    },
+    {
+      "at": "2026-09-30T14:15:58.596Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "phase": "review",
+      "end": "finished",
+      "status": "done",
+      "kind": "turn"
+    },
+    {
+      "at": "2026-09-30T14:15:58.637Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "kind": "integrate-queued"
+    },
+    {
+      "at": "2026-09-30T14:15:58.688Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "kind": "integrate-start"
+    },
+    {
+      "at": "2026-09-30T14:15:59.145Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "ok": true,
+      "kind": "integrate-end"
+    },
+    {
+      "at": "2026-09-30T14:15:59.145Z",
+      "job": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "run": "small-ab-cli-fixes",
+      "mode": "dataflow",
+      "slug": "ab-edit-block-replace-rejects-sigil-second-anchor",
+      "outcome": "integrated",
+      "kind": "child-end"
+    }
+  ]
+}

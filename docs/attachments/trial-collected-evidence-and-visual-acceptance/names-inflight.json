@@ -1,0 +1,106 @@
+{
+  "message": "muo7603m-0ipl6l",
+  "at": "2026-09-30T14:25:05.794Z",
+  "session": "01a0f28a-fd13-73f4-ac4e-7f65ac17ee20",
+  "status": "done",
+  "handoff": {
+    "commit": "6a8152c4",
+    "stories": [
+      {
+        "story": "Material hover title",
+        "outcome": "held"
+      },
+      {
+        "story": "Native review-card front",
+        "outcome": "held"
+      },
+      {
+        "story": "Attachment Node names",
+        "outcome": "held"
+      },
+      {
+        "story": "Suggested Mission targets",
+        "outcome": "held"
+      },
+      {
+        "story": "Variant list and reading picker",
+        "outcome": "failed"
+      },
+      {
+        "story": "Closed Quiz summaries",
+        "outcome": "held"
+      },
+      {
+        "story": "Inspect JSON and original text",
+        "outcome": "unobservable"
+      },
+      {
+        "story": "Release-map accessible name",
+        "outcome": "held"
+      },
+      {
+        "story": "Release-map descriptions",
+        "outcome": "held"
+      },
+      {
+        "story": "Publication stated once",
+        "outcome": "held"
+      },
+      {
+        "story": "Authoring empty wording",
+        "outcome": "held"
+      }
+    ],
+    "evidence": {
+      "path": "docs/attachments/name-things-by-their-names-not-ids/index.md",
+      "visual": true,
+      "shots": [
+        "docs/attachments/name-things-by-their-names-not-ids/02-quiz-completed-en.png",
+        "docs/attachments/name-things-by-their-names-not-ids/03-attach-node-names.png",
+        "docs/attachments/name-things-by-their-names-not-ids/04-inspect-json.png",
+        "docs/attachments/name-things-by-their-names-not-ids/08-srs-card-front.png",
+        "docs/attachments/name-things-by-their-names-not-ids/11-reading-picker-en.png",
+        "docs/attachments/name-things-by-their-names-not-ids/12-release-private-zh.png",
+        "docs/attachments/name-things-by-their-names-not-ids/13-author-empty-zh.png"
+      ]
+    },
+    "frictions": [
+      "docs/issues/reading-variant-picker-omits-access-mode.md",
+      "docs/issues/public-hub-document-ignores-saved-interface-language.md",
+      "docs/issues/attachment-dialog-says-an-work.md",
+      "Preparation latency and browser-tool failures: existing owners linked in packet."
+    ],
+    "expectations": [
+      "Picker name/locale met; access mode text missing in both locales.",
+      "Private Chinese map labels met; public Hub ignored saved Chinese preference.",
+      "JSON Inspect decoding met; unparseable-result preservation unobserved."
+    ],
+    "checks": [
+      "12 precise replayable checks recorded in packet."
+    ],
+    "caveats": [
+      "Local/Vite deployment, not packaged build.",
+      "Hover title checked through DOM; native tooltip pixels and spoken screen-reader output not captured.",
+      "Review card was seed-authored and opened by a live GPT-5 Mini tutor."
+    ]
+  },
+  "modelChanges": [
+    {
+      "provider": "openai-codex",
+      "modelId": "gpt-6.1-sol"
+    }
+  ],
+  "efforts": [
+    "high"
+  ],
+  "recordedCollectorCostUSD": 2.7988684,
+  "costIsNotAcceptedCompletionTotal": true,
+  "accepted": false,
+  "integrated": false,
+  "retired": false,
+  "reviewerLaunch": {
+    "at": "2026-09-30T14:25:15.753Z",
+    "model": "anthropic/claude-opus-5-5"
+  },
+  "strongImageJudgment": "not yet observed"
+}
