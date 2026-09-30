@@ -32,6 +32,7 @@ export type Bullet = {
   issue?: IssueLink;
   parentLine?: number;
   done: boolean;
+  noteText: string;
 };
 export type TreeNode = TrackerIssue & { children: TreeNode[] };
 export type Outliner = {
@@ -209,6 +210,7 @@ function listBullets(note: string, notePath: string, directory: string, repo: st
       parents.length = 0;
       continue;
     }
+    if (/^#(?:\s|$)/.test(line)) { section = undefined; parents.length = 0; }
     if (!section) continue;
     const item = line.match(/^([ \t]*)(?:[-+*]|\d+[.)]) +\S.*$/);
     if (!item) continue;
@@ -223,6 +225,7 @@ function listBullets(note: string, notePath: string, directory: string, repo: st
       path: notePath,
       directory,
       repo,
+      noteText: note,
       section,
       line: i + 1,
       indent,
@@ -270,6 +273,7 @@ export function orphans(project?: string | Outliner, directory?: string) {
 function currentBlock(bullet: Bullet): Block {
   const note = readFileSync(bullet.path, 'utf8');
   const block = blockAt(note, bullet.line);
+  if (note !== bullet.noteText) throw new Error('Outliner note changed; reload and propose the diff again.');
   if (block.text !== bullet.text) throw new Error('Outliner bullet changed; reload and propose the diff again.');
   return { ...block, tag: bullet.tags.join(',') };
 }
@@ -306,13 +310,6 @@ export function remove(bullet: Bullet) {
   const block = currentBlock(bullet);
   return writeBack(bullet.path, block, { remove: true });
 }
-function issueTitle(bullet: Bullet) {
-  return bullet.text.split(/\r?\n/)[0]
-    .replace(/^[ \t]*(?:[-+*]|\d+[.)]) +/, '')
-    .replace(/\s*#(?:done|[\p{L}\p{N}_-]+)\b/gu, '')
-    .replace(/\s*\[\[[^\]]+\]\]/g, '')
-    .trim();
-}
 function slugify(text: string) {
   const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80).replace(/-+$/g, '');
   if (!slug) throw new Error('Issue title needs an ASCII slug');
@@ -340,7 +337,7 @@ function introduce(directory: string, draft: IssueDraft): TrackerIssue {
   return { slug, file, stage, effectiveStage: stage, claimed: false, archived: false };
 }
 // Exec calls a lib module's exported `attach` at startup; its capabilities object is not a bullet.
-export function attach(bullet: Bullet, draft?: IssueDraft): IssueLink;
+export function attach(bullet: Bullet, draft: IssueDraft): IssueLink;
 export function attach(capabilities: object): void;
 export function attach(value: object, draft?: IssueDraft): IssueLink | void {
   if (!('path' in value) || typeof value.path !== 'string') return;
@@ -349,9 +346,8 @@ export function attach(value: object, draft?: IssueDraft): IssueLink | void {
   const linked = issueLinks(block.text.split('\n')[0]).filter(link => link.repo === bullet.repo);
   if (linked.length > 1) throw new Error('Bullet links multiple issues; choose one before attaching.');
   if (linked.length === 1) return { ...linked[0], issue: bullet.links.find(link => link.repo === bullet.repo && link.slug === linked[0].slug)?.issue };
-  const title = draft?.title ?? issueTitle(bullet);
-  const issueDraft = draft ?? { title, body: bullet.text, stage: 'idea' as const };
-  const created = introduce(bullet.directory, issueDraft);
+  if (!draft) throw new Error('Introduce the intent and supply an agreed issue draft before attaching.');
+  const created = introduce(bullet.directory, draft);
   try {
     writeBack(bullet.path, block, { replace: addIssueLink(block.text, bullet.repo, created.slug) });
   } catch (error) {
