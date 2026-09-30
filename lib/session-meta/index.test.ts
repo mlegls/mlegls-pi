@@ -42,7 +42,7 @@ describe("spawnMeta", () => {
 
 describe("extension", () => {
 	test("records one entry at session start", () => {
-		withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PI_SESSION_ID: undefined }, () => {
+		withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PI_WM_PARENT_SESSION: undefined, PI_SESSION_ID: undefined }, () => {
 			const h = host();
 			sessionMeta(h.api);
 			h.start();
