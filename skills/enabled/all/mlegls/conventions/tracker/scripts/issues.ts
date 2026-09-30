@@ -248,7 +248,7 @@ function tree(root: Issue | undefined, all: Map<string, Issue>, depth = 0): stri
 }
 
 // Every [[link]] and [[link#Heading]] under docs/, resolved as Obsidian does: by
-// basename, disambiguated by the link's trailing path segments; fenced code ignored.
+// basename, disambiguated by the link's trailing path segments; inline and fenced code ignored.
 // Repairs are opt-in; checking a branch must not rewrite it against canonical state.
 
 // A done blocker no longer constrains scheduling; --fix drops it, leaving guards and live blockers in place.
@@ -276,6 +276,55 @@ function movedIssuePaths(paths: string[]): Set<string> {
     moved.add(real);
   }
   return moved;
+}
+function maskMarkdownCode(source: string): string {
+  const chars = source.split("");
+  const blank = (start: number, end: number) => {
+    for (let i = start; i < end; i++) if (chars[i] !== "\r" && chars[i] !== "\n") chars[i] = " ";
+  };
+  let fence: { marker: string; length: number } | undefined;
+  let offset = 0;
+  for (const line of source.match(/[^\r\n]*(?:\r\n|\r|\n|$)/g) ?? []) {
+    if (!line) break;
+    const body = line.replace(/(?:\r\n|\r|\n)$/, "");
+    if (fence) {
+      blank(offset, offset + body.length);
+      if (new RegExp(`^ {0,3}${fence.marker}{${fence.length},}[ \\t]*$`).test(body)) fence = undefined;
+    } else {
+      const open = body.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
+        fence = { marker: open[1][0], length: open[1].length };
+        blank(offset, offset + body.length);
+      }
+    }
+    offset += line.length;
+  }
+
+  const escaped = (index: number) => {
+    let slashes = 0;
+    for (let i = index - 1; i >= 0 && chars[i] === "\\"; i--) slashes++;
+    return slashes % 2 === 1;
+  };
+  for (let i = 0; i < chars.length;) {
+    if (chars[i] !== "`" || escaped(i)) { i++; continue; }
+    let runEnd = i + 1;
+    while (chars[runEnd] === "`") runEnd++;
+    const length = runEnd - i;
+    let search = runEnd;
+    let close = -1;
+    while (search < chars.length) {
+      const start = chars.indexOf("`", search);
+      if (start < 0) break;
+      let end = start + 1;
+      while (chars[end] === "`") end++;
+      if (end - start === length) { close = end; break; }
+      search = end;
+    }
+    if (close < 0) { i = runEnd; continue; }
+    blank(i, close);
+    i = close;
+  }
+  return chars.join("");
 }
 function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fixTargets?: Set<string>) {
   const files: string[] = [];
@@ -346,42 +395,57 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
   const seen = new Set<string>();
   for (const f of files) {
     const raw = readFileSync(f, "utf8");
-    const text = raw.replace(/^```[\s\S]*?^```/gm, "");
-    const fixes = new Map<string, string>();
-    const anchors = new Map<string, string>();
+    const text = maskMarkdownCode(raw);
+    const anchors = new Map<number, { end: number; replacement: string; message: string }>();
+    const fixes = new Map<number, { end: number; replacement: string; message: string }>();
     const rel = f.slice(docs.length + 1);
     for (const m of text.matchAll(/\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g)) {
       const target = m[1].trim().replace(/\\$/, ""); // [[x\|alias]] inside a table
-      if (seen.has(rel + m[0])) continue;
-      seen.add(rel + m[0]);
+      const key = rel + m[0];
+      const first = !seen.has(key);
+      seen.add(key);
+      const end = m.index! + m[0].length;
       const to = resolveLink(target);
       const alt = to ? undefined : moved(target);
       if (alt) {
         const movedTo = resolveLink(alt)!;
-        if (repair && !canFixTarget(movedTo)) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): [[${target}]] -> [[${alt}]]`);
-        else fixes.set(target, alt);
+        if (repair && !canFixTarget(movedTo)) {
+          if (first) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): [[${target}]] -> [[${alt}]]`);
+        } else {
+          fixes.set(m.index!, { end, replacement: `[[${alt}${m[0].slice(2 + m[1].length)}`, message: `${rel}: [[${target}]] -> [[${alt}]]` });
+        }
       }
-      else if (!to) say(`${rel}: [[${target}]] does not exist`);
+      else if (!to) {
+        if (first) say(`${rel}: [[${target}]] does not exist`);
+      }
       else if (m[2] && to.endsWith(".md") && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim())) {
         // Obsidian anchors are the heading text; a GitHub-style slug of exactly one heading is rewritten to it.
         const slug = (h: string) => h.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
         const hits = [...headingsOf(to)].filter((h) => slug(h) === slug(m[2]));
         if (hits.length === 1) {
-          const from = "[[" + m[1] + "#" + m[2];
-          const replacement = "[[" + m[1] + "#" + hits[0];
-          if (repair && !canFixTarget(to)) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): ${from}]] -> ${replacement}]]`);
-          else anchors.set(from, replacement);
+          const targetEnd = 2 + m[1].length;
+          const anchorEnd = targetEnd + 1 + m[2].length;
+          const replacement = m[0].slice(0, targetEnd) + `#${hits[0]}` + m[0].slice(anchorEnd);
+          const from = `[[${m[1]}#${m[2]}`;
+          if (repair && !canFixTarget(to)) {
+            if (first) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): ${from}]] -> [[${m[1]}#${hits[0]}]]`);
+          } else {
+            anchors.set(m.index!, { end, replacement, message: `${rel}: ${from}]] -> [[${m[1]}#${hits[0]}]]` });
+          }
         }
-        else say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
+        else if (first) say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
       }
     }
     if (!fixes.size && !anchors.size) continue;
-    const fixed = (s: string) => repair ? console.log("fixed " + s) : say("repair available (check --fix): " + s);
+    const messages = new Set<string>();
     let out = raw;
-    for (const [from, to] of anchors) { out = out.split(from).join(to); fixed(`${rel}: ${from}]] -> ${to}]]`); }
-    for (const [from, to] of fixes) {
-      for (const end of ["]]", "#", "|", "\\|"]) out = out.split("[[" + from + end).join("[[" + to + end);
-      fixed(`${rel}: [[${from}]] -> [[${to}]]`);
+    const edits = [...anchors, ...fixes].sort(([a], [b]) => b - a);
+    for (const [start, edit] of edits) {
+      out = out.slice(0, start) + edit.replacement + out.slice(edit.end);
+      if (messages.has(edit.message)) continue;
+      messages.add(edit.message);
+      if (repair) console.log("fixed " + edit.message);
+      else say("repair available (check --fix): " + edit.message);
     }
     if (repair) writeFileSync(f, out);
   }

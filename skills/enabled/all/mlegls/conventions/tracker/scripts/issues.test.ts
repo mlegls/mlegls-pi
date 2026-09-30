@@ -53,6 +53,40 @@ test("cross-project evidence links resolve through the vault, not a local namesa
   rmSync(join(cwd, "docs/issues/archive/gone.md"));
 });
 
+test("check ignores wikilinks in inline and fenced code, including when fixing other links", () => {
+  const inlineMissing = "[[projects/fixture/issues/inline-missing]]";
+  const fencedMissing = "[[projects/fixture/issues/fenced-missing]]";
+  const liveMissing = "[[projects/fixture/issues/live-missing]]";
+  const movedLink = "[[projects/fixture/issues/gone]]";
+  const archivedLink = "[[projects/fixture/issues/archive/gone]]";
+  const evidence = join(cwd, "docs/code-links.md");
+  const moved = join(issues, "archive/gone.md");
+  const text = [
+    `Inline \`${inlineMissing}\` and \`${movedLink}\`.`,
+    "```md",
+    fencedMissing,
+    movedLink,
+    "```",
+    `${liveMissing} ${movedLink}`,
+    "",
+  ].join("\n");
+  writeFileSync(moved, frontmatter("stage: done"));
+  writeFileSync(evidence, text);
+
+  const checked = run("check");
+  expect(checked.code).toBe(1);
+  expect(checked.out).toContain(`${liveMissing} does not exist`);
+  expect(checked.out).not.toContain(`${inlineMissing} does not exist`);
+  expect(checked.out).not.toContain(`${fencedMissing} does not exist`);
+  expect(checked.out).toContain("repair available (check --fix): code-links.md:");
+
+  const fixed = run("check --fix");
+  expect(fixed.out).toContain(`fixed code-links.md: ${movedLink} -> ${archivedLink}`);
+  expect(readFileSync(evidence, "utf8")).toBe(text.replace(`${liveMissing} ${movedLink}`, `${liveMissing} ${archivedLink}`));
+  rmSync(evidence);
+  rmSync(moved);
+});
+
 // Replays the first-use drive of tracker-check-fix-rewrites-other-sessions-dirty-files (checks 2 and 5):
 // archiving must not rewrite another session's dirty files for unrelated targets.
 test("check --fix <moved paths> repairs only links and blockers targeting the moved issues", () => {
