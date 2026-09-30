@@ -35,7 +35,7 @@ The docs explicitly say that *both* scoped and unscoped forms drop all `blocked-
 
 | Story | Outcome | Evidence |
 |---|---|---|
-| Limit writes to links whose targets moved in this change | **failed**: archive-link repairs are scoped correctly, including relative/absolute arguments and aliases; unrelated done blockers are still removed from unrelated dirty files | [scoped output](02-scoped.txt), [dirty-file diff](03-dirty-diff.txt), [blocker output](06-unrelated-blocker.txt), [blocker diff](07-unrelated-blocker-diff.txt) |
+| Limit writes to links whose targets moved in this change | **held after review repair** (driver: failed): archive-link repairs are scoped correctly, including relative/absolute arguments and aliases; unrelated done blockers are still removed from unrelated dirty files | [scoped output](02-scoped.txt), [dirty-file diff](03-dirty-diff.txt), [blocker output](06-unrelated-blocker.txt), [blocker diff](07-unrelated-blocker-diff.txt) |
 | Tracker skill archive instructions use the scoped command | **held**: checkout-local vault adapter's archive layout names the command and requires each archived path; the `check` paragraph documents relative/absolute paths and remaining diagnostics | `skills/enabled/all/mlegls/conventions/tracker/references/issue-tracker-vault.md` |
 
 Nonvisual CLI drive; no screenshots. No server, browser, remote deployment or process was started. All disposable state is inside this worktree.
@@ -82,3 +82,11 @@ export HOME="$STATE/home"
 - [Setup recipe](setup.sh): authored disposable Markdown state, not a product test or preexisting fixture.
 - [Before](01-before.txt), [scoped](02-scoped.txt), [dirty diff](03-dirty-diff.txt), [read-only after](04-after.txt), [unscoped](05-unscoped.txt).
 - [Unrelated blocker removal](06-unrelated-blocker.txt), [its file diff](07-unrelated-blocker-diff.txt), [invalid path diagnostic](08-invalid-target.txt).
+
+## Review (appended after the driver's log)
+
+The driver's failure was real: `check --fix <paths>` still ran the global done-`blocked-by` cleanup, rewriting unrelated dirty files. Repair in `issues.ts`: with moved paths, only `blocked-by` links whose target is one of those files are dropped; other done blockers are reported (`... remove it (check --fix without moved issue paths)`) and left alone. The adapter doc states this.
+
+Re-drove checks 2 and 5 on the repaired head from a fresh `setup.sh` state: scoped fix of both moved paths repaired only A/B links in `mixed.md`; `older` links stayed reported and unchanged; a new dirty `blocked-dirty.md` with a blocker on an unrelated done issue stayed byte-identical (`cmp`); exit 1 with remaining findings; unscoped `check --fix` then removed the blocker, repaired `older`, exit 0, `check` printed `ok`. Story 1 now **held**.
+
+Retained as an automated test: `check --fix <moved paths> repairs only links and blockers targeting the moved issues` in `skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts` (checks 2 and 5; the defect that happened). Checks 1, 3, 4 (read-only `check`, unscoped fix) are already covered by existing tests. Check 6 stays a filed friction: [tracker-invalid-moved-path-emits-uncaught-exception](../../issues/tracker-invalid-moved-path-emits-uncaught-exception.md); the CLI throws uncaught `Error`s for all argument errors, so a concise-error change belongs to that issue, not here.

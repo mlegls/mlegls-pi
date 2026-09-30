@@ -53,6 +53,31 @@ test("cross-project evidence links resolve through the vault, not a local namesa
   rmSync(join(cwd, "docs/issues/archive/gone.md"));
 });
 
+// Replays the first-use drive of tracker-check-fix-rewrites-other-sessions-dirty-files (checks 2 and 5):
+// archiving must not rewrite another session's dirty files for unrelated targets.
+test("check --fix <moved paths> repairs only links and blockers targeting the moved issues", () => {
+  const moved = join(issues, "archive/moved.md");
+  const older = join(issues, "archive/older.md");
+  const doneLive = join(issues, "done-elsewhere.md");
+  writeFileSync(moved, "---\nstage: done\n---\n");
+  writeFileSync(older, "---\nstage: done\n---\n");
+  writeFileSync(doneLive, "---\nstage: done\n---\n");
+  const mixed = join(cwd, "docs/mixed.md");
+  writeFileSync(mixed, "[[projects/fixture/issues/moved|A]] [[projects/fixture/issues/older]]\nuser prose\n");
+  put("dirty-blocked", frontmatter(`stage: ticket\nassignee: agent\nblocked-by:\n  - "[[projects/fixture/issues/done-elsewhere]]"`) + "another session's prose\n");
+  const dirty = readFileSync(join(issues, "dirty-blocked.md"), "utf8");
+  const scoped = run("check --fix docs/issues/archive/moved.md");
+  expect(scoped.code).toBe(1);
+  expect(scoped.out).toContain("fixed mixed.md: [[projects/fixture/issues/moved]] -> [[projects/fixture/issues/archive/moved]]");
+  expect(readFileSync(mixed, "utf8")).toBe("[[projects/fixture/issues/archive/moved|A]] [[projects/fixture/issues/older]]\nuser prose\n");
+  expect(readFileSync(join(issues, "dirty-blocked.md"), "utf8")).toBe(dirty);
+  expect(scoped.out).toContain("blocked-by done-elsewhere is done");
+  run("check --fix");
+  expect(readFileSync(mixed, "utf8")).toContain("[[projects/fixture/issues/archive/older]]");
+  expect(readFileSync(join(issues, "dirty-blocked.md"), "utf8")).not.toContain("done-elsewhere");
+  for (const f of [moved, older, doneLive, mixed, join(issues, "dirty-blocked.md")]) rmSync(f);
+});
+
 test("format-equivalent dependencies preserve all queries", () => {
   for (const next of ["implement", "grill"]) {
     put("task", frontmatter(`stage: ${next === "implement" ? "ticket" : "goal"}

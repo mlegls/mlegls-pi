@@ -4,7 +4,7 @@
 //   issues frontier [slug]  execution-ready agent-permitted subtrees, unblocked and unclaimed
 //   issues mine [slug]      explicit human/user assignments, including shaping work
 //   issues tree [slug]      subtree under slug (or every root), children in dependency order
-//   issues check [--fix [moved issue paths...]]    read-only; --fix repairs selected/all links and drops done blockers
+//   issues check [--fix [moved issue paths...]]    read-only; --fix repairs links and drops done blockers, only those targeting the given moved issues if any
 //   issues outline          the project's outliner note against the tracker: each linked bullet's state, unlinked intent, uncovered issues
 //
 // [slug] scopes to that issue's subtree.
@@ -521,10 +521,14 @@ if (cmd !== "lint") switch (cmd) {
       if (i.partOf && !all.has(i.partOf)) say(`${i.slug}: part-of ${i.partOf} does not exist`);
       if (!i.archived && i.partOf && all.get(i.partOf)?.archived) say(`${i.slug}: live issue has archived parent ${i.partOf}`);
       const done = new Set<string>();
+      const unselected: string[] = [];
       for (const b of i.blockedBy) {
         if (!all.has(b)) say(`${i.slug}: blocked-by ${b} does not exist`);
-        else if (complete(all.get(b)!, all)) done.add(b);
+        else if (!complete(all.get(b)!, all)) continue;
+        else if (fixTargets && !fixTargets.has(realpathSync(all.get(b)!.file))) unselected.push(b);
+        else done.add(b);
       }
+      for (const b of unselected) say(`${i.slug}: blocked-by ${b} is done; remove it (check --fix without moved issue paths)`);
       if (done.size && repair) { dropBlockers(i.file, done); console.log(`fixed ${i.slug}: removed done blocked-by ${[...done].join(", ")}`); }
       else for (const b of done) say(`${i.slug}: blocked-by ${b} is done; remove it (check --fix)`);
       if (i.next === "done" && !i.archived) say(`${i.slug}: done but not in archive/`);
