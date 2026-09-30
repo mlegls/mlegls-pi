@@ -400,28 +400,23 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
   for (const f of files) {
     const raw = readFileSync(f, "utf8");
     const text = maskMarkdownCode(raw);
-    const anchors = new Map<number, { end: number; replacement: string; message: string }>();
-    const fixes = new Map<number, { end: number; replacement: string; message: string }>();
+    const edits = new Map<number, { end: number; replacement: string; message: string }>();
     const rel = f.slice(docs.length + 1);
     for (const m of text.matchAll(/\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g)) {
       const target = m[1].trim().replace(/\\$/, ""); // [[x\|alias]] inside a table
       const key = rel + m[0];
       const first = !seen.has(key);
       seen.add(key);
-      const end = m.index! + m[0].length;
+      // A repair into a target outside the selected moved issues is only reported.
+      const propose = (into: string, replacement: string, message: string) => {
+        if (repair && !canFixTarget(into)) {
+          if (first) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): ${message}`);
+        } else edits.set(m.index!, { end: m.index! + m[0].length, replacement, message: `${rel}: ${message}` });
+      };
       const to = resolveLink(target);
       const alt = to ? undefined : moved(target);
-      if (alt) {
-        const movedTo = resolveLink(alt)!;
-        if (repair && !canFixTarget(movedTo)) {
-          if (first) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): [[${target}]] -> [[${alt}]]`);
-        } else {
-          fixes.set(m.index!, { end, replacement: `[[${alt}${m[1].endsWith("\\") ? "\\" : ""}${m[0].slice(2 + m[1].length)}`, message: `${rel}: [[${target}]] -> [[${alt}]]` });
-        }
-      }
-      else if (!to) {
-        if (first) say(`${rel}: [[${target}]] does not exist`);
-      }
+      if (alt) propose(resolveLink(alt)!, `[[${alt}${m[1].endsWith("\\") ? "\\" : ""}${m[0].slice(2 + m[1].length)}`, `[[${target}]] -> [[${alt}]]`);
+      else if (!to) { if (first) say(`${rel}: [[${target}]] does not exist`); }
       else if (m[2] && to.endsWith(".md") && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim())) {
         // Obsidian anchors are the heading text; a GitHub-style slug of exactly one heading is rewritten to it.
         const slug = (h: string) => h.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
@@ -430,21 +425,15 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
           const targetEnd = 2 + m[1].length;
           const anchorEnd = targetEnd + 1 + m[2].length;
           const replacement = m[0].slice(0, targetEnd) + `#${hits[0]}` + m[0].slice(anchorEnd);
-          const from = `[[${m[1]}#${m[2]}`;
-          if (repair && !canFixTarget(to)) {
-            if (first) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): ${from}]] -> [[${m[1]}#${hits[0]}]]`);
-          } else {
-            anchors.set(m.index!, { end, replacement, message: `${rel}: ${from}]] -> [[${m[1]}#${hits[0]}]]` });
-          }
+          propose(to, replacement, `[[${m[1]}#${m[2]}]] -> [[${m[1]}#${hits[0]}]]`);
         }
         else if (first) say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
       }
     }
-    if (!fixes.size && !anchors.size) continue;
+    if (!edits.size) continue;
     const messages = new Set<string>();
     let out = raw;
-    const edits = [...anchors, ...fixes].sort(([a], [b]) => b - a);
-    for (const [start, edit] of edits) {
+    for (const [start, edit] of [...edits].sort(([a], [b]) => b - a)) {
       out = out.slice(0, start) + edit.replacement + out.slice(edit.end);
       if (messages.has(edit.message)) continue;
       messages.add(edit.message);
