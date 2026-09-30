@@ -73,7 +73,7 @@ export function blocks(note: string, rules = workflows()): Block[] {
   return result;
 }
 
-type Result = { comments: string[] } | { inline: string } | { title: string; body: string } | { declined: string };
+export type Result = { comments: string[] } | { inline: string } | { title: string; body: string } | { replace: string } | { moveTo: string; replace?: string } | { remove: true } | { declined: string };
 export async function act(block: Block, note: string, lens?: string): Promise<Result> {
   const rules = workflows();
   if (!(block.tag in rules)) return { declined: 'Unknown or multiple workflows' };
@@ -109,6 +109,18 @@ export function writeBack(path: string, block: Block, result: Result) {
   if ('comments' in result) {
     next = note;
     for (const comment of result.comments) next = insertComment(next, blockAt(next, block.start + 1), comment);
+  } else if ('remove' in result) {
+    const lines = note.split('\n');
+    lines.splice(block.start, block.end - block.start);
+    next = lines.join('\n');
+  } else if ('moveTo' in result) {
+    const lines = note.split('\n');
+    lines.splice(block.start, block.end - block.start);
+    next = appendSection(lines.join('\n'), result.moveTo, result.replace ?? block.text);
+  } else if ('replace' in result) {
+    const lines = note.split('\n');
+    lines.splice(block.start, block.end - block.start, ...result.replace.split('\n'));
+    next = lines.join('\n');
   } else {
     let replacement: string;
     if ('inline' in result) replacement = result.inline;
