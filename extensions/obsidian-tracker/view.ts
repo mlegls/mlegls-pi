@@ -90,16 +90,12 @@ export class TrackerView extends BasesView {
   private fileMenu(i: Issue, ev: MouseEvent) {
     const file = this.app.vault.getAbstractFileByPath(i.id + ".md");
     if (!(file instanceof TFile)) return;
-    const menu = new Menu();
     ev.preventDefault();
-    // The file-menu hook supplies file operations, including the desktop window action.
-    for (const [title, pane] of [["Open in new tab", "tab"], ["Open to the right", "split"]] as const) {
-      menu.addItem((item) => item.setSection("open").setTitle(title).setIcon("file-plus").onClick(() => this.app.workspace.getLeaf(pane).openFile(file)));
-    }
-    menu.addItem((item) => item.setTitle("Copy link").setIcon("link").onClick(() => navigator.clipboard.writeText(this.app.fileManager.generateMarkdownLink(file, ""))));
-    menu.addItem((item) => item.setTitle("Copy Obsidian URL").setIcon("link").onClick(() => navigator.clipboard.writeText(`obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(file.path)}`)));
-    menu.addSeparator();
-    this.app.workspace.trigger("file-menu", menu, file, "tracker");
+    // Obsidian's own link menu: open in tab/split/window, rename and every plugin's file-menu items.
+    const menu = new Menu();
+    this.app.workspace.handleLinkContextMenu(menu, i.id, "");
+    menu.addItem((item) => item.setSection("info").setTitle("Copy link").setIcon("link").onClick(() => navigator.clipboard.writeText(this.app.fileManager.generateMarkdownLink(file, ""))));
+    menu.addItem((item) => item.setSection("info").setTitle("Copy Obsidian URL").setIcon("link").onClick(() => navigator.clipboard.writeText(`obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(file.path)}`)));
     menu.showAtMouseEvent(ev);
   }
 
