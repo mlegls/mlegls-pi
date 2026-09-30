@@ -270,7 +270,8 @@ async function supervise(args: string[]) {
 		if (!jobs.length) return console.log("no supervision jobs here");
 		for (const j of jobs) {
 			const s = j.state as any;
-			console.log(j.id + " " + j.status + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : ""));
+			const unavailable = !!s?.decisionUnavailable && Object.keys(s.decisionUnavailable).length > 0;
+			console.log(j.id + (j.status === "completed" && unavailable ? " paused (resumable)" : " " + j.status) + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : ""));
 			if (s?.decisionUnavailable && Object.keys(s.decisionUnavailable).length) console.log("  Decision API unavailable: " + JSON.stringify(s.decisionUnavailable));
 			if (s) console.log("  commands applied: " + (s.commandsApplied ?? "unknown") + (s.commandInFlight === undefined ? "" : "; in flight: " + s.commandInFlight));
 			for (const c of Object.values<any>(s?.children ?? {})) console.log("  " + c.slug + " " + c.phase + " " + (c.handle.run + "/" + c.handle.handle) + (c.waiting ? " waiting: " + c.waiting + " since " + (c.waitingSince ?? "unknown") : ""));
