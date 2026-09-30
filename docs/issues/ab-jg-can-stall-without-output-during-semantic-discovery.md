@@ -1,6 +1,6 @@
 ---
 priority: 3
-stage: ticket
+stage: done
 assignee: agent
 author: "session:01a0ebd4-1dbc-708f-b2ad-c9569d585fdc"
 ---
@@ -24,3 +24,7 @@ shape, 2026-09-30: callers need a prompt failure they can fall back from, not a 
 ## Result
 
 First-use CLI drive: [deadline evidence](../attachments/ab-jg-can-stall-without-output-during-semantic-discovery/index.md). A stubbed hanging `jg` returned exit 2 and an exact-search suggestion after explicit 1s/2s deadlines; help documented the 180s default and 0-off mode. The live search path and actual 180s expiry were not exercised.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/ab-jg-can-stall-without-output-during-semantic-discovery/index.md).
