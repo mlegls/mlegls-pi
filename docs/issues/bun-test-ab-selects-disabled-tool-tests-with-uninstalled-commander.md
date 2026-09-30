@@ -11,3 +11,7 @@ While reviewing [[projects/mlegls-pi/issues/archive/ab-jg-can-stall-without-outp
 Workaround: run the affected files explicitly with `ab check -- bun test ab/jevgrep.cli.test.ts ab/jevgrep.test.ts` (8 pass). Confirm the intended test scope and install or isolate dependencies for disabled-tool tests before treating `bun test ab` as an affected-suite check. The impact on other runners is unknown.
 
 ticket contract, 2026-09-30: tests under `skills/disabled/` aren't selected by `bun test`, `bun test ab` or `bun test ab lib/resources` (Bun treats bare arguments as substring filters, so prefer a `bunfig.toml` exclusion or equivalent over telling people to spell paths). Also covers the duplicate [[projects/mlegls-pi/issues/archive/disabled-watch-pr-tests-missing-commander]].
+
+## Result
+
+First-use CLI verification: [evidence packet](../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md).

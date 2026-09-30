@@ -1,0 +1,88 @@
+check bfb96c19-2f60-4a4f-ac0b-c169701b7b4c (running); log /Users/mlegls/.local/state/ab/executions/bfb96c19-2f60-4a4f-ac0b-c169701b7b4c.log
+bun test v1.4.2 (744846f84)
+
+ab/computer.test.ts:
+(pass) quoted spans become inputs named by their text; apostrophes inside words are not quotes [0.56ms]
+(pass) placeholders name hidden inputs once each [0.07ms]
+(pass) CLI refuses implicit desktop targeting and requires a completion condition [53.99ms]
+(pass) project browser setup is cleaned up on completion or observation error (%s) [26.62ms]
+(pass) project browser setup is cleaned up on completion or observation error (%s) [26.37ms]
+(pass) browser CLI does not offer a resolver it cannot call [25.63ms]
+
+ab/resources.test.ts:
+(pass) CLI shares one execution, forwards failures, rejects dirty sharing and runs nested checks [2958.97ms]
+(pass) CLI retains running and queued waiters across daemon timeouts, but releases on SIGINT [21124.53ms]
+(pass) CLI lists complete historical JSON, omits environments and filters live check/service states [9541.03ms]
+
+ab/jevgrep.test.ts:
+(pass) retrieval anchors share the ledger, survive restore, and edit exact Unicode evidence [4.36ms]
+(pass) patched JSON renderer retains ordering, source budget, and metadata without prose parsing [1.48ms]
+(pass) wrapper bounds source by default and preserves explicit budgets [0.05ms]
+(pass) deadline option parser rejects empty limits rather than silently disabling the bound [0.06ms]
+
+ab/jevgrep.cli.test.ts:
+(pass) CLI drive: explicit deadline ends a hanging repository-wide query with incomplete exit and exact-search fallback [2392.84ms]
+(pass) CLI drive: trailing deadline also bounds a narrower query [3223.12ms]
+(pass) CLI drive: zero disables the internal deadline so an external timeout fires first [2011.29ms]
+(pass) CLI drive: help explains the default, override, off mode, incomplete result and fallback [29.75ms]
+
+ab/skill.test.ts:
+(pass) skill names fall back to global Pi skills, but local names and explicit paths win [80.34ms]
+(pass) activated skills are exact in bash output and plain outside it [49.66ms]
+
+extensions/workspace/fork-tab.test.ts:
+(pass) fork snapshots the live branch, launches in the originating session, and leaves the parent alone [1.37ms]
+(pass) worktree root becomes cwd; failed window creation removes the fork [0.63ms]
+
+lib/resources/host.test.ts:
+(pass) two slots queue a third command and preserve output/exit status [168.32ms]
+(pass) singleflight shares only explicit matching identities, not completed results [129.54ms]
+(pass) unkeyed checks never coalesce; abandoning a queued call never starts it [210.81ms]
+(pass) services don't consume check slots and stop/expiry terminate them [1023.96ms]
+(pass) spawn failure frees the slot [20.82ms]
+(pass) shared checks reject a revision changed while queued [210.33ms]
+(pass) stopping a service kills its background child too [32.06ms]
+
+extensions/disabled/board/delivery.test.ts:
+(pass) read cancels a busy notification, including after reload [1.55ms]
+(pass) seen cancels a busy notification, including after reload [0.47ms]
+(pass) unread wake report survives reload and wakes exactly once when idle [0.52ms]
+(pass) quiet report survives reload without waking and joins the next natural turn [0.64ms]
+(pass) seen acknowledgment before polling survives reload without suppressing unread neighbors [0.89ms]
+(pass) unsubscribe, idle prune, resubscribe, reload does not resurrect discarded pending [0.65ms]
+
+extensions/disabled/exa/index.test.ts:
+(pass) Exa extension > searches with token-efficient contents and formats source metadata [0.47ms]
+(pass) Exa extension > retrieves page text with the Contents API and reports failed URLs [0.15ms]
+(pass) Exa extension > surfaces Exa API errors [0.05ms]
+
+extensions/disabled/lsp/lsp-client.test.ts:
+(pass) LSP project root discovery > uses the nearest marker within the workspace [0.75ms]
+(pass) LSP project root discovery > walks up to a marker at the workspace root [0.25ms]
+(pass) LSP project root discovery > does not discover projects outside the workspace [0.27ms]
+
+skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts:
+(pass) cross-project evidence links resolve through the vault, not a local namesake [163.31ms]
+(pass) format-equivalent dependencies preserve all queries [3396.45ms]
+(pass) invalid frontmatter fails every query with a filename and no partial output [5444.61ms]
+(pass) wrapped edges still receive graph checks and done blockers retain scheduling semantics [404.80ms]
+(pass) unverified claims conservatively reserve execution [79.08ms]
+(pass) tagged guards are opaque: they block until removed and never resolve on their own [264.27ms]
+(pass) outline maps each linked bullet to its issue, flags unlinked intent among linked bullets, and lists open issues no bullet covers [39.63ms]
+(pass) subtree readiness, assignment, dependencies, scheduling and review remain separate [831.27ms]
+(pass) legacy is readable but never translated; selectors and structural omissions fail closed [697.46ms]
+(pass) human shaping uses own residual constraints, and archive cannot parent live work [133.35ms]
+(pass) historical provenance survives and duplicate identities fail before projection [92.88ms]
+(pass) a child cannot await completion of its own parent scope [40.07ms]
+(pass) check names the child that lowers a spec, and a side friction log [51.01ms]
+(pass) a new uncommitted issue needs author provenance; committed history is left alone [99.20ms]
+(pass) work in flight elsewhere leaves the frontier: supervise children, closes on branches, orphaned loops [245.50ms]
+(pass) check proposes a unique heading repair without writing; --fix applies it [108.87ms]
+(pass) worktree links use branch docs; foreign projects retain vault state [240.37ms]
+
+ 57 pass
+ 0 fail
+ 1318 expect() calls
+Ran 57 tests across 11 files. [55.94s]
+
+runner exit: 0
