@@ -64,3 +64,9 @@ All checks use `bun ab/main.ts` from the tested checkout, with `AB_SESSION_STATE
 ## Cleanup and scope
 
 No servers, containers, tunnels, or browsers started. Scratch state remains only inside this worktree's `.wm/anchor-drive/` and is not part of the durable packet. No source, diff, test, or fixture inspection; no product repairs. Review remains responsible for confirming the ticket's test requirement.
+
+## Review
+
+Diff read with the log. `parseHeader` (`lib/outline-read/edit.ts`) strips a leading `=` from the second token of a two-anchor replace only; `-`/`>`/`<` are unchanged. Stale-anchor safety is downstream of parsing and untouched.
+
+Test story: held. `lib/outline-read/edit.test.ts` covers `=aaaa =bbbb` in `parseHunks` and the edit-tool block replacement now uses `=a =b` end to end (`=a b` remains covered by the existing `parseHunks` assertion). `bun test lib/outline-read/edit.test.ts`: 20 pass. No repairs needed; no further tests added.
