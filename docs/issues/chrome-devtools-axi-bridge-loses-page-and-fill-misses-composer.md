@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 priority: 3
 author: "session:01a0e34b-eead-73ce-bfe8-e5ebaccde620"
 assignee: agent
@@ -14,3 +14,5 @@ Tool owner: `chrome-devtools-axi` (`~/dev/chrome-devtools-axi`; no `docs/issues/
 - Driving [[projects/concept/issues/place-pricing-and-payment-in-the-landing-and-application-flow]] (named session `pp-pricing`), `click @<ref>` and `screenshot <path>` often exited 1 although the click took effect and the file was written; `eval` with a bare statement list (`a; b; 1`) also exited 1 until wrapped as `() => { ...; return 1 }`. Workaround: ignore the exit status and check the effect (URL, snapshot, file).
 
 Proposed: preserve the selected page across failed waits or report bridge termination distinctly, and test `fill` against a controlled textarea where React state drives a disabled submit button. These are tooling observations, not claims about the product's implementation.
+
+disposition, 2026-09-30: filed upstream as https://github.com/kunchenguid/chrome-devtools-axi/issues/158 (overlap), https://github.com/kunchenguid/chrome-devtools-axi/issues/156 (fill) and https://github.com/kunchenguid/chrome-devtools-axi/issues/151 (screenshot); the click-exit and discarded-output screenshot notes were too thin to file; the owner is the upstream repository. No repair is claimed by closing this capture.

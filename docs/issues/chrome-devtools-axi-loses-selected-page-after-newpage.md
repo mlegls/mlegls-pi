@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: "session:01a0e7d3-9398-7216-ad8c-0545110f7a77"
 ---
 
@@ -15,3 +15,5 @@ During the [[projects/concept/issues/landing-hue-shows-a-different-hue-in-the-ap
 Also observed on 2026-09-28 in the [[projects/concept/issues/route-edition-edges-and-shadows-through-soft-tokens]] review, without any `newpage` or redirect. The first commands of a fresh named session (`resize 1280 900`, then `open http://127.0.0.1:6232/iframe.html?...`) returned `No page is currently selected`. After `stop` and `start`, `pages` listed only `about:blank` with `selected:false`, and `newpage <url>` refused the same way. `selectpage 1` followed by `open <url>` worked, and the session stayed usable for the rest of the capture. So the redirect is not needed to lose the selection; the page can start out unselected. See also `~/dev/mlegls-pi/docs/issues/chrome-devtools-axi-loses-selected-page-after-newpage.md`.
 
 On 2026-09-29 during the independent first use of [[projects/concept/issues/keep-the-server-rolled-edition-for-a-visit]], a fresh named isolated session `keep-the-server-rolled-edition-for-a-visit-drive` returned `No page is currently selected` for both initial `open <packaged Session URL>` and `newpage <same URL>`. `pages` listed about:blank and two created Session tabs, all `selected:false`; `selectpage 2` restored the drive. After `stop`, a fresh session's initial `newpage <Session URL>` again returned the error, but `pages` showed the created page and `selectpage 2` restored it. This is another start-with-no-selection encounter; redirect is not needed to explain the initial refusal. Expected: first `open` or `newpage` selects the created page, or returns an actionable page id. Observed: created tabs but no selection; workaround: `pages`, `selectpage <id>`.
+
+disposition, 2026-09-30: filed upstream as https://github.com/kunchenguid/chrome-devtools-axi/issues/155; the owner is the upstream repository. No repair is claimed by closing this capture.

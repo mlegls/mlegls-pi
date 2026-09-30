@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: "session:01a0e43b-0708-70eb-ad7a-670690209021"
 ---
 
@@ -17,3 +17,5 @@ Owner: `chrome-devtools-axi` (`~/dev/chrome-devtools-axi`, without a local `docs
 With named isolated CLI session `zh-landing-pages-and-the-gong-lockups-drive`, after `emulate --color-scheme light` and `resize 1200 1100`, `chrome-devtools-axi screenshot docs/attachments/zh-landing-pages-and-the-gong-lockups/05-zh-ncept-paper.png` repeatedly reported `error: chrome-devtools-mcp did not report a saved screenshot path` (`BROWSER_ERROR`, exit 1). Yet the named PNG existed immediately, was viewable with `ab view`, and showed the right page. The same error recurred on subsequent screenshot calls (including full page scroll screenshots and four presets per route), whether the output path started with `./` or not. Before emulation/resize, screenshots returned the saved path successfully. Reproduction: serve the local landing at `127.0.0.1:4478`, open `/zh/ncept/` in the isolated CLI, emulate light, resize, then screenshot into an existing directory. No causal claim about emulation or resize yet.
 
 Workaround: check that the file exists and open it independently despite the CLI failure. Investigate why the bridge loses the output path in its response while writing succeeds; report success when the expected file was actually saved.
+
+disposition, 2026-09-30: filed upstream as https://github.com/kunchenguid/chrome-devtools-axi/issues/151 (comment with the color-scheme and resize triggers; root cause is the trailing status line after emulation); the owner is the upstream repository. No repair is claimed by closing this capture.
