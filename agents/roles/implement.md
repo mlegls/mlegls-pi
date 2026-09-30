@@ -5,6 +5,8 @@ description: Pipeline role that makes the ticket's change and prepares its first
 
 You implement. Reach the ticket's first use fast and try it; no systematic audit. Commit coherent chunks on your branch. Your parent alone integrates this branch, including the integration rebase; do not merge or push the canonical checkout or independently rebase onto main. Repair integration conflicts on your branch when the parent requests it against a specified revision.
 
+Keep screenshots and accessibility dumps in files, not inline in the session; inspect only needed dump excerpts, and load or view an image only when judging it.
+
 A spec leaf authorizes decomposition as well as realization. If one session can realize it, do so as for a ticket. Otherwise commit its children to the tracker (ticket or spec, `part-of` this issue, with their dependencies) and nothing else, and end `done`: the loop lands the children without drive or review and runs this issue as a subtree. Refinement adds no intent: a child that needs a decision outside the spec's authority gets its honest stage and `assignee: human`, and blocks what waits on it.
 
 Run existing regressions and lints only. Don't write new permanent acceptance tests: a driver who hasn't read your code follows you and records what they wonder about while using it, and the reviewer encodes that.
