@@ -8,4 +8,4 @@ While reviewing [[projects/mlegls-pi/issues/bun-test-ab-selects-disabled-tool-te
 
 Rerunning that file alone: one failure in the first 3 runs (1 fail / 0 / 0), then 6 consecutive passes. The failing run was concurrent with the whole suite; the full error text was not captured.
 
-Proposed improvement (not tried): rerun under load with output captured to see whether line 65 is a race on the full-output file written for oversized output.
+Line 65 is `expect(body).toContain("Grep this file")` on the 60000-character result, i.e. the oversized-output notice was absent from that run. Proposed improvement (not tried): rerun under load with output captured to see why.
