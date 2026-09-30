@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0cd1a-8da4-701c-8253-d1ab9fd2b4e6
 part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
@@ -18,3 +18,7 @@ decisions:
 
 result:
 - [First-user drive packet](../attachments/supervise-as-exception-handler/drive/index.md): the local skill entry, stance, role and CLI help exposed the exception-only owner and interactive-root ledger/status procedure. Live GLM comparison remains the separately owned follow-up, not measured by this instruction-surface drive.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/supervise-as-exception-handler/drive/index.md).
