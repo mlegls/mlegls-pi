@@ -223,7 +223,7 @@ async function supervise(args: string[]) {
 	const dir = join(gitDir, "ab-supervise");
 	const jobs = (await api.status()).filter(j => j.type === "supervise" && (j.input as any).cwd === top && (!ticket || (j.input as any).ticket === ticket));
 	if (verb === "start" && ticket) {
-		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" }, "commands-applied": { type: "string" } } });
+		const { values } = parseArgs({ args: rest, options: { budget: { type: "string" }, test: { type: "string" }, "commands-applied": { type: "string" }, pick: { type: "string", multiple: true } } });
 		const session = process.env.PI_SESSION_ID;
 		if (!session) fail("supervise start runs from the owning pi session (PI_SESSION_ID): it is woken in its mailbox");
 		const owner = (await import("../lib/board/mailbox.ts")).mailbox(session);
@@ -234,13 +234,22 @@ async function supervise(args: string[]) {
 		if (elsewhere) fail("already supervising " + ticket + " (" + elsewhere.id + ", owner " + (elsewhere.input as any).owner + ", checkout " + (elsewhere.input as any).cwd + "); ab supervise status " + ticket + " there");
 		const previous = jobs.at(-1);
 		mkdirSync(dir, { recursive: true });
+		// --pick role=agent chooses that role's agent without the Decision API (e.g. during its outage); picks carry over.
+		const picks = { ...((previous?.input as any)?.picks ?? {}) } as Record<string, string>;
+		for (const p of values.pick ?? []) {
+			const m = /^([a-z]+)=([a-z][a-z0-9-]*)?$/.exec(p);
+			if (!m) fail("--pick takes role=agent (role= clears): " + p);
+			const names = (await import("../lib/agents.ts")).byRole(m[1]).map(a => a.name);
+			if (m[2] && !names.includes(m[2])) fail("--pick " + p + ": " + m[1] + " agents are " + (names.join(", ") || "none"));
+			if (m[2]) picks[m[1]] = m[2]; else delete picks[m[1]];
+		}
 		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
 		const commandsApplied = values["commands-applied"] === undefined ? undefined : Number(values["commands-applied"]);
 		const commands = join(dir, ticket + ".commands.jsonl");
 		const count = existsSync(commands) ? readFileSync(commands, "utf8").split("\n").filter(Boolean).length : 0;
 		if (commandsApplied !== undefined && (!Number.isSafeInteger(commandsApplied) || commandsApplied < 0 || commandsApplied > count)) fail("--commands-applied must be a record count between 0 and " + count);
 		if (!previous && count && commandsApplied === undefined) fail("existing command log without job state: inspect " + commands + " and start with --commands-applied N");
-		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 8), test: values.test, commands, commandsApplied, carried: previous?.state ?? null };
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: Number(values.budget ?? 8), test: values.test, commands, commandsApplied, carried: previous?.state ?? null, ...(Object.keys(picks).length ? { picks } : {}) };
 		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
 		console.log(record.id + " " + record.status + (previous ? " (continuing " + previous.id + ")" : ""));
 		return;
@@ -307,13 +316,13 @@ async function supervise(args: string[]) {
 		appendFileSync(commands, command);
 		const owner = (await import("../lib/board/mailbox.ts")).mailbox(session);
 		const id = "supervise-" + ticket.replace(/[^A-Za-z0-9_-]/g, "-") + "-" + Date.now().toString(36);
-		const input = { ticket, cwd: top, owner, ownerSession: session, budget: 8, commands, commandsApplied: count, carried: previous?.state ?? null };
+		const input = { ticket, cwd: top, owner, ownerSession: session, budget: 8, commands, commandsApplied: count, carried: previous?.state ?? null, ...((previous?.input as any)?.picks ? { picks: (previous!.input as any).picks } : {}) };
 		const record = await api.start("supervise", input, { id, stateFile: join(dir, id + ".json") });
 		console.log(record.id + " " + record.status + " adopting " + child + " at " + phase);
 		return;
 	}
 	if (verb === "stop" && ticket) { for (const j of jobs.filter(j => j.status === "running")) console.log(JSON.stringify((await api.stop(j.id)).status)); return; }
-	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | adopt <ticket> <child> <run/handle>... [--phase implement|drive|review] | stop <ticket> | loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E] [--status | --stop]");
+	fail("usage: ab supervise start <ticket> [--budget N] [--test CMD] [--commands-applied N] [--pick role=agent]... | status [ticket] | resume <ticket> <child> verify|integrate|drop|redispatch | adopt <ticket> <child> <run/handle>... [--phase implement|drive|review] | stop <ticket> | loop [target] [--budget N] [--timebox MIN] [--test CMD] [--model M] [--effort E] [--status | --stop]");
 }
 
 

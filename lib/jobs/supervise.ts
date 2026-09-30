@@ -12,6 +12,7 @@ import { basename, dirname, join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
 import { dispatch, integrate, retire as retireWorker, topic, type Handle } from "../dispatch.ts";
 import * as route from "../route.ts";
+import { byRole } from "../agents.ts";
 import { DecisionApiUnavailableError } from "../decide.ts";
 import * as children from "../children.ts";
 import { parse } from "../report.ts";
@@ -22,6 +23,8 @@ import { workmuxStatus } from "../wm.ts";
 import { scopes } from "../board/scopes";
 import { tracer } from "./events.ts";
 export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; commandsApplied?: number; carried?: State | null;
+ // Owner-chosen agent per role (e.g. { review: "reviewer" }): launches skip the Decision API for these roles.
+ picks?: Record<string, string>;
  // Batch mode (lib/jobs/loop.ts): run exactly these items, and on any exception defer the child (retire it,
  // keep its branch, append to the ledger) instead of waking an owner. The run returns when the batch drains.
  items?: string[]; ledger?: string; deadline?: number; run?: string;
@@ -330,7 +333,7 @@ const checkStartup = async (live: Child[]) => {
  }
 };
  const launch = async (slug: string, phase: Phase, prompt: string, base: string, assignee?: string | null) => {
-  const prepared = await route.prepareRole(phase, prompt, { assignee: assignee ?? "agent" });
+  const prepared = await route.prepareRole(phase, prompt, { assignee: assignee ?? "agent", ...(input.picks?.[phase] ? { pick: input.picks[phase] } : {}) });
   if (prepared.kind !== "ready") throw new Error("routing needs triage for " + slug);
   const receipt = await dispatch([{ handle: phase === "implement" || phase === "supervise" ? slug : slug + "-" + phase + (state.children[slug]?.previous?.length ? "-" + state.children[slug].previous!.length : ""), prompt, agent: prepared.agent, role: phase, model: prepared.model, effort: prepared.effort, base }],
    { run: input.run ?? input.ticket, cwd: input.cwd, maxConcurrent: 1, active: [], parent });
@@ -715,7 +718,11 @@ const checkStartup = async (live: Child[]) => {
  if (batch) { record({ kind: "barrier", tests: state.tests ?? [], integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
  if (state.decisionUnavailable && Object.keys(state.decisionUnavailable).length) {
   const unavailable = Object.entries(state.decisionUnavailable).map(([slug, reason]) => "- " + slug + ": " + reason).join("\n");
-  await wake("Decision API unavailable; no worker was launched for:\n" + unavailable + "\n\nOnce the service recovers, resume this loop with `ab supervise start " + input.ticket + "`.");
+  // The owner picks instead of waiting out the outage: only roles with several agents consult the Decision API.
+  let choices = "(roster unreadable: see the role: lines in ~/.pi/agent/agents)";
+  try { choices = ["implement", "review", "drive", "consolidate", "supervise"].map(r => [r, byRole(r).map(a => a.name)] as const).filter(([, names]) => names.length > 1)
+   .map(([r, names]) => "- " + r + ": " + names.join(", ")).join("\n"); } catch {}
+  await wake("Decision API unavailable; no worker was launched for:\n" + unavailable + "\n\nPick the agents yourself and restart: `ab supervise start " + input.ticket + " --pick <role>=<agent>` (repeatable; picks persist across restarts until replaced). Choices:\n" + choices + "\n\nOr resume the same way without --pick once the service recovers.");
   await deliveries;
   return;
  }

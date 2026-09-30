@@ -39,7 +39,7 @@ async function start(carried){control=new AbortController();current=null;
 const first=await start(null);
 expect(first.metrics.launched).toBe(0);expect(launched).toBe(0);expect(attempts).toBe(1);
 expect(first.decisionUnavailable.probe).toContain('Decision API unavailable: HTTP 402 after one attempt');
-expect(notifications).toHaveLength(1);expect(notifications[0]).toContain('Once the service recovers, resume this loop');
+expect(notifications).toHaveLength(1);expect(notifications[0]).toContain('Pick the agents yourself and restart');
 writeFileSync(join(${JSON.stringify(root)},'saved.json'),JSON.stringify(first));
 status=200;const second=await start(first);
 expect(second.metrics.launched).toBe(1);expect(second.decisionUnavailable).toBeUndefined();expect(second.children.probe.phase).toBe('implement');

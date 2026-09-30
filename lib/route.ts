@@ -27,6 +27,8 @@ export interface RouteOptions {
   policyPath?: string;
   /** Explicit absence is unassigned, not unrestricted. */
   assignee?: string;
+  /** prepareRole: the caller's agent for this role when no agent pin binds it, instead of asking the Decision API. */
+  pick?: string;
   // Fraction of the caller's routing ceiling consumed, keyed by provider; advisory input to continuation only.
   usage?: Record<string, number | null>;
   /** Quota windows by pi provider; read from quota-axi when omitted. */
@@ -144,6 +146,11 @@ export async function prepareRole(role: string, task: string, options: RouteOpti
   // An agent pin binds its agent's role; a bare model pin binds the implementer.
   const binds = pin.stance ? eligible.includes(pin.stance) : role === 'implement';
   const scoped = binds ? options : { ...options, assignee: 'agent' };
+  if (options.pick && !(binds && pin.stance)) {
+    if (!eligible.includes(options.pick)) throw new Error('Picked agent ' + options.pick + ' does not fill role ' + role + ' (' + eligible.join(', ') + ')');
+    // A bare model pin still binds the implementer's execution alongside the pick.
+    scoped.assignee = 'agent:' + options.pick + (binds && scoped.assignee && scoped.assignee !== 'agent' ? ', ' + scoped.assignee : '');
+  }
   return prepare(task, { ...scoped, stance: eligible.length === 1 ? eligible[0] : undefined, allowedStances: eligible });
 }
 

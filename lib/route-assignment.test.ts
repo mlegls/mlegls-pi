@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agent, executions } from './agents.ts';
-import { candidates, prepare, route, assigned } from './route.ts';
+import { candidates, prepare, prepareRole, route, assigned } from './route.ts';
 import { dispatch } from './dispatch.ts';
 
 const shares = { 'openai-codex': { quota: 'codex', noninteractive: 0.8 }, anthropic: { quota: 'claude', noninteractive: 0.5 }, zai: { quota: 'zai', noninteractive: 0.9 } };
@@ -89,4 +89,15 @@ test('host model lines override the roster without overriding explicit pins', as
   const pinned = await prepare('A bounded edit', { ...options, assignee: 'agent:fill, model:zai/glm-5.3-flash:high' });
   expect([pinned.model, pinned.effort]).toEqual(['zai/glm-5.3-flash', 'high']);
   await expect(prepare('A bounded edit', { ...options, unavailableProviders: { deepseek: 'offline' } })).rejects.toThrow('capacity');
+});
+
+test('a role pick replaces the Decision API but yields to an agent pin for that role', async () => {
+  const review = await prepareRole('review', 'Review a change', { assignee: 'agent', pick: 'reviewer', ...idle });
+  expect(review.kind === 'ready' && review.agent).toBe('reviewer');
+  // An implement pin does not bind review, so the pick still applies there.
+  expect((await prepareRole('review', 'Review a change', { assignee: 'agent:fill', pick: 'visual-reviewer', ...idle })).stance).toBe('visual-reviewer');
+  expect((await prepareRole('implement', 'A bounded edit', { assignee: 'agent:fill', pick: 'auto', ...idle })).stance).toBe('fill');
+  const modelPinned = await prepareRole('implement', 'A bounded edit', { assignee: 'model:zai/glm-5.3-flash:high', pick: 'fill', ...idle });
+  expect([modelPinned.stance, modelPinned.model]).toEqual(['fill', 'zai/glm-5.3-flash']);
+  await expect(prepareRole('review', 'Review a change', { assignee: 'agent', pick: 'fill', ...idle })).rejects.toThrow('does not fill role review');
 });
