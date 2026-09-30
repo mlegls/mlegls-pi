@@ -68,13 +68,16 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let elidedCount = 0;
 	let hibernating = false;
 	let captureRequests = false;
+	// Pi retires this extension instance before invalidating its contexts. Late
+	// agent_settled delivery must not read even a property of the retired ctx.
+	let retired = false;
 	// Invalidate callbacks that may already be queued when a session event cancels the timer.
 	let hibernateToken: object | undefined;
 	let idleTimer: ReturnType<typeof setTimeout> | undefined;
 	const cancelHibernate = () => { hibernateToken = undefined; clearTimeout(idleTimer); idleTimer = undefined; };
 	pi.on("agent_start", cancelHibernate);
 	pi.on("session_start", cancelHibernate);
-	pi.on("session_shutdown", cancelHibernate);
+	pi.on("session_shutdown", () => { retired = true; cancelHibernate(); });
 	pi.on("model_select", cancelHibernate);
 	pi.on("session_compact", cancelHibernate);
 	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; elidedCount = 0; });
@@ -212,6 +215,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	// Preserve the warm prefix until the supervisor has actually been idle for a cache lifetime.
 	pi.on("agent_settled", (_event, ctx) => {
 		cancelHibernate();
+		if (retired) return;
 		const s = settings(ctx.cwd);
 		if (!s.enabled || !s.hibernate.enabled || busy || !ctx.model || ctx.hasPendingMessages()) return;
 		const session = ctx.sessionManager.getSessionId(), model = modelKey(ctx);
