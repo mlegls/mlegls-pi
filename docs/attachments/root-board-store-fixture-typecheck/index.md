@@ -49,4 +49,4 @@ Disposition of driver frictions and expectations:
 
 - Omitted-sender normalization, readback and absence of the fixture diagnostic: verified here; all required claims held.
 - Missing setup handoff: recorded this encounter under the existing idea [[projects/mlegls-pi/issues/supervised-study-drive-lacks-setup-handoff]]. The README/ticket workaround sufficed for this CLI journey.
-- Non-green root check: Obsidian errors remain owned by [[projects/mlegls-pi/issues/root-typecheck-obsidian-environment]]; newly observed memory errors filed separately as [[projects/mlegls-pi/issues/root-typecheck-memory-diagnostics]]. Neither is an acceptance requirement of this fixture repair. No diagnostic was hidden or ignored by a changed compiler configuration.
+- Non-green root check: Obsidian errors remain owned by [[projects/mlegls-pi/issues/archive/root-typecheck-obsidian-environment]]; newly observed memory errors filed separately as [[projects/mlegls-pi/issues/archive/root-typecheck-memory-diagnostics]]. Neither is an acceptance requirement of this fixture repair. No diagnostic was hidden or ignored by a changed compiler configuration.

@@ -17,4 +17,4 @@ Drive packet: [[projects/concept/attachments/let-local-convex-reach-providers-th
 
 2026-09-29, usable-seed review: a disposable Playwright replay also filled the Session composer immediately after navigation, then found an empty textarea and disabled Send while the model remained `scripted/tutor`. No message was sent. The existing `say` helper (`test/browser/recorded/plan.start-a-plan.ts`) uses `pressSequentially` and verifies the value before sending; using it successfully sent and reloaded both seeded Sessions ([[projects/concept/attachments/seed-usable-sessions-completed-mission-and-review/index|packet]]). This widens the reproduction beyond the CLI; hydration/draft initialization versus controlled-input event handling remains undiagnosed. Do not attribute it specifically to chrome-devtools-axi from this observation.
 
-Related in this tracker: [[projects/mlegls-pi/issues/chrome-devtools-axi-fill-does-not-enable-controlled-session-send]].
+Related in this tracker: [[projects/mlegls-pi/issues/archive/chrome-devtools-axi-fill-does-not-enable-controlled-session-send]].

@@ -6,7 +6,7 @@ author: session:01a0e217-e2af-7760-9a10-b4be54db2d0a
 ---
 
 Owner: deepseek-harness host tool/session APIs. During
-[[projects/mlegls-pi/issues/dsh-memory-compaction-provider]], a temporary plugin
+[[projects/mlegls-pi/issues/archive/dsh-memory-compaction-provider]], a temporary plugin
 called `ctx.tools.execute(run_code)` on an idle agent. The call succeeded and
 returned the full original event, but reload rejected its PTC dispatch events as
 outside a turn. Adding turn markers by hand was not a complete fix: the live

@@ -7,4 +7,4 @@ Observed 2026-09-27 in the concept `loop-all` run for `keep-first-connect-from-l
 
 Where it comes from: `lib/jobs/supervise.ts` `toDrive` forwards the implementer's `setup` handoff verbatim (`"Setup handoff from the implementer:\n" + yaml(c.setup)`), and implementers record concrete ports and URLs as the runnable entry point.
 
-Possible direction (not decided): a setup handoff describes deployment kind, persona, seed and commands, and marks concrete ports/URLs as the writer's worktree only; or the drive prompt says to derive ports from its own worktree's setup. Related, done: [[projects/mlegls-pi/issues/verifier-setup-survives-worktrees]].
+Possible direction (not decided): a setup handoff describes deployment kind, persona, seed and commands, and marks concrete ports/URLs as the writer's worktree only; or the drive prompt says to derive ports from its own worktree's setup. Related, done: [[projects/mlegls-pi/issues/archive/verifier-setup-survives-worktrees]].

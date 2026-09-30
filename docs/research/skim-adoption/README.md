@@ -50,7 +50,7 @@ Nine of ten do not settle into almost-all whole-call raw use. That does **not** 
 
 The next useful paired replay is a **real recovery episode**: the omitted admission function, omitted recording-tool body, or repeated lint read. Compare the original filtered response with exact source while allowing pull, focus and narrowed reread. Score the next decision and recovery work, not just sentence fidelity or whether `raw` appears. The article episode offers a factual-grounding case with successful recovery rather than a presumed failure.
 
-No compressor, fidelity prompt, model routing or host behavior changed. The existing [[projects/mlegls-pi/issues/skims-drop-the-conditions-in-instructions]] owns further task-accuracy/recovery calibration. The separate command-prefix/read-back defect found in the prior audit is not re-tested here. Broad task success, unnoticed reliance on skims, fresh exec adoption, actual per-session policy revision, and a matched raw/filter completion comparison remain unmeasured. Those limits are accepted for this bounded observational pass, not implementation promises.
+No compressor, fidelity prompt, model routing or host behavior changed. The existing [[projects/mlegls-pi/issues/archive/skims-drop-the-conditions-in-instructions]] owns further task-accuracy/recovery calibration. The separate command-prefix/read-back defect found in the prior audit is not re-tested here. Broad task success, unnoticed reliance on skims, fresh exec adoption, actual per-session policy revision, and a matched raw/filter completion comparison remain unmeasured. Those limits are accepted for this bounded observational pass, not implementation promises.
 
 ## Reproduction
 

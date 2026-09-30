@@ -12,4 +12,4 @@ Possible directions (not decided):
 - Before the check, and again before the merge, integrate names the dirty owner paths that overlap the branch and waits for them (or mails their writer, if a session claims the worktree), instead of failing after the check.
 - When the ff fails because the owner moved, integrate rebases again. If the new owner commits touch only paths the check does not read (configured per project, e.g. `docs/issues/**`), it fast-forwards without re-running the check.
 
-Related: [[projects/mlegls-pi/issues/close-a-supervised-ticket-inside-its-branch]] accepts "an outside commit may cause a surfaced fast-forward failure" as a limit; [[projects/mlegls-pi/issues/supervise-worktrees-start-without-project-setup]] covers the reinstall after a lockfile-changing rebase.
+Related: [[projects/mlegls-pi/issues/archive/close-a-supervised-ticket-inside-its-branch]] accepts "an outside commit may cause a surfaced fast-forward failure" as a limit; [[projects/mlegls-pi/issues/archive/supervise-worktrees-start-without-project-setup]] covers the reinstall after a lockfile-changing rebase.

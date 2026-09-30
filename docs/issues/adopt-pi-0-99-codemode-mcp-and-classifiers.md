@@ -9,7 +9,7 @@ Pi 0.99.0 (2026-09-29; installed is 0.87.1) adds, as built-in extensions: codemo
 
 Each overlaps something we own:
 - codemode vs `extensions/exec`: exec's kernel is Node with lib imports, async output handles and late delivery (`lib/ingress.ts` novelty), board/wm/loadSkill/views. Codemode reaches only tools. Candidate shape: expose lib capabilities as codemode-exposed tools and retire the kernel; what's lost is imports and async handles.
-- native MCP supersedes [[projects/mlegls-pi/issues/mcp-through-exec]].
+- native MCP supersedes [[projects/mlegls-pi/issues/archive/mcp-through-exec]].
 - `ModelRuntime.classify()` could own `lib/decide.ts`'s transport and credentials (TypeSafe/Cloudflare today), giving provider fallback and cost accounting for free; `lib/decide.ts` would keep its question shapes.
 - virtual models vs `lib/route.ts` model selection.
 - 1 MiB structured bash results vs the bash extension's spill-backed truncation.

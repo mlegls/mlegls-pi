@@ -1,6 +1,6 @@
 # Orchestrate rework effect — 2026-09-30
 
-Question, from [[docs/issues/orchestrate-rework-effect]]: did the orchestrate
+Question, from [[projects/mlegls-pi/issues/archive/orchestrate-rework-effect]]: did the orchestrate
 rework (`a7f7a98` in system-config, 2026-09-15 11:33 +0800, "Route routine
 work explicitly and reclassify at phase boundaries") work? It changed three
 files: `agents/research.md:9` (verify conclusions against the cited source),

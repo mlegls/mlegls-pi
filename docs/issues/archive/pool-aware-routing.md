@@ -6,7 +6,7 @@ part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 
 ## Disposition — 2026-09-22
 
-The provider-slack research and usage-aware routing seam are delivered. lib/route.ts consumes caller-supplied usage, excludes unavailable/exhausted candidates, and follows the current routing policy; lib/pool.ts supplies the cost calculation. The historical fixed role table is superseded. Automatic provider telemetry was not delivered and is a separate proposal: [[projects/mlegls-pi/issues/collect-provider-quota-telemetry]]. [Routing encounter](../../research/session-routing-verification-2026-09-21.md).
+The provider-slack research and usage-aware routing seam are delivered. lib/route.ts consumes caller-supplied usage, excludes unavailable/exhausted candidates, and follows the current routing policy; lib/pool.ts supplies the cost calculation. The historical fixed role table is superseded. Automatic provider telemetry was not delivered and is a separate proposal: [[projects/mlegls-pi/issues/archive/collect-provider-quota-telemetry]]. [Routing encounter](../../research/session-routing-verification-2026-09-21.md).
 
 ## Prior scope and evidence
 

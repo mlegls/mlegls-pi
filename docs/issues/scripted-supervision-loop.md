@@ -15,7 +15,7 @@ The gate was live runs of the `supervise` skill; the 2026-09-23 concept campaign
 
 The comparative execution study [[projects/mlegls-pi/issues/loop-vs-supervision-tree]] (including hibernation) is a separate experimental scope, not a prerequisite for delivering this loop.
 
-substeps: [[projects/mlegls-pi/issues/ab-daemon]], [[projects/mlegls-pi/issues/host-child-events]] and [[projects/mlegls-pi/issues/worker-turn-end-report]] in parallel; then [[projects/mlegls-pi/issues/supervision-phase-loop]]; then [[projects/mlegls-pi/issues/supervise-as-exception-handler]].
+substeps: [[projects/mlegls-pi/issues/archive/ab-daemon]], [[projects/mlegls-pi/issues/archive/host-child-events]] and [[projects/mlegls-pi/issues/archive/worker-turn-end-report]] in parallel; then [[projects/mlegls-pi/issues/archive/supervision-phase-loop]]; then [[projects/mlegls-pi/issues/supervise-as-exception-handler]].
 
 decisions:
 - 2026-09-23: the script owns the loop. It runs in an `ab` daemon; the library lives in `lib/` (successor to `lib/supervise.ts`, which is workmux/board-bound).

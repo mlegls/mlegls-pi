@@ -4,7 +4,7 @@ assignee: human
 priority: 1
 ---
 
-A coherent harness-integrated library, skills and human surfaces reduce orchestration overhead. The repository merge and project-local exec modules are delivered; skills remain skills. Current dispatch uses workmux/tmux and the board ([[projects/mlegls-pi/dispatch]]); Orca and Paseo execution adapters are retired. The optional [[projects/mlegls-pi/issues/dsh-port]] is delivered. Choosing the human cockpit remains open in [[projects/mlegls-pi/issues/home-ui]].
+A coherent harness-integrated library, skills and human surfaces reduce orchestration overhead. The repository merge and project-local exec modules are delivered; skills remain skills. Current dispatch uses workmux/tmux and the board ([[projects/mlegls-pi/dispatch]]); Orca and Paseo execution adapters are retired. The optional [[projects/mlegls-pi/issues/archive/dsh-port]] is delivered. Choosing the human cockpit remains open in [[projects/mlegls-pi/issues/home-ui]].
 
 Residual work: reconcile the remaining human-surface choices and accept the composed workflow against the recorded orchestration costs. Children own bounded preparation, measurement and delivery; their results do not by themselves certify the whole workflow. The dated decisions below preserve the route, including superseded proposals.
 
@@ -18,7 +18,7 @@ Original decomposition, roughly in dependency order (archived links include deli
 5. "[[projects/mlegls-pi/issues/archive/pool-aware-routing]]", "[[projects/mlegls-pi/issues/archive/campaign-coordinator]]".
 6. "[[projects/mlegls-pi/issues/archive/skills-triage]]" then "[[projects/mlegls-pi/issues/archive/repo-merge]]".
 7. "[[projects/mlegls-pi/issues/home-ui]]", "[[projects/mlegls-pi/issues/archive/operon-adapter]]" — the human surfaces; independent of the rest.
-8. "[[projects/mlegls-pi/issues/archive/orchestration-audits]]" — remaining hypotheses; "[[projects/mlegls-pi/issues/reranker-eval]]" gates how much of the filter to build.
+8. "[[projects/mlegls-pi/issues/archive/orchestration-audits]]" — remaining hypotheses; "[[projects/mlegls-pi/issues/archive/reranker-eval]]" gates how much of the filter to build.
 
 decisions:
 - 2026-09-18: skills dissolve into docs (conventions), scripts (procedures), and prompts (stances); one index replaces the skill list.

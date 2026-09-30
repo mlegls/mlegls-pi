@@ -12,4 +12,4 @@ A worker that dies on a provider error posts nothing to the board, and its paren
 
 The worker session file records the death (`stopReason: error`), but `wm.ts status` at 16:13 listed the dead worker as `done` beside workers that had reported, so process status alone does not distinguish a death from a report.
 
-Idea: whichever owner emits worker liveness to a parent (today `wm.ts status` and the board; `ab supervise` since) could post or wake on "worker session ended without a `done`/`blocked`/`needs-input` report". Related existing owner: [[projects/mlegls-pi/issues/surface-stale-waits-after-owner-replies]] covers stale waits after replies, not deaths without a report.
+Idea: whichever owner emits worker liveness to a parent (today `wm.ts status` and the board; `ab supervise` since) could post or wake on "worker session ended without a `done`/`blocked`/`needs-input` report". Related existing owner: [[projects/mlegls-pi/issues/archive/surface-stale-waits-after-owner-replies]] covers stale waits after replies, not deaths without a report.

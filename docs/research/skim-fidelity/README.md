@@ -41,11 +41,11 @@ Explanatory reads render 30,552 bytes from 35,004 input bytes (12.7% reduction, 
 
 The existing historical `design.md` specimen has a 4,439-character command ending in `ls -l design.md; sed -n '1,110p' design.md`. `ingressContext` includes only `code.slice(0, 4000)`, stopping inside the heredoc. The read-back operation never reaches the fidelity judge. Both current adapters use this builder.
 
-`readback.ts` replays the recorded source/query locally, then changes only the query to include the complete command, or supplements it with explicit verification focus. The recorded query skims the introduction and atlas section in both runs; full-command and explicit-focus variants retain all five chunks in both runs. This supports truncation as a contributor for this specimen, not a universal explanation of read-back failures. Receipts retain hashes and distributions, not the private conversation/source. Owner: [[projects/mlegls-pi/issues/ingress-command-prefix-hides-readback-intent]].
+`readback.ts` replays the recorded source/query locally, then changes only the query to include the complete command, or supplements it with explicit verification focus. The recorded query skims the introduction and atlas section in both runs; full-command and explicit-focus variants retain all five chunks in both runs. This supports truncation as a contributor for this specimen, not a universal explanation of read-back failures. Receipts retain hashes and distributions, not the private conversation/source. Owner: [[projects/mlegls-pi/issues/archive/ingress-command-prefix-hides-readback-intent]].
 
 ### Consequences and limits
 
-Do not treat token-deleted prose as a faithful explanation merely because exact-action prompts select verbatim. Existing exact skill activation remains useful, but does not protect explanations of ordinary source. The open semantic owner is [[projects/mlegls-pi/issues/skims-drop-the-conditions-in-instructions]].
+Do not treat token-deleted prose as a faithful explanation merely because exact-action prompts select verbatim. Existing exact skill activation remains useful, but does not protect explanations of ordinary source. The open semantic owner is [[projects/mlegls-pi/issues/archive/skims-drop-the-conditions-in-instructions]].
 
 Before adding another fidelity rule or judge, compare the existing exact-excerpt representation against full passages on matched explanation tasks, including missing cross-paragraph qualifications. Separately preserve read-back intent through bounded context construction. These are proposed next steps; this audit changes neither runtime policy nor model routing.
 
