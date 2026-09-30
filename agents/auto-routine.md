@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for straightforward tasks.
-model: prefer openai-codex/gpt-6-luna:max. if oai is overutilized, use zai/glm-5.3-flash:high or anthropic/claude-sonnet-5-5:medium
+model: openai-codex/gpt-6-luna:max, zai/glm-5.3-flash:high, anthropic/claude-sonnet-5-5:medium
 role: implement
 ---
 

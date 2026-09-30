@@ -1,7 +1,7 @@
 ---
 name: ui
 description: UI/UX work requiring design taste (interaction, hierarchy, affordances, state legibility, visual design). Not implementation from an existing design or simple adjustments with settled intent.
-model: prefer anthropic/claude-sonnet-5-5:high. if anthropic is overutilized, use openai-codex/gpt-6.1-sol:high
+model: anthropic/claude-sonnet-5-5:high, openai-codex/gpt-6.1-sol:high
 role: implement
 ---
 

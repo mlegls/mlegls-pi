@@ -1,6 +1,6 @@
-## Agent model lines
+## Agent model lists
 
-Each agent file's `model:` line says in prose which `provider/model:effort` to use, and when to use another (e.g. "prefer openai-codex/gpt-6.1-sol:high. if oai is overutilized, use anthropic/claude-sonnet-5-5:high"). Routing chooses among the candidates the line names, reading the line against live usage (a provider is overutilized above about 0.8 of its routing ceiling); it doesn't choose models from this file. An `agent:<stance>` assignment keeps the stance's line, fallbacks included; `model:<provider>/<model>:<effort>` is exact and refuses unavailable execution. The reasoning behind the lines is in `docs/models.md`.
+Each agent file's `model:` is a list of `provider/model:effort`, most preferred first (e.g. `openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high`). Routing takes the first entry whose provider has delegated capacity left (`allocation.json`, `lib/allocation.ts`); it doesn't choose models from this file. An `agent:<stance>` assignment keeps the stance's list, fallbacks included; `model:<provider>/<model>:<effort>` is exact and refuses unavailable execution. The reasoning behind the lists is in `docs/models.md`.
 
 ## Assignment stances
 
@@ -23,7 +23,7 @@ Choose the stance whose deliverable fits, for the lowest wall time to accepted c
 
 ## Continuation actions
 
-Relevant warm context has future value; spent tokens are sunk cost. Compare remaining cost to accepted completion, including cached/uncached input, handoff preparation, rediscovery, verification, and repair. Use observed cache telemetry where available; unknown cache hits, expiry, or quota are not free capacity. A provider at its routing ceiling is unavailable for continued metered work under that policy.
+Relevant warm context has future value; spent tokens are sunk cost. Compare remaining cost to accepted completion, including cached/uncached input, handoff preparation, rediscovery, verification, and repair. Use observed cache telemetry where available; unknown cache hits, expiry, or quota are not free capacity. A provider past its delegated share (`allocation.json`) is unavailable for continued delegated work.
 
 - `continue`: The current session can finish within its authority and its relevant context is worth retaining. Keep its model; routine continuation needs no fresh admission decision.
 - `consult`: A bounded decision or specialist investigation can unblock the current session. A small evidence packet suffices for a separate expert session, after which the warm session can resume.
@@ -36,7 +36,7 @@ Route model/effort at fresh-session boundaries. Escalation normally creates a co
 The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design. Complex triage goes to a fresh session-triage assignment.
 
 ## Session roles
-- Fresh delegated sessions use their agent's model line; the `prune` stance is the simplifying-replacement route.
+- Fresh delegated sessions use their agent's model list; the `prune` stance is the simplifying-replacement route.
 - Routing places delegated assignments and identifies closure gaps; it does not choose an interactive session's purpose.
 - A parent-session model suggestion is optional user/harness advice, never a prerequisite or a judgment of the current model.
 

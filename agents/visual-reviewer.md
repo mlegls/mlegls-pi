@@ -1,7 +1,7 @@
 ---
 name: visual-reviewer
 description: Review rendered work: judges what a user sees from screenshots or by driving the surface, and repairs visual and UX defects directly.
-model: prefer anthropic/claude-opus-5-5:medium. if anthropic is overutilized, use openai-codex/gpt-6.1-sol:high, which is weaker at visual judgment
+model: anthropic/claude-opus-5-5:medium, openai-codex/gpt-6.1-sol:high
 role: review
 ---
 

@@ -7,16 +7,16 @@ export const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "a
 
 export interface Execution { model: string; effort: string }
 
-/** `provider/model:effort` candidates named in an agent's prose `model:` line, in order. */
+/** The `provider/model:effort` entries of an agent's `model:` list, most preferred first. */
 export function executions(line: string): Execution[] {
 	return [...line.matchAll(/([\w-]+\/[\w.-]+):(off|none|minimal|low|medium|high|xhigh|max)\b/g)].map(m => ({ model: m[1], effort: m[2] }));
 }
 
 export interface Agent {
 	name: string;
-	/** Prose model line, e.g. "prefer a/b:high. if a is overutilized, use c/d:medium"; routing reads it under live usage. */
+	/** `model:` list, most preferred first, e.g. "openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high"; routing takes the first with delegated capacity left. */
 	routing?: string;
-	/** The line's first candidate: the preference when nothing argues against it. */
+	/** The list's first entry. */
 	model?: string;
 	effort?: string;
 	checkpoint?: string; // context ratio at which the fence extension fires; see extensions/fence
@@ -37,7 +37,7 @@ export function agent(name: string): Agent | undefined {
 		if (i > 0) fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
 	}
 	const first = fm.model ? executions(fm.model)[0] : undefined;
-	if (fm.model && !first) throw new Error(`Agent ${name}: model line names no provider/model:effort`);
+	if (fm.model && !first) throw new Error(`Agent ${name}: model list names no provider/model:effort`);
 	return { name, routing: fm.model, model: first?.model, effort: first?.effort, checkpoint: fm.checkpoint, roles: fm.role ? fm.role.split(",").map(r => r.trim()).filter(Boolean) : [], body: (m ? text.slice(m[0].length) : text).trim() };
 }
 

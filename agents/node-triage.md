@@ -1,7 +1,7 @@
 ---
 name: node-triage
 description: Triage inside one subtree of the synchronous ticket loop: picks each cycle's batch among a node's children.
-model: prefer anthropic/claude-opus-5-5:low. if anthropic is overutilized, use openai-codex/gpt-6.1-sol:medium
+model: anthropic/claude-opus-5-5:low, openai-codex/gpt-6.1-sol:medium
 role: triage
 ---
 

@@ -1,6 +1,6 @@
 # Models
 
-Reasoning behind the `model:` lines in `agents/`. The router doesn't read this; read it when writing or revising a model line. Valid `provider/model:effort` pairs are the Active catalog in `routing.md` (IDs from `pi --list-models`).
+Reasoning behind the `model:` lists in `agents/`. The router doesn't read this; read it when writing or revising a model list. How much of each provider delegated work may use is `allocation.json`. Valid `provider/model:effort` pairs are the Active catalog in `routing.md` (IDs from `pi --list-models`).
 
 ## Capacity
 
@@ -24,4 +24,4 @@ Subscription use is not the same as list-price spending. Prefer using available 
 
 Distinguish visual perception, GUI grounding, interactive computer use, and visual judgment; also consider tool/harness compatibility, data-use permissions, effort-specific evidence, and subscription availability. An aggregate benchmark rank or token price alone is not an admission rule.
 
-Evaluate a model line by accepted completion, total workstream cost and wall time, parent repair, and escalation/handoff loss, not token price alone. Compare strong-from-start against cheap-then-consult/replace.
+Evaluate a model list by accepted completion, total workstream cost and wall time, parent repair, and escalation/handoff loss, not token price alone. Compare strong-from-start against cheap-then-consult/replace.

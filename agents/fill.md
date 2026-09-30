@@ -1,7 +1,7 @@
 ---
 name: fill
 description: Implement a thoroughly specced change. Use for parallelizing work you would essentially be able to do in the next turn otherwise.
-model: prefer openai-codex/gpt-6-luna:high. if oai is overutilized, use zai/glm-5.3-flash:high or deepseek/deepseek-flash:high
+model: openai-codex/gpt-6-luna:high, zai/glm-5.3-flash:high, deepseek/deepseek-flash:high
 role: implement
 ---
 

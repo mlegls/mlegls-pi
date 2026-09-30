@@ -1,7 +1,7 @@
 ---
 name: compile
 description: Worker for a spec leaf whose design is closed but too big for one session; stubs the interfaces, then fans out fill workers.
-model: prefer openai-codex/gpt-6.1-sol:xhigh. if oai is overutilized, use anthropic/claude-opus-5-5:medium
+model: openai-codex/gpt-6.1-sol:xhigh, anthropic/claude-opus-5-5:medium
 role: implement
 ---
 

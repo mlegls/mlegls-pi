@@ -1,7 +1,7 @@
 ---
 name: auto
 description: General auftragstaktik worker for ambiguous tasks.
-model: prefer openai-codex/gpt-6.1-sol:high. if oai is overutilized, use anthropic/claude-sonnet-5-5:high or zai/glm-5.3-flash:high
+model: openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high, zai/glm-5.3-flash:high
 role: implement
 ---
 

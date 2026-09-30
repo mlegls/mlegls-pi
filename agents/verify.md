@@ -1,7 +1,7 @@
 ---
 name: verify
 description: Drive changed behavior as its user would and record what happens: first-use encounters, frictions, expectations, replayable checks.
-model: prefer openai-codex/gpt-6.1-sol:high. if oai is overutilized, use anthropic/claude-sonnet-5-5:high
+model: openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high
 role: drive
 ---
 
