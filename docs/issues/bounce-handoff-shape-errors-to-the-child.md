@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76
 ---
@@ -13,3 +13,7 @@ Handoff parse failures (`handoffError`, e.g. a YAML list item that opens with a 
 review boundary, 2026-09-30: the supervise-loop group (bounce-handoff-shape-errors-to-the-child, address-the-waiting-child-in-exception-mail, supervise-job-dies-on-a-decision-api-503-at-child-launch, surface-stale-waits-after-owner-replies, turn-end-sentinel-parser-rejects-preambles) is reviewed once as a combined delta from `894e8c6` by the root tend session after all five integrate, before the next `ab daemon shutdown` loads them. This is a code review of the combined diff; each leaf's own acceptance review (evidence packet against the ticket) still runs.
 
 Result: malformed reports receive child-directed diagnostics and the verification handoff schema; a second malformed report escalates to the owner. Truthful non-held reviews escalate immediately. Review repaired the retry boundary and reset the allowance when launching a consolidator. [First-use packet and acceptance review](../attachments/bounce-handoff-shape-errors-to-the-child/index.md) record the observed recipients, parser line, successful correction and automated replays in `lib/jobs/supervise.test.ts`. Backend setup-handoff follow-up: [[projects/mlegls-pi/issues/backend-supervisor-test-entry-does-not-expose-handoff-routing]].
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/bounce-handoff-shape-errors-to-the-child/index.md).
