@@ -10,4 +10,4 @@ Triage, 2026-09-30: `lib/session-meta/index.test.ts:45` still leaves `PI_WM_PARE
 
 ## Result
 
-First-use drive: [session metadata isolation evidence](../attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md). Focused test passes with inherited, explicit, and absent parent variables; direct production metadata preservation remains unobserved.
+[Session metadata isolation evidence](../attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md): focused tests pass with inherited and absent parent variables. Review replays fixture restoration in-process and inspects persisted session metadata with parent present and absent through Pi's session-manager API. Production code is unchanged.

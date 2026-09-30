@@ -38,3 +38,32 @@ Local CLI test in this worktree; no deployment URL, server, account, or seeding 
 3. **Fixture restoration.** In an in-process fixture test, set `PI_WM_PARENT_SESSION=drive-probe-parent`, invoke the ticket's `withEnv` fixture with the variable temporarily absent, and inspect `process.env.PI_WM_PARENT_SESSION` after its callback. Accept only if the callback observed absence and the outer value is `drive-probe-parent` afterward; repeat from an originally absent state and accept only if it remains absent. The CLI child-process drive cannot establish this in-process property.
 
 No rendered UI journey; `visual: false`, screenshots: none. No dev server or persistent external resource was started.
+
+## Review — 2026-09-30
+
+Reviewed `dd0836cf..d441dba` with `lib/session-meta/host.ts` and Pi's session-manager persistence boundary. The one-line fixture repair is correct; production code is unchanged. Regression additions are in `f305694`, `lib/session-meta/index.test.ts`.
+
+The following outcomes supersede the first-use gaps above; the original encounter is retained.
+
+| Claim | Outcome | Review evidence |
+| --- | --- | --- |
+| Session-start test ignores inherited parent-session state | **held** | The existing start-entry test now runs with an outer sentinel and with an absent outer value. Both observe no parent inside the fixture, the expected entry, and exactly one entry after restart. |
+| Fixture restores parent-session state | **held** | The same in-process replay checks the environment after the inner fixture returns: sentinel restored when present, absence retained when absent. These environment assertions are unit-level fixture checks. |
+| Production parent-session metadata remains intact | **held** | `persists parent provenance` installs the production extension into the existing test host, forwards `appendEntry` to Pi's real `SessionManager`, and reads the resulting JSONL. The present case contains `parentSession: drive-probe-parent`; the absent case has no such property. Both contain one metadata entry with run, handle, agent and mode. |
+
+### Replays and scope
+
+- Driver checks 1 and 3 are encoded together in the parameterized session-start test. The focused suite now has nine tests rather than six because the ambient states and persisted cases are explicit.
+- Driver check 2 retains the persisted JSONL observation but uses Pi's public session-manager API and a seeded assistant message instead of a configured provider turn. Pi buffers new sessions until the first assistant message; the seed crosses that boundary without credentials or a network call. The host adapter mocks event dispatch and omits live-process bookkeeping. This is extension/persistence integration evidence, not a claim that the full CLI loader or a provider was exercised.
+- `ab check -- env PI_WM_PARENT_SESSION=drive-probe-parent bun test lib/session-meta`: **10 pass, 0 fail**, including the unchanged identity test; 26 assertions.
+- `ab check -- env -u PI_WM_PARENT_SESSION bun test lib/session-meta`: **10 pass, 0 fail**; 26 assertions.
+- `git diff --check`: clean. The full-library failures recorded by the driver were not re-driven; this change only touches session-meta tests.
+
+### Friction disposition
+
+- Aggregate-only success output: outside this ticket; filed [bun-axi#1](https://github.com/mlegls/bun-axi/issues/1), stage idea. Raw `bun test` supplied named results here.
+- Offline RPC did not persist a session: the evidence gap is fixed here with seeded persistence; the reusable drive-setup friction is captured separately in [offline-session-metadata-verification](../../issues/offline-session-metadata-verification.md), stage idea.
+- Broader terminal-session failures: existing owner [session-terminal-regressions-fail-with-extra-shell-sessions](../../issues/session-terminal-regressions-fail-with-extra-shell-sessions.md).
+- Both expectations are now met at the tested extension/persistence boundary; no production behavior was changed and no fresh driver is needed.
+
+Temporary session directories were removed by the tests. No server, browser, container, tunnel or remote deployment was started. Nonvisual evidence; no screenshots.
