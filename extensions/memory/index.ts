@@ -68,8 +68,10 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let elidedCount = 0;
 	let hibernating = false;
 	let captureRequests = false;
+	// Invalidate callbacks that may already be queued when a session event cancels the timer.
+	let hibernateToken: object | undefined;
 	let idleTimer: ReturnType<typeof setTimeout> | undefined;
-	const cancelHibernate = () => { clearTimeout(idleTimer); idleTimer = undefined; };
+	const cancelHibernate = () => { hibernateToken = undefined; clearTimeout(idleTimer); idleTimer = undefined; };
 	for (const event of ["agent_start", "session_start", "session_switch", "session_shutdown", "model_select", "session_compact"] as const)
 		pi.on(event, cancelHibernate);
 	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; elidedCount = 0; });
@@ -211,7 +213,11 @@ export default function memoryExtension(pi: ExtensionAPI) {
 		if (!s.enabled || !s.hibernate.enabled || busy || !ctx.model || ctx.hasPendingMessages()) return;
 		const session = ctx.sessionManager.getSessionId(), model = modelKey(ctx);
 		if (!supervising(session).length) return;
+		const token = {};
+		hibernateToken = token;
 		idleTimer = setTimeout(() => {
+			if (hibernateToken !== token) return;
+			hibernateToken = undefined;
 			idleTimer = undefined;
 			const current = settings(ctx.cwd);
 			if (!current.enabled || !current.hibernate.enabled || busy || !ctx.isIdle() || ctx.hasPendingMessages()
