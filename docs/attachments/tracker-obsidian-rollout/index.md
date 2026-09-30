@@ -38,3 +38,9 @@ View selection used the Base controller's saved-view selection through vault-sco
 - Repeat prepare/rollback on the closed live target: passed; final original Base values preserved and no stale tracker workspace refs remained.
 
 Stopped both owned `ab` services (`3e638a55-0f8f-4508-9312-d41f030b285a`, `381aa540-ba0c-4e47-9758-3826bb86209a`) and the named `tracker-obsidian-rollout` browser bridge. No owned process remains. The shared application was not killed; its live window was closed to avoid two writers. The owned profile was under this worktree's `.wm/` and is disposable. [Native/CLI friction](../../issues/computer-obsidian-vault-chooser-native-drive.md); [socket owner](../../issues/obsidian-cli-socket-taken-by-parallel-instance.md).
+
+## Late-delivered ownership restriction
+
+After this replacement worker's implementation report, an owner message was delivered prohibiting re-running preparation and marking the user's live Obsidian window read-only. Earlier actions described above had already repeated preparation, interacted with Settings in the shared window and closed it, then exercised the live vault in an owned instance. Those actions do not comply with the newly delivered restriction; no further live-vault or GUI changes were made after its receipt. Screenshots had also already been inspected before the instruction to keep them out of context arrived.
+
+Owner disposition is needed for the external changes and shared-window closure. The initial migration remains installed; the original Base values, excluding the added Board, were restored and compared equal. The 11:58 backup records the workspace/dist state before this worker's refresh; the 12:11 repeat/rollback restored the already-migrated target. Do not perform another rollback or reopen the shared window on this worker's authority.
