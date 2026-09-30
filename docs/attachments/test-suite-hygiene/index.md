@@ -54,3 +54,7 @@ The three existing skips are the local concurrent-worker check and two
 vault-dependent tracker checks. No external services or browser pages were
 started; the test commands finished and their temporary resources were
 cleaned up by the tests. `git diff --check` passed.
+
+## First-use drive
+
+[Joined CLI encounter, predictions and replayable checks](driver.md).
