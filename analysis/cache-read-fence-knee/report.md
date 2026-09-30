@@ -1,48 +1,62 @@
-# cache-read knee, opus workers 09-14..16
+# Cache-read knee, Opus workers 09-14..16
 
-corpus: `~/.pi/agent/sessions/*/2026-09-1[456]*.jsonl`, `model_change.modelId=claude-opus-5` ∧ `__worktrees` cwd → **40 sessions, ΣR=1,198,142,082 cache-read tokens, $849.21 list, median $13.23/session** (reproduces parent's 40/$849/median 13.4). axis = assistant-call index (tool-call counts in `sessions.json[].ntools`). x_i := input+cacheRead+cacheWrite (context at call i); s_i := cacheRead.
+Corpus: session files starting 2026-09-14..16, `model_change.modelId=claude-opus-5`, worktree cwd. All 40 selected sessions used only that model. **1,198,142,082 cache-read tokens; $849.21 list-price; median $13.23/session.** Dollars are a corpus cross-check, not a proposed spending fence: subscription models ride weekly pools, so list-price savings are not invoice or pool savings.
 
-## curve shape (curves.json; excerpt transcript-capture-feasibility)
+[Complete worst-first actual/counterfactual table](results.md), [full curves](curves.json), [session summaries](sessions.json), [timestamped knee correlations](board_corr.json). Reproduce with `python3 analysis/cache-read-fence-knee/final.py` and `python3 analysis/cache-read-fence-knee/board_corr.py`; Python stdlib only. Both accept `--sessions-root` and `--output-dir`; correlation also accepts `--board-log`.
 
-| i | s_i | x_i | C_i | ampl |
-|---|---|---|---|---|
-| 10 | 41,659 | 41,905 | 266,176 | .99 |
-| 100 | 153,148 | 153,657 | 8,905,780 | 1.00 |
-| 225 | 0 (TTL miss) | 339,963 | 38,220,991 | .00 |
-| 300 | 427,516 | 428,029 | 66,704,670 | 1.00 |
-| 500 | 644,805 | 646,028 | 174,279,079 | 1.00 |
-| 583 | 738,811 | 740,244 | 231,720,892 | 1.00 |
+## Curve axes and observations
 
-amplification s/x → 1.00 after ~10 calls in all 40 sessions: **append-only, cache perfect, no interior knee.** marginal cost per call = x_i, growing ~linearly → C(i) quadratic. x_max: median 239,847, max 740,244; 12/40 sessions crossed 300k. compaction: 9 events corpus-wide.
+`curves.json` is keyed by session ID, with **every billed assistant call** (6,306 total), not samples. Each record gives `assistant_index` (1-based), `tool_index` (cumulative emitted tool calls), `tool_first`/`tools` (the complete inclusive tool-index range emitted by this assistant call), timestamp, marginal `cache_read`, `context`, and `cumulative_cache_read`. A multi-tool assistant call pays its context **once**, before all its tools: every index in that range shares this cumulative read value. A no-tool call adds reads at the same tool index. Do not interpolate omitted tool indices or charge again per tool. This mapping preserves all 558/406 tool indices for the extremes as well as their 583/424 billed assistant calls.
+
+x_i = input + cacheRead + cacheWrite; s_i = cacheRead; C_i = Σ_(j≤i) s_j. These are token counts, not dollars. Example transcript-capture-feasibility:
+
+| assistant index | tool index | s_i | x_i | C_i |
+|---:|---:|---:|---:|---:|
+| 202 (first x≥300k) | 194 | 298,729 | 302,666 | 31,267,735 |
+| 583 (last) | 558 | 738,811 | 740,244 | 231,720,892 |
+
+Growing context makes cumulative reads roughly quadratic on long append-only stretches. Median maximum context is 239,847 tokens; maximum 740,244; 12/40 reach 300k. This is not uniformly perfect caching: there are 103 calls with s_i < 0.5 x_i, including 28 first calls; of the other 75, only 46 follow a >300-second gap. Nine compaction events occur. Thus neither “all misses are TTL” nor “all sessions are pure append-only” follows from the curves.
 
 ## knee operationalizations
 
-- slope-doubling vs warm marginal (s_i ≥ 2·median(s[5:11]), sustained): knee at call 8–27 → **already doubled before call ~30** everywhere; divergence from fresh-prefix marginal is immediate, not a knee.
-- two-segment changepoint on C(i): late (60–95% of n) — artifact of fitting a quadratic with two lines.
-- model-optimal respawn k\*: **degenerate — hits the k=5 search floor in 40/40**; under the counterfactual below, savings increase monotonically with respawn earliness. there is no interior knee to find. the knee is a policy choice = context threshold, not a curve feature.
+- Slope-doubling: first call with s_i ≥ 2·median(s[5:11]), sustained for three calls. **13–58, 38 non-null / 2 null**, now consistently 1-based (the driver's 12–57 was zero-based). These are marginal doubling thresholds, not proven abrupt transitions.
+- Two-line least-squares split on cumulative reads: **24.7–61.8% of assistant calls**. Even smooth quadratic growth produces such a split; do not treat it as evidence of a steer-induced discontinuity.
+- Model-optimal first reset k*: **5–81 assistant calls, only 1/40 at the k=5 search floor**, after repairing per-call charges. This replaces the earlier erroneous all-at-floor result. The search considers k=5..n−6, and subsequent resets at user follow-ups; k* is a hindsight model optimum, not a detected knee.
 
-## steer hypothesis: rejected
+There is no established common steer-triggered knee. Cite an **explicit context policy in tokens** (100k/200k/300k), not an intrinsic knee or a dollar threshold. The complete table includes the model optimum as an alternate accounting choice.
 
-- steers do **not** re-pay the prefix: ampl stays 1.00 on the call after a steer (append preserves cache prefix). slope-knee within ±5 calls of a steer: 4/40; changepoint: 6/40; k\*: 1/40.
-- the only re-pays are **TTL/full-price on >5min gaps**: 103 calls, 14.5M cacheWrite + 342 input ≈ 1.2% of R (`nmiss`/`miss_w` in sessions.json; s=0 rows in curves.json).
-- 145 steers corpus-wide; 51 (35%) within 10min of a checkpoint-tagged board row (`~/.local/share/pi-board/log.jsonl`, 13/40 sessions have checkpoint traffic) — checkpoints and steers co-occur (parent answers checkpoint with steer) but neither is a cache event (`board_corr.json`).
+## Steers and checkpoint timestamps
 
-## respawn-from-ticket counterfactual (lower bound on respawn cost, i.e. savings are an upper bound)
+User text after the first prompt is the steer proxy; parent authorship is not separately encoded in these old records. 145 proxy follow-ups map to 145 next assistant calls. Median post-follow-up s/x is 0.995, with 115/145 ≥0.95, **but 26/145 are cache misses**. Appending a follow-up normally preserves caching; the data do not support claiming that steers always invalidate the prefix, nor that they never do. No causal inference from temporal co-occurrence alone.
 
-at knee k: pay C_k (sunk) + replay post-k calls in fresh sessions, segments delimited by steers; segment [a..b] pays (b−a+1)·P0 + (x_b − x_a); P0 = median first-5-call cacheRead (ticket+system+tools). **charges zero re-derivation overhead** (fresh session re-reads repo state for free beyond P0) — real savings strictly less.
+`board_corr.json` retains checkpoint IDs/topics/timestamps, original user timestamps, and every slope/split/optimum/policy point with its nearest steer, own checkpoint, run checkpoint, signed gaps (**event minus knee seconds**) and adjacent usage records. Board matching uses exact cwd or exact final topic component, restricted to the session lifetime; run prefixes are inferred from the worker's own topics. Checkpoints are tagged rows or rows whose first 40 body characters mention checkpoint. Missing events are explicit nulls; run attribution is a topic heuristic, not a run ID. Under this stricter matching, **50/145** follow-ups are within ten minutes of an own checkpoint; **13/40** sessions have own checkpoint rows (the earlier 51 used assistant-response timestamps and an unbounded handle substring).
 
-| policy knee | corpus saved | % of R |
-|---|---|---|
-| respawn when x ≥ 100k | 1,044,243,577 | 87% |
-| respawn when x ≥ 200k | 750,417,573 | 63% |
-| respawn when x ≥ 300k | 420,912,404 | 35% |
+For transcript-capture's 300k policy: assistant call 202 / tool 194 at `2026-09-14T10:28:11.109Z`; nearest steer `10:18:19.846Z` (−591.263s); nearest own/run checkpoint `11:20:27.171Z`, `mu15ix43-kcn7zb` (+3136.062s). The knee call is a cache hit (298,729 / 302,666), not a prefix invalidation. Hook-emission's corresponding point is assistant 133 / tool 152 at `06:54:00.565Z`; steer −65.541s, checkpoint +1186.144s. All other points, including explicit missing checkpoints, are available in the JSON.
 
-worst at x≥300k (tokens): transcript-capture-feasibility 195.2M/231.7M (84%), hook-emission-snapshots 134.0M/159.6M (84%), vertex-176 21.6M (36%), browser-consolidation 16.4M (30%), browser-route-shell 12.9M (21%), byok-177 12.8M (25%). 28/40 sessions never reach 300k.
+## Respawn-from-ticket counterfactual (ideal replay estimate)
 
-## fence contrast (live setting, post-dates corpus)
+At first threshold crossing k (1-based), pay C_k once. Replay calls k+1..n in fresh sessions, resetting again before each later user follow-up. For each segment [a..b], charge **Σ_(j=a..b) [P0 + max(0, x_j − x_a)]**, not just its final growth. P0 = median first-five-call cacheRead (a heuristic for ticket+system+tools, not an observed reconstructed ticket). No crossing means counterfactual = actual and savings = 0.
 
-`extensions/fence/index.ts:26-30`: threshold = `PI_CHECKPOINT` ratio, else 0.3 of window for ≥400k windows, else 0.6; on crossing, steers `agent-prompts→agents/_fence.md` once (checkpoint protocol), compacts at agent_end (`index.ts:62-69`). bounds **x (context fraction), not Σx (cumulative reads)** — re-arms when usage drops under, so a continued worker re-pays its (compacted, smaller) prefix each lap: cumulative reads stay Σx_i but with x capped at the fence instead of riding to 740k. fence committed `a7391d2` 09-14 20:11 + `913c720` 20:15 (canonical `mlegls-pi` log); both named extremes finished 09-14 by 14:18 → **the corpus is pre-fence**; its unbounded-x curves are exactly what the fence exists to prevent, and its counterfactual column ≈ fence+compaction realized.
+This is an **ideal warm-cache read-equivalent workload estimate**, not a literal prediction of provider `cacheRead`: cold fresh prefixes incur cache-write/input rates, not read rates. It charges zero state re-derivation overhead and assumes historical within-segment growth survives a restart unchanged. The nine compactions and other context decreases are handled by max(0, growth), not simulated anew. These optimistic assumptions make estimated savings an upper bound within this replay model, not a measured achievable respawn result. Actual input/output/write cost is not converted into the read-token comparison. A real respawn could cost more than continuing.
+
+Public deterministic estimator: `python3 analysis/cache-read-fence-knee/final.py --estimate-json '{"x":[10000,20000,30000],"P0":10000,"k":0}'` → 60,000. Supply `cumulative_reads` when k>0 to include sunk reads.
+
+Corrected savings: **820,313,826 (68.5%) / 675,105,506 (56.3%) / 392,220,286 (32.7%)** at context ≥100k/200k/300k. Transcript-capture at 300k: actual 231,720,892 / counterfactual 41,104,327 / saved 190,616,565; hook-emission: 159,620,858 / 36,760,154 / 122,860,704. The earlier 87/63/35% estimates undercharged growth. [All 40 sessions and all three policies, worst actual reads first](results.md); `sessions.json` also retains per-session model-optimal k*/actual/counterfactual.
+
+## Fence contrast (current configuration, historical deployment unknown)
+
+Checked `~/.config/system-config` first: its `agents` and `agent-prompts` are symlinks into `~/dev/mlegls-pi`. The live extension in that checkout, `extensions/fence/index.ts:26-30`, reads:
+
+```ts
+const env = Number(process.env.PI_CHECKPOINT);
+if (Number.isFinite(env) && env > 0) return env > 1 ? env / 100 : env;
+return contextWindow >= 400_000 ? 0.3 : 0.6;
+```
+
+Only active for workers with `PI_BOARD_TOPIC`, inactive while connectome owns the context. Crossing sends the checkpoint steer once; it compacts at `agent_end` if still over threshold, and re-arms once below. This bounds **context fraction**, not cumulative cache reads. It is not a hard per-call cap: a running tool/turn can overshoot before the hook fires. Current worker env overrides and historic effective values are not recoverable from these session files.
+
+Fence commits: `a7391d2` at **2026-09-14T20:11:10+08:00 = 12:11:10Z**, `913c720` at **20:15:57+08:00 = 12:15:57Z**. Hook-emission ended 08:57:06Z, before the commits; transcript-capture ended 14:18:03Z, **after** them. Six sessions ended before the first commit, 32 started after it, two overlapped. Commit time is not load time. The earlier “entire corpus is pre-fence” conclusion mixed timezones and is withdrawn; these observations cannot isolate a deployed-fence effect or equate the model with fence+compaction.
 
 ## files
 
-`scan.py` (corpus filter+parse), `final.py` (knees+counterfactual → `sessions.json` int keys, `curves.json`), `board_corr.py` → `board_corr.json`. `sessions.json`/`curves.json` JSON round-trips int dict keys to strings.
+`scan.py` (filter/parse; legacy CLI delegates to final), `final.py` (complete curves, knees, per-call estimator → sessions.json / curves.json / results.md), `board_corr.py` (timestamp links → board_corr.json). JSON policy keys are strings (`"100"`, `"200"`, `"300"`). Curves use session IDs, not worktree names, so restarts cannot overwrite each other. Generated Python bytecode is untracked/ignored. Tests: `bun test analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts`.
