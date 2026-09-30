@@ -72,8 +72,11 @@ export default function memoryExtension(pi: ExtensionAPI) {
 	let hibernateToken: object | undefined;
 	let idleTimer: ReturnType<typeof setTimeout> | undefined;
 	const cancelHibernate = () => { hibernateToken = undefined; clearTimeout(idleTimer); idleTimer = undefined; };
-	for (const event of ["agent_start", "session_start", "session_switch", "session_shutdown", "model_select", "session_compact"] as const)
-		pi.on(event, cancelHibernate);
+	pi.on("agent_start", cancelHibernate);
+	pi.on("session_start", cancelHibernate);
+	pi.on("session_shutdown", cancelHibernate);
+	pi.on("model_select", cancelHibernate);
+	pi.on("session_compact", cancelHibernate);
 	pi.on("session_start", () => { snapshot = undefined; forceRewrite = false; elidedCount = 0; });
 	pi.on("session_compact", () => { snapshot = undefined; });
 	pi.on("context", (event, ctx) => {
