@@ -1,0 +1,133 @@
+User authorizes autonomous dispatch through factor-core-into
+Dispatched. Verified before touching anything: the storage s
+Decision on the first transaction-safety finding: `hub.relea
+Scope settled from the ticket and the parent table before ca
+Three landed so far on `ui-workspace` (base dd585571), plus 
+Four calls made while landing `ui/query/`. Three are seams e
+Done. Branch `ui-workspace`, head `35cffe8d` (base `dd585571
+Closed diagnosis read; starting ref 9e07d91. Implementing tr
+`ui/materials/review/` is closed. Branch `ui-materials`, hea
+`ui/session/` is closed. Branch `ui-session`, head `eaa06ab8
+Quota diagnosis found installed Convex transactionLimits/get
+Merged, resolved, gates rerun. Branch `ui-materials`, new he
+`ui/hub/` is closed. Branch `ui-hub`, head `5b54f11c`, two c
+`ui/browse/` is closed. Branch `ui-browse`, head `e4d239de`,
+Main ff landed bounded Patch repair8537816f after fresh sour
+Both nits plus P3 repaired. Frozen at **`e0bd546a38fb69fd243
+Frozen as asked. Branch `ui-board`, head **`d57213bc`**, sev
+Main ff landed independently cleared acceptance value guards
+Final candidate: **`9425278a`** on `browser-consolidation`, 
+Localized source implemented only in resolve.ts: membership 
+READ-ONLY PLAN checkpoint; no files changed/no tests added o
+FINITE STORAGE-GATE RECONCILIATION PROPOSAL — read-only, fin
+Docs-only reconciliation now reserves docs/issues/store-patc
+SCOPE CHECKPOINT (read-only so far, HEAD 41b865b8, no edits)
+Dispatch decision: `implement` in this session — one coheren
+Review findings addressed; new frozen ref **354729ce** (`bun
+DONE. Branch `hub-projections`, final ref **`7d8089c1`**, ba
+SCOPE CHECKPOINT — read-only so far, HEAD `7d8089c1`, no edi
+Peer notice for `concept/factor-finish/hub-projections` (and
+READ-ONLY PLAN CHECKPOINT. Nothing edited; worktree sits at 
+From `public-hub-routes` (the public Hub browser). What the 
+UI slices landed on `public-hub-routes`, branch at **`366f8e
+Publisher grouping — ruling from the campaign parent, answer
+Acknowledged, all four instructions actioned. Implementation
+Scope taken. Worker handle for you to subscribe: **`agent-to
+Finding5 remains blocked by hub-envelope-review at41363444: 
+DONE for finding 4 only. Branch `hub-precedence-repair`, fro
+Parent accepts uniform earliest-created equal-precedence ali
+Decided rather than escalated, since it is reversible and in
+Finding 5 frozen at **`741abe8d`** (details in the next mess
+Parent ruling supersedes stale child instructions: collapse-
+Both repairs are in and frozen at **`393c4843`** on `hub-pre
+Authorized smaller reviewed SDK repair: optional DefaultStep
+User requests continuous consolidation/pruning. Closed22done
+The exact field and namespace `public-hub-routes` asked for 
+Publisher finished2369a9fd; working/hub advanced to retain i
+hub-publisher-review doneclosed safeprune. New hub-join ACTI
+done — read-only diagnosis, branch `agent-save-diagnosis` at
+done — read-only design review of `9083a9c2`. Branch `agent-
+done — amendment only, frozen at **`cf4ed622`**, worktree cl
+done — the `cf4ed622` lifecycle contract is implemented in t
+Runtime followup ff556794 now on working/materials, 10 addit
+Parent captured agent-save-final-source pane beforeclosingwi
+Proceed autonomously through planned review/verification gat
+Replacing public projection and adding the emission-time fra
+U1 9e597b15 received. Proceed independent adversarial securi
+Sourceclearance received. Address bounded contract mismatche
+Runtime9 counterexample needs contract triage, not blanket u
+U1 source review received. Before acceptance fix successful 
+Browser report useful. 431 beforeNode routing is transportbo
+Guard listDeltas with exact streamingMessages get before eac
+Proceed. Hubfinishworker closed; currentHubowner hub-final-c
+Cursor dc94f9e implementationreceived; skippedforeign/missin
+U1 delta rereview clearreceived proceed once cursorgate clea
+Proceed with routes/backend read plan. Promotion mustremain 
+Replay lookup will precede lifecycle fences, reuse recorded 
+Source trace found closeSurface still checks opening standin
+U2freeze received source9e4d225. Independentreview must expl
+decision — I am the Hub private-lifecycle lane (`finish-priv
+Schema notice for U3 (completion requests), for coordination
+Cursorindependentreview clear dc94f9e received. Integrate ap
+Backend1b042ce sourcecleared proceedUI. Remove duplicatedcom
+U2reviewconfirmsblocker repairReviewouterreplay now thenrere
+Replacing publishLink with prepareLink, including its Me con
+runtimeU1blockedreceived. Diagnose persistedhookstatus befor
+Repair uses recorded outcome card/grade and decision equival
+e2044d1freeze received. Re-review explicitrawselfGrade equiv
+Second schema notice, U2 Review replay: if the re-review con
+Source inspection found no primary prepare/publish link on M
+Newruntimeprovidererrorleak is U1blocker. Smallserialrepair 
+Agreefixedpublicmessageerror repair. Ensureboundedaudit equi
+Expanded audit found a seam beyond returned public projectio
+Authorized shared requireInterpreted failed-state generic ex
+Authorized errorworker sharedrequireInterpreted genericfaile
+Decided two bounded, reversible choices on the U1 error-carr
+Author4a00a731 independentlycleared. Fix staleHubplatefacet 
+Errorrepair e10ecc05 frozenneedsindependentreviewthenruntime
+ConfirmedU2B1 repairpersist exactoptional rawselfGrade inApp
+UI1eb484c1received. Integrationscope MUSTinclude publicdocum
+Minimal shape: optional raw selfGrade on Application reviewG
+daf4972 minimalrawselfGrade receiptshape matchesdecision. Pr
+e10ecc05 sourceclearreceived. Beforefinalruntime close bound
+Binding refinement applied: item 3 cancelled, approval lane 
+9dadef9 metadatafreeze matchesboundedrequest originalordinal
+Candidate2f54b6da sourceclear with functionalnits needbounde
+9dadef9 deltasourceclearreceived proceedruntime. Explicitrej
+Renderc306c1c evidence received candidate2f54b6da goodauth/b
+2720edecheckpoint received. renderdrivereportednow c306c1c s
+Adopterownwork preservation IS inacceptance scope explicitad
+Orchestratorhandoff: finish-hub-remainder nowowns remainingH
+From finish-hub-remainder (new owner of the Hub remainder, w
+Took the handoff at `af488bc9`. Units spawned under `concept
+Shared helper commits a built router destination only within
+URL408d026received independentsource/deltareview +independen
+28400dc truthreviewclear. Smallfinalcleanup removeconfirmedo
+Adoptera85da1f7 clearsbackendpreservation gate realauth/publ
+LD2evidence good5held but correct'materializationgap' interp
+Guardreviewclear butH5factcheckneeded reviewerclaimHubtags o
+Guarddrive81da922 validatesrealprivate/public target good. S
+09e6c0a redrive clearstalealertgate at8038475e all7. Foldevi
+guardreview3 clearsboundedlinks+alert source. Correctstalegr
+facetcf7ea83 proves singletagcap notfullpremise impossible: 
+50e67c6 composedfacetdrive clear URLgate bothpublic/private 
+d19c7220 consolidatedworking/hub. Acceptance map inspected: 
+905340cd clearsfinalstalesourcegate: exactoldsource freshwor
+Hub acceptedlanded main05226437 FF from41b865b8 withsource/r
+Checkpointreceived continueapprovedserialU2review→U3→browser
+Freshorchestrator finish-materials-remainder ownscontinuatio
+U2daf4972e finalsourceclearreceived jointhenmainintegration 
+Implementing generic-close-only guard helper (not closeSurfa
+U3c2d84d7a reportflagslikelycontractbypass: tutor surface.cl
+U4 proceeding. U5 read gap confirmed: quizzes.open/read pres
+U4freeze5bd52bbf acknowledged keepreview separate U3held. U5
+Decision (reversible, within plan #428 decision 4): U5 adds 
+U4reviewP2 tiesdirectlyU5standing/readgap: retainfrozenU4but
+Adding surfaces.read({profileId,surface}) returning {surface
+U4 follow-up repair: changing empty/loading requesting proje
+U69d047be sourcecheckpointonly. Independentreview musttestco
+U58eaa25cb reviewfocus sameclientConvexRYW actualReacteffect
+U7aad8f242 boundedU1/U2runtimecleared42659fc6; preserveevide
+U6staticclear9d047be4 butreviewdoesn'tanswer sameattemptacro
+U5review8eaa25cb sourceclearwithspecificConvex1.45transition
+U7b42c7090 received boundedbrowserclaims good; noacceptancey

@@ -2,3 +2,5 @@ node_modules
 __pycache__/
 *.pyc
 agent-prompts/generated/
+analysis/decision-broadcasts-read/events.json
+analysis/decision-broadcasts-read/text_occ.json
