@@ -62,6 +62,9 @@ function validType(type: string): boolean { return /^[a-z][a-z0-9-]*$/.test(type
 function validId(id: string): boolean { return /^[a-zA-Z0-9_-]+$/.test(id); }
 function ensureDirectory(path: string) { mkdirSync(path, { recursive: true, mode: 0o700 }); }
 
+export class DaemonRequestTimeout extends Error {
+  constructor() { super("timed out talking to ab daemon"); }
+}
 function request<T>(body: Record<string, unknown>): Promise<T> {
   return new Promise((resolveRequest, reject) => {
     const socket = createConnection(socketPath());
@@ -74,7 +77,7 @@ function request<T>(body: Record<string, unknown>): Promise<T> {
       socket.destroy();
       if (error) reject(error); else resolveRequest(result as T);
     };
-    const timeout = setTimeout(() => finish(new Error("timed out talking to ab daemon")), CONNECT_TIMEOUT);
+    const timeout = setTimeout(() => finish(new DaemonRequestTimeout()), CONNECT_TIMEOUT);
     socket.on("connect", () => socket.write(encode(body) + "\n"));
     socket.on("data", chunk => {
       text += chunk.toString();

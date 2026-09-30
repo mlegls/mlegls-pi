@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { closeSync, openSync, readSync, realpathSync } from "node:fs";
-import { resource } from "../lib/daemon.ts";
+import { DaemonRequestTimeout, resource } from "../lib/daemon.ts";
 import type { Execution, Submission } from "../lib/resources/host.ts";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -89,7 +89,17 @@ export async function resources(kind: "check" | "service", args: string[]) {
   process.on("SIGINT", int);
   try {
     while (!interrupted) {
-      const current = await resource<Execution>({ action: "get", id: execution.id, client });
+      let current: Execution;
+      try {
+        current = await resource<Execution>({ action: "get", id: execution.id, client });
+      } catch (error) {
+        if (!(error instanceof DaemonRequestTimeout)) throw error;
+        // The request may have reached the daemon. Keep ownership and recover the
+        // same receipt; submitting again could repeat a command with effects.
+        console.error(`check ${execution.id}: daemon request timed out; retrying receipt`);
+        await delay(500);
+        continue;
+      }
       const more = await output();
       if (current.status === "done" && !more) {
         if (current.reason) console.error("check: " + current.reason);

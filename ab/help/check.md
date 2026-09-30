@@ -24,6 +24,9 @@ All callers see the same execution ID/log/exit status when sharing. Cancelling
 one waiter leaves the others running. No waiters for 30s cancels the execution,
 so cancel by stopping your waiting ab check caller; execution IDs are not
 ab daemon job IDs.
+A daemon-request timeout while waiting retries the same execution/client receipt,
+not the command. SIGINT/SIGTERM still release the caller. The 30s caller lease
+still applies; a longer outage can expire it. A daemon restart is not recoverable.
 Timeout/cancellation terminates its process group; daemonizing/setsid children
 are unsupported. Done logs/receipts expire after an hour while the daemon runs.
 The queue is per AB_STATE (normally per user), not per orchestration loop.
