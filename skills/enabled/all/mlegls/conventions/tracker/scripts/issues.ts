@@ -4,7 +4,7 @@
 //   issues frontier [slug]  execution-ready agent-permitted subtrees, unblocked and unclaimed
 //   issues mine [slug]      explicit human/user assignments, including shaping work
 //   issues tree [slug]      subtree under slug (or every root), children in dependency order
-//   issues check [--fix]    read-only diagnostics; --fix applies archive-link and heading repairs and drops done blockers
+//   issues check [--fix [moved issue paths...]]    read-only; --fix repairs selected/all links and drops done blockers
 //   issues outline          the project's outliner note against the tracker: each linked bullet's state, unlinked intent, uncovered issues
 //
 // [slug] scopes to that issue's subtree.
@@ -13,7 +13,7 @@
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, basename, dirname, resolve, relative } from "node:path";
+import { join, basename, dirname, resolve, relative, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
@@ -263,7 +263,21 @@ function dropBlockers(file: string, done: Set<string>) {
   if (!seq.items.length) doc.delete("blocked-by");
   writeFileSync(file, text.slice(0, start) + doc.toString({ lineWidth: 0 }) + text.slice(start + m[1].length));
 }
-function checkLinks(docs: string, say: (s: string) => void, repair: boolean) {
+function movedIssuePaths(paths: string[]): Set<string> {
+  const moved = new Set<string>();
+  for (const path of paths) {
+    const file = resolve(process.cwd(), path);
+    if (!existsSync(file) || !statSync(file).isFile()) throw new Error(`moved issue path does not exist: ${path}`);
+    const real = realpathSync(file);
+    const parts = real.split(sep);
+    const archive = parts.lastIndexOf("archive");
+    if (!real.endsWith(".md") || archive < 1 || parts[archive - 1] !== "issues")
+      throw new Error(`${path}: expected an archived issue path under issues/archive/`);
+    moved.add(real);
+  }
+  return moved;
+}
+function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fixTargets?: Set<string>) {
   const files: string[] = [];
   const walk = (d: string) => {
     for (const name of readdirSync(d)) {
@@ -312,6 +326,7 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean) {
     const tail = segs.slice(-2).join("/") + ".md";
     return cands.find((c) => c.endsWith("/" + tail)) ?? cands.find((c) => c.endsWith(target + ".md"));
   };
+  const canFixTarget = (path: string) => !fixTargets || fixTargets.has(realpathSync(path));
   const headings = new Map<string, Set<string>>();
   const headingsOf = (f: string) => {
     let h = headings.get(f);
@@ -341,13 +356,22 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean) {
       seen.add(rel + m[0]);
       const to = resolveLink(target);
       const alt = to ? undefined : moved(target);
-      if (alt) fixes.set(target, alt);
+      if (alt) {
+        const movedTo = resolveLink(alt)!;
+        if (repair && !canFixTarget(movedTo)) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): [[${target}]] -> [[${alt}]]`);
+        else fixes.set(target, alt);
+      }
       else if (!to) say(`${rel}: [[${target}]] does not exist`);
       else if (m[2] && to.endsWith(".md") && !m[2].startsWith("^") && !headingsOf(to).has(m[2].trim())) {
         // Obsidian anchors are the heading text; a GitHub-style slug of exactly one heading is rewritten to it.
         const slug = (h: string) => h.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-");
         const hits = [...headingsOf(to)].filter((h) => slug(h) === slug(m[2]));
-        if (hits.length === 1) anchors.set("[[" + m[1] + "#" + m[2], "[[" + m[1] + "#" + hits[0]);
+        if (hits.length === 1) {
+          const from = "[[" + m[1] + "#" + m[2];
+          const replacement = "[[" + m[1] + "#" + hits[0];
+          if (repair && !canFixTarget(to)) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): ${from}]] -> ${replacement}]]`);
+          else anchors.set(from, replacement);
+        }
         else say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
       }
     }
@@ -427,11 +451,15 @@ function outline(note: string, all: Map<string, Issue>): string[] {
   return out;
 }
 
-const args = process.argv.slice(2);
-const json = args.includes("--json");
-const repair = args.includes("--fix");
-const [cmd, arg] = args.filter(a => a !== "--json" && a !== "--fix");
+const rawArgs = process.argv.slice(2);
+const json = rawArgs.includes("--json");
+const repair = rawArgs.includes("--fix");
+const positional = rawArgs.filter(a => a !== "--json" && a !== "--fix");
+const cmd = positional[0];
+const arg = cmd === "check" ? undefined : positional[1];
 if (repair && cmd !== "check") throw new Error("--fix is only supported by check");
+if (cmd === "check" && !repair && positional.length > 1) throw new Error("moved issue paths require check --fix");
+const fixTargets = cmd === "check" && repair && positional.length > 1 ? movedIssuePaths(positional.slice(1)) : undefined;
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);
 flight = inflight(dir, slug => !all.has(slug) || all.get(slug)!.archived || complete(all.get(slug)!, all));
@@ -515,7 +543,7 @@ if (cmd !== "lint") switch (cmd) {
     // Observations are issues in a vault project; a side log is read by nobody who triages.
     if (existsSync(join(dirname(dir), "frictions.md"))) say("docs/frictions.md: frictions in a vault project are stage: idea issues");
     for (const slug of uncommitted(dir)) if (all.has(slug) && !all.get(slug)!.author) say(`${slug}: new issue without author provenance`);
-    checkLinks(dirname(dir), say, repair);
+    checkLinks(dirname(dir), say, repair, fixTargets);
     if (!bad) console.log("ok");
     else process.exitCode = 1;
     break;
@@ -528,6 +556,6 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix] | outline [--json]");
+    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
     process.exitCode = 2;
 }

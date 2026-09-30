@@ -6,7 +6,7 @@ work is markdown under `docs/issues/`, browsed as `~/obsidian/projects/<repo>`. 
 
 ```
 docs/issues/<slug>.md           live
-docs/issues/archive/<slug>.md   stage done, purpose fulfilled; obsidian rewrites links on move
+docs/issues/archive/<slug>.md   stage done, purpose fulfilled; after moving, run `bun "$PI_SKILL_DIR/scripts/issues.ts" check --fix docs/issues/archive/<slug>.md` with each moved issue's archived path as an argument
 docs/issues/attachments/        research, evidence, pasted images an issue links
 ```
 
@@ -26,11 +26,11 @@ priority: 1 | 2 | 3 | 4
 
 Omit stage only when all residual work is delegated to children; null is invalid. Priority and assignment do not inherit. Assignment accepts agent, human, user:<name>, session:<id>, agent:<existing stance>, model:<provider>/<model>:<effort>, or a comma-separated stance/model pair. Routing resolves model selectors. Historical unknown authors are omitted; provenance is immutable.
 
-`bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|done|tree [slug] | snapshot [slug] | check | outline`. Scope explicitly selects deferred work too. Frontier uses whole-subtree readiness, eligibility, blockers and conservative claims; mine uses explicit human/user assignment including pre-spec shaping; done exposes live results for digestion. Tree shows own and effective stage. Outline reconciles the project vault note. `snapshot --json` (or query `--json`) provides schemaVersion, lifecycle issues and a separate legacy collection; rows expose ownStage, effectiveStage, ready, eligible, frontier, blockers, claims, selectors and done. Omitted ownStage is serialized as null, not valid stored YAML. JSON is a model projection; run `check` separately for diagnostics.
+`bun $PI_SKILL_DIR/scripts/issues.ts frontier|mine|done|tree [slug] | snapshot [slug] | check [--fix [moved issue paths...]] | outline`. Scope explicitly selects deferred work too. Frontier uses whole-subtree readiness, eligibility, blockers and conservative claims; mine uses explicit human/user assignment including pre-spec shaping; done exposes live results for digestion. Tree shows own and effective stage. Outline reconciles the project vault note. `snapshot --json` (or query `--json`) provides schemaVersion, lifecycle issues and a separate legacy collection; rows expose ownStage, effectiveStage, ready, eligible, frontier, blockers, claims, selectors and done. Omitted ownStage is serialized as null, not valid stored YAML. JSON is a model projection; run `check` separately for diagnostics.
 
 `check` also flags a spec or ticket whose effective stage is lower than its own (it names the child: refinement never lowers a node, so that child moves out of the tree), a `docs/frictions.md` beside a vault tracker, and a new uncommitted issue without `author`.
 
-`check` is read-only: it reports dangling links and available archive/heading repairs, exiting nonzero for findings. `check --fix` applies those link repairs, drops `blocked-by` links to done issues (guards and live blockers stay), and prints each as `fixed`; other diagnostics still require review. Same-project vault links resolve against the checkout being checked (same Git common directory and repository-relative docs path), not the canonical checkout behind the vault symlink. Other projects resolve through the vault. An absent local target never falls back to its canonical copy.
+`check` is read-only: it reports dangling links and available archive/heading repairs, exiting nonzero for findings. `check --fix <moved issue paths...>` takes paths to archived issue files, relative to the current working directory or absolute, and only repairs links whose archive targets are those files; other link repairs remain reported. Without paths, `check --fix` applies all link repairs. Both forms also drop `blocked-by` links to done issues (guards and live blockers stay) and print each repair as `fixed`; other diagnostics still require review. Same-project vault links resolve against the checkout being checked (same Git common directory and repository-relative docs path), not the canonical checkout behind the vault symlink. Other projects resolve through the vault. An absent local target never falls back to its canonical copy.
 
 The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
 
