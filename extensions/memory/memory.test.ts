@@ -29,7 +29,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 			registerTool: (tool: any) => registered.set(tool.name, tool),
 			getActiveTools: () => [...registered.keys()], getAllTools: () => [...registered.values()], getThinkingLevel: () => "off",
 		};
-		let sent: any; let blockedAll = false, blocked = false, invalid = false, invalidTail = false, citeTail = false; let notices: string[] = [];
+		let sent: any; let blockedAll = false, blocked = false, invalid = false, invalidTail = false, citeTail = false, citeOnlyTail = false; let notices: string[] = [];
 		const ctx: any = {
 			cwd, model: { id: "model", provider: "test", maxTokens: 16000 }, getSystemPrompt: () => "Unchanged system prompt",
 			ui: { notify: (s: string) => notices.push(s) },
@@ -41,7 +41,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 				const visible = visibleEntries(branch);
 				const tail = tailChoices(visible).find(c => sourceEntries(visible.slice(0, c.index)).length)!;
 				const id = sourceEntries(visible.slice(0, tail.index))[0].id;
-				return { result: async () => assistant(`tail: ${invalidTail ? "missing" : tail.id}\n\nPort 4567, not verified. [@${invalid ? "missing" : citeTail ? tail.id : id}]`) };
+				return { result: async () => assistant(`tail: ${invalidTail ? "missing" : tail.id}\n\nPort 4567, not verified. [@${citeOnlyTail ? tail.id : invalid ? "missing" : citeTail ? `${tail.id}] [@${id}` : id}]`) };
 			} },
 		};
 		memoryExtension(pi);
@@ -62,7 +62,7 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(one.compaction.firstKeptEntryId).toBe("e1");
 		expect(one.compaction.details.tail.estimatedTokens).toBeGreaterThan(1);
 		expect(one.compaction.details.blocks[0].covers).toEqual(["e0"]);
-		expect(one.compaction.details.blocks[0].sources).toEqual(["e1"]);
+		expect(one.compaction.details.blocks[0].sources).toEqual(["e1", "e0"]);
 		add("compaction", one.compaction);
 		const firstBlock = one.compaction.details.blocks[0];
 		const resumed = expandMemory(buildSessionContext(branch).messages, branch);
@@ -92,8 +92,12 @@ test("model-selected contiguous tail, stable append/resume and failed checkpoint
 		expect(await fold()).toEqual({ cancel: true });
 		expect(notices.at(-1)).toContain("Invalid tail start");
 		invalidTail = false; citeTail = true;
+		citeOnlyTail = true;
+		expect(await fold()).toEqual({ cancel: true });
+		expect(notices.at(-1)).toContain("newly folded source");
+		citeOnlyTail = false;
 		const tailCited = await fold();
-		expect(tailCited.compaction.details.blocks.at(-1).sources).toEqual([tailCited.compaction.firstKeptEntryId]);
+		expect(tailCited.compaction.details.blocks.at(-1).sources).toEqual([tailCited.compaction.firstKeptEntryId, tailCited.compaction.details.blocks.at(-1).covers[0]]);
 		expect(tailCited.compaction.details.blocks.at(-1).covers).not.toContain(tailCited.compaction.firstKeptEntryId);
 		citeTail = false; blocked = true;
 		const retried = await fold();

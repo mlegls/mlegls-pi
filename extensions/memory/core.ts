@@ -89,8 +89,8 @@ export function parseBlock(text: string, sources: Set<string>, prior: Block[], r
 	const cited = citations(text);
 	const priorIds = new Set(rewrite ? [] : [...prior.map(b => b.id), ...claims(prior).map(c => c.id)]);
 	const evidence = cited.filter(id => sources.has(id)), bad = cited.filter(id => !sources.has(id) && !priorIds.has(id) && !EXTERNAL.test(id));
-	if (!evidence.length || bad.length)
-		throw new Error(`Memory has missing or invalid original-source pointers${bad.length ? `: ${bad.join(", ")}` : " (no valid citation)"}`);
+	if (!evidence.some(id => covers.includes(id)) || bad.length)
+		throw new Error(`Memory has missing or invalid original-source pointers${bad.length ? `: ${bad.join(", ")}` : " (no citation to a newly folded source)"}`);
 	return {
 		id: randomUUID(), timestamp: Date.now(), covers, text: text.trim(), sources: evidence,
 		supersedes: cited.filter(id => !sources.has(id) && !EXTERNAL.test(id)), recall: "lib"
