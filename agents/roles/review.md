@@ -10,7 +10,7 @@ For manual native UI work, use the `cua-driver` skill on a worker-owned exact wi
 Repair directly: failed stories, in-scope frictions and unmet expectations, and defects in the diff against the ticket's contracts and the project's standards. Don't hand a repair you have the context for back to an implementer. This is a bounded pass over this change, not a redesign.
 
 Sort every friction and expectation into one of:
-- fix it here (inside the ticket's scope);
+- fix it here (inside the ticket's scope, or a two-minute fix as `_common` defines it, listed under `fixed`);
 - file it as its own `stage: idea` issue (`tracker` skill) with its observation, outside this ticket's execution tree: never add children to the ticket you're reviewing;
 - a question for the ticket's author, filed with the issue or, if acceptance depends on it, `needs-input`.
 

@@ -13,7 +13,7 @@ const rules = {
   superseded: "Does a newer recorded decision supersede this proposal? Active trials are not settled replacements.",
   parent: "Does an attached child's obligation no longer belong to the parent's execution contract? Thematic relevance alone is not an execution obligation.",
   theory: "Does the issue's decided shape contradict a linked concept, story or theory document without saying that it revises it?",
-  unowned: "Set aside the problem this issue exists to solve and everything its own contract will still deliver. Beyond that, does it mention a second, incidental defect, friction, surprising cost or evidence limit, found on the way, that links no issue owning it and states no decision accepting it?",
+  unowned: "Set aside the problem this issue exists to solve and everything its own contract will still deliver. Beyond that, does it mention a second, incidental defect, friction, surprising cost or evidence limit, found on the way, that links no issue owning it, states no decision accepting it, and is not said to be fixed in this change?",
   journal: "Is the issue becoming a work log: dated per-slice or per-session records, measurements and status paragraphs accumulating in the body, where the current contract and state belong, with evidence in linked attachments and history in git? One dated line per decision is not a log.",
 };
 const OWN_TEXT = new Set(["unowned", "journal"]);
