@@ -108,9 +108,35 @@ export default function memoryExtension(pi: ExtensionAPI) {
 			const branch = event.branchEntries;
 			const leaf = ctx.sessionManager.getLeafId();
 			const session = ctx.sessionManager.getSessionId(), model = modelKey(ctx);
+			const checkCurrent = () => {
+				if (event.signal.aborted) throw new Error("Memory cancelled: request aborted");
+				const current = ctx.sessionManager.getBranch();
+				const originalLeaf = current.findIndex(e => e.id === leaf);
+				// Extension bookkeeping (e.g. board cursors) advances the leaf without changing context.
+				if (ctx.sessionManager.getSessionId() !== session || modelKey(ctx) !== model || originalLeaf < 0
+					|| current.slice(originalLeaf + 1).some(e => e.type !== "custom"))
+					throw new Error("Memory cancelled: session or conversation changed");
+			};
 			const visible = visibleEntries(branch);
 			const choices = tailChoices(visible);
-			let prior = previousBlocks(branch);
+			let prior = s.journal ? previousBlocks(branch) : [];
+			if (!s.journal) {
+				forceRewrite = false;
+				const tail = [...choices].reverse().find(c => {
+					const entry = visible[c.index];
+					return entry.type === "message" && entry.message.role === "user";
+				});
+				if (!tail) throw new Error("Empty-journal compaction requires a continuous tail starting at a user message");
+				checkCurrent();
+				return { compaction: {
+					summary: "", firstKeptEntryId: tail.id, tokensBefore: event.preparation.tokensBefore,
+					details: { kind: KIND, blocks: [], operation: "empty-journal", generation: "none",
+						...(hibernating ? { trigger: "hibernate" } : {}), prefixMode: "none",
+						tail: { mode: "fixed-last-user-turn", firstKeptEntryId: tail.id, estimatedTokens: tail.tokens,
+							targetTokens: s.keepRecentTokens, reason: "keep the latest user message and every later entry verbatim" },
+						model, ms: 0 },
+				} };
+			}
 			const rewrite = forceRewrite || roughTokens(renderMemory(prior)) >= s.memoryTokens;
 			forceRewrite = false;
 			if (!choices.length || (!rewrite && !choices.some(c => sourceEntries(visible.slice(0, c.index)).length)))
@@ -162,13 +188,7 @@ export default function memoryExtension(pi: ExtensionAPI) {
 				register = `${REGISTER}-fallback-impersonal`;
 				ctx.ui.notify("Memory checkpoint blocked by provider filter; retrying in third/first-plural person", "warning");
 			}
-			if (event.signal.aborted) throw new Error("Memory cancelled: request aborted");
-			const current = ctx.sessionManager.getBranch();
-			const originalLeaf = current.findIndex(e => e.id === leaf);
-			// Extension bookkeeping (e.g. board cursors) advances the leaf without changing context.
-			if (ctx.sessionManager.getSessionId() !== session || modelKey(ctx) !== model || originalLeaf < 0
-				|| current.slice(originalLeaf + 1).some(e => e.type !== "custom"))
-				throw new Error("Memory cancelled: session or conversation changed");
+			checkCurrent();
 			if (response.stopReason !== "stop" || response.content.some((b: any) => b.type === "toolCall"))
 				throw new Error(`Memory generation did not finish cleanly: ${response.errorMessage ?? response.stopReason}`);
 			const text = output = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");

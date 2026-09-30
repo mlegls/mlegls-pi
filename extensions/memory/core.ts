@@ -20,7 +20,7 @@ export interface Block {
 export interface Memory {
 	kind: typeof KIND | "memory-log.v1";
 	blocks: Block[];
-	tail?: { mode: "model-contiguous"; firstKeptEntryId: string; estimatedTokens: number; targetTokens: number; reason?: string };
+	tail?: { mode: "model-contiguous" | "fixed-last-user-turn"; firstKeptEntryId: string; estimatedTokens: number; targetTokens: number; reason?: string };
 }
 export const claims = (blocks: Block[]): Claim[] => blocks.flatMap(b => b.text !== undefined
 	? [{ id: b.id, text: b.text, sources: b.sources ?? [], supersedes: b.supersedes ?? [] }]

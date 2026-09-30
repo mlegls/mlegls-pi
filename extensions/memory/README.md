@@ -33,6 +33,12 @@ Every checkpoint attempt writes metadata to `memory-attempts.jsonl` in the sessi
 
 Supervisor hibernation waits for actual inactivity: 5 minutes for Anthropic/Bedrock, 1 hour for other providers, including interactive supervisors such as `tend`. Activity cancels the timer; folding still requires live children and `memory.hibernate.minTokens` (default 4000). `memory.hibernate.enabled` disables it. The former `expectedIdleSeconds` setting is ignored. These timers are independent of tool-output elision's conservative cache lifetimes.
 
+### Empty-journal selector
+
+Set `memory.journal` to `false` to select the empty-journal arm; it defaults to `true`, so the H path is unchanged. Keep `memory.enabled` on. An extension-handled compaction then makes no checkpoint-model call and returns an empty summary with `details.blocks: []` and `operation: "empty-journal"`. Hibernation entries also persist `details.trigger: "hibernate"`. Returning the extension result prevents Pi's native summarizer from replacing the empty journal with a summary or resumption instructions.
+
+The compaction drops previous journal blocks from the active context, but Pi's append-only session tree still has old entries. `memory.recall` can retrieve original entries on the branch; compaction entries themselves are not original evidence. The only conversation retained verbatim is the continuous suffix from the latest user-message entry through the current leaf, including every later tool and assistant entry. Its start ID and estimated size are persisted as `details.tail`; it is not cut to `memory.keepRecentTokens` and may exceed that target. If there is no user-message start, compaction is cancelled rather than choosing an unsafe boundary. This tail is not an entirely fresh context: it is the exact conversational residue C carries into wake, while the journal is empty.
+
 Blocked checkpoints also save `memory-checkpoint-*.json`, containing both request variants and generation options. `/memory capture` toggles capture of successful checkpoints too, for controls. These private local files contain full conversation context, system prompt and tool definitions; do not commit them. Capture makes no extra model calls.
 
 With the original model selected, `/memory compare FILE [rounds]` replays unchanged and impersonal requests without modifying the conversation or executing tools. Default: one pair, **two paid model calls**; maximum five pairs. Order is randomized initially and alternated across rounds. Each call uses the captured output limit and a three-minute timeout. Results and full responses are saved beside the capture. A successful provider response is not proof of a valid or useful memory; inspect the output too. Captures preserve the extension-level request, not necessarily the provider's wire payload.
@@ -57,6 +63,7 @@ Global `~/.pi/agent/settings.json` and project `.pi/settings.json`, under `memor
     "memoryTokens": 12000,
     "rewriteTokens": 6000,
     "maxOutputTokens": 12000,
+    "journal": true,
     "elide": { "enabled": true, "idleSeconds": { "openai-codex": 3660, "default": 86400 }, "minTokens": 500, "keepTurns": 1 }
   }
 }
