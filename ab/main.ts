@@ -373,6 +373,19 @@ const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, v
   service: (a) => import("./resources.ts").then(m => m.resources("service", a)),
 	memory: (a: string[]) => import("./memory.ts").then(m => m.memory(a)),
 	mail: async (a: string[]) => {
+		if (a[0] === "--show") {
+			// Mail ids as wake lines print them (muo2v7zh or muo2v7zh-4hhujf): full body, sender and topic.
+			const ids = a.slice(1);
+			if (!ids.length) fail("usage: ab mail --show ID...");
+			const { readAll } = await import("../lib/board/store.ts");
+			const all = readAll();
+			for (const id of ids) {
+				const m = all.find(m => m.id === id || m.id.startsWith(id + "-"));
+				if (!m) { console.log(`=== ${id}: no such message`); process.exitCode = 1; continue; }
+				console.log(`=== ${m.id} ${m.ts} ${m.topic} from ${m.from.session ? "mail/" + m.from.session.slice(-8) : m.from.name ?? "?"}${m.tags?.length ? " [" + m.tags.join(",") + "]" : ""}\n${m.body}`);
+			}
+			return;
+		}
 		if (a[0] === "--stats") {
 			// How the channels get used: posts and distinct senders per kind (mail, wt, ticket).
 			const { readAll } = await import("../lib/board/store.ts");

@@ -1,5 +1,6 @@
 ab mail <to> <text...>
 ab mail --stats
+ab mail --show ID...      full message by id, as wake lines print it (muo2v7zh or muo2v7zh-4hhujf)
 
 Message a pi session, or a channel of sessions. Every session subscribes with wake to
   mail/<8 hex>             its mailbox: the last 8 hex of its session id
