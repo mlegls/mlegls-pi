@@ -127,9 +127,32 @@ function testRun(cwd: string, file: string): string[] | null {
 const yaml = (value: unknown) => "```json\n" + JSON.stringify(value ?? null, null, 1) + "\n```";
 // Unknown, empty, or prose-only outcomes are not acceptance.
 const unheld = (h: Record<string, unknown> | null) => !Array.isArray(h?.stories) || !h.stories.length || h.stories.some(s => !s || typeof s.story !== "string" || !s.story.trim() || s.outcome !== "held");
+const storyShapeError = (h: Record<string, unknown> | null, allowEmpty = false): string | null => {
+ const stories = h?.stories;
+ if (!Array.isArray(stories)) return "stories is missing or is not a list; expected stories: [{story: ..., outcome: held|failed|unobservable}]";
+ if (!stories.length && !allowEmpty) return "stories is empty; expected one {story, outcome} entry per required story";
+ for (let i = 0; i < stories.length; i++) {
+  const story = stories[i];
+  if (!story || typeof story !== "object" || Array.isArray(story)) return `stories[${i}] is a ${story === null ? "null" : typeof story}; expected {story, outcome}`;
+  if (typeof story.story !== "string" || !story.story.trim()) return `stories[${i}].story is missing or not a string; expected {story, outcome}`;
+  if (!( ["held", "failed", "unobservable"] as unknown[]).includes(story.outcome)) return `stories[${i}].outcome is ${JSON.stringify(story.outcome)}; expected held, failed, or unobservable`;
+ }
+ return null;
+};
+const evidenceShapeError = (h: Record<string, unknown> | null): string | null => {
+ const evidence = h?.evidence;
+ if (evidence === undefined) return "evidence is missing; expected {path, visual, shots}";
+ if (evidence === null || typeof evidence !== "object" || Array.isArray(evidence)) return `evidence is ${evidence === null ? "null" : "a " + typeof evidence}; expected {path, visual, shots}`;
+ const item = evidence as Record<string, unknown>;
+ if (typeof item.path !== "string" || !item.path.trim()) return "evidence.path is missing or not a string; expected a committed Markdown index path";
+ if (typeof item.visual !== "boolean") return "evidence.visual is missing or not a boolean";
+ if (!Array.isArray(item.shots) || item.shots.some((shot: unknown) => typeof shot !== "string")) return "evidence.shots is missing or is not a list of image paths";
+ if (item.visual && !item.shots.length) return "evidence.shots is empty but evidence.visual is true; expected committed image paths";
+ if (!item.visual && item.shots.length) return "evidence.shots must be [] when evidence.visual is false";
+ return null;
+};
 function evidencePacket(cwd: string, handoff: Record<string, unknown> | null) {
  const e = handoff?.evidence as { path?: unknown; visual?: unknown; shots?: unknown } | undefined;
- if (e && e.visual === false && e.shots === undefined) e.shots = [];
  if (!e || typeof e.visual !== "boolean" || !Array.isArray(e.shots) || (e.visual && !e.shots.length) || (!e.visual && e.shots.length)) throw new Error("Evidence needs path, visual boolean, and shots (nonempty for visual journeys)");
  const tracked = (p: unknown) => {
   if (typeof p !== "string" || !p.startsWith("docs/attachments/") || p.split("/").includes("..")) throw new Error("Evidence must live under docs/attachments: " + p);
@@ -243,15 +266,23 @@ export async function run(job: JobContext) {
    await wake("stale wait: " + c.phase + " " + c.slug + " is still waiting: " + c.waiting + ". The exception notice was sent at " + c.exceptionMailAt + " and no child turn has arrived since; child " + topic(c.handle) + ", worktree " + c.handle.path + ". Check whether your steer reached it or queue a resume. This is the one reminder for this exception.");
   }
  };
+ // Mirrors the supervised handoff schema in docs/verification-evidence.md.
+ const reportSchema = "Required handoff form:\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held|failed|unobservable\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: true|false\n  shots: [docs/attachments/<ticket>/01-state.png]\n```\n\nFor a nonvisual journey use `visual: false` and `shots: []`; for a visual journey, list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established.";
+ const repairReport = async (c: Child, reason: string, text: string, escalationReason = reason) => {
+  // Give the child two correction turns; only a repeated failure wakes the owner.
+  if ((c.reportRepairs ?? 0) >= 2) { await except(c, escalationReason + " (still invalid after two repair attempts)", text); return false; }
+  c.reportRepairs = (c.reportRepairs ?? 0) + 1;
+  await save();
+  await children.send(topic(c.handle), reason + "\n\n" + reportSchema);
+  return false;
+ };
  const repairEvidence = async (c: Child, handoff: Record<string, unknown> | null, text: string) => {
+  const shape = evidenceShapeError(handoff);
+  if (shape) return repairReport(c, "invalid evidence handoff: " + shape, text);
   try { evidencePacket(c.handle.path, handoff); return true; }
   catch (error) {
    const reason = "invalid evidence handoff: " + (error instanceof Error ? error.message : String(error));
-   if ((c.reportRepairs ?? 0) >= 2) { await except(c, reason, text); return false; }
-   c.reportRepairs = (c.reportRepairs ?? 0) + 1;
-   await save();
-   await children.send(topic(c.handle), reason + "\nRepair your handoff and report again in this same checkout. Keep completed work; do not reimplement it. Supply complete fenced YAML: evidence.path (committed docs/attachments/ Markdown index), evidence.visual (boolean), evidence.shots (committed image paths, nonempty when visual; [] otherwise). Include every story with exact outcome: held only when established on the final head; qualifications belong in caveats. Never invent evidence or weaken a required visual journey. Collect missing evidence or report blocked. Report done only when required stories hold.");
-   return false;
+   return repairReport(c, reason, text);
   }
  };
 const checkStartup = async (live: Child[]) => {
@@ -457,25 +488,42 @@ const checkStartup = async (live: Child[]) => {
   "The combined change: git diff " + (input.unjoined?.base ?? state.base) + "..HEAD in your worktree." + (batch ? " Other loops may integrate into the same branch concurrently, so that diff can include their work: consolidate what the tickets above changed, and leave the rest." : ""),
   ...(driven ? ["Integration driver's handoff:\n" + yaml(driven), "Integration driver's final message:\n\n" + report.slice(-4000)] : [])].join("\n\n");
  const joinTurn = async (c: Child, r: ReturnType<typeof parse>, text: string) => {
-  if (c.phase === "drive") {
-   if (!Array.isArray(r.handoff?.stories)) { await except(c, "integration driver reported no story outcomes", text); return; }
-   c.drive = r.handoff!;
-   const failed = (r.handoff!.stories as { outcome?: string }[]).some(s => s.outcome !== "held");
-   // Nothing to repair and nothing to relate: the drive's evidence is the join.
-   if (!failed && (input.unjoined?.slugs.length ?? 0) + state.integrated.length < 2) { c.evidence = { ...r.handoff! }; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); await save(); await integrateChild(c, c.handle); return; }
-   const handle = await launch(c.slug, "consolidate", consolidatePrompt(c.drive, text), git(c.handle.path, "rev-parse", "HEAD"));
-   (c.previous ??= []).push(c.handle);
-   Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } });
-   await save();
-  } else {
-   const drove = Array.isArray(c.drive?.stories) && (c.drive!.stories as unknown[]).length > 0;
-   if (drove && unheld(r.handoff)) { await except(c, "consolidation did not end with every crossing story held", text); return; }
-   c.evidence = { ...r.handoff!, tests: testCommands(r.handoff) };
-   c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD");
-   await save();
-   await integrateChild(c, c.handle);
+ if (c.phase === "drive") {
+  const shape = storyShapeError(r.handoff, true);
+  if (shape) { await repairReport(c, shape, text); return; }
+  if (r.handoff?.evidence !== undefined) {
+   const evidenceShape = evidenceShapeError(r.handoff);
+   if (evidenceShape) { await repairReport(c, "invalid evidence handoff: " + evidenceShape, text); return; }
   }
- };
+  c.drive = r.handoff!;
+  const failed = (r.handoff!.stories as { outcome?: string }[]).some(s => s.outcome !== "held");
+  // Nothing to repair and nothing to relate: the drive's evidence is the join.
+  if (!failed && (input.unjoined?.slugs.length ?? 0) + state.integrated.length < 2) { c.evidence = { ...r.handoff! }; c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD"); await save(); await integrateChild(c, c.handle); return; }
+  const handle = await launch(c.slug, "consolidate", consolidatePrompt(c.drive, text), git(c.handle.path, "rev-parse", "HEAD"));
+  (c.previous ??= []).push(c.handle);
+  Object.assign(c, { handle, phase: "consolidate", cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } });
+  await save();
+ } else {
+  const drove = Array.isArray(c.drive?.stories) && (c.drive!.stories as unknown[]).length > 0;
+  if (drove || r.handoff?.stories !== undefined) {
+   const shape = storyShapeError(r.handoff, false);
+   if (shape) { await repairReport(c, shape, text); return; }
+  }
+  if (drove) {
+   const stories = r.handoff!.stories as { story: string; outcome: string }[];
+   const notHeld = stories.findIndex(s => s.outcome !== "held");
+   if (notHeld >= 0) { await except(c, `consolidation story stories[${notHeld}] outcome is ${JSON.stringify(stories[notHeld].outcome)}; expected held`, text); return; }
+  }
+  if (r.handoff?.evidence !== undefined) {
+   const evidenceShape = evidenceShapeError(r.handoff);
+   if (evidenceShape) { await repairReport(c, "invalid evidence handoff: " + evidenceShape, text); return; }
+  }
+  c.evidence = { ...r.handoff!, tests: testCommands(r.handoff) };
+  c.acceptedHead = git(c.handle.path, "rev-parse", "HEAD");
+  await save();
+  await integrateChild(c, c.handle);
+ }
+};
 
  const count = commands().length;
  // Explicit reconciliation is used only on a new job, never reapplied on daemon restart.
@@ -595,7 +643,7 @@ const checkStartup = async (live: Child[]) => {
   await (async () => {
   const r = parse(end.text);
   if (end.kind !== "finished") { await except(c, "turn ended: " + end.kind, end.text); return; }
-  if (r.handoffError) { await except(c, "handoff block did not parse: " + r.handoffError, end.text); return; }
+  if (r.handoffError) { await repairReport(c, "handoff YAML parse error: " + r.handoffError, end.text, "handoff block did not parse: " + r.handoffError); return; }
   if (r.status === "checkpoint") {
    c.waiting = "checkpoint"; c.waitingSince = new Date().toISOString(); c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined;
    await wake("checkpoint from " + c.phase + " " + c.slug + ":\n\n" + end.text);
@@ -603,7 +651,14 @@ const checkStartup = async (live: Child[]) => {
   }
   // A child supervisor ends its turn while its own loop runs; only a status sentinel reports.
   if (c.phase === "supervise" && r.status === null) return;
-  if (r.status !== "done") { await except(c, r.status ?? "no status sentinel", end.text); return; }
+  if (r.status !== "done") {
+   if (r.status === null) {
+    await repairReport(c, "missing or misplaced status sentinel: put `done` as the first nonblank line (not after the report)", end.text, "no status sentinel: expected `done` as the first nonblank line");
+    return;
+   }
+   await except(c, r.status, end.text);
+   return;
+  }
   note(c.slug, caveats(r.handoff));
   if (c.phase !== "supervise" && git(c.handle.path, "status", "--porcelain")) { await except(c, c.phase + " done with uncommitted changes", end.text); return; }
   if (isJoin(c)) { await joinTurn(c, r, end.text); return; }
@@ -615,13 +670,17 @@ const checkStartup = async (live: Child[]) => {
   }
   else if (c.phase === "drive") {
    // Failed stories are the reviewer's to repair; only an unusable log stops the pipeline.
-   const stories = r.handoff?.stories;
-   if (!Array.isArray(stories) || !stories.length) { await except(c, "driver reported no story outcomes", end.text); return; }
+   const storiesError = storyShapeError(r.handoff);
+   if (storiesError) { await repairReport(c, storiesError, end.text); return; }
    if (!await repairEvidence(c, r.handoff, end.text)) return;
    c.drive = r.handoff!;
    await toReview(c, end.text);
   } else if (c.phase === "review") {
-   if (unheld(r.handoff)) { await except(c, "review did not end with every story held", end.text); return; }
+   const storiesError = storyShapeError(r.handoff);
+   if (storiesError) { await repairReport(c, storiesError, end.text); return; }
+   const stories = r.handoff!.stories as { story: string; outcome: string }[];
+   const notHeld = stories.findIndex(story => story.outcome !== "held");
+   if (notHeld >= 0) { await except(c, `review story stories[${notHeld}] outcome is ${JSON.stringify(stories[notHeld].outcome)}; expected held`, end.text); return; }
    if (!await repairEvidence(c, r.handoff, end.text)) return;
    if (r.handoff!.redrive === true && !c.redriven) { c.redriven = true; await toDrive(c); return; }
    c.evidence = { ...r.handoff!, tests: [...new Set([...testCommands(c.drive), ...testCommands(r.handoff)])] };
