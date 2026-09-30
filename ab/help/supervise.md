@@ -18,9 +18,11 @@ once. List earlier workers first (implement before drive); they're retired with 
 into a running supervision of <ticket> or starts one; a lone leaf can be its own ticket.
 Resume acknowledgements are saved per command. Commands queued before a daemon restart remain pending. An interrupted command's effects may already have happened; the loop stops and reports its 1-based record number rather than replaying it. Legacy nonempty logs without a cursor also require reconciliation. Inspect the reported JSONL log and worker/Git state, then `start <ticket> --commands-applied N` to leave the first N records behind and execute the remainder. This is an explicit recovery override, not a routine start option. An acknowledged command may have reported failure; queue a new resume after repairing its blocker. Do not truncate or replace the command log.
 
-Integration is serialized per repository inside the daemon. `--test CMD` runs in
-the child's worktree after rebasing onto the owner, before committing closure and
-fast-forwarding the owner. It must use that worktree's setup and leave it clean.
+Integration is serialized per repository inside the daemon. The gate is `--test CMD`,
+or else the project's `pre-integrate` mise task when it declares one; reviewer-listed
+tests run beside the gate, never instead of it. The gate runs in the child's worktree
+after rebasing onto the owner, before committing closure and fast-forwarding the owner.
+It must use that worktree's setup and leave it clean.
 A failed test/close leaves the child available and the owner HEAD unchanged; fix
 that child and resume. Closure travels on the child's branch. Completion state is
 saved before worker cleanup; a crash during cleanup may leave resources to retire.

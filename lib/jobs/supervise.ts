@@ -107,6 +107,12 @@ async function paneTail(cwd: string, handle: Handle) {
 // gets killed and replaced by the next client's ensure(), interrupting every job it hosts.
 const exec = promisify(execFile);
 const RUN = { maxBuffer: 64 * 1024 * 1024 };
+/** The project's integration gate: --test when given, else a `pre-integrate` mise task the project declares
+ * (a lifecycle point, like its worktree post_create hook). Reviewer-listed tests run beside it, never instead. */
+const declaredGate = (cwd: string): string | undefined => {
+ try { return (JSON.parse(execFileSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })) as { name: string }[]).some(t => t.name === "pre-integrate") ? "mise run pre-integrate" : undefined; }
+ catch { return undefined; }
+};
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 // Every loop runs in the one ab daemon, and loops over the same repository commit to the same checkout;
 // preparation and integration run one loop at a time per repository (including symlink aliases).
@@ -404,8 +410,9 @@ const checkStartup = async (live: Child[]) => {
    if (c.phase !== "supervise") { c.acceptedHead = git(worker.path, "rev-parse", "HEAD"); await save(); }
    // The tests encoding the driver's checks are the contract; they gate integration mechanically.
    // Earlier siblings' tests too, so one child can't silently break another's contract.
-   if (input.test) await exec("bash", ["-lc", input.test], { ...RUN, cwd: worker.path });
-   else for (const file of new Set([...(input.tests ?? []), ...(state.tests ?? []), ...testCommands(c.evidence)])) {
+   const gate = input.test ?? declaredGate(worker.path);
+   if (gate) await exec("bash", ["-lc", gate], { ...RUN, cwd: worker.path });
+   for (const file of new Set([...(input.tests ?? []), ...(state.tests ?? []), ...testCommands(c.evidence)])) {
     const command = testRun(worker.path, file);
     if (command) await exec(command[0], command.slice(1), { ...RUN, cwd: worker.path });
    }
@@ -441,7 +448,7 @@ const checkStartup = async (live: Child[]) => {
   const outside = git(c.handle.path, "diff", "--name-only", base, "HEAD").split("\n").filter(f => f && !dirs.some(d => f === d || f.startsWith(d + "/")));
   if (outside.length) return except(c, "decomposed with changes outside the tracker (" + outside.slice(0, 5).join(", ") + "); land children only, or implement the leaf whole");
   trace("integrate-start", { slug: c.slug, decomposed: kids.map(k => k.slug) });
-  try { await integrate(c.handle, { cwd: input.cwd, keep: true, prepare: async worker => { if (input.test) await exec("bash", ["-lc", input.test], { ...RUN, cwd: worker.path }); } }); }
+  try { await integrate(c.handle, { cwd: input.cwd, keep: true, prepare: async worker => { const gate = input.test ?? declaredGate(worker.path); if (gate) await exec("bash", ["-lc", gate], { ...RUN, cwd: worker.path }); } }); }
   catch (error: any) { trace("integrate-end", { slug: c.slug, ok: false }); return except(c, "integration of the decomposition failed", String(error) + "\n" + String(error.stdout ?? "") + String(error.stderr ?? "")); }
   delete state.children[c.slug];
   (state.decomposed ??= []).push(c.slug);
@@ -513,7 +520,7 @@ const checkStartup = async (live: Child[]) => {
   const landed = [...(input.unjoined?.slugs ?? []), ...state.integrated].map(slug => "- " + slug + ": " + JSON.stringify(state.reviews?.[slug] ?? input.unjoined?.reviews[slug] ?? {})).join("\n");
   return [node ? "Node " + node.slug + " (" + rel(node.file) + "), whose children have all been integrated:\n\n" + readFileSync(node.file, "utf8") : "One cycle of a synchronous ticket loop integrated these independent tickets together (issue files under docs/issues/).",
    "Landed, with each leaf review's summary:\n" + landed,
-   "Tests every change must keep passing: " + (input.test ?? JSON.stringify([...(input.tests ?? []), ...(state.tests ?? [])]))].join("\n\n");
+   "Tests every change must keep passing: " + [input.test ?? declaredGate(input.cwd), JSON.stringify([...(input.tests ?? []), ...(state.tests ?? [])])].filter(Boolean).join(" and ")].join("\n\n");
  };
  const startJoin = async (): Promise<boolean> => {
   const key = ((input.ticket || input.run || "cycle") + "-join-" + Date.now().toString(36)).replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^[^A-Za-z0-9]+/, "");
