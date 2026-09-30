@@ -19,13 +19,10 @@ import { logSize, noteRead, readFrom, send, topics, type Message } from "./store
 import { parse } from "../report.ts";
 import { mailbox } from "./mailbox";
 import { scopes } from "./scopes";
+import { writeLiveSubscriptions, type BoardSubscription } from "../session-meta/live";
 import { execFile } from "node:child_process";
 
-interface Subscription {
-	topic: string;
-	tags?: string;
-	wake: boolean;
-}
+type Subscription = BoardSubscription;
 
 const SUBS_ENTRY = "board-subs";
 const CURSOR_ENTRY = "board-cursor";
@@ -74,6 +71,7 @@ export function install(pi: ExtensionAPI) {
 
 	function persistSubs() {
 		pi.appendEntry(SUBS_ENTRY, subs);
+		if (sessionId) writeLiveSubscriptions(sessionId, cwd, subs);
 	}
 
 	/** Add (or with remove, drop) a subscription; returns the resulting entry. Idempotent on topic×tags. */
@@ -194,6 +192,7 @@ export function install(pi: ExtensionAPI) {
 		if (ctx.hasUI) ctx.ui.setStatus("mailbox", ["✉ " + box, ...shared.map((t) => "# " + t)].join("  "));
 		if (process.env.TMUX_PANE) execFile("tmux", ["set", "-p", "-t", process.env.TMUX_PANE, "@mailbox", box], () => {});
 		if (!restoredSubs || subs.length !== restoredSubs.length) persistSubs();
+		else writeLiveSubscriptions(sessionId, cwd, subs);
 		for (const id of seen) pending.delete(id);
 		rebuildMatchers();
 	}

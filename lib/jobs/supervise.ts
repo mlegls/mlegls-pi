@@ -19,6 +19,7 @@ import type { JobContext } from "../daemon.ts";
 import { resolveSession } from "../session-meta/identity";
 import { SPAWN_META } from "../session-meta/host";
 import { workmuxStatus } from "../wm.ts";
+import { scopes } from "../board/scopes";
 import { tracer } from "./events.ts";
 export interface Input { ticket: string; cwd: string; owner: string; ownerSession?: string; budget: number; test?: string; commands: string; commandsApplied?: number; carried?: State | null;
  // Batch mode (lib/jobs/loop.ts): run exactly these items, and on any exception defer the child (retire it,
@@ -80,6 +81,13 @@ async function hasPiSession(handle: Handle) {
   try { return SessionManager.open(session.path).getEntries().some(entry => STARTUP_META(entry, handle)); }
   catch { return false; }
  });
+}
+function workerAddress(handle: Handle, cwd: string): string | undefined {
+ const existing = scopes(handle.path).find(value => value.startsWith("wt/"));
+ if (existing) return existing;
+ const current = scopes(cwd).find(value => value.startsWith("wt/"));
+ const repo = current?.slice("wt/".length).split("/")[0];
+ return repo ? `wt/${repo}/${handle.handle}` : undefined;
 }
 async function paneTail(cwd: string, handle: Handle) {
  const worker = (await workmuxStatus(cwd).catch(() => [])).find(entry => entry.worktree === handle.handle || resolve(entry.workdir) === resolve(handle.path));
@@ -181,7 +189,6 @@ async function residuals(input: Input): Promise<string> {
 // Caveats workers reported, for the owner to file as ideas or link to their owners.
 const listCaveats = (all?: Record<string, string[]>) => Object.entries(all ?? {}).map(([slug, cs]) => cs.map(c => slug + ": " + c).join("\n")).join("\n");
 
-
 export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
@@ -245,13 +252,15 @@ export async function run(job: JobContext) {
    await retireAll(c);
    return;
   }
+  const address = workerAddress(c.handle, input.cwd) ?? topic(c.handle);
+  const command = "ab mail " + address + " TEXT";
   await wake(c.phase + " " + c.slug + ": " + reason + "\n\n" + text.slice(-3000) +
-   "\n\nchild " + topic(c.handle) + ", worktree " + c.handle.path +
+   "\n\nWaiting worker: " + command + "; worktree " + c.handle.path +
    (c.unreachable
      ? (existsSync(c.handle.path)
-       ? "Restart it in its existing worktree; its next report on this topic returns to the loop"
-       : "After restoring its worktree, restart it there; its next report on this topic returns to the loop")
-     : "Steer it directly (its next turn end returns to the loop)") +
+       ? ". Restart it in its existing worktree before steering it; its next report on this topic returns to the loop"
+       : ". After restoring its worktree, restart it there before steering it; its next report on this topic returns to the loop")
+     : ". Steer it directly; its next turn end returns to the loop") +
    ", or: ab supervise resume " + input.ticket + " " + c.slug + " verify|integrate|drop|redispatch", () => {
     if (c.waitingSince === waitingSince) c.exceptionMailAt = new Date().toISOString();
    });

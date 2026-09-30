@@ -375,8 +375,12 @@ const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, v
 		const [to, ...words] = a;
 		const body = words.length ? words.join(" ") : (await Bun.stdin.text()).trimEnd();
 		if (!to || !body) fail("usage: ab mail <mailbox> <text...>   (or text on stdin)");
+		const { subscriberStatus } = await import("../lib/board/subscribers.ts");
+		const status = subscriberStatus(to);
 		const m = (await import("../lib/board/mailbox.ts")).mail(to, body);
 		console.log(m.topic + " " + m.id);
+		if (status === "none") process.stderr.write(`warning: no live subscribers for ${m.topic}; message was recorded but cannot wake a reader\n`);
+		else if (status === "unknown") process.stderr.write(`warning: could not confirm a live subscriber for ${m.topic}; message was recorded but may not be delivered\n`);
 	} };
 if (!run[command]) fail("unknown command " + command + "; commands: " + COMMANDS.join(", "));
 try { await run[command](args); }
