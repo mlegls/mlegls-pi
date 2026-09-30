@@ -58,3 +58,9 @@ Frictions disposition:
 - Start receipt versus readiness: handled here by retaining the process-written readiness marker in the automated replay; the documented distinction is correct, not a product defect.
 
 Final claims: complete machine-readable check list **held**; compact receipts without environment values **held**; check and service status filters **held**. Evidence remains CLI-only, with no screenshots or remaining review-owned processes.
+
+### Integration rebase
+
+Rebased onto main `059e00f` after the waiter-retention change landed. Kept its complete timeout/recovery/SIGINT test alongside the resource-list replay, and kept main's two newer setup-handoff observations before this review's observation. No product behavior changed during conflict resolution. Rebased product and tests: `116dfb8`.
+
+Post-rebase validation: `ab check -- bun test ab/` — **14 passed, 0 failed** (execution `646d743d-e798-45c5-81d2-8c8bdd195299`); `ab check -- bun test lib/resources` — **7 passed, 0 failed** (execution `cfd4d72f-11e8-4bf7-ba73-b3b0c60aee39`). All three list claims still held, including alongside the waiter-retention replay. Test-owned services and isolated daemons were shut down.
