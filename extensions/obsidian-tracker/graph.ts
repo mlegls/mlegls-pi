@@ -25,7 +25,7 @@ export class Graph {
   private svg!: SVGSVGElement;
   private nodes: Issue[] = [];
   private edges: Edge[] = [];
-  private els = new Map<string, { g: SVGGElement; circle: SVGCircleElement }>();
+  private els = new Map<string, { g: SVGAElement; circle: SVGCircleElement }>();
   private lines: { el: SVGLineElement; e: Edge }[] = [];
 
   constructor(private hooks: Hooks) {
@@ -65,15 +65,23 @@ export class Graph {
       return { el, e };
     });
     this.els.clear();
-    const byId = new Map(nodes.map((n) => [n.id, n]));
+    let suppressClick = false;
     const linked = new Set(this.edges.flatMap((e) => [e.from, e.to]));
     for (const n of nodes) {
-      const g = this.svg.createSvg("g", { cls: linked.has(n.id) ? ["trk-node"] : ["trk-node", "lone"] });
-      g.createSvg("title").textContent = `${n.project}/${n.slug}\nown ${n.ownStage ?? "—"} · tree ${n.effectiveStage} · ${n.actor} · p${n.priority ?? "?"} · unblocks ${n.unblocksAll}`;
+      const g = document.createElementNS(NS, "a");
+      g.setAttribute("class", linked.has(n.id) ? "trk-node internal-link" : "trk-node internal-link lone");
+      g.setAttribute("href", n.id);
+      g.dataset.href = n.id;
+      this.svg.appendChild(g);
+      const progress = n.children.length ? ` · ${n.children.filter((c) => c.subtreeDone).length}/${n.children.length} subissues` : "";
+      g.createSvg("title").textContent = `${n.project}/${n.slug}\nown ${n.ownStage ?? "—"} · tree ${n.effectiveStage}${progress} · ${n.actor} · p${n.priority ?? "?"} · unblocks ${n.unblocksAll}`;
       const circle = g.createSvg("circle", { attr: { r: String(this.r(n)), fill: n.subtreeDone ? "var(--background-modifier-border)" : ACTOR_COLOR[n.actor], "stroke-width": "1.5", opacity: n.subtreeDone ? "0.5" : "1" } });
       const t = g.createSvg("text", { attr: { y: String(this.r(n) + 11), "text-anchor": "middle", "font-size": "10", fill: "var(--text-muted)" } });
       t.textContent = this.hooks.label(n);
-      g.addEventListener("pointerdown", (ev) => { ev.preventDefault(); const p = this.point(ev); this.drag = { id: n.id, moved: false, sx: p.x, sy: p.y }; this.svg.setPointerCapture(ev.pointerId); });
+      if (progress) g.createSvg("text", { attr: { y: String(this.r(n) + 23), "text-anchor": "middle", "font-size": "10", fill: "var(--text-muted)" } }).textContent = progress.slice(3);
+      g.addEventListener("pointerdown", (ev) => { if (ev.button !== 0) return; suppressClick = false; const p = this.point(ev); this.drag = { id: n.id, moved: false, sx: p.x, sy: p.y }; g.setPointerCapture(ev.pointerId); });
+      g.addEventListener("click", (ev) => { ev.preventDefault(); if (!suppressClick) this.hooks.open(n, ev); suppressClick = false; });
+      g.addEventListener("auxclick", (ev) => { if (ev.button === 1) { ev.preventDefault(); this.hooks.open(n, ev); } });
       g.addEventListener("dblclick", () => { this.pos.get(n.id)!.fixed = false; this.savePins(); this.reheat(); });
       g.addEventListener("mouseover", (ev) => this.hooks.hover(n, ev, g));
       g.addEventListener("contextmenu", (ev) => this.hooks.menu(n, ev));
@@ -88,10 +96,11 @@ export class Graph {
     const up = (ev: PointerEvent) => {
       const d = this.drag; this.drag = null;
       if (!d) return;
-      if (d.moved) this.savePins(); else this.hooks.open(byId.get(d.id)!, ev);
+      suppressClick = d.moved;
+      if (d.moved) this.savePins();
     };
     this.svg.addEventListener("pointerup", up);
-    this.svg.addEventListener("pointercancel", up);
+    this.svg.addEventListener("pointercancel", () => { this.drag = null; suppressClick = true; });
     this.alpha = 1;
     this.reheat();
   }

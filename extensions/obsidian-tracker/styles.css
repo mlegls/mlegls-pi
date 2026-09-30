@@ -18,3 +18,8 @@
 .trk-node { cursor: pointer; }
 .trk-node.lone text { display: none; }
 .trk-node.lone:hover text { display: block; }
+.trk-board { display: flex; align-items: flex-start; gap: 12px; overflow-x: auto; }
+.trk-column { flex: 0 0 300px; padding: 8px; border-radius: 6px; background: var(--background-secondary); }
+.trk-column .trk-row { flex-wrap: wrap; margin: 8px 0; padding: 10px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); }
+.trk-column .trk-title { flex-basis: 100%; order: -1; }
+.trk-node:focus text { display: block; }

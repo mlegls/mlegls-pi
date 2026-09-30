@@ -2,7 +2,7 @@ import { BasesView, Keymap, Menu, Plugin, TFile, setIcon, type QueryController }
 import { model, type Issue, type Model } from "./model.ts";
 import { Graph } from "./graph.ts";
 
-export const MODES = ["tree", "graph", "frontier", "mine", "done", "invalid", "legacy", "all"] as const;
+export const MODES = ["tree", "board", "graph", "frontier", "mine", "done", "invalid", "legacy", "all"] as const;
 type Mode = (typeof MODES)[number];
 
 const ACTOR_COLOR = { agent: "var(--color-green)", me: "var(--color-blue)", nobody: "var(--text-faint)" };
@@ -47,6 +47,7 @@ export class TrackerView extends BasesView {
     this.order = this.config.getSort().length ? new Map(this.data.data.map((e, n) => [id(e), n])) : new Map();
     const showProject = new Set(this.data.data.map((e) => id(e).split("/")[1])).size > 1;
     this.root.empty();
+    this.root.toggleClass("trk-board", mode === "board");
     if (mode === "graph") return this.drawGraph(m, new Set(this.data.data.map(id)), showDone);
     this.graph?.stop(); this.graph = null;
     const groups = this.data.groupedData;
@@ -54,15 +55,15 @@ export class TrackerView extends BasesView {
     for (const g of groups) {
       const visible = new Set(g.entries.map(id));
       const keep = (i: Issue) => visible.has(i.id);
-      const into = grouped ? this.root.createDiv({ cls: "trk-group" }) : this.root;
-      if (grouped) into.createDiv({ cls: "trk-h", text: g.hasKey() ? String(g.key) : "—" });
+      const into = grouped || mode === "board" ? this.root.createDiv({ cls: mode === "board" ? ["trk-group", "trk-column"] : "trk-group" }) : this.root;
+      if (grouped || mode === "board") into.createDiv({ cls: "trk-h", text: g.hasKey() ? String(g.key) : "Issues" });
       if (mode === "tree") {
         const roots = this.sorted(m.roots.filter((i) => !i.legacy && (showDone || !i.subtreeDone) && this.reaches(i, keep, showDone)));
         if (!roots.length) this.empty(into);
         for (const r of roots) this.node(into, r, keep, showDone, showProject, 0);
         continue;
       }
-      const pool = mode === "all" ? [...m.issues.values()].filter((i) => !i.legacy && (showDone || !i.subtreeDone)) : m[mode];
+      const pool = mode === "all" || mode === "board" ? [...m.issues.values()].filter((i) => !i.legacy && (showDone || !i.subtreeDone)) : m[mode];
       const rows = this.sorted(pool.filter(keep));
       if (!rows.length) this.empty(into);
       for (const i of rows) this.row(into, i, showProject);
@@ -90,6 +91,13 @@ export class TrackerView extends BasesView {
     const file = this.app.vault.getAbstractFileByPath(i.id + ".md");
     if (!(file instanceof TFile)) return;
     const menu = new Menu();
+    ev.preventDefault();
+    for (const [title, pane] of [["Open in new tab", "tab"], ["Open to the right", "split"], ["Open in new window", "window"]] as const) {
+      menu.addItem((item) => item.setTitle(title).setIcon("file-plus").onClick(() => this.app.workspace.getLeaf(pane).openFile(file)));
+    }
+    menu.addItem((item) => item.setTitle("Copy link").setIcon("link").onClick(() => navigator.clipboard.writeText(this.app.fileManager.generateMarkdownLink(file, ""))));
+    menu.addItem((item) => item.setTitle("Copy Obsidian URL").setIcon("link").onClick(() => navigator.clipboard.writeText(`obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(file.path)}`)));
+    menu.addSeparator();
     this.app.workspace.trigger("file-menu", menu, file, "tracker");
     menu.showAtMouseEvent(ev);
   }
@@ -120,7 +128,7 @@ export class TrackerView extends BasesView {
   }
 
   private row(parent: HTMLElement, i: Issue, showProject: boolean, extra?: HTMLElement, dim = false) {
-    const row = parent.createDiv({ cls: "trk-row" + (i.subtreeDone ? " done" : "") + (dim ? " dim" : "") });
+    const row = parent.createDiv({ cls: ["trk-row", ...(i.subtreeDone ? ["done"] : []), ...(dim ? ["dim"] : [])] });
     if (extra) row.appendChild(extra);
     const quiet = i.actor === "nobody";
     const badge = row.createSpan({ cls: "trk-badge", text: i.legacy ? `legacy: ${i.next ?? "unset"}` : `own ${i.ownStage === undefined ? "—" : String(i.ownStage)} · tree ${i.effectiveStage}` });
@@ -136,6 +144,7 @@ export class TrackerView extends BasesView {
       if (title) s.title = title;
     };
     meta(`p${i.priority ?? "?"}`);
+    if (i.children.length) meta(`${i.children.filter((c) => c.subtreeDone).length}/${i.children.length} subissues`, "Direct subissues whose entire subtree is done (including filtered-out issues)");
     if (i.unblocksAll > 0) meta(String(i.unblocksAll), "open issues this unblocks", "lucide-arrow-up-from-line");
     if (i.errors.length) meta("invalid", i.errors.join("; "), "lucide-alert-triangle");
     if (i.claimedBy) meta(String(i.claimedBy), undefined, "lucide-pickaxe");
@@ -145,9 +154,10 @@ export class TrackerView extends BasesView {
   }
 
   private link(parent: HTMLElement, i: Issue) {
-    const a = parent.createEl("a", { cls: "trk-title internal-link", text: i.slug, href: i.id });
+    const a = parent.createEl("a", { cls: ["trk-title", "internal-link"], text: i.slug, href: i.id });
     a.dataset.href = i.id;
     a.addEventListener("click", (ev) => { ev.preventDefault(); this.app.workspace.openLinkText(i.id, "", Keymap.isModEvent(ev)); });
+    a.addEventListener("auxclick", (ev) => { if (ev.button === 1) { ev.preventDefault(); this.app.workspace.openLinkText(i.id, "", "tab"); } });
     a.addEventListener("mouseover", (ev) => this.app.workspace.trigger("hover-link", { event: ev, source: "tracker", hoverParent: this, targetEl: a, linktext: i.id, sourcePath: "" }));
     a.addEventListener("contextmenu", (ev) => this.fileMenu(i, ev));
   }
