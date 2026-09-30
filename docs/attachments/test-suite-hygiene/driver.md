@@ -56,6 +56,10 @@ CLI-only evidence: visual false; shots none.
 - [Empty-host-roster probe](driver-no-host-roster.log) exited 0: **9 pass,
   0 fail** in the targeted route-assignment file. The temporary HOME was removed.
   This supports missing-host insulation, not the conflicting-roster counterfactual.
+- [Filtered ab check](driver-ab.log) exited 0: **51 pass, 0 fail** across
+  10 files in 54.44 seconds. [Filtered ab/resources check](driver-ab-resources.log)
+  exited 0: **58 pass, 0 fail** across 11 files in 58.66 seconds. Neither selected
+  disabled skills or produced `commander` import errors.
 
 ## Additional prediction before the host-roster probe
 
@@ -95,6 +99,10 @@ it does not simulate a differing valid host roster or a guard regression.
 - Empty-HOME insulation is weaker than a conflicting valid host roster. Existing
   child review evidence owns that stronger check; this joined acceptance drive
   is not an audit of every child counterfactual.
+- The two filtered checks took about 201 seconds wall time including queueing,
+  although Bun reported about 54 and 59 seconds respectively. Root execution
+  took 112 seconds. The receipts show initial queueing; no additional setup was
+  required during the wait.
 
 ## Expectations formed during use
 
@@ -103,6 +111,7 @@ it does not simulate a differing valid host roster or a guard regression.
 - **Met:** joined acceptance succeeds without roster overrides or hand-selected
   paths; root exit 0, 357 pass / 3 skip / 0 fail.
 - **Met:** optional dsh remains unprepared but does not produce false failures.
+- **Met:** both substring-filtered commands pass and omit disabled-skill paths.
 - **Met:** missing host roster does not break the targeted CLI (9/9).
 - **Met:** the four child tickets state done and READMEs describe optional setup.
 - **Met, ordinary run only:** rejection cases pass and the historical `probe`
@@ -115,8 +124,17 @@ it does not simulate a differing valid host roster or a guard regression.
 
 - **Held:** root setup followed by `ab check -- bun test` reports no false failures.
 - **Held:** root discovery excludes disabled skills and optional dsh.
+- **Held:** both filtered commands exclude disabled skills and finish successfully.
 - **Held:** archived orchestration report no longer causes a root false failure.
 - **Held (document state):** every child ticket states done.
 - **Unobservable in this drive:** launch safety when a rejection guard regresses.
   No public regression control was supplied. The child review's counterfactual
   remains the separate evidence for that property, not these green CLI runs.
+
+## Resource ownership
+
+The driver started no dev servers, containers, tunnels, remote deployments or
+browser sessions. The host `ab` daemon was inherited and left running. The
+empty-HOME probe directory was removed by its command. Test-internal temporary
+resources were managed by the suite; this drive did not independently audit
+those cleanup paths. All driver CLI invocations have finished.
