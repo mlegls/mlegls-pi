@@ -1,0 +1,44 @@
+run	era	first_send	last_send	sends	decisions	workers	done	never	ckpt_msgs	ckpt_handles	nested_topics	parent_cwds	parent_sessions	null_or_tmp	worker_$	parent_$	worker_models	missing
+review/board-freshness	before	2026-09-14T04:46	2026-09-14T04:46	1	0	0	0	0	0	0	0	1	1	0	0.0	0.0	-	1
+concept/hook-snapshots-0914	before	2026-09-14T06:18	2026-09-14T08:59	152	83	6	6	0	1	1	0	1	2	0	178.84	306.93	{'claude-opus-5': 4, 'gpt-6-astra': 2}	0
+concept/test-pruning-0914	before	2026-09-14T08:59	2026-09-14T09:24	6	1	2	2	0	0	0	0	0	0	0	8.26	0.0	{'claude-opus-5': 2}	0
+concept/transcript-capture-feasibility	before	2026-09-14T09:17	2026-09-14T14:17	67	44	3	2	1	0	0	0	1	2	0	144.31	306.93	{'gpt-6-astra': 1, 'claude-opus-5': 2}	0
+concept/browser-flattening	before	2026-09-14T11:07	2026-09-14T14:18	26	7	4	4	0	2	1	0	1	1	0	49.12	289.71	{'gpt-5.6-terra': 2, 'claude-opus-5': 1, 'gpt-6-astra': 1}	0
+concept/backend-finish	before	2026-09-14T11:27	2026-09-14T12:12	17	2	3	3	0	0	0	0	1	1	0	11.02	289.71	{'claude-sonnet-5': 1, 'gpt-6-astra': 1, 'gpt-5.6-terra': 1}	0
+concept/factor-finish	before	2026-09-14T15:51	2026-09-15T18:27	434	133	115	107	8	37	19	67	1	1	8	627.36	289.71	{'claude-opus-5': 26, 'gpt-6-astra': 42, 'gpt-5.6-terra': 9, 'claude-sonnet-5': 15, '~z-ai/glm-flash-latest': 14, 'grok-4.6': 1, '~deepseek/deepseek-flash-latest': 4, '~deepseek/deepseek-v4-flash-latest': 1}	0
+orch/model-175	before	2026-09-15T02:59	2026-09-15T05:58	45	18	9	9	0	1	1	3	1	1	0	138.09	25.27	{'gpt-6-astra': 2, 'claude-opus-5': 6}	0
+audit/pi-routing	before	2026-09-15T03:04	2026-09-15T03:10	22	14	3	3	0	0	0	0	1	1	0	2.5	22.18	{'claude-sonnet-5': 3}	0
+fix/board-delivery	before	2026-09-15T03:38	2026-09-15T03:46	11	7	2	2	0	0	0	0	1	1	0	1.33	22.18	{'gpt-6-astra': 2}	0
+experiment/compression	before	2026-09-15T03:58	2026-09-15T04:07	3	0	3	3	0	0	0	0	0	0	0	0.43	0.0	{'claude-sonnet-5': 3}	0
+orch/exec-kernel	before	2026-09-15T09:27	2026-09-15T09:41	33	22	3	3	0	0	0	0	1	1	0	5.06	67.07	{'gpt-6-astra': 3}	0
+orch/exec-expand	before	2026-09-15T09:45	2026-09-15T10:18	55	31	7	4	3	3	3	1	1	1	0	8.03	67.07	{'gpt-6-astra': 4, '~deepseek/deepseek-flash-latest': 3}	0
+orch/forum-search	before	2026-09-15T10:31	2026-09-15T10:56	7	0	2	2	0	0	0	0	1	1	0	18.05	25.27	{'~z-ai/glm-flash-latest': 1, 'claude-sonnet-5': 1}	0
+orch/exec-next	before	2026-09-15T10:44	2026-09-15T10:57	54	23	5	5	0	0	0	0	1	1	0	13.69	67.07	{'gpt-6-astra': 5}	0
+orch/exec-presentation	before	2026-09-15T11:30	2026-09-15T11:43	51	6	4	4	0	0	0	0	1	1	0	9.61	67.07	{'gpt-6-astra': 4}	0
+orch/dev-chat	before	2026-09-15T11:47	2026-09-16T03:48	19	1	1	1	0	0	0	0	0	0	0	20.83	0.0	{'gpt-6-astra': 1}	0
+orch/exec-frictions	before	2026-09-15T12:21	2026-09-15T12:40	48	19	7	6	1	0	0	0	1	1	0	10.32	67.07	{'gpt-6-astra': 6, 'claude-sonnet-5': 1}	1
+verify-final	before	2026-09-15T12:37	2026-09-15T12:38	6	0	0	0	0	0	0	0	3	3	0	0.0	0.0	-	3
+orch/exec-runtime-core	before	2026-09-15T15:20	2026-09-15T15:46	77	29	4	4	0	3	1	0	0	0	0	18.49	0.0	{'gpt-6-astra': 4}	0
+materials-closeout	after	2026-09-16T01:54	2026-09-16T03:00	8	0	6	4	2	3	3	1	0	0	0	18.8	0.0	{'grok-4.6': 1, 'gpt-6-astra': 2, 'claude-sonnet-5': 3}	0
+orch/exec-frictions-0916	after	2026-09-16T03:30	2026-09-16T05:25	16	3	5	5	0	1	1	0	1	1	0	11.77	22.37	{'grok-4.6': 3, 'gpt-6-astra': 2}	0
+concept/ui-polish	after	2026-09-16T03:51	2026-09-16T03:51	1	0	1	1	0	0	0	0	0	0	0	2.22	0.0	{'grok-4.6': 1}	0
+exec-state/test-migration	after	2026-09-16T04:35	2026-09-16T04:36	3	0	1	1	0	0	0	0	0	0	0	1.06	0.0	{'gpt-6-astra': 1}	0
+cm-frontier	after	2026-09-16T06:31	2026-09-16T11:56	32	9	10	10	0	3	3	0	0	0	0	89.39	0.0	{'claude-sonnet-5': 2, 'gpt-6-astra': 3, '~deepseek/deepseek-flash-latest': 2, 'grok-4.6': 3}	0
+reorg/0918	after	2026-09-18T16:02	2026-09-18T16:37	14	6	6	6	0	0	0	0	0	0	0	4.74	0.0	{'~deepseek/deepseek-flash-latest': 3, 'gpt-6-astra': 3}	0
+frontier/0919	after	2026-09-18T17:27	2026-09-20T06:50	21	8	9	9	0	0	0	0	0	0	0	25.12	0.0	{'gpt-6-astra': 5, 'grok-4.6': 4}	0
+vault/mlegls-pi	after	2026-09-20T06:46	2026-09-20T06:47	2	0	2	2	0	0	0	0	0	0	0	0.03	0.0	{'deepseek-flash': 2}	0
+orca-probe	after	2026-09-21T05:09	2026-09-21T05:10	3	0	0	0	0	0	0	0	2	1	0	0.0	0.0	-	0
+
+# never-done handles per run (worker handles with no done-tagged send)
+  concept/transcript-capture-feasibility: prune-query-tests
+  concept/factor-finish: final-drive, finish-materials, finish-private-hub, lifecycle-drive, native-materials, public-hub-routes, runtime-u1-cursor, u7b-browser-gate
+  orch/exec-expand: exec-bridge, exec-check, exec-services
+  orch/exec-frictions: exec-friction-check
+  materials-closeout: runtime-drives, runtime-offline
+
+# era totals (sessions deduplicated within era)
+  before: runs=20 sends=1134 worker_sessions=178 worker_$1261 worker_tok(in/out/cacheRead)=38M/7M/2038M models={'claude-opus-5': 40, 'gpt-6-astra': 78, 'gpt-5.6-terra': 12, 'claude-sonnet-5': 24, '~z-ai/glm-flash-latest': 15, '~deepseek/deepseek-flash-latest': 7, 'grok-4.6': 1, '~deepseek/deepseek-v4-flash-latest': 1} | parent_sessions=10 parent_$421 parent_tok=13M/1M/259M missing=5
+  after: runs=9 sends=100 worker_sessions=40 worker_$153 worker_tok(in/out/cacheRead)=8M/1M/324M models={'grok-4.6': 12, 'gpt-6-astra': 16, 'deepseek-flash': 2, 'claude-sonnet-5': 5, '~deepseek/deepseek-flash-latest': 5} | parent_sessions=2 parent_$22 parent_tok=1M/0M/13M missing=0
+
+# check vs docs/research/orchestration-audit-2026-09-18.md (its corpus = sends through 09-16 = 1194; target 217/201/16/33/9/452/34)
+  sends=1194 worker_topics=218 (target 217) done_topics_any_sender=197 worker_handles=205 done_handles=191 ckpt_topics=33 ge2_topics=9 ckpt_handles=33 ge2_handles=9 decision=452 ack=34
