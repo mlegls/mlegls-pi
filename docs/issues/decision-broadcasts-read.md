@@ -15,4 +15,4 @@ limits: session grep sees pi tool calls and exec command text only — a peer th
 
 ## Result
 
-[First-use verification packet](../attachments/decision-broadcasts-read/index.md): CLI reproduction, observed story outcomes, frictions and replayable checks.
+Answer: [report](../../analysis/decision-broadcasts-read/report.md) — hypothesis supported (114/133 decisions reached a peer), the dead-weight inference rejected. [First-use verification packet](../attachments/decision-broadcasts-read/index.md): CLI reproduction, observed story outcomes, frictions and replayable checks.

@@ -3,7 +3,8 @@
 Ticket: `docs/issues/decision-broadcasts-read.md`. Hypothesis under test: "`decision` broadcasts
 are read … 34 acks vs 452 decisions suggests not."
 
-**Verdict: false as stated.** 114/133 (86%) factor-finish decisions have hard evidence of reaching
+**Verdict: the hypothesis ("decision broadcasts are read") is supported; the inference drawn from it
+("34 acks vs 452 decisions suggests not") is rejected.** 114/133 (86%) factor-finish decisions have hard evidence of reaching
 at least one peer — 112 by pull (peer's own `board_read`/exec read returned the decision body or id),
 42 by wake-push injection; 40 of those by both. Median pull latency 13.9 min from decision to first
 peer read; push latency 0.7 min. 47% of decisions reached ≥3 peers. The channel was not dead weight;
@@ -59,14 +60,14 @@ unread-broadcast problem.
 
 Per-decision peer-reach distribution (pull ∪ push):
 `{0:19, 1:33, 2:19, 3:5, 4:3, 5:12, 6:11, 7:7, 8:6, 9:4, 10:6, 11:3, 12:3, 13:2}` —
-median reach 2 peers among reached decisions. Reads (114) ≫ acks (34, and only 5 ff-scoped):
+median reach 2 peers over all 133 decisions (3.5 among the 114 reached). Reads (114) ≫ acks (34, and only 5 ff-scoped):
 the broadcast channel carried the coordination; acks measured a different, mostly-unused custom.
 
 ## Limits
 
 - Pull evidence requires the body/id inside a stored tool result. A peer that read via bash
   (curl/jq of the log) shows only in the excluded log-grep class; a peer that read and whose
-  session file was lost/rotated is invisible. So 84% is a floor.
+  session file was lost/rotated is invisible. So 86% is a floor.
 - Push = wake-injection seen in the session file; a push to a session whose file is gone is
   undercounted the same way.
 - Session grep cannot distinguish "read the board" from "read a restatement" — but restatements
@@ -86,4 +87,5 @@ python3 analysis/decision-broadcasts-read/analyze.py   # prints summary above; w
 
 Inputs: `~/.local/share/pi-board/log.jsonl`, `~/.pi/agent/sessions/**/*.jsonl` (no backend restart).
 Committed: `coverage.json` (per-decision evidence with reader sessions/ts), `pushes.json`,
-`events.json`+`text_occ.json`+`frags.txt` regenerate from the raw corpus (not committed).
+`frags.txt`. `events.json` and `text_occ.json` are gitignored and regenerate from the raw corpus.
+`bun test analysis/decision-broadcasts-read` checks `coverage.json` against the figures above.

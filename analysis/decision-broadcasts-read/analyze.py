@@ -86,6 +86,7 @@ print(f'decisions: {n}  window {min(c["ts"] for c in cov)[5:16]}..{max(c["ts"] f
 print(f'peer pull evidence: {len(pull)} ({len(pull)/n:.0%});  peer push: {len(push)} ({len(push)/n:.0%});  both: {len([c for c in cov if c["strong_peer_readers"] and c["push_peer_sessions"]])};  neither: {len(neither)}')
 print(f'reached >=1 peer: {n-len(neither)} ({(n-len(neither))/n:.0%});  >=3 peers: {sum(1 for c in cov if len(set(c["strong_peer_readers"])|set(c["push_peer_sessions"]))>=3)} ({sum(1 for c in cov if len(set(c["strong_peer_readers"])|set(c["push_peer_sessions"]))>=3)/n:.0%})')
 print(f'reach distribution: {dict(sorted(reached.items()))}')
+print(f'ack-tagged log messages, board-wide 09-14..15: {len(ack_msgs)}  (factor-finish topics: {sum(1 for a in ack_msgs if "factor-finish" in a.get("topic",""))})  vs decisions reached by a peer: {n-len(neither)}/{n}')
 print(f'conversation/spawn relays: {sum(1 for c in cov if c["conversation_relay"])};  quoted-in-send by non-sender: {sum(1 for c in cov if c["quote_senders"])};  ack-msg per id: {sum(1 for c in cov if c["ack_msgs"])}')
 lat = []
 for c in pull:

@@ -66,3 +66,20 @@ These are acceptance checks, not tests added by the driver.
 ## Boundaries
 
 Nonvisual evidence (`visual: false`, `shots: []`). No source/diff/test/fixture inspection or product repair. Corpus samples and output summaries are research data. Aggregate reconciliation and two provenance samples are ordinary first-use checks, not a new exhaustive audit. Cleanup complete; no resources outside the worktree to retain.
+
+## Review pass
+
+Repairs (in scope; driver's first-use record above is unchanged):
+
+- `report.md` verdict polarity: now says the hypothesis is supported and the "34 acks vs 452 → not read" inference is rejected (friction 2).
+- `report.md` median reach was wrong: 2 is the median over all 133; among the 114 reached it is 3.5. Fixed. "84% is a floor" corrected to 86% (84% is the pull-only share).
+- `report.md` file inventory: `frags.txt` is tracked; `events.json`/`text_occ.json` are gitignored (friction 5).
+- `extract.py` `acks:` line relabelled as unscoped ack tool calls; `analyze.py` now prints the 34 board-wide / 5 factor-finish ack-tagged messages against 114/133 (friction 3).
+- Ticket `## Result` now carries a one-line answer and a link to the report (friction 1).
+- Friction 4 (UUID arrays, no peer names table) left: `coverage.json` carries session ids and `ev_detail`; a names table is a separate want, not filed as ticket scope.
+
+Tests: `analysis/decision-broadcasts-read/coverage.test.ts` (`bun test analysis/decision-broadcasts-read`, 3 pass) replays checks 2, 4 and the inventory half of 7 against committed `coverage.json`. It is a data test over the delivered output; checks 1, 3, 5, 6 need the live local corpus and stay as manual replays. Check 7's Result-navigation half is a doc property, not tested.
+
+Re-drive after repairs: extract (exit 0) + analyze (exit 0) reproduced 133 / 114 / 112 / 42 / 40 / 19 and the identical distribution; new ack line prints `34 (factor-finish topics: 5)`. Corpus is live (pushes 1767 vs 1754 committed), so generated `coverage.json`/`pushes.json` were restored to the committed versions.
+
+Final per-claim outcomes: all five stories held; the ticket-navigation and verdict-clarity expectations that missed at first use are now repaired.

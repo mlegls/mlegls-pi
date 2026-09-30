@@ -176,5 +176,5 @@ json.dump({'decisions': decisions, 'reads': reads, 'acks': acks, 'subs': subs, '
 json.dump(pushes, open(os.path.join(OUT, 'pushes.json'), 'w'))
 json.dump(occ, open(os.path.join(OUT, 'text_occ.json'), 'w'))
 print(f'decisions: {len(decisions)}  ff topics: {len(ff_topics)} ({sum(ff_topics.values())} msgs)')
-print(f'reads: {len(reads)}  acks: {len(acks)}  subs: {len(subs)}  pushes: {len(pushes)} ({sum(1 for p in pushes if p["ff"])} ff)')
+print(f'reads: {len(reads)}  ack tool calls, all sessions/eras (NOT the 34 ack-tagged log messages; see analyze.py): {len(acks)}  subs: {len(subs)}  pushes: {len(pushes)} ({sum(1 for p in pushes if p["ff"])} ff)')
 print(f'occurrence decisions: {len(occ)}  files: {len(occ_files)}')
