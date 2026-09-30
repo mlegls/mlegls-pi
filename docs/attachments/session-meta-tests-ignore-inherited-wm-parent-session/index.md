@@ -11,4 +11,30 @@ Local CLI test in this worktree; no deployment URL, server, account, or seeding 
 
 ## Encounter
 
-Not started.
+### Setup and actions
+
+- Tested revision: `408682c` (`Isolate parent session in session-meta test`); packet prediction commit `3570bf4`. Local Bun CLI in this worktree, dependencies already prepared; no service, account, seed, or remote target. `PI_WM_PARENT_SESSION` was present in the worker environment before execution. The implementer's entry point was `bun-axi test lib/session-meta/index.test.ts`; it completed in 18 ms with six passes.
+- Repeated the same focused command with a known non-secret parent (`PI_WM_PARENT_SESSION=drive-probe-parent`) and with the variable unset (`env -u PI_WM_PARENT_SESSION`): both completed with six passes. `bun test lib/session-meta/index.test.ts` named the passing case “extension > records one entry at session start,” plus “spawnMeta > reads wm's env” and “spawnMeta > omits optional provenance.” No test or fixture files were opened.
+- Ran `bun-axi test lib` for scope context: 165 passed, 2 skipped, 1 failure and 2 load errors across 35 files. Failure and load errors were in `lib/session/tmux.test.ts`, not session-meta; terminal-session regressions have a separate ticket. This full-suite result is not a clean gate and is not being treated as one.
+- Tried to observe the production path through Pi's documented CLI: `pi --mode rpc --no-extensions --extension ./lib/session-meta/host.ts --no-context-files --no-skills --no-prompt-templates --no-themes --offline --session-dir "$PWD/.wm/session-meta-drive"`, first `get_state`, then a `/help` prompt, with `PI_WM_PARENT_SESSION=drive-probe-parent`. RPC returned a session path, but did not persist a session log in that directory. The offline `/help` prompt started an agent turn without producing a log either. No provider call, live production record, or runtime assertion resulted. The scratch directory was removed after the encounter.
+
+### Outcomes and expectations
+
+| Claim / prediction | Outcome | Observable result or gap |
+| --- | --- | --- |
+| Focused start-entry test ignores inherited parent session | **Held; prediction met** | Six passes with inherited parent present, six with explicit sentinel, six with parent absent; the named start-entry case passed. A green result does not expose the metadata payload itself. |
+| Production parent-session metadata is retained | **Unobservable; prediction not established** | Named “reads wm's env” test passed, but test names and aggregate pass counts are indirect evidence. The attempted Pi CLI route did not write a session record, so no production entry was directly inspected. |
+
+### Frictions
+
+- `bun-axi` gave only an aggregate count on success; `bun test` was needed to see that the specific start-entry case passed. This slows claim-level evidence even when the test is green.
+- The documented Pi RPC `get_state` response named a session file that did not exist before a saved turn; the offline prompt did not create one either. It was not a viable zero-provider-call way to inspect this runtime metadata.
+- The full library suite exposed unrelated terminal-session failures, making a broad green gate unavailable here.
+
+### Replayable checks wondered about (not automated here)
+
+1. **Inherited-variable isolation.** In a checkout with prepared Bun dependencies, set `PI_WM_PARENT_SESSION=drive-probe-parent`, run `bun test lib/session-meta/index.test.ts`, and accept only if “extension > records one entry at session start” passes and all six focused tests pass. Repeat with `env -u PI_WM_PARENT_SESSION` to check both ambient states.
+2. **Production preservation.** Start a fresh Pi session with the checkout's session-meta host installed, a disposable session directory, and `PI_WM_PARENT_SESSION=drive-probe-parent`; cause a session start that actually persists a log, then inspect its `session-meta` entry through the session log surface. Accept only if it has `parentSession: drive-probe-parent`; repeat with the variable absent and accept only if that field is omitted. The offline RPC attempt above did not reach the persisted-log precondition, so this remains for a later verification path.
+3. **Environment restoration.** In one process, capture `PI_WM_PARENT_SESSION`, execute the focused suite, then check the same process's variable still equals its original value; accept only if unchanged, including when originally absent. The CLI child-process drive only established that each run independently passed, not same-process restoration.
+
+No rendered UI journey; `visual: false`, screenshots: none. No dev server or persistent external resource was started.
