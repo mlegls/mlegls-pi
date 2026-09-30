@@ -11,3 +11,5 @@ Triage, 2026-09-30: the stale-context path is still present at `extensions/memor
 ## Result
 
 [First-use drive packet](../attachments/memory-agent-settled-uses-stale-ctx/index.md).
+
+Review repaired late `agent_settled` delivery after shutdown as well as the pending-timer path. The named lifecycle replays use Pi's real loader/runner and stale-context enforcement; `bun test extensions/memory` passes 20 tests. See the packet's appended review for the reproduction, outcomes and fixture limits.

@@ -32,3 +32,30 @@ The provided entry point is `bun test extensions/memory`; this is a local regres
 - **Negative eligibility:** With no live children or below `memory.hibernate.minTokens`, allow the full expiry interval and observe no hibernation attempt. These are policy invariants mentioned in the docs, not assertions inferred from the passing suite.
 
 No rendered journey; visual evidence is not applicable. No external resource or service was started.
+
+## Review — 2026-09-30
+
+The initial repair still failed the original late-event case: after Pi's shutdown/invalidation sequence, emitting `agent_settled` on the old runner reported the exact stale-context error at `extensions/memory/index.ts:215`. The first lifecycle replay produced **3 pass, 2 fail** (replacement and reload). Cancelling an existing timer was not enough: a late event could start another one and read `ctx.cwd` immediately.
+
+The extension now retires on `session_shutdown` and ignores subsequent settled events before touching their context. The existing timer token also makes an already-queued callback inert. Pi 0.87.1's `withSession` is an option on commands that replace sessions, not a general context accessor on `ExtensionContext`; memory initiates no replacement and needs no post-replacement continuation. New work comes from the new extension instance's fresh event context. No old work is transferred to the replacement.
+
+### Replay and current outcomes
+
+`extensions/memory/lifecycle.test.ts` loads memory through Pi's real extension loader and runner, including Pi's stale-context enforcement, and uses real session managers and temporary supervisor/settings files. It explicitly delivers the shutdown/invalidation lifecycle for resume and reload. The clock and model response are fixtures; compaction requests are routed through the real `session_before_compact` handler and its attempt ledger, not through a live provider or TUI.
+
+| Claim / replay | Current outcome | Observation |
+| --- | --- | --- |
+| Old timer after replacement/reload | held | Resume and reload each leave no runner error, hibernation notice, compaction request or attempt-ledger entry after a late settled event, a manually invoked already-queued callback, and expiry of the old deadline. |
+| Fresh replacement can hibernate | held | Its own settled event and full idle interval produce one compaction request, the `Hibernating: folding` notice, child focus `t: x`, and one ledger entry with `trigger: hibernate`. |
+| Ordinary idle / activity / shutdown | held | No request before expiry; activity cancels the old deadline; a fresh full interval produces one request and hibernation ledger entry; another interval does not duplicate it; shutdown cancels a newly scheduled timer. |
+| Negative eligibility | held | Below-threshold and childless supervisors produce no request, notice, error or attempt-ledger entry after the full interval. |
+
+Both driver frictions are fixed here: named resume/reload tests expose the missing case, and the deterministic SDK replay supplies the controlled lifecycle/clock route absent from the CLI. Both expectations are now observed, not inferred from the old generic test name. No driver check was dropped. The original first-use record above is unchanged.
+
+No external resources were started; fixtures clean up their temporary directories and restore timers/environment. This establishes the extension lifecycle contract, not live provider checkpoint quality or an end-to-end interactive workspace switch.
+
+### Verification receipts
+
+- Tested code revision: `d814143` (retirement guard and ledger replay). Installed repository SDK: `@earendil-works/pi-coding-agent` **0.84.4**. `ab check -- bun test extensions/memory`: **20 pass, 0 fail, 173 assertions**, five files.
+- Compatibility replay against the ticket's **Pi 0.87.1** SDK: temporarily replaced only this worktree's ignored `node_modules/@earendil-works/{pi-coding-agent,pi-ai}` directories with symlinks to the installed mise CLI's corresponding packages; ran `bun test extensions/memory/lifecycle.test.ts` through `ab check`; restored both original directories with an EXIT trap. **5 pass, 0 fail, 51 assertions.** No installed global package was modified. The target SDK root was `$HOME/.local/share/mise/installs/npm-earendil-works-pi-coding-agent/latest/node_modules/@earendil-works`; verify its package version before repeating this optional compatibility check.
+- `ab check -- ./node_modules/.bin/tsc --noEmit`: unchanged root diagnostics remain; no diagnostic in `extensions/memory/index.ts` or `lifecycle.test.ts`. Existing owners: [[projects/mlegls-pi/issues/root-typecheck-memory-image-fixture]], [[projects/mlegls-pi/issues/root-board-store-fixture-typecheck]], [[projects/mlegls-pi/issues/root-typecheck-obsidian-environment]]. Focused memory tests are the available workaround.
