@@ -65,3 +65,12 @@ All owned Pi processes stopped and awaited; isolated mail state removed. Tracker
 ## Independent first-use drive
 
 Retested `4a1e90c` through checkout-local CLI surfaces, without reading product source/tests. All four behavior stories held, including unrelated done-blocker preservation, live-link diagnostics next to ignored examples, and escaped table aliases. Existing joined regressions: **76 passed across 8 files**. [Predictions, encounters, frictions and replayable checks](drive.md), with [setup](drive-setup.txt), [anchor edits](drive-edit.txt), [tracker](drive-tracker.txt), [mail](drive-mail.txt) and [regression result](drive-regressions.txt). CLI-only (`visual: false`, `shots: []`); test assertion adequacy remains for reviewer inspection. The drive log records setup recovery and owner-tracker friction links.
+
+## Review
+
+Read the four children's diffs and tests against the driver's log; 76 existing regressions pass (`ab check -- bun-axi test …`, same command as above).
+
+- **Defect found and repaired:** `maskMarkdownCode` closed an inline code span at any later matching backtick run, across blank lines. A note with a stray `` ` `` in one paragraph and an unrelated code span paragraphs later reported `ok` while a broken `[[projects/fx/issues/nope]]` sat between them (reproduced before the fix). Code spans now close only within their paragraph. Retained as a scenario in `issues.test.ts` ("check still reports a broken link between an unmatched backtick and a later code span"); tracker suite 21 passed.
+- **Test adequacy:** the children's tests assert user-visible CLI results: exit codes and stderr for mail (absent, unknown, wrong-board, exited), exact file bytes and `fixed` lines for scoped tracker repair, code masking and escaped-pipe aliases, and parser/edit results for `=a =b`. They cover driver checks 1–4; the driver's rollout-example and outside-checkout-mail launch checks stay as evidence only (they guard this ticket's docs and a Pi launcher issue, not a later regression).
+- Driver frictions each already have an owner issue; nothing further filed.
+- Behaviors stories re-held on the final head: the only behavioral change is the paragraph bound on code spans, covered by the new test and the existing code-example tests.

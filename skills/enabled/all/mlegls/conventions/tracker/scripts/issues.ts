@@ -305,6 +305,9 @@ function maskMarkdownCode(source: string): string {
     for (let i = index - 1; i >= 0 && chars[i] === "\\"; i--) slashes++;
     return slashes % 2 === 1;
   };
+  // A code span cannot cross a blank line, so a stray backtick must not mask the paragraphs after it.
+  const fenceMasked = chars.join("");
+  const paragraphEnd = (from: number) => { const m = /\r?\n[ \t]*\r?\n/g; m.lastIndex = from; return m.exec(fenceMasked)?.index ?? chars.length; };
   for (let i = 0; i < chars.length;) {
     if (chars[i] !== "`" || escaped(i)) { i++; continue; }
     let runEnd = i + 1;
@@ -312,9 +315,10 @@ function maskMarkdownCode(source: string): string {
     const length = runEnd - i;
     let search = runEnd;
     let close = -1;
-    while (search < chars.length) {
+    const limit = paragraphEnd(runEnd);
+    while (search < limit) {
       const start = chars.indexOf("`", search);
-      if (start < 0) break;
+      if (start < 0 || start >= limit) break;
       let end = start + 1;
       while (chars[end] === "`") end++;
       if (end - start === length) { close = end; break; }

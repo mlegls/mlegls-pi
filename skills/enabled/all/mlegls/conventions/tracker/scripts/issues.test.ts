@@ -87,6 +87,16 @@ test("check ignores wikilinks in inline and fenced code, including when fixing o
   rmSync(moved);
 });
 
+// Review of small-ab-cli-fixes: a stray backtick once masked every link up to a later, unrelated code span.
+test("check still reports a broken link between an unmatched backtick and a later code span", () => {
+  const evidence = join(cwd, "docs/stray-tick.md");
+  writeFileSync(evidence, "A stray ` tick.\n\n[[projects/fixture/issues/real-missing]] is broken.\n\nLater `code` here.\n");
+  const checked = run("check");
+  expect(checked.code).toBe(1);
+  expect(checked.out).toContain("[[projects/fixture/issues/real-missing]] does not exist");
+  rmSync(evidence);
+});
+
 test("check --fix keeps the escaped pipe of a table alias when repairing a moved link", () => {
   const evidence = join(cwd, "docs/table-links.md");
   const moved = join(issues, "archive/gone.md");
