@@ -1,6 +1,6 @@
 {
   "delivery": "name-things-by-their-names-not-ids",
-  "observedAt": "2026-09-30T15:05:35Z",
+  "observedAt": "2026-09-30T15:31:01.170Z",
   "owner": "mail/c7a4ad76",
   "job": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
   "productAccepted": true,
@@ -199,6 +199,7 @@
   },
   "visualJudgment": {
     "completeForRequiredClaims": false,
+    "scope": "Original loop reviewer only; later supervisor judgment is recorded in names-visual-judgment.json.",
     "actualStrongerModelImageOpening": true,
     "model": "anthropic/claude-opus-5-5",
     "effort": "medium",
@@ -506,7 +507,9 @@
   ],
   "acceptedProductDeliveryWorkerSubtotalUSD": 4.345421,
   "costLimit": "Nominal harness assistant usage.cost.total for the three workers, including their repair/report turns. Not a bill. Excludes shared supervisor attribution, tool-side Jev/tutor calls, observer work and any subsequent missing-image-judgment turn.",
-  "trialAcceptanceComplete": false,
+  "trialAcceptanceComplete": true,
+  "laterJudgment": "names-visual-judgment.json",
+  "snapshotScope": "Original loop-review details are retained; laterJudgment supplies the recovered supervisor image judgment at 3ab3df3d.",
   "caveats": [
     "Picker option text is read from the DOM (14-reading-picker-review-en.json); a closed native select can't show its options in a screenshot. Chinese not re-driven; only the catalog word 'canonical' changes there.",
     "Inspect plain-text preservation is covered by a component render test through ChatTranscript, not a live tutor tool returning plain text.",

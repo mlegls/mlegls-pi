@@ -1,0 +1,324 @@
+{
+  "delivery": "name-things-by-their-names-not-ids",
+  "observedAt": "2026-09-30T15:31:01.170Z",
+  "completeForThisDelivery": true,
+  "requiredClaimImageJudgmentComplete": true,
+  "productIntegration": "a36920105c31720355244f6abc9257a643affc2a",
+  "supplementCommit": "3ab3df3d696c481d21574c97a7e015748ac7305f",
+  "packet": {
+    "repository": "concept",
+    "path": "docs/attachments/name-things-by-their-names-not-ids/index.md",
+    "sha256": "c55dd4e8af729123fd0984f1ae579a534cdaad1d8d2841ae11251722f747ad63",
+    "allThreeWorktreesRetired": true,
+    "imageCount": 14,
+    "uniqueImageByteSets": 13
+  },
+  "supervisor": {
+    "session": "01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76",
+    "source": "~/.pi/agent/sessions/--Users-mlegls-dev-mmon-concept--/2026-09-28T02-47-54-040Z_01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76.jsonl",
+    "provider": "anthropic",
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "openedImages": [
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/02-quiz-completed-en.png",
+        "receivedAt": "2026-09-30T14:59:38.751Z",
+        "toolResult": "b2262fc7",
+        "toolCall": "toolu_01MbfWkejX9aHZj5XsssV68J",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "0f813efff7f5fb53f90679ce312070a08da59ed0d169ae27a6d72644801684ab",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/03-attach-node-names.png",
+        "receivedAt": "2026-09-30T14:59:38.751Z",
+        "toolResult": "b2262fc7",
+        "toolCall": "toolu_01MbfWkejX9aHZj5XsssV68J",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "e7363a7d878243f406d4e237b404c2707c23d1a077183d26474d469045b8bbc1",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/04-inspect-json.png",
+        "receivedAt": "2026-09-30T14:59:38.751Z",
+        "toolResult": "b2262fc7",
+        "toolCall": "toolu_01MbfWkejX9aHZj5XsssV68J",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "1d56e3228f636a112f40840d9cf336901d9e873ca28df8c4de34ca1c897b0ad6",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/05-release-exact-en.png",
+        "receivedAt": "2026-09-30T14:59:38.751Z",
+        "toolResult": "b2262fc7",
+        "toolCall": "toolu_01MbfWkejX9aHZj5XsssV68J",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "89b618992454cdf981ccc410e228888798018590887636652d713508eb267db2",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/06-release-latest-en.png",
+        "receivedAt": "2026-09-30T14:59:48.165Z",
+        "toolResult": "4de7c416",
+        "toolCall": "toolu_01BjL1uzgR9jGY5tgqpcSc9Q",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "01d5edd63d79727da1dc8ff85b26f23537958670ba97a26992854d5632ce04ee",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/07-variants-en.png",
+        "receivedAt": "2026-09-30T14:59:48.165Z",
+        "toolResult": "4de7c416",
+        "toolCall": "toolu_01BjL1uzgR9jGY5tgqpcSc9Q",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "249f54995a9c8ba87b4320330a0f9778f6c4d12a389c50cab7f19ee8a2c34a28",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/08-srs-card-front.png",
+        "receivedAt": "2026-09-30T14:59:48.165Z",
+        "toolResult": "4de7c416",
+        "toolCall": "toolu_01BjL1uzgR9jGY5tgqpcSc9Q",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "f2fb2ee401658caca94ca24783817fb60c7b02d63a947df0c21beebc6a974cfb",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/09-public-after-zh-setting.png",
+        "receivedAt": "2026-09-30T14:59:48.165Z",
+        "toolResult": "4de7c416",
+        "toolCall": "toolu_01BjL1uzgR9jGY5tgqpcSc9Q",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "89b618992454cdf981ccc410e228888798018590887636652d713508eb267db2",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/01-author-seeded-en.png",
+        "receivedAt": "2026-09-30T14:59:56.726Z",
+        "toolResult": "b260cf8d",
+        "toolCall": "toolu_01FPNH9xnpitZzBGQCDXwNS3",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "3450ea8ad815890063cc0735dc7e3db02e9a226d5827feb6ce96160e21be0d5d",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/10-author-empty-en.png",
+        "receivedAt": "2026-09-30T14:59:56.726Z",
+        "toolResult": "b260cf8d",
+        "toolCall": "toolu_01FPNH9xnpitZzBGQCDXwNS3",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "61cce38cbfe6e11d1a1c2b2bffb0b1879765e67f3a63b4960215cd416286b636",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/11-reading-picker-en.png",
+        "receivedAt": "2026-09-30T14:59:56.726Z",
+        "toolResult": "b260cf8d",
+        "toolCall": "toolu_01FPNH9xnpitZzBGQCDXwNS3",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "30bd65bcf110b642bcf99d0f7fa16d92a8eaddcb0cf3a16233e7e0cc84e2fd23",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/12-release-private-zh.png",
+        "receivedAt": "2026-09-30T14:59:56.726Z",
+        "toolResult": "b260cf8d",
+        "toolCall": "toolu_01FPNH9xnpitZzBGQCDXwNS3",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "7308b35ee68989604a6a5893bc2981c0f3a52de07d521f14fa022abadf547370",
+        "matchesIntegratedImage": true
+      },
+      {
+        "path": "docs/attachments/name-things-by-their-names-not-ids/13-author-empty-zh.png",
+        "receivedAt": "2026-09-30T14:59:56.726Z",
+        "toolResult": "b260cf8d",
+        "toolCall": "toolu_01FPNH9xnpitZzBGQCDXwNS3",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "sha256": "1301d90f9a27c68bcd44fbe5dc44d008f98773f992609afb2e7cdc5768a16dde",
+        "matchesIntegratedImage": true
+      }
+    ]
+  },
+  "coverage": {
+    "loopReviewerOpened": "docs/attachments/name-things-by-their-names-not-ids/14-reading-picker-review-en.png",
+    "supervisorOpened": [
+      "docs/attachments/name-things-by-their-names-not-ids/02-quiz-completed-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/03-attach-node-names.png",
+      "docs/attachments/name-things-by-their-names-not-ids/04-inspect-json.png",
+      "docs/attachments/name-things-by-their-names-not-ids/05-release-exact-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/06-release-latest-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/07-variants-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/08-srs-card-front.png",
+      "docs/attachments/name-things-by-their-names-not-ids/09-public-after-zh-setting.png",
+      "docs/attachments/name-things-by-their-names-not-ids/01-author-seeded-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/10-author-empty-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/11-reading-picker-en.png",
+      "docs/attachments/name-things-by-their-names-not-ids/12-release-private-zh.png",
+      "docs/attachments/name-things-by-their-names-not-ids/13-author-empty-zh.png"
+    ],
+    "allFourteenRetainedFramesOpened": true,
+    "durableJudgmentSection": "Image judgment after integration",
+    "request": "muo8e260-ql7js1",
+    "recoveredWithoutNewCollector": true
+  },
+  "judgment": {
+    "result": "No image contradicts a claim in the log. DOM, AX, title attributes and closed-select options remain separate JSON evidence.",
+    "findings": [
+      "09-public-after-zh-setting.png is byte-identical to 05-release-exact-en.png; not independent evidence of the changed locale condition.",
+      "Inspect shows an unnamed Patch labelled by its own ID, and a value clipped at the right edge.",
+      "Release-map Node labels overlap and clip at the left edge."
+    ],
+    "limit": "These are per-frame visual judgments, not a new product encounter or a broad visual audit. Inspect plain-text preservation remains component-render evidence, not a live plain-text tutor result; Chinese repaired picker was not re-driven."
+  },
+  "costs": {
+    "acceptedProductWorkerSubtotalUSD": 4.345421,
+    "supplementalSupervisorWindowUSD": 0.465177,
+    "workerPlusSupplementWindowUSD": 4.810598,
+    "windowStart": "2026-09-30T14:59:27.504Z",
+    "windowEnd": "2026-09-30T15:00:58.650Z",
+    "assistantCalls": [
+      {
+        "id": "e7de7793",
+        "at": "2026-09-30T14:59:27.504Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.018932200000000003,
+        "mixedSiblingStatusCheck": true
+      },
+      {
+        "id": "9e6184ae",
+        "at": "2026-09-30T14:59:31.160Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.034323000000000006,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "b9883e19",
+        "at": "2026-09-30T14:59:36.462Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.030523,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "cafcb8a0",
+        "at": "2026-09-30T14:59:38.495Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.0120598,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "ff22f105",
+        "at": "2026-09-30T14:59:47.594Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.05989,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "37e76316",
+        "at": "2026-09-30T14:59:56.437Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.062123000000000005,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "d83afce5",
+        "at": "2026-09-30T15:00:07.163Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.0769666,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "dbb9105d",
+        "at": "2026-09-30T15:00:15.203Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.025983000000000003,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "42bf500d",
+        "at": "2026-09-30T15:00:36.529Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.055777600000000004,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "b8930932",
+        "at": "2026-09-30T15:00:41.249Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.037446999999999994,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "7b8db9f7",
+        "at": "2026-09-30T15:00:51.114Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.024228,
+        "mixedSiblingStatusCheck": false
+      },
+      {
+        "id": "6d521fba",
+        "at": "2026-09-30T15:00:58.650Z",
+        "provider": "anthropic",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "recordedCostUSD": 0.0269238,
+        "mixedSiblingStatusCheck": false
+      }
+    ],
+    "attributionLimit": "One included assistant call also queried sibling small-defects status. The bounded window is not pure per-delivery attribution. Other supervisor work, tool-side model calls and observer work remain excluded; nominal usage cost is not a bill."
+  },
+  "recoveryCosts": {
+    "observerMissingJudgmentRequests": 1,
+    "supplementalSupervisorPasses": 1,
+    "newCollectorJourneys": 0,
+    "avoidableHandoff": "The loop reviewer already had visual capability and the retained frames; its omission required a later observer-to-supervisor handoff."
+  },
+  "priorMeasurements": "names.json"
+}
