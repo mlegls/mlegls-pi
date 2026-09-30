@@ -22,3 +22,5 @@ Second first-use pass: [predictions and isolated CLI encounter](../attachments/a
 ## Verification evidence
 
 [Encounter and evidence](../attachments/address-the-waiting-child-in-exception-mail/index.md).
+
+combined code review, 2026-09-30 (root tend session, `894e8c6..275ae59`, lib/jobs/supervise.ts, lib/report.ts, lib/decide.ts, lib/board/subscribers.ts, lib/board/scopes.ts): accepted with one repair. `repairReport` sent the drive/review stories+evidence schema to every phase, so an implementer bounced for a missing sentinel or bad YAML was told to replace its `commit`/`setup` handoff with `stories`/`evidence`; non-drive/review/consolidate phases now get a sentinel-plus-own-role-handoff instruction. Residuals, left as is: a status conflict from `lib/report.ts` travels as `handoffError`, so its bounce is labeled "handoff YAML parse error"; any line that is only a status word counts as a sentinel candidate, so a lone `blocked` line in prose turns a `done` report into a conflict bounce. Focused suites (lib/jobs, lib/report, lib/decision-outage, lib/board) pass.

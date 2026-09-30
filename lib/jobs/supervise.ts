@@ -287,7 +287,10 @@ export async function run(job: JobContext) {
   if ((c.reportRepairs ?? 0) >= 1) { await except(c, escalationReason + " (still invalid after two reports)", text); return false; }
   c.reportRepairs = (c.reportRepairs ?? 0) + 1;
   await save();
-  await children.send(topic(c.handle), reason + "\n\n" + reportSchema);
+  // The stories/evidence form is the drive, review and consolidate contract; other phases keep their role's handoff keys.
+  const schema = c.phase === "drive" || c.phase === "review" || c.phase === "consolidate" ? reportSchema
+   : "`done` must be the first nonblank line, followed by the fenced yaml handoff your role asks for (agents/roles/" + c.phase + ".md); quote any scalar containing `: ` or `;`. Preserve completed work; fix only this report and send the complete report again in this same checkout.";
+  await children.send(topic(c.handle), reason + "\n\n" + schema);
   return false;
  };
  const repairEvidence = async (c: Child, handoff: Record<string, unknown> | null, text: string) => {
