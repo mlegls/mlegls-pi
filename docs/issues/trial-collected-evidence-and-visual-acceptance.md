@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0de2d-a2d2-7063-8b18-72c4b0fc2199
 ---
@@ -13,6 +13,17 @@ Count avoidable handoffs and duplicated work as well: a reviewer repairing and r
 
 The implementation's disposable Git/worktree smoke covered pipeline wiring, refusal of empty outcomes, missing-state rejection and direct reviewer repair with updated evidence. Its image was a fixture and worker transport was mocked: it establishes neither live image-review quality nor Jev navigation reliability.
 
-## Trial record
+## Result
 
-[Checkpoint report](../attachments/trial-collected-evidence-and-visual-acceptance/index.md) records two accepted, retired packets: CLI ab-edit and names. Names' missing image judgment was supplied by the actual Opus medium Concept supervisor at `3ab3df3d`; all fourteen images were opened across reviewer and supervisor, and the final packet survives retirement. Small-defects is in review. Remaining: its final judgment/cost/retention observations, then the recommendation. No shared restart or duplicate worker was started. Names' repair, navigation, image-review and mail-handoff frictions are owned in the linked report. The original three-delivery acceptance remains unfinished; wait for the existing owners' settlement notification.
+Three existing supervised deliveries now have retained packets: CLI ab-edit, names and small-defects. Both rendered packets have actual Opus medium image judgments; [report](../attachments/trial-collected-evidence-and-visual-acceptance/index.md) records final handoffs, model/effort, setup failures, interventions, gaps, repairs, costs and retirement proof. Keep the current collector preference and direct reviewer repair/re-drive; move image judgment into the original review rather than relying on later supervisor passes. The nonvisual test-existence-only review is a candidate for a deterministic gate. No duplicate product worker, shared restart or routing change was made.
+
+## Evidence
+
+**Before:** names collection left one failed and one unobservable claim; small-defects left two of each. Both rendered reviews needed supplemental judgment of retained images.
+
+**After:** all three accepted packets survive all nine worker-worktree retirements, with 34 retained PNGs and transcript-backed stronger-model image judgments. Recorded workers plus two bounded supervisor windows total **$15.15824460**, excluding other shared-parent attribution, tool-side model calls and observer work. Source-only/temporal and other evidence limits remain explicit, with their owners linked in the report; they are not claimed as new native observations.
+
+## Danger
+
+**Door:** two-way. Only reports, measurement data and friction ideas changed.
+**Blast radius:** docs. No product code or permanent tests changed; parent alone integrates this branch.

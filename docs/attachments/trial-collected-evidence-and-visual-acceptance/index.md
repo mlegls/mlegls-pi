@@ -1,6 +1,6 @@
 # Collected evidence and visual acceptance trial
 
-CLI ab-edit and names now have accepted, retained packets; names' missing image judgments were supplied by the Concept supervisor at `3ab3df3d`. Small-defects reached review by the 15:07 UTC daemon snapshot. This is a checkpoint, not successful completion of the three-delivery trial. The supervisor authorized ending observation passes with pending work recorded (`muo6u5rd-vno60e`, 2026-09-30 14:15:53 UTC); the original ticket remains open.
+Three existing supervised deliveries are observed, accepted and retained after integration and all nine worker-worktree retirements: CLI ab-edit, names, and small-defects. Both rendered packets have actual **Opus 5.5 medium** image judgments of their committed assets. The collector preference is unchanged. **$15.15824460** is recorded across the nine workers and two bounded supervisor judgment windows, with attribution limits below; it is not a complete bill. No duplicate product work, routing-default change, shared restart or observer-owned service was started.
 
 ## Preparation
 
@@ -76,27 +76,51 @@ The collector's live navigation also showed:
 - Direct Playwright semantic fill recovered model-picker setup after catalog/token failure and omitted compact-snapshot options. It was a setup fallback, not recorded deterministic replay or strong image judgment.
 - Private Installed Chinese labels held; public Hub ignored the saved language. The latter remains a product-choice idea, not a required defect silently accepted. Existing owners for these navigation/setup frictions remain linked in the product packet.
 
-### Rendered: small defects — pending
+### Rendered: small defects — accepted, supplemented and retired
 
-The **14:36 and 14:45 UTC** daemon snapshots show `fix-small-application-state-and-error-defects` in **drive**; by the **15:07 UTC** snapshot it reached **review**. Its integrated list is still empty. The final packet, actual stronger-model judgment, accepted completion cost and retention after retirement remain unobserved. Concept will send a settlement notification; no duplicate work was launched.
+Collection finished at **15:05:16 UTC**: **10 held / 2 failed / 2 unobservable** in a current-format handoff. This was a real checkout-owned **packaged Node Application** at 4415 with local Convex 3222/3223, not a mocked component or the names delivery's Vite target. The provider-unavailable turn was real; credit refusal was restored seed state. The Anthropic journey used actual `openrouter/anthropic/claude-haiku-4.5` and received a reply, not a scripted external model. [Final handoffs, costs, receipts and retention manifest](small-defects.json) preserve the details.
 
-## Interim recommendation
+The reviewer repaired both failed stories directly: Settings fragments leaking into Me/Mission, and Graph label/Edge overlap. It also found and fixed three diff defects: oversized Graph node hitboxes displaced marks and intercepted neighbouring clicks; shared label CSS broke landing layout; Profile-only draft keys leaked an unsent draft between Accounts. The halo is recorded as reversible aesthetic work. Fresh Mission/Counting and Graph frames **18–20** supersede the failed first-use states; the old frames remain history, not proof of repair. No new collector or repair worker was commissioned.
 
-Keep the current collector operating point until small-defects settles. The names reviewer bought two direct repairs, a browser re-drive and a defect-grounded component check; do not bounce that work to another role. Actual stronger-model image judgment added pixel-specific observations, so retain it, but make it happen in the original review rather than after an observer asks the supervisor. Routing alone did not establish that judgment. The nonvisual review remains a candidate for collapse when it adds only a test-existence check.
+Variant fallback was resolved through a retained public test and a known-bad base probe, not a prepared live update journey. The map-discard claim was declared held **by reading**, after its latency-controlled replay was blocked by existing auth/session failures. A successful after-unmount completion was not witnessed. This remains an explicit evidence limit, not something this trial silently supplies: [[projects/mlegls-pi/issues/review-marks-unwitnessed-map-discard-held-from-code-reading]].
+
+Product integration closed at **`0ab8bdb6ba6ac021265a9ed4e30f8919a7eaf7c7`**, **16:00:22.754 UTC**. All three worktree paths are absent. The final packet with supervisor judgment survives at **`86cbf0a50ec9b4bf657cee64f467b2374fcfd3f7`**, an ancestor of canonical HEAD; index SHA-256 **`14db35d5b62213bc2c04a11273ef78df68f97a770819f08cc57cdd95cc75a4fc`**. All **20 PNGs** remain readable from Git.
+
+The loop reviewer actually received **five retained images** (13, 15, 18, 19, 20), plus scratch/test screenshots; its text citing only 18–20 was not a complete opening record. The actual Opus medium supervisor then received **19 originals**, hash-matched to the integrated files, plus **four enlarged crops** of 15/20. Frame 10 is byte-identical to 06, so those 19 original attachments cover every retained pixel set across the 20 paths. The committed per-frame judgment separates pixels from log/DOM claims: no address bar establishes URLs/fragments; 10 is not independent evidence of the Check provider action; 11's Skill chip has an unmentioned `!` marker whose meaning is not established; the crops visibly confirm the halo. This is real image judgment, not just an Opus launch or DOM assertion.
+
+| Actual role | Model / effort | Recorded nominal USD |
+| --- | --- | ---: |
+| Implement | `openai-codex/gpt-6-luna:max` | 0.70718612 |
+| Collect | `openai-codex/gpt-6.1-sol:high` | 1.99663360 |
+| Review, including retry/rebase | `anthropic/claude-opus-5-5:medium` | 6.95716080 |
+| Accepted delivery's worker subtotal | three workers | **9.66098052** |
+| Supervisor judgment window, 16:01:05–16:05:13 | `anthropic/claude-opus-5-5:medium` | 0.53901860 |
+| Workers plus bounded supplement | partial attribution | **10.19999912** |
+
+Launch-to-integration was **3h35m18s**; the complete image-judgment packet followed at **3h39m49s**. There was **one integration failure and retry**, handled by the existing reviewer rebasing onto main. Its final unit/check run passed; retained browser tests were not rerun after that rebase. There were **two automatic report-correction turns** (implementer's missing status, reviewer's incomplete rebase handoff), **one exception wake** and **one completion wake**. Lifecycle owner commands applied were zero; this does not erase the integration exception or supplemental supervisor intervention.
+
+Counts use one collector pass and one reviewer re-drive pass, not individual clicks: **1 + 1 encounters**, **2 failed stories repaired**, **3 additional diff defects fixed**, **0 requests back to the collector**, **0 new repair workers**, and **one supplemental supervisor image pass**. Documented preparation failures/recoveries include the missing Playwright import, landing dev's stale HTTP-500 transport, cold credential-save auth discard, an initially wrong empty-Profile setup for Account-owned Yours, and the blocked delayed-response replay. Existing product/tooling owners are linked in the product packet. Jev missed the empty report submit, followed the wrong recovery route, exhausted waits after arrival and signed out after successful sign-in; direct controls and deterministic replays recovered. Those are not failed product auth or strong image judgment.
+
+## Recommendation
+
+Keep the current **Sol high collector** preference; no alternative operating point was tested, and the observed costs include setup/navigation friction, not just collector reasoning. Keep **Opus medium rendered review**, with direct repair and re-drive: it found defects first use missed, including a cross-Account draft leak. Actual image judgment added observations DOM checks missed.
+
+Have the **same reviewer judge the candidate and replacement images before acceptance**. Both rendered deliveries needed a later supervisor pass despite the reviewer's existing capability and frames; small-defects repeated five already-opened images. Collapse those avoidable handoffs, not the useful review. A native closed select, URL or temporal claim may legitimately need DOM/AX/log/test evidence alongside pixels. Hash-identical frames do not provide independent state evidence.
+
+The nonvisual review is a candidate for collapse into the deterministic test/coverage gate when it contributes only test existence and diff explanation. This sample does not establish that all nonvisual reviews are dispensable. No routing-default change was made.
+
 
 Trial overhead itself had one avoidable decision loop: restart coordination preceded checking the already-running daemon's start time. A second `needs-input` report repeated the same pending question while the supervisor's first answer was already queued. Four worker boundary requests plus repeated owner clarification bought no new runtime capability. Check process/code freshness first next time. No duplicate product worker was launched and no shared target was killed.
 
 The supplemental judgment notice combined stdin with an unsupported `--topic` argument. That argument was treated as TEXT, which takes precedence over stdin; another supervisor forwarded the actual notice ten minutes later. Stdin itself is documented and works when no TEXT arguments are supplied. The friction is unsupported flag-like syntax becoming message text without warning, not lost stdin support or a dropped correct message. Owner: [[projects/mlegls-pi/issues/ab-mail-treats-unsupported-flags-as-body-text]].
 
-## Remaining measurements
+## Evidence limits
 
-For each delivery, link the final committed packet, integration ref and original screenshot files; verify the files still exist in the owner's integrated repository after every associated worker/worktree is retired. Record collector and reviewer model/effort from their actual sessions. Rendered deliveries need a transcript-backed opening of the images and a committed judgment, not just a routing receipt or DOM check.
+This trial observed existing deliveries; it did not reproduce every product claim, run a device/locale matrix or audit the whole product. The selected frames establish their rendered states, not unseen tool success, URLs, temporal transitions or independent state identity. The prior mocked smoke and fixture image count for none of the live measurements.
 
-Keep Jev semantic navigation, direct/manual browser interaction, deterministic Playwright replay and strong-model image judgment separate. Record what each actually establishes. The prior disposable smoke's fixture image and mocked worker transport count for none of these live measurements.
+The CLI's test-presence gap was resolved by reading/running tests. Names' plain-text Inspect branch is component-render evidence, not a live tutor result. Small-defects' variant fallback is public-test evidence; its specifically discarded completion is source-inferred, not witnessed. The report preserves those distinctions instead of converting them into native encounters.
 
-Count completed encounters, setup failures, parent interventions, missing states requested and defects found. Also count avoidable handoffs, repeated setup and duplicated judgment. A reviewer who repairs, re-drives and refreshes evidence directly is a success. Identify which stages bought a new observation or judgment, and which could be collapsed.
-
-Accepted completion cost should include implementation, collector, reviewer, retries/repairs and attributable supervisor work where available. Sum harness-recorded assistant `usage.cost.total` only with its limits explicit: nominal cost is not an invoice or subscription consumption; tool-side Jev/model calls and shared parent work may be unavailable. Do not label a collector-only total as accepted completion cost. No permanent telemetry or routing-default change is part of the trial.
+Worker cost sums use recorded assistant `usage.cost.total`, including repair/retry/report turns. The two supervisor windows add **$1.00419560**; names' window includes a sibling-status query. Other shared-parent attribution, tool-side Jev/tutor calls and observer work are unavailable for this accepted-delivery subtotal. Nominal cost is not an invoice or subscription consumption. Collector-only cost across the three deliveries was **$4.87678920**, versus **$14.15404900** for all nine workers before the supplemental windows.
 
 ## Reproduction
 
