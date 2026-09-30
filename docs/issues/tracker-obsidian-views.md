@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0f08f-9962-73f5-8231-63e51693973d
 part-of: "[[projects/mlegls-pi/issues/tracker-obsidian-plugin]]"
@@ -22,3 +22,7 @@ Existing checks: `ab check -- bun test lib/tracker-views.test.ts`; plugin build;
 ## Result
 
 [First-use driver evidence](../attachments/tracker-obsidian-views/index.md). Rendering, grouping, progress, collapse and pin persistence observed. The review switched the context menu to Obsidian's link menu, confirmed that copy, preview and split work on all three surfaces and that each legacy mode lists the right issues, and fitted Board lanes to the pane.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/tracker-obsidian-views/index.md).
