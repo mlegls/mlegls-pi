@@ -54,3 +54,27 @@ Expectation formed while using it: retrying a fresh target might resolve a singl
 ## Cleanup and scope
 
 Both launch processes exited; no Pi RPC child matching either owned temp target remained in the process listing. No servers or other outside-worktree resources were started. Temp session data is preserved, not deleted. No source, diffs, tests or fixture definitions were read, and no product repair or permanent test was written. This nonvisual setup failure neither confirms nor disproves C behavior; implementer evidence above is a separate earlier encounter, not independent verification on this run.
+
+## Review pass (repair and re-drive)
+
+Diagnosis of the driver's setup failure. The failed candidates (`memory-failed-*.md` in the driver's temp targets) were well-formed journals, but the prerequisite H fold rejected them with `Memory has missing or invalid original-source pointers (no citation to a newly folded source)`. That reason went to an extension notification the recipe did not print. Two causes, both in the recipe's synthetic seed, not the C selector:
+
+1. The model wrote grouped citations, `[@a, @b]`; `citations()` in `extensions/memory/core.ts` only recognizes one ID per brackets, `[@a]`. Filed as [[projects/mlegls-pi/issues/memory-citation-grouped-brackets-rejected]].
+2. The three tiny turns are far below the 256-token tail target, so the model chose the earliest tail start and folded almost nothing to cite.
+
+Recipe repair (`drive.ts`): print extension `notify` messages; the prerequisite fold's `customInstructions` names the tail start (third user message) and asks for one-ID brackets; default model is now `claude-sonnet-4-6` (override with `EMPTY_JOURNAL_MODEL`). The Haiku runs failed on the causes above; model capability was not separately isolated. Two intermediate runs with only some of these changes failed the same way.
+
+Re-drive of the committed recipe at the final recipe state, session `01a0f2d8-6e41-7319-9ec8-582b6f3cfba7`, `anthropic/claude-sonnet-4-6`, 445 s wall clock, exit 0:
+
+| Story / prediction | Outcome | Observation |
+| --- | --- | --- |
+| Replayable setup reaches C | held | Normal H fold `5cc5bf7d` (1211-char summary, 1 block), then the real 300 s idle deadline fired automatic hibernation; `result.json` written. |
+| Empty hibernation, durable metadata | held | Compaction `25744a33`: `summary: ""`, `details.blocks: []`, `operation: "empty-journal"`, `trigger: "hibernate"`, `generation: "none"`. `memory-attempts.jsonl` holds one row, the earlier `compact`: no checkpoint model call for hibernation. |
+| Prior journal removed; originals recallable | held | Active context rebuilt (`buildSessionContext` + `expandMemory`) at `25744a33` is exactly two messages: the last user turn and its reply; no "Historical memory" block. `ab memory recall 9f84a7de --session FILE --leaf b14cf252` returned the original pre-fold user message. |
+| Artifact-based wake | held | Wake turn ran tool calls on issue, job and ledger (three tool results) and reported child-alpha still `running` with next action wait. |
+| Tail | held | `details.tail.firstKeptEntryId` = `c34105c8`, the last user entry before hibernation ("Still waiting…"); ~25 tokens vs the 256 target; kept entries are that user turn and its assistant reply, then the wake entries. |
+| Default H and cancellation | held | Default H ran live as the prerequisite fold, unchanged. Abort, nothing-to-fold and no-user-tail cancellations are covered by the retained tests; session switching mid-fold is not separately drivable in one RPC encounter, and the C path makes no awaited call between capturing the leaf and returning. |
+
+Code change from review: an empty-journal fold is cancelled ("Nothing to fold outside a continuous tail") when nothing precedes the tail and no journal exists to discard, so repeated idle hibernations cannot write no-op empty compactions. The re-drive ran on the pre-guard extension code; the guard is covered by the unit test.
+
+Retained tests (`extensions/memory/lifecycle.test.ts`, replaying checks 2 and 4–5 above at Pi's extension boundary with a fake clock and no provider): empty hibernation with an old journal present returns an empty summary, no blocks, `trigger: hibernate`, tail starting at the latest user entry, no old journal text and no model attempt; cancellation on abort, nothing outside the tail, and no user-led tail. Checks 1 and 3 (live setup, wake reads artifacts, original recall) stay as evidence here: they need a live model and real idle time.

@@ -23,7 +23,7 @@ const settings = (journal: boolean) => ({ compaction: { keepRecentTokens: 64 }, 
 writeFileSync(settingsPath, JSON.stringify(settings(true), null, 2) + "\n");
 
 const cliArgs = [
-	"--mode", "rpc", "--provider", "anthropic", "--model", "claude-haiku-4-5",
+	"--mode", "rpc", "--provider", "anthropic", "--model", process.env.EMPTY_JOURNAL_MODEL ?? "claude-sonnet-4-6",
 	"--no-extensions", "--extension", join(repo, "extensions/memory/index.ts"),
 	"--no-context-files", "--no-skills", "--no-prompt-templates", "--no-themes",
 	"--tools", "read,bash", "--thinking", "off", "--approve", "--session-dir", sessions,
@@ -49,6 +49,7 @@ const receiveLine = (line: string) => {
 		else request.reject(new Error(value.error ?? `Pi RPC ${value.command} failed`));
 		return;
 	}
+	if (value.type === "extension_ui_request" && value.method === "notify") console.log(`[notify ${value.notifyType ?? "info"}] ${value.message}`);
 	const sequence = ++eventSequence;
 	events.push({ sequence, value });
 	allEvents.push(value);
@@ -104,7 +105,9 @@ const compact = async (customInstructions: string) => {
 	const after = eventSequence;
 	const completed = event(e => e.type === "compaction_end", 300_000, after);
 	await request("compact", { customInstructions });
-	return completed;
+	const end = await completed;
+	if (end.aborted || end.errorMessage) throw new Error(`prerequisite fold did not persist: ${end.errorMessage ?? "aborted"}`);
+	return end;
 };
 const entries = (file: string) => readFileSync(file, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line));
 
@@ -128,7 +131,7 @@ try {
 	await prompt("One more judgment: an empty journal should leave only the latest user-led conversational tail; the campaign's job, ledger and issue are the source of truth on wake. Acknowledge briefly.");
 	await prompt("No child report has arrived yet. Keep the wait decision, do not change it without new evidence, and acknowledge briefly.");
 
-	const normalFold = await compact("Keep the decision to re-read child state and the reason for waiting; cite this conversation normally.");
+	const normalFold = await compact("Choose the tail start at the third user message, so the first two exchanges are folded, and cite those folded entries, each in its own brackets like [@id] (never grouped as [@a, @b]). Keep the decision to re-read child state and the reason for waiting.");
 	const afterNormal = entries(sessionFile).filter(e => e.type === "compaction").at(-1);
 	writeFileSync(settingsPath, JSON.stringify(settings(false), null, 2) + "\n");
 

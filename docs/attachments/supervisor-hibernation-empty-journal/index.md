@@ -2,12 +2,13 @@
 
 ## Independent replay
 
-The independent driver at `fea1ca7` reached the Pi RPC surface but both fresh runs canceled the prerequisite H fold before selecting C. The C hibernation and wake are **unobservable in that replay**, not verified by the earlier implementer encounter below. [Predictions, session log, outcomes and replay checks](driver.md); [selected durable metadata](driver-results.json). Setup friction: [[projects/mlegls-pi/issues/empty-journal-drive-cancels-before-c-selector]].
+The independent driver at `fea1ca7` reached the Pi RPC surface, but both runs canceled the prerequisite H fold before selecting C. The review diagnosed that as the recipe's seed (grouped citations, an under-sized synthetic conversation), repaired the recipe and re-drove it: the empty hibernation, durable metadata, prior-journal removal, original recall and artifact-based wake all held on a fresh session. [Predictions, session log, review re-drive and outcomes](driver.md); [selected first-attempt metadata](driver-results.json). Setup friction: [[projects/mlegls-pi/issues/empty-journal-drive-cancels-before-c-selector]].
+
 ## Setup
 
 The driver `drive.ts` prepares a disposable local project, fake live-child job, ledger and issue, then starts this checkout's `extensions/memory/index.ts` through the installed Pi CLI's public JSON-RPC session surface. It does not start a daemon, container, remote deployment or browser. It writes session data and private RPC transcripts only below a newly created system temp directory; the script prints that path and leaves it for inspection. No credentials are written by the driver.
 
-Persona/auth: local user `mlegls`, existing Pi Anthropic OAuth. Provider `anthropic`, model `claude-haiku-4-5`; readiness was checked with `pi auth check --provider anthropic --json --no-refresh` (`ready`, OAuth). The local session and synthetic campaign artifacts are owned by this checkout's drive process. No shared deployment selector is used.
+Persona/auth: local user `mlegls`, existing Pi Anthropic OAuth. Provider `anthropic`, model `claude-sonnet-4-6` by default (`EMPTY_JOURNAL_MODEL` overrides); readiness was checked with `pi auth check --provider anthropic --json --no-refresh` (`ready`, OAuth). The local session and synthetic campaign artifacts are owned by this checkout's drive process. No shared deployment selector is used.
 
 Run from the repository root:
 
