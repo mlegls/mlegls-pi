@@ -927,6 +927,7 @@
     "supplementalSupervisorPasses": 1,
     "roleHandoffs": 2,
     "newRepairWorkers": 0,
+    "automaticReportCorrectionTurns": 2,
     "reviewerRequestsBackToCollector": 0,
     "integrationFailures": 1,
     "integrationRetries": 1,
@@ -975,13 +976,6 @@
     }
   ],
   "reviewerInterventions": [
-    {
-      "id": "a2121fc6",
-      "at": "2026-09-30T15:05:30.639Z",
-      "text": [
-        "you're fix-small-application-state-and-error-defects-review-1, spawned into this worktree by a parent session for run fix-small-application-state-and-error-defects.\n\nEnd your turn with the first word `done`, `blocked`, or `needs-input`. Use `done` when the assignment is complete, `blocked` when you can't proceed, and `needs-input` when a decision is needed; the answer arrives as the next message. Don't send a completion, blocker, question, or checkpoint to the parent mid-turn. A missing status is an exception, not a guess.\n\nWhen a structured handoff helps, put it in a fenced `yaml` or `json` block anywhere in the message. Shared handoff keys: `commit` (commit IDs/branch), `setup` (deployment kind, owned target, persona/auth, seed/state and runnable entry point), `stories` (affected stories and outcomes), `evidence` (durable packet index, visual flag and screenshot files), `fixed` (two-mi"
-      ]
-    },
     {
       "id": "e0317d21",
       "at": "2026-09-30T15:53:56.979Z",
