@@ -67,3 +67,9 @@ All CLI commands finished. No services, browsers, containers, tunnels or remote 
 
 - This is not a fully blind drive: the mandatory initial peer-board read exposed the implementer's filtered-suite pass counts before predictions were written. Predictions themselves use only the ticket and README. Existing owner: [driver board read leaks conclusions](../../issues/driver-board-read-leaks-implementer-conclusions.md).
 - The log establishes actual discovery for the three required commands on Bun 1.4.2, not other runners or explicit-file overrides.
+
+## Review (2026-09-30)
+
+Diff is `bunfig.toml` (`[test] pathIgnorePatterns = ["skills/disabled/**"]`) plus records. Independently reran on Bun 1.4.2: `bun test ab` 50 pass / 0 fail (10 files); `bun test ab lib/resources` 57 pass / 0 fail (11 files); root `bun test` 83 files, zero `skills/disabled` paths and zero `commander` resolution errors. All three stories **held**.
+
+Root run had 7 failures, not 6: the extra is `extensions/bash/lifecycle.test.ts` (oversized-output test), which passed on 5 of 6 isolated reruns, so it is a flake unrelated to this change; filed as [bash-lifecycle-oversized-output-test-flaky-under-load](../../issues/bash-lifecycle-oversized-output-test-flaky-under-load.md). No test retained: the exclusion is a config line whose behavior is fully recorded by the discovery logs above; a discovery test would cost a full suite run. No product repairs.
