@@ -12,7 +12,7 @@ open 'obsidian://open?vault=obsidian&file=projects%2FTracker.base'
 
 The script refuses an unregistered vault, unexpected symlink, conflicting Board, disabled Tracker, or remaining Datacore render consumers under the vault (following project symlinks). Inspect moved legacy tracker notes and incoming links before executing; do not delete unrelated content. It backs up the Base, enabled-plugin list, workspace and old dist files to `.obsidian/tracker-rollout-<timestamp>/`, prints the rollback command, appends a Board grouped by `formula.project` and sorted by priority only when missing, disables Datacore and installs built artifacts into the stable canonical dist. Repeating preparation preserves the existing Board and plugin list. Stale workspace references to former Tracker/Graph notes are redirected to `projects/Tracker.base`; other workspace bytes are unchanged. Existing filters, formulas, saved view options, collapse paths and pins remain textually unchanged. Restart/reload the vault plugin if it was already loaded; URI reopening alone need not reload running JavaScript. After integration, run the build from the canonical checkout to replace the same stable dist, not from a retired worktree.
 
-To rollback, close the vault, run the printed `bun extensions/obsidian-tracker/live-setup.ts rollback /absolute/backup-directory` from this checkout, then reopen the URI. Rollback refuses to overwrite any file changed since setup; save subsequent edits separately before restoring. The backup is outside Git and intentionally remains until no longer needed. Earlier rollout backups without a workspace snapshot are also supported. Close the vault window before applying or rolling back: Obsidian owns workspace writes while running.
+To rollback, close the vault, run the printed `bun extensions/obsidian-tracker/live-setup.ts rollback /absolute/backup-directory` from this checkout, then reopen the URI. Rollback restores only the files `prepare` actually changed (so it is a no-op for an already-migrated target). It refuses, before writing anything, if the Base or enabled-plugin list changed since setup: save those edits separately first. `workspace.json` (Obsidian rewrites it whenever the vault closes) and the plugin build artifacts (rebuilt after integration) are left as they are when changed since, with a printed note. The backup is outside Git and intentionally remains until no longer needed. Earlier rollout backups without a workspace snapshot are also supported. Close the vault window before applying or rolling back: Obsidian owns workspace writes while running.
 
 Check from the matching project checkout:
 
@@ -29,8 +29,10 @@ scratch=$(mktemp -d /tmp/tracker-live-home.XXXXXX)
 mkdir -p "$scratch/profile"
 LIVE_VAULT="$HOME/obsidian" bun -e 'await Bun.write(process.argv[1], JSON.stringify({vaults:{live:{path:process.env.LIVE_VAULT,open:true,ts:Date.now()}},cli:true}))' "$scratch/profile/obsidian.json"
 ab service start -- env HOME="$scratch" /Applications/Obsidian.app/Contents/MacOS/Obsidian --user-data-dir="$scratch/profile"
-# After startup, using the returned service ID for cleanup:
-HOME="$scratch" obsidian vault=obsidian plugin:reload id=tracker
+# After startup, using the returned service ID for cleanup. A fresh profile opens in Restricted mode: the vault's
+# Tracker is enabled but not loaded, and Bases show "Unknown view type: tracker" (plugin:reload does not help).
+# Trusting community plugins is the owner's call for this scratch profile; this is the same as Settings → Community plugins → Exit Restricted mode:
+HOME="$scratch" obsidian vault=obsidian plugins:restrict off   # reloads plugins
 HOME="$scratch" obsidian vault=obsidian open path=projects/Tracker.base
 # Stop the owned instance after first use:
 ab service stop <returned-service-id>

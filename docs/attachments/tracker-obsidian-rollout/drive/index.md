@@ -41,7 +41,7 @@ Revision: `9e7f811c3faa3d34395a000a536f37bcbd734636`. Persona: local desktop vau
 
 ## Frictions
 
-- [Fresh owned profile lacks plugin trust](../../../issues/tracker-live-owned-profile-missing-trust-step.md): the documented reload command reports success while the Base remains unknown. Used the already-trusted regular instance, exclusively created window, instead.
+- [Fresh owned profile lacks plugin trust](../../../issues/archive/tracker-live-owned-profile-missing-trust-step.md): the documented reload command reports success while the Base remains unknown. Used the already-trusted regular instance, exclusively created window, instead.
 - [Native drag did not create a pin](../../../issues/cua-obsidian-network-drag-does-not-pin.md): background refused, foreground delivered-but-unchanged. No workaround; reviewer still needs pin evidence.
 - The first frame after switching views can show the new view name over the previous view's rows. Fresh observation after settling avoided treating that frame as final behavior.
 - Search resets on note→Base, so returning to the issue's filtered context needs typing the search again.
@@ -83,3 +83,15 @@ All captures are live macOS Obsidian 1.13.7, English/dark; no mocks or fixtures.
 - Backup `.obsidian/tracker-rollout-2026-09-30T12-21-45-952Z` remains intentionally for rollback. Earlier backups and disabled Datacore binaries were not removed.
 - Temporary stopped profile `/tmp/tracker-rollout-drive-home.X0efmF` remains; no running process/window belongs to it. Regular live window 16473 is closed. The inherited application process remains as it was before the drive.
 - No product repair or permanent test change. Reviewer needs pin persistence and complete rollback restoration evidence, plus the fresh-profile setup repair.
+
+## Review (independent of the driver)
+
+Reviewed head after repairs; driver log above is unchanged.
+
+- **Fresh-profile startup (failed → repaired, re-driven).** Started LIVE.md's scratch-HOME instance on the live vault (Restricted mode on, Tracker enabled but `!!app.plugins.plugins.tracker` false). `HOME=$scratch obsidian vault=obsidian plugins:restrict off` reloaded plugins; Tracker loaded and the live Base opened without "Unknown view type". LIVE.md now includes that step, worded as the owner's trust decision for the scratch profile. Friction archived.
+- **Pin persistence (unobservable → held).** In that owned instance, CDP `Input.dispatchMouseEvent` press/10 moves/release dragged `projects/mlegls-pi/issues/tracker-obsidian-rollout`; the node moved and, after Obsidian's debounced save, the Base held `pinned: {<that path>: [700, 1774]}`. Tree→Graph round trip, and note→Navigate back→Graph, left the node at `translate(700,1774)`. A double-click (CDP) unpinned it; the Base is byte-identical to the setup backup `…12-21-45-952Z/0` again. So the drive's cua failure is cua-driver's ([issue](../../../issues/cua-obsidian-network-drag-does-not-pin.md)), not tracker's. Note: while the owned window was occluded, `requestAnimationFrame` stalled and Graph nodes had no transform until `Page.bringToFront`; not a defect in the renderer.
+- **Rollback (refusal-only → defect found, repaired, rehearsed).** The driver's refusal was not incidental: `rollback` hashed `workspace.json` and the plugin build files, which Obsidian rewrites on every close and integration rebuilds, so a real rollback would nearly always refuse. It now restores only files `prepare` changed; refuses (before writing anything) only if the Base or enabled-plugin list changed since; leaves changed `workspace.json`/artifacts with a note. Rehearsed in a throwaway `HOME` (fake vault with an unmigrated Base, datacore enabled, stale workspace ref): prepare → workspace rewritten by "Obsidian" → rollback restored Base (board removed), plugin list (datacore back), old artifacts, kept workspace; Base edited after setup → refused, nothing written; re-prepare on a migrated target → rollback restored nothing. Live vault was not rolled back.
+- **Checks on final head.** Build passed; `TRACKER_VAULT=$HOME/obsidian TRACKER_PROJECT=$HOME/dev/mlegls-pi ab check -- bun test lib/tracker-views.test.ts`: 5 pass, 0 fail, 1751 assertions (1194 issues, 15 frontier, 22 mine, 289 done). `tsc` for the plugin needs its own locked dependencies, which this worktree lacks; no diagnostics come from `live-setup.ts`.
+- **Left as evidence, no new tests.** Ticket says no permanent tests; every check above is a live/first-use or deployment-script replay.
+- **Other frictions.** Search clearing on note→Base return and Network readability at 482 nodes are renderer-owned (sibling); filed below. Dim Done text is theme-level.
+- **Cleanup.** Owned instance stopped (`ab service stop`), scratch and rehearsal HOMEs and the driver's stopped temp profile removed. Regular Obsidian process untouched. The live Base and plugin list are unchanged by the review; Obsidian may have updated `workspace.json`.

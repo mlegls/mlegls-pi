@@ -26,9 +26,19 @@ if (action === 'rollback') {
   insist(argument && resolve(argument).startsWith(join(vault, '.obsidian/tracker-rollout-')), 'Provide this vault\'s rollout backup path');
   const meta = JSON.parse(readFileSync(join(argument, 'manifest.json'), 'utf8')) as { paths: string[]; after: Record<string,string> };
   insist(meta.paths.length >= 5 && meta.paths.every(p => managed.includes(p)), 'Backup does not match current target');
-  for (const p of meta.paths) insist(hash(p) === meta.after[p], `Changed since setup, refusing to overwrite ${p}`);
-  for (let n = 0; n < meta.paths.length; n++) copyFileSync(join(argument, String(n)), meta.paths[n]);
-  console.log('Restored:', meta.paths.join(', '));
+  // Restore only what prepare changed. Obsidian rewrites workspace.json on every close and the Base as views are used,
+  // so files prepare left alone are not touched, and Obsidian-owned/rebuilt files changed since are kept rather than blocking rollback.
+  const kept = new Set([workspace, ...assets]);
+  const restore: number[] = [];
+  for (let n = 0; n < meta.paths.length; n++) {
+    const p = meta.paths[n];
+    if (hash(join(argument, String(n))) === meta.after[p]) continue;
+    if (hash(p) === meta.after[p]) restore.push(n);
+    else if (kept.has(p)) console.log(`Left as is (changed since setup): ${p}`);
+    else insist(false, `Changed since setup, refusing to overwrite ${p}`);
+  }
+  for (const n of restore) copyFileSync(join(argument, String(n)), meta.paths[n]);
+  console.log('Restored:', restore.map(n => meta.paths[n]).join(', ') || 'nothing (setup changed no managed file)');
 } else if (action === 'prepare') {
   const source = resolve(argument ?? fileURLToPath(new URL('../..', import.meta.url)));
   const sourceDist = join(source, 'extensions/obsidian-tracker/dist');
