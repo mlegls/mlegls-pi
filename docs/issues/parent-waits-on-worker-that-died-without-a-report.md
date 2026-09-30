@@ -23,3 +23,7 @@ fourth case, 2026-09-30: this ticket's worker turn itself ended mid-edit on a pr
 Detection that would have caught all four: a worker session whose last `message` entry is an assistant turn with `stopReason: "error"`, followed only by `custom` entries for more than a few minutes, is a dead child and should produce exception mail. This is the same class of problem as [[projects/mlegls-pi/issues/worker-start-check-misses-long-first-turns]]: the loop reads a liveness signal that doesn't track the worker (the session `.jsonl` existing, or the pi process existing).
 
 ticket contract, 2026-09-30: the loop detects a dead worker from its session file (last `message` entry an assistant turn with `stopReason: "error"`, followed only by `custom` entries for more than a few minutes) and sends exception mail naming the error, the session path and its size. Status shows the child as dead rather than in its phase. First use: a worker whose provider call fails (a fixture or an injected error) produces that mail within minutes, and a healthy long turn doesn't.
+
+## First-use evidence
+
+[Encounter packet](../attachments/parent-waits-on-worker-that-died-without-a-report/index.md): the checkout-owned CLI responded at `8fc4d53`, but the null setup handoff supplied no provider-error or healthy-long-turn starting state. All three detection claims remain unobservable; acceptance is not established.
