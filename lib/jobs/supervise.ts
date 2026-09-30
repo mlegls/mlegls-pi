@@ -12,6 +12,7 @@ import { basename, dirname, join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
 import { dispatch, integrate, retire as retireWorker, topic, type Handle } from "../dispatch.ts";
 import * as route from "../route.ts";
+import { DecisionApiUnavailableError } from "../decide.ts";
 import * as children from "../children.ts";
 import { parse } from "../report.ts";
 import type { JobContext } from "../daemon.ts";
@@ -37,7 +38,7 @@ interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; i
 interface Child { reportRepairs?: number }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
-export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>;
+export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>; decisionUnavailable?: Record<string, string>;
  // Spec leaves whose implementer committed children instead of a change: they are nodes now, and in batch mode
  // they return to the loop, whose next triage runs them as subtrees.
  decomposed?: string[];
@@ -184,6 +185,10 @@ const listCaveats = (all?: Record<string, string[]>) => Object.entries(all ?? {}
 export async function run(job: JobContext) {
  const input = job.input as Input;
  const state: State = (job.state as State | null) ?? input.carried ?? { children: {}, integrated: [], metrics: { wakes: 0, ownerBytes: 0, launched: 0, completed: 0 } };
+ if (!job.state && state.decisionUnavailable) {
+  if (state.join && state.decisionUnavailable[state.join.key]) state.join = undefined;
+  delete state.decisionUnavailable;
+ }
  // A continuation of a finished run whose node still has work (its own residual, new children) runs it and
  // joins again; a finished run with nothing open just finishes again.
  if (!job.state && state.finished && !input.items && workItems(snapshot(input), input).some(i => !finished(i) && !state.integrated.includes(i.slug))) { state.finished = undefined; state.join = undefined; }
@@ -479,7 +484,8 @@ const checkStartup = async (live: Child[]) => {
    const handle = await launch(key, phase, prompt, head);
    state.children[key] = { slug: key, phase, handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } };
   } catch (error) {
-   state.join.skipped = "launch failed: " + error; if (batch) record({ kind: "join-skipped", reason: state.join.skipped }); else await wake("could not launch the join: " + error);
+   if (error instanceof DecisionApiUnavailableError && !batch) (state.decisionUnavailable ??= {})[key] = error.message;
+   else { state.join.skipped = "launch failed: " + error; if (batch) record({ kind: "join-skipped", reason: state.join.skipped }); else await wake("could not launch the join: " + error); }
   }
   await save();
   return !!state.children[key];
@@ -559,7 +565,7 @@ const checkStartup = async (live: Child[]) => {
   // Fill the budget from the subtree's frontier: direct children only; non-leaves get supervise.
   const issues = snapshot(input);
   const head = git(input.cwd, "rev-parse", "HEAD");
-  for (const i of workItems(issues, input).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug) && !state.deferred?.[i.slug] && !(batch && state.decomposed?.includes(i.slug)))) {
+  for (const i of workItems(issues, input).filter(i => i.frontier && !i.done && !state.children[i.slug] && !state.integrated.includes(i.slug) && !state.deferred?.[i.slug] && !state.decisionUnavailable?.[i.slug] && !(batch && state.decomposed?.includes(i.slug)))) {
    if (state.join || (input.deadline && Date.now() >= input.deadline)) break;
    if (Object.keys(state.children).length >= input.budget) break;
    const nonleaf = issues.some(j => j.partOf === i.slug && !finished(j));
@@ -570,6 +576,7 @@ const checkStartup = async (live: Child[]) => {
    try { const handle = await launch(i.slug, nonleaf ? "supervise" : "implement", prompt, head, i.assignee); state.children[i.slug] = { slug: i.slug, phase: nonleaf ? "supervise" : "implement", handle, cursor: handle.cursor, startup: { launchedAt: Date.now(), mode: "pi" } }; }
    catch (error) {
     if (batch) { (state.deferred ??= {})[i.slug] = "launch failed"; record({ kind: "deferred", slug: i.slug, phase: "launch", reason: "launch failed: " + error }); }
+    else if (error instanceof DecisionApiUnavailableError) (state.decisionUnavailable ??= {})[i.slug] = error.message;
     else await wake("could not launch " + i.slug + ": " + error);
    }
    await save();
@@ -688,12 +695,18 @@ const checkStartup = async (live: Child[]) => {
    await save();
    await integrateChild(c, c.handle);
   } else await integrateChild(c, c.handle);
-  })().catch(error => except(c, "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
+  })().catch(error => except(c, error instanceof DecisionApiUnavailableError ? error.message : "loop error: " + (error instanceof Error ? error.message : String(error)), end.text));
  }
  if (job.signal.aborted) return;
  const open = workItems(snapshot(input), input).filter(i => !finished(i));
  trace("finish", { integrated: state.integrated.length, deferred: Object.keys(state.deferred ?? {}).length, open: open.length, metrics: state.metrics });
  if (batch) { record({ kind: "barrier", tests: state.tests ?? [], integrated: state.integrated, deferred: state.deferred ?? {}, open: open.map(i => i.slug), metrics: state.metrics }); state.finished = true; await save(); return; }
+ if (state.decisionUnavailable && Object.keys(state.decisionUnavailable).length) {
+  const unavailable = Object.entries(state.decisionUnavailable).map(([slug, reason]) => "- " + slug + ": " + reason).join("\n");
+  await wake("Decision API unavailable; no worker was launched for:\n" + unavailable + "\n\nOnce the service recovers, resume this loop with `ab supervise start " + input.ticket + "`.");
+  await deliveries;
+  return;
+ }
  if (open.length) { await wake("idle: nothing live, but not done: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ") + ". Resolve, then ab supervise start " + input.ticket + " again."); await deliveries; return; }
  state.finished = true; await save();
  await wake("done: " + state.integrated.length + " children integrated at " + git(input.cwd, "rev-parse", "--short", "HEAD") + ". metrics " + JSON.stringify(state.metrics) + "" + (state.join?.done ? ", joined (" + (state.join.drive ? "crossing stories driven, " : "") + "consolidated)" : state.join?.skipped ? ", join skipped: " + state.join.skipped : "") + "." + carried() + await residuals(input));
