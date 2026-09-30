@@ -15,3 +15,6 @@ Implementation: the skill, stance, pipeline role and CLI help describe an except
 
 decisions:
 - 2026-09-30: parent supervisor `session:01a0f065-abaf-776c-bc8b-419cb9b312e4` ruled that the skill/stance/role/help rewrite and its regressions are this ticket's delivery. The parent will file the real GLM campaign comparison as its own ticket at join, using the next newly shaped campaign. Do not take over active campaigns; leave the tracker-check failures with their existing owners.
+
+result:
+- [First-user drive packet](../attachments/supervise-as-exception-handler/drive/index.md): the local skill entry, stance, role and CLI help exposed the exception-only owner and interactive-root ledger/status procedure. Live GLM comparison remains the separately owned follow-up, not measured by this instruction-surface drive.

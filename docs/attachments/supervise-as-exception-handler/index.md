@@ -4,6 +4,8 @@ Tested revision: `dab61aa` (2026-09-30). This packet records the instruction rew
 
 The skill, `agents/supervise.md`, pipeline role and CLI help now agree: the script owns drive/review, joins and integration; the owner handles exceptions. Solved exceptions go only to the waiting child. Waiting turns explicitly override the common worker sentinel rule. The interactive root keeps open human questions in `holes` and generates status from the loop only when asked. The supervisor model defaults are unchanged pending the follow-up GLM trial.
 
+[First-user drive](drive/index.md): predictions, observed instruction/CLI encounters, frictions and replayable checks on `2d4bd25`. The rewrite's instruction-surface stories held; no live-model compliance or campaign measurements claimed.
+
 ## Prepared surface
 
 - Delivery environment: local instruction loading and composed worker prompts, with existing loop/report regressions. The real GLM campaign is a follow-up owned by the parent supervisor at join, not this delivery's acceptance gate.
