@@ -1,5 +1,9 @@
 ---
-stage: idea
+stage: ticket
+assignee: agent
+priority: 3
+part-of: "[[projects/mlegls-pi/issues/test-suite-hygiene]]"
+blocked-by: ["[[projects/mlegls-pi/issues/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander]]"]
 author: session:01a0f227-6a60-775b-8d17-d8ee02ba0643
 ---
 
@@ -8,3 +12,5 @@ During [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]], `ab check
 Owner: root test discovery/setup and `dsh/package.json`'s existing setup command. No optional package was installed just to hide this receipt. Other failures already have owners: [[projects/mlegls-pi/issues/archive/disabled-watch-pr-tests-missing-commander]], [[projects/mlegls-pi/issues/worktree-tests-read-canonical-agent-roster]], [[projects/mlegls-pi/issues/archive/session-terminal-regressions-fail-with-extra-shell-sessions]]. The last includes the same `sessionManager.getSessionId is not a function` callback error seen in this run.
 
 The affected plugin build and typecheck passed after its own locked dependencies were installed; its live parity failure is separately owned by [[projects/mlegls-pi/issues/archive/tracker-parity-compares-derived-claims-with-frontmatter-only]]. No unrelated tests or behavior were deleted.
+
+ticket contract, 2026-09-30: a root `bun test` either excludes the optional `dsh/` package or the root setup prepares it; decide which from how `dsh/` is meant to be used (it's optional), and say so in the setup docs.

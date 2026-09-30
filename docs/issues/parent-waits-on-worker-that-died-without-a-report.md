@@ -1,7 +1,8 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 priority: 2
+part-of: "[[projects/mlegls-pi/issues/supervise-loop-reliability]]"
 author: session:01a0f0f1-30ca-77c1-8c28-86f09321af7d
 ---
 
@@ -19,3 +20,5 @@ Idea: whichever owner emits worker liveness to a parent (today `wm.ts status` an
 third case, 2026-09-30: the first [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]] worker died at 05:29Z on a provider `{"detail":"Bad Request"}` ([[projects/mlegls-pi/issues/computer-use-images-poison-worker-context]]). The pi process stayed alive and idle, so no child-exit fired and `ab supervise status` showed `implement` for about 6.5 h until the user asked why every child was idle. A steer mail revived it, and it died the same way within a minute; status again showed `implement`. The session file's mtime kept moving because `board-cursor` custom entries are appended after the death, so mtime is not a liveness signal either.
 
 Detection that would have caught all three: a worker session whose last `message` entry is an assistant turn with `stopReason: "error"`, followed only by `custom` entries for more than a few minutes, is a dead child and should produce exception mail. This is the same class of problem as [[projects/mlegls-pi/issues/worker-start-check-misses-long-first-turns]]: the loop reads a liveness signal that doesn't track the worker (the session `.jsonl` existing, or the pi process existing).
+
+ticket contract, 2026-09-30: the loop detects a dead worker from its session file (last `message` entry an assistant turn with `stopReason: "error"`, followed only by `custom` entries for more than a few minutes) and sends exception mail naming the error, the session path and its size. Status shows the child as dead rather than in its phase. First use: a worker whose provider call fails (a fixture or an injected error) produces that mail within minutes, and a healthy long turn doesn't.

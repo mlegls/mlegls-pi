@@ -1,7 +1,9 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 priority: 2
+part-of: "[[projects/mlegls-pi/issues/supervise-loop-reliability]]"
+blocked-by: ["[[projects/mlegls-pi/issues/worker-start-check-misses-long-first-turns]]"]
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
 ---
 
@@ -14,3 +16,5 @@ Constraints that the supervisor sends by `ab mail` reach a worker only after the
 A related gap is live-target tickets. The rollout story told drive/review to "build and prepare from the committed checkout" against the user's real vault, so each verification phase redeployed the live target (4 backups). Neither the ticket format nor the roles can express "live target: inspect, don't redeploy". The same problem arises on any ticket whose first use is the user's own setup.
 
 Possible shape: per-ticket constraints (a frontmatter field or a section the loop reads) that `lib/jobs/supervise.ts` puts in every phase's first prompt, instead of relying on mail racing a running turn.
+
+ticket contract, 2026-09-30: an owner can attach constraints to a supervised child that every later phase gets in its first prompt, not only by mail racing the current turn. Design (decided 2026-09-30): `ab supervise constrain <ticket> <child> TEXT` records the constraint in the job state, mails the current worker, and the loop appends all recorded constraints to every later phase's launch prompt (drive, review, redispatch, consolidate). Don't store them in the ticket file, because the child's branch owns that file while it's live. Also document in the `supervise` skill that a ticket whose first use is the user's own live setup should say in its body what drive and review may and may not redo there. First use: constrain a child mid-implement, and see the constraint in its drive and review prompts.
