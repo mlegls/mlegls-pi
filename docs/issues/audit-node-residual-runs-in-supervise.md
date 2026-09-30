@@ -18,3 +18,4 @@ Questions, from concept's `.git/ab-supervise/*.events.jsonl` and the closed issu
 - Does post-order hold up, or do nodes want their residual alongside open children (e.g. residual that is independent of every child)?
 - Did spec dispatch stop needing reminders in root sessions (tend), and did any other "specs need refinement first" behaviour survive elsewhere (frontier labels, `effective:spec` read as not ready)?
 - The batch loop (`lib/jobs/loop.ts` `finish`) still closes a node after its final join without running its residual; should it share this path?
+- Acceptance-only residuals (first runs: contrast, applet-query-receipt, generalize-node-memory) drive the joined acceptance inside implement, then the loop runs drive and review on top. Is the independent drive worth its cost there, or should an acceptance-only residual go straight to review?
