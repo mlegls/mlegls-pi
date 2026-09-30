@@ -42,3 +42,15 @@ Tested revision: `a7c642f` (`ab-jg-can-stall-without-output-during-semantic-disc
 4. Invoke `./bin/ab jg --help`. Accept exit 0 and documentation for default 180s, override seconds, 0 off, incomplete exit 2 and exact-search fallback.
 
 Nonvisual CLI evidence; no screenshots. The actual stall cause and live provider path remain outside this controlled encounter.
+
+## Review, 2026-09-30
+
+Reviewed the first-use record alongside the CLI diff; re-drove at `c972573` in an isolated copy of this checkout's `./bin/ab` with its `jg` replaced by a sleeping stub. The copy keeps the same CLI sources and symlinks to this checkout's dependencies without changing the tracked executable. `ab check -- bun test ab/jevgrep.cli.test.ts ab/jevgrep.test.ts` passed (8 tests): a 1s repository-wide and 2s narrower query returned exit 2, the elapsed/deadline completion line and `ab grep` suggestion, with no surviving direct child; the stub's captured argv omitted `--deadline`. With 0, the external 2s timeout exited 124 first; help exited 0 and included the 180s default and 0-off mode. Unit replay caught and repaired an empty `--deadline=` or empty separate value being treated as 0 (an accidental unbounded query); empty limits now fail usage rather than disable the budget. The CLI checks were run again after that repair.
+
+| First-use claim | Review outcome |
+| --- | --- |
+| Explicit bound, incomplete exit 2, elapsed/deadline line, exact-search fallback for `.` and `ab` | Held in the automated CLI replay on the repaired head, using the stubbed dependency. |
+| Help documents 180s default, override and 0-off mode | Held in CLI replay. Actual 180s expiry and a real-provider query remain untried, as in the first-use drive. |
+| `--deadline` is not forwarded upstream | Held in the CLI replay via captured stub argv. |
+
+Friction disposition: silence until expiry is the bounded-timeout choice this ticket shaped (rather than progress); no separate progress requirement is established. Wall-clock overhead of about a second beyond the configured bound includes process startup and the capped pipe drain; the completion line reports the expiry moment, not return time. The simulated hang avoids using saved credentials or sending repository content to the provider; this remains a deliberate evidence limit, not a failed story. A broader `ab check -- bun test ab` picked up tests outside `ab/` and failed in a disabled tool lacking `commander` (91 pass, 1 fail); filed separately as [[projects/mlegls-pi/issues/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander]]. The affected tests ran explicitly and passed.
