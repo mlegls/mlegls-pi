@@ -16,7 +16,7 @@ shape, 2026-09-30: `ab/resources.ts` prints every stored `Execution` whole, incl
 
 Result: [CLI drive evidence](../attachments/ab-check-list-truncates-machine-readable-json/index.md).
 
-review boundary, 2026-09-30: the ab check pair (ab-check-loses-waiter-after-daemon-timeout, ab-check-list-truncates-machine-readable-json) is reviewed once as a combined delta from `894e8c6` by the root tend session after both integrate. Leaves integrate without per-leaf review.
+review boundary, 2026-09-30: the ab check pair (ab-check-loses-waiter-after-daemon-timeout, ab-check-list-truncates-machine-readable-json) is reviewed once as a combined delta from `894e8c6` by the root tend session after both integrate. This is a code review of the combined diff; each leaf's own acceptance review (evidence packet against the ticket) still runs.
 
 ## Verification evidence
 
