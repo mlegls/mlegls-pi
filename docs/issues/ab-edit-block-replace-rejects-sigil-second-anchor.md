@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/small-ab-cli-fixes]]"
@@ -17,3 +17,7 @@ ticket contract, 2026-09-30: `ab edit` accepts `=a =b` for a two-anchor block re
 ## Result
 
 CLI drive: [verification packet](../attachments/ab-edit-block-replace-rejects-sigil-second-anchor/index.md). Both replacement spellings held on `4678f1c`; test coverage is left for review.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/ab-edit-block-replace-rejects-sigil-second-anchor/index.md).
