@@ -14,3 +14,9 @@ Done when `ab check -- bun test` in a fresh worktree after `bun run setup` fails
 All four children are done. Joined acceptance in a fresh worker checkout after `bun run setup`: `ab check -- bun test` exited 0, **357 pass, 3 skip, 0 fail** across 78 files. The remaining false failure, the archived orchestration report path, was repaired without changing assertions; its [owner](orchestration-audits-test-reads-prearchive-report-path.md) is done. [Joined acceptance packet](../attachments/test-suite-hygiene/index.md).
 
 Remaining known failure: [[projects/mlegls-pi/issues/bash-lifecycle-oversized-output-test-flaky-under-load]] can intermittently lose the oversized-output notice or recover an incomplete log. It passed in both joined runs; that defect remains with its existing owner. The three existing local-worker/vault skips remain unchanged.
+
+Independent [first-use joined drive](../attachments/test-suite-hygiene/driver.md)
+on `6fb4f57` reproduced **357 pass, 3 skip, 0 fail** after root setup,
+with optional dsh dependencies absent. The checkout also passed all nine
+route-assignment checks with an empty temporary HOME and no roster override.
+The driver did not repeat the dispatch guard-regression counterfactual.

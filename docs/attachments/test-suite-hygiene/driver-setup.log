@@ -1,0 +1,15 @@
+$ bun install --frozen-lockfile --ignore-scripts && bun install --cwd lib/outline-read --frozen-lockfile && bun install --cwd extensions/disabled/lsp --frozen-lockfile && bun install --frozen-lockfile --cwd skills/enabled/all/mlegls/conventions/tracker/scripts
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [1]
+
+Checked 138 installs across 158 packages (no changes) [21.00ms]
+bun install v1.4.2 (744846f84)
+
+Checked 12 installs across 13 packages (no changes) [3.00ms]
+bun install v1.4.2 (744846f84)
+
+Checked 3 installs across 4 packages (no changes) [1.00ms]
+bun install v1.4.2 (744846f84)
+
+Checked 1 install across 2 packages (no changes) [1.00ms]

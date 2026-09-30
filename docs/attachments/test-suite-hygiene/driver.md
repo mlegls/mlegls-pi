@@ -39,4 +39,84 @@ test source or fixture was read.
 
 ## Session log
 
-Preparation and journeys pending. CLI-only evidence: visual false; shots none.
+CLI-only evidence: visual false; shots none.
+
+- Bun version: `1.4.2`. [Root setup](driver-setup.log) exited 0; all four
+  committed dependency installations completed without changes. Root setup
+  does not prepare optional dsh. The already provisioned worker dependency
+  directories meant this was an idempotent setup, not a cache-empty install.
+- Started the supplied root check and the two documented filtered checks from
+  this worktree. The filtered check overlapped the root check through `ab check`;
+  no server or browser was started.
+- [Root joined acceptance](driver-root.log) exited 0: **357 pass, 3 skip,
+  0 fail**, 360 tests across 78 files in 112.27 seconds. No `skills/disabled/`
+  or `dsh/` test headers or optional import failures appeared. The orchestration
+  report checks and both bash lifecycle checks passed. `dsh/node_modules` and
+  the historical `probe` worktree path remained absent afterward.
+- [Empty-host-roster probe](driver-no-host-roster.log) exited 0: **9 pass,
+  0 fail** in the targeted route-assignment file. The temporary HOME was removed.
+  This supports missing-host insulation, not the conflicting-roster counterfactual.
+
+## Additional prediction before the host-roster probe
+
+A targeted route-assignment run with `PI_AGENTS_DIR` unset and `HOME` pointing
+at an empty directory owned by this worktree should still pass. This checks
+that a missing host roster does not require the ticket's manual override;
+it does not simulate a differing valid host roster or a guard regression.
+
+## Replayable checks and acceptance observations
+
+- From a worker checkout with optional `dsh/node_modules` absent, run
+  `bun run setup`, wait for exit, then `ab check -- bun test`. Accept no disabled
+  skill or dsh test headers, no missing-package imports and no host-roster
+  assignment error. Record any failing case by name and owner rather than
+  treating a responding setup command as readiness.
+- Run `ab check -- bun test ab` and `ab check -- bun test ab lib/resources`.
+  Accept exit 0 and no `skills/disabled/` headers or `commander` resolution error.
+- Create an empty temporary HOME within the worker checkout; run
+  `ab check -- env -u PI_AGENTS_DIR HOME="$temporary_home" bun test lib/route-assignment.test.ts`.
+  Accept all route-assignment checks passing without the historical workaround;
+  remove only that temporary HOME afterward.
+- For counterfactual worker safety, the reviewer needs an authorized guard
+  regression control. Accept a failing rejection assertion, zero real launches
+  and no worker artifacts. This drive does not modify a guard or provide evidence
+  for that counterfactual.
+- Confirm all four child tickets are marked done and the READMEs document dsh's
+  separate preparation. These document checks passed before CLI preparation.
+
+## Frictions and limits
+
+- The dispatch child is marked done but its Result still describes the initial
+  driver's safety claim as unobservable and says review must establish it. The
+  board reports that review did establish it; the ticket alone leaves its final
+  state ambiguous. No product repair was made.
+- Existing [oversized-output flake](../../issues/bash-lifecycle-oversized-output-test-flaky-under-load.md)
+  remains a known failure, regardless of whether this drive encounters it.
+- Empty-HOME insulation is weaker than a conflicting valid host roster. Existing
+  child review evidence owns that stronger check; this joined acceptance drive
+  is not an audit of every child counterfactual.
+
+## Expectations formed during use
+
+- **Met:** setup exits successfully before tests are driven; four locked installs
+  finished, with no optional dsh preparation.
+- **Met:** joined acceptance succeeds without roster overrides or hand-selected
+  paths; root exit 0, 357 pass / 3 skip / 0 fail.
+- **Met:** optional dsh remains unprepared but does not produce false failures.
+- **Met:** missing host roster does not break the targeted CLI (9/9).
+- **Met:** the four child tickets state done and READMEs describe optional setup.
+- **Met, ordinary run only:** rejection cases pass and the historical `probe`
+  path is absent after the run. Guard-regression safety is **unmeasured** here.
+- **Not met:** reading the completed dispatch child's Result does not clearly
+  establish its reviewed completion; it still asks review to establish safety.
+  The mandatory board read supplies that conclusion, not the ticket's Result.
+
+## Joined story outcomes
+
+- **Held:** root setup followed by `ab check -- bun test` reports no false failures.
+- **Held:** root discovery excludes disabled skills and optional dsh.
+- **Held:** archived orchestration report no longer causes a root false failure.
+- **Held (document state):** every child ticket states done.
+- **Unobservable in this drive:** launch safety when a rejection guard regresses.
+  No public regression control was supplied. The child review's counterfactual
+  remains the separate evidence for that property, not these green CLI runs.
