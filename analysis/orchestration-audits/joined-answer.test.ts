@@ -1,4 +1,4 @@
-// Document-consistency test: the joined answer in docs/issues/orchestration-audits.md must not
+// Document-consistency test: the joined answer in docs/issues/archive/orchestration-audits.md must not
 // contradict the reviewed child reports it summarizes. Replays checks 3, 4 and 7 of
 // docs/attachments/orchestration-audits/index.md (decision evidence class, cache uncertainty,
 // role-acceptance wording).
@@ -6,7 +6,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const root = `${import.meta.dir}/../..`;
-const joined = readFileSync(`${root}/docs/issues/orchestration-audits.md`, "utf8");
+const joined = readFileSync(`${root}/docs/issues/archive/orchestration-audits.md`, "utf8");
 const answer = joined.slice(joined.indexOf("## answer"), joined.indexOf("## Result"));
 const bullet = (start: string) => answer.split("\n").find((l) => l.startsWith(`- ${start}`)) ?? "";
 const cov: { strong_peer_readers: string[]; push_peer_sessions: string[] }[] = JSON.parse(

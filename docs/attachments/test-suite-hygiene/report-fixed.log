@@ -1,0 +1,12 @@
+check 671fca69-117e-4f26-8ec5-22e7c33209cd (running); log /Users/mlegls/.local/state/ab/executions/671fca69-117e-4f26-8ec5-22e7c33209cd.log
+bun test v1.4.2 (744846f84)
+
+analysis/orchestration-audits/joined-answer.test.ts:
+(pass) decision bullet: 86% is pull ∪ push; 84% is pull alone [0.22ms]
+(pass) cache bullet: keeps the reviewed report's uncertainty [0.04ms]
+(pass) role bullet: no claimed acceptance parity
+
+ 3 pass
+ 0 fail
+ 10 expect() calls
+Ran 3 tests across 1 file. [8.00ms]

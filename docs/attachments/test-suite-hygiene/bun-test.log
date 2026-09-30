@@ -1,0 +1,563 @@
+check b25788a9-f766-4086-a445-598dd95ce865 (running); log /Users/mlegls/.local/state/ab/executions/b25788a9-f766-4086-a445-598dd95ce865.log
+bun test v1.4.2 (744846f84)
+
+ab/computer.test.ts:
+(pass) quoted spans become inputs named by their text; apostrophes inside words are not quotes [0.59ms]
+(pass) placeholders name hidden inputs once each [0.08ms]
+(pass) CLI refuses implicit desktop targeting and requires a completion condition [52.63ms]
+(pass) project browser setup is cleaned up on completion or observation error (%s) [27.75ms]
+(pass) project browser setup is cleaned up on completion or observation error (%s) [25.88ms]
+(pass) browser CLI does not offer a resolver it cannot call [24.67ms]
+
+ab/resources.test.ts:
+(pass) CLI shares one execution, forwards failures, rejects dirty sharing and runs nested checks [2952.98ms]
+(pass) CLI retains running and queued waiters across daemon timeouts, but releases on SIGINT [21744.33ms]
+(pass) CLI lists complete historical JSON, omits environments and filters live check/service states [9531.79ms]
+
+ab/jevgrep.test.ts:
+(pass) retrieval anchors share the ledger, survive restore, and edit exact Unicode evidence [4.00ms]
+(pass) patched JSON renderer retains ordering, source budget, and metadata without prose parsing [1.52ms]
+(pass) wrapper bounds source by default and preserves explicit budgets [0.05ms]
+(pass) deadline option parser rejects empty limits rather than silently disabling the bound [0.07ms]
+
+ab/jevgrep.cli.test.ts:
+(pass) CLI drive: explicit deadline ends a hanging repository-wide query with incomplete exit and exact-search fallback [2326.16ms]
+(pass) CLI drive: trailing deadline also bounds a narrower query [3216.86ms]
+(pass) CLI drive: zero disables the internal deadline so an external timeout fires first [2006.76ms]
+(pass) CLI drive: help explains the default, override, off mode, incomplete result and fallback [26.90ms]
+
+ab/skill.test.ts:
+(pass) skill names fall back to global Pi skills, but local names and explicit paths win [75.14ms]
+(pass) activated skills are exact in bash output and plain outside it [45.92ms]
+
+lib/outliner.test.ts:
+(pass) drive checks 1–2: explicit checkout classifies the note and reports live unlinked issues [151.82ms]
+(pass) drive checks 3 and 5: accepted move and completion change exactly the displayed bullets [216.28ms]
+(pass) drive checks 4–5: intervening edit anywhere in the proposed note refuses acceptance [75.88ms]
+(pass) unresolved research intent is not auto-introduced; an agreed draft becomes a linked tracker issue [151.60ms]
+
+lib/dispatch.test.ts:
+(pass) rebases the worker branch onto the parent and fast-forwards [161.06ms]
+(pass) refuses uncommitted work and reports conflicts after aborting [151.09ms]
+(pass) closes the worker only after Git integration; keep retains it [286.08ms]
+(pass) retiring deletes a merged worker branch once its worktree is gone; an unmerged one is kept [473.43ms]
+
+lib/board.test.ts:
+(pass) cli send then meta-read round-trips json [16.53ms]
+(pass) cli wait requires from-offset [7.56ms]
+(pass) cli rejects non-integer numeric flags [39.34ms]
+
+lib/route-assignment.test.ts:
+(pass) a fill assignment can use its model line or an independently pinned model [2.40ms]
+(pass) an agent pin keeps its model list, fallbacks included [0.17ms]
+(pass) delegated work keeps the interactive reserve for the time left in each window [0.47ms]
+(pass) a banked reset counts as a full window until it expires, and its first use notifies once [0.59ms]
+(pass) every agent has a model list of catalogued entries [0.94ms]
+(pass) unavailable model pins do not fall back and shorthand is not guessed [0.25ms]
+(pass) tracker launches require eligibility and preserve the selected stance/model [0.59ms]
+(pass) host model lines override the roster without overriding explicit pins [0.30ms]
+(pass) a role pick replaces the Decision API but yields to an agent pin for that role [1.44ms]
+
+lib/raw.test.ts:
+(pass) marks split output into exact and filterable segments and disappear [0.02ms]
+(pass) a cut-off open stays exact to the end; a stray close is dropped; nesting flattens [0.02ms]
+(pass) unmarked output is one filterable segment [0.03ms]
+
+lib/native-manual-path.test.ts:
+(pass) drive role forbids unscoped System Events input and points at cua-driver (check 5) [0.08ms]
+(pass) review role forbids unscoped System Events input and points at cua-driver (check 5) [0.15ms]
+(pass) docs/computer.md names cua-driver beside chrome-devtools-axi and links an existing skill (check 4) [0.19ms]
+
+lib/wm.local.test.ts:
+(skip) concurrent workers share a new session; any/all preserve reports and close removes worktrees
+
+lib/children.test.ts:
+(pass) an exited child is unreachable, not a terminal event to watch repeatedly [6.97ms]
+(pass) a restarted worker report re-enters the wait without reattaching to its dead pane [6.68ms]
+
+lib/decision-outage.test.ts:
+(pass) Decision API retries transient failures but reports persistent outages [4514.46ms]
+
+lib/wm.test.ts:
+(pass) trustWorktrees > a trusted repo's worktrees folder becomes trusted [0.53ms]
+(pass) trustWorktrees > trust via an ancestor counts [0.26ms]
+(pass) trustWorktrees > an untrusted repo is left prompting [0.21ms]
+(pass) wait > any returns on the first, leaves the other pending [0.35ms]
+(pass) wait > all collects one per worker [0.05ms]
+(pass) wait > timeout returns what arrived [20.15ms]
+(pass) wait > a loser's waiter is withdrawn; its later event is buffered for the next wait [0.13ms]
+(pass) wait > abort signal withdraws without consuming [0.06ms]
+(pass) poller delivers a report posted after the worker is registered [1025.63ms]
+(pass) spawnEnv > carries board identity, spawn provenance, and the fence ratio [0.05ms]
+(pass) spawnEnv > drops absent optional values [0.01ms]
+
+lib/memory.test.ts:
+(pass) recall uses explicit ancestry, redacts reasoning/images, paginates and refuses missing coordinates [186.32ms]
+(pass) exec recall and shell coordinates stay scoped to each concurrent cell [376.95ms]
+
+lib/pipe.test.ts:
+(pass) words > splits on whitespace, honors quotes [0.09ms]
+(pass) pipe > runs bash with the text on stdin [7.53ms]
+(pass) pipe > nonzero exit throws [4.19ms]
+
+lib/tracker-lint.test.ts:
+(pass) delivery signal is advisory, cached, and stale when its evidence changes [77.93ms]
+(pass) a done issue's lint asks only about its text [1.01ms]
+
+lib/tracker-views.test.ts:
+(pass) ready siblings survive a parent's shaping residual; own and subtree differ [0.76ms]
+(pass) compound constraints, omission, blockers, claims, deferred and done stay distinct [0.25ms]
+(pass) scope scheduling ignores internal edges, rejects cycles and preserves own mine filters [0.21ms]
+(skip) current vault model loads
+(skip) CLI snapshot parity against selected project vault
+
+lib/wm-reattach.test.ts:
+(pass) reattachment distinguishes closed targets from open targets and unavailable status [1010.84ms]
+
+lib/report.test.ts:
+(pass) surfaces malformed fenced handoff parse errors [4.33ms]
+(pass) recognizes checkpoint as a report status [0.01ms]
+(pass) drive replay: first word [0.31ms]
+(pass) drive replay: fenced first [0.13ms]
+(pass) drive replay: prose first
+(pass) drive replay: ordinary prose
+(pass) drive replay: empty YAML key [0.22ms]
+(pass) drive replay: middle sentinel [0.15ms]
+(pass) drive replay: trailing sentinel [0.07ms]
+(pass) drive replay: handoff only after prose [0.09ms]
+(pass) drive replay: conflict [0.08ms]
+(pass) drive replay: missing status [0.06ms]
+(pass) review replay: status-only handoff needs no unrelated key [0.30ms]
+(pass) review replay: short heading still permits a sentinel with prose [0.07ms]
+(pass) review replay: a handoff caveat is data, not a conflicting sentinel [0.58ms]
+(pass) review replay: removing a handoff does not promote later prose to first-word status [0.09ms]
+
+analysis/orchestration-audits/joined-answer.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+4 | // role-acceptance wording).
+5 | import { expect, test } from "bun:test";
+6 | import { readFileSync } from "node:fs";
+7 | 
+8 | const root = `${import.meta.dir}/../..`;
+9 | const joined = readFileSync(`${root}/docs/issues/orchestration-audits.md`, "utf8");
+                   ^
+ENOENT: no such file or directory, open '/Users/mlegls/dev/mlegls-pi__worktrees/test-suite-hygiene/analysis/orchestration-audits/../../docs/issues/orchestration-audits.md'
+    path: "/Users/mlegls/dev/mlegls-pi__worktrees/test-suite-hygiene/analysis/orchestration-audits/../../docs/issues/orchestration-audits.md",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at /Users/mlegls/dev/mlegls-pi__worktrees/test-suite-hygiene/analysis/orchestration-audits/joined-answer.test.ts:9:16
+-------------------------------
+
+
+analysis/decision-broadcasts-read/coverage.test.ts:
+(pass) 133 unique decisions; 114 reached; distribution matches report [0.22ms]
+(pass) pull 112 / push 42 / both 40; push-only are the two named decisions; no sender self-read [0.10ms]
+(pass) report's committed-file inventory matches git [5.37ms]
+
+analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts:
+(pass) CLI reproduces the corpus and complete billed-call to tool-index curves [1.94ms]
+(pass) published ranges agree with session results and use one-based call indices [0.32ms]
+(pass) policy knees link timestamped steers, own/run checkpoints and adjacent cache outcomes [0.28ms]
+(pass) fresh-prefix replay pays each growing call once, including the sunk prefix [168.91ms]
+(pass) all sessions/policies are published worst-first, economic limits explicit, reruns reproducible [4.52ms]
+
+docs/research/role-model-spikiness.test.ts:
+(pass) check 1: inventory and sparse exit > ledger identifies every session by full id, with an exclusion reason where excluded [0.08ms]
+(pass) check 1: inventory and sparse exit > the report says the corpus cannot answer at fixed target and verify-story has no triad pair [0.11ms]
+(pass) check 1: inventory and sparse exit > regenerating the ledger from the session corpus reproduces the committed file [2963.41ms]
+(pass) check 2: wrong-model re-review > u2-selfgrade-rereview is a dead glm attempt plus a completed deepseek review [0.17ms]
+(pass) check 3: pair-ratio statistic > median of the eight cross ratios is 16x; ratio of group medians is 10x [0.11ms]
+(pass) check 4: role tables replay from the ledger > review, glm flash row: n, median, min and max of completed attempts [0.22ms]
+(pass) check 4: role tables replay from the ledger > review, astra row: n, median, min and max of completed attempts [0.06ms]
+(pass) check 4: role tables replay from the ledger > review, opus row: n, median, min and max of completed attempts [0.02ms]
+(pass) check 4: role tables replay from the ledger > verify-story, sonnet row: n, median, min and max of completed attempts [0.01ms]
+(pass) check 4: role tables replay from the ledger > verify-story, terra row: n, median, min and max of completed attempts [0.01ms]
+(pass) check 4: role tables replay from the ledger > published medians are true medians of completed attempts [0.04ms]
+(pass) check 5: parent disposition ledger > every review worker has a disposition; silent rounds carry no report [0.04ms]
+(pass) check 5: parent disposition ledger > U2 glm chain and U4 astra chain match the drive's excerpts; U3 clear was not accepted [0.06ms]
+(pass) check 5: parent disposition ledger > silent glm death was detected hours later at u2-selfgrade-rereview [0.02ms]
+(pass) check 5: parent disposition ledger > cited board ids exist and carry the recorded timestamps [12.33ms]
+(pass) check 6: routing calibration > recommendations name the missing plan-consumption and wall-time evidence and the confound [0.04ms]
+
+extensions/memory/images.test.ts:
+(pass) oldest images go first; paths, latest image and original history survive [0.12ms]
+(pass) counts UTF-8, tools and system overhead; removes latest images if necessary [0.03ms]
+(pass) small requests are untouched and text-only overflow is not truncated [0.01ms]
+
+extensions/memory/experiment.test.ts:
+(pass) comparison is bounded, paired, order-balanced and preserves captured requests [0.29ms]
+(pass) private capture and attempt ledger include zero-output errors [0.71ms]
+
+extensions/memory/memory.test.ts:
+(pass) model-selected contiguous tail, stable append/resume and failed checkpoint [5.68ms]
+(pass) rewrite retains direct evidence; unknown or rewrite-time correction references fail [0.06ms]
+(pass) V1 blocks retain their rendered prefix and can be corrected or rewritten as prose [0.09ms]
+(pass) tail starts exclude tool results and old summaries, preserving call/result groups [0.06ms]
+(pass) compaction tolerates metadata appends but rejects changed context and aborts [2.17ms]
+(pass) tool outputs are elided only behind cold gaps, keeping recent turns and small results [0.18ms]
+
+extensions/memory/hibernate.test.ts:
+(pass) finds running supervise jobs with live children owned by this session [0.71ms]
+(pass) supervisor cache lifetimes [0.02ms]
+(pass) external artifact citations are accepted but are neither evidence nor corrections [0.05ms]
+(pass) supervisor waits for cache expiry, resets on activity, and cancels on shutdown [0.75ms]
+
+extensions/memory/lifecycle.test.ts:
+(pass) resume: old timer and late agent_settled are inert after session replacement [4.77ms]
+(pass) reload: old timer and late agent_settled are inert after session replacement [2.91ms]
+(pass) eligible idle hibernates once; activity resets the deadline; shutdown cancels it [1.98ms]
+(pass) ineligible supervisor below threshold does not hibernate [1.37ms]
+(pass) ineligible supervisor without live children does not hibernate [1.30ms]
+
+extensions/system-prompt/index.test.ts:
+(pass) system prompt extension > keeps the session date across midnight and extension reloads [0.10ms]
+(pass) system prompt extension > uses the active session header when switching sessions [0.02ms]
+(pass) system prompt extension > omits the date when no session header is available
+(pass) system prompt extension > only advertises skills when a source-reading tool is available [0.06ms]
+(pass) system prompt extension > retains pi identity but omits documentation guidance from the default prompt [0.02ms]
+(pass) system prompt extension > preserves custom prompts, appended instructions, and project context [0.03ms]
+
+extensions/workspace/fork-tab.test.ts:
+(pass) fork snapshots the live branch, launches in the originating session, and leaves the parent alone [1.17ms]
+(pass) worktree root becomes cwd; failed window creation removes the fork [0.55ms]
+
+extensions/workspace/workspace.test.ts:
+(pass) workspace paths > expands home directories [0.01ms]
+(pass) workspace paths > resolves relative directories [0.42ms]
+(pass) workspace paths > rejects files and missing paths [0.36ms]
+
+extensions/workspace/handoff.test.ts:
+(pass) workspace persists handoff before switching (cancelled=false) [1.06ms]
+(pass) workspace persists handoff before switching (cancelled=true) [0.68ms]
+
+extensions/bash/prelude.test.ts:
+(pass) an unhandled failure mid-script reports its line and command, and the script continues [8.23ms]
+(pass) handled failures stay quiet [9.21ms]
+(pass) the trap reaches functions and command substitutions [6.33ms]
+(pass) a failure repeated in a loop reports once with its count [12.75ms]
+
+extensions/bash/lifecycle.test.ts:
+(pass) shutdown discards detached completions before they access stale context [805.66ms]
+(pass) focused output stays verbatim and oversized output has a searchable original [16.67ms]
+
+extensions/exec/source.test.ts:
+(pass) source grep/read ergonomics > options as the second argument search instead of throwing [5.42ms]
+(pass) source grep/read ergonomics > a read() result is a grep path [0.62ms]
+(pass) source grep/read ergonomics > file contents passed as a path do not appear in the error [0.42ms]
+(pass) source grep/read ergonomics > reading a directory names it as a directory [0.31ms]
+(pass) source grep/read ergonomics > lines().map and join yield the selected text [0.35ms]
+(pass) source grep/read ergonomics > large file text and rows stay complete [1.44ms]
+
+extensions/exec/runtime-core.test.ts:
+(pass) ordinary TS imports transform parameter properties, share ESM identity, await dependencies, and retain results beside JS/CJS [290.33ms]
+(pass) reserved names reject redeclaration before effects; nested shadowing leaves immutable APIs usable [290.04ms]
+(pass) registry omits disabled modules and cannot bypass the host module gate [294.12ms]
+(pass) fresh strict cells retain only explicit mutable state across calls and errors [303.74ms]
+
+extensions/exec/migration.test.ts:
+(pass) shell results remain queryable while immediate and late shows render literal streams, not object inspection [558.57ms]
+(pass) write creates parents and overwrites; retained read anchors still protect intervening writes [309.27ms]
+(pass) term sessions retain shell state across cancelled waits and kernel reset, then wait any/all [1139.22ms]
+(pass) Cua results cross Kernel RPC with native tokens, ordered images, errors and lifecycle reset [576.18ms]
+
+extensions/exec/rpc.test.ts:
+(pass) structured host results can be filtered before display; late shows arrive by handle and a restart aborts host work [783.03ms]
+
+extensions/exec/modules.test.ts:
+(pass) project .pi/exec shadows lib by name, extras are project.*, and another cwd is unaffected [587.72ms]
+(pass) exec advertises delegated computer use, except in the read-only profile [0.48ms]
+
+extensions/exec/presentation.test.ts:
+(pass) live invocation order is independent of completion order; explicit show remains a filter [549.09ms]
+(pass) retained jobs, operation errors, and interruption remain distinct [800.56ms]
+(pass) trace previews are passive, byte-bounded, and omit image payloads [315.56ms]
+(pass) Kernel defaults exclude legacy coordination, empty means core only, and host rejects excluded RPC [617.18ms]
+(pass) loader-applied flags update advertised API and survive session tree and command reset [1636.20ms]
+(pass) real tool result renders narrow/wide and expanded/collapsed without guessing calls from code [326.04ms]
+(pass) yielded output drains into the next result, or follows up once the agent settles [1714.14ms]
+
+extensions/exec/kernel.test.ts:
+(pass) explicitly retained read selections and typed values survive calls; promised outlines render and short refs edit [332.50ms]
+(pass) a slow show yields its cell and arrives later by handle; show.sync and wait hold the result [1565.14ms]
+(pass) interrupt detaches; a wedged kernel is killed with its shell descendants; fresh kernel restores latest edited anchors [1751.75ms]
+(pass) filtered source references retain snapshot context, replace only selected rows, and reject external changes [300.27ms]
+(pass) discovery honors ignores but explicit reads work; limited search reports incompleteness [326.90ms]
+(pass) process stdout/stderr written by a cell is a collapsed side stream, pullable as cN.io [288.21ms]
+(pass) Bun Shell $ quotes interpolations, rejects nonzero exits with stderr, and shows stdout [284.61ms]
+
+extensions/exec/ingress.test.ts:
+(pass) show is verbatim regardless of focus and spills complete oversized output [287.94ms]
+
+extensions/exec/ingress-context.test.ts:
+(pass) current intent includes visible reasoning and calls, not signatures or tool results [0.10ms]
+
+extensions/exec/delivery.test.ts:
+(pass) late output judged already accounted for is quiet; new output and errors wake [0.18ms]
+(pass) unavailable novelty judgment delivers in full [0.08ms]
+
+extensions/exec/cua-runtime.test.ts:
+(pass) Cua-native Jev replacement ends on driver verification, not its choice [3.58ms]
+(pass) an ended driver session rotates the label: reads re-issue, writes need a new observation [0.14ms]
+(pass) coordinate clicks consume the exec snapshot without sending native AX addressing [0.14ms]
+
+extensions/exec/affordances.test.ts:
+(pass) read silently retains image; show emits model image, including before a later cell error [318.67ms]
+(pass) Exa response stays structured across host RPC, filtering large bodies before display and retaining statuses/cost [300.71ms]
+
+extensions/connectome/index.test.ts:
+(pass) stubbed results for an aborted turn's tool calls are dropped [0.24ms]
+(pass) a completed turn keeps its rebuilt results [0.05ms]
+
+extensions/connectome/lifecycle.test.ts:
+(pass) workspace binding survives resume and repeated moves, but not forks or explicit identity changes [5.93ms]
+(pass) compile failure relinquishes context and compaction ownership without reopening on the next turn [14.22ms]
+
+lib/tree/workspaces.test.ts:
+(pass) tmux sessions join projects by session or pane workspace, and free sessions start at home [301.44ms]
+
+lib/tree/tree.test.ts:
+(pass) graph > links spawn and invoked parents, and marks live children of ended parents as orphans [7.71ms]
+(pass) graph > tree rows nest children and a query keeps ancestors [0.79ms]
+(pass) graph > status puts interactive sessions first, keeping state groups distinct [0.30ms]
+(pass) graph > project trees prioritize urgent descendants without moving them from their parent [0.36ms]
+(pass) graph > cross-project children are roots in their own project, not under the parent's header [0.27ms]
+(pass) legacy mailbox parents join the live supervisor [2.85ms]
+
+lib/tree/prune.test.ts:
+(pass) dashboard prune leaves dirty and busy worktrees alone, removes clean ones, keeps branches [642.54ms]
+(pass) prune ignores idle pane shells but protects their background jobs [697.10ms]
+
+lib/board/store.test.ts:
+(pass) send then read round-trips with query [2.02ms]
+(pass) run-wide read includes base-topic decisions; <run>/* does not [0.34ms]
+(pass) readFrom is incremental by byte offset [0.31ms]
+(pass) missing sender metadata is normalized; malformed records don't poison readers [0.49ms]
+(pass) send normalizes omitted sender metadata from scripts and rejects malformed input [0.24ms]
+(pass) topics summarises latest per topic [0.26ms]
+(pass) waitFor resolves on a matching message and times out otherwise [1505.11ms]
+(pass) waitFor fromOffset sees messages already logged [0.74ms]
+(pass) meta drops data and slices body [0.39ms]
+(pass) query reports what the limit dropped [0.45ms]
+(pass) reads and acks log beside the message log with the reader [0.48ms]
+(pass) readReadEvents tolerates an absent file and torn lines [0.33ms]
+
+lib/board/query.test.ts:
+(pass) matchTopic > exact and single-segment glob [0.02ms]
+(pass) matchTopic > globstar [0.03ms]
+(pass) parseTags / evalTags > empty matches all [0.01ms]
+(pass) parseTags / evalTags > single tag [0.02ms]
+(pass) parseTags / evalTags > precedence: ! > & > | [0.05ms]
+(pass) parseTags / evalTags > comma is and; namespaced tags [0.02ms]
+(pass) parseTags / evalTags > tag-name array is AND; empty is unrestricted [0.03ms]
+(pass) parseTags / evalTags > errors [0.03ms]
+(pass) compileQuery combines topic and tags [0.02ms]
+
+lib/board/mail-drive.test.ts:
+(pass) mail CLI distinguishes definitely undeliverable sends and accepts the waiting review worker's ticket [1675.12ms]
+
+lib/resources/host.test.ts:
+(pass) two slots queue a third command and preserve output/exit status [167.54ms]
+(pass) singleflight shares only explicit matching identities, not completed results [127.27ms]
+(pass) unkeyed checks never coalesce; abandoning a queued call never starts it [208.75ms]
+(pass) services don't consume check slots and stop/expiry terminate them [2025.30ms]
+(pass) spawn failure frees the slot [21.79ms]
+(pass) shared checks reject a revision changed while queued [207.63ms]
+(pass) stopping a service kills its background child too [32.85ms]
+
+lib/outline-read/program.test.ts:
+(pass) program index > definitions at statement grain, with docs and trailing comments [268.02ms]
+(pass) program index > references are resolved by the checker [23.25ms]
+(pass) program index > each call re-reads the tree and re-resolves what changed [48.11ms]
+(pass) program index > nested definitions own their references [20.50ms]
+
+lib/outline-read/outline.test.ts:
+(pass) selector > range forms [0.09ms]
+(pass) selector > split path and selector [0.08ms]
+(pass) selector > normalize merges and clamps [0.06ms]
+(pass) nest > by containment, widest first, duplicates dropped [0.05ms]
+(pass) markdown > headings nest by level and ignore fenced code [0.13ms]
+(pass) markdown > heading directly followed by a sibling heading has no body [0.02ms]
+(pass) markdown > parent body spans its children [0.01ms]
+(pass) render > level 0 elides leaf bodies only [0.08ms]
+(pass) render > level 1 elides container body between children [0.02ms]
+(pass) render > level 2 collapses containers with a child count [0.02ms]
+(pass) render > minBodyLines keeps short bodies
+(pass) render > rises level to fit budget [0.07ms]
+(pass) tree-sitter > typescript definitions with bodies [57.48ms]
+(pass) tree-sitter > python indented bodies [3.72ms]
+(pass) model outline parsing > start lines become ranges and bodies, prose around JSON ignored [0.17ms]
+(pass) model outline parsing > drops out-of-range, duplicate, and malformed entries [0.03ms]
+(pass) model outline parsing > non-JSON output is null
+(pass) config > nested fallback keys merge over defaults [0.78ms]
+
+lib/outline-read/identity.test.ts:
+(pass) retained survivor after deleting preceding duplicate: "same" [1.38ms]
+(pass) retained survivor after deleting preceding duplicate: "" [0.69ms]
+(pass) inserting a duplicate does not redirect the original row [0.68ms]
+(pass) unchanged interior of a replacement retains its anchor without borrowing from outside [0.61ms]
+(pass) deleted names cannot revive [0.95ms]
+(pass) deleted names cannot revive after resume [0.82ms]
+(pass) unread restored files reserve their names even when their content changed [0.69ms]
+
+lib/outline-read/capacity.test.ts:
+50k public Kernel read: 494.3ms
+(pass) public Kernel: 50k identical rows spill, restore, and reject stale edits within 10s [830.25ms]
+(pass) global exhaustion is finite, and freeing/resetting updates scan hints [632.52ms]
+(pass) restored occupancy spills and retired anchors remain reserved [89.60ms]
+(pass) over-capacity sync rejects before taking names or changing existing anchors [4.12ms]
+
+lib/outline-read/edit.test.ts:
+(pass) anchors > deterministic, unique within a file [0.05ms]
+(pass) anchors > anchors of one file share its scent [0.07ms]
+(pass) anchors > strip pasted prefixes [0.05ms]
+(pass) ledger > unchanged lines keep anchors across edits; removed anchors stop resolving; unique across files [0.20ms]
+(pass) ledger > restore from entry only when content hash matches [0.12ms]
+(pass) parseHunks > forms [0.12ms]
+(pass) parseHunks > blank lines: separator before a header, content otherwise [0.05ms]
+(pass) parseHunks > empty insert is a blank line [0.12ms]
+(pass) parseHunks > indented header-like JSX can be escaped without losing indentation [0.06ms]
+(pass) parseHunks > bare words and escaped headers are text; bodies must fit the sigil [0.10ms]
+(pass) edit tool > diff-looking bodies remain literal, with a warning: -old
++new [2.12ms]
+(pass) edit tool > diff-looking bodies remain literal, with a warning: +first
++second [0.47ms]
+(pass) edit tool > a block replacement uses both endpoints and needs no diff markers [0.47ms]
+(pass) edit tool > unknown range endpoint is named before any file changes [0.35ms]
+(pass) edit tool > insert a blank line after an anchor [0.51ms]
+(pass) edit tool > replace, insert, and anchors surviving earlier edits [0.62ms]
+(pass) edit tool > delete and no-op [0.50ms]
+(pass) edit tool > two files in one call [0.78ms]
+(pass) edit tool > rejects unknown anchors, overlaps; strips pasted prefixes [3.56ms]
+(pass) edit tool > external change: unchanged anchors still work, changed ones are reported with fresh anchors [0.57ms]
+
+lib/outline-read/grep.test.ts:
+(pass) grep > enclosing returns the chain outermost first [0.05ms]
+(pass) grep > results carry definition context and anchors that edit accepts [34.71ms]
+
+lib/session-meta/index.test.ts:
+(pass) spawnMeta > reads wm's env [0.04ms]
+(pass) spawnMeta > undefined without run and handle
+(pass) spawnMeta > omits optional provenance
+(pass) extension > records one entry at session start with ambient parent drive-probe-parent [0.31ms]
+(pass) extension > records one entry at session start with ambient parent %s [0.04ms]
+(pass) extension > persists parent provenance drive-probe-parent [0.47ms]
+(pass) extension > persists parent provenance %s [0.27ms]
+(pass) extension > records launch mode without spawn metadata, only once across resumes [0.04ms]
+(pass) invokedBy > records the calling session for headless children, not for wm workers [0.01ms]
+
+lib/session-meta/identity.test.ts:
+(pass) session identity is distinct from its delivery address [0.02ms]
+
+lib/session-meta/live.test.ts:
+(pass) turn state preserves the board subscription and its store [0.83ms]
+
+lib/jobs/supervise-outage.test.ts:
+(pass) a persistent Decision API outage pauses one launch, then start resumes it [4093.05ms]
+
+lib/jobs/supervise.test.ts:
+{"scenario":"late","mail":[{"to":"case-late","text":"supervise root-case-late (job case-late): done: 1 children integrated at fcfdef3. metrics {\"wakes\":0,\"ownerBytes\":0,\"launched\":0,\"completed\":1}, join skipped: fewer than two changes landed and no crossing stories."}]}
+{"scenario":"missing","mail":[{"to":"root-case-missing/case-missing","text":"missing or misplaced status sentinel: put `done` as the first nonblank line (not after the report)\n\nRequired handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks they retained (`[]` when they retained none). For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established."},{"to":"case-missing","text":"supervise root-case-missing (job case-missing): review case-missing: no status sentinel: expected `done` as the first nonblank line (still invalid after two reports)\n\n```json\n{\"stories\":[{\"story\":\"sample\",\"outcome\":\"held\"}],\"evidence\":{\"path\":\"docs/attachments/case-missing.md\",\"visual\":false,\"shots\":[]}}\n```\n\nWaiting worker: ab mail wt/main/case-missing TEXT; worktree /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervise-test-iAGDDT/case-missing. Steer it directly; its next turn end returns to the loop, or: ab supervise resume root-case-missing case-missing verify|integrate|drop|redispatch"}]}
+{"scenario":"stories","mail":[{"to":"root-case-stories/case-stories","text":"stories[0] is a string; expected {story, outcome}\n\nRequired handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks they retained (`[]` when they retained none). For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established."},{"to":"case-stories","text":"supervise root-case-stories (job case-stories): review case-stories: stories[0] is a string; expected {story, outcome} (still invalid after two reports)\n\ndone\n```json\n{\"stories\":[\"sample\"],\"evidence\":{\"path\":\"docs/attachments/case-stories.md\",\"visual\":false,\"shots\":[]}}\n```\n\nWaiting worker: ab mail wt/main/case-stories TEXT; worktree /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervise-test-iAGDDT/case-stories. Steer it directly; its next turn end returns to the loop, or: ab supervise resume root-case-stories case-stories verify|integrate|drop|redispatch"}]}
+{"scenario":"evidence","mail":[{"to":"root-case-evidence/case-evidence","text":"invalid evidence handoff: evidence is a string; expected {path, visual, shots}\n\nRequired handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks they retained (`[]` when they retained none). For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established."},{"to":"case-evidence","text":"supervise root-case-evidence (job case-evidence): review case-evidence: invalid evidence handoff: evidence is a string; expected {path, visual, shots} (still invalid after two reports)\n\ndone\n```json\n{\"stories\":[{\"story\":\"sample\",\"outcome\":\"held\"}],\"evidence\":\"docs/attachments/case-evidence.md\"}\n```\n\nWaiting worker: ab mail wt/main/case-evidence TEXT; worktree /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervise-test-iAGDDT/case-evidence. Steer it directly; its next turn end returns to the loop, or: ab supervise resume root-case-evidence case-evidence verify|integrate|drop|redispatch"}]}
+{"scenario":"yaml","mail":[{"to":"root-case-yaml/case-yaml","text":"handoff YAML parse error: Unexpected scalar at node end at line 2, column 21:\n\n  - \"quoted phrase\" trailing words\n                    ^^^^^^^^^^^^^^\n\n\nRequired handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks they retained (`[]` when they retained none). For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established."},{"to":"case-yaml","text":"supervise root-case-yaml (job case-yaml): review case-yaml: handoff block did not parse: Unexpected scalar at node end at line 2, column 21:\n\n  - \"quoted phrase\" trailing words\n                    ^^^^^^^^^^^^^^\n (still invalid after two reports)\n\ndone\n```yaml\nstories:\n  - \"quoted phrase\" trailing words\n```\n\nWaiting worker: ab mail wt/main/case-yaml TEXT; worktree /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervise-test-iAGDDT/case-yaml. Steer it directly; its next turn end returns to the loop, or: ab supervise resume root-case-yaml case-yaml verify|integrate|drop|redispatch"}]}
+{"scenario":"failed","mail":[{"to":"case-failed","text":"supervise root-case-failed (job case-failed): review case-failed: review story stories[0] outcome is \"failed\"; expected held\n\ndone\n```json\n{\"stories\":[{\"story\":\"sample\",\"outcome\":\"failed\"}],\"evidence\":{\"path\":\"docs/attachments/case-failed.md\",\"visual\":false,\"shots\":[]}}\n```\n\nWaiting worker: ab mail wt/main/case-failed TEXT; worktree /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervise-test-iAGDDT/case-failed. Steer it directly; its next turn end returns to the loop, or: ab supervise resume root-case-failed case-failed verify|integrate|drop|redispatch"}]}
+{"scenario":"unobservable","mail":[{"to":"case-unobservable","text":"supervise root-case-unobservable (job case-unobservable): review case-unobservable: review story stories[0] outcome is \"unobservable\"; expected held\n\ndone\n```json\n{\"stories\":[{\"story\":\"sample\",\"outcome\":\"unobservable\"}],\"evidence\":{\"path\":\"docs/attachments/case-unobservable.md\",\"visual\":false,\"shots\":[]}}\n```\n\nWaiting worker: ab mail wt/main/case-unobservable TEXT; worktree /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervise-test-iAGDDT/case-unobservable. Steer it directly; its next turn end returns to the loop, or: ab supervise resume root-case-unobservable case-unobservable verify|integrate|drop|redispatch"}]}
+{"scenario":"corrected","mail":[{"to":"root-case-corrected/case-corrected","text":"missing or misplaced status sentinel: put `done` as the first nonblank line (not after the report)\n\nRequired handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks they retained (`[]` when they retained none). For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established."},{"to":"case-corrected","text":"supervise root-case-corrected (job case-corrected): done: 1 children integrated at 720accd. metrics {\"wakes\":0,\"ownerBytes\":0,\"launched\":0,\"completed\":1}, join skipped: fewer than two changes landed and no crossing stories."}]}
+{"scenario":"join-new-child-budget","mail":[{"to":"root-case-join/case-join","text":"stories[0] is a string; expected {story, outcome}\n\nRequired handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks they retained (`[]` when they retained none). For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established."},{"to":"root-case-join/case-join-consolidate","text":"stories[0] is a string; expected {story, outcome}\n\nRequired handoff form (docs/verification-evidence.md):\n\n`done` must be the first nonblank line. For drive reports, outcomes may be held, failed, or unobservable; for review reports every outcome must be held on the final head. Choose one outcome, not a pipe-separated list.\n\n```yaml\nstories:\n  - story: ...\n    outcome: held\nevidence:\n  path: docs/attachments/<ticket>/index.md\n  visual: false\n  shots: []\ntests:\n  - lib/example.test.ts\ncaveats: []\n```\n\nDrivers omit tests; reviewers list the test files encoding the checks they retained (`[]` when they retained none). For a nonvisual journey use `visual: false` and `shots: []`; for a visual journey use `visual: true` and list committed image files. Preserve completed work; fix only this report and send the complete report again in this same checkout. Do not invent evidence or claim held unless established."},{"to":"case-join","text":"supervise root-case-join (job case-join): consolidate case-join: stories[0] is a string; expected {story, outcome} (still invalid after two reports)\n\ndone\n```json\n{\"stories\":[\"sample\"]}\n```\n\nWaiting worker: ab mail wt/main/case-join TEXT; worktree /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/supervise-test-iAGDDT/case-join. Steer it directly; its next turn end returns to the loop, or: ab supervise resume root-case-join case-join verify|integrate|drop|redispatch"}]}
+parallel closures, failed tests, failed close hook, missing carried worktree: passed
+
+(pass) supervision closes on branches, serializes integration, and retains failed or missing children [4122.11ms]
+
+lib/jobs/stale-waits.test.ts:
+(pass) waiting status and one-time stale exception wake [743.60ms]
+
+lib/jobs/loop.test.ts:
+(pass) a hold files its question on the issue, hands it to the human, and commits only that file [77.57ms]
+(pass) harness deferrals are told apart from ticket ones [0.10ms]
+(pass) candidates are one level of the tree: ready leaves and nodes with ready work below, or a finished node's final join [0.20ms]
+
+lib/computer/redact.test.ts:
+(pass) redaction survives quotes, newlines, nested UI echoes and JSON serialization [1.25ms]
+
+lib/computer/runner.test.ts:
+(pass) browser considers tail action on 251-control surface within API limit [4.56ms]
+(pass) browser considers tail action on 252-control surface within API limit [3.25ms]
+(pass) browser considers tail action on 600-control surface within API limit [4.54ms]
+(pass) native large surface preserves exact tokens through nomination [4.63ms]
+(pass) browser never turns exhausted waits or showing alone into success [5.85ms]
+(pass) browser verifier overrides model done; recaptures before actions [4.54ms]
+(pass) browser model state and nominations do not contain hidden inputs or UI echoes [3.57ms]
+
+lib/session/tmux.test.ts:
+(pass) TmuxTerminalManager > ignores user config that creates extra sessions [104.03ms]
+(pass) TmuxTerminalManager > captures output and exit status from a completed command [78.54ms]
+(pass) TmuxTerminalManager > keeps shell state across send calls [230.84ms]
+(pass) TmuxTerminalManager > waits for output to change from a previous cursor [299.55ms]
+(pass) TmuxTerminalManager > wait any returns the first terminal to exit [361.94ms]
+(pass) TmuxTerminalManager > wait any detects output changes from provided cursors [369.25ms]
+(pass) TmuxTerminalManager > wait all returns once every terminal has exited [586.62ms]
+(pass) TmuxTerminalManager > wait times out when nothing changes [388.71ms]
+(pass) TmuxTerminalManager > sends control keys and ends sessions [161.26ms]
+
+lib/session/alerts.test.ts:
+(pass) SessionAlertMonitor > alerts once when output contains the configured literal [406.84ms]
+(pass) SessionAlertMonitor > restores an exit alert after the process has already exited [108.53ms]
+(pass) SessionAlertMonitor > does not alert when the terminal is explicitly ended [204.78ms]
+(pass) SessionAlertMonitor > returns immediately and wakes the agent after exit [375.71ms]
+
+extensions/disabled/board/delivery.test.ts:
+(pass) read cancels a busy notification, including after reload [1.80ms]
+(pass) seen cancels a busy notification, including after reload [0.76ms]
+(pass) unread wake report survives reload and wakes exactly once when idle [0.67ms]
+(pass) quiet report survives reload without waking and joins the next natural turn [0.86ms]
+(pass) seen acknowledgment before polling survives reload without suppressing unread neighbors [0.73ms]
+(pass) unsubscribe, idle prune, resubscribe, reload does not resurrect discarded pending [0.56ms]
+
+extensions/disabled/exa/index.test.ts:
+(pass) Exa extension > searches with token-efficient contents and formats source metadata [0.37ms]
+(pass) Exa extension > retrieves page text with the Contents API and reports failed URLs [0.15ms]
+(pass) Exa extension > surfaces Exa API errors [0.06ms]
+
+extensions/disabled/lsp/lsp-client.test.ts:
+(pass) LSP project root discovery > uses the nearest marker within the workspace [0.86ms]
+(pass) LSP project root discovery > walks up to a marker at the workspace root [0.28ms]
+(pass) LSP project root discovery > does not discover projects outside the workspace [0.27ms]
+
+skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts:
+(pass) cross-project evidence links resolve through the vault, not a local namesake [141.41ms]
+(pass) check --fix <moved paths> repairs only links and blockers targeting the moved issues [99.36ms]
+(pass) format-equivalent dependencies preserve all queries [3060.62ms]
+(pass) invalid frontmatter fails every query with a filename and no partial output [4417.28ms]
+(pass) wrapped edges still receive graph checks and done blockers retain scheduling semantics [349.93ms]
+(pass) unverified claims conservatively reserve execution [73.36ms]
+(pass) tagged guards are opaque: they block until removed and never resolve on their own [232.39ms]
+(pass) outline maps each linked bullet to its issue, flags unlinked intent among linked bullets, and lists open issues no bullet covers [38.37ms]
+(pass) subtree readiness, assignment, dependencies, scheduling and review remain separate [781.60ms]
+(pass) legacy is readable but never translated; selectors and structural omissions fail closed [663.65ms]
+(pass) human shaping uses own residual constraints, and archive cannot parent live work [126.46ms]
+(pass) historical provenance survives and duplicate identities fail before projection [88.98ms]
+(pass) a child cannot await completion of its own parent scope [37.98ms]
+(pass) check names the child that lowers a spec, and a side friction log [44.93ms]
+(pass) a new uncommitted issue needs author provenance; committed history is left alone [85.92ms]
+(pass) work in flight elsewhere leaves the frontier: supervise children, closes on branches, orphaned loops [229.72ms]
+(pass) check proposes a unique heading repair without writing; --fix applies it [90.87ms]
+(pass) worktree links use branch docs; foreign projects retain vault state [184.70ms]
+
+3 tests skipped:
+(skip) concurrent workers share a new session; any/all preserve reports and close removes worktrees
+(skip) current vault model loads
+(skip) CLI snapshot parity against selected project vault
+
+
+1 tests failed:
+
+ 354 pass
+ 3 skip
+ 1 fail
+ 1 error
+ 31224 expect() calls
+Ran 358 tests across 78 files. [108.36s]
