@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/small-ab-cli-fixes]]"
@@ -15,3 +15,7 @@ ticket contract, 2026-09-30: `check` doesn't treat wikilinks inside inline code 
 ## Result
 
 [First-use CLI drive packet](../attachments/tracker-check-flags-inline-fixture-wikilinks/index.md): inline/fenced examples ignored, live-link diagnostics retained, archive fixing preserved code examples, and the rollout example is unescaped inline code. The supplied test runner passed 19 tests. Assertion adequacy remains for review. Setup friction is recorded with the existing [handoff owner](mail-drive-handoff-names-only-a-test-runner.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/tracker-check-flags-inline-fixture-wikilinks/index.md).
