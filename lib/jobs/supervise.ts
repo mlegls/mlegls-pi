@@ -38,8 +38,8 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
  nodeJoin?: boolean }
 // Each leaf runs implement → drive → review → integrate; a non-leaf is one supervise child. Phases are agent roles (agents/roles/).
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
-interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; waitingSince?: string; exceptionMailAt?: string; staleWakeSentFor?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; reported?: boolean; checkedAt?: number } }
-interface Child { reportRepairs?: number }
+interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; waitingSince?: string; exceptionMailAt?: string; staleWakeSentFor?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; sessionFile?: string; reported?: boolean; checkedAt?: number } }
+interface Child { reportRepairs?: number; warnedSessionFiles?: string[]; pendingSessionWarnings?: string[] }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>; decisionUnavailable?: Record<string, string>;
@@ -58,6 +58,9 @@ const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const STARTUP_GRACE_MS = 30_000;
 const STARTUP_POLL_MS = 5_000;
 const STALE_WAIT_MS = 30 * 60_000;
+// Session files grow while the loop waits on worker turn-end reports.
+const SESSION_SIZE_THRESHOLD = 20 * 1024 * 1024;
+const SESSION_SIZE_POLL_MS = 15_000;
 interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; archived?: boolean; effectiveStage: string }
 // The tracker reports archived issues as not done; they contribute neutral done to their parent.
 const finished = (i: Issue) => i.done || !!i.archived;
@@ -78,12 +81,13 @@ const STARTUP_META = (entry: { type: string; customType?: string; data?: unknown
  const meta = entry.data as { run?: unknown; handle?: unknown };
  return meta.run === handle.run && meta.handle === handle.handle;
 };
-async function hasPiSession(handle: Handle) {
- const sessions = await SessionManager.list(handle.path);
- return sessions.some(session => {
-  try { return SessionManager.open(session.path).getEntries().some(entry => STARTUP_META(entry, handle)); }
-  catch { return false; }
- });
+async function piSessionFile(handle: Handle) {
+ const sessions = (await SessionManager.list(handle.path)).sort((a, b) => b.created.getTime() - a.created.getTime());
+ for (const session of sessions) {
+  try {
+   if (SessionManager.open(session.path).getEntries().some(entry => STARTUP_META(entry, handle))) return session.path;
+  } catch {}
+ }
 }
 function workerAddress(handle: Handle, cwd: string): string | undefined {
  const existing = scopes(handle.path).find(value => value.startsWith("wt/"));
@@ -305,6 +309,24 @@ export async function run(job: JobContext) {
    return repairReport(c, reason, text);
   }
  };
+const queuedSessionWarnings = new Set<string>();
+const warnSessionSize = async (c: Child, sessionFile: string, size: number) => {
+ if (c.warnedSessionFiles?.includes(sessionFile)) return;
+ // Keep the one-time notice keyed by file; a pending notice can be retried after a daemon restart.
+ c.pendingSessionWarnings ??= [];
+ if (!c.pendingSessionWarnings.includes(sessionFile)) { c.pendingSessionWarnings.push(sessionFile); await save(); }
+ const key = topic(c.handle) + "\0" + sessionFile;
+ if (queuedSessionWarnings.has(key)) return;
+ queuedSessionWarnings.add(key);
+ const address = workerAddress(c.handle, input.cwd) ?? topic(c.handle);
+ const text = "large worker session: " + c.phase + " " + c.slug + " session " + basename(sessionFile) + " (" + sessionFile + ") is " + (size / 1024 / 1024).toFixed(1) + " MiB; warning threshold is 20 MiB. Steer with `ab mail " + address + " TEXT` or start fresh with `ab supervise resume " + input.ticket + " " + c.slug + " redispatch`. This warning is sent once per session file.";
+ const markSent = () => {
+  c.pendingSessionWarnings = c.pendingSessionWarnings!.filter(file => file !== sessionFile);
+  (c.warnedSessionFiles ??= []).push(sessionFile);
+ };
+ if (batch) { await wake(text); markSent(); await save(); }
+ else await wake(text, markSent);
+};
 const checkStartup = async (live: Child[]) => {
  let changed = false;
  for (const c of live) {
@@ -314,17 +336,28 @@ const checkStartup = async (live: Child[]) => {
  if (changed) await save();
  for (const c of live) {
   const startup = c.startup!;
-  // Deferral kills the worker, so a false "not started" costs a whole attempt; in batch mode the timebox bounds a dead worker instead.
-  if (batch) continue;
-  if (startup.mode === "command" || startup.sessionFound || startup.reported || Date.now() - startup.launchedAt < STARTUP_GRACE_MS) continue;
-  try {
-   if (await hasPiSession(c.handle)) { startup.sessionFound = true; await save(); continue; }
-  } catch (error) {
-   startup.checkedAt = Date.now();
-   job.log("startup session check failed (" + c.slug + "): " + error);
-   await save();
-   continue;
+  if (startup.mode === "command") continue;
+  if (!startup.sessionFile) {
+   try {
+    startup.sessionFile = await piSessionFile(c.handle);
+    if (startup.sessionFile) { startup.sessionFound = true; await save(); }
+   } catch (error) {
+    startup.checkedAt = Date.now();
+    job.log("startup session check failed (" + c.slug + "): " + error);
+    await save();
+    continue;
+   }
   }
+  if (startup.sessionFile) {
+   try {
+    const size = statSync(startup.sessionFile).size;
+    if (size >= SESSION_SIZE_THRESHOLD) await warnSessionSize(c, startup.sessionFile, size);
+   } catch (error) {
+    if (!existsSync(startup.sessionFile)) { startup.sessionFile = undefined; await save(); }
+    else job.log("session size check failed (" + c.slug + "): " + error);
+   }
+  }
+  if (batch || startup.sessionFound || startup.reported || Date.now() - startup.launchedAt < STARTUP_GRACE_MS) continue;
   let text = "";
   try { text = await paneTail(input.cwd, c.handle); }
   catch (error) { text = "Could not capture worker pane: " + error; job.log(text); }
@@ -625,6 +658,7 @@ const checkStartup = async (live: Child[]) => {
   const pendingStartup = watched.filter(c => c.startup?.mode !== "command" && !c.startup?.sessionFound && !c.startup?.reported);
   const nextStartupCheck = pendingStartup.length ? Math.min(...pendingStartup.map(c => c.startup!.checkedAt ? c.startup!.checkedAt + STARTUP_POLL_MS : c.startup!.launchedAt + STARTUP_GRACE_MS)) : undefined;
   const startupTimer = nextStartupCheck === undefined ? undefined : setTimeout(abort, Math.max(1, Math.min(STARTUP_POLL_MS, nextStartupCheck - Date.now())));
+  const sessionSizeTimer = watched.some(c => c.startup?.mode !== "command") ? setTimeout(abort, SESSION_SIZE_POLL_MS) : undefined;
   const until = deadline();
   const staleAt = Object.values(state.children).map(c => {
    if (!c.waiting || !c.waitingSince || !c.exceptionMailAt || c.staleWakeSentFor === c.waitingSince) return undefined;
@@ -651,7 +685,7 @@ const checkStartup = async (live: Child[]) => {
    await sleep(Math.min(60_000, 2000 * lostWatches), job.signal);
    continue;
   }
-  finally { if (wakeDeliveryChanged === abort) wakeDeliveryChanged = undefined; stop.abort(); if (startupTimer) clearTimeout(startupTimer); if (staleTimer) clearTimeout(staleTimer); if (deadlineTimer) clearTimeout(deadlineTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
+  finally { if (wakeDeliveryChanged === abort) wakeDeliveryChanged = undefined; stop.abort(); if (startupTimer) clearTimeout(startupTimer); if (sessionSizeTimer) clearTimeout(sessionSizeTimer); if (staleTimer) clearTimeout(staleTimer); if (deadlineTimer) clearTimeout(deadlineTimer); watcher?.close(); job.signal.removeEventListener("abort", abort); }
   lostWatches = 0;
   const c = live.find(child => topic(child.handle) === end.id)!;
   // Exit cursors are not board reports; keep the previous report cursor for restart detection.
