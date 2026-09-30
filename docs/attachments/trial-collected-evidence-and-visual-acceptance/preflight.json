@@ -1,0 +1,262 @@
+{
+  "observedAt": "2026-09-30T14:08Z",
+  "checkoutRevision": "6caba304b1cd64ef525331bf7a372c434ebedcb1",
+  "daemonPid": 66677,
+  "daemonRestarted": false,
+  "collectorPreference": [
+    "openai-codex/gpt-6.1-sol:high",
+    "anthropic/claude-sonnet-5-5:high"
+  ],
+  "visualPreference": [
+    "anthropic/claude-opus-5-5:medium",
+    "openai-codex/gpt-6.1-sol:high"
+  ],
+  "jobs": [
+    {
+      "id": "supervise-fix-small-application-state-and-error-defects-muo2w6m4",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mmon/concept",
+      "owner": "mail/c7a4ad76",
+      "ownerSession": "01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76",
+      "children": {
+        "fix-small-application-state-and-error-defects": {
+          "phase": "implement",
+          "handle": {
+            "handle": "fix-small-application-state-and-error-defects",
+            "run": "fix-small-application-state-and-error-defects",
+            "path": "/Users/mlegls/dev/mmon/concept__worktrees/fix-small-application-state-and-error-defects"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-garden-the-browser-replays-into-story-scenarios-that-run-muo2w673",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mmon/concept",
+      "owner": "mail/c7a4ad76",
+      "ownerSession": "01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76",
+      "children": {
+        "prune-the-ruled-browser-change-detectors": {
+          "phase": "drive",
+          "handle": {
+            "handle": "prune-the-ruled-browser-change-detectors-drive",
+            "run": "garden-the-browser-replays-into-story-scenarios-that-run",
+            "path": "/Users/mlegls/dev/mmon/concept__worktrees/prune-the-ruled-browser-change-detectors-drive"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-name-things-by-their-names-not-ids-muo2w6tm",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mmon/concept",
+      "owner": "mail/c7a4ad76",
+      "ownerSession": "01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76",
+      "children": {
+        "name-things-by-their-names-not-ids": {
+          "phase": "drive",
+          "handle": {
+            "handle": "name-things-by-their-names-not-ids-drive",
+            "run": "name-things-by-their-names-not-ids",
+            "path": "/Users/mlegls/dev/mmon/concept__worktrees/name-things-by-their-names-not-ids-drive"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-record-learning-evidence-for-later-evaluation-of-real-use-munmrt7i",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mmon/concept",
+      "owner": "mail/c7a4ad76",
+      "ownerSession": "01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76",
+      "children": {
+        "drive-mission-map-history-in-browser": {
+          "phase": "implement",
+          "handle": {
+            "handle": "drive-mission-map-history-in-browser",
+            "run": "record-learning-evidence-for-later-evaluation-of-real-use",
+            "path": "/Users/mlegls/dev/mmon/concept__worktrees/drive-mission-map-history-in-browser"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-repair-checks-left-red-on-main-muo2w6ek",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mmon/concept",
+      "owner": "mail/c7a4ad76",
+      "ownerSession": "01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76",
+      "children": {
+        "repair-checks-left-red-on-main": {
+          "phase": "implement",
+          "handle": {
+            "handle": "repair-checks-left-red-on-main",
+            "run": "repair-checks-left-red-on-main",
+            "path": "/Users/mlegls/dev/mmon/concept__worktrees/repair-checks-left-red-on-main"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-scripted-supervision-loop-muo6hjp6",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mlegls-pi",
+      "owner": "mail/b9b312e4",
+      "ownerSession": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+      "children": {
+        "supervise-as-exception-handler": {
+          "phase": "implement",
+          "handle": {
+            "handle": "supervise-as-exception-handler",
+            "run": "scripted-supervision-loop",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/supervise-as-exception-handler"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-small-ab-cli-fixes-muo6hjm3",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mlegls-pi",
+      "owner": "mail/b9b312e4",
+      "ownerSession": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+      "children": {
+        "tracker-check-fix-rewrites-other-sessions-dirty-files": {
+          "phase": "implement",
+          "handle": {
+            "handle": "tracker-check-fix-rewrites-other-sessions-dirty-files",
+            "run": "small-ab-cli-fixes",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/tracker-check-fix-rewrites-other-sessions-dirty-files"
+          }
+        },
+        "make-undeliverable-mail-status-visible-to-scripts": {
+          "phase": "implement",
+          "handle": {
+            "handle": "make-undeliverable-mail-status-visible-to-scripts",
+            "run": "small-ab-cli-fixes",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/make-undeliverable-mail-status-visible-to-scripts"
+          }
+        },
+        "ab-edit-block-replace-rejects-sigil-second-anchor": {
+          "phase": "implement",
+          "handle": {
+            "handle": "ab-edit-block-replace-rejects-sigil-second-anchor",
+            "run": "small-ab-cli-fixes",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/ab-edit-block-replace-rejects-sigil-second-anchor"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-supervise-loop-reliability-muo6hjev",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mlegls-pi",
+      "owner": "mail/b9b312e4",
+      "ownerSession": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+      "children": {
+        "run-glob-misses-base-topic-decisions": {
+          "phase": "implement",
+          "handle": {
+            "handle": "run-glob-misses-base-topic-decisions",
+            "run": "supervise-loop-reliability",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/run-glob-misses-base-topic-decisions"
+          }
+        },
+        "computer-use-images-poison-worker-context": {
+          "phase": "implement",
+          "handle": {
+            "handle": "computer-use-images-poison-worker-context",
+            "run": "supervise-loop-reliability",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/computer-use-images-poison-worker-context"
+          }
+        },
+        "parent-waits-on-worker-that-died-without-a-report": {
+          "phase": "implement",
+          "handle": {
+            "handle": "parent-waits-on-worker-that-died-without-a-report",
+            "run": "supervise-loop-reliability",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/parent-waits-on-worker-that-died-without-a-report"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-supervisor-hibernation-muo6hjsa",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mlegls-pi",
+      "owner": "mail/b9b312e4",
+      "ownerSession": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+      "children": {
+        "supervisor-hibernation": {
+          "phase": "implement",
+          "handle": {
+            "handle": "supervisor-hibernation",
+            "run": "supervisor-hibernation",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/supervisor-hibernation"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-test-suite-hygiene-muo6hjj0",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mlegls-pi",
+      "owner": "mail/b9b312e4",
+      "ownerSession": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+      "children": {
+        "dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses": {
+          "phase": "implement",
+          "handle": {
+            "handle": "dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses",
+            "run": "test-suite-hygiene",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses"
+          }
+        },
+        "worktree-tests-read-canonical-agent-roster": {
+          "phase": "implement",
+          "handle": {
+            "handle": "worktree-tests-read-canonical-agent-roster",
+            "run": "test-suite-hygiene",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/worktree-tests-read-canonical-agent-roster"
+          }
+        },
+        "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander": {
+          "phase": "implement",
+          "handle": {
+            "handle": "bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander",
+            "run": "test-suite-hygiene",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander"
+          }
+        }
+      }
+    },
+    {
+      "id": "supervise-trial-collected-evidence-and-visual-acceptance-muo6hjve",
+      "type": "supervise",
+      "status": "running",
+      "cwd": "/Users/mlegls/dev/mlegls-pi",
+      "owner": "mail/b9b312e4",
+      "ownerSession": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+      "children": {
+        "trial-collected-evidence-and-visual-acceptance": {
+          "phase": "implement",
+          "handle": {
+            "handle": "trial-collected-evidence-and-visual-acceptance",
+            "run": "trial-collected-evidence-and-visual-acceptance",
+            "path": "/Users/mlegls/dev/mlegls-pi__worktrees/trial-collected-evidence-and-visual-acceptance"
+          }
+        }
+      }
+    }
+  ]
+}
