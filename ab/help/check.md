@@ -21,7 +21,9 @@ For a frozen checkout with dependencies installed from its lockfile and no
 other inputs: ab check --share lockfile-install -- bun-axi run typecheck
 
 All callers see the same execution ID/log/exit status when sharing. Cancelling
-one waiter leaves the others running. No waiters for 30s cancels the execution.
+one waiter leaves the others running. No waiters for 30s cancels the execution,
+so cancel by stopping your waiting ab check caller; execution IDs are not
+ab daemon job IDs.
 Timeout/cancellation terminates its process group; daemonizing/setsid children
 are unsupported. Done logs/receipts expire after an hour while the daemon runs.
 The queue is per AB_STATE (normally per user), not per orchestration loop.
