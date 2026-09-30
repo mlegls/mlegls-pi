@@ -9,3 +9,5 @@ Owner: `lib/jobs/supervise.ts` report handling. When a finished child's report h
 Fix: send the specific validation failure straight back to the child (for example "stories[0] is a string; expected {story, outcome}"), together with the schema from `docs/verification-evidence.md`. Escalate to the owner only if it fails twice, or if a story's outcome really isn't `held`.
 
 Handoff parse failures (`handoffError`, e.g. a YAML list item that opens with a quoted phrase, [[projects/mlegls-pi/issues/handoff-yaml-rejects-items-that-open-with-a-quote]]) bounce the same way, with the parser's message and line.
+
+review boundary, 2026-09-30: the supervise-loop group (bounce-handoff-shape-errors-to-the-child, address-the-waiting-child-in-exception-mail, supervise-job-dies-on-a-decision-api-503-at-child-launch, surface-stale-waits-after-owner-replies, turn-end-sentinel-parser-rejects-preambles) is reviewed once as a combined delta from `894e8c6` by the root tend session after all five integrate, before the next `ab daemon shutdown` loads them. Leaves integrate without per-leaf review.

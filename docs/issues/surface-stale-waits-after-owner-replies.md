@@ -9,3 +9,5 @@ Owner: `ab supervise status` and the loop's wake logic. A job parked on an excep
 Fix: show `waiting: <reason> since <time>` in status. Re-wake the owner when an exception has had owner mail, but no child turn, for N minutes.
 
 triage, 2026-09-30: N is 30 minutes, re-woken once per exception (not repeatedly).
+
+review boundary, 2026-09-30: the supervise-loop group (bounce-handoff-shape-errors-to-the-child, address-the-waiting-child-in-exception-mail, supervise-job-dies-on-a-decision-api-503-at-child-launch, surface-stale-waits-after-owner-replies, turn-end-sentinel-parser-rejects-preambles) is reviewed once as a combined delta from `894e8c6` by the root tend session after all five integrate, before the next `ab daemon shutdown` loads them. Leaves integrate without per-leaf review.
