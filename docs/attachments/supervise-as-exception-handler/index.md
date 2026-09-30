@@ -2,11 +2,11 @@
 
 Tested revision: `dab61aa` (2026-09-30). This packet records the instruction rewrite and campaign preparation, not a completed GLM campaign.
 
-The skill, `agents/supervise.md`, pipeline role and CLI help now agree: the script owns drive/review, joins and integration; the owner handles exceptions. Solved exceptions go only to the waiting child. Waiting turns explicitly override the common worker sentinel rule. The interactive root keeps open human questions in `holes` and generates status from the loop only when asked. The supervisor model defaults are unchanged pending the required GLM trial.
+The skill, `agents/supervise.md`, pipeline role and CLI help now agree: the script owns drive/review, joins and integration; the owner handles exceptions. Solved exceptions go only to the waiting child. Waiting turns explicitly override the common worker sentinel rule. The interactive root keeps open human questions in `holes` and generates status from the loop only when asked. The supervisor model defaults are unchanged pending the follow-up GLM trial.
 
 ## Prepared surface
 
-- Required first use: a real agent-ready campaign with a GLM 5.3 Flash/high root, using the rewritten instructions.
+- Delivery environment: local instruction loading and composed worker prompts, with existing loop/report regressions. The real GLM campaign is a follow-up owned by the parent supervisor at join, not this delivery's acceptance gate.
 - Prepared target: this ticket's local worktree/branch `supervise-as-exception-handler`; no deployment, browser, seed or child workers started.
 - Persona/auth: local instruction reader; `pi auth check --provider zai --json` reported `ready`, API-key auth. A GLM root uses existing Pi authentication (`ZAI_API_KEY` when supplied through the environment); no credential belongs in this packet.
 - Opened entry point: `ab skill ./skills/enabled/all/mlegls/orchestrations/supervise/SKILL.md` from this checkout. It loaded the rewritten skill with this checkout's skill/workspace paths.
@@ -17,15 +17,15 @@ The skill, `agents/supervise.md`, pipeline role and CLI help now agree: the scri
 
 `ab check -- bun test lib/jobs/supervise.test.ts lib/jobs/supervise-outage.test.ts lib/report.test.ts`: **18 passed, 0 failed**, 61 assertions. These are existing loop/report regressions, not a live-model encounter or new acceptance tests. `git diff --check` passed.
 
-Tracker semantic lint was refreshed for the ticket. Its suspected completion is not justified: the required real-campaign measurement remains open. The first-use obligation belongs to this loop's stated trial, not a separate comparison experiment. Its quoted status-free supervisor behavior was recorded as fixed, not an unowned defect.
+Tracker semantic lint was refreshed before the parent ruling. At that point its suspected completion was not justified because the required real-campaign measurement remained open. The parent then explicitly separated that comparison from this delivery. The quoted status-free supervisor behavior was recorded as fixed, not an unowned defect.
 
 Repository-wide tracker `check` exited 1: an inline-code `[[parent]]` example was treated as a live link, and three archive-link repairs were offered. The inline-code defect is owned by [[projects/mlegls-pi/issues/tracker-check-flags-inline-fixture-wikilinks]] in the active `small-ab-cli-fixes` campaign; safe/scoped repair belongs to its prerequisite [[projects/mlegls-pi/issues/tracker-check-fix-rewrites-other-sessions-dirty-files]]. No blanket `check --fix` was run over peers' files. This check is not reported as passed.
 
-## Campaign selection remains open
+## Campaign comparison deferred by the parent
 
 `issues.ts frontier --json` returned no issues. [Campaign availability](campaign-availability.json) records the candidate snapshot: agent-ready roots have in-flight children, remaining leaves are already owned or dependency-blocked, and `loop-vs-supervision-tree` requires human ownership. No existing campaign was taken over or dispatched again.
 
-Question: which unclaimed campaign should provide the required GLM root first use? Recommendation: use the next newly shaped, agent-ready campaign after this rewrite is integrated, rather than taking over an active campaign or substituting a synthetic fixture. No campaign has been started; wakes, coordination cost and human-facing message counts are **unmeasured**, not zero.
+The parent supervisor ruled on 2026-09-30: the rewrite and its regressions are the delivery; the parent will file a separate comparison ticket at join, using the next newly shaped campaign. No campaign has been started; wakes, coordination cost and human-facing message counts are **unmeasured**, not zero. This is an accepted evidence limit for this ticket, not a claim that the comparison happened.
 
 ## Comparison to record on that run
 
