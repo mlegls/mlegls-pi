@@ -4,7 +4,7 @@ assignee: human
 part-of: "[[projects/mlegls-pi/issues/agentic-setup-reorg]]"
 ---
 
-Current question: does Orca offer a better human cockpit than a tmux/workmux/board composition? Orca is a trial, not the settled baseline that other options must merely extend. The tmux/board proposal below remains an alternative to evaluate, not an approved implementation contract. Obsidian block launch and persistent tracker views remain separately owned children.
+Current question: which human cockpit should sit over the delivered libraries and tracker? Current dispatch uses workmux/tmux and the board ([[projects/mlegls-pi/dispatch]]); Orca and Paseo execution adapters are retired, not candidates to restore as a prerequisite. The optional [[projects/mlegls-pi/issues/dsh-port]] is delivered, with its UI proposal in [[projects/mlegls-pi/issues/dsh-supervision-tree-ui]]. The tmux/Obsidian proposal below remains an alternative, not an approved cockpit implementation. Obsidian block launch and persistent tracker views remain separately owned children.
 
 ## Earlier proposal
 

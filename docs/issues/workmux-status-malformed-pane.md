@@ -7,4 +7,4 @@ assignee: agent
 
 Reproduce with `workmux status --json`; repair or update workmux's pane parser, then drive a live dispatch/report/cleanup cycle. No live workers were started during this verification.
 
-2026-09-22 triage: wm/board are disabled in exec during the Orca trial; they remain an alternative under evaluation. This report does not establish a failure in current Orca dispatch. Establish whether a supported caller still needs workmux before authorizing the parser repair or starting workers.
+2026-09-30 reconciliation: current `lib/dispatch.ts` uses `wm.spawn`, integration and retirement use workmux status, and [[projects/mlegls-pi/dispatch]] documents that backend. The supported caller exists again; this is no longer blocked on the retired Orca trial. The original parser failure still needs reproduction before choosing a repair.
