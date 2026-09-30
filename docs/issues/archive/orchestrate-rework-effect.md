@@ -2,10 +2,10 @@
 stage: done
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/orchestration-audits]]"
+part-of: "[[projects/mlegls-pi/issues/archive/orchestration-audits]]"
 ---
 
-hypothesis, from [[projects/mlegls-pi/issues/orchestration-audits]]: orchestrate rework (`a7f7a98`, 2026-09-15, system-config: "Route routine work explicitly and reclassify at phase boundaries") worked: runs since with exactly one handle; per-run cost and checkpoint counts vs the 09-14 baseline.
+hypothesis, from [[projects/mlegls-pi/issues/archive/orchestration-audits]]: orchestrate rework (`a7f7a98`, 2026-09-15, system-config: "Route routine work explicitly and reclassify at phase boundaries") worked: runs since with exactly one handle; per-run cost and checkpoint counts vs the 09-14 baseline.
 
 corpus: baseline = 09-14..09-15 board-era runs (the never-done exemplar is `concept/factor-finish/*`); after = 09-16..09-22 (no sessions on 09-17; board-era ends at the 09-22 scope line). grouping: run = board topic prefix in `~/.local/share/pi-board/log.jsonl`; workers per run via session cwds (`__worktrees-<handle>`) under `~/.pi/agent/sessions`. `a7f7a98` confirmed present in system-config (3 files: agents/research.md, dispatch/SKILL.md, orchestrate/SKILL.md).
 

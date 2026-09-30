@@ -2,10 +2,10 @@
 stage: done
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/orchestration-audits]]"
+part-of: "[[projects/mlegls-pi/issues/archive/orchestration-audits]]"
 ---
 
-hypothesis, from [[projects/mlegls-pi/issues/orchestration-audits]]: fence on cumulative cache-read: per-session cumulative cost vs tool index for the opus workers; find the knee; estimate what respawn-from-ticket at the knee would have saved.
+hypothesis, from [[projects/mlegls-pi/issues/archive/orchestration-audits]]: fence on cumulative cache-read: per-session cumulative cost vs tool index for the opus workers; find the knee; estimate what respawn-from-ticket at the knee would have saved.
 
 corpus: opus workers 09-14..09-16 under `~/.pi/agent/sessions` — filter `model_change.modelId` = `claude-opus-5` plus worktree cwd (40 sessions, $849 total, median $13.4). named extremes: `transcript-capture-feasibility` (558 calls, 232M cache-read, $137), `hook-emission-snapshots` (406 calls, 160M, $109). per-message `usage` carries input/output/cache-read tokens and cost.
 

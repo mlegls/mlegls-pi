@@ -2,10 +2,10 @@
 stage: done
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/orchestration-audits]]"
+part-of: "[[projects/mlegls-pi/issues/archive/orchestration-audits]]"
 ---
 
-hypothesis, from [[projects/mlegls-pi/issues/orchestration-audits]]: cheap review output is acted on: sample five glm-flash review reports, find the parent turn after each, check whether findings appear in later edits or commits. if not, review routing is theater.
+hypothesis, from [[projects/mlegls-pi/issues/archive/orchestration-audits]]: cheap review output is acted on: sample five glm-flash review reports, find the parent turn after each, check whether findings appear in later edits or commits. if not, review routing is theater.
 
 corpus (verified 2026-09-30): sessions `~/.pi/agent/sessions/<mangled-cwd>/<ISO>_<uuid>.jsonl` — header line has cwd and timestamp; model via `model_change.modelId`, glm flash is `~z-ai/glm-flash-latest` (17 sessions, 09-10..09-18). board sends `~/.local/share/pi-board/log.jsonl` (3942 lines, 09-14..09-30); review sends carry `review/`-prefixed topics (e.g. `review/board-freshness-70188ae`, first line). `reads.jsonl` starts only 09-18T16:13.
 

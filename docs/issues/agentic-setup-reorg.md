@@ -18,7 +18,7 @@ Original decomposition, roughly in dependency order (archived links include deli
 5. "[[projects/mlegls-pi/issues/archive/pool-aware-routing]]", "[[projects/mlegls-pi/issues/archive/campaign-coordinator]]".
 6. "[[projects/mlegls-pi/issues/archive/skills-triage]]" then "[[projects/mlegls-pi/issues/archive/repo-merge]]".
 7. "[[projects/mlegls-pi/issues/home-ui]]", "[[projects/mlegls-pi/issues/archive/operon-adapter]]" — the human surfaces; independent of the rest.
-8. "[[projects/mlegls-pi/issues/orchestration-audits]]" — remaining hypotheses; "[[projects/mlegls-pi/issues/reranker-eval]]" gates how much of the filter to build.
+8. "[[projects/mlegls-pi/issues/archive/orchestration-audits]]" — remaining hypotheses; "[[projects/mlegls-pi/issues/reranker-eval]]" gates how much of the filter to build.
 
 decisions:
 - 2026-09-18: skills dissolve into docs (conventions), scripts (procedures), and prompts (stances); one index replaces the skill list.

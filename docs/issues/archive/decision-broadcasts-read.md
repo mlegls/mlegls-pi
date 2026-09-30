@@ -2,10 +2,10 @@
 stage: done
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/orchestration-audits]]"
+part-of: "[[projects/mlegls-pi/issues/archive/orchestration-audits]]"
 ---
 
-hypothesis, from [[projects/mlegls-pi/issues/orchestration-audits]]: `decision` broadcasts are read: in the factor-finish run, grep peer sessions for `board.read` on the run topic after each decision timestamp. 34 acks vs 452 decisions suggests not.
+hypothesis, from [[projects/mlegls-pi/issues/archive/orchestration-audits]]: `decision` broadcasts are read: in the factor-finish run, grep peer sessions for `board.read` on the run topic after each decision timestamp. 34 acks vs 452 decisions suggests not.
 
 corpus: decisions from `~/.local/share/pi-board/log.jsonl` — `tags` containing `decision`, topic prefix `concept/factor-finish` (437 factor-finish mentions; `finish-materials` alone: 26 decisions, 5 checkpoints, never done). peers: 154 session files under `~/.pi/agent/sessions` mention `concept/factor-finish`, window 09-14..09-15. `~/.local/share/pi-board/reads.jsonl` exists but starts 09-18T16:13 — useless for this run; read-evidence is `board.read` tool calls (pi tool or exec command text) inside peer session jsonl. a subscription push injects the message whole into the parent session ([[projects/mlegls-pi/research/orchestration-audit-2026-09-18]], "Board outcomes" era) — count as read by construction, flagged as push not pull.
 
