@@ -17,13 +17,13 @@ obsidian vault=tracker-obsidian-demo open path=Tracker.base
 
 Tree, Board and Network are saved Base views; Network persists mode `graph`. Board groups on the fixture's arbitrary `lane` property, not lifecycle stages. Its cards sort by descending filename. Filtered board shows only `parent`, still own done / tree ticket, 1/2 subissues complete and one external blocker. Progress counts direct children whose entire subtree is done, including children excluded by Base filters. The remaining views exercise frontier, mine, done, invalid, legacy and all. The isolated network node labels on hover. Command-hover previews notes; right-click offers copy links, open in tab/split/window and file-menu extensions. Drag pins a node; double-click unpins it. Tree collapse and network pins are saved in the Base.
 
-Implementation first use used `/tmp/tracker-obsidian-views-first-use` (owned disposable vault, copied plugin, no auth):
+Implementation first use prepared `/tmp/tracker-obsidian-views-clean` from this script (owned disposable vault, copied plugin, no auth). Its trust prompt was accepted and the Base opened on desktop Obsidian 1.13.7:
 
 ```sh
-open 'obsidian://open?path=%2Ftmp%2Ftracker-obsidian-views-first-use%2FTracker.base'
+open 'obsidian://open?path=%2Ftmp%2Ftracker-obsidian-views-clean%2FTracker.base'
 ```
 
-Tried switching all ten fixture views, Base grouping and descending sort, filtered parent progress/blockers, collapse across view changes, drag pin across note navigation, and command-hover preview in desktop Obsidian. Fresh driver/reviewer owns systematic and rendered acceptance.
+Tried switching all ten fixture views, Base grouping and descending sort, filtered parent progress/blockers, collapse across view changes, drag pin across note navigation, double-click unpin without navigation, all three surfaces opening notes and producing file menus, command-hover previews, copying a wikilink and opening a card in a split. The window is closed after use; the URI reopens it. Fresh driver/reviewer owns systematic and rendered acceptance.
 
 Existing checks:
 
