@@ -43,3 +43,7 @@ Existing regressions: `ab check -- bun run test:board` — 30 pass, 0 fail, 142 
 ## Independent drive
 
 [Predictions, actions, outcomes, frictions and replayable checks](drive.md), tested at `8b8438b77806884abc24b070845cf88cb7bb1783`. Both ticket stories held: the three instruction surfaces agree, and isolated CLI reads reach base/child decisions without crossing sibling-run boundaries. Selected output: [read replay](drive-cli.txt), [fresh waiting and Bash adapter](drive-wait.txt). Nonvisual; no screenshots. Host subscription delivery was not exercised in this Bash-only drive.
+
+## Review
+
+Diff read against the contract: the three surfaces (`agents/_common.md`, `docs/dispatch.md`, multi-agent skill) teach `<run>/**` consistently, no other `<run>/*` teaching remains outside issue history, and the driver's stories hold. The "peers are `{{run}}/*`" sentence was dropped from the preamble; the read pattern carries the meaning. One retained test was missing, since the contract says "test it": `lib/board/store.test.ts` "run-wide read includes base-topic decisions; <run>/* does not" replays the read-replay check (base, peer, nested reached by `run/**`; `run/*` reaches peer only), and `lib/board/query.test.ts` pins `a/*` not matching `a` (the defect that happened). `ab check -- bun run test:board`: 31 pass, 0 fail. The driver's CLI wait/help/subscription checks stay as evidence; the help friction is filed as its own idea.

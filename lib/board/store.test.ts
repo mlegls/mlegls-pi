@@ -28,6 +28,17 @@ test("send then read round-trips with query", () => {
 	expect(read({ limit: 1 }).messages[0]!.topic).toBe("r/x");
 });
 
+// run-glob-misses-base-topic-decisions: the run-wide pattern taught to workers (`<run>/**`) must reach decisions posted on the bare run topic.
+test("run-wide read includes base-topic decisions; <run>/* does not", () => {
+	send({ topic: "run", tags: ["decision"], body: "base", from });
+	send({ topic: "run/peer", tags: ["decision"], body: "peer", from });
+	send({ topic: "run/sub/peer", tags: ["decision"], body: "nested", from });
+	send({ topic: "other/peer", tags: ["decision"], body: "outside", from });
+	const bodies = (topic: string) => read({ topic }).messages.map((m) => m.body);
+	expect(bodies("run/**")).toEqual(["base", "peer", "nested"]);
+	expect(bodies("run/*")).toEqual(["peer"]);
+});
+
 test("readFrom is incremental by byte offset", () => {
 	send({ topic: "t", tags: [], body: "1", from });
 	const first = readFrom(0);

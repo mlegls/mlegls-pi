@@ -6,6 +6,7 @@ describe("matchTopic", () => {
 		expect(matchTopic("a/b", "a/b")).toBe(true);
 		expect(matchTopic("a/*", "a/b")).toBe(true);
 		expect(matchTopic("a/*", "a/b/c")).toBe(false);
+		expect(matchTopic("a/*", "a")).toBe(false);
 		expect(matchTopic("*/b", "a/b")).toBe(true);
 	});
 	test("globstar", () => {
