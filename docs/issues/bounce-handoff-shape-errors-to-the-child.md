@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 author: session:01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76
 ---

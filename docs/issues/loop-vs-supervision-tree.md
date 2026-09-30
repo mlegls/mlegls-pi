@@ -2,7 +2,6 @@
 stage: spec
 assignee: human
 author: session:01a0e1fe-0bf2-7778-be0c-d6d1816ed631
-part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
 ---
 
 Evaluate `ab supervise loop` (B) against the supervision tree (A), following Huntley on Ralph: "What's the opposite of microservices? A monolithic application. [...] Ralph works autonomously in a single repository as a single process that performs one task per loop."

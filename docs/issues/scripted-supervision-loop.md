@@ -13,6 +13,8 @@ Scripts fit where the LLM step really is f(text) → text: small closed input, t
 
 The gate was live runs of the `supervise` skill; the 2026-09-23 concept campaign is that run: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]]. Coordination was ~49% of ~$252, mostly supervisor cache reads; supervisors ran as design-owning `auto` sol workers, reviewed sibling code, commissioned implementer tests; the root took 420 inbound messages (5 terminal reports) and narrated 317 times while the human was away.
 
+The comparative execution study [[projects/mlegls-pi/issues/loop-vs-supervision-tree]] (including hibernation) is a separate experimental scope, not a prerequisite for delivering this loop.
+
 substeps: [[projects/mlegls-pi/issues/ab-daemon]], [[projects/mlegls-pi/issues/host-child-events]] and [[projects/mlegls-pi/issues/worker-turn-end-report]] in parallel; then [[projects/mlegls-pi/issues/supervision-phase-loop]]; then [[projects/mlegls-pi/issues/supervise-as-exception-handler]].
 
 decisions:

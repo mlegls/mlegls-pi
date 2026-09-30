@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: session:97e2e1e0-915e-48c2-8bd3-0f9ecd53c817
 part-of: "[[projects/mlegls-pi/issues/scripted-supervision-loop]]"
 ---
@@ -13,3 +13,5 @@ Done looks like: one wake per child turn end, with the final text; a wake to a b
 Same noise from supervise-phase children: every turn end of a child supervisor that is waiting on its own loop arrives as `turn ended: closed` (the `end.kind !== "finished"` branch runs before the `phase === "supervise" && status === null` skip), so the owner is woken each time a child supervisor checks in. Seen repeatedly for `capture-learner-and-tutor-friction-reports-in-convex-for-manual-review`, `start-a-session-from-a-proposed-skill` and `whole-evidence-through-bounded-transactions`.
 
 September 26 transport follow-up: the busy-owner send failure is confirmed against original session metadata and daemon logs. Paseo sends are now removed; two real mailbox writes queue while a simulated owner is busy and deliver once, in order, after restoring pending state and becoming idle. Injected watch/write failures also retry without failing the current supervision loop. [Evidence, runnable probe and limits](../research/historical-transport-failures-2026-09-26.md). This checks the busy-owner clause, not the separate streamed-prefix/check-in noise observations above.
+
+Disposition, 2026-09-30: the remaining streamed-prefix and idle-check-in observations were on the retired Paseo timeline adapter. Current `lib/children.ts` receives complete append-only board reports by message ID, not timeline prefixes; status-free child-supervisor reports are ignored by `lib/jobs/supervise.ts`. The busy-owner mailbox clause has the verification recorded above. No current-workmux reproduction of streamed wakes is claimed.
