@@ -5,7 +5,7 @@ The parent owns decomposition, dependencies, admission (`route.prepare`), concur
 ```ts
 show(state.launch = dispatch.dispatch([
   { handle: "unit-a", prompt: "Self-contained assignment, context, constraints and completion criterion",
-    agent: "auto", model: "openai-codex/gpt-6-sol", effort: "high", base: "<exact Git ref>" }
+    agent: "auto", model: "openai-codex/gpt-6.1-sol", effort: "high", base: "<exact Git ref>" }
 ], { run: "feature-x", maxConcurrent: 2, active: [] }));
 ```
 

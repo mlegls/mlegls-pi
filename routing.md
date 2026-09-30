@@ -5,7 +5,7 @@ Optimize for the lowest wall time to accepted completion within a similar total 
 Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
 
 - Bias delegated work toward `openai-codex`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
-- Use Opus 5.5 only for work requiring visual/design taste, visual review, or difficult and VERY long-context work. UI implementation from an existing design, including simple UI adjustments, should use sol or luna when sufficient. (prefer Astra for difficult work that would take a human a day or less)
+- Use Opus 5.5 only for work requiring visual/design taste, visual review, or difficult and VERY long-context work. UI implementation from an existing design, including simple UI adjustments, should use sol or luna when sufficient.
 - Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
 - Metered providers are overflow when appropriate.
 - OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.
@@ -18,9 +18,10 @@ Agent files in `agents/` declare model and effort preferences for worker stances
 
 ## Model preferences
 
-- Opus 5.5 is preferred for interactive work, the top-level long-context supervisor, UI/UX decisions requiring design taste, and visual review—not UI implementation merely because it touches a rendered surface. Sonnet 5 remains a substantially cheaper option; consider it for the top-level supervisor if Anthropic consumption is still too high.
+- Opus 5.5 is preferred for interactive work, the top-level long-context supervisor, UI/UX decisions requiring design taste, and visual review—not UI implementation merely because it touches a rendered surface.
+- Sonnet 5.5 costs the same per token as Sonnet 5 but spends far more output tokens per task, and it is not monotonic in effort: max scores below xhigh on FrontierCode (it fans out and makes out-of-scope edits) at over 10x the cost. On Anthropic, Opus 5.5 at low/medium matches or beats Sonnet 5.5 at high/xhigh for similar or lower cost per task; Sonnet 5.5's niche is work cheaper than Opus 5.5 low that still wants an Anthropic model or 1M context. Avoid Sonnet 5.5 max.
 - Opus 5.5 supersedes opus 5 and is better than fable 5.1 on most work. Fable's remaining possible niche is diversity of thought / range of possibilities in interactive exploration, not ordinary non-interactive assignments.
-- GPT-6-sol replaces GPT-5.6 terra and sol for fresh routing. Where older sol still has an advantage over GPT-6-sol, astra covers that capability; do not retain older sol as a separate routing tier.
+- GPT-6.1-sol replaces GPT-6-sol at the same token price (cheaper cache reads) and sits about one Intelligence Index point below astra at under a quarter of astra's cost per task; every effort level is on the cost-efficiency frontier. It is the default for difficult non-visual work, including what previously went to astra. Keep astra for the hardest research-grade work where its remaining lead is worth the price.
 - GPT-6-luna replaces GPT-5.6-luna. Use luna or sol when sufficient and astra for work that needs its stronger capabilities, accounting for retries and parent repair rather than optimizing token price alone.
 
 ## Assignment stances
@@ -66,9 +67,9 @@ Distinguish visual perception, GUI grounding, interactive computer use, and visu
 ## Active catalog (list prices, $/MTok in/out; cache-read in parens)
 - fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): 10/50 (0.25).
 - gpt astra 6 (`openai-codex/gpt-6-astra`; efforts low/medium/high): 10/50 (1).
-- sonnet 5 (`anthropic/claude-sonnet-5`; efforts low/medium/high): 2/10 (0.2).
+- sonnet 5.5 (`anthropic/claude-sonnet-5-5`; efforts low/medium/high/xhigh): 2/10 (0.2).
 - opus 5.5 (`anthropic/claude-opus-5-5`; efforts low/medium/high/xhigh/max): 4/20 (0.2).
-- gpt 6 sol (`openai-codex/gpt-6-sol`), luna (`openai-codex/gpt-6-luna`); efforts low/medium/high/xhigh/max. sol: 2/10 (0.2); luna: 0.1/0.5 (0.01). Prompts above 272K input tokens have higher API rates; subscription capacity is not list-price spending.
+- gpt 6.1 sol (`openai-codex/gpt-6.1-sol`), luna (`openai-codex/gpt-6-luna`); efforts low/medium/high/xhigh/max. sol: 2/10 (0.1); luna: 0.1/0.5 (0.01). Prompts above 272K input tokens have higher API rates; subscription capacity is not list-price spending.
 - deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003).
 - grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5).
 
