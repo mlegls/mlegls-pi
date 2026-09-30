@@ -27,7 +27,13 @@ async function invoke(name: string, args: string[]) {
 	const child = Bun.spawn(args, { cwd: scratch, env: { ...process.env, AB_SESSION_STATE: join(scratch, "state"), AB_JG_TEST_PID_FILE: pidFile, AB_JG_TEST_ARGS_FILE: argsFile }, stdout: "pipe", stderr: "pipe" });
 	try {
 		const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-		return { stdout, stderr, exitCode, pidFile, argsFile };
+		const pid = Number(await readFile(pidFile, "utf8").catch(() => "0"));
+		let upstreamAlive = false;
+		if (pid) {
+			try { process.kill(pid, 0); upstreamAlive = true; }
+			catch (e) { if ((e as NodeJS.ErrnoException).code !== "ESRCH") throw e; }
+		}
+		return { stdout, stderr, exitCode, upstreamAlive, pidFile, argsFile };
 	} finally {
 		// In the 0-off trial an external timeout stops ab, not necessarily its stub.
 		const pid = Number(await readFile(pidFile, "utf8").catch(() => "0"));
@@ -42,14 +48,14 @@ test("CLI drive: explicit deadline ends a hanging repository-wide query with inc
 	expect(result.stderr).toMatch(/jg "q": \d+\.\ds, deadline 1s, killed before a result; use ab grep for exact search/);
 	expect(result.stdout).toBe("");
 	expect((await readFile(result.argsFile, "utf8")).split("\n")).not.toContain("--deadline");
-	const pid = Number(await readFile(result.pidFile, "utf8"));
-	expect(() => process.kill(pid, 0)).toThrow();
+	expect(result.upstreamAlive).toBe(false);
 }, 10000);
 
 test("CLI drive: trailing deadline also bounds a narrower query", async () => {
 	const result = await invoke("narrow", ["./bin/ab", "jg", "q", "ab", "--deadline", "2"]);
 	expect(result.exitCode).toBe(2);
 	expect(result.stderr).toMatch(/jg "q": \d+\.\ds, deadline 2s, killed before a result; use ab grep for exact search/);
+	expect(result.upstreamAlive).toBe(false);
 }, 10000);
 
 test("CLI drive: zero disables the internal deadline so an external timeout fires first", async () => {
