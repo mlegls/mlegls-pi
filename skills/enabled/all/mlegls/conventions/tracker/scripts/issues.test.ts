@@ -53,6 +53,16 @@ test("cross-project evidence links resolve through the vault, not a local namesa
   rmSync(join(cwd, "docs/issues/archive/gone.md"));
 });
 
+test("a parent marked done while its children are open is reported", () => {
+  put("split-parent", frontmatter("stage: done"));
+  put("split-child", frontmatter('stage: ticket\nassignee: agent\npart-of: "[[projects/fixture/issues/split-parent]]"'));
+  expect(run("check").out).toContain("split-parent: stage done with open children split-child");
+  put("split-parent", frontmatter("assignee: agent"));
+  expect(run("check").out).not.toContain("split-parent: stage done");
+  rmSync(join(issues, "split-parent.md"));
+  rmSync(join(issues, "split-child.md"));
+});
+
 test("check ignores wikilinks in inline and fenced code, including when fixing other links", () => {
   const inlineMissing = "[[projects/fixture/issues/inline-missing]]";
   const fencedMissing = "[[projects/fixture/issues/fenced-missing]]";

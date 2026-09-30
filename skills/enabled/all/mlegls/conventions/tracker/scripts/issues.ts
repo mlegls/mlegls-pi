@@ -600,6 +600,12 @@ if (cmd !== "lint") switch (cmd) {
         const lowering = children(i, all).filter((c) => { const e = effectiveStage(c, all); return e && STAGES.indexOf(e) < STAGES.indexOf(i.stage!); });
         say(`${i.slug}: own ${i.stage} but effective ${effective} through ${lowering.map((c) => c.slug).join(", ")}; move a child that needs shaping out of the tree (lifecycle)`);
       }
+      // Own stage done claims no residual work of its own; with open children that reads as finished to
+      // loops that check it. A split parent omits stage instead (lifecycle).
+      if (!i.archived && i.stage === "done") {
+        const open = children(i, all).filter((c) => !complete(c, all));
+        if (open.length) say(`${i.slug}: stage done with open children ${open.map((c) => c.slug).join(", ")}; omit stage on a parent whose work lives in its children`);
+      }
     }
     // Observations are issues in a vault project; a side log is read by nobody who triages.
     if (existsSync(join(dirname(dir), "frictions.md"))) say("docs/frictions.md: frictions in a vault project are stage: idea issues");
