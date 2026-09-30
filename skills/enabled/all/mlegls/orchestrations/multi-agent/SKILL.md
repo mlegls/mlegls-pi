@@ -5,9 +5,9 @@ description: "Use when dispatching or coordinating other agents: workers in work
 
 Prepared waves: `dispatch.dispatch` ([contract](../../../../../../docs/dispatch.md)). Parent owns decomposition, dependencies and concurrency; retain receipts; show long waits and they arrive by handle.
 
-Workers are `wm` workers (workmux worktree + tmux window running pi). They report by ending their turn: the last message starts with `done`, `blocked`, or `needs-input`, posted on board topic `<run>/<handle>`; for a question, end with `needs-input` and the answer arrives as the next message. Subscribe to `<run>/*` (or wait with `children.turnEnd`) so reports wake you; `children.send` answers or steers. Use the shared handoff schema in `agents/_common.md` when structured details help. A completed turn is not assignment completion. Integrate with plain Git, then retire.
+Workers are `wm` workers (workmux worktree + tmux window running pi). They report by ending their turn: the last message starts with `done`, `blocked`, or `needs-input`, posted on board topic `<run>/<handle>`; for a question, end with `needs-input` and the answer arrives as the next message. Subscribe to `<run>/**` (or wait with `children.turnEnd`) so reports wake you; `children.send` answers or steers. Use the shared handoff schema in `agents/_common.md` when structured details help. A completed turn is not assignment completion. Integrate with plain Git, then retire.
 
-Use `board` for peer coordination, not terminal reports, and acknowledge handled peer messages.
+Use `board` for peer coordination, not terminal reports, and acknowledge handled peer messages. Read `board.read({ topic: "<run>/**" })` without a report tag filter before touching shared seams: it includes base-topic decisions and all descendants (including nested runs), whereas `<run>/*` misses the base topic.
 
 `route.prepare` selects stance/model/effort for fresh assignments; `route.continuation` judges continue/consult/replace at exceptions. Size assignments to their context; consult old sessions for handoffs when replacing them. Integrate and retire settled workers with `merge`.
 

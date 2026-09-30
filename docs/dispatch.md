@@ -23,7 +23,9 @@ The receipt contains:
 
 ## Supervision
 
-Workers report by ending their turn: the last message starts with `done`, `blocked`, or `needs-input` (`lib/report.ts`), posted on `<run>/<handle>`. Dispatch doesn't subscribe the parent; `board.subscribe({ topic: "<run>/*", tags: "done | blocked | needs-input | checkpoint" })` makes reports wake it, or wait with `children.turnEnd([topic(h), …])`. `children.send(topic, text)` answers a question or steers a worker. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
+Workers report by ending their turn: the last message starts with `done`, `blocked`, or `needs-input` (`lib/report.ts`), posted on `<run>/<handle>`. Dispatch doesn't subscribe the parent; `board.subscribe({ topic: "<run>/**", tags: "done | blocked | needs-input | checkpoint" })` makes reports wake it, or wait with `children.turnEnd([topic(h), …])`. `children.send(topic, text)` answers a question or steers a worker. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
+
+For peer coordination, read `board.read({ topic: "<run>/**" })` without the report tag filter so decisions aren't excluded. `<run>/**` includes the base topic and all descendants (including nested runs); `<run>/*` misses decisions posted on the base topic.
 
 ## Integration
 
