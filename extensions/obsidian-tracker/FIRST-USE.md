@@ -36,4 +36,5 @@ ab check -- ./node_modules/.bin/tsc -p extensions/obsidian-tracker/tsconfig.json
 The optional live CLI parity run requires a matching canonical project/vault identity. A runtime-derived claim mismatch is recorded in `docs/issues/tracker-parity-compares-derived-claims-with-frontmatter-only.md`; do not rename the worktree to make a mismatched comparison look meaningful.
 
 On macOS, Obsidian renders context menus natively by default, so they are absent from the DOM that `obsidian eval` sees. To inspect menu items from a script in the disposable vault, first run `obsidian vault=<name> eval code="app.vault.setConfig('nativeMenus', false)"`; the menu contents are the same either way. Page previews appear only when the synthetic pointer coordinates lie over the hovered element (for Network, the node's circle).
+
 Close the disposable vault window when finished. Its copied plugin and fixture can be deleted together; remove its entry from Obsidian's vault chooser if no longer needed. Do not remove or repoint the live vault plugin.
