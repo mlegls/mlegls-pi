@@ -47,6 +47,9 @@ Workmux runs the same setup automatically before starting a new worker.
 Plain git worktrees and existing worktrees use `bun run setup` explicitly.
 Disabled Firecrawl and MCP packages are optional and not required by the suite;
 install their dependencies separately if enabling them.
+The independent optional [dsh overlay](dsh/README.md) is also excluded from root
+`bun test` discovery; root setup does not install it. To develop it, run
+`bun run --cwd dsh setup`, then `bun test --cwd dsh` separately.
 
 See [exec](extensions/exec/README.md) for the TypeScript cell API.
 Workers run as `wm` workers (workmux worktree + tmux window) and report over the board.

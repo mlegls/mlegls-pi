@@ -4,6 +4,10 @@ This is an independent Bun package, not a workspace. It pins the npm dsh
 0.1.7-rc.2 release candidate; the source clone and a cached `bunx dsh` are not
 used. Node 24 runs dsh; Bun installs and bundles the local plugins.
 
+Root `bun run setup` does not install this optional package, and root `bun test`
+excludes `dsh/**`. After both setup commands below, run its tests separately from
+the repository root with `bun test --cwd dsh`.
+
 From the repository root:
 
 ```sh
