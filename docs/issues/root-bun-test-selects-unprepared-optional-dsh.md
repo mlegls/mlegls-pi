@@ -22,3 +22,5 @@ The root and dsh setup READMEs document separate opt-in setup and package-local 
 [Implementation checks](../attachments/root-bun-test-selects-unprepared-optional-dsh/index.md):
 root run selected no dsh tests with its dependencies absent; 354 pass, 3 skip,
 1 fail (the separately owned prearchive orchestration-audits report path).
+
+First-use drive: [predictions and CLI encounter](../attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md).

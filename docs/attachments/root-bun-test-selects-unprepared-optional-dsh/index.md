@@ -23,3 +23,7 @@ than installing it for every worker. Both setup READMEs document that boundary
 and the existing opt-in setup plus `bun test --cwd dsh` entry point. Package-local
 setup/tests were not exercised here; no optional tests were deleted.
 No persistent resources were started.
+
+## First-use drive
+
+[Driver predictions, session log, expectations, frictions and replayable checks](driver.md). CLI receipts: [root setup](driver-setup.log), [root discovery](driver-root-test.log). No rendered UI was involved.
