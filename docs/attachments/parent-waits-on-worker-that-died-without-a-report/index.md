@@ -53,3 +53,17 @@ These are proposed encounters, not executed tests. Their missing prerequisite is
 3. Keep the failed worker process alive and idle during check 1. Accept the same death notice independent of process exit. This replays the ticket's third case.
 
 No screenshots: CLI-only encounter. No servers, real workers or browsers started; isolated daemon stopped. No product repairs or tests written. Acceptance is not established by this packet.
+
+## Review
+
+The driver's setup handoff was `null`, but the implementation commit carries a provider-free replay, `lib/jobs/fixtures/worker-death.ts` (`bun run lib/jobs/fixtures/worker-death.ts`): it writes real Pi session files (assistant `stopReason: "error"` five minutes old, then a `board-cursor` custom entry, as in the ticket's third case), runs the real `supervise` loop with fixture transport, and runs the real `ab supervise status` against the resulting state. The driver's three "unobservable" stories were observable through it. Reviewed at the head below; output as observed:
+
+| Story | Outcome | Observation |
+| --- | --- | --- |
+| Provider error produces exception mail within minutes | held | Owner mail: `implement dead-worker: worker session ended after provider error: Provider finish_reason: error`, with `Session file: <path>`, `Session size: 761 bytes` (equals the file's size) and the error's timestamp. Sent despite the trailing `board-cursor` entry advancing mtime and with no process exit (replay check 3). |
+| Status distinguishes dead workers | held | `dead-worker dead (Provider finish_reason: error; <session>; 761 bytes) probe-run/dead-worker waiting: worker session ended after provider error: …` instead of `implement`. |
+| Healthy long turns produce no death warning | held | A session whose error was followed by a further user/assistant turn sends no mail and has no `dead` state; also after a redispatch reusing run/handle, where the previous attempt's errored session is ignored (`sessionStartedAt`). |
+
+Diff read against the contract: detection reads the last non-`custom` entry from the file's tail, so cost is independent of session size; the 3-minute grace is measured from the error entry's own timestamp, not mtime; `dead` clears on the next turn end or once the session has a later non-error entry, and a repeat failure (new `failedAt`) mails again; batch mode defers the child as any other exception (the `continue` after `checkWorkerFailures` covers the child having been removed). No defects found.
+
+Retained: `lib/jobs/worker-death.test.ts` runs the fixture in a subprocess (as `stale-waits.test.ts` does) and asserts the mail text, size, status line and absence of mail for the healthy and redispatched cases. Replay checks 1–3 of the driver's list are covered by it; the unrealised real-daemon variant stays as the driver's friction ([backend-supervisor-test-entry-does-not-expose-handoff-routing](../../issues/backend-supervisor-test-entry-does-not-expose-handoff-routing.md)). Not exercised: a live provider failure against a real pi process.

@@ -26,4 +26,4 @@ ticket contract, 2026-09-30: the loop detects a dead worker from its session fil
 
 ## First-use evidence
 
-[Encounter packet](../attachments/parent-waits-on-worker-that-died-without-a-report/index.md): the checkout-owned CLI responded at `8fc4d53`, but the null setup handoff supplied no provider-error or healthy-long-turn starting state. All three detection claims remain unobservable; acceptance is not established.
+[Encounter packet](../attachments/parent-waits-on-worker-that-died-without-a-report/index.md): the driver's null setup left all three claims unobserved; review replayed them through `lib/jobs/fixtures/worker-death.ts` (provider-error mail naming error, session path and size; status `dead`; no mail for healthy or redispatched turns), retained as `lib/jobs/worker-death.test.ts`. Not exercised: a live provider failure against a real pi process.
