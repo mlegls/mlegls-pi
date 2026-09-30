@@ -13,7 +13,7 @@ test("a persistent Decision API outage pauses one launch, then start resumes it"
  const script = join(root, "probe.ts");
  writeFileSync(script, `
 import {mock,expect} from 'bun:test';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
 const cwd=join(${JSON.stringify(root)},'repo');
@@ -53,14 +53,15 @@ expect(notifications).toHaveLength(1);
 // Check 4: once a child has finished, a Decision API failure in advisory residual lint
 // is included in the done notice rather than cancelling supervision.
 writeFileSync(join(cwd,'docs/issues/probe.md'),'---\\nstage: done\\nassignee: agent\\n---\\n');
-writeFileSync(join(${JSON.stringify(tracker)},'issues.ts'),\`import {join} from 'node:path';
-if(process.argv.includes('lint')){console.error('Decision API unavailable: HTTP 503');process.exit(1);}
-console.log(JSON.stringify({issues:[{slug:'probe',file:join(process.cwd(),'docs/issues/probe.md'),partOf:null,frontier:false,done:true,effectiveStage:'done',assignee:'agent'}]}));\`);
+writeFileSync(join(${JSON.stringify(tracker)},'issues.ts'),\`import ${JSON.stringify(resolve("skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"))};\`);
+const outagePreload=join(${JSON.stringify(root)},'lint-outage.ts');
+writeFileSync(outagePreload,\`import {appendFileSync} from 'node:fs';globalThis.fetch=async()=>{appendFileSync(${JSON.stringify(join(root, "lint-attempts"))},'x');return new Response('synthetic outage',{status:503});};\`);
+process.env.BUN_OPTIONS='--preload='+outagePreload;
 notifications=[];
 const lint=await start(null);
 expect(lint.finished).toBe(true);expect(notifications).toHaveLength(1);
 expect(notifications[0]).toContain('done:');expect(notifications[0]).toContain('Residual lint unavailable:');
-expect(notifications[0]).toContain('Decision API unavailable: HTTP 503');
+expect(readFileSync(join(${JSON.stringify(root)},'lint-attempts'),'utf8').length).toBeGreaterThanOrEqual(4);
 console.log('402 paused, resumed, persistent 503 paused, advisory lint reported');
 `);
  try {
