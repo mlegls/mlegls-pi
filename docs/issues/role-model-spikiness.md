@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 part-of: "[[projects/mlegls-pi/issues/orchestration-audits]]"
@@ -30,3 +30,7 @@ Routing implication: the corpus supports no claim that flash-class review is the
 ## Result — supervised drive and review
 
 [First-use packet](../attachments/role-model-spikiness/index.md), driven at `aa3946d`: corpus/matching, measurements and complete parent-acceptance evidence failed; the review section of the packet repairs them and records final outcomes. Tests: `bun test docs/research/role-model-spikiness.test.ts`.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/role-model-spikiness/index.md).
