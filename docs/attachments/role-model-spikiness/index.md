@@ -120,3 +120,35 @@ The report ends with an explicit bounded-review default, escalation proposal, un
 ## Cleanup / scope
 
 Nonvisual static-document/data journey: `visual: false`, screenshots `[]`. No server, container, tunnel, browser page or remote deployment was started. No source/diff/test/fixture inspection and no repairs. The packet's observation JSON contains only session identifiers, model/usage metadata and selected report/parent-action excerpts; the raw local corpus remains unchanged. Historical board excerpts describe others' runtime actions, not actions performed by this driver.
+
+## Review — 2026-09-30
+
+Reviewed at the driver's packet `5a68761`; repairs are in the research document and new data files. The section above is unchanged (first-use record).
+
+### Repairs
+
+Every failure the driver recorded was in the deliverable, so the repair is to the document and its evidence, not to code:
+
+- **Inventory and reproduction (check 1).** `docs/research/role-model-spikiness.py` walks all 755 session files dated 09-01..09-22 and writes [ledger.json](ledger.json), one row per session by full session id (model from assistant messages, cost, turns, tool calls, tokens, start/last message, last stop reason, exclusion reason). Counts now reproduce: 50 review, 32 verify-story. The driver's "45 + 32" undercounted review because the prefix scan missed the second wording ("review the diff you're pointed at (a ref range, a branch, or a worktree)…", 5 sessions). The report's "53 review workers, opus 7" also did not reproduce: only 3 opus sessions use the template. Exclusion rule stated: `stopReason: error` or smoke (<5 turns); four sessions excluded. That reproduces the driver's observed n=16→15 glm and n=18 sonnet (the report's glm n=16 kept `guard-review-2`, a provider error, and called it "silent").
+- **Wrong-model row (check 2).** `u2-selfgrade-rereview` is two sessions, glm (dead, 4 turns, $0.003214145) and deepseek (25 turns, $0.01837244). The document now counts only the deepseek session as the completed review and says there is no completed-vs-completed same-target pair.
+- **Pair-ratio statistic (check 3).** 15.97× is the per-pair median (8 Cartesian ratios from 6 sessions); 10.13× is the ratio of group medians. Both stated; "upper bound on the pure model effect" replaced with "not established". "GLM reads 34–90 turns" was wrong for `u2-review` (15); corrected.
+- **Medians (check 4).** The report's even-n medians took the lower middle (terra $1.54 vs true $1.581; turns 68 vs 70.5). Tables now regenerate from the ledger; "astra ≈4× within one era" was 12.7× (later era) and 71× (earlier); glm spread is 6.4× not 9×.
+- **Confound (new).** The document said model followed supervisor lane ("materials-lane supervisors got glm; hub/quizzes spawned astra"). U1–U6 are all `concept/factor-finish/materials`; the reviewer model followed the `agents/reviewer.md` `runCommand` pin at spawn time (system-config de37c99, b745ffe, c7a564f, 2e43850) and effort (`:high` glm vs `:low` astra).
+- **Wall time (routing.md criterion, missing).** Start → report: glm median 14.3 min (n=9), astra 1.4 min (n=5).
+- **Acceptance ledger (check 5).** [acceptance.json](acceptance.json) (`docs/research/role-model-spikiness-acceptance.py`) has one row per review worker (18): board report id, parent decision id, parent session line, latency, disposition; plus per-session board tags for all 32 verify-story workers. The driver's sampled U2/U4 chains reproduce. New findings against the report's universal claims: astra `u3-review` said "no blocking findings" and the parent held U3 and later shipped `requireCompletion on tutor surface.close` (a clear verdict overturned, by the parent); glm `guard-review`, `cursor-guard-review`, `u1-error-delta-review` and `u1-rereview` each had a claim or nit rejected by the parent. The glm `u2-selfgrade-rereview` death was noticed after 3.5 h (parent "waiting on" messages at 13:05-13:22, noticed 16:13); other silent rounds after 36-75 s. Filed [[projects/mlegls-pi/issues/parent-waits-on-worker-that-died-without-a-report]] (stage idea; `tracker` CLI is unavailable, the vault adapter is the file).
+- **Routing (check 6).** Recommendations rewritten as hypotheses: nothing here shows flash-class review reaches accepted completion cheaper on routing.md's terms; plan consumption is unmeasured and wall time is ~10× worse. "Retry at flash beats paying up front" dropped for the 3.5 h detection latency. Added the transfer caveat that the corpus reviewers were verdict-only while the current `reviewer` repairs.
+
+### Checks as tests
+
+`docs/research/role-model-spikiness.test.ts` (`bun test`): check 1 (ledger counts, exclusions, single cross-model handle, regeneration from the corpus when present), check 2 (both `u2-selfgrade-rereview` sessions), check 3 (eight ratios, 15.97 vs 10.13, both in the document), check 4 (each table row vs the ledger, true medians), check 5 (18 dispositions, U2/U4 chains, U3 not accepted, board ids and timestamps exist when the board log is present), check 6 (document names plan consumption, wall time, confound, same-story-two-drivers). Dropped: none. These tests read the local session corpus and board log, so their corpus replays skip on other machines.
+
+### Final outcomes
+
+| story | driver | final | note |
+|---|---|---|---|
+| corpus and matching | failed | held | ledger, exclusion rules, 0/1/0 same-target pair counts, sparse-data exit stated |
+| measurements and spikiness | failed | held | numbers regenerate from the ledger; spread and confound stated; wall time added |
+| complete parent acceptance evidence | failed | held | per-session ledger for 18 review workers; verify-story per-session board tags; per-lane parent decisions for verify-story are not traced and the document says so |
+| routing recommendations present | held | held | rewritten to hypotheses with the missing measurements named |
+
+Caveats: dispositions were curated by reading board reports and parent sessions (no automatic classification); the parent session that spawned U3–U6 is not in the corpus, so those rows cite board ids rather than parent-session lines; costs are list price.

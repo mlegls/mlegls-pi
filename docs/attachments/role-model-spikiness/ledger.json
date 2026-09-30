@@ -1,0 +1,1642 @@
+[
+ {
+  "session": "01a0a35d-2d91-7061-b24c-a9629ed7c9a6",
+  "file": "--Users-mlegls-dev-arkhai-webapp__worktrees-review-byok-177--/2026-09-15T04-39-47-859Z_01a0a35d-2d91-7061-b24c-a9629ed7c9a6.jsonl",
+  "handle": "review-byok-177",
+  "shape": "review",
+  "model": "opus",
+  "cost": 13.385439,
+  "turns": 99,
+  "tool_calls": 100,
+  "tokens": {
+   "input": 206,
+   "output": 87347,
+   "cacheRead": 14340743,
+   "cacheWrite": 644858
+  },
+  "start": "2026-09-15T04:39:47.859Z",
+  "last_message": "2026-09-15T05:33:47.465Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a49f-6b84-73f1-b05a-66038cc86bda",
+  "file": "--Users-mlegls-dev-arkhai-webapp__worktrees-review-forum-search--/2026-09-15T10-31-46-309Z_01a0a49f-6b84-73f1-b05a-66038cc86bda.jsonl",
+  "handle": "review-forum-search",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.05442937,
+  "turns": 52,
+  "tool_calls": 55,
+  "tokens": {
+   "input": 95920,
+   "output": 20377,
+   "cacheRead": 2809408,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T10:31:46.309Z",
+  "last_message": "2026-09-15T10:56:37.852Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a390-b550-76be-8f8c-bbb9ca81e7dd",
+  "file": "--Users-mlegls-dev-arkhai-webapp__worktrees-review-integration-178--/2026-09-15T05-36-04-945Z_01a0a390-b550-76be-8f8c-bbb9ca81e7dd.jsonl",
+  "handle": "review-integration-178",
+  "shape": "review",
+  "model": "opus",
+  "cost": 6.4365055,
+  "turns": 77,
+  "tool_calls": 87,
+  "tokens": {
+   "input": 158,
+   "output": 47151,
+   "cacheRead": 7029431,
+   "cacheWrite": 278756
+  },
+  "start": "2026-09-15T05:36:04.945Z",
+  "last_message": "2026-09-15T05:58:07.068Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a347-87e3-74fc-ad87-5e3e4b37e323",
+  "file": "--Users-mlegls-dev-arkhai-webapp__worktrees-review-vertex-176--/2026-09-15T04-16-09-189Z_01a0a347-87e3-74fc-ad87-5e3e4b37e323.jsonl",
+  "handle": "review-vertex-176",
+  "shape": "review",
+  "model": "opus",
+  "cost": 13.073672,
+  "turns": 100,
+  "tool_calls": 112,
+  "tokens": {
+   "input": 208,
+   "output": 81100,
+   "cacheRead": 15779389,
+   "cacheWrite": 504870
+  },
+  "start": "2026-09-15T04:16:09.189Z",
+  "last_message": "2026-09-15T04:53:29.698Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a324-0b6a-73f7-8df6-79c810c4e415",
+  "file": "--Users-mlegls-dev-mlegls-pi__worktrees-board-delivery-review--/2026-09-15T03-37-23-563Z_01a0a324-0b6a-73f7-8df6-79c810c4e415.jsonl",
+  "handle": "board-delivery-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.895862,
+  "turns": 18,
+  "tool_calls": 15,
+  "tokens": {
+   "input": 50778,
+   "output": 2785,
+   "cacheRead": 248832,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T03:37:23.563Z",
+  "last_message": "2026-09-15T03:40:20.323Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a505-1c54-763d-bacb-e082d3d11b6f",
+  "file": "--Users-mlegls-dev-mlegls-pi__worktrees-exec-friction-check--/2026-09-15T12-22-50-708Z_01a0a505-1c54-763d-bacb-e082d3d11b6f.jsonl",
+  "handle": "exec-friction-check",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 0.8549088,
+  "turns": 35,
+  "tool_calls": 58,
+  "tokens": {
+   "input": 70,
+   "output": 25890,
+   "cacheRead": 1708569,
+   "cacheWrite": 101662
+  },
+  "start": "2026-09-15T12:22:50.708Z",
+  "last_message": "2026-09-15T12:30:56.505Z",
+  "last_stop": "toolUse",
+  "excluded": null
+ },
+ {
+  "session": "01a0a4fc-bf29-705f-9493-c373e7e1b0bc",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-author-display-review--/2026-09-15T12-13-42-569Z_01a0a4fc-bf29-705f-9493-c373e7e1b0bc.jsonl",
+  "handle": "author-display-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.05347559,
+  "turns": 62,
+  "tool_calls": 60,
+  "tokens": {
+   "input": 222136,
+   "output": 18203,
+   "cacheRead": 2150976,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T12:13:42.569Z",
+  "last_message": "2026-09-15T12:29:21.470Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a4e8-34ee-771b-a82a-1be50db2aaeb",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-backend-review--/2026-09-15T11-51-16-463Z_01a0a4e8-34ee-771b-a82a-1be50db2aaeb.jsonl",
+  "handle": "backend-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.033282285,
+  "turns": 31,
+  "tool_calls": 35,
+  "tokens": {
+   "input": 190201,
+   "output": 16833,
+   "cacheRead": 987264,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T11:51:16.463Z",
+  "last_message": "2026-09-15T12:08:02.321Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a134-6762-74cb-a41f-63f3259b2854",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-browser-consolidation-review--/2026-09-14T18-36-01-254Z_01a0a134-6762-74cb-a41f-63f3259b2854.jsonl",
+  "handle": "browser-consolidation-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 4.673236,
+  "turns": 34,
+  "tool_calls": 30,
+  "tokens": {
+   "input": 226523,
+   "output": 5467,
+   "cacheRead": 2134656,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T18:36:01.254Z",
+  "last_message": "2026-09-14T19:05:55.114Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09ee4-ad54-703f-bff7-2fb37e12afcb",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-bulk-projection-review--/2026-09-14T07-49-41-846Z_01a09ee4-ad54-703f-bff7-2fb37e12afcb.jsonl",
+  "handle": "bulk-projection-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 6.124624,
+  "turns": 52,
+  "tool_calls": 48,
+  "tokens": {
+   "input": 163191,
+   "output": 25245,
+   "cacheRead": 3230464,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T07:49:41.846Z",
+  "last_message": "2026-09-14T08:35:51.639Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a522-e419-7294-8161-3c6905976f11",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-candidate-review--/2026-09-15T12-55-22-394Z_01a0a522-e419-7294-8161-3c6905976f11.jsonl",
+  "handle": "candidate-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.05253308,
+  "turns": 33,
+  "tool_calls": 44,
+  "tokens": {
+   "input": 295028,
+   "output": 27878,
+   "cacheRead": 1562432,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T12:55:22.394Z",
+  "last_message": "2026-09-15T13:14:17.964Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a7f9-1b97-7676-aeba-d42bc56d5a3e",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-closeout-review--/2026-09-16T02-08-35-735Z_01a0a7f9-1b97-7676-aeba-d42bc56d5a3e.jsonl",
+  "handle": "closeout-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.338928,
+  "turns": 9,
+  "tool_calls": 8,
+  "tokens": {
+   "input": 17595,
+   "output": 1401,
+   "cacheRead": 92928,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-16T02:08:35.735Z",
+  "last_message": "2026-09-16T02:09:45.283Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a4e5-ba77-75f3-a40d-53cd2294faa4",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-cursor-guard-review--/2026-09-15T11-48-34-039Z_01a0a4e5-ba77-75f3-a40d-53cd2294faa4.jsonl",
+  "handle": "cursor-guard-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.042716255,
+  "turns": 34,
+  "tool_calls": 42,
+  "tokens": {
+   "input": 217009,
+   "output": 21002,
+   "cacheRead": 1412672,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T11:48:34.039Z",
+  "last_message": "2026-09-15T12:02:59.432Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a162-23da-702e-a687-8b703c496b26",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-dependent-cones-review--/2026-09-14T19-25-58-625Z_01a0a162-23da-702e-a687-8b703c496b26.jsonl",
+  "handle": "dependent-cones-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.260892,
+  "turns": 5,
+  "tool_calls": 7,
+  "tokens": {
+   "input": 20448,
+   "output": 798,
+   "cacheRead": 16512,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T19:25:58.625Z",
+  "last_message": "2026-09-14T19:26:34.755Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a4a1-b648-7067-b96c-42fe05e4b2c1",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-drive-browser--/2026-09-15T10-34-16-520Z_01a0a4a1-b648-7067-b96c-42fe05e4b2c1.jsonl",
+  "handle": "drive-browser",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 6.450634,
+  "turns": 178,
+  "tool_calls": 187,
+  "tokens": {
+   "input": 356,
+   "output": 79468,
+   "cacheRead": 25227735,
+   "cacheWrite": 243878
+  },
+  "start": "2026-09-15T10:34:16.520Z",
+  "last_message": "2026-09-15T10:57:50.509Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a901-c15c-72e4-8cef-53e8ca495d81",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-drive-flattening--/2026-09-16T06-57-39-677Z_01a0a901-c15c-72e4-8cef-53e8ca495d81.jsonl",
+  "handle": "drive-flattening",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 8.8101934,
+  "turns": 252,
+  "tool_calls": 250,
+  "tokens": {
+   "input": 502,
+   "output": 77528,
+   "cacheRead": 36970947,
+   "cacheWrite": 255888
+  },
+  "start": "2026-09-16T06:57:39.677Z",
+  "last_message": "2026-09-16T07:21:19.348Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a59b-08ee-7732-bcc2-9623b6d974c7",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-facet-drive--/2026-09-15T15-06-36-143Z_01a0a59b-08ee-7732-bcc2-9623b6d974c7.jsonl",
+  "handle": "facet-drive",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 1.9909701,
+  "turns": 65,
+  "tool_calls": 78,
+  "tokens": {
+   "input": 130,
+   "output": 54006,
+   "cacheRead": 5340413,
+   "cacheWrite": 153027
+  },
+  "start": "2026-09-15T15:06:36.143Z",
+  "last_message": "2026-09-15T15:21:16.036Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a5aa-6ec5-72ec-8547-77bd7ba6da03",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-facet-drive-2--/2026-09-15T15-23-25-254Z_01a0a5aa-6ec5-72ec-8547-77bd7ba6da03.jsonl",
+  "handle": "facet-drive-2",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 5.1384093,
+  "turns": 137,
+  "tool_calls": 150,
+  "tokens": {
+   "input": 274,
+   "output": 69407,
+   "cacheRead": 19374319,
+   "cacheWrite": 227571
+  },
+  "start": "2026-09-15T15:23:25.254Z",
+  "last_message": "2026-09-15T15:47:06.873Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a575-3d27-73d4-b0b4-761467475019",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-final-drive--/2026-09-15T14-25-19-144Z_01a0a575-3d27-73d4-b0b4-761467475019.jsonl",
+  "handle": "final-drive",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 8.413118,
+  "turns": 192,
+  "tool_calls": 198,
+  "tokens": {
+   "input": 384,
+   "output": 73692,
+   "cacheRead": 34229975,
+   "cacheWrite": 331774
+  },
+  "start": "2026-09-15T14:25:19.144Z",
+  "last_message": "2026-09-15T15:05:46.436Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a7fe-0772-7130-97c1-b3856b03fc08",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-fixture-rereview--/2026-09-16T02-13-58-258Z_01a0a7fe-0772-7130-97c1-b3856b03fc08.jsonl",
+  "handle": "fixture-rereview",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.3725,
+  "turns": 9,
+  "tool_calls": 8,
+  "tokens": {
+   "input": 15039,
+   "output": 2855,
+   "cacheRead": 79360,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-16T02:13:58.258Z",
+  "last_message": "2026-09-16T02:15:58.250Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a571-1536-721c-94ba-8376294181d7",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-guard-drive--/2026-09-15T14-20-46-775Z_01a0a571-1536-721c-94ba-8376294181d7.jsonl",
+  "handle": "guard-drive",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 5.8310044,
+  "turns": 200,
+  "tool_calls": 207,
+  "tokens": {
+   "input": 400,
+   "output": 63534,
+   "cacheRead": 22978872,
+   "cacheWrite": 239636
+  },
+  "start": "2026-09-15T14:20:46.775Z",
+  "last_message": "2026-09-15T14:43:21.083Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a587-2f5f-7114-9fe1-b626928caa60",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-guard-redrive--/2026-09-15T14-44-55-263Z_01a0a587-2f5f-7114-9fe1-b626928caa60.jsonl",
+  "handle": "guard-redrive",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 2.0950649,
+  "turns": 104,
+  "tool_calls": 112,
+  "tokens": {
+   "input": 208,
+   "output": 37172,
+   "cacheRead": 7122757,
+   "cacheWrite": 119351
+  },
+  "start": "2026-09-15T14:44:55.263Z",
+  "last_message": "2026-09-15T14:57:11.601Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a571-1540-7460-aadb-4adcb875921c",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-guard-review--/2026-09-15T14-20-46-784Z_01a0a571-1540-7460-aadb-4adcb875921c.jsonl",
+  "handle": "guard-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.04422868,
+  "turns": 46,
+  "tool_calls": 49,
+  "tokens": {
+   "input": 262204,
+   "output": 21826,
+   "cacheRead": 1273792,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T14:20:46.784Z",
+  "last_message": "2026-09-15T14:35:24.795Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a583-ab1a-743c-a8d2-32664560b597",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-guard-review-2--/2026-09-15T14-41-04-795Z_01a0a583-ab1a-743c-a8d2-32664560b597.jsonl",
+  "handle": "guard-review-2",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.01406334,
+  "turns": 11,
+  "tool_calls": 16,
+  "tokens": {
+   "input": 129962,
+   "output": 10011,
+   "cacheRead": 120896,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T14:41:04.795Z",
+  "last_message": "2026-09-15T14:46:40.720Z",
+  "last_stop": "error",
+  "excluded": "provider error"
+ },
+ {
+  "session": "01a0a593-9a08-772d-b841-ca255a6ae666",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-guard-review-3--/2026-09-15T14-58-29-003Z_01a0a593-9a08-772d-b841-ca255a6ae666.jsonl",
+  "handle": "guard-review-3",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.032288905,
+  "turns": 48,
+  "tool_calls": 48,
+  "tokens": {
+   "input": 102561,
+   "output": 15931,
+   "cacheRead": 1374272,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T14:58:29.003Z",
+  "last_message": "2026-09-15T15:15:34.702Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09eaa-fda3-70cb-b83f-75359b3ce3c8",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-hook-snapshot-audit--/2026-09-14T06-46-41-319Z_01a09eaa-fda3-70cb-b83f-75359b3ce3c8.jsonl",
+  "handle": "hook-snapshot-audit",
+  "shape": "review",
+  "model": "astra",
+  "cost": 18.633926,
+  "turns": 116,
+  "tool_calls": 108,
+  "tokens": {
+   "input": 512106,
+   "output": 54393,
+   "cacheRead": 10793216,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T06:46:41.319Z",
+  "last_message": "2026-09-14T09:00:22.799Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a2f4-62ef-7001-976e-787a06257bfb",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-hub-envelope-review--/2026-09-15T02-45-20-243Z_01a0a2f4-62ef-7001-976e-787a06257bfb.jsonl",
+  "handle": "hub-envelope-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.685846,
+  "turns": 24,
+  "tool_calls": 21,
+  "tokens": {
+   "input": 66618,
+   "output": 6705,
+   "cacheRead": 684416,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T02:45:20.243Z",
+  "last_message": "2026-09-15T03:31:59.439Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a308-9b97-724c-8bc4-ae6bda656486",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-hub-precedence-review--/2026-09-15T03-07-25-490Z_01a0a308-9b97-724c-8bc4-ae6bda656486.jsonl",
+  "handle": "hub-precedence-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.292506,
+  "turns": 22,
+  "tool_calls": 19,
+  "tokens": {
+   "input": 50351,
+   "output": 4818,
+   "cacheRead": 548096,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T03:07:25.490Z",
+  "last_message": "2026-09-15T03:23:56.495Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a1a3-b0ff-72f6-905c-33f007d3d51f",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-hub-projection-review--/2026-09-14T20-37-34-592Z_01a0a1a3-b0ff-72f6-905c-33f007d3d51f.jsonl",
+  "handle": "hub-projection-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.780262,
+  "turns": 10,
+  "tool_calls": 9,
+  "tokens": {
+   "input": 39279,
+   "output": 3912,
+   "cacheRead": 191872,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T20:37:34.592Z",
+  "last_message": "2026-09-14T20:39:59.734Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a523-1ea4-713b-93ce-f6fab387c0c0",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-lifecycle-drive--/2026-09-15T12-55-37-381Z_01a0a523-1ea4-713b-93ce-f6fab387c0c0.jsonl",
+  "handle": "lifecycle-drive",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 11.2352726,
+  "turns": 246,
+  "tool_calls": 253,
+  "tokens": {
+   "input": 492,
+   "output": 73473,
+   "cacheRead": 47526118,
+   "cacheWrite": 397734
+  },
+  "start": "2026-09-15T12:55:37.381Z",
+  "last_message": "2026-09-15T13:33:46.178Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a547-419d-775c-aa8a-889178464bf1",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-lifecycle-drive-2--/2026-09-15T13-35-05-629Z_01a0a547-419d-775c-aa8a-889178464bf1.jsonl",
+  "handle": "lifecycle-drive-2",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 2.0336661,
+  "turns": 97,
+  "tool_calls": 110,
+  "tokens": {
+   "input": 190,
+   "output": 26513,
+   "cacheRead": 7290868,
+   "cacheWrite": 123993
+  },
+  "start": "2026-09-15T13:35:05.629Z",
+  "last_message": "2026-09-15T13:45:48.345Z",
+  "last_stop": "error",
+  "excluded": "provider error"
+ },
+ {
+  "session": "01a0a552-3650-7070-8efb-69c11232b66c",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-lifecycle-drive-2--/2026-09-15T13-47-03-632Z_01a0a552-3650-7070-8efb-69c11232b66c.jsonl",
+  "handle": "lifecycle-drive-2",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 11.8701648,
+  "turns": 289,
+  "tool_calls": 287,
+  "tokens": {
+   "input": 576,
+   "output": 116199,
+   "cacheRead": 42908614,
+   "cacheWrite": 850120
+  },
+  "start": "2026-09-15T13:47:03.632Z",
+  "last_message": "2026-09-15T14:25:14.282Z",
+  "last_stop": "toolUse",
+  "excluded": null
+ },
+ {
+  "session": "01a0a150-878c-720d-a318-2c72c6110bc5",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-membership-reuse-review--/2026-09-14T19-06-44-494Z_01a0a150-878c-720d-a318-2c72c6110bc5.jsonl",
+  "handle": "membership-reuse-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.452864,
+  "turns": 6,
+  "tool_calls": 7,
+  "tokens": {
+   "input": 37097,
+   "output": 939,
+   "cacheRead": 34944,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T19:06:44.494Z",
+  "last_message": "2026-09-14T19:07:29.099Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a1b1-5a1f-7437-ab34-a4c8d70f7466",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-native-materials-review--/2026-09-14T20-52-29-857Z_01a0a1b1-5a1f-7437-ab34-a4c8d70f7466.jsonl",
+  "handle": "native-materials-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.14802,
+  "turns": 14,
+  "tool_calls": 13,
+  "tokens": {
+   "input": 63153,
+   "output": 2957,
+   "cacheRead": 368640,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T20:52:29.857Z",
+  "last_message": "2026-09-14T20:54:44.455Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a0dc-06b4-76e9-89fd-1177da84b492",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-patch-closure-review--/2026-09-14T16-59-29-338Z_01a0a0dc-06b4-76e9-89fd-1177da84b492.jsonl",
+  "handle": "patch-closure-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.178844,
+  "turns": 13,
+  "tool_calls": 14,
+  "tokens": {
+   "input": 62344,
+   "output": 2870,
+   "cacheRead": 411904,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T16:59:29.338Z",
+  "last_message": "2026-09-14T17:53:30.664Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a2fa-c3d2-73b9-86ab-91ba69e66393",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-provenance-security-review--/2026-09-15T02-52-18-258Z_01a0a2fa-c3d2-73b9-86ab-91ba69e66393.jsonl",
+  "handle": "provenance-security-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 4.297886,
+  "turns": 35,
+  "tool_calls": 31,
+  "tokens": {
+   "input": 207799,
+   "output": 9948,
+   "cacheRead": 1722496,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T02:52:18.258Z",
+  "last_message": "2026-09-15T03:43:57.414Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a1c5-f9b8-77b0-ac68-d871a9fc26d1",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-public-hub-review--/2026-09-14T21-15-01-445Z_01a0a1c5-f9b8-77b0-ac68-d871a9fc26d1.jsonl",
+  "handle": "public-hub-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.851782,
+  "turns": 15,
+  "tool_calls": 18,
+  "tokens": {
+   "input": 82731,
+   "output": 5772,
+   "cacheRead": 735872,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T21:15:01.445Z",
+  "last_message": "2026-09-14T21:18:42.522Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a18b-1e64-77c5-a14b-9574bcbc5b6c",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-quiz-material-review--/2026-09-14T20-10-44-209Z_01a0a18b-1e64-77c5-a14b-9574bcbc5b6c.jsonl",
+  "handle": "quiz-material-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.437112,
+  "turns": 6,
+  "tool_calls": 5,
+  "tokens": {
+   "input": 28145,
+   "output": 1695,
+   "cacheRead": 70912,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T20:10:44.209Z",
+  "last_message": "2026-09-14T20:11:54.175Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a1cd-a647-7299-a49d-b496722907e1",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-quiz-redaction-review--/2026-09-14T21-23-24-360Z_01a0a1cd-a647-7299-a49d-b496722907e1.jsonl",
+  "handle": "quiz-redaction-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.894626,
+  "turns": 24,
+  "tool_calls": 25,
+  "tokens": {
+   "input": 73349,
+   "output": 6552,
+   "cacheRead": 833536,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T21:23:24.360Z",
+  "last_message": "2026-09-14T21:28:00.870Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a10c-acca-77d5-b45f-8b180edf36c1",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-quota-source-review--/2026-09-14T17-52-37-583Z_01a0a10c-acca-77d5-b45f-8b180edf36c1.jsonl",
+  "handle": "quota-source-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.163002,
+  "turns": 16,
+  "tool_calls": 15,
+  "tokens": {
+   "input": 56901,
+   "output": 3012,
+   "cacheRead": 443392,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T17:52:37.583Z",
+  "last_message": "2026-09-14T17:54:52.886Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a523-1e91-710e-ae88-63adbe8ae5a5",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-render-drive--/2026-09-15T12-55-37-361Z_01a0a523-1e91-710e-ae88-63adbe8ae5a5.jsonl",
+  "handle": "render-drive",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 11.1013032,
+  "turns": 217,
+  "tool_calls": 227,
+  "tokens": {
+   "input": 434,
+   "output": 90524,
+   "cacheRead": 46339776,
+   "cacheWrite": 370896
+  },
+  "start": "2026-09-15T12:55:37.361Z",
+  "last_message": "2026-09-15T13:25:11.927Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09fc3-4bce-701f-89f5-89702db81144",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-review-browser-route-shell--/2026-09-14T11-52-51-409Z_01a09fc3-4bce-701f-89f5-89702db81144.jsonl",
+  "handle": "review-browser-route-shell",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.981368,
+  "turns": 25,
+  "tool_calls": 22,
+  "tokens": {
+   "input": 67542,
+   "output": 5086,
+   "cacheRead": 1051648,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T11:52:51.409Z",
+  "last_message": "2026-09-14T12:03:08.229Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a490-52b4-7763-ac7d-41bddf93e9b9",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-review-join--/2026-09-15T10-15-16-917Z_01a0a490-52b4-7763-ac7d-41bddf93e9b9.jsonl",
+  "handle": "review-join",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.038921805,
+  "turns": 25,
+  "tool_calls": 27,
+  "tokens": {
+   "input": 293183,
+   "output": 14172,
+   "cacheRead": 892672,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T10:15:16.917Z",
+  "last_message": "2026-09-15T10:24:40.672Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a0d4-b5a5-701b-94b7-53171159c5db",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-review-patch-transaction-repairs--/2026-09-14T16-51-29-839Z_01a0a0d4-b5a5-701b-94b7-53171159c5db.jsonl",
+  "handle": "review-patch-transaction-repairs",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.733932,
+  "turns": 11,
+  "tool_calls": 10,
+  "tokens": {
+   "input": 38009,
+   "output": 2369,
+   "cacheRead": 235392,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T16:51:29.839Z",
+  "last_message": "2026-09-14T16:53:07.773Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09fa6-05e0-74f9-8ea2-2114e319393a",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-review-transcript-capture--/2026-09-14T11-20-52-968Z_01a09fa6-05e0-74f9-8ea2-2114e319393a.jsonl",
+  "handle": "review-transcript-capture",
+  "shape": "review",
+  "model": "astra",
+  "cost": 8.43371,
+  "turns": 57,
+  "tool_calls": 55,
+  "tokens": {
+   "input": 261941,
+   "output": 18750,
+   "cacheRead": 4876800,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T11:20:52.968Z",
+  "last_message": "2026-09-14T11:49:14.357Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a7ff-7a89-755e-a87b-f4f87697c880",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-runtime-drives--/2026-09-16T02-15-33-258Z_01a0a7ff-7a89-755e-a87b-f4f87697c880.jsonl",
+  "handle": "runtime-drives",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 4.0514951,
+  "turns": 154,
+  "tool_calls": 158,
+  "tokens": {
+   "input": 308,
+   "output": 35047,
+   "cacheRead": 15889583,
+   "cacheWrite": 208997
+  },
+  "start": "2026-09-16T02:15:33.258Z",
+  "last_message": "2026-09-16T02:32:56.645Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a80f-86a0-712a-b482-76bf25131a80",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-runtime-offline--/2026-09-16T02-33-04-929Z_01a0a80f-86a0-712a-b482-76bf25131a80.jsonl",
+  "handle": "runtime-offline",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 3.1667006,
+  "turns": 150,
+  "tool_calls": 149,
+  "tokens": {
+   "input": 300,
+   "output": 40669,
+   "cacheRead": 11638228,
+   "cacheWrite": 172706
+  },
+  "start": "2026-09-16T02:33:04.929Z",
+  "last_message": "2026-09-16T02:49:40.555Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a81e-ecda-727b-ad8e-fd362f241626",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-runtime-offline-b23--/2026-09-16T02-49-54-139Z_01a0a81e-ecda-727b-ad8e-fd362f241626.jsonl",
+  "handle": "runtime-offline-b23",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 1.5521314,
+  "turns": 89,
+  "tool_calls": 90,
+  "tokens": {
+   "input": 178,
+   "output": 32187,
+   "cacheRead": 5046927,
+   "cacheWrite": 88208
+  },
+  "start": "2026-09-16T02:49:54.139Z",
+  "last_message": "2026-09-16T02:58:36.214Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a92a-506d-7311-b5fe-0319e9612b59",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-store-patches-drive--/2026-09-16T07-41-57-742Z_01a0a92a-506d-7311-b5fe-0319e9612b59.jsonl",
+  "handle": "store-patches-drive",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 14.950791,
+  "turns": 356,
+  "tool_calls": 366,
+  "tokens": {
+   "input": 712,
+   "output": 116403,
+   "cacheRead": 61062560,
+   "cacheWrite": 629130
+  },
+  "start": "2026-09-16T07:41:57.742Z",
+  "last_message": "2026-09-16T08:27:50.003Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a1e1-2ac2-7305-9611-4e7955082174",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-stream-identity-review--/2026-09-14T21-44-43-467Z_01a0a1e1-2ac2-7305-9611-4e7955082174.jsonl",
+  "handle": "stream-identity-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.351968,
+  "turns": 13,
+  "tool_calls": 12,
+  "tokens": {
+   "input": 67605,
+   "output": 4031,
+   "cacheRead": 474368,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T21:44:43.467Z",
+  "last_message": "2026-09-14T21:47:17.583Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09f67-e9a6-74cd-8f7d-33e7454bae1f",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-transcript-feasibility-review--/2026-09-14T10-13-02-505Z_01a09f67-e9a6-74cd-8f7d-33e7454bae1f.jsonl",
+  "handle": "transcript-feasibility-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 2.872148,
+  "turns": 19,
+  "tool_calls": 23,
+  "tokens": {
+   "input": 107999,
+   "output": 7143,
+   "cacheRead": 1435008,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T10:13:02.505Z",
+  "last_message": "2026-09-14T10:18:38.346Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a566-82e6-73e4-beef-c23bcc16ae8f",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-truth-review--/2026-09-15T14-09-13-958Z_01a0a566-82e6-73e4-beef-c23bcc16ae8f.jsonl",
+  "handle": "truth-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.021733415,
+  "turns": 31,
+  "tool_calls": 30,
+  "tokens": {
+   "input": 104161,
+   "output": 20438,
+   "cacheRead": 587456,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T14:09:13.958Z",
+  "last_message": "2026-09-15T14:21:16.022Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a530-5a6b-7565-b7fd-3784da390fcc",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u1-error-delta-review--/2026-09-15T13-10-04-651Z_01a0a530-5a6b-7565-b7fd-3784da390fcc.jsonl",
+  "handle": "u1-error-delta-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.022358505,
+  "turns": 32,
+  "tool_calls": 42,
+  "tokens": {
+   "input": 127469,
+   "output": 15297,
+   "cacheRead": 598272,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T13:10:04.651Z",
+  "last_message": "2026-09-15T13:21:14.425Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a510-4b4d-71c3-b710-3398fc17dad0",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u1-error-rereview--/2026-09-15T12-35-03-630Z_01a0a510-4b4d-71c3-b710-3398fc17dad0.jsonl",
+  "handle": "u1-error-rereview",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.09464153,
+  "turns": 70,
+  "tool_calls": 97,
+  "tokens": {
+   "input": 347184,
+   "output": 35225,
+   "cacheRead": 3986432,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T12:35:03.630Z",
+  "last_message": "2026-09-15T13:04:18.527Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a4d1-cf7d-73b3-9a2e-23cf23728721",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u1-rereview--/2026-09-15T11-26-48-701Z_01a0a4d1-cf7d-73b3-9a2e-23cf23728721.jsonl",
+  "handle": "u1-rereview",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.04754281,
+  "turns": 70,
+  "tool_calls": 72,
+  "tokens": {
+   "input": 91438,
+   "output": 23920,
+   "cacheRead": 2313664,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T11:26:48.701Z",
+  "last_message": "2026-09-15T11:42:54.197Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a49c-7e76-77a6-a1eb-10e801a6391c",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u1-security-review--/2026-09-15T10-28-34-550Z_01a0a49c-7e76-77a6-a1eb-10e801a6391c.jsonl",
+  "handle": "u1-security-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.126658795,
+  "turns": 90,
+  "tool_calls": 93,
+  "tokens": {
+   "input": 164423,
+   "output": 48187,
+   "cacheRead": 6818688,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T10:28:34.550Z",
+  "last_message": "2026-09-15T10:50:28.293Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a503-855c-73b4-9da0-192dee94f2d7",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u2-replay-rereview--/2026-09-15T12-21-06-524Z_01a0a503-855c-73b4-9da0-192dee94f2d7.jsonl",
+  "handle": "u2-replay-rereview",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.029897875,
+  "turns": 28,
+  "tool_calls": 36,
+  "tokens": {
+   "input": 147627,
+   "output": 19489,
+   "cacheRead": 930240,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T12:21:06.524Z",
+  "last_message": "2026-09-15T12:34:51.587Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a4ed-7151-7411-80c1-5a79010aa3a7",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u2-review--/2026-09-15T11-56-59-601Z_01a0a4ed-7151-7411-80c1-5a79010aa3a7.jsonl",
+  "handle": "u2-review",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.019944075,
+  "turns": 15,
+  "tool_calls": 21,
+  "tokens": {
+   "input": 139043,
+   "output": 21897,
+   "cacheRead": 269440,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T11:56:59.601Z",
+  "last_message": "2026-09-15T12:09:48.533Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a517-0ab9-736d-a06c-23648672f053",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u2-selfgrade-rereview--/2026-09-15T12-42-25-850Z_01a0a517-0ab9-736d-a06c-23648672f053.jsonl",
+  "handle": "u2-selfgrade-rereview",
+  "shape": "review",
+  "model": "glm",
+  "cost": 0.003214145,
+  "turns": 4,
+  "tool_calls": 5,
+  "tokens": {
+   "input": 30123,
+   "output": 2948,
+   "cacheRead": 14528,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T12:42:25.850Z",
+  "last_message": "2026-09-15T12:43:56.547Z",
+  "last_stop": "error",
+  "excluded": "provider error"
+ },
+ {
+  "session": "01a0a5d9-d5ea-7238-9d25-14febbe4b8b6",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u2-selfgrade-rereview--/2026-09-15T16-15-11-852Z_01a0a5d9-d5ea-7238-9d25-14febbe4b8b6.jsonl",
+  "handle": "u2-selfgrade-rereview",
+  "shape": "review",
+  "model": "deepseek",
+  "cost": 0.01837244,
+  "turns": 25,
+  "tool_calls": 40,
+  "tokens": {
+   "input": 51711,
+   "output": 38880,
+   "cacheRead": 1241600,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T16:15:11.852Z",
+  "last_message": "2026-09-15T16:21:55.530Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a5ee-3984-7656-b015-b771f773304e",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u3-review--/2026-09-15T16-37-28-069Z_01a0a5ee-3984-7656-b015-b771f773304e.jsonl",
+  "handle": "u3-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.71419,
+  "turns": 9,
+  "tool_calls": 8,
+  "tokens": {
+   "input": 49042,
+   "output": 2261,
+   "cacheRead": 110720,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T16:37:28.069Z",
+  "last_message": "2026-09-15T16:38:54.796Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a5f7-4b67-723a-bc36-7e76680452dc",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u4-review--/2026-09-15T16-47-22-471Z_01a0a5f7-4b67-723a-bc36-7e76680452dc.jsonl",
+  "handle": "u4-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.770334,
+  "turns": 10,
+  "tool_calls": 9,
+  "tokens": {
+   "input": 51842,
+   "output": 2061,
+   "cacheRead": 148864,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T16:47:22.471Z",
+  "last_message": "2026-09-15T16:48:49.640Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a608-dcfb-7598-bf2f-8d0e73420614",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u5-review--/2026-09-15T17-06-33-852Z_01a0a608-dcfb-7598-bf2f-8d0e73420614.jsonl",
+  "handle": "u5-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.96531,
+  "turns": 12,
+  "tool_calls": 11,
+  "tokens": {
+   "input": 64662,
+   "output": 2329,
+   "cacheRead": 202240,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T17:06:33.852Z",
+  "last_message": "2026-09-15T17:08:32.869Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a5ff-7709-76c0-8be4-86b7776d80b7",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u6-review--/2026-09-15T16-56-17-929Z_01a0a5ff-7709-76c0-8be4-86b7776d80b7.jsonl",
+  "handle": "u6-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.484886,
+  "turns": 9,
+  "tool_calls": 8,
+  "tokens": {
+   "input": 31742,
+   "output": 797,
+   "cacheRead": 127616,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T16:56:17.929Z",
+  "last_message": "2026-09-15T16:56:59.937Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a609-8097-7669-915e-5c439c1aa7d3",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u6-review-2--/2026-09-15T17-07-15-735Z_01a0a609-8097-7669-915e-5c439c1aa7d3.jsonl",
+  "handle": "u6-review-2",
+  "shape": "review",
+  "model": "astra",
+  "cost": 0.817586,
+  "turns": 10,
+  "tool_calls": 9,
+  "tokens": {
+   "input": 61050,
+   "output": 1487,
+   "cacheRead": 132736,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-15T17:07:15.735Z",
+  "last_message": "2026-09-15T17:08:26.756Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a5e8-cc62-71ec-95a1-c50908fed04d",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u7a-runtime-backend--/2026-09-15T16-31-32-451Z_01a0a5e8-cc62-71ec-95a1-c50908fed04d.jsonl",
+  "handle": "u7a-runtime-backend",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 11.026498,
+  "turns": 213,
+  "tool_calls": 238,
+  "tokens": {
+   "input": 414,
+   "output": 148332,
+   "cacheRead": 43443075,
+   "cacheWrite": 341494
+  },
+  "start": "2026-09-15T16:31:32.451Z",
+  "last_message": "2026-09-15T17:07:07.226Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a60d-e5bd-730a-bfd5-24f530961bdf",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u7b-browser-gate--/2026-09-15T17-12-03-776Z_01a0a60d-e5bd-730a-bfd5-24f530961bdf.jsonl",
+  "handle": "u7b-browser-gate",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 14.908949,
+  "turns": 330,
+  "tool_calls": 362,
+  "tokens": {
+   "input": 660,
+   "output": 110153,
+   "cacheRead": 64123370,
+   "cacheWrite": 392570
+  },
+  "start": "2026-09-15T17:12:03.776Z",
+  "last_message": "2026-09-15T17:50:03.581Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a631-5364-754a-ab26-721fb75e78fa",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-u7b-browser-gate-2--/2026-09-15T17-50-45-605Z_01a0a631-5364-754a-ab26-721fb75e78fa.jsonl",
+  "handle": "u7b-browser-gate-2",
+  "shape": "verify-story",
+  "model": "sonnet",
+  "cost": 12.9029335,
+  "turns": 348,
+  "tool_calls": 362,
+  "tokens": {
+   "input": 696,
+   "output": 123886,
+   "cacheRead": 53181845,
+   "cacheWrite": 410525
+  },
+  "start": "2026-09-15T17:50:45.605Z",
+  "last_message": "2026-09-15T18:23:07.134Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a12d-875a-77c6-b65c-fb7cd95205e1",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-value-bounds-review--/2026-09-14T18-28-30-692Z_01a0a12d-875a-77c6-b65c-fb7cd95205e1.jsonl",
+  "handle": "value-bounds-review",
+  "shape": "review",
+  "model": "astra",
+  "cost": 1.63465,
+  "turns": 20,
+  "tool_calls": 19,
+  "tokens": {
+   "input": 63888,
+   "output": 5733,
+   "cacheRead": 709120,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T18:28:30.692Z",
+  "last_message": "2026-09-14T18:41:37.344Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09fb7-bc06-74a7-8559-577562b4c1da",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-backend-handoff--/2026-09-14T11-40-13-702Z_01a09fb7-bc06-74a7-8559-577562b4c1da.jsonl",
+  "handle": "verify-backend-handoff",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 0.9839332,
+  "turns": 56,
+  "tool_calls": 69,
+  "tokens": {
+   "input": 133079,
+   "output": 13837,
+   "cacheRead": 2758656,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T11:40:13.702Z",
+  "last_message": "2026-09-14T12:02:28.765Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a144-eaa8-7431-ae66-9a3afc15e771",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-board-repairs--/2026-09-14T18-54-03-438Z_01a0a144-eaa8-7431-ae66-9a3afc15e771.jsonl",
+  "handle": "verify-board-repairs",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.0468396,
+  "turns": 41,
+  "tool_calls": 52,
+  "tokens": {
+   "input": 165295,
+   "output": 8112,
+   "cacheRead": 3094528,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T18:54:03.438Z",
+  "last_message": "2026-09-14T19:00:58.690Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a13d-9ec3-73b9-a334-607c98f0c7a9",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-consolidated-browser--/2026-09-14T18-46-05-253Z_01a0a13d-9ec3-73b9-a334-607c98f0c7a9.jsonl",
+  "handle": "verify-consolidated-browser",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.5396568,
+  "turns": 79,
+  "tool_calls": 89,
+  "tokens": {
+   "input": 228606,
+   "output": 13600,
+   "cacheRead": 4596224,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T18:46:05.253Z",
+  "last_message": "2026-09-14T19:47:38.372Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a14f-e66b-77aa-ade5-1fc570f3a9e6",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-consolidation-lifetimes--/2026-09-14T19-06-03-251Z_01a0a14f-e66b-77aa-ade5-1fc570f3a9e6.jsonl",
+  "handle": "verify-consolidation-lifetimes",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.6894204,
+  "turns": 85,
+  "tool_calls": 92,
+  "tokens": {
+   "input": 163033,
+   "output": 16239,
+   "cacheRead": 5842432,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T19:06:03.251Z",
+  "last_message": "2026-09-14T19:26:11.475Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a156-1b2c-72eb-aa7c-58e060ca0a13",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-consolidation-remember--/2026-09-14T19-12-49-978Z_01a0a156-1b2c-72eb-aa7c-58e060ca0a13.jsonl",
+  "handle": "verify-consolidation-remember",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.0658304,
+  "turns": 46,
+  "tool_calls": 55,
+  "tokens": {
+   "input": 142826,
+   "output": 7193,
+   "cacheRead": 3469312,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T19:12:49.978Z",
+  "last_message": "2026-09-14T19:18:15.315Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09fe1-bde8-7438-86bc-c90971520865",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-joined-route-shell--/2026-09-14T12-26-06-697Z_01a09fe1-bde8-7438-86bc-c90971520865.jsonl",
+  "handle": "verify-joined-route-shell",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.8059552,
+  "turns": 95,
+  "tool_calls": 108,
+  "tokens": {
+   "input": 176226,
+   "output": 16097,
+   "cacheRead": 6301696,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T12:26:06.697Z",
+  "last_message": "2026-09-14T12:44:57.357Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a147-3696-7459-b2e9-770a6886b469",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-live-query--/2026-09-14T18-56-33-950Z_01a0a147-3696-7459-b2e9-770a6886b469.jsonl",
+  "handle": "verify-live-query",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.6217932,
+  "turns": 73,
+  "tool_calls": 83,
+  "tokens": {
+   "input": 169981,
+   "output": 13183,
+   "cacheRead": 5618176,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T18:56:33.950Z",
+  "last_message": "2026-09-14T19:12:21.730Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a1a5-5826-7498-bf41-32d9770f30af",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-quiz-placement--/2026-09-14T20-39-22-926Z_01a0a1a5-5826-7498-bf41-32d9770f30af.jsonl",
+  "handle": "verify-quiz-placement",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 2.0376904,
+  "turns": 68,
+  "tool_calls": 72,
+  "tokens": {
+   "input": 237108,
+   "output": 10601,
+   "cacheRead": 7181312,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T20:39:22.926Z",
+  "last_message": "2026-09-14T20:56:46.518Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a18b-6fd7-728f-b3be-1379696bfa67",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-quiz-play--/2026-09-14T20-11-05-048Z_01a0a18b-6fd7-728f-b3be-1379696bfa67.jsonl",
+  "handle": "verify-quiz-play",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.891756,
+  "turns": 88,
+  "tool_calls": 91,
+  "tokens": {
+   "input": 193158,
+   "output": 15416,
+   "cacheRead": 6602240,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T20:11:05.048Z",
+  "last_message": "2026-09-14T20:38:31.197Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a1a7-fcf3-7431-ae8f-0c46fccab0bb",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-review-cards--/2026-09-14T20-42-16-181Z_01a0a1a7-fcf3-7431-ae8f-0c46fccab0bb.jsonl",
+  "handle": "verify-review-cards",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 1.4044092,
+  "turns": 67,
+  "tool_calls": 72,
+  "tokens": {
+   "input": 161723,
+   "output": 7964,
+   "cacheRead": 4926976,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T20:42:16.181Z",
+  "last_message": "2026-09-14T20:57:20.034Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a0a18c-5024-7448-9b41-45fa9915f3b9",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-review-material--/2026-09-14T20-12-02-478Z_01a0a18c-5024-7448-9b41-45fa9915f3b9.jsonl",
+  "handle": "verify-review-material",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 0.7921364,
+  "turns": 41,
+  "tool_calls": 44,
+  "tokens": {
+   "input": 134525,
+   "output": 7614,
+   "cacheRead": 2158592,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T20:12:02.478Z",
+  "last_message": "2026-09-14T20:40:09.703Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09ffc-5c5d-77a2-93d9-d0134beebce6",
+  "file": "--Users-mlegls-dev-mmon-concept__worktrees-verify-shell-lifetimes--/2026-09-14T12-55-11-202Z_01a09ffc-5c5d-77a2-93d9-d0134beebce6.jsonl",
+  "handle": "verify-shell-lifetimes",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 2.9114356,
+  "turns": 102,
+  "tool_calls": 114,
+  "tokens": {
+   "input": 354175,
+   "output": 19247,
+   "cacheRead": 9860608,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T12:55:11.202Z",
+  "last_message": "2026-09-14T14:09:15.074Z",
+  "last_stop": "stop",
+  "excluded": null
+ },
+ {
+  "session": "01a09e14-e582-765e-abf8-02dcef833d49",
+  "file": "--private-tmp-wmp__worktrees-vf--/2026-09-14T04-02-44-739Z_01a09e14-e582-765e-abf8-02dcef833d49.jsonl",
+  "handle": "vf",
+  "shape": "verify-story",
+  "model": "terra",
+  "cost": 0.0106704,
+  "turns": 3,
+  "tool_calls": 2,
+  "tokens": {
+   "input": 4248,
+   "output": 130,
+   "cacheRead": 3072,
+   "cacheWrite": 0
+  },
+  "start": "2026-09-14T04:02:44.739Z",
+  "last_message": "2026-09-14T04:02:54.485Z",
+  "last_stop": "stop",
+  "excluded": "smoke"
+ }
+]

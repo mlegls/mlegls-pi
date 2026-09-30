@@ -1,0 +1,1273 @@
+{
+ "parent_session": "--Users-mlegls-dev-mmon-concept__worktrees-finish-materials--/2026-09-15T09-58-17-318Z_01a0a480-c3e5-7560-b963-074f78725602.jsonl",
+ "review": [
+  {
+   "handle": "u1-security-review",
+   "model": "glm",
+   "session": "01a0a49c-7e76-77a6-a1eb-10e801a6391c",
+   "cost": 0.126658795,
+   "turns": 90,
+   "start": "2026-09-15T10:28:34.550Z",
+   "last_message": "2026-09-15T10:50:28.293Z",
+   "last_stop": "stop",
+   "report_id": "mu2jv6in-rol45c",
+   "parent_id": "mu2jvha0-7j30it",
+   "disposition": "repair-required",
+   "parent_session_line": null,
+   "note": "parent: fix emit_quiz text-envelope reconstruction and doc before acceptance; independent rereview + runtime",
+   "report_ts": "2026-09-15T10:49:40.031Z",
+   "report_board_line": 739,
+   "wall_min": 21.1,
+   "parent_ts": "2026-09-15T10:49:53.976Z",
+   "parent_board_line": 743,
+   "parent_latency_s": 14
+  },
+  {
+   "handle": "u1-rereview",
+   "model": "glm",
+   "session": "01a0a4d1-cf7d-73b3-9a2e-23cf23728721",
+   "cost": 0.04754281,
+   "turns": 70,
+   "start": "2026-09-15T11:26:48.701Z",
+   "last_message": "2026-09-15T11:42:54.197Z",
+   "last_stop": "stop",
+   "report_id": "mu2lr490-7bmh28",
+   "parent_id": "mu2lracj-y8f8tv",
+   "disposition": "cleared-merged",
+   "parent_session_line": 514,
+   "note": "parent: delta rereview clear, proceed; merge u1-transcript-cutover at 11:49:16. Parent also overrides reviewer claim \"ai needs no patch\" (ai@7.0.99 provenance patch)",
+   "report_ts": "2026-09-15T11:42:29.700Z",
+   "report_board_line": 826,
+   "wall_min": 15.7,
+   "parent_ts": "2026-09-15T11:42:37.603Z",
+   "parent_board_line": 827,
+   "parent_latency_s": 8
+  },
+  {
+   "handle": "u2-review",
+   "model": "glm",
+   "session": "01a0a4ed-7151-7411-80c1-5a79010aa3a7",
+   "cost": 0.019944075,
+   "turns": 15,
+   "start": "2026-09-15T11:56:59.601Z",
+   "last_message": "2026-09-15T12:09:48.533Z",
+   "last_stop": "stop",
+   "report_id": "mu2mpq98-el9ybh",
+   "parent_id": "mu2mpwym-op17ke",
+   "disposition": "blocker-repaired",
+   "parent_session_line": 601,
+   "note": "parent: repair Review outer replay then rereview; spawns u2-review-replay, closes u2-review --keep-branch",
+   "report_ts": "2026-09-15T12:09:24.524Z",
+   "report_board_line": 847,
+   "wall_min": 12.4,
+   "parent_ts": "2026-09-15T12:09:33.214Z",
+   "parent_board_line": 848,
+   "parent_latency_s": 9
+  },
+  {
+   "handle": "u2-replay-rereview",
+   "model": "glm",
+   "session": "01a0a503-855c-73b4-9da0-192dee94f2d7",
+   "cost": 0.029897875,
+   "turns": 28,
+   "start": "2026-09-15T12:21:06.524Z",
+   "last_message": "2026-09-15T12:34:51.587Z",
+   "last_stop": "stop",
+   "report_id": "mu2nm46u-wpiiol",
+   "parent_id": "mu2nmaik-khb11g",
+   "disposition": "blocker-repaired",
+   "parent_session_line": 775,
+   "note": "parent: persist raw selfGrade; spawns u2-selfgrade-persist, closes u2-replay-rereview --keep-branch",
+   "report_ts": "2026-09-15T12:34:35.574Z",
+   "report_board_line": 913,
+   "wall_min": 13.5,
+   "parent_ts": "2026-09-15T12:34:43.772Z",
+   "parent_board_line": 915,
+   "parent_latency_s": 8
+  },
+  {
+   "handle": "u1-error-rereview",
+   "model": "glm",
+   "session": "01a0a510-4b4d-71c3-b710-3398fc17dad0",
+   "cost": 0.09464153,
+   "turns": 70,
+   "start": "2026-09-15T12:35:03.630Z",
+   "last_message": "2026-09-15T13:04:18.527Z",
+   "last_stop": "stop",
+   "report_id": "mu2ony02-rzavej",
+   "parent_id": "mu2oo6hd-okb05y",
+   "disposition": "cleared-with-repair",
+   "parent_session_line": 809,
+   "note": "parent: source clear, apply bounded projection nits first; spawns u1-error-metadata-omit",
+   "report_ts": "2026-09-15T13:04:00.482Z",
+   "report_board_line": 936,
+   "wall_min": 28.9,
+   "parent_ts": "2026-09-15T13:04:11.473Z",
+   "parent_board_line": 937,
+   "parent_latency_s": 11
+  },
+  {
+   "handle": "u1-error-delta-review",
+   "model": "glm",
+   "session": "01a0a530-5a6b-7565-b7fd-3784da390fcc",
+   "cost": 0.022358505,
+   "turns": 32,
+   "start": "2026-09-15T13:10:04.651Z",
+   "last_message": "2026-09-15T13:21:14.425Z",
+   "last_stop": "stop",
+   "report_id": "mu2p9o96-h7ccph",
+   "parent_id": "mu2p9wzj-p92xqn",
+   "disposition": "cleared-merged",
+   "parent_session_line": 847,
+   "note": "parent: delta clear, proceed to runtime; rejects one reviewer nit (pre-map filter); merges u1-error-metadata-omit 13:21:15",
+   "report_ts": "2026-09-15T13:20:54.282Z",
+   "report_board_line": 943,
+   "wall_min": 10.8,
+   "parent_ts": "2026-09-15T13:21:05.599Z",
+   "parent_board_line": 944,
+   "parent_latency_s": 11
+  },
+  {
+   "handle": "cursor-guard-review",
+   "model": "glm",
+   "session": "01a0a4e5-ba77-75f3-a40d-53cd2294faa4",
+   "cost": 0.042716255,
+   "turns": 34,
+   "start": "2026-09-15T11:48:34.039Z",
+   "last_message": "2026-09-15T12:02:59.432Z",
+   "last_stop": "stop",
+   "report_id": "mu2mh1h7-gy0idx",
+   "parent_id": "mu2mh80v-uqvkwe",
+   "disposition": "cleared-merged",
+   "parent_session_line": 556,
+   "note": "parent: clear, integrate guard; rejects one reviewer nit (cursor dedupe); merges u1-cursor-guard 12:03:08",
+   "report_ts": "2026-09-15T12:02:39.163Z",
+   "report_board_line": 843,
+   "wall_min": 14.1,
+   "parent_ts": "2026-09-15T12:02:47.647Z",
+   "parent_board_line": 844,
+   "parent_latency_s": 8
+  },
+  {
+   "handle": "guard-review",
+   "model": "glm",
+   "session": "01a0a571-1540-7460-aadb-4adcb875921c",
+   "cost": 0.04422868,
+   "turns": 46,
+   "start": "2026-09-15T14:20:46.784Z",
+   "last_message": "2026-09-15T14:35:24.795Z",
+   "last_stop": "stop",
+   "report_id": "mu2rx0dc-ag3ef1",
+   "parent_id": "mu2rxahp-onjs4z",
+   "disposition": "cleared-claim-overridden",
+   "parent_session_line": null,
+   "note": "parent: clear, but reviewer fact \"Hub tags only theory constants\" appears false; orders H5 fact check",
+   "report_ts": "2026-09-15T14:35:02.304Z",
+   "report_board_line": 981,
+   "wall_min": 14.3,
+   "parent_ts": "2026-09-15T14:35:15.421Z",
+   "parent_board_line": 982,
+   "parent_latency_s": 13
+  },
+  {
+   "handle": "guard-review-2",
+   "model": "glm",
+   "session": "01a0a583-ab1a-743c-a8d2-32664560b597",
+   "cost": 0.01406334,
+   "turns": 11,
+   "start": "2026-09-15T14:41:04.795Z",
+   "last_message": "2026-09-15T14:46:40.720Z",
+   "last_stop": "error",
+   "report_id": null,
+   "parent_id": null,
+   "disposition": "silent-provider-error",
+   "parent_session_line": null,
+   "note": "stopReason error at turn 11, no report; guard-review-3 session started 75 s after the last message"
+  },
+  {
+   "handle": "guard-review-3",
+   "model": "glm",
+   "session": "01a0a593-9a08-772d-b841-ca255a6ae666",
+   "cost": 0.032288905,
+   "turns": 48,
+   "start": "2026-09-15T14:58:29.003Z",
+   "last_message": "2026-09-15T15:15:34.702Z",
+   "last_stop": "stop",
+   "report_id": "mu2tcsk4-galino",
+   "parent_id": "mu2td20h-b466dn",
+   "disposition": "cleared",
+   "parent_session_line": null,
+   "note": "parent: clears bounded links+alert source",
+   "report_ts": "2026-09-15T15:15:18.292Z",
+   "report_board_line": 992,
+   "wall_min": 16.8,
+   "parent_ts": "2026-09-15T15:15:30.545Z",
+   "parent_board_line": 993,
+   "parent_latency_s": 12
+  },
+  {
+   "handle": "u2-selfgrade-rereview",
+   "model": "glm",
+   "session": "01a0a517-0ab9-736d-a06c-23648672f053",
+   "cost": 0.003214145,
+   "turns": 4,
+   "start": "2026-09-15T12:42:25.850Z",
+   "last_message": "2026-09-15T12:43:56.547Z",
+   "last_stop": "error",
+   "report_id": null,
+   "parent_id": null,
+   "disposition": "silent-provider-error",
+   "parent_session_line": 1000,
+   "note": "stopReason error at turn 4, no report. Parent wrote \"waiting on u2-selfgrade-rereview\" at 13:05, 13:10, 13:21, 13:22 (lines 811-855); noticed \"exited without posting a report\" at 16:13:38 (line 995); respawned 16:14:41"
+  },
+  {
+   "handle": "u2-selfgrade-rereview",
+   "model": "deepseek",
+   "session": "01a0a5d9-d5ea-7238-9d25-14febbe4b8b6",
+   "cost": 0.01837244,
+   "turns": 25,
+   "start": "2026-09-15T16:15:11.852Z",
+   "last_message": "2026-09-15T16:21:55.530Z",
+   "last_stop": "stop",
+   "report_id": "mu2vq8lf-p0wol8",
+   "parent_id": "mu2vqg7i-lstqm4",
+   "disposition": "cleared",
+   "parent_session_line": null,
+   "note": "parent: final source clear, join then main integration approved",
+   "report_ts": "2026-09-15T16:21:44.835Z",
+   "report_board_line": 1088,
+   "wall_min": 6.5,
+   "parent_ts": "2026-09-15T16:21:54.702Z",
+   "parent_board_line": 1089,
+   "parent_latency_s": 10
+  },
+  {
+   "handle": "u3-review",
+   "model": "astra",
+   "session": "01a0a5ee-3984-7656-b015-b771f773304e",
+   "cost": 0.71419,
+   "turns": 9,
+   "start": "2026-09-15T16:37:28.069Z",
+   "last_message": "2026-09-15T16:38:54.796Z",
+   "last_stop": "stop",
+   "report_id": "mu2wc6lz-0iwtnj",
+   "parent_id": "mu2wccmk-zzjszm",
+   "disposition": "clear-not-accepted",
+   "parent_session_line": null,
+   "note": "reviewer: no blocking findings. parent: needs-input, holds U3 acceptance (tutor surface.close bypasses completion); materials-closeout later repairs \"requireCompletion on tutor surface.close\" (mu3ij90b-p1elxc, 29184790)",
+   "report_ts": "2026-09-15T16:38:48.695Z",
+   "report_board_line": 1094,
+   "wall_min": 1.3,
+   "parent_ts": "2026-09-15T16:38:56.492Z",
+   "parent_board_line": 1095,
+   "parent_latency_s": 8
+  },
+  {
+   "handle": "u4-review",
+   "model": "astra",
+   "session": "01a0a5f7-4b67-723a-bc36-7e76680452dc",
+   "cost": 0.770334,
+   "turns": 10,
+   "start": "2026-09-15T16:47:22.471Z",
+   "last_message": "2026-09-15T16:48:49.640Z",
+   "last_stop": "stop",
+   "report_id": "mu2woxlv-m9l22w",
+   "parent_id": "mu2wp7xw-um2mc4",
+   "disposition": "blocker-repaired",
+   "parent_session_line": null,
+   "note": "parent: keep U4 frozen, accept only the joined U4/U5 repair; repaired inside U5 (mu2xec6j-eyyt6j); joined approved mu2xen27-ijohmn",
+   "report_ts": "2026-09-15T16:48:43.555Z",
+   "report_board_line": 1101,
+   "wall_min": 1.4,
+   "parent_ts": "2026-09-15T16:48:56.948Z",
+   "parent_board_line": 1102,
+   "parent_latency_s": 13
+  },
+  {
+   "handle": "u5-review",
+   "model": "astra",
+   "session": "01a0a608-dcfb-7598-bf2f-8d0e73420614",
+   "cost": 0.96531,
+   "turns": 12,
+   "start": "2026-09-15T17:06:33.852Z",
+   "last_message": "2026-09-15T17:08:32.869Z",
+   "last_stop": "stop",
+   "report_id": "mu2xectc-8cfsg5",
+   "parent_id": "mu2xen27-ijohmn",
+   "disposition": "cleared",
+   "parent_session_line": null,
+   "note": "parent: source clear, join U4/U5 approved",
+   "report_ts": "2026-09-15T17:08:29.664Z",
+   "report_board_line": 1115,
+   "wall_min": 1.9,
+   "parent_ts": "2026-09-15T17:08:42.943Z",
+   "parent_board_line": 1116,
+   "parent_latency_s": 13
+  },
+  {
+   "handle": "u6-review",
+   "model": "astra",
+   "session": "01a0a5ff-7709-76c0-8be4-86b7776d80b7",
+   "cost": 0.484886,
+   "turns": 9,
+   "start": "2026-09-15T16:56:17.929Z",
+   "last_message": "2026-09-15T16:56:59.937Z",
+   "last_stop": "stop",
+   "report_id": null,
+   "parent_id": null,
+   "disposition": "silent-no-report",
+   "parent_session_line": null,
+   "note": "session ended normally at 17:06:39 with no board send; u6-review-2 session started 17:07:15"
+  },
+  {
+   "handle": "u6-review-2",
+   "model": "astra",
+   "session": "01a0a609-8097-7669-915e-5c439c1aa7d3",
+   "cost": 0.817586,
+   "turns": 10,
+   "start": "2026-09-15T17:07:15.735Z",
+   "last_message": "2026-09-15T17:08:26.756Z",
+   "last_stop": "stop",
+   "report_id": "mu2xe4wc-ybdpgd",
+   "parent_id": "mu2xeapa-xq6j6d",
+   "disposition": "cleared-with-repair",
+   "parent_session_line": null,
+   "note": "parent: static clear, but a requested same-attempt requirement was not answered; bounded UX fix before browser drive",
+   "report_ts": "2026-09-15T17:08:19.404Z",
+   "report_board_line": 1112,
+   "wall_min": 1.1,
+   "parent_ts": "2026-09-15T17:08:26.926Z",
+   "parent_board_line": 1113,
+   "parent_latency_s": 8
+  },
+  {
+   "handle": "fixture-rereview",
+   "model": "astra",
+   "session": "01a0a7fe-0772-7130-97c1-b3856b03fc08",
+   "cost": 0.3725,
+   "turns": 9,
+   "start": "2026-09-16T02:13:58.258Z",
+   "last_message": "2026-09-16T02:15:58.250Z",
+   "last_stop": "stop",
+   "report_id": "mu3gyajz-ykapbt",
+   "parent_id": "mu3ij90b-p1elxc",
+   "disposition": "cleared-merged",
+   "parent_session_line": null,
+   "note": "reviewer: ACCEPT 9e772a0; that commit is in the materials-closeout merge-ready report mu3ij90b-p1elxc (79e59f7d)",
+   "report_ts": "2026-09-16T02:15:52.559Z",
+   "report_board_line": 1129,
+   "wall_min": 1.9,
+   "parent_ts": "2026-09-16T03:00:09.947Z",
+   "parent_board_line": 1133,
+   "parent_latency_s": 2657
+  }
+ ],
+ "verify": [
+  {
+   "handle": "exec-friction-check",
+   "model": "sonnet",
+   "session": "01a0a505-1c54-763d-bacb-e082d3d11b6f",
+   "cost": 0.8549088,
+   "turns": 35,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2nb6l0-j27xqx",
+     "2026-09-15T12:26:05.460Z",
+     [
+      "progress"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "drive-browser",
+   "model": "sonnet",
+   "session": "01a0a4a1-b648-7067-b96c-42fe05e4b2c1",
+   "cost": 6.450634,
+   "turns": 178,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2k5hfm-g2brk1",
+     "2026-09-15T10:57:40.738Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "drive-flattening",
+   "model": "sonnet",
+   "session": "01a0a901-c15c-72e4-8cef-53e8ca495d81",
+   "cost": 8.8101934,
+   "turns": 252,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu3r9dor-ix0qn9",
+     "2026-09-16T07:04:25.995Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu3rurjj-ob1i8r",
+     "2026-09-16T07:21:03.727Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "facet-drive",
+   "model": "sonnet",
+   "session": "01a0a59b-08ee-7732-bcc2-9623b6d974c7",
+   "cost": 1.9909701,
+   "turns": 65,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2tk8y4-pnyu2c",
+     "2026-09-15T15:21:06.124Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "facet-drive-2",
+   "model": "sonnet",
+   "session": "01a0a5aa-6ec5-72ec-8547-77bd7ba6da03",
+   "cost": 5.1384093,
+   "turns": 137,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2uhh0e-jfob2b",
+     "2026-09-15T15:46:56.222Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "final-drive",
+   "model": "sonnet",
+   "session": "01a0a575-3d27-73d4-b0b4-761467475019",
+   "cost": 8.413118,
+   "turns": 192,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2szvl8-rhg5cn",
+     "2026-09-15T15:05:15.692Z",
+     [
+      "checkpoint"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "guard-drive",
+   "model": "sonnet",
+   "session": "01a0a571-1536-721c-94ba-8376294181d7",
+   "cost": 5.8310044,
+   "turns": 200,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2s7ist-wwxy3n",
+     "2026-09-15T14:43:12.749Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "guard-redrive",
+   "model": "sonnet",
+   "session": "01a0a587-2f5f-7114-9fe1-b626928caa60",
+   "cost": 2.0950649,
+   "turns": 104,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2spcml-li28xo",
+     "2026-09-15T14:57:04.557Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "lifecycle-drive",
+   "model": "sonnet",
+   "session": "01a0a523-1ea4-713b-93ce-f6fab387c0c0",
+   "cost": 11.2352726,
+   "turns": 246,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2ppu85-x2y0rw",
+     "2026-09-15T13:33:28.517Z",
+     [
+      "checkpoint"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "lifecycle-drive-2",
+   "model": "sonnet",
+   "session": "01a0a547-419d-775c-aa8a-889178464bf1",
+   "cost": 2.0336661,
+   "turns": 97,
+   "excluded": "provider error",
+   "own_board_messages": []
+  },
+  {
+   "handle": "lifecycle-drive-2",
+   "model": "sonnet",
+   "session": "01a0a552-3650-7070-8efb-69c11232b66c",
+   "cost": 11.8701648,
+   "turns": 289,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2r0p04-ugkevk",
+     "2026-09-15T14:09:54.580Z",
+     [
+      "checkpoint"
+     ]
+    ],
+    [
+     "mu2ri1nj-i165i2",
+     "2026-09-15T14:23:24.127Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu2ri1nk-ix6w2k",
+     "2026-09-15T14:23:24.128Z",
+     [
+      "done",
+      "lifecycle-drive-2"
+     ]
+    ],
+    [
+     "mu2rizrl-yzqkn5",
+     "2026-09-15T14:24:08.337Z",
+     [
+      "ack"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "render-drive",
+   "model": "sonnet",
+   "session": "01a0a523-1e91-710e-ae88-63adbe8ae5a5",
+   "cost": 11.1013032,
+   "turns": 217,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2pf1wr-g59gnq",
+     "2026-09-15T13:25:05.259Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "runtime-drives",
+   "model": "sonnet",
+   "session": "01a0a7ff-7a89-755e-a87b-f4f87697c880",
+   "cost": 4.0514951,
+   "turns": 154,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu3hk317-h638im",
+     "2026-09-16T02:32:49.243Z",
+     [
+      "checkpoint"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "runtime-offline",
+   "model": "sonnet",
+   "session": "01a0a80f-86a0-712a-b482-76bf25131a80",
+   "cost": 3.1667006,
+   "turns": 150,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu3i5mur-q73gbn",
+     "2026-09-16T02:49:34.707Z",
+     [
+      "checkpoint"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "runtime-offline-b23",
+   "model": "sonnet",
+   "session": "01a0a81e-ecda-727b-ad8e-fd362f241626",
+   "cost": 1.5521314,
+   "turns": 89,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu3ih24m-adnxrj",
+     "2026-09-16T02:58:27.718Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "store-patches-drive",
+   "model": "sonnet",
+   "session": "01a0a92a-506d-7311-b5fe-0319e9612b59",
+   "cost": 14.950791,
+   "turns": 356,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu3szdcl-pm8rxc",
+     "2026-09-16T07:52:38.229Z",
+     [
+      "done",
+      "path:packages/web/convex/lib/revisions.ts"
+     ]
+    ],
+    [
+     "mu3tmm68-3p2gt3",
+     "2026-09-16T08:10:42.752Z",
+     [
+      "checkpoint"
+     ]
+    ],
+    [
+     "mu3u8gsh-45un2m",
+     "2026-09-16T08:27:42.209Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "u7a-runtime-backend",
+   "model": "sonnet",
+   "session": "01a0a5e8-cc62-71ec-95a1-c50908fed04d",
+   "cost": 11.026498,
+   "turns": 213,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2xbrjc-sj2bnx",
+     "2026-09-15T17:06:28.776Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "u7b-browser-gate",
+   "model": "sonnet",
+   "session": "01a0a60d-e5bd-730a-bfd5-24f530961bdf",
+   "cost": 14.908949,
+   "turns": 330,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2yuqwz-hgh5ya",
+     "2026-09-15T17:49:14.051Z",
+     [
+      "checkpoint"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "u7b-browser-gate-2",
+   "model": "sonnet",
+   "session": "01a0a631-5364-754a-ab26-721fb75e78fa",
+   "cost": 12.9029335,
+   "turns": 348,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu2zwwc2-uipfpe",
+     "2026-09-15T18:18:54.002Z",
+     [
+      "checkpoint"
+     ]
+    ],
+    [
+     "mu3027cs-29uev7",
+     "2026-09-15T18:23:01.564Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-backend-handoff",
+   "model": "terra",
+   "session": "01a09fb7-bc06-74a7-8559-577562b4c1da",
+   "cost": 0.9839332,
+   "turns": 56,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1692dy-w4nei3",
+     "2026-09-14T11:40:47.062Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu16elye-pag9h5",
+     "2026-09-14T11:45:05.702Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu16fr9k-pvj8eb",
+     "2026-09-14T11:45:59.240Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu16hpkv-b729kv",
+     "2026-09-14T11:47:30.367Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu16i8qu-uto2x3",
+     "2026-09-14T11:47:55.206Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu16iunf-01d743",
+     "2026-09-14T11:48:23.595Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu16k1li-o3gy3e",
+     "2026-09-14T11:49:19.254Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu16osil-gyzzmk",
+     "2026-09-14T11:53:00.765Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu170w2t-ga2hqo",
+     "2026-09-14T12:02:25.253Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-board-repairs",
+   "model": "terra",
+   "session": "01a0a144-eaa8-7431-ae66-9a3afc15e771",
+   "cost": 1.0468396,
+   "turns": 41,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1lqlme-oov7ab",
+     "2026-09-14T18:54:19.382Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1lz23b-lozwno",
+     "2026-09-14T19:00:53.975Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-consolidated-browser",
+   "model": "terra",
+   "session": "01a0a13d-9ec3-73b9-a334-607c98f0c7a9",
+   "cost": 1.5396568,
+   "turns": 79,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1lghaw-r6y6t3",
+     "2026-09-14T18:46:27.224Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1lh89h-597edz",
+     "2026-09-14T18:47:02.165Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1lic1q-z193pu",
+     "2026-09-14T18:47:53.726Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1lpplh-p4th09",
+     "2026-09-14T18:53:37.877Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1lq3gf-plxxm1",
+     "2026-09-14T18:53:55.839Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1lt2u2-mvds75",
+     "2026-09-14T18:56:15.002Z",
+     [
+      "checkpoint"
+     ]
+    ],
+    [
+     "mu1lu10h-vz4mzt",
+     "2026-09-14T18:56:59.297Z",
+     [
+      "progress",
+      "handoff"
+     ]
+    ],
+    [
+     "mu1lu3pt-vjfb0c",
+     "2026-09-14T18:57:02.801Z",
+     [
+      "done",
+      "handoff"
+     ]
+    ],
+    [
+     "mu1nn3uw-2i5437",
+     "2026-09-14T19:47:35.624Z",
+     [
+      "done",
+      "cleanup"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-consolidation-lifetimes",
+   "model": "terra",
+   "session": "01a0a14f-e66b-77aa-ade5-1fc570f3a9e6",
+   "cost": 1.6894204,
+   "turns": 85,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1m68ye-v1fefe",
+     "2026-09-14T19:06:29.462Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1m9hsk-bkw4gs",
+     "2026-09-14T19:09:00.884Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1m9zqk-zigbuk",
+     "2026-09-14T19:09:24.140Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1mgfrk-o7s7i8",
+     "2026-09-14T19:14:24.848Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1movch-t97eyq",
+     "2026-09-14T19:20:58.289Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1mvboo-snwl1f",
+     "2026-09-14T19:25:59.400Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-consolidation-remember",
+   "model": "terra",
+   "session": "01a0a156-1b2c-72eb-aa7c-58e060ca0a13",
+   "cost": 1.0658304,
+   "turns": 46,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1mlbhq-lo0hrm",
+     "2026-09-14T19:18:12.590Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-joined-route-shell",
+   "model": "terra",
+   "session": "01a09fe1-bde8-7438-86bc-c90971520865",
+   "cost": 1.8059552,
+   "turns": 95,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu17vref-lf4rqm",
+     "2026-09-14T12:26:25.527Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu188sjy-b10ngn",
+     "2026-09-14T12:36:33.550Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu189h4z-ojbhlk",
+     "2026-09-14T12:37:05.411Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu189tsy-7h6ntt",
+     "2026-09-14T12:37:21.826Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu18dxa9-5ji6ha",
+     "2026-09-14T12:40:32.961Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu18gxlm-aiai6e",
+     "2026-09-14T12:42:53.338Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu18jhxq-9m1s2x",
+     "2026-09-14T12:44:53.006Z",
+     [
+      "progress"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-live-query",
+   "model": "terra",
+   "session": "01a0a147-3696-7459-b2e9-770a6886b469",
+   "cost": 1.6217932,
+   "turns": 73,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1lu9gq-wxn4ia",
+     "2026-09-14T18:57:10.250Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1lwzu1-pgqdgb",
+     "2026-09-14T18:59:17.737Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1lxoyd-nhjq23",
+     "2026-09-14T18:59:50.293Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1ly7pd-oz3sjp",
+     "2026-09-14T19:00:14.593Z",
+     [
+      "progress",
+      "handoff"
+     ]
+    ],
+    [
+     "mu1m5bco-4d97c1",
+     "2026-09-14T19:05:45.912Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1mb59z-kq7ig9",
+     "2026-09-14T19:10:17.975Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1mdqgo-zzy9e8",
+     "2026-09-14T19:12:18.744Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-quiz-placement",
+   "model": "terra",
+   "session": "01a0a1a5-5826-7498-bf41-32d9770f30af",
+   "cost": 2.0376904,
+   "turns": 68,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1pnyiu-rnkisk",
+     "2026-09-14T20:44:14.598Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1q3zzg-jrbizj",
+     "2026-09-14T20:56:42.988Z",
+     [
+      "checkpoint"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-quiz-play",
+   "model": "terra",
+   "session": "01a0a18b-6fd7-728f-b3be-1379696bfa67",
+   "cost": 1.891756,
+   "turns": 88,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1otzyw-2c58ev",
+     "2026-09-14T20:20:56.792Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1p4wei-94ego4",
+     "2026-09-14T20:29:25.386Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1p5796-67kylc",
+     "2026-09-14T20:29:39.450Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1p724o-s6ls3j",
+     "2026-09-14T20:31:06.120Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1penja-m7vbr3",
+     "2026-09-14T20:37:00.454Z",
+     [
+      "checkpoint"
+     ]
+    ],
+    [
+     "mu1pg6qc-v9cqvd",
+     "2026-09-14T20:38:11.988Z",
+     [
+      "checkpoint",
+      "handoff"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-review-cards",
+   "model": "terra",
+   "session": "01a0a1a7-fcf3-7431-ae8f-0c46fccab0bb",
+   "cost": 1.4044092,
+   "turns": 67,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1pqj0l-m9canb",
+     "2026-09-14T20:46:14.469Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1q4ppk-cn4cbe",
+     "2026-09-14T20:57:16.328Z",
+     [
+      "checkpoint"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-review-material",
+   "model": "terra",
+   "session": "01a0a18c-5024-7448-9b41-45fa9915f3b9",
+   "cost": 0.7921364,
+   "turns": 41,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu1oixfv-bg4mf6",
+     "2026-09-14T20:12:20.299Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1pgekf-jh9xnv",
+     "2026-09-14T20:38:22.143Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1pio2s-2zerys",
+     "2026-09-14T20:40:07.780Z",
+     [
+      "handoff"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "verify-shell-lifetimes",
+   "model": "terra",
+   "session": "01a09ffc-5c5d-77a2-93d9-d0134beebce6",
+   "cost": 2.9114356,
+   "turns": 102,
+   "excluded": null,
+   "own_board_messages": [
+    [
+     "mu18x30b-kpbcc6",
+     "2026-09-14T12:55:26.843Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu19a5ki-ozpgjm",
+     "2026-09-14T13:05:36.690Z",
+     [
+      "done"
+     ]
+    ],
+    [
+     "mu1ba983-gyj1y5",
+     "2026-09-14T14:01:40.659Z",
+     [
+      "progress"
+     ]
+    ],
+    [
+     "mu1bjp96-frsbec",
+     "2026-09-14T14:09:01.338Z",
+     [
+      "done"
+     ]
+    ]
+   ]
+  },
+  {
+   "handle": "vf",
+   "model": "terra",
+   "session": "01a09e14-e582-765e-abf8-02dcef833d49",
+   "cost": 0.0106704,
+   "turns": 3,
+   "excluded": "smoke",
+   "own_board_messages": []
+  }
+ ]
+}
