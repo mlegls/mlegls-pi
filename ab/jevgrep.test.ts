@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSourceAPI } from "../extensions/exec/source";
 import { Ledger } from "../lib/outline-read/ledger";
-import { renderRetrieval, retrievalArgs, DEFAULT_SOURCE_BYTES, type Retrieval } from "./jevgrep";
+import { deadline, renderRetrieval, retrievalArgs, DEFAULT_DEADLINE_SECONDS, DEFAULT_SOURCE_BYTES, type Retrieval } from "./jevgrep";
 
 test("retrieval anchors share the ledger, survive restore, and edit exact Unicode evidence", async () => {
 	const root = await mkdtemp(join(tmpdir(), "ab-jg-"));
@@ -65,4 +65,12 @@ test("wrapper bounds source by default and preserves explicit budgets", () => {
 		expect(retrievalArgs(args)).toEqual(["--json", ...args]);
 	}
 	expect(retrievalArgs(["question", "--", "--max-source-bytes=0"])).toEqual(["--json", "--max-source-bytes", String(DEFAULT_SOURCE_BYTES), "question", "--", "--max-source-bytes=0"]);
+});
+
+test("deadline option parser rejects empty limits rather than silently disabling the bound", () => {
+	for (const args of [["q", "--deadline="], ["q", "--deadline", ""], ["q", "--deadline", " "]]) {
+		expect(() => deadline(args)).toThrow("usage: --deadline SECONDS");
+	}
+	expect(deadline(["q", "."])).toEqual([DEFAULT_DEADLINE_SECONDS, ["q", "."]]);
+	expect(deadline(["q", "--deadline", "0"])).toEqual([0, ["q"]]);
 });

@@ -65,8 +65,8 @@ export function deadline(args: string[]): [number, string[]] {
 	const rest: string[] = [];
 	let seconds = DEFAULT_DEADLINE_SECONDS;
 	for (let i = 0; i < head.length; i++) {
-		if (head[i] === "--deadline") seconds = Number(head[++i]);
-		else if (head[i].startsWith("--deadline=")) seconds = Number(head[i].slice(11));
+		if (head[i] === "--deadline") { const value = head[++i]; seconds = value?.trim() ? Number(value) : NaN; }
+		else if (head[i].startsWith("--deadline=")) { const value = head[i].slice(11); seconds = value.trim() ? Number(value) : NaN; }
 		else rest.push(head[i]);
 	}
 	if (!Number.isFinite(seconds) || seconds < 0) throw new Error("usage: --deadline SECONDS; 0 waits indefinitely");
