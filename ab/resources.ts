@@ -6,6 +6,28 @@ import type { Execution, Submission } from "../lib/resources/host.ts";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+async function printJson(value: unknown) {
+  await new Promise<void>((resolve, reject) => process.stdout.write(JSON.stringify(value, null, 2) + "\n", error => error ? reject(error) : resolve()));
+}
+
+function listed(args: string[]) {
+  let statuses: Set<string> | undefined;
+  if (args[0] === "list") args.shift();
+  while (args.length) {
+    const option = args.shift();
+    if (option !== "--status" || statuses || !args.length) throw new Error("usage: ab check|service list [--status running,queued,done]");
+    statuses = new Set(args.shift()!.split(","));
+    if ([...statuses].some(status => !["queued", "running", "done"].includes(status)) || !statuses.size) throw new Error("status must be queued, running or done");
+  }
+  return statuses;
+}
+
+function view(entry: Execution) {
+  return { id: entry.id, kind: entry.kind, status: entry.status, command: entry.command, cwd: entry.cwd,
+    submitted: entry.submitted, started: entry.started, ended: entry.ended, code: entry.code, reason: entry.reason, log: entry.log };
+}
+
+
 export async function resources(kind: "check" | "service", args: string[]) {
   if (kind === "service" && args[0] === "stop") {
     if (args.length !== 2) throw new Error("ab service stop ID");
@@ -13,8 +35,9 @@ export async function resources(kind: "check" | "service", args: string[]) {
     return;
   }
   if (!args.length || args[0] === "list") {
+    const statuses = listed(args);
     const entries = await resource<Execution[]>({ action: "list" });
-    console.log(JSON.stringify(entries.filter(entry => entry.kind === kind), null, 2));
+    await printJson(entries.filter(entry => entry.kind === kind && (!statuses || statuses.has(entry.status))).map(view));
     return;
   }
   if (kind === "service") {

@@ -25,7 +25,8 @@ test("CLI shares one execution, forwards failures, rejects dirty sharing and run
     expect(a.err.match(/check ([a-f0-9-]+)/)?.[1]).toBe(b.err.match(/check ([a-f0-9-]+)/)?.[1]);
     const entries = JSON.parse((await cli("check", "list")).out) as Execution[];
     expect(entries.length).toBe(1);
-    expect(entries[0]!.revision).toMatch(/^[a-f0-9]{40,64}$/);
+    expect(entries[0]).not.toHaveProperty("env");
+    expect(entries[0]).not.toHaveProperty("revision");
     const nested = await cli("check", "--", process.execPath, main, "check", "--", "/bin/echo", "nested");
     expect(nested.code).toBe(0); expect(nested.out).toBe("nested\n");
     expect((await cli("check", "--", "/bin/echo", "--help")).out).toBe("--help\n");

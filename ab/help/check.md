@@ -1,5 +1,5 @@
 ab check [--ttl SECONDS] [--share INPUT-IDENTITY] -- COMMAND ARG...
-ab check list
+ab check list [--status running,queued,done]
 
 Run a finite check through the per-user ab daemon's two-slot queue. Output and
 exit status follow the command. Commands are argv, not shell strings; use bash
@@ -17,6 +17,8 @@ changes invalidate the shared result. Ignored inputs still need the caller's
 identity and must remain frozen.
 
 Example: ab check -- bun-axi run typecheck
+
+`ab check list` and `ab service list` omit submission environments. Use `--status` with a comma-separated set of `queued`, `running` and `done` to filter receipts.
 For a frozen checkout with dependencies installed from its lockfile and no
 other inputs: ab check --share lockfile-install -- bun-axi run typecheck
 

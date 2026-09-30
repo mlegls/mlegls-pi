@@ -1,6 +1,6 @@
 ab service start [--ttl SECONDS] -- COMMAND ARG...
 ab service stop ID
-ab service list
+ab service list [--status running,queued,done]
 
 Start a foreground dev server in an owned process group. Returns a JSON receipt
 with id, log and cwd; this is not a readiness claim. Default lifetime: 1800s,
