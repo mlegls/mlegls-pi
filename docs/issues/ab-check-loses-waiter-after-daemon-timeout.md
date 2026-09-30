@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0e959-c271-713d-bda7-a4789d286477
 ---
@@ -25,3 +25,7 @@ review boundary, 2026-09-30: the ab check pair (ab-check-loses-waiter-after-daem
 ## Result
 
 [First-use CLI drive and replayable checks](../attachments/ab-check-loses-waiter-after-daemon-timeout/index.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/ab-check-loses-waiter-after-daemon-timeout/index.md).
