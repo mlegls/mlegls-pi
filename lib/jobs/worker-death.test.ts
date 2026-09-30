@@ -16,7 +16,7 @@ test("provider-error worker is reported and shown dead; healthy long turns are n
   const mail = seen.providerFailure.mail;
   expect(mail.owner).toBe("parent-mailbox");
   expect(mail.text).toContain("worker session ended after provider error: Provider finish_reason: error");
-  expect(mail.text).toContain("Session file: " + seen.providerFailure.state.sessionPath);
+  expect(mail.text).toContain("Session file: " + seen.providerFailure.state.startup.sessionFile);
   expect(mail.text).toContain("Session size: " + seen.providerFailure.sessionSize + " bytes");
   // Status reads dead, not the phase.
   expect(seen.status).toContain("dead-worker dead (Provider finish_reason: error;");
@@ -25,6 +25,6 @@ test("provider-error worker is reported and shown dead; healthy long turns are n
   expect(seen.healthyLongTurn.mail).toEqual([]);
   expect(seen.healthyLongTurn.state.dead).toBeUndefined();
   expect(seen.redispatchedHealthyTurn.mail).toEqual([]);
-  expect(seen.redispatchedHealthyTurn.state.sessionPath).toBe(seen.redispatchedHealthyTurn.currentSession);
+  expect(seen.redispatchedHealthyTurn.state.startup.sessionFile).toBe(seen.redispatchedHealthyTurn.currentSession);
  } finally { rmSync(root, { recursive: true, force: true }); }
 }, 30_000);
