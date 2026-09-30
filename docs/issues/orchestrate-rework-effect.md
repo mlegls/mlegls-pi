@@ -17,6 +17,8 @@ report 2026-09-30: [[docs/research/orchestrate-rework-effect]] — script and ra
 
 ## Result
 
+Final (after review 2026-09-30): the report was corrected to match the CLI/TSV; all stories held — see the packet's review section. What follows is the first-use drive's original result, kept as history.
+
 First-use CLI drive: [[docs/attachments/orchestrate-rework-effect/index]] — the supplied command runs and reproduces the published TSV, but the research narrative disagrees with those measurements on era totals, parent-cwd counts, after-era nesting and the prior-audit comparison. See the packet for outcomes and replay checks; no product repairs were made.
 
 ## Verification evidence

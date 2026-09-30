@@ -65,3 +65,18 @@ No rendered journey: visual false; screenshots none. Actions, outcomes, friction
 ## Limits and cleanup
 
 This drive verifies the joined-document reader journey and compares its reviewed public research outputs. It is not a new exhaustive audit of 5.7 GB of sessions, an independent historical repair-runtime test, or a current orchestration trial. The tiny estimator replay is the only analysis CLI invoked; no child test code was read or run. No product repairs. No external resources to stop, no server IDs, no screenshots (nonvisual). Product revision remains the tested implementation head plus drive evidence commits.
+
+## Review — 2026-09-30
+
+Repairs (all in `docs/issues/orchestration-audits.md`, `## answer`; the driver's first-use record above is unchanged):
+
+- **Decision bullet:** "86% pull-only floor" → 86% is pull ∪ wake-push (a floor); pull alone is 112/133 = 84%, with 2 push-only. Matches the child report's Evidence classes and `coverage.json`.
+- **Cache bullet:** "no interior knee" / "steers are cache-hits" replaced with the reviewed report's wording: no established common steer-triggered knee, 115/145 follow-ups ≥0.95 cache share with 26/145 misses, 100k/200k/300k are analysis policy points (ideal upper-bound replay), historical fence setting/load time unknown so no deployed-fence effect isolated. Joint reading no longer says a fence "is justified/not"; it says the replay gives no case for a cumulative-read fence.
+- **Role bullet:** "parent acceptance symmetric" → blockers acted on for both glm and astra, reviewer claims rejected for both, one astra "no blocking findings" verdict overturned, verify-story parent actions untraced.
+- **Friction: stale Results.** The joined ticket's Result and `docs/issues/orchestrate-rework-effect.md` Result now name the final reviewed state, keeping the first-use text as history.
+
+Story outcomes on the final head (re-read of the corrected text against the child reports): accurate joined answer **held**; decision-read summary **held**; cache-knee summary **held**; cheap-review uptake, rework comparison, sparse model evidence, joint decision/historical scope **held** (unchanged; rework and role bullets re-read).
+
+Replay checks 3, 4 and 7 (and the "symmetric" wording) are automated in `analysis/orchestration-audits/joined-answer.test.ts` (`bun test analysis/orchestration-audits`, 3 pass). Check 1 (links reachable), 2, 5, 6, 8 stay manual document reads; 5's estimator replay is already covered by `analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts`. No check dropped.
+
+Not done: no re-analysis of the 5.7 GB corpus. The "symmetry" acceptance wording friction is resolved by rewording; "acceptance ≠ equality" remains unmeasured by design.
