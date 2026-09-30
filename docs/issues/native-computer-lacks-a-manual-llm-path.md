@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 2
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
@@ -24,3 +24,7 @@ implemented, 2026-09-30: Added the official Cua `cua-driver` 0.30.4 skill under 
 [Independent first-use drive](../attachments/native-computer-lacks-a-manual-llm-path/index.md): a worker-owned TextEdit window accepted a fresh-token background edit; rendered text, fresh AX state and `verify_state` agreed. Stale tokens and invalid window scope refused. Documentation/skill discovery and drive/review prohibitions held. Harness-wide skill linking remains the setup handoff's post-integration activation step.
 
 TextEdit restored unrelated documents into a new app instance; that setup/cleanup friction is recorded in [[projects/mlegls-pi/issues/textedit-new-instance-restores-unowned-documents]]. The worker's scratch window was closed and its Cua session ended; restored windows were left untouched.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/native-computer-lacks-a-manual-llm-path/index.md).
