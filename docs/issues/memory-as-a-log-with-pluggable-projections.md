@@ -65,5 +65,6 @@ edges(record, src, rel, dst)               -- record → records.id; dst is a re
 
 1. [[projects/mlegls-pi/issues/move-the-board-onto-a-records-store]]
 2. [[projects/mlegls-pi/issues/observational-memory-as-the-om-schema]], after 1.
+3. [[projects/mlegls-pi/issues/renderers-over-the-records-store]], after 2.
 
 Later, once both exist: tag views (a segment tree per tag, nodes keyed by member hash since edge-tags arrive in tagging order), role strategies for non-interactive agents, and a reconciler handler reading `node:<slug>`.
