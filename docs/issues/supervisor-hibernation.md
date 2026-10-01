@@ -3,6 +3,8 @@ assignee: agent
 part-of: "[[projects/mlegls-pi/issues/loop-vs-supervision-tree]]"
 ---
 
+Superseded 2026-10-01 by [[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]].
+
 The "stateless supervisors" optimization of tree-style supervision can be framed as a compaction strategy: the difference from supervision as it is now is more frequent compaction (and perhaps a different mechanism) when the supervisor expects to go idle for a long time.
 
 Keys: `erlang:hibernate/3` (discard the stack, compact the heap, resume in a named function on the next message), actor passivation (Akka Persistence, Orleans grains: evict when idle, rebuild from snapshot and journal), Letta's sleep-time compute.

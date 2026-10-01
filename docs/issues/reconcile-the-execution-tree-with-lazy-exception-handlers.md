@@ -1,0 +1,37 @@
+---
+stage: spec
+assignee: agent
+priority: 1
+author: session:01a0f549-cfd2-755e-886e-463dcd75e5f8
+---
+
+Replace `ab supervise start` (an LLM `supervise` worker resident at every non-leaf, woken through the ab daemon) with a deterministic reconciler per dispatched subtree, plus subtree-local exception handlers spawned lazily. The goal is minimizing LLM work that is pure acknowledgement or mechanical, without the wall-time cost of the bulk-synchronous `ab supervise loop`. This resolves [[projects/mlegls-pi/issues/loop-vs-supervision-tree]] as its option C. The package rebuild on 0.99 (branch `v2`: codemode outer loop, `dispatch`/`integrate`/`retire` tools, `stance/<agent>` virtual models) deletes the daemon and both loops; this is what supervision becomes there.
+
+[The lifecycle contract](../../skills/enabled/all/mlegls/conventions/tracker/references/lifecycle.md) is the model: idea → goal → spec → ticket is an order of readiness, a node's effective stage is the meet of its own and its children's, and any ready spec or ticket subtree can be dispatched and completed entirely. Spec and ticket differ only in whether the issue describes what to get to or what to do. Leaf tickets are single-session and executable literally; the human-in-the-loop boundary is spec, and decomposition below it is autonomous.
+
+## Behavior
+
+- **Reconciler**: gets specs to tickets, either by direct promotion or by refinement/decomposition (`stance/compile`, or `auto` for a small spec), then executes the ticket tree recursively. Only tickets are executed in the implement → drive → review sense. If everything goes smoothly: siblings a and b go through implement → drive → review in parallel; when both are done, their parent c goes through its local implement → drive → review, where implement involves integrating its children; recurse until top.
+- **Dataflow, not phases**: each node progresses independently. A spec child can be compiling while sibling tickets are in review, and c starts the moment its own children land, regardless of unrelated subtrees. The difference from the synchronous Ralph loop is that exceptions get handled when they happen rather than deferred until all children either finish or error, and there is no batch barrier.
+- **Level-triggered**: each tick recomputes every node's phase from observed state (branch ahead of base, the handoff on `<run>/<handle>`, the worker in workmux, the tracker), then takes the next step. Restarting is running it again; no event cursors, adopt or resume. The 2026-09 holes ([[projects/mlegls-pi/issues/supervise-loop-open-holes]]) were mostly lost or misordered events. Without a daemon, a reconciler is a detached process the root supervisor's extension restarts if missing.
+- **Merge queue per node**: when a child passes review, the reconciler integrates it into its parent's branch through the gate (the project's `pre-integrate` mise task plus the tests the review lists, as in 2c0736b). A conflict goes back to that child, whose context is fresh; children started later base on what has landed. The parent's implement does its residual @self and the joins between children, not the merging.
+- **Mechanical exceptions stay in the script**, with retry budgets, escalating only when a budget is spent: integration conflict or failed gate (back to the child), missing status sentinel (nudge once), unparsable handoff (bounce with the schema), review not holding every story (the implement ↔ review loop), unreachable or unstarted worker (relaunch from the branch). In Concept's 122 dataflow runs (`.git/ab-supervise/*.events.jsonl`, 158 implemented tickets) these were about 83% of 298 exceptions: integration failed 92 (70 of them conflicts), no status sentinel 55, decomposition integration failed 25, review not holding stories 22, review of current head required 18, unreachable or unstarted 17, unparsable handoff 8. The remaining blocked/needs-input were 51 on 30 tickets, about one per five tickets.
+- **Handlers**: subtree-local exception handling. A non-mechanical exception goes to a handler for its nearest non-leaf ancestor, spawned lazily and terminated automatically after resolution. It resolves within that node's contract (answer, steer, redispatch, split) or applies the lifecycle's move-out to a misclassified child: honest stage, `assignee: human`, problem and recommendation in its body, parent `blocked-by` it when the parent's acceptance depends on it, then continue with the rest. A spec needing a human decision is a failure of what came before, so it moves back to goal with why. What a handler can't decide goes to the next ancestor's handler, ending at the root. A handler's session file persists, so a repeat escalation in the same subtree resumes it; every resolution is written into the issue, so the tracker is the record and the session only a cache. Handlers never see non-exceptional cases.
+- **Termination and liveness**: every node in a started scope ends done, moved out at its honest stage with why, or open but `blocked-by` a moved-out node after everything else under it finished. A node that is unsettled with no live worker and no pending handler is itself an exception, so the tree never goes dead silently.
+- **Root**: the top-level interactive supervisor (`tend`) tells the user what's going on and is the mail entrypoint for other sessions. It sees subtree outcomes and what declines all the way up, never ticket-level progress.
+- **Visibility**: the tmux sidebar and dashboard (`lib/tree`) show the execution tree: nodes with phase, their worker sessions and any active handler. Run topics already nest by slug and every spawned session carries `run`/`handle`, so the tree can derive from those.
+
+## Sibling coordination
+
+Workers rarely use the shared board on their own initiative. Of 1078 worker sessions since 2026-09-23, 63% never read it; most that did read once at startup, before siblings had decided anything; 72 posted the 100 decisions; 63 of 93 integration failures were in runs with no decision posted at all. So coordination is pushed, not left to pulls:
+
+- At spawn, each worker's prompt lists its siblings: handle, title and the paths their tickets expect to touch.
+- Each worker is subscribed without wake to its siblings' `decision` messages, so they are injected on its next turn.
+- When a child lands, the reconciler notifies in-flight siblings whose diffs overlap the landed paths to rebase now.
+- Decisions are published, not negotiated: mailing a sibling is only for a question to the owner of a seam, never waited on; a worker that cannot proceed without the answer raises an exception instead.
+
+## Children
+
+- [[projects/mlegls-pi/issues/admit-workers-against-a-host-wide-budget]]: the host-wide limit, retargeted from the daemon to a jobserver every reconciler and `dispatch` draws from.
+
+Supersedes [[projects/mlegls-pi/issues/supervise-loop-reliability]] and [[projects/mlegls-pi/issues/supervisor-hibernation]] (lazy handlers with persistent sessions are the hibernation design); their open children are moot with the daemon gone.
