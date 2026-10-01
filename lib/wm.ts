@@ -126,6 +126,8 @@ export function spawnEnv(o: { run: string; handle: string; agent?: string; paren
 		`PI_WM_HANDLE=${o.handle}`,
 		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
 		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
+		// The tmux window doesn't inherit this process's env: carry a non-default agent dir to the worker.
+		process.env.PI_CODING_AGENT_DIR && `PI_CODING_AGENT_DIR=${process.env.PI_CODING_AGENT_DIR}`,
 	].filter((v): v is string => Boolean(v));
 }
 
