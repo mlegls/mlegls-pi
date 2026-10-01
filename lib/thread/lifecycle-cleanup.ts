@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
-import { markRetired, readLive } from "../session-meta/live";
+import { markRetired, readLive, type Live } from "../session-meta/live";
 import { getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { command, delay } from "./process";
@@ -55,7 +55,7 @@ export async function retireThread(thread: ThreadRecord, keepBranch: boolean): P
 	const protectedPids = new Set<number>();
 	for (let pid = process.pid; pid > 0 && !protectedPids.has(pid); pid = parents.get(pid) ?? 0) protectedPids.add(pid);
 	const live = readLive();
-	const canonical = live.filter(l => l.sessionId === thread.sessionId);
+	const canonical = live.filter(l => l.sessionId === thread.sessionId || (l as Live & { thread?: string }).thread === thread.id);
 	if (named.some(t => protectedPids.has(t.pid)) || canonical.some(l => protectedPids.has(l.pid)))
 		throw new Error("Cleanup controller is inside thread " + thread.id + "; run cleanup from another terminal");
 	const selected = new Set<number>([...named.map(t => t.pid), ...canonical.map(l => l.pid), ...owned && root ? await cwdProcesses(root) : []]);

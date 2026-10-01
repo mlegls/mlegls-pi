@@ -101,8 +101,10 @@ async function resolveConflict(error: ThreadMergeConflict): Promise<ThreadBlock 
 		const batch = readFrom(cursor);
 		cursor = batch.offset;
 		for (const message of batch.messages) {
-			if (message.topic !== topic || message.from.session !== current.sessionId ||
-				!message.tags.some(tag => ["done", "blocked", "needs-input", "checkpoint", "turn-end"].includes(tag))) continue;
+			if (message.topic !== topic || !message.tags.some(tag =>
+				["done", "blocked", "needs-input", "checkpoint", "turn-end"].includes(tag))) continue;
+			// /new or /resume may have moved the canonical session since the request or this poll.
+			if (message.from.session !== (await threadRecord(id)).sessionId) continue;
 			const report = parse(message.body);
 			if (message.tags.includes("done") && report.status === "done") {
 				await saveThread({ ...await threadRecord(id), blocked: undefined });
