@@ -8,8 +8,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { humanTurns, profileWithGraph, type Profile } from "./profile";
+import { contextFile, judgePurposes, strip, type Context } from "./context";
 
-interface Lane { id: string; depth: number; label: string; cost: number; segments: Profile["segments"] }
+interface Lane { id: string; depth: number; label: string; cost: number; segments: Profile["segments"]; ctx?: Context }
 
 export async function timeline(ref?: string, days = 30, options: { judge?: boolean } = {}): Promise<string> {
 	const { profile: root, nodes } = await profileWithGraph(ref, days, options);
@@ -19,6 +20,10 @@ export async function timeline(ref?: string, days = 30, options: { judge?: boole
 		for (const c of [...p.children].sort((a, b) => a.start - b.start)) walk(c, depth + 1);
 	};
 	walk(root, 0);
+	// Context composition per lane, for the bento view (click a lane label).
+	for (const l of lanes) { const n = nodes.get(l.id); try { if (n) l.ctx = contextFile(n.file, l.id); } catch {} }
+	if (options.judge !== false) await judgePurposes(lanes.flatMap(l => l.ctx ? [l.ctx] : []));
+	for (const l of lanes) if (l.ctx) l.ctx = strip(l.ctx);
 	const from = Math.min(...lanes.flatMap(l => l.segments.map(s => s.s)), root.start);
 	const to = Math.max(...lanes.flatMap(l => l.segments.map(s => s.e)), root.end);
 	const tree = new Set(lanes.map(l => l.id));
@@ -42,9 +47,17 @@ header b{color:#fff} .k{display:inline-flex;gap:4px;align-items:center;margin-ri
 .you .on{background:#fff2!important;width:auto}
 #tip{position:fixed;pointer-events:none;background:#222;border:1px solid #555;padding:6px 8px;max-width:520px;white-space:pre-wrap;display:none;z-index:3}
 button{background:#222;color:#ddd;border:1px solid #444;padding:2px 8px}
+#labels div[data-i]{cursor:pointer} #labels div[data-i]:hover{color:#fff} #labels div.sel{background:#2a2a2a;color:#fff}
+#bento{position:fixed;left:0;right:0;bottom:0;height:48vh;background:#151515;border-top:1px solid #444;display:none;flex-direction:column;z-index:2}
+#bento .bar{padding:6px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #333}
+#bento .bar input[type=range]{width:260px} #bento .on{background:#444;color:#fff}
+#bmap{position:relative;flex:1;margin:6px 12px 10px} #bmap div{position:absolute;box-sizing:border-box;border:1px solid #151515;overflow:hidden;font-size:10px;line-height:12px;padding:1px 3px;color:#000c}
+#bmap div.g{border:2px solid #151515;background:none!important;pointer-events:none;color:#fff;font-weight:bold;text-shadow:0 0 3px #000;padding:2px 4px;z-index:1}
+body.open #wrap{padding-bottom:48vh}
 </style>
 <header><b id="ttl"></b><span id="keys"></span><span>zoom <button id="zo">-</button> <button id="zi">+</button> (ctrl-wheel)</span></header>
 <div id="wrap"><div id="labels"><div style="height:18px;border-bottom:1px solid #333"></div></div><div id="scroll"><div id="axis"></div><div id="rows"></div></div></div>
+<div id="bento"><div class="bar"><b id="bttl"></b><span><button id="bnow">in window</button> <button id="bheld">token &times; calls held</button></span><span id="bcall">call <input type="range" id="bslide" min="0"> <span id="bcn"></span></span><span id="bkeys"></span><button id="bx">close</button></div><div id="bmap"></div></div>
 <div id="tip"></div>
 <script>
 const D = __DATA__;
@@ -55,9 +68,9 @@ document.getElementById("ttl").textContent = D.id.slice(-8)+" "+D.title+" · "+c
 document.getElementById("keys").innerHTML = Object.entries(C).map(([k,c])=>'<span class="k"><i style="background:'+c+';outline:1px solid #555"></i>'+k+'</span>').join("")+'<span class="k"><i style="background:#fff"></i>you (this tree)</span><span class="k"><i style="background:#777"></i>you (elsewhere)</span>';
 let pxPerMs = 0;
 const scroll = document.getElementById("scroll"), rows = document.getElementById("rows"), axis = document.getElementById("axis"), labels = document.getElementById("labels"), tip = document.getElementById("tip");
-const lbl = (txt, title, depth) => { const d = document.createElement("div"); d.textContent = "  ".repeat(depth) + txt; d.title = title; d.style.paddingLeft = (4 + depth*10) + "px"; labels.appendChild(d); };
+const lbl = (txt, title, depth, i) => { const d = document.createElement("div"); d.textContent = "  ".repeat(depth) + txt; d.title = title; d.style.paddingLeft = (4 + depth*10) + "px"; if (i !== undefined) d.dataset.i = i; labels.appendChild(d); };
 lbl("you", "your turns across all interactive sessions", 0);
-for (const l of D.lanes) lbl(l.label + " $" + l.cost.toFixed(2), l.id, l.depth);
+D.lanes.forEach((l, i) => lbl(l.label + " $" + l.cost.toFixed(2), l.id + (l.ctx ? " · click for context" : ""), l.depth, l.ctx ? i : undefined));
 function render() {
   const W = Math.max(scroll.clientWidth, (D.to - D.from) * pxPerMs);
   const x = t => (t - D.from) * pxPerMs;
@@ -100,6 +113,64 @@ rows.addEventListener("mousemove", e => {
   tip.style.left = Math.min(e.clientX + 12, innerWidth - 540) + "px"; tip.style.top = (e.clientY + 14) + "px";
 });
 rows.addEventListener("mouseleave", () => tip.style.display = "none");
+// ---- bento: one lane's context, cells grouped by purpose (squarified treemap)
+const P = {system:"#9e9e9e",user:"#fff59d",summary:"#bcaaa4",message:"#90a4ae",orient:"#64b5f6",discuss:"#fff176",plan:"#ce93d8",edit:"#81c784",verify:"#4db6ac",debug:"#ff8a65",coordinate:"#7986cb",noise:"#e57373",other:"#616161"};
+const B = {lane:null, mode:"now", call:0};
+const tk = n => n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(1)+"k":String(n);
+function squarify(items, x, y, w, h) {
+  const out = [], total = items.reduce((s,i)=>s+i.v,0); if (!total || w<=0 || h<=0) return out;
+  const scale = w*h/total; let rest = items;
+  while (rest.length) {
+    const short = Math.min(w,h); let row = [], best = Infinity, s = 0;
+    for (const it of rest) { const s2 = s + it.v*scale, r = [...row, it];
+      const worst = Math.max(...r.map(i => { const a = i.v*scale; return Math.max(short*short*a/(s2*s2), s2*s2/(short*short*a)); }));
+      if (worst > best) break; best = worst; row = r; s = s2; }
+    rest = rest.slice(row.length);
+    const thick = s/short; let off = 0;
+    for (const it of row) { const len = it.v*scale/thick; out.push(w>=h ? {it,x,y:y+off,w:thick,h:len} : {it,x:x+off,y,w:len,h:thick}); off += len; }
+    if (w>=h) { x += thick; w -= thick; } else { y += thick; h -= thick; }
+  }
+  return out;
+}
+const bento = document.getElementById("bento"), bmap = document.getElementById("bmap"), bslide = document.getElementById("bslide");
+function drawBento() {
+  const l = D.lanes[B.lane], x = l.ctx, held = B.mode === "held";
+  document.getElementById("bnow").className = held ? "" : "on"; document.getElementById("bheld").className = held ? "on" : "";
+  document.getElementById("bcall").style.display = held ? "none" : "";
+  const cells = x.cells.map((c,i) => ({c, i, v: held ? c.tok*(c.died-c.born) : (c.born<=B.call && B.call<c.died ? c.tok : 0)})).filter(o => o.v > 0);
+  const groups = {}; for (const o of cells) (groups[o.c.purpose] ??= []).push(o);
+  const gs = Object.entries(groups).map(([p, its]) => ({p, its: its.sort((a,b)=>b.v-a.v), v: its.reduce((s,o)=>s+o.v,0)})).sort((a,b)=>b.v-a.v);
+  const total = gs.reduce((s,g)=>s+g.v,0);
+  document.getElementById("bcn").textContent = (B.call+1) + "/" + x.calls.length + " · window " + tk(x.calls[B.call]||0) + (x.compactions.includes(B.call) ? " · just compacted" : "") + (x.compactions.length ? " · compactions at " + x.compactions.map(c=>c+1).join(",") : "");
+  document.getElementById("bkeys").innerHTML = gs.map(g => '<span class="k"><i style="background:'+(P[g.p]||"#777")+'"></i>'+g.p+' '+tk(g.v)+' '+(100*g.v/total).toFixed(0)+'%</span>').join("");
+  const W = bmap.clientWidth, H = bmap.clientHeight; let h = "";
+  for (const g of squarify(gs, 0, 0, W, H)) {
+    for (const r of squarify(g.it.its, g.x, g.y, g.w, g.h)) { const c = r.it.c;
+      h += '<div data-c="'+r.it.i+'" style="left:'+r.x+'px;top:'+r.y+'px;width:'+r.w+'px;height:'+r.h+'px;background:'+(P[c.purpose]||"#777")+'">'+(r.w>60&&r.h>14?c.label.replace(/[<&]/g, ch => ch=="<"?"&lt;":"&amp;"):"")+'</div>'; }
+    if (g.w > 40 && g.h > 16) h += '<div class="g" style="left:'+g.x+'px;top:'+g.y+'px;width:'+g.w+'px;height:'+g.h+'px">'+g.it.p+'</div>';
+  }
+  bmap.innerHTML = h;
+}
+function openBento(i) {
+  B.lane = i; const x = D.lanes[i].ctx; B.call = x.calls.length - 1;
+  bslide.max = Math.max(0, x.calls.length - 1); bslide.value = B.call;
+  document.getElementById("bttl").textContent = D.lanes[i].label.slice(0, 60);
+  [...labels.children].forEach(d => d.classList.toggle("sel", d.dataset.i == i));
+  bento.style.display = "flex"; document.body.classList.add("open"); drawBento();
+}
+labels.addEventListener("click", e => { const d = e.target.closest("[data-i]"); if (d) openBento(+d.dataset.i); });
+bslide.oninput = () => { B.call = +bslide.value; drawBento(); };
+document.getElementById("bnow").onclick = () => { B.mode = "now"; drawBento(); };
+document.getElementById("bheld").onclick = () => { B.mode = "held"; drawBento(); };
+document.getElementById("bx").onclick = () => { bento.style.display = "none"; document.body.classList.remove("open"); };
+addEventListener("resize", () => { if (B.lane !== null && bento.style.display !== "none") drawBento(); });
+bmap.addEventListener("mousemove", e => {
+  const d = e.target.dataset; if (d.c === undefined) { tip.style.display = "none"; return; }
+  const c = D.lanes[B.lane].ctx.cells[+d.c];
+  tip.textContent = c.purpose + (c.p ? " " + c.p.toFixed(2) : "") + " · " + c.k + " · " + tk(c.tok) + " tok × " + (c.died-c.born) + " calls (" + (c.born+1) + "→" + c.died + ") = " + tk(c.tok*(c.died-c.born)) + "\n" + c.label + (c.preview ? "\n\n" + c.preview : "");
+  tip.style.display = "block"; tip.style.left = Math.min(e.clientX + 12, innerWidth - 540) + "px"; tip.style.top = Math.max(0, e.clientY - 120) + "px";
+});
+bmap.addEventListener("mouseleave", () => tip.style.display = "none");
 </script>
 `;
 
