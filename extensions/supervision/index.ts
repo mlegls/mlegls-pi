@@ -46,8 +46,8 @@ export default function (pi: ExtensionAPI) {
 
 	dataTool(pi, {
 		name: "integrate", namespace,
-		description: "Merge a settled worker's branch into this checkout, then retire it (close its window and worktree, kill leftover processes, delete the branch once merged). " +
-			"Default rebases onto HEAD and fast-forwards; mode merge makes a merge commit. Uncommitted work refuses; a conflict aborts and names the files: send them to the worker to resolve on its branch. keep integrates without cleanup.",
+		description: "Merge a settled worker's branch into its recorded ab-parent checkout, then retire its thread and owned worktree, deleting the branch once merged. " +
+			"Default rebases onto that parent's HEAD and fast-forwards; mode merge makes a merge commit. Uncommitted work refuses; a conflict aborts and names the files: send them to the worker to resolve on its branch. keep integrates without cleanup.",
 		parameters: Type.Object({ worker: Worker, mode: Type.Optional(Type.Union([Type.Literal("rebase"), Type.Literal("merge")])), keep: Type.Optional(Type.Boolean()) }),
 		async run(p, ctx) {
 			try { return await integrate(p.worker as Handle | string, { cwd: ctx.cwd, mode: p.mode, keep: p.keep }); }
@@ -57,7 +57,7 @@ export default function (pi: ExtensionAPI) {
 
 	dataTool(pi, {
 		name: "retire", namespace,
-		description: "Retire a worker without integrating: close its window and worktree and kill leftover processes. Its branch is deleted only if every patch is already in HEAD, else kept and reported.",
+		description: "Retire a worker without integrating: close its thread and owned worktree and kill owned leftover processes. Its branch is deleted only if every patch is already in ab-parent, else kept and reported.",
 		parameters: Type.Object({ worker: Worker }),
 		run: (p, ctx) => retire(p.worker as Handle | string, { cwd: ctx.cwd }),
 	});

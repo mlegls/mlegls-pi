@@ -24,6 +24,7 @@ import { readFrom, type Message } from "../board/store.ts";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { listThreads, type ThreadSnapshot } from "../thread";
+import { readLive } from "../session-meta/live";
 import { close, declaredGate, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -150,6 +151,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const exitedPids = new Set<string>();
 	const observeHost = async () => {
 		try {
+			readLive(true);
 			host = await listThreads({ cwd });
 			for (const row of host) {
 				const previous = observedPids.get(row.thread.id);
@@ -164,7 +166,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (!host) return undefined; // backend failure never establishes exit
 		const row = host.find(r => h.threadId ? r.thread.id === h.threadId : r.thread.worker?.handle === h.handle && r.thread.worker.run === h.run && r.thread.cwd === h.path);
 		if (!row || !row.terminals.some(t => t.role === "agent")) return false;
-		return !exitedPids.has(row.thread.id) && row.state !== "exited";
+		const previous = observedPids.get(row.thread.id);
+		return !exitedPids.has(row.thread.id) && (row.state !== "exited" || (previous?.session === row.thread.sessionId && pidAlive(previous.pid)));
 	};
 
 	// --- launching -------------------------------------------------------------------------------------

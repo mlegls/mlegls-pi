@@ -17,6 +17,7 @@ import { basename, join, resolve } from "node:path";
 import { abandonThread, forkThread, getThread, historyThread, integrateThread, listThreads, newThread, sendThread, threadSnapshot, ThreadMergeConflict, workerThread, type ThreadRecord, type ThreadSnapshot } from "./thread";
 import { isPiLaunch } from "./thread/launch";
 import { boardDir, logSize, readFrom, type Message } from "./board/store";
+import { readLive } from "./session-meta/live";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: Message } // checkpoint: fenced on context; paused for a follow-up like needs-input
@@ -180,6 +181,7 @@ class Poller {
 				if (o) for (const w of this.workers) if (w.topic === m.topic) w.emit(o);
 			}
 			if (![...this.workers].some(w => w.awaited)) return;
+			readLive(true); // missing/stale records are normal; unreadable/malformed observations defer
 			const rows = await listThreads();
 			for (const w of this.workers) {
 				try {
@@ -302,7 +304,7 @@ export class Worker {
 		}
 		if (entry.pid) this.observedPid = entry.pid;
 		if (!this.quietIsIdle) {
-			if (entry.state === "exited" && (this.observedPid || Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS)))
+			if (entry.state === "exited" && !this.observedPid && Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS))
 				this.emit({ kind: "exited", tail: await this.capture(30) });
 			return; // normal pi turns come only from the board
 		}
@@ -397,7 +399,10 @@ export class Worker {
 	async status(): Promise<string | undefined> {
 		const record = await this.record();
 		if (!record || record.archived) return undefined;
+		readLive(true);
 		const snap = await threadSnapshot(record.id);
+		if (snap.state === "exited" && this.observedSession === record.sessionId && this.observedPid && pidAlive(this.observedPid))
+			throw new Error("Canonical pi is alive without a current live state: " + record.id);
 		return snap.terminals.some(t => t.role === "agent") && snap.state !== "exited" ? snap.state : undefined;
 	}
 

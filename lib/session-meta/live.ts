@@ -89,16 +89,23 @@ export function takeRetired(record: Pick<Live, "pid" | "sessionId">): boolean {
 }
 
 /** Records whose process is still alive; stale ones are deleted on the way. */
-export function readLive(): Live[] {
+export function readLive(strict = false): Live[] {
 	const out: Live[] = [];
 	let names: string[] = [];
-	try { names = readdirSync(liveDir()); } catch { return out; }
+	try { names = readdirSync(liveDir()); }
+	catch (error) { if (strict && (error as { code?: string }).code !== "ENOENT") throw error; return out; }
 	for (const name of names) {
 		if (!name.endsWith(".json")) continue;
 		try {
 			const record = JSON.parse(readFileSync(join(liveDir(), name), "utf8")) as Live;
-			try { process.kill(record.pid, 0); out.push(record); } catch { removeLive(record.pid); }
-		} catch {}
+			if (strict && (!Number.isSafeInteger(record.pid) || record.pid < 1 || typeof record.sessionId !== "string" || !["working", "idle"].includes(record.state)))
+				throw new Error("Invalid live record: " + name);
+			try { process.kill(record.pid, 0); out.push(record); }
+			catch (error) {
+				if (strict && (error as { code?: string }).code !== "ESRCH") throw error;
+				removeLive(record.pid);
+			}
+		} catch (error) { if (strict && (error as { code?: string }).code !== "ENOENT") throw error; }
 	}
 	return out;
 }
