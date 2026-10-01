@@ -1,0 +1,120 @@
+=== CLI help ===
+ab mail <to> <text...>
+ab mail --stats
+ab mail --show ID...      full message by id, as wake lines print it (muo2v7zh or muo2v7zh-4hhujf)
+
+Message a pi session, or a channel of sessions. Every session subscribes with wake to
+  mail/<8 hex>             its mailbox: the last 8 hex of its session id
+  wt/<repo>/<branch>       the worktree (or checkout) it works in
+  ticket/<repo>/<slug>     the tracker issue its branch or wm handle names
+All are shown in its footer (✉ mailbox, # channels); the mailbox is also in the tmux status
+bar. A message starts the reader's next turn, or waits for the current one to end.
+
+Ticket mail is shared: implement, drive, review, and consolidation worktrees for a
+supervised issue join the issue's topic, while each phase has its own worktree address.
+To steer one waiting worker, prefer the exact worktree address in exception mail.
+
+The destination is a topic, an eight-hex mailbox, or a full session ID; text can come from stdin.
+Reply hints print only the destination. Use `ab mail <to> <text...>` or stdin to reply;
+`TEXT` is a placeholder and is rejected as a message body.
+From a pi session the message is signed with your own mailbox, so readers can reply.
+`ab mail` exits nonzero when it finds no live subscriber. For an older live session
+whose subscriptions cannot be verified, it only warns; uncertainty is not proof that
+no reader is listening. The message is still recorded, but it will not wake a reader
+that wasn't subscribed when sent. A live snapshot cannot prove that the reader consumed it.
+
+The worktree and ticket channels are on trial: --stats counts posts, topics and
+senders per kind, to see whether they get used beside direct mail.
+
+=== Board exports ===
+logSize(0)
+meta(1)
+read(1)
+readFrom(1)
+send(1)
+topics(1)
+waitFor(1)
+=== Empty owned-board preflight ===
+=== Exact argv placeholder ===
+ab: "TEXT" is a placeholder, not a message; provide the reply text
+exit=2
+=== Stats after rejection ===
+=== Read after rejection ===
+{
+  "messages": [],
+  "omitted": 0,
+  "total": 0
+}
+=== Exact stdin placeholder ===
+ab: "TEXT" is a placeholder, not a message; provide the reply text
+exit=2
+=== Read after both rejections ===
+{
+  "messages": [],
+  "omitted": 0,
+  "total": 0
+}
+=== Send a complete correction ===
+mail/abcd1234 muovo3fi-2e0vq6
+warning: no live subscribers for mail/abcd1234; message was recorded but cannot wake a reader
+exit=1
+=== Read correction ===
+{
+  "messages": [
+    {
+      "id": "muovo3fi-2e0vq6",
+      "ts": "2026-10-01T01:51:00.702Z",
+      "topic": "mail/abcd1234",
+      "tags": [],
+      "from": {
+        "session": "01a0f527-7aa1-7213-97d0-7a36ced26d18",
+        "name": "mail/ced26d18"
+      },
+      "body": "Correction: the check finished; the literal TEXT above was only a placeholder. This is the complete second sentence.",
+      "line": 1
+    }
+  ],
+  "omitted": 0,
+  "total": 1
+}
+=== Show correction as wake lines ===
+=== muovo3fi-2e0vq6 2026-10-01T01:51:00.702Z mail/abcd1234 from mail/ced26d18
+Correction: the check finished; the literal TEXT above was only a placeholder. This is the complete second sentence.
+exit=0
+=== Send multiline stdin correction ===
+mail/abcd1234 muovoaed-9wayrz
+warning: no live subscribers for mail/abcd1234; message was recorded but cannot wake a reader
+exit=1
+=== Read both real messages ===
+{
+  "messages": [
+    {
+      "id": "muovo3fi-2e0vq6",
+      "ts": "2026-10-01T01:51:00.702Z",
+      "topic": "mail/abcd1234",
+      "tags": [],
+      "from": {
+        "session": "01a0f527-7aa1-7213-97d0-7a36ced26d18",
+        "name": "mail/ced26d18"
+      },
+      "body": "Correction: the check finished; the literal TEXT above was only a placeholder. This is the complete second sentence.",
+      "line": 1
+    },
+    {
+      "id": "muovoaed-9wayrz",
+      "ts": "2026-10-01T01:51:09.733Z",
+      "topic": "mail/abcd1234",
+      "tags": [],
+      "from": {
+        "session": "01a0f527-7aa1-7213-97d0-7a36ced26d18",
+        "name": "mail/ced26d18"
+      },
+      "body": "Correction from stdin.\nThe entire second line must arrive.",
+      "line": 2
+    }
+  ],
+  "omitted": 0,
+  "total": 2
+}
+=== Isolated board stats ===
+mail	2 posts	1 topics	1 senders
