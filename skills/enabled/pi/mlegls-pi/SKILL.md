@@ -1,21 +1,15 @@
 ---
 name: mlegls-pi
-description: "Use when editing this package from any session: repo layout, adding or overriding an exec module, testing and reloading."
+description: "Use when editing this package from any session: repo layout, testing and reloading."
 ---
 
-canonical checkout `~/dev/mlegls-pi`. worktrees under `~/dev/mlegls-pi__worktrees/`. pi-package: `extensions/`, `lib/`, `skills/{pi,mlegls-pi}`, `prompts/`, `themes/`. user skills `skills/{enabled,disabled}`, `agents/`, `agent-prompts/` (system-config symlinks these and runs agents-apply). cell API: `extensions/exec/README.md`.
+canonical checkout `~/dev/mlegls-pi`. worktrees under `~/dev/mlegls-pi__worktrees/`. pi-package: `extensions/`, `lib/` (host extensions are `lib/<name>/host.ts`), `skills/enabled/pi/{pi,mlegls-pi}`, `prompts/`, `themes/`. user skills `skills/enabled`, `agents/`, `agent-prompts/` (system-config symlinks these and runs agents-apply).
 
-exec cell: `lib/<name>.ts` is `<name>` (not names already in the cell API). `.pi/exec/<name>.ts` in the project shadows that file; a stem that isn't in lib is `project.<name>`. upstream by moving the file to `lib/`.
-
-add or override: write `.pi/exec/<name>.ts`, `/exec-reset`. try it in a cell, then `bun test extensions/exec`. run `bunx tsc --noEmit` for typechecking.
-
-kernel reload: `/exec-reset` or a new session. a running kernel keeps the modules it started with.
-
-host hooks: `lib/<name>/host.ts` exports a default Pi extension factory and is explicitly listed in `package.json` under `pi.extensions`. Pi owns per-extension installation and failure isolation. `/reload` or restart Pi after changing host code. `extensions/disabled/` holds archived adapters.
+every extension entrypoint is listed explicitly in `package.json` under `pi.extensions`. `/reload` or restart pi after changing extension code. `bun test`; `bunx tsc --noEmit` for typechecking.
 
 ## hosts
 
-Workers run as `wm` workers (workmux + tmux) and report over the board; `dispatch.dispatch` launches prepared assignments. Every session also listens on its mailbox, board topic `mail/<last 8 hex of its session id>` (`lib/board/mailbox`), shown in its footer and the tmux status bar; `ab mail <to> <text>` sends to one, signed with your own so the reader can reply.
+Workers run as `wm` workers (workmux + tmux) and report over the board; `dispatch` launches prepared assignments. Every session also listens on its mailbox, board topic `mail/<last 8 hex of its session id>` (`lib/board/mailbox`).
 
 Worker handoffs separate observations from hypotheses. For data claims, include the identifiers actually joined (for example Session → thread → messages), not just a row count. “53 messages exist on thread X; its Session ownership is unchecked” is evidence; “Session Y lost its messages” is not established by that count.
 

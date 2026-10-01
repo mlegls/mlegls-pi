@@ -1,3 +1,2 @@
 [test]
 preload = ["./lib/test-preload.ts"]
-pathIgnorePatterns = ["skills/disabled/**", "dsh/**"]

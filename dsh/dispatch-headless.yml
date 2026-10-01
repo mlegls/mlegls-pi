@@ -1,9 +1,0 @@
-# Headless dsh-base has global filesystem tools and no preset registry.
-# Apply after cordis.yml and dispatch.yml, only for --profile headless.
-- id: tool-fs
-  disabled: true
-- insert:
-    - id: agent-preset-registry
-      name: '@deepseek-ai/dsh-agent-preset-registry'
-      config:
-        default: hashline
