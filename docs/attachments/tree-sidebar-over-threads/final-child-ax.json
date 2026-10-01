@@ -1,0 +1,132 @@
+{
+  "_note": "Prefer `elements` \u2014 `tree_markdown` will continue to work but new fields will only be added to the structured side. Issue #22865: use `max_elements` / `max_depth` to bound the AX walk on apps with very large trees.",
+  "app_name": "Ghostty",
+  "background_input": {
+    "exact_window": {
+      "pid": 5885,
+      "status": "matched",
+      "window_id": 19231
+    },
+    "observation": {
+      "frame_freshness": "unknown",
+      "one_shot_capture": "available"
+    },
+    "routes": [
+      {
+        "route": "accessibility",
+        "status": "available"
+      },
+      {
+        "route": "window_pointer",
+        "status": "available"
+      },
+      {
+        "reason": "same_pid_keyboard_ambiguity",
+        "route": "pid_keyboard",
+        "status": "refused"
+      }
+    ]
+  },
+  "capture_id": "capture_865f8fb352b7491bbae93e294787c7ae_000000000000006c",
+  "element_count": 3,
+  "elements": [
+    {
+      "actions": [
+        "AXRaise"
+      ],
+      "depth": 0,
+      "element_index": 0,
+      "element_token": "s00000098:0",
+      "frame": {
+        "h": 944,
+        "w": 1512,
+        "x": 0,
+        "y": 38
+      },
+      "label": "ab tree 87b610fa-9f14-4403-bae2-62903325df5f",
+      "role": "AXWindow",
+      "screenshot_frame": {
+        "h": 979,
+        "w": 1568,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "actions": [
+        "AXIncrement",
+        "AXDecrement"
+      ],
+      "depth": 1,
+      "element_index": 1,
+      "element_token": "s00000098:1",
+      "enabled": true,
+      "frame": {
+        "h": 916,
+        "w": 7,
+        "x": 242.5,
+        "y": 66
+      },
+      "label": "Horizontal split divider",
+      "parent_index": 0,
+      "role": "AXButton",
+      "screenshot_frame": {
+        "h": 950,
+        "w": 7,
+        "x": 251,
+        "y": 29
+      },
+      "value": "16%"
+    },
+    {
+      "actions": [
+        "AXPress"
+      ],
+      "depth": 1,
+      "element_index": 2,
+      "element_token": "s00000098:2",
+      "enabled": true,
+      "frame": {
+        "h": 16,
+        "w": 16,
+        "x": 6,
+        "y": 44
+      },
+      "parent_index": 0,
+      "role": "AXButton",
+      "screenshot_frame": {
+        "h": 17,
+        "w": 17,
+        "x": 6,
+        "y": 6
+      }
+    }
+  ],
+  "elements_complete": false,
+  "nodes_pending": 5,
+  "nodes_visited": 15,
+  "pid": 5885,
+  "returned_element_count": 3,
+  "screenshot_file_path": "/Users/mlegls/dev/mlegls-pi__worktrees/tree-sidebar-over-threads-implement-m/docs/attachments/tree-sidebar-over-threads/final-child.png",
+  "screenshot_frame_valid": true,
+  "screenshot_height": 979,
+  "screenshot_mime_type": "image/png",
+  "screenshot_scale": 2,
+  "screenshot_width": 1568,
+  "snapshot_id": "s00000098",
+  "timeout_ms": 1000,
+  "total_element_count": 3,
+  "tree_markdown": "- [0] AXWindow \"ab tree 87b610fa-9f14-4403-bae2-62903325df5f\" [id=_NS:11 actions=[raise]]\n  - AXTextArea = \"threads \u00b7 spawn  tab: other tree        \n\u258c\u25be\u25cf main \u00b743e947  project guest         \n  \u25be\u25cf sidebar-child                      \n    \u25cf sidebar-grandchild                \n   \u25cf main \u00b704848f guest                 \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n                                        \n/private/tmp/ab-thread-sidebar-m-redrive\n/ filter  enter open  ? help\"\n  - AXTextArea = \"s-MacBook-Pro:sidebar-child mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi__worktrees/tree-sidebar-over-threads-implement-m/lib/thread/agent-runner.ts 41c601e6-b\nfd9-4e60-b8c4-43577f68bab5; echo ZMX_TASK_COMPLETED:b381:$?\nChild thread\"\n  - [1] AXButton = \"16%\" (Horizontal split divider) [help=\"Drag to resize the left and right panes\" actions=[increment,decrement]]\n  - [2] AXButton [actions=[press]]\n\n\u26a0\ufe0f PARTIAL TREE: the max_elements node budget ran out after 15 node(s) (5 discovered but not visited). Every element listed is real; elements after the cut are missing. If the element you need is absent, retry with a larger timeout_ms (e.g. 5000) or narrow with query / max_depth.",
+  "truncated": true,
+  "truncation_reason": "node_budget",
+  "walk_elapsed_ms": 5,
+  "window_bounds": {
+    "height": 944,
+    "width": 1512,
+    "x": 0,
+    "y": 38
+  },
+  "window_id": 19231,
+  "window_title": "ab tree 87b610fa-9f14-4403-bae2-62903325df5f",
+  "evidence_projection": "Only the owned window subtree; menu-bar elements omitted"
+}

@@ -4,7 +4,7 @@ for: maintainer
 
 # Work in threads
 
-Run `ab thread new --in "$PWD"` for a thread in the current checkout, or `ab thread new --worktree <branch>` for an owned worktree. To register an existing pi session, use `/thread promote` there, or `ab thread promote <session-file>` from a shell. Threads run in zmx; closing a window detaches, rather than stopping them.
+Run `ab thread new --in "$PWD"` for a thread in the current checkout, or `ab thread new --worktree <branch>` for an owned worktree. To register an existing pi session, use `ab thread promote <session-file>`. Threads run in zmx; closing a window detaches, rather than stopping them.
 
 Run `ab tree sidebar` from the project. It opens a fresh Ghostty window with two splits: the thread sidebar and one main terminal. Existing windows are untouched. Use this checkout's `bin/ab` when trying an uninstalled change. Ghostty on macOS needs its AppleScript dictionary; zmx comes from the project's mise setup.
 
@@ -22,5 +22,7 @@ Click the heading, or use Tab/s, to switch between the spawn and merge trees. Th
 Merge, archive and abandonment ask `[y/N]`; type `y` and Enter to proceed, or Escape to cancel. They stop the retired threads' terminals; owned worktrees are removed. They are not merely "close window" actions.
 
 Auxiliary shells, editors and servers aren't managed in this sidebar. Use plain Ghostty terminals separately. `q` closes the sidebar; closing the whole window leaves active threads running. Open another sidebar window to look at them again.
+
+If the sidebar says another window leads the thread, type in this window's main split before switching. If it has no leader, reattach the main client or reopen the sidebar. zmx 0.8.1's underlying switch failure is tracked in [[projects/mlegls-pi/issues/zmx-switch-without-a-leader-kills-the-source]]; the sidebar refuses known unsafe switches.
 
 Implementation first use: [[projects/mlegls-pi/attachments/tree-sidebar-over-threads/index]]. Story: [[projects/mlegls-pi/stories/work-in-threads]].
