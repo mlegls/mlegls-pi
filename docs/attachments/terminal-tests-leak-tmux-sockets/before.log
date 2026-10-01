@@ -1,0 +1,17 @@
+Owned TMUX_TMPDIR=/tmp/pi-socket-drive.kDkpvW
+label=pi-terminal-test-drive-stale pid=56181 socket=/private/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-stale
+Sent SIGKILL to owned server 56181
+label=pi-terminal-drive-stale pid=56361 socket=/private/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-drive-stale
+Sent SIGKILL to owned server 56361
+label=drive-unrelated-stale pid=56540 socket=/private/tmp/pi-socket-drive.kDkpvW/tmux-501/drive-unrelated-stale
+Sent SIGKILL to owned server 56540
+label=pi-terminal-test-drive-live pid=56675 socket=/private/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-live
+
+Before suite:
+/tmp/pi-socket-drive.kDkpvW/tmux-501/drive-unrelated-stale
+/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-drive-stale
+/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-live
+/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-stale
+
+Live sentinel:
+has-session exit=0

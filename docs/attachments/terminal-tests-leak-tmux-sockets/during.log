@@ -1,0 +1,9 @@
+During suite, owned directory only:
+/tmp/pi-socket-drive.kDkpvW/tmux-501/drive-unrelated-stale
+/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-drive-stale
+/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-live
+/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-stale
+
+Live sentinel:
+pid=56675 socket=/private/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-live
+display-message exit=0
