@@ -23,6 +23,7 @@ export function launchEnv(thread: ThreadRecord): NodeJS.ProcessEnv {
 	}
 	delete env.PI_SESSION_ID;
 	delete env.PI_SESSION_FILE;
+	delete env.ZMX_SESSION_PREFIX;
 	return env;
 }
 

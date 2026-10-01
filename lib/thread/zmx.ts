@@ -18,6 +18,7 @@ export interface ZmxTerminal {
 export function backgroundEnv(): NodeJS.ProcessEnv {
 	const env = { ...process.env };
 	delete env.ZMX_SESSION;
+	delete env.ZMX_SESSION_PREFIX;
 	return env;
 }
 
@@ -27,7 +28,9 @@ export function zmxBinary(): Promise<string> {
 }
 
 export async function zmx(args: string[], cwd?: string, env = backgroundEnv()): Promise<string> {
-	delete (env = { ...env }).ZMX_SESSION;
+	env = { ...env };
+	delete env.ZMX_SESSION;
+	delete env.ZMX_SESSION_PREFIX;
 	return command(await zmxBinary(), args, cwd, env);
 }
 

@@ -29,10 +29,10 @@ async function spawnParent(options: NewThreadOptions): Promise<string | undefine
 }
 
 async function setup(cwd: string): Promise<void> {
-	let tasks: { name: string }[];
-	try { tasks = JSON.parse(await command("mise", ["tasks", "ls", "--json"], cwd)); }
+	let declared: boolean;
+	try { declared = (JSON.parse(await command("mise", ["tasks", "ls", "--json"], cwd)) as { name: string }[]).some(t => t.name === "setup"); }
 	catch { return; } // Same task discovery boundary as reconcile/checks.ts declaredGate.
-	if (tasks.some(t => t.name === "setup")) await command("mise", ["run", "setup"], cwd);
+	if (declared) await command("mise", ["run", "setup"], cwd);
 }
 
 export async function newThread(options: NewThreadOptions = {}): Promise<ThreadRecord> {
@@ -44,6 +44,9 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 	if (options.worker && await workerThread(options.worker.handle, spawning.cwd, options.worker.run))
 		throw new Error("Active worker already exists: " + options.worker.run + "/" + options.worker.handle);
 	const source = options.forkFrom && await sessionFile(options.forkFrom, spawning.cwd);
+	const origin = options.parentSession ?? process.env.PI_SESSION_ID;
+	const parentSession = origin ? readLive().find(l => l.sessionId === origin || l.sessionFile === origin)?.sessionFile
+		?? (options.parentSession && existsSync(options.parentSession) ? resolve(options.parentSession) : origin === process.env.PI_SESSION_ID ? process.env.PI_SESSION_FILE : undefined) : undefined;
 	const id = randomUUID();
 	const name = options.worktree ?? options.worker?.handle ?? id;
 	let location: ReturnType<typeof checkout>;
@@ -61,7 +64,7 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 	let thread: ThreadRecord | undefined;
 	let file: string | undefined;
 	try {
-		const manager = source ? SessionManager.forkFrom(source, location.cwd, undefined, { id }) : SessionManager.create(location.cwd, undefined, { id });
+		const manager = source ? SessionManager.forkFrom(source, location.cwd, undefined, { id }) : SessionManager.create(location.cwd, undefined, { id, parentSession });
 		file = manager.getSessionFile()!;
 		if (!source) await persistHeader(file, id, location.cwd);
 		thread = {
@@ -106,10 +109,13 @@ export async function forkThread(source: string, options: NewThreadOptions = {})
 
 export async function promoteThread(session: string, cwd = process.cwd()): Promise<ThreadRecord> {
 	const file = await sessionFile(session, cwd);
+	const current = readLive().find(l => l.sessionId === session || l.sessionFile === file);
+	if (current) await persistHeader(file, current.sessionId, current.cwd);
 	const header = await sessionHeader(file);
 	const member = await threadForSession(header.id);
 	if (member) return member;
-	const current = readLive().find(l => l.sessionId === header.id);
+	const collision = await getThread(header.id);
+	if (collision) throw new Error("Session " + header.id + " is the immutable id of thread " + collision.id + " (current session " + collision.sessionId + "); fork it instead");
 	const location = checkout(current?.cwd ?? header.cwd);
 	const thread: ThreadRecord = {
 		id: header.id, sessionId: header.id, sessionFile: file, ...location,
@@ -183,6 +189,7 @@ export async function ensureTerminal(id: string, role = "agent"): Promise<Thread
 	const thread = await activeThread(id);
 	const terminal = { name: id + "." + role, role };
 	await terminalLock(terminal.name, async () => {
+		await activeThread(id);
 		let existing = (await terminals()).find(t => t.name === terminal.name);
 		if (existing && ((existing.thread && existing.thread !== id) || (existing.role && existing.role !== role)))
 			throw new Error("Terminal has conflicting ownership: " + terminal.name);
@@ -213,7 +220,9 @@ export async function attachThread(id: string, role = "agent"): Promise<void> {
 	const bin = await zmxBinary();
 	await new Promise<void>((resolve, reject) => {
 		// Unlike background commands, attach deliberately keeps ZMX_SESSION for zmx's switch path.
-		const child = spawn(bin, ["attach", terminal.name], { cwd: thread.cwd, stdio: "inherit" });
+		const env = { ...process.env };
+		delete env.ZMX_SESSION_PREFIX;
+		const child = spawn(bin, ["attach", terminal.name], { cwd: thread.cwd, env, stdio: "inherit" });
 		child.once("error", reject);
 		child.once("exit", code => code === 0 ? resolve() : reject(new Error("zmx attach " + terminal.name + " exited " + code)));
 	});

@@ -9,7 +9,7 @@ export async function sessionFile(source: string, cwd: string): Promise<string> 
 	if (existsSync(source)) return resolve(source);
 	const thread = await threadForSession(source);
 	if (thread) return thread.sessionFile;
-	const live = readLive().filter(l => l.sessionId === source && l.sessionFile);
+	const live = readLive().filter(l => l.sessionFile && (l.sessionId === source || l.sessionFile === resolve(source)));
 	const files = new Set(live.map(l => l.sessionFile!));
 	if (files.size > 1) throw new Error("Ambiguous session: " + source);
 	if (files.size) return [...files][0]!;
