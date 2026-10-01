@@ -51,3 +51,18 @@ The supplied setup was enough to reach a CLI, not enough to exercise the changed
 ## Cleanup and limits
 
 No services, dev servers, browser pages, containers, tunnels, jobs or deployments were started. The inherited daemon and its services were read-only. Full global service/job responses were reduced to selected non-secret metadata before committing. No repairs or tests were written. The packet establishes only the empty state, not acceptance of the three changed claims.
+
+## Review
+
+The driver's replays 2–4 were unobservable for want of a starting state. The reviewer built one through public surfaces only: an isolated `AB_STATE` whose job index holds a completed supervise job (two children: one in `drive`, one in `review` with `integrating` set), real `ab service start` entries in three of the checkout's `__worktrees` directories plus one outside them, and a worktree directory then deleted under its running service. `ab/supervise-status.test.ts` is that scenario, kept as the retained replay of checks 2–4.
+
+| Claim | Outcome | Observation |
+| --- | --- | --- |
+| 1. Phase, integrate marked | held | Job line ends `phase: drive, integrate`; the child line reads `landing integrate (in progress)`, the other `building drive`. |
+| 2. Worker services per job | held | Each job's `services:` block lists the services from its workers' worktrees (id, command, cwd), and not the service started outside the worker directory. |
+| 3. Missing-worktree services | held | `services with missing worktrees:` lists the service whose directory was deleted, with its id and command, and no live one. |
+| Stop removes the entry | held | After `ab service stop`, the stopped ids are gone from the next status. |
+
+Repairs: none to the change. `lib/jobs/supervise.test.ts` already failed on the base (`d58a5fe3`) on this machine: its generated probe imported `@earendil-works/pi-coding-agent` bare from a temp directory, so Bun auto-installed a broken 0.99.1 into its cache. It now imports by the repository's resolved path; the test passes, and exercises the changed `integrating` save/resume paths.
+
+Not retained: the empty-state check (driver's check 1) — the empty output is covered by the packet only, the design outcome being plain text. The resume-after-restart path of `integrating` (daemon restart mid-integrate) has no replay here; `supervise.test.ts` covers the accepted-head resume it generalises, not the new `integrating` flag specifically.
