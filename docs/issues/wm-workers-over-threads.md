@@ -3,11 +3,10 @@ stage: ticket
 assignee: agent:technical
 author: session:01a0f6e1-7ec3-7620-b7fd-edc63c2b3d94
 part-of: "[[projects/mlegls-pi/issues/thread-core-and-workers-on-zmx]]"
-blocked-by: ["[[projects/mlegls-pi/issues/thread-registry-and-zmx-launch]]", "[[projects/mlegls-pi/issues/thread-archive-and-abandon]]"]
 priority: 2
 ---
 
-Session mode: hacking. Preserve [[projects/mlegls-pi/stories/work-in-threads]]. The decisions in [[projects/mlegls-pi/issues/thread-registry-on-zmx]] and the committed `lib/thread/index.ts` seam are the contract; the seam is currently throwing stubs, not a second backend. Source evidence: [zmx/pi launch constraints](../attachments/thread-core-and-workers-on-zmx/source-contract.md).
+Session mode: hacking. Preserve [[projects/mlegls-pi/stories/work-in-threads]]. The decisions in [[projects/mlegls-pi/issues/thread-registry-on-zmx]] and the committed `lib/thread/index.ts` seam are the contract. Source evidence: [zmx/pi launch constraints](../attachments/thread-core-and-workers-on-zmx/source-contract.md).
 
 One atomic worker cutover: `lib/wm.ts`, `lib/session/jump.ts`, `lib/session-meta/{host,live}.ts`, `lib/board/host.ts`, `lib/dispatch.ts`, `lib/children.ts`, `lib/reconcile/{reconcile,main}.ts` and `extensions/supervision/index.ts`, plus their existing regression fixtures. No sidebar/workspace edits or global config. Keeping wm and its status consumers in one ticket avoids an intermediate backend/typecheck mismatch or a temporary dual host path. The registry and lifecycle children already own the worktree/zmx/Git machinery; this is its consumer wiring.
 
@@ -43,3 +42,9 @@ Mirror the existing fast-report fixture in wm.test.ts, reattachment-error distin
 Use the isolated PI_CODING_AGENT_DIR/package registration in the parent's First-use setup so both the driving pi and spawned workers load this checkout, not pre-cutover canonical main. From that pi, dispatch a trivial owning worker, receive its run/handle board report, integrate it into the dispatcher's branch, and confirm its zmx terminals, active thread and worktree are gone. Repeat integrate with keep then retire; repeat retire unmerged to show its branch remains. Parent join repeats this through freshly loaded tools.
 
 Use an isolated temporary tracker fixture with a two-level ready subtree and non-main parent checkout: reconcile implement/drive/review into child collector → parent collector → owning checkout. Inspect each worker's ab-parent: phase source HEAD never reroutes integration to canonical main. Force a worker exit and restart the daemon to observe current-thread reattachment/relaunch within existing budgets; don't attach to the old workmux host. Supply the fixture's entry command/state-file path and ids to the driver, clean all fixture processes/zmx/worktrees, and run existing dispatch/children/reconcile checks and root typecheck.
+
+## Implementation
+
+Workers and supervisors now use registered zmx threads. Receipts carry threadId, /jump resolves the current canonical session, and integration follows ab-parent. The reconciler passes destination checkouts separately from source SHAs; collectors record parent lineage and old workmux campaign state refuses new-backend resumption.
+
+[First-use setup and implementation self-check](../attachments/wm-workers-over-threads/index.md) includes real pi follow-ups, by-hand/free identity, public dispatch/integrate/retire, nested collectors, forced exit/restart, ids and cleanup. Existing regressions and root typecheck pass. Independent driving/review still follow this implementation.

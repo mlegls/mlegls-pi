@@ -1,0 +1,242 @@
+[
+  {
+    "event": "spawn",
+    "worker": {
+      "run": "worker-fixture",
+      "handle": "pi-worker",
+      "topic": "worker-fixture/pi-worker",
+      "dir": "/private/tmp/wm-thread-X4jSIO/repo__worktrees/pi-worker",
+      "cwd": "/private/tmp/wm-thread-X4jSIO/owner",
+      "session": "",
+      "threadId": "63f895e2-c273-480f-a6c1-bb37aaf44502"
+    }
+  },
+  {
+    "event": "first",
+    "result": [
+      {
+        "kind": "done",
+        "message": {
+          "id": "mupihhna-3fawvh",
+          "ts": "2026-10-01T12:29:43.702Z",
+          "topic": "worker-fixture/pi-worker",
+          "tags": [
+            "done"
+          ],
+          "from": {
+            "session": "63f895e2-c273-480f-a6c1-bb37aaf44502",
+            "name": "pi-worker",
+            "cwd": "/private/tmp/wm-thread-X4jSIO/repo__worktrees/pi-worker"
+          },
+          "body": "done bootstrap-ok"
+        }
+      }
+    ]
+  },
+  {
+    "event": "literal-unsubmitted",
+    "before": "mupihhna-3fawvh",
+    "after": "mupihhna-3fawvh"
+  },
+  {
+    "event": "follow-up",
+    "result": [
+      {
+        "kind": "done",
+        "message": {
+          "id": "mupihpiu-0b29j5",
+          "ts": "2026-10-01T12:29:53.910Z",
+          "topic": "worker-fixture/pi-worker",
+          "tags": [
+            "done"
+          ],
+          "from": {
+            "session": "63f895e2-c273-480f-a6c1-bb37aaf44502",
+            "name": "pi-worker",
+            "cwd": "/private/tmp/wm-thread-X4jSIO/repo__worktrees/pi-worker"
+          },
+          "body": "done follow-up-ok."
+        }
+      }
+    ]
+  },
+  {
+    "event": "history",
+    "plain": true,
+    "followupVisible": true,
+    "lines": 25
+  },
+  {
+    "event": "jump",
+    "canonical": "/private/tmp/wm-thread-X4jSIO/agent/sessions/--private-tmp-wm-thread-X4jSIO-repo__worktrees-pi-worker--/2026-10-01T12-29-36-962Z_63f895e2-c273-480f-a6c1-bb37aaf44502.jsonl",
+    "returned": "/private/tmp/wm-thread-X4jSIO/agent/sessions/--private-tmp-wm-thread-X4jSIO-repo__worktrees-pi-worker--/2026-10-01T12-29-36-962Z_63f895e2-c273-480f-a6c1-bb37aaf44502.jsonl",
+    "newerFree": "/private/tmp/wm-thread-X4jSIO/agent/sessions/--private-tmp-wm-thread-X4jSIO-repo__worktrees-pi-worker--/2026-10-01T12-29-54-240Z_01a0f771-52c0-7459-8597-d00f2697a294.jsonl"
+  },
+  {
+    "event": "jump-current",
+    "thread": "63f895e2-c273-480f-a6c1-bb37aaf44502",
+    "current": "/private/tmp/wm-thread-X4jSIO/agent/sessions/--private-tmp-wm-thread-X4jSIO-repo__worktrees-pi-worker--/2026-10-01T12-29-54-256Z_01a0f771-52d0-7459-8597-d0109b5ddc05.jsonl",
+    "returned": "/private/tmp/wm-thread-X4jSIO/agent/sessions/--private-tmp-wm-thread-X4jSIO-repo__worktrees-pi-worker--/2026-10-01T12-29-54-256Z_01a0f771-52d0-7459-8597-d0109b5ddc05.jsonl"
+  },
+  {
+    "event": "agent-killed",
+    "result": [
+      {
+        "kind": "exited",
+        "tail": "Thread agent is gone: 63f895e2-c273-480f-a6c1-bb37aaf44502"
+      }
+    ]
+  },
+  {
+    "event": "keep-close",
+    "cleanup": {
+      "closed": [
+        "63f895e2-c273-480f-a6c1-bb37aaf44502"
+      ],
+      "killed": [],
+      "branchesDeleted": [],
+      "branchesKept": [
+        {
+          "branch": "pi-worker",
+          "reason": "keepBranch requested"
+        }
+      ]
+    },
+    "branch": "pi-worker"
+  },
+  {
+    "event": "by-hand-pi",
+    "live": {
+      "pid": 30703,
+      "sessionId": "93de8146-bffc-496f-bbc9-af9095c441ac",
+      "sessionFile": "/private/tmp/wm-thread-X4jSIO/agent/sessions/--private-tmp-wm-thread-X4jSIO-owner--/2026-10-01T12-29-55-603Z_93de8146-bffc-496f-bbc9-af9095c441ac.jsonl",
+      "cwd": "/private/tmp/wm-thread-X4jSIO/owner",
+      "state": "working",
+      "since": "2026-10-01T12:30:03.434Z",
+      "mode": "print",
+      "thread": "93de8146-bffc-496f-bbc9-af9095c441ac",
+      "subscriptions": [
+        {
+          "topic": "thread/93de8146-bffc-496f-bbc9-af9095c441ac",
+          "wake": true
+        },
+        {
+          "topic": "mail/95c441ac",
+          "wake": true
+        },
+        {
+          "topic": "wt/repo/owner",
+          "wake": true
+        }
+      ],
+      "boardDir": "/private/tmp/wm-thread-X4jSIO/board"
+    },
+    "out": "done by-hand-ok\n",
+    "err": ""
+  },
+  {
+    "event": "ordinary-report",
+    "thread": "93de8146-bffc-496f-bbc9-af9095c441ac",
+    "report": {
+      "id": "mupihzsf-vnevhm",
+      "line": 6,
+      "ts": "2026-10-01T12:30:07.215Z",
+      "topic": "thread/93de8146-bffc-496f-bbc9-af9095c441ac",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "session": "93de8146-bffc-496f-bbc9-af9095c441ac",
+        "name": "owner",
+        "cwd": "/private/tmp/wm-thread-X4jSIO/owner"
+      },
+      "body": "done by-hand-ok"
+    },
+    "meta": [
+      {
+        "type": "custom",
+        "customType": "session-meta",
+        "data": {
+          "thread": "93de8146-bffc-496f-bbc9-af9095c441ac",
+          "mode": "tui"
+        },
+        "id": "831a4118",
+        "parentId": "b1f33ed1",
+        "timestamp": "2026-10-01T12:29:56.311Z"
+      }
+    ]
+  },
+  {
+    "event": "by-hand-pi",
+    "live": {
+      "pid": 35547,
+      "sessionId": "01a0f771-99dd-7459-8597-d013a635c9d6",
+      "sessionFile": "/private/tmp/wm-thread-X4jSIO/agent/sessions/--private-tmp-wm-thread-X4jSIO-owner--/2026-10-01T12-30-12-445Z_01a0f771-99dd-7459-8597-d013a635c9d6.jsonl",
+      "cwd": "/private/tmp/wm-thread-X4jSIO/owner",
+      "state": "working",
+      "since": "2026-10-01T12:30:13.272Z",
+      "mode": "print",
+      "subscriptions": [
+        {
+          "topic": "mail/a635c9d6",
+          "wake": true
+        },
+        {
+          "topic": "wt/repo/owner",
+          "wake": true
+        }
+      ],
+      "boardDir": "/private/tmp/wm-thread-X4jSIO/board"
+    },
+    "out": "free-ok\n",
+    "err": ""
+  },
+  {
+    "event": "free-report",
+    "session": "01a0f771-99dd-7459-8597-d013a635c9d6",
+    "meta": [
+      {
+        "type": "custom",
+        "customType": "session-meta",
+        "data": {
+          "mode": "print"
+        },
+        "id": "675efe6a",
+        "parentId": "22f98d52",
+        "timestamp": "2026-10-01T12:30:13.264Z"
+      }
+    ]
+  },
+  {
+    "event": "backend-failure",
+    "result": []
+  },
+  {
+    "event": "pid-killed",
+    "pid": 44558,
+    "result": [
+      {
+        "kind": "exited"
+      }
+    ]
+  },
+  {
+    "event": "discard-close",
+    "cleanup": {
+      "closed": [
+        "0b7c0086-9f27-4c2c-9788-a840a40883fc"
+      ],
+      "killed": [
+        44553,
+        44552,
+        44556,
+        48876
+      ],
+      "branchesDeleted": [
+        "pid-worker"
+      ],
+      "branchesKept": []
+    },
+    "branch": ""
+  }
+]
