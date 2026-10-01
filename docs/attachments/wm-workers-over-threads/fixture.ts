@@ -1,7 +1,7 @@
 // Disposable first-use setup. Uses the public worker/supervisor surfaces, not a test suite.
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -109,6 +109,16 @@ if (action === "worker") {
   await wait([dying], { timeoutMs: 90_000 });
   await dying.observe(await listThreads());
   const live = await until(() => readLive().find(l => l.sessionId === dying.threadId));
+  const liveFile = join(root, "state/pi-live", live.pid + ".json");
+  await rename(liveFile, liveFile + ".held");
+  await dying.observe(await listThreads());
+  const missingStatus = await dying.status().catch(error => error.message);
+  console.log(JSON.stringify({ event: "alive-without-record", status: missingStatus, result: [...(await wait([dying], { timeoutMs: 1500 })).values()] }));
+  await rename(liveFile + ".held", liveFile);
+  const corrupt = join(root, "state/pi-live/broken.json");
+  await writeFile(corrupt, "invalid json");
+  console.log(JSON.stringify({ event: "live-read-failure", result: [...(await wait([dying], { timeoutMs: 1500 })).values()] }));
+  await rm(corrupt);
   const good = process.env.ZMX_DIR!;
   await writeFile(join(root, "not-a-directory"), "");
   process.env.ZMX_DIR = join(root, "not-a-directory");
