@@ -11,6 +11,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Type } from "typebox";
 import { storePath } from "../../lib/records/store.ts";
+import { similar } from "../../lib/records/vectors.ts";
 import { recallElided } from "./elide.ts";
 import { formatRecallRenderedResultForTui, recallObservationTool } from "./om/tools/recall-observation.ts";
 
@@ -20,6 +21,7 @@ const DESCRIPTION = "Recall anything remembered: OM memories, journal notes, eli
 	"- id: q \"id\", args [id], or just q \"<id>\": a 12-hex memory id (OM observation/reflection, with its sources; an elided output, in full) or any record id (board message ids like muppbafa-6uviod), shown with tags and edges.\n" +
 	"- entry: args [\"entry:<session>/<entry>\" or an entry id on this branch, ...]: the session entries' text.\n" +
 	"- search: args [text, schema?]: records whose body contains text, newest first.\n" +
+	"- similar: args [question or description, schema?, k?]: records nearest in meaning (embeddings), best first; for when you don't know the words used.\n" +
 	"SQL (SQLite, read-only; at most 100 rows, long cells cut):\n" +
 	"- records(seq, id, ts, schema, body): append-only; schema is om | journal | elided | board | cursor.\n" +
 	"- tags(record → records.seq, key, value, ord): every record has session. om: om.kind (observation | reflection | drop), om.id (the 12-hex memory id), om.timestamp, om.relevance, om.tokenCount. journal: journal.via, journal.model. elided: tool, tokens. board: topic, name, cwd, free tags (decision, blocked, done, …) and board.<field> data.\n" +
@@ -108,13 +110,13 @@ export default function (pi: ExtensionAPI) {
 		name: "recall",
 		label: "recall",
 		description: DESCRIPTION,
-		promptSnippet: "Recall memories, elided outputs, board messages and session entries by id, search, or read-only SQL over the records store",
+		promptSnippet: "Recall memories, elided outputs, board messages and session entries by id, text or semantic search, or read-only SQL over the records store",
 		promptGuidelines: [
 			"Use recall <id> to resolve a memory id or elision pointer before acting on details it stands for.",
 			"Use recall with SQL to answer questions about earlier work across sessions (decisions, board history, what an output said).",
 		],
 		parameters: Type.Object({
-			q: Type.String({ description: "id | entry | search | a memory or record id | a SELECT/WITH query" }),
+			q: Type.String({ description: "id | entry | search | similar | a memory or record id | a SELECT/WITH query" }),
 			args: Type.Optional(Type.Array(Type.Union([Type.String(), Type.Number()]), { description: "Function arguments, or the query's ? parameters" })),
 		}),
 		renderResult(result: any, options) {
@@ -126,13 +128,29 @@ export default function (pi: ExtensionAPI) {
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			const branch = ctx.sessionManager.getBranch() as SessionEntry[];
 			const q = params.q.trim(), args = params.args ?? [];
-			const fn = /^\w+$/.test(q) && ["id", "entry", "search"].includes(q) ? q : /^(select|with)\b/i.test(q) ? "sql" : "id";
+			const fn = /^\w+$/.test(q) && ["id", "entry", "search", "similar"].includes(q) ? q : /^(select|with)\b/i.test(q) ? "sql" : "id";
 			const id = fn === "id" ? String(q === "id" ? args[0] ?? "" : q) : "";
 			if (fn === "id" && MEMORY_ID.test(id)) {
 				const om = await recallObservationTool.execute(toolCallId, { id }, signal, onUpdate as any, ctx);
 				if ((om.details as any)?.status !== "not_found") return om;
 				const elided = recallElided(branch, id);
 				if (elided) return { content: elided.content, details: undefined };
+			}
+			if (fn === "similar") {
+				const [question, schema, k] = args;
+				if (!question) return text("similar needs args: [question, schema?, k?]");
+				const { hits, pending } = await similar(String(question), { schema: schema ? String(schema) : undefined, k: Number(k) || 10 });
+				const d = new Database(storePath(), { readonly: true });
+				try {
+					const seen = new Set<string>();
+					const rows = hits.flatMap((h) => {
+						const r = d.query("SELECT id, ts, schema, substr(body, 1, 400) AS body FROM records WHERE seq = ?").get(h.seq) as Record<string, unknown> | null;
+						if (!r || seen.has(r.body as string)) return [];
+						seen.add(r.body as string);
+						return [{ score: h.score.toFixed(3), ...r }];
+					});
+					return text(table(rows, rows.length) + (pending ? "\n[" + pending + " newer records not embedded yet]" : ""));
+				} finally { d.close(); }
 			}
 			if (fn === "entry") return text(args.length ? entries(args.map(String), branch) : "entry needs args: entry refs or ids");
 			const d = open(branch);
