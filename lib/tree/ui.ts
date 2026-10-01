@@ -229,6 +229,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	}
 	draw();
 	await refresh();
+	if (!shown && selected && binding) attach(selected);
 	setInterval(refresh, 3000);
 }
 

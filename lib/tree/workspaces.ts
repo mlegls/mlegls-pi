@@ -3,7 +3,8 @@ import { basename } from "node:path";
 import { listThreads, type ThreadRow } from "../thread";
 
 export type TreeMode = "spawn" | "merge";
-export const label = (row: ThreadRow) => row.thread.worker?.handle ?? row.thread.branch ?? basename(row.thread.cwd);
+export const label = (row: ThreadRow) => (row.thread.worker?.handle ?? row.thread.branch ?? basename(row.thread.cwd))
+	+ (row.thread.ownership === "guest" ? " ·" + row.thread.id.slice(0, 6) : "");
 
 export async function workspaces(mode: TreeMode): Promise<ThreadRow[]> {
 	return listThreads({ tree: mode });
