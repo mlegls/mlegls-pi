@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 4
 author: session:01a0f324-32e8-732c-96ad-132d2d15485e
@@ -10,3 +10,7 @@ author: session:01a0f324-32e8-732c-96ad-132d2d15485e
 ## Result
 
 [First-use socket-cleanup drive](../attachments/terminal-tests-leak-tmux-sockets/index.md).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/terminal-tests-leak-tmux-sockets/index.md).
