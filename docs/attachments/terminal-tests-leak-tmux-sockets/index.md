@@ -115,3 +115,25 @@ These describe CLI observations for a reviewer, not newly written tests.
 4. Kill the live sentinel with its exact `-L` label, remove only this allocated
    directory, and verify its recorded PID no longer exists. Never clean the
    shared system tmux socket directory as part of this drive.
+
+## Review
+
+Read `lib/session/tmux-test-utils.ts` and the three test call sites against the
+ticket. Teardown kills the server, waits up to 1 s for the socket to stop
+answering, then unlinks it only if it is still the same stale socket inode.
+The sweep only touches names with the test's own prefix and skips any socket that
+accepts a connection (a timeout counts as live), so live servers survive; the
+packet's seeded drive showed the same. Every test that starts a `-L` server
+(`tmux.test.ts`, `alerts.test.ts`, `extensions/exec/migration.test.ts`) goes
+through the helper.
+
+Re-ran `env -u TMUX TMUX_TMPDIR=<fresh dir> ab check -- bun test lib/session
+extensions/exec/migration.test.ts` twice on `f1df67c`: 29 pass, 0 fail both
+times, and the owned socket directory was empty after each run. The cursor-wait
+failure did not reproduce; it stays as the filed idea issue.
+
+No tests added. The driver's checks are seed-specific outcome checks of this
+ticket and stay as evidence here; the suite itself is now the regression (it
+would leave sockets, visible in the directory, if teardown broke). Not exercised:
+abrupt Bun runner termination (leaves sockets by design; the next suite start
+sweeps them).
