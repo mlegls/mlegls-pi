@@ -43,3 +43,6 @@ export function diff(before: Snapshot, after: Snapshot): string {
   }
   return out.length ? "Changed since " + before.taken + ":\n\n" + out.join("\n\n") : "Unchanged since " + before.taken + ".";
 }
+
+// bun lib/views.ts: print the current project's views.
+if (import.meta.main) console.log(format(snapshot()));

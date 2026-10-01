@@ -41,6 +41,7 @@ export interface SpawnOptions {
 	session?: string; // tmux session; default slug of run
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
 	parentSessionFile?: string; // session jsonl; --fork needs the path because the child's cwd is a different project
+	follow?: string; // board topic glob whose decisions the worker sees without waking (siblings' coordination)
 	from?: "fork" | "summary"; // fork: pi --fork <parent>; summary: prepend an extract of the parent session to the prompt
 }
 
@@ -117,7 +118,7 @@ export function prompt(o: { run: string; handle: string; prompt: string; agent?:
 }
 
 /** Env exported into the worker's agent command: board identity, spawn provenance, and the fence's checkpoint ratio. */
-export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string }): string[] {
+export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string; follow?: string }): string[] {
 	return [
 		`PI_BOARD_NAME=${o.handle}`,
 		`PI_BOARD_TOPIC=${o.run}/${o.handle}`,
@@ -126,6 +127,10 @@ export function spawnEnv(o: { run: string; handle: string; agent?: string; paren
 		`PI_WM_HANDLE=${o.handle}`,
 		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
 		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
+		// A run name, not a glob: workmux passes the env prefix through a shell unquoted.
+		o.follow && `PI_BOARD_FOLLOW=${o.follow}`,
+		// The tmux window doesn't inherit this process's env: carry a non-default agent dir to the worker.
+		process.env.PI_CODING_AGENT_DIR && `PI_CODING_AGENT_DIR=${process.env.PI_CODING_AGENT_DIR}`,
 	].filter((v): v is string => Boolean(v));
 }
 
@@ -465,18 +470,6 @@ async function ensureSession(name: string, cwd: string) {
 	}
 }
 
-// pi asks "Trust project folder?" on first launch in an untrusted folder, and a headless worker
-// sits at that prompt forever without a session file. Worktrees of a trusted repo hold the same
-// code, so extend the repo's trust to its __worktrees folder; an untrusted repo still prompts.
-export function trustWorktrees(cwd: string, file = join(homedir(), ".pi", "agent", "trust.json")) {
-	if (!existsSync(file)) return;
-	const trust = JSON.parse(readFileSync(file, "utf8")) as Record<string, boolean>;
-	const trusted = (dir: string) => Object.entries(trust).some(([k, v]) => v && (dir === k || dir.startsWith(k + "/")));
-	const wt = resolve(cwd, "..", `${basename(cwd)}__worktrees`);
-	if (!trusted(cwd) || trusted(wt)) return;
-	trust[wt] = true;
-	writeFileSync(file, JSON.stringify(trust, null, 2) + "\n");
-}
 
 /** Workers write scratch under `.wm/<handle>/`; keep it out of every worktree's status without touching .gitignore. */
 async function excludeWm(cwd: string) {
@@ -498,13 +491,13 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	if (o.command === undefined && (!o.model?.includes("/") || !o.effort))
 		throw new Error("wm.spawn requires routed model (provider/model) and effort, or an explicit command");
 	const quote = (text: string) => "'" + text.replaceAll("'", "'\"'\"'") + "'";
-	let cmd = o.command ?? "pi --model " + quote(o.model!) + " --thinking " + quote(o.effort!);
+	// --approve: the parent chose to run work in this repository, so its worktrees skip the project-trust prompt.
+	let cmd = o.command ?? "pi --approve --model " + quote(o.model!) + " --thinking " + quote(o.effort!);
 	if (!cmd.trim()) throw new Error("command must not be empty");
 	const cwd = resolve(o.cwd ?? process.cwd());
 	const session = o.session ?? slug(o.run);
 	await ensureSession(session, cwd);
 	await excludeWm(cwd);
-	trustWorktrees(cwd);
 	// Own the board window before workmux starts the agent, or a fast report is consumed by a ticking poller against nobody.
 	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
 	w.quietIsIdle = o.command !== undefined;
@@ -523,7 +516,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			cmd = withFork(cmd, source);
 		}
 		// Board identity, spawn provenance (session-meta), and the fence ratio ride the agent command's env.
-		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint });
+		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint, follow: o.follow });
 		args.push("-a", `${env.join(" ")} ${cmd}`);
 		if (o.base) args.push("--base", o.base);
 		const out = await sh("workmux", args, cwd);

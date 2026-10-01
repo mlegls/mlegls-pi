@@ -6,7 +6,7 @@ import { loadConfig, type OutlineReadConfig } from "./config";
 import { renderOutline, type Elision } from "./outline/render";
 import type { OutlineNode, OutlineSource } from "./outline/types";
 import { formatRow } from "./anchors";
-import { pipe, PipeParam, words } from "../pipe";
+import { words } from "./words";
 import type { Ledger } from "./ledger";
 import { formatRanges, normalizeRanges, splitSelector, type Selector } from "./selector";
 
@@ -19,7 +19,6 @@ const parameters = Type.Object({
 	}),
 	offset: Type.Optional(Type.Number({ description: "Alternative to a selector (single path): 1-indexed start line." })),
 	limit: Type.Optional(Type.Number({ description: "Alternative to a selector (single path): number of lines from offset." })),
-	pipe: PipeParam,
 });
 
 type ToolResult = AgentToolResult<unknown>;
@@ -71,8 +70,7 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 		description:
 			"Read one or more files in one call (paths whitespace-separated). Files over a size threshold come back as an outline: definitions and headings are shown with their line numbers, bodies are replaced by `⋯ start-end` markers. " +
 			"Re-read only the ranges you need by appending a selector to the path (`file:50-200`, `file:5-16,40-80`), or `file:all` for the whole file. " +
-			"Small files are returned in full. Every line is prefixed with its anchor as `abcd│`; anchors are what the edit tool takes. " +
-			"`pipe` filters the anchored output through bash (e.g. `rg -n TODO`), keeping anchors on the lines that survive.",
+			"Small files are returned in full. Every line is prefixed with its anchor as `abcd│`; anchors are what the edit tool takes.",
 		promptSnippet: "Read files (several per call); large files return an outline with line ranges to read on demand",
 		promptGuidelines: [
 			"Use read to examine files instead of cat or sed; name every file you want in one call.",
@@ -96,10 +94,6 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 				const last = merged[merged.length - 1];
 				if (c.type === "text" && last?.type === "text") last.text += `\n\n${c.text}`;
 				else merged.push({ ...c });
-			}
-			if (params.pipe) {
-				const text = merged.flatMap((c) => (c.type === "text" ? [c.text] : [])).join("\n\n");
-				return { content: [{ type: "text" as const, text: pipe(text, params.pipe, ctx.cwd) }], details: undefined };
 			}
 			return { content: merged, details: results.length === 1 ? results[0].details : undefined };
 

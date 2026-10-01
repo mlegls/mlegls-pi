@@ -11,7 +11,7 @@ function escapeXml(value: string): string {
 }
 
 function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
-	const hasRead = !options.selectedTools || options.selectedTools.some((name) => name === "read" || name === "exec");
+	const hasRead = !options.selectedTools || options.selectedTools.some((name) => name === "read" || name === "codemode");
 	if (!hasRead) return undefined;
 	const skills = options.skills?.filter((skill) => !skill.disableModelInvocation);
 	if (!skills?.length) return undefined;

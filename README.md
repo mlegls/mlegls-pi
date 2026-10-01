@@ -1,61 +1,38 @@
 # mlegls-pi
 
-Personal exec libraries, skills, prompts, themes, agents, and user-level harness skills.
+Personal pi package, plus the user-level skills, worker agents and harness prompts that
+`~/.config/system-config` links into each harness.
 
-Exec-facing capabilities install their host integrations through explicit
-`install(host)` exports in `lib/*/host.ts`; obsolete adapters live in
-`extensions/disabled/`. Memory, featherless, fence, system-prompt, and workspace commands remain
-standalone extensions for their Pi-facing commands and providers. See [host libraries](extensions/exec/README.md#host-libraries).
+The model's outer loop is pi's built-in `codemode`: scripts call every tool through `tools.*`,
+including the hashline `read`/`grep`/`edit` this package registers over the built-ins.
+Computer use is MCP (`cua-driver mcp`, `chrome-devtools-mcp`) reached the same way; Jev
+decisions are codemode's built-in `models.classify` (`lib/decide.ts` for code outside pi).
 
-[Memory](extensions/memory/README.md) provides one-shot append-only compaction and original-turn recall. Connectome remains available in `extensions/connectome/` but is not loaded by default; do not enable both compaction backends.
+- `extensions/system-prompt`: the short system prompt.
+- `extensions/workspace`: switch a session's workspace.
+- `extensions/context`: context policy (the worker fence) over pi-observational-memory, the compaction mechanism.
+- `extensions/stances`: `stance/<agent>` virtual models routing by each agent's model list and `allocation.json`.
+- `extensions/supervision`: `dispatch`, `integrate`, `retire` tools and `/jump`.
+- `extensions/hashline`: anchored `read`/`grep`/`edit` over the built-ins (`lib/outline-read`).
+- `lib/board`: shared pubsub log for coordinating sessions, with `board_*` and `mail` tools; every session has a mailbox topic.
+- `lib/dispatch.ts`, `lib/wm.ts`: launch ready waves of `wm` workers (workmux worktree + tmux window).
+- `lib/tree`: the tmux dashboard and Ghostty sidebar, `ab tree ui [--sidebar]`; `bin/ab-nav` is window history.
 
-
-Interactive work: `introduce` establishes intent, `orient` finds the next entry, `shape` makes tickets ready, and `supervise` carries a scope through verification. See [delivery](docs/delivery.md), and [session preparation](docs/session-preparation.md).
-
-## Local execution resources
-
-`ab check -- bun-axi run typecheck` admits a heavy command through the per-user
-daemon's two-slot queue, independent of orchestration budgets. Wrap existing
-checks without changing their cadence. Children share the slot; commands that
-bypass the wrapper remain unconstrained.
-
-`ab check --share INPUT-IDENTITY -- COMMAND...` coalesces overlapping checks on
-the same frozen clean revision. The identity must also cover ignored inputs and
-environment; this is opt-in singleflight, not a result cache. See `ab check --help`.
-
-`ab service start -- COMMAND...` runs a foreground dev server with an explicit
-stop ID and a default 30-minute lifetime. Stop it after the drive, even on
-failure; retain the setup recipe rather than the resident environment. These
-services aren't check jobs and don't consume the two slots.
-
-The commands require a daemon started from this version. An already-running
-daemon must be restarted at a safe orchestration boundary; upgrading the source
-does not restart it or change existing executions. See `ab service --help` for
-process-group and crash-cleanup limitations.
+The prototype this replaces (exec cells, the bash outer loop, the `ab` program, supervise
+loop, memory log) is tagged `prototype`.
 
 ## Development
 
-With Bun available, run `bun run setup`, then `bun test`. Tracker CLI tests: `bun run test:tracker`.
-Setup installs the root, outline-read, disabled LSP, and tracker-script dependencies from
-committed lockfiles. Each checkout gets its own node_modules; Bun’s package cache
-is shared, not mutable dependency directories from another checkout.
-The root install suppresses lifecycle scripts, so worktree setup cannot rebuild or
-re-sign the desktop helper. Native permission setup is explicit via
-`/computer-use setup`; see the exec documentation before changing helper identity.
+`bun run setup`, then `bun test`. Tracker CLI tests run in their own package:
+`bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts`.
 
-Workmux runs the same setup automatically before starting a new worker.
-Plain git worktrees and existing worktrees use `bun run setup` explicitly.
-Disabled Firecrawl and MCP packages are optional and not required by the suite;
-install their dependencies separately if enabling them.
-The independent optional [dsh overlay](dsh/README.md) is also excluded from root
-`bun test` discovery; root setup does not install it. To develop it, run
-`bun run --cwd dsh setup`, then `bun test --cwd dsh` separately.
+User skills live under `skills/enabled/{all,claude,codex,pi}`, worker agents under `agents/`, and
+shared harness prompts under `agent-prompts/`. Package skills are only `skills/enabled/pi/pi`
+and `skills/enabled/pi/mlegls-pi`. Keep `package.json` valid JSON: pi falls back to scanning
+all of `skills/` if it cannot parse the manifest.
 
-See [exec](extensions/exec/README.md) for the TypeScript cell API.
-Workers run as `wm` workers (workmux worktree + tmux window) and report over the board.
+## Agent model lists
 
-See [Featherless](extensions/featherless/README.md) for automatic model discovery.
-
-## User skills, agents, prompts
-
-User skills live under `skills/{enabled,disabled}/{all,claude,codex,pi}`, worker agents under `agents/`, and shared harness prompts under `agent-prompts/`. `~/.config/system-config` keeps symlinks to those trees; `scripts/agents-apply.sh` there installs them into Claude, Codex, and Pi. Package skills are only `skills/enabled/pi/pi` and `skills/enabled/pi/mlegls-pi`; the enabled/disabled trees are not also loaded as package skills. Keep `package.json` valid JSON: Pi falls back to scanning all of `skills/` if it cannot parse the manifest.
+Each agent file's `model:` is a list of `provider/model:effort`, most preferred first. Routing
+takes the first entry whose provider has delegated capacity left (`allocation.json`,
+`lib/allocation.ts`). The catalog and stance definitions are in `routing.md`.

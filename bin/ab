@@ -10,11 +10,11 @@ if [ "$1" = tree ] && [ "$2" = ui ]; then
 		if [ "$arg" = --sidebar ]; then
 			# 75 asks for a fresh Bun process without closing the Ghostty split.
 			while :; do
-				bun "$(dirname "$(readlink -f "$0")")/../ab/main.ts" "$@"
+				bun "$(dirname "$(readlink -f "$0")")/../lib/tree/cli.ts" "$@"
 				status=$?
 				[ "$status" -eq 75 ] || exit "$status"
 			done
 		fi
 	done
 fi
-exec bun "$(dirname "$(readlink -f "$0")")/../ab/main.ts" "$@"
+exec bun "$(dirname "$(readlink -f "$0")")/../lib/tree/cli.ts" "$@"

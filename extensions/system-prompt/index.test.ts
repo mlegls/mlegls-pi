@@ -71,9 +71,9 @@ describe("system prompt extension", () => {
 
 		expect(withoutRead).not.toContain("<available_skills>");
 		expect(withRead).toContain("<available_skills>");
-		const withExec = buildPrompt({ cwd: "/work", selectedTools: ["exec"], skills: [skill] } as BuildSystemPromptOptions);
-		expect(withExec).toContain("<available_skills>");
-		expect(withExec).toContain(skill.filePath);
+		const withCodemode = buildPrompt({ cwd: "/work", selectedTools: ["codemode"], skills: [skill] } as BuildSystemPromptOptions);
+		expect(withCodemode).toContain("<available_skills>");
+		expect(withCodemode).toContain(skill.filePath);
 	});
 
 	test("retains pi identity but omits documentation guidance from the default prompt", () => {

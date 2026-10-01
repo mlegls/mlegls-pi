@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-exec "$(cd -- "$(dirname -- "$0")/.." && pwd)/node_modules/.bin/jg" "$@"

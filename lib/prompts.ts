@@ -69,3 +69,10 @@ export function search(pattern: string, opts: SearchOptions = {}) {
 		render: () => hits.map(p => `===== ${p.at.slice(0, 16)} ${p.source} ${p.project.slice(0, 70)}\n${p.text.length > max ? p.text.slice(0, max) + " …" : p.text}`).join("\n\n") || "no matches",
 	};
 }
+
+// bun lib/prompts.ts REGEX ['{"project":"…","since":"…","limit":40}']
+if (import.meta.main) {
+	const [pattern, options] = process.argv.slice(2);
+	if (!pattern) { console.error("usage: bun lib/prompts.ts REGEX [options-json]"); process.exit(2); }
+	console.log(search(pattern, options ? JSON.parse(options) : {}).render());
+}

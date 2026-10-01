@@ -18,8 +18,28 @@ A header may end with a separate @path token: =abcd wxyz @src/file.ts.
 A header-like body line or lone @path must be backslash-escaped before its sigil (after any indentation), e.g. \\<time; double the backslash to retain it.`;
 
 const parameters = Type.Object({
-	edits: Type.String({ description: GRAMMAR }),
+	edits: Type.Union([
+		Type.String({ description: GRAMMAR }),
+		Type.Array(Type.Object({
+			op: Type.Union([Type.Literal("replace"), Type.Literal("delete"), Type.Literal("after"), Type.Literal("before")]),
+			from: Type.String({ description: "Anchor" }),
+			to: Type.Optional(Type.String({ description: "Inclusive end anchor (replace, delete)" })),
+			lines: Type.Optional(Type.Array(Type.String(), { description: "New lines, verbatim; no escaping" })),
+		}), { description: "Structured hunks, for scripts" }),
+	]),
 });
+
+type StructuredHunk = { op: Hunk["mode"]; from: string; to?: string; lines?: string[] };
+
+function fromStructured(hunks: StructuredHunk[]): Hunk[] {
+	return hunks.map((h) => {
+		const header = `${h.op} ${h.from}${h.to ? " " + h.to : ""}`;
+		if (h.op === "delete" && h.lines?.length) throw new Error(`"${header}": a delete takes no lines. Nothing was modified.`);
+		if ((h.op === "after" || h.op === "before") && h.to) throw new Error(`"${header}": inserts take one anchor. Nothing was modified.`);
+		if (h.op === "replace" && !h.lines) throw new Error(`"${header}": no lines given; use op delete. Nothing was modified.`);
+		return { header, from: h.from, to: h.to, mode: h.op, lines: h.lines ?? (h.op === "delete" ? [] : [""]), literal: true };
+	});
+}
 
 export interface EditDeps {
 	ledger: Ledger;
@@ -122,6 +142,7 @@ export function registerEditTool(pi: ExtensionAPI, deps: EditDeps): void {
 		],
 		parameters,
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			if (typeof params.edits !== "string") return executeHunks(deps, ctx.cwd, fromStructured(params.edits as StructuredHunk[]));
 			return executeEdits(deps, ctx.cwd, params.edits);
 		},
 	});

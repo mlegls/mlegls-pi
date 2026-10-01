@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Worker, spawnEnv, trustWorktrees, wait, type Outcome } from "./wm";
+import { Worker, spawnEnv, wait, type Outcome } from "./wm";
 
 const done = (body: string): Outcome => ({
 	kind: "done",
@@ -14,27 +14,6 @@ function pair() {
 	const b = new Worker("t", "b", "/tmp", "t", "/tmp/b");
 	return { a, b };
 }
-
-describe("trustWorktrees", () => {
-	const run = (trust: Record<string, boolean>, cwd: string) => {
-		const dir = mkdtempSync(join(tmpdir(), "trust-"));
-		const file = join(dir, "trust.json");
-		writeFileSync(file, JSON.stringify(trust));
-		trustWorktrees(cwd, file);
-		const out = JSON.parse(readFileSync(file, "utf8"));
-		rmSync(dir, { recursive: true });
-		return out;
-	};
-	test("a trusted repo's worktrees folder becomes trusted", () => {
-		expect(run({ "/d/repo": true }, "/d/repo")).toEqual({ "/d/repo": true, "/d/repo__worktrees": true });
-	});
-	test("trust via an ancestor counts", () => {
-		expect(run({ "/d": true }, "/d/repo")).toEqual({ "/d": true });
-	});
-	test("an untrusted repo is left prompting", () => {
-		expect(run({ "/d/repo": false }, "/d/repo")).toEqual({ "/d/repo": false });
-	});
-});
 
 describe("wait", () => {
 	test("any returns on the first, leaves the other pending", async () => {
