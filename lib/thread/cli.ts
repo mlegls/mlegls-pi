@@ -47,9 +47,8 @@ export async function thread(args: string[]): Promise<void> {
 			if (positionals.length || (values.in !== undefined && values.worktree !== undefined)) throw new Error(usage);
 			const source = process.env.PI_SESSION_FILE || process.env.PI_SESSION_ID;
 			if (!source) throw new Error("fork requires PI_SESSION_FILE or PI_SESSION_ID");
-			const currentId = process.env.PI_SESSION_ID;
-			if (currentId) await threadForSession(source);
-			const record = await forkThread(source, { in: stringOption(values, "in"), worktree: stringOption(values, "worktree"), parentSession: currentId });
+			const current = await threadForSession(source); // the source session's thread is the spawning parent, whichever of file/id named it
+			const record = await forkThread(source, { in: stringOption(values, "in"), worktree: stringOption(values, "worktree"), parentSession: current?.sessionId });
 			out(JSON.stringify(record) + "\n");
 			return;
 		}
@@ -96,7 +95,6 @@ export async function thread(args: string[]): Promise<void> {
 		default: throw new Error(usage);
 		}
 	} catch (error) {
-		if (String(error).includes("thread command failed")) throw error;
 		console.error(error instanceof Error ? error.message : String(error));
 		process.exitCode = 1;
 	}

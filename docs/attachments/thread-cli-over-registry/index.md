@@ -98,3 +98,18 @@ Both fixture cleanup commands returned `active: [], zmx: [], live: []`. Independ
 - **C7 / met — routing and cleanup:** run `ab tree` without UI under isolated selectors; accept its ordinary text tree. Run regressions/typecheck with documented dependencies. Independently inspect git worktrees, selected pids and roots before/after owned fixture cleanup; accept no resource leak and no interference with inherited services.
 
 Frictions: current-file fork lineage loss (this ticket, C2); [multiline blocked reasons spill text rows](../../issues/thread-list-blocked-reason-spills-rows.md); legacy tree help and root setup dependencies have the linked tracker owners above. Detailed fixture inspect output is verbose; saving and selecting the relevant fields worked, as already recorded by [the fixture tooling owner](../../issues/thread-fixture-help-and-headless-pty-entry.md).
+
+## Review
+
+**C2 repaired.** `lib/thread/cli.ts` fork only resolved the spawning parent when `PI_SESSION_ID` was set, and passed that id straight through; with a file-only or stale id the source thread was never consulted. It now resolves `threadForSession(PI_SESSION_FILE || PI_SESSION_ID)` (the same source it forks history from) and hands that thread's current session to `forkThread` as `parentSession`. Ambiguous canonical sessions still fail before side effects (the registry throws); an unregistered source yields no parent.
+
+Retained as `lib/thread/cli.test.ts` (replays C2 over a shell-backed source thread, in-process CLI, isolated state/zmx): fork `--in` records parent = source thread with matching id/file, file only, file + stale id, and id only. Verified it fails on the pre-fix `cli.ts` and passes after. Not re-driven with a fresh driver: the new test exercises the same public CLI entry with the same env combinations the driver used.
+
+**C3 ambiguity control.** Already encoded by `lib/thread/runtime.test.ts` ("a bare worker handle shared by two runs is ambiguous until its run is given": bare handle throws `Ambiguous worker`, run-qualified resolves). The CLI grammar can't seed duplicates, so the control stays a registry-level test; nothing further owed. Story outcome: held.
+
+Also removed a dead `"thread command failed"` rethrow from the CLI error handler (nothing emits that text; it would have turned an ordinary backend failure into a stack trace instead of stderr message + exit 1).
+
+Left as evidence only (not retained as tests): C1, C4–C7 need real pi/fixture lifecycle runs or document this ticket's design outcomes; lifecycle behavior is already guarded by `lib/thread/lifecycle.test.ts` and the archive-and-abandon packet.
+
+Final head: `lib/thread` + all of `lib` tests 138 pass / 2 skip / 0 fail; `tsc --noEmit` clean apart from the known obsidian-tracker dependency friction.
+
