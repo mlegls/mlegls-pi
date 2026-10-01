@@ -1,5 +1,4 @@
 // Frontends call the registry directly; lifecycle and terminal ownership stay in lib/thread.
-import { execFileSync } from "node:child_process";
 import { abandonThread, archiveThread, ensureTerminal, forkThread, newThread, type ThreadRecord, type ThreadRow } from "../thread";
 import { command } from "../thread/process";
 import { zmx, zmxBinary } from "../thread/zmx";
@@ -45,14 +44,4 @@ export async function retire(action: "merge" | "archive" | "abandon" | "children
 		if (result.blocked) throw new Error("Blocked at " + result.blocked.threadId + ": " + result.blocked.block.reason);
 	}
 	return closed;
-}
-
-/** Base for the historical session working-set view. */
-export function reviewBase(cwd: string): string | undefined {
-	const git = (...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-	for (const ref of [(() => { try { return git("symbolic-ref", "--short", "refs/remotes/origin/HEAD"); } catch { return ""; } })(), "main", "master"]) {
-		if (!ref) continue;
-		try { const base = git("merge-base", "HEAD", ref); if (base !== git("rev-parse", "HEAD")) return base; } catch {}
-	}
-	return undefined;
 }

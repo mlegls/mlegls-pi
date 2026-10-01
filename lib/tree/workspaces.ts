@@ -1,14 +1,10 @@
 // The sidebar uses exactly the thread CLI's two trees, not inferred worktree ancestry.
 import { basename } from "node:path";
-import { listThreads, type ThreadRow } from "../thread";
+import type { ThreadRow } from "../thread";
 
 export type TreeMode = "spawn" | "merge";
 export const label = (row: ThreadRow) => (row.thread.worker?.handle ?? row.thread.branch ?? basename(row.thread.cwd))
 	+ (row.thread.ownership === "guest" ? " ·" + row.thread.id.slice(0, 6) : "");
-
-export async function workspaces(mode: TreeMode): Promise<ThreadRow[]> {
-	return listThreads({ tree: mode });
-}
 
 /** Keep query ancestors and respect folds without changing the registry's ordering. */
 export function visibleRows(rows: ThreadRow[], query: string, collapsed: Set<string>): ThreadRow[] {

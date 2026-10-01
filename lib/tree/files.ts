@@ -9,9 +9,18 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import type { Node } from "./graph";
-import { reviewBase } from "./actions";
 
 export interface Touched { changed: string[]; named: string[] }
+
+/** Base for the working-set view: the merge-base with the default branch, unless HEAD is on it. */
+function reviewBase(cwd: string): string | undefined {
+	const git = (...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+	for (const ref of [(() => { try { return git("symbolic-ref", "--short", "refs/remotes/origin/HEAD"); } catch { return ""; } })(), "main", "master"]) {
+		if (!ref) continue;
+		try { const base = git("merge-base", "HEAD", ref); if (base !== git("rev-parse", "HEAD")) return base; } catch {}
+	}
+	return undefined;
+}
 
 const inside = (root: string, p: string) => { const r = relative(root, p); return !!r && !r.startsWith("..") && !isAbsolute(r); };
 

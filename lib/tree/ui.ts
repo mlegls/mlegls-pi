@@ -4,8 +4,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, basename } from "node:path";
 import { parseKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { ThreadRow } from "../thread";
-import { label, visibleRows, workspaces, type TreeMode } from "./workspaces";
+import { listThreads, type ThreadRow } from "../thread";
+import { label, visibleRows, type TreeMode } from "./workspaces";
 import * as act from "./actions";
 import * as ghostty from "./ghostty";
 
@@ -47,7 +47,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		if (refreshing) return;
 		refreshing = true;
 		try {
-			rows = await workspaces(mode);
+			rows = await listThreads({ tree: mode });
 			if (shown && !rows.some(r => r.thread.id + ".agent" === shown)) { shown = undefined; save(); }
 			rebuild();
 			if (message === "loading…") message = "";
