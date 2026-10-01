@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a0f6e1-7ec3-7620-b7fd-edc63c2b3d94
 part-of: "[[projects/mlegls-pi/issues/thread-core-and-workers-on-zmx]]"
@@ -32,3 +32,7 @@ Expose the temporary fixture's entry command and ids to the driver; fixtures nee
 ## Result
 
 [Independent first-use packet](../attachments/thread-registry-and-zmx-launch/index.md): owning/guest/fork/promote, trees and labels, same-id restart with one bootstrap, current-session switching, literal send/history and headless attach/detach held. Repeated auxiliary-role ensure remains unobserved through the provided entry; reviewer check C6 records the missing measurement. Captured [fork wake-routing observation](forked-thread-retains-parent-board-subscriptions.md) and [fixture help/PTY friction](thread-fixture-help-and-headless-pty-entry.md). All disposable resources cleaned; regressions and typecheck passed with the documented Obsidian setup workaround.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/thread-registry-and-zmx-launch/index.md).
