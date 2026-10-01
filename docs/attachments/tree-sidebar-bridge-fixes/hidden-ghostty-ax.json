@@ -1,0 +1,14 @@
+{
+  "pid": 47959,
+  "window_id": 17985,
+  "window_title": "ab tree",
+  "degraded_reason": "ax_window_unresolved: window_id 17985 exists and is owned by pid 47959, but none of the 0 AXWindow element(s) under that pid reports this CGWindowID. The tree is returned EMPTY on purpose: the accessibility elements reachable under this pid belong to other surfaces (the menu bar, other windows), not to the requested window, so presenting them would misground the next action.",
+  "elements": [],
+  "screenshot_frame_valid": true,
+  "window_bounds": {
+    "height": 650,
+    "width": 1000,
+    "x": 120,
+    "y": 80
+  }
+}

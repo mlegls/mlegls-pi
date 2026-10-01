@@ -1,0 +1,7 @@
+tests: "1 failed, 166 passed, 2 skipped (131.3s) across 30 files"
+failures[1]{at,test,message}:
+  "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts:176",invalid frontmatter fails every query with a filename and no partial output,test timed out
+log: /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/bun-axi/sidebar-bridge-57b8879d/test.log
+help[1]: "Run `bun-axi test skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts -t \"invalid frontmatter fails every query with a filename and no partial output\"` to rerun the first failure"
+tests: all 9 passed (11.7s) across 3 files
+tests: "all 1 passed, 21 skipped (20.4s) across 1 file"

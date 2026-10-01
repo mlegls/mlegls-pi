@@ -1,0 +1,79 @@
+1003 motion on child: [merge] [new], no sessions opened.
+▾ sidebar-fixture 2                   
+▌▾□ master                            
+   ◇ child             … [merge] [new]
+▾ tmux 20                             
+  □ free-0                            
+  □ free-1                            
+  □ free-10                           
+  □ free-11                           
+  □ free-12                           
+  □ free-13                           
+  □ free-14                            ? for help                           
+
+Click [merge]: confirmation only.
+▾ sidebar-fixture 2                   
+▌▾□ master                            
+   ◇ child                            
+▾ tmux 20                             
+  □ free-0                            
+  □ free-1                            
+  □ free-10                           
+  □ free-11                           
+  □ free-12                           
+  □ free-13                           
+  □ free-14                            merge child into master? [Enter to co
+
+Wheel: view scrolled; tmux client and session set unchanged.
+▾ tmux 20                             
+  □ free-0                            
+  □ free-1                     … [new]
+  □ free-10                           
+  □ free-11                           
+  □ free-12                           
+  □ free-13                           
+  □ free-14                           
+  □ free-15                           
+  □ free-16                           
+  □ free-17                            ? for help                           
+
+Enter after scroll: selected child opened, not the hovered free session.
+▾ sidebar-fixture 2                   
+ ▾□ master                            
+   ◇ child             … [merge] [new]
+▾ tmux 20                             
+  □ free-0                            
+  □ free-1                            
+  □ free-10                           
+  □ free-11                           
+  □ free-12                           
+  □ free-13                           
+  □ free-14                            ? for help                           
+
+Status wheel: no parked agent resumed.
+    · Parked fixture 21  child  11s   
+    · Parked fixture 23  child  11s   
+    · Parked fixture 19  child  11s   
+    · Parked fixture 22  master… [new]
+    · Parked fixture 20  master  11s  
+    · Parked fixture 17  /tmp/sidebar-
+    · Parked fixture 15  /tmp/sidebar-
+    · Parked fixture 16  /tmp/sidebar-
+    · Parked fixture 6  /tmp/sidebar-b
+    · Parked fixture 7  /tmp/sidebar-b
+    · Parked fixture 11  /tmp/sidebar- ? for help                           
+
+Tree wheel: no parked agent resumed.
+  · Parked fixture 23                 
+  · Parked fixture 19                 
+  · Parked fixture 22                 
+  · Parked fixture 20            [new]
+  · Parked fixture 17                 
+  · Parked fixture 15                 
+  · Parked fixture 16                 
+  · Parked fixture 6                  
+  · Parked fixture 7                  
+  · Parked fixture 11                 
+  · Parked fixture 13                  ? for help                           
+
+Quit disabled 1003 mouse tracking.
