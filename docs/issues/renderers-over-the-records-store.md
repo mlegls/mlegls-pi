@@ -16,7 +16,6 @@ A renderer is a query, a cut under a budget, and a cursor. A board subscription 
 
 ```jsonc
 "memory": {
-  "compaction": { "afterTokens": 150000, "mode": "ratio", "ratio": 0.5 },
   "schemas": {
     "om": {
       "model": { "provider": "...", "id": "...", "thinking": "medium" },
@@ -24,12 +23,13 @@ A renderer is a query, a cut under a budget, and a cursor. A board subscription 
       "reflector": { "afterTokens": 20000 },
       "dropper":   { "targetTokens": 10000 },
       "agent":     { "maxTurns": 16, "maxTokens": 32000 },
+      "compaction": { "afterTokens": 150000, "mode": "ratio", "ratio": 0.5 },
       "budget": 20000
     }
   }
 }
 ```
 
-  The old `observational-memory` key is read underneath as a fallback.
+  A mechanism is active when it has an entry under `memory.schemas`, and each one's configuration is independent, its compaction trigger included: any active mechanism may trigger a compaction, and every active one renders into it. The old `observational-memory` key is read underneath as a fallback.
 
 Acceptance: `replay-upstream.ts` zero diffs again; board/wm/children tests pass; a session resumed or forked delivers neither duplicates nor misses (test with two cursors on different branches); a live compaction through the composed path.
