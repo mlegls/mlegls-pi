@@ -91,3 +91,7 @@ Tracker structural/link check still reports the same 20 historical dangling link
 ## Independent CLI drive
 
 [Predictions, replay observations, frictions and reviewer checks](drive.md) on revision `8378ecd9cb04db4308f121ae10119606ef9b6ae6`; [post-turn replay](drive-warm.json) and [six fresh-resume trials](drive-resume.json). All required measurement/policy stories held through the documented CLI. Replay footprint extrapolation was 10.63 / 12.29 GiB for 30; resume medians 1.8032 / 2.6855 seconds. Exact RSS/CPU and one 4.0552-second trial differed from the earlier run. All 40 sampled processes stopped; source hashes unchanged. This is nonvisual CLI evidence, not native terminal/image-render verification. Captured progress and endpoint-witness friction is [[projects/mlegls-pi/issues/idle-cost-benchmark-console-and-readiness-evidence]].
+
+## Review
+
+[Review notes](drive.md#review): the redirected-console loss was a zmx stderr positional-write overwrite, fixed in `measure.py` (stderr now captured), which also records `footer_marker`, `probe_echoed` and `clients_after_detach` per trial. The committed JSON reports predate those fields; their numbers are unchanged.

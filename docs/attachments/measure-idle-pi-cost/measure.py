@@ -23,7 +23,9 @@ ANSI = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 PROBE = b"idle-cost-editor-probe"
 
 def command(*args, env=None):
-    return subprocess.check_output(args, env=env, text=True).strip()
+    # Capture stderr: zmx writes diagnostics (e.g. "no sessions found") with
+    # positional writes, which overwrite a redirected console file from offset 0.
+    return subprocess.check_output(args, env=env, text=True, stderr=subprocess.PIPE).strip()
 
 def clone(source, target, cwd):
     raw = source.read_bytes()
@@ -165,7 +167,8 @@ def trial(source, label, run, args, scratch, env):
         read(fd, .2)
         os.waitpid(pid, 0)
         detached = command("zmx", "list", env=env)
-        assert "clients=0" in next(line for line in detached.splitlines() if f"name={name}\t" in line)
+        detached_row = next(line for line in detached.splitlines() if f"name={name}\t" in line)
+        assert "clients=0" in detached_row
         time.sleep(args.settle)
         samples = []
         for i in range(args.samples + 1):
@@ -181,7 +184,13 @@ def trial(source, label, run, args, scratch, env):
                                "lines": [line for line in (check.stdout + check.stderr).splitlines() if "Physical footprint" in line]})
         return {"label": label, "trial": run, "seed": seed, "name": name,
                 "daemon_pid": root, "pi_pid": pi_pid, "footer_seconds": round(footer, 4),
-                "usable_seconds": round(usable, 4), "warm_turn": turn, "samples": samples, "footprints": footprints}
+                "usable_seconds": round(usable, 4),
+                # Endpoint witnesses: the footer marker and the unsubmitted probe
+                # draft were both seen (else the trial raises), and zmx reported
+                # no attached client before sampling. No conversation text.
+                "footer_marker": "mail/", "probe_echoed": PROBE.decode(),
+                "clients_after_detach": int(re.search(r"\bclients=(\d+)", detached_row)[1]),
+                "warm_turn": turn, "samples": samples, "footprints": footprints}
     finally:
         subprocess.run(["zmx", "kill", name, "--force"], env=env, capture_output=True)
         os.close(fd)

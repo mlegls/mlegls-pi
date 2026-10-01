@@ -82,3 +82,13 @@ After both commands, both reports have empty `remaining_sessions`; their private
 5. **Policy interpretation.** Read Result/Policy using only the ticket and index. Accept: a concrete timeout recommendation, explicit settled/zero-client criteria, waiting-parent/worker exemption linked to external wake ownership, and no suggestion that this documentation enables a runtime reaper.
 
 No tests or product repairs were made by this driver. This is CLI/report evidence (`visual: false`), not an acceptance of native rendered TUI appearance.
+
+## Review
+
+Reviewer: `measure-idle-pi-cost-review-6`, after the driver's log above (left as written).
+
+- **Console progress (driver check 4): reproduced, cause found, fixed.** Ran `measure.py` with `> console.txt 2>&1`, two trials, `--samples 1`: console held only `no sessions found …` plus a cut-off `e 2 usable …`. The final `zmx list` (for `remaining_sessions`) let zmx write that line to the inherited stderr, and zmx writes with positional writes, so it overwrote the file from offset 0. `command()` now captures stderr (errors still surface through `CalledProcessError.stderr`). Replay of the same run: four intact progress lines, `rc=0`, `remaining_sessions` still `""`.
+- **Endpoint witnesses (driver check 2): added to the JSON.** Each trial now has `footer_marker`, `probe_echoed` and `clients_after_detach`. The script already raised if the footer or probe never appeared or if `clients=0` failed, so these record that rather than add a new check; they are not independent visual observation. In the review replay all four trials report `clients_after_detach: 0` and the probe string; fresh-resume times were 2.66 / 2.33 / 1.83 / 1.98 seconds (small, large text, small, large text), consistent with 1–3 s.
+- **Cleanup:** no `idle-cost` process remained after each run; both seed SHA-256 values equal the setup values above. A first review edit had a typo that crashed a trial; its `finally` killed the zmx session and leftover pi (confirmed gone).
+- **Left as evidence, no automated test:** a disposable local measurement script needing real pi/zmx/auth guards no product behavior, so no suite test was added.
+- Arithmetic (check 3) and policy reading (check 5) re-read against `warm.json` and `index.md`: unchanged and consistent.
