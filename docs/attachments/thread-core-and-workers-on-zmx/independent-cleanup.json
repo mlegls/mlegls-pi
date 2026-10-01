@@ -1,0 +1,26 @@
+{
+  "/private/tmp/wm-thread-Ie0z4x": {
+    "output": "{\"event\":\"cleaned\",\"terminals\":[],\"activeThreads\":[]}\n",
+    "truncated": false,
+    "exit_code": 0,
+    "wall_time_seconds": 0.3
+  },
+  "/private/tmp/ab-lifecycle-yRKfFY": {
+    "output": "{\"active\":[],\"zmx\":[],\"live\":[]}\n",
+    "truncated": false,
+    "exit_code": 0,
+    "wall_time_seconds": 4
+  },
+  "/private/tmp/ab-lifecycle-Bm6Y1o": {
+    "output": "{\"active\":[],\"zmx\":[],\"live\":[]}\n",
+    "truncated": false,
+    "exit_code": 0,
+    "wall_time_seconds": 2.2
+  },
+  "independent": {
+    "output": "/private/tmp/wm-thread-951rvi absent=0\n/private/tmp/wm-thread-Ie0z4x absent=0\n/private/tmp/ab-lifecycle-yRKfFY absent=0\n/private/tmp/ab-lifecycle-Bm6Y1o absent=0\nworktree /Users/mlegls/dev/mlegls-pi\nHEAD 377419e517e6b1736f4dd8ba4e47cbd7d64be1db\nbranch refs/heads/main\n\nworktree /Users/mlegls/dev/mlegls-pi__worktrees/thread-core-and-workers-on-zmx--tree\nHEAD 1b705b88db1ac004bd1db14e15142a64fc959fed\nbranch refs/heads/tree/thread-core-and-workers-on-zmx\n\nworktree /Users/mlegls/dev/mlegls-pi__worktrees/thread-core-and-workers-on-zmx-drive-j\nHEAD e7565dc1ba5b9fea830327e6c5059936f842f994\nbranch refs/heads/thread-core-and-workers-on-zmx-drive-j\n\nworktree /Users/mlegls/dev/mlegls-pi__worktrees/thread-core-and-workers-on-zmx-implement-i\nHEAD 3663f440dbd0cf064aaeb1142e6a47731b49a0ed\nbranch refs/heads/thread-core-and-workers-on-zmx-implement-i\n\nworktree /Users/mlegls/dev/mlegls-pi__worktrees/thread-registry-on-zmx--tree\nHEAD d59723725106f59894c6820d8dfc79fe4893dbe7\nbranch refs/heads/tree/thread-registry-on-zmx\n\n",
+    "truncated": false,
+    "exit_code": 0,
+    "wall_time_seconds": 0.1
+  }
+}

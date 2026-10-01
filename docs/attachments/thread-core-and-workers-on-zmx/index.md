@@ -4,6 +4,8 @@ The fresh-tool round-trip and two-level archive/merge joins held. No production 
 
 Implementation first use, not independent acceptance; no rendered UI. Starting ref: 1b705b8. Production code is unchanged from that ref. Fresh tools ran on 96c1967; the fixture's backward-compatible supervisor readbacks were re-driven on 311f1ef. Pi 0.99.2 loaded this checkout through the isolated agent directory, not the canonical checkout's package.
 
+Independent drive: [predictions, encounter, checks and limits](independent-drive.md). Fresh tools, CLI archive/merge and identity/current-session/report joins held; nested destination lineage held, while this fixture's readback does not expose dispatch base SHAs for independent measurement. [Clean retry](independent-join-readback.json), [CLI lifecycle](independent-cli.json), [worker joins](independent-worker-readback.json), [reconciler lineage](independent-reconcile-readback.json), [cleanup](independent-cleanup.json). Review remains, including the explicit base-SHA measurement.
+
 ## Reproduce
 
 Use a dedicated worktree of this revision. The join action integrates an empty worker commit into that worktree's current branch; it must be a checkout you own.

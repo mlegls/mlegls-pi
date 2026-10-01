@@ -38,6 +38,8 @@ No new worker/thread path uses workmux/tmux. Workmux code/resources stay until [
 
 The fresh-tool round-trip and two-level archive/merge joins held. No production repair was needed. The existing worker fixture now has `join ROOT`, starting a fresh pi loaded from this checkout and dispatching/integrating a trivial worker on its current branch. [Core join packet and runnable setup](../attachments/thread-core-and-workers-on-zmx/index.md) records actual tools calls, board identities, CLI conflict/blocked/resume, current-session/transport joins, nested collector lineage and cleanup. This is implementation first use; independent driving/review remains.
 
+[Independent core drive](../attachments/thread-core-and-workers-on-zmx/independent-drive.md) reached the fresh tools and CLI/worker surfaces without reading implementation. Joins held after committing the driver's initial dirty prediction log. Nested branch lineage held; the committed fixture output did not expose dispatch base SHAs, so independent verification of that premise remains reviewer-owned. All owned fixture resources were removed.
+
 ### Evidence
 
 Before: the child packets exercised their own surfaces; the fresh-tool/CLI joins after the atomic cutover were still outstanding. After: the required joins held on inherited production code; 182 regressions passed, 2 skipped, typecheck and opt-in worker regression passed. The packet records the existing setup and historical-link tooling owners.
