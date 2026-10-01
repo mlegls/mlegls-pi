@@ -17,7 +17,7 @@ Click the heading, or use Tab/s, to switch between the spawn and merge trees. Th
 - **new** (`n`): a fresh guest thread in the pointed thread's checkout, with that thread as spawn parent.
 - **new in worktree** (`N`): asks for a branch name, creates an owned worktree from the pointed checkout and records its branch as merge parent.
 - **fork** (`f`): copies the pointed thread's current pi history into a new guest thread in the same checkout. It shows the new thread immediately.
-- **merge** (`m`) and **archive** (`a`): the same recursive merge-and-retire operation. Owned spawned children retire first, then the selected branch merges into its recorded parent. Guests merge nothing. A conflict goes back to the conflicting agent; a blocked node stays visible with `⊘` and its reason at the bottom.
+- **merge** (`m`) and **archive** (`a`): the same recursive merge-and-retire operation. Owned spawned children retire first, then the selected branch merges into its recorded parent. Guests merge nothing. A conflict goes back to the conflicting agent, and the sidebar shows it as `⊘` with its reason at the bottom until the agent reports done; other lifecycle actions wait, but selecting a thread still switches the main split, so you can watch the agent resolve it.
 - **abandon** (`x`): retires the thread and its spawned descendants without merging.
 - **abandon all children** (`X`): abandons each immediate child in the currently displayed tree, recursively, keeping the pointed thread itself.
 

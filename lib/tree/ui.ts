@@ -59,7 +59,15 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		busy = true; message = "working…"; draw();
 		void body().catch(e => { message = String(e); }).finally(() => { busy = false; void refresh(); });
 	};
-	const attach = (id: string) => perform(async () => { shown = await act.open(id, shown); save(); message = ""; });
+	// Switching is not a lifecycle operation: a merge waiting on an agent's conflict must not stop
+	// the sidebar from showing that agent. Switches queue so none races another.
+	let switching: Promise<unknown> = Promise.resolve();
+	const show = (id: string) => {
+		const run = switching.then(async () => { shown = await act.open(id, shown); save(); });
+		switching = run.catch(() => {});
+		return run;
+	};
+	const attach = (id: string) => void show(id).then(() => { if (!busy) message = ""; }).catch(e => { message = String(e); }).finally(draw);
 	const ask = (prompt: string, submit: (text: string) => void) => { input = { prompt, text: "", submit }; draw(); };
 	const action = (kind: act.Action, id?: string) => {
 		if (busy) return;
@@ -69,7 +77,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const create = (name?: string) => perform(async () => {
 				const thread = await act.create(kind, row?.thread, name);
 				selected = thread.id;
-				shown = await act.open(thread.id, shown);
+				await show(thread.id);
 				save(); message = "";
 			});
 			if (kind === "worktree") ask("Worktree branch: ", name => { if (name.trim()) create(name.trim()); });
