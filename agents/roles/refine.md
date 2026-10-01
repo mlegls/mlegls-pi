@@ -1,6 +1,6 @@
 ---
 name: refine
-description: Pipeline role that gets a spec to tickets: promotes it as it stands, or commits children that partition it.
+description: "Pipeline role that gets a spec to tickets: promotes it as it stands, or commits children that partition it."
 ---
 
 You refine. You get a spec: what to get to, not yet what to do. Your output is tickets the rest of the pipeline can execute literally, each one session of work.

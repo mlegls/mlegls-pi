@@ -1,3 +1,4 @@
+import { parse as parseYaml } from "yaml";
 // Shared worker stances; execution defaults live in agent frontmatter.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -26,17 +27,13 @@ export interface Agent {
 	body: string;
 }
 
-/** Parse `AGENTS_DIR/<name>.md`: yaml-ish frontmatter (flat `key: value`) + body. */
+/** Parse `AGENTS_DIR/<name>.md`: yaml frontmatter + body. */
 export function agent(name: string): Agent | undefined {
 	const file = join(AGENTS_DIR, `${name}.md`);
 	if (!existsSync(file)) return undefined;
 	const text = readFileSync(file, "utf8");
 	const m = /^---\n([\s\S]*?)\n---\n?/.exec(text);
-	const fm: Record<string, string> = {};
-	for (const line of m?.[1].split("\n") ?? []) {
-		const i = line.indexOf(":");
-		if (i > 0) fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-	}
+	const fm: Record<string, string> = Object.fromEntries(Object.entries((m && parseYaml(m[1])) ?? {}).map(([k, v]) => [k, String(v)]));
 	const first = fm.model ? executions(fm.model)[0] : undefined;
 	if (fm.model && !first) throw new Error(`Agent ${name}: model list names no provider/model:effort`);
 	return { name, routing: fm.model, model: first?.model, effort: first?.effort, checkpoint: fm.checkpoint, roles: fm.role ? fm.role.split(",").map(r => r.trim()).filter(Boolean) : [], description: fm.description, body: (m ? text.slice(m[0].length) : text).trim() };
