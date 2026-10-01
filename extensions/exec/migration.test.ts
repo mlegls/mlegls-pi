@@ -8,6 +8,7 @@ import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import { install as sessionExtension } from "../../lib/session/host";
 import { TmuxTerminalManager, terminalServerName, tmuxAvailable } from "../../lib/session/tmux";
+import { cleanupTmuxTestServer, sweepStaleTmuxSockets } from "../../lib/session/tmux-test-utils";
 import { createComputerUseBridge } from "./computer-use";
 import { createExecServices, type ExecServices } from "./services";
 
@@ -77,6 +78,7 @@ test("write creates parents and overwrites; retained read anchors still protect 
 
 // Session lifecycle stays in the host; only the Kernel child is disposable.
 test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled waits and kernel reset, then wait any/all", async () => {
+	await sweepStaleTmuxSockets("pi-terminal-");
 	const lifecycle = new Map<string, (...args: any[]) => any>();
 	const events = new EventEmitter();
 	const sessionId = randomUUID();
@@ -127,8 +129,11 @@ test.skipIf(!tmuxAvailable())("term sessions retain shell state across cancelled
 			return services.call({ namespace, method, args, signal }).finally(() => { if (signal.aborted) cancelled = true; });
 		});
 	} finally {
-		await lifecycle.get("session_shutdown")?.({});
-		await manager.killServer();
+		try {
+			await lifecycle.get("session_shutdown")?.({});
+		} finally {
+			await cleanupTmuxTestServer(manager.serverName, () => manager.killServer());
+		}
 	}
 }, 30000);
 

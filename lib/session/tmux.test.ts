@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TmuxTerminalManager, tmuxAvailable } from "./tmux";
+import { cleanupTmuxTestServer, sweepStaleTmuxSockets } from "./tmux-test-utils";
 
 const managers: TmuxTerminalManager[] = [];
 
@@ -14,10 +15,11 @@ function manager(): TmuxTerminalManager {
 }
 
 afterEach(async () => {
-	await Promise.all(managers.splice(0).map((instance) => instance.killServer()));
+	await Promise.all(managers.splice(0).map((instance) => cleanupTmuxTestServer(instance.serverName, () => instance.killServer())));
 });
 
 describe.skipIf(!tmuxAvailable())("TmuxTerminalManager", () => {
+	beforeAll(() => sweepStaleTmuxSockets("pi-terminal-test-"));
 	test("ignores user config that creates extra sessions", async () => {
 		const home = await mkdtemp(join(tmpdir(), "pi-terminal-config-"));
 		const instance = manager();
@@ -43,7 +45,6 @@ describe.skipIf(!tmuxAvailable())("TmuxTerminalManager", () => {
 			expect(code).toBe(0);
 			expect(JSON.parse(stdout)).toEqual(["only"]);
 		} finally {
-			await instance.killServer();
 			await rm(home, { recursive: true, force: true });
 		}
 	});

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { SessionAlertMonitor, type SessionAlert } from "./alerts";
 import { install as sessionExtension, type TerminalRequest } from "./host";
 import { terminalServerName, TmuxTerminalManager, tmuxAvailable } from "./tmux";
+import { cleanupTmuxTestServer, sweepStaleTmuxSockets } from "./tmux-test-utils";
 
 const managers: TmuxTerminalManager[] = [];
 
@@ -29,7 +30,7 @@ async function waitFor(predicate: () => boolean, timeoutMs = 3_000): Promise<voi
 }
 
 afterEach(async () => {
-	await Promise.all(managers.splice(0).map((instance) => instance.killServer()));
+	await Promise.all(managers.splice(0).map((instance) => cleanupTmuxTestServer(instance.serverName, () => instance.killServer())));
 });
 
 
@@ -39,6 +40,9 @@ interface SentMessage {
 }
 
 describe.skipIf(!tmuxAvailable())("SessionAlertMonitor", () => {
+	beforeAll(async () => {
+		await sweepStaleTmuxSockets("pi-terminal-");
+	});
 	test("alerts once when output contains the configured literal", async () => {
 		const instance = manager();
 		const cwd = await mkdtemp(join(tmpdir(), "pi-terminal-alert-test-"));
