@@ -407,6 +407,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				break;
 			}
 			case "z": { const n = selectedAgent(); if (n) { message = act.park(n) ?? "parked"; setTimeout(refresh, 500); } break; }
+			case "T": { const n = selectedAgent(); if (n) { message = "timeline…"; draw(); void import("../timeline").then(t => t.openTimeline(n.id)).then(f => { message = f; draw(); }, e => { message = String(e?.message ?? e); draw(); }); } break; }
 			case "n": if (w || freeRoot) { if (attempt(() => w ? act.newWindow(w, "pi", "pi") : act.newFreeSession("pi"))) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
 			case "c": if (w || freeRoot) { if (attempt(() => w ? act.newWindow(w) : act.newFreeSession())) { done(); if (sidebar) { leaveSidebar(); void refresh(); } } } break;
 			case "N": if (w && !w.key.startsWith("tmux:")) input = { kind: "branch", text: "", prompt: sidebar ? "new branch: " : `new worktree off ${w.branch ?? label(w)}: `, then: name => {
@@ -614,7 +615,7 @@ n/c    new pi / terminal
 N/m    worktree / merge parent
 x/X    close window / session
 p/U    prune one / all idle
-i/z    type/send / park agent
+i/z/T  type/send / park / timeline agent
 /      filter       space fold
 P/D    add / hide project
 r/R    refresh / reload   q quit
@@ -640,7 +641,7 @@ const HELP = `ab tree — workspaces (worktrees ↔ tmux sessions), their window
            sessions with a matching project session/pane path appear under that project
   i        type into the selected window/agent's pane from here (esc returns); an agent
            without a pane (headless) gets a one-line board message instead
-  window   x kill it           agent   z park (stop the process; the session stays resumable)   enter resume
+  window   x kill it           agent   z park (stop the process; the session stays resumable)   T timeline of it and its workers (HTML)   enter resume
   P        add a project (path or zoxide query)   D remove the selected project from the list
 
   sidebar  s cycles workspaces / status / project sessions; j/k ↑/↓ visits headings and live sessions

@@ -3,6 +3,7 @@
 //   ab tree ui [--sidebar] [QUERY]   dashboard (tmux popup) or sidebar (Ghostty split)
 //   ab tree sidebar                  open the sidebar split
 //   ab tree open|park ID | send ID [TEXT]
+//   ab timeline [SESSION]   HTML timeline of a session tree (default this session), opened in the browser
 import { parseArgs } from "node:util";
 
 const fail = (message: string): never => { console.error(message); process.exit(1); };
@@ -35,6 +36,7 @@ export async function tree(args: string[]) {
 
 if (import.meta.main) {
 	const [command, ...rest] = process.argv.slice(2);
-	if (command !== "tree") fail("usage: ab tree [ui|sidebar|open|park|send] ...");
+	if (command === "timeline") { const { openTimeline } = await import("../timeline.ts"); console.log(await openTimeline(rest[0])); process.exit(0); }
+	if (command !== "tree") fail("usage: ab tree [ui|sidebar|open|park|send] ... | ab timeline [SESSION]");
 	await tree(rest);
 }

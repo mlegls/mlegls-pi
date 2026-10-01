@@ -1,7 +1,8 @@
 // Timeline of a session tree: one lane per session with its segments (model, tool, and the gap
 // kinds from profile.ts), plus a "you" lane of your turns across every interactive session, so an
 // "asked" gap shows whether you were away or busy elsewhere.
-//   bun lib/timeline.ts [SESSION] [--days N] [--out FILE]   writes HTML (default ~/.cache/profile/) and prints its path
+//   ab timeline [SESSION]                                   writes HTML under ~/.cache/profile/, opens it, prints its path
+//   bun lib/timeline.ts [SESSION] [--days N] [--out FILE]   same; --out writes there without opening
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -101,14 +102,20 @@ rows.addEventListener("mouseleave", () => tip.style.display = "none");
 </script>
 `;
 
+/** Write the timeline under ~/.cache/profile and open it in the browser; returns the file. */
+export async function openTimeline(ref?: string, days = 30, out?: string): Promise<string> {
+	const html = await timeline(ref, days);
+	const dir = join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "profile");
+	const file = out ?? join(dir, "timeline-" + (ref ?? process.env.PI_SESSION_ID ?? "session").slice(-8) + ".html");
+	mkdirSync(dir, { recursive: true });
+	writeFileSync(file, html);
+	if (!out) Bun.spawn(["open", file], { stdio: ["ignore", "ignore", "ignore"] });
+	return file;
+}
+
 if (import.meta.main) {
 	const args = process.argv.slice(2);
 	const flag = (f: string) => { const i = args.indexOf(f); return i < 0 ? undefined : args.splice(i, 2)[1]; };
 	const days = Number(flag("--days") ?? 30), out = flag("--out");
-	const html = await timeline(args[0], days);
-	const dir = join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "profile");
-	const file = out ?? join(dir, "timeline-" + (args[0] ?? process.env.PI_SESSION_ID ?? "session").slice(-8) + ".html");
-	mkdirSync(dir, { recursive: true });
-	writeFileSync(file, html);
-	console.log(file);
+	console.log(await openTimeline(args[0], days, out));
 }
