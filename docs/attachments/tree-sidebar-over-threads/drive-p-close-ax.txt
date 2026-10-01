@@ -1,0 +1,73 @@
+- [0] AXWindow "ab tree 149ff388-8837-47a2-8cb8-6a5326eca641" [id=_NS:11 actions=[raise]]
+  - AXTextArea = "threads · merge  tab: other tree        
+▌ ● main ·0012b4  project guest         
+ ▾● sidebar-child  project              
+   ● sidebar-grandchild                 
+  ● main ·6f4852  project guest         
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+                                        
+/private/tmp/owned-sidebar-drive-p/proje
+/ filter  enter open  ? help"
+  - AXTextArea = "s-MacBook-Pro:project mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi__worktr
+ees/tree-sidebar-over-threads-drive-p/lib/thread/agent-runner.ts 0012b4c2-402b-4378-bb38-407691a2182c; echo ZMX_TASK_COMPLETE
+D:c59e:$?
+Root thread"
+  - [1] AXButton = "16%" (Horizontal split divider) [help="Drag to resize the left and right panes" actions=[increment,decrement]]
+  - [2] AXButton [actions=[press,showmenu]]
+  - [3] AXButton [actions=[press]]
+  - AXStaticText = "ab tree 149ff388-8837-47a2-8cb8-6a5326eca641"
+  - [4] AXSheet (alert) [id=_NS:91 actions=[raise]]
+    - AXImage (Ghostty alert)
+    - [5] AXStaticText = "Close Window?" [id=_NS:78 actions=[showmenu]]
+    - [6] AXStaticText = "All terminal sessions in this window will be terminated." [id=_NS:58 actions=[showmenu]]
+    - [7] AXButton "Cancel" [id=action-button-2 actions=[press]]
+    - [8] AXButton "Close" [id=action-button-1 actions=[press]]

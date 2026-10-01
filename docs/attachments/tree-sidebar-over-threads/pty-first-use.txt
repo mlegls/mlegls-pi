@@ -1,0 +1,602 @@
+## 02-hover.ansi
+threads · spawn  tab: other tree        
+
+▌▾● main  project guest                 
+
+[new] [new in worktree] [fork] [merge]  
+
+[archive] [abandon]                     
+
+[abandon all children]                  
+
+  ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 03-wheel.ansi
+threads · spawn  tab: other tree        
+
+▌▾● main  project guest                 
+
+  ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 04-select.ansi
+threads · spawn  tab: other tree        
+
+▌▾● main  project guest                 
+
+  ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 05-open.ansi
+threads · spawn  tab: other tree        
+
+ ▾● main  project guest                 
+
+▌ ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 05-main.ansi
+/Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/ml
+egls-pi__worktrees/tree-sidebar-over-threads-implement-m/lib/thread/agent-runner
+.ts f592041b-0380-4d0c-bc1f-04e463ee4a5a; echo ZMX_TASK_COMPLETED:882f:$?
+s-MacBook-Pro:sidebar-child mlegls$ /Users/mlegls/.local/share/mise/installs/bun
+/latest/bin/bun /Users/mlegls/dev/mlegls-pi__worktrees/tree-sidebar-over-threads
+-implement-m/lib/thread/agent-runner.ts f592041b-0380-4d0c-bc1f-04e463ee4a5a; ec
+ho ZMX_TASK_COMPLETED:882f:$?
+Child thread
+
+## 06-merge.ansi
+threads · merge  tab: other tree        
+
+  ● main  project guest                 
+
+▌▾● sidebar-child  project              
+
+   ● sidebar-grandchild                 
+
+  ● main  project guest                 
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 07-created.ansi
+threads · spawn  tab: other tree        
+
+ ▾● main  project guest                 
+
+  ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+▌  ○ sidebar-created                    
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 08-fork.ansi
+threads · spawn  tab: other tree        
+
+ ▾● main  project guest                 
+
+  ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+  ▾○ sidebar-created                    
+
+▌   ○ sidebar-created guest             
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 09-confirm.ansi
+threads · spawn  tab: other tree        
+
+ ▾● main  project guest                 
+
+  ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+  ▾○ sidebar-created                    
+
+▌   ○ sidebar-created guest             
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+abandon sidebar-created? [y/N] █
+
+## 10-abandon.ansi
+threads · spawn  tab: other tree        
+
+ ▾● main  project guest                 
+
+  ▾● sidebar-child                      
+
+    ● sidebar-grandchild                
+
+   ● main guest                         
+
+   ○ sidebar-created                    
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+retired 1 thread(s)
+
+## 13-merge-confirm.ansi
+threads · spawn  tab: other tree        
+
+▌▾● main ·88800a  project guest         
+
+  ▾● sidebar-child                      
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+merge sidebar-child? [y/N] █
+
+## 14-merge.ansi
+threads · spawn  tab: other tree        
+
+No threads. n: new  N: worktree         
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+sidebar-child                           
+
+retired 2 thread(s)
+
+## 16-new.ansi
+threads · spawn  tab: other tree        
+
+ ▾· main ·88800a  project guest         
+
+   ● main ·2ff290 guest                 
+
+   ○ sidebar-created                    
+
+▌  ○ main ·23a921 guest                 
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+/ filter  enter open  ? help
+
+## 18-archive.ansi
+threads · spawn  tab: other tree        
+
+ ▾· main ·88800a  project guest         
+
+   ● main ·2ff290 guest                 
+
+   ○ sidebar-created                    
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+retired 1 thread(s)
+
+## 19-children-confirm.ansi
+threads · spawn  tab: other tree        
+
+ ▾· main ·88800a  project guest         
+
+   ● main ·2ff290 guest                 
+
+   ○ sidebar-created                    
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+abandon all children in the spawn tree o
+
+## 20-children.ansi
+threads · spawn  tab: other tree        
+
+  · main ·88800a  project guest         
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+/private/tmp/ab-thread-sidebar-m-first-u
+
+retired 2 thread(s)
+
+## 22-root-archive.ansi
+threads · spawn  tab: other tree        
+
+No threads. n: new  N: worktree         
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+                                        
+
+retired 1 thread(s)
+

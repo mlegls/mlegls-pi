@@ -1,0 +1,36 @@
+{
+ "backend": "threads",
+ "root": "fixture-root",
+ "cwd": "/private/tmp/wm-thread-Rv3dZn/owner",
+ "owner": "mail/fixture",
+ "budget": 1,
+ "collectors": {},
+ "chains": {},
+ "exceptions": {},
+ "tests": {
+  "fixture-nested": [],
+  "fixture-root": [],
+  "/private/tmp/wm-thread-Rv3dZn/owner": []
+ },
+ "resolved": {},
+ "moved": {},
+ "counter": 10,
+ "log": [
+  "2026-10-01T13:13:52 launched fixture-leaf-implement-1 (implement, fixture)",
+  "2026-10-01T13:15:59 implement worker for fixture-leaf is gone; relaunching",
+  "2026-10-01T13:15:59 launched fixture-leaf-implement-2 (implement, fixture)",
+  "2026-10-01T13:16:35 launched fixture-leaf-drive-3 (drive, fixture)",
+  "2026-10-01T13:16:56 launched fixture-leaf-review-4 (review, fixture)",
+  "2026-10-01T13:17:16 landed fixture-leaf in fixture-nested",
+  "2026-10-01T13:17:24 launched fixture-nested-implement-5 (implement, fixture)",
+  "2026-10-01T13:17:49 launched fixture-nested-drive-6 (drive, fixture)",
+  "2026-10-01T13:18:10 launched fixture-nested-review-7 (review, tidy)",
+  "2026-10-01T13:18:20 landed fixture-nested in fixture-root",
+  "2026-10-01T13:18:27 launched fixture-root-implement-8 (implement, fixture)",
+  "2026-10-01T13:18:48 launched fixture-root-drive-9 (drive, fixture)",
+  "2026-10-01T13:19:03 launched fixture-root-review-a (review, tidy)",
+  "2026-10-01T13:19:34 landed fixture-root in the owner's checkout"
+ ],
+ "pid": 58472,
+ "finished": "done"
+}

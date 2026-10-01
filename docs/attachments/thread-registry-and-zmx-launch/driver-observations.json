@@ -1,0 +1,695 @@
+{
+  "revision": "692b5df86302ea1547f6f4c1621cda0eb7044479",
+  "fixture": {
+    "root": "/private/tmp/ab-thread-fixture-S5Yn4n",
+    "env": {
+      "XDG_STATE_HOME": "/private/tmp/ab-thread-fixture-S5Yn4n/state",
+      "PI_BOARD_DIR": "/private/tmp/ab-thread-fixture-S5Yn4n/board",
+      "PI_CODING_AGENT_DIR": "/private/tmp/ab-thread-fixture-S5Yn4n/agent",
+      "ZMX_DIR": "/private/tmp/ab-thread-fixture-S5Yn4n/zmx",
+      "MISE_TRUSTED_CONFIG_PATHS": "/private/tmp/ab-thread-fixture-S5Yn4n"
+    },
+    "ids": {
+      "owner": "95e59bbb-602a-405a-95d4-42a652af96eb",
+      "canonical": "d051621c-a450-43ab-8fe7-28892059e38e",
+      "guest": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+      "fork": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+      "promoted": "01a0f71d-5630-73fd-a66f-e32f97837569",
+      "noSetup": "58b33b36-fab4-4d05-aee8-0a10a03c5f33"
+    }
+  },
+  "initial": {
+    "spawn": [
+      {
+        "threadId": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "sessionId": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-owner--/2026-10-01T10-58-04-590Z_95e59bbb-602a-405a-95d4-42a652af96eb.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/owner",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "owner",
+        "ownership": "owner",
+        "state": "working",
+        "depth": 0,
+        "mergeParent": "main"
+      },
+      {
+        "threadId": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "sessionId": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-04-782Z_d051621c-a450-43ab-8fe7-28892059e38e.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "parent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "pid": 10982,
+        "state": "idle",
+        "depth": 1,
+        "treeParent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "report": {
+          "tag": "turn-end",
+          "ts": "2026-10-01T10:58:09.609Z",
+          "body": "bootstrap-ok"
+        }
+      },
+      {
+        "threadId": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+        "sessionId": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-owner--/2026-10-01T10-58-09-866Z_0efbed6b-f6d3-41ad-8ff4-476bd2fc9786.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/owner",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "owner",
+        "ownership": "guest",
+        "parent": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "state": "working",
+        "depth": 2,
+        "treeParent": "d051621c-a450-43ab-8fe7-28892059e38e"
+      },
+      {
+        "threadId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+        "sessionId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-fork--/2026-10-01T10-58-09-928Z_5e52b9a3-1f69-4e7e-9168-143f9139cebd.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/fork",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "fork",
+        "ownership": "owner",
+        "parent": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+        "pid": 16997,
+        "state": "idle",
+        "depth": 3,
+        "treeParent": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+        "mergeParent": "owner",
+        "mergeParentThread": "95e59bbb-602a-405a-95d4-42a652af96eb"
+      },
+      {
+        "threadId": "01a0f71d-5630-73fd-a66f-e32f97837569",
+        "sessionId": "01a0f71d-5630-73fd-a66f-e32f97837569",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-10-096Z_01a0f71d-5630-73fd-a66f-e32f97837569.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "pid": 17010,
+        "state": "idle",
+        "depth": 0
+      },
+      {
+        "threadId": "58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "sessionId": "58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-no-setup__worktrees-58b33b36-fab4-4d05-aee8-0a10a03c5f33--/2026-10-01T10-58-10-168Z_58b33b36-fab4-4d05-aee8-0a10a03c5f33.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/no-setup__worktrees/58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/no-setup",
+        "branch": "58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "ownership": "owner",
+        "state": "working",
+        "depth": 0,
+        "mergeParent": "main"
+      }
+    ],
+    "merge": [
+      {
+        "threadId": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "sessionId": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-owner--/2026-10-01T10-58-04-590Z_95e59bbb-602a-405a-95d4-42a652af96eb.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/owner",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "owner",
+        "ownership": "owner",
+        "state": "working",
+        "depth": 0,
+        "mergeParent": "main"
+      },
+      {
+        "threadId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+        "sessionId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-fork--/2026-10-01T10-58-09-928Z_5e52b9a3-1f69-4e7e-9168-143f9139cebd.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/fork",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "fork",
+        "ownership": "owner",
+        "parent": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+        "pid": 16997,
+        "state": "idle",
+        "depth": 1,
+        "treeParent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "mergeParent": "owner",
+        "mergeParentThread": "95e59bbb-602a-405a-95d4-42a652af96eb"
+      },
+      {
+        "threadId": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "sessionId": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-04-782Z_d051621c-a450-43ab-8fe7-28892059e38e.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "parent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "pid": 10982,
+        "state": "idle",
+        "depth": 0,
+        "report": {
+          "tag": "turn-end",
+          "ts": "2026-10-01T10:58:09.609Z",
+          "body": "bootstrap-ok"
+        }
+      },
+      {
+        "threadId": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+        "sessionId": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-owner--/2026-10-01T10-58-09-866Z_0efbed6b-f6d3-41ad-8ff4-476bd2fc9786.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/owner",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "owner",
+        "ownership": "guest",
+        "parent": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "state": "working",
+        "depth": 0
+      },
+      {
+        "threadId": "01a0f71d-5630-73fd-a66f-e32f97837569",
+        "sessionId": "01a0f71d-5630-73fd-a66f-e32f97837569",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-10-096Z_01a0f71d-5630-73fd-a66f-e32f97837569.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "pid": 17010,
+        "state": "idle",
+        "depth": 0
+      },
+      {
+        "threadId": "58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "sessionId": "58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-no-setup__worktrees-58b33b36-fab4-4d05-aee8-0a10a03c5f33--/2026-10-01T10-58-10-168Z_58b33b36-fab4-4d05-aee8-0a10a03c5f33.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/no-setup__worktrees/58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/no-setup",
+        "branch": "58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "ownership": "owner",
+        "state": "working",
+        "depth": 0,
+        "mergeParent": "main"
+      }
+    ],
+    "terminals": [
+      {
+        "name": "01a0f71d-5630-73fd-a66f-e32f97837569.agent",
+        "pid": 17002,
+        "clients": 0,
+        "created": 1790852290,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "role": "agent",
+        "thread": "01a0f71d-5630-73fd-a66f-e32f97837569"
+      },
+      {
+        "name": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786.agent",
+        "pid": 16740,
+        "clients": 0,
+        "created": 1790852289,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/owner",
+        "role": "agent",
+        "thread": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786"
+      },
+      {
+        "name": "58b33b36-fab4-4d05-aee8-0a10a03c5f33.agent",
+        "pid": 17023,
+        "clients": 0,
+        "created": 1790852290,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/no-setup__worktrees/58b33b36-fab4-4d05-aee8-0a10a03c5f33",
+        "role": "agent",
+        "thread": "58b33b36-fab4-4d05-aee8-0a10a03c5f33"
+      },
+      {
+        "name": "5e52b9a3-1f69-4e7e-9168-143f9139cebd.agent",
+        "pid": 16990,
+        "clients": 0,
+        "created": 1790852290,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/fork",
+        "role": "agent",
+        "thread": "5e52b9a3-1f69-4e7e-9168-143f9139cebd"
+      },
+      {
+        "name": "95e59bbb-602a-405a-95d4-42a652af96eb.agent",
+        "pid": 10946,
+        "clients": 0,
+        "created": 1790852284,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/owner",
+        "role": "agent",
+        "thread": "95e59bbb-602a-405a-95d4-42a652af96eb"
+      },
+      {
+        "name": "95e59bbb-602a-405a-95d4-42a652af96eb.server",
+        "pid": 17029,
+        "clients": 0,
+        "created": 1790852290,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/owner",
+        "role": "server",
+        "thread": "95e59bbb-602a-405a-95d4-42a652af96eb"
+      },
+      {
+        "name": "d051621c-a450-43ab-8fe7-28892059e38e.agent",
+        "pid": 10972,
+        "clients": 0,
+        "created": 1790852284,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "role": "agent",
+        "thread": "d051621c-a450-43ab-8fe7-28892059e38e"
+      }
+    ],
+    "live": [
+      {
+        "pid": 10982,
+        "sessionId": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-04-782Z_d051621c-a450-43ab-8fe7-28892059e38e.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "state": "idle",
+        "since": "2026-10-01T10:58:09.609Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "thread/d051621c-a450-43ab-8fe7-28892059e38e",
+            "wake": true
+          },
+          {
+            "topic": "mail/2059e38e",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/main",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+      },
+      {
+        "pid": 17010,
+        "sessionId": "01a0f71d-5630-73fd-a66f-e32f97837569",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-10-096Z_01a0f71d-5630-73fd-a66f-e32f97837569.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "state": "idle",
+        "since": "2026-10-01T10:58:10.828Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "thread/01a0f71d-5630-73fd-a66f-e32f97837569",
+            "wake": true
+          },
+          {
+            "topic": "mail/97837569",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/main",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+      },
+      {
+        "pid": 16997,
+        "sessionId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-fork--/2026-10-01T10-58-09-928Z_5e52b9a3-1f69-4e7e-9168-143f9139cebd.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/fork",
+        "state": "idle",
+        "since": "2026-10-01T10:58:10.819Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "thread/d051621c-a450-43ab-8fe7-28892059e38e",
+            "wake": true
+          },
+          {
+            "topic": "mail/2059e38e",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/main",
+            "wake": true
+          },
+          {
+            "topic": "mail/9139cebd",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/fork",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+      }
+    ]
+  },
+  "transitions": {
+    "restart": {
+      "rows": [
+        {
+          "threadId": "d051621c-a450-43ab-8fe7-28892059e38e",
+          "sessionId": "d051621c-a450-43ab-8fe7-28892059e38e",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-04-782Z_d051621c-a450-43ab-8fe7-28892059e38e.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "branch": "main",
+          "ownership": "guest",
+          "parent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+          "pid": 57521,
+          "state": "idle",
+          "depth": 1,
+          "treeParent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+          "report": {
+            "tag": "turn-end",
+            "ts": "2026-10-01T10:58:09.609Z",
+            "body": "bootstrap-ok"
+          }
+        }
+      ],
+      "live": [
+        {
+          "pid": 57521,
+          "sessionId": "d051621c-a450-43ab-8fe7-28892059e38e",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-04-782Z_d051621c-a450-43ab-8fe7-28892059e38e.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "state": "idle",
+          "since": "2026-10-01T10:58:57.817Z",
+          "mode": "tui",
+          "subscriptions": [
+            {
+              "topic": "thread/d051621c-a450-43ab-8fe7-28892059e38e",
+              "wake": true
+            },
+            {
+              "topic": "mail/2059e38e",
+              "wake": true
+            },
+            {
+              "topic": "wt/repo/main",
+              "wake": true
+            }
+          ],
+          "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+        }
+      ],
+      "threadCount": 6
+    },
+    "external-before": {
+      "rows": [],
+      "live": [
+        {
+          "pid": 36292,
+          "sessionId": "01a0f71f-44e4-75e7-952c-61c786fe0532",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-00-16-740Z_01a0f71f-44e4-75e7-952c-61c786fe0532.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "state": "idle",
+          "since": "2026-10-01T11:00:17.260Z",
+          "mode": "tui",
+          "subscriptions": [
+            {
+              "topic": "mail/86fe0532",
+              "wake": true
+            },
+            {
+              "topic": "wt/repo/main",
+              "wake": true
+            }
+          ],
+          "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+        }
+      ],
+      "threadCount": 6
+    },
+    "external-during": {
+      "rows": [
+        {
+          "threadId": "01a0f71f-44e4-75e7-952c-61c786fe0532",
+          "sessionId": "01a0f71f-44e4-75e7-952c-61c786fe0532",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-00-16-740Z_01a0f71f-44e4-75e7-952c-61c786fe0532.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "branch": "main",
+          "ownership": "guest",
+          "pid": 36292,
+          "state": "idle",
+          "depth": 0
+        }
+      ],
+      "live": [
+        {
+          "pid": 36292,
+          "sessionId": "01a0f71f-44e4-75e7-952c-61c786fe0532",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-00-16-740Z_01a0f71f-44e4-75e7-952c-61c786fe0532.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "state": "idle",
+          "since": "2026-10-01T11:00:17.260Z",
+          "mode": "tui",
+          "subscriptions": [
+            {
+              "topic": "mail/86fe0532",
+              "wake": true
+            },
+            {
+              "topic": "wt/repo/main",
+              "wake": true
+            }
+          ],
+          "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+        }
+      ],
+      "threadCount": 7
+    },
+    "external-after": {
+      "rows": [
+        {
+          "threadId": "01a0f71f-44e4-75e7-952c-61c786fe0532",
+          "sessionId": "01a0f71f-44e4-75e7-952c-61c786fe0532",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-00-16-740Z_01a0f71f-44e4-75e7-952c-61c786fe0532.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "branch": "main",
+          "ownership": "guest",
+          "pid": 61440,
+          "state": "idle",
+          "depth": 0
+        }
+      ],
+      "live": [
+        {
+          "pid": 61440,
+          "sessionId": "01a0f71f-44e4-75e7-952c-61c786fe0532",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-00-16-740Z_01a0f71f-44e4-75e7-952c-61c786fe0532.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "state": "idle",
+          "since": "2026-10-01T11:00:44.639Z",
+          "mode": "tui",
+          "subscriptions": [
+            {
+              "topic": "thread/01a0f71f-44e4-75e7-952c-61c786fe0532",
+              "wake": true
+            },
+            {
+              "topic": "mail/86fe0532",
+              "wake": true
+            },
+            {
+              "topic": "wt/repo/main",
+              "wake": true
+            }
+          ],
+          "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+        }
+      ],
+      "threadCount": 7
+    },
+    "fork-report": {
+      "rows": [
+        {
+          "threadId": "d051621c-a450-43ab-8fe7-28892059e38e",
+          "sessionId": "d051621c-a450-43ab-8fe7-28892059e38e",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T10-58-04-782Z_d051621c-a450-43ab-8fe7-28892059e38e.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "branch": "main",
+          "ownership": "guest",
+          "parent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+          "pid": 57521,
+          "state": "idle",
+          "depth": 1,
+          "treeParent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+          "report": {
+            "tag": "turn-end",
+            "ts": "2026-10-01T10:58:09.609Z",
+            "body": "bootstrap-ok"
+          }
+        },
+        {
+          "threadId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+          "sessionId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-fork--/2026-10-01T10-58-09-928Z_5e52b9a3-1f69-4e7e-9168-143f9139cebd.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/fork",
+          "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "branch": "fork",
+          "ownership": "owner",
+          "parent": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+          "pid": 16997,
+          "state": "idle",
+          "depth": 3,
+          "treeParent": "0efbed6b-f6d3-41ad-8ff4-476bd2fc9786",
+          "mergeParent": "owner",
+          "mergeParentThread": "95e59bbb-602a-405a-95d4-42a652af96eb",
+          "report": {
+            "tag": "turn-end",
+            "ts": "2026-10-01T11:01:13.180Z",
+            "body": "fork-report-ok"
+          }
+        }
+      ],
+      "live": [
+        {
+          "pid": 16997,
+          "sessionId": "5e52b9a3-1f69-4e7e-9168-143f9139cebd",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo__worktrees-fork--/2026-10-01T10-58-09-928Z_5e52b9a3-1f69-4e7e-9168-143f9139cebd.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo__worktrees/fork",
+          "state": "idle",
+          "since": "2026-10-01T11:01:13.183Z",
+          "mode": "tui",
+          "subscriptions": [
+            {
+              "topic": "thread/d051621c-a450-43ab-8fe7-28892059e38e",
+              "wake": true
+            },
+            {
+              "topic": "mail/2059e38e",
+              "wake": true
+            },
+            {
+              "topic": "wt/repo/main",
+              "wake": true
+            },
+            {
+              "topic": "mail/9139cebd",
+              "wake": true
+            },
+            {
+              "topic": "wt/repo/fork",
+              "wake": true
+            }
+          ],
+          "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+        }
+      ],
+      "threadCount": 7
+    },
+    "switch": {
+      "rows": [
+        {
+          "threadId": "d051621c-a450-43ab-8fe7-28892059e38e",
+          "sessionId": "01a0f720-31e6-71ce-ae3a-76fcad6eabdb",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-01-17-414Z_01a0f720-31e6-71ce-ae3a-76fcad6eabdb.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "branch": "main",
+          "ownership": "guest",
+          "parent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+          "pid": 92608,
+          "state": "idle",
+          "depth": 1,
+          "treeParent": "95e59bbb-602a-405a-95d4-42a652af96eb"
+        }
+      ],
+      "live": [
+        {
+          "pid": 92608,
+          "sessionId": "01a0f720-31e6-71ce-ae3a-76fcad6eabdb",
+          "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-01-17-414Z_01a0f720-31e6-71ce-ae3a-76fcad6eabdb.jsonl",
+          "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+          "state": "idle",
+          "since": "2026-10-01T11:01:19.035Z",
+          "mode": "tui",
+          "subscriptions": [
+            {
+              "topic": "thread/d051621c-a450-43ab-8fe7-28892059e38e",
+              "wake": true
+            },
+            {
+              "topic": "mail/ad6eabdb",
+              "wake": true
+            },
+            {
+              "topic": "wt/repo/main",
+              "wake": true
+            }
+          ],
+          "boardDir": "/private/tmp/ab-thread-fixture-S5Yn4n/board"
+        }
+      ],
+      "threadCount": 7
+    },
+    "attached": {
+      "row": {
+        "threadId": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "sessionId": "01a0f720-31e6-71ce-ae3a-76fcad6eabdb",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-01-17-414Z_01a0f720-31e6-71ce-ae3a-76fcad6eabdb.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "parent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "pid": 92608,
+        "state": "idle",
+        "depth": 1,
+        "treeParent": "95e59bbb-602a-405a-95d4-42a652af96eb"
+      },
+      "terminal": {
+        "name": "d051621c-a450-43ab-8fe7-28892059e38e.agent",
+        "pid": 10972,
+        "clients": 1,
+        "created": 1790852284,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "role": "agent",
+        "thread": "d051621c-a450-43ab-8fe7-28892059e38e"
+      }
+    },
+    "detached": {
+      "row": {
+        "threadId": "d051621c-a450-43ab-8fe7-28892059e38e",
+        "sessionId": "01a0f720-31e6-71ce-ae3a-76fcad6eabdb",
+        "sessionFile": "/private/tmp/ab-thread-fixture-S5Yn4n/agent/sessions/--private-tmp-ab-thread-fixture-S5Yn4n-repo--/2026-10-01T11-01-17-414Z_01a0f720-31e6-71ce-ae3a-76fcad6eabdb.jsonl",
+        "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "project": "/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "parent": "95e59bbb-602a-405a-95d4-42a652af96eb",
+        "pid": 92608,
+        "state": "idle",
+        "depth": 1,
+        "treeParent": "95e59bbb-602a-405a-95d4-42a652af96eb"
+      },
+      "terminal": {
+        "name": "d051621c-a450-43ab-8fe7-28892059e38e.agent",
+        "pid": 10972,
+        "clients": 0,
+        "created": 1790852284,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-thread-fixture-S5Yn4n/repo",
+        "role": "agent",
+        "thread": "d051621c-a450-43ab-8fe7-28892059e38e"
+      }
+    }
+  },
+  "canonicalPersisted": {
+    "header": {
+      "type": "session",
+      "version": 3,
+      "id": "d051621c-a450-43ab-8fe7-28892059e38e",
+      "timestamp": "2026-10-01T10:58:04.782Z",
+      "cwd": "/private/tmp/ab-thread-fixture-S5Yn4n/repo"
+    },
+    "userMessages": [
+      [
+        {
+          "type": "text",
+          "text": "Reply only bootstrap-ok. Do not use tools."
+        }
+      ]
+    ]
+  },
+  "setupMarkers": {
+    "owner": "setup\n",
+    "fork": "setup\n"
+  }
+}

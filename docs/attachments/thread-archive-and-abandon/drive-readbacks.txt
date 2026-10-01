@@ -1,0 +1,48 @@
+DONE fixture git lineage
+* 3700830 0ed53da conflict.txt
+* 0ed53da dc80134 early.txt
+* dc80134 177eb4b conflict.txt
+| * e522366 177eb4b unmerged.txt
+|/  
+* 177eb4b  conflict.txt
+DONE fixture filesystem/pids
+parent removed
+child removed
+early removed
+abandon removed
+abandon-child removed
+77878 absent
+74373 absent
+66381 absent
+84698 absent
+58601 absent
+86825 alive
+BLOCKED fixture git lineage
+*   60d5b3c 13f5863 01cf6cf Resolve fixture conflict
+|\  
+| * 01cf6cf 17ee6d2 early.txt
+| * 17ee6d2 175aff2 conflict.txt
+* | 13f5863 175aff2 conflict.txt
+|/  
+| * 6100910 175aff2 a35cef3 Merge branch 'abandon-child' into abandon
+|/| 
+| * a35cef3 175aff2 unmerged.txt
+|/  
+* 175aff2  conflict.txt
+BLOCKED fixture filesystem/pids
+parent removed
+child removed
+early removed
+abandon removed
+abandon-child removed
+46137 absent
+43725 absent
+39375 absent
+51135 absent
+53686 alive
+AFTER explicit fixture cleanup
+/private/tmp/ab-lifecycle-CFlm5U absent
+/private/tmp/ab-lifecycle-TujmZd absent
+86825 absent after cleanup
+53686 absent after cleanup
+No process command referenced either fixture root.

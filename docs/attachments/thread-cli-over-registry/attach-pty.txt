@@ -1,0 +1,6 @@
+[2J[H/Users/mlegls/.nix-profile/bin/zsh -l; echo ZMX_TASK_COMPLETED:cd39:$?
+s-MacBook-Pro:cli-owner mlegls$ /Users/mlegls/.nix-profile/bin/zsh -l; echo ZMX_TASK_COMPLETED:cd39:$?[3;1H[0m[1m[7m%[27m[1m[0m                                                                                                                                            [0m[27m[24m[J[34m/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner[39m [35mgit:cli-owner[39m
+% [K[132C[38;5;240m20:10[39m[137D[6 q[?2004hpprintf 'AUX-CWD:'; pwd[22D[32mp[32mr[32mi[32mn[32mt[32mf[39m [33m'[33mA[33mU[33mX[33m-[33mC[33mW[33mD[33m:[33m'[39m[2C[32mp[32mw[32md[39m[?2004l
+AUX-CWD:/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner
+[1m[7m%[27m[1m[0m                                                                                                                                            [0m[27m[24m[J[34m/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner[39m [35mgit:cli-owner[39m
+% [K[132C[38;5;240m20:10[39m[137D[6 q[?2004h[2 qc]110\]111\]112\

@@ -1,0 +1,271 @@
+{
+  "revision": "da956d5",
+  "fixture": {
+    "root": "/private/tmp/ab-thread-fixture-FFQJBN",
+    "ids": {
+      "owner": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "canonical": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "guest": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "fork": "f286f297-8aa1-458a-96af-5226e5ec2a17",
+      "promoted": "01a0f70e-f793-743e-b011-5bca6f8466de",
+      "noSetup": "2d303a88-a22a-424a-8c6d-6eb5697d0c56"
+    }
+  },
+  "spawn": [
+    {
+      "id": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "sessionId": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "ownership": "owner",
+      "branch": "owner",
+      "mergeParent": "main",
+      "depth": 0,
+      "terminals": [
+        {
+          "name": "f2f839e4-c154-43cb-94ae-7201bb2d830f.agent",
+          "role": "agent"
+        },
+        {
+          "name": "f2f839e4-c154-43cb-94ae-7201bb2d830f.server",
+          "role": "server"
+        }
+      ]
+    },
+    {
+      "id": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "sessionId": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "ownership": "guest",
+      "branch": "main",
+      "parent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "depth": 1,
+      "treeParent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "pid": 2744,
+      "terminals": [
+        {
+          "name": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "sessionId": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "ownership": "guest",
+      "branch": "owner",
+      "parent": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "depth": 2,
+      "treeParent": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "terminals": [
+        {
+          "name": "068c690c-aaa9-4447-ac75-76538fe836d7.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "f286f297-8aa1-458a-96af-5226e5ec2a17",
+      "sessionId": "f286f297-8aa1-458a-96af-5226e5ec2a17",
+      "ownership": "owner",
+      "branch": "fork",
+      "parent": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "mergeParent": "owner",
+      "mergeParentThread": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "depth": 3,
+      "treeParent": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "pid": 5837,
+      "terminals": [
+        {
+          "name": "f286f297-8aa1-458a-96af-5226e5ec2a17.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "01a0f70e-f793-743e-b011-5bca6f8466de",
+      "sessionId": "01a0f70e-f793-743e-b011-5bca6f8466de",
+      "ownership": "guest",
+      "branch": "main",
+      "depth": 0,
+      "pid": 5850,
+      "terminals": [
+        {
+          "name": "01a0f70e-f793-743e-b011-5bca6f8466de.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "2d303a88-a22a-424a-8c6d-6eb5697d0c56",
+      "sessionId": "2d303a88-a22a-424a-8c6d-6eb5697d0c56",
+      "ownership": "owner",
+      "branch": "2d303a88-a22a-424a-8c6d-6eb5697d0c56",
+      "mergeParent": "main",
+      "depth": 0,
+      "terminals": [
+        {
+          "name": "2d303a88-a22a-424a-8c6d-6eb5697d0c56.agent",
+          "role": "agent"
+        }
+      ]
+    }
+  ],
+  "merge": [
+    {
+      "id": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "sessionId": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "ownership": "owner",
+      "branch": "owner",
+      "mergeParent": "main",
+      "depth": 0,
+      "terminals": [
+        {
+          "name": "f2f839e4-c154-43cb-94ae-7201bb2d830f.agent",
+          "role": "agent"
+        },
+        {
+          "name": "f2f839e4-c154-43cb-94ae-7201bb2d830f.server",
+          "role": "server"
+        }
+      ]
+    },
+    {
+      "id": "f286f297-8aa1-458a-96af-5226e5ec2a17",
+      "sessionId": "f286f297-8aa1-458a-96af-5226e5ec2a17",
+      "ownership": "owner",
+      "branch": "fork",
+      "parent": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "mergeParent": "owner",
+      "mergeParentThread": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "depth": 1,
+      "treeParent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "pid": 5837,
+      "terminals": [
+        {
+          "name": "f286f297-8aa1-458a-96af-5226e5ec2a17.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "sessionId": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "ownership": "guest",
+      "branch": "main",
+      "parent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "depth": 0,
+      "pid": 2744,
+      "terminals": [
+        {
+          "name": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "sessionId": "068c690c-aaa9-4447-ac75-76538fe836d7",
+      "ownership": "guest",
+      "branch": "owner",
+      "parent": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "depth": 0,
+      "terminals": [
+        {
+          "name": "068c690c-aaa9-4447-ac75-76538fe836d7.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "01a0f70e-f793-743e-b011-5bca6f8466de",
+      "sessionId": "01a0f70e-f793-743e-b011-5bca6f8466de",
+      "ownership": "guest",
+      "branch": "main",
+      "depth": 0,
+      "pid": 5850,
+      "terminals": [
+        {
+          "name": "01a0f70e-f793-743e-b011-5bca6f8466de.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    {
+      "id": "2d303a88-a22a-424a-8c6d-6eb5697d0c56",
+      "sessionId": "2d303a88-a22a-424a-8c6d-6eb5697d0c56",
+      "ownership": "owner",
+      "branch": "2d303a88-a22a-424a-8c6d-6eb5697d0c56",
+      "mergeParent": "main",
+      "depth": 0,
+      "terminals": [
+        {
+          "name": "2d303a88-a22a-424a-8c6d-6eb5697d0c56.agent",
+          "role": "agent"
+        }
+      ]
+    }
+  ],
+  "currentSessionMove": {
+    "before": {
+      "id": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "sessionId": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "ownership": "guest",
+      "branch": "main",
+      "parent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "depth": 1,
+      "treeParent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "pid": 2744,
+      "terminals": [
+        {
+          "name": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba.agent",
+          "role": "agent"
+        }
+      ]
+    },
+    "after": {
+      "id": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba",
+      "sessionId": "01a0f70f-f08c-75d1-9235-50544cb1d9a6",
+      "ownership": "guest",
+      "branch": "main",
+      "parent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "depth": 1,
+      "treeParent": "f2f839e4-c154-43cb-94ae-7201bb2d830f",
+      "pid": 41827,
+      "terminals": [
+        {
+          "name": "8e86c8e0-446a-44c4-8f7d-58bf602f90ba.agent",
+          "role": "agent"
+        }
+      ]
+    }
+  },
+  "canonicalRestart": {
+    "threadId": "7b056d6e-3bc4-43b1-9f4c-c3558939ed97",
+    "sessionIdBefore": "7b056d6e-3bc4-43b1-9f4c-c3558939ed97",
+    "sessionIdAfter": "7b056d6e-3bc4-43b1-9f4c-c3558939ed97",
+    "piPidBefore": 55655,
+    "piPidAfter": 60673,
+    "userMessageCountAfter": 1,
+    "assistantText": "bootstrap-ok",
+    "sessionFileBefore": "/private/tmp/ab-pi-nGXBtJ/agent/sessions/--private-tmp-ab-pi-nGXBtJ-repo--/2026-10-01T10-35-44-046Z_7b056d6e-3bc4-43b1-9f4c-c3558939ed97.jsonl",
+    "sessionFileAfter": "/private/tmp/ab-pi-nGXBtJ/agent/sessions/--private-tmp-ab-pi-nGXBtJ-repo--/2026-10-01T10-35-44-046Z_7b056d6e-3bc4-43b1-9f4c-c3558939ed97.jsonl"
+  },
+  "emptyExternalPromotion": {
+    "sessionId": "01a0f70c-9bfa-77d4-b277-12d07a6e4341",
+    "initiallyPersisted": false,
+    "externalPid": 54854,
+    "livePidsWhileExternal": [
+      54854
+    ],
+    "resumedPid": 60623,
+    "ownership": "guest"
+  },
+  "literalSend": {
+    "text": "literal $HOME ; 'quotes'",
+    "beforeCR": "literal $HOME ; 'quotes'",
+    "afterCR": "SUBMITTED:literal $HOME ; 'quotes'"
+  },
+  "cleanup": {
+    "fixtureTerminals": [],
+    "activeFixtureThreads": [],
+    "ownedFixtureRootsRemoved": true
+  }
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "event": "driving-pi",
+    "id": "472f1308-188f-40a5-afb4-43e7397f86dd",
+    "cwd": "/private/tmp/wm-thread-4rgvYs/owner"
+  },
+  {
+    "event": "tool-dispatch-complete",
+    "report": {
+      "id": "mupj1a7e-kn2wbq",
+      "line": 16,
+      "ts": "2026-10-01T12:45:07.178Z",
+      "topic": "thread/472f1308-188f-40a5-afb4-43e7397f86dd",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "session": "472f1308-188f-40a5-afb4-43e7397f86dd",
+        "name": "owner",
+        "cwd": "/private/tmp/wm-thread-4rgvYs/owner"
+      },
+      "body": "done fixture-dispatch-complete\n\n```yaml\nrun: tool-fixture\nworkers:\n  - handle: tool-integrate\n    receipt:\n      path: /private/tmp/wm-thread-4rgvYs/repo__worktrees/tool-integrate\n      threadId: c31eb33d-5f7f-467f-a3ad-6f7ad29fe17f\n    done_report: mupizijw-j3aosx\n    commit: 94bac00\n    integration: rebase\n    retirement: closed\n    branchDeleted: tool-integrate\n\n  - handle: tool-keep\n    receipt:\n      path: /private/tmp/wm-thread-4rgvYs/repo__worktrees/tool-keep\n      threadId: 31a96941-c2b8-4591-9a8a-fa4b4fb8fbea\n    done_report: mupizxjd-8h4onn\n    commit: 674b80d\n    integration: rebase\n    keep: true\n    retirement: closed after separate retire\n    branchDeleted: tool-keep\n\n  - handle: tool-unmerged\n    receipt:\n      path: /private/tmp/wm-thread-4rgvYs/repo__worktrees/tool-unmerged\n      threadId: c9c8d1dd-5fe5-40ac-b1c5-355f9a24c6a2\n    done_report: mupj0rxh-h18vvw\n    commit: 4024b33\n    integration: none\n    retirement: closed\n    branchKept: \"tool-unmerged: not merged into owner\"\n```"
+    },
+    "branches": "+ main\n* owner\n  tool-unmerged",
+    "active": [
+      {
+        "id": "472f1308-188f-40a5-afb4-43e7397f86dd",
+        "cwd": "/private/tmp/wm-thread-4rgvYs/owner"
+      }
+    ],
+    "terminals": [
+      {
+        "name": "472f1308-188f-40a5-afb4-43e7397f86dd.agent",
+        "pid": 18817,
+        "clients": 0,
+        "created": 1790858593,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/wm-thread-4rgvYs/owner",
+        "role": "agent",
+        "thread": "472f1308-188f-40a5-afb4-43e7397f86dd"
+      }
+    ],
+    "files": "integrated.txt\nkept.txt"
+  }
+]

@@ -1,0 +1,196 @@
+{
+  "pi-owner-session-readback": [
+    {
+      "type": "session",
+      "version": 3,
+      "id": "3dabf790-624e-44cf-9982-0411a7a35d79",
+      "timestamp": "2026-10-01T12:08:39.120Z",
+      "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo"
+    },
+    {
+      "type": "message",
+      "id": "c6d32e1c",
+      "parentId": "2b8e8ea7",
+      "timestamp": "2026-10-01T12:08:39.921Z",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Reply only done cli-ready. Do not use tools."
+          }
+        ],
+        "timestamp": 1790856519918
+      }
+    },
+    {
+      "type": "message",
+      "id": "062af108",
+      "parentId": "c6d32e1c",
+      "timestamp": "2026-10-01T12:08:43.943Z",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "done cli-ready",
+            "textSignature": "{\"v\":1,\"id\":\"msg_009f41ee4e054daf016abe4d4ba4ec87d093c386bb918e790d\",\"phase\":\"final_answer\"}"
+          }
+        ],
+        "api": "openai-codex-responses",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "usage": {
+          "input": 6867,
+          "output": 7,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 6874,
+          "cost": {
+            "input": 0.013734,
+            "output": 7.000000000000001e-05,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0.013804
+          }
+        },
+        "stopReason": "stop",
+        "timestamp": 1790856519932,
+        "responseId": "resp_009f41ee4e054daf016abe4d49aa6c87d09c67c7ba555b2d95",
+        "rawStopReason": "completed",
+        "thinkingLevel": "medium"
+      }
+    }
+  ],
+  "fork-owner-session-readback": [
+    {
+      "type": "session",
+      "version": 3,
+      "id": "1a1d1b95-7d40-4560-af7c-43335f46a6b5",
+      "timestamp": "2026-10-01T12:08:52.341Z",
+      "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+      "parentSession": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl"
+    },
+    {
+      "type": "message",
+      "id": "c6d32e1c",
+      "parentId": "2b8e8ea7",
+      "timestamp": "2026-10-01T12:08:39.921Z",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Reply only done cli-ready. Do not use tools."
+          }
+        ],
+        "timestamp": 1790856519918
+      }
+    },
+    {
+      "type": "message",
+      "id": "062af108",
+      "parentId": "c6d32e1c",
+      "timestamp": "2026-10-01T12:08:43.943Z",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "done cli-ready",
+            "textSignature": "{\"v\":1,\"id\":\"msg_009f41ee4e054daf016abe4d4ba4ec87d093c386bb918e790d\",\"phase\":\"final_answer\"}"
+          }
+        ],
+        "api": "openai-codex-responses",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "usage": {
+          "input": 6867,
+          "output": 7,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 6874,
+          "cost": {
+            "input": 0.013734,
+            "output": 7.000000000000001e-05,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0.013804
+          }
+        },
+        "stopReason": "stop",
+        "timestamp": 1790856519932,
+        "responseId": "resp_009f41ee4e054daf016abe4d49aa6c87d09c67c7ba555b2d95",
+        "rawStopReason": "completed",
+        "thinkingLevel": "medium"
+      }
+    }
+  ],
+  "different-cwd-fork-session-readback": [
+    {
+      "type": "session",
+      "version": 3,
+      "id": "bfed9375-6f47-4308-9226-70eccdc18eaa",
+      "timestamp": "2026-10-01T12:11:42.864Z",
+      "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner",
+      "parentSession": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl"
+    },
+    {
+      "type": "message",
+      "id": "c6d32e1c",
+      "parentId": "2b8e8ea7",
+      "timestamp": "2026-10-01T12:08:39.921Z",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Reply only done cli-ready. Do not use tools."
+          }
+        ],
+        "timestamp": 1790856519918
+      }
+    },
+    {
+      "type": "message",
+      "id": "062af108",
+      "parentId": "c6d32e1c",
+      "timestamp": "2026-10-01T12:08:43.943Z",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "done cli-ready",
+            "textSignature": "{\"v\":1,\"id\":\"msg_009f41ee4e054daf016abe4d4ba4ec87d093c386bb918e790d\",\"phase\":\"final_answer\"}"
+          }
+        ],
+        "api": "openai-codex-responses",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "usage": {
+          "input": 6867,
+          "output": 7,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 6874,
+          "cost": {
+            "input": 0.013734,
+            "output": 7.000000000000001e-05,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0.013804
+          }
+        },
+        "stopReason": "stop",
+        "timestamp": 1790856519932,
+        "responseId": "resp_009f41ee4e054daf016abe4d49aa6c87d09c67c7ba555b2d95",
+        "rawStopReason": "completed",
+        "thinkingLevel": "medium"
+      }
+    }
+  ]
+}

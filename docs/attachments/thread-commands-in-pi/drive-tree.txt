@@ -1,0 +1,6 @@
+b58b7095-a0ac-4ceb-869c-cae1045fa476 session=b58b7095-a0ac-4ceb-869c-cae1045fa476 guest idle cwd=/private/tmp/thread-commands-mnm8Xt/repo branch=main
+  892998b6-2701-4620-9936-833bba39304e session=892998b6-2701-4620-9936-833bba39304e owner idle cwd=/private/tmp/thread-commands-mnm8Xt/repo__worktrees/x branch=x
+  d0a4b435-ed1d-4684-8efd-3f42ef1fa8aa session=d0a4b435-ed1d-4684-8efd-3f42ef1fa8aa owner idle cwd=/private/tmp/thread-commands-mnm8Xt/repo__worktrees/d0a4b435-ed1d-4684-8efd-3f42ef1fa8aa branch=d0a4b435-ed1d-4684-8efd-3f42ef1fa8aa
+  26a872d6-b4f9-4347-9615-98a9da538772 session=26a872d6-b4f9-4347-9615-98a9da538772 guest idle cwd=/private/tmp/thread-commands-mnm8Xt/repo__worktrees/x branch=x
+  92c84c6b-c070-4eb0-a121-54476ba6f2d5 session=92c84c6b-c070-4eb0-a121-54476ba6f2d5 owner idle cwd=/private/tmp/thread-commands-mnm8Xt/repo__worktrees/y branch=y
+01a0f7ed-5e7f-70df-a3c6-bc0167c402fc session=01a0f7ed-5e7f-70df-a3c6-bc0167c402fc guest idle cwd=/private/tmp/thread-commands-mnm8Xt/repo branch=main

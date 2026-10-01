@@ -1,0 +1,20 @@
+[
+  {
+    "cmd": "/thread archive",
+    "state": [
+      {
+        "text": "window_id=19117 pid=59823 elements=2\n\n- [0] AXWindow \"mlegls — π - x — zmx ◂ child.command — 80×24\" [id=_NS:136 actions=[raise]]\n    - AXTextArea = \"Last login: Thu Oct  1 22:46:42 on ttys067\nYou have new mail.\n/tmp/thread-commands-mnm8Xt/child.command ; exit;\n~ \n% /tmp/thread-commands-mnm8Xt/child.command ; exit;                       22:46\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ns-MacBook-Pro:x mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/\nbun /Users/mlegls/dev/mlegls-pi__worktrees/thread-commands-in-pi-drive-n/lib/thr\nead/agent-runner.ts 892998b6-2701-4620-9936-833bba39304e; echo ZMX_TASK_COMPLETE\nD:4285:$?\n\n Error: Cleanup controller is inside thread                                     \n 892998b6-2701-4620-9936-833bba39304e; run cleanup from another terminal        \n\n Error: Cleanup controller is inside thread                                     \n 892998b6-2701-4620-9936-833bba39304e; run cleanup from another terminal        \n\n────────────────────────────────────────────────────────────────────────────────\n                                                                                \n────────────────────────────────────────────────────────────────────────────────\n/private/tmp/thread-commands-mnm8Xt/repo__worktrees/x (x)\n$0.000 (sub) 0.0%/272k (auto)                (openai-codex) gpt-6.1-sol • medium\n✉ mail/ba39304e # wt/repo/x\" (shell)\n    - [1] AXButton (Split pane) [help=\"Split pane\" actions=[press]]\n\n⚠️ PARTIAL TREE: the max_elements node budget ran out after 5 node(s) (8 discovered but not visited). Every element listed is real; elements after the cut are missing. If the element you need is absent, retry with a larger timeout_ms (e.g. 5000) or narrow with query / max_depth.",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "cmd": "/thread abandon",
+    "state": [
+      {
+        "text": "window_id=19117 pid=59823 elements=2\n\n- [0] AXWindow \"mlegls — π - x — zmx ◂ child.command — 80×24\" [id=_NS:136 actions=[raise]]\n    - AXTextArea = \"Last login: Thu Oct  1 22:46:42 on ttys067\nYou have new mail.\n/tmp/thread-commands-mnm8Xt/child.command ; exit;\n~ \n% /tmp/thread-commands-mnm8Xt/child.command ; exit;                       22:46\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ns-MacBook-Pro:x mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/\nbun /Users/mlegls/dev/mlegls-pi__worktrees/thread-commands-in-pi-drive-n/lib/thr\nead/agent-runner.ts 892998b6-2701-4620-9936-833bba39304e; echo ZMX_TASK_COMPLETE\nD:4285:$?\n\n Error: Cleanup controller is inside thread                                     \n 892998b6-2701-4620-9936-833bba39304e; run cleanup from another terminal        \n\n Error: Cleanup controller is inside thread                                     \n 892998b6-2701-4620-9936-833bba39304e; run cleanup from another terminal        \n\n Error: Cleanup controller is inside thread                                     \n 892998b6-2701-4620-9936-833bba39304e; run cleanup from another terminal        \n\n────────────────────────────────────────────────────────────────────────────────\n                                                                                \n────────────────────────────────────────────────────────────────────────────────\n/private/tmp/thread-commands-mnm8Xt/repo__worktrees/x (x)\n$0.000 (sub) 0.0%/272k (auto)                (openai-codex) gpt-6.1-sol • medium\n✉ mail/ba39304e # wt/repo/x\" (shell)\n    - [1] AXButton (Split pane) [help=\"Split pane\" actions=[press]]\n\n⚠️ PARTIAL TREE: the max_elements node budget ran out after 5 node(s) (8 discovered but not visited). Every element listed is real; elements after the cut are missing. If the element you need is absent, retry with a larger timeout_ms (e.g. 5000) or narrow with query / max_depth.",
+        "type": "text"
+      }
+    ]
+  }
+]

@@ -1,0 +1,1116 @@
+{
+  "lifecycle-prepare": {
+    "fixture": {
+      "root": "/private/tmp/ab-lifecycle-jvkTmu",
+      "env": {
+        "XDG_STATE_HOME": "/private/tmp/ab-lifecycle-jvkTmu/state",
+        "PI_BOARD_DIR": "/private/tmp/ab-lifecycle-jvkTmu/board",
+        "ZMX_DIR": "/private/tmp/ab-lifecycle-jvkTmu/zmx",
+        "PI_CODING_AGENT_DIR": "/private/tmp/ab-lifecycle-jvkTmu/agent",
+        "MISE_TRUSTED_CONFIG_PATHS": "/private/tmp/ab-lifecycle-jvkTmu"
+      },
+      "ids": {
+        "parent": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "early": "164e1599-7248-4352-a05e-641da60759dc",
+        "child": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+        "abandon": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "abandonChild": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+        "guest": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42"
+      },
+      "response": "blocked",
+      "mainHead": "2146f2d762788980cecf638e62094b037f35eb2c",
+      "leftoverPid": 77476,
+      "peerPid": 83303
+    },
+    "readiness": "Parent, child and guest canonical pi completed fixture-ready; tracked conflict prepared",
+    "threads": [
+      {
+        "id": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "sessionId": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-parent--/2026-10-01T12-06-04-929Z_3dbe61bd-be78-4d6c-914f-9516ff18765d.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent",
+        "branch": "parent",
+        "ownership": "owner",
+        "archived": false,
+        "created": "2026-10-01T12:06:04.929Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "164e1599-7248-4352-a05e-641da60759dc",
+        "sessionId": "164e1599-7248-4352-a05e-641da60759dc",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-early--/2026-10-01T12-06-10-102Z_164e1599-7248-4352-a05e-641da60759dc.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early",
+        "branch": "early",
+        "ownership": "owner",
+        "parent": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "archived": false,
+        "created": "2026-10-01T12:06:10.111Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+        "sessionId": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-child--/2026-10-01T12-06-14-816Z_e3b17a28-2c29-40b9-9007-ef90b007dda9.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child",
+        "branch": "child",
+        "ownership": "owner",
+        "parent": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "archived": false,
+        "created": "2026-10-01T12:06:14.817Z",
+        "worker": {
+          "run": "lifecycle-fixture",
+          "handle": "child"
+        },
+        "launch": {
+          "args": [
+            "--approve",
+            "--append-system-prompt",
+            "This is a disposable fixture. When an archive conflict request arrives, do not change any files or run git. Reply blocked fixture-awaits-manual-resolution."
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "sessionId": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon--/2026-10-01T12-06-21-030Z_0e67fdad-c185-4d78-b79d-4a97d127dba7.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon",
+        "branch": "abandon",
+        "ownership": "owner",
+        "archived": false,
+        "created": "2026-10-01T12:06:21.031Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+        "sessionId": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon-child--/2026-10-01T12-06-27-172Z_f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child",
+        "branch": "abandon-child",
+        "ownership": "owner",
+        "parent": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "archived": false,
+        "created": "2026-10-01T12:06:27.172Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+        "sessionId": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-06-31-829Z_63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "archived": false,
+        "created": "2026-10-01T12:06:31.829Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      }
+    ]
+  },
+  "done-prepare": {
+    "fixture": {
+      "root": "/private/tmp/ab-lifecycle-Bga8EA",
+      "env": {
+        "XDG_STATE_HOME": "/private/tmp/ab-lifecycle-Bga8EA/state",
+        "PI_BOARD_DIR": "/private/tmp/ab-lifecycle-Bga8EA/board",
+        "ZMX_DIR": "/private/tmp/ab-lifecycle-Bga8EA/zmx",
+        "PI_CODING_AGENT_DIR": "/private/tmp/ab-lifecycle-Bga8EA/agent",
+        "MISE_TRUSTED_CONFIG_PATHS": "/private/tmp/ab-lifecycle-Bga8EA"
+      },
+      "ids": {
+        "parent": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "early": "4f305516-ce08-4bb5-910e-817021a81d5c",
+        "child": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "abandon": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "abandonChild": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "guest": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f"
+      },
+      "response": "done",
+      "mainHead": "8abce983f3ae6887ac690f7e524ae75bec98282b",
+      "leftoverPid": 26256,
+      "peerPid": 43814
+    },
+    "readiness": "Parent, child and guest canonical pi completed fixture-ready; tracked conflict prepared",
+    "threads": [
+      {
+        "id": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "sessionId": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-parent--/2026-10-01T12-11-50-206Z_4bd13adc-62e4-452b-acbb-4d3fa427216a.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "branch": "parent",
+        "ownership": "owner",
+        "archived": false,
+        "created": "2026-10-01T12:11:50.207Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "4f305516-ce08-4bb5-910e-817021a81d5c",
+        "sessionId": "4f305516-ce08-4bb5-910e-817021a81d5c",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-early--/2026-10-01T12-11-55-338Z_4f305516-ce08-4bb5-910e-817021a81d5c.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early",
+        "branch": "early",
+        "ownership": "owner",
+        "parent": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "archived": false,
+        "created": "2026-10-01T12:11:55.338Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "sessionId": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-child--/2026-10-01T12-12-01-998Z_47d3b0d1-e4a5-49bd-b760-453d51133961.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "branch": "child",
+        "ownership": "owner",
+        "parent": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "archived": false,
+        "created": "2026-10-01T12:12:01.998Z",
+        "worker": {
+          "run": "lifecycle-fixture",
+          "handle": "child"
+        },
+        "launch": {
+          "args": [
+            "--approve",
+            "--append-system-prompt",
+            "This is a disposable fixture. When an archive conflict request arrives, rebase onto its named parent. Resolve conflict.txt by keeping the single line resolved-child. Use GIT_EDITOR=true for rebase --continue. Commit any resolution and report done. Do not retire/archive threads or change anything else."
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "sessionId": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon--/2026-10-01T12-12-06-684Z_052d7249-33cc-43c1-aaea-64c2cc947440.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "branch": "abandon",
+        "ownership": "owner",
+        "archived": false,
+        "created": "2026-10-01T12:12:06.684Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "sessionId": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon-child--/2026-10-01T12-12-12-810Z_911803cb-2e9a-42a4-b154-b7dc71d63a2f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "branch": "abandon-child",
+        "ownership": "owner",
+        "parent": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "archived": false,
+        "created": "2026-10-01T12:12:12.810Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      },
+      {
+        "id": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "sessionId": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo--/2026-10-01T12-12-18-000Z_bf0ea6ed-5c08-4893-b5aa-4dee88619f9f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "archived": false,
+        "created": "2026-10-01T12:12:18.001Z",
+        "launch": {
+          "args": [
+            "--approve"
+          ],
+          "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+        }
+      }
+    ]
+  },
+  "archive-done-waiting-inspect": {
+    "mainHead": "8abce983f3ae6887ac690f7e524ae75bec98282b",
+    "conflict": "seed\n",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-Bga8EA/repo\nHEAD 8abce983f3ae6887ac690f7e524ae75bec98282b\nbranch refs/heads/main\n\nworktree /private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon\nHEAD 8abce983f3ae6887ac690f7e524ae75bec98282b\nbranch refs/heads/abandon\n\nworktree /private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child\nHEAD a4c1212b973b4a462cdbef29ecf882fb1e138388\nbranch refs/heads/abandon-child\n\nworktree /private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child\nHEAD 52ef306aed040d685f6bc46a8460c7bb3d78c2c3\nbranch refs/heads/child\n\nworktree /private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent\nHEAD 1bce0034250838ff5a0cd33cd237bfc71ba815b3\nbranch refs/heads/parent",
+    "branches": "+ abandon\n+ abandon-child\n+ child\n* main\n+ parent",
+    "leftoverAlive": true,
+    "peerAlive": true,
+    "live": [
+      {
+        "pid": 21007,
+        "sessionId": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-child--/2026-10-01T12-12-01-998Z_47d3b0d1-e4a5-49bd-b760-453d51133961.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "state": "working",
+        "since": "2026-10-01T12:12:56.785Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "lifecycle-fixture/child",
+            "wake": true
+          },
+          {
+            "topic": "mail/51133961",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/child",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-lifecycle-Bga8EA/board"
+      },
+      {
+        "pid": 12917,
+        "sessionId": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-parent--/2026-10-01T12-11-50-206Z_4bd13adc-62e4-452b-acbb-4d3fa427216a.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "state": "idle",
+        "since": "2026-10-01T12:11:55.212Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "thread/4bd13adc-62e4-452b-acbb-4d3fa427216a",
+            "wake": true
+          },
+          {
+            "topic": "mail/a427216a",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/parent",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-lifecycle-Bga8EA/board"
+      },
+      {
+        "pid": 26322,
+        "sessionId": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon--/2026-10-01T12-12-06-684Z_052d7249-33cc-43c1-aaea-64c2cc947440.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "state": "idle",
+        "since": "2026-10-01T12:12:12.606Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "thread/052d7249-33cc-43c1-aaea-64c2cc947440",
+            "wake": true
+          },
+          {
+            "topic": "mail/cc947440",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/abandon",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-lifecycle-Bga8EA/board"
+      },
+      {
+        "pid": 33005,
+        "sessionId": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon-child--/2026-10-01T12-12-12-810Z_911803cb-2e9a-42a4-b154-b7dc71d63a2f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "state": "idle",
+        "since": "2026-10-01T12:12:17.569Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "thread/911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+            "wake": true
+          },
+          {
+            "topic": "mail/71d63a2f",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/abandon-child",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-lifecycle-Bga8EA/board"
+      },
+      {
+        "pid": 36885,
+        "sessionId": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo--/2026-10-01T12-12-18-000Z_bf0ea6ed-5c08-4893-b5aa-4dee88619f9f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "state": "idle",
+        "since": "2026-10-01T12:12:22.792Z",
+        "mode": "tui",
+        "subscriptions": [
+          {
+            "topic": "thread/bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+            "wake": true
+          },
+          {
+            "topic": "mail/88619f9f",
+            "wake": true
+          },
+          {
+            "topic": "wt/repo/main",
+            "wake": true
+          }
+        ],
+        "boardDir": "/private/tmp/ab-lifecycle-Bga8EA/board"
+      }
+    ],
+    "zmx": [
+      {
+        "name": "052d7249-33cc-43c1-aaea-64c2cc947440.agent",
+        "pid": 26304,
+        "clients": 0,
+        "created": 1790856726,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "role": "agent",
+        "thread": "052d7249-33cc-43c1-aaea-64c2cc947440"
+      },
+      {
+        "name": "47d3b0d1-e4a5-49bd-b760-453d51133961.agent",
+        "pid": 20999,
+        "clients": 0,
+        "created": 1790856722,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "role": "agent",
+        "thread": "47d3b0d1-e4a5-49bd-b760-453d51133961"
+      },
+      {
+        "name": "47d3b0d1-e4a5-49bd-b760-453d51133961.server",
+        "pid": 26247,
+        "clients": 0,
+        "created": 1790856726,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "role": "server",
+        "thread": "47d3b0d1-e4a5-49bd-b760-453d51133961"
+      },
+      {
+        "name": "4bd13adc-62e4-452b-acbb-4d3fa427216a.agent",
+        "pid": 12912,
+        "clients": 0,
+        "created": 1790856710,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "role": "agent",
+        "thread": "4bd13adc-62e4-452b-acbb-4d3fa427216a"
+      },
+      {
+        "name": "911803cb-2e9a-42a4-b154-b7dc71d63a2f.agent",
+        "pid": 32992,
+        "clients": 0,
+        "created": 1790856732,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "role": "agent",
+        "thread": "911803cb-2e9a-42a4-b154-b7dc71d63a2f"
+      },
+      {
+        "name": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f.agent",
+        "pid": 36666,
+        "clients": 0,
+        "created": 1790856738,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "role": "agent",
+        "thread": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f"
+      },
+      {
+        "name": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f.server",
+        "pid": 43807,
+        "clients": 0,
+        "created": 1790856743,
+        "cwd": "file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "role": "server",
+        "thread": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f"
+      }
+    ],
+    "board": [
+      {
+        "id": "muphul6z-ncb9vw",
+        "line": 1,
+        "ts": "2026-10-01T12:11:55.211Z",
+        "topic": "thread/4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+          "name": "parent",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphuqdl-uk905n",
+        "line": 2,
+        "ts": "2026-10-01T12:12:01.929Z",
+        "topic": "thread/4f305516-ce08-4bb5-910e-817021a81d5c",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "4f305516-ce08-4bb5-910e-817021a81d5c",
+          "name": "early",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphutwr-2609wi",
+        "line": 3,
+        "ts": "2026-10-01T12:12:06.507Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+          "name": "child",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphuym5-ve7knj",
+        "line": 4,
+        "ts": "2026-10-01T12:12:12.605Z",
+        "topic": "thread/052d7249-33cc-43c1-aaea-64c2cc947440",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "052d7249-33cc-43c1-aaea-64c2cc947440",
+          "name": "abandon",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphv2g0-pr5nz5",
+        "line": 5,
+        "ts": "2026-10-01T12:12:17.568Z",
+        "topic": "thread/911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+          "name": "abandon-child",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphv6h3-oc59nn",
+        "line": 6,
+        "ts": "2026-10-01T12:12:22.791Z",
+        "topic": "thread/bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+          "name": "repo",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphvwnq-79buwp",
+        "line": 8,
+        "ts": "2026-10-01T12:12:56.726Z",
+        "topic": "mail/51133961",
+        "tags": [],
+        "from": {
+          "name": "ab"
+        },
+        "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+      }
+    ],
+    "threads": [
+      {
+        "id": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "sessionId": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-parent--/2026-10-01T12-11-50-206Z_4bd13adc-62e4-452b-acbb-4d3fa427216a.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "branch": "parent",
+        "ownership": "owner",
+        "archived": false,
+        "created": "2026-10-01T12:11:50.207Z"
+      },
+      {
+        "id": "4f305516-ce08-4bb5-910e-817021a81d5c",
+        "sessionId": "4f305516-ce08-4bb5-910e-817021a81d5c",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-early--/2026-10-01T12-11-55-338Z_4f305516-ce08-4bb5-910e-817021a81d5c.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early",
+        "branch": "early",
+        "ownership": "owner",
+        "parent": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "archived": true,
+        "created": "2026-10-01T12:11:55.338Z"
+      },
+      {
+        "id": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "sessionId": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-child--/2026-10-01T12-12-01-998Z_47d3b0d1-e4a5-49bd-b760-453d51133961.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "branch": "child",
+        "ownership": "owner",
+        "parent": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "archived": false,
+        "created": "2026-10-01T12:12:01.998Z",
+        "worker": {
+          "run": "lifecycle-fixture",
+          "handle": "child"
+        },
+        "blocked": {
+          "action": "archive",
+          "parentBranch": "parent",
+          "files": [
+            "conflict.txt"
+          ],
+          "reason": "conflicts merging child into parent: conflict.txt"
+        }
+      },
+      {
+        "id": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "sessionId": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon--/2026-10-01T12-12-06-684Z_052d7249-33cc-43c1-aaea-64c2cc947440.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "branch": "abandon",
+        "ownership": "owner",
+        "archived": false,
+        "created": "2026-10-01T12:12:06.684Z"
+      },
+      {
+        "id": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "sessionId": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon-child--/2026-10-01T12-12-12-810Z_911803cb-2e9a-42a4-b154-b7dc71d63a2f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "branch": "abandon-child",
+        "ownership": "owner",
+        "parent": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "archived": false,
+        "created": "2026-10-01T12:12:12.810Z"
+      },
+      {
+        "id": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "sessionId": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo--/2026-10-01T12-12-18-000Z_bf0ea6ed-5c08-4893-b5aa-4dee88619f9f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "archived": false,
+        "created": "2026-10-01T12:12:18.001Z"
+      }
+    ]
+  },
+  "archive-done-final-inspect": {
+    "mainHead": "d8bda4fff51b7f1c01b10a91a2748567a365b7f2",
+    "conflict": "resolved-child\n",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-Bga8EA/repo\nHEAD d8bda4fff51b7f1c01b10a91a2748567a365b7f2\nbranch refs/heads/main",
+    "branches": "* main",
+    "leftoverAlive": false,
+    "peerAlive": true,
+    "live": [],
+    "zmx": [],
+    "board": [
+      {
+        "id": "muphul6z-ncb9vw",
+        "line": 1,
+        "ts": "2026-10-01T12:11:55.211Z",
+        "topic": "thread/4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+          "name": "parent",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphuqdl-uk905n",
+        "line": 2,
+        "ts": "2026-10-01T12:12:01.929Z",
+        "topic": "thread/4f305516-ce08-4bb5-910e-817021a81d5c",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "4f305516-ce08-4bb5-910e-817021a81d5c",
+          "name": "early",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphutwr-2609wi",
+        "line": 3,
+        "ts": "2026-10-01T12:12:06.507Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+          "name": "child",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphuym5-ve7knj",
+        "line": 4,
+        "ts": "2026-10-01T12:12:12.605Z",
+        "topic": "thread/052d7249-33cc-43c1-aaea-64c2cc947440",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "052d7249-33cc-43c1-aaea-64c2cc947440",
+          "name": "abandon",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphv2g0-pr5nz5",
+        "line": 5,
+        "ts": "2026-10-01T12:12:17.568Z",
+        "topic": "thread/911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+          "name": "abandon-child",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphv6h3-oc59nn",
+        "line": 6,
+        "ts": "2026-10-01T12:12:22.791Z",
+        "topic": "thread/bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+          "name": "repo",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphvwnq-79buwp",
+        "line": 8,
+        "ts": "2026-10-01T12:12:56.726Z",
+        "topic": "mail/51133961",
+        "tags": [],
+        "from": {
+          "name": "ab"
+        },
+        "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+      },
+      {
+        "id": "muphw8fj-ksyxam",
+        "line": 11,
+        "ts": "2026-10-01T12:13:11.983Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+          "name": "child",
+          "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child"
+        },
+        "body": "done"
+      }
+    ],
+    "threads": [
+      {
+        "id": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "sessionId": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-parent--/2026-10-01T12-11-50-206Z_4bd13adc-62e4-452b-acbb-4d3fa427216a.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/parent",
+        "branch": "parent",
+        "ownership": "owner",
+        "archived": true,
+        "created": "2026-10-01T12:11:50.207Z"
+      },
+      {
+        "id": "4f305516-ce08-4bb5-910e-817021a81d5c",
+        "sessionId": "4f305516-ce08-4bb5-910e-817021a81d5c",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-early--/2026-10-01T12-11-55-338Z_4f305516-ce08-4bb5-910e-817021a81d5c.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/early",
+        "branch": "early",
+        "ownership": "owner",
+        "parent": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "archived": true,
+        "created": "2026-10-01T12:11:55.338Z"
+      },
+      {
+        "id": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "sessionId": "47d3b0d1-e4a5-49bd-b760-453d51133961",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-child--/2026-10-01T12-12-01-998Z_47d3b0d1-e4a5-49bd-b760-453d51133961.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/child",
+        "branch": "child",
+        "ownership": "owner",
+        "parent": "4bd13adc-62e4-452b-acbb-4d3fa427216a",
+        "archived": true,
+        "created": "2026-10-01T12:12:01.998Z",
+        "worker": {
+          "run": "lifecycle-fixture",
+          "handle": "child"
+        }
+      },
+      {
+        "id": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "sessionId": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon--/2026-10-01T12-12-06-684Z_052d7249-33cc-43c1-aaea-64c2cc947440.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon",
+        "branch": "abandon",
+        "ownership": "owner",
+        "archived": true,
+        "created": "2026-10-01T12:12:06.684Z"
+      },
+      {
+        "id": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "sessionId": "911803cb-2e9a-42a4-b154-b7dc71d63a2f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo__worktrees-abandon-child--/2026-10-01T12-12-12-810Z_911803cb-2e9a-42a4-b154-b7dc71d63a2f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "worktree": "/private/tmp/ab-lifecycle-Bga8EA/repo__worktrees/abandon-child",
+        "branch": "abandon-child",
+        "ownership": "owner",
+        "parent": "052d7249-33cc-43c1-aaea-64c2cc947440",
+        "archived": true,
+        "created": "2026-10-01T12:12:12.810Z"
+      },
+      {
+        "id": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "sessionId": "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f",
+        "sessionFile": "/private/tmp/ab-lifecycle-Bga8EA/agent/sessions/--private-tmp-ab-lifecycle-Bga8EA-repo--/2026-10-01T12-12-18-000Z_bf0ea6ed-5c08-4893-b5aa-4dee88619f9f.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "project": "/private/tmp/ab-lifecycle-Bga8EA/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "archived": true,
+        "created": "2026-10-01T12:12:18.001Z"
+      }
+    ]
+  },
+  "final-lifecycle-inspect": {
+    "mainHead": "d0b742308d51162c2ed70af3e4816aea340e9909",
+    "conflict": "resolved-child\n",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-jvkTmu/repo\nHEAD d0b742308d51162c2ed70af3e4816aea340e9909\nbranch refs/heads/main",
+    "branches": "* main",
+    "leftoverAlive": false,
+    "peerAlive": true,
+    "live": [],
+    "zmx": [],
+    "board": [
+      {
+        "id": "muphn6s3-2l49d6",
+        "line": 1,
+        "ts": "2026-10-01T12:06:09.939Z",
+        "topic": "thread/3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+          "name": "parent",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphnaes-t9wltl",
+        "line": 2,
+        "ts": "2026-10-01T12:06:14.644Z",
+        "topic": "thread/164e1599-7248-4352-a05e-641da60759dc",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "164e1599-7248-4352-a05e-641da60759dc",
+          "name": "early",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphnf0l-l9txl7",
+        "line": 3,
+        "ts": "2026-10-01T12:06:20.613Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+          "name": "child",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphnjyl-p3g4m2",
+        "line": 4,
+        "ts": "2026-10-01T12:06:27.021Z",
+        "topic": "thread/0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+          "name": "abandon",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphnndj-9i6llh",
+        "line": 5,
+        "ts": "2026-10-01T12:06:31.447Z",
+        "topic": "thread/f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+          "name": "abandon-child",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphnrc0-lkkrqe",
+        "line": 6,
+        "ts": "2026-10-01T12:06:36.576Z",
+        "topic": "thread/63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+          "name": "repo",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo"
+        },
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "muphobr2-y9ylvl",
+        "line": 8,
+        "ts": "2026-10-01T12:07:03.038Z",
+        "topic": "mail/b007dda9",
+        "tags": [],
+        "from": {
+          "name": "ab"
+        },
+        "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+      },
+      {
+        "id": "muphoeko-aiv44t",
+        "line": 11,
+        "ts": "2026-10-01T12:07:06.696Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "blocked"
+        ],
+        "from": {
+          "session": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+          "name": "child",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child"
+        },
+        "body": "blocked fixture-awaits-manual-resolution"
+      },
+      {
+        "id": "muphofm3-0bktom",
+        "line": 12,
+        "ts": "2026-10-01T12:07:08.043Z",
+        "topic": "mail/b007dda9",
+        "tags": [],
+        "from": {
+          "name": "ab"
+        },
+        "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+      },
+      {
+        "id": "muphoi2j-nb12eg",
+        "line": 15,
+        "ts": "2026-10-01T12:07:11.227Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "blocked"
+        ],
+        "from": {
+          "session": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+          "name": "child",
+          "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child"
+        },
+        "body": "blocked fixture-awaits-manual-resolution"
+      }
+    ],
+    "threads": [
+      {
+        "id": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "sessionId": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-parent--/2026-10-01T12-06-04-929Z_3dbe61bd-be78-4d6c-914f-9516ff18765d.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent",
+        "branch": "parent",
+        "ownership": "owner",
+        "archived": true,
+        "created": "2026-10-01T12:06:04.929Z"
+      },
+      {
+        "id": "164e1599-7248-4352-a05e-641da60759dc",
+        "sessionId": "164e1599-7248-4352-a05e-641da60759dc",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-early--/2026-10-01T12-06-10-102Z_164e1599-7248-4352-a05e-641da60759dc.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early",
+        "branch": "early",
+        "ownership": "owner",
+        "parent": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "archived": true,
+        "created": "2026-10-01T12:06:10.111Z"
+      },
+      {
+        "id": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+        "sessionId": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-child--/2026-10-01T12-06-14-816Z_e3b17a28-2c29-40b9-9007-ef90b007dda9.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child",
+        "branch": "child",
+        "ownership": "owner",
+        "parent": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+        "archived": true,
+        "created": "2026-10-01T12:06:14.817Z",
+        "worker": {
+          "run": "lifecycle-fixture",
+          "handle": "child"
+        }
+      },
+      {
+        "id": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "sessionId": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon--/2026-10-01T12-06-21-030Z_0e67fdad-c185-4d78-b79d-4a97d127dba7.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon",
+        "branch": "abandon",
+        "ownership": "owner",
+        "archived": true,
+        "created": "2026-10-01T12:06:21.031Z"
+      },
+      {
+        "id": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+        "sessionId": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon-child--/2026-10-01T12-06-27-172Z_f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child",
+        "branch": "abandon-child",
+        "ownership": "owner",
+        "parent": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+        "archived": true,
+        "created": "2026-10-01T12:06:27.172Z"
+      },
+      {
+        "id": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+        "sessionId": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+        "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-06-31-829Z_63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.jsonl",
+        "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+        "branch": "main",
+        "ownership": "guest",
+        "archived": true,
+        "created": "2026-10-01T12:06:31.829Z"
+      }
+    ]
+  }
+}

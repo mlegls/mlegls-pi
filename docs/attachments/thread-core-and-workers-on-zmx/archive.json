@@ -1,0 +1,615 @@
+{
+  "root": "/private/tmp/ab-lifecycle-nJudgl",
+  "ids": {
+    "parent": "579979f6-b18a-4332-b97d-0be51e85d987",
+    "early": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+    "child": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+    "abandon": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+    "abandonChild": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+    "guest": "2fba82c1-19e6-4954-b174-c7b8124f4be5"
+  },
+  "response": "done",
+  "command": [
+    "/Users/mlegls/dev/mlegls-pi__worktrees/thread-core-and-workers-on-zmx-implement-i/bin/ab",
+    "thread",
+    "archive",
+    "579979f6-b18a-4332-b97d-0be51e85d987"
+  ],
+  "before": {
+    "at": "2026-10-01T13:35:40.024Z",
+    "rows": [
+      {
+        "id": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "sessionId": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "state": "idle",
+        "pid": 81611,
+        "mergeParent": "main",
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:27.490Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "sessionId": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "parent": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "state": "idle",
+        "pid": 83785,
+        "mergeParent": "parent",
+        "depth": 1,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:32.811Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "sessionId": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "parent": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "state": "idle",
+        "pid": 85893,
+        "mergeParent": "parent",
+        "depth": 1,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:39.870Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "sessionId": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle",
+        "pid": 90108,
+        "mergeParent": "main",
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:45.315Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "sessionId": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "parent": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle",
+        "pid": 93781,
+        "mergeParent": "abandon",
+        "depth": 1,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:54.285Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "sessionId": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "state": "idle",
+        "pid": 96914,
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:34:01.517Z",
+          "body": "done fixture-ready"
+        }
+      }
+    ],
+    "records": [
+      {
+        "id": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "archived": false
+      },
+      {
+        "id": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "archived": false
+      },
+      {
+        "id": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "archived": false
+      },
+      {
+        "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "archived": false
+      },
+      {
+        "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "archived": false
+      },
+      {
+        "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "archived": false
+      }
+    ],
+    "mainHead": "50a94d7a5446f6d0ced3e9ebedf655a8e569d0b0",
+    "conflict": "seed\n",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-nJudgl/repo\nHEAD 50a94d7a5446f6d0ced3e9ebedf655a8e569d0b0\nbranch refs/heads/main\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/abandon\nHEAD 50a94d7a5446f6d0ced3e9ebedf655a8e569d0b0\nbranch refs/heads/abandon\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/abandon-child\nHEAD 9fcb988dfe5eaf32794804e57c41e9c3282e7fc3\nbranch refs/heads/abandon-child\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/child\nHEAD abeea35177e89f9b2a34bbc2121fb5f012dbb15b\nbranch refs/heads/child\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/early\nHEAD 45d9f61d60ac35e21469fda253a8f458c82d1f0a\nbranch refs/heads/early\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/parent\nHEAD 6fe3f9610e29df778de8ffda1a7ce1d891967b37\nbranch refs/heads/parent",
+    "branches": "+ abandon\n+ abandon-child\n+ child\n+ early\n* main\n+ parent",
+    "terminals": [
+      {
+        "name": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f.agent",
+        "pid": 93746,
+        "thread": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "role": "agent"
+      },
+      {
+        "name": "2fba82c1-19e6-4954-b174-c7b8124f4be5.agent",
+        "pid": 96904,
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "role": "agent"
+      },
+      {
+        "name": "2fba82c1-19e6-4954-b174-c7b8124f4be5.server",
+        "pid": 99904,
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "role": "server"
+      },
+      {
+        "name": "41f99efb-1023-4a62-8b0e-62f93aac79db.agent",
+        "pid": 85888,
+        "thread": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "role": "agent"
+      },
+      {
+        "name": "41f99efb-1023-4a62-8b0e-62f93aac79db.server",
+        "pid": 90064,
+        "thread": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "role": "server"
+      },
+      {
+        "name": "579979f6-b18a-4332-b97d-0be51e85d987.agent",
+        "pid": 81606,
+        "thread": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "role": "agent"
+      },
+      {
+        "name": "a4558fc7-21e0-4c08-9d67-0e6d677696d4.agent",
+        "pid": 90096,
+        "thread": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "role": "agent"
+      },
+      {
+        "name": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5.agent",
+        "pid": 83780,
+        "thread": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "role": "agent"
+      }
+    ],
+    "live": [
+      {
+        "pid": 93781,
+        "sessionId": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "thread": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "state": "idle"
+      },
+      {
+        "pid": 81611,
+        "sessionId": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "thread": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "state": "idle"
+      },
+      {
+        "pid": 90108,
+        "sessionId": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "thread": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle"
+      },
+      {
+        "pid": 85893,
+        "sessionId": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "thread": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "state": "idle"
+      },
+      {
+        "pid": 83785,
+        "sessionId": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "thread": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "state": "idle"
+      },
+      {
+        "pid": 96914,
+        "sessionId": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "state": "idle"
+      }
+    ],
+    "peerAlive": true,
+    "leftoverAlive": true,
+    "board": []
+  },
+  "waiting": {
+    "at": "2026-10-01T13:35:41.308Z",
+    "rows": [
+      {
+        "id": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "sessionId": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "state": "idle",
+        "pid": 81611,
+        "mergeParent": "main",
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:27.490Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "sessionId": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "parent": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "blocked": {
+          "action": "archive",
+          "parentBranch": "parent",
+          "files": [
+            "conflict.txt"
+          ],
+          "reason": "conflicts merging child into parent: conflict.txt"
+        },
+        "state": "idle",
+        "pid": 85893,
+        "mergeParent": "parent",
+        "depth": 1,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:39.870Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "sessionId": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle",
+        "pid": 90108,
+        "mergeParent": "main",
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:45.315Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "sessionId": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "parent": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle",
+        "pid": 93781,
+        "mergeParent": "abandon",
+        "depth": 1,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:54.285Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "sessionId": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "state": "idle",
+        "pid": 96914,
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:34:01.517Z",
+          "body": "done fixture-ready"
+        }
+      }
+    ],
+    "records": [
+      {
+        "id": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "archived": false
+      },
+      {
+        "id": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "archived": true
+      },
+      {
+        "id": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "archived": false,
+        "blocked": {
+          "action": "archive",
+          "parentBranch": "parent",
+          "files": [
+            "conflict.txt"
+          ],
+          "reason": "conflicts merging child into parent: conflict.txt"
+        }
+      },
+      {
+        "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "archived": false
+      },
+      {
+        "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "archived": false
+      },
+      {
+        "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "archived": false
+      }
+    ],
+    "mainHead": "50a94d7a5446f6d0ced3e9ebedf655a8e569d0b0",
+    "conflict": "seed\n",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-nJudgl/repo\nHEAD 50a94d7a5446f6d0ced3e9ebedf655a8e569d0b0\nbranch refs/heads/main\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/abandon\nHEAD 50a94d7a5446f6d0ced3e9ebedf655a8e569d0b0\nbranch refs/heads/abandon\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/abandon-child\nHEAD 9fcb988dfe5eaf32794804e57c41e9c3282e7fc3\nbranch refs/heads/abandon-child\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/child\nHEAD abeea35177e89f9b2a34bbc2121fb5f012dbb15b\nbranch refs/heads/child\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/parent\nHEAD 60ed204c6d57ef812ef06aa781c7a5484dc1a80e\nbranch refs/heads/parent",
+    "branches": "+ abandon\n+ abandon-child\n+ child\n* main\n+ parent",
+    "terminals": [
+      {
+        "name": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f.agent",
+        "pid": 93746,
+        "thread": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "role": "agent"
+      },
+      {
+        "name": "2fba82c1-19e6-4954-b174-c7b8124f4be5.agent",
+        "pid": 96904,
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "role": "agent"
+      },
+      {
+        "name": "2fba82c1-19e6-4954-b174-c7b8124f4be5.server",
+        "pid": 99904,
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "role": "server"
+      },
+      {
+        "name": "41f99efb-1023-4a62-8b0e-62f93aac79db.agent",
+        "pid": 85888,
+        "thread": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "role": "agent"
+      },
+      {
+        "name": "41f99efb-1023-4a62-8b0e-62f93aac79db.server",
+        "pid": 90064,
+        "thread": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "role": "server"
+      },
+      {
+        "name": "579979f6-b18a-4332-b97d-0be51e85d987.agent",
+        "pid": 81606,
+        "thread": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "role": "agent"
+      },
+      {
+        "name": "a4558fc7-21e0-4c08-9d67-0e6d677696d4.agent",
+        "pid": 90096,
+        "thread": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "role": "agent"
+      }
+    ],
+    "live": [
+      {
+        "pid": 93781,
+        "sessionId": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "thread": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "state": "idle"
+      },
+      {
+        "pid": 81611,
+        "sessionId": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "thread": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "state": "idle"
+      },
+      {
+        "pid": 90108,
+        "sessionId": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "thread": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle"
+      },
+      {
+        "pid": 85893,
+        "sessionId": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "thread": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "state": "idle"
+      },
+      {
+        "pid": 96914,
+        "sessionId": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "state": "idle"
+      }
+    ],
+    "peerAlive": true,
+    "leftoverAlive": true,
+    "board": [
+      {
+        "id": "mupkubbf-m8qdf3",
+        "line": 8,
+        "ts": "2026-10-01T13:35:41.259Z",
+        "topic": "mail/3aac79db",
+        "tags": [],
+        "from": {
+          "name": "ab"
+        },
+        "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+      }
+    ]
+  },
+  "exit": 0,
+  "cleanup": {
+    "closed": [
+      "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+      "41f99efb-1023-4a62-8b0e-62f93aac79db",
+      "579979f6-b18a-4332-b97d-0be51e85d987"
+    ],
+    "killed": [
+      83780,
+      83785,
+      83779,
+      83782,
+      85888,
+      90064,
+      85893,
+      85887,
+      85890,
+      90063,
+      90066,
+      90069,
+      81606,
+      81611,
+      81605,
+      81609
+    ],
+    "branchesDeleted": [
+      "early",
+      "child",
+      "parent"
+    ],
+    "branchesKept": []
+  },
+  "stderr": "",
+  "after": {
+    "at": "2026-10-01T13:36:10.500Z",
+    "rows": [
+      {
+        "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "sessionId": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle",
+        "pid": 90108,
+        "mergeParent": "main",
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:45.315Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "sessionId": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "parent": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle",
+        "pid": 93781,
+        "mergeParent": "abandon",
+        "depth": 1,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:33:54.285Z",
+          "body": "done fixture-ready"
+        }
+      },
+      {
+        "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "sessionId": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "state": "idle",
+        "pid": 96914,
+        "depth": 0,
+        "report": {
+          "tag": "done",
+          "ts": "2026-10-01T13:34:01.517Z",
+          "body": "done fixture-ready"
+        }
+      }
+    ],
+    "records": [
+      {
+        "id": "579979f6-b18a-4332-b97d-0be51e85d987",
+        "archived": true
+      },
+      {
+        "id": "d6a6e2e6-825d-4ac9-b1cb-ee3bd5693da5",
+        "archived": true
+      },
+      {
+        "id": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+        "archived": true
+      },
+      {
+        "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "archived": false
+      },
+      {
+        "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "archived": false
+      },
+      {
+        "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "archived": false
+      }
+    ],
+    "mainHead": "bdbc9ab2308c4da1143516d5d574171c997b2ad2",
+    "conflict": "resolved-child\n",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-nJudgl/repo\nHEAD bdbc9ab2308c4da1143516d5d574171c997b2ad2\nbranch refs/heads/main\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/abandon\nHEAD 50a94d7a5446f6d0ced3e9ebedf655a8e569d0b0\nbranch refs/heads/abandon\n\nworktree /private/tmp/ab-lifecycle-nJudgl/repo__worktrees/abandon-child\nHEAD 9fcb988dfe5eaf32794804e57c41e9c3282e7fc3\nbranch refs/heads/abandon-child",
+    "branches": "+ abandon\n+ abandon-child\n* main",
+    "terminals": [
+      {
+        "name": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f.agent",
+        "pid": 93746,
+        "thread": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "role": "agent"
+      },
+      {
+        "name": "2fba82c1-19e6-4954-b174-c7b8124f4be5.agent",
+        "pid": 96904,
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "role": "agent"
+      },
+      {
+        "name": "2fba82c1-19e6-4954-b174-c7b8124f4be5.server",
+        "pid": 99904,
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "role": "server"
+      },
+      {
+        "name": "a4558fc7-21e0-4c08-9d67-0e6d677696d4.agent",
+        "pid": 90096,
+        "thread": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "role": "agent"
+      }
+    ],
+    "live": [
+      {
+        "pid": 93781,
+        "sessionId": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "thread": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+        "state": "idle"
+      },
+      {
+        "pid": 90108,
+        "sessionId": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "thread": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+        "state": "idle"
+      },
+      {
+        "pid": 96914,
+        "sessionId": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "thread": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+        "state": "idle"
+      }
+    ],
+    "peerAlive": true,
+    "leftoverAlive": false,
+    "board": [
+      {
+        "id": "mupkubbf-m8qdf3",
+        "line": 8,
+        "ts": "2026-10-01T13:35:41.259Z",
+        "topic": "mail/3aac79db",
+        "tags": [],
+        "from": {
+          "name": "ab"
+        },
+        "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+      },
+      {
+        "id": "mupkuwga-k73z87",
+        "line": 11,
+        "ts": "2026-10-01T13:36:08.650Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "done"
+        ],
+        "from": {
+          "session": "41f99efb-1023-4a62-8b0e-62f93aac79db",
+          "name": "child",
+          "cwd": "/private/tmp/ab-lifecycle-nJudgl/repo__worktrees/child"
+        },
+        "body": "done"
+      }
+    ]
+  }
+}

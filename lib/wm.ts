@@ -1,11 +1,6 @@
-// wm: spawn interactive pi workers in workmux worktrees and hear back through the board.
-//
-// A worker is one workmux worktree + tmux window running an agent (an AGENTS_DIR/<name>.md
-// for its stance, with explicit model/effort, or an explicit command). Its `handle` is the
-// branch, the worktree dir, the window, and the board sender name; it reports on
-// board topic `<run>/<handle>` with tags done | blocked | needs-input | checkpoint. The tmux
-// session is named after the run, so every worker of a run sits in one session.
-//
+// wm: interactive worker threads, with turn reports over the board.
+// Handles/topics name work, thread ids name lifetimes, and session ids name canonical pi histories.
+// Worktree, terminal and Git lifecycle belong to lib/thread.
 //   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt, model, effort });
 //   const o = await w.done;                        // resolves on done, rejects on exit
 //   for await (const o of w.events) { ... }        // every event, incl. blocked/idle
@@ -17,10 +12,12 @@
 import { execFile } from "node:child_process";
 import { agent, AGENTS_DIR, roleBody, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { logSize, readFrom, type Message } from "./board/store";
+import { abandonThread, forkThread, getThread, historyThread, integrateThread, listThreads, newThread, sendThread, threadSnapshot, ThreadMergeConflict, workerThread, type ThreadRecord, type ThreadSnapshot } from "./thread";
+import { isPiLaunch } from "./thread/launch";
+import { boardDir, logSize, readFrom, type Message } from "./board/store";
+import { readLive } from "./session-meta/live";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: Message } // checkpoint: fenced on context; paused for a follow-up like needs-input
@@ -38,7 +35,7 @@ export interface SpawnOptions {
 	role?: string; // which of the agent's roles this spawn fills (default: its first)
 	base?: string; // git ref to branch from
 	cwd?: string; // repo; default process.cwd()
-	session?: string; // tmux session; default slug of run
+	session?: string; // legacy receipt field; never selects a transport
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
 	parentSessionFile?: string; // session jsonl; --fork needs the path because the child's cwd is a different project
 	follow?: string; // board topic glob whose decisions the worker sees without waking (siblings' coordination)
@@ -82,7 +79,13 @@ export function parentSummary(file: string, max = 12_000): string {
 const TERMINAL = ["done", "blocked", "needs-input", "checkpoint"] as const;
 const IDLE_GRACE_MS = 8_000;
 const POLL_MS = 1_000;
-const SHELLS = new Set(["zsh", "bash", "fish", "sh", "nu"]);
+const START_GRACE_MS = 120_000;
+const REATTACH_GRACE_MS = 8_000;
+
+export function pidAlive(pid: number): boolean {
+	try { process.kill(pid, 0); return true; }
+	catch (error) { if ((error as { code?: string }).code === "ESRCH") return false; throw error; }
+}
 
 interface Result {
 	exitCode: number;
@@ -127,51 +130,18 @@ export function spawnEnv(o: { run: string; handle: string; agent?: string; paren
 		`PI_WM_HANDLE=${o.handle}`,
 		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
 		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
-		// A run name, not a glob: workmux passes the env prefix through a shell unquoted.
 		o.follow && `PI_BOARD_FOLLOW=${o.follow}`,
-		// The tmux window doesn't inherit this process's env: carry a non-default agent dir to the worker.
 		process.env.PI_CODING_AGENT_DIR && `PI_CODING_AGENT_DIR=${process.env.PI_CODING_AGENT_DIR}`,
 	].filter((v): v is string => Boolean(v));
 }
 
-function slug(s: string): string {
-	return s.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "");
-}
 
-interface StatusEntry {
-	worktree: string;
-	branch: string;
-	status: string;
-	pane_id: string;
-	workdir: string;
-	session: string;
-	updated_ts: number;
-}
 
-export async function workmuxStatus(cwd: string): Promise<StatusEntry[]> {
-	const out = await sh("workmux", ["status", "--json"], cwd);
-	if (out.exitCode !== 0) throw new Error("workmux status unavailable: " + (out.stderr || out.stdout));
-	const value = JSON.parse(out.stdout);
-	if (!Array.isArray(value.agents)) throw new Error("workmux status: missing agents array");
-	return value.agents;
-}
-
-async function livePanes(): Promise<Map<string, string>> {
-	const out = await sh("tmux", ["list-panes", "-a", "-F", "#{pane_id} #{pane_current_command}"]);
-	if (out.exitCode !== 0 && !/no server running|No such file or directory/.test(out.stderr))
-		throw new Error("tmux panes unavailable: " + (out.stderr || out.stdout));
-	const map = new Map<string, string>();
-	for (const line of out.stdout.split("\n")) {
-		const [id, cmd] = line.split(" ");
-		if (id) map.set(id, cmd ?? "");
-	}
-	return map;
-}
-
-/** One poller per process: board cursor + workmux status, fanned out to workers. Ticks only while some worker is awaited. */
+/** One poller per process: board cursor + batched thread observations. Ticks only while awaited. */
 class Poller {
 	private workers = new Set<Worker>();
-	private cursor = logSize();
+	private cursor = 0;
+	private board?: string;
 	private timer?: ReturnType<typeof setTimeout>;
 	private running = false;
 	private errors = new Map<string, string>();
@@ -182,11 +152,13 @@ class Poller {
 	}
 
 	add(w: Worker) {
+		if (!this.workers.size || this.board !== boardDir()) { this.board = boardDir(); this.cursor = logSize(); }
 		this.workers.add(w);
 	}
 	remove(w: Worker) {
 		this.workers.delete(w);
 		this.errors.delete(w.topic);
+		if (![...this.workers].some(w => w.awaited)) { clearTimeout(this.timer); this.timer = undefined; }
 	}
 	/** @internal called when a worker gains a waiter or listener */
 	schedule() {
@@ -208,13 +180,12 @@ class Poller {
 				const o: Outcome | undefined = tag ? { kind: tag, message: m } : m.tags.includes("turn-end") ? { kind: "idle", tail: m.body, message: m } : undefined;
 				if (o) for (const w of this.workers) if (w.topic === m.topic) w.emit(o);
 			}
-			const byCwd = new Map<string, Promise<StatusEntry[]>>();
-			const panes = await livePanes();
+			if (![...this.workers].some(w => w.awaited)) return;
+			readLive(true); // missing/stale records are normal; unreadable/malformed observations defer
+			const rows = await listThreads();
 			for (const w of this.workers) {
 				try {
-					if (!byCwd.has(w.cwd)) byCwd.set(w.cwd, workmuxStatus(w.cwd));
-					const entry = (await byCwd.get(w.cwd)!).find((e) => e.worktree === w.handle);
-					await w.observe(entry, panes);
+					if (w.awaited && !w.launching) await w.observe(rows);
 					this.errors.delete(w.topic);
 				} catch (error) { this.defer(w.topic, error); }
 			}
@@ -230,7 +201,10 @@ const poller = new Poller();
 export class Worker {
 	readonly topic: string;
 	dir: string;
-	paneId?: string;
+	threadId?: string;
+	private owningBranch?: string;
+	/** @internal Register before launch; host observation starts once the registry has launched. */
+	launching = false;
 	private listeners = new Set<(o: Outcome) => void>();
 	private waiters: Array<(o: Outcome) => void> = [];
 	private unread: Outcome[] = []; // events that arrived while nobody was listening; the next `next()` takes them first
@@ -242,21 +216,26 @@ export class Worker {
 	private idleSince?: number;
 	private reportedAfterIdle = false;
 	private lastReportTs = 0;
-	private sawAgent = false; // pane has run something other than a shell, so a shell now means pi exited
-	/** Infer idle turns from workmux status. Only for explicit commands: pi workers post their own turn ends. */
+	private observedPid?: number;
+	private observedSession?: string;
+	private observingSince = Date.now();
+	private quietTail?: string;
+	/** Explicit non-pi fixtures may infer quiet turns from terminal history. */
 	quietIsIdle = false;
-	/** Attach has no spawn-in-progress grace: consult workmux target state if status is absent. */
+	/** Reattachment gets bounded current-state observation, not a fresh launch grace. */
 	reattached = false;
 
 	constructor(
 		readonly run: string,
 		readonly handle: string,
 		readonly cwd: string,
-		readonly session: string,
-		dir: string,
+		readonly session = "", // legacy, not transport or canonical pi identity
+		dir = cwd,
+		threadId?: string,
 	) {
 		this.topic = `${run}/${handle}`;
 		this.dir = dir;
+		this.threadId = threadId;
 		poller.add(this);
 	}
 
@@ -265,8 +244,30 @@ export class Worker {
 		poller.remove(this);
 	}
 
+	/** @internal Resolve lazily: no worktree/window-name guesses, including after retirement. */
+	async record(): Promise<ThreadRecord | undefined> {
+		const record = this.threadId ? await getThread(this.threadId) : await workerThread(this.handle, this.cwd, this.run);
+		if (record) {
+			if (record.worker?.run !== this.run || record.worker.handle !== this.handle) throw new Error("Worker identity does not match thread " + record.id);
+			this.bind(record);
+		}
+		return record;
+	}
+	/** @internal */
+	bind(record: ThreadRecord) {
+		this.threadId = record.id;
+		this.dir = record.cwd;
+		this.owningBranch = record.branch;
+		this.quietIsIdle = !isPiLaunch(record.launch);
+	}
+	private async id(): Promise<string> {
+		const record = await this.record();
+		if (!record) throw new Error("No registered worker " + this.topic);
+		return record.id;
+	}
+
 	get branch() {
-		return this.handle;
+		return this.owningBranch ?? this.handle;
 	}
 
 	/** @internal */
@@ -286,41 +287,38 @@ export class Worker {
 	}
 
 	/** @internal */
-	async observe(entry: StatusEntry | undefined, panes: Map<string, string>) {
-		if (this.reattached && !entry && !this.paneId) {
-			const out = await sh("workmux", ["list", "--json"], this.cwd);
-			if (out.exitCode !== 0) throw new Error("workmux list unavailable: " + (out.stderr || out.stdout));
-			const rows = JSON.parse(out.stdout);
-			if (!Array.isArray(rows)) throw new Error("workmux list: expected worktree array");
-			const target = rows.find(row => row.handle === this.handle);
-			if (target && typeof target.is_open !== "boolean") throw new Error("workmux list: missing is_open");
-			if (!target || !target.is_open) {
-				this.emit({ kind: "exited", tail: "workmux target is not open: " + this.handle });
-				return;
-			}
-		}
-		if (entry?.pane_id) this.paneId = entry.pane_id;
-		if (this.paneId) {
-			const cmd = panes.get(this.paneId);
-			if (cmd !== undefined && !SHELLS.has(cmd)) this.sawAgent = true;
-			else if (cmd === undefined || this.sawAgent) {
-				this.emit({ kind: "exited", tail: await this.capture(30).catch(() => "") });
-				return;
-			}
-		}
-		if (!entry || !this.quietIsIdle) return;
-		if (entry.status === "working") {
-			this.idleSince = undefined;
-			this.reportedAfterIdle = false;
+	async observe(rows: ThreadSnapshot[]) {
+		if (this.ended || this.launching) return;
+		const record = await this.record();
+		const entry = record && rows.find(row => row.thread.id === record.id);
+		if (!record || record.archived || !entry?.terminals.some(t => t.role === "agent")) {
+			this.emit({ kind: "exited", tail: "Thread agent is gone: " + (record?.id ?? this.topic) });
 			return;
 		}
-		// status done/waiting: the agent ended a turn. Give the board a moment to carry its report.
-		const changed = entry.updated_ts * 1000;
-		if (this.idleSince === undefined) this.idleSince = Math.max(changed, Date.now());
-		if (this.reportedAfterIdle || this.lastReportTs >= changed - 2_000) return;
-		if (Date.now() - this.idleSince >= IDLE_GRACE_MS) {
-			this.reportedAfterIdle = true; // one idle event per quiet turn
-			this.emit({ kind: "idle", tail: await this.capture(30).catch(() => "") });
+		// /new changes canonical identity. A restart of the same session is still a process exit,
+		// not cleanup: a fresh attachment may await its following turn.
+		if (this.observedSession !== record.sessionId) { this.observedPid = undefined; this.observedSession = record.sessionId; }
+		if (this.observedPid && !pidAlive(this.observedPid)) {
+			this.emit({ kind: "exited", tail: await this.capture(30) });
+			return;
+		}
+		if (entry.pid) this.observedPid = entry.pid;
+		if (!this.quietIsIdle) {
+			if (entry.state === "exited" && !this.observedPid && Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS))
+				this.emit({ kind: "exited", tail: await this.capture(30) });
+			return; // normal pi turns come only from the board
+		}
+		if (entry.state === "exited") { this.emit({ kind: "exited", tail: await this.capture(30) }); return; }
+		const tail = await this.capture(30);
+		if (tail !== this.quietTail) {
+			this.quietTail = tail;
+			this.idleSince = Date.now();
+			this.reportedAfterIdle = this.lastReportTs >= Date.now() - 2_000;
+		}
+		this.idleSince ??= Date.now();
+		if (!this.reportedAfterIdle && Date.now() - this.idleSince >= IDLE_GRACE_MS) {
+			this.reportedAfterIdle = true;
+			this.emit({ kind: "idle", tail });
 		}
 	}
 
@@ -386,34 +384,38 @@ export class Worker {
 	async send(text: string) {
 		this.idleSince = undefined;
 		this.reportedAfterIdle = false;
-		const r = await sh("workmux", ["send", this.handle, text], this.cwd);
-		if (r.exitCode !== 0) throw new Error(`workmux send ${this.handle} failed:\n${r.stderr || r.stdout}`);
+		await sendThread(await this.id(), text);
 	}
 
 	async capture(lines = 50): Promise<string> {
-		if (!this.paneId) return "";
-		const out = await sh("tmux", ["capture-pane", "-p", "-t", this.paneId]);
-		const all = out.stdout.replace(/\s+$/, "").split("\n");
-		return all.slice(-lines).join("\n");
+		return historyThread(await this.id(), lines);
 	}
 
 	async exec(cmd: string[]) {
-		return await sh("workmux", ["run", this.handle, "--", ...cmd], this.cwd);
+		await this.id();
+		return sh(cmd[0]!, cmd.slice(1), this.dir);
 	}
 
 	async status(): Promise<string | undefined> {
-		return (await workmuxStatus(this.cwd)).find((e) => e.worktree === this.handle)?.status;
+		const record = await this.record();
+		if (!record || record.archived) return undefined;
+		readLive(true);
+		const snap = await threadSnapshot(record.id);
+		if (snap.state === "exited" && this.observedSession === record.sessionId && this.observedPid && pidAlive(this.observedPid))
+			throw new Error("Canonical pi is alive without a current live state: " + record.id);
+		return snap.terminals.some(t => t.role === "agent") && snap.state !== "exited" ? snap.state : undefined;
 	}
 
-	/** Remove worktree, window, and branch. */
+	/** Abandon the registered subtree; polling detaches only after successful cleanup. */
 	async close(keepBranch = false) {
+		const result = await abandonThread(await this.id(), { keepBranch });
+		this.emit({ kind: "exited", tail: "" });
 		poller.remove(this);
-		this.ended ??= { kind: "exited", tail: "" };
-		await sh("workmux", ["rm", this.handle, "-f", ...(keepBranch ? ["-k"] : [])], this.cwd);
+		return result;
 	}
 
 	toJSON() {
-		return { run: this.run, handle: this.handle, topic: this.topic, dir: this.dir, cwd: this.cwd, session: this.session, paneId: this.paneId };
+		return { run: this.run, handle: this.handle, topic: this.topic, dir: this.dir, cwd: this.cwd, session: this.session, threadId: this.threadId };
 	}
 }
 
@@ -460,17 +462,6 @@ export class MergeConflict extends Error {
 	}
 }
 
-async function ensureSession(name: string, cwd: string) {
-	const has = await sh("tmux", ["has-session", "-t", name]);
-	if (has.exitCode !== 0) {
-		const r = await sh("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
-		// Another worker in the same batch may have created it after our check.
-		if (r.exitCode !== 0 && (await sh("tmux", ["has-session", "-t", name])).exitCode !== 0)
-			throw new Error(`tmux new-session ${name} failed:\n${r.stderr}`);
-	}
-}
-
-
 /** Workers write scratch under `.wm/<handle>/`; keep it out of every worktree's status without touching .gitignore. */
 async function excludeWm(cwd: string) {
 	const r = await sh("git", ["rev-parse", "--git-common-dir"], cwd);
@@ -490,17 +481,12 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		throw new Error("Supply model/effort or command, not both");
 	if (o.command === undefined && (!o.model?.includes("/") || !o.effort))
 		throw new Error("wm.spawn requires routed model (provider/model) and effort, or an explicit command");
-	const quote = (text: string) => "'" + text.replaceAll("'", "'\"'\"'") + "'";
-	// --approve: the parent chose to run work in this repository, so its worktrees skip the project-trust prompt.
-	let cmd = o.command ?? "pi --approve --model " + quote(o.model!) + " --thinking " + quote(o.effort!);
-	if (!cmd.trim()) throw new Error("command must not be empty");
+	if (o.command !== undefined && !o.command.trim()) throw new Error("command must not be empty");
+	if (o.from === "fork" && o.command !== undefined && !isPiLaunch({ cmd: o.command })) throw new Error('from: "fork" needs a pi command');
 	const cwd = resolve(o.cwd ?? process.cwd());
-	const session = o.session ?? slug(o.run);
-	await ensureSession(session, cwd);
 	await excludeWm(cwd);
-	// Own the board window before workmux starts the agent, or a fast report is consumed by a ticking poller against nobody.
-	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
-	w.quietIsIdle = o.command !== undefined;
+	const w = new Worker(o.run, o.handle, cwd, o.session);
+	w.launching = true;
 	try {
 		let text = o.prompt;
 		if (o.from === "summary") {
@@ -509,20 +495,13 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		} else if (o.from && o.from !== "fork") {
 			throw new Error(`from must be "fork" or "summary"`);
 		}
-		const args = ["add", o.handle, "-b", "--parent-session", session, "-p", prompt({ ...o, prompt: text, agent: a })];
-		if (o.from === "fork") {
-			const source = o.parentSessionFile ?? o.parentSession ?? process.env.PI_SESSION_FILE ?? process.env.PI_SESSION_ID;
-			if (!source) throw new Error(`from: "fork" needs parentSessionFile, parentSession, or PI_SESSION_ID`);
-			cmd = withFork(cmd, source);
-		}
-		// Board identity, spawn provenance (session-meta), and the fence ratio ride the agent command's env.
-		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint, follow: o.follow });
-		args.push("-a", `${env.join(" ")} ${cmd}`);
-		if (o.base) args.push("--base", o.base);
-		const out = await sh("workmux", args, cwd);
-		if (out.exitCode !== 0) throw new Error(`workmux add ${o.handle} failed:\n${out.stderr || out.stdout}`);
-		const dir = /Worktree:\s+(\S+)/.exec(out.stdout)?.[1];
-		if (dir) w.dir = dir;
+		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint, follow: o.follow }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
+		const options = { cwd, worktree: o.handle, base: o.base, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, worker: { run: o.run, handle: o.handle },
+			launch: { cmd: o.command, args: o.command === undefined ? ["--approve", "--model", o.model!, "--thinking", o.effort!] : undefined, env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
+		const source = o.parentSessionFile ?? o.parentSession ?? process.env.PI_SESSION_FILE ?? process.env.PI_SESSION_ID;
+		if (o.from === "fork" && !source) throw new Error('from: "fork" needs parentSessionFile, parentSession, or PI_SESSION_ID');
+		w.bind(o.from === "fork" ? await forkThread(source!, options) : await newThread(options));
+		w.launching = false;
 		return w;
 	} catch (err) {
 		w.drop();
@@ -530,39 +509,23 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	}
 }
 
-/** A Worker for a handle spawned elsewhere (another process, or before a resume). Assumes workmux's default worktree layout. */
-export function attach(run: string, handle: string, cwd = process.cwd(), session = slug(run)): Worker {
-	const worker = new Worker(run, handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, handle));
+/** A Worker spawned elsewhere. Identity/path resolve from the registry on first use. */
+export function attach(run: string, handle: string, cwd = process.cwd(), session = "", threadId?: string): Worker {
+	const worker = new Worker(run, handle, resolve(cwd), session, resolve(cwd), threadId);
 	worker.reattached = true;
 	return worker;
 }
 
-/** Merge the worker's branch into `into` (default: current branch of cwd) with plain git. */
+/** Raw integration follows the branch's recorded ab-parent; never retires or sends mail. */
 export async function merge(w: Worker, opts: { into?: string; mode?: "merge" | "rebase" } = {}) {
-	const mode = opts.mode ?? "merge";
-	const git = (...a: string[]) => sh("git", a, w.cwd);
-	if (opts.into) await git("checkout", opts.into);
-	if (mode === "rebase") {
-		const r = await sh("git", ["rebase", opts.into ?? "HEAD"], w.dir);
-		if (r.exitCode !== 0) {
-			await sh("git", ["rebase", "--abort"], w.dir);
-			throw new MergeConflict(w, await conflictedFiles(w.dir));
-		}
-		const ff = await git("merge", "--ff-only", w.branch);
-		if (ff.exitCode !== 0) throw new Error(`ff-only merge of ${w.branch} failed:\n${ff.stderr}`);
-		return;
+	const record = await w.record();
+	if (!record) throw new Error("No registered worker " + w.topic);
+	if (opts.into) {
+		const parent = await sh("git", ["config", "--get", "branch." + record.branch + ".ab-parent"], record.project);
+		if (parent.stdout.trim() !== opts.into) throw new Error("merge destination is recorded ab-parent, not " + opts.into);
 	}
-	const m = await git("merge", "--no-ff", "--no-edit", w.branch);
-	if (m.exitCode !== 0) {
-		const files = await conflictedFiles(w.cwd);
-		await git("merge", "--abort");
-		throw new MergeConflict(w, files);
-	}
-}
-
-async function conflictedFiles(dir: string): Promise<string[]> {
-	const out = await sh("git", ["diff", "--name-only", "--diff-filter=U"], dir);
-	return out.stdout.split("\n").filter(Boolean);
+	try { return await integrateThread(record.id, { mode: opts.mode }); }
+	catch (error) { if (error instanceof ThreadMergeConflict) throw new MergeConflict(w, error.files); throw error; }
 }
 
 if (import.meta.main) {
@@ -599,7 +562,6 @@ if (import.meta.main) {
 		}
 		case "capture": {
 			const w = at(need(opt("run"), "run"), need(pos[0], "handle"));
-			await w.observe((await workmuxStatus(w.cwd)).find((e) => e.worktree === w.handle), await livePanes());
 			console.log(await w.capture(Number(opt("lines") ?? 50)));
 			process.exit(0);
 		}
@@ -613,7 +575,7 @@ if (import.meta.main) {
 			process.exit(0);
 		}
 		case "status": {
-			print(await workmuxStatus(process.cwd()));
+			print(await listThreads({ cwd: process.cwd() }));
 			process.exit(0);
 		}
 		case "agents": {

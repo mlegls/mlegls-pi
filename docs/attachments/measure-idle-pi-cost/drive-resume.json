@@ -1,0 +1,1429 @@
+{
+  "started": "2026-10-01T18:29:36+0800",
+  "revision": "8378ecd9cb04db4308f121ae10119606ef9b6ae6",
+  "pi_version": "0.99.1",
+  "bun_version": "1.4.2",
+  "zmx_version": [
+    "zmx\t\t0.8.1",
+    "ghostty_vt\tghostty-1.3.2-dev-5UdBC4FtYAV-PdFOt-gceWieTHLri0H4ztHtd6Tr4dGj"
+  ],
+  "machine": "arm64",
+  "memory_bytes": 25769803776,
+  "swap": "vm.swapusage: total = 14336.00M  used = 12784.50M  free = 1551.50M  (encrypted)",
+  "terminal": {
+    "rows": 40,
+    "columns": 120,
+    "TERM": "xterm-256color",
+    "PI_IMAGE_PROTOCOL": "none"
+  },
+  "warm_turn": false,
+  "settle_seconds": 15,
+  "interval_seconds": 5,
+  "trials": [
+    {
+      "label": "small",
+      "trial": 1,
+      "seed": {
+        "source_session_id": "01a0dbcd-a454-7540-809e-dd39b779a770",
+        "sha256": "10cebf313bf18f060051a53a3f390cde30b2eed364864eb553c5dbf782ed0d3d",
+        "bytes": 51680,
+        "entries": 13,
+        "messages": {
+          "system": 1,
+          "user": 1,
+          "assistant": 2,
+          "toolResult": 2
+        },
+        "compactions": 0,
+        "images": 0,
+        "source_duration_seconds": 88.6
+      },
+      "name": "idle-cost-74017-small-1",
+      "daemon_pid": 74705,
+      "pi_pid": 74706,
+      "footer_seconds": 2.0073,
+      "usable_seconds": 2.055,
+      "warm_turn": null,
+      "samples": [
+        {
+          "elapsed_seconds": 17.081,
+          "processes": [
+            {
+              "pid": 74705,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 76826,
+              "parent": 74706,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 76827,
+              "parent": 74706,
+              "rss_kib": 54576,
+              "cpu_seconds": 0.38,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 76920,
+              "parent": 76827,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.03,
+              "executable": "node"
+            },
+            {
+              "pid": 74706,
+              "parent": 74705,
+              "rss_kib": 184096,
+              "cpu_seconds": 3.5,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 22.15,
+          "processes": [
+            {
+              "pid": 74705,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 76826,
+              "parent": 74706,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 76827,
+              "parent": 74706,
+              "rss_kib": 56096,
+              "cpu_seconds": 0.38,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 76920,
+              "parent": 76827,
+              "rss_kib": 38032,
+              "cpu_seconds": 0.03,
+              "executable": "node"
+            },
+            {
+              "pid": 74706,
+              "parent": 74705,
+              "rss_kib": 59024,
+              "cpu_seconds": 3.53,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 27.228,
+          "processes": [
+            {
+              "pid": 74705,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 76826,
+              "parent": 74706,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 76827,
+              "parent": 74706,
+              "rss_kib": 54560,
+              "cpu_seconds": 0.38,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 76920,
+              "parent": 76827,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.03,
+              "executable": "node"
+            },
+            {
+              "pid": 74706,
+              "parent": 74705,
+              "rss_kib": 81136,
+              "cpu_seconds": 3.59,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 32.285,
+          "processes": [
+            {
+              "pid": 74705,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 76826,
+              "parent": 74706,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 76827,
+              "parent": 74706,
+              "rss_kib": 54560,
+              "cpu_seconds": 0.38,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 76920,
+              "parent": 76827,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.03,
+              "executable": "node"
+            },
+            {
+              "pid": 74706,
+              "parent": 74705,
+              "rss_kib": 81504,
+              "cpu_seconds": 3.62,
+              "executable": "bun"
+            }
+          ]
+        }
+      ],
+      "footprints": [
+        {
+          "pid": 74705,
+          "executable": "zmx",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         3568K",
+            "Physical footprint (peak):  3568K"
+          ]
+        },
+        {
+          "pid": 76826,
+          "executable": "cua-driver",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         12.5M",
+            "Physical footprint (peak):  12.5M"
+          ]
+        },
+        {
+          "pid": 76827,
+          "executable": "chrome-devtools-mcp",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         136.7M",
+            "Physical footprint (peak):  136.7M"
+          ]
+        },
+        {
+          "pid": 76920,
+          "executable": "node",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         18.7M",
+            "Physical footprint (peak):  18.7M"
+          ]
+        },
+        {
+          "pid": 74706,
+          "executable": "bun",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         226.4M",
+            "Physical footprint (peak):  290.6M"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "large",
+      "trial": 1,
+      "seed": {
+        "source_session_id": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+        "sha256": "5da7ae04c35f3865c5a0f5304357a7194a4c6bfc9bb3a5b661aa5f66c6e6a10d",
+        "bytes": 5820026,
+        "entries": 2505,
+        "messages": {
+          "system": 1,
+          "user": 23,
+          "assistant": 680,
+          "toolResult": 529
+        },
+        "compactions": 11,
+        "images": 0,
+        "source_duration_seconds": 51383.2
+      },
+      "name": "idle-cost-74017-large-1",
+      "daemon_pid": 89159,
+      "pi_pid": 89168,
+      "footer_seconds": 2.5585,
+      "usable_seconds": 2.6361,
+      "warm_turn": null,
+      "samples": [
+        {
+          "elapsed_seconds": 17.663,
+          "processes": [
+            {
+              "pid": 89159,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 91770,
+              "parent": 89168,
+              "rss_kib": 7248,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 91771,
+              "parent": 89168,
+              "rss_kib": 55872,
+              "cpu_seconds": 0.42,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 92031,
+              "parent": 91771,
+              "rss_kib": 38064,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 89168,
+              "parent": 89159,
+              "rss_kib": 199072,
+              "cpu_seconds": 3.74,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 22.718,
+          "processes": [
+            {
+              "pid": 89159,
+              "parent": 1,
+              "rss_kib": 1520,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 91770,
+              "parent": 89168,
+              "rss_kib": 6688,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 91771,
+              "parent": 89168,
+              "rss_kib": 55872,
+              "cpu_seconds": 0.42,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 92031,
+              "parent": 91771,
+              "rss_kib": 38048,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 89168,
+              "parent": 89159,
+              "rss_kib": 123712,
+              "cpu_seconds": 3.77,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 27.774,
+          "processes": [
+            {
+              "pid": 89159,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 91770,
+              "parent": 89168,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 91771,
+              "parent": 89168,
+              "rss_kib": 54544,
+              "cpu_seconds": 0.42,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 92031,
+              "parent": 91771,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 89168,
+              "parent": 89159,
+              "rss_kib": 82656,
+              "cpu_seconds": 3.8,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 32.875,
+          "processes": [
+            {
+              "pid": 89159,
+              "parent": 1,
+              "rss_kib": 1520,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 91770,
+              "parent": 89168,
+              "rss_kib": 6688,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 91771,
+              "parent": 89168,
+              "rss_kib": 55792,
+              "cpu_seconds": 0.42,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 92031,
+              "parent": 91771,
+              "rss_kib": 38224,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 89168,
+              "parent": 89159,
+              "rss_kib": 86992,
+              "cpu_seconds": 3.82,
+              "executable": "bun"
+            }
+          ]
+        }
+      ],
+      "footprints": [
+        {
+          "pid": 89159,
+          "executable": "zmx",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         3360K",
+            "Physical footprint (peak):  3360K"
+          ]
+        },
+        {
+          "pid": 91770,
+          "executable": "cua-driver",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         13.2M",
+            "Physical footprint (peak):  13.2M"
+          ]
+        },
+        {
+          "pid": 91771,
+          "executable": "chrome-devtools-mcp",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         132.2M",
+            "Physical footprint (peak):  132.2M"
+          ]
+        },
+        {
+          "pid": 92031,
+          "executable": "node",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         19.6M",
+            "Physical footprint (peak):  19.6M"
+          ]
+        },
+        {
+          "pid": 89168,
+          "executable": "bun",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         242.9M",
+            "Physical footprint (peak):  285.4M"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "small",
+      "trial": 2,
+      "seed": {
+        "source_session_id": "01a0dbcd-a454-7540-809e-dd39b779a770",
+        "sha256": "10cebf313bf18f060051a53a3f390cde30b2eed364864eb553c5dbf782ed0d3d",
+        "bytes": 51680,
+        "entries": 13,
+        "messages": {
+          "system": 1,
+          "user": 1,
+          "assistant": 2,
+          "toolResult": 2
+        },
+        "compactions": 0,
+        "images": 0,
+        "source_duration_seconds": 88.6
+      },
+      "name": "idle-cost-74017-small-2",
+      "daemon_pid": 5953,
+      "pi_pid": 5954,
+      "footer_seconds": 1.6495,
+      "usable_seconds": 1.7818,
+      "warm_turn": null,
+      "samples": [
+        {
+          "elapsed_seconds": 16.811,
+          "processes": [
+            {
+              "pid": 5953,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 7086,
+              "parent": 5954,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 7087,
+              "parent": 5954,
+              "rss_kib": 54528,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 7459,
+              "parent": 7087,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 5954,
+              "parent": 5953,
+              "rss_kib": 180128,
+              "cpu_seconds": 3.38,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 21.891,
+          "processes": [
+            {
+              "pid": 5953,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 7086,
+              "parent": 5954,
+              "rss_kib": 6656,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 7087,
+              "parent": 5954,
+              "rss_kib": 55824,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 7459,
+              "parent": 7087,
+              "rss_kib": 36816,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 5954,
+              "parent": 5953,
+              "rss_kib": 79168,
+              "cpu_seconds": 3.43,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 27.03,
+          "processes": [
+            {
+              "pid": 5953,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 7086,
+              "parent": 5954,
+              "rss_kib": 6656,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 7087,
+              "parent": 5954,
+              "rss_kib": 54512,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 7459,
+              "parent": 7087,
+              "rss_kib": 36816,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 5954,
+              "parent": 5953,
+              "rss_kib": 49856,
+              "cpu_seconds": 3.51,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 32.102,
+          "processes": [
+            {
+              "pid": 5953,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 7086,
+              "parent": 5954,
+              "rss_kib": 2000,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 7087,
+              "parent": 5954,
+              "rss_kib": 44544,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 7459,
+              "parent": 7087,
+              "rss_kib": 30032,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 5954,
+              "parent": 5953,
+              "rss_kib": 59936,
+              "cpu_seconds": 3.6,
+              "executable": "bun"
+            }
+          ]
+        }
+      ],
+      "footprints": [
+        {
+          "pid": 5953,
+          "executable": "zmx",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         3440K",
+            "Physical footprint (peak):  3440K"
+          ]
+        },
+        {
+          "pid": 7086,
+          "executable": "cua-driver",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         11.7M",
+            "Physical footprint (peak):  11.8M"
+          ]
+        },
+        {
+          "pid": 7087,
+          "executable": "chrome-devtools-mcp",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         139.2M",
+            "Physical footprint (peak):  139.2M"
+          ]
+        },
+        {
+          "pid": 7459,
+          "executable": "node",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         20.3M",
+            "Physical footprint (peak):  20.3M"
+          ]
+        },
+        {
+          "pid": 5954,
+          "executable": "bun",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         221.3M",
+            "Physical footprint (peak):  270.3M"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "large",
+      "trial": 2,
+      "seed": {
+        "source_session_id": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+        "sha256": "5da7ae04c35f3865c5a0f5304357a7194a4c6bfc9bb3a5b661aa5f66c6e6a10d",
+        "bytes": 5820026,
+        "entries": 2505,
+        "messages": {
+          "system": 1,
+          "user": 23,
+          "assistant": 680,
+          "toolResult": 529
+        },
+        "compactions": 11,
+        "images": 0,
+        "source_duration_seconds": 51383.2
+      },
+      "name": "idle-cost-74017-large-2",
+      "daemon_pid": 21750,
+      "pi_pid": 21751,
+      "footer_seconds": 2.6753,
+      "usable_seconds": 2.6855,
+      "warm_turn": null,
+      "samples": [
+        {
+          "elapsed_seconds": 17.724,
+          "processes": [
+            {
+              "pid": 21750,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 23584,
+              "parent": 21751,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 23585,
+              "parent": 21751,
+              "rss_kib": 55968,
+              "cpu_seconds": 0.45,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 25875,
+              "parent": 23585,
+              "rss_kib": 38192,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 21751,
+              "parent": 21750,
+              "rss_kib": 195424,
+              "cpu_seconds": 3.65,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 22.788,
+          "processes": [
+            {
+              "pid": 21750,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 23584,
+              "parent": 21751,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 23585,
+              "parent": 21751,
+              "rss_kib": 56032,
+              "cpu_seconds": 0.45,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 25875,
+              "parent": 23585,
+              "rss_kib": 38336,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 21751,
+              "parent": 21750,
+              "rss_kib": 80256,
+              "cpu_seconds": 3.68,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 27.845,
+          "processes": [
+            {
+              "pid": 21750,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 23584,
+              "parent": 21751,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 23585,
+              "parent": 21751,
+              "rss_kib": 54624,
+              "cpu_seconds": 0.45,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 25875,
+              "parent": 23585,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 21751,
+              "parent": 21750,
+              "rss_kib": 81056,
+              "cpu_seconds": 3.7,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 32.898,
+          "processes": [
+            {
+              "pid": 21750,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 23584,
+              "parent": 21751,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 23585,
+              "parent": 21751,
+              "rss_kib": 54624,
+              "cpu_seconds": 0.45,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 25875,
+              "parent": 23585,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 21751,
+              "parent": 21750,
+              "rss_kib": 81664,
+              "cpu_seconds": 3.74,
+              "executable": "bun"
+            }
+          ]
+        }
+      ],
+      "footprints": [
+        {
+          "pid": 21750,
+          "executable": "zmx",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         3488K",
+            "Physical footprint (peak):  3488K"
+          ]
+        },
+        {
+          "pid": 23584,
+          "executable": "cua-driver",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         11.4M",
+            "Physical footprint (peak):  12.0M"
+          ]
+        },
+        {
+          "pid": 23585,
+          "executable": "chrome-devtools-mcp",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         137.4M",
+            "Physical footprint (peak):  137.4M"
+          ]
+        },
+        {
+          "pid": 25875,
+          "executable": "node",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         19.3M",
+            "Physical footprint (peak):  19.3M"
+          ]
+        },
+        {
+          "pid": 21751,
+          "executable": "bun",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         243.0M",
+            "Physical footprint (peak):  305.2M"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "small",
+      "trial": 3,
+      "seed": {
+        "source_session_id": "01a0dbcd-a454-7540-809e-dd39b779a770",
+        "sha256": "10cebf313bf18f060051a53a3f390cde30b2eed364864eb553c5dbf782ed0d3d",
+        "bytes": 51680,
+        "entries": 13,
+        "messages": {
+          "system": 1,
+          "user": 1,
+          "assistant": 2,
+          "toolResult": 2
+        },
+        "compactions": 0,
+        "images": 0,
+        "source_duration_seconds": 88.6
+      },
+      "name": "idle-cost-74017-small-3",
+      "daemon_pid": 38286,
+      "pi_pid": 38287,
+      "footer_seconds": 1.7821,
+      "usable_seconds": 1.8032,
+      "warm_turn": null,
+      "samples": [
+        {
+          "elapsed_seconds": 16.842,
+          "processes": [
+            {
+              "pid": 38286,
+              "parent": 1,
+              "rss_kib": 1488,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 38952,
+              "parent": 38287,
+              "rss_kib": 6640,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 38954,
+              "parent": 38287,
+              "rss_kib": 54496,
+              "cpu_seconds": 0.41,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 41201,
+              "parent": 38954,
+              "rss_kib": 36800,
+              "cpu_seconds": 0.05,
+              "executable": "node"
+            },
+            {
+              "pid": 38287,
+              "parent": 38286,
+              "rss_kib": 130960,
+              "cpu_seconds": 3.72,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 22.375,
+          "processes": [
+            {
+              "pid": 38286,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 38952,
+              "parent": 38287,
+              "rss_kib": 6656,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 38954,
+              "parent": 38287,
+              "rss_kib": 55920,
+              "cpu_seconds": 0.41,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 41201,
+              "parent": 38954,
+              "rss_kib": 38000,
+              "cpu_seconds": 0.05,
+              "executable": "node"
+            },
+            {
+              "pid": 38287,
+              "parent": 38286,
+              "rss_kib": 119600,
+              "cpu_seconds": 3.8,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 27.427,
+          "processes": [
+            {
+              "pid": 38286,
+              "parent": 1,
+              "rss_kib": 1488,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 38952,
+              "parent": 38287,
+              "rss_kib": 6640,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 38954,
+              "parent": 38287,
+              "rss_kib": 54496,
+              "cpu_seconds": 0.41,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 41201,
+              "parent": 38954,
+              "rss_kib": 36800,
+              "cpu_seconds": 0.05,
+              "executable": "node"
+            },
+            {
+              "pid": 38287,
+              "parent": 38286,
+              "rss_kib": 79936,
+              "cpu_seconds": 3.82,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 32.488,
+          "processes": [
+            {
+              "pid": 38286,
+              "parent": 1,
+              "rss_kib": 1488,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 38952,
+              "parent": 38287,
+              "rss_kib": 6640,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 38954,
+              "parent": 38287,
+              "rss_kib": 54496,
+              "cpu_seconds": 0.42,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 41201,
+              "parent": 38954,
+              "rss_kib": 38064,
+              "cpu_seconds": 0.05,
+              "executable": "node"
+            },
+            {
+              "pid": 38287,
+              "parent": 38286,
+              "rss_kib": 84208,
+              "cpu_seconds": 3.85,
+              "executable": "bun"
+            }
+          ]
+        }
+      ],
+      "footprints": [
+        {
+          "pid": 38286,
+          "executable": "zmx",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         3504K",
+            "Physical footprint (peak):  3504K"
+          ]
+        },
+        {
+          "pid": 38952,
+          "executable": "cua-driver",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         9137K",
+            "Physical footprint (peak):  9201K"
+          ]
+        },
+        {
+          "pid": 38954,
+          "executable": "chrome-devtools-mcp",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         143.8M",
+            "Physical footprint (peak):  143.8M"
+          ]
+        },
+        {
+          "pid": 41201,
+          "executable": "node",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         20.3M",
+            "Physical footprint (peak):  20.3M"
+          ]
+        },
+        {
+          "pid": 38287,
+          "executable": "bun",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         224.8M",
+            "Physical footprint (peak):  273.5M"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "large",
+      "trial": 3,
+      "seed": {
+        "source_session_id": "01a0f065-abaf-776c-bc8b-419cb9b312e4",
+        "sha256": "5da7ae04c35f3865c5a0f5304357a7194a4c6bfc9bb3a5b661aa5f66c6e6a10d",
+        "bytes": 5820026,
+        "entries": 2505,
+        "messages": {
+          "system": 1,
+          "user": 23,
+          "assistant": 680,
+          "toolResult": 529
+        },
+        "compactions": 11,
+        "images": 0,
+        "source_duration_seconds": 51383.2
+      },
+      "name": "idle-cost-74017-large-3",
+      "daemon_pid": 53246,
+      "pi_pid": 53252,
+      "footer_seconds": 4.0173,
+      "usable_seconds": 4.0552,
+      "warm_turn": null,
+      "samples": [
+        {
+          "elapsed_seconds": 19.076,
+          "processes": [
+            {
+              "pid": 53246,
+              "parent": 1,
+              "rss_kib": 1520,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 55855,
+              "parent": 53252,
+              "rss_kib": 6688,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 55856,
+              "parent": 53252,
+              "rss_kib": 54624,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 56779,
+              "parent": 55856,
+              "rss_kib": 36848,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 53252,
+              "parent": 53246,
+              "rss_kib": 197904,
+              "cpu_seconds": 4.43,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 24.128,
+          "processes": [
+            {
+              "pid": 53246,
+              "parent": 1,
+              "rss_kib": 1520,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 55855,
+              "parent": 53252,
+              "rss_kib": 6688,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 55856,
+              "parent": 53252,
+              "rss_kib": 55904,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 56779,
+              "parent": 55856,
+              "rss_kib": 38192,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 53252,
+              "parent": 53246,
+              "rss_kib": 115760,
+              "cpu_seconds": 4.49,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 29.262,
+          "processes": [
+            {
+              "pid": 53246,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 55855,
+              "parent": 53252,
+              "rss_kib": 6672,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 55856,
+              "parent": 53252,
+              "rss_kib": 54592,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 56779,
+              "parent": 55856,
+              "rss_kib": 36832,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 53252,
+              "parent": 53246,
+              "rss_kib": 84576,
+              "cpu_seconds": 4.56,
+              "executable": "bun"
+            }
+          ]
+        },
+        {
+          "elapsed_seconds": 34.362,
+          "processes": [
+            {
+              "pid": 53246,
+              "parent": 1,
+              "rss_kib": 1504,
+              "cpu_seconds": 0.0,
+              "executable": "zmx"
+            },
+            {
+              "pid": 55855,
+              "parent": 53252,
+              "rss_kib": 6656,
+              "cpu_seconds": 0.03,
+              "executable": "cua-driver"
+            },
+            {
+              "pid": 55856,
+              "parent": 53252,
+              "rss_kib": 54576,
+              "cpu_seconds": 0.44,
+              "executable": "chrome-devtools-mcp"
+            },
+            {
+              "pid": 56779,
+              "parent": 55856,
+              "rss_kib": 36816,
+              "cpu_seconds": 0.04,
+              "executable": "node"
+            },
+            {
+              "pid": 53252,
+              "parent": 53246,
+              "rss_kib": 81088,
+              "cpu_seconds": 4.61,
+              "executable": "bun"
+            }
+          ]
+        }
+      ],
+      "footprints": [
+        {
+          "pid": 53246,
+          "executable": "zmx",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         3472K",
+            "Physical footprint (peak):  3472K"
+          ]
+        },
+        {
+          "pid": 55855,
+          "executable": "cua-driver",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         11.5M",
+            "Physical footprint (peak):  12.1M"
+          ]
+        },
+        {
+          "pid": 55856,
+          "executable": "chrome-devtools-mcp",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         134.5M",
+            "Physical footprint (peak):  134.5M"
+          ]
+        },
+        {
+          "pid": 56779,
+          "executable": "node",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         19.6M",
+            "Physical footprint (peak):  19.6M"
+          ]
+        },
+        {
+          "pid": 53252,
+          "executable": "bun",
+          "exit_code": 0,
+          "lines": [
+            "Physical footprint:         238.5M",
+            "Physical footprint (peak):  282.3M"
+          ]
+        }
+      ]
+    }
+  ],
+  "remaining_sessions": ""
+}

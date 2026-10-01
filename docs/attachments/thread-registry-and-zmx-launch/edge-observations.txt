@@ -1,0 +1,42 @@
+{
+  "bareAmbiguity": "Error: Ambiguous worker same in /private/tmp/ab-seams-bRDPR8/repo; supply its run",
+  "explicitRun": "68546b41-3967-4eeb-8a6e-63b948a3e996",
+  "newMembership": "68546b41-3967-4eeb-8a6e-63b948a3e996",
+  "collision": "Error: Session 68546b41-3967-4eeb-8a6e-63b948a3e996 is the immutable id of thread 68546b41-3967-4eeb-8a6e-63b948a3e996 (current session 01a0f715-36e1-732d-a86e-96e28614a6cf); fork it instead",
+  "terminalNames": [
+    "22fb229c-0f94-4fe5-a4d9-004d71f0469d.agent",
+    "68546b41-3967-4eeb-8a6e-63b948a3e996.agent"
+  ]
+}
+{
+  "directPiOverride": {
+    "thread": {
+      "id": "c222ba71-1201-4634-bac5-038ebaffd51d",
+      "sessionId": "c222ba71-1201-4634-bac5-038ebaffd51d",
+      "sessionFile": "/tmp/ab-seams-bRDPR8/agent/sessions/--private-tmp-ab-seams-bRDPR8-repo--/2026-10-01T10-49-17-846Z_c222ba71-1201-4634-bac5-038ebaffd51d.jsonl",
+      "cwd": "/private/tmp/ab-seams-bRDPR8/repo",
+      "project": "/private/tmp/ab-seams-bRDPR8/repo",
+      "branch": "main",
+      "ownership": "guest",
+      "archived": false,
+      "created": "2026-10-01T10:49:17.847Z",
+      "launch": {
+        "cmd": "pi --approve --thinking minimal"
+      }
+    },
+    "state": "idle",
+    "pid": 38821,
+    "terminals": [
+      {
+        "name": "c222ba71-1201-4634-bac5-038ebaffd51d.agent",
+        "role": "agent"
+      }
+    ]
+  }
+}
+{
+  "failedSetup": "Error: Thread 8e78c33e-977b-47fc-86da-222eaf57a50f at /private/tmp/ab-seams-bRDPR8/repo__worktrees/setup-fails failed: Error: mise run setup: [setup] $ exit 7\n[setup] ERROR task failed\n\nPartial resources cleaned",
+  "pathCleaned": true,
+  "activeFailing": 0
+}
+{"remaining":[]}

@@ -24,6 +24,7 @@ import { scopes } from "./scopes";
 import { writeLiveSubscriptions, type BoardSubscription } from "../session-meta/live";
 import { execFile } from "node:child_process";
 import { readCursor, writeCursor } from "../records/cursor";
+import { canonicalThread } from "../session-meta/host";
 
 type Subscription = BoardSubscription;
 
@@ -244,8 +245,9 @@ export function install(pi: ExtensionAPI) {
 	// A spawned worker reports by ending its turn: its last assistant message goes to its own topic,
 	// tagged with the status it starts with (done/blocked/needs-input) or `turn-end` when it has none,
 	// so the parent (wm's poller, children.turnEnd, a supervision loop) reads the report, not a pane.
-	pi.on("agent_end", (event) => {
-		const topic = process.env.PI_BOARD_TOPIC;
+	pi.on("agent_end", async (event, ctx) => {
+		const member = process.env.PI_BOARD_TOPIC ? undefined : await canonicalThread(ctx.sessionManager.getSessionId(), ctx.sessionManager.getSessionFile());
+		const topic = process.env.PI_BOARD_TOPIC ?? (member && "thread/" + member.id);
 		if (!topic) return;
 		const last = [...event.messages].reverse().find((m) => (m as { role?: string }).role === "assistant") as { content?: unknown } | undefined;
 		const content = last?.content;

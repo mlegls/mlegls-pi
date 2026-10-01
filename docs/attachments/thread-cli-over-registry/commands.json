@@ -1,0 +1,773 @@
+{
+  "new-owner": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "new",
+      "--worktree",
+      "cli-owner",
+      "--base",
+      "main",
+      "--cmd",
+      "bash --noprofile --norc"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"sessionId\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-08-38-677Z_09060bac-0e21-48df-a4bf-5a48c3c45aa9.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"branch\":\"cli-owner\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:08:38.678Z\",\"launch\":{\"cmd\":\"bash --noprofile --norc\"}}\n",
+    "stderr": ""
+  },
+  "new-pi": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "new",
+      "--in",
+      "/private/tmp/ab-lifecycle-jvkTmu/repo",
+      "--prompt",
+      "Reply only done cli-ready. Do not use tools."
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionId\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:08:39.121Z\",\"launch\":{\"prompt\":\"Reply only done cli-ready. Do not use tools.\"}}\n",
+    "stderr": ""
+  },
+  "new-noisy": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "new",
+      "--worktree",
+      "cli-logs",
+      "--base",
+      "main",
+      "--cmd",
+      "printf cli-log-ready"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0\",\"sessionId\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-logs--/2026-10-01T12-10-17-380Z_dd4d8202-8d24-4498-ae72-ffefb4a011a0.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs\",\"branch\":\"cli-logs\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:10:17.381Z\",\"launch\":{\"cmd\":\"printf cli-log-ready\"}}\n",
+    "stderr": ""
+  },
+  "setup-readiness": {
+    "args": [
+      "git",
+      "status",
+      "--short"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs",
+    "exit": 0,
+    "stdout": "?? setup-ran\n",
+    "stderr": ""
+  },
+  "fork-in": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "fork",
+      "--in",
+      "/private/tmp/ab-lifecycle-jvkTmu/repo"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"1a1d1b95-7d40-4560-af7c-43335f46a6b5\",\"sessionId\":\"1a1d1b95-7d40-4560-af7c-43335f46a6b5\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-52-341Z_1a1d1b95-7d40-4560-af7c-43335f46a6b5.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:08:52.342Z\"}\n",
+    "stderr": ""
+  },
+  "fork-worktree": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "fork",
+      "--worktree",
+      "cli-fork"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16\",\"sessionId\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-fork--/2026-10-01T12-10-16-091Z_60bf941e-40af-4c77-b61a-3d3a09b25e16.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork\",\"branch\":\"cli-fork\",\"ownership\":\"owner\",\"parent\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"archived\":false,\"created\":\"2026-10-01T12:10:16.092Z\"}\n",
+    "stderr": ""
+  },
+  "fork-in-different-cwd": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "fork",
+      "--in",
+      "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner",
+    "exit": 0,
+    "stdout": "{\"id\":\"bfed9375-6f47-4308-9226-70eccdc18eaa\",\"sessionId\":\"bfed9375-6f47-4308-9226-70eccdc18eaa\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-11-42-864Z_bfed9375-6f47-4308-9226-70eccdc18eaa.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"branch\":\"cli-owner\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:11:42.865Z\"}\n",
+    "stderr": ""
+  },
+  "new-child": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "new",
+      "--worktree",
+      "cli-child",
+      "--parent",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9",
+      "--cmd",
+      "printf child-ready"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner",
+    "exit": 0,
+    "stdout": "{\"id\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af\",\"sessionId\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-child--/2026-10-01T12-11-43-164Z_04bb610a-8a40-4687-b2b6-0e1c1f0c10af.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child\",\"branch\":\"cli-child\",\"ownership\":\"owner\",\"parent\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"archived\":false,\"created\":\"2026-10-01T12:11:43.165Z\",\"launch\":{\"cmd\":\"printf child-ready\"}}\n",
+    "stderr": ""
+  },
+  "promote-default-current": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "promote"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionId\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:08:39.121Z\",\"launch\":{\"prompt\":\"Reply only done cli-ready. Do not use tools.\"}}\n",
+    "stderr": ""
+  },
+  "promote-current-id": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "promote",
+      "3dabf790-624e-44cf-9982-0411a7a35d79"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionId\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:08:39.121Z\",\"launch\":{\"prompt\":\"Reply only done cli-ready. Do not use tools.\"}}\n",
+    "stderr": ""
+  },
+  "free-pi": {
+    "args": [
+      "pi",
+      "--approve",
+      "--session",
+      "/private/tmp/ab-lifecycle-jvkTmu/free-session.jsonl",
+      "--print",
+      "Reply only done free-cli-ready. Do not use tools."
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "done free-cli-ready\n",
+    "stderr": ""
+  },
+  "promote-free": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "promote"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "{\"id\":\"01a0f75f-600f-7140-afb5-1ad4ffb0a401\",\"sessionId\":\"01a0f75f-600f-7140-afb5-1ad4ffb0a401\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/free-session.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:10:28.144Z\"}\n",
+    "stderr": ""
+  },
+  "abandon-promoted-free": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "abandon",
+      "01a0f75f-600f-7140-afb5-1ad4ffb0a401"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"01a0f75f-600f-7140-afb5-1ad4ffb0a401\"],\"killed\":[83586,83591,83601],\"branchesDeleted\":[],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "send-literal": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "send",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9",
+      "printf 'CLI-LITERAL-$HOME-;-[brackets]'"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "history-unsubmitted": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "history",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "s-MacBook-Pro:cli-owner mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi_\n_worktrees/thread-cli-over-registry-drive-e/lib/thread/agent-runner.ts 09060bac-0e21-48df-a4bf-5a48c3c45aa9; echo ZMX_TA\nSK_COMPLETED:e968:$?\nbash-5.3$ printf 'CLI-LITERAL-$HOME-;-[brackets]'",
+    "stderr": ""
+  },
+  "send-stdin-cr": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "send",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "history-submitted": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "history",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "s-MacBook-Pro:cli-owner mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi_\n_worktrees/thread-cli-over-registry-drive-e/lib/thread/agent-runner.ts 09060bac-0e21-48df-a4bf-5a48c3c45aa9; echo ZMX_TA\nSK_COMPLETED:e968:$?\nbash-5.3$ printf 'CLI-LITERAL-$HOME-;-[brackets]'\nCLI-LITERAL-$HOME-;-[brackets]bash-5.3$",
+    "stderr": ""
+  },
+  "send-stdin-literal": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "send",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "history-stdin-unsubmitted": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "history",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "s-MacBook-Pro:cli-owner mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi_\n_worktrees/thread-cli-over-registry-drive-e/lib/thread/agent-runner.ts 09060bac-0e21-48df-a4bf-5a48c3c45aa9; echo ZMX_TA\nSK_COMPLETED:e968:$?\nbash-5.3$ printf 'CLI-LITERAL-$HOME-;-[brackets]'\nCLI-LITERAL-$HOME-;-[brackets]bash-5.3$ printf 'STDIN-LITERAL-$USER-;'",
+    "stderr": ""
+  },
+  "send-stdin-cr2": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "send",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "history-stdin-submitted": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "history",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "s-MacBook-Pro:cli-owner mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi_\n_worktrees/thread-cli-over-registry-drive-e/lib/thread/agent-runner.ts 09060bac-0e21-48df-a4bf-5a48c3c45aa9; echo ZMX_TA\nSK_COMPLETED:e968:$?\nbash-5.3$ printf 'CLI-LITERAL-$HOME-;-[brackets]'\nCLI-LITERAL-$HOME-;-[brackets]bash-5.3$ printf 'STDIN-LITERAL-$USER-;'\nSTDIN-LITERAL-$USER-;bash-5.3$",
+    "stderr": ""
+  },
+  "aux-after-detach-list": {
+    "args": [
+      "zmx",
+      "list"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "  name=09060bac-0e21-48df-a4bf-5a48c3c45aa9.agent\tpid=34113\tclients=0\tcreated=1790856518\tcwd=file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\trole=agent\tthread=09060bac-0e21-48df-a4bf-5a48c3c45aa9\n  name=09060bac-0e21-48df-a4bf-5a48c3c45aa9.cli-aux\tpid=93141\tclients=0\tcreated=1790856655\tcwd=file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\trole=cli-aux\tthread=09060bac-0e21-48df-a4bf-5a48c3c45aa9\n  name=3dabf790-624e-44cf-9982-0411a7a35d79.agent\tpid=34257\tclients=0\tcreated=1790856519\tcwd=file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-jvkTmu/repo\trole=agent\tthread=3dabf790-624e-44cf-9982-0411a7a35d79\n  name=60bf941e-40af-4c77-b61a-3d3a09b25e16.agent\tpid=78517\tclients=0\tcreated=1790856616\tcwd=file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork\trole=agent\tthread=60bf941e-40af-4c77-b61a-3d3a09b25e16\n  name=dd4d8202-8d24-4498-ae72-ffefb4a011a0.agent\tpid=79306\tclients=0\tcreated=1790856617\tcwd=file://s-MacBook-Pro.local/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs\tended=1790856617\texit_code=0\trole=agent\tthread=dd4d8202-8d24-4498-ae72-ffefb4a011a0\n",
+    "stderr": ""
+  },
+  "aux-history": {
+    "args": [
+      "zmx",
+      "history",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9.cli-aux"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "/Users/mlegls/.nix-profile/bin/zsh -l; echo ZMX_TASK_COMPLETED:cd39:$?\ns-MacBook-Pro:cli-owner mlegls$ /Users/mlegls/.nix-profile/bin/zsh -l; echo ZMX_TASK_COMPLETED:cd39:$?\n/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner git:cli-owner\n% printf 'AUX-CWD:'; pwd                                                                                                              20:10\nAUX-CWD:/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\n/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner git:cli-owner\n%                                                                                                                                     20:10",
+    "stderr": ""
+  },
+  "invalid-id": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "history",
+      "not-a-thread"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "Unknown thread: not-a-thread\n"
+  },
+  "missing-id": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "history"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "usage: ab thread ls [--tree spawn|merge] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt \u2026] [--cmd \u2026] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|\u2026] | send|history <id> | archive|abandon|merge <id>\n"
+  },
+  "missing-current": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "fork",
+      "--in",
+      "/private/tmp/ab-lifecycle-jvkTmu/repo"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "fork requires PI_SESSION_FILE or PI_SESSION_ID\n"
+  },
+  "invalid-dest": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "new",
+      "--in",
+      "/private/tmp/ab-lifecycle-jvkTmu/repo",
+      "--worktree",
+      "must-not-exist"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "Supply in or worktree, not both\n"
+  },
+  "invalid-fork-dest": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "fork",
+      "--in",
+      "/private/tmp/ab-lifecycle-jvkTmu/repo",
+      "--worktree",
+      "must-not-exist"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "usage: ab thread ls [--tree spawn|merge] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt \u2026] [--cmd \u2026] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|\u2026] | send|history <id> | archive|abandon|merge <id>\n"
+  },
+  "invalid-base": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "new",
+      "--in",
+      "/private/tmp/ab-lifecycle-jvkTmu/repo",
+      "--base",
+      "main"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "base only applies to a new worktree\n"
+  },
+  "ambiguous-id": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "history",
+      "3"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "Unknown thread: 3\n"
+  },
+  "ls-distinct-spawn": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--json"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "[{\"thread\":{\"id\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"sessionId\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-08-38-677Z_09060bac-0e21-48df-a4bf-5a48c3c45aa9.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"branch\":\"cli-owner\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:08:38.678Z\",\"launch\":{\"cmd\":\"bash --noprofile --norc\"}},\"state\":\"working\",\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9.agent\",\"role\":\"agent\"},{\"name\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9.cli-aux\",\"role\":\"cli-aux\"}],\"depth\":0},{\"thread\":{\"id\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af\",\"sessionId\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-child--/2026-10-01T12-11-43-164Z_04bb610a-8a40-4687-b2b6-0e1c1f0c10af.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child\",\"branch\":\"cli-child\",\"ownership\":\"owner\",\"parent\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"archived\":false,\"created\":\"2026-10-01T12:11:43.165Z\",\"launch\":{\"cmd\":\"printf child-ready\"}},\"state\":\"exited\",\"mergeParent\":\"cli-owner\",\"mergeParentThread\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"terminals\":[{\"name\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af.agent\",\"role\":\"agent\"}],\"depth\":1,\"treeParent\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\"},{\"thread\":{\"id\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionId\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:08:39.121Z\",\"launch\":{\"prompt\":\"Reply only done cli-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":34265,\"terminals\":[{\"name\":\"3dabf790-624e-44cf-9982-0411a7a35d79.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:08:43.944Z\",\"body\":\"done cli-ready\"},\"depth\":0},{\"thread\":{\"id\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16\",\"sessionId\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-fork--/2026-10-01T12-10-16-091Z_60bf941e-40af-4c77-b61a-3d3a09b25e16.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork\",\"branch\":\"cli-fork\",\"ownership\":\"owner\",\"parent\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"archived\":false,\"created\":\"2026-10-01T12:10:16.092Z\"},\"state\":\"idle\",\"pid\":78533,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16.agent\",\"role\":\"agent\"}],\"depth\":1,\"treeParent\":\"3dabf790-624e-44cf-9982-0411a7a35d79\"},{\"thread\":{\"id\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0\",\"sessionId\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-logs--/2026-10-01T12-10-17-380Z_dd4d8202-8d24-4498-ae72-ffefb4a011a0.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs\",\"branch\":\"cli-logs\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:10:17.381Z\",\"launch\":{\"cmd\":\"printf cli-log-ready\"}},\"state\":\"exited\",\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0.agent\",\"role\":\"agent\"}],\"depth\":0},{\"thread\":{\"id\":\"bfed9375-6f47-4308-9226-70eccdc18eaa\",\"sessionId\":\"bfed9375-6f47-4308-9226-70eccdc18eaa\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-11-42-864Z_bfed9375-6f47-4308-9226-70eccdc18eaa.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"branch\":\"cli-owner\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:11:42.865Z\"},\"state\":\"idle\",\"pid\":10136,\"terminals\":[{\"name\":\"bfed9375-6f47-4308-9226-70eccdc18eaa.agent\",\"role\":\"agent\"}],\"depth\":0}]\n",
+    "stderr": ""
+  },
+  "ls-distinct-merge": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--tree",
+      "merge",
+      "--json"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "[{\"thread\":{\"id\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"sessionId\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-08-38-677Z_09060bac-0e21-48df-a4bf-5a48c3c45aa9.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"branch\":\"cli-owner\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:08:38.678Z\",\"launch\":{\"cmd\":\"bash --noprofile --norc\"}},\"state\":\"working\",\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9.agent\",\"role\":\"agent\"},{\"name\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9.cli-aux\",\"role\":\"cli-aux\"}],\"depth\":0},{\"thread\":{\"id\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af\",\"sessionId\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-child--/2026-10-01T12-11-43-164Z_04bb610a-8a40-4687-b2b6-0e1c1f0c10af.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child\",\"branch\":\"cli-child\",\"ownership\":\"owner\",\"parent\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"archived\":false,\"created\":\"2026-10-01T12:11:43.165Z\",\"launch\":{\"cmd\":\"printf child-ready\"}},\"state\":\"exited\",\"mergeParent\":\"cli-owner\",\"mergeParentThread\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\",\"terminals\":[{\"name\":\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af.agent\",\"role\":\"agent\"}],\"depth\":1,\"treeParent\":\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\"},{\"thread\":{\"id\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionId\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:08:39.121Z\",\"launch\":{\"prompt\":\"Reply only done cli-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":34265,\"terminals\":[{\"name\":\"3dabf790-624e-44cf-9982-0411a7a35d79.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:08:43.944Z\",\"body\":\"done cli-ready\"},\"depth\":0},{\"thread\":{\"id\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16\",\"sessionId\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-fork--/2026-10-01T12-10-16-091Z_60bf941e-40af-4c77-b61a-3d3a09b25e16.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork\",\"branch\":\"cli-fork\",\"ownership\":\"owner\",\"parent\":\"3dabf790-624e-44cf-9982-0411a7a35d79\",\"archived\":false,\"created\":\"2026-10-01T12:10:16.092Z\"},\"state\":\"idle\",\"pid\":78533,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"60bf941e-40af-4c77-b61a-3d3a09b25e16.agent\",\"role\":\"agent\"}],\"depth\":0},{\"thread\":{\"id\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0\",\"sessionId\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-logs--/2026-10-01T12-10-17-380Z_dd4d8202-8d24-4498-ae72-ffefb4a011a0.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs\",\"branch\":\"cli-logs\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:10:17.381Z\",\"launch\":{\"cmd\":\"printf cli-log-ready\"}},\"state\":\"exited\",\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"dd4d8202-8d24-4498-ae72-ffefb4a011a0.agent\",\"role\":\"agent\"}],\"depth\":0},{\"thread\":{\"id\":\"bfed9375-6f47-4308-9226-70eccdc18eaa\",\"sessionId\":\"bfed9375-6f47-4308-9226-70eccdc18eaa\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-11-42-864Z_bfed9375-6f47-4308-9226-70eccdc18eaa.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner\",\"branch\":\"cli-owner\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:11:42.865Z\"},\"state\":\"idle\",\"pid\":10136,\"terminals\":[{\"name\":\"bfed9375-6f47-4308-9226-70eccdc18eaa.agent\",\"role\":\"agent\"}],\"depth\":0}]\n",
+    "stderr": ""
+  },
+  "ls-distinct-spawn-text": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "09060bac-0e21-48df-a4bf-5a48c3c45aa9 session=09060bac-0e21-48df-a4bf-5a48c3c45aa9 owner working cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner branch=cli-owner\n  04bb610a-8a40-4687-b2b6-0e1c1f0c10af session=04bb610a-8a40-4687-b2b6-0e1c1f0c10af owner exited cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child branch=cli-child\n3dabf790-624e-44cf-9982-0411a7a35d79 session=3dabf790-624e-44cf-9982-0411a7a35d79 guest idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo branch=main report=done:done cli-ready\n  60bf941e-40af-4c77-b61a-3d3a09b25e16 session=60bf941e-40af-4c77-b61a-3d3a09b25e16 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork branch=cli-fork\ndd4d8202-8d24-4498-ae72-ffefb4a011a0 session=dd4d8202-8d24-4498-ae72-ffefb4a011a0 owner exited cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs branch=cli-logs\nbfed9375-6f47-4308-9226-70eccdc18eaa session=bfed9375-6f47-4308-9226-70eccdc18eaa guest idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner branch=cli-owner\n",
+    "stderr": ""
+  },
+  "ls-distinct-merge-text": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--tree",
+      "merge"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "09060bac-0e21-48df-a4bf-5a48c3c45aa9 session=09060bac-0e21-48df-a4bf-5a48c3c45aa9 owner working cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner branch=cli-owner\n  04bb610a-8a40-4687-b2b6-0e1c1f0c10af session=04bb610a-8a40-4687-b2b6-0e1c1f0c10af owner exited cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child branch=cli-child\n3dabf790-624e-44cf-9982-0411a7a35d79 session=3dabf790-624e-44cf-9982-0411a7a35d79 guest idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo branch=main report=done:done cli-ready\n60bf941e-40af-4c77-b61a-3d3a09b25e16 session=60bf941e-40af-4c77-b61a-3d3a09b25e16 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork branch=cli-fork\ndd4d8202-8d24-4498-ae72-ffefb4a011a0 session=dd4d8202-8d24-4498-ae72-ffefb4a011a0 owner exited cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs branch=cli-logs\nbfed9375-6f47-4308-9226-70eccdc18eaa session=bfed9375-6f47-4308-9226-70eccdc18eaa guest idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner branch=cli-owner\n",
+    "stderr": ""
+  },
+  "ls-spawn-json": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--json"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "[{\"thread\":{\"id\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"sessionId\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-parent--/2026-10-01T12-06-04-929Z_3dbe61bd-be78-4d6c-914f-9516ff18765d.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent\",\"branch\":\"parent\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:06:04.929Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":71866,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:09.939Z\",\"body\":\"done fixture-ready\"},\"depth\":0},{\"thread\":{\"id\":\"164e1599-7248-4352-a05e-641da60759dc\",\"sessionId\":\"164e1599-7248-4352-a05e-641da60759dc\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-early--/2026-10-01T12-06-10-102Z_164e1599-7248-4352-a05e-641da60759dc.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early\",\"branch\":\"early\",\"ownership\":\"owner\",\"parent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"archived\":false,\"created\":\"2026-10-01T12:06:10.111Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":73679,\"mergeParent\":\"parent\",\"mergeParentThread\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"terminals\":[{\"name\":\"164e1599-7248-4352-a05e-641da60759dc.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:14.644Z\",\"body\":\"done fixture-ready\"},\"depth\":1,\"treeParent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\"},{\"thread\":{\"id\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"sessionId\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-child--/2026-10-01T12-06-14-816Z_e3b17a28-2c29-40b9-9007-ef90b007dda9.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child\",\"branch\":\"child\",\"ownership\":\"owner\",\"parent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"archived\":false,\"created\":\"2026-10-01T12:06:14.817Z\",\"worker\":{\"run\":\"lifecycle-fixture\",\"handle\":\"child\"},\"launch\":{\"args\":[\"--approve\",\"--append-system-prompt\",\"This is a disposable fixture. When an archive conflict request arrives, do not change any files or run git. Reply blocked fixture-awaits-manual-resolution.\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":75558,\"mergeParent\":\"parent\",\"mergeParentThread\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"terminals\":[{\"name\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9.agent\",\"role\":\"agent\"},{\"name\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9.server\",\"role\":\"server\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:20.613Z\",\"body\":\"done fixture-ready\"},\"depth\":1,\"treeParent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\"},{\"thread\":{\"id\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"sessionId\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon--/2026-10-01T12-06-21-030Z_0e67fdad-c185-4d78-b79d-4a97d127dba7.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon\",\"branch\":\"abandon\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:06:21.031Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":77520,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:27.021Z\",\"body\":\"done fixture-ready\"},\"depth\":0},{\"thread\":{\"id\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf\",\"sessionId\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon-child--/2026-10-01T12-06-27-172Z_f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child\",\"branch\":\"abandon-child\",\"ownership\":\"owner\",\"parent\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"archived\":false,\"created\":\"2026-10-01T12:06:27.172Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":80050,\"mergeParent\":\"abandon\",\"mergeParentThread\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"terminals\":[{\"name\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:31.447Z\",\"body\":\"done fixture-ready\"},\"depth\":1,\"treeParent\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\"},{\"thread\":{\"id\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42\",\"sessionId\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-06-31-829Z_63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:06:31.829Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":81856,\"terminals\":[{\"name\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.agent\",\"role\":\"agent\"},{\"name\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.server\",\"role\":\"server\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:36.576Z\",\"body\":\"done fixture-ready\"},\"depth\":0}]\n",
+    "stderr": ""
+  },
+  "ls-spawn-text": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "3dbe61bd-be78-4d6c-914f-9516ff18765d session=3dbe61bd-be78-4d6c-914f-9516ff18765d owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent branch=parent report=done:done fixture-ready\n  164e1599-7248-4352-a05e-641da60759dc session=164e1599-7248-4352-a05e-641da60759dc owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early branch=early report=done:done fixture-ready\n  e3b17a28-2c29-40b9-9007-ef90b007dda9 session=e3b17a28-2c29-40b9-9007-ef90b007dda9 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child branch=child report=done:done fixture-ready\n0e67fdad-c185-4d78-b79d-4a97d127dba7 session=0e67fdad-c185-4d78-b79d-4a97d127dba7 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon branch=abandon report=done:done fixture-ready\n  f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf session=f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child branch=abandon-child report=done:done fixture-ready\n63ca402a-c1f0-460e-a5b0-28c6b1bf5e42 session=63ca402a-c1f0-460e-a5b0-28c6b1bf5e42 guest idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo branch=main report=done:done fixture-ready\n",
+    "stderr": ""
+  },
+  "ls-merge-json": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--tree",
+      "merge",
+      "--json"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "[{\"thread\":{\"id\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"sessionId\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-parent--/2026-10-01T12-06-04-929Z_3dbe61bd-be78-4d6c-914f-9516ff18765d.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent\",\"branch\":\"parent\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:06:04.929Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":71866,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:09.939Z\",\"body\":\"done fixture-ready\"},\"depth\":0},{\"thread\":{\"id\":\"164e1599-7248-4352-a05e-641da60759dc\",\"sessionId\":\"164e1599-7248-4352-a05e-641da60759dc\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-early--/2026-10-01T12-06-10-102Z_164e1599-7248-4352-a05e-641da60759dc.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early\",\"branch\":\"early\",\"ownership\":\"owner\",\"parent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"archived\":false,\"created\":\"2026-10-01T12:06:10.111Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":73679,\"mergeParent\":\"parent\",\"mergeParentThread\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"terminals\":[{\"name\":\"164e1599-7248-4352-a05e-641da60759dc.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:14.644Z\",\"body\":\"done fixture-ready\"},\"depth\":1,\"treeParent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\"},{\"thread\":{\"id\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"sessionId\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-child--/2026-10-01T12-06-14-816Z_e3b17a28-2c29-40b9-9007-ef90b007dda9.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child\",\"branch\":\"child\",\"ownership\":\"owner\",\"parent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"archived\":false,\"created\":\"2026-10-01T12:06:14.817Z\",\"worker\":{\"run\":\"lifecycle-fixture\",\"handle\":\"child\"},\"launch\":{\"args\":[\"--approve\",\"--append-system-prompt\",\"This is a disposable fixture. When an archive conflict request arrives, do not change any files or run git. Reply blocked fixture-awaits-manual-resolution.\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":75558,\"mergeParent\":\"parent\",\"mergeParentThread\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"terminals\":[{\"name\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9.agent\",\"role\":\"agent\"},{\"name\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9.server\",\"role\":\"server\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:20.613Z\",\"body\":\"done fixture-ready\"},\"depth\":1,\"treeParent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\"},{\"thread\":{\"id\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"sessionId\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon--/2026-10-01T12-06-21-030Z_0e67fdad-c185-4d78-b79d-4a97d127dba7.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon\",\"branch\":\"abandon\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:06:21.031Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":77520,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:27.021Z\",\"body\":\"done fixture-ready\"},\"depth\":0},{\"thread\":{\"id\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf\",\"sessionId\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon-child--/2026-10-01T12-06-27-172Z_f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child\",\"branch\":\"abandon-child\",\"ownership\":\"owner\",\"parent\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"archived\":false,\"created\":\"2026-10-01T12:06:27.172Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":80050,\"mergeParent\":\"abandon\",\"mergeParentThread\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"terminals\":[{\"name\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:31.447Z\",\"body\":\"done fixture-ready\"},\"depth\":1,\"treeParent\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\"},{\"thread\":{\"id\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42\",\"sessionId\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-06-31-829Z_63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:06:31.829Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":81856,\"terminals\":[{\"name\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.agent\",\"role\":\"agent\"},{\"name\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.server\",\"role\":\"server\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:36.576Z\",\"body\":\"done fixture-ready\"},\"depth\":0}]\n",
+    "stderr": ""
+  },
+  "ls-merge-text": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--tree",
+      "merge"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "3dbe61bd-be78-4d6c-914f-9516ff18765d session=3dbe61bd-be78-4d6c-914f-9516ff18765d owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent branch=parent report=done:done fixture-ready\n  164e1599-7248-4352-a05e-641da60759dc session=164e1599-7248-4352-a05e-641da60759dc owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early branch=early report=done:done fixture-ready\n  e3b17a28-2c29-40b9-9007-ef90b007dda9 session=e3b17a28-2c29-40b9-9007-ef90b007dda9 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child branch=child report=done:done fixture-ready\n0e67fdad-c185-4d78-b79d-4a97d127dba7 session=0e67fdad-c185-4d78-b79d-4a97d127dba7 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon branch=abandon report=done:done fixture-ready\n  f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf session=f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child branch=abandon-child report=done:done fixture-ready\n63ca402a-c1f0-460e-a5b0-28c6b1bf5e42 session=63ca402a-c1f0-460e-a5b0-28c6b1bf5e42 guest idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo branch=main report=done:done fixture-ready\n",
+    "stderr": ""
+  },
+  "ls-blocked-text": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "3dbe61bd-be78-4d6c-914f-9516ff18765d session=3dbe61bd-be78-4d6c-914f-9516ff18765d owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent branch=parent report=done:done fixture-ready\n  e3b17a28-2c29-40b9-9007-ef90b007dda9 session=e3b17a28-2c29-40b9-9007-ef90b007dda9 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child branch=child report=blocked:blocked fixture-awaits-manual-resolution blocked=archive:Archive conflict unresolved: agent reported blocked\nblocked fixture-awaits-manual-resolution\n0e67fdad-c185-4d78-b79d-4a97d127dba7 session=0e67fdad-c185-4d78-b79d-4a97d127dba7 owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon branch=abandon report=done:done fixture-ready\n  f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf session=f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf owner idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child branch=abandon-child report=done:done fixture-ready\n63ca402a-c1f0-460e-a5b0-28c6b1bf5e42 session=63ca402a-c1f0-460e-a5b0-28c6b1bf5e42 guest idle cwd=/private/tmp/ab-lifecycle-jvkTmu/repo branch=main report=done:done fixture-ready\n",
+    "stderr": ""
+  },
+  "ls-blocked-json": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--json"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "[{\"thread\":{\"id\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"sessionId\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-parent--/2026-10-01T12-06-04-929Z_3dbe61bd-be78-4d6c-914f-9516ff18765d.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent\",\"branch\":\"parent\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:06:04.929Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":71866,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:09.939Z\",\"body\":\"done fixture-ready\"},\"depth\":0},{\"thread\":{\"id\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"sessionId\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-child--/2026-10-01T12-06-14-816Z_e3b17a28-2c29-40b9-9007-ef90b007dda9.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child\",\"branch\":\"child\",\"ownership\":\"owner\",\"parent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"archived\":false,\"created\":\"2026-10-01T12:06:14.817Z\",\"worker\":{\"run\":\"lifecycle-fixture\",\"handle\":\"child\"},\"launch\":{\"args\":[\"--approve\",\"--append-system-prompt\",\"This is a disposable fixture. When an archive conflict request arrives, do not change any files or run git. Reply blocked fixture-awaits-manual-resolution.\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"},\"blocked\":{\"action\":\"archive\",\"parentBranch\":\"parent\",\"files\":[\"conflict.txt\"],\"reason\":\"Archive conflict unresolved: agent reported blocked\\nblocked fixture-awaits-manual-resolution\"}},\"state\":\"idle\",\"pid\":75558,\"mergeParent\":\"parent\",\"mergeParentThread\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\",\"terminals\":[{\"name\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9.agent\",\"role\":\"agent\"},{\"name\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9.server\",\"role\":\"server\"}],\"report\":{\"tag\":\"blocked\",\"ts\":\"2026-10-01T12:07:06.696Z\",\"body\":\"blocked fixture-awaits-manual-resolution\"},\"depth\":1,\"treeParent\":\"3dbe61bd-be78-4d6c-914f-9516ff18765d\"},{\"thread\":{\"id\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"sessionId\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon--/2026-10-01T12-06-21-030Z_0e67fdad-c185-4d78-b79d-4a97d127dba7.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon\",\"branch\":\"abandon\",\"ownership\":\"owner\",\"archived\":false,\"created\":\"2026-10-01T12:06:21.031Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":77520,\"mergeParent\":\"main\",\"terminals\":[{\"name\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:27.021Z\",\"body\":\"done fixture-ready\"},\"depth\":0},{\"thread\":{\"id\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf\",\"sessionId\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon-child--/2026-10-01T12-06-27-172Z_f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"worktree\":\"/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child\",\"branch\":\"abandon-child\",\"ownership\":\"owner\",\"parent\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"archived\":false,\"created\":\"2026-10-01T12:06:27.172Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":80050,\"mergeParent\":\"abandon\",\"mergeParentThread\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\",\"terminals\":[{\"name\":\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.agent\",\"role\":\"agent\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:31.447Z\",\"body\":\"done fixture-ready\"},\"depth\":1,\"treeParent\":\"0e67fdad-c185-4d78-b79d-4a97d127dba7\"},{\"thread\":{\"id\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42\",\"sessionId\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42\",\"sessionFile\":\"/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-06-31-829Z_63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.jsonl\",\"cwd\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"project\":\"/private/tmp/ab-lifecycle-jvkTmu/repo\",\"branch\":\"main\",\"ownership\":\"guest\",\"archived\":false,\"created\":\"2026-10-01T12:06:31.829Z\",\"launch\":{\"args\":[\"--approve\"],\"prompt\":\"This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools.\"}},\"state\":\"idle\",\"pid\":81856,\"terminals\":[{\"name\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.agent\",\"role\":\"agent\"},{\"name\":\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.server\",\"role\":\"server\"}],\"report\":{\"tag\":\"done\",\"ts\":\"2026-10-01T12:06:36.576Z\",\"body\":\"done fixture-ready\"},\"depth\":0}]\n",
+    "stderr": ""
+  },
+  "merge-blocked": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "merge",
+      "3dbe61bd-be78-4d6c-914f-9516ff18765d"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 1,
+    "stdout": "{\"closed\":[\"164e1599-7248-4352-a05e-641da60759dc\"],\"killed\":[73674,73679,73673,73678],\"branchesDeleted\":[\"early\"],\"branchesKept\":[],\"blocked\":{\"threadId\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"block\":{\"action\":\"archive\",\"parentBranch\":\"parent\",\"files\":[\"conflict.txt\"],\"reason\":\"Archive conflict unresolved: agent reported blocked\\nblocked fixture-awaits-manual-resolution\"}}}\n",
+    "stderr": "Thread e3b17a28-2c29-40b9-9007-ef90b007dda9 blocked: Archive conflict unresolved: agent reported blocked\nblocked fixture-awaits-manual-resolution\n"
+  },
+  "archive-blocked-again": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "archive",
+      "3dbe61bd-be78-4d6c-914f-9516ff18765d"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 1,
+    "stdout": "{\"closed\":[],\"killed\":[],\"branchesDeleted\":[],\"branchesKept\":[],\"blocked\":{\"threadId\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"block\":{\"action\":\"archive\",\"parentBranch\":\"parent\",\"files\":[\"conflict.txt\"],\"reason\":\"Archive conflict unresolved: agent reported blocked\\nblocked fixture-awaits-manual-resolution\"}}}\n",
+    "stderr": "Thread e3b17a28-2c29-40b9-9007-ef90b007dda9 blocked: Archive conflict unresolved: agent reported blocked\nblocked fixture-awaits-manual-resolution\n"
+  },
+  "resolve": {
+    "args": [
+      "bun",
+      "docs/attachments/thread-archive-and-abandon/fixture.ts",
+      "resolve",
+      "/private/tmp/ab-lifecycle-jvkTmu",
+      "child"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"id\":\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"branch\":\"child\",\"parent\":\"parent\",\"status\":\"\"}\n",
+    "stderr": ""
+  },
+  "merge-resume": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "merge",
+      "3dbe61bd-be78-4d6c-914f-9516ff18765d"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"e3b17a28-2c29-40b9-9007-ef90b007dda9\",\"3dbe61bd-be78-4d6c-914f-9516ff18765d\"],\"killed\":[75553,77469,75558,75552,75555,77468,77474,77476,71861,71866,71860,71865],\"branchesDeleted\":[\"child\",\"parent\"],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "merge-guest": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "merge",
+      "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"63ca402a-c1f0-460e-a5b0-28c6b1bf5e42\"],\"killed\":[81850,83297,81856,81852,83300],\"branchesDeleted\":[],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "archive-nested": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "archive",
+      "0e67fdad-c185-4d78-b79d-4a97d127dba7"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf\",\"0e67fdad-c185-4d78-b79d-4a97d127dba7\"],\"killed\":[80045,80050,80044,80048,77511,77520,77510,77517],\"branchesDeleted\":[\"abandon-child\",\"abandon\"],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "archive-done-result": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "archive",
+      "4bd13adc-62e4-452b-acbb-4d3fa427216a"
+    ],
+    "exit": 0,
+    "stdout": "{\"closed\":[\"4f305516-ce08-4bb5-910e-817021a81d5c\",\"47d3b0d1-e4a5-49bd-b760-453d51133961\",\"4bd13adc-62e4-452b-acbb-4d3fa427216a\"],\"killed\":[14740,14745,14739,14742,20999,26247,21007,20998,21003,26246,26251,26256,12912,12917,12911,12915],\"branchesDeleted\":[\"early\",\"child\",\"parent\"],\"branchesKept\":[]}\n",
+    "stderr": "",
+    "elapsed": 18.17696785926819
+  },
+  "archive-done-guest": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "archive",
+      "bf0ea6ed-5c08-4893-b5aa-4dee88619f9f"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"bf0ea6ed-5c08-4893-b5aa-4dee88619f9f\"],\"killed\":[36666,43807,36885,36750,43810],\"branchesDeleted\":[],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "abandon-done-nested": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "abandon",
+      "052d7249-33cc-43c1-aaea-64c2cc947440"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"911803cb-2e9a-42a4-b154-b7dc71d63a2f\",\"052d7249-33cc-43c1-aaea-64c2cc947440\"],\"killed\":[32992,33005,32990,32998,26304,26322,26302,26311],\"branchesDeleted\":[\"abandon-child\",\"abandon\"],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "archive-different-cwd-guest": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "archive",
+      "bfed9375-6f47-4308-9226-70eccdc18eaa"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"bfed9375-6f47-4308-9226-70eccdc18eaa\"],\"killed\":[10124,10136,10129],\"branchesDeleted\":[],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "archive-shell-owner": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "archive",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"04bb610a-8a40-4687-b2b6-0e1c1f0c10af\",\"09060bac-0e21-48df-a4bf-5a48c3c45aa9\"],\"killed\":[10156,10155,34113,93141,34112,34195,34243,93140,93146],\"branchesDeleted\":[\"cli-child\",\"cli-owner\"],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "archive-pi-parent": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "archive",
+      "3dabf790-624e-44cf-9982-0411a7a35d79"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"60bf941e-40af-4c77-b61a-3d3a09b25e16\",\"3dabf790-624e-44cf-9982-0411a7a35d79\"],\"killed\":[78517,78533,78516,78522,34257,34265,34261],\"branchesDeleted\":[\"cli-fork\"],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "abandon-guest-fork": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "abandon",
+      "1a1d1b95-7d40-4560-af7c-43335f46a6b5"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"1a1d1b95-7d40-4560-af7c-43335f46a6b5\"],\"killed\":[39446,39459,39450],\"branchesDeleted\":[],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "abandon-logs": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "abandon",
+      "dd4d8202-8d24-4498-ae72-ffefb4a011a0"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"closed\":[\"dd4d8202-8d24-4498-ae72-ffefb4a011a0\"],\"killed\":[79306,79305],\"branchesDeleted\":[\"cli-logs\"],\"branchesKept\":[]}\n",
+    "stderr": ""
+  },
+  "shell-final-ls": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "ls",
+      "--json"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "[]\n",
+    "stderr": ""
+  },
+  "shell-final-zmx": {
+    "args": [
+      "zmx",
+      "list"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "no sessions found in /private/tmp/ab-lifecycle-jvkTmu/zmx\n"
+  },
+  "shell-final-git": {
+    "args": [
+      "git",
+      "worktree",
+      "list",
+      "--porcelain"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "worktree /private/tmp/ab-lifecycle-jvkTmu/repo\nHEAD 3478b265231fd5fe88e28ccbe8e76e91c27f68fa\nbranch refs/heads/main\n\n",
+    "stderr": ""
+  },
+  "shell-main-change": {
+    "args": [
+      "git",
+      "show",
+      "HEAD:cli-child.txt"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "child-change\n",
+    "stderr": ""
+  },
+  "tree-no-ui": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "tree"
+    ],
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "exit": 0,
+    "stdout": "repo (4)\n  \u25cb Reply only done cli-ready. Do not use tools.  11s gpt-6.1-sol\n    \u25cb Reply only done cli-ready. Do not use tools.  2s gpt-6.1-sol\n  \u00b7 (empty)  16s\n  \u00b7 This is a disposable lifecycle fixture. Reply only done fixture-ready.  2m gpt-6.1-sol\n",
+    "stderr": ""
+  },
+  "attach-process": {
+    "args": [
+      "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e/bin/ab",
+      "thread",
+      "attach",
+      "09060bac-0e21-48df-a4bf-5a48c3c45aa9",
+      "--role",
+      "cli-aux"
+    ],
+    "exit": 0,
+    "geometry": "140x30",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner"
+  },
+  "lifecycle-cleanup": {
+    "args": [
+      "bun",
+      "docs/attachments/thread-archive-and-abandon/fixture.ts",
+      "cleanup",
+      "/private/tmp/ab-lifecycle-jvkTmu"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"active\":[],\"zmx\":[],\"live\":[]}\n",
+    "stderr": ""
+  },
+  "archive-done-cleanup": {
+    "args": [
+      "bun",
+      "docs/attachments/thread-archive-and-abandon/fixture.ts",
+      "cleanup",
+      "/private/tmp/ab-lifecycle-Bga8EA"
+    ],
+    "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-cli-over-registry-drive-e",
+    "exit": 0,
+    "stdout": "{\"active\":[],\"zmx\":[],\"live\":[]}\n",
+    "stderr": ""
+  }
+}

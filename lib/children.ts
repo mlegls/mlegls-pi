@@ -55,10 +55,10 @@ function wmTarget(id: string): { run: string; handle: string; topic: string } {
   return { run, handle: id, topic: run + "/" + id };
 }
 
-function lastWm(id: string): TurnEnd | null {
+function lastWm(id: string, after?: string): TurnEnd | null {
   const target = wmTarget(id);
   const message = readAll().reverse().find((item) => item.topic === target.topic && terminalMessage(item));
-  if (!message) return null;
+  if (!message || !followsCursor(message, after)) return null;
   return { id, kind: terminalMessage(message)!, text: message.body, cursor: message.id };
 }
 
@@ -81,8 +81,7 @@ function abortError(signal: AbortSignal): Error {
 async function turnEndWm(ids: string[], options: TurnEndOptions): Promise<TurnEnd> {
   if (options.signal?.aborted) throw abortError(options.signal);
   const targets = ids.map((id) => ({ id, ...wmTarget(id) }));
-  const existing = targets.map(({ id }) => lastWm(id)).filter((end): end is TurnEnd =>
-    end !== null && (!options.after?.[end.id] || options.after[end.id] !== end.cursor));
+  const existing = targets.map(({ id }) => lastWm(id, options.after?.[id])).filter((end): end is TurnEnd => end !== null);
   if (existing.length) return existing[0];
 
   const workers = targets.map((target) => wm.attach(target.run, target.handle, options.cwd));
@@ -158,5 +157,5 @@ export async function send(id: string, text: string): Promise<void> {
   }
   const target = wmTarget(id);
   const worker = wm.attach(target.run, target.handle);
-  try { await worker.send(text); } finally { worker.drop(); }
+  try { await worker.send(text + "\r"); } finally { worker.drop(); }
 }

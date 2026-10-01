@@ -1,0 +1,72 @@
+{
+  "cddaa15b-6779-4667-9de5-b8e89dbaadb7": {
+    "id": "cddaa15b-6779-4667-9de5-b8e89dbaadb7",
+    "handle": "fixture-leaf-implement-1",
+    "branch": "fixture-leaf-implement-1",
+    "parent": "tree/fixture-nested"
+  },
+  "collector/fixture-root": {
+    "path": "/private/tmp/wm-thread-Rv3dZn/repo__worktrees/fixture-root--tree",
+    "branch": "tree/fixture-root",
+    "parentBranch": "owner"
+  },
+  "collector/fixture-nested": {
+    "path": "/private/tmp/wm-thread-Rv3dZn/repo__worktrees/fixture-nested--tree",
+    "branch": "tree/fixture-nested",
+    "parentBranch": "tree/fixture-root"
+  },
+  "e2c1b350-12ab-4e91-a450-8656dd98a793": {
+    "id": "e2c1b350-12ab-4e91-a450-8656dd98a793",
+    "handle": "fixture-leaf-implement-2",
+    "branch": "fixture-leaf-implement-2",
+    "parent": "tree/fixture-nested"
+  },
+  "7a851137-b5f7-4106-9703-6ca6d1db1d8c": {
+    "id": "7a851137-b5f7-4106-9703-6ca6d1db1d8c",
+    "handle": "fixture-leaf-drive-3",
+    "branch": "fixture-leaf-drive-3",
+    "parent": "tree/fixture-nested"
+  },
+  "5d177469-4d00-4c99-8c01-5d3fad0442a5": {
+    "id": "5d177469-4d00-4c99-8c01-5d3fad0442a5",
+    "handle": "fixture-leaf-review-4",
+    "branch": "fixture-leaf-review-4",
+    "parent": "tree/fixture-nested"
+  },
+  "ddcffb4e-6009-45bc-a326-f6a652240f92": {
+    "id": "ddcffb4e-6009-45bc-a326-f6a652240f92",
+    "handle": "fixture-nested-implement-5",
+    "branch": "fixture-nested-implement-5",
+    "parent": "tree/fixture-root"
+  },
+  "637eb0d8-efcf-4272-b3a8-c2a7fc61fd05": {
+    "id": "637eb0d8-efcf-4272-b3a8-c2a7fc61fd05",
+    "handle": "fixture-nested-drive-6",
+    "branch": "fixture-nested-drive-6",
+    "parent": "tree/fixture-root"
+  },
+  "1d8beee4-ce58-4be8-8bab-b6cbf314c802": {
+    "id": "1d8beee4-ce58-4be8-8bab-b6cbf314c802",
+    "handle": "fixture-nested-review-7",
+    "branch": "fixture-nested-review-7",
+    "parent": "tree/fixture-root"
+  },
+  "ccc39031-6f66-40d1-994e-9ddee97806ed": {
+    "id": "ccc39031-6f66-40d1-994e-9ddee97806ed",
+    "handle": "fixture-root-implement-8",
+    "branch": "fixture-root-implement-8",
+    "parent": "owner"
+  },
+  "dbc9c3cf-bf5d-4fcf-9442-5c0d227e35f4": {
+    "id": "dbc9c3cf-bf5d-4fcf-9442-5c0d227e35f4",
+    "handle": "fixture-root-drive-9",
+    "branch": "fixture-root-drive-9",
+    "parent": "owner"
+  },
+  "c47e19be-da38-4bad-8af9-d058a6df3865": {
+    "id": "c47e19be-da38-4bad-8af9-d058a6df3865",
+    "handle": "fixture-root-review-a",
+    "branch": "fixture-root-review-a",
+    "parent": "owner"
+  }
+}

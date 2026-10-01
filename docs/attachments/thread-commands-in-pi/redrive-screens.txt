@@ -1,0 +1,31 @@
+## source pi after /thread archive <child id>
+/Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi__worktrees/thread-commands-in-pi
+-review-o/lib/thread/agent-runner.ts 721f6cfa-369d-4009-b395-2da6b566f50d; echo ZMX_TASK_COMPLETED:3a60:$?
+s-MacBook-Pro:repo mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi__work
+trees/thread-commands-in-pi-review-o/lib/thread/agent-runner.ts 721f6cfa-369d-4009-b395-2da6b566f50d; echo ZMX_TASK_COMP
+LETED:3a60:$?
+
+ {"closed":["946741b6-980a-4493-bd44-053a7a969f3d"],"killed":[95512,95517,95511,95515],"branchesDeleted":["x"],"branche
+ sKept":[]}
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/private/tmp/thread-commands-SMC1eO/repo (main)
+$0.000 (sub) 0.0%/272k (auto)                                                        (openai-codex) gpt-6.1-sol • medium
+✉ mail/b566f50d # wt/repo/main
+## child pi after bare /thread merge
+s-MacBook-Pro:y mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi__worktre
+es/thread-commands-in-pi-review-o/lib/thread/agent-runner.ts 25aa902d-4b9f-4021-8495-ba7921f86bdf; echo ZMX_TASK_COMPLET
+ED:5035:$?
+
+ Running ab thread merge 25aa902d-4b9f-4021-8495-ba7921f86bdf from outside this pi, which exits when the thread
+ retires. Output:
+ /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/ab-thread-merge-25aa902d-4b9f-4021-8495-ba7921f86bdf.log
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/private/tmp/thread-commands-SMC1eO/repo__worktrees/y (y)
+$0.000 (sub) 0.0%/272k (auto)                                                        (openai-codex) gpt-6.1-sol • medium
+✉ mail/21f86bdf # wt/repo/y

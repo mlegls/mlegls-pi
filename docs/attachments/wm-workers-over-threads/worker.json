@@ -1,0 +1,251 @@
+[
+  {
+    "event": "spawn",
+    "worker": {
+      "run": "worker-fixture",
+      "handle": "pi-worker",
+      "topic": "worker-fixture/pi-worker",
+      "dir": "/private/tmp/wm-thread-vJaJEH/repo__worktrees/pi-worker",
+      "cwd": "/private/tmp/wm-thread-vJaJEH/owner",
+      "session": "",
+      "threadId": "0889e106-87fb-431d-8cca-84f849abec3b"
+    }
+  },
+  {
+    "event": "first",
+    "result": [
+      {
+        "kind": "done",
+        "message": {
+          "id": "mupjpi6b-bw61lm",
+          "ts": "2026-10-01T13:03:57.251Z",
+          "topic": "worker-fixture/pi-worker",
+          "tags": [
+            "done"
+          ],
+          "from": {
+            "session": "0889e106-87fb-431d-8cca-84f849abec3b",
+            "name": "pi-worker",
+            "cwd": "/private/tmp/wm-thread-vJaJEH/repo__worktrees/pi-worker"
+          },
+          "body": "done bootstrap-ok"
+        }
+      }
+    ]
+  },
+  {
+    "event": "literal-unsubmitted",
+    "before": "mupjpi6b-bw61lm",
+    "after": "mupjpi6b-bw61lm"
+  },
+  {
+    "event": "follow-up",
+    "result": [
+      {
+        "kind": "done",
+        "message": {
+          "id": "mupjpo7e-16cjce",
+          "ts": "2026-10-01T13:04:05.066Z",
+          "topic": "worker-fixture/pi-worker",
+          "tags": [
+            "done"
+          ],
+          "from": {
+            "session": "0889e106-87fb-431d-8cca-84f849abec3b",
+            "name": "pi-worker",
+            "cwd": "/private/tmp/wm-thread-vJaJEH/repo__worktrees/pi-worker"
+          },
+          "body": "done follow-up-ok."
+        }
+      }
+    ]
+  },
+  {
+    "event": "history",
+    "plain": true,
+    "followupVisible": true,
+    "lines": 25
+  },
+  {
+    "event": "jump",
+    "canonical": "/private/tmp/wm-thread-vJaJEH/agent/sessions/--private-tmp-wm-thread-vJaJEH-repo__worktrees-pi-worker--/2026-10-01T13-03-51-969Z_0889e106-87fb-431d-8cca-84f849abec3b.jsonl",
+    "returned": "/private/tmp/wm-thread-vJaJEH/agent/sessions/--private-tmp-wm-thread-vJaJEH-repo__worktrees-pi-worker--/2026-10-01T13-03-51-969Z_0889e106-87fb-431d-8cca-84f849abec3b.jsonl",
+    "newerFree": "/private/tmp/wm-thread-vJaJEH/agent/sessions/--private-tmp-wm-thread-vJaJEH-repo__worktrees-pi-worker--/2026-10-01T13-04-05-183Z_01a0f790-9e3e-73b1-9c80-1cbcea1615a8.jsonl"
+  },
+  {
+    "event": "jump-current",
+    "thread": "0889e106-87fb-431d-8cca-84f849abec3b",
+    "current": "/private/tmp/wm-thread-vJaJEH/agent/sessions/--private-tmp-wm-thread-vJaJEH-repo__worktrees-pi-worker--/2026-10-01T13-04-05-198Z_01a0f790-9e4e-73b1-9c80-1cbf990c1dcd.jsonl",
+    "returned": "/private/tmp/wm-thread-vJaJEH/agent/sessions/--private-tmp-wm-thread-vJaJEH-repo__worktrees-pi-worker--/2026-10-01T13-04-05-198Z_01a0f790-9e4e-73b1-9c80-1cbf990c1dcd.jsonl"
+  },
+  {
+    "event": "agent-killed",
+    "result": [
+      {
+        "kind": "exited",
+        "tail": "Thread agent is gone: 0889e106-87fb-431d-8cca-84f849abec3b"
+      }
+    ]
+  },
+  {
+    "event": "keep-close",
+    "cleanup": {
+      "closed": [
+        "0889e106-87fb-431d-8cca-84f849abec3b"
+      ],
+      "killed": [],
+      "branchesDeleted": [],
+      "branchesKept": [
+        {
+          "branch": "pi-worker",
+          "reason": "keepBranch requested"
+        }
+      ]
+    },
+    "branch": "pi-worker"
+  },
+  {
+    "event": "by-hand-pi",
+    "live": {
+      "pid": 67621,
+      "sessionId": "f6865996-d877-4dcb-9365-442d0440be55",
+      "sessionFile": "/private/tmp/wm-thread-vJaJEH/agent/sessions/--private-tmp-wm-thread-vJaJEH-owner--/2026-10-01T13-04-06-438Z_f6865996-d877-4dcb-9365-442d0440be55.jsonl",
+      "cwd": "/private/tmp/wm-thread-vJaJEH/owner",
+      "state": "working",
+      "since": "2026-10-01T13:04:17.016Z",
+      "mode": "print",
+      "thread": "f6865996-d877-4dcb-9365-442d0440be55",
+      "subscriptions": [
+        {
+          "topic": "thread/f6865996-d877-4dcb-9365-442d0440be55",
+          "wake": true
+        },
+        {
+          "topic": "mail/0440be55",
+          "wake": true
+        },
+        {
+          "topic": "wt/repo/owner",
+          "wake": true
+        }
+      ],
+      "boardDir": "/private/tmp/wm-thread-vJaJEH/board"
+    },
+    "out": "done by-hand-ok.\n",
+    "err": ""
+  },
+  {
+    "event": "ordinary-report",
+    "thread": "f6865996-d877-4dcb-9365-442d0440be55",
+    "report": {
+      "id": "mupjq27g-3wlrsh",
+      "line": 6,
+      "ts": "2026-10-01T13:04:23.212Z",
+      "topic": "thread/f6865996-d877-4dcb-9365-442d0440be55",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "session": "f6865996-d877-4dcb-9365-442d0440be55",
+        "name": "owner",
+        "cwd": "/private/tmp/wm-thread-vJaJEH/owner"
+      },
+      "body": "done by-hand-ok."
+    },
+    "meta": [
+      {
+        "type": "custom",
+        "customType": "session-meta",
+        "data": {
+          "thread": "f6865996-d877-4dcb-9365-442d0440be55",
+          "mode": "tui"
+        },
+        "id": "18b605a5",
+        "parentId": "70f4f6aa",
+        "timestamp": "2026-10-01T13:04:07.013Z"
+      }
+    ]
+  },
+  {
+    "event": "by-hand-pi",
+    "live": {
+      "pid": 72726,
+      "sessionId": "01a0f790-f8f5-73b1-9c80-1cc001be7441",
+      "sessionFile": "/private/tmp/wm-thread-vJaJEH/agent/sessions/--private-tmp-wm-thread-vJaJEH-owner--/2026-10-01T13-04-28-405Z_01a0f790-f8f5-73b1-9c80-1cc001be7441.jsonl",
+      "cwd": "/private/tmp/wm-thread-vJaJEH/owner",
+      "state": "working",
+      "since": "2026-10-01T13:04:28.937Z",
+      "mode": "print",
+      "subscriptions": [
+        {
+          "topic": "mail/01be7441",
+          "wake": true
+        },
+        {
+          "topic": "wt/repo/owner",
+          "wake": true
+        }
+      ],
+      "boardDir": "/private/tmp/wm-thread-vJaJEH/board"
+    },
+    "out": "free-ok\n",
+    "err": ""
+  },
+  {
+    "event": "free-report",
+    "session": "01a0f790-f8f5-73b1-9c80-1cc001be7441",
+    "meta": [
+      {
+        "type": "custom",
+        "customType": "session-meta",
+        "data": {
+          "mode": "print"
+        },
+        "id": "8fb3ca9d",
+        "parentId": "27f5aed8",
+        "timestamp": "2026-10-01T13:04:28.929Z"
+      }
+    ]
+  },
+  {
+    "event": "alive-without-record",
+    "status": "Canonical pi is alive without a current live state: 636dc6b6-571e-4bb6-a09d-4da0c07c8730",
+    "result": []
+  },
+  {
+    "event": "live-read-failure",
+    "result": []
+  },
+  {
+    "event": "backend-failure",
+    "result": []
+  },
+  {
+    "event": "pid-killed",
+    "pid": 77831,
+    "result": [
+      {
+        "kind": "exited"
+      }
+    ]
+  },
+  {
+    "event": "discard-close",
+    "cleanup": {
+      "closed": [
+        "636dc6b6-571e-4bb6-a09d-4da0c07c8730"
+      ],
+      "killed": [
+        77826,
+        77825,
+        77829,
+        82536
+      ],
+      "branchesDeleted": [
+        "pid-worker"
+      ],
+      "branchesKept": []
+    },
+    "branch": ""
+  }
+]

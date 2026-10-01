@@ -2,7 +2,7 @@ import { rm } from "node:fs/promises";
 import { Type } from "typebox";
 import { SessionManager, type ExtensionAPI, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { resolveWorkspacePath } from "./workspace";
-import { registerForkTab } from "./fork-tab";
+import { currentThread, registerThread, runThread } from "./thread";
 
 export async function switchWorkspace(target: string, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<void> {
 	const sourceSession = ctx.sessionManager.getSessionFile();
@@ -13,6 +13,10 @@ export async function switchWorkspace(target: string, ctx: ExtensionCommandConte
 	}
 
 	await ctx.waitForIdle();
+	if (await currentThread(ctx)) {
+		await runThread(["fork", "--in", target], ctx, pi);
+		return;
+	}
 	const fork = SessionManager.forkFrom(sourceSession, target);
 	const targetSession = fork.getSessionFile();
 	if (!targetSession) throw new Error("Failed to create the replacement session");
@@ -32,7 +36,7 @@ export async function switchWorkspace(target: string, ctx: ExtensionCommandConte
 }
 
 export default function (pi: ExtensionAPI) {
-	registerForkTab(pi);
+	registerThread(pi);
 	let pendingWorkspace: string | undefined;
 
 	pi.registerTool({

@@ -1,0 +1,39 @@
+Revision: 311f1ef (production inherited unchanged from 1b705b8)
+
+tests: "all 182 passed, 2 skipped (31.4s) across 34 files"
+script: typecheck
+command: tsc --noEmit
+result: ok in 4.2s
+output: (no output)
+log: /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/bun-axi/thread-core-and-workers-on-zmx-implement-i-76775bde/run-typecheck.log
+bun test v1.4.2 (744846f84)
+
+lib/wm.local.test.ts:
+(pass) concurrent thread workers preserve any/all reports and close removes owned worktrees [2968.04ms]
+
+ 1 pass
+ 0 fail
+ 5 expect() calls
+Ran 1 test across 1 file. [3.21s]
+
+Tracker structural check after clearing settled CLI dependencies (exit 1):
+attachments/supervise-as-exception-handler/index.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+issues/archive/session-instrumentation.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+issues/archive/skim-friction-vs-savings.md: [[projects/mlegls-pi/ingress]] does not exist
+issues/archive/decision-broadcasts-read.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/fold-study-quiz-and-review-browser-fixtures/index]] does not exist
+issues/archive/role-model-spikiness.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+issues/archive/role-model-spikiness.md: [[docs/research/role-model-spikiness-2026-09-30]] does not exist
+issues/archive/computer-crosses-explicit-proposal-boundaries.md: [[projects/concept/attachments/fold-study-quiz-and-review-browser-fixtures/index]] does not exist
+issues/archive/reranker-eval.md: [[projects/mlegls-pi/ingress]] does not exist
+issues/archive/supervise-as-exception-handler.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+issues/archive/skim-and-triage.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/establish-isolated-browser-story-fixture-inputs/independent-drive]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/redrive-browser-interface-and-account-isolation-regressions/independent-drive]] does not exist
+issues/archive/compaction-register-variants.md: [[projects/mlegls-pi/issues/hibernate-native-fallback-loses-provenance]] does not exist
+issues/archive/skims-drop-the-conditions-in-instructions.md: [[projects/mlegls-pi/ingress]] does not exist
+issues/archive/orchestration-audits.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+issues/archive/scripted-supervision-loop.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+issues/archive/agentic-setup-reorg.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+issues/archive/orchestrate-rework-effect.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+issues/chrome-devtools-axi-css-submit-click-did-not-advance-a-quiz.md: [[projects/concept/attachments/fold-study-quiz-and-review-browser-fixtures/index]] does not exist

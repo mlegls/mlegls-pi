@@ -1,0 +1,352 @@
+{
+  "root": "/private/tmp/ab-lifecycle-nJudgl",
+  "source": {
+    "id": "348936de-2f0e-446b-8f7f-e0b6d84f7c93",
+    "sessionId": "348936de-2f0e-446b-8f7f-e0b6d84f7c93",
+    "sessionFile": "/private/tmp/ab-lifecycle-nJudgl/agent/sessions/--private-tmp-ab-lifecycle-nJudgl-repo--/2026-10-01T13-40-41-355Z_348936de-2f0e-446b-8f7f-e0b6d84f7c93.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-nJudgl/repo",
+    "ownership": "guest",
+    "branch": "main"
+  },
+  "fork": {
+    "id": "20422869-dfd4-4318-8c82-a230278c7924",
+    "sessionId": "20422869-dfd4-4318-8c82-a230278c7924",
+    "sessionFile": "/private/tmp/ab-lifecycle-nJudgl/agent/sessions/--private-tmp-ab-lifecycle-nJudgl-repo--/2026-10-01T13-40-48-222Z_20422869-dfd4-4318-8c82-a230278c7924.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-nJudgl/repo",
+    "ownership": "guest",
+    "branch": "main",
+    "parent": "348936de-2f0e-446b-8f7f-e0b6d84f7c93"
+  },
+  "promote": {
+    "id": "01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a",
+    "sessionId": "01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a",
+    "sessionFile": "/private/tmp/ab-lifecycle-nJudgl/agent/sessions/--private-tmp-ab-lifecycle-nJudgl-repo--/2026-10-01T13-40-49-277Z_01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-nJudgl/repo",
+    "ownership": "guest",
+    "branch": "main"
+  },
+  "shell": {
+    "id": "b6da07c9-2305-4c8d-937f-d4cb12e9eb39",
+    "sessionId": "b6da07c9-2305-4c8d-937f-d4cb12e9eb39",
+    "sessionFile": "/private/tmp/ab-lifecycle-nJudgl/agent/sessions/--private-tmp-ab-lifecycle-nJudgl-repo__worktrees-join-literal--/2026-10-01T13-40-50-826Z_b6da07c9-2305-4c8d-937f-d4cb12e9eb39.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-nJudgl/repo__worktrees/join-literal",
+    "ownership": "owner",
+    "branch": "join-literal"
+  },
+  "sourceMessages": [
+    {
+      "role": "system",
+      "content": [
+        ""
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        "Reply only done cli-join-source. Do not use tools."
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        "done cli-join-source"
+      ]
+    }
+  ],
+  "forkMessages": [
+    {
+      "role": "system",
+      "content": [
+        ""
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        "Reply only done cli-join-source. Do not use tools."
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        "done cli-join-source"
+      ]
+    }
+  ],
+  "forkMeta": [
+    {
+      "thread": "348936de-2f0e-446b-8f7f-e0b6d84f7c93",
+      "mode": "tui"
+    },
+    {
+      "thread": "20422869-dfd4-4318-8c82-a230278c7924",
+      "mode": "tui"
+    }
+  ],
+  "unsubmitted": "s-MacBook-Pro:join-literal mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-\npi__worktrees/thread-core-and-workers-on-zmx-implement-i/lib/thread/agent-runner.ts b6da07c9-2305-4c8d-937f-d4cb12e9eb39\n; echo ZMX_TASK_COMPLETED:3f29:$?\nbash-5.3$ printf '%s' 'CLI-JOIN-$HOME;[literal]'",
+  "submitted": "s-MacBook-Pro:join-literal mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-\npi__worktrees/thread-core-and-workers-on-zmx-implement-i/lib/thread/agent-runner.ts b6da07c9-2305-4c8d-937f-d4cb12e9eb39\n; echo ZMX_TASK_COMPLETED:3f29:$?\nbash-5.3$ printf '%s' 'CLI-JOIN-$HOME;[literal]'\nCLI-JOIN-$HOME;[literal]bash-5.3$",
+  "liveFork": {
+    "pid": 61628,
+    "state": "idle",
+    "sessionId": "20422869-dfd4-4318-8c82-a230278c7924",
+    "parent": "348936de-2f0e-446b-8f7f-e0b6d84f7c93"
+  },
+  "spawn": [
+    {
+      "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+      "depth": 0
+    },
+    {
+      "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+      "depth": 1,
+      "parent": "a4558fc7-21e0-4c08-9d67-0e6d677696d4"
+    },
+    {
+      "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+      "depth": 0
+    },
+    {
+      "id": "348936de-2f0e-446b-8f7f-e0b6d84f7c93",
+      "depth": 0
+    },
+    {
+      "id": "20422869-dfd4-4318-8c82-a230278c7924",
+      "depth": 1,
+      "parent": "348936de-2f0e-446b-8f7f-e0b6d84f7c93"
+    },
+    {
+      "id": "01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a",
+      "depth": 0
+    },
+    {
+      "id": "b6da07c9-2305-4c8d-937f-d4cb12e9eb39",
+      "depth": 0
+    }
+  ],
+  "merge": [
+    {
+      "id": "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+      "depth": 0
+    },
+    {
+      "id": "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+      "depth": 1,
+      "parent": "a4558fc7-21e0-4c08-9d67-0e6d677696d4"
+    },
+    {
+      "id": "2fba82c1-19e6-4954-b174-c7b8124f4be5",
+      "depth": 0
+    },
+    {
+      "id": "348936de-2f0e-446b-8f7f-e0b6d84f7c93",
+      "depth": 0
+    },
+    {
+      "id": "20422869-dfd4-4318-8c82-a230278c7924",
+      "depth": 0
+    },
+    {
+      "id": "01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a",
+      "depth": 0
+    },
+    {
+      "id": "b6da07c9-2305-4c8d-937f-d4cb12e9eb39",
+      "depth": 0
+    }
+  ],
+  "commands": [
+    {
+      "args": [
+        "new",
+        "--in",
+        "/private/tmp/ab-lifecycle-nJudgl/repo",
+        "--prompt",
+        "Reply only done cli-join-source. Do not use tools."
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "fork",
+        "--in",
+        "/private/tmp/ab-lifecycle-nJudgl/repo"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "promote",
+        "/private/tmp/ab-lifecycle-nJudgl/agent/sessions/--private-tmp-ab-lifecycle-nJudgl-repo--/2026-10-01T13-40-49-277Z_01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a.jsonl"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "new",
+        "--worktree",
+        "join-literal",
+        "--cmd",
+        "bash --noprofile --norc"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "send",
+        "b6da07c9-2305-4c8d-937f-d4cb12e9eb39",
+        "printf '%s' 'CLI-JOIN-$HOME;[literal]'"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "history",
+        "b6da07c9-2305-4c8d-937f-d4cb12e9eb39"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "send",
+        "b6da07c9-2305-4c8d-937f-d4cb12e9eb39"
+      ],
+      "input": "\r",
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "history",
+        "b6da07c9-2305-4c8d-937f-d4cb12e9eb39"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "ls",
+        "--tree",
+        "spawn",
+        "--json"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "ls",
+        "--tree",
+        "merge",
+        "--json"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "archive",
+        "348936de-2f0e-446b-8f7f-e0b6d84f7c93"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "merge",
+        "01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "abandon",
+        "b6da07c9-2305-4c8d-937f-d4cb12e9eb39"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "args": [
+        "ls",
+        "--json"
+      ],
+      "exit": 0,
+      "stderr": ""
+    }
+  ],
+  "cleanup": [
+    {
+      "args": [
+        "archive",
+        "348936de-2f0e-446b-8f7f-e0b6d84f7c93"
+      ],
+      "result": {
+        "closed": [
+          "20422869-dfd4-4318-8c82-a230278c7924",
+          "348936de-2f0e-446b-8f7f-e0b6d84f7c93"
+        ],
+        "killed": [
+          61623,
+          61628,
+          61625,
+          58801,
+          58811,
+          58807
+        ],
+        "branchesDeleted": [],
+        "branchesKept": []
+      }
+    },
+    {
+      "args": [
+        "merge",
+        "01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a"
+      ],
+      "result": {
+        "closed": [
+          "01a0f7b2-3ffd-769d-880f-54e0ccb2ec2a"
+        ],
+        "killed": [
+          62578,
+          62586,
+          62581
+        ],
+        "branchesDeleted": [],
+        "branchesKept": []
+      }
+    },
+    {
+      "args": [
+        "abandon",
+        "b6da07c9-2305-4c8d-937f-d4cb12e9eb39"
+      ],
+      "result": {
+        "closed": [
+          "b6da07c9-2305-4c8d-937f-d4cb12e9eb39"
+        ],
+        "killed": [
+          62720,
+          62719,
+          62722,
+          62729
+        ],
+        "branchesDeleted": [
+          "join-literal"
+        ],
+        "branchesKept": []
+      }
+    }
+  ],
+  "remaining": [
+    "a4558fc7-21e0-4c08-9d67-0e6d677696d4",
+    "0cc1f647-5bff-45f6-9e03-85bb1fffc74f",
+    "2fba82c1-19e6-4954-b174-c7b8124f4be5"
+  ]
+}

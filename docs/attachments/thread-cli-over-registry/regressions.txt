@@ -1,0 +1,257 @@
+bun test v1.4.2 (744846f84)
+
+lib/dispatch.test.ts:
+(pass) rebases the worker branch onto the parent and fast-forwards [159.51ms]
+(pass) refuses uncommitted work and reports conflicts after aborting [159.00ms]
+(pass) closes the worker only after Git integration; keep retains it [286.65ms]
+(pass) retiring deletes a merged worker branch once its worktree is gone; an unmerged one is kept [530.16ms]
+
+lib/board.test.ts:
+(pass) cli send then meta-read round-trips json [30.41ms]
+(pass) cli wait requires from-offset [9.02ms]
+(pass) cli rejects non-integer numeric flags [42.99ms]
+
+lib/wm.local.test.ts:
+(skip) concurrent workers share a new session; any/all preserve reports and close removes worktrees
+
+lib/children.test.ts:
+(pass) an exited child is unreachable, not a terminal event to watch repeatedly [7.62ms]
+(pass) a restarted worker report re-enters the wait without reattaching to its dead pane [7.19ms]
+
+lib/wm.test.ts:
+(pass) wait > any returns on the first, leaves the other pending [0.46ms]
+(pass) wait > all collects one per worker [0.05ms]
+(pass) wait > timeout returns what arrived [21.08ms]
+(pass) wait > a loser's waiter is withdrawn; its later event is buffered for the next wait [0.14ms]
+(pass) wait > abort signal withdraws without consuming [0.05ms]
+(pass) poller delivers a report posted after the worker is registered [1038.78ms]
+(pass) spawnEnv > carries board identity, spawn provenance, and the fence ratio [0.07ms]
+(pass) spawnEnv > drops absent optional values [0.01ms]
+
+lib/tracker-lint.test.ts:
+(pass) delivery signal is advisory, cached, and stale when its evidence changes [87.42ms]
+(pass) a done issue's lint asks only about its text [1.20ms]
+
+lib/tracker-views.test.ts:
+(pass) ready siblings survive a parent's shaping residual; own and subtree differ [0.78ms]
+(pass) compound constraints, omission, blockers, claims, deferred and done stay distinct [0.27ms]
+(pass) scope scheduling ignores internal edges, rejects cycles and preserves own mine filters [0.23ms]
+{"issues":1344,"frontier":48,"mine":21,"done":312,"legacy":1,"invalid":[]}
+(pass) current vault model loads [73.26ms]
+(skip) CLI snapshot parity against selected project vault
+
+lib/wm-reattach.test.ts:
+(pass) reattachment distinguishes closed targets from open targets and unavailable status [1035.20ms]
+
+lib/report.test.ts:
+(pass) surfaces malformed fenced handoff parse errors [0.80ms]
+(pass) recognizes checkpoint as a report status [0.01ms]
+(pass) drive replay: first word [0.08ms]
+(pass) drive replay: fenced first [0.03ms]
+(pass) drive replay: prose first
+(pass) drive replay: ordinary prose
+(pass) drive replay: empty YAML key [0.06ms]
+(pass) drive replay: middle sentinel [0.03ms]
+(pass) drive replay: trailing sentinel [0.02ms]
+(pass) drive replay: handoff only after prose [0.02ms]
+(pass) drive replay: conflict [0.03ms]
+(pass) drive replay: missing status [0.01ms]
+(pass) review replay: status-only handoff needs no unrelated key [0.07ms]
+(pass) review replay: short heading still permits a sentinel with prose [0.07ms]
+(pass) review replay: a handoff caveat is data, not a conflicting sentinel [0.57ms]
+(pass) review replay: removing a handoff does not promote later prose to first-word status [0.03ms]
+
+extensions/context/compaction.test.ts:
+(pass) same role from different mechanisms conflicts; different roles compose [1.60ms]
+
+extensions/system-prompt/index.test.ts:
+(pass) system prompt extension > keeps the session date across midnight and extension reloads [0.12ms]
+(pass) system prompt extension > uses the active session header when switching sessions [0.02ms]
+(pass) system prompt extension > omits the date when no session header is available [0.01ms]
+(pass) system prompt extension > only advertises skills when a source-reading tool is available [0.06ms]
+(pass) system prompt extension > retains pi identity but omits documentation guidance from the default prompt [0.02ms]
+(pass) system prompt extension > preserves custom prompts, appended instructions, and project context [0.02ms]
+
+extensions/workspace/fork-tab.test.ts:
+(pass) fork snapshots the live branch, launches in the originating session, and leaves the parent alone [1.87ms]
+(pass) worktree root becomes cwd; failed window creation removes the fork [0.65ms]
+
+extensions/workspace/workspace.test.ts:
+(pass) workspace paths > expands home directories [0.01ms]
+(pass) workspace paths > resolves relative directories [0.44ms]
+(pass) workspace paths > rejects files and missing paths [0.32ms]
+
+extensions/workspace/handoff.test.ts:
+(pass) workspace persists handoff before switching (cancelled=false) [1.24ms]
+(pass) workspace persists handoff before switching (cancelled=true) [0.75ms]
+
+lib/tree/workspaces.test.ts:
+(pass) tmux sessions join projects by session or pane workspace, and free sessions start at home [1191.55ms]
+
+lib/tree/tree.test.ts:
+(pass) graph > links spawn and invoked parents, and marks live children of ended parents as orphans [11.24ms]
+(pass) graph > tree rows nest children and a query keeps ancestors [0.88ms]
+(pass) graph > status puts interactive sessions first, keeping state groups distinct [0.35ms]
+(pass) graph > project trees prioritize urgent descendants without moving them from their parent [0.40ms]
+(pass) graph > cross-project children are roots in their own project, not under the parent's header [0.26ms]
+(pass) legacy mailbox parents join the live supervisor [1.01ms]
+
+lib/tree/prune.test.ts:
+(pass) dashboard prune leaves dirty and busy worktrees alone, removes clean ones, keeps branches [499.55ms]
+(pass) prune ignores idle pane shells but protects their background jobs [930.09ms]
+
+lib/records/cursor.test.ts:
+(pass) the latest cursor visible from the branch wins; other branches' and other keys' don't leak [9.41ms]
+(pass) a fork resumes its parent's cursor as of the fork point [0.64ms]
+
+lib/board/store.test.ts:
+(pass) send then read round-trips with query [3.22ms]
+(pass) run-wide read includes base-topic decisions; <run>/* does not [2.70ms]
+(pass) readFrom is incremental by cursor [2.79ms]
+(pass) legacy log import normalizes missing sender metadata and skips malformed records [2.97ms]
+(pass) lines old sessions append to the legacy log are imported once; sends mirror there [2.42ms]
+(pass) a cursor from before the store resumes at the tail [2.35ms]
+(pass) send normalizes omitted sender metadata from scripts and rejects malformed input [2.33ms]
+(pass) topics summarises latest per topic [2.61ms]
+(pass) waitFor resolves on a matching message and times out otherwise [1506.96ms]
+(pass) waitFor fromOffset sees messages already logged [3.17ms]
+(pass) meta drops data and slices body [3.54ms]
+(pass) query reports what the limit dropped [3.36ms]
+(pass) reads and acks log beside the message log with the reader [4.15ms]
+(pass) readReadEvents tolerates an absent file and torn lines [0.51ms]
+
+lib/board/query.test.ts:
+(pass) matchTopic > exact and single-segment glob [0.02ms]
+(pass) matchTopic > globstar [0.02ms]
+(pass) parseTags / evalTags > empty matches all [0.01ms]
+(pass) parseTags / evalTags > single tag [0.02ms]
+(pass) parseTags / evalTags > precedence: ! > & > | [0.05ms]
+(pass) parseTags / evalTags > comma is and; namespaced tags [0.02ms]
+(pass) parseTags / evalTags > tag-name array is AND; empty is unrestricted [0.04ms]
+(pass) parseTags / evalTags > errors [0.04ms]
+(pass) compileQuery combines topic and tags [0.02ms]
+
+lib/outline-read/outline.test.ts:
+(pass) selector > range forms [0.06ms]
+(pass) selector > split path and selector [0.06ms]
+(pass) selector > normalize merges and clamps [0.05ms]
+(pass) nest > by containment, widest first, duplicates dropped [0.04ms]
+(pass) markdown > headings nest by level and ignore fenced code [0.10ms]
+(pass) markdown > heading directly followed by a sibling heading has no body [0.02ms]
+(pass) markdown > parent body spans its children
+(pass) render > level 0 elides leaf bodies only [0.06ms]
+(pass) render > level 1 elides container body between children [0.01ms]
+(pass) render > level 2 collapses containers with a child count [0.02ms]
+(pass) render > minBodyLines keeps short bodies
+(pass) render > rises level to fit budget [0.07ms]
+(pass) tree-sitter > typescript definitions with bodies [41.70ms]
+(pass) tree-sitter > python indented bodies [3.38ms]
+(pass) model outline parsing > start lines become ranges and bodies, prose around JSON ignored [0.14ms]
+(pass) model outline parsing > drops out-of-range, duplicate, and malformed entries [0.02ms]
+(pass) model outline parsing > non-JSON output is null
+(pass) config > nested fallback keys merge over defaults [0.76ms]
+
+lib/outline-read/edit.test.ts:
+(pass) anchors > deterministic, unique within a file [0.11ms]
+(pass) anchors > anchors of one file share its scent [0.04ms]
+(pass) anchors > strip pasted prefixes [0.02ms]
+(pass) ledger > unchanged lines keep anchors across edits; removed anchors stop resolving; unique across files [0.48ms]
+(pass) ledger > restore from entry only when content hash matches [0.11ms]
+(pass) parseHunks > forms [0.17ms]
+(pass) parseHunks > blank lines: separator before a header, content otherwise [0.02ms]
+(pass) parseHunks > empty insert is a blank line [0.08ms]
+(pass) parseHunks > indented header-like JSX can be escaped without losing indentation [0.05ms]
+(pass) parseHunks > bare words and escaped headers are text; bodies must fit the sigil [0.05ms]
+(pass) edit tool > diff-looking bodies remain literal, with a warning: -old
++new [2.02ms]
+(pass) edit tool > diff-looking bodies remain literal, with a warning: +first
++second [0.46ms]
+(pass) edit tool > a block replacement uses both endpoints and needs no diff markers [0.53ms]
+(pass) edit tool > unknown range endpoint is named before any file changes [0.44ms]
+(pass) edit tool > insert a blank line after an anchor [0.38ms]
+(pass) edit tool > replace, insert, and anchors surviving earlier edits [0.62ms]
+(pass) edit tool > delete and no-op [0.51ms]
+(pass) edit tool > two files in one call [0.74ms]
+(pass) edit tool > rejects unknown anchors, overlaps; strips pasted prefixes [0.52ms]
+(pass) edit tool > external change: unchanged anchors still work, changed ones are reported with fresh anchors [0.46ms]
+
+lib/outline-read/words.test.ts:
+(pass) words > splits on whitespace, honors quotes [0.02ms]
+
+lib/outline-read/grep.test.ts:
+(pass) grep > enclosing returns the chain outermost first [0.04ms]
+(pass) grep > results carry definition context and anchors that edit accepts [16.37ms]
+
+lib/session-meta/index.test.ts:
+(pass) spawnMeta > reads wm's env [0.06ms]
+(pass) spawnMeta > undefined without run and handle
+(pass) spawnMeta > omits optional provenance
+(pass) extension > records one entry at session start with ambient parent drive-probe-parent [0.36ms]
+(pass) extension > records one entry at session start with ambient parent %s [0.04ms]
+(pass) extension > persists parent provenance drive-probe-parent [0.45ms]
+(pass) extension > persists parent provenance %s [0.28ms]
+(pass) extension > records launch mode without spawn metadata, only once across resumes [0.06ms]
+(pass) invokedBy > records the calling session for headless children, not for wm workers [0.01ms]
+
+lib/session-meta/identity.test.ts:
+(pass) session identity is distinct from its delivery address [0.02ms]
+
+lib/session-meta/live.test.ts:
+(pass) turn state preserves the board subscription and its store [0.90ms]
+(pass) a retirement mark is consumed once and bound to its session [0.58ms]
+
+lib/thread/runtime.test.ts:
+(pass) owning thread sets up once, guests do not own, aux ensure is idempotent, send is literal [986.98ms]
+(pass) a bare worker handle shared by two runs is ambiguous until its run is given [28.86ms]
+
+lib/thread/lifecycle.test.ts:
+(pass) raw integrate follows ab-parent, refuses dirty or unprepared trees, and leaves threads active [359.79ms]
+(pass) raw integrate names a missing or deleted ab-parent instead of choosing another target [160.69ms]
+(pass) a merge-bearing child takes its base by merge, keeping its earlier resolution commits [285.82ms]
+(pass) raw conflict throws its files, leaves the child clean and unapplied, and sends nothing [323.85ms]
+(pass) archive conflict resumes only on the current canonical session's fresh done [5296.37ms]
+(pass) archive conflict answered needs-input is not a resolution: node and ancestor stay active [811.03ms]
+(pass) archive conflict answered checkpoint is not a resolution: node and ancestor stay active [819.37ms]
+(pass) archive conflict answered turn-end is not a resolution: node and ancestor stay active [796.45ms]
+
+extensions/context/om/config.test.ts:
+(pass) memory.schemas.om maps onto upstream keys and overrides the legacy key [0.47ms]
+
+extensions/context/om/session-ledger/store.test.ts:
+(pass) records splice in after the leaf they were written at, and only on that branch [6.43ms]
+(pass) a fork sees its parent session's records up to the fork point [0.38ms]
+(pass) migrated file entries become placeholders, migration is idempotent, and a fork's copies don't double [0.71ms]
+
+skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts:
+(pass) cross-project evidence links resolve through the vault, not a local namesake [139.66ms]
+(pass) a parent marked done while its children are open is reported [87.54ms]
+(pass) check ignores wikilinks in inline and fenced code, including when fixing other links [85.32ms]
+(pass) check still reports a broken link between an unmatched backtick and a later code span [42.58ms]
+(pass) check --fix keeps the escaped pipe of a table alias when repairing a moved link [43.56ms]
+(pass) check --fix <moved paths> repairs only links and blockers targeting the moved issues [91.35ms]
+(pass) format-equivalent dependencies preserve all queries [2986.93ms]
+(pass) invalid frontmatter fails every query with a filename and no partial output [4405.35ms]
+(pass) wrapped edges still receive graph checks and done blockers retain scheduling semantics [342.98ms]
+(pass) unverified claims conservatively reserve execution [77.14ms]
+(pass) tagged guards are opaque: they block until removed and never resolve on their own [236.86ms]
+(pass) outline maps each linked bullet to its issue, flags unlinked intent among linked bullets, and lists open issues no bullet covers [36.03ms]
+(pass) subtree readiness, assignment, dependencies, scheduling and review remain separate [760.76ms]
+(pass) legacy is readable but never translated; selectors and structural omissions fail closed [657.22ms]
+(pass) human shaping uses own residual constraints, and archive cannot parent live work [120.50ms]
+(pass) historical provenance survives and duplicate identities fail before projection [89.02ms]
+(pass) a child cannot await completion of its own parent scope [37.18ms]
+(pass) check names the child that lowers a spec, and a side friction log [45.19ms]
+(pass) a new uncommitted issue needs author provenance; committed history is left alone [81.20ms]
+(pass) work in flight elsewhere leaves the frontier: reconciler nodes, closes on branches, stalled runs [212.89ms]
+(pass) check proposes a unique heading repair without writing; --fix applies it [90.36ms]
+(pass) worktree links use branch docs; foreign projects retain vault state [167.44ms]
+
+2 tests skipped:
+(skip) concurrent workers share a new session; any/all preserve reports and close removes worktrees
+(skip) CLI snapshot parity against selected project vault
+
+ 177 pass
+ 2 skip
+ 0 fail
+ 1221 expect() calls
+Ran 179 tests across 32 files. [28.92s]

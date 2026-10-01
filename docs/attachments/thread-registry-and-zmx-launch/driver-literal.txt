@@ -1,0 +1,13 @@
+Before CR: READY thread=95e59bbb-602a-405a-95d4-42a652af96eb topic=fixture/owner run=fixture handle=owner
+literal $HOME ; 'quotes'
+No SUBMITTED line.
+
+After separate send of CR:
+/Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi__worktrees/thread-registry-and-z
+mx-launch-drive-7/lib/thread/agent-runner.ts 95e59bbb-602a-405a-95d4-42a652af96eb; echo ZMX_TASK_COMPLETED:3ef2:$?
+s-MacBook-Pro:owner mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi__wor
+ktrees/thread-registry-and-zmx-launch-drive-7/lib/thread/agent-runner.ts 95e59bbb-602a-405a-95d4-42a652af96eb; echo ZMX_
+TASK_COMPLETED:3ef2:$?
+READY thread=95e59bbb-602a-405a-95d4-42a652af96eb topic=fixture/owner run=fixture handle=owner
+literal $HOME ; 'quotes'
+SUBMITTED:literal $HOME ; 'quotes'

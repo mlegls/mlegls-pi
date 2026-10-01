@@ -1,0 +1,335 @@
+{
+  "root": "/private/tmp/wm-thread-IlAE3J",
+  "records": [
+    {
+      "id": "88767d2e-9299-49ae-8968-127fdad9283d",
+      "sessionId": "88767d2e-9299-49ae-8968-127fdad9283d",
+      "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/thread-core-and-workers-on-zmx-implement-i",
+      "archived": true
+    },
+    {
+      "id": "37172932-0875-4094-849a-fb75c04474d5",
+      "sessionId": "37172932-0875-4094-849a-fb75c04474d5",
+      "cwd": "/Users/mlegls/dev/mlegls-pi__worktrees/join-IlAE3J",
+      "worker": {
+        "run": "thread-join",
+        "handle": "join-IlAE3J"
+      },
+      "archived": true
+    },
+    {
+      "id": "d8fa4464-39c4-4e6d-aacf-4e7f7837218b",
+      "sessionId": "01a0f7af-9b3f-75af-b17f-2e9b36b6e1fd",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/pi-worker",
+      "worker": {
+        "run": "worker-fixture",
+        "handle": "pi-worker"
+      },
+      "archived": true
+    },
+    {
+      "id": "17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+      "sessionId": "17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/owner",
+      "archived": true
+    },
+    {
+      "id": "6edd794a-69a3-41e4-907a-5e53eb16cf11",
+      "sessionId": "6edd794a-69a3-41e4-907a-5e53eb16cf11",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/pid-worker",
+      "worker": {
+        "run": "worker-fixture",
+        "handle": "pid-worker"
+      },
+      "archived": true
+    },
+    {
+      "id": "6c63b7d9-846b-4c5f-9089-16c52959ab66",
+      "sessionId": "6c63b7d9-846b-4c5f-9089-16c52959ab66",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-leaf-implement-1",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-leaf-implement-1"
+      },
+      "archived": true
+    },
+    {
+      "id": "18da3362-54bf-45f4-8510-b4eb139b8ecb",
+      "sessionId": "18da3362-54bf-45f4-8510-b4eb139b8ecb",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-leaf-implement-2",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-leaf-implement-2"
+      },
+      "archived": true
+    },
+    {
+      "id": "d0d38fba-293c-42b8-8777-9f9af869e696",
+      "sessionId": "d0d38fba-293c-42b8-8777-9f9af869e696",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-leaf-drive-3",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-leaf-drive-3"
+      },
+      "archived": true
+    },
+    {
+      "id": "8d8c1456-0876-4fc4-87c0-3c3ce29d319e",
+      "sessionId": "8d8c1456-0876-4fc4-87c0-3c3ce29d319e",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-leaf-review-4",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-leaf-review-4"
+      },
+      "archived": true
+    },
+    {
+      "id": "5df0fb9f-98e0-47c8-b870-bbe318ed973e",
+      "sessionId": "5df0fb9f-98e0-47c8-b870-bbe318ed973e",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-nested-implement-5",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-nested-implement-5"
+      },
+      "archived": true
+    },
+    {
+      "id": "ec369669-7572-4ad0-a2d9-79dd535557b7",
+      "sessionId": "ec369669-7572-4ad0-a2d9-79dd535557b7",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-nested-drive-6",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-nested-drive-6"
+      },
+      "archived": true
+    },
+    {
+      "id": "33c43355-26e4-49d1-aa35-b3b01662e335",
+      "sessionId": "33c43355-26e4-49d1-aa35-b3b01662e335",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-nested-review-7",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-nested-review-7"
+      },
+      "archived": true
+    },
+    {
+      "id": "6f65ac15-a6fc-4830-aca6-91e157aab2bf",
+      "sessionId": "6f65ac15-a6fc-4830-aca6-91e157aab2bf",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-root-implement-8",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-root-implement-8"
+      },
+      "archived": true
+    },
+    {
+      "id": "7b9257d4-47b7-4d02-b45e-0d06eb688aa1",
+      "sessionId": "7b9257d4-47b7-4d02-b45e-0d06eb688aa1",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-root-drive-9",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-root-drive-9"
+      },
+      "archived": true
+    },
+    {
+      "id": "07e9c90a-5cc1-4a1d-a06d-90cb8cb6271f",
+      "sessionId": "07e9c90a-5cc1-4a1d-a06d-90cb8cb6271f",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-root-review-a",
+      "worker": {
+        "run": "fixture-root",
+        "handle": "fixture-root-review-a"
+      },
+      "archived": true
+    },
+    {
+      "id": "348735c8-c844-4878-a99a-a979716b53b7",
+      "sessionId": "348735c8-c844-4878-a99a-a979716b53b7",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/owner",
+      "archived": true
+    },
+    {
+      "id": "47831389-e929-4d04-ab48-31017ea7be76",
+      "sessionId": "47831389-e929-4d04-ab48-31017ea7be76",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/tool-integrate",
+      "worker": {
+        "run": "tool-fixture",
+        "handle": "tool-integrate"
+      },
+      "archived": true
+    },
+    {
+      "id": "a3d505ee-a16d-497e-a328-b01e24d07e8f",
+      "sessionId": "a3d505ee-a16d-497e-a328-b01e24d07e8f",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/tool-keep",
+      "worker": {
+        "run": "tool-fixture",
+        "handle": "tool-keep"
+      },
+      "archived": true
+    },
+    {
+      "id": "f51a8d7d-41b9-4569-b5a9-7846060fe4b7",
+      "sessionId": "f51a8d7d-41b9-4569-b5a9-7846060fe4b7",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/tool-unmerged",
+      "worker": {
+        "run": "tool-fixture",
+        "handle": "tool-unmerged"
+      },
+      "archived": true
+    }
+  ],
+  "supervisorReport": {
+    "id": "muplinkg-i22izq",
+    "line": 77,
+    "ts": "2026-10-01T13:54:36.880Z",
+    "topic": "thread/348735c8-c844-4878-a99a-a979716b53b7",
+    "tags": [
+      "done"
+    ],
+    "from": {
+      "session": "348735c8-c844-4878-a99a-a979716b53b7",
+      "name": "owner",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/owner"
+    },
+    "body": "done fixture-dispatch-complete\n\n```yaml\nrun: tool-fixture\nworkers:\n  - handle: tool-integrate\n    receipt:\n      path: /private/tmp/wm-thread-IlAE3J/repo__worktrees/tool-integrate\n      threadId: 47831389-e929-4d04-ab48-31017ea7be76\n    board_done: muplh3ma-wcxpgj\n    commit: a313def\n    integration: rebase\n    retirement: closed\n    branchDeleted: tool-integrate\n\n  - handle: tool-keep\n    receipt:\n      path: /private/tmp/wm-thread-IlAE3J/repo__worktrees/tool-keep\n      threadId: a3d505ee-a16d-497e-a328-b01e24d07e8f\n    board_done: muplhpb3-2cu7zu\n    commit: 4ab253f\n    integration: rebase\n    keep: true\n    retirement: closed\n    branchDeleted: tool-keep\n\n  - handle: tool-unmerged\n    receipt:\n      path: /private/tmp/wm-thread-IlAE3J/repo__worktrees/tool-unmerged\n      threadId: f51a8d7d-41b9-4569-b5a9-7846060fe4b7\n    board_done: muplibco-tuwfa8\n    commit: \"6759455\"\n    integration: none\n    retirement: closed\n    branchKept: \"tool-unmerged: not merged into owner\"\n```"
+  },
+  "live": [],
+  "terminals": [],
+  "worktrees": "worktree /private/tmp/wm-thread-IlAE3J/repo\nHEAD 88b583909e6d7740f1ba10d195a3ac491bf05f43\nbranch refs/heads/main\n\nworktree /private/tmp/wm-thread-IlAE3J/owner\nHEAD 4ab253f018ef13929828e5fb8d77b892f4d3e057\nbranch refs/heads/owner",
+  "branches": "* main\n+ owner\n  pi-worker\n  tool-unmerged",
+  "reconciler": {
+    "backend": "threads",
+    "root": "fixture-root",
+    "cwd": "/private/tmp/wm-thread-IlAE3J/owner",
+    "owner": "mail/fixture",
+    "budget": 1,
+    "collectors": {},
+    "chains": {},
+    "exceptions": {},
+    "tests": {
+      "fixture-nested": [],
+      "fixture-root": [],
+      "/private/tmp/wm-thread-IlAE3J/owner": []
+    },
+    "resolved": {},
+    "moved": {},
+    "counter": 10,
+    "log": [
+      "2026-10-01T13:40:41 launched fixture-leaf-implement-1 (implement, fixture)",
+      "2026-10-01T13:42:48 implement worker for fixture-leaf is gone; relaunching",
+      "2026-10-01T13:42:48 launched fixture-leaf-implement-2 (implement, fixture)",
+      "2026-10-01T13:43:21 launched fixture-leaf-drive-3 (drive, fixture)",
+      "2026-10-01T13:43:43 launched fixture-leaf-review-4 (review, fixture)",
+      "2026-10-01T13:44:09 landed fixture-leaf in fixture-nested",
+      "2026-10-01T13:44:16 launched fixture-nested-implement-5 (implement, fixture)",
+      "2026-10-01T13:44:47 launched fixture-nested-drive-6 (drive, fixture)",
+      "2026-10-01T13:45:03 launched fixture-nested-review-7 (review, tidy)",
+      "2026-10-01T13:45:18 landed fixture-nested in fixture-root",
+      "2026-10-01T13:45:25 launched fixture-root-implement-8 (implement, fixture)",
+      "2026-10-01T13:45:46 launched fixture-root-drive-9 (drive, fixture)",
+      "2026-10-01T13:46:11 launched fixture-root-review-a (review, tidy)",
+      "2026-10-01T13:46:27 landed fixture-root in the owner's checkout"
+    ],
+    "pid": 3203,
+    "finished": "done"
+  },
+  "lineage": {
+    "6c63b7d9-846b-4c5f-9089-16c52959ab66": {
+      "id": "6c63b7d9-846b-4c5f-9089-16c52959ab66",
+      "handle": "fixture-leaf-implement-1",
+      "branch": "fixture-leaf-implement-1",
+      "parent": "tree/fixture-nested"
+    },
+    "collector/fixture-root": {
+      "path": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-root--tree",
+      "branch": "tree/fixture-root",
+      "parentBranch": "owner"
+    },
+    "collector/fixture-nested": {
+      "path": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/fixture-nested--tree",
+      "branch": "tree/fixture-nested",
+      "parentBranch": "tree/fixture-root"
+    },
+    "18da3362-54bf-45f4-8510-b4eb139b8ecb": {
+      "id": "18da3362-54bf-45f4-8510-b4eb139b8ecb",
+      "handle": "fixture-leaf-implement-2",
+      "branch": "fixture-leaf-implement-2",
+      "parent": "tree/fixture-nested"
+    },
+    "d0d38fba-293c-42b8-8777-9f9af869e696": {
+      "id": "d0d38fba-293c-42b8-8777-9f9af869e696",
+      "handle": "fixture-leaf-drive-3",
+      "branch": "fixture-leaf-drive-3",
+      "parent": "tree/fixture-nested"
+    },
+    "8d8c1456-0876-4fc4-87c0-3c3ce29d319e": {
+      "id": "8d8c1456-0876-4fc4-87c0-3c3ce29d319e",
+      "handle": "fixture-leaf-review-4",
+      "branch": "fixture-leaf-review-4",
+      "parent": "tree/fixture-nested"
+    },
+    "5df0fb9f-98e0-47c8-b870-bbe318ed973e": {
+      "id": "5df0fb9f-98e0-47c8-b870-bbe318ed973e",
+      "handle": "fixture-nested-implement-5",
+      "branch": "fixture-nested-implement-5",
+      "parent": "tree/fixture-root"
+    },
+    "ec369669-7572-4ad0-a2d9-79dd535557b7": {
+      "id": "ec369669-7572-4ad0-a2d9-79dd535557b7",
+      "handle": "fixture-nested-drive-6",
+      "branch": "fixture-nested-drive-6",
+      "parent": "tree/fixture-root"
+    },
+    "33c43355-26e4-49d1-aa35-b3b01662e335": {
+      "id": "33c43355-26e4-49d1-aa35-b3b01662e335",
+      "handle": "fixture-nested-review-7",
+      "branch": "fixture-nested-review-7",
+      "parent": "tree/fixture-root"
+    },
+    "6f65ac15-a6fc-4830-aca6-91e157aab2bf": {
+      "id": "6f65ac15-a6fc-4830-aca6-91e157aab2bf",
+      "handle": "fixture-root-implement-8",
+      "branch": "fixture-root-implement-8",
+      "parent": "owner"
+    },
+    "7b9257d4-47b7-4d02-b45e-0d06eb688aa1": {
+      "id": "7b9257d4-47b7-4d02-b45e-0d06eb688aa1",
+      "handle": "fixture-root-drive-9",
+      "branch": "fixture-root-drive-9",
+      "parent": "owner"
+    },
+    "07e9c90a-5cc1-4a1d-a06d-90cb8cb6271f": {
+      "id": "07e9c90a-5cc1-4a1d-a06d-90cb8cb6271f",
+      "handle": "fixture-root-review-a",
+      "branch": "fixture-root-review-a",
+      "parent": "owner"
+    }
+  },
+  "mainLog": "88b5839 fixture",
+  "ownerLog": "4ab253f Add kept fixture\na313def Add integrated fixture\ne8a6245 Close fixture-root\n3dc4b84 Close fixture-nested\nb148582 Close fixture-leaf\n31e76f0 docs: record leaf fixture verification\n548486d Add fixture leaf\nf3c68fa Two-level reconciler fixture\n88b5839 fixture",
+  "reviewBases": [
+    {
+      "id": "8d8c1456-0876-4fc4-87c0-3c3ce29d319e",
+      "handle": "fixture-leaf-review-4",
+      "bases": [
+        "f3c68faba5008b3ba6d64367364993d717d0324e"
+      ]
+    },
+    {
+      "id": "33c43355-26e4-49d1-aa35-b3b01662e335",
+      "handle": "fixture-nested-review-7",
+      "bases": [
+        "b148582b7968c91373923abb6c456870f4df9b8f"
+      ]
+    },
+    {
+      "id": "07e9c90a-5cc1-4a1d-a06d-90cb8cb6271f",
+      "handle": "fixture-root-review-a",
+      "bases": [
+        "3dc4b843bed5f39b83fd314dd0a5add5b919a478"
+      ]
+    }
+  ]
+}

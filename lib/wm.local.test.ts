@@ -1,15 +1,19 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, wait, type Worker } from "./wm";
 import { send } from "./board/store";
 
-// Opt in: starts harmless local shell workers, never a model or paid API.
-test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent workers share a new session; any/all preserve reports and close removes worktrees", async () => {
-	const root = await mkdtemp(join(tmpdir(), "wm-user-"));
+// Opt in: starts harmless local shell worker threads over isolated zmx, never a model or paid API.
+test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent thread workers preserve any/all reports and close removes owned worktrees", async () => {
+	const root = await mkdtemp("/tmp/wm-user-");
 	const cwd = join(root, "repo"), run = `verify-${process.pid}-${Date.now()}`;
 	const oldBoard = process.env.PI_BOARD_DIR;
+	const oldState = process.env.XDG_STATE_HOME, oldZmx = process.env.ZMX_DIR, oldAgent = process.env.PI_CODING_AGENT_DIR;
+	process.env.XDG_STATE_HOME = join(root, "state");
+	process.env.ZMX_DIR = join(root, "zmx");
+	process.env.PI_CODING_AGENT_DIR = join(root, "pi");
 	process.env.PI_BOARD_DIR = join(root, "board");
 	const command = async (cmd: string[], dir = root) => {
 		const p = Bun.spawn(cmd, { cwd: dir, stdout: "pipe", stderr: "pipe" });
@@ -21,7 +25,6 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent workers share a ne
 	try {
 		await command(["git", "init", cwd]);
 		await command(["git", "-c", "user.name=Verifier", "-c", "user.email=verify@example.invalid", "commit", "--allow-empty", "-m", "fixture"], cwd);
-		await writeFile(join(cwd, ".workmux.yaml"), "panes:\n  - command: <agent>\n    focus: true\n");
 		const spawned = await Promise.allSettled(["a", "b"].map(handle => spawn({ cwd, run, handle, prompt: "local fixture", command: "sleep 120" })));
 		workers = spawned.flatMap(r => r.status === "fulfilled" ? [r.value] : []);
 		expect(spawned.filter(r => r.status === "rejected").map(r => (r as PromiseRejectedResult).reason.message)).toEqual([]);
@@ -38,8 +41,10 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent workers share a ne
 		expect((await command(["git", "worktree", "list", "--porcelain"], cwd)).match(/^worktree /gm)).toHaveLength(1);
 	} finally {
 		await Promise.all(workers.map(w => w.close()));
-		await command(["tmux", "kill-session", "-t", run]).catch(() => {});
 		if (oldBoard === undefined) delete process.env.PI_BOARD_DIR; else process.env.PI_BOARD_DIR = oldBoard;
+		for (const [key, value] of Object.entries({ XDG_STATE_HOME: oldState, ZMX_DIR: oldZmx, PI_CODING_AGENT_DIR: oldAgent })) {
+			if (value === undefined) delete process.env[key]; else process.env[key] = value;
+		}
 		await rm(root, { recursive: true, force: true });
 	}
 }, 30000);
