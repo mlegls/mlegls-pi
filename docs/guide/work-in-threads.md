@@ -14,6 +14,7 @@ Point at a row to reveal its buttons. They wrap below the row in a narrow sideba
 
 Click the heading, or use Tab/s, to switch between the spawn and merge trees. These are the same orders as `ab thread ls --tree spawn|merge`. `/` filters; submit an empty filter to clear it. A matching descendant keeps its ancestors visible. `r` refreshes; `R` reloads the sidebar code.
 
+- **project** (`P`): asks for a path or zoxide query and starts a root thread in that checkout, so any git project can enter the sidebar.
 - **new** (`n`): a fresh guest thread in the pointed thread's checkout, with that thread as spawn parent.
 - **new in worktree** (`N`): asks for a branch name, creates an owned worktree from the pointed checkout and records its branch as merge parent.
 - **fork** (`f`): copies the pointed thread's current pi history into a new guest thread in the same checkout. It shows the new thread immediately.

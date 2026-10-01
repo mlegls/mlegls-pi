@@ -1,5 +1,9 @@
 // Frontends call the registry directly; lifecycle and terminal ownership stay in lib/thread.
 import { abandonThread, archiveThread, ensureTerminal, forkThread, newThread, type ThreadRecord, type ThreadRow } from "../thread";
+import { execFileSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import { command } from "../thread/process";
 import { zmx, zmxBinary } from "../thread/zmx";
 import * as ghostty from "./ghostty";
@@ -21,6 +25,21 @@ export async function open(id: string, shown?: string): Promise<string> {
 		await command(await zmxBinary(), ["attach", terminal.name], undefined, env);
 	} else ghostty.attachMain(id);
 	return terminal.name;
+}
+
+/** A typed project: a path, or anything zoxide knows. */
+export function resolveProject(text: string): string | undefined {
+	const t = text.trim().replace(/^~(?=\/|$)/, homedir());
+	if (!t) return undefined;
+	if (existsSync(t)) return realpathSync(resolve(t));
+	try { return execFileSync("zoxide", ["query", ...t.split(/\s+/)], { encoding: "utf8" }).trim() || undefined; } catch { return undefined; }
+}
+
+/** A root thread in another project's checkout. */
+export async function openProject(text: string): Promise<ThreadRecord> {
+	const path = resolveProject(text);
+	if (!path) throw new Error("No such project: " + text);
+	return newThread({ cwd: path, in: path });
 }
 
 export async function create(action: "new" | "worktree" | "fork", selected?: ThreadRecord, name?: string): Promise<ThreadRecord> {

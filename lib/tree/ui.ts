@@ -170,6 +170,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		else if (k === "tab" || k === "s") toggleMode();
 		else if (k === "r") void refresh();
 		else if (k === "R") leave(75);
+		else if (k === "P") ask("Project (path or zoxide query): ", text => { if (text.trim()) perform(async () => {
+			const thread = await act.openProject(text);
+			selected = thread.id; await show(thread.id); save(); message = "";
+		}); });
 		else if (k === "/") ask("Filter: ", text => { query = text; scroll = 0; rebuild(); });
 		else if (["up", "k", "down", "j", "g", "G"].includes(k ?? "")) {
 			const i = visible.findIndex(r => r.thread.id === selected);
@@ -253,6 +257,8 @@ hover   new / worktree / fork /
 X       abandon children in this tree
 n/N     new here / new worktree
 f       fork here
+P       new thread in a project
+        (path or zoxide query)
 m/a/x   merge / archive / abandon
 /       filter (empty clears)
 space   fold or expand
