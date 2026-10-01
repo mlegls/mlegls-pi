@@ -17,6 +17,7 @@ export interface BoardSubscription {
 export interface Live {
 	pid: number;
 	sessionId: string;
+	thread?: string;
 	parentSession?: string;
 	sessionFile?: string;
 	cwd: string;

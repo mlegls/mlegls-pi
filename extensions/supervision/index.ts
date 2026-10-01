@@ -13,8 +13,8 @@ import { campaigns, resolveException, start, summary } from "../../lib/reconcile
 
 const namespace = { name: "supervision", description: "Dispatch wm workers (workmux worktree + tmux window running pi), integrate their branches, retire them" };
 
-const HandleSchema = Type.Object({ handle: Type.String(), run: Type.String(), path: Type.String(), session: Type.Optional(Type.String()), cursor: Type.Optional(Type.String()) });
-const Worker = Type.Union([HandleSchema, Type.String({ description: "Bare handle, looked up among this checkout's worktrees" })]);
+const HandleSchema = Type.Object({ handle: Type.String(), run: Type.String(), path: Type.String(), threadId: Type.Optional(Type.String()), session: Type.Optional(Type.String()), cursor: Type.Optional(Type.String()) });
+const Worker = Type.Union([HandleSchema, Type.String({ description: "Bare handle, looked up among registered workers in this checkout's project" })]);
 
 export default function (pi: ExtensionAPI) {
 	dataTool(pi, {

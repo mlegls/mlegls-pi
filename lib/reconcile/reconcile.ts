@@ -1,7 +1,7 @@
 // Reconciler for one dispatched issue subtree (docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md).
 //
 // Each tick recomputes what every node needs from observed state (the tracker in each node's branch, the
-// workers' board reports, workmux panes) and takes the next step. Specs get to tickets through the refine
+// workers' board reports and current thread/live observations) and takes the next step. Specs get to tickets through the refine
 // role (compile or manager), which promotes them or commits children; an implementer who finds its ticket
 // bigger than one session sends it back there (respec). Tickets run implement → drive → review → integrate, a leaf into its parent's branch, a node with children once they
 // have all landed in its own branch ("collector"), which its own chain then carries up. Mechanical failures
@@ -22,7 +22,8 @@ import { send as sendChild } from "../children.ts";
 import { mail } from "../board/mailbox.ts";
 import { readFrom, type Message } from "../board/store.ts";
 import { decide } from "../decide.ts";
-import { workmuxStatus } from "../wm.ts";
+import { pidAlive } from "../wm.ts";
+import { listThreads, type ThreadSnapshot } from "../thread";
 import { close, declaredGate, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -62,7 +63,7 @@ interface Exception {
 }
 export interface State {
 	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
-	collectors: Record<string, { path: string; branch: string }>;
+	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
 	chains: Record<string, Chain>;
 	exceptions: Record<string, Exception>;
 	/** Test files each branch's integrations must keep passing. */
@@ -87,7 +88,7 @@ const finished = (i: Issue) => i.done || !!i.archived;
 const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + "\n```";
 
 export async function run(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number; signal?: AbortSignal }) {
-	const cwd = repoRoot(o.cwd);
+	const cwd = resolve(o.cwd);
 	mkdirSync(stateDir(cwd), { recursive: true });
 	mkdirSync(resolutionsDir(cwd, o.root), { recursive: true });
 	// One reconciler per subtree: a second would launch and judge the same workers against the first.
@@ -138,19 +139,26 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (after && m.ts <= after) return undefined;
 		return m;
 	};
-	let panes = new Map<string, string>(), status: { worktree: string; pane_id: string }[] = [];
+	let host: ThreadSnapshot[] | undefined;
+	const observedPids = new Map<string, { session: string; pid: number }>();
+	const exitedPids = new Set<string>();
 	const observeHost = async () => {
-		try { status = await workmuxStatus(cwd); } catch (e) { note("workmux status: " + e); }
 		try {
-			const out = execFileSync("tmux", ["list-panes", "-a", "-F", "#{pane_id} #{pane_current_command}"], { encoding: "utf8" });
-			panes = new Map(out.split("\n").filter(Boolean).map(l => l.split(" ") as [string, string]));
-		} catch { panes = new Map(); }
+			host = await listThreads({ cwd });
+			for (const row of host) {
+				const previous = observedPids.get(row.thread.id);
+				if (previous?.session === row.thread.sessionId && !pidAlive(previous.pid)) exitedPids.add(row.thread.id);
+				if (previous?.session !== row.thread.sessionId) exitedPids.delete(row.thread.id);
+				if (row.pid) observedPids.set(row.thread.id, { session: row.thread.sessionId, pid: row.pid });
+			}
+		}
+		catch (e) { host = undefined; note("thread observation deferred: " + e); }
 	};
-	const alive = (h: Handle) => {
-		if (!existsSync(h.path)) return false;
-		const e = status.find(x => x.worktree === h.handle);
-		const cmd = e && panes.get(e.pane_id);
-		return !!cmd && !/^-?(zsh|bash|sh|fish)$/.test(cmd);
+	const alive = (h: Handle): boolean | undefined => {
+		if (!host) return undefined; // backend failure never establishes exit
+		const row = host.find(r => h.threadId ? r.thread.id === h.threadId : r.thread.worker?.handle === h.handle && r.thread.worker.run === h.run && r.thread.cwd === h.path);
+		if (!row || !row.terminals.some(t => t.role === "agent")) return false;
+		return !exitedPids.has(row.thread.id) && row.state !== "exited";
 	};
 
 	// --- launching -------------------------------------------------------------------------------------
@@ -173,14 +181,14 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, issue?: Issue, only?: string[]): Promise<Handle> {
+	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[]): Promise<Handle> {
 		launching++;
-		try { return await launchNow(handle, role, prompt, base, issue, only); } finally { launching--; }
+		try { return await launchNow(handle, role, prompt, base, into, issue, only); } finally { launching--; }
 	}
-	async function launchNow(handle: string, role: string, prompt: string, base: string, issue?: Issue, only?: string[]): Promise<Handle> {
+	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[]): Promise<Handle> {
 		const agentName = await pick(role, issue, prompt, only);
 		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: issue.assignee ?? undefined } : {}) }],
-			{ run: s.root, cwd, maxConcurrent: 1, active: [], session: s.root, follow: s.root, parent: s.ownerSession || undefined });
+			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
@@ -207,9 +215,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
 		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
-		const handle = await launch(nextHandle(slug, phase), phase, prompt, base, issue, only);
+		const launchedAt = Date.now();
+		const handle = await launch(nextHandle(slug, phase), phase, prompt, base, pathOf(c.into), issue, only);
 		if (c.handle) c.workers.push(c.handle);
-		Object.assign(c, { phase, handle, launchedAt: Date.now(), handledTs: undefined });
+		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0 };
 		save();
 	}
@@ -240,7 +249,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		delete s.exceptions[ex.node];
 		if (ex.node !== target && s.chains[ex.node]) s.chains[ex.node].held = false;
-		if (r.action === "answer" && c?.handle && alive(c.handle)) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = new Date().toISOString(); }
+		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = new Date().toISOString(); }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issues.get(target)!, issues); } }
 		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
 		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
@@ -273,14 +282,15 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 					s.resolved[ex.node]?.length ? "Earlier resolutions for " + ex.node + ":\n" + s.resolved[ex.node].map(l => "- " + l).join("\n") : "",
 				].filter(Boolean).join("\n\n");
 				try {
-					ex.handler = await launch(nextHandle(ex.level, "handler"), "handle", prompt, git(col.path, "rev-parse", "HEAD"));
-					ex.handlerLaunchedAt = Date.now(); save();
+					ex.handlerLaunchedAt = Date.now();
+					ex.handler = await launch(nextHandle(ex.level, "handler"), "handle", prompt, git(col.path, "rev-parse", "HEAD"), col.path);
+					save();
 				} catch (e) { note("handler launch failed: " + e); ex.level = "owner"; save(); }
 				continue;
 			}
 			const m = fresh(ex.handler, ex.handlerHandledTs, ex.handlerLaunchedAt);
 			if (!m) {
-				if (Date.now() - (ex.handlerLaunchedAt ?? 0) > START_GRACE_MS && !alive(ex.handler)) await applyResolution(ex, { action: "escalate", summary: "the handler died without resolving" }, issues);
+				if (Date.now() - (ex.handlerLaunchedAt ?? 0) > START_GRACE_MS && alive(ex.handler) === false) await applyResolution(ex, { action: "escalate", summary: "the handler died without resolving" }, issues);
 				continue;
 			}
 			ex.handlerHandledTs = m.ts;
@@ -315,8 +325,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		try { return await fn(); } finally { rmSync(lockDir, { recursive: true, force: true }); }
 	}
 	async function retireHandle(h: Handle, into: string) {
-		try { await retire(h, { cwd }); } catch (e) { note("retire " + h.handle + ": " + e); }
-		try { if (!git(into, "cherry", "HEAD", h.handle).split("\n").some(l => l.startsWith("+"))) git(cwd, "branch", "-D", h.handle); } catch {}
+		try { await retire(h, { cwd: into }); } catch (e) { note("retire " + h.handle + ": " + e); }
 	}
 	async function retireChain(c: Chain) { for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into)); }
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
@@ -398,6 +407,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			}
 			{
 				const col = ensureCollector(slug, c.into);
+				// Refinement created children: redirect its prepared branch into the new collector.
+				git(h.path, "config", "branch." + h.handle + ".ab-parent", col.branch);
 				try { await locked(() => integrate(h, { cwd: col.path, keep: true })); }
 				catch (e) { return raise(slug, "decomposition did not land: " + e, text, issues); }
 				note("decomposed " + slug + " into " + kids.map(k => k.slug).join(", "));
@@ -437,9 +448,12 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	function ensureCollector(slug: string, into: string) {
 		if (s.collectors[slug]) return s.collectors[slug];
-		const path = resolve(cwd, "..", basename(cwd) + "__worktrees", slug + "--tree"), branch = "tree/" + slug;
+		const path = resolve(repoRoot(cwd) + "__worktrees", slug + "--tree"), branch = "tree/" + slug;
+		const parentBranch = git(pathOf(into), "branch", "--show-current");
+		if (!parentBranch) throw new Error("Collector destination needs a branch: " + pathOf(into));
 		if (!existsSync(path)) git(cwd, "worktree", "add", "-q", "-b", branch, path, git(pathOf(into), "rev-parse", "HEAD"));
-		s.collectors[slug] = { path, branch };
+		git(path, "config", "branch." + branch + ".ab-parent", parentBranch);
+		s.collectors[slug] = { path, branch, parentBranch };
 		save();
 		return s.collectors[slug];
 	}
@@ -475,7 +489,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (c.held) return "active";
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
 		if (m) { try { await onReport(slug, c, m, issues); } catch (e) { raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues); } return "active"; }
-		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && !alive(c.handle)) {
+		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
 			c.retries.relaunch = (c.retries.relaunch ?? 0) + 1;
 			if (c.retries.relaunch > BUDGET.relaunch) raise(slug, c.phase + " worker died " + BUDGET.relaunch + " times", "worktree " + c.handle.path, issues);
 			else { note(c.phase + " worker for " + slug + " is gone; relaunching"); const kept = c.retries.relaunch; await startPhase(slug, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "A previous worker on this phase died; its worktree may hold partial commits in your base."); c.retries.relaunch = kept; save(); }
@@ -487,8 +501,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const saved = c.into;
 		c.base = git(from, "rev-parse", "HEAD");
 		const prompt = [ticketText(issue), "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children.", c.note ? "Note from the supervisor: " + c.note : ""].filter(Boolean).join("\n\n");
-		c.handle = await launch(nextHandle(slug, "implement"), "implement", prompt, c.base, issue);
-		Object.assign(c, { into: saved, phase: "implement", launchedAt: Date.now(), handledTs: undefined });
+		const launchedAt = Date.now();
+		c.handle = await launch(nextHandle(slug, "implement"), "implement", prompt, c.base, pathOf(c.into), issue);
+		Object.assign(c, { into: saved, phase: "implement", launchedAt, handledTs: undefined });
 		save();
 	}
 	const visited = new Set<string>();
@@ -512,8 +527,6 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			const open = [...all.values()].filter(i => !finished(i) && (i.slug === s.root || under(i, all)));
 			s.finished = result === "done" ? "done" : "stuck";
 			save();
-			// Workers ran as windows of a tmux session named for the root; with them all retired it is an empty shell.
-			try { execFileSync("tmux", ["kill-session", "-t", "=" + s.root], { stdio: "ignore" }); } catch {}
 			tellOwner((result === "done" ? "done: " + s.root + " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", "HEAD") : "stopped with open work: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", "))
 				+ (Object.keys(s.moved).length ? "\nMoved out: " + Object.entries(s.moved).map(([k, v]) => k + ": " + v).join("; ") : ""));
 			return;

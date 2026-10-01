@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { install as sessionMeta, spawnMeta } from "./host";
 
-type Handler = (event: unknown, ctx: ExtensionContext) => void;
+type Handler = (event: unknown, ctx: ExtensionContext) => void | Promise<void>;
 type Entry = { type: "custom"; customType: string; data: unknown };
 const active = new Set<() => void>();
 afterEach(() => { for (const stop of active) stop(); active.clear(); });
@@ -13,7 +13,7 @@ afterEach(() => { for (const stop of active) stop(); active.clear(); });
 function host(manager?: SessionManager) {
 	const entries: Entry[] = [];
 	const handlers = new Map<string, Handler>();
-	const ctx = { mode: "tui", sessionManager: { getBranch: () => manager?.getBranch() ?? entries } } as unknown as ExtensionContext;
+	const ctx = { mode: "tui", sessionManager: { getBranch: () => manager?.getBranch() ?? entries, getSessionId: () => manager?.getSessionId() ?? "unregistered", getSessionFile: () => manager?.getSessionFile() } } as unknown as ExtensionContext;
 	const api = {
 		on: (name: string, handler: Handler) => handlers.set(name, handler),
 		appendEntry: (customType: string, data: unknown) => {
@@ -26,10 +26,10 @@ function host(manager?: SessionManager) {
 	return { entries, api, start: (mode: ExtensionContext["mode"] = "tui") => handlers.get("session_start")!({}, { ...ctx, mode }) };
 }
 
-function withEnv(vars: Record<string, string | undefined>, run: () => void) {
+async function withEnv(vars: Record<string, string | undefined>, run: () => void | Promise<void>) {
 	const saved = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
 	for (const [k, v] of Object.entries(vars)) v === undefined ? delete process.env[k] : (process.env[k] = v);
-	try { run(); } finally {
+	try { await run(); } finally {
 		for (const [k, v] of Object.entries(saved)) v === undefined ? delete process.env[k] : (process.env[k] = v);
 	}
 }
@@ -53,15 +53,15 @@ describe("spawnMeta", () => {
 // Replays docs/attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md.
 describe("extension", () => {
 	// Drive checks 1 and 3: ambient parent isolation and in-process restoration.
-	test.each(["drive-probe-parent", undefined])("records one entry at session start with ambient parent %s", (parent) => {
-		withEnv({ PI_WM_PARENT_SESSION: parent }, () => {
-			withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PI_WM_PARENT_SESSION: undefined, PI_SESSION_ID: undefined }, () => {
+	test.each(["drive-probe-parent", undefined])("records one entry at session start with ambient parent %s", async (parent) => {
+		await withEnv({ PI_WM_PARENT_SESSION: parent }, async () => {
+			await withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PI_WM_PARENT_SESSION: undefined, PI_SESSION_ID: undefined }, async () => {
 				expect(process.env.PI_WM_PARENT_SESSION).toBeUndefined();
 				const h = host();
 				sessionMeta(h.api);
-				h.start();
+				await h.start();
 				expect(h.entries).toEqual([{ type: "custom", customType: "session-meta", data: { run: "run", handle: "handle", agent: "auto", parentSession: undefined, mode: "tui" } }]);
-				h.start();
+				await h.start();
 				expect(h.entries).toHaveLength(1);
 			});
 			expect(process.env.PI_WM_PARENT_SESSION).toBe(parent);
@@ -69,14 +69,14 @@ describe("extension", () => {
 	});
 
 	// Drive check 2: inspect persisted provenance, using a seeded turn instead of a provider.
-	test.each(["drive-probe-parent", undefined])("persists parent provenance %s", (parent) => {
+	test.each(["drive-probe-parent", undefined])("persists parent provenance %s", async (parent) => {
 		const dir = mkdtempSync(join(tmpdir(), "session-meta-test-"));
 		try {
-			withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PI_WM_PARENT_SESSION: parent, PI_SESSION_ID: undefined }, () => {
+			await withEnv({ PI_WM_RUN: "run", PI_WM_HANDLE: "handle", PI_WM_AGENT: "auto", PI_WM_PARENT_SESSION: parent, PI_SESSION_ID: undefined }, async () => {
 				const manager = SessionManager.create(dir, dir);
 				const h = host(manager);
 				sessionMeta(h.api);
-				h.start();
+				await h.start();
 				// Pi buffers new sessions until their first assistant message.
 				manager.appendMessage({
 					role: "assistant", content: [{ type: "text", text: "OK" }],
@@ -97,13 +97,13 @@ describe("extension", () => {
 		}
 	});
 
-	test("records launch mode without spawn metadata, only once across resumes", () => {
-		withEnv({ PI_WM_RUN: undefined, PI_WM_HANDLE: undefined, PI_SESSION_ID: undefined }, () => {
+	test("records launch mode without spawn metadata, only once across resumes", async () => {
+		await withEnv({ PI_WM_RUN: undefined, PI_WM_HANDLE: undefined, PI_SESSION_ID: undefined }, async () => {
 			const h = host();
 			sessionMeta(h.api);
-			h.start("print");
+			await h.start("print");
 			expect(h.entries).toEqual([{ type: "custom", customType: "session-meta", data: { mode: "print" } }]);
-			h.start("tui");
+			await h.start("tui");
 			expect(h.entries).toHaveLength(1);
 		});
 	});

@@ -11,10 +11,13 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { readLive, removeLive, takeRetired, writeLive, type Live } from "./live";
 import { mailbox } from "../board/mailbox";
 import { send } from "../board/store";
+import { getThread, threadForSession } from "../thread/registry";
+import type { ThreadRecord } from "../thread/types";
 
 export const SPAWN_META = "session-meta";
 
 export interface SpawnMeta {
+	thread?: string;
 	agent?: string;
 	run?: string;
 	handle?: string;
@@ -35,27 +38,38 @@ export function spawnMeta(env: Record<string, string | undefined> = process.env)
 	return { ...wm, ...(invokedBy && { invokedBy }) };
 }
 
+/** Membership is current id + file, not inherited env, directory name or historical metadata. */
+export async function canonicalThread(sessionId: string, sessionFile?: string): Promise<ThreadRecord | undefined> {
+	let record = await threadForSession(sessionId);
+	if (!record && process.env.AB_THREAD_ID) record = await getThread(process.env.AB_THREAD_ID);
+	return record && !record.archived && record.sessionId === sessionId && record.sessionFile === sessionFile ? record : undefined;
+}
+
 export function install(pi: ExtensionAPI) {
 	const meta = spawnMeta();
 	let parentSession = meta?.parentSession ?? meta?.invokedBy;
 	let children = new Map<number, Live>();
 	let monitor: ReturnType<typeof setInterval> | undefined;
 	let ctx: ExtensionContext | undefined;
+	let thread: string | undefined;
 	const live = (state: "working" | "idle") => {
 		if (!ctx) return;
 		const sm = ctx.sessionManager;
 		try {
 			writeLive({ pid: process.pid, sessionId: sm.getSessionId(), sessionFile: sm.getSessionFile(), cwd: sm.getCwd(), state,
-				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, mode: ctx.mode, parentSession });
+				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, mode: ctx.mode, parentSession, thread });
 		} catch {}
 	};
-	pi.on("session_start", (_event, c) => {
+	pi.on("session_start", async (_event, c) => {
 		ctx = c;
-		const saved = c.sessionManager.getBranch().find((entry) => entry.type === "custom" && entry.customType === SPAWN_META);
-		if (saved?.type === "custom") {
-			const provenance = saved.data as SpawnMeta;
-			parentSession = provenance.parentSession ?? provenance.invokedBy ?? parentSession;
-		}
+		const saved = c.sessionManager.getBranch().filter((entry) => entry.type === "custom" && entry.customType === SPAWN_META).at(-1);
+		const provenance = saved?.type === "custom" ? saved.data as SpawnMeta : undefined;
+		const member = await canonicalThread(c.sessionManager.getSessionId(), c.sessionManager.getSessionFile());
+		thread = member?.id;
+		const worker = member?.worker ? { ...member.worker, agent: member.launch?.env?.PI_WM_AGENT, parentSession: member.launch?.env?.PI_WM_PARENT_SESSION } : undefined;
+		const metadata = { ...provenance, ...meta, ...worker, thread, mode: c.mode };
+		if (!thread) delete metadata.thread;
+		parentSession = metadata.parentSession ?? metadata.invokedBy;
 		clearInterval(monitor);
 		children.clear();
 		monitor = setInterval(() => {
@@ -67,8 +81,8 @@ export function install(pi: ExtensionAPI) {
 		}, 5000);
 		monitor.unref();
 		live("idle");
-		const recorded = c.sessionManager.getBranch().some((entry) => entry.type === "custom" && entry.customType === SPAWN_META);
-		if (!recorded) pi.appendEntry(SPAWN_META, { ...meta, mode: c.mode });
+		if (!saved || provenance?.thread !== thread || (worker && (provenance?.run !== worker.run || provenance?.handle !== worker.handle)))
+			pi.appendEntry(SPAWN_META, metadata);
 	});
 	pi.on("agent_start", () => live("working"));
 	pi.on("agent_end", () => live("idle"));

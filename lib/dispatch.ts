@@ -1,10 +1,9 @@
 // Launch a parent-planned ready wave as wm workers. No reading, routing, dependency graph, or retries.
 import { execFile, execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { existsSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
-import { markRetired, readLive } from "./session-meta/live.ts";
+import { allThreads, getThread, integrateThread, ThreadMergeConflict, workerThread, type ThreadRecord } from "./thread";
 import { HANDOFF_KEYS } from "./report.ts";
 
 export interface Assignment {
@@ -34,7 +33,7 @@ export interface Options {
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
   active: Handle[];
-  /** tmux session for the workers' windows; default the run's slug. */
+  /** Legacy receipt field; never selects a terminal transport. */
   session?: string;
   /** A run whose `decision` messages (on <follow>/**) each worker sees on its next turn, without waking. */
   follow?: string;
@@ -62,7 +61,8 @@ export function assertAssignee(task: Assignment) {
 /** A submitted worker. Plain data, so it survives being persisted (supervision state); reattach with wm.attach(run, handle). */
 export interface Handle {
   handle: string; run: string; path: string;
-  /** tmux session holding the worker's window; defaults to the run's slug. */
+  threadId?: string;
+  /** Legacy receipt field; never selects a terminal transport. */
   session?: string;
   /** The topic's last report before launch: topics are reused (redispatch, a restarted run), so
    * pass it as children.turnEnd's `after` cursor or an old report reads as this worker's. */
@@ -89,7 +89,7 @@ function ledger(cwd: string, task: Assignment, run: string, handle: Handle, pare
     const dir = join(common, "ab-dispatch");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, (run + "-" + task.handle).replace(/[^A-Za-z0-9_-]/g, "-") + ".json"), JSON.stringify({
-      run, handle: task.handle, issue: issue ?? null, path: handle.path, parent: parent ?? null,
+      run, handle: task.handle, threadId: handle.threadId, issue: issue ?? null, path: handle.path, parent: parent ?? null,
       agent: handle.handle, at: new Date().toISOString() }, null, 1));
   } catch {}
 }
@@ -137,7 +137,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       const cursor = (await (await import("./children.ts")).last(options.run + "/" + task.handle))?.cursor;
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
         agent: task.agent, role: task.role, base: task.base, model: task.model, effort: task.effort, cwd, parentSession: parent, session: options.session, follow: options.follow });
-      receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, ...(cursor && { cursor }) });
+      receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, threadId: worker.threadId, ...(cursor && { cursor }) });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {
       receipt.failed = { assignment: task, error: error instanceof Error ? error.message : String(error) };
@@ -156,95 +156,54 @@ export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
 export interface Integration { branch: string; mode: "rebase" | "merge"; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string }
-/** A receipt's Handle, or a bare handle name looked up among this checkout's worktrees and workmux windows. */
-async function handleOf(worker: Handle | string, cwd: string): Promise<Handle> {
-  if (typeof worker !== "string") return worker;
-  const path = resolve(cwd, "..", basename(cwd) + "__worktrees", worker);
-  if (!existsSync(path)) throw new Error("no worker " + worker + ": " + path + " does not exist; pass the receipt's {run, handle, path}");
-  const wm = await import("./wm.ts");
-  const entry = (await wm.workmuxStatus(cwd)).find(e => basename(e.workdir || e.worktree || "") === worker || e.branch === worker);
-  return { handle: worker, path, run: entry?.session ?? worker, session: entry?.session };
+/** Receipts resolve by registry identity/path, never by a guessed checkout layout. */
+async function recordOf(given: Handle | string, cwd: string): Promise<{ worker: Handle; thread: ThreadRecord }> {
+  let thread: ThreadRecord | undefined;
+  if (typeof given === "string") thread = await workerThread(given, cwd);
+  else if (given.threadId) thread = await getThread(given.threadId);
+  else {
+    const matches = (await allThreads(true)).filter(t => t.worker?.handle === given.handle && t.worker.run === given.run && t.cwd === resolve(given.path));
+    if (matches.length > 1) throw new Error("Ambiguous worker receipt: " + topic(given));
+    thread = matches[0];
+  }
+  if (!thread?.worker) throw new Error("No registered worker " + (typeof given === "string" ? given : topic(given)));
+  if (typeof given !== "string" && (thread.worker.handle !== given.handle || thread.worker.run !== given.run || thread.cwd !== resolve(given.path)))
+    throw new Error("Receipt does not match thread " + thread.id);
+  return { thread, worker: { ...(typeof given === "string" ? {} : given), ...thread.worker, path: thread.cwd, threadId: thread.id } };
 }
 
 export async function integrate(given: Handle | string,
     options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean; prepare?: (worker: Handle) => Promise<void> } = {}): Promise<Integration> {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const worker = await handleOf(given, cwd);
+  const { worker, thread } = await recordOf(given, cwd);
   const mode = options.mode ?? "rebase";
-  const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
-    execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
-  const conflicted = async (dir: string) => (await git(dir, "diff", "--name-only", "--diff-filter=U")).out.split("\n").filter(Boolean);
-  // Prepare the settled branch after rebasing, while the owner and worker still exist.
-  const prepare = async () => {
-    await options.prepare?.(worker);
-    const dirty = await git(worker.path, "status", "--porcelain");
-    if (dirty.code || dirty.out) throw new Error("integrate: preparation left uncommitted changes in " + worker.path + "\n" + dirty.out);
-  };
-  const dirty = await git(worker.path, "status", "--porcelain");
-  if (dirty.out) throw new Error("integrate: uncommitted changes in " + worker.path + "\n" + dirty.out);
-  const branch = (await git(worker.path, "branch", "--show-current")).out;
-  if (!branch) throw new Error("integrate: detached HEAD in " + worker.path);
-  if (mode === "rebase") {
-    const base = (await git(cwd, "rev-parse", "HEAD")).out;
-    // A branch that has merged the base before (a child resolving conflicts) is brought up to date by merging
-    // the base into it: rebasing would drop those merges and replay the commits into the conflicts they resolved.
-    const merged = (await git(worker.path, "rev-list", "--merges", "--count", base + "..HEAD")).out !== "0";
-    const contains = (await git(worker.path, "merge-base", "--is-ancestor", base, "HEAD")).code === 0;
-    const update = contains ? { code: 0 } : merged ? await git(worker.path, "merge", "--no-edit", "--no-verify", base) : await git(worker.path, "rebase", base);
-    if (update.code) { const files = await conflicted(worker.path); await git(worker.path, merged ? "merge" : "rebase", "--abort"); throw new MergeConflict(branch, files); }
-    await prepare();
-    const ff = await git(cwd, "merge", "--ff-only", branch);
-    if (ff.code) throw new Error("integrate: ff-only merge of " + branch + " failed: " + ff.err);
-  } else {
-    await prepare();
-    const merge = await git(cwd, "merge", "--no-ff", "--no-edit", branch);
-    if (merge.code) { const files = await conflicted(cwd); await git(cwd, "merge", "--abort"); throw new MergeConflict(branch, files); }
-  }
+  let branch: string;
+  try {
+    const integrated = await integrateThread(thread.id, { mode, prepare: options.prepare ? async () => options.prepare!(worker) : undefined });
+    branch = integrated?.branch ?? thread.branch ?? worker.handle;
+  } catch (error) { if (error instanceof ThreadMergeConflict) throw new MergeConflict(error.branch, error.files); throw error; }
   const result: Integration = { branch, mode };
   if (options.keep) return result;
-  return Object.assign(result, await retire(worker, { cwd, branch }));
+  return Object.assign(result, await retire(worker, { cwd }));
 }
 
-
-/** Processes still running from inside a retired worktree: tmux servers behind term.spawn (kept per pi
- * session so they survive restarts), dev servers, watchers. Closing the workmux window does not reach them. Matched by
- * working directory, which lsof still reports after the directory is deleted. Never the parent checkout. */
-async function killLeftovers(path: string, cwd: string): Promise<number[]> {
-  const root = resolve(path);
-  if (!root || root === "/" || cwd === root || cwd.startsWith(root + "/")) return [];
-  // Closing moves the worktree to .workmux_trash_<name>_<pid>_<ts> first, so its processes report that path.
-  const trash = join(resolve(root, ".."), ".workmux_trash_" + basename(root) + "_");
-  const listing = await new Promise<string>(done => execFile("lsof", ["-d", "cwd", "-Fpn"], (_, out) => done(out ?? "")));
-  const pids: number[] = [];
-  let pid = 0;
-  for (const line of listing.split("\n")) {
-    if (line[0] === "p") pid = Number(line.slice(1));
-    else if (line[0] === "n" && pid && pid !== process.pid && (line.slice(1) === root || line.slice(1).startsWith(root + "/") || line.slice(1).startsWith(trash))) pids.push(pid);
-  }
-  for (const id of pids) try { process.kill(id, "SIGTERM"); } catch {}
-  return pids;
-}
-/** Retire a worker's host resources, then delete its branch if all its patches are in HEAD.
- * An unmerged or still-checked-out branch is kept and reported in `branchKept`; that is not an error. */
+/** Retire through lifecycle, then delete only patches already in the recorded ab-parent. */
 export async function retire(given: Handle | string, options: { cwd?: string; branch?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const worker = await handleOf(given, cwd);
-  const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
-    execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
-  const branch = options.branch ?? (await git(worker.path, "branch", "--show-current")).out;
+  const { worker, thread } = await recordOf(given, cwd);
+  const git = (...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
+    execFile("git", ["-C", thread.project, ...args], (error, out, err) => done({ code: typeof (error as any)?.code === "number" ? (error as any).code : error ? 1 : 0, out: out.trim(), err: err.trim() })));
   const result: Awaited<ReturnType<typeof retire>> = {};
   const wm = await import("./wm.ts");
-  // Keep the branch here: whether it goes depends on its patches being upstream, decided below.
-  const root = resolve(worker.path);
-  for (const live of readLive()) if (live.cwd === root || live.cwd.startsWith(root + "/")) markRetired(live);
-  result.removed = await wm.attach(worker.run, worker.handle, cwd, worker.session).close(true);
-  result.killed = await killLeftovers(worker.path, cwd);
-  if (branch) {
-    await git(cwd, "worktree", "prune");
-    // Rebase integration rewrites commits, so "merged" means every patch is upstream (git cherry), not ancestry.
-    const cherry = await git(cwd, "cherry", "HEAD", branch);
+  const host = wm.attach(worker.run, worker.handle, cwd, worker.session, thread.id);
+  try { result.removed = await host.close(true); } finally { host.drop(); }
+  result.killed = (result.removed as { killed?: number[] } | undefined)?.killed ?? [];
+  if (thread.ownership === "owner" && thread.branch) {
+    const branch = thread.branch;
+    const parent = await git("config", "--get", "branch." + branch + ".ab-parent");
+    const cherry = parent.code || !parent.out ? { code: 1, out: "", err: "missing ab-parent" } : await git("cherry", parent.out, branch);
     const merged = !cherry.code && !cherry.out.split("\n").some(line => line.startsWith("+"));
-    const deleted = merged ? await git(cwd, "branch", "-D", branch) : { code: 1, out: "", err: "not merged into HEAD" };
+    const deleted = merged ? await git("branch", "-D", branch) : { code: 1, out: "", err: cherry.err || "not merged into " + parent.out };
     if (deleted.code) result.branchKept = branch + ": " + (deleted.err || deleted.out); else result.branchDeleted = branch;
   }
   return result;
