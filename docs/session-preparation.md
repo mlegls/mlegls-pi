@@ -4,7 +4,7 @@ Advancing spends the user's attention; supervision spends compute.
 
 - `introduce` is the intake check whenever the user says something about the project should change: find the story it serves, question the premise, find existing records, then update the story and either implement a settled session-sized change or record an issue.
 - `orient` answers where things stand and what to enter next. `advance` reads its scope through it.
-- `advance` makes progress on an issue or scope by its status and the rest of the tracker: shaping what isn't ready (triage for the most ready work per user decision, then, unscoped, areas ranked by importance and leverage for the user to pick and fork, then `shape` to spec), and handing what is ready to an execution supervisor (`tend`) in its own session, so interactive sessions stay interactive.
+- `advance` makes progress on an issue or scope by its status and the rest of the tracker: shaping what isn't ready (triage for the most ready work per user decision, then, unscoped, areas ranked by importance and leverage for the user to pick and fork, then `shape` until agent-ready), and handing what is ready to an execution supervisor (`tend`) in its own session, so interactive sessions stay interactive.
 - `shape` drives an issue toward executable contracts, using map and plan.
 - `supervise` owns an agent-ready subtree through execution: it starts a reconciler (`lib/reconcile`) on it, which gets specs to tickets, runs each ticket through implement → drive → review and integrates upward, and resolves the exceptions the reconciler's handlers could not.
 
