@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 author: session:01a0f324-32e8-732c-96ad-132d2d15485e
@@ -14,3 +14,7 @@ Fix: each job line lists the job's phase (marking integrate in progress) and the
 [First-use packet](../attachments/supervise-status-shows-each-jobs-running-services/index.md): the supplied CLI responded and the empty state held. Job phase, worker-service attribution and missing-worktree-service reporting remain unobservable: the supplied checkout has neither jobs nor relevant services, and no committed recipe recreates those states. The removed mocked probe does not supply a first-use starting state. This ticket still owns preparation and observation of those claims.
 
 CLI scope friction: [[projects/mlegls-pi/issues/supervise-status-empty-output-hides-checkout-scope]].
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/supervise-status-shows-each-jobs-running-services/index.md).
