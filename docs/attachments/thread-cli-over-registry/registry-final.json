@@ -1,0 +1,225 @@
+[
+  {
+    "id": "3dabf790-624e-44cf-9982-0411a7a35d79",
+    "sessionId": "3dabf790-624e-44cf-9982-0411a7a35d79",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-39-120Z_3dabf790-624e-44cf-9982-0411a7a35d79.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "branch": "main",
+    "ownership": "guest",
+    "archived": true,
+    "created": "2026-10-01T12:08:39.121Z",
+    "launch": {
+      "prompt": "Reply only done cli-ready. Do not use tools."
+    }
+  },
+  {
+    "id": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+    "sessionId": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-parent--/2026-10-01T12-06-04-929Z_3dbe61bd-be78-4d6c-914f-9516ff18765d.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/parent",
+    "branch": "parent",
+    "ownership": "owner",
+    "archived": true,
+    "created": "2026-10-01T12:06:04.929Z",
+    "launch": {
+      "args": [
+        "--approve"
+      ],
+      "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+    }
+  },
+  {
+    "id": "04bb610a-8a40-4687-b2b6-0e1c1f0c10af",
+    "sessionId": "04bb610a-8a40-4687-b2b6-0e1c1f0c10af",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-child--/2026-10-01T12-11-43-164Z_04bb610a-8a40-4687-b2b6-0e1c1f0c10af.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-child",
+    "branch": "cli-child",
+    "ownership": "owner",
+    "parent": "09060bac-0e21-48df-a4bf-5a48c3c45aa9",
+    "archived": true,
+    "created": "2026-10-01T12:11:43.165Z",
+    "launch": {
+      "cmd": "printf child-ready"
+    }
+  },
+  {
+    "id": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+    "sessionId": "63ca402a-c1f0-460e-a5b0-28c6b1bf5e42",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-06-31-829Z_63ca402a-c1f0-460e-a5b0-28c6b1bf5e42.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "branch": "main",
+    "ownership": "guest",
+    "archived": true,
+    "created": "2026-10-01T12:06:31.829Z",
+    "launch": {
+      "args": [
+        "--approve"
+      ],
+      "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+    }
+  },
+  {
+    "id": "1a1d1b95-7d40-4560-af7c-43335f46a6b5",
+    "sessionId": "1a1d1b95-7d40-4560-af7c-43335f46a6b5",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo--/2026-10-01T12-08-52-341Z_1a1d1b95-7d40-4560-af7c-43335f46a6b5.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "branch": "main",
+    "ownership": "guest",
+    "archived": true,
+    "created": "2026-10-01T12:08:52.342Z"
+  },
+  {
+    "id": "09060bac-0e21-48df-a4bf-5a48c3c45aa9",
+    "sessionId": "09060bac-0e21-48df-a4bf-5a48c3c45aa9",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-08-38-677Z_09060bac-0e21-48df-a4bf-5a48c3c45aa9.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner",
+    "branch": "cli-owner",
+    "ownership": "owner",
+    "archived": true,
+    "created": "2026-10-01T12:08:38.678Z",
+    "launch": {
+      "cmd": "bash --noprofile --norc"
+    }
+  },
+  {
+    "id": "60bf941e-40af-4c77-b61a-3d3a09b25e16",
+    "sessionId": "60bf941e-40af-4c77-b61a-3d3a09b25e16",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-fork--/2026-10-01T12-10-16-091Z_60bf941e-40af-4c77-b61a-3d3a09b25e16.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-fork",
+    "branch": "cli-fork",
+    "ownership": "owner",
+    "parent": "3dabf790-624e-44cf-9982-0411a7a35d79",
+    "archived": true,
+    "created": "2026-10-01T12:10:16.092Z"
+  },
+  {
+    "id": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+    "sessionId": "e3b17a28-2c29-40b9-9007-ef90b007dda9",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-child--/2026-10-01T12-06-14-816Z_e3b17a28-2c29-40b9-9007-ef90b007dda9.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/child",
+    "branch": "child",
+    "ownership": "owner",
+    "parent": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+    "archived": true,
+    "created": "2026-10-01T12:06:14.817Z",
+    "worker": {
+      "run": "lifecycle-fixture",
+      "handle": "child"
+    },
+    "launch": {
+      "args": [
+        "--approve",
+        "--append-system-prompt",
+        "This is a disposable fixture. When an archive conflict request arrives, do not change any files or run git. Reply blocked fixture-awaits-manual-resolution."
+      ],
+      "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+    }
+  },
+  {
+    "id": "01a0f75f-600f-7140-afb5-1ad4ffb0a401",
+    "sessionId": "01a0f75f-600f-7140-afb5-1ad4ffb0a401",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/free-session.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "branch": "main",
+    "ownership": "guest",
+    "archived": true,
+    "created": "2026-10-01T12:10:28.144Z"
+  },
+  {
+    "id": "dd4d8202-8d24-4498-ae72-ffefb4a011a0",
+    "sessionId": "dd4d8202-8d24-4498-ae72-ffefb4a011a0",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-logs--/2026-10-01T12-10-17-380Z_dd4d8202-8d24-4498-ae72-ffefb4a011a0.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-logs",
+    "branch": "cli-logs",
+    "ownership": "owner",
+    "archived": true,
+    "created": "2026-10-01T12:10:17.381Z",
+    "launch": {
+      "cmd": "printf cli-log-ready"
+    }
+  },
+  {
+    "id": "bfed9375-6f47-4308-9226-70eccdc18eaa",
+    "sessionId": "bfed9375-6f47-4308-9226-70eccdc18eaa",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-cli-owner--/2026-10-01T12-11-42-864Z_bfed9375-6f47-4308-9226-70eccdc18eaa.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/cli-owner",
+    "branch": "cli-owner",
+    "ownership": "guest",
+    "archived": true,
+    "created": "2026-10-01T12:11:42.865Z"
+  },
+  {
+    "id": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+    "sessionId": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon--/2026-10-01T12-06-21-030Z_0e67fdad-c185-4d78-b79d-4a97d127dba7.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon",
+    "branch": "abandon",
+    "ownership": "owner",
+    "archived": true,
+    "created": "2026-10-01T12:06:21.031Z",
+    "launch": {
+      "args": [
+        "--approve"
+      ],
+      "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+    }
+  },
+  {
+    "id": "164e1599-7248-4352-a05e-641da60759dc",
+    "sessionId": "164e1599-7248-4352-a05e-641da60759dc",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-early--/2026-10-01T12-06-10-102Z_164e1599-7248-4352-a05e-641da60759dc.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/early",
+    "branch": "early",
+    "ownership": "owner",
+    "parent": "3dbe61bd-be78-4d6c-914f-9516ff18765d",
+    "archived": true,
+    "created": "2026-10-01T12:06:10.111Z",
+    "launch": {
+      "args": [
+        "--approve"
+      ],
+      "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+    }
+  },
+  {
+    "id": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+    "sessionId": "f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf",
+    "sessionFile": "/private/tmp/ab-lifecycle-jvkTmu/agent/sessions/--private-tmp-ab-lifecycle-jvkTmu-repo__worktrees-abandon-child--/2026-10-01T12-06-27-172Z_f4ae6f3d-18e0-4fbe-84fb-a3eee094d0bf.jsonl",
+    "cwd": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child",
+    "project": "/private/tmp/ab-lifecycle-jvkTmu/repo",
+    "worktree": "/private/tmp/ab-lifecycle-jvkTmu/repo__worktrees/abandon-child",
+    "branch": "abandon-child",
+    "ownership": "owner",
+    "parent": "0e67fdad-c185-4d78-b79d-4a97d127dba7",
+    "archived": true,
+    "created": "2026-10-01T12:06:27.172Z",
+    "launch": {
+      "args": [
+        "--approve"
+      ],
+      "prompt": "This is a disposable lifecycle fixture. Reply only done fixture-ready. Do not use tools."
+    }
+  }
+]

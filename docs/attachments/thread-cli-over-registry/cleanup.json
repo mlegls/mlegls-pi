@@ -1,0 +1,31 @@
+{
+  "lifecycle-prepare": {
+    "root": "/private/tmp/ab-lifecycle-jvkTmu",
+    "exists": false,
+    "pids": [
+      {
+        "pid": 83303,
+        "alive": false
+      },
+      {
+        "pid": 77476,
+        "alive": false
+      }
+    ]
+  },
+  "done-prepare": {
+    "root": "/private/tmp/ab-lifecycle-Bga8EA",
+    "exists": false,
+    "pids": [
+      {
+        "pid": 43814,
+        "alive": false
+      },
+      {
+        "pid": 26256,
+        "alive": false
+      }
+    ]
+  },
+  "processesReferencingTargets": []
+}

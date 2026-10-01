@@ -22,3 +22,7 @@ Implement the exact command grammar in [[projects/mlegls-pi/issues/thread-regist
 ## First use / acceptance
 
 After `mise run setup`, drive the checkout's `bin/ab thread …` against a temporary owned git fixture, with isolated state/board and labelled zmx terminals. Exercise new → ls in both orders/JSON → fork → literal send/history → attach an aux shell → archive, plus guest promote/abandon. Repeat the archive journey through `merge`, including a child conflict/blocked-resume and a guest, to verify the alias has the same outputs, exit behavior and cleanup. Show CLI id/current-session/ownership and depth agree with registry records; JSON creation remains parseable when setup logs. Re-run `ab tree` without opening shared UI to prove routing was preserved. Supply exact fixture commands/ids for the driver, then remove all created fixture resources. Run existing regressions and typecheck. No native desktop/browser required.
+
+## Result
+
+[Independent CLI first use](../attachments/thread-cli-over-registry/index.md): creation/listing, literal input, auxiliary attachment, promote/abandon, archive and merge conflict/blocked/resume held. Fork copied history correctly but lost the source parent with PI_SESSION_FILE and an absent/stale PI_SESSION_ID; reviewer check C2 records the failure. Ambiguous worker-alias control C3 remains reviewer-owned. 177 regressions passed, 2 skipped; typecheck passed after the documented Obsidian dependency setup. All owned fixtures were removed.
