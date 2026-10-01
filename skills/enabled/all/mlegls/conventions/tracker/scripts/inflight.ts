@@ -1,15 +1,14 @@
-// Work in flight that the checked-out docs/issues/ cannot show. Supervision integrates upward, so a leaf's
-// close lands on its supervisor's branch and reaches the main checkout only when the root integrates;
+// Work in flight that the checked-out docs/issues/ cannot show. The reconciler integrates upward, so a leaf's
+// close lands on its parent's collector branch and reaches the main checkout only when the root integrates;
 // meanwhile the tracker would offer that leaf again. Three sources, all derived, never written back:
-//   - ab supervise job records under the repository's git dir: each running loop's children, and the
-//     children of the latest failed/stopped loop per ticket (orphaned: their agents run unsupervised);
+//   - reconciler state under the repository's git dir: every node of an unfinished run (stalled when its
+//     process is gone);
 //   - workers lib/dispatch.ts recorded under the git dir (ab-dispatch/), while their worktree lives;
 //   - worktree branches ahead of the main checkout: a branch named for the issue, or one whose tip
 //     already has the issue at stage: done.
 // A slug with entries is treated as claimed. TRACKER_NO_INFLIGHT=1 disables the overlay.
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
-import { homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 
 const git = (cwd: string, ...args: string[]) => {
@@ -17,37 +16,21 @@ const git = (cwd: string, ...args: string[]) => {
   return p.status === 0 ? p.stdout.trim() : null;
 };
 
-interface Job { id: string; type: string; status: string; input?: { ticket?: string; cwd?: string };
-  state?: { children?: Record<string, { phase: string; waiting?: string | null; unreachable?: boolean | null; handle?: { agentId?: string; handle?: string } }>; integrated?: string[] } }
+// A reconciler's state (lib/reconcile, <git-common-dir>/reconcile/<root>.json) names every node it is
+// carrying; unfinished state whose pid is gone is a stalled run nothing advances.
+interface Run { root: string; pid?: number; finished?: string; chains?: Record<string, { phase: string; held?: boolean; handle?: { handle?: string } }> }
 
-// The ab daemon's index names the job records it still hosts; a record it dropped (a lost worktree, a
-// daemon state reset) can still say running on disk while nothing runs it.
-function hosted(): Set<string> | null {
-  const index = join(process.env.AB_STATE ?? join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "ab"), "jobs.json");
-  try { return new Set((JSON.parse(readFileSync(index, "utf8")) as string[]).map(f => { try { return realpathSync(f); } catch { return f; } })); } catch { return null; }
-}
-
-function jobs(common: string): { job: Job; mtime: number }[] {
-  const live = hosted();
-  const dirs = [join(common, "ab-supervise")];
-  const wt = join(common, "worktrees");
-  if (existsSync(wt)) for (const n of readdirSync(wt)) dirs.push(join(wt, n, "ab-supervise"));
-  const out: { job: Job; mtime: number }[] = [];
-  for (const d of dirs) {
-    if (!existsSync(d)) continue;
-    for (const n of readdirSync(d)) {
-      if (!n.endsWith(".json")) continue;
-      const f = join(d, n);
-      try {
-        const job = JSON.parse(readFileSync(f, "utf8")) as Job;
-        if (job.type !== "supervise") continue;
-        if (job.status === "running" && live && !live.has(realpathSync(f))) job.status = "unhosted";
-        out.push({ job, mtime: statSync(f).mtimeMs });
-      } catch {}
-    }
+function runs(common: string): Run[] {
+  const d = join(common, "reconcile");
+  if (!existsSync(d)) return [];
+  const out: Run[] = [];
+  for (const n of readdirSync(d)) {
+    if (!n.endsWith(".json")) continue;
+    try { out.push(JSON.parse(readFileSync(join(d, n), "utf8")) as Run); } catch {}
   }
   return out;
 }
+const alive = (pid?: number) => { try { if (pid) { process.kill(pid, 0); return true; } } catch {} return false; };
 
 export function inflight(issuesDir: string, done: (slug: string) => boolean): Map<string, string[]> {
   const found = new Map<string, string[]>();
@@ -61,29 +44,16 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
   const trees = list.split("\n\n").map(b => ({ path: b.match(/^worktree (.+)$/m)?.[1], head: b.match(/^HEAD (\w+)$/m)?.[1], branch: b.match(/^branch refs\/heads\/(.+)$/m)?.[1] })).filter(t => t.path && t.head);
   const main = trees[0];
   if (!main?.head) return found;
-  const short = (id?: string) => (id ?? "?").slice(0, 8);
 
-  const latest = new Map<string, { job: Job; mtime: number }>();
-  for (const j of jobs(common)) {
-    const t = j.job.input?.ticket ?? j.job.id;
-    if (j.job.status === "running") {
-      for (const [slug, c] of Object.entries(j.job.state?.children ?? {}))
-        add(slug, "supervised " + c.phase + " by " + short(c.handle?.agentId ?? c.handle?.handle) + (c.unreachable ? " (unreachable)" : c.waiting ? " (waiting: " + c.waiting + ")" : ""));
-    }
-    if (!latest.has(t) || latest.get(t)!.mtime < j.mtime) latest.set(t, j);
-    // Integrated into a supervisor's checkout that is not the main one: done there, not here yet.
-    const cwd = j.job.input?.cwd;
-    if (cwd && resolve(cwd) !== resolve(main.path!)) {
-      const branch = trees.find(t => t.path && resolve(t.path) === resolve(cwd))?.branch;
-      if (branch) for (const slug of j.job.state?.integrated ?? []) if (!done(slug)) add(slug, "integrated on " + branch);
-    }
+  for (const r of runs(common)) {
+    if (r.finished) continue;
+    const how = alive(r.pid) ? "" : " (stalled: reconciler for " + r.root + " not running)";
+    for (const [slug, c] of Object.entries(r.chains ?? {}))
+      add(slug, "reconciling " + c.phase + (c.handle?.handle ? " by " + c.handle.handle : "") + (c.held ? " (held)" : "") + how);
   }
-  for (const [, { job }] of latest) if (job.status !== "running" && job.status !== "completed")
-    for (const [slug, c] of Object.entries(job.state?.children ?? {}))
-      add(slug, "orphaned " + c.phase + " by " + short(c.handle?.agentId ?? c.handle?.handle) + " (" + job.status + " loop " + job.id + ")");
 
-  // Workers dispatched outside a loop (lib/dispatch.ts records them): live while their worktree exists and
-  // its branch is ahead of the main checkout. A loop's own children are recorded too and read the same.
+  // Workers lib/dispatch.ts recorded: live while their worktree exists. A reconciler's workers are recorded
+  // too and read the same.
   const ledger = join(common, "ab-dispatch");
   if (existsSync(ledger)) for (const n of readdirSync(ledger)) {
     try {
@@ -91,7 +61,7 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
       if (!d.issue || !d.path || !existsSync(d.path) || done(d.issue)) continue;
       const head = git(d.path, "rev-parse", "HEAD");
       const ahead = head ? Number(git(issuesDir, "rev-list", "--count", main.head + ".." + head) ?? 0) : 0;
-      add(d.issue, "dispatched " + short(d.agent) + " (" + d.run + (ahead ? ", +" + ahead : ", no commits yet") + ")");
+      add(d.issue, "dispatched " + (d.agent ?? "?") + " (" + d.run + (ahead ? ", +" + ahead : ", no commits yet") + ")");
     } catch {}
   }
 

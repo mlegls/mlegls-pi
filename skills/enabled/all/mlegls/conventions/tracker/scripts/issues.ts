@@ -19,7 +19,7 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight } from "./inflight.ts";
-// Derived claims from supervise loops and worktree branches (./inflight.ts); set once the issues load.
+// Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
 let flight = new Map<string, string[]>();
 
 type Issue = {
