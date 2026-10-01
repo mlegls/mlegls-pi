@@ -11,7 +11,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Type } from "typebox";
 import { storePath } from "../../lib/records/store.ts";
-import { similar } from "../../lib/records/vectors.ts";
+import { dedupe, nearest } from "../../lib/records/vectors.ts";
+import { spawnSync } from "node:child_process";
 import { recallElided } from "./elide.ts";
 import { formatRecallRenderedResultForTui, recallObservationTool } from "./om/tools/recall-observation.ts";
 
@@ -20,8 +21,8 @@ const DESCRIPTION = "Recall anything remembered: OM memories, journal notes, eli
 	"Functions:\n" +
 	"- id: q \"id\", args [id], or just q \"<id>\": a 12-hex memory id (OM observation/reflection, with its sources; an elided output, in full) or any record id (board message ids like muppbafa-6uviod), shown with tags and edges.\n" +
 	"- entry: args [\"entry:<session>/<entry>\" or an entry id on this branch, ...]: the session entries' text.\n" +
-	"- search: args [text, schema?]: records whose body contains text, newest first.\n" +
-	"- similar: args [question or description, schema?, k?]: records nearest in meaning (embeddings), best first; for when you don't know the words used.\n" +
+	"- search: args [text, schema?]: full-text search (all words, stemmed, bm25-ranked); falls back to substring match.\n" +
+	"- similar: args [question or description, schema?, k?, \"rerank\"?]: records nearest in meaning (embeddings fused with full-text rank, near-duplicates dropped), best first; for when you don't know the exact words. \"rerank\" has Jev reorder and drop weak matches (+~1s).\n" +
 	"SQL (SQLite, read-only; at most 100 rows, long cells cut):\n" +
 	"- records(seq, id, ts, schema, body): append-only; schema is om | journal | elided | board | cursor.\n" +
 	"- tags(record → records.seq, key, value, ord): every record has session. om: om.kind (observation | reflection | drop), om.id (the 12-hex memory id), om.timestamp, om.relevance, om.tokenCount. journal: journal.via, journal.model. elided: tool, tokens. board: topic, name, cwd, free tags (decision, blocked, done, …) and board.<field> data.\n" +
@@ -103,6 +104,43 @@ function recordById(d: Database, id: string): string | undefined {
 		...edges.map((e) => "  → " + e.rel + " " + e.dst), "", r.body].join("\n");
 }
 
+/** Full-text hits (seqs, best first): words quoted so punctuation can't break FTS syntax, joined by AND or OR. */
+function fts(d: Database, q: string, join: "AND" | "OR", n: number, schema?: string): number[] {
+	const words = q.match(/[\p{L}\p{N}_]+/gu) ?? [];
+	if (!words.length) return [];
+	const match = words.map((w) => '"' + w + '"').join(" " + join + " ");
+	// Cursor records are bookkeeping (read positions), searched only when asked for by schema.
+	return (d.query("SELECT f.rowid AS seq FROM records_fts f JOIN records r ON r.seq = f.rowid AND " + (schema ? "r.schema = ?" : "r.schema != 'cursor'") + " WHERE records_fts MATCH ? ORDER BY bm25(records_fts) LIMIT ?")
+		.all(...((schema ? [schema, match, n] : [match, n]) as (string | number)[])) as { seq: number }[]).map((x) => x.seq);
+}
+
+/** Vector and full-text rankings fused (reciprocal rank, k=60), near-duplicates dropped, optionally reranked by Jev. */
+async function hybrid(question: string, schema: string | undefined, k: number, rerank: boolean): Promise<string> {
+	const POOL = 50, RRF = 60;
+	const { hits, pending } = await nearest(question, { schema, k: POOL });
+	const d = new Database(storePath(), { readonly: true });
+	try {
+		const score = new Map<number, number>();
+		hits.forEach((h, i) => score.set(h.seq, (score.get(h.seq) ?? 0) + 1 / (RRF + i)));
+		fts(d, question, "OR", POOL, schema).forEach((seq, i) => score.set(seq, (score.get(seq) ?? 0) + 1 / (RRF + i)));
+		let seqs = dedupe([...score.keys()].sort((a, b) => score.get(b)! - score.get(a)!));
+		const rec = (seq: number) => d.query("SELECT id, ts, schema, substr(body, 1, 400) AS body FROM records WHERE seq = ?").get(seq) as Record<string, unknown>;
+		let note = "";
+		if (rerank) {
+			const pool = seqs.slice(0, 30);
+			const input = pool.map((seq) => String(rec(seq).body).replace(/\s+/g, " ")).join("\n");
+			const out = spawnSync("jev-axi", ["rank", question, "-", "--json", "--top", String(k), "--min", "0.05"], { input, encoding: "utf8", timeout: 30_000 });
+			try {
+				const j = JSON.parse(out.stdout);
+				seqs = j.ranked.map((r: any) => pool[Number(String(r.item).replace(/\D/g, "")) - 1]).filter((x: number | undefined) => x !== undefined);
+				note = "\n[reranked by Jev; match_exists " + j.match_exists + "]";
+			} catch { note = "\n[Jev rerank failed; fused order shown: " + (out.stderr || out.error?.message || "").slice(0, 200) + "]"; }
+		}
+		const rows = seqs.slice(0, k).map((seq) => ({ fused: (score.get(seq) ?? 0).toFixed(4), ...rec(seq) }));
+		return table(rows, rows.length) + note + (pending ? "\n[" + pending + " newer records not embedded yet]" : "");
+	} finally { d.close(); }
+}
+
 const text = (s: string, details?: unknown) => ({ content: [{ type: "text" as const, text: s }], details });
 
 export default function (pi: ExtensionAPI) {
@@ -137,20 +175,9 @@ export default function (pi: ExtensionAPI) {
 				if (elided) return { content: elided.content, details: undefined };
 			}
 			if (fn === "similar") {
-				const [question, schema, k] = args;
-				if (!question) return text("similar needs args: [question, schema?, k?]");
-				const { hits, pending } = await similar(String(question), { schema: schema ? String(schema) : undefined, k: Number(k) || 10 });
-				const d = new Database(storePath(), { readonly: true });
-				try {
-					const seen = new Set<string>();
-					const rows = hits.flatMap((h) => {
-						const r = d.query("SELECT id, ts, schema, substr(body, 1, 400) AS body FROM records WHERE seq = ?").get(h.seq) as Record<string, unknown> | null;
-						if (!r || seen.has(r.body as string)) return [];
-						seen.add(r.body as string);
-						return [{ score: h.score.toFixed(3), ...r }];
-					});
-					return text(table(rows, rows.length) + (pending ? "\n[" + pending + " newer records not embedded yet]" : ""));
-				} finally { d.close(); }
+				const [question, schema, k, rerank] = args;
+				if (!question) return text("similar needs args: [question, schema?, k?, \"rerank\"?]");
+				return text(await hybrid(String(question), schema ? String(schema) : undefined, Number(k) || 10, rerank === "rerank"));
 			}
 			if (fn === "entry") return text(args.length ? entries(args.map(String), branch) : "entry needs args: entry refs or ids");
 			const d = open(branch);
@@ -159,7 +186,9 @@ export default function (pi: ExtensionAPI) {
 				if (fn === "search") {
 					const [needle, schema] = args.map(String);
 					if (!needle) return text("search needs args: [text, schema?]");
-					const rows = d.query("SELECT id, ts, schema, substr(body, 1, 300) AS body FROM records WHERE body LIKE ? " + (schema ? "AND schema = ? " : "") + "ORDER BY seq DESC LIMIT 20")
+					// Ranked full-text (all words, stemmed); a substring scan when that finds nothing (partial identifiers).
+					let rows = fts(d, needle, "AND", 20, schema).map((seq) => d.query("SELECT id, ts, schema, substr(body, 1, 300) AS body FROM records WHERE seq = ?").get(seq) as Record<string, unknown>);
+					if (!rows.length) rows = d.query("SELECT id, ts, schema, substr(body, 1, 300) AS body FROM records WHERE body LIKE ? " + (schema ? "AND schema = ? " : "AND schema != 'cursor' ") + "ORDER BY seq DESC LIMIT 20")
 						.all(...(["%" + needle + "%", ...(schema ? [schema] : [])] as string[])) as Record<string, unknown>[];
 					return text(table(rows, rows.length));
 				}

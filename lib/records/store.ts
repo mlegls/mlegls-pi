@@ -82,6 +82,11 @@ CREATE TABLE IF NOT EXISTS edges (
 );
 CREATE INDEX IF NOT EXISTS edges_src ON edges(src, rel);
 CREATE INDEX IF NOT EXISTS edges_dst ON edges(dst, rel);
+-- Full-text index over bodies (external content: no second copy), kept current by trigger for every writer.
+CREATE VIRTUAL TABLE IF NOT EXISTS records_fts USING fts5(body, content='records', content_rowid='seq', tokenize='porter unicode61');
+CREATE TRIGGER IF NOT EXISTS records_fts_insert AFTER INSERT ON records BEGIN
+	INSERT INTO records_fts(rowid, body) VALUES (new.seq, new.body);
+END;
 `;
 
 let cached: { path: string; db: Database } | undefined;
@@ -97,6 +102,9 @@ export function db(): Database {
 	d.exec("PRAGMA journal_mode = WAL");
 	d.exec("PRAGMA synchronous = NORMAL");
 	d.exec(SCHEMA);
+	// A store that predates the full-text index gets it built once.
+	const docs = (d.query("SELECT count(*) AS n FROM records_fts_docsize").get() as { n: number }).n;
+	if (!docs && (d.query("SELECT count(*) AS n FROM records").get() as { n: number }).n) d.exec("INSERT INTO records_fts(records_fts) VALUES ('rebuild')");
 	cached = { path, db: d };
 	return d;
 }

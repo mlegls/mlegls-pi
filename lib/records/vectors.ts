@@ -1,5 +1,5 @@
 // Embeddings of the records store, for similarity recall. A derived index in its own file (records-vec.db next to
-// records.db): rebuildable, so the append-only log stays the only source of truth. Vectors are Qwen3-Embedding-4B
+// records.db): rebuildable, so the append-only log stays the only source of truth. Vectors are Qwen3-Embedding-8B
 // via OpenRouter at 512 dimensions (MRL; key from OPENROUTER_API_KEY or pi's auth.json), queries carrying Qwen's
 // instruction prefix, documents bare; unit-normalized and int8-quantized. Changing MODEL or DIMS rebuilds. Search is a
 // brute-force dot product over an in-memory copy, which at ~100k records is ~50MB and tens of milliseconds.
@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { db as recordsDb, storeDir } from "./store.ts";
 
-const MODEL = "qwen/qwen3-embedding-4b", DIMS = 512;
+const MODEL = "qwen/qwen3-embedding-8b", DIMS = 512;
 const QUERY = "Instruct: Given a question about earlier agent work, retrieve the memories, notes or messages that answer it\nQuery: ";
 /** Schemas worth searching; cursor records are bookkeeping. */
 export const EMBEDDED = ["om", "journal", "board", "elided"];
@@ -97,19 +97,21 @@ export async function catchUp(limit = Infinity, log?: (s: string) => void): Prom
 
 // In-memory copy of the vectors, extended as new ones are embedded.
 let mem = { seqs: [] as number[], schemas: [] as string[], v: new Int8Array(0), top: 0 };
+const row = new Map<number, number>();
 function load() {
 	const rows = vdb().query("SELECT seq, schema, v FROM vec WHERE seq > ? ORDER BY seq").all(mem.top) as { seq: number; schema: string; v: Uint8Array }[];
 	if (!rows.length) return;
 	const v = new Int8Array(mem.v.length + rows.length * DIMS);
 	v.set(mem.v);
 	rows.forEach((x, i) => v.set(new Int8Array(x.v.buffer, x.v.byteOffset, DIMS), mem.v.length + i * DIMS));
+	rows.forEach((x, i) => row.set(x.seq, mem.seqs.length + i));
 	mem = { seqs: [...mem.seqs, ...rows.map((x) => x.seq)], schemas: [...mem.schemas, ...rows.map((x) => x.schema)], v, top: rows[rows.length - 1].seq };
 }
 
 export interface Hit { seq: number; score: number }
 
 /** Records most similar to `text`, best first; catches up on at most `catchUpLimit` new records first. */
-export async function similar(text: string, o: { k?: number; schema?: string; seqs?: Set<number>; catchUpLimit?: number } = {}): Promise<{ hits: Hit[]; pending: number }> {
+export async function nearest(text: string, o: { k?: number; schema?: string; seqs?: Set<number>; catchUpLimit?: number } = {}): Promise<{ hits: Hit[]; pending: number }> {
 	const pending = await catchUp(o.catchUpLimit ?? 2000);
 	load();
 	const q = new Int8Array(quantize((await embed([QUERY + text]))[0]).buffer);
@@ -129,11 +131,28 @@ export async function similar(text: string, o: { k?: number; schema?: string; se
 	return { hits: hits.map((h) => ({ seq: h.seq, score: h.score / (127 * 127) })), pending };
 }
 
+/** `seqs` in order, dropping any whose cosine with an already kept one exceeds `threshold` (restated memories). */
+export function dedupe(seqs: number[], threshold = 0.95): number[] {
+	load();
+	const kept: number[] = [], rows: number[] = [];
+	for (const seq of seqs) {
+		const i = row.get(seq);
+		if (i !== undefined && rows.some((j) => {
+			let s = 0;
+			for (let d = 0; d < DIMS; d++) s += mem.v[i * DIMS + d] * mem.v[j * DIMS + d];
+			return s / (127 * 127) > threshold;
+		})) continue;
+		kept.push(seq);
+		if (i !== undefined) rows.push(i);
+	}
+	return kept;
+}
+
 if (import.meta.main) {
 	const arg = process.argv[2];
 	if (arg === "backfill") console.log("pending: " + (await catchUp(Infinity, (s) => console.error(s))));
 	else if (arg) {
-		const { hits } = await similar(arg, { catchUpLimit: 0 });
+		const { hits } = await nearest(arg, { catchUpLimit: 0 });
 		const r = recordsDb();
 		for (const h of hits) {
 			const x = r.query("SELECT schema, id, substr(body, 1, 160) AS body FROM records WHERE seq = ?").get(h.seq) as any;
