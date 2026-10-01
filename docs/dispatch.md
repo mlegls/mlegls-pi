@@ -1,78 +1,49 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, admission (`route.prepare`), concurrency and acceptance. `dispatch.dispatch` only launches prepared assignments, each as a `wm` worker: a workmux worktree and tmux window running pi, reporting on board topic `<run>/<handle>`.
+The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker: a workmux worktree and tmux window running pi, reporting on board topic `<run>/<handle>`.
 
-```ts
-show(state.launch = dispatch.dispatch([
+```js
+const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: [], assignments: [
   { handle: "unit-a", prompt: "Self-contained assignment, context, constraints and completion criterion",
-    agent: "auto", model: "openai-codex/gpt-6.1-sol", effort: "high", base: "<exact Git ref>" }
-], { run: "feature-x", maxConcurrent: 2, active: [] }));
+    agent: "auto", base: "<exact Git ref>" },
+] });
+store("wave", wave);
 ```
 
-From bash, the same call takes JSON arguments: `ab lib dispatch dispatch '[{"handle":"unit-a",…}]' '{"run":"feature-x","maxConcurrent":2,"active":[]}' > receipt.json`. It prints the receipt; a long launch arrives as a late result.
+Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` (default 8) is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`.
 
-Later retrieve `state.wave = await state.launch`. Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` is required; it is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`. An uncertain launch must be resolved before the next wave; it may still consume capacity.
-
-Assignments require `handle`, self-contained `prompt`, `model` (`provider/model`), and `effort`. Optional `agent` names a roster stance, not a host preset. Optional `base` passes the exact Git ref to the host; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, routing, dependency scheduling, or inherited issue ownership.
+Assignments require `handle`, a self-contained `prompt`, and either `agent` (a roster stance in `agents/`; its execution is the `stance/<agent>` virtual model) or an exact `model` (`provider/model`) and `effort`. Optional `base` passes the exact Git ref; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, dependency scheduling, or inherited issue ownership.
 
 The receipt contains:
 
-- `submitted`: `{handle, run, path}` per launch, plain data you can persist; `dispatch.topic(h)` is its board topic and child ID, and `wm.attach(run, handle)` rebuilds the Worker.
+- `submitted`: `{handle, run, path}` per launch, plain data you can persist; `<run>/<handle>` is its board topic.
 - `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree workmux may have created before deciding what to do.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
 
 ## Supervision
 
-Workers report by ending their turn: the last message starts with `done`, `blocked`, or `needs-input` (`lib/report.ts`), posted on `<run>/<handle>`. Dispatch doesn't subscribe the parent; `board.subscribe({ topic: "<run>/**", tags: "done | blocked | needs-input | checkpoint" })` makes reports wake it, or wait with `children.turnEnd([topic(h), …])`. `children.send(topic, text)` answers a question or steers a worker. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
+Workers report by ending their turn: the last message starts with `done`, `blocked`, `needs-input` or `checkpoint` (`lib/report.ts`), posted on `<run>/<handle>`. Dispatch subscribes the parent to `<run>/**` with wake, so reports start its next turn. `tools.mail({to: "<run>/<handle>", body})` answers a question or steers a worker. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
 
-For peer coordination, read `board.read({ topic: "<run>/**" })` without the report tag filter so decisions aren't excluded. `<run>/**` includes the base topic and all descendants (including nested runs); `<run>/*` misses decisions posted on the base topic.
+For peer coordination, read `tools.board_read({ topic: "<run>/**" })` without a tag filter so decisions aren't excluded. `<run>/**` includes the base topic and all descendants (including nested runs); `<run>/*` misses decisions posted on the base topic.
 
 ## Integration
 
-After the worker is settled and completion is accepted, `dispatch.integrate(handle, {cwd?, mode?, keep?})` uses plain Git. It refuses uncommitted worker changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` makes a `--no-ff` merge commit. Conflicts abort and throw `MergeConflict` with `branch` and `files`; send those to the worker to resolve on its branch. The caller owns settlement and acceptance; integration does not infer them from idle status.
+After the worker is settled and completion is accepted, `tools.integrate({worker, mode?, keep?})` uses plain Git. It refuses uncommitted worker changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` makes a `--no-ff` merge commit. Conflicts abort and return `{conflict: true, branch, files}`; send those to the worker to resolve on its branch. The caller owns settlement and acceptance; integration does not infer them from idle status.
 
-`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: workmux removes the worker's window and worktree. Processes still running from inside the worktree (a `term.spawn` tmux server, a dev server) are sent SIGTERM (`killed`); workmux doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `dispatch.retire(handle, {cwd})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Both take the receipt's handle or just its name (`ab lib dispatch retire <name>`), found under `<checkout>__worktrees/`. Cleanup is sequential, not transactional: if it fails after the merge, the merge remains. Inspect the worktree before repeating cleanup. Nothing is removed on merge failure.
+`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: workmux removes the worker's window and worktree. Processes still running from inside the worktree (a dev server, a watcher) are sent SIGTERM (`killed`); workmux doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `tools.retire({worker})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Both take the receipt's handle or just its name, found under `<checkout>__worktrees/`. Cleanup is sequential, not transactional: if it fails after the merge, the merge remains. Inspect the worktree before repeating cleanup. Nothing is removed on merge failure.
 
-## Session boundaries
+## Stance models
 
-Use `route.continuation({ current: { model, effort }, assignment, report, remaining, context, handoff }, options)` at an exception or context checkpoint. Include measured cache use or known handoff size in that evidence when available; missing facts stay unknown.
-
-- `continue`: retain the current session/model and relevant context.
-- `consult`: prepare a bounded question and evidence packet; `route.prepare` it (recorded `session-triage` for decisions outside delegated authority), launch a separate session, then return its decision to the warm worker.
-- `replace`: preserve commits and outstanding work, update the issue, and prepare a compacted/OM-backed handoff. Admit and launch a new session from the intended base; stop the old worker before transferring write ownership. Retire it after the handoff is secured.
-
-A `prepare` result with `kind: "triage"` supplies the selected model/effort but no agent. Launch a new session with the explicit decision question, evidence, and requirement to update the issues; do not dispatch the original implementation prompt. Re-admit execution after the decision.
-
-These tools do not transfer memory, compact history, change models in place, manage dependencies, or terminate workers. Save their returned judgments with the assignment/report when evaluating cost to accepted completion, including repair and escalation.
-
-## Routing API
-
-`await route.prepare(taskWithContext, { assignee?, stance?, policyPath?, usage?, unavailableProviders? })` admits a **fresh** assignment. Include the issue contract, dependencies/ownership, relevant evidence, capability needs, and handoff/context facts. Supply `stance` when already recorded; otherwise Jev selects from Assignment stances. Returns `kind: "ready"`, `agent`, `stance`, `judgment`, and the model selection fields below. A `kind: "triage"` result has no worker agent: use the selected model for a new decision session, not the original implementation assignment. `judgment` is null for a recorded stance.
-
-`await route.continuation(context, { policyPath?, usage? })` returns `action`, `p`, `dist`, and `policyPath`. Supply current model/effort, assignment, latest report, remaining work, context relevance, and available cache/handoff evidence. It only advises continue/consult/replace: it never switches models, compacts, launches, or closes sessions. For consult/replace, prepare the actual handoff and admit it with `prepare`; do not route the old full transcript again.
-
-`await route.route(agent, task, { policyPath, windows, unavailableProviders })` in exec; options are optional. It returns the first entry of the agent file's `model:` list whose provider has delegated capacity left. `windows` are quota windows by pi provider; omitted, they're read from `quota-axi`. The default policy path is this package’s root `routing.md`, independent of the current directory.
-
-Returns `model`, `effort`, `p` (always 1: selection is deterministic), `dist`, `policyPath` and the windows it read.
-
-CLI: `bun lib/route.ts <workflow> <task text> [policy-path]`.
-
-## Maintaining routing policy
-
-`routing.md` is input to the router, not documentation for its callers. `lib/route.ts` reads it and the agent files at call time; edits need no reload and no Obsidian notes are loaded. Model choice lives in each agent's `model:` list; the reasoning behind those lines is in `docs/models.md`.
-
-The Assignment stances and Continuation actions sections use machine-read bullets of the form "- \`label\`: criterion". Catalog bullets name Pi model IDs in backticks as `provider/model` and their effort sets; every pair a model list names must be one of them. Obtain IDs from `pi --list-models`.
+`stance/<agent>` is a pi virtual model (`extensions/stances`) for each agent file with a `model:` list. Each new user turn goes to the first entry whose provider has credentials and delegated capacity left; continuations stay on it so prompt caches hold, and a retry after a rate-limit or overload error moves down the list. Model choice lives in each agent's `model:` list; the reasoning behind those lines is in `docs/models.md`, and the stances themselves are described in `routing.md`.
 
 `allocation.json` maps each pi provider to its `quota-axi` provider and the share of each quota window delegated work may use. The rest is kept for interactive use over the time left in the window: delegated work may use a provider while every applicable window has more than `(1 - share) × timeRemainingPercent` left. Providers without an entry or readable windows aren't gated. An entry's `resets` lists the expiry of each banked full reset; each unexpired one counts as another full window. When delegated work is admitted only because of the bank, a desktop notification (once per provider and reset) asks you to redeem the earliest-expiring reset when the window runs out; remove it from the list once redeemed.
 
 ## Tracker assignment
 
-Pass each issue's own `assignee` to `route.prepare`, even when absent. Omission of the option is reserved for non-tracker calls; an explicitly absent value is unassigned and refuses automatic routing. Pass `issue` and the returned `assignee` into dispatch. Re-read child assignments during recursive decomposition: a parent's selector is not inherited permission.
+Carry each issue's own `issue` and `assignee` into its assignment, even when the assignee is absent: an issue without one refuses automatic dispatch. Re-read child assignments during recursive decomposition: a parent's selector is not inherited permission.
 
-- `agent`: ordinary agent admission.
-- `agent:fill`: the named prompt/workflow and its model list, fallbacks included.
-- `model:zai/glm-5.3-flash:high`: exact execution; prompt/workflow still comes from admission or a supplied stance.
-- `agent:fill, model:zai/glm-5.3-flash:high`: that workflow with an explicit model override. Component order is immaterial.
-- `human`, `user:<name>`, `session:<id>`: not fresh agent admission. Hand to the human or recover/resume the exact assigned session; changing context requires explicit reassignment.
-
-Bare aliases, short model names, duplicate selectors, unknown models/efforts and unavailable assigned providers are errors, never fallback hints. Catalog availability is policy plus caller-supplied provider exclusions/ceilings, not an authenticated provider health probe. Generic agent routing retains normal policy selection. Direct `orca.startPi` calls can carry `assignee` and `agent` for the same launch checks; they do not install the stance prompt for the caller.
+- `agent`: any agent.
+- `agent:fill`: that stance.
+- `model:zai/glm-5.3-flash:high`: that exact model and effort.
+- `agent:fill, model:zai/glm-5.3-flash:high`: both; component order is immaterial.
+- `human`, `user:<name>`, `session:<id>`: never dispatched automatically. Hand to the human or resume the exact assigned session.

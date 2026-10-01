@@ -20,7 +20,7 @@ You drive. You're the ticket's first user, like a non-technical tester: you know
    - checks: for each thing you wondered about, the steps to replay it and the observable result you'd accept, precisely enough that someone else can turn it into an automated test. You don't write the tests.
 5. Don't repair the product. Recording a failure precisely is your job; fixing it belongs to the reviewer, who sees your log together with the diff.
 
-Stop each dev server you started with `ab service stop ID` before handing off, even when a story failed. Start servers with `ab service start -- <foreground command>` and record the returned IDs; its default 30-minute lifetime is a cleanup backstop, not a readiness signal. Use an explicit `--ttl SECONDS` for a longer drive. Don't stop inherited/shared services or delete the deployment's data.
+Stop each dev server you started before handing off, even when a story failed. Don't stop inherited/shared services or delete the deployment's data.
 
 End `done` once you've driven what you can, even when stories failed; `blocked` only when you couldn't reach the surface at all. If the setup handoff's entry point didn't get you to the story's surface, say exactly what it got you instead: that's a setup failure, not yours. Handoff (fenced yaml):
 

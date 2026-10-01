@@ -1,1 +1,1 @@
-Use curl, `exa-cli`, or exec's `exa` module for accessing web content.
+Use curl or `exa-cli` for accessing web content.
