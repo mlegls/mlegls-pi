@@ -9,11 +9,11 @@
 // tool finished. codemode's nestedCalls carry per-call durations.
 //
 // Gaps are classified by what preceded them. Before a user message: "stall" if the last reply ended in
-// an error, "asked" if the reply left work blocked on you (a question, decision, approval), else
-// "idle" (done, or an optional offer). The decider (judgeWaits, Jev via lib/decide.ts) judges this,
+// an error; else the reply's ask: "blocked" (work can't go on without you: a question, decision,
+// approval), "offered" (done, with optional next steps) or "idle" (done). The decider (judgeWaits, Jev via lib/decide.ts) judges this,
 // cached in ~/.cache/profile/waits.json; --fast, or no classifier, falls back to a regex. A spawned session's user messages come from its parent ("parent").
 // Before a board message: "board" (waiting on workers/peers). Whether you were away or busy elsewhere
-// during an "asked" gap is a property of your global timeline (humanTurns), not of the session.
+// during a "blocked" gap is a property of your global timeline (humanTurns), not of the session.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -41,11 +41,11 @@ export interface Profile {
 	children: Profile[];
 }
 
-export type Kind = "model" | "tool" | "asked" | "idle" | "stall" | "parent" | "board" | "process" | "other";
+export type Kind = "model" | "tool" | "blocked" | "offered" | "idle" | "stall" | "parent" | "board" | "process" | "other";
 export interface Segment { k: Kind; s: number; e: number; note?: string; judge?: Judge }
 /** A wait after a reply, for the decider: the reply's tail and a stable cache key (session/entry). */
 interface Judge { key: string; reply: string }
-const KINDS: Kind[] = ["model", "tool", "asked", "idle", "stall", "parent", "board", "process", "other"];
+const KINDS: Kind[] = ["model", "tool", "blocked", "offered", "idle", "stall", "parent", "board", "process", "other"];
 /** A reply that leaves something pending on the human: the fallback when no classifier is available (judgeWaits). */
 const ASKS = /\?\s*$|\?\s*\n|\b(blocked|needs-input|needs input|waiting (on|for) (you|your)|your (call|decision|go-ahead)|want me to|should i|shall i|let me know|which (one|do you))\b/i;
 
@@ -78,7 +78,8 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		if (last && last.k === k && a - last.e < 1000 && !note) last.e = b; else p.segments.push({ k, s: a, e: b, note });
 	};
 	const snippet = (m: any) => textOf(m?.content).trim().slice(-240);
-	const gapKind = (): Kind => spawned ? "parent" : lastAssistant?.stopReason === "error" ? "stall" : ASKS.test(snippet(lastAssistant)) ? "asked" : "idle";
+	const gapKind = (): Kind => spawned ? "parent" : lastAssistant?.stopReason === "error" ? "stall" : ASKS.test(snippet(lastAssistant)) ? "blocked" : "idle";
+	const judged = (k: Kind) => k === "blocked" || k === "offered" || k === "idle";
 	const judge = (): Judge | undefined => {
 		const reply = textOf(lastAssistant?.content).trim().slice(-1500);
 		return !spawned && reply && lastAssistant.stopReason !== "error" ? { key: node.id + "/" + lastAssistantId, reply } : undefined;
@@ -126,7 +127,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			const kind = gapKind();
 			if (prev) seg(kind, prev, t, (kind === "stall" ? "error: " + (lastAssistant?.errorMessage ?? "") : snippet(lastAssistant)) + "\n→ " + text.slice(0, 160));
 			const last = p.segments.at(-1);
-			if (prev && last?.e === t && (kind === "asked" || kind === "idle")) last.judge = judge();
+			if (prev && last?.e === t && judged(kind)) last.judge = judge();
 			if (spawned || !text || GENERATED.test(text)) p.user.generated++; else { p.user.turns++; p.user.words += text.split(/\s+/).filter(Boolean).length; }
 			prev = t;
 		} else if (m.role === "assistant") {
@@ -152,7 +153,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		} else if (prev) { seg("other", prev, t); prev = t; }
 		p.end = Math.max(p.end, t);
 	}
-	if (lastAssistant) { const k = gapKind(); p.ended = { k, note: k === "stall" ? "error: " + (lastAssistant.errorMessage ?? "") : snippet(lastAssistant), judge: k === "asked" || k === "idle" ? judge() : undefined }; }
+	if (lastAssistant) { const k = gapKind(); p.ended = { k, note: k === "stall" ? "error: " + (lastAssistant.errorMessage ?? "") : snippet(lastAssistant), judge: judged(k) ? judge() : undefined }; }
 	return p;
 }
 const safe = (s: unknown) => { try { return typeof s === "string" ? JSON.parse(s) : s; } catch { return {}; } };
@@ -191,7 +192,7 @@ const WAIT = {
 };
 const WAITS_CACHE = join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "profile", "waits.json");
 
-/** Reclassify asked/idle waits with the decider (lib/decide.ts): blocked → asked, offered or done → idle.
+/** Reclassify blocked/offered/idle waits with the decider (lib/decide.ts); done → idle.
  * Judgments are cached by session/entry; without a classifier the regex classification stands. */
 export async function judgeWaits(all: Profile[]): Promise<void> {
 	type J = { choice: string; p: number };
@@ -221,7 +222,7 @@ export async function judgeWaits(all: Profile[]): Promise<void> {
 	for (const { p, s } of items) {
 		const j = cache[s.judge!.key];
 		if (!j) continue;
-		const k: Kind = j.choice === "blocked" ? "asked" : "idle";
+		const k: Kind = j.choice === "blocked" ? "blocked" : j.choice === "offered" ? "offered" : "idle";
 		s.note = "[" + j.choice + " " + j.p.toFixed(2) + "] " + (s.note ?? "");
 		if (s.e > s.s) { p.time[s.k] -= s.e - s.s; p.time[k] += s.e - s.s; s.k = k; }
 		else if (p.ended) p.ended.k = k;
