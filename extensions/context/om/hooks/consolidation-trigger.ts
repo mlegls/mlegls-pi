@@ -1,4 +1,5 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { isActive } from "../../compaction.ts";
 import { runDropper } from "../agents/dropper/agent.js";
 import { observationPoolMetrics } from "../agents/dropper/pool.js";
 import { ObserverStreamError, runObserver } from "../agents/observer/agent.js";
@@ -174,6 +175,7 @@ function debugSessionMetadata(ctx: ConsolidationCtx): { sessionId?: string; sess
 function maybeLaunchConsolidation(pi: ExtensionAPI, runtime: Runtime, ctx: ConsolidationCtx): void {
 	runtime.ensureConfig(ctx.cwd);
 	if (runtime.config.passive === true) return;
+	if (runtime.config.observe === "active" && !isActive("om", ctx as unknown as ExtensionContext)) return;
 	if (runtime.consolidationInFlight) return;
 
 	const entries = ledgerBranch(ctx.sessionManager as LedgerSession);

@@ -1,14 +1,14 @@
 // Compaction as a choice among memory mechanisms (lib/records/render renderers). A session has
-// one active mechanism: \`/memory <name>\` switches it (a \`cursor\` record, so it follows the branch
-// and forks inherit it), else settings \`memory.default\`, else the first enabled one. The active
-// mechanism may \`prepare\` first (e.g. write records with a model call); if that fails, the next
+// one active mechanism: `/memory <name>` switches it (a `cursor` record, so it follows the branch
+// and forks inherit it), else settings `memory.default`, else the first enabled one. The active
+// mechanism may `prepare` first (e.g. write records with a model call); if that fails, the next
 // enabled mechanism renders instead, and with none left pi's native summarizer runs. The section's
 // details are the compaction's details. Mechanisms gate their own compaction triggers on
-// \`isActive\`, so only the active one triggers, while any may keep observing in the background.
+// `isActive`, so only the active one triggers, while any may keep observing in the background.
 //
 // Renderers declare a role; mechanisms in this list are alternatives for their role, so the
 // conflict check is across extensions (each announces its roles on the event bus as
-// \`memory:roles\`) and against upstream pi-observational-memory, which predates roles and is
+// `memory:roles`) and against upstream pi-observational-memory, which predates roles and is
 // recognized by its package in settings.
 import { getAgentDir, type ExtensionAPI, type ExtensionContext, type SessionBeforeCompactEvent } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";

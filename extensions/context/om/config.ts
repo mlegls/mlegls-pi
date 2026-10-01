@@ -55,7 +55,14 @@ export interface Config {
 	agentMaxTokens: number;
 	model?: ConfiguredModel;
 	showWorkerNotifications: boolean;
+	/** Upstream's switch: no observing, reflecting or compaction trigger. Set by `observe: "never"`. */
 	passive: boolean;
+	/**
+	 * When OM observes and reflects: `always` (default), `active` (only while it is the session's
+	 * memory mechanism, see extensions/context/compaction.ts), or `never` (OM is off: passive, and
+	 * neither switchable to nor a fallback).
+	 */
+	observe?: "always" | "active" | "never";
 	debugLog: boolean;
 }
 
@@ -211,6 +218,7 @@ function normalizeSettingsConfig(value: Record<string, unknown>): Partial<Config
 	if (ratio !== undefined) normalized.compactAfterTokensRatio = ratio;
 	if (typeof value.showWorkerNotifications === "boolean") normalized.showWorkerNotifications = value.showWorkerNotifications;
 	if (typeof value.passive === "boolean") normalized.passive = value.passive;
+	if (value.observe === "always" || value.observe === "active" || value.observe === "never") normalized.observe = value.observe;
 	if (typeof value.debugLog === "boolean") normalized.debugLog = value.debugLog;
 	const model = normalizeModel(value.model);
 	if (model) normalized.model = model;
@@ -231,9 +239,9 @@ export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): Partial<Con
  *
  *   { model, observer: { afterTokens, chunkMaxTokens }, reflector: { afterTokens },
  *     dropper: { targetTokens }, agent: { maxTurns, maxTokens },
- *     compaction: { afterTokens, mode, ratio }, budget, showWorkerNotifications, passive, debugLog }
+ *     compaction: { afterTokens, mode, ratio }, budget, observe, showWorkerNotifications, debugLog }
  *
- * `enabled: false` means passive (no observing, no compaction trigger) unless passive is set.
+ * `observe: "never"` sets upstream's passive; upstream's own `passive` keys still apply underneath.
  *
  * `budget` is the compaction renderer's: upstream's observationsPoolMaxTokens.
  */
@@ -255,7 +263,8 @@ export function flattenSchemaSettings(om: Record<string, unknown>): Record<strin
 		compactAfterTokensMode: compaction.mode,
 		compactAfterTokensRatio: compaction.ratio,
 		showWorkerNotifications: om.showWorkerNotifications,
-		passive: om.passive ?? (om.enabled === false ? true : undefined),
+		passive: om.observe === "never" ? true : om.observe === undefined ? undefined : false,
+		observe: om.observe,
 		debugLog: om.debugLog,
 	};
 	for (const k of Object.keys(flat)) if (flat[k] === undefined) delete flat[k];
