@@ -51,6 +51,6 @@ Both preparation and these entry points were exercised. Recorded targets `/priva
 
 ## Existing checks
 
-`bun-axi test`: 169 passed, 2 skipped across 31 files. Relevant git/live/runtime subset: 8 passed. `bunx tsc --noEmit` and `git diff --check` passed. Typecheck used the existing [Obsidian setup workaround](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md). Tracker semantic lint ran; its advisory completed/parent suggestions cite the already-done prerequisite and this lifecycle contract, not an observed product failure.
+`bun-axi test`: 169 passed, 2 skipped across 31 files. Relevant git/live/runtime subset: 8 passed. `bunx tsc --noEmit` and `git diff --check` passed. Typecheck used the existing [Obsidian setup workaround](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md). Tracker semantic lint ran before and after the Result; its weak advisory suggestions cite the done prerequisite, required acceptance text and declared retirement danger, not an observed product failure or unowned friction.
 
 Delta from the starting ref: +282 net library lines in three lifecycle files, with no new dependency or permanent acceptance test. The disposable driver setup is separate from product code.
