@@ -13,7 +13,7 @@
 // Memory ids are content hashes, so `om:<id>` is a logical ref, not a record id.
 // Custom entries already in a session file (OM before this port) pass through and still fold.
 
-import { anchor, chainRecords, entryOf, entryRef, splice, type Anchored, type BranchSession } from "../../../../lib/records/branch.ts";
+import { anchor, chainRecords, entryOf, entryRef, sessionChain, splice, type Anchored, type BranchSession } from "../../../../lib/records/branch.ts";
 import { db, fieldsOf, write } from "../../../../lib/records/store.ts";
 import {
 	OM_OBSERVATIONS_DROPPED,
@@ -34,8 +34,12 @@ type LedgerData = ObservationsRecordedEntryData | ReflectionsRecordedEntryData |
 
 const memoryOf = (ref: string) => ref.slice("om:".length);
 
-/** Record one ledger write (what OM appended as a custom entry), anchored at the current leaf. */
-export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, data: LedgerData): void {
+/**
+ * Record one ledger write (what OM appended as a custom entry), anchored at the current leaf.
+ * `migrated`: the session-file entry it was migrated from (./migrate.ts), kept as tag `om.entry`
+ * so ledgerBranch hides that entry, with its timestamp as the records'.
+ */
+export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, data: LedgerData, migrated?: { id: string; timestamp?: string }): void {
 	const session = sm.getSessionId();
 	if (!sm.getLeafId()) return;
 	const a = anchor(sm);
@@ -43,13 +47,16 @@ export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, 
 		...a.tags,
 		{ key: "om.kind", value: kind },
 		{ key: "om.coversUpToId", value: data.coversUpToId },
+		...(migrated ? [{ key: "om.entry", value: migrated.id }] : []),
 	];
+	const ts = migrated?.timestamp;
 	const at = a.edges[0]!;
 	const d = db();
 	d.transaction(() => {
 		if (customType === OM_OBSERVATIONS_RECORDED) {
 			for (const o of (data as ObservationsRecordedEntryData).observations) write({
 				schema: SCHEMA,
+				ts,
 				body: o.content,
 				tags: [...base("observation"), { key: "om.id", value: o.id }, { key: "om.timestamp", value: o.timestamp },
 					{ key: "om.relevance", value: o.relevance }, { key: "om.tokenCount", value: o.tokenCount }],
@@ -58,6 +65,7 @@ export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, 
 		} else if (customType === OM_REFLECTIONS_RECORDED) {
 			for (const r of (data as ReflectionsRecordedEntryData).reflections) write({
 				schema: SCHEMA,
+				ts,
 				body: r.content,
 				tags: [...base("reflection"), { key: "om.id", value: r.id }, { key: "om.tokenCount", value: r.tokenCount }],
 				edges: [at, ...r.supportingObservationIds.map((id) => ({ rel: "reflects", dst: `om:${id}` }))],
@@ -65,6 +73,7 @@ export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, 
 		} else {
 			write({
 				schema: SCHEMA,
+				ts,
 				tags: base("drop"),
 				edges: [at, ...(data as ObservationsDroppedEntryData).observationIds.map((id) => ({ rel: "drops", dst: `om:${id}` }))],
 			}, d);
@@ -88,7 +97,32 @@ function toEntry({ record: rec, edges }: Anchored): Entry | undefined {
 	return undefined;
 }
 
-/** The branch with this session chain's om records spliced in after their anchors. */
+const OM_TYPES = new Set<string>([OM_OBSERVATIONS_RECORDED, OM_REFLECTIONS_RECORDED, OM_OBSERVATIONS_DROPPED]);
+
+/**
+ * The branch with this session chain's om records spliced in after their anchors. Session-file
+ * OM entries that were migrated (a record's `om.entry`) become inert placeholders: pi may cut a
+ * compaction at one (firstKeptEntryId), so the id has to stay resolvable. A fork's file copies
+ * its parent's entries, so one entry can be migrated under both sessions; the nearest wins.
+ */
 export function ledgerBranch(sm: LedgerSession, branch: Entry[] = sm.getBranch() as Entry[]): Entry[] {
-	return splice(branch, chainRecords(sm, SCHEMA), toEntry);
+	const chain = sessionChain(sm);
+	const tag = (r: Anchored, key: string) => r.record.tags.find((g) => g.key === key)?.value as string | undefined;
+	const all = chainRecords(sm, SCHEMA);
+	// migrated entry id → the nearest session in the chain that migrated it
+	const owner = new Map<string, string>();
+	for (const r of all) {
+		const from = tag(r, "om.entry");
+		if (from === undefined) continue;
+		const session = tag(r, "session")!, prev = owner.get(from);
+		if (prev === undefined || chain.indexOf(session) < chain.indexOf(prev)) owner.set(from, session);
+	}
+	const records = all.filter((r) => {
+		const from = tag(r, "om.entry");
+		return from === undefined || owner.get(from) === tag(r, "session");
+	});
+	if (owner.size) branch = branch.map((e) => e.type === "custom" && OM_TYPES.has(e.customType as string) && owner.has(e.id)
+		? { type: "custom", customType: "om.migrated", id: e.id, parentId: (e as { parentId?: string }).parentId } as Entry
+		: e);
+	return splice(branch, records, toEntry);
 }

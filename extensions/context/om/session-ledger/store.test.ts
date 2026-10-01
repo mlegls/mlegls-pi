@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { foldLedger } from "./fold.js";
+import { migrateFile } from "./migrate.ts";
 import { ledgerBranch, recordLedger, type LedgerSession } from "./store.js";
 import type { Entry, Observation } from "./types.js";
 
@@ -43,4 +44,23 @@ test("a fork sees its parent session's records up to the fork point", () => {
 	const fork = session("s2", [msg("a1"), msg("a2"), msg("f3")], parentFile);
 	expect(foldLedger(ledgerBranch(fork)).observations.map((o) => o.id)).toEqual(["aaaaaaaaaaa1", "aaaaaaaaaaa2"]);
 	expect(foldLedger(ledgerBranch(fork)).droppedObservationIds.size).toBe(0); // the drop was written at a3
+});
+
+test("migrated file entries become placeholders, migration is idempotent, and a fork's copies don't double", () => {
+	const om = (id: string, parentId: string, obsId: string) => ({ type: "custom", customType: "om.observations.recorded", id, parentId,
+		timestamp: "2026-10-01T00:00:00.000Z", data: { observations: [obs(obsId, ["m1"])], coversUpToId: "m1" } });
+	const parentEntries = [{ type: "message", id: "m1", parentId: null, message: { role: "user", content: "x" } }, om("o1", "m1", "ccccccccccc1")];
+	const parentFile = join(dir, "p.jsonl");
+	writeFileSync(parentFile, [{ type: "session", id: "mig-p" }, ...parentEntries].map((l) => JSON.stringify(l)).join("\n") + "\n");
+	// a fork copies the parent's entries into its own file
+	const forkEntries = [...parentEntries, { type: "message", id: "m2", parentId: "o1", message: { role: "user", content: "y" } }];
+	const forkFile = join(dir, "f.jsonl");
+	writeFileSync(forkFile, [{ type: "session", id: "mig-f", parentSession: parentFile }, ...forkEntries].map((l) => JSON.stringify(l)).join("\n") + "\n");
+	expect(migrateFile(parentFile)).toBe(1);
+	expect(migrateFile(forkFile)).toBe(1);
+	expect(migrateFile(forkFile)).toBe(0);
+	const fork = session("mig-f", forkEntries as Entry[], parentFile);
+	const spliced = ledgerBranch(fork);
+	expect(spliced.map((e) => e.customType ?? e.id)).toEqual(["m1", "om.observations.recorded", "om.migrated", "m2"]);
+	expect(foldLedger(spliced).activeObservations.map((o) => o.id)).toEqual(["ccccccccccc1"]);
 });

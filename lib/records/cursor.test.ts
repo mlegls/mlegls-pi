@@ -18,18 +18,18 @@ const at = (...ids: string[]) => ids.map((id) => ({ id }));
 
 test("the latest cursor visible from the branch wins; other branches' and other keys' don't leak", () => {
 	const s = session("c-s1");
-	expect(readCursor(s, "k")).toBeUndefined();
+	expect(readCursor<number>(s, "k")).toBeUndefined();
 	s.branch = at("a1"); writeCursor(s, "k", 1);
 	s.branch = at("a1", "a2"); writeCursor(s, "k", 2);
 	s.branch = at("a1", "a2", "a3"); writeCursor(s, "k", 3); writeCursor(s, "other", 99);
 	s.branch = at("a1", "b2"); writeCursor(s, "k", 20);
-	expect(readCursor(s, "k")).toBe(20);
+	expect(readCursor<number>(s, "k")).toBe(20);
 	s.branch = at("a1", "a2", "a3");
-	expect(readCursor(s, "k")).toBe(3);
+	expect(readCursor<number>(s, "k")).toBe(3);
 	s.branch = at("a1", "a2");
-	expect(readCursor(s, "k")).toBe(2);
+	expect(readCursor<number>(s, "k")).toBe(2);
 	s.branch = at("a1");
-	expect(readCursor(s, "k")).toBe(1);
+	expect(readCursor<number>(s, "k")).toBe(1);
 });
 
 test("a fork resumes its parent's cursor as of the fork point", () => {
@@ -40,8 +40,8 @@ test("a fork resumes its parent's cursor as of the fork point", () => {
 	writeFileSync(file, JSON.stringify({ type: "session", id: "c-p" }) + "\n");
 	const fork = session("c-f", file);
 	fork.branch = at("p1");
-	expect(readCursor(fork, "k")).toBe("at-p1");
+	expect(readCursor<string>(fork, "k")).toBe("at-p1");
 	fork.branch = at("p1", "f2"); writeCursor(fork, "k", "at-f2");
-	expect(readCursor(fork, "k")).toBe("at-f2");
-	expect(readCursor(parent, "k")).toBe("at-p2");
+	expect(readCursor<string>(fork, "k")).toBe("at-f2");
+	expect(readCursor<string>(parent, "k")).toBe("at-p2");
 });
