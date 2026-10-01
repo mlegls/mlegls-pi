@@ -4,7 +4,7 @@ Each agent file's `model:` is a list of `provider/model:effort`, most preferred 
 
 ## Assignment stances
 
-Choose the stance whose deliverable fits, for the lowest wall time to accepted completion at similar total cost and sufficient quality, including verification, retries and escalation. Consider openness, subjectivity, scope, novelty and technical difficulty together, not as an ordered decision tree. Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes to triage; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them; campaign supervisors delegate substantial work.
+Choose the stance whose deliverable fits, for the lowest wall time to accepted completion at similar total cost and sufficient quality, including verification, retries and escalation. Consider openness, subjectivity, scope, novelty and technical difficulty together, not as an ordered decision tree. Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes back to shaping; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them; campaign supervisors delegate substantial work.
 
 - `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
 - `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
@@ -15,11 +15,9 @@ Choose the stance whose deliverable fits, for the lowest wall time to accepted c
 - `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
 - `tidy`: Incremental behavior-preserving tidying across changes that landed together; the consolidation pass at a join.
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.
-- `supervise`: A non-leaf, agent-ready subtree: delegate its children, integrate them into one branch, and verify it before reporting up.
 - `reviewer`: Review a change against its contract (and the driver's log when there is one) and repair it directly; non-visual work.
 - `verify`: Drive changed behavior as its user would, without reading the implementation; write predictions before first use; record outcomes, frictions, expectations and replayable checks (the reviewer encodes them as tests).
 - `visual-reviewer`: Review and repair work whose acceptance is what a user sees: rendered surface, layout, visual coherence, usability. It also makes aesthetic improvements to the surface the change renders, not only corrections. Choose it when the driver's packet is visual.
-- `session-triage`: The recorded plan is insufficient: resolve missing acceptance, conflicting dependencies/interfaces, or decisions outside delegated authority. Return a decision and updated issues for supervision to resume.
 
 ## Continuation actions
 
@@ -33,7 +31,7 @@ Relevant warm context has future value; spent tokens are sunk cost. Compare rema
 
 Route model/effort at fresh-session boundaries. Escalation normally creates a consultation or replacement session rather than changing the model over an uncompacted history. Compacted parent context, OM references with recoverable evidence, and small self-contained handoffs make fresh routing economical; they do not guarantee cache reuse or preserve every constraint. Never assume the new session inherits the parent's memory, uncommitted files, or cache.
 
-The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design. Complex triage goes to a fresh session-triage assignment.
+The supervisor is evaluated interactively; it follows recorded dependencies, ownership, and acceptance rather than reconstructing design.
 
 ## Session roles
 - Fresh delegated sessions use their agent's model list; the `prune` stance is the simplifying-replacement route.

@@ -11,4 +11,4 @@ Use your worktree's own deployment and ports. Treat task-required setup as autho
 
 Surfaces: `mcp__chrome__*` for a browser (snapshot, click, fill, screenshot), `mcp__cua__*` for native apps, `screencapture` for the screen, all through codemode.
 
-The computer driver sees semantic state, not screenshots or layout. Use it to reach a state; capture screenshots for what a user sees. `--url` closes its page afterward: use project setup to retain state when the same state must be inspected. Collect meaningful states even when DOM checks pass.
+Snapshots give semantic state, not what a user sees: use them to reach a state, and capture screenshots of meaningful states even when DOM checks pass.

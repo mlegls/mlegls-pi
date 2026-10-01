@@ -37,7 +37,7 @@ export default function (pi: ExtensionAPI) {
 		async run(p, ctx) {
 			const receipt = await dispatch(p.assignments as Assignment[], {
 				run: p.run, cwd: ctx.cwd, parent: ctx.sessionManager.getSessionId(),
-				maxConcurrent: p.maxConcurrent ?? 8, active: (p.active ?? []) as Handle[],
+				maxConcurrent: p.maxConcurrent ?? 8, active: (p.active ?? []) as Handle[], follow: p.run,
 			});
 			if (receipt.submitted.length) pi.events.emit("board:subscribe", { topic: p.run + "/**", wake: true });
 			return receipt;
