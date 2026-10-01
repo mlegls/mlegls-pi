@@ -406,6 +406,7 @@ const run: Record<string, (a: string[]) => unknown> = { read, grep, edit, raw, v
 		const [to, ...words] = a;
 		const body = words.length ? words.join(" ") : (await Bun.stdin.text()).trimEnd();
 		if (!to || !body) fail("usage: ab mail <mailbox> <text...>   (or text on stdin)");
+		if (body === "TEXT") fail('"TEXT" is a placeholder, not a message; provide the reply text');
 		const { subscriberStatus } = await import("../lib/board/subscribers.ts");
 		const status = subscriberStatus(to);
 		const m = (await import("../lib/board/mailbox.ts")).mail(to, body);

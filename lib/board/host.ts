@@ -44,7 +44,7 @@ function formatMessage(m: Message & { line?: number }, options: { data?: boolean
 /** How to answer from any tool mode: bash-only sessions have no board API, but ab mail works everywhere. */
 function replyHint(m: Message): string {
 	const to = m.from.session ? mailbox(m.from.session) : m.from.name?.startsWith("mail/") ? m.from.name : undefined;
-	return to ? `\nreply: ab mail ${to} TEXT` : "";
+	return to ? `\nreply address: ${to}` : "";
 }
 
 function subKey(s: Subscription): string {

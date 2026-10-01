@@ -14,6 +14,8 @@ supervised issue join the issue's topic, while each phase has its own worktree a
 To steer one waiting worker, prefer the exact worktree address in exception mail.
 
 The destination is a topic, an eight-hex mailbox, or a full session ID; text can come from stdin.
+Reply hints print only the destination. Use `ab mail <to> <text...>` or stdin to reply;
+`TEXT` is a placeholder and is rejected as a message body.
 From a pi session the message is signed with your own mailbox, so readers can reply.
 `ab mail` exits nonzero when it finds no live subscriber. For an older live session
 whose subscriptions cannot be verified, it only warns; uncertainty is not proof that
