@@ -87,3 +87,7 @@ For the three resume-only trials, omit `--turn` and use `--trials 3 --samples 3`
 Checks: `bun-axi test` **167 passed, 2 skipped**; `bun-axi run typecheck` passed after installing the existing nested package's locked dependencies with `bun install --frozen-lockfile --cwd extensions/obsidian-tracker`. Initial missing Obsidian typings are already owned by [[projects/mlegls-pi/issues/root-setup-still-omits-obsidian-typecheck-dependencies]]; no source workaround was added. No new permanent acceptance tests or runtime policy code.
 
 Tracker structural/link check still reports the same 20 historical dangling links as [[projects/mlegls-pi/issues/tracker-check-links-to-deleted-history]]; none targets this packet or its new issues. No historical link was edited or checker relaxed.
+
+## Independent CLI drive
+
+[Predictions, replay observations, frictions and reviewer checks](drive.md) on revision `8378ecd9cb04db4308f121ae10119606ef9b6ae6`; [post-turn replay](drive-warm.json) and [six fresh-resume trials](drive-resume.json). All required measurement/policy stories held through the documented CLI. Replay footprint extrapolation was 10.63 / 12.29 GiB for 30; resume medians 1.8032 / 2.6855 seconds. Exact RSS/CPU and one 4.0552-second trial differed from the earlier run. All 40 sampled processes stopped; source hashes unchanged. This is nonvisual CLI evidence, not native terminal/image-render verification. Captured progress and endpoint-witness friction is [[projects/mlegls-pi/issues/idle-cost-benchmark-console-and-readiness-evidence]].
