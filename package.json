@@ -3,7 +3,9 @@
   "version": "0.2.0",
   "description": "Personal pi package for mlegls",
   "type": "module",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "scripts": {
     "setup": "bun install --frozen-lockfile",
     "typecheck": "tsc --noEmit"
@@ -11,6 +13,7 @@
   "pi": {
     "extensions": [
       "./extensions/system-prompt/index.ts",
+      "./extensions/hashline/index.ts",
       "./extensions/workspace/index.ts",
       "./extensions/fence/index.ts",
       "./lib/board/host.ts",
@@ -20,8 +23,12 @@
       "./skills/enabled/pi/pi",
       "./skills/enabled/pi/mlegls-pi"
     ],
-    "prompts": ["./prompts"],
-    "themes": ["./themes"]
+    "prompts": [
+      "./prompts"
+    ],
+    "themes": [
+      "./themes"
+    ]
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
