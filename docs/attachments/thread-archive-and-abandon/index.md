@@ -1,5 +1,6 @@
 # Thread lifecycle first use
 
+Independent driver: [predictions, encounter log and replayable checks](drive.md), [done readbacks](drive-done.json), [blocked/retry readbacks](drive-blocked.json), [independent git/process checks](drive-readbacks.txt). Tested `8407815`; required normal-agent library journeys held. No UI was driven. The wrong-parent negative control arrived too late and is not claimed; remaining raw/report-identity controls belong to review.
 Implemented raw integration and post-order archive/abandon. A conflicting child alone received the resolution request; its fresh done resumed child → parent → main. A blocked child retained its resources and marker, while an earlier sibling stayed retired; retry after resolution skipped that sibling. Nested abandon kept both branches without merging. Guest archive/abandon preserved the shared checkout and an unrelated process.
 
 Implementer first use, not independent acceptance. Lifecycle source: `ff01fe9`; starting ref: `830e0b5`. Normal pi 0.99.2 agents loaded this checkout, over zmx 0.8.1 with Bun 1.4.2. All fixture resources and temporary authentication links were removed afterward.
