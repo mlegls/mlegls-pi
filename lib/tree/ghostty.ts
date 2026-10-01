@@ -13,17 +13,20 @@ const osa = (script: string) => execFileSync("osascript", ["-e", script], { enco
 export const inGhostty = () => !!process.env.GHOSTTY_RESOURCES_DIR;
 export const sidebarTitle = () => TITLE + " " + (process.env.AB_TREE_TOKEN ?? process.pid);
 
+/** Threads inherit the launching shell's environment (EDITOR, proxies, mise, …), minus what
+ * belongs to that shell's own terminal, multiplexer or pi session. */
+export function threadEnv(): Record<string, string> {
+	const own = /^(TERM|TERM_.*|COLORTERM|TERMINFO|GHOSTTY_.*|ZDOTDIR|WINDOWID|KITTY_.*|WEZTERM_.*|ITERM_.*|TMUX|TMUX_PANE|ZMX_SESSION|ZMX_SESSION_PREFIX|AB_THREAD_ID|AB_TREE_.*|PI_SESSION_ID|PI_SESSION_FILE|PI_BOARD_TOPIC|PI_MODEL|PI_PROVIDER|PI_REASONING_LEVEL|PI_WORKSPACE|PI_CODING_AGENT|AI_AGENT|ORCA_.*|SHLVL|PWD|OLDPWD|_)$/;
+	return Object.fromEntries(Object.entries(process.env).filter((e): e is [string, string] => e[1] !== undefined && !own.test(e[0])));
+}
+
 /** Create a fresh two-split window; leave existing terminals untouched. */
 export async function openSidebar(): Promise<void> {
 	const token = randomUUID();
 	// The main terminal waits for an id when empty or when an archived session detaches.
 	// It is not an auxiliary shell and cannot accidentally receive a command intended for pi.
 	const main = `while :; do printf '\\033]2;ab thread\\007'; printf 'Choose a thread in the sidebar\\n'; read -r id || exit; ${quote(AB)} thread attach "$id"; done`;
-	// Threads inherit the launching shell's environment (EDITOR, proxies, mise, …), minus what
-	// belongs to that shell's own terminal, multiplexer or pi session.
-	const own = /^(TERM|TERM_.*|COLORTERM|TERMINFO|GHOSTTY_.*|ZDOTDIR|WINDOWID|KITTY_.*|WEZTERM_.*|ITERM_.*|TMUX|TMUX_PANE|ZMX_SESSION|ZMX_SESSION_PREFIX|AB_THREAD_ID|AB_TREE_.*|PI_SESSION_ID|PI_SESSION_FILE|PI_BOARD_TOPIC|PI_MODEL|PI_PROVIDER|PI_REASONING_LEVEL|PI_WORKSPACE|PI_CODING_AGENT|AI_AGENT|ORCA_.*|SHLVL|PWD|OLDPWD|_)$/;
-	const env = Object.entries(process.env).filter(([key, value]) => value !== undefined && !own.test(key))
-		.map(([key, value]) => key + "=" + value);
+	const env = Object.entries(threadEnv()).map(([key, value]) => key + "=" + value);
 	env.push("AB_TREE_TOKEN=" + token, "ZMX_TRACK_ENV=" + (process.env.ZMX_TRACK_ENV ?? "DISPLAY,SSH_AUTH_SOCK,SSH_AGENT_PID,SSH_CONNECTION,WINDOWID,XAUTHORITY,KITTY_LISTEN_ON,KITTY_PID,KITTY_WINDOW_ID") + ",AB_TREE_TOKEN");
 	osa(`tell application "Ghostty"
 	set cfg to new surface configuration

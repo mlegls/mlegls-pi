@@ -2,6 +2,8 @@
 //   ab tree [-m tree|projects|status] [-a] [--json] [--days N] [--hours N] [QUERY]
 //   ab tree ui [--sidebar] [QUERY]   thread tree; no tmux dashboard
 //   ab tree sidebar                  open the sidebar split
+//   ab tree app                      build and open the native thread app (apps/threads)
+//   ab tree do ACTION [--id ID] [--tree spawn|merge] [--name NAME]   sidebar action, JSON result
 //   ab tree open ID | send ID [TEXT]   thread attach / send
 //   ab timeline [SESSION]   HTML timeline of a session tree (default this session), opened in the browser
 import { parseArgs } from "node:util";
@@ -10,6 +12,8 @@ const fail = (message: string): never => { console.error(message); process.exit(
 
 export async function tree(args: string[]) {
 	if (args[0] === "sidebar") return (await import("./ghostty.ts")).openSidebar();
+	if (args[0] === "app") return (await import("./app.ts")).launchApp();
+	if (args[0] === "do") return (await import("./app.ts")).perform(args.slice(1));
 	if (args[0] === "ui") return (await import("./ui.ts")).ui({ sidebar: args.includes("--sidebar"), query: args.slice(1).filter(a => a !== "--sidebar").join(" ") });
 	if (args[0] === "open" || args[0] === "send") {
 		const { attachThread, sendThread } = await import("../thread");

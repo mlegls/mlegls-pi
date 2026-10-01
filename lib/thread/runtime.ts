@@ -211,10 +211,12 @@ export async function ensureTerminal(id: string, role = "agent"): Promise<Thread
 	return terminal;
 }
 
-export async function attachThread(id: string, role = "agent"): Promise<void> {
+/** exclusive: detach every other client first, so one viewer owns the pty size. */
+export async function attachThread(id: string, role = "agent", opts: { exclusive?: boolean } = {}): Promise<void> {
 	const terminal = await ensureTerminal(id, role);
 	const thread = await activeThread(id);
 	const bin = await zmxBinary();
+	if (opts.exclusive) await command(bin, ["detach"], undefined, { ...process.env, ZMX_SESSION: terminal.name, ZMX_SESSION_PREFIX: undefined }).catch(() => {});
 	await new Promise<void>((resolve, reject) => {
 		// Unlike background commands, attach deliberately keeps ZMX_SESSION for zmx's switch path.
 		const env = { ...process.env };

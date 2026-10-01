@@ -4,7 +4,7 @@ import { archiveThread, abandonThread } from "./lifecycle";
 import { attachThread, forkThread, historyThread, listThreads, newThread, promoteThread, sendThread } from "./runtime";
 import type { ThreadRow } from "./types";
 
-const usage = "usage: ab thread ls [--tree spawn|merge] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] | send|history <id> | archive|abandon|merge <id>";
+const usage = "usage: ab thread ls [--tree spawn|merge] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] [--exclusive] | send|history <id> | archive|abandon|merge <id>";
 
 function options(args: string[], schema: ParseArgsOptionsConfig) {
 	return parseArgs({ args, allowPositionals: true, strict: true, options: schema });
@@ -68,9 +68,9 @@ export async function thread(args: string[]): Promise<void> {
 		case "attach": {
 			const [id, ...tail] = rest;
 			if (!id) throw new Error(usage);
-			const parsed = options(tail, { role: { type: "string" } });
+			const parsed = options(tail, { role: { type: "string" }, exclusive: { type: "boolean" } });
 			if (parsed.positionals.length) throw new Error(usage);
-			await attachThread(id, stringOption(parsed.values, "role"));
+			await attachThread(id, stringOption(parsed.values, "role"), { exclusive: parsed.values.exclusive === true });
 			return;
 		}
 		case "send": {
