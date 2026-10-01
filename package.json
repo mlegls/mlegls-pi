@@ -13,7 +13,7 @@
   "pi": {
     "extensions": [
       "./extensions/system-prompt/index.ts",
-      "./extensions/hashline/index.ts",
+      "./extensions/fragment/index.ts",
       "./extensions/workspace/index.ts",
       "./extensions/context/index.ts",
       "./lib/board/host.ts",

@@ -28,6 +28,8 @@ export interface GrepDeps {
 	persist: (path: string) => void;
 	/** Structural sources only; grep never calls the model fallback. */
 	sources: OutlineSource[];
+	/** Serve bare lines, without anchors (for edits addressed by quoting). */
+	plain?: boolean;
 }
 
 interface Match {
@@ -108,9 +110,9 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 		label: "grep",
 		description:
 			`Search file contents for a pattern (ripgrep; respects .gitignore). Matches are grouped by file and by the enclosing definition or heading, ` +
-			`shown as \`line anchor│text\`; the anchors work directly with edit, so grep → edit needs no read in between. ` +
+			(deps.plain ? `shown as \`line text\`. ` : `shown as \`line anchor│text\`; the anchors work directly with edit, so grep → edit needs no read in between. `) +
 			`Output is truncated to ${DEFAULT_LIMIT} matches (raise \`limit\`) or 50KB.`,
-		promptSnippet: "Search file contents for patterns; results carry line anchors usable by edit",
+		promptSnippet: deps.plain ? "Search file contents for patterns, grouped by enclosing definition" : "Search file contents for patterns; results carry line anchors usable by edit",
 		promptGuidelines: [
 			"Grep results show the enclosing definition and its line range; read that range if you need the full body.",
 		],
@@ -189,7 +191,7 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 						const { text, wasTruncated } = truncateLine(lines[n - 1]);
 						if (wasTruncated) linesTruncated = true;
 						const marker = context > 0 ? (block.matches.has(n) ? ">" : " ") : " ";
-						out.push(`  ${marker} ${String(n).padStart(4)} ${formatRow(ledger.lines[n - 1].anchor, text)}`);
+						out.push(`  ${marker} ${String(n).padStart(4)} ${deps.plain ? text : formatRow(ledger.lines[n - 1].anchor, text)}`);
 					}
 					lastEnd = block.end;
 				}
@@ -212,7 +214,7 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 				notices.push("Some lines truncated. Use read to see full lines");
 				details.linesTruncated = true;
 			}
-			if (unanchored) notices.push(`${unanchored} file(s) listed without anchors (cap ${config.grepAnchorFiles}); read them for anchors`);
+			if (unanchored && !deps.plain) notices.push(`${unanchored} file(s) listed without anchors (cap ${config.grepAnchorFiles}); read them for anchors`);
 			if (notices.length) output += `\n\n[${notices.join(". ")}]`;
 			return { content: [{ type: "text" as const, text: output }], details: Object.keys(details).length ? details : undefined };
 		},

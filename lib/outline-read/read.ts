@@ -29,6 +29,8 @@ export interface ReadDeps {
 	sources: OutlineSource[];
 	/** Outline for files no source supports; null to give up and return the file. */
 	fallback?: (path: string, text: string, config: OutlineReadConfig, signal?: AbortSignal) => Promise<OutlineNode[] | null>;
+	/** Serve bare lines, without anchors (for edits addressed by quoting). */
+	plain?: boolean;
 }
 
 function formatElision(elision: Elision): string {
@@ -70,7 +72,7 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 		description:
 			"Read one or more files in one call (paths whitespace-separated). Files over a size threshold come back as an outline: definitions and headings are shown with their line numbers, bodies are replaced by `⋯ start-end` markers. " +
 			"Re-read only the ranges you need by appending a selector to the path (`file:50-200`, `file:5-16,40-80`), or `file:all` for the whole file. " +
-			"Small files are returned in full. Every line is prefixed with its anchor as `abcd│`; anchors are what the edit tool takes.",
+			"Small files are returned in full." + (deps.plain ? "" : " Every line is prefixed with its anchor as `abcd│`; anchors are what the edit tool takes."),
 		promptSnippet: "Read files (several per call); large files return an outline with line ranges to read on demand",
 		promptGuidelines: [
 			"Use read to examine files instead of cat or sed; name every file you want in one call.",
@@ -137,7 +139,7 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 				const total = lines.length;
 				const { ledger, changed } = deps.ledger.sync(absolutePath, lines);
 				if (changed) deps.persist(absolutePath);
-				const row = (n: number) => formatRow(ledger.lines[n - 1].anchor, lines[n - 1]);
+				const row = (n: number) => (deps.plain ? lines[n - 1] : formatRow(ledger.lines[n - 1].anchor, lines[n - 1]));
 
 				const header = (note: string) => `${shown} (${total} lines)${note ? ` ${note}` : ""}`;
 

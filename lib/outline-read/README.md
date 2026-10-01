@@ -20,6 +20,16 @@ structured selections instead of path selectors and `pipe` parameters.
 Outline sources, tried in order: tree-sitter (JS, TS, TSX, Python, Go, Rust,
 Java), markdown headings, then a model-generated outline for anything else.
 
+## Fragment edits
+
+`extensions/fragment` is the alternative to `extensions/hashline` (enable one in
+`package.json`): read and grep serve bare lines, and `edit` (`fragment.ts`) takes
+`{path, old, new, until?, near?}` hunks. `old` must occur exactly once; `until`
+extends the span through the next occurrence of an end fragment; `near` is a line
+hint (nearest match wins) or `@name`/`@Class.method` scope from the outline, and
+`@name` without `old` replaces the whole definition. All hunks resolve before any
+file is written; the result is one line per file, not an echo of the change.
+
 ## Read selectors
 
 | Path | Returns |
