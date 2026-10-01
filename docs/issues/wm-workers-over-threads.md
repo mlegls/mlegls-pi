@@ -48,3 +48,7 @@ Use an isolated temporary tracker fixture with a two-level ready subtree and non
 Workers and supervisors now use registered zmx threads. Receipts carry threadId, /jump resolves the current canonical session, and integration follows ab-parent. The reconciler passes destination checkouts separately from source SHAs; collectors record parent lineage and old workmux campaign state refuses new-backend resumption.
 
 [First-use setup and implementation self-check](../attachments/wm-workers-over-threads/index.md) includes real pi follow-ups, by-hand/free identity, public dispatch/integrate/retire, nested collectors, forced exit/restart, ids and cleanup. Existing regressions and root typecheck pass. Independent driving/review still follow this implementation.
+
+## Verification
+
+[Independent encounter packet](../attachments/wm-workers-over-threads/drive.md): worker continuity/literal history, canonical/free identity and /jump, death-versus-read-error behavior, public dispatch/integrate/retire, and nested destination/restart journeys held on `09a2bd0`. Fixture cleanup completed. Review and the parent's final fresh-tool join remain.

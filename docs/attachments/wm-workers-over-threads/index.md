@@ -50,3 +50,7 @@ bun test: 177 passed, 2 skipped. PI_TEST_LOCAL_WM=1 bun test lib/wm.local.test.t
 Root typecheck initially hit the known [Obsidian setup boundary](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md). Installing the nested package's locked dependencies made it pass. A temporary macOS socket-path failure in the adapted shell fixture was fixed by using a short /tmp root; the replay fixture does the same. An initial reconciler readback tried to read ab-parent after successful branch deletion; it now records lineage while branches are active, and the final replay completed successfully.
 
 Tracker check still reports the 20 historical references owned by [tracker-check-links-to-deleted-history](../../issues/tracker-check-links-to-deleted-history.md), plus the CLI sibling's two resolved dependency links. This ticket's resolved blockers were removed. Its semantic lint refreshed successfully; advisory completed/parent findings quoted a completed prerequisite and the explicitly assigned consumer join, respectively. The ticket remains open for independent driving/review.
+
+## Independent driving
+
+[Encounter packet](drive.md) records predictions before first use, library/tool outcomes, ids, replayable checks and cleanup on `09a2bd0`. Worker, supervision and nested-recovery journeys held; the recipe-owned fixture was removed. [Lineage](drive-lineage.json) and [campaign state](drive-reconcile-state.json) preserve final observations. Review and the parent's final fresh-tool join remain.
