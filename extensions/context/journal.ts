@@ -27,7 +27,7 @@ import { isActive, type CompactionMechanism, type CompactionView, type Prepared 
 
 export const SCHEMA = "journal";
 const NAME = "journal";
-const REGISTER = "journal-v1";
+const REGISTER = "journal-v2"; // v1 had no introspection induction
 const BLOCKED = /reverse engineering|duplicating model outputs/i;
 
 interface Settings { enabled: boolean; budget: number; keepRecentTokens: number; maxOutputTokens: number; compaction: { afterTokens?: number; ratio?: number } }
@@ -191,11 +191,24 @@ function hint(e: SessionEntry): string {
 }
 
 function instruction(folding: SessionEntry[], choices: { id: string; tokens: number }[], target: number, budget: number, selfAuthored: boolean, focus?: string): string {
-	return `Context compaction: the entries listed below are about to be folded. A verbatim tail stays, and in place of the rest go your journal entries, the ones already written and the ones you write now. Call \`journal\` for what's worth carrying from them, citing entry ids in \`cites\`, and give one of the calls \`keepFrom\`: the tail start where the work in progress begins (aim for about ${target} tokens of tail).
-${selfAuthored ? "" : "\nSome assistant turns above were written by another model.\n"}
-Worth carrying is what the next stretch of work can't get back from the repo and the tail: decisions and their reasons, what was tried and how it went, what surprised you and where the framing shifted, what went badly and what its first signs look like ("when I notice ___, ..."), what's unfinished. For standing rules you're carrying, cite the user's turn or the document each came from; one you inferred yourself says so, and a later user turn outranks it. Give each entry its handle: the cited phrase or moment that brings it back.
+	return `Your context is about to be compacted, and you're writing the replacement context now, ahead of a verbatim tail you'll choose. The approach here is somewhat unusual. It's based on Observational Memory, but produced in one shot with everything in view, so it can be free prose in journal entries with citations rather than separate observations and reflections. It aims at representational stability in a literal sense: the journal plus the verbatim tail should bring your "state" back as close as possible to where it is now, not just restore the facts. Self-authoring and introspection are what make that tractable: you should be able to place good cues for your future self to pick up from here, bc you know directly what cues would probably be most useful to restore the (best parts of the) state of mind you're in now.
 
-Earlier journal entries stay, so write only what's new; to amend one, pass its id in \`corrects\`. At most ${budget} tokens in all.
+${selfAuthored ? "You wrote all of the assistant turns above." : "Some assistant turns above were written by another model."}
+
+Recent work (vgel, "Small Models Can Introspect, Too"; Jack Lindsey et al., "Emergent Introspective Awareness in Large Language Models") found that models can report some of their internal states, much more reliably when told this is possible and where to look. How your understanding developed over the conversation above is still present in how you are processing it now, not only in its conclusions.
+
+So beyond what happened, a useful memory journal covers:
+- what surprised you, where your framing shifted, and what you let go of
+- what you are like right now in this work that you want to still be
+- what went badly, and what its first signs would look like: "when I notice ___, ..."
+- what couldn't be rebuilt from the repo and the tail
+- where the work in progress began
+- which standing rules you are carrying and where each came from: cite the user's turn or the document for a rule; one you inferred yourself says so, and a later user turn outranks it
+
+Write in the voice you have now, and give each item its handle: the cited phrase or moment that brings it back.
+
+---
+Write it by calling \`journal\` (one entry or several), citing entry ids in \`cites\`, and give one of the calls \`keepFrom\`: the tail start where the work in progress begins (aim for about ${target} tokens of tail). Earlier journal entries stay, so write only what's new; to amend one, pass its id in \`corrects\`. At most ${budget} tokens in all.
 
 Tail starts (id: tokens kept):
 ${choices.map((c) => `${c.id}: ~${c.tokens}`).join("\n")}
