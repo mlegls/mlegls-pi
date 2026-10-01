@@ -505,6 +505,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			const open = [...all.values()].filter(i => !finished(i) && (i.slug === s.root || under(i, all)));
 			s.finished = result === "done" ? "done" : "stuck";
 			save();
+			// Workers ran as windows of a tmux session named for the root; with them all retired it is an empty shell.
+			try { execFileSync("tmux", ["kill-session", "-t", "=" + s.root], { stdio: "ignore" }); } catch {}
 			tellOwner((result === "done" ? "done: " + s.root + " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", "HEAD") : "stopped with open work: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", "))
 				+ (Object.keys(s.moved).length ? "\nMoved out: " + Object.entries(s.moved).map(([k, v]) => k + ": " + v).join("; ") : ""));
 			return;
