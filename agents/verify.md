@@ -1,7 +1,7 @@
 ---
 name: verify
 description: Driving changed behavior as its user would, to learn whether it works for them.
-model: openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high
+model: openai-codex/gpt-6.1-sol:low, anthropic/claude-sonnet-5-5:high
 role: drive
 ---
 

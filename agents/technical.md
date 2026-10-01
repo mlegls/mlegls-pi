@@ -1,7 +1,7 @@
 ---
 name: technical
 description: "Work with a crisp acceptance criterion (metric, contract, stub) that is hard to meet: complex systems, difficult or novel algorithms, performance."
-model: openai-codex/gpt-6.1-sol:max, anthropic/claude-opus-5-5:medium
+model: openai-codex/gpt-6.1-sol:xhigh, anthropic/claude-opus-5-5:medium
 role: implement
 ---
 
