@@ -10,7 +10,7 @@ export function threadDir(): string {
 }
 
 export function validId(id: string): void {
-	if (!/^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(id)) throw new Error("Invalid thread/session id: " + id);
+	if (typeof id !== "string" || !/^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(id)) throw new Error("Invalid thread/session id: " + id);
 }
 
 function validate(thread: ThreadRecord): void {

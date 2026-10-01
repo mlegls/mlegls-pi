@@ -1,0 +1,5 @@
+[tools]
+zmx = "latest"
+
+[tasks.setup]
+run = "bun run setup"
