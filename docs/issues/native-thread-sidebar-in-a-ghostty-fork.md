@@ -15,7 +15,7 @@ shape:
 - scroll is just scroll. Hover can show a preview (last board report, or a live thumbnail of the zmx session); only a click opens.
 - drag to reparent in the merge-order view writes the merge-order overrides.
 - status (working/idle/needs-input) is a colored dot fed by the registry.
-- the main area shows the selected thread's surfaces, each running `zmx attach <thread>.<role>`. Close-and-reattach vs an LRU of offscreen surfaces depends on [[projects/mlegls-pi/issues/check-zmx-reattach-with-pi]].
+- the main area shows the selected thread's surfaces, each running `zmx attach <thread>.<role>`. Offscreen surfaces close and reattach on view: [[projects/mlegls-pi/issues/check-zmx-reattach-with-pi]] found pi and nvim reattach byte-identical, so no LRU.
 - the change is mostly additive inside Ghostty's `macos/` (new sidebar, native tabs removed), which keeps rebase conflicts with upstream small. The registry is the CLI's, not the app's.
 
 holes:
