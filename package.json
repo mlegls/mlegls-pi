@@ -15,7 +15,7 @@
       "./extensions/system-prompt/index.ts",
       "./extensions/hashline/index.ts",
       "./extensions/workspace/index.ts",
-      "./extensions/fence/index.ts",
+      "./extensions/context/index.ts",
       "./lib/board/host.ts",
       "./lib/session-meta/host.ts",
       "./extensions/stances/index.ts",

@@ -19,7 +19,7 @@ export interface Agent {
 	/** The list's first entry. */
 	model?: string;
 	effort?: string;
-	checkpoint?: string; // context ratio at which the fence extension fires; see extensions/fence
+	checkpoint?: string; // context ratio at which the fence extension fires; see extensions/context
 	/** Pipeline roles this agent can fill (`role: implement` or `role: drive, review`); see agents/roles/. */
 	roles: string[];
 	body: string;
