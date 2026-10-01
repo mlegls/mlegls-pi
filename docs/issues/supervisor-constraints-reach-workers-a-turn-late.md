@@ -2,10 +2,11 @@
 stage: ticket
 assignee: agent
 priority: 2
-part-of: "[[projects/mlegls-pi/issues/supervise-loop-reliability]]"
-blocked-by: ["[[projects/mlegls-pi/issues/worker-start-check-misses-long-first-turns]]"]
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
+part-of: "[[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]]"
 ---
+
+Carried to the reconciler 2026-10-01: a resolution's `note` reaches only the next launched phase, and an `answer` is still mail racing the running turn. In the contract below, `ab supervise constrain` becomes a reconcile tool and "job state" the reconciler's state file.
 
 Constraints that the supervisor sends by `ab mail` reach a worker only after the turn it is already in, so a restriction on an action that is already under way arrives too late. On 2026-09-30, during [[projects/mlegls-pi/issues/archive/tracker-obsidian-rollout]]:
 

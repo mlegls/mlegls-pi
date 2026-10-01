@@ -34,13 +34,13 @@ The optional `dsh/dispatch.yml` declares research/fill capability and routing de
 
 **Blast radius:** dsh. The pinned subagent package patch changes continuation creation/resume; children share the host, so process-death isolation remains with [[projects/mlegls-pi/issues/project-scoped-sessions-and-worktrees]]. The optional router preference argument leaves existing pi callers unchanged.
 
-Frictions: [[projects/mlegls-pi/issues/dsh-continuable-child-preset-and-workspace-seam]], [[projects/mlegls-pi/issues/dsh-headless-exits-before-continuable-children-settle]], [[projects/mlegls-pi/issues/dsh-schema-optional-array-materializes-empty-allowlist]], [[projects/mlegls-pi/issues/dsh-preset-relative-plugin-loading]], [[projects/mlegls-pi/issues/archive/supervised-workers-cannot-read-peer-board-from-bash]].
+Frictions: [[projects/mlegls-pi/issues/archive/dsh-continuable-child-preset-and-workspace-seam]], [[projects/mlegls-pi/issues/archive/dsh-headless-exits-before-continuable-children-settle]], [[projects/mlegls-pi/issues/archive/dsh-schema-optional-array-materializes-empty-allowlist]], [[projects/mlegls-pi/issues/archive/dsh-preset-relative-plugin-loading]], [[projects/mlegls-pi/issues/archive/supervised-workers-cannot-read-peer-board-from-bash]].
 
-The read-only tool allowlist is not a filesystem security boundary; inherited PTC Node access is tracked in [[projects/mlegls-pi/issues/dsh-read-only-preset-does-not-constrain-ptc-node-access]].
+The read-only tool allowlist is not a filesystem security boundary; inherited PTC Node access is tracked in [[projects/mlegls-pi/issues/archive/dsh-read-only-preset-does-not-constrain-ptc-node-access]].
 
 ## Verification evidence
 
 [Encounter and evidence](../attachments/dsh-templated-spawn-and-dispatch/index.md).
 
 Unisolated paths are tracked in
-[[projects/mlegls-pi/issues/dsh-dispatch-unexercised-admission-and-resume]].
+[[projects/mlegls-pi/issues/archive/dsh-dispatch-unexercised-admission-and-resume]].

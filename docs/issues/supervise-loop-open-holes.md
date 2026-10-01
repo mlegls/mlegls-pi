@@ -5,6 +5,8 @@ priority: 4
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
 ---
 
+2026-10-01: `ab supervise` was deleted; [[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]] is level-triggered, so the first three holes (lost events, crossing stories left to the owner, cached job modules) are moot. The rest still apply to it.
+
 Open holes carried over from [[projects/mlegls-pi/issues/archive/scripted-supervision-loop]] when it closed on 2026-09-30, verbatim. Each needs evidence or a decision before becoming work. Split one out as its own issue when it bites.
 
 - the loop saves a child's turn-end cursor before handling it; a handling error now wakes the owner, but a daemon killed mid-handling loses that event (resume <child> verify|integrate recovers).

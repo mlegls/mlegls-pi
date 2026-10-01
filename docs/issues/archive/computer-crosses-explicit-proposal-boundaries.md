@@ -1,0 +1,15 @@
+---
+stage: done
+assignee: agent
+author: session:01a0f2ea-1ebc-7107-830d-9047779d72ac
+---
+
+Obsolete 2026-10-01: `ab computer` and its Jev decision driver were deleted in the pi 0.99 rebuild (`4b79baa`). Computer use is the `cua` and `chrome` MCP servers now ([[projects/mlegls-pi/issues/archive/buy-a-computer-use-driver]]).
+
+Owner: mlegls-pi `computer` browser action selection. During Concept's independent mission-history drive, the intent explicitly said “Choose Change to unstage it, then accept Start charting once and wait for the next Go Map proposal. Do not accept the Map or Mission. Do not send messages.” The driver chose Change/Accept, then Decline, Change/Accept and another Accept on subsequent proposals. Fresh rendered state showed both the Go Map and initial Mission Accepted. The drive ended stuck rather than at the requested boundary. This is tool overreach, not a combined initial Confirmation.
+
+Trace: `2026-09-30T15-35-40-372Z-b20012.browser.jsonl` in session `01a0f2ea-1ebc-7107-830d-9047779d72ac`; durable product packet: [[projects/concept/attachments/drive-mission-map-history-in-browser/independent-drive/index]]. The first-use Go-history packet reports a similar Map → Mission overreach. Related: [[projects/mlegls-pi/issues/archive/computer-resends-a-message-while-the-tutor-is-working]].
+
+Workaround: retained worker-owned page, deterministic single semantic UI action followed by a bounded wait for the actual card. No product repair or API acceptance. Proposed investigation: enforce explicit action boundaries independently of completion judgment, and distinguish a follow-on proposal from the currently authorized one.
+
+On 2026-10-01, Concept's independent `fold-study-quiz-and-review-browser-fixtures` drive (`session:01a0f55c-50cb-738e-ae1f-9678b884ce45`) supplied `answer=6`, requested only the active dots Problem, and explicitly said “Do not touch the chat composer or answer the next question.” `ab computer --browser .wm/computer-browser.ts --until 'The Quiz shows one answered Problem and a new question'` filled/submitted 6, waited, then filled/submitted 6 again into the next place-value Problem. The real Quiz completed with the dots marked correct and `What is the value of the 4 in 347?` marked incorrect; the result persisted after reload. Trace `2026-10-01T02-53-41-403Z-7ec4eb.browser.jsonl`. A preceding inline-start intent had correctly sent `/probing` but, after failing its wrongly predicted question-text predicate, re-filled the chat composer and opened its add menu. Workaround: fresh state inspection and deterministic browser actions for the rest of the encounter. Durable packet [[projects/concept/attachments/fold-study-quiz-and-review-browser-fixtures/index]], frames 06–08. Observation: explicit stop boundaries were crossed; cause unestablished. Not an Application assessment defect.

@@ -7,4 +7,4 @@ While driving Concept's landing typography story on 2026-09-27, `ab computer --u
 
 Workaround: in a unique named `chrome-devtools-axi` session, follow the same two visible links with `run` and inspect URL/colophon after each. Possible improvement: recognize that the first step's target is already satisfied by the query change and advance to the next requested link rather than retrying it. This observation does not establish why the driver ranked the second link below the first.
 
-disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.
+disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/archive/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.

@@ -4,7 +4,7 @@ assignee: agent
 part-of: "[[projects/mlegls-pi/issues/archive/agentic-setup-reorg]]"
 ---
 
-Current question: which human cockpit should sit over the delivered libraries and tracker? Current dispatch uses workmux/tmux and the board ([[projects/mlegls-pi/dispatch]]); Orca and Paseo execution adapters are retired, not candidates to restore as a prerequisite. The optional [[projects/mlegls-pi/issues/archive/dsh-port]] is delivered, with its UI proposal in [[projects/mlegls-pi/issues/dsh-supervision-tree-ui]]. The tmux/Obsidian proposal below remains an alternative, not an approved cockpit implementation. Obsidian block launch and persistent tracker views remain separately owned children.
+Current question: which human cockpit should sit over the delivered libraries and tracker? Current dispatch uses workmux/tmux and the board ([[projects/mlegls-pi/dispatch]]); Orca and Paseo execution adapters are retired, not candidates to restore as a prerequisite. The optional [[projects/mlegls-pi/issues/archive/dsh-port]] is delivered, with its UI proposal in [[projects/mlegls-pi/issues/archive/dsh-supervision-tree-ui]]. The tmux/Obsidian proposal below remains an alternative, not an approved cockpit implementation. Obsidian block launch and persistent tracker views remain separately owned children.
 
 ## Earlier proposal
 
@@ -20,8 +20,8 @@ decisions:
 - 2026-09-18: operon rejected as the tracker (too heavy, pipeline-only kanban, time-only gantt); frontmatter stays canonical, views are plugins or ours.
 - 2026-09-20: the obsidian half is specified in the [[control plane]] project note (four block commands: comment, propose, session, implement; CriticMarkup + shell commands + local rest api for v0). this issue keeps the tmux cockpit half.
 
-decision, 2026-09-30: the cockpit is workmux/tmux + `ab tree` + Obsidian. The Obsidian remainder is agent-owned ([[projects/mlegls-pi/issues/archive/tracker-obsidian-plugin]], [[projects/mlegls-pi/issues/archive/obsidian-implement-sink]]); a DSH cockpit ([[projects/mlegls-pi/issues/dsh-supervision-tree-ui]]) is deferred.
+decision, 2026-09-30: the cockpit is workmux/tmux + `ab tree` + Obsidian. The Obsidian remainder is agent-owned ([[projects/mlegls-pi/issues/archive/tracker-obsidian-plugin]], [[projects/mlegls-pi/issues/archive/obsidian-implement-sink]]); a DSH cockpit ([[projects/mlegls-pi/issues/archive/dsh-supervision-tree-ui]]) is deferred.
 
 decision, 2026-09-30 (later): Obsidian is a read surface for the tracker ([[projects/mlegls-pi/issues/archive/tracker-obsidian-plugin]] continues), not an interactive cockpit. Capture is one flat "top of mind" note (`~/obsidian/projects/top of mind.md`) processed from a chat harness, with processed items removed; [[projects/mlegls-pi/issues/archive/obsidian-implement-sink]] is dropped, and the outliner plans/fleeting/efforts model behind [[projects/mlegls-pi/issues/archive/reconcile]] is off the main path.
 
-closed, 2026-09-30: the cockpit is workmux/tmux + `ab tree`, Obsidian is a read surface (tracker views delivered), capture is the flat top-of-mind note. A DSH cockpit would be its own new issue ([[projects/mlegls-pi/issues/dsh-supervision-tree-ui]] is a standalone idea).
+closed, 2026-09-30: the cockpit is workmux/tmux + `ab tree`, Obsidian is a read surface (tracker views delivered), capture is the flat top-of-mind note. A DSH cockpit would be its own new issue ([[projects/mlegls-pi/issues/archive/dsh-supervision-tree-ui]] is a standalone idea).

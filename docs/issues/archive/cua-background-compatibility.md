@@ -29,4 +29,4 @@ locator replay and existing completion policy do not constrain the native API.
 
 decision, 2026-09-30: deferred until a concrete task needs it; name that task and its user when reopening.
 
-disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.
+disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/archive/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.

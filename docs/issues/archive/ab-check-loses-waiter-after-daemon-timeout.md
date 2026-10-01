@@ -30,4 +30,4 @@ review boundary, 2026-09-30: the ab check pair (ab-check-loses-waiter-after-daem
 
 [Encounter and evidence](../attachments/ab-check-loses-waiter-after-daemon-timeout/index.md).
 
-review, 2026-09-30: combined ab check delta 894e8c6..b336acb (`ab/resources.ts`, `lib/daemon.ts`, help) reviewed by the root tend session; no repairs. Residual: a daemon that never answers again leaves the caller retrying (one stderr line per ~5.5s) until interrupted; the lease expiry is only observed once the daemon responds. Cause of the stalls: [[projects/mlegls-pi/issues/ab-daemon-requests-stall-past-client-timeout]].
+review, 2026-09-30: combined ab check delta 894e8c6..b336acb (`ab/resources.ts`, `lib/daemon.ts`, help) reviewed by the root tend session; no repairs. Residual: a daemon that never answers again leaves the caller retrying (one stderr line per ~5.5s) until interrupted; the lease expiry is only observed once the daemon responds. Cause of the stalls: [[projects/mlegls-pi/issues/archive/ab-daemon-requests-stall-past-client-timeout]].

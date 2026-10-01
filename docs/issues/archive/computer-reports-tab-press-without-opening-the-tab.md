@@ -12,4 +12,4 @@ Reproduced on the next wording re-drive, session `01a0f135-a6b0-73ae-ad09-19385d
 
 Independent Concept credit-return drive (`ec748e220`, session `01a0f200-19ff-73bf-8458-7246bd2642b5`) reproduced this after Chinese → English Save: trace `2026-09-30T11-23-09-063Z-ab2c1d.browser.jsonl` reported Billing at steps 3/11/13, alternated Language and Billing, and stopped in `#language`. Fresh DevTools showed Language selected and the chosen English radio saved. Direct DevTools click on the fourth rendered tab opened Billing immediately; the same Checkout/Session/turn parameters and credited receipt survived. Packet [[projects/concept/attachments/implement-credit-exhaustion-checkout-return/drive/index]], screenshots 10–12. No product repair or resend.
 
-disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.
+disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/archive/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.

@@ -14,4 +14,4 @@ Candidates:
 - [mcporter](https://github.com/openclaw/mcporter) (formerly steipete/mcporter): TS runtime (`createRuntime`, `callOnce`, `createServerProxy` mapping tools to camelCase methods), `mcporter call server.tool …`, OAuth (`mcporter auth`), `emit-ts` typed clients, and `generate-cli` turning a server into a standalone CLI. `generate-cli` is closest to the axi pattern and also serves Paseo workers on other harnesses. It imports Cursor/Claude Code/Codex configs; check that it doesn't pick up unwanted servers.
 - `extensions/disabled/mcp/index.ts` (89 lines, stdio via `@modelcontextprotocol/sdk`, registry at `~/.config/mcp/servers.json`): has the connection code; only tool registration would become a `lib/mcp.ts` export like `mcp.<server>.<tool>(args)`.
 
-disposition, 2026-09-30: pi 0.99 ships MCP natively; owned by [[projects/mlegls-pi/issues/adopt-pi-0-99-codemode-mcp-and-classifiers]].
+disposition, 2026-09-30: pi 0.99 ships MCP natively; owned by [[projects/mlegls-pi/issues/archive/adopt-pi-0-99-codemode-mcp-and-classifiers]].

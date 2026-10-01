@@ -2,10 +2,12 @@
 stage: ticket
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/supervise-loop-reliability]]"
-blocked-by: ["[[projects/mlegls-pi/issues/supervisor-constraints-reach-workers-a-turn-late]]"]
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
+part-of: "[[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]]"
+blocked-by: ["[[projects/mlegls-pi/issues/supervisor-constraints-reach-workers-a-turn-late]]"]
 ---
+
+Carried to the reconciler 2026-10-01, where it is worse: `lib/reconcile/main.ts` has no stop at all (start, run, status, resolve). Stopping one means killing its process, which leaves its workers, handlers and `tree/<slug>` collectors. The contract becomes a reconcile stop that retires workers and handlers, keeps unmerged branches, and marks the state finished.
 
 Once a supervise job is stopped (`ab supervise stop`), nothing in the CLI retires its workers or clears its children. `resume … drop` is queued into a running loop. Cleaning up `obsidian-implement-sink` on 2026-09-30 took:
 

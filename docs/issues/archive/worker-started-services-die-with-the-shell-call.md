@@ -8,4 +8,4 @@ Services a supervised worker starts from a bash tool call are killed when that c
 
 Done when a worker has one documented way to start a long-lived service that outlives the call and is owned by the job, for example a job-scoped process group that is reaped when the phase ends. Dispatch guidance should point to that way. Covering both halves stops the premature deaths and the orphans.
 
-disposition, 2026-09-30: fulfilled by `ab service start -- <command>` (bd2fd94): job-owned services with a TTL backstop, documented in the drive, implement and review roles. Daemon-side loss of services is [[projects/mlegls-pi/issues/ab-service-daemon-lost-active-services-and-receipts]].
+disposition, 2026-09-30: fulfilled by `ab service start -- <command>` (bd2fd94): job-owned services with a TTL backstop, documented in the drive, implement and review roles. Daemon-side loss of services is [[projects/mlegls-pi/issues/archive/ab-service-daemon-lost-active-services-and-receipts]].

@@ -34,7 +34,7 @@ From the ticket and setup handoff only:
 
 ## Frictions
 
-The story's seed cannot be recreated from the handoff: the only command runs existing regressions; the actual size-warning probe was not committed. Recorded this occurrence under the existing tooling owner, [[projects/mlegls-pi/issues/backend-supervisor-test-entry-does-not-expose-handoff-routing]], rather than inventing a new launcher or reading tests to reverse-engineer setup.
+The story's seed cannot be recreated from the handoff: the only command runs existing regressions; the actual size-warning probe was not committed. Recorded this occurrence under the existing tooling owner, [[projects/mlegls-pi/issues/archive/backend-supervisor-test-entry-does-not-expose-handoff-routing]], rather than inventing a new launcher or reading tests to reverse-engineer setup.
 
 ## Replayable checks
 

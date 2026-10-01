@@ -6,6 +6,8 @@ blocked-by:
   - "after: 2026-10-14"
 ---
 
+Carried to the reconciler 2026-10-01: audit its node-own chains (`startPhaseFrom`), which run a node's residual after its children land; same questions.
+
 Audit how the supervise loop's node-residual step has gone once it has run for a while.
 
 Before d76fdf5, `lib/jobs/supervise.ts` dispatched only a node's children. A spec whose children were all done ended "done: 1 children integrated" or "idle: nothing live, but not done: … (done, not ready)" (archived children counted as not done), and its own stage (joined acceptance, Shape items with no child yet, closing) had no runner. Repeated `ab supervise start` on such a spec did nothing, which read as "specs aren't dispatchable" and drifted into the root supervisor's compaction summaries as a rule ("Spec-stage items need refinement into tickets first, which is outside tend's dispatch scope") despite `tend`, `supervise` and the tracker lifecycle all saying specs dispatch.

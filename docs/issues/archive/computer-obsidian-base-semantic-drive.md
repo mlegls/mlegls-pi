@@ -7,4 +7,4 @@ During [[projects/mlegls-pi/issues/archive/tracker-obsidian-views]], `ab compute
 
 Workaround: vault-scoped Obsidian CLI plus native accessibility clicks and screenshots, with explicit waiting for settled Base DOM. Proposed owner: mlegls-pi native computer adapter / Obsidian Cua semantic projection. Investigate why the Base's visible toolbar and rows were not recognized from the scoped native window. Separate from [[computer-obsidian-vault-chooser-native-drive]], which concerned vault chooser and Jev request sizing.
 
-disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.
+disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/archive/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.

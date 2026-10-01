@@ -2,7 +2,7 @@
 
 ## Independent replay
 
-The independent driver at `fea1ca7` reached the Pi RPC surface, but both runs canceled the prerequisite H fold before selecting C. The review diagnosed that as the recipe's seed (grouped citations, an under-sized synthetic conversation), repaired the recipe and re-drove it: the empty hibernation, durable metadata, prior-journal removal, original recall and artifact-based wake all held on a fresh session. [Predictions, session log, review re-drive and outcomes](driver.md); [selected first-attempt metadata](driver-results.json). Setup friction: [[projects/mlegls-pi/issues/empty-journal-drive-cancels-before-c-selector]].
+The independent driver at `fea1ca7` reached the Pi RPC surface, but both runs canceled the prerequisite H fold before selecting C. The review diagnosed that as the recipe's seed (grouped citations, an under-sized synthetic conversation), repaired the recipe and re-drove it: the empty hibernation, durable metadata, prior-journal removal, original recall and artifact-based wake all held on a fresh session. [Predictions, session log, review re-drive and outcomes](driver.md); [selected first-attempt metadata](driver-results.json). Setup friction: [[projects/mlegls-pi/issues/archive/empty-journal-drive-cancels-before-c-selector]].
 
 ## Setup
 

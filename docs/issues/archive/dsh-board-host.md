@@ -65,4 +65,4 @@ A fresh local encounter has now confirmed all three required stories against thi
 [Root integration review](../attachments/dsh-port-root-review/index.md) adds fork
 identity/reset and malformed-record regressions; shared-store exchange was re-driven.
 Shutdown with a live child belongs to
-[[projects/mlegls-pi/issues/dsh-web-shutdown-inbox-projection-order]].
+[[projects/mlegls-pi/issues/archive/dsh-web-shutdown-inbox-projection-order]].

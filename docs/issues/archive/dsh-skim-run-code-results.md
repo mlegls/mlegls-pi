@@ -12,7 +12,7 @@ The skim/attention layer from `lib/skim.ts` and `lib/ingress.ts`, applied to wha
 - full text stored outside context with a locator, i.e. the `ing-…` recall id. The pinned npm distribution supplies `@deepseek-ai/dsh-spill` and `@deepseek-ai/dsh-spill-local`; its abstract store only writes and returns a locator, so the overlay maps live-agent ids to local spill refs for retrieval.
 - skimming in place of `compaction-tool-result-pruner`'s truncation of old results
 
-Done when an over-budget `run_code` result comes back skimmed with a locator that a later program can pull verbatim, and an explicit `skim` call works inside a program. Whether skimming degrades anything is a separate question: [[projects/mlegls-pi/issues/skim-friction-vs-savings]].
+Done when an over-budget `run_code` result comes back skimmed with a locator that a later program can pull verbatim, and an explicit `skim` call works inside a program. Whether skimming degrades anything is a separate question: [[projects/mlegls-pi/issues/archive/skim-friction-vs-savings]].
 
 ## Result
 

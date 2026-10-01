@@ -33,7 +33,7 @@ In a third fresh persisted Pi session, I supplied ten ordinary archive/retained 
 - **Met:** A real tail-only candidate was rejected; all original turns survived. `Compaction cancelled` alone is nonspecific, but the saved candidate's only citations were in the selected tail and there was no compaction entry.
 - **Not met:** Four short turns did not reach the extension despite a manual `compact`; the RPC error was `Nothing to compact (session too small)`. Lowering the native gate made one resumption work; another four-turn fresh session still needed more turns. A first-time user does not know how many turns are enough from that message.
 - **Friction:** A focus asking for only tail citations was not honored on one attempt: the model added older citations and Pi rightly accepted the mixed-source result. Reproducing the negative case requires inspecting the generated candidate, not just the RPC status.
-- **Friction:** A canceled fold's RPC error does not identify why it was canceled. The candidate was saved as `memory-failed-*.md`, while the Memory README says blocked checkpoints save `memory-checkpoint-*.json`; no such JSON appeared in this trial's owned session directory. The Markdown candidate sufficed here, but the documented discovery path did not. Tracked in [[projects/mlegls-pi/issues/memory-cancelled-checkpoint-capture-discovery]].
+- **Friction:** A canceled fold's RPC error does not identify why it was canceled. The candidate was saved as `memory-failed-*.md`, while the Memory README says blocked checkpoints save `memory-checkpoint-*.json`; no such JSON appeared in this trial's owned session directory. The Markdown candidate sufficed here, but the documented discovery path did not. Tracked in [[projects/mlegls-pi/issues/archive/memory-cancelled-checkpoint-capture-discovery]].
 
 ## Replayable checks
 
@@ -54,8 +54,8 @@ This is a deterministic extension-API replay, not another live-provider RPC driv
 Disposition of the first-use expectations/frictions:
 
 - Mixed-source acceptance, retained-tail preservation, recall, rejection and retry: held; encoded in the replay.
-- Short-session gating: outside citation validation; filed as [[projects/mlegls-pi/issues/memory-short-session-compaction-gate]].
-- Focus not inducing tail-only citations: outside this change; recorded with the existing [[projects/mlegls-pi/issues/compaction-register-variants]] owner. Tests supply the actual candidate rather than assuming focus compliance.
-- Nonspecific cancellation and capture discovery: remains owned by [[projects/mlegls-pi/issues/memory-cancelled-checkpoint-capture-discovery]].
+- Short-session gating: outside citation validation; filed as [[projects/mlegls-pi/issues/archive/memory-short-session-compaction-gate]].
+- Focus not inducing tail-only citations: outside this change; recorded with the existing [[projects/mlegls-pi/issues/archive/compaction-register-variants]] owner. Tests supply the actual candidate rather than assuming focus compliance.
+- Nonspecific cancellation and capture discovery: remains owned by [[projects/mlegls-pi/issues/archive/memory-cancelled-checkpoint-capture-discovery]].
 
 Validation: `ab check -- bun test extensions/memory lib/memory.test.ts` — 17 passed, 0 failed, 164 assertions. The first replay exposed an incorrect test expectation (recall preserves a user message's string content, rather than converting it to text blocks); the expectation was corrected and the complete affected suite rerun. No servers, browsers or external deployments were started during review.

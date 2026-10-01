@@ -4,6 +4,8 @@ assignee: agent
 author: "session:01a0eb02-2b0d-72c2-ae72-afd97ec8f7dd"
 ---
 
+Still applies to the reconciler (2026-10-01): a root lands in the owner's checkout through the same `integrate`, and `land()` sends any failure back to the child to rebase, which can't fix the owner's uncommitted edits.
+
 `ab supervise` integrate ends in an ff-only merge into the owner checkout, and that merge fails when the checkout has uncommitted edits to paths the branch touches. In Concept on 2026-09-29, another session had uncommitted Playgrounds→Materials edits to `packages/web/src/ui/locale-en.ts` and `locale-zh-CN.ts` in the main checkout. `return-to-the-entry-address-after-sign-in`'s merge refused ("local changes would be overwritten"), after its ~4 minute `bun run check && bun test`. The session writing those edits had been told to wait until nothing was "in flight" before committing, which would never happen: the integrate could not finish while the tree stayed dirty. The supervisor broke the deadlock by mail.
 
 Committed changes on the owner branch fail the same way. Three ffs of `prepare-dependencies-without-starting-local-convex` were lost to docs-only tracker commits (`docs/issues/**`) that landed during its check window.

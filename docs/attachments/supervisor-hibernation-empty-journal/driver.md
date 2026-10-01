@@ -40,7 +40,7 @@ Expectation formed while using it: retrying a fresh target might resolve a singl
 
 ## Frictions
 
-- The C recipe requires a successful stochastic H journal before it can expose C. Two ordinary H cancellations prevented the requested story; the error exposed only `Compaction cancelled`, not a reason or documented continuation path. Filed as [[projects/mlegls-pi/issues/empty-journal-drive-cancels-before-c-selector]].
+- The C recipe requires a successful stochastic H journal before it can expose C. Two ordinary H cancellations prevented the requested story; the error exposed only `Compaction cancelled`, not a reason or documented continuation path. Filed as [[projects/mlegls-pi/issues/archive/empty-journal-drive-cancels-before-c-selector]].
 - The printed temp root was useful, but after failure there was no compact result packet; selected durable metadata had to be recovered from the session files. No product repair or replacement launcher was attempted.
 
 ## Replayable checks for review
@@ -59,7 +59,7 @@ Both launch processes exited; no Pi RPC child matching either owned temp target 
 
 Diagnosis of the driver's setup failure. The failed candidates (`memory-failed-*.md` in the driver's temp targets) were well-formed journals, but the prerequisite H fold rejected them with `Memory has missing or invalid original-source pointers (no citation to a newly folded source)`. That reason went to an extension notification the recipe did not print. Two causes, both in the recipe's synthetic seed, not the C selector:
 
-1. The model wrote grouped citations, `[@a, @b]`; `citations()` in `extensions/memory/core.ts` only recognizes one ID per brackets, `[@a]`. Filed as [[projects/mlegls-pi/issues/memory-citation-grouped-brackets-rejected]].
+1. The model wrote grouped citations, `[@a, @b]`; `citations()` in `extensions/memory/core.ts` only recognizes one ID per brackets, `[@a]`. Filed as [[projects/mlegls-pi/issues/archive/memory-citation-grouped-brackets-rejected]].
 2. The three tiny turns are far below the 256-token tail target, so the model chose the earliest tail start and folded almost nothing to cite.
 
 Recipe repair (`drive.ts`): print extension `notify` messages; the prerequisite fold's `customInstructions` names the tail start (third user message) and asks for one-ID brackets; default model is now `claude-sonnet-4-6` (override with `EMPTY_JOURNAL_MODEL`). The Haiku runs failed on the causes above; model capability was not separately isolated. Two intermediate runs with only some of these changes failed the same way.

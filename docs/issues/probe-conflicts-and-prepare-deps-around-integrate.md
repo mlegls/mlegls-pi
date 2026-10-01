@@ -2,10 +2,12 @@
 stage: ticket
 assignee: agent
 priority: 3
-part-of: "[[projects/mlegls-pi/issues/supervise-loop-reliability]]"
-blocked-by: ["[[projects/mlegls-pi/issues/stopped-supervise-jobs-have-no-cleanup-path]]"]
 author: session:01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76
+part-of: "[[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]]"
+blocked-by: ["[[projects/mlegls-pi/issues/stopped-supervise-jobs-have-no-cleanup-path]]"]
 ---
+
+Carried to the reconciler 2026-10-01: `land()` in `lib/reconcile/reconcile.ts` sends a conflict's file list back to the child but doesn't probe before integrating, name the target's commits per file, or prepare dependencies after a rebase. The `resume … integrate` paragraph below is moot: a failed decomposition is an exception a handler retries.
 
 Owner: `ab supervise` integrate. Most Concept integrate failures on 2026-09-29 were mechanical. Some were conflicts from stale bases (up to 525 commits behind main), which the loop reported only as `MergeConflict: <file>`. Others were TS2307 `std-semver` after a rebase, because the worktree's dependencies predated a new package; that happened four times, each fixed by `mise run deps`.
 

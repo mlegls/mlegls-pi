@@ -11,7 +11,7 @@ Current owners were rediscovered from those jobs: Concept `mail/c7a4ad76`, mlegl
 - [[projects/concept/issues/name-things-by-their-names-not-ids]]: already in drive; retain that collector, require its current `stories` list and `evidence` object, and obtain actual image judgment. Do not duplicate the encounter merely to start a fresh worker.
 - [[projects/concept/issues/fix-small-application-state-and-error-defects]]: still in implement at the observation cutoff.
 
-The mlegls-pi owner nominated [[projects/mlegls-pi/issues/ab-edit-block-replace-rejects-sigil-second-anchor]] under `supervise-small-ab-cli-fixes-muo6hjm3`. No duplicate work was claimed or dispatched.
+The mlegls-pi owner nominated [[projects/mlegls-pi/issues/archive/ab-edit-block-replace-rejects-sigil-second-anchor]] under `supervise-small-ab-cli-fixes-muo6hjm3`. No duplicate work was claimed or dispatched.
 
 The active roster at preparation is unchanged: collector `openai-codex/gpt-6.1-sol:high`, fallback `anthropic/claude-sonnet-5-5:high`; visual reviewer `anthropic/claude-opus-5-5:medium`, fallback `openai-codex/gpt-6.1-sol:high`. Record actual executions, not these preferences, when measuring. A visual fallback to the collector's model would not establish this ticket's stronger-model comparison.
 
@@ -112,7 +112,7 @@ The nonvisual review is a candidate for collapse into the deterministic test/cov
 
 Trial overhead itself had one avoidable decision loop: restart coordination preceded checking the already-running daemon's start time. A second `needs-input` report repeated the same pending question while the supervisor's first answer was already queued. Four worker boundary requests plus repeated owner clarification bought no new runtime capability. Check process/code freshness first next time. No duplicate product worker was launched and no shared target was killed.
 
-The supplemental judgment notice combined stdin with an unsupported `--topic` argument. That argument was treated as TEXT, which takes precedence over stdin; another supervisor forwarded the actual notice ten minutes later. Stdin itself is documented and works when no TEXT arguments are supplied. The friction is unsupported flag-like syntax becoming message text without warning, not lost stdin support or a dropped correct message. Owner: [[projects/mlegls-pi/issues/ab-mail-treats-unsupported-flags-as-body-text]].
+The supplemental judgment notice combined stdin with an unsupported `--topic` argument. That argument was treated as TEXT, which takes precedence over stdin; another supervisor forwarded the actual notice ten minutes later. Stdin itself is documented and works when no TEXT arguments are supplied. The friction is unsupported flag-like syntax becoming message text without warning, not lost stdin support or a dropped correct message. Owner: [[projects/mlegls-pi/issues/archive/ab-mail-treats-unsupported-flags-as-body-text]].
 
 ## Evidence limits
 

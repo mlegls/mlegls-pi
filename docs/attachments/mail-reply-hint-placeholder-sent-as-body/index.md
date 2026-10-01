@@ -46,7 +46,7 @@ No rendered UI journey: `visual: false`, `shots: []`. No source, diffs, tests or
 ## Frictions and expectations formed during use
 
 - The handoff omitted the board selector. I expected safe isolation to be discoverable from setup/help; it was not. The existing workaround issue supplied the missing selectors: [[projects/mlegls-pi/issues/document-board-store-selector-for-mail-drives]]. No shared-board contamination occurred.
-- Help's “as wake lines print it” led me to expect `--show` to expose the reply hint. **Not met**: only the header/body appeared. Owner recorded in [[projects/mlegls-pi/issues/ab-mail-show-omits-reply-address]]. Workaround: inspect actual delivered content via Pi RPC.
+- Help's “as wake lines print it” led me to expect `--show` to expose the reply hint. **Not met**: only the header/body appeared. Owner recorded in [[projects/mlegls-pi/issues/archive/ab-mail-show-omits-reply-address]]. Workaround: inspect actual delivered content via Pi RPC.
 - I initially expected an unsigned CLI probe to be enough to see a reply address. **Not met**: an `ab` sender has no mailbox. Sending with the driver's actual Pi session identity produced the address.
 - I tried self-mail to avoid needing a separate sender identity. **Not met**: it recorded successfully without a wake. Switching to distinct sender/receiver identities reached the intended surface; this is setup friction, not evidence of a broken reply hint.
 - An absent recipient returns a message ID plus exit 1 and a warning after recording. This felt surprising at first, but **met** the help's documented recording/delivery distinction. A live recipient returned exit 0 without warnings.

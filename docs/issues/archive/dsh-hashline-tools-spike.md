@@ -20,9 +20,9 @@ applied it; the visible registry was exactly `read`, `edit`, `write`, `run_code`
 Layout decisions are recorded in [[projects/mlegls-pi/issues/archive/dsh-port]];
 setup and the program are in `dsh/README.md`.
 
-[Fresh supervised Web encounter and evidence](../attachments/dsh-hashline-tools-spike/index.md): the model read `beta`, applied an anchor-derived `gamma` edit in one PTC program, and reread `alpha\ngamma\n`. Trajectory shows `run_code` and nested `read`/`edit`/`read`; screenshots are included for visual review. The verifier configured an isolated DeepSeek API-key route and disabled two ancillary request-extension contributors after their preparation failed; the failure cause remains unisolated ([[projects/mlegls-pi/issues/dsh-web-deepseek-extension-preparation-fails]]).
+[Fresh supervised Web encounter and evidence](../attachments/dsh-hashline-tools-spike/index.md): the model read `beta`, applied an anchor-derived `gamma` edit in one PTC program, and reread `alpha\ngamma\n`. Trajectory shows `run_code` and nested `read`/`edit`/`read`; screenshots are included for visual review. The verifier configured an isolated DeepSeek API-key route and disabled two ancillary request-extension contributors after their preparation failed; the failure cause remains unisolated ([[projects/mlegls-pi/issues/archive/dsh-web-deepseek-extension-preparation-fails]]).
 
-Friction owners: [[projects/mlegls-pi/issues/dsh-preset-relative-plugin-loading]], [[projects/mlegls-pi/issues/archive/root-typecheck-obsidian-environment]], and [[projects/mlegls-pi/issues/dsh-web-deepseek-extension-preparation-fails]].
+Friction owners: [[projects/mlegls-pi/issues/archive/dsh-preset-relative-plugin-loading]], [[projects/mlegls-pi/issues/archive/root-typecheck-obsidian-environment]], and [[projects/mlegls-pi/issues/archive/dsh-web-deepseek-extension-preparation-fails]].
 
 ## Verification evidence
 

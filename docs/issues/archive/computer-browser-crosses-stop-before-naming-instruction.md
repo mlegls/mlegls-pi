@@ -10,4 +10,4 @@ Observation: a missing end-state label led to a forbidden extra mutation rather 
 
 Workaround: replayed capture with an observed `Not named yet` predicate, which stopped after capture. Used an exclusively retained page for later stages so a stopped intent did not lose Prepare's state. No driver fix attempted. Investigate how explicit negative action constraints and a failed verifier influence candidate selection; cause is not established.
 
-disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.
+disposition, 2026-09-30: kept as evaluation evidence for [[projects/mlegls-pi/issues/archive/buy-a-computer-use-driver]]; the Jev driver's judgment layer is bought, not fixed here.

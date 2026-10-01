@@ -13,7 +13,7 @@ Scripts fit where the LLM step really is f(text) → text: small closed input, t
 
 The gate was live runs of the `supervise` skill; the 2026-09-23 concept campaign is that run: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]]. Coordination was ~49% of ~$252, mostly supervisor cache reads; supervisors ran as design-owning `auto` sol workers, reviewed sibling code, commissioned implementer tests; the root took 420 inbound messages (5 terminal reports) and narrated 317 times while the human was away.
 
-The comparative execution study [[projects/mlegls-pi/issues/loop-vs-supervision-tree]] (including hibernation) is a separate experimental scope, not a prerequisite for delivering this loop.
+The comparative execution study [[projects/mlegls-pi/issues/archive/loop-vs-supervision-tree]] (including hibernation) is a separate experimental scope, not a prerequisite for delivering this loop.
 
 substeps: [[projects/mlegls-pi/issues/archive/ab-daemon]], [[projects/mlegls-pi/issues/archive/host-child-events]] and [[projects/mlegls-pi/issues/archive/worker-turn-end-report]] in parallel; then [[projects/mlegls-pi/issues/archive/supervision-phase-loop]]; then [[projects/mlegls-pi/issues/archive/supervise-as-exception-handler]].
 
@@ -50,4 +50,4 @@ exception:    blocked / needs-input / no sentinel / error / checkpoint / verify 
 subtree done: one crossing-story verify if Jev sees crossings → single report up
 ```
 
-closed, 2026-09-30: all children delivered. The exception-only owner instructions landed in [[projects/mlegls-pi/issues/archive/supervise-as-exception-handler]]; the real-campaign comparison is [[projects/mlegls-pi/issues/compare-exception-only-supervisor-on-a-glm-campaign]], and the open holes moved to [[projects/mlegls-pi/issues/supervise-loop-open-holes]].
+closed, 2026-09-30: all children delivered. The exception-only owner instructions landed in [[projects/mlegls-pi/issues/archive/supervise-as-exception-handler]]; the real-campaign comparison is [[projects/mlegls-pi/issues/archive/compare-exception-only-supervisor-on-a-glm-campaign]], and the open holes moved to [[projects/mlegls-pi/issues/supervise-loop-open-holes]].

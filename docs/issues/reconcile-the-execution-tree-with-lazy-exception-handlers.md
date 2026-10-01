@@ -5,7 +5,7 @@ priority: 1
 author: session:01a0f549-cfd2-755e-886e-463dcd75e5f8
 ---
 
-Replace `ab supervise start` (an LLM `supervise` worker resident at every non-leaf, woken through the ab daemon) with a deterministic reconciler per dispatched subtree, plus subtree-local exception handlers spawned lazily. The goal is minimizing LLM work that is pure acknowledgement or mechanical, without the wall-time cost of the bulk-synchronous `ab supervise loop`. This resolves [[projects/mlegls-pi/issues/loop-vs-supervision-tree]] as its option C. The package rebuild on 0.99 (branch `v2`: codemode outer loop, `dispatch`/`integrate`/`retire` tools, `stance/<agent>` virtual models) deletes the daemon and both loops; this is what supervision becomes there.
+Replace `ab supervise start` (an LLM `supervise` worker resident at every non-leaf, woken through the ab daemon) with a deterministic reconciler per dispatched subtree, plus subtree-local exception handlers spawned lazily. The goal is minimizing LLM work that is pure acknowledgement or mechanical, without the wall-time cost of the bulk-synchronous `ab supervise loop`. This resolves [[projects/mlegls-pi/issues/archive/loop-vs-supervision-tree]] as its option C. The package rebuild on 0.99 (branch `v2`: codemode outer loop, `dispatch`/`integrate`/`retire` tools, `stance/<agent>` virtual models) deletes the daemon and both loops; this is what supervision becomes there.
 
 [The lifecycle contract](../../skills/enabled/all/mlegls/conventions/tracker/references/lifecycle.md) is the model: idea → goal → spec → ticket is an order of readiness, a node's effective stage is the meet of its own and its children's, and any ready spec or ticket subtree can be dispatched and completed entirely. Spec and ticket differ only in whether the issue describes what to get to or what to do. Leaf tickets are single-session and executable literally; the human-in-the-loop boundary is spec, and decomposition below it is autonomous.
 
@@ -33,5 +33,8 @@ Workers rarely use the shared board on their own initiative. Of 1078 worker sess
 ## Children
 
 - [[projects/mlegls-pi/issues/admit-workers-against-a-host-wide-budget]]: the host-wide limit, retargeted from the daemon to a jobserver every reconciler and `dispatch` draws from.
+- [[projects/mlegls-pi/issues/supervisor-constraints-reach-workers-a-turn-late]], [[projects/mlegls-pi/issues/stopped-supervise-jobs-have-no-cleanup-path]], [[projects/mlegls-pi/issues/probe-conflicts-and-prepare-deps-around-integrate]], in that order (same file): carried over from the supervise loop.
 
-Supersedes [[projects/mlegls-pi/issues/supervise-loop-reliability]] and [[projects/mlegls-pi/issues/supervisor-hibernation]] (lazy handlers with persistent sessions are the hibernation design); their open children are moot with the daemon gone.
+Ideas that apply to the reconciler: [[projects/mlegls-pi/issues/replay-a-daemon-restart-mid-integrate]], [[projects/mlegls-pi/issues/integrate-waits-for-a-clean-owner-checkout]], [[projects/mlegls-pi/issues/give-consolidators-a-join-specific-diff-base]], [[projects/mlegls-pi/issues/audit-node-residual-runs-in-supervise]].
+
+Supersedes [[projects/mlegls-pi/issues/archive/supervise-loop-reliability]] and [[projects/mlegls-pi/issues/archive/supervisor-hibernation]] (lazy handlers with persistent sessions are the hibernation design); their open children are moot with the daemon gone.

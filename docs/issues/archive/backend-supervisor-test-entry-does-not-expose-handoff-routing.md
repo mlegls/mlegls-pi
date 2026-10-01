@@ -1,0 +1,17 @@
+---
+stage: done
+assignee: agent
+author: session:01a0f09c-60e3-715e-8568-1f5859aeff64
+---
+
+Superseded 2026-10-01 by [[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]]: `ab supervise` was deleted in the pi 0.99 rebuild (`4b79baa`).
+
+While driving [[projects/mlegls-pi/issues/archive/bounce-handoff-shape-errors-to-the-child]], the setup handoff supplied `bun test lib/jobs/supervise.test.ts lib/report.test.ts` as the backend story entry point. In the drive checkout at `d3c60f7`, that command completed with three passes and zero failures. Its output named only generic tests, not the child/owner recipient, diagnostic text, retry sequence, or parser line for any malformed handoff. The first-use packet at `docs/attachments/bounce-handoff-shape-errors-to-the-child/index.md` records the attempted command and the specific missing observations. The shared daemon had not yet loaded this change; no owned live subtree or mock-worker entry point for sending handoffs was provided. The workaround was to confirm harness readiness and mark routing claims unobservable, without treating the green test as user-level evidence.
+
+A setup handoff for backend supervision should include a reproducible, checkout-owned black-box mock-worker route and observable outbound messages (or a safe way to capture them) for the stated scenarios. This is a suggestion, not an observed defect in the new routing logic.
+
+For this ticket, acceptance review added observable report/mail fixtures to `lib/jobs/supervise.test.ts`: the replay now prints each scenario's recipients and complete diagnostics, asserts the second-report escalation, and exercises corrected reports and truthful non-held reviews. This resolves the supplied entry point's visibility gap for these scenarios; the general setup-handoff suggestion above remains separate.
+
+A second occurrence, while driving [[projects/mlegls-pi/issues/archive/computer-use-images-poison-worker-context]] at `43b32ce`: the handoff's `ab check -- bun test ./lib/jobs/supervise.test.ts` passed (1 pass, 0 fail) and now prints the earlier handoff scenarios' recipients and diagnostics, but no oversized-session scenario, input byte size, or threshold-warning message. The handoff's isolated synthetic target had been removed and its threshold probe was ephemeral. Public CLI/library discovery supplied no safe seeding recipe. The workaround was to record the role instructions directly and leave the warning's timing, recipient and once-only behavior unobservable. Evidence and replayable checks: `docs/attachments/computer-use-images-poison-worker-context/index.md`. The observation concerns reproducible first-use setup, not evidence that the warning implementation is defective.
+
+A later first-use attempt on [[projects/mlegls-pi/issues/archive/parent-waits-on-worker-that-died-without-a-report]] received a `null` setup handoff at revision `8fc4d53`. Its checkout-owned CLI responded, but status contained no jobs; the documented commands supplied no injected-error worker seed or owner-mail capture route. No detection or healthy-turn claim was observed. The [encounter packet](../attachments/parent-waits-on-worker-that-died-without-a-report/index.md) records the isolated CLI entry, cleanup and checks. The same reproducible-backend-setup suggestion above owns this gap; it is not evidence that error detection is broken.
