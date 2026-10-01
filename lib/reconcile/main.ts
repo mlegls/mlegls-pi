@@ -7,13 +7,14 @@
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { load, resolutionsDir, run, stateDir, type State } from "./reconcile.ts";
+import { assertThreadState, load, resolutionsDir, run, stateDir, type State } from "./reconcile.ts";
 
 const alive = (pid?: number) => { if (!pid) return false; try { process.kill(pid, 0); return true; } catch { return false; } };
 
 export function start(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number }): { pid: number; log: string } {
 	const prior = load(o.cwd, o.root);
 	if (prior && !prior.finished && alive(prior.pid)) return { pid: prior.pid!, log: join(stateDir(o.cwd), o.root + ".log") };
+	assertThreadState(prior);
 	mkdirSync(stateDir(o.cwd), { recursive: true });
 	const log = join(stateDir(o.cwd), o.root + ".log");
 	const fd = openSync(log, "a");
@@ -32,8 +33,8 @@ export function campaigns(cwd: string): (State & { running: boolean })[] {
 
 export function summary(s: State & { running: boolean }) {
 	return {
-		root: s.root, running: s.running, finished: s.finished ?? null, owner: s.owner, budget: s.budget,
-		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into }])),
+		root: s.root, backend: s.backend, running: s.running, finished: s.finished ?? null, owner: s.owner, budget: s.budget,
+		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, threadId: c.handle?.threadId, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into }])),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null }])),
 		moved: s.moved, log: s.log.slice(-15),
 	};

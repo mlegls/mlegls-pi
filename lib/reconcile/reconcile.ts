@@ -62,6 +62,7 @@ interface Exception {
 	mailed?: boolean;
 }
 export interface State {
+	backend: "threads";
 	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
 	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
 	chains: Record<string, Chain>;
@@ -78,6 +79,9 @@ export interface State {
 const repoRoot = (cwd: string) => resolve(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "..");
 export const stateDir = (cwd: string) => join(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "reconcile");
 export const stateFile = (cwd: string, root: string) => join(stateDir(cwd), root + ".json");
+export function assertThreadState(state?: State): void {
+	if (state && state.backend !== "threads") throw new Error("Pre-cutover reconciler state: resume it with its original worker implementation; this checkout does not migrate workmux runs");
+}
 export const resolutionsDir = (cwd: string, root: string) => join(stateDir(cwd), root + ".resolutions");
 export function load(cwd: string, root: string): State | undefined {
 	const f = stateFile(cwd, root);
@@ -89,6 +93,8 @@ const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + 
 
 export async function run(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number; signal?: AbortSignal }) {
 	const cwd = resolve(o.cwd);
+	const prior = load(cwd, o.root);
+	assertThreadState(prior);
 	mkdirSync(stateDir(cwd), { recursive: true });
 	mkdirSync(resolutionsDir(cwd, o.root), { recursive: true });
 	// One reconciler per subtree: a second would launch and judge the same workers against the first.
@@ -102,7 +108,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	writeFileSync(join(lock, "pid"), String(process.pid));
 	process.on("exit", () => { try { if (readFileSync(join(lock, "pid"), "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true }); } catch {} });
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
-	const s: State = load(cwd, o.root) ?? { root: o.root, cwd, owner: o.owner, budget: o.budget, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
+	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
 	const save = () => { const f = stateFile(cwd, o.root); writeFileSync(f + ".tmp", JSON.stringify(s, null, 1)); renameSync(f + ".tmp", f); };
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
