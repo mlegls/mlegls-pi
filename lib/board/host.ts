@@ -13,11 +13,13 @@
 
 import { basename } from "node:path";
 import { type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Type, type Static, type TSchema } from "typebox";
+import { dataTool } from "../tool";
 import { Text } from "@earendil-works/pi-tui";
 import { compileQuery, parseTags } from "./query";
-import { logSize, noteRead, readFrom, send, topics, type Message } from "./store";
+import { logSize, meta, noteRead, read, readFrom, send, topics, type Message } from "./store";
 import { parse } from "../report.ts";
-import { mailbox } from "./mailbox";
+import { mail, mailbox } from "./mailbox";
 import { scopes } from "./scopes";
 import { writeLiveSubscriptions, type BoardSubscription } from "../session-meta/live";
 import { execFile } from "node:child_process";
@@ -232,6 +234,34 @@ export function install(pi: ExtensionAPI) {
 		timer = undefined;
 	});
 
+	const namespace = { name: "board", description: "Shared pubsub log for coordinating sessions: topics are paths, messages carry tags; every session has a mailbox topic mail/xxxxxxxx" };
+	const tool = <P extends TSchema>(name: string, description: string, parameters: P, run: (params: Static<P>) => unknown, readOnly = false) =>
+		dataTool(pi, { name, description, parameters, namespace, readOnly, run });
+	const Tags = Type.Optional(Type.String({ description: "Tag expression: `a b` requires both, `a | b` either, `!a` excludes" }));
+
+	tool("board_read", "Read messages matching topic glob (`run/**` includes the base topic and all descendants; `run/*` misses the base) and tags, newest `limit` kept (default 20). Reads do not acknowledge.",
+		Type.Object({
+			topic: Type.Optional(Type.String()), tags: Tags, limit: Type.Optional(Type.Number()),
+			fields: Type.Optional(Type.Union([Type.Literal("full"), Type.Literal("meta")], { description: "meta: compact previews, body cut to bodyChars (default 120, 0 drops it)" })),
+			bodyChars: Type.Optional(Type.Number()),
+		}),
+		(p) => {
+			const result = read({ topic: p.topic, tags: p.tags, limit: p.limit });
+			noteRead({ action: "read", reader: reader(), ids: result.messages.map((m) => m.id) });
+			return p.fields === "meta" ? { ...result, messages: result.messages.map((m) => meta(m, p.bodyChars)) } : result;
+		}, true);
+	tool("board_send", "Post a message to a topic. A decision affecting peers goes on your topic tagged `decision` plus `path:<file>` per file it touches.",
+		Type.Object({ topic: Type.String(), body: Type.String(), tags: Type.Optional(Type.Array(Type.String())), data: Type.Optional(Type.Any()) }),
+		(p) => send({ topic: p.topic, body: p.body, tags: p.tags ?? [], from: reader(), ...(p.data !== undefined && { data: p.data }) }));
+	tool("board_topics", "Topics with message counts and their latest tags, optionally under a glob.",
+		Type.Object({ topic: Type.Optional(Type.String()) }), (p) => topics(p.topic), true);
+	tool("board_subscribe", "Subscribe this session to topic × tags. Matching messages are injected into the session; with wake (default) they also start a turn when idle. remove drops it.",
+		Type.Object({ topic: Type.String(), tags: Tags, wake: Type.Optional(Type.Boolean()), remove: Type.Optional(Type.Boolean()) }),
+		(p) => ({ subscription: subscribe(p), subscriptions: subs }));
+	tool("board_ack", "Acknowledge handled messages so subscriptions do not deliver them again.",
+		Type.Object({ ids: Type.Array(Type.String()) }), (p) => { acknowledge(p.ids); return { acknowledged: p.ids.length }; });
+	tool("mail", "Message a session's mailbox (mail/xxxxxxxx, bare xxxxxxxx, or a session id) or any topic, e.g. a worker's run/handle to answer or steer it. Signed with this session's mailbox so the reader can reply.",
+		Type.Object({ to: Type.String(), body: Type.String() }), (p) => mail(p.to, p.body, { session: sessionId, name }));
 	pi.registerCommand("board", {
 		description: "Show board topics and this session's subscriptions",
 		handler: async (_args, ctx) => {

@@ -6,7 +6,6 @@ import { basename, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { markRetired, readLive } from "./session-meta/live.ts";
 import { HANDOFF_KEYS } from "./report.ts";
-import { assertAssignment, type RouteOptions } from "./route.ts";
 
 export interface Assignment {
   handle: string;
@@ -15,12 +14,13 @@ export interface Assignment {
   assignee?: string;
   /** Self-contained task, including relevant context and coordination constraints. */
   prompt: string;
-  /** Optional roster stance; execution comes from model and effort. */
+  /** Roster stance (agents/<agent>.md): its prompt, and its model list through the `stance/<agent>` virtual model. */
   agent?: string;
   /** Which of the agent's roles this assignment fills (agents/roles/); default its first. */
   role?: string;
-  model: string;
-  effort: string;
+  /** Exact provider/model and effort; default `stance/<agent>`, which routes by the agent's model list. */
+  model?: string;
+  effort?: string;
   base?: string;
 }
 
@@ -34,7 +34,25 @@ export interface Options {
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
   active: Handle[];
-  routing?: RouteOptions;
+}
+
+/** A tracker issue's `assignee` must admit the launch: `agent` admits any agent, `agent:<stance>` that
+ * stance, `model:<provider/model>:<effort>` that exact execution (comma-separated pins combine). Human and
+ * session assignees, and an issue without an assignee, are never dispatched automatically. */
+export function assertAssignee(task: Assignment) {
+  if (!task.issue && !Object.hasOwn(task, "assignee")) return;
+  const selector = task.assignee?.trim();
+  if (!selector) throw new Error("dispatch: unassigned work cannot be automatically dispatched (" + task.handle + ")");
+  if (selector === "agent") return;
+  if (selector === "human" || /^(user|session):/.test(selector))
+    throw new Error("dispatch: " + task.handle + " is assigned to " + selector);
+  for (const part of selector.split(",").map(p => p.trim())) {
+    const stance = /^agent:([a-z][a-z0-9-]*)$/.exec(part)?.[1];
+    const pin = /^model:([^\s,:/]+\/[^\s,:]+):([a-z]+)$/.exec(part);
+    if (stance) { if (task.agent !== stance) throw new Error("dispatch: " + task.handle + " is assigned to " + part + ", not agent " + task.agent); }
+    else if (pin) { if (task.model !== pin[1] || task.effort !== pin[2]) throw new Error("dispatch: " + task.handle + " is pinned to " + part); }
+    else throw new Error("dispatch: invalid assignee " + selector);
+  }
 }
 
 /** A submitted worker. Plain data, so it survives being persisted (supervision state); reattach with wm.attach(run, handle). */
@@ -90,13 +108,14 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(task.handle) || names.has(task.handle))
       throw new Error("dispatch: invalid or duplicate handle " + task.handle);
     names.add(task.handle);
-    if (!task.prompt?.trim() || !/^[^\s/]+\/[^\s]+$/.test(task.model) ||
+    if (!task.model && task.agent) task.model = "stance/" + task.agent;
+    task.effort ??= task.model?.startsWith("stance/") ? "medium" : undefined;
+    if (!task.prompt?.trim() || !task.model || !/^[^\s/]+\/[^\s]+$/.test(task.model) || !task.effort ||
         !["off", "none", "minimal", "low", "medium", "high", "xhigh", "max"].includes(task.effort))
-      throw new Error("dispatch: prompt, provider/model and effort required for " + task.handle);
+      throw new Error("dispatch: prompt and an agent, or provider/model and effort, required for " + task.handle);
     if (task.agent !== undefined && !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(task.agent))
       throw new Error("dispatch: invalid agent name");
-    if (task.issue || Object.hasOwn(task, "assignee"))
-      assertAssignment(task, { ...options.routing, assignee: task.assignee });
+    assertAssignee(task);
     const stance = task.agent ? agent(task.agent) : undefined;
     if (task.agent && !stance) throw new Error("dispatch: unknown agent " + task.agent);
     return { task, stance };
