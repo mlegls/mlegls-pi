@@ -1,0 +1,207 @@
+[?25l[?2004h
+ [0m[38;2;228;138;122m[48;2;79;142;179m▀[0m[38;2;228;138;122m▀█[0m  [0m[38;2;126;136;142mv0.99.1[0m                                                                                                                                                         
+ [0m[38;2;79;142;179m█▀[0m [0m[38;2;234;182;93m█[0m [0m[38;2;126;136;142mescape[0m[38;2;157;165;169m interrupt · [0m[38;2;126;136;142mctrl+c/ctrl+d[0m[38;2;157;165;169m clear/exit · [0m[38;2;126;136;142m/[0m[38;2;157;165;169m commands · [0m[38;2;126;136;142m![0m[38;2;157;165;169m bash · [0m[38;2;126;136;142mctrl+o[0m[38;2;157;165;169m more[0m                                                                                 
+ [0m[38;2;126;136;142mPress ctrl+o to show full startup help and loaded resources.[0m                                                                                                         
+                                                                                                                                                                      
+ [0m[38;2;126;136;142mPi can explain its own features and look up its docs. Ask it how to use or extend Pi.[0m                                                                                
+
+
+[0m[38;2;205;154;34m[Context][0m                                                                                                                                                             
+[0m[38;2;126;136;142m  ~/.pi/agent/APPEND_SYSTEM.md[0m                                                                                                                                        
+
+[0m[48;2;33;59;73m                                                                                                                                                                      [0m
+[0m[48;2;33;59;73m [0m[38;2;222;224;225m[48;2;33;59;73mShow the numbered reattach specimen. This is synthetic display content; do not send a model request.[0m[48;2;33;59;73m                                                                 [0m
+[0m[48;2;33;59;73m                                                                                                                                                                      [0m
+
+ [0m[1m[4m[38;2;205;154;34mReattach specimen[0m                                                                                                                                                    
+                                                                                                                                                                      
+ ROW-001 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-002 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-003 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-004 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-005 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-006 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-007 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-008 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-009 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-010 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-011 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-012 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-013 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-014 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-015 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-016 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-017 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-018 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-019 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-020 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-021 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-022 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-023 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-024 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-025 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-026 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-027 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-028 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-029 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-030 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-031 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-032 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-033 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-034 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-035 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-036 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-037 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-038 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-039 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-040 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-041 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-042 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-043 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-044 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-045 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-046 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-047 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-048 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-049 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-050 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-051 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-052 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-053 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-054 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-055 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-056 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-057 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-058 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-059 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-060 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-061 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-062 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-063 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-064 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-065 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-066 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-067 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-068 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-069 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-070 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-071 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-072 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-073 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-074 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-075 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-076 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-077 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-078 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-079 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-080 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-081 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-082 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-083 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-084 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-085 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-086 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ ROW-087 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap                                                               
+                                                                                                                                                                      
+ ROW-088 — main-screen differential rendering; preserve this row exactly. width-and-wrap width-and-wrap width-and-wrap                                                
+                                                                                                                                                                      
+ ROW-089 — main-screen differential rendering; preserve this row exactly.                                                                                             
+                                                                                                                                                                      
+ ROW-090 — main-screen differential rendering; preserve this row exactly. width-and-wrap                                                                              
+                                                                                                                                                                      
+ END-OF-SPECIMEN                                                                                                                                                      
+
+ [0m[38;2;205;154;34mWarning: Anthropic subscription auth is active. Third-party harness usage draws from extra usage and is billed per token, not your Claude plan limits. Manage extra  [0m
+ [0m[38;2;205;154;34musage at https://claude.ai/settings/usage. Disable this warning in /settings.[0m                                                                                        
+
+[0m[38;2;97;133;204m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+[0m[7m [0m                                                                                                                                                                     
+[0m[38;2;97;133;204m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+[0m[38;2;126;136;142m/tmp[0m
+[0m[38;2;126;136;142m$0.000 (sub) 0.2%/1.0M (auto)                                                                                                   (anthropic) claude-sonnet-4-5 • medium[0m[36;1H[0m[=7;1u
