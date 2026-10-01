@@ -18,6 +18,9 @@ function readsFiles(options: BuildSystemPromptOptions): boolean {
 // and under codemode the nested read/grep/edit aren't selected tools anyway.
 const FILE_TOOLS = "Use read, grep and edit for files rather than cat, sed, rg or redirects in bash: their output carries the anchors edit takes, so grep → edit needs no second look, and large files come back as outlines. bash is for running things.";
 
+// Exec documented the same idiom; without it, shell backticks or escapes inside a script's template literal break the script.
+const CODEMODE_PAYLOADS = "In codemode scripts, write literal payloads (shell commands, file text) as double-quoted strings, or String.raw`…` when they hold backslashes but no backticks, not plain template literals: backticks, ${ and backslashes in the payload then survive. Give edit its array form ({from, op, lines}) when new lines could look like hunk headers.";
+
 function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
 	if (!readsFiles(options)) return undefined;
 	const skills = options.skills?.filter((skill) => !skill.disableModelInvocation);
@@ -40,6 +43,7 @@ function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: strin
 	].join("\n\n"));
 
 	if (readsFiles(options)) parts.push(FILE_TOOLS);
+	if (options.selectedTools?.includes("codemode")) parts.push(CODEMODE_PAYLOADS);
 
 	if (options.appendSystemPrompt?.trim()) parts.push(options.appendSystemPrompt.trim());
 

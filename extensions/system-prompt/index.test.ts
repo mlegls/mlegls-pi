@@ -80,6 +80,9 @@ describe("system prompt extension", () => {
 		const rule = "rather than cat, sed, rg";
 		expect(buildPrompt({ cwd: "/work", selectedTools: ["codemode"] } as BuildSystemPromptOptions)).toContain(rule);
 		expect(buildPrompt({ cwd: "/work", selectedTools: ["bash"] } as BuildSystemPromptOptions)).not.toContain(rule);
+		const payloads = "double-quoted strings";
+		expect(buildPrompt({ cwd: "/work", selectedTools: ["codemode"] } as BuildSystemPromptOptions)).toContain(payloads);
+		expect(buildPrompt({ cwd: "/work", selectedTools: ["read"] } as BuildSystemPromptOptions)).not.toContain(payloads);
 	});
 
 	test("retains pi identity but omits documentation guidance from the default prompt", () => {
