@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { allThreads, getThread, integrateThread, ThreadMergeConflict, workerThread, type ThreadRecord } from "./thread";
 import { HANDOFF_KEYS } from "./report.ts";
+import { stopThreadProcesses } from "./thread/lifecycle-cleanup";
 
 export interface Assignment {
   handle: string;
@@ -187,6 +188,12 @@ export async function integrate(given: Handle | string,
   const result: Integration = { branch, mode };
   if (options.keep) return result;
   return Object.assign(result, await retire(worker, { cwd }));
+}
+
+/** Stop a superseded worker's services without deleting partial work needed by its replacement. */
+export async function stop(given: Handle | string, options: { cwd?: string } = {}) {
+  const { thread } = await recordOf(given, resolve(options.cwd ?? process.cwd()));
+  return stopThreadProcesses(thread);
 }
 
 /** Retire through lifecycle, then delete only patches already in the recorded ab-parent. */

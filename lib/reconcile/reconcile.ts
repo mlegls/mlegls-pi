@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, w
 import { execFileSync } from "node:child_process";
 import { basename, join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
-import { dispatch, integrate, retire, topic, MergeConflict, type Handle } from "../dispatch.ts";
+import { dispatch, integrate, retire, stop, topic, MergeConflict, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
 import { send as sendChild } from "../children.ts";
@@ -501,7 +501,15 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
 			c.retries.relaunch = (c.retries.relaunch ?? 0) + 1;
 			if (c.retries.relaunch > BUDGET.relaunch) raise(slug, c.phase + " worker died " + BUDGET.relaunch + " times", "worktree " + c.handle.path, issues);
-			else { note(c.phase + " worker for " + slug + " is gone; relaunching"); const kept = c.retries.relaunch; await startPhase(slug, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "A previous worker on this phase died; its worktree may hold partial commits in your base."); c.retries.relaunch = kept; save(); }
+			else {
+				note(c.phase + " worker for " + slug + " is gone; relaunching");
+				const kept = c.retries.relaunch;
+				// Stop leaked services before adding a replacement; retain the worktree as its base.
+				try { await stop(c.handle, { cwd: pathOf(c.into) }); }
+				catch (e) { raise(slug, "dead worker cleanup failed", String(e), issues); return "active"; }
+				await startPhase(slug, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "A previous worker on this phase died; its worktree may hold partial commits in your base.");
+				c.retries.relaunch = kept; save();
+			}
 		}
 		return "active";
 	}

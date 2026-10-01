@@ -30,7 +30,16 @@ async function cwdProcesses(root: string): Promise<number[]> {
 	return pids;
 }
 
+/** Stop only this thread's owned processes; preserve its workspace and registry record for retry. */
+export async function stopThreadProcesses(thread: ThreadRecord): Promise<ThreadCleanup> {
+	return cleanupThread(thread, true, true);
+}
+
 export async function retireThread(thread: ThreadRecord, keepBranch: boolean): Promise<ThreadCleanup> {
+	return cleanupThread(thread, keepBranch, false);
+}
+
+async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processesOnly: boolean): Promise<ThreadCleanup> {
 	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
 	const owned = thread.ownership === "owner";
 	let root: string | undefined;
@@ -84,6 +93,7 @@ export async function retireThread(thread: ThreadRecord, keepBranch: boolean): P
 	for (let i = 0; i < 10 && retiring.some(alive); i++) await delay(100);
 	if (retiring.some(alive)) throw new Error("Retiring thread still has live processes: " + retiring.filter(alive).join(", "));
 	result.killed = retiring;
+	if (processesOnly) return result;
 	if (owned && root) {
 		const entry = (await worktrees(thread.project)).find(t => t.path === root);
 		if (entry) await gitChecked(thread.project, "worktree", "remove", "--force", root);
