@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: "session:01a0f797-f820-7245-8162-31f20d419868"
 ---
@@ -11,3 +11,7 @@ Both sides appending to a tracker file is a mechanical conflict, so the reconcil
 - `merge=union` for `docs/issues/**` in `.gitattributes`: zero code, but union also merges frontmatter edits silently.
 - The reconciler resolves conflicts limited to tracker files by union when both hunks are pure additions in the body, and sends back anything else.
 - Observations as fragment files (one per recurrence, the towncrier/changesets pattern), so siblings never touch the same file.
+
+## Result
+
+The second option, in `integrate` (`lib/dispatch.ts`), so every caller gets it, not only the reconciler. Rebases and merges run with diff3 markers; when every conflicted file is under `docs/issues/` and each hunk has an empty base outside the frontmatter, `appendUnion` keeps both sides (the base's first) and the rebase continues. Anything else aborts and is reported as before. Tested in `lib/dispatch.test.ts`.

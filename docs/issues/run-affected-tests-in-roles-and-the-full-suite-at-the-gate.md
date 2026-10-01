@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: "session:01a0f797-f820-7245-8162-31f20d419868"
 ---
@@ -13,3 +13,7 @@ The selection tools already exist: `bun test --changed=<base>` follows the impor
 Not per-ticket config: the reconciler already accumulates retained tests per branch and the handoff's `tests`.
 
 Touches `agents/roles/implement.md`, `agents/roles/review.md`, and the `pre-integrate` description in `lib/reconcile/checks.ts`. First adopter: [[projects/concept/issues/run-bun-test-in-parallel-and-declare-affected-tests]].
+
+## Result
+
+`agents/roles/implement.md` and `review.md` now run lints and `BASE=<base> mise run test:affected` when the project declares it, else the tests covering the change, and leave the full suite to the gate. The reconciler's implement prompt states the base (`Your base: <sha>`); review's already named it in its diff command. Projects opt in by declaring the task; concept's is [[projects/concept/issues/run-bun-test-in-parallel-and-declare-affected-tests]].
