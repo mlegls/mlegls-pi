@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 // ab: the exec kernel's library surface as a shell program. Each subcommand is a thin
 // adapter over lib/ and the exec source engine; scoped help lives in ab/help/<command>.md.
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { spawnSync } from "node:child_process";
 import { exact, OPEN, CLOSE, inTool } from "../lib/raw.ts";
@@ -281,17 +281,58 @@ async function supervise(args: string[]) {
 		const scoped = all ? (await api.status()).filter(j => j.type === "supervise" && (j.input as any).cwd === top && (!ticket || (j.input as any).ticket === ticket)) : jobs;
 		const resumable = (j: typeof jobs[number]) => j.status === "completed" && Object.keys((j.state as any)?.decisionUnavailable ?? {}).length > 0;
 		const shown = ticket || all ? scoped : scoped.filter(j => j.status === "running" || resumable(j));
-		if (!scoped.length) return console.log("no supervision jobs here");
+		const phaseOf = (s: any) => {
+			if (!s) return "unknown";
+			const phases = [...new Set(Object.values<any>(s.children ?? {}).map(c =>
+				c.integrating || (c.acceptedHead && !c.waiting && c.phase !== "supervise") ? "integrate" : c.waiting ? "waiting " + c.phase : c.dead ? "dead" : c.phase))];
+			return phases.length ? phases.join(", ") : s.finished ? "done" : "dispatch";
+		};
+		const canonical = (path: string) => { try { return realpathSync(path); } catch { return resolve(path); } };
+		const within = (base: string, path: string) => {
+			const root = canonical(base), candidate = canonical(path);
+			return candidate === root || candidate.startsWith(root + sep);
+		};
+		const workersRoot = canonical(resolve(top, "..", basename(top) + "__worktrees"));
+		const serviceWorktree = (cwd: string) => {
+			const rel = relative(workersRoot, canonical(cwd));
+			if (!rel || rel === "." || rel === ".." || rel.startsWith(".." + sep) || isAbsolute(rel)) return undefined;
+			return canonical(resolve(workersRoot, rel.split(sep)[0]!));
+		};
+		const serviceView = (entry: any) => JSON.stringify({ id: entry.id, kind: entry.kind, status: entry.status, command: entry.command, cwd: entry.cwd, submitted: entry.submitted, started: entry.started, ended: entry.ended, code: entry.code, reason: entry.reason, log: entry.log });
+		let services: any[] = [];
+		let serviceError: unknown;
+		const serviceAvailable = typeof api.resource === "function";
+		if (serviceAvailable) {
+			try { services = (await api.resource<any[]>({ action: "list" })).filter(entry => entry.kind === "service" && entry.status !== "done"); }
+			catch (error) { serviceError = error; }
+		}
+		if (!scoped.length) console.log("no supervision jobs here");
 		for (const j of shown) {
 			const s = j.state as any;
 			const unavailable = !!s?.decisionUnavailable && Object.keys(s.decisionUnavailable).length > 0;
-			console.log(j.id + (j.status === "completed" && unavailable ? " paused (resumable)" : " " + j.status) + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : ""));
+			console.log(j.id + (j.status === "completed" && unavailable ? " paused (resumable)" : " " + j.status) + (j.error ? " " + j.error : "") + (s ? " " + JSON.stringify(s.metrics) + " integrated: " + (s.integrated.join(", ") || "-") : "") + " phase: " + phaseOf(s));
 			if (s?.decisionUnavailable && Object.keys(s.decisionUnavailable).length) console.log("  Decision API unavailable: " + JSON.stringify(s.decisionUnavailable));
 			if (s) console.log("  commands applied: " + (s.commandsApplied ?? "unknown") + (s.commandInFlight === undefined ? "" : "; in flight: " + s.commandInFlight));
-			for (const c of Object.values<any>(s?.children ?? {})) {
-				const childState = c.dead ? "dead (" + String(c.dead.error).replace(/\s+/g, " ").slice(0, 160) + "; " + c.dead.session + "; " + c.dead.size + " bytes)" : c.phase;
+			const children = Object.values<any>(s?.children ?? {});
+			for (const c of children) {
+				const integrating = c.integrating || (c.acceptedHead && !c.waiting && c.phase !== "supervise");
+				const childState = c.dead ? "dead (" + String(c.dead.error).replace(/\s+/g, " ").slice(0, 160) + "; " + c.dead.session + "; " + c.dead.size + " bytes)" : integrating ? "integrate (in progress)" : c.phase;
 				console.log("  " + c.slug + " " + childState + " " + (c.handle.run + "/" + c.handle.handle) + (c.waiting ? " waiting: " + c.waiting + " since " + (c.waitingSince ?? "unknown") : ""));
 			}
+			if (!serviceAvailable) { if (shown.length) console.log("  services: unavailable"); continue; }
+			if (serviceError) { console.log("  services: unavailable"); continue; }
+			const workerPaths = children.flatMap(c => [c.handle, c.implementer, ...(c.previous ?? [])].map(handle => handle?.path).filter((path): path is string => typeof path === "string"));
+			const owned = services.filter(entry => serviceWorktree(entry.cwd) && existsSync(serviceWorktree(entry.cwd)!) && workerPaths.some(path => within(path, entry.cwd)));
+			console.log("  services:");
+			if (!owned.length) console.log("    -");
+			else for (const entry of owned) console.log("    " + serviceView(entry));
+		}
+		if (serviceAvailable && serviceError) console.log("services with missing worktrees: unavailable (" + String(serviceError).replace(/\s+/g, " ") + ")");
+		else if (serviceAvailable) {
+			const orphaned = services.filter(entry => { const worktree = serviceWorktree(entry.cwd); return worktree && !existsSync(worktree); });
+			console.log("services with missing worktrees:");
+			if (!orphaned.length) console.log("  -");
+			else for (const entry of orphaned) console.log("  " + serviceView(entry));
 		}
 		if (shown.length < scoped.length) console.log(`(${scoped.length - shown.length} finished jobs hidden; --all shows them)`);
 		return;

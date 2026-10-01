@@ -12,6 +12,8 @@ when the subtree is done. Children are wm workers with the owner as parent sessi
 use the `ab mail` address printed in the wake message (or queue a resume action).
 A new start continues from the ticket's last job state.
 
+`status` summarizes live child phases (`integrate` while a worker is being landed) and lists running `ab service` entries from those workers' worktrees. It also lists running services under this checkout's worker directory whose worktree no longer exists. If the daemon cannot provide service records, status reports that rather than claiming there are none.
+
 `adopt` takes over a worker the loop didn't launch, e.g. an orphan of a dead loop, at its phase (inferred from
 the handle's -drive/-review suffix): the loop consumes the worker's latest report, so a finished phase advances at
 once. List earlier workers first (implement before drive); they're retired with it after integration. It queues
