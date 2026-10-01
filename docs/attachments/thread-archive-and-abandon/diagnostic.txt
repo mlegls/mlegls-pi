@@ -1,0 +1,26 @@
+raw {
+  type: "ThreadMergeConflict",
+  thread: "f35d5cd0-7870-4613-9441-5e08aaced389",
+  parent: "parent",
+  files: [ "conflict.txt" ],
+  clean: "",
+  unapplied: true,
+  noMessage: true,
+}
+waitingAfterWrongAndOld true
+freshCurrent {
+  closed: [ "f35d5cd0-7870-4613-9441-5e08aaced389", "ceac5ba1-b814-4c37-a2b4-bc13727ca44d" ],
+  killed: [ 36824, 36823, 36827, 36832, 36804, 36803, 36821, 36828 ],
+  branchesDeleted: [ "child", "parent" ],
+  branchesKept: [],
+}
+mergeMode {
+  branch: "merge-child",
+  parentBranch: "main",
+  path: "/private/tmp/ab-lifecycle-session-CvONEV/repo",
+  mode: "merge",
+} {
+  prepared: true,
+  parents: 2,
+}
+remaining [] []

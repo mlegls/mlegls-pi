@@ -1,0 +1,1127 @@
+{
+  "initial": {
+    "root": "/private/tmp/ab-lifecycle-JlhQjX",
+    "ids": {
+      "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+      "early": "25231820-b072-4665-a806-6442c7c02115",
+      "child": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+      "abandon": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+      "abandonChild": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+      "guest": "bf462957-f54f-4b89-993f-c40ab61474a0"
+    },
+    "peerPid": 14679,
+    "leftoverPid": 5918,
+    "seedHead": "1453b9c1aa78dcc207058ee5fd26d6d45204afa2",
+    "mainHead": "1453b9c1aa78dcc207058ee5fd26d6d45204afa2",
+    "conflict": "seed\n",
+    "threads": [
+      {
+        "id": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "sessionId": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "branch": "parent",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "25231820-b072-4665-a806-6442c7c02115",
+        "sessionId": "25231820-b072-4665-a806-6442c7c02115",
+        "branch": "early",
+        "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "sessionId": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "branch": "child",
+        "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "branch": "abandon",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "branch": "abandon-child",
+        "parent": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "branch": "main",
+        "ownership": "guest",
+        "archived": false
+      }
+    ],
+    "terminals": [
+      {
+        "name": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff.agent",
+        "pid": 5942,
+        "role": "agent"
+      },
+      {
+        "name": "25231820-b072-4665-a806-6442c7c02115.agent",
+        "pid": 98771,
+        "role": "agent"
+      },
+      {
+        "name": "34273083-7a8b-4568-a46b-6a104da8501d.agent",
+        "pid": 95798,
+        "role": "agent"
+      },
+      {
+        "name": "45472a4b-e25f-4cba-8631-b6aece9c1317.agent",
+        "pid": 8868,
+        "role": "agent"
+      },
+      {
+        "name": "9ca53f07-6ea6-460d-aa38-e604e3496c3e.agent",
+        "pid": 2991,
+        "role": "agent"
+      },
+      {
+        "name": "9ca53f07-6ea6-460d-aa38-e604e3496c3e.server",
+        "pid": 5913,
+        "role": "server"
+      },
+      {
+        "name": "bf462957-f54f-4b89-993f-c40ab61474a0.agent",
+        "pid": 11860,
+        "role": "agent"
+      },
+      {
+        "name": "bf462957-f54f-4b89-993f-c40ab61474a0.server",
+        "pid": 14674,
+        "role": "server"
+      }
+    ],
+    "live": [
+      {
+        "pid": 95803,
+        "sessionId": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/parent",
+        "state": "idle"
+      },
+      {
+        "pid": 11865,
+        "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo",
+        "state": "idle"
+      },
+      {
+        "pid": 98781,
+        "sessionId": "25231820-b072-4665-a806-6442c7c02115",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/early",
+        "state": "idle"
+      },
+      {
+        "pid": 8873,
+        "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon-child",
+        "state": "idle"
+      },
+      {
+        "pid": 2996,
+        "sessionId": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/child",
+        "state": "idle"
+      },
+      {
+        "pid": 5951,
+        "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon",
+        "state": "idle"
+      }
+    ],
+    "branches": "+ abandon\n+ abandon-child\n+ child\n+ early\n* main\n+ parent",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-JlhQjX/repo\nHEAD 1453b9c1aa78dcc207058ee5fd26d6d45204afa2\nbranch refs/heads/main\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon\nHEAD 1453b9c1aa78dcc207058ee5fd26d6d45204afa2\nbranch refs/heads/abandon\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon-child\nHEAD d05ad93878dedd56d27b3365b40e5bf307801921\nbranch refs/heads/abandon-child\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/child\nHEAD 8a50a8fd6ebf8783db6c8b1e530f0ee1803d3364\nbranch refs/heads/child\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/early\nHEAD e2ada4953a95e4d05b117cfe14c456f04c396653\nbranch refs/heads/early\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/parent\nHEAD 301df3a363bad5ae7cb363452e3d2aacbd2735b9\nbranch refs/heads/parent",
+    "leftoverAlive": true,
+    "peerAlive": true,
+    "board": [
+      {
+        "id": "mupghad9-0sujfk",
+        "line": 1,
+        "ts": "2026-10-01T11:33:35.037Z",
+        "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+        "tags": [
+          "done"
+        ],
+        "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghfzm-tb81ur",
+        "line": 2,
+        "ts": "2026-10-01T11:33:42.322Z",
+        "topic": "thread/25231820-b072-4665-a806-6442c7c02115",
+        "tags": [
+          "done"
+        ],
+        "session": "25231820-b072-4665-a806-6442c7c02115",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghkxf-8usv2i",
+        "line": 3,
+        "ts": "2026-10-01T11:33:48.723Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "done"
+        ],
+        "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghph4-oyg4kf",
+        "line": 4,
+        "ts": "2026-10-01T11:33:54.616Z",
+        "topic": "thread/112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "tags": [
+          "done"
+        ],
+        "session": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghtx7-1tq3xg",
+        "line": 5,
+        "ts": "2026-10-01T11:34:00.379Z",
+        "topic": "thread/45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "tags": [
+          "done"
+        ],
+        "session": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghxas-482odm",
+        "line": 6,
+        "ts": "2026-10-01T11:34:04.756Z",
+        "topic": "thread/bf462957-f54f-4b89-993f-c40ab61474a0",
+        "tags": [
+          "done"
+        ],
+        "session": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "body": "done fixture-ready"
+      }
+    ]
+  },
+  "duringConflict": {
+    "root": "/private/tmp/ab-lifecycle-JlhQjX",
+    "ids": {
+      "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+      "early": "25231820-b072-4665-a806-6442c7c02115",
+      "child": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+      "abandon": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+      "abandonChild": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+      "guest": "bf462957-f54f-4b89-993f-c40ab61474a0"
+    },
+    "peerPid": 14679,
+    "leftoverPid": 5918,
+    "seedHead": "1453b9c1aa78dcc207058ee5fd26d6d45204afa2",
+    "mainHead": "1453b9c1aa78dcc207058ee5fd26d6d45204afa2",
+    "conflict": "seed\n",
+    "threads": [
+      {
+        "id": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "sessionId": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "branch": "parent",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "25231820-b072-4665-a806-6442c7c02115",
+        "sessionId": "25231820-b072-4665-a806-6442c7c02115",
+        "branch": "early",
+        "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "ownership": "owner",
+        "archived": true
+      },
+      {
+        "id": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "sessionId": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "branch": "child",
+        "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "ownership": "owner",
+        "archived": false,
+        "blocked": {
+          "action": "archive",
+          "parentBranch": "parent",
+          "files": [
+            "conflict.txt"
+          ],
+          "reason": "conflicts merging child into parent: conflict.txt"
+        }
+      },
+      {
+        "id": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "branch": "abandon",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "branch": "abandon-child",
+        "parent": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "ownership": "owner",
+        "archived": false
+      },
+      {
+        "id": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "branch": "main",
+        "ownership": "guest",
+        "archived": false
+      }
+    ],
+    "terminals": [
+      {
+        "name": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff.agent",
+        "pid": 5942,
+        "role": "agent"
+      },
+      {
+        "name": "34273083-7a8b-4568-a46b-6a104da8501d.agent",
+        "pid": 95798,
+        "role": "agent"
+      },
+      {
+        "name": "45472a4b-e25f-4cba-8631-b6aece9c1317.agent",
+        "pid": 8868,
+        "role": "agent"
+      },
+      {
+        "name": "9ca53f07-6ea6-460d-aa38-e604e3496c3e.agent",
+        "pid": 2991,
+        "role": "agent"
+      },
+      {
+        "name": "9ca53f07-6ea6-460d-aa38-e604e3496c3e.server",
+        "pid": 5913,
+        "role": "server"
+      },
+      {
+        "name": "bf462957-f54f-4b89-993f-c40ab61474a0.agent",
+        "pid": 11860,
+        "role": "agent"
+      },
+      {
+        "name": "bf462957-f54f-4b89-993f-c40ab61474a0.server",
+        "pid": 14674,
+        "role": "server"
+      }
+    ],
+    "live": [
+      {
+        "pid": 95803,
+        "sessionId": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/parent",
+        "state": "idle"
+      },
+      {
+        "pid": 11865,
+        "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo",
+        "state": "idle"
+      },
+      {
+        "pid": 8873,
+        "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon-child",
+        "state": "idle"
+      },
+      {
+        "pid": 2996,
+        "sessionId": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/child",
+        "state": "idle"
+      },
+      {
+        "pid": 5951,
+        "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon",
+        "state": "idle"
+      }
+    ],
+    "branches": "+ abandon\n+ abandon-child\n+ child\n* main\n+ parent",
+    "worktrees": "worktree /private/tmp/ab-lifecycle-JlhQjX/repo\nHEAD 1453b9c1aa78dcc207058ee5fd26d6d45204afa2\nbranch refs/heads/main\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon\nHEAD 1453b9c1aa78dcc207058ee5fd26d6d45204afa2\nbranch refs/heads/abandon\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon-child\nHEAD d05ad93878dedd56d27b3365b40e5bf307801921\nbranch refs/heads/abandon-child\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/child\nHEAD 8a50a8fd6ebf8783db6c8b1e530f0ee1803d3364\nbranch refs/heads/child\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/parent\nHEAD bc86270b8858a963dd50b2ef148a2f0fb7ecf584\nbranch refs/heads/parent",
+    "leftoverAlive": true,
+    "peerAlive": true,
+    "board": [
+      {
+        "id": "mupghad9-0sujfk",
+        "line": 1,
+        "ts": "2026-10-01T11:33:35.037Z",
+        "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+        "tags": [
+          "done"
+        ],
+        "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghfzm-tb81ur",
+        "line": 2,
+        "ts": "2026-10-01T11:33:42.322Z",
+        "topic": "thread/25231820-b072-4665-a806-6442c7c02115",
+        "tags": [
+          "done"
+        ],
+        "session": "25231820-b072-4665-a806-6442c7c02115",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghkxf-8usv2i",
+        "line": 3,
+        "ts": "2026-10-01T11:33:48.723Z",
+        "topic": "lifecycle-fixture/child",
+        "tags": [
+          "done"
+        ],
+        "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghph4-oyg4kf",
+        "line": 4,
+        "ts": "2026-10-01T11:33:54.616Z",
+        "topic": "thread/112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "tags": [
+          "done"
+        ],
+        "session": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghtx7-1tq3xg",
+        "line": 5,
+        "ts": "2026-10-01T11:34:00.379Z",
+        "topic": "thread/45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "tags": [
+          "done"
+        ],
+        "session": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghxas-482odm",
+        "line": 6,
+        "ts": "2026-10-01T11:34:04.756Z",
+        "topic": "thread/bf462957-f54f-4b89-993f-c40ab61474a0",
+        "tags": [
+          "done"
+        ],
+        "session": "bf462957-f54f-4b89-993f-c40ab61474a0",
+        "body": "done fixture-ready"
+      },
+      {
+        "id": "mupghykh-2ypg4l",
+        "line": 8,
+        "ts": "2026-10-01T11:34:06.401Z",
+        "topic": "mail/e3496c3e",
+        "tags": [],
+        "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+      }
+    ]
+  },
+  "archive": {
+    "cleanup": {
+      "closed": [
+        "25231820-b072-4665-a806-6442c7c02115",
+        "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "34273083-7a8b-4568-a46b-6a104da8501d"
+      ],
+      "killed": [
+        98771,
+        98781,
+        98770,
+        98775,
+        2991,
+        5913,
+        2996,
+        2990,
+        2995,
+        5912,
+        5915,
+        5918,
+        95798,
+        95803,
+        95797,
+        95801
+      ],
+      "branchesDeleted": [
+        "early",
+        "child",
+        "parent"
+      ],
+      "branchesKept": []
+    },
+    "after": {
+      "root": "/private/tmp/ab-lifecycle-JlhQjX",
+      "ids": {
+        "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "early": "25231820-b072-4665-a806-6442c7c02115",
+        "child": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "abandon": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "abandonChild": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "guest": "bf462957-f54f-4b89-993f-c40ab61474a0"
+      },
+      "peerPid": 14679,
+      "leftoverPid": 5918,
+      "seedHead": "1453b9c1aa78dcc207058ee5fd26d6d45204afa2",
+      "mainHead": "87495d33cd6220fdd26556f470f39a48bd31e8be",
+      "conflict": "resolved-child\n",
+      "threads": [
+        {
+          "id": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "sessionId": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "branch": "parent",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "25231820-b072-4665-a806-6442c7c02115",
+          "sessionId": "25231820-b072-4665-a806-6442c7c02115",
+          "branch": "early",
+          "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "sessionId": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "branch": "child",
+          "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "branch": "abandon",
+          "ownership": "owner",
+          "archived": false
+        },
+        {
+          "id": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "branch": "abandon-child",
+          "parent": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "ownership": "owner",
+          "archived": false
+        },
+        {
+          "id": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "branch": "main",
+          "ownership": "guest",
+          "archived": false
+        }
+      ],
+      "terminals": [
+        {
+          "name": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff.agent",
+          "pid": 5942,
+          "role": "agent"
+        },
+        {
+          "name": "45472a4b-e25f-4cba-8631-b6aece9c1317.agent",
+          "pid": 8868,
+          "role": "agent"
+        },
+        {
+          "name": "bf462957-f54f-4b89-993f-c40ab61474a0.agent",
+          "pid": 11860,
+          "role": "agent"
+        },
+        {
+          "name": "bf462957-f54f-4b89-993f-c40ab61474a0.server",
+          "pid": 14674,
+          "role": "server"
+        }
+      ],
+      "live": [
+        {
+          "pid": 11865,
+          "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo",
+          "state": "idle"
+        },
+        {
+          "pid": 8873,
+          "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon-child",
+          "state": "idle"
+        },
+        {
+          "pid": 5951,
+          "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon",
+          "state": "idle"
+        }
+      ],
+      "branches": "+ abandon\n+ abandon-child\n* main",
+      "worktrees": "worktree /private/tmp/ab-lifecycle-JlhQjX/repo\nHEAD 87495d33cd6220fdd26556f470f39a48bd31e8be\nbranch refs/heads/main\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon\nHEAD 1453b9c1aa78dcc207058ee5fd26d6d45204afa2\nbranch refs/heads/abandon\n\nworktree /private/tmp/ab-lifecycle-JlhQjX/repo__worktrees/abandon-child\nHEAD d05ad93878dedd56d27b3365b40e5bf307801921\nbranch refs/heads/abandon-child",
+      "leftoverAlive": false,
+      "peerAlive": true,
+      "board": [
+        {
+          "id": "mupghad9-0sujfk",
+          "line": 1,
+          "ts": "2026-10-01T11:33:35.037Z",
+          "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+          "tags": [
+            "done"
+          ],
+          "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghfzm-tb81ur",
+          "line": 2,
+          "ts": "2026-10-01T11:33:42.322Z",
+          "topic": "thread/25231820-b072-4665-a806-6442c7c02115",
+          "tags": [
+            "done"
+          ],
+          "session": "25231820-b072-4665-a806-6442c7c02115",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghkxf-8usv2i",
+          "line": 3,
+          "ts": "2026-10-01T11:33:48.723Z",
+          "topic": "lifecycle-fixture/child",
+          "tags": [
+            "done"
+          ],
+          "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghph4-oyg4kf",
+          "line": 4,
+          "ts": "2026-10-01T11:33:54.616Z",
+          "topic": "thread/112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "tags": [
+            "done"
+          ],
+          "session": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghtx7-1tq3xg",
+          "line": 5,
+          "ts": "2026-10-01T11:34:00.379Z",
+          "topic": "thread/45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "tags": [
+            "done"
+          ],
+          "session": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghxas-482odm",
+          "line": 6,
+          "ts": "2026-10-01T11:34:04.756Z",
+          "topic": "thread/bf462957-f54f-4b89-993f-c40ab61474a0",
+          "tags": [
+            "done"
+          ],
+          "session": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghykh-2ypg4l",
+          "line": 8,
+          "ts": "2026-10-01T11:34:06.401Z",
+          "topic": "mail/e3496c3e",
+          "tags": [],
+          "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+        },
+        {
+          "id": "mupghz1c-umu2ar",
+          "line": 9,
+          "ts": "2026-10-01T11:34:07.008Z",
+          "topic": "mail/4da8501d",
+          "tags": [],
+          "body": "Reply only done parent-is-not-conflicted. Do not use tools."
+        },
+        {
+          "id": "mupgi35c-gaengv",
+          "line": 14,
+          "ts": "2026-10-01T11:34:12.336Z",
+          "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+          "tags": [
+            "done"
+          ],
+          "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "body": "done parent-is-not-conflicted"
+        },
+        {
+          "id": "mupgibgk-47clbh",
+          "line": 15,
+          "ts": "2026-10-01T11:34:23.108Z",
+          "topic": "lifecycle-fixture/child",
+          "tags": [
+            "done"
+          ],
+          "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "body": "done"
+        }
+      ]
+    }
+  },
+  "abandonKeep": {
+    "cleanup": {
+      "closed": [
+        "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff"
+      ],
+      "killed": [
+        8868,
+        8873,
+        8867,
+        8871,
+        5942,
+        5951,
+        5941,
+        5947
+      ],
+      "branchesDeleted": [],
+      "branchesKept": [
+        {
+          "branch": "abandon-child",
+          "reason": "keepBranch requested"
+        },
+        {
+          "branch": "abandon",
+          "reason": "keepBranch requested"
+        }
+      ]
+    },
+    "after": {
+      "root": "/private/tmp/ab-lifecycle-JlhQjX",
+      "ids": {
+        "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "early": "25231820-b072-4665-a806-6442c7c02115",
+        "child": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "abandon": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "abandonChild": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "guest": "bf462957-f54f-4b89-993f-c40ab61474a0"
+      },
+      "peerPid": 14679,
+      "leftoverPid": 5918,
+      "seedHead": "1453b9c1aa78dcc207058ee5fd26d6d45204afa2",
+      "mainHead": "87495d33cd6220fdd26556f470f39a48bd31e8be",
+      "conflict": "resolved-child\n",
+      "threads": [
+        {
+          "id": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "sessionId": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "branch": "parent",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "25231820-b072-4665-a806-6442c7c02115",
+          "sessionId": "25231820-b072-4665-a806-6442c7c02115",
+          "branch": "early",
+          "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "sessionId": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "branch": "child",
+          "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "branch": "abandon",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "branch": "abandon-child",
+          "parent": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "branch": "main",
+          "ownership": "guest",
+          "archived": false
+        }
+      ],
+      "terminals": [
+        {
+          "name": "bf462957-f54f-4b89-993f-c40ab61474a0.agent",
+          "pid": 11860,
+          "role": "agent"
+        },
+        {
+          "name": "bf462957-f54f-4b89-993f-c40ab61474a0.server",
+          "pid": 14674,
+          "role": "server"
+        }
+      ],
+      "live": [
+        {
+          "pid": 11865,
+          "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "cwd": "/private/tmp/ab-lifecycle-JlhQjX/repo",
+          "state": "idle"
+        }
+      ],
+      "branches": "abandon\n  abandon-child\n* main",
+      "worktrees": "worktree /private/tmp/ab-lifecycle-JlhQjX/repo\nHEAD 87495d33cd6220fdd26556f470f39a48bd31e8be\nbranch refs/heads/main",
+      "leftoverAlive": false,
+      "peerAlive": true,
+      "board": [
+        {
+          "id": "mupghad9-0sujfk",
+          "line": 1,
+          "ts": "2026-10-01T11:33:35.037Z",
+          "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+          "tags": [
+            "done"
+          ],
+          "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghfzm-tb81ur",
+          "line": 2,
+          "ts": "2026-10-01T11:33:42.322Z",
+          "topic": "thread/25231820-b072-4665-a806-6442c7c02115",
+          "tags": [
+            "done"
+          ],
+          "session": "25231820-b072-4665-a806-6442c7c02115",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghkxf-8usv2i",
+          "line": 3,
+          "ts": "2026-10-01T11:33:48.723Z",
+          "topic": "lifecycle-fixture/child",
+          "tags": [
+            "done"
+          ],
+          "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghph4-oyg4kf",
+          "line": 4,
+          "ts": "2026-10-01T11:33:54.616Z",
+          "topic": "thread/112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "tags": [
+            "done"
+          ],
+          "session": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghtx7-1tq3xg",
+          "line": 5,
+          "ts": "2026-10-01T11:34:00.379Z",
+          "topic": "thread/45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "tags": [
+            "done"
+          ],
+          "session": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghxas-482odm",
+          "line": 6,
+          "ts": "2026-10-01T11:34:04.756Z",
+          "topic": "thread/bf462957-f54f-4b89-993f-c40ab61474a0",
+          "tags": [
+            "done"
+          ],
+          "session": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghykh-2ypg4l",
+          "line": 8,
+          "ts": "2026-10-01T11:34:06.401Z",
+          "topic": "mail/e3496c3e",
+          "tags": [],
+          "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+        },
+        {
+          "id": "mupghz1c-umu2ar",
+          "line": 9,
+          "ts": "2026-10-01T11:34:07.008Z",
+          "topic": "mail/4da8501d",
+          "tags": [],
+          "body": "Reply only done parent-is-not-conflicted. Do not use tools."
+        },
+        {
+          "id": "mupgi35c-gaengv",
+          "line": 14,
+          "ts": "2026-10-01T11:34:12.336Z",
+          "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+          "tags": [
+            "done"
+          ],
+          "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "body": "done parent-is-not-conflicted"
+        },
+        {
+          "id": "mupgibgk-47clbh",
+          "line": 15,
+          "ts": "2026-10-01T11:34:23.108Z",
+          "topic": "lifecycle-fixture/child",
+          "tags": [
+            "done"
+          ],
+          "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "body": "done"
+        }
+      ]
+    }
+  },
+  "guestArchive": {
+    "cleanup": {
+      "closed": [
+        "bf462957-f54f-4b89-993f-c40ab61474a0"
+      ],
+      "killed": [
+        11860,
+        14674,
+        11865,
+        11862,
+        14677
+      ],
+      "branchesDeleted": [],
+      "branchesKept": []
+    },
+    "after": {
+      "root": "/private/tmp/ab-lifecycle-JlhQjX",
+      "ids": {
+        "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+        "early": "25231820-b072-4665-a806-6442c7c02115",
+        "child": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+        "abandon": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+        "abandonChild": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+        "guest": "bf462957-f54f-4b89-993f-c40ab61474a0"
+      },
+      "peerPid": 14679,
+      "leftoverPid": 5918,
+      "seedHead": "1453b9c1aa78dcc207058ee5fd26d6d45204afa2",
+      "mainHead": "87495d33cd6220fdd26556f470f39a48bd31e8be",
+      "conflict": "resolved-child\n",
+      "threads": [
+        {
+          "id": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "sessionId": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "branch": "parent",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "25231820-b072-4665-a806-6442c7c02115",
+          "sessionId": "25231820-b072-4665-a806-6442c7c02115",
+          "branch": "early",
+          "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "sessionId": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "branch": "child",
+          "parent": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "sessionId": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "branch": "abandon",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "sessionId": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "branch": "abandon-child",
+          "parent": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "ownership": "owner",
+          "archived": true
+        },
+        {
+          "id": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "sessionId": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "branch": "main",
+          "ownership": "guest",
+          "archived": true
+        }
+      ],
+      "terminals": [],
+      "live": [],
+      "branches": "abandon\n  abandon-child\n* main",
+      "worktrees": "worktree /private/tmp/ab-lifecycle-JlhQjX/repo\nHEAD 87495d33cd6220fdd26556f470f39a48bd31e8be\nbranch refs/heads/main",
+      "leftoverAlive": false,
+      "peerAlive": true,
+      "board": [
+        {
+          "id": "mupghad9-0sujfk",
+          "line": 1,
+          "ts": "2026-10-01T11:33:35.037Z",
+          "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+          "tags": [
+            "done"
+          ],
+          "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghfzm-tb81ur",
+          "line": 2,
+          "ts": "2026-10-01T11:33:42.322Z",
+          "topic": "thread/25231820-b072-4665-a806-6442c7c02115",
+          "tags": [
+            "done"
+          ],
+          "session": "25231820-b072-4665-a806-6442c7c02115",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghkxf-8usv2i",
+          "line": 3,
+          "ts": "2026-10-01T11:33:48.723Z",
+          "topic": "lifecycle-fixture/child",
+          "tags": [
+            "done"
+          ],
+          "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghph4-oyg4kf",
+          "line": 4,
+          "ts": "2026-10-01T11:33:54.616Z",
+          "topic": "thread/112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "tags": [
+            "done"
+          ],
+          "session": "112fc13a-a875-4c2c-b7ea-dbfd0f0b3fff",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghtx7-1tq3xg",
+          "line": 5,
+          "ts": "2026-10-01T11:34:00.379Z",
+          "topic": "thread/45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "tags": [
+            "done"
+          ],
+          "session": "45472a4b-e25f-4cba-8631-b6aece9c1317",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghxas-482odm",
+          "line": 6,
+          "ts": "2026-10-01T11:34:04.756Z",
+          "topic": "thread/bf462957-f54f-4b89-993f-c40ab61474a0",
+          "tags": [
+            "done"
+          ],
+          "session": "bf462957-f54f-4b89-993f-c40ab61474a0",
+          "body": "done fixture-ready"
+        },
+        {
+          "id": "mupghykh-2ypg4l",
+          "line": 8,
+          "ts": "2026-10-01T11:34:06.401Z",
+          "topic": "mail/e3496c3e",
+          "tags": [],
+          "body": "Archive conflict: rebase onto parent and resolve.\nFiles: conflict.txt\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed."
+        },
+        {
+          "id": "mupghz1c-umu2ar",
+          "line": 9,
+          "ts": "2026-10-01T11:34:07.008Z",
+          "topic": "mail/4da8501d",
+          "tags": [],
+          "body": "Reply only done parent-is-not-conflicted. Do not use tools."
+        },
+        {
+          "id": "mupgi35c-gaengv",
+          "line": 14,
+          "ts": "2026-10-01T11:34:12.336Z",
+          "topic": "thread/34273083-7a8b-4568-a46b-6a104da8501d",
+          "tags": [
+            "done"
+          ],
+          "session": "34273083-7a8b-4568-a46b-6a104da8501d",
+          "body": "done parent-is-not-conflicted"
+        },
+        {
+          "id": "mupgibgk-47clbh",
+          "line": 15,
+          "ts": "2026-10-01T11:34:23.108Z",
+          "topic": "lifecycle-fixture/child",
+          "tags": [
+            "done"
+          ],
+          "session": "9ca53f07-6ea6-460d-aa38-e604e3496c3e",
+          "body": "done"
+        }
+      ]
+    }
+  },
+  "external": {
+    "id": "01a0f73e-9189-7371-9bbe-52c4cc717e61",
+    "pid": 26447,
+    "before": [
+      {
+        "pid": 26447,
+        "sessionId": "01a0f73e-9189-7371-9bbe-52c4cc717e61"
+      }
+    ],
+    "cleanup": {
+      "closed": [
+        "01a0f73e-9189-7371-9bbe-52c4cc717e61"
+      ],
+      "killed": [
+        28358,
+        26447,
+        28362
+      ],
+      "branchesDeleted": [],
+      "branchesKept": []
+    },
+    "after": [],
+    "peerAlive": true
+  },
+  "cleanup": {
+    "active": [],
+    "zmx": [],
+    "live": []
+  }
+}

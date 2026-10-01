@@ -1,13 +1,12 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a0f6e1-7ec3-7620-b7fd-edc63c2b3d94
 part-of: "[[projects/mlegls-pi/issues/thread-core-and-workers-on-zmx]]"
-blocked-by: ["[[projects/mlegls-pi/issues/thread-registry-and-zmx-launch]]"]
 priority: 2
 ---
 
-Session mode: hacking. Preserve [[projects/mlegls-pi/stories/work-in-threads]]. The decisions in [[projects/mlegls-pi/issues/thread-registry-on-zmx]] and the committed `lib/thread/index.ts` seam are the contract; the seam is currently throwing stubs, not a second backend. Source evidence: [zmx/pi launch constraints](../attachments/thread-core-and-workers-on-zmx/source-contract.md).
+Session mode: hacking. Preserve [[projects/mlegls-pi/stories/work-in-threads]]. The decisions in [[projects/mlegls-pi/issues/thread-registry-on-zmx]] and the committed `lib/thread/index.ts` seam are the contract. Source evidence: [zmx/pi launch constraints](../attachments/thread-core-and-workers-on-zmx/source-contract.md).
 
 Implement `lib/thread/lifecycle.ts` and private lifecycle helpers. Do not change `lib/dispatch.ts`, `lib/wm.ts`, the CLI, UI or in-pi commands. This ticket implements archive/abandon and the single-thread raw integration primitive. User-facing `ab thread merge` aliases archive with the same retirement and conflict behavior, as answered in [[projects/mlegls-pi/issues/thread-merge-command-lifetime]]; no separate lifecycle implementation is needed.
 
@@ -25,3 +24,17 @@ Implement `lib/thread/lifecycle.ts` and private lifecycle helpers. Do not change
 Temporary owned git repository, isolated XDG state/board, normal agent threads over zmx. Start a parent and child on separate owned branches, deliberately conflict one tracked file between them. Archive the parent: the child alone receives the conflict, no parent branch is merged/removed early, and a fresh child done causes child → parent → parent's ab-parent integration and all fixture resources disappear. Repeat with child blocked: that child and ancestors remain active, already-retired nodes stay retired, the marker is returned/persisted, and retry after resolution continues safely.
 
 Also abandon a nested tree with keepBranch true; branches survive and no changes merge. Archive/abandon a guest with an unrelated process in the same checkout: only the thread's own resources close. Supply fixture ids, conflict file and runnable invocation to the driver. Run relevant existing git/live regressions and root typecheck (plugin setup workaround linked above). The parent join will re-drive the two-level conflict through the actual CLI after consumers land.
+
+## Result
+
+Implemented `integrateThread`, `archiveThread` and `abandonThread` with private git/cleanup helpers. Integration follows `ab-parent`; archive integrates and retires the spawn subtree in post-order, pauses on that agent's conflict, and resumes only on its fresh done. Abandon does not merge; `keepBranch` preserves every owned branch.
+
+### Evidence
+
+**Before:** the three published lifecycle functions threw unimplemented errors.
+**After:** [First-use setup and selected readbacks](../attachments/thread-archive-and-abandon/index.md). Normal pi/zmx fixtures exercised child done, blocked/partial completion and retry, nested keep-branch abandon, guest isolation and a canonical pi outside zmx. Fixture entry: `mise exec -- bun docs/attachments/thread-archive-and-abandon/fixture.ts prepare done`. Existing regressions: 169 passed, 2 skipped; typecheck passed with the linked Obsidian dependency workaround. No new permanent acceptance tests; independent drive follows.
+
+### Danger
+
+**Door:** one-way. Retirement stops processes and removes owned worktrees; explicit abandon may discard unmerged owned branches unless `keepBranch` is requested.
+**Blast radius:** subtree. Ownership confines cleanup; guests leave their checkout, branch and cwd peers alone. No worker consumers, CLI, UI or in-pi commands changed.
