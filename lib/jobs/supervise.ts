@@ -40,6 +40,7 @@ export interface Input { ticket: string; cwd: string; owner: string; ownerSessio
 type Phase = "implement" | "drive" | "review" | "supervise" | "consolidate";
 interface Child { slug: string; phase: Phase; handle: Handle; cursor?: string; implementer?: Handle; previous?: Handle[]; waiting?: string; waitingSince?: string; exceptionMailAt?: string; staleWakeSentFor?: string; unreachable?: boolean; evidence?: Record<string, unknown>; acceptedHead?: string; setup?: unknown; drive?: Record<string, unknown>; redriven?: boolean; startup?: { launchedAt: number; mode?: "pi" | "command"; sessionFound?: boolean; sessionFile?: string; reported?: boolean; checkedAt?: number }; sessionStartedAt?: number; dead?: { error: string; session: string; size: number; failedAt: string } }
 interface Child { reportRepairs?: number; warnedSessionFiles?: string[]; pendingSessionWarnings?: string[] }
+interface Child { integrating?: boolean }
 export interface Metrics { wakes: number; ownerBytes: number; launched: number; completed: number; /** most children live at once: whether the budget ever binds */ peak?: number }
 // Caveats are residuals, not stops: carried to the verifier and to the done message, where the owner files them.
 export interface State { children: Record<string, Child>; integrated: string[]; metrics: Metrics; finished?: boolean; crossing?: Child; caveats?: Record<string, string[]>; commandsApplied?: number; commandInFlight?: number; deferred?: Record<string, string>; decisionUnavailable?: Record<string, string>;
@@ -288,6 +289,7 @@ export async function run(job: JobContext) {
  };
  const except = async (c: Child, reason: string, text = "") => {
   if (batch && state.children[c.slug] !== c) return; // already deferred this turn
+  delete c.integrating;
   const waitingSince = new Date().toISOString();
   c.waiting = reason; c.waitingSince = waitingSince; c.exceptionMailAt = undefined; c.staleWakeSentFor = undefined;
   trace("exception", { slug: c.slug, phase: c.phase, reason: reason.slice(0, 200) });
@@ -464,6 +466,8 @@ const checkWorkerFailures = async (live: Child[]) => {
  const carried = () => { const l = listCaveats(state.caveats); return l ? "\nCaveats the children reported, integrated anyway; file each as an idea or link its owner:\n" + l : ""; };
  const integrateChild = (c: Child, handle: Handle) => { trace("integrate-queued", { slug: c.slug }); return serialized(input.cwd, async () => {
   trace("integrate-start", { slug: c.slug });
+  c.integrating = true;
+  await save();
   let packet: ReturnType<typeof evidencePacket> | undefined;
   if (c.phase !== "supervise") {
    if (!c.acceptedHead || c.acceptedHead !== git(handle.path, "rev-parse", "HEAD") || (!isJoin(c) && unheld(c.evidence ?? null))) { trace("integrate-end", { slug: c.slug, ok: false }); return except(c, "an accepted review of the current head is required before integration"); }
@@ -508,6 +512,8 @@ const checkWorkerFailures = async (live: Child[]) => {
  // An implementer that decomposed its spec leaf lands only tracker changes, without drive or review: the
  // children get their own. Any other change on the branch goes through the normal pipeline instead.
  const decompose = (c: Child, kids: Issue[], after: Issue[]) => serialized(input.cwd, async () => {
+  c.integrating = true;
+  await save();
   const dirs = [...new Set(after.map(i => dirname(relative(realpathSync(c.handle.path), realpathSync(i.file)))))];
   const base = git(c.handle.path, "merge-base", "HEAD", git(input.cwd, "rev-parse", "HEAD"));
   const outside = git(c.handle.path, "diff", "--name-only", base, "HEAD").split("\n").filter(f => f && !dirs.some(d => f === d || f.startsWith(d + "/")));
@@ -674,9 +680,17 @@ const checkWorkerFailures = async (live: Child[]) => {
  await save();
  // An accepted head with no exception means the review (or join) was accepted and integration had not
  // finished: the daemon restarted mid-gate. Its turn end is already consumed, so re-enter integration.
- for (const c of Object.values(state.children)) if (c.acceptedHead && !c.waiting && c.phase !== "supervise" && !job.signal.aborted) {
-  trace("integrate-resumed", { slug: c.slug });
-  await integrateChild(c, c.handle);
+ for (const c of Object.values(state.children)) {
+  if (job.signal.aborted) break;
+  if (c.integrating && c.phase === "implement") {
+   const after = snapshot({ ...input, cwd: c.handle.path });
+   const kids = after.filter(i => i.partOf === c.slug && !finished(i));
+   trace("integrate-resumed", { slug: c.slug, decomposed: kids.map(k => k.slug) });
+   await decompose(c, kids, after);
+  } else if ((c.integrating || (c.acceptedHead && !c.waiting && c.phase !== "supervise")) && !c.waiting) {
+   trace("integrate-resumed", { slug: c.slug });
+   await integrateChild(c, c.handle);
+  }
  }
  let lostWatches = 0;
  while (!job.signal.aborted) {
