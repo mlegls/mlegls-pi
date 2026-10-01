@@ -145,7 +145,9 @@ if (action === "worker") {
   const supervisor = await newThread({ cwd, in: cwd, launch: { args: ["--approve", "--model", f.model, "--thinking", "off"], prompt: action === "join" ? joinPrompt : prompt } });
   console.log(JSON.stringify({ event: "driving-pi", id: supervisor.id, cwd, before }));
   const report = await until(() => { const m = latest("thread/" + supervisor.id); return m?.body.startsWith(action === "join" ? "done fixture-join-complete" : "done fixture-dispatch-complete") ? m : undefined; }, 600);
-  console.log(JSON.stringify({ event: "tool-dispatch-complete", report, after: await inventory(), files: git(cwd, "ls-tree", "--name-only", "HEAD") }));
+  console.log(JSON.stringify({ event: "tool-dispatch-complete", report, branches: git(cwd, "branch"),
+    active: (await allThreads()).map(t => ({ id: t.id, worker: t.worker, cwd: t.cwd })), terminals: await terminals(),
+    files: git(cwd, "ls-tree", "--name-only", "HEAD"), after: await inventory() }));
   await abandonThread(supervisor.id);
   console.log(JSON.stringify({ event: "driving-pi-retired", after: await inventory() }));
 } else if (action === "reconcile") {
