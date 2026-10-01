@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a0f6e1-7ec3-7620-b7fd-edc63c2b3d94
 part-of: "[[projects/mlegls-pi/issues/thread-core-and-workers-on-zmx]]"
@@ -52,3 +52,7 @@ Workers and supervisors now use registered zmx threads. Receipts carry threadId,
 ## Verification
 
 [Independent encounter packet](../attachments/wm-workers-over-threads/drive.md): worker continuity/literal history, canonical/free identity and /jump, death-versus-read-error behavior, public dispatch/integrate/retire, and nested destination/restart journeys held on `09a2bd0`. Fixture cleanup completed. Review and the parent's final fresh-tool join remain.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/wm-workers-over-threads/drive.md).
