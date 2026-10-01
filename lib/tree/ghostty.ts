@@ -20,7 +20,7 @@ export async function openSidebar(): Promise<void> {
 	// It is not an auxiliary shell and cannot accidentally receive a command intended for pi.
 	const main = `while :; do printf '\\033]2;ab thread\\007'; printf 'Choose a thread in the sidebar\\n'; read -r id || exit; ${quote(AB)} thread attach "$id"; done`;
 	const env = Object.entries(process.env).filter(([key, value]) => value !== undefined &&
-		(/^(PI_|XDG_|ZMX_|AB_THREAD_)/.test(key) || ["PATH", "SHELL", "HOME", "TMPDIR"].includes(key)) &&
+		(/^(PI_|XDG_|ZMX_|AB_THREAD_)/.test(key) || ["PATH", "SHELL", "HOME", "TMPDIR"].includes(key) || /^(all|https?|no)_proxy$/i.test(key)) &&
 		!["ZMX_SESSION", "ZMX_SESSION_PREFIX", "AB_THREAD_ID", "PI_SESSION_ID", "PI_SESSION_FILE"].includes(key))
 		.map(([key, value]) => key + "=" + value);
 	env.push("AB_TREE_TOKEN=" + token, "ZMX_TRACK_ENV=" + (process.env.ZMX_TRACK_ENV ?? "DISPLAY,SSH_AUTH_SOCK,SSH_AGENT_PID,SSH_CONNECTION,WINDOWID,XAUTHORITY,KITTY_LISTEN_ON,KITTY_PID,KITTY_WINDOW_ID") + ",AB_TREE_TOKEN");
