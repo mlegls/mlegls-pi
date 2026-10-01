@@ -55,3 +55,14 @@ Both preparation and these entry points were exercised. Recorded targets `/priva
 `bun-axi test`: 169 passed, 2 skipped across 31 files. Relevant git/live/runtime subset: 8 passed. `bunx tsc --noEmit` and `git diff --check` passed. Typecheck used the existing [Obsidian setup workaround](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md). Tracker semantic lint ran before and after the Result; its weak advisory suggestions cite the done prerequisite, required acceptance text and declared retirement danger, not an observed product failure or unowned friction.
 
 Delta from the starting ref: +282 net library lines in three lifecycle files, with no new dependency or permanent acceptance test. The disposable driver setup is separate from product code.
+
+## Review
+
+Reviewed `041cebe` plus the lifecycle diff against the ticket. No defects found in `lib/thread/lifecycle*.ts`; no product repairs. The driver's unmeasured controls (C2 report identity/freshness; C6 reparent, missing/deleted ab-parent, dirty trees, prepare failure, merge-bearing child) are now retained as unit tests in [`lib/thread/lifecycle.test.ts`](../../../lib/thread/lifecycle.test.ts) (shell-fixture threads over zmx, isolated state/board, no pi or model):
+
+- **C2:** another agent's done and an untagged reply on the child's topic leave the archive waiting; after `setCurrentSession` moves the child, a done from the old session is ignored and only the current session's done after resolution continues child → parent → main. needs-input, checkpoint and turn-end each end the walk with the returned/persisted marker, nothing retired. Removing the `from.session` comparison makes the test fail.
+- **C6:** with ab-parent reparented to `main` (spawn parent a different thread), raw integrate lands in main from an unrelated cwd; dirty child, failing prepare and a prepare that leaves changes refuse with main untouched; missing and deleted ab-parent throw rather than choose a target; a merge-bearing child keeps its earlier merge commit (base merged, not rebased); raw conflict throws `ThreadMergeConflict` with files, leaves the child clean and unchanged, sends no mail and sets no marker; raw integrate leaves the thread active.
+
+Left as evidence only: the real-agent journeys C1, C3–C5, C7 above (they need normal pi agents and detached processes; the driver's readbacks are the record). Checkpoint/turn-end reading as a non-success block is the implemented contract ("Checkpoint/needs-input/no-status are not successful resolution").
+
+`bun test lib`: 137 passed, 2 skipped; typecheck clean outside the known Obsidian setup workaround.
