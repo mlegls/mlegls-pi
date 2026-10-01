@@ -15,8 +15,8 @@ test("mail CLI distinguishes definitely undeliverable sends and accepts the wait
  const env: NodeJS.ProcessEnv = { ...process.env, XDG_STATE_HOME: state, XDG_DATA_HOME: data, AB_STATE: join(root, "ab"), AB_SESSION_STATE: join(root, "session"), PI_SESSION_ID: "", PI_WM_HANDLE: "" };
  delete env.PI_BOARD_DIR;
  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
- const mail = (destination: string) => {
-  const p = Bun.spawnSync([process.execPath, resolve("ab/main.ts"), "mail", destination, "owner steer"], { cwd: repo, env, stdout: "pipe", stderr: "pipe" });
+ const mail = (destination: string, body = "owner steer") => {
+  const p = Bun.spawnSync([process.execPath, resolve("ab/main.ts"), "mail", destination, body], { cwd: repo, env, stdout: "pipe", stderr: "pipe" });
   return { status: p.exitCode, out: p.stdout.toString(), err: p.stderr.toString() };
  };
  try {
@@ -42,6 +42,13 @@ test("mail CLI distinguishes definitely undeliverable sends and accepts the wait
   expect(absent.status).toBe(1);
   expect(absent.out).toContain("ticket/sample/absent-review-1");
   expect(String(absent.err)).toContain("warning: no live subscribers");
+  // Replays the placeholder check of mail-reply-hint-placeholder-sent-as-body: a copied `TEXT` is refused unrecorded, TEXT inside prose is not.
+  const placeholder = mail("ticket/sample/absent-review-1", "TEXT");
+  expect(placeholder.status).toBe(2);
+  expect(placeholder.err).toContain("placeholder");
+  expect(placeholder.out).toBe("");
+  const prose = mail("ticket/sample/absent-review-1", "the literal TEXT above was a placeholder");
+  expect(prose.out).toContain("ticket/sample/absent-review-1");
   mkdirSync(join(state, "pi-live"), { recursive: true });
   const sessionId = "00000000-0000-7000-8000-0000abcd1234";
   const record = join(state, "pi-live", process.pid + ".json");

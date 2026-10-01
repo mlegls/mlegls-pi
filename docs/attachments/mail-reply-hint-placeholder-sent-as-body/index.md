@@ -60,3 +60,11 @@ No rendered UI journey: `visual: false`, `shots: []`. No source, diffs, tests or
 ## Limits and cleanup
 
 This drive covers exact `TEXT`, not case/whitespace variants beyond a normal stdin newline, arbitrary destination aliases or unsupported flags. No reply was sent back to the driver and no successful model response was required. All three owned Pi RPC processes were terminated and awaited. No browser pages, services, tunnels, containers or external deployments were started; only ignored checkout scratch data remains.
+
+## Review
+
+Read the diff (`ab/main.ts` exact-`TEXT` refusal, `lib/board/host.ts` address-only hint, `ab/help/mail.md`) against the log; every story's claim matches the code. Not re-driven: no behavior changed.
+
+- Retained check 1 (argv `TEXT` refused, nothing recorded; `TEXT` inside prose accepted) as a scenario in `lib/board/mail-drive.test.ts`, the existing mail CLI replay. Passes.
+- Left as evidence: check 2 (live RPC hint text, needs two Pi sessions and only confirms this copy) and check 3 (multiline stdin integrity; unchanged code path).
+- Same trap remains outside this ticket's diff: `lib/jobs/supervise.ts` still prints `ab mail <address> TEXT` in waiting-worker and large-session notices (asserted in `lib/jobs/supervise.test.ts`). The CLI refusal now covers them; rewording is a copy choice for the author.
