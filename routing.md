@@ -11,9 +11,10 @@ Choose the stance whose deliverable fits, for the lowest wall time to accepted c
 - `technical`: Clear acceptance criterion but difficult technical fulfillment, including novel algorithms, complex systems, or exacting UI implementation.
 - `ui`: Work where design taste must actually be exercised: choosing interaction, hierarchy, affordances, state legibility, or visual design. Not implementation from an existing design or simple UI adjustments with settled intent; use `fill`, `auto-routine`, or `auto` with luna or sol when sufficient, and `technical` for hard technical fulfillment. Keep rendered acceptance with `visual-reviewer` on Opus.
 - `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
-- `compile`: A spec leaf whose design is closed but which is too big for one session: close interfaces, commit stubs, fan out `fill`.
+- `compile`: Refines a spec whose design is closed but which is too big for one session: close interfaces as committed stubs, partition the rest into `fill` tickets.
+- `manager`: Refines a spec that delegates design: partition it into outcomes with boundaries, children `auto`/`auto-routine` or further specs.
 - `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
-- `tidy`: Incremental behavior-preserving tidying across changes that landed together; the consolidation pass at a join.
+- `tidy`: Review at a join: repair crossing stories at their seams, then behavior-preserving tidying across the changes that landed together.
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.
 - `reviewer`: Review a change against its contract (and the driver's log when there is one) and repair it directly; non-visual work.
 - `verify`: Drive changed behavior as its user would, without reading the implementation; write predictions before first use; record outcomes, frictions, expectations and replayable checks (the reviewer encodes them as tests).

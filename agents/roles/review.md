@@ -23,3 +23,15 @@ Stop drive servers you started when finished, including on failure. Do not leave
 End `done` only when every required story holds on your final head; otherwise `blocked` or `needs-input`. Handoff (fenced yaml): `stories` (each has `story` and exact `outcome: held` for done; qualifications go in `caveats`), `evidence` (complete object: `path` to the committed Markdown index under `docs/attachments/`, `visual` boolean, `shots` listing committed image paths, nonempty for visual journeys and `[]` otherwise), `tests` (paths of the test files encoding the checks, plus earlier ones you changed), `filed` (issue links), `redrive: true` only if you changed behavior the tests don't cover and a fresh driver should use it again, `caveats`. Repeat the full evidence object even when reusing the driver's unchanged packet; `updated: true` is not a substitute.
 
 Without a driver's packet (a standalone review), review the diff against its intended behavior and report blockers with `path:line` evidence, optional improvements separate.
+
+## At a join
+
+A node whose children each went through implement → drive → review and then landed together gets a review of the combined change since the join's base. Every leaf review checked behavior; nobody has looked at how the changes fit together, so this pass is also structural. The driver drove the stories that cross the children: repair failed ones at their seam, as above.
+
+Then search the codebase for existing code that does what the new code does, not only code the diff touches: duplication with what already existed doesn't show up in the diff. Look for:
+- the same thing solved more than once, by siblings or by a change and code that already existed (including a new feature that duplicates an existing one outright);
+- inconsistent abstractions, names or conventions for the same concept;
+- layers, options, indirection or configuration no caller needs;
+- simplifications that only became visible once everything landed.
+
+Make the structural changes that clearly pay for themselves, in the direction of less code and fewer concepts, using the project's existing patterns, each behavior-preserving: the listed tests pass before and after, and a refactor that needs a test changed is a behavioral change. Commit them separately from seam repairs. Structural ideas too large or speculative for this pass are filed as `stage: idea` issues outside the execution tree, never as children of the node you're joining. Don't redesign; a pass with nothing structural worth changing is a fine outcome, say so. Add `changes` (one line each: what was consolidated and why) to the handoff.

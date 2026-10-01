@@ -1,9 +1,9 @@
 // Reconciler for one dispatched issue subtree (docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md).
 //
 // Each tick recomputes what every node needs from observed state (the tracker in each node's branch, the
-// workers' board reports, workmux panes) and takes the next step. Specs get to tickets by promotion or
-// decomposition (the implement role, whose stance for a spec is compile or auto); tickets run
-// implement → drive → review → integrate, a leaf into its parent's branch, a node with children once they
+// workers' board reports, workmux panes) and takes the next step. Specs get to tickets through the refine
+// role (compile or manager), which promotes them or commits children; an implementer who finds its ticket
+// bigger than one session sends it back there (respec). Tickets run implement → drive → review → integrate, a leaf into its parent's branch, a node with children once they
 // have all landed in its own branch ("collector"), which its own chain then carries up. Mechanical failures
 // are retried here within budgets; anything else is an exception for a handler worker spawned for the nearest
 // ancestor with children, which resolves it, or escalates up to the owner session (the root supervisor).
@@ -32,7 +32,7 @@ const START_GRACE_MS = 120_000;
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
 export interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; archived?: boolean; effectiveStage: string; stage?: string }
-type Phase = "implement" | "drive" | "review" | "integrate";
+type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
 interface Chain {
 	/** Branch this chain lands in: the parent's collector, or the owner's checkout for the root. */
 	into: string;
@@ -157,11 +157,11 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const live = () => Object.values(s.chains).filter(c => c.handle && !c.held).length + Object.values(s.exceptions).filter(e => e.handler).length;
 	const rel = (file: string) => relative(cwd, file).replace(/^.*?docs\/issues\//, "docs/issues/");
 	const pinned = (assignee: string | null | undefined) => /\bagent:([a-z0-9-]+)/.exec(assignee ?? "")?.[1];
-	async function pick(role: string, issue: Issue | undefined, text: string): Promise<string> {
+	async function pick(role: string, issue: Issue | undefined, text: string, only?: string[]): Promise<string> {
 		const pin = role === "implement" ? pinned(issue?.assignee) : undefined;
 		if (pin) return pin;
 		let names = byRole(role).map(a => a.name);
-		if (role === "implement" && issue?.effectiveStage === "spec") names = names.filter(n => n === "compile" || n === "auto");
+		if (only) names = names.filter(n => only.includes(n));
 		if (!names.length) throw new Error("no agent fills role " + role);
 		if (names.length === 1) return names[0];
 		try {
@@ -170,16 +170,19 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, issue?: Issue): Promise<Handle> {
-		const agentName = await pick(role, issue, prompt);
-		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...(role === "implement" && issue ? { issue: issue.slug, assignee: issue.assignee ?? undefined } : {}) }],
+	async function launch(handle: string, role: string, prompt: string, base: string, issue?: Issue, only?: string[]): Promise<Handle> {
+		const agentName = await pick(role, issue, prompt, only);
+		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd, maxConcurrent: 1, active: [], session: s.root, follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
 	}
 	const nextHandle = (slug: string, kind: string) => (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90);
-	const ticketText = (i: Issue) => "Issue " + i.slug + " (" + rel(i.file) + "):\n\n" + readFileSync(i.file, "utf8");
+	const ticketText = (i: Issue, from?: string) => {
+		const f = from && existsSync(join(from, rel(i.file))) ? join(from, rel(i.file)) : i.file;
+		return "Issue " + i.slug + " (" + rel(i.file) + "):\n\n" + readFileSync(f, "utf8");
+	};
 	const siblings = (slug: string, issues: Map<string, Issue>) => {
 		const parent = issues.get(slug)?.partOf;
 		const sib = [...issues.values()].filter(i => i.partOf === parent && i.slug !== slug && !finished(i));
@@ -187,15 +190,17 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	};
 	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "") {
 		const base = c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : git(pathOf(c.into), "rev-parse", "HEAD");
+		const from = c.handle && existsSync(c.handle.path) ? c.handle.path : undefined;
 		let prompt: string;
-		if (phase === "implement") prompt = [ticketText(issue),
-			c.self ? "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children."
-				: issue.effectiveStage === "spec" ? "This is a spec: realize it, or commit spec/ticket children that partition it (tracker changes only; they will be executed, then return here)." : "",
+		if (phase === "refine" || phase === "implement") prompt = [ticketText(issue, from),
+			c.self ? "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
 			siblings(slug, issues), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
-		else if (phase === "drive") prompt = [ticketText(issue), "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", extra].filter(Boolean).join("\n\n");
-		else prompt = [ticketText(issue), "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), extra].filter(Boolean).join("\n\n");
-		if (phase === "implement" && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
-		const handle = await launch(nextHandle(slug, phase), phase, prompt, base, issue);
+		else if (phase === "drive") prompt = [ticketText(issue, from), "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", extra].filter(Boolean).join("\n\n");
+		else prompt = [ticketText(issue, from), "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), extra].filter(Boolean).join("\n\n");
+		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
+		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
+		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
+		const handle = await launch(nextHandle(slug, phase), phase, prompt, base, issue, only);
 		if (c.handle) c.workers.push(c.handle);
 		Object.assign(c, { phase, handle, launchedAt: Date.now(), handledTs: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0 };
@@ -357,6 +362,16 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
 		if (r.status === null) return repair(slug, c, "status", "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input` or `checkpoint` as the first line, then the handoff.", issues, text);
+		if (c.phase === "implement" && !c.self && r.handoff?.respec) {
+			c.retries.respec = (c.retries.respec ?? 0) + 1;
+			if (c.retries.respec > 1) return raise(slug, "respec after refinement", text, issues);
+			note("respec " + slug + ": back to refinement");
+			await retireHandle(h, pathOf(c.into));
+			c.handle = undefined; c.base = undefined;
+			const kept = c.retries.respec;
+			await startPhase(slug, c, "refine", issue, issues, "An implementer found this bigger than one session:\n\n" + String(r.handoff.respec));
+			c.retries.respec = kept; return save();
+		}
 		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
 		if (r.status === "checkpoint") {
 			c.retries.checkpoint = (c.retries.checkpoint ?? 0) + 1;
@@ -366,12 +381,15 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			c.retries.checkpoint = kept; return save();
 		}
 		if (git(h.path, "status", "--porcelain")) return repair(slug, c, "dirty", "You reported done with uncommitted changes. Commit everything that belongs to the change, then report done again.", issues, text);
-		if (c.phase === "implement") {
+		if (c.phase === "refine") {
 			const after = snapshot(h.path);
 			const kids = [...after.values()].filter(i => i.partOf === slug && !finished(i));
-			if (kids.length) {
-				const outside = git(h.path, "diff", "--name-only", c.base + "...HEAD").split("\n").filter(f => f && !f.startsWith("docs/"));
-				if (outside.length) return repair(slug, c, "decompose", "You committed children and also changes outside the tracker (" + outside.slice(0, 5).join(", ") + "). Either land the children only (move the rest into them), or implement the issue whole without children. Then report done.", issues, text);
+			if (!kids.length) {
+				if (after.get(slug)?.effectiveStage !== "ticket") return repair(slug, c, "refine", "You reported done, but " + slug + " is neither promoted (stage: ticket) nor partitioned into children. Do one, commit, and report done again.", issues, text);
+				note("promoted " + slug);
+				return startPhase(slug, c, "implement", issue, issues);
+			}
+			{
 				const col = ensureCollector(slug, c.into);
 				try { await locked(() => integrate(h, { cwd: col.path, keep: true })); }
 				catch (e) { return raise(slug, "decomposition did not land: " + e, text, issues); }
@@ -380,6 +398,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				await retireChain({ ...c });
 				return;
 			}
+		}
+		if (c.phase === "implement") {
+			if (!c.self && [...snapshot(h.path).values()].some(i => i.partOf === slug && !finished(i)))
+				return repair(slug, c, "decompose", "Implementers don't decompose: drop the children you committed, and either implement the ticket whole or end `blocked` with `respec` in the handoff.", issues, text);
 			c.setup = r.handoff?.setup ?? null;
 			return startPhase(slug, c, "drive", issue, issues);
 		}
@@ -439,7 +461,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			s.chains[slug] = chain;
 			try {
 				if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
-				else await startPhase(slug, chain, "implement", issue, issues);
+				else await startPhase(slug, chain, issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
 			} catch (e) { raise(slug, "launch failed", String(e), issues); }
 			return "active";
 		}

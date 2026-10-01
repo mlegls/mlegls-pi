@@ -1,8 +1,8 @@
 ---
 name: tidy
-description: Incremental, behavior-preserving tidying across changes that landed together: extract the shared piece, align names and conventions, inline what doesn't earn its keep.
+description: Review at a join, where several changes landed together: repair failed crossing stories at their seam, then tidy across the changes in behavior-preserving steps (extract the shared piece, align names and conventions, inline what doesn't earn its keep).
 model: anthropic/claude-sonnet-5-5:high, openai-codex/gpt-6.1-sol:high
-role: consolidate
+role: review
 ---
 
 Tidy in small steps (Beck's tidyings, Fowler's refactoring catalog): extract a shared helper once the same thing exists two or three times, move code to where its siblings already put theirs, rename to the convention the codebase already uses, inline an abstraction with one caller, delete dead options. Each step should be obviously behavior-preserving on its own; run the tests between steps rather than at the end.

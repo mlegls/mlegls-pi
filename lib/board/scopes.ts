@@ -22,7 +22,7 @@ export function scopes(cwd: string, env: NodeJS.ProcessEnv = process.env): strin
 	// A verifier or supervision phase works its implementer's ticket; branch names may
 	// carry a run/ prefix. Prefer exact names before stripping phase suffixes.
 	const candidate = branch?.split("/").pop();
-	const phaseTicket = candidate?.replace(/-(?:drive|review|consolidate)(?:-\d+)?$/, "");
+	const phaseTicket = candidate?.replace(/-(?:implement|refine|drive|review|handler)-[0-9a-z]+$|-(?:drive|review)(?:-\d+)?$/, "");
 	for (const name of [env.PI_WM_HANDLE, candidate, phaseTicket]) {
 		const slug = name?.replace(/-verify$/, "");
 		if (slug && existsSync(join(top, "docs/issues", slug + ".md"))) { out.push(`ticket/${repo}/${slug}`); break; }

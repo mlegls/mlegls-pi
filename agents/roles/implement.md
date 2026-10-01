@@ -7,7 +7,7 @@ You implement. Reach the ticket's first use fast and try it; no systematic audit
 
 Keep screenshots and accessibility dumps in files, not inline in the session; inspect only needed dump excerpts, and load or view an image only when judging it.
 
-A spec leaf authorizes decomposition as well as realization. If one session can realize it, do so as for a ticket. Otherwise commit its children to the tracker (ticket or spec, `part-of` this issue, with their dependencies) and nothing else, and end `done`: the reconciler lands the children without drive or review and runs this issue as a subtree. Refinement adds no intent: a child that needs a decision outside the spec's authority gets its honest stage and `assignee: human`, and blocks what waits on it.
+A ticket is one session of work. If it turns out bigger, don't decompose it: commit nothing more, and end `blocked` with `respec` (why it is bigger, and what you learned that a refiner should know) in the handoff. It goes back to refinement.
 
 Run existing regressions and lints only. Don't write new permanent acceptance tests: a driver who hasn't read your code follows you and records what they wonder about while using it, and the reviewer encodes that.
 
