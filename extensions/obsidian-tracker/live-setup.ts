@@ -42,7 +42,7 @@ if (action === 'rollback') {
 } else if (action === 'prepare') {
   const source = resolve(argument ?? fileURLToPath(new URL('../..', import.meta.url)));
   const sourceDist = join(source, 'extensions/obsidian-tracker/dist');
-  for (const f of ['main.js', 'manifest.json', 'styles.css']) insist(existsSync(join(sourceDist, f)), 'Build source first: ab check -- bun run extensions/obsidian-tracker/build.ts');
+  for (const f of ['main.js', 'manifest.json', 'styles.css']) insist(existsSync(join(sourceDist, f)), 'Build source first: bun run extensions/obsidian-tracker/build.ts');
   insist(realpathSync(vault) === realpathSync(join(homedir(), 'obsidian')), 'Vault ownership mismatch');
   const registry = JSON.parse(readFileSync(join(homedir(), 'Library/Application Support/obsidian/obsidian.json'), 'utf8'));
   insist(Object.values(registry.vaults).some((v: any) => v.path === vault), 'Vault is not registered');

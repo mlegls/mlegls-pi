@@ -28,9 +28,8 @@ Tried switching all ten fixture views, Base grouping and descending sort, filter
 Existing checks:
 
 ```sh
-ab check -- bun test lib/tracker-views.test.ts
-ab check -- bun run extensions/obsidian-tracker/build.ts
-ab check -- ./node_modules/.bin/tsc -p extensions/obsidian-tracker/tsconfig.json
+bun run extensions/obsidian-tracker/build.ts
+./node_modules/.bin/tsc -p extensions/obsidian-tracker/tsconfig.json
 ```
 
 The optional live CLI parity run requires a matching canonical project/vault identity. A runtime-derived claim mismatch is recorded in `docs/issues/tracker-parity-compares-derived-claims-with-frontmatter-only.md`; do not rename the worktree to make a mismatched comparison look meaningful.

@@ -1,5 +1,5 @@
 ---
-name: auto
+name: auto-routine
 description: General auftragstaktik worker for straightforward tasks.
 model: openai-codex/gpt-6-luna:max, zai/glm-5.3-flash:high, anthropic/claude-sonnet-5-5:medium
 role: implement

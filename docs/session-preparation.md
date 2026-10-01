@@ -6,9 +6,9 @@ Advancing spends the user's attention; supervision spends compute.
 - `orient` answers where things stand and what to enter next. `advance` reads its scope through it.
 - `advance` moves ideas toward agent-ready tickets: triage for the most tickets per user decision, then (unscoped) areas ranked by importance and leverage for the user to pick and fork, then `shape` on each chosen scope.
 - `shape` drives an issue toward executable contracts, using map and plan.
-- `supervise` owns an agent-ready subtree through implementation, verification and reconciliation. It dispatches child supervisors for non-leaf children and implementation workers for leaves; each level integrates and verifies its subtree before reporting up.
+- `supervise` owns an agent-ready subtree through execution: it starts a reconciler (`lib/reconcile`) on it, which gets specs to tickets, runs each ticket through implement → drive → review and integrates upward, and resolves the exceptions the reconciler's handlers could not.
 
-Campaigns are ordinary parent issues. Supervision starts only on agent-ready subtrees and commits to finishing them; shaping refines or moves out everything else first. Questions a supervisor cannot answer within its authority go up to its parent, and at the root to the user. Shared truth is in tickets/docs, working context in session/OM, and execution state in durable orchestration records.
+Campaigns are ordinary parent issues. Supervision starts only on agent-ready subtrees and commits to finishing them; shaping refines or moves out everything else first. Questions a handler cannot answer within its node's authority go up to the next ancestor's handler, and at the root to the supervisor and then the user. Shared truth is in tickets/docs, working context in session/OM, and execution state in durable orchestration records.
 
 ## Preparation
 
@@ -21,5 +21,3 @@ With observational memory, compaction after the reading costs the parent nothing
 ## Verification
 
 An orientation over a specified ticket should locate it within the scope and recommend an entry, not command its implementation. A workflow discussion should remain a discussion even when related executable tickets exist. An introduction updates the story before any implementation, and implements only a settled session-sized change. Orientation leaves the tracker unchanged.
-
-The older selection pipeline's observations are retained in [2026-09-20 verification](research/session-preparation-2026-09-20.md); they are not verification of the current orientation-only policy.

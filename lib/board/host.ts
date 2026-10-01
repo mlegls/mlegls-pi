@@ -43,7 +43,7 @@ function formatMessage(m: Message & { line?: number }, options: { data?: boolean
 	return `${formatHead(m)}\n${m.body}${data}`;
 }
 
-/** How to answer from any tool mode: bash-only sessions have no board API, but ab mail works everywhere. */
+/** The sender's mailbox, to answer with the mail tool. */
 function replyHint(m: Message): string {
 	const to = m.from.session ? mailbox(m.from.session) : m.from.name?.startsWith("mail/") ? m.from.name : undefined;
 	return to ? `\nreply address: ${to}` : "";
@@ -189,7 +189,7 @@ export function install(pi: ExtensionAPI) {
 			// Decisions across its run (PI_BOARD_FOLLOW names the run) arrive on the next turn without waking it.
 			...(process.env.PI_BOARD_FOLLOW ? [{ topic: process.env.PI_BOARD_FOLLOW + "/**", tags: "decision", wake: false }] : []),
 		];
-		// Every session has a mailbox (mail/xxxxxxxx): supervision loops, ab tree, `ab mail`, and
+		// Every session has a mailbox (mail/xxxxxxxx): the reconciler, ab tree and
 		// other sessions reach it there. Shown in pi's footer and, under tmux, the status bar.
 		const box = mailbox(sessionId);
 		// Plus the worktree and ticket it works in (lib/board/scopes): shared channels, on trial.

@@ -5,7 +5,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 target=${1:?usage: first-use.sh /absolute/path/to/new-vault}
 [[ "$target" = /* && ! -e "$target" ]] || { echo 'Target must be an absolute, nonexistent path' >&2; exit 1; }
 (cd "$here" && bun install --frozen-lockfile)
-ab check -- bun run "$here/build.ts"
+bun run "$here/build.ts"
 mkdir -p "$target/.obsidian/plugins/tracker"
 cp -R "$here/fixture/." "$target/"
 cp "$here/dist/"{main.js,manifest.json,styles.css} "$target/.obsidian/plugins/tracker/"

@@ -1,7 +1,7 @@
 // Shared channels a session joins by where it works, beside its own mailbox: its worktree
 // (wt/<repo>/<branch>) and, when the branch or wm handle names a tracker issue, that ticket
 // (ticket/<repo>/<slug>). An experiment: whether these ever beat messaging sessions directly
-// is read off the board (`ab mail --stats`).
+// is read off the board log.
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
