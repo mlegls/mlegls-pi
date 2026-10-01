@@ -1,0 +1,86 @@
+{
+  "roots": [
+    {
+      "root": "/private/tmp/wm-thread-IlAE3J",
+      "exists": false,
+      "authLinkExists": false
+    },
+    {
+      "root": "/private/tmp/ab-lifecycle-nJudgl",
+      "exists": false,
+      "authLinkExists": false
+    },
+    {
+      "root": "/private/tmp/ab-lifecycle-QNG5rd",
+      "exists": false,
+      "authLinkExists": false
+    }
+  ],
+  "pids": [
+    {
+      "pid": 95670,
+      "alive": false
+    },
+    {
+      "pid": 95676,
+      "alive": false
+    },
+    {
+      "pid": 95669,
+      "alive": false
+    },
+    {
+      "pid": 95673,
+      "alive": false
+    },
+    {
+      "pid": 90069,
+      "alive": false
+    },
+    {
+      "pid": 99912,
+      "alive": false
+    },
+    {
+      "pid": 48369,
+      "alive": false
+    },
+    {
+      "pid": 69484,
+      "alive": false
+    },
+    {
+      "pid": 3203,
+      "alive": false
+    }
+  ],
+  "actions": [
+    {
+      "root": "/private/tmp/ab-lifecycle-nJudgl",
+      "exit": 0,
+      "result": {
+        "active": [],
+        "zmx": [],
+        "live": []
+      }
+    },
+    {
+      "root": "/private/tmp/ab-lifecycle-QNG5rd",
+      "exit": 0,
+      "result": {
+        "active": [],
+        "zmx": [],
+        "live": []
+      }
+    },
+    {
+      "root": "/private/tmp/wm-thread-IlAE3J",
+      "exit": 0,
+      "result": {
+        "event": "cleaned",
+        "terminals": [],
+        "activeThreads": []
+      }
+    }
+  ]
+}

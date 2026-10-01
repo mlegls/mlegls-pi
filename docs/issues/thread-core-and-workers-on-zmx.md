@@ -8,7 +8,7 @@ priority: 2
 
 Session mode: hacking. Build `lib/thread/` and the `ab thread` CLI from [[projects/mlegls-pi/issues/thread-registry-on-zmx]] (its decisions and interface are the contract), and move workers onto it. Preserve [[projects/mlegls-pi/stories/work-in-threads]].
 
-The implementation is partitioned into ticket children. The committed `lib/thread/index.ts` exports the shared types and throwing stubs; no consumer has switched yet. [Transport/SDK evidence](../attachments/thread-core-and-workers-on-zmx/source-contract.md) records the known-id session persistence, zmx wire grammar and pi restart constraints.
+The four ticket children are implemented, driven, reviewed and integrated. `lib/thread/index.ts` exports the registry/runtime/lifecycle API; workers and consumers use it. [Transport/SDK evidence](../attachments/thread-core-and-workers-on-zmx/source-contract.md) records known-id session persistence, zmx wire grammar and pi restart constraints. The remaining stage is the residual join and independent verification below.
 
 - [[projects/mlegls-pi/issues/thread-registry-and-zmx-launch]] owns registry/runtime and mise dependency/setup.
 - [[projects/mlegls-pi/issues/thread-archive-and-abandon]] owns git integration and recursive lifecycle.
@@ -33,3 +33,16 @@ No new worker/thread path uses workmux/tmux. Workmux code/resources stay until [
 ## Merge alias
 
 [[projects/mlegls-pi/issues/thread-merge-command-lifetime]] is answered: `ab thread merge` aliases archive, including post-order retirement, guest handling and conflict blocked/resume behavior. `/thread merge` and frontend merge actions share it; `integrate(keep: true)` remains non-retiring. The CLI child and join have no remaining external decision blocker. Drive the merge alias as well as archive, without adding a distinct lifecycle path.
+
+## Result
+
+The fresh-tool round-trip and two-level archive/merge joins held. No production repair was needed. The existing worker fixture now has `join ROOT`, starting a fresh pi loaded from this checkout and dispatching/integrating a trivial worker on its current branch. [Core join packet and runnable setup](../attachments/thread-core-and-workers-on-zmx/index.md) records actual tools calls, board identities, CLI conflict/blocked/resume, current-session/transport joins, nested collector lineage and cleanup. This is implementation first use; independent driving/review remains.
+
+### Evidence
+
+Before: the child packets exercised their own surfaces; the fresh-tool/CLI joins after the atomic cutover were still outstanding. After: the required joins held on inherited production code; 182 regressions passed, 2 skipped, typecheck and opt-in worker regression passed. The packet records the existing setup and historical-link tooling owners.
+
+### Danger
+
+Door: two-way for this join's fixture/docs changes. Running `join` integrates an empty commit into its owned checkout; archive/merge remains a retiring lifecycle, so conflict fixtures must be disposable.
+Blast radius: fixture. No production API or transport changed.

@@ -1,0 +1,250 @@
+[
+  {
+    "event": "spawn",
+    "worker": {
+      "run": "worker-fixture",
+      "handle": "pi-worker",
+      "topic": "worker-fixture/pi-worker",
+      "dir": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/pi-worker",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/owner",
+      "session": "",
+      "threadId": "d8fa4464-39c4-4e6d-aacf-4e7f7837218b"
+    }
+  },
+  {
+    "event": "first",
+    "result": [
+      {
+        "kind": "done",
+        "message": {
+          "id": "mupkx1ik-m72zqq",
+          "ts": "2026-10-01T13:37:48.524Z",
+          "topic": "worker-fixture/pi-worker",
+          "tags": [
+            "done"
+          ],
+          "from": {
+            "session": "d8fa4464-39c4-4e6d-aacf-4e7f7837218b",
+            "name": "pi-worker",
+            "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/pi-worker"
+          },
+          "body": "done bootstrap-ok"
+        }
+      }
+    ]
+  },
+  {
+    "event": "literal-unsubmitted",
+    "before": "mupkx1ik-m72zqq",
+    "after": "mupkx1ik-m72zqq"
+  },
+  {
+    "event": "follow-up",
+    "result": [
+      {
+        "kind": "done",
+        "message": {
+          "id": "mupkx72a-4bhq5n",
+          "ts": "2026-10-01T13:37:55.714Z",
+          "topic": "worker-fixture/pi-worker",
+          "tags": [
+            "done"
+          ],
+          "from": {
+            "session": "d8fa4464-39c4-4e6d-aacf-4e7f7837218b",
+            "name": "pi-worker",
+            "cwd": "/private/tmp/wm-thread-IlAE3J/repo__worktrees/pi-worker"
+          },
+          "body": "done follow-up-ok"
+        }
+      }
+    ]
+  },
+  {
+    "event": "history",
+    "text": "_worktrees/thread-core-and-workers-on-zmx-implement-i/lib/thread/agent-runner.ts d8fa4464-39c4-4e6d-aacf-4e7f7837218b; e\ncho ZMX_TASK_COMPLETED:e6b8:$?\n\n You are a disposable fixture worker. Session mode: hacking. Finish only the assignment, commit its files. End with\n done, blocked or needs-input first. Report on worker-fixture/pi-worker.\n\n ────────────────────────────────────────────────────────────────────────────────\n\n Reply only done bootstrap-ok. Do not use tools.\n\n\n done bootstrap-ok\n\n\n Reply only done follow-up-ok. Do not use tools.\n\n\n done follow-up-ok\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n/private/tmp/wm-thread-IlAE3J/repo__worktrees/pi-worker (pi-worker)\n↑7.1k ↓15 R6.8k CH97.5% $0.015 (sub) 2.6%/272k (auto)                               (openai-codex) gpt-6.1-sol • minimal\n✉ mail/7837218b # wt/repo/pi-worker"
+  },
+  {
+    "event": "jump",
+    "canonical": "/private/tmp/wm-thread-IlAE3J/agent/sessions/--private-tmp-wm-thread-IlAE3J-repo__worktrees-pi-worker--/2026-10-01T13-37-42-780Z_d8fa4464-39c4-4e6d-aacf-4e7f7837218b.jsonl",
+    "returned": "/private/tmp/wm-thread-IlAE3J/agent/sessions/--private-tmp-wm-thread-IlAE3J-repo__worktrees-pi-worker--/2026-10-01T13-37-42-780Z_d8fa4464-39c4-4e6d-aacf-4e7f7837218b.jsonl",
+    "newerFree": "/private/tmp/wm-thread-IlAE3J/agent/sessions/--private-tmp-wm-thread-IlAE3J-repo__worktrees-pi-worker--/2026-10-01T13-37-56-015Z_01a0f7af-9b2f-75af-b17f-2e986cd3b5a8.jsonl"
+  },
+  {
+    "event": "jump-current",
+    "thread": "d8fa4464-39c4-4e6d-aacf-4e7f7837218b",
+    "current": "/private/tmp/wm-thread-IlAE3J/agent/sessions/--private-tmp-wm-thread-IlAE3J-repo__worktrees-pi-worker--/2026-10-01T13-37-56-031Z_01a0f7af-9b3f-75af-b17f-2e9b36b6e1fd.jsonl",
+    "returned": "/private/tmp/wm-thread-IlAE3J/agent/sessions/--private-tmp-wm-thread-IlAE3J-repo__worktrees-pi-worker--/2026-10-01T13-37-56-031Z_01a0f7af-9b3f-75af-b17f-2e9b36b6e1fd.jsonl"
+  },
+  {
+    "event": "agent-killed",
+    "result": [
+      {
+        "kind": "exited",
+        "tail": "Thread agent is gone: d8fa4464-39c4-4e6d-aacf-4e7f7837218b"
+      }
+    ]
+  },
+  {
+    "event": "keep-close",
+    "cleanup": {
+      "closed": [
+        "d8fa4464-39c4-4e6d-aacf-4e7f7837218b"
+      ],
+      "killed": [],
+      "branchesDeleted": [],
+      "branchesKept": [
+        {
+          "branch": "pi-worker",
+          "reason": "keepBranch requested"
+        }
+      ]
+    },
+    "branch": "pi-worker"
+  },
+  {
+    "event": "by-hand-pi",
+    "live": {
+      "pid": 46146,
+      "sessionId": "17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+      "sessionFile": "/private/tmp/wm-thread-IlAE3J/agent/sessions/--private-tmp-wm-thread-IlAE3J-owner--/2026-10-01T13-37-57-251Z_17d09d85-8d50-4f4e-bc2e-11fe1956a57c.jsonl",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/owner",
+      "state": "working",
+      "since": "2026-10-01T13:38:03.325Z",
+      "mode": "print",
+      "thread": "17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+      "subscriptions": [
+        {
+          "topic": "thread/17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+          "wake": true
+        },
+        {
+          "topic": "mail/1956a57c",
+          "wake": true
+        },
+        {
+          "topic": "wt/repo/owner",
+          "wake": true
+        }
+      ],
+      "boardDir": "/private/tmp/wm-thread-IlAE3J/board"
+    },
+    "out": "done by-hand-ok\n",
+    "err": ""
+  },
+  {
+    "event": "ordinary-report",
+    "thread": "17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+    "report": {
+      "id": "mupkxhbs-w2vuuq",
+      "line": 16,
+      "ts": "2026-10-01T13:38:09.016Z",
+      "topic": "thread/17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+      "tags": [
+        "done"
+      ],
+      "from": {
+        "session": "17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+        "name": "owner",
+        "cwd": "/private/tmp/wm-thread-IlAE3J/owner"
+      },
+      "body": "done by-hand-ok"
+    },
+    "meta": [
+      {
+        "type": "custom",
+        "customType": "session-meta",
+        "data": {
+          "thread": "17d09d85-8d50-4f4e-bc2e-11fe1956a57c",
+          "mode": "tui"
+        },
+        "id": "693a7f7b",
+        "parentId": "089889cf",
+        "timestamp": "2026-10-01T13:37:57.898Z"
+      }
+    ]
+  },
+  {
+    "event": "by-hand-pi",
+    "live": {
+      "pid": 53725,
+      "sessionId": "01a0f7af-e24b-75af-b17f-2e9c4e4dead3",
+      "sessionFile": "/private/tmp/wm-thread-IlAE3J/agent/sessions/--private-tmp-wm-thread-IlAE3J-owner--/2026-10-01T13-38-14-219Z_01a0f7af-e24b-75af-b17f-2e9c4e4dead3.jsonl",
+      "cwd": "/private/tmp/wm-thread-IlAE3J/owner",
+      "state": "working",
+      "since": "2026-10-01T13:38:14.763Z",
+      "mode": "print",
+      "subscriptions": [
+        {
+          "topic": "mail/4e4dead3",
+          "wake": true
+        },
+        {
+          "topic": "wt/repo/owner",
+          "wake": true
+        }
+      ],
+      "boardDir": "/private/tmp/wm-thread-IlAE3J/board"
+    },
+    "out": "free-ok\n",
+    "err": ""
+  },
+  {
+    "event": "free-report",
+    "session": "01a0f7af-e24b-75af-b17f-2e9c4e4dead3",
+    "meta": [
+      {
+        "type": "custom",
+        "customType": "session-meta",
+        "data": {
+          "mode": "print"
+        },
+        "id": "c9c24b80",
+        "parentId": "8eb17a6c",
+        "timestamp": "2026-10-01T13:38:14.755Z"
+      }
+    ]
+  },
+  {
+    "event": "alive-without-record",
+    "status": "Canonical pi is alive without a current live state: 6edd794a-69a3-41e4-907a-5e53eb16cf11",
+    "result": []
+  },
+  {
+    "event": "live-read-failure",
+    "result": []
+  },
+  {
+    "event": "backend-failure",
+    "result": []
+  },
+  {
+    "event": "pid-killed",
+    "pid": 69489,
+    "result": [
+      {
+        "kind": "exited",
+        "tail": "s-MacBook-Pro:pid-worker mlegls$ /Users/mlegls/.local/share/mise/installs/bun/latest/bin/bun /Users/mlegls/dev/mlegls-pi\n__worktrees/thread-core-and-workers-on-zmx-implement-i/lib/thread/agent-runner.ts 6edd794a-69a3-41e4-907a-5e53eb16cf11;\necho ZMX_TASK_COMPLETED:a8dc:$?\n\n You are a disposable fixture worker. Session mode: hacking. Finish only the assignment, commit its files. End with\n done, blocked or needs-input first. Report on worker-fixture/pid-worker.\n\n ────────────────────────────────────────────────────────────────────────────────\n\n Reply only done pid-ready. Do not use tools.\n\n\n done pid-ready\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n/private/tmp/wm-thread-IlAE3J/repo__worktrees/pid-worker (pid-worker)\n↑6.9k ↓7 $0.014 (sub) 2.6%/272k (auto)                                              (openai-codex) gpt-6.1-sol • minimal\n✉ mail/eb16cf11 # wt/repo/pid-worker"
+      }
+    ]
+  },
+  {
+    "event": "discard-close",
+    "cleanup": {
+      "closed": [
+        "6edd794a-69a3-41e4-907a-5e53eb16cf11"
+      ],
+      "killed": [
+        69484,
+        69483,
+        69486,
+        80695
+      ],
+      "branchesDeleted": [
+        "pid-worker"
+      ],
+      "branchesKept": []
+    },
+    "branch": ""
+  }
+]
