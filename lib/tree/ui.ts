@@ -506,7 +506,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		lastClick = { y, x, at: Date.now() };
 		if (!g) return;
 		if (g.fold && g.foldX !== undefined && Math.abs(x - g.foldX) <= 1) g.fold();
-		else g.act(dbl || true);
+		else g.act(dbl);
 		draw();
 	};
 
