@@ -15,7 +15,7 @@ const CLAUDE = join(H, ".claude/projects");
 const HISTORY = join(H, ".claude/history.jsonl");
 
 /** Generated text that arrives in the user role: skills, worker assignments, harness notices. */
-const GENERATED = /^\s*(<|#|---\n|\[h\d+ |Hacking session|Auditing session|You are |Verify |Implement |Advance )/;
+export const GENERATED = /^\s*(<|#|---\n|\[h\d+ |Hacking session|Auditing session|You are |Verify |Implement |Advance )/;
 
 function* jsonl(file: string) {
 	let body: string;
