@@ -99,9 +99,6 @@ export function parseHunks(text: string): Hunk[] {
 		if (line.trim() === "" && i + 1 < lines.length) {
 			const candidate = lines[i + 1];
 			const next = parseHeader(candidate);
-			if (!next && /^[=<>-]\S/.test(candidate.trimStart())) throw new Error(
-				`Line ${i + 2} is not a hunk header: "${candidate}". Nothing was modified.\n${GRAMMAR}`,
-			);
 			if (next) {
 				hunks.push(current);
 				current = { ...next, lines: [] };

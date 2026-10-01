@@ -91,6 +91,8 @@ describe("parseHunks", () => {
 		expect(() => parseHunks("=aaaa")).toThrow(/use -aaaa to delete/);
 		expect(() => parseHunks("-aaaa\nx")).toThrow(/takes no lines/);
 		expect(() => parseHunks(">aaaa bbbb\nx")).toThrow(/not a hunk header/);
+		// After a blank line only a valid header starts a hunk; other sigil-led lines are content.
+		expect(parseHunks("=aaaa\nx\n\n<div>\n\n---\n\n-->\n\n=====")[0].lines).toEqual(["x", "", "<div>", "", "---", "", "-->", "", "====="]);
 	});
 });
 
