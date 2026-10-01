@@ -9,7 +9,7 @@ priority: 2
 
 Session mode: hacking. Preserve [[projects/mlegls-pi/stories/work-in-threads]]. The decisions in [[projects/mlegls-pi/issues/thread-registry-on-zmx]] and the committed `lib/thread/index.ts` seam are the contract; the seam is currently throwing stubs, not a second backend. Source evidence: [zmx/pi launch constraints](../attachments/thread-core-and-workers-on-zmx/source-contract.md).
 
-Implement `lib/thread/lifecycle.ts` and private lifecycle helpers. Do not change `lib/dispatch.ts`, `lib/wm.ts`, the CLI, UI or in-pi commands. This ticket implements the already-defined archive/abandon and the single-thread raw integration primitive; user-facing `ab thread merge` lifetime is separately blocked on [[projects/mlegls-pi/issues/thread-merge-command-lifetime]].
+Implement `lib/thread/lifecycle.ts` and private lifecycle helpers. Do not change `lib/dispatch.ts`, `lib/wm.ts`, the CLI, UI or in-pi commands. This ticket implements archive/abandon and the single-thread raw integration primitive. User-facing `ab thread merge` aliases archive with the same retirement and conflict behavior, as answered in [[projects/mlegls-pi/issues/thread-merge-command-lifetime]]; no separate lifecycle implementation is needed.
 
 ## Edits
 

@@ -1,14 +1,14 @@
 ---
-stage: goal
+stage: done
 assignee: human
 author: session:01a0f6e1-7ec3-7620-b7fd-edc63c2b3d94
 priority: 2
 ---
 
-Choose the lifetime of `ab thread merge <id>` before [[projects/mlegls-pi/issues/thread-cli-over-registry]] can be implemented literally.
+Question: does `ab thread merge <id>` retire its subtree or keep the merged threads active?
 
-[[projects/mlegls-pi/issues/thread-registry-on-zmx]] fixes archive as post-order merge + retire, abandon as post-order retire without merges, and lists `archive|abandon|merge` as a post-order walk. It does not say whether the separate merge command retires threads, preserves every merged thread as active, or aliases archive. The sidebar and pi commands expose all three. The separate supervision `integrate(keep: true)` primitive is already unambiguous; it integrates without retirement and is not this question.
+## Answer
 
-Recommendation: merge aliases archive. That follows the already-specified merge-and-leave path and adds no distinct lifetime behavior. If merge should keep active threads instead, specify whether it traverses all descendants and whether conflicts use the same agent-directed wait/blocked behavior as archive.
+2026-10-01: merge aliases archive: identical post-order merge-and-retire, guest handling, conflict routing and blocked/resume behavior. `/thread merge` and frontend actions share this behavior. `integrate(keep: true)` remains non-retiring.
 
-The closed pieces are partitioned under [[projects/mlegls-pi/issues/thread-core-and-workers-on-zmx]]; only CLI realization and the parent join wait on this answer.
+The ruling is recorded in [[projects/mlegls-pi/issues/thread-registry-on-zmx]]. [[projects/mlegls-pi/issues/thread-cli-over-registry]] delegates both commands to `archiveThread`; [[projects/mlegls-pi/issues/thread-core-and-workers-on-zmx]] retains the joint first-use check. The CLI and join blockers are cleared.

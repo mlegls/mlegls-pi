@@ -3,7 +3,6 @@ stage: ticket
 assignee: agent:technical
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 part-of: "[[projects/mlegls-pi/issues/thread-registry-on-zmx]]"
-blocked-by: ["[[projects/mlegls-pi/issues/thread-merge-command-lifetime]]"]
 priority: 2
 ---
 
@@ -31,6 +30,6 @@ Once children land, finish only seam repairs and drive the original first-use jo
 
 No new worker/thread path uses workmux/tmux. Workmux code/resources stay until [[projects/mlegls-pi/issues/delete-workmux-and-tmux-paths]]; pre-cutover reconcilers drain on their old code. There is no new dual-backend migration/adoption path.
 
-## Open decision
+## Merge alias
 
-[[projects/mlegls-pi/issues/thread-merge-command-lifetime]] asks only what the separate user-facing merge command does to active threads. Archive/abandon and raw integrate-with-keep are specified; the CLI and this join cannot invent merge's lifetime. The other children are closed and may proceed.
+[[projects/mlegls-pi/issues/thread-merge-command-lifetime]] is answered: `ab thread merge` aliases archive, including post-order retirement, guest handling and conflict blocked/resume behavior. `/thread merge` and frontend merge actions share it; `integrate(keep: true)` remains non-retiring. The CLI child and join have no remaining external decision blocker. Drive the merge alias as well as archive, without adding a distinct lifecycle path.
