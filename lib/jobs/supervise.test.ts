@@ -169,7 +169,7 @@ await loop('h');expect(saved.h.children.h.waiting).toBe('checkpoint');expect(tur
  }
  // Replays the ticket's contract: a worker session past 20 MiB gets one owner warning naming it (docs/attachments/computer-use-images-poison-worker-context/index.md, check 3).
  {
-  const {SessionManager}=await import('@earendil-works/pi-coding-agent');
+  const {SessionManager}=await import(${JSON.stringify(import.meta.resolve('@earendil-works/pi-coding-agent'))});
   const {SPAWN_META}=await import(${JSON.stringify(resolve("lib/session-meta/host.ts"))});
   const s='big';paths[s]=join(root,s);git(main,'worktree','add','-qb',s,paths[s]);
   const session=SessionManager.create(paths[s]);
