@@ -17,5 +17,5 @@ jj would change the mechanics: conflicts are data (rebases always succeed; resol
 
 holes:
 - jj or git: non-colocated secondary jj workspaces have no `.git`, so tools and agents shelling out to `git` break there (check current jj); agents are much less fluent in jj.
-- how `lib/wm.ts` (workmux worktrees + tmux panes) maps onto this, and onto dsh in-process children vs separate processes.
+- how `lib/wm.ts` (workmux worktrees + tmux panes) maps onto this, and onto dsh in-process children vs separate processes. The host side (zmx-backed threads replacing workmux + tmux) is [[projects/mlegls-pi/issues/threads-on-zmx-with-a-native-sidebar]]; dsh in-process children remain open.
 - prior art to take UX from: Conductor, Crystal, Claude Squad, vibe-kanban, container-use, Sculptor, GitButler virtual branches. None ties worktree lifetime to a supervision scope as far as we know.
