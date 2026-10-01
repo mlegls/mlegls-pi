@@ -6,8 +6,13 @@
 //
 // Timing comes from the session log: an assistant entry's message.timestamp is when the request
 // started and its entry timestamp when the reply finished; a toolResult's entry timestamp is when the
-// tool finished. Gaps before a user message are waiting on the user, gaps before a board message are
-// waiting on workers/peers. codemode's nestedCalls carry per-call durations.
+// tool finished. codemode's nestedCalls carry per-call durations.
+//
+// Gaps are classified by what preceded them. Before a user message: "stall" if the last reply ended in
+// an error, "asked" if it looks like it asked for something (question, blocked, a decision), else
+// "idle" (nothing pending). A spawned session's user messages come from its parent ("parent").
+// Before a board message: "board" (waiting on workers/peers). Whether you were away or busy elsewhere
+// during an "asked" gap is a property of your global timeline (humanTurns), not of the session.
 import { readFileSync } from "node:fs";
 import { graph, type Node } from "./tree/graph";
 import { GENERATED } from "./prompts";
@@ -15,8 +20,10 @@ import { GENERATED } from "./prompts";
 export interface Profile {
 	id: string; title: string; agent?: string; model?: string;
 	start: number; end: number;
-	/** ms: model generation, tool execution, waiting on the user, waiting on board (workers/peers), other harness gaps. */
-	time: { model: number; tool: number; user: number; board: number; other: number };
+	time: Record<Kind, number>;
+	segments: Segment[];
+	/** How the session's last reply left things: the kind its trailing gap would have. */
+	ended?: { k: Kind; note: string };
 	cost: number; costByModel: Record<string, number>;
 	tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
 	contextPeak: number; compactions: number; turns: number;
@@ -27,6 +34,12 @@ export interface Profile {
 	inner: Record<string, { n: number; ms: number }>;
 	children: Profile[];
 }
+
+export type Kind = "model" | "tool" | "asked" | "idle" | "stall" | "parent" | "board" | "other";
+export interface Segment { k: Kind; s: number; e: number; note?: string }
+const KINDS: Kind[] = ["model", "tool", "asked", "idle", "stall", "parent", "board", "other"];
+/** A reply that leaves something pending on the human. Heuristic; jev would do better. */
+const ASKS = /\?\s*$|\?\s*\n|\b(blocked|needs-input|needs input|waiting (on|for) (you|your)|your (call|decision|go-ahead)|want me to|should i|shall i|let me know|which (one|do you))\b/i;
 
 const ts = (s: unknown) => typeof s === "number" ? s : Date.parse(String(s));
 const textOf = (c: unknown): string => typeof c === "string" ? c : Array.isArray(c) ? c.filter((x: any) => x?.type === "text").map((x: any) => x.text).join("\n") : "";
@@ -40,8 +53,8 @@ const innerKey = (c: any) => {
 
 export function profileFile(file: string, node: Pick<Node, "id" | "title" | "model" | "parentKind">): Omit<Profile, "children"> {
 	const p: Omit<Profile, "children"> = {
-		id: node.id, title: node.title, model: node.model, start: 0, end: 0,
-		time: { model: 0, tool: 0, user: 0, board: 0, other: 0 }, cost: 0, costByModel: {},
+		id: node.id, title: node.title.replace(/^<skill name="([^"]+)"[\s\S]*/, "/$1"), model: node.model, start: 0, end: 0,
+		time: Object.fromEntries(KINDS.map(k => [k, 0])) as Record<Kind, number>, segments: [], cost: 0, costByModel: {},
 		tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextPeak: 0, compactions: 0, turns: 0,
 		user: { turns: 0, words: 0, generated: 0 }, tools: {}, inner: {},
 	};
@@ -49,6 +62,14 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	const spawned = node.parentKind === "spawn" || node.parentKind === "invoked";
 	let prev = 0; // timestamp of the previous timed entry
 	let lastAssistant: any;
+	const seg = (k: Kind, a: number, b: number, note?: string) => {
+		if (!a || b <= a) return;
+		p.time[k] += b - a;
+		const last = p.segments.at(-1);
+		if (last && last.k === k && a - last.e < 1000 && !note) last.e = b; else p.segments.push({ k, s: a, e: b, note });
+	};
+	const snippet = (m: any) => textOf(m?.content).trim().slice(-240);
+	const gapKind = (): Kind => spawned ? "parent" : lastAssistant?.stopReason === "error" ? "stall" : ASKS.test(snippet(lastAssistant)) ? "asked" : "idle";
 	const toolCalls = new Map<string, string>();
 	for (const line of readFileSync(file, "utf8").split("\n")) {
 		if (!line) continue;
@@ -63,18 +84,19 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			for (const k of ["input", "output", "cacheRead", "cacheWrite"] as const) p.tokens[k] += u?.[k] ?? 0;
 		};
 		if (e.type === "usage") cost(e.usage, (e.kind ?? "usage") + ":" + e.model);
-		if (e.type === "custom_message" && e.customType === "board" && prev) { p.time.board += t - prev; prev = t; }
+		if (e.type === "custom_message" && e.customType === "board" && prev) { seg("board", prev, t, textOf(e.content).slice(0, 160)); prev = t; }
 		if (e.type !== "message") continue;
 		const m = e.message;
 		if (m.role === "user") {
-			if (prev) p.time.user += Math.max(0, t - prev);
 			const text = textOf(m.content).replace(/<skill[\s\S]*?<\/skill>/g, "").trim();
+			const kind = gapKind();
+			if (prev) seg(kind, prev, t, (kind === "stall" ? "error: " + (lastAssistant?.errorMessage ?? "") : snippet(lastAssistant)) + "\n→ " + text.slice(0, 160));
 			if (spawned || !text || GENERATED.test(text)) p.user.generated++; else { p.user.turns++; p.user.words += text.split(/\s+/).filter(Boolean).length; }
 			prev = t;
 		} else if (m.role === "assistant") {
 			const start = ts(m.timestamp);
-			if (prev && Number.isFinite(start)) p.time.other += Math.max(0, start - prev);
-			p.time.model += Math.max(0, t - (Number.isFinite(start) ? start : prev || t));
+			if (prev && Number.isFinite(start)) seg("other", prev, Math.min(start, t));
+			seg("model", Number.isFinite(start) ? Math.max(start, prev) : prev, t);
 			p.turns++;
 			cost(m.usage, m.model ?? "?");
 			const u = m.usage ?? {};
@@ -86,20 +108,43 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			const ms = prev ? Math.max(0, t - prev) : 0;
 			const r = (p.tools[name] ??= { n: 0, ms: 0, errors: 0 });
 			r.n++; r.ms += ms; if (m.isError) r.errors++;
-			p.time.tool += ms;
+			seg("tool", prev, t);
 			const nested = m.nestedCalls?.calls ?? m.details?.calls;
 			if (Array.isArray(nested)) for (const c of nested) add(p.inner, innerKey({ ...c, arguments: c.arguments ?? safe(c.args) }), c.durationMs ?? 0);
 			else add(p.inner, name === "bash" ? innerKey({ name, arguments: findArgs(lastAssistant, m.toolCallId) }) : name, ms);
 			prev = t;
-		} else if (prev) { p.time.other += Math.max(0, t - prev); prev = t; }
+		} else if (prev) { seg("other", prev, t); prev = t; }
 		p.end = Math.max(p.end, t);
 	}
+	if (lastAssistant) { const k = gapKind(); p.ended = { k, note: k === "stall" ? "error: " + (lastAssistant.errorMessage ?? "") : snippet(lastAssistant) }; }
 	return p;
 }
 const safe = (s: unknown) => { try { return typeof s === "string" ? JSON.parse(s) : s; } catch { return {}; } };
 const findArgs = (a: any, id: string) => (Array.isArray(a?.content) ? a.content : []).find((c: any) => c?.id === id)?.arguments;
 
+/** Your own turns across every interactive session overlapping [from, to]: one shared timeline, since your attention is global. */
+export function humanTurns(nodes: Map<string, Node>, from: number, to: number): { t: number; session: string; text: string }[] {
+	const out: { t: number; session: string; text: string }[] = [];
+	for (const n of nodes.values()) {
+		if (!n.interactive || ts(n.created) > to || ts(n.updated) < from) continue;
+		let body: string; try { body = readFileSync(n.file, "utf8"); } catch { continue; }
+		for (const line of body.split("\n")) {
+			if (!line.includes('"role":"user"')) continue;
+			let e: any; try { e = JSON.parse(line); } catch { continue; }
+			const t = ts(e.timestamp);
+			if (e.type !== "message" || e.message?.role !== "user" || t < from || t > to) continue;
+			const text = textOf(e.message.content).replace(/<skill[\s\S]*?<\/skill>/g, "").trim();
+			if (text && !GENERATED.test(text)) out.push({ t, session: n.id, text: text.slice(0, 160) });
+		}
+	}
+	return out.sort((a, b) => a.t - b.t);
+}
+
 export async function profile(ref?: string, days = 30): Promise<Profile> {
+	return (await profileWithGraph(ref, days)).profile;
+}
+
+export async function profileWithGraph(ref?: string, days = 30): Promise<{ profile: Profile; nodes: Map<string, Node> }> {
 	const nodes = await graph({ days });
 	const ref2 = (ref ?? process.env.PI_SESSION_ID ?? "").replace(/^(session|mail)\//, "");
 	const hits = ref2 ? [...nodes.keys()].filter(k => k === ref2 || k.endsWith(ref2) || k.startsWith(ref2)) : [];
@@ -107,7 +152,22 @@ export async function profile(ref?: string, days = 30): Promise<Profile> {
 	const id = hits[0]!;
 	if (!id) throw new Error("no session matches " + (ref ?? "$PI_SESSION_ID"));
 	const build = (n: Node): Profile => ({ ...profileFile(n.file, n), children: n.children.map(c => nodes.get(c)!).filter(Boolean).map(build) });
-	return build(nodes.get(id)!);
+	const root = build(nodes.get(id)!);
+	// An interactive session's last reply waits until your next turn anywhere: an overnight stall on a
+	// question shows up here, since nothing more is written to the session itself.
+	const all: Profile[] = []; const walk = (p: Profile) => { all.push(p); p.children.forEach(walk); }; walk(root);
+	const open = all.filter(p => p.ended && nodes.get(p.id)?.interactive);
+	if (open.length) {
+		const turns = humanTurns(nodes, root.start, Date.now());
+		for (const p of open) {
+			const next = turns.find(h => h.t > p.end + 1000);
+			if (!next || next.session === p.id) continue;
+			p.segments.push({ k: p.ended!.k, s: p.end, e: next.t, note: p.ended!.note + "\n→ (no reply here; your next turn was in " + next.session.slice(-8) + ") " + next.text });
+			p.time[p.ended!.k] += next.t - p.end;
+			p.end = next.t;
+		}
+	}
+	return { profile: root, nodes };
 }
 
 // ---- rendering
@@ -141,7 +201,7 @@ export function render(root: Profile): string {
 	const line = (p: Profile, depth: number) => {
 		const t = p.time;
 		out.push("  ".repeat(depth) + "- " + p.id.slice(-8) + " " + (p.agent ? "[" + p.agent + "] " : "") + p.title.slice(0, 60).replace(/\n/g, " "));
-		out.push("  ".repeat(depth) + "  " + dur(p.end - p.start) + " = model " + dur(t.model) + " + tool " + dur(t.tool) + " + user " + dur(t.user) + " + board " + dur(t.board) + " + other " + dur(t.other)
+		out.push("  ".repeat(depth) + "  " + dur(p.end - p.start) + " = " + KINDS.filter(k => t[k] >= 1000).map(k => k + " " + dur(t[k])).join(" + ")
 			+ " | " + usd(p.cost) + " " + p.turns + " turns, ctx peak " + k(p.contextPeak) + ", cache read " + k(p.tokens.cacheRead) + ", out " + k(p.tokens.output)
 			+ (p.compactions ? ", " + p.compactions + " compactions" : "") + " | user " + p.user.turns + " turns/" + p.user.words + "w");
 		// Children by cost; the long tail collapses to one line.
