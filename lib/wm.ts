@@ -157,6 +157,7 @@ class Poller {
 	remove(w: Worker) {
 		this.workers.delete(w);
 		this.errors.delete(w.topic);
+		if (![...this.workers].some(w => w.awaited)) { clearTimeout(this.timer); this.timer = undefined; }
 	}
 	/** @internal called when a worker gains a waiter or listener */
 	schedule() {

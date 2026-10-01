@@ -57,8 +57,8 @@ function wmTarget(id: string): { run: string; handle: string; topic: string } {
 
 function lastWm(id: string, after?: string): TurnEnd | null {
   const target = wmTarget(id);
-  const message = readAll().reverse().find((item) => item.topic === target.topic && terminalMessage(item) && followsCursor(item, after));
-  if (!message) return null;
+  const message = readAll().reverse().find((item) => item.topic === target.topic && terminalMessage(item));
+  if (!message || !followsCursor(message, after)) return null;
   return { id, kind: terminalMessage(message)!, text: message.body, cursor: message.id };
 }
 
