@@ -17,4 +17,4 @@ First use: in a canonical pi, `/new`, then quit pi and see it come back on the n
 
 ## Verification
 
-[Independent first-use packet](../attachments/thread-commands-in-pi/index.md), including [predictions and replayable checks](../attachments/thread-commands-in-pi/drive.md). Lifecycle commands failed; remaining required journeys held on c496408.
+[Independent first-use packet](../attachments/thread-commands-in-pi/index.md), including [predictions and replayable checks](../attachments/thread-commands-in-pi/drive.md). Lifecycle commands failed on c496408; reviewer repaired them (optional thread id, detached when the target contains this pi) and all journeys held.

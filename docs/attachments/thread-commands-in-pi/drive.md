@@ -46,3 +46,17 @@ Prepare returned `/private/tmp/thread-commands-mnm8Xt`, a newly created disposab
 ## Cleanup
 
 Both directly launched free pis were quit. Recipe cleanup returned `Owned fixture removed`, stopping its canonical agents and removing the temporary repository, state and auth link. All five worker-opened Terminal windows were closed; their exact window IDs were absent from final list_windows (only untitled menu/auxiliary surfaces remained), and the known pi PIDs were absent. No shared services were stopped. No product repairs or automated tests were made.
+
+## Review
+
+Check 6 failed on c496408 for a located reason: `ab thread archive|abandon|merge` refuses a controller descended from the thread's own pi (it kills that pi), and the pi command both ran the controller as a child of the pi and accepted no thread id. Repair (extensions/workspace/thread.ts): `/thread archive|abandon|merge [<thread>]` takes an optional id, default this canonical pi's own thread. When the target's subtree contains this pi (the thread itself or an ancestor) the controller is started detached so init adopts it, with output in `$TMPDIR/ab-thread-<action>-<id>.log`; otherwise it runs inline as before. A free pi must name a thread.
+
+Replay with real canonical pis in a fresh fixture ([redrive.ts](redrive.ts), screens by [redrive-capture.ts](redrive-capture.ts)), all on the repaired head:
+
+- bare `/thread merge` in an owning child with a commit: archived, file in main, branch deleted, its pi gone.
+- bare `/thread abandon`: archived, nothing merged, branch deleted.
+- `/thread archive <child id>` typed in the source's pi: child merged and retired, source stays active with its pi alive; its screen shows the result JSON ([redrive-screens.txt](redrive-screens.txt)).
+- bare `/thread archive` in a child that has a child: post-order, both merged into main and archived.
+- The child's screen right after bare `/thread merge` shows the detached-run notice with the log path (same file).
+
+The original frames [drive-merge.png](drive-merge.png) and [drive-cleanup-errors.png](drive-cleanup-errors.png) show the pre-repair failure and are first-use record only. Not driven: merge conflict from inside (the conflict mail goes to this thread's own agent, which stays alive during the walk; covered by lib/thread/lifecycle.test.ts). Fixture and logs cleaned up; no processes left.

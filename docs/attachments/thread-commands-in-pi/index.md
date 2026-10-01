@@ -35,4 +35,4 @@ The old fork-tab tests asserted tmux window creation and cyber-mux worktree owne
 
 ## Independent drive
 
-[Predictions, encounter, checks and cleanup](drive.md). Creation, fork/alias, session tracking, promotion and canonical/free workspace behavior held. Bare `/thread archive`, `/thread abandon` and `/thread merge` in an owning child's pi all failed with the cleanup-controller guard; passing a child ID from another pi returned usage. [Lifecycle failure frame](drive-cleanup-errors.png).
+[Predictions, encounter, checks, cleanup and review](drive.md). Creation, fork/alias, session tracking, promotion and canonical/free workspace behavior held on the driver's pass. Bare `/thread archive|abandon|merge` failed there (cleanup-controller guard; no way to name a child from another pi: [failure frame](drive-cleanup-errors.png), pre-repair). Review repaired it and replayed all three through real canonical pis, plus archive by id and a subtree: all held ([screens](redrive-screens.txt), [replay script](redrive.ts)). The earlier visual journeys are unaffected by the repair and keep their frames.
