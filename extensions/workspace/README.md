@@ -1,8 +1,9 @@
-# Workspace commands
+# Workspace and thread commands
 
-- `/workspace <path>` forks the conversation into another directory and switches this Pi instance to it. Model requests require `/workspace accept`.
-  Connectome continues the existing life rather than rebuilding memory from the transcript.
-- `/fork-tab` snapshots the current conversation branch into a new Pi session and opens it in a new tmux window in the same tmux session. The original stays open.
-- `/fork-tab <worktree-name>` first creates a Git worktree and branch from current HEAD using `cyber-mux worktree add`, then opens the fork there. The checkout goes in cyber-mux's default location, beside the primary checkout. Uncommitted changes are not copied; existing branch/path conflicts are reported rather than overwritten.
+- `/thread new|fork [--worktree <name>]` creates a thread through `ab thread`. Fork keeps the conversation; new starts empty. Without `--worktree`, the CLI creates an owning worktree with an automatic name.
+- `/thread promote` makes this free session canonical in a guest thread. `/thread archive|merge|abandon` acts on the current canonical thread; merge aliases archive, including retirement.
+- `/fork-tab` aliases `/thread fork` (including `--worktree <name>`). It no longer opens tmux windows.
+- `/new` and `/resume` in a canonical pi move the thread's current session. Quitting pi restarts it on that session. Free sessions are untouched.
+- `/workspace <path>` forks a new thread in that directory when this pi is canonical, leaving the original alone. In a free session it forks the conversation and switches this pi to the new directory. Model requests require `/workspace accept`.
 
-`/fork-tab` requires tmux and `pi` on PATH; the named form also requires `cyber-mux`. It waits for the agent to become idle before taking the snapshot. A worktree is retained if opening the window fails (its path is reported). No dependency installation or project setup hooks are run.
+Thread commands require `bun`, `pi`, `mise` and `zmx` on PATH. A new owning worktree runs the project's declared `mise run setup` task; guests do not run setup. Thread records and terminal lifetimes are managed by `ab thread`, not by workspace switching.
