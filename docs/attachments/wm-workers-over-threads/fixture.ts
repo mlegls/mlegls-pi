@@ -38,7 +38,7 @@ async function printPi(f: Fixture, file: string, prompt: string) {
 }
 
 if (action === "help" || action === "--help") {
-  console.log("prepare | worker ROOT | supervisor ROOT | reconcile ROOT | inspect ROOT | cleanup ROOT\nUses local pi authentication, isolated agent/board/thread/zmx state and an owned non-main Git checkout. All ids/readiness are printed. Reconcile takes several minutes, including a real startup-grace wait.");
+  console.log("prepare | worker ROOT | supervisor ROOT | join ROOT | reconcile ROOT | inspect ROOT | cleanup ROOT\nUses local pi authentication, isolated agent/board/thread/zmx state and an owned non-main Git checkout. join drives fresh tools from the package checkout itself; all other actions use the disposable project. All ids/readiness are printed. Reconcile takes several minutes, including a real startup-grace wait.");
   process.exit(0);
 }
 let f: Fixture;
@@ -127,13 +127,27 @@ if (action === "worker") {
   process.kill(live.pid, "SIGKILL");
   console.log(JSON.stringify({ event: "pid-killed", pid: live.pid, result: [...(await wait([dying], { timeoutMs: 3000 })).values()] }));
   console.log(JSON.stringify({ event: "discard-close", cleanup: await dying.close(), branch: git(f.cwd, "branch", "--list", dying.handle) }));
-} else if (action === "supervisor") {
+} else if (action === "supervisor" || action === "join") {
   const prompt = "Session mode: hacking. You are driving a disposable worker fixture from branch owner. Use tools.dispatch, tools.board_read and tools.integrate/retire from the loaded package; do not import the library or invoke another checkout. Run prefix tool-fixture. Dispatch one at a time, using model " + f.model + " effort off and maxConcurrent 1 active []. Worker one named tool-integrate writes integrated.txt containing ok and commits it; its task ends done. Read its fresh done on tool-fixture/tool-integrate, then integrate it (no keep). Worker two tool-keep writes kept.txt and commits, reports done; integrate keep:true, then retire it. Worker three tool-unmerged writes unmerged.txt and commits, reports done; retire without integrating, its branch must be kept. Await reports over the board (not terminal text); do not retire while it is working. You may end intermediate turns to receive reports; your own final response only after all three are handled starts done fixture-dispatch-complete and gives the receipts and integration/retirement results in fenced yaml. No other work.";
-  const supervisor = await newThread({ cwd: f.cwd, in: f.cwd, launch: { args: ["--approve", "--model", f.model, "--thinking", "off"], prompt } });
-  console.log(JSON.stringify({ event: "driving-pi", id: supervisor.id, cwd: f.cwd }));
-  const report = await until(() => { const m = latest("thread/" + supervisor.id); return m?.body.startsWith("done fixture-dispatch-complete") ? m : undefined; }, 600);
-  console.log(JSON.stringify({ event: "tool-dispatch-complete", report, branches: git(f.cwd, "branch"), active: (await allThreads()).map(t => ({ id: t.id, worker: t.worker, cwd: t.cwd })), terminals: await terminals(), files: git(f.cwd, "ls-tree", "--name-only", "HEAD") }));
+  const cwd = action === "join" ? packagePath : f.cwd;
+  process.chdir(cwd);
+  const inventory = async () => {
+    const cli = Bun.spawn([join(packagePath, "bin/ab"), "thread", "ls", "--json"], { cwd, env: process.env, stdout: "pipe", stderr: "pipe" });
+    const [code, out, err] = await Promise.all([cli.exited, new Response(cli.stdout).text(), new Response(cli.stderr).text()]);
+    if (code) throw new Error(err);
+    return { cwd, branch: git(cwd, "branch", "--show-current"), head: git(cwd, "rev-parse", "HEAD"),
+      worktrees: git(cwd, "worktree", "list", "--porcelain"), branches: git(cwd, "branch", "--list"),
+      cliThreads: JSON.parse(out), zmx: await zmx(["ls"]) };
+  };
+  const before = await inventory();
+  const handle = "join-" + root.split("-").at(-1);
+  const joinPrompt = "Session mode: hacking. Drive a single trivial worker using freshly loaded tools.dispatch, tools.board_read and tools.integrate in this checkout, not library imports or another checkout. Run prefix thread-join, handle " + handle + ". model " + f.model + ", effort off, maxConcurrent 1, active []. Worker task: run git commit --allow-empty -m 'Exercise worker thread integration', then report done with its commit SHA; no file edits or other work. Inspect the worker's branch.<handle>.ab-parent and record the dispatcher's current branch: they must match even though this is a non-main checkout. Await its fresh done on thread-join/" + handle + " over the board before integrating (no keep). Do not use terminal text as a report or retire working agents. Final response starts done fixture-join-complete and includes fenced yaml with receipt, parentBranch, worker commit, board report id and integration result. You may end intermediate turns to receive board reports. No unrelated work.";
+  const supervisor = await newThread({ cwd, in: cwd, launch: { args: ["--approve", "--model", f.model, "--thinking", "off"], prompt: action === "join" ? joinPrompt : prompt } });
+  console.log(JSON.stringify({ event: "driving-pi", id: supervisor.id, cwd, before }));
+  const report = await until(() => { const m = latest("thread/" + supervisor.id); return m?.body.startsWith(action === "join" ? "done fixture-join-complete" : "done fixture-dispatch-complete") ? m : undefined; }, 600);
+  console.log(JSON.stringify({ event: "tool-dispatch-complete", report, after: await inventory(), files: git(cwd, "ls-tree", "--name-only", "HEAD") }));
   await abandonThread(supervisor.id);
+  console.log(JSON.stringify({ event: "driving-pi-retired", after: await inventory() }));
 } else if (action === "reconcile") {
   await mkdir(join(f.cwd, "docs/issues"), { recursive: true });
   const project = "repo";
