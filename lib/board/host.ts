@@ -55,7 +55,7 @@ function subKey(s: Subscription): string {
 
 export function install(pi: ExtensionAPI) {
 	let subs: Subscription[] = [];
-	let cursor = 0; // byte offset into the log
+	let cursor = 0; // records seq (lib/records/store)
 	let context: ExtensionContext | undefined;
 	const pending = new Map<string, Message>();
 	let sessionId = "";

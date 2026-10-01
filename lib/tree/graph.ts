@@ -13,7 +13,7 @@ import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, rea
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "../session-meta/live";
-import { logPath } from "../board/store";
+import { read } from "../board/store";
 import { resolveSession } from "../session-meta/identity";
 
 /** working/idle: a pi with a live record;
@@ -122,15 +122,12 @@ function project(cwd: string, cache: Cache): string {
 
 function reports(): Map<string, { tag: string; ts: string; body: string }> {
 	const out = new Map<string, { tag: string; ts: string; body: string }>();
-	let log = "";
-	try { log = readFileSync(logPath(), "utf8"); } catch { return out; }
-	for (const line of log.split("\n")) {
-		if (!line) continue;
-		try {
-			const m = JSON.parse(line);
-			const tag = (m.tags as string[]).find(t => ["done", "blocked", "needs-input", "checkpoint"].includes(t));
-			if (tag) out.set(m.topic, { tag, ts: m.ts, body: String(m.body).slice(0, 200) });
-		} catch {}
+	const terminal = ["done", "blocked", "needs-input", "checkpoint"];
+	let messages;
+	try { messages = read({ tags: terminal.join(" | "), limit: Infinity }).messages; } catch { return out; }
+	for (const m of messages) {
+		const tag = m.tags.find(t => terminal.includes(t))!;
+		out.set(m.topic, { tag, ts: m.ts, body: m.body.slice(0, 200) });
 	}
 	return out;
 }

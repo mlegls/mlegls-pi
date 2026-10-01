@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { appendFileSync, mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { logSize, meta, noteRead, read, readFrom, readReadEvents, readsPath, send, topics, waitFor } from "./store";
@@ -39,7 +39,7 @@ test("run-wide read includes base-topic decisions; <run>/* does not", () => {
 	expect(bodies("run/*")).toEqual(["peer"]);
 });
 
-test("readFrom is incremental by byte offset", () => {
+test("readFrom is incremental by cursor", () => {
 	send({ topic: "t", tags: [], body: "1", from });
 	const first = readFrom(0);
 	expect(first.messages).toHaveLength(1);
@@ -49,14 +49,14 @@ test("readFrom is incremental by byte offset", () => {
 	expect(readFrom(first.offset).messages.map((m) => m.body)).toEqual(["2"]);
 });
 
-// Replays the drive packet's omitted-sender reader check:
-// docs/attachments/root-board-store-fixture-typecheck/index.md.
-test("missing sender metadata is normalized; malformed records don't poison readers", () => {
-	const first = send({ topic: "t", tags: [], body: "first", from });
-	const { from: _, ...anonymous } = { ...first, id: "anonymous", body: "匿名" };
+// Replays the drive packet's omitted-sender reader check (docs/attachments/root-board-store-fixture-typecheck/index.md)
+// against the one-time import of the pre-store JSONL log.
+test("legacy log import normalizes missing sender metadata and skips malformed records", () => {
+	const first = { id: "first", ts: "2026-01-01T00:00:00.000Z", topic: "t", tags: ["k:v", "bare"], from, body: "first", data: { n: 1, list: ["a"], nested: { x: [1, { y: null }] }, empty: [] } };
+	const { from: _, ...anonymous } = { ...first, id: "anonymous", body: "匿名", data: "plain" };
 	const invalid = [null, [], 42, {}, { ...first, tags: [1] }, { ...first, body: null },
-		{ ...first, from: "script" }, { ...first, from: { session: 1 } }];
-	appendFileSync(join(dir, "log.jsonl"), ["{torn", ...invalid.map((m) => JSON.stringify(m)), JSON.stringify(anonymous)].join("\n") + "\n");
+		{ ...first, from: "script" }, { ...first, from: { session: 1 } }, { ...first, body: "duplicate id" }];
+	writeFileSync(join(dir, "log.jsonl"), [JSON.stringify(first), "{torn", ...invalid.map((m) => JSON.stringify(m)), JSON.stringify(anonymous)].join("\n") + "\n");
 	const result = readFrom(0);
 	expect(result.messages).toEqual([first, { ...anonymous, from: {} }]);
 	expect(result.offset).toBe(logSize());
@@ -64,6 +64,21 @@ test("missing sender metadata is normalized; malformed records don't poison read
 	expect(topics()[0]!.count).toBe(2);
 	const last = send({ topic: "t", tags: [], body: "last", from });
 	expect(readFrom(result.offset).messages).toEqual([last]);
+});
+
+test("lines old sessions append to the legacy log are imported once; sends mirror there", () => {
+	writeFileSync(join(dir, "log.jsonl"), "");
+	const mine = send({ topic: "t", tags: [], body: "new", from });
+	const old = { id: "old", ts: "2026-01-01T00:00:00.000Z", topic: "t", tags: ["done"], from, body: "old" };
+	appendFileSync(join(dir, "log.jsonl"), JSON.stringify(old) + "\n");
+	expect(readFrom(0).messages).toEqual([mine, old]);
+	expect(readFrom(0).messages).toHaveLength(2);
+	expect(readFileSync(join(dir, "log.jsonl"), "utf8")).toContain('"id":"' + mine.id + '"');
+});
+
+test("a cursor from before the store resumes at the tail", () => {
+	send({ topic: "t", tags: [], body: "1", from });
+	expect(readFrom(10_000_000)).toEqual({ messages: [], offset: logSize() });
 });
 
 // Replays the same packet's script-send check, including normalized readback.
