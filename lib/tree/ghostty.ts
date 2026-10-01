@@ -1,53 +1,62 @@
-// The sidebar as a Ghostty split next to the terminal running tmux, driven over Ghostty's
-// AppleScript dictionary (macOS). The sidebar titles itself "ab tree" so it can be found.
-
+// A dedicated Ghostty window: sidebar plus one main zmx client. Stable surface IDs
+// keep focus/input/resize out of the user's other windows and tabs.
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { listThreads } from "../thread";
+import { quote } from "../thread/process";
 
 export const TITLE = "ab tree";
 const AB = fileURLToPath(new URL("../../bin/ab", import.meta.url));
 const q = (s: string) => '"' + s.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
 const osa = (script: string) => execFileSync("osascript", ["-e", script], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+export const inGhostty = () => !!process.env.GHOSTTY_RESOURCES_DIR;
+export const sidebarTitle = () => TITLE + " " + (process.env.AB_TREE_TOKEN ?? process.pid);
 
-/** Running in a Ghostty terminal directly (not inside tmux). */
-export const inGhostty = () => !process.env.TMUX && !!process.env.GHOSTTY_RESOURCES_DIR;
-
-/** Open the sidebar as a split left of the focused terminal of the front Ghostty window. */
-export function openSidebar(): void {
-	const shell = process.env.SHELL || "/bin/zsh";
-	const cmd = `${shell} -ic ${q(`exec ${AB} tree ui --sidebar`).replace(/^"|"$/g, "'")}`;
+/** Create a fresh two-split window; leave existing terminals untouched. */
+export async function openSidebar(): Promise<void> {
+	const token = randomUUID();
+	// The main terminal waits for an id when empty or when an archived session detaches.
+	// It is not an auxiliary shell and cannot accidentally receive a command intended for pi.
+	const main = `while :; do printf '\\033]2;ab thread\\007'; printf 'Choose a thread in the sidebar\\n'; read -r id || exit; ${quote(AB)} thread attach "$id"; done`;
+	const env = Object.entries(process.env).filter(([key, value]) => value !== undefined &&
+		(/^(PI_|XDG_|ZMX_|AB_THREAD_)/.test(key) || ["PATH", "SHELL", "HOME", "TMPDIR"].includes(key)) &&
+		!["ZMX_SESSION", "ZMX_SESSION_PREFIX", "AB_THREAD_ID", "PI_SESSION_ID", "PI_SESSION_FILE"].includes(key))
+		.map(([key, value]) => key + "=" + value);
 	osa(`tell application "Ghostty"
-	set t to focused terminal of selected tab of front window
 	set cfg to new surface configuration
-	set command of cfg to ${q(cmd)}
-	split t direction left with configuration cfg
+	set initial working directory of cfg to ${q(process.cwd())}
+	set environment variables of cfg to {${env.map(q).join(", ")}}
+	set command of cfg to ${q("/bin/sh -c " + quote(main))}
+	set w to new window with configuration cfg
+	set t to focused terminal of selected tab of w
+	set mainID to id of t
+	set sidecfg to new surface configuration from cfg
+	set command of sidecfg to ${q(quote(AB) + " tree ui --sidebar")}
+	set environment variables of sidecfg to (environment variables of cfg) & {"AB_TREE_MAIN_TERMINAL=" & mainID, ${q("AB_TREE_TOKEN=" + token)}}
+	set side to split t direction left with configuration sidecfg
 end tell`);
 }
 
-/** Give the keyboard back to the terminal next to the sidebar (the tmux one if there are several). */
-export function focusMain(): void {
-	try {
-		osa(`tell application "Ghostty"
-	set pick to missing value
-	repeat with x in terminals of selected tab of front window
-		set n to name of x
-		if n is not ${q(TITLE)} then
-			if pick is missing value or n contains "tmux" then set pick to x
-		end if
-	end repeat
-	if pick is not missing value then focus pick
-end tell`);
-	} catch {}
+function mainTarget(id = process.env.AB_TREE_MAIN_TERMINAL): string {
+	if (!id) throw new Error("No bound main split; launch with ab tree sidebar");
+	return `terminal id ${q(id)}`;
 }
 
-/** Move the sidebar's divider by `px` (negative: narrower). */
+export function attachMain(id: string): void {
+	osa(`tell application "Ghostty"
+	input text ${q(id + "\n")} to ${mainTarget()}
+end tell`);
+}
+
+/** Focus explicitly requested by the user (Escape), not by hover or scrolling. */
+export function focusMain(): void { osa(`tell application "Ghostty" to focus ${mainTarget()}`); }
+
 export function resizeSidebar(px: number): void {
 	if (!px) return;
-	try {
-		osa(`tell application "Ghostty"
-	repeat with x in terminals of selected tab of front window
-		if name of x is ${q(TITLE)} then perform action ${q(`resize_split:${px < 0 ? "left" : "right"},${Math.abs(Math.round(px))}`)} on x
+	osa(`tell application "Ghostty"
+	repeat with x in terminals
+		if name of x is ${q(sidebarTitle())} then perform action ${q(`resize_split:${px < 0 ? "left" : "right"},${Math.abs(Math.round(px))}`)} on x
 	end repeat
 end tell`);
-	} catch {}
 }
