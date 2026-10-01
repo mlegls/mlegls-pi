@@ -1,7 +1,7 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 import type { Message, ToolResultMessage } from "@earendil-works/pi-ai";
-import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { defineTool, type ExtensionAPI, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import {
 	recallMemorySources,
@@ -13,6 +13,7 @@ import type { Observation, Reflection } from "../session-ledger/index.js";
 import { renderRecallSourceEntries, renderRecallSourceEntry } from "../serialize.js";
 import { estimateEntryTokens } from "../tokens.js";
 import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
+import { recallElided } from "../../elide.ts";
 
 export const RECALL_OBSERVATION_TOOL_NAME = "recall";
 
@@ -440,7 +441,7 @@ export const recallObservationTool = defineTool({
 	name: RECALL_OBSERVATION_TOOL_NAME,
 	label: "Recall memory evidence",
 	description:
-		"Recover exact evidence and source context behind a compacted observational-memory observation or reflection id on the current branch. " +
+		"Recover exact evidence and source context behind a compacted observational-memory observation or reflection id on the current branch, or a tool output elided from context (`recall <id>` pointers). " +
 		"Use when compressed memory is important and original source context is needed before acting.",
 	promptSnippet: "Use recall(<id>) to recover exact source context behind compacted memory observations/reflections when precision matters.",
 	promptGuidelines: [
@@ -472,6 +473,9 @@ export const recallObservationTool = defineTool({
 		const branchEntries = ledgerBranch(ctx.sessionManager as LedgerSession);
 		const result = recallMemorySources(branchEntries, memoryId);
 		if (result.status === "not_found") {
+			// Tool outputs elided behind a cold cache (extensions/context/elide.ts) share this tool and id format.
+			const elided = recallElided(ctx.sessionManager.getBranch() as SessionEntry[], memoryId);
+			if (elided) return { content: elided.content, details: emptyDetails("ok", memoryId, "elided tool output " + elided.entry.id) };
 			const message = `No observation or reflection with id ${memoryId} was found on the current branch.`;
 			return textResult(message, emptyDetails("not_found", memoryId, message));
 		}

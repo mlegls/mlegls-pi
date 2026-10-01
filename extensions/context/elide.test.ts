@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { elideCold } from "./elide.ts";
+import { elideCold, elidedId, recallElided } from "./elide.ts";
 
 const usage = { input: 100, output: 10, cacheRead: 50, cacheWrite: 0, totalTokens: 160, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
 const assistant = (text: string) => ({ role: "assistant", content: [{ type: "text", text }], api: "openai-responses", provider: "test", model: "model", usage, stopReason: "stop", timestamp: 1 });
@@ -16,7 +16,9 @@ test("tool outputs are elided only behind cold gaps, keeping recent turns, small
 	add({ role: "user", content: "c", timestamp: 5000 });
 	const cold = elideCold(messages(), branch, o);
 	expect(cold.elided).toBe(1);
-	expect(cold.messages[2].content[0].text).toContain("recall_output e2");
+	expect(cold.messages[2].content[0].text).toContain("recall " + elidedId("e2"));
+	expect(cold.elisions).toMatchObject([{ entry: "e2", tool: "bash", call: {} }]);
+	expect(recallElided(branch, elidedId("e2"))!.content[0].text).toBe(big);
 	expect(cold.messages[3].content[0].text).toBe("small");
 	expect(cold.messages[4].content[0].text).toBe(big);
 	expect(cold.messages[7].content[0].text).toBe(big);
