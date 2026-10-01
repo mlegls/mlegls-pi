@@ -36,7 +36,7 @@ export interface Options {
   active: Handle[];
   /** tmux session for the workers' windows; default the run's slug. */
   session?: string;
-  /** Board topic glob whose `decision` messages each worker sees on its next turn, without waking. */
+  /** A run whose `decision` messages (on <follow>/**) each worker sees on its next turn, without waking. */
   follow?: string;
 }
 

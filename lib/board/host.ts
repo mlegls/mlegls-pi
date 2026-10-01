@@ -186,8 +186,8 @@ export function install(pi: ExtensionAPI) {
 		// topic, so the parent's follow-ups and needs-input answers reach it without it asking.
 		subs = restoredSubs ?? [
 			...(process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []),
-			// Siblings' decisions (PI_BOARD_FOLLOW, set by the reconciler) arrive on the next turn without waking it.
-			...(process.env.PI_BOARD_FOLLOW ? [{ topic: process.env.PI_BOARD_FOLLOW, tags: "decision", wake: false }] : []),
+			// Decisions across its run (PI_BOARD_FOLLOW names the run) arrive on the next turn without waking it.
+			...(process.env.PI_BOARD_FOLLOW ? [{ topic: process.env.PI_BOARD_FOLLOW + "/**", tags: "decision", wake: false }] : []),
 		];
 		// Every session has a mailbox (mail/xxxxxxxx): supervision loops, ab tree, `ab mail`, and
 		// other sessions reach it there. Shown in pi's footer and, under tmux, the status bar.

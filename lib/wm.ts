@@ -127,8 +127,8 @@ export function spawnEnv(o: { run: string; handle: string; agent?: string; paren
 		`PI_WM_HANDLE=${o.handle}`,
 		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
 		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
-		// Quoted: the env prefix runs through the worker's shell, where a bare glob like run/** aborts the command.
-		o.follow && `PI_BOARD_FOLLOW='${o.follow}'`,
+		// A run name, not a glob: workmux passes the env prefix through a shell unquoted.
+		o.follow && `PI_BOARD_FOLLOW=${o.follow}`,
 		// The tmux window doesn't inherit this process's env: carry a non-default agent dir to the worker.
 		process.env.PI_CODING_AGENT_DIR && `PI_CODING_AGENT_DIR=${process.env.PI_CODING_AGENT_DIR}`,
 	].filter((v): v is string => Boolean(v));
@@ -470,18 +470,6 @@ async function ensureSession(name: string, cwd: string) {
 	}
 }
 
-// pi asks "Trust project folder?" on first launch in an untrusted folder, and a headless worker
-// sits at that prompt forever without a session file. Worktrees of a trusted repo hold the same
-// code, so extend the repo's trust to its __worktrees folder; an untrusted repo still prompts.
-export function trustWorktrees(cwd: string, file = join(homedir(), ".pi", "agent", "trust.json")) {
-	if (!existsSync(file)) return;
-	const trust = JSON.parse(readFileSync(file, "utf8")) as Record<string, boolean>;
-	const trusted = (dir: string) => Object.entries(trust).some(([k, v]) => v && (dir === k || dir.startsWith(k + "/")));
-	const wt = resolve(cwd, "..", `${basename(cwd)}__worktrees`);
-	if (!trusted(cwd) || trusted(wt)) return;
-	trust[wt] = true;
-	writeFileSync(file, JSON.stringify(trust, null, 2) + "\n");
-}
 
 /** Workers write scratch under `.wm/<handle>/`; keep it out of every worktree's status without touching .gitignore. */
 async function excludeWm(cwd: string) {
@@ -503,13 +491,13 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	if (o.command === undefined && (!o.model?.includes("/") || !o.effort))
 		throw new Error("wm.spawn requires routed model (provider/model) and effort, or an explicit command");
 	const quote = (text: string) => "'" + text.replaceAll("'", "'\"'\"'") + "'";
-	let cmd = o.command ?? "pi --model " + quote(o.model!) + " --thinking " + quote(o.effort!);
+	// --approve: the parent chose to run work in this repository, so its worktrees skip the project-trust prompt.
+	let cmd = o.command ?? "pi --approve --model " + quote(o.model!) + " --thinking " + quote(o.effort!);
 	if (!cmd.trim()) throw new Error("command must not be empty");
 	const cwd = resolve(o.cwd ?? process.cwd());
 	const session = o.session ?? slug(o.run);
 	await ensureSession(session, cwd);
 	await excludeWm(cwd);
-	trustWorktrees(cwd);
 	// Own the board window before workmux starts the agent, or a fast report is consumed by a ticking poller against nobody.
 	const w = new Worker(o.run, o.handle, cwd, session, resolve(cwd, "..", `${basename(cwd)}__worktrees`, o.handle));
 	w.quietIsIdle = o.command !== undefined;

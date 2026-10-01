@@ -162,7 +162,7 @@ export async function run(o: { cwd: string; root: string; owner: string; budget:
 	async function launch(handle: string, role: string, prompt: string, base: string, issue?: Issue): Promise<Handle> {
 		const agentName = await pick(role, issue, prompt);
 		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...(role === "implement" && issue ? { issue: issue.slug, assignee: issue.assignee ?? undefined } : {}) }],
-			{ run: s.root, cwd, maxConcurrent: 1, active: [], session: s.root, follow: s.root + "/**", parent: process.env.PI_SESSION_ID ?? s.owner });
+			{ run: s.root, cwd, maxConcurrent: 1, active: [], session: s.root, follow: s.root, parent: process.env.PI_SESSION_ID ?? s.owner });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
