@@ -53,3 +53,16 @@ Run the setup index's preparation commands, substitute the fresh ROOT, and run e
 ## Scope and evidence limits
 
 All ticket first-use journeys reached their documented surfaces and held in this recipe run. This is independent execution/observation of the committed recipe, not an implementation review or broad audit. No native/sidebar UI was opened; visual false, shots empty. Public supervision was exercised by the fixture's freshly loaded pi and its returned report, not this driver's inherited tools. The parent still owns its explicitly required final fresh-tool join. No product repairs or tests were written.
+
+## Review (appended after the driver's session; the log above is unchanged)
+
+Reviewed `847c454..5c37def` against the ticket, with the driver's packet. No behavioral repair needed: the diff matches the ticket's contracts (registry-based observation with deferred errors, literal send + explicit CR in children, `ab-parent` as integration destination, collector parent lineage, pre-cutover state fence). Root typecheck shows only the 57 pre-existing `extensions/obsidian-tracker` errors (missing `obsidian` types in this worktree); `bun-axi test` 177 passed, 2 skipped before my additions.
+
+Fixed: `dispatch.retire` kept a `branch` option nothing passes since retirement derives the branch from the registry record; removed.
+
+Retained as automated tests (public surface, no zmx or model needed), each citing the driver's check:
+- `lib/dispatch.test.ts` "integrates into the recorded ab-parent even when called from another checkout": drive check 5/6 (destination is the recorded parent, never the caller's HEAD).
+- `lib/session/jump.test.ts`: drive check 2 (/jump returns the registered worker's canonical session file; unknown handle errors).
+- `lib/session-meta/index.test.ts` "canonical pi records / free pi omits thread identity": drive check 3 (Live and session-meta carry the thread for a registered session, neither for a free one). The file now isolates `XDG_STATE_HOME`/`AB_THREAD_ID`: it previously read, and wrote live records into, the developer's real state.
+
+Left as evidence only (need real zmx/pi or a real tracker subtree, already behind the opt-in `wm.local.test.ts` and `fixture.ts` recipe): follow-up/literal send and history (1), exit versus observation failure (4; the unit-level distinction is in `wm-reattach.test.ts`), supervision lifecycle (5), nested reconciliation and forced-exit restart (6), cleanup (7). Not re-driven: the repairs touch only a type signature and tests.
