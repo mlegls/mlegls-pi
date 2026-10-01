@@ -1,7 +1,6 @@
 // Launch a parent-planned ready wave as wm workers. No reading, routing, dependency graph, or retries.
 import { execFile, execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { markRetired, readLive } from "./session-meta/live.ts";
@@ -149,9 +148,30 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 }
 
 /** Merge a settled worker's branch into the parent checkout, then retire its host resources.
- * Uncommitted work refuses; conflicts abort. Optional prepare runs on the child after
+ * Uncommitted work refuses; conflicts abort, except appends to tracker issues (see appendUnion). Optional prepare runs on the child after
  * rebase (or before a merge-mode merge), before touching the parent; it must leave clean commits.
  * keep leaves cleanup to the caller, e.g. after persisting supervision state. */
+/** Tracker issues (docs/issues/**.md) collect observations appended by parallel siblings; when both sides only
+ * added lines at the same place in the body, keep both, ours first. Returns null for any other conflict: a hunk
+ * that changed base lines, or one inside the frontmatter. Expects diff3 conflict markers. */
+export function appendUnion(text: string): string | null {
+  const lines = text.split("\n");
+  const fmEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith("<<<<<<< ") && lines[i] !== "<<<<<<<") { out.push(lines[i]); continue; }
+    if (i <= fmEnd) return null;
+    const base = lines.findIndex((l, j) => j > i && l.startsWith("|||||||"));
+    const mid = lines.findIndex((l, j) => j > base && l === "=======");
+    const end = lines.findIndex((l, j) => j > mid && l.startsWith(">>>>>>>"));
+    if (base < 0 || mid < 0 || end < 0 || mid !== base + 1) return null;
+    out.push(...lines.slice(i + 1, base), ...lines.slice(mid + 1, end));
+    i = end;
+  }
+  return out.join("\n");
+}
+const trackerFile = (f: string) => /^docs\/issues\/.+\.md$/.test(f);
+
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
@@ -174,6 +194,22 @@ export async function integrate(given: Handle | string,
   const git = (dir: string, ...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
     execFile("git", ["-C", dir, ...args], (error, out, err) => done({ code: (error as { code?: number } | null)?.code ?? 0, out: out.trim(), err: err.trim() })));
   const conflicted = async (dir: string) => (await git(dir, "diff", "--name-only", "--diff-filter=U")).out.split("\n").filter(Boolean);
+  // Settle a stopped rebase or merge whose conflicts are all tracker appends; false leaves it for the caller to abort.
+  const settle = async (dir: string, op: "rebase" | "merge") => {
+    for (;;) {
+      const files = await conflicted(dir);
+      if (!files.length || !files.every(trackerFile)) return false;
+      for (const f of files) {
+        const merged = appendUnion(readFileSync(join(dir, f), "utf8"));
+        if (merged === null) return false;
+        writeFileSync(join(dir, f), merged);
+      }
+      await git(dir, "add", "--", ...files);
+      const next = op === "rebase" ? await git(dir, "-c", "core.editor=true", "rebase", "--continue") : await git(dir, "commit", "--no-edit", "--no-verify");
+      if (!next.code) return true;
+    }
+  };
+  const diff3 = ["-c", "merge.conflictStyle=diff3"];
   // Prepare the settled branch after rebasing, while the owner and worker still exist.
   const prepare = async () => {
     await options.prepare?.(worker);
@@ -190,15 +226,15 @@ export async function integrate(given: Handle | string,
     // the base into it: rebasing would drop those merges and replay the commits into the conflicts they resolved.
     const merged = (await git(worker.path, "rev-list", "--merges", "--count", base + "..HEAD")).out !== "0";
     const contains = (await git(worker.path, "merge-base", "--is-ancestor", base, "HEAD")).code === 0;
-    const update = contains ? { code: 0 } : merged ? await git(worker.path, "merge", "--no-edit", "--no-verify", base) : await git(worker.path, "rebase", base);
-    if (update.code) { const files = await conflicted(worker.path); await git(worker.path, merged ? "merge" : "rebase", "--abort"); throw new MergeConflict(branch, files); }
+    const update = contains ? { code: 0 } : merged ? await git(worker.path, ...diff3, "merge", "--no-edit", "--no-verify", base) : await git(worker.path, ...diff3, "rebase", base);
+    if (update.code && !await settle(worker.path, merged ? "merge" : "rebase")) { const files = await conflicted(worker.path); await git(worker.path, merged ? "merge" : "rebase", "--abort"); throw new MergeConflict(branch, files); }
     await prepare();
     const ff = await git(cwd, "merge", "--ff-only", branch);
     if (ff.code) throw new Error("integrate: ff-only merge of " + branch + " failed: " + ff.err);
   } else {
     await prepare();
-    const merge = await git(cwd, "merge", "--no-ff", "--no-edit", branch);
-    if (merge.code) { const files = await conflicted(cwd); await git(cwd, "merge", "--abort"); throw new MergeConflict(branch, files); }
+    const merge = await git(cwd, ...diff3, "merge", "--no-ff", "--no-edit", branch);
+    if (merge.code && !await settle(cwd, "merge")) { const files = await conflicted(cwd); await git(cwd, "merge", "--abort"); throw new MergeConflict(branch, files); }
   }
   const result: Integration = { branch, mode };
   if (options.keep) return result;
