@@ -19,7 +19,7 @@ function readsFiles(options: BuildSystemPromptOptions): boolean {
 const FILE_TOOLS = "Use read, grep and edit for files rather than cat, sed, rg or redirects in bash: their output carries the anchors edit takes, so grep → edit needs no second look, and large files come back as outlines. bash is for running things.";
 
 // Exec documented the same idiom; without it, shell backticks or escapes inside a script's template literal break the script.
-const CODEMODE_PAYLOADS = "In codemode scripts, write literal payloads (shell commands, file text) as double-quoted strings, or String.raw`…` when they hold backslashes but no backticks, not plain template literals: backticks, ${ and backslashes in the payload then survive. Give edit its array form ({from, op, lines}) when new text has a line starting with <, >, = or - right after a blank line (HTML/JSX, ---, -->), which the hunk syntax rejects.";
+const CODEMODE_PAYLOADS = "In codemode scripts, write literal payloads (shell commands, file text) as double-quoted strings, or String.raw`…` when they hold backslashes but no backticks, not plain template literals: backticks, ${ and backslashes in the payload then survive.";
 
 function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
 	if (!readsFiles(options)) return undefined;
