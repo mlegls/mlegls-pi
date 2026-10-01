@@ -226,12 +226,50 @@ export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): Partial<Con
 	return {};
 }
 
+/**
+ * `memory.schemas.om` in this package's layout, flattened to upstream's keys:
+ *
+ *   { model, observer: { afterTokens, chunkMaxTokens }, reflector: { afterTokens },
+ *     dropper: { targetTokens }, agent: { maxTurns, maxTokens },
+ *     compaction: { afterTokens, mode, ratio }, budget, showWorkerNotifications, passive, debugLog }
+ *
+ * `budget` is the compaction renderer's: upstream's observationsPoolMaxTokens.
+ */
+export function flattenSchemaSettings(om: Record<string, unknown>): Record<string, unknown> {
+	const sub = (k: string) => (isRecord(om[k]) ? om[k] : {}) as Record<string, unknown>;
+	const { observer, reflector, dropper, agent, compaction } = {
+		observer: sub("observer"), reflector: sub("reflector"), dropper: sub("dropper"), agent: sub("agent"), compaction: sub("compaction"),
+	};
+	const flat: Record<string, unknown> = {
+		model: om.model,
+		observeAfterTokens: observer.afterTokens,
+		observerChunkMaxTokens: observer.chunkMaxTokens,
+		reflectAfterTokens: reflector.afterTokens,
+		observationsPoolTargetTokens: dropper.targetTokens,
+		observationsPoolMaxTokens: om.budget,
+		agentMaxTurns: agent.maxTurns,
+		agentMaxTokens: agent.maxTokens,
+		compactAfterTokens: compaction.afterTokens,
+		compactAfterTokensMode: compaction.mode,
+		compactAfterTokensRatio: compaction.ratio,
+		showWorkerNotifications: om.showWorkerNotifications,
+		passive: om.passive,
+		debugLog: om.debugLog,
+	};
+	for (const k of Object.keys(flat)) if (flat[k] === undefined) delete flat[k];
+	return flat;
+}
+
+/** Upstream's `observational-memory` key, overridden by `memory.schemas.om`. */
 function readNamespacedConfig(path: string): Partial<Config> {
 	if (!existsSync(path)) return {};
 	try {
 		const raw = JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>;
-		const nested = raw[SETTINGS_KEY];
-		return isRecord(nested) ? normalizeSettingsConfig(nested) : {};
+		const legacy = isRecord(raw[SETTINGS_KEY]) ? raw[SETTINGS_KEY] as Record<string, unknown> : {};
+		const memory = isRecord(raw.memory) ? raw.memory as Record<string, unknown> : {};
+		const schemas = isRecord(memory.schemas) ? memory.schemas as Record<string, unknown> : {};
+		const om = isRecord(schemas.om) ? flattenSchemaSettings(schemas.om as Record<string, unknown>) : {};
+		return normalizeSettingsConfig({ ...legacy, ...om });
 	} catch {
 		return {};
 	}

@@ -13,8 +13,8 @@
 // Memory ids are content hashes, so `om:<id>` is a logical ref, not a record id.
 // Custom entries already in a session file (OM before this port) pass through and still fold.
 
-import { readFileSync } from "node:fs";
-import { db, edgesOf, fieldsOf, select, write, type StoredRecord } from "../../../../lib/records/store.ts";
+import { anchor, chainRecords, entryOf, entryRef, splice, type Anchored, type BranchSession } from "../../../../lib/records/branch.ts";
+import { db, fieldsOf, write } from "../../../../lib/records/store.ts";
 import {
 	OM_OBSERVATIONS_DROPPED,
 	OM_OBSERVATIONS_RECORDED,
@@ -28,58 +28,23 @@ import {
 
 export const SCHEMA = "om";
 
-export type LedgerSession = {
-	getSessionId(): string;
-	getLeafId(): string | null;
-	getBranch(): unknown[];
-	getHeader?(): { parentSession?: string } | null;
-};
+export type LedgerSession = BranchSession;
 
 type LedgerData = ObservationsRecordedEntryData | ReflectionsRecordedEntryData | ObservationsDroppedEntryData;
 
-const chains = new Map<string, string[]>();
-
-function headerOf(path: string): { id?: string; parentSession?: string } | undefined {
-	try {
-		const first = readFileSync(path, "utf8").split("\n", 1)[0];
-		return first ? JSON.parse(first) : undefined;
-	} catch {
-		return undefined;
-	}
-}
-
-/** This session's id and its fork ancestors', nearest first. */
-export function sessionChain(sm: LedgerSession): string[] {
-	const id = sm.getSessionId();
-	const hit = chains.get(id);
-	if (hit) return hit;
-	const chain = [id];
-	let parent = sm.getHeader?.()?.parentSession;
-	while (parent && chain.length < 64) {
-		const h = headerOf(parent);
-		if (!h?.id || chain.includes(h.id)) break;
-		chain.push(h.id);
-		parent = h.parentSession;
-	}
-	chains.set(id, chain);
-	return chain;
-}
-
-const entryRef = (session: string, entry: string) => `entry:${session}/${entry}`;
-const entryOf = (ref: string) => ref.slice(ref.indexOf("/") + 1);
 const memoryOf = (ref: string) => ref.slice("om:".length);
 
 /** Record one ledger write (what OM appended as a custom entry), anchored at the current leaf. */
 export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, data: LedgerData): void {
 	const session = sm.getSessionId();
-	const leaf = sm.getLeafId();
-	if (!leaf) return;
+	if (!sm.getLeafId()) return;
+	const a = anchor(sm);
 	const base = (kind: string) => [
-		{ key: "session", value: session },
+		...a.tags,
 		{ key: "om.kind", value: kind },
 		{ key: "om.coversUpToId", value: data.coversUpToId },
 	];
-	const at = { rel: "at", dst: entryRef(session, leaf) };
+	const at = a.edges[0]!;
 	const d = db();
 	d.transaction(() => {
 		if (customType === OM_OBSERVATIONS_RECORDED) {
@@ -107,7 +72,7 @@ export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, 
 	})();
 }
 
-function toEntry(rec: StoredRecord, edges: { rel: string; dst: string }[]): Entry | undefined {
+function toEntry({ record: rec, edges }: Anchored): Entry | undefined {
 	const f = fieldsOf("om", rec.tags) as Record<string, any>;
 	const rel = (r: string) => edges.filter((e) => e.rel === r).map((e) => e.dst);
 	const entry = (customType: string, data: unknown): Entry => ({ type: "custom", id: `om:${rec.id}`, timestamp: rec.ts, customType, data });
@@ -125,34 +90,5 @@ function toEntry(rec: StoredRecord, edges: { rel: string; dst: string }[]): Entr
 
 /** The branch with this session chain's om records spliced in after their anchors. */
 export function ledgerBranch(sm: LedgerSession, branch: Entry[] = sm.getBranch() as Entry[]): Entry[] {
-	const chain = sessionChain(sm);
-	const records = select(SCHEMA, {
-		where: `r.seq IN (SELECT record FROM tags WHERE key = 'session' AND value IN (${chain.map(() => "?").join(",")}))`,
-		params: chain,
-	});
-	if (!records.length) return branch;
-	const edges = new Map<number, { rel: string; dst: string }[]>();
-	for (const e of edgesOf(records.map((r) => r.seq))) {
-		const list = edges.get(e.record) ?? [];
-		list.push(e);
-		edges.set(e.record, list);
-	}
-	const after = new Map<string, Entry[]>();
-	for (const rec of records) {
-		const es = edges.get(rec.seq) ?? [];
-		const at = es.find((e) => e.rel === "at");
-		const entry = at && toEntry(rec, es);
-		if (!entry) continue;
-		const anchor = entryOf(at.dst);
-		const list = after.get(anchor) ?? [];
-		list.push(entry);
-		after.set(anchor, list);
-	}
-	const out: Entry[] = [];
-	for (const e of branch) {
-		out.push(e);
-		const spliced = after.get(e.id);
-		if (spliced) out.push(...spliced);
-	}
-	return out;
+	return splice(branch, chainRecords(sm, SCHEMA), toEntry);
 }

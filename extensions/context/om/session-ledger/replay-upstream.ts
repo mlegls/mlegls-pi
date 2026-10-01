@@ -13,6 +13,8 @@ process.env.PI_BOARD_DIR = mkdtempSync(join(tmpdir(), "om-accept-"));
 const up = await import(process.env.HOME + "/.pi/agent/npm/node_modules/pi-observational-memory/src/session-ledger/index.ts");
 const port = await import("./index.ts");
 const { recordLedger, ledgerBranch } = await import("./store.ts");
+const { omRenderer } = await import("../hooks/compaction-hook.ts");
+const { render } = await import("../../../../lib/records/render.ts");
 const OM = new Set(["om.observations.recorded", "om.reflections.recorded", "om.observations.dropped"]);
 const isOm = (e) => e.type === "custom" && OM.has(e.customType);
 let totals = { files: 0, compactions: 0, recalls: 0, diffs: 0, records: 0 };
@@ -40,7 +42,7 @@ for (const file of process.argv.slice(2)) {
 	}
 	const diff = (what, a, b) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) { totals.diffs++; let k = 0; while (x[k] === y[k]) k++; console.log("DIFF", file.slice(-50), what, x.length, y.length, "@", k, x.slice(k - 150, k + 150), "|||", y.slice(k - 150, k + 150)); } };
 	const sIdx = new Map(stripped.map((e, i) => [e.id, i]));
-	const portPrefix = (upPrefix) => { const last = [...upPrefix].reverse().find((e) => sIdx.has(e.id)); const i = sIdx.get(last.id); return ledgerBranch(sm, stripped.slice(0, i + 1)); };
+	const portPrefix = (upPrefix) => { const last = [...upPrefix].reverse().find((e) => sIdx.has(e.id)); return stripped.slice(0, sIdx.get(last.id) + 1); };
 	// each compaction, as the hook saw it, plus the tip against the last firstKept
 	branch.forEach((e, i) => {
 		if (e.type !== "compaction" || !e.firstKeptEntryId) return;
@@ -49,10 +51,13 @@ for (const file of process.argv.slice(2)) {
 		const cfg = { observationsPoolMaxTokens: 20000 };
 		// pi can cut at an OM custom entry; without them in the session the same cut is the real entry before it
 		if (isOm(byId.get(e.firstKeptEntryId) ?? {})) totals.omCuts = (totals.omCuts ?? 0) + 1;
-		const pu = up.buildCompactionProjection(u, e.firstKeptEntryId, cfg), pp = port.buildCompactionProjection(p, e.firstKeptEntryId, cfg);
-		diff("render@" + e.id, up.renderSummary(pu.reflections, pu.observations), port.renderSummary(pp.reflections, pp.observations));
-		diff("details@" + e.id, pu.details, pp.details);
-		if (e.details?.type === "om.folded") diff("stored-details@" + e.id, e.details, pp.details);
+		// the port through its compaction renderer, as extensions/context/compaction.ts runs it
+		const pu = up.buildCompactionProjection(u, e.firstKeptEntryId, cfg);
+		const section = render(omRenderer, { session: sm, branch: p, firstKeptEntryId: e.firstKeptEntryId }, cfg.observationsPoolMaxTokens);
+		const upText = up.renderSummary(pu.reflections, pu.observations);
+		diff("render@" + e.id, upText, section?.text ?? "");
+		if (upText) diff("details@" + e.id, pu.details, section?.details);
+		if (e.details?.type === "om.folded") diff("stored-details@" + e.id, e.details, section?.details);
 	});
 	const pb = ledgerBranch(sm, stripped);
 	for (const t of OM) diff("coverage " + t, up.latestCoverageMarkerId(branch, t), port.latestCoverageMarkerId(pb, t));

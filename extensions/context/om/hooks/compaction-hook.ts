@@ -1,9 +1,11 @@
-import type {
-	ExtensionAPI,
-	ExtensionContext,
-	SessionBeforeCompactEvent,
-} from "@earendil-works/pi-coding-agent";
-import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
+// OM's compaction renderer: query = the branch with the om ledger spliced in, cut = the
+// compaction projection with budget = observationsPoolMaxTokens (at or past it, reflections
+// and drops are folded in; below, the stable prefix is kept), rendered as upstream's summary.
+// extensions/context/compaction.ts composes it with other mechanisms' renderers.
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { Renderer } from "../../../../lib/records/render.ts";
+import type { CompactionMechanism, CompactionView } from "../../compaction.ts";
+import { ledgerBranch, type LedgerSession } from "../session-ledger/store.js";
 
 import type { Runtime } from "../runtime.js";
 import { buildCompactionProjection, renderSummary, type Entry } from "../session-ledger/index.js";
@@ -17,44 +19,29 @@ function observationsPoolMaxTokens(runtime: Runtime): number {
 		: DEFAULT_OBSERVATIONS_POOL_MAX_TOKENS;
 }
 
-export function registerCompactionHook(pi: ExtensionAPI, runtime: Runtime): void {
-	pi.on("session_before_compact", async (event: SessionBeforeCompactEvent, ctx: ExtensionContext) => {
-		if (runtime.compactHookInFlight) {
-			if (ctx.hasUI) {
-				ctx.ui.notify(
-					"Observational memory: another compaction is already in progress; cancelling duplicate",
-					"warning",
-				);
-			}
-			return { cancel: true };
-		}
+export const omRenderer: Renderer<CompactionView, Entry[]> = {
+	name: "om",
+	role: "memory",
+	query: (view) => ledgerBranch(view.session as LedgerSession, view.branch as Entry[]),
+	cut(entries, budget, view) {
+		const projection = buildCompactionProjection(entries, view.firstKeptEntryId, { observationsPoolMaxTokens: budget });
+		const text = renderSummary(projection.reflections, projection.observations);
+		return text ? { text, details: projection.details } : undefined;
+	},
+};
 
-		runtime.compactHookInFlight = true;
-		try {
+export function compactionMechanism(runtime: Runtime): CompactionMechanism {
+	return {
+		renderer: omRenderer,
+		budget: () => observationsPoolMaxTokens(runtime),
+		begin(ctx: ExtensionContext) {
+			if (runtime.compactHookInFlight) return false;
+			runtime.compactHookInFlight = true;
 			runtime.ensureConfig(ctx.cwd);
-			const { preparation, branchEntries } = event;
-			const { firstKeptEntryId, tokensBefore } = preparation;
-			const projection = buildCompactionProjection(
-				ledgerBranch(ctx.sessionManager as LedgerSession, branchEntries as Entry[]),
-				firstKeptEntryId,
-				{ observationsPoolMaxTokens: observationsPoolMaxTokens(runtime) },
-			);
-			const summary = renderSummary(projection.reflections, projection.observations);
-			if (summary.length === 0) {
-				// Decline ownership so Pi's native summarizer preserves the pre-cut context.
-				return;
-			}
-
-			return {
-				compaction: {
-					summary,
-					firstKeptEntryId,
-					tokensBefore,
-					details: projection.details,
-				},
-			};
-		} finally {
+			return true;
+		},
+		end() {
 			runtime.compactHookInFlight = false;
-		}
-	});
+		},
+	};
 }
