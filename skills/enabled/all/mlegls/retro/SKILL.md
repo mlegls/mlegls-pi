@@ -4,11 +4,15 @@ description: "Use for a retrospective on a session or on explicitly scoped trans
 argument-hint: "sessions, a date range, a project, or nothing for this session"
 ---
 
-improve my workflow/tooling by reviewing past transcripts.
+improve my workflow and tooling from past sessions, toward efficient self-improvement and expansion of leverage.
 
-1. read (skim) the transcripts for the specified scope, or use this session itself if unspecified. `bun ~/dev/mlegls-pi/lib/prompts.ts REGEX '{"project":"…"}'` finds what i said across pi, claude transcripts and claude's prompt history
-2. look for corrections, rejections, redirections, excessive token-use, intentions that could have been achieved more easily with better scaffolding, and any other opportunities to improve workflows and tooling
-3. propose the changes, `grill` as appropriate, then apply (in ~/dev/mlegls-pi or the project)
+run each part over the scope (what i give, or this session), reading its skill:
+
+- `what-else`, `devils-advocate`: correctness. this session.
+- `profile`: machine time and money. this session, against the last ~10 in the project as baseline.
+- `leverage`: my time and attention. this session and the last ~10 in the project, so recurrence shows.
+
+then merge their proposals into one list ranked by expected saving (one fix often shows up in several parts), `grill` as appropriate, and apply (in ~/dev/mlegls-pi or the project).
 
 consider your own ergonomics also. was there anything that felt cumbersome or uncomfortable, that could be improved in the harness or environment?
 
