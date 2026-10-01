@@ -1,191 +1,71 @@
-import { readFileSync } from 'node:fs';
-// decide: typed Jev evaluation; thresholds and fallback selection belong to the caller.
+// decide: typed Jev judgments through pi's classifier models (ModelRuntime.classify), for code
+// running outside a pi session such as the tracker CLI. Inside pi, use ctx.modelRegistry.classify
+// or codemode's models.classify directly. Thresholds and fallbacks belong to the caller.
 //
-//   const answers = await decide(state, {
+//   const { route } = await decide(state, {
 //     route: { type: "choice", instructions: "Who owns this?", criteria: { billing: "Payments", technical: "Bugs" } },
 //   });
-//   const pending = ask(state, questions); // caller may publish needs-input; no suspension here
-//   await decide(state, questions, { backend: "logprobs", model: "gpt-4.1-nano", apiKey });
-//   bun lib/decide.ts request.json [jev|logprobs|ask]   # request: {state, questions}
+//   route.choice, route.p, route.dist
 //
-// Jev: CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN, or JEV_API_KEY (TypeSafe direct).
-// Logprobs: OpenAI-compatible chat completions; OPENAI_API_KEY, DECIDE_MODEL, DECIDE_URL.
-// p is the winning option's probability, NOT Jev's distribution-derived confidence.
-// Score keeps its weighted score as well as the modal level in choice. Logprobs distributions
-// are conditional on the listed labels, not calibrated Jev probabilities. Retry transient API failures with bounded backoff.
-
-export class DecisionApiUnavailableError extends Error {
-	constructor(message: string) {
-		super(`Decision API unavailable: ${message}`);
-		this.name = 'DecisionApiUnavailableError';
-	}
-}
-
-const MAX_ATTEMPTS = 4;
-const BACKOFF_MS = [250, 500, 1000];
-
-function backoff(ms: number, signal?: AbortSignal): Promise<void> {
-	return new Promise((resolve, reject) => {
-		if (signal?.aborted) return reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
-		const timer = setTimeout(() => {
-			signal?.removeEventListener('abort', abort);
-			resolve();
-		}, ms);
-		const abort = () => {
-			clearTimeout(timer);
-			signal?.removeEventListener('abort', abort);
-			reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
-		};
-		signal?.addEventListener('abort', abort, { once: true });
-	});
-}
-
-async function post(url: string, apiKey: string | undefined, body: unknown, signal?: AbortSignal): Promise<any> {
-	if (!apiKey) throw new Error('Missing API key (JEV_API_KEY, CLOUDFLARE_API_TOKEN, or OPENAI_API_KEY)');
-	for (let attempt = 1; ; attempt++) {
-		let response: Response;
-		try {
-			response = await fetch(url, {
-				method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-				body: JSON.stringify(body), signal,
-			});
-		} catch (error) {
-			if (signal?.aborted || !(error instanceof TypeError)) throw error;
-			if (attempt === MAX_ATTEMPTS) throw new DecisionApiUnavailableError(`network failure after ${attempt} attempts: ${error instanceof Error ? error.message : String(error)}`);
-			await backoff(BACKOFF_MS[attempt - 1], signal);
-			continue;
-		}
-		if (response.ok) return response.json();
-		const message = `Decision API: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`;
-		if (response.status === 402) throw new DecisionApiUnavailableError(`HTTP 402 after one attempt: ${message}`);
-		if (response.status < 500 || response.status > 599) throw new Error(message);
-		if (attempt === MAX_ATTEMPTS) throw new DecisionApiUnavailableError(`HTTP ${response.status} after ${attempt} attempts: ${message}`);
-		await backoff(BACKOFF_MS[attempt - 1], signal);
-	}
-}
+// `noul` is a bool question whose dist is { true, false }. p is the chosen option's probability.
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import type { ClassifierModel, ClassifierQuestion, ClassifierApi } from "@earendil-works/pi-ai";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type State = string | Json[] | { [key: string]: Json };
-export type Question = { instructions: State } & (
+export type State = { [key: string]: Json };
+export type Question = { instructions: string } & (
 	| { type: "noul"; criteria?: { true?: string; false?: string } }
-	| { type: "choice"; criteria: Record<string, string | null> }
+	| { type: "choice"; criteria: Record<string, string> }
 	| { type: "score"; criteria: string[] }
 );
 export type Questions = Record<string, Question>;
-export interface Decision {
-	choice: string;
-	p: number;
-	dist: Record<string, number>;
-	score?: number;
-}
+export interface Decision { choice: string; p: number; dist: Record<string, number>; score?: number }
 export type Decisions<Q extends Questions = Questions> = { [K in keyof Q]: Decision };
-export interface Ask<Q extends Questions = Questions> {
-	kind: "needs-input";
-	state: State;
-	questions: Q;
-}
-export interface Options {
-	backend?: "jev" | "logprobs" | "ask";
-	apiKey?: string;
-	accountId?: string;
-	url?: string;
-	model?: string;
-	signal?: AbortSignal;
-}
-export type JevAnswer =
-	| { type: "noul"; noul: number }
-	| { type: "choice"; choice: string; confidence: number; probabilities: Record<string, number> }
-	| { type: "score"; score: number; confidence: number; legend: Record<string, string>; probabilities: Record<string, number> };
-export interface JevResponse {
-	model: string;
-	answers: Record<string, JevAnswer>;
-	usage: { input_tokens: number; output_tokens: number };
+export interface Options { signal?: AbortSignal; model?: { provider: string; id: string } }
+
+/** Preferred classifier: TypeSafe direct, then any provider's Jev with credentials. */
+const PREFERRED = [{ provider: "typesafe", id: "jev-latest" }, { provider: "openrouter", id: "~typesafe/jev-latest" }, { provider: "cloudflare-workers-ai", id: "typesafe/jev" }];
+
+let runtime: Promise<ModelRuntime> | undefined;
+
+async function classifier(options: Options): Promise<{ rt: ModelRuntime; model: ClassifierModel<ClassifierApi> }> {
+	const rt = await (runtime ??= ModelRuntime.create());
+	const available = await rt.getAvailableOfType("classifier");
+	for (const want of options.model ? [options.model] : PREFERRED) {
+		const model = available.find(m => m.provider === want.provider && m.id === want.id);
+		if (model) return { rt, model };
+	}
+	const jev = available.find(m => m.id.includes("jev"));
+	if (!jev) throw new Error("decide: no Jev classifier with credentials (TYPESAFE_API_KEY, OpenRouter, or Cloudflare)");
+	return { rt, model: jev };
 }
 
-export function ask<Q extends Questions>(state: State, questions: Q): Ask<Q> {
-	return { kind: "needs-input", state, questions };
+function toClassifier(q: Question): ClassifierQuestion {
+	if (q.type === "noul") return { type: "bool", instructions: q.instructions, criteria: { true: q.criteria?.true ?? "Yes", false: q.criteria?.false ?? "No" } };
+	return q;
 }
 
 function decision(dist: Record<string, number>, choice?: string): Decision {
-	// Wide choices come back with sums a few percent off 1 (rounded logits); renormalize rather than reject.
 	const sum = Object.values(dist).reduce((n, p) => n + p, 0);
-	if (!Number.isFinite(sum) || sum <= 0 || Object.values(dist).some((p) => !Number.isFinite(p) || p < 0)) {
-		throw new Error("Invalid probability distribution");
-	}
+	if (!Number.isFinite(sum) || sum <= 0) throw new Error("Invalid probability distribution");
 	dist = Object.fromEntries(Object.entries(dist).map(([k, p]) => [k, p / sum]));
-	const entries = Object.entries(dist);
-	choice ??= entries.reduce((a, b) => b[1] > a[1] ? b : a)[0];
-	if (!Object.hasOwn(dist, choice)) throw new Error("Choice missing from distribution");
-	return { choice, p: dist[choice]!, dist };
+	choice ??= Object.entries(dist).reduce((a, b) => b[1] > a[1] ? b : a)[0];
+	return { choice, p: dist[choice] ?? 0, dist };
 }
 
-function criteria(q: Question): Record<string, string | null> {
-	if (q.type === "noul") return { true: q.criteria?.true ?? "Yes", false: q.criteria?.false ?? "No" };
-	if (q.type === "score") return Object.fromEntries(q.criteria.map((v, i) => [String(i), v]));
-	return q.criteria;
-}
-
-export function decide<Q extends Questions>(state: State, questions: Q, options: Options & { backend: "ask" }): Promise<Ask<Q>>;
-export function decide<Q extends Questions>(state: State, questions: Q, options?: Options & { backend?: "jev" | "logprobs" }): Promise<Decisions<Q>>;
-export function decide<Q extends Questions>(state: State, questions: Q, options: Options): Promise<Decisions<Q> | Ask<Q>>;
-export async function decide<Q extends Questions>(state: State, questions: Q, options: Options = {}): Promise<Decisions<Q> | Ask<Q>> {
-	if (options.backend === "ask") return ask(state, questions);
-	if (options.backend === "logprobs") {
-		const pairs = await Promise.all(Object.entries(questions).map(async ([id, q]) => {
-			const choices = Object.entries(criteria(q));
-			if (choices.length < 2 || choices.length > 20) throw new Error("Logprobs requires 2–20 options per question");
-			const labels = choices.map((_, i) => String.fromCharCode(65 + i));
-			const result = await post(options.url ?? process.env.DECIDE_URL ?? "https://api.openai.com/v1/chat/completions",
-				options.apiKey ?? process.env.OPENAI_API_KEY, {
-					model: options.model ?? process.env.DECIDE_MODEL ?? "gpt-4.1-nano",
-					messages: [
-						{ role: "system", content: "Evaluate the supplied state against the question. Return exactly one option letter, nothing else." },
-						{ role: "user", content: JSON.stringify({ state, instructions: q.instructions,
-							options: Object.fromEntries(choices.map(([choice, description], i) => [labels[i], { choice, description }])) }) },
-					], max_tokens: 1, temperature: 0, logprobs: true, top_logprobs: 20,
-				}, options.signal);
-			const top: { token: string; logprob: number }[] | undefined = result.choices?.[0]?.logprobs?.content?.[0]?.top_logprobs;
-			if (!top) throw new Error("Model did not return token logprobs");
-			const weights = labels.map(label => top.filter(t => t.token.trim() === label)
-				.reduce((sum, t) => sum + Math.exp(t.logprob), 0));
-			if (weights.some(p => !Number.isFinite(p) || p <= 0)) throw new Error("Incomplete option logprobs; use Jev or ask");
-			const total = weights.reduce((a, b) => a + b, 0);
-			const answer = decision(Object.fromEntries(choices.map(([key], i) => [key, weights[i]! / total])));
-			if (q.type === "score") answer.score = Object.entries(answer.dist).reduce((sum, [k, p]) => sum + Number(k) * p, 0);
-			return [id, answer];
-		}));
-		return Object.fromEntries(pairs) as Decisions<Q>;
-	}
-	const accountId = options.accountId ?? process.env.CLOUDFLARE_ACCOUNT_ID;
-	const cloudflare = !!accountId;
-	const input = { state, questions };
-	const raw = await post(options.url ?? (cloudflare
-		? `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId!)}/ai/run`
-		: "https://api.typesafe.ai/v1/systemone"),
-		options.apiKey ?? (cloudflare ? process.env.CLOUDFLARE_API_TOKEN : process.env.JEV_API_KEY),
-		cloudflare ? { model: options.model ?? "typesafe/jev", input } : { ...input, model: options.model ?? "jev-latest" }, options.signal);
-	if (raw.success === false) throw new Error("Cloudflare evaluation failed");
-	const result: JevResponse = raw.result ?? raw;
+export async function decide<Q extends Questions>(state: State, questions: Q, options: Options = {}): Promise<Decisions<Q>> {
+	const { rt, model } = await classifier(options);
+	const result = await rt.classify(model, {
+		state,
+		questions: Object.fromEntries(Object.entries(questions).map(([id, q]) => [id, toClassifier(q)])),
+	}, { signal: options.signal });
+	if (result.stopReason !== "stop") throw new Error("decide: " + (result.errorMessage ?? result.stopReason));
 	return Object.fromEntries(Object.entries(questions).map(([id, q]) => {
-		const a = result.answers?.[id];
-		if (!a || a.type !== q.type) throw new Error(`Missing or mismatched Jev answer: ${id}`);
-		const dist = a.type === "noul" ? { true: a.noul, false: 1 - a.noul } : a.probabilities;
-		const keys = Object.keys(criteria(q));
-		if (!dist || Object.keys(dist).length !== keys.length || keys.some(k => !Object.hasOwn(dist, k))) {
-			throw new Error(`Mismatched Jev options: ${id}`);
-		}
-		const answer = decision(dist, a.type === "choice" ? a.choice : undefined);
-		if (a.type === "score") answer.score = a.score;
-		return [id, answer];
+		const a = result.answers[id];
+		if (!a) throw new Error("decide: missing answer " + id);
+		if (a.type === "bool") return [id, decision({ true: a.probability, false: 1 - a.probability })];
+		if (a.type === "choice") return [id, decision(a.probabilities, a.choice)];
+		const level = String(Math.round(a.score));
+		return [id, { choice: level, p: a.confidence, dist: { [level]: 1 }, score: a.score }];
 	})) as Decisions<Q>;
-}
-
-if (import.meta.main) {
-	const [path, backend = "jev"] = process.argv.slice(2);
-	if (!path || !["jev", "logprobs", "ask"].includes(backend)) {
-		console.error("usage: bun lib/decide.ts request.json [jev|logprobs|ask]");
-		process.exit(2);
-	}
-	const { state, questions } = JSON.parse(readFileSync(path, 'utf8'));
-	console.log(JSON.stringify(await decide(state, questions, { backend: backend as Options["backend"] }), null, 2));
 }
