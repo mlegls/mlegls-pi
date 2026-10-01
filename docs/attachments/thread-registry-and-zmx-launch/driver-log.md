@@ -71,3 +71,15 @@ Prediction 6 cleanup: met. Repeat-ensure remains unobservable via the guide, own
 Focused outcome: owning/guest/no-setup, fork identity/reporting, trees/labels, restart/prompt, live promotion handover, literal send/history, current-session switching and CLI attach/detach held. No first-use story failed. Aux repeat-ensure was not independently replayed; wake subscriptions have a separate captured observation.
 
 Evidence: [selected identity/state joins](driver-observations.json), [literal-input sequence](driver-literal.txt). This is a nonvisual library/CLI packet: the PTY was instrumented headlessly, not opened as a native UI or judged for rendered appearance.
+
+## Review
+
+Reviewed `dc9aa26` against the ticket and diff since `b7eeace`. Source read: registry, runtime, zmx, launch, agent-runner, sessions. No contract defect found; no behavior repaired.
+
+- **C6 measured** (was unobservable through the fixture): the retained test calls public `ensureTerminal(owner, "server")` twice in an isolated `ZMX_DIR`; one `<id>.server` remains with the same shell pid and labels `thread=<id> role=server`, and `pwd` typed into it shows the thread cwd. Held.
+- C1/C2/C5 replayed by the same test over shell fixtures: one setup line for the owning worktree and none added by a guest in it, `ab-parent=main`, spawn depths 0/1, terminal names, literal send without `SUBMITTED` until a separate CR, `history` limit. Ambiguous bare worker handle (edge-observations.txt) also retained. Leading-dash text sent through `zmx send` arrives literally.
+- Left as evidence only: C3/C4/C7 (need a real pi persona/PTY; not deterministic in the suite), C8, attach/detach (needs a PTY).
+- Fork wake subscriptions ([issue](../../issues/forked-thread-retains-parent-board-subscriptions.md)) stay filed; they sit in the board/session-meta wake path outside this ticket's files.
+- Two-minute fix: `lib/thread/agent-runner.ts` child variable `process` shadowed the global; renamed `proc`.
+- Checks on final head: `bun-axi test` 169 passed / 2 skipped / 31 files; `bunx tsc --noEmit` clean except the known Obsidian-plugin dependency errors ([workaround issue](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md)); no tmux/workmux used; test zmx sessions and temp root removed.
+

@@ -54,3 +54,7 @@ bun docs/attachments/thread-registry-and-zmx-launch/fixture.ts cleanup "$ROOT"
 `bun-axi test`: 167 passed, 2 skipped across 30 files. `bunx tsc --noEmit` and `git diff --check`: passed. Typecheck preparation used the existing [Obsidian dependency workaround](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md). No new permanent acceptance tests.
 
 Size delta from the starting ref: +554 net lines in `lib/thread/`, plus the five-line mise config and 142-line disposable setup entry. No new JS dependencies; zmx is the mise tool.
+
+## Review
+
+[Review section of the log](driver-log.md#review): repeat-ensure (C6) measured and held through the retained test `lib/thread/runtime.test.ts`, which also replays C1, C2, C5 and the ambiguous worker handle over shell fixtures. No product defect found.

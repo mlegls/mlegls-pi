@@ -31,9 +31,9 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 	const bin = cmd === undefined ? "pi" : "/bin/sh";
 	const argv = cmd === undefined ? args : ["-c", pi ? cmd + " " + args.map(quote).join(" ") : cmd];
 	await new Promise<void>((resolve, reject) => {
-		const process = spawn(bin, argv, { cwd: thread.cwd, env, stdio: "inherit" });
-		process.once("error", reject);
-		process.once("exit", () => resolve());
+		const proc = spawn(bin, argv, { cwd: thread.cwd, env, stdio: "inherit" });
+		proc.once("error", reject);
+		proc.once("exit", () => resolve());
 	});
 }
 
