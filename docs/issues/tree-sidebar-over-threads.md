@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 part-of: "[[projects/mlegls-pi/issues/thread-registry-on-zmx]]"
@@ -35,3 +35,7 @@ The zmx no-leader switch failure found during first use is guarded; its concurre
 
 Door: UI code is two-way; confirmed archive/abandon stops processes and removes owned worktrees, so discarded work cannot be recovered by reverting the sidebar.
 Blast radius: frontend. Registry/lifecycle and historical plain session listing are unchanged; the obsolete tmux popup dashboard and its actions are gone.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/tree-sidebar-over-threads/independent-drive.md).
