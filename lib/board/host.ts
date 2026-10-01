@@ -23,12 +23,25 @@ import { mail, mailbox } from "./mailbox";
 import { scopes } from "./scopes";
 import { writeLiveSubscriptions, type BoardSubscription } from "../session-meta/live";
 import { execFile } from "node:child_process";
+import { readCursor, writeCursor } from "../records/cursor";
 
 type Subscription = BoardSubscription;
 
 const SUBS_ENTRY = "board-subs";
-const CURSOR_ENTRY = "board-cursor";
-const SEEN_ENTRY = "board-seen";
+// Delivery state is a `cursor` record (lib/records/cursor, key CURSOR_KEY): written when pending
+// or seen changes, so a resumed, navigated or forked session picks up from its branch. Sessions
+// from before kept it in these custom entries, read when no record is visible.
+const CURSOR_KEY = "board";
+const LEGACY_CURSOR_ENTRY = "board-cursor";
+const LEGACY_SEEN_ENTRY = "board-seen";
+/** Acked ids kept in the cursor: only ids not yet past the cursor matter, so a window suffices. */
+const SEEN_KEPT = 500;
+
+interface DeliveryState {
+	offset: number;
+	pending: Message[];
+	seen: string[];
+}
 const POLL_MS = 1000;
 
 function formatHead(m: Message & { line?: number }): string {
@@ -95,7 +108,9 @@ export function install(pi: ExtensionAPI) {
 	const seen = new Set<string>();
 
 	function persistDelivery() {
-		pi.appendEntry(CURSOR_ENTRY, { offset: cursor, pending: [...pending.values()] });
+		if (!context) return;
+		const state: DeliveryState = { offset: cursor, pending: [...pending.values()], seen: [...seen].slice(-SEEN_KEPT) };
+		writeCursor(context.sessionManager, CURSOR_KEY, state);
 	}
 
 	function reader() {
@@ -110,7 +125,6 @@ export function install(pi: ExtensionAPI) {
 			pending.delete(id);
 		}
 		noteRead({ action: "ack", reader: reader(), ids: fresh });
-		pi.appendEntry(SEEN_ENTRY, fresh);
 		persistDelivery();
 	}
 
@@ -131,11 +145,13 @@ export function install(pi: ExtensionAPI) {
 		const result = readFrom(cursor);
 		if (result.offset === cursor) return;
 		cursor = result.offset;
+		const before = pending.size;
 		for (const m of result.messages) {
 			if (m.from.session === sessionId || seen.has(m.id)) continue;
 			if (matchers.some((match) => match(m))) pending.set(m.id, m);
 		}
-		persistDelivery();
+		// A cursor that moved past nothing of ours needn't be written: replaying it re-filters.
+		if (pending.size !== before) persistDelivery();
 	}
 
 	function takePending(wakeOnly = false): Message[] {
@@ -169,16 +185,23 @@ export function install(pi: ExtensionAPI) {
 		name = process.env.PI_BOARD_NAME ?? basename(ctx.cwd);
 		let restoredCursor: number | undefined;
 		let restoredSubs: Subscription[] | undefined;
+		const state = readCursor<DeliveryState>(ctx.sessionManager, CURSOR_KEY);
 		for (const entry of ctx.sessionManager.getBranch()) {
 			if (entry.type !== "custom") continue;
 			if (entry.customType === SUBS_ENTRY) restoredSubs = (entry.data as Subscription[]) ?? [];
-			if (entry.customType === CURSOR_ENTRY) {
+			if (state) continue;
+			if (entry.customType === LEGACY_CURSOR_ENTRY) {
 				const data = entry.data as number | { offset: number; pending: Message[] };
 				restoredCursor = typeof data === "number" ? data : data.offset;
 				pending.clear();
 				if (typeof data !== "number") for (const m of data.pending) pending.set(m.id, m);
 			}
-			if (entry.customType === SEEN_ENTRY) for (const id of entry.data as string[]) seen.add(id);
+			if (entry.customType === LEGACY_SEEN_ENTRY) for (const id of entry.data as string[]) seen.add(id);
+		}
+		if (state) {
+			restoredCursor = state.offset;
+			for (const m of state.pending) pending.set(m.id, m);
+			for (const id of state.seen) seen.add(id);
 		}
 		// A resumed session catches up on what it missed; a new one starts at the tail.
 		cursor = restoredCursor ?? logSize();
@@ -234,6 +257,7 @@ export function install(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", () => {
+		persistDelivery();
 		clearInterval(timer);
 		timer = undefined;
 	});
