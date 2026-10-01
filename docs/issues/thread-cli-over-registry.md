@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:fill
 author: session:01a0f6e1-7ec3-7620-b7fd-edc63c2b3d94
 part-of: "[[projects/mlegls-pi/issues/thread-core-and-workers-on-zmx]]"
@@ -26,3 +26,7 @@ After `mise run setup`, drive the checkout's `bin/ab thread …` against a tempo
 ## Result
 
 [Independent CLI first use](../attachments/thread-cli-over-registry/index.md): creation/listing, literal input, auxiliary attachment, promote/abandon, archive and merge conflict/blocked/resume held. Fork copied history correctly but lost the source parent with PI_SESSION_FILE and an absent/stale PI_SESSION_ID; reviewer check C2 records the failure. Ambiguous worker-alias control C3 remains reviewer-owned. 177 regressions passed, 2 skipped; typecheck passed after the documented Obsidian dependency setup. All owned fixtures were removed.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/thread-cli-over-registry/index.md).
