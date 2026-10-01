@@ -74,3 +74,18 @@ test("a bare worker handle shared by two runs is ambiguous until its run is give
 	await expect(workerThread("same", repo)).rejects.toThrow("Ambiguous worker same");
 	expect((await workerThread("same", repo, "b"))?.id).toBe("w-b");
 });
+
+// Reviewer measurement of the core join's collector-SHA premise: a worker branched from a base SHA that is not
+// its spawning checkout's tip (as reconcile launches review/implement workers) integrates into that checkout's branch.
+test("a worker spawned from a collector's older base SHA records the collector branch as ab-parent", async () => {
+	const collector = await newThread({ cwd: repo, worktree: "collector", launch: reader });
+	const comparison = git(collector.cwd, "rev-parse", "HEAD");
+	writeFileSync(join(collector.cwd, "landed.txt"), "landed\n");
+	git(collector.cwd, "add", "landed.txt");
+	git(collector.cwd, "commit", "-m", "landed child");
+	const tip = git(collector.cwd, "rev-parse", "HEAD");
+	expect(tip).not.toBe(comparison);
+	const worker = await newThread({ cwd: collector.cwd, base: comparison, worker: { run: "r", handle: "based" }, launch: reader });
+	expect(git(worker.cwd, "rev-parse", "HEAD")).toBe(comparison); // branched from the base SHA, not the collector tip
+	expect(git(repo, "config", "branch.based.ab-parent")).toBe("collector"); // destination follows the spawning branch
+});
