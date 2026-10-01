@@ -177,6 +177,7 @@ NEW CONVERSATION CHUNK:
 ${conversation}`;
 
 	const prompts: Message[] = [
+		{ role: "system", content: OBSERVER_SYSTEM, timestamp: Date.now() } as Message,
 		{
 			role: "user",
 			content: [{ type: "text", text: userText }],
@@ -185,7 +186,6 @@ ${conversation}`;
 	];
 
 	const context: AgentContext = {
-		systemPrompt: OBSERVER_SYSTEM,
 		messages: [],
 		tools: [recordObservations as AgentTool<any>],
 	};
@@ -219,7 +219,7 @@ ${conversation}`;
 		context,
 		config,
 		signal,
-		resolveWorkerStreamSimple(model, args.modelRegistry, args.streamSimple),
+		resolveWorkerStreamSimple(model, args.modelRegistry, args.streamSimple) as any, // pi-ai is duplicated under pi-agent-core; same runtime shape
 	);
 	let streamError: { stopReason: string; errorMessage?: string } | undefined;
 	for await (const event of stream) {

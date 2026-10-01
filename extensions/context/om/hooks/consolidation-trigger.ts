@@ -30,6 +30,7 @@ import {
 	type Reflection,
 	type V3MemoryCustomType,
 } from "../session-ledger/index.js";
+import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
 
 type ResolvedModel = Extract<ResolveResult, { ok: true }>;
 
@@ -59,8 +60,8 @@ function sourceEntriesAfter(entries: Entry[], index: number): Entry[] {
 	return entries.slice(index + 1).filter(isSourceEntry);
 }
 
-function appendEntry(pi: ExtensionAPI, customType: string, data: unknown): void {
-	pi.appendEntry(customType, data);
+function appendEntry(ctx: ConsolidationCtx, customType: V3MemoryCustomType, data: any): void {
+	recordLedger(ctx.sessionManager as LedgerSession, customType, data);
 }
 
 function mergeReflections(existing: Reflection[], additional: Reflection[]): Reflection[] {
@@ -175,7 +176,7 @@ function maybeLaunchConsolidation(pi: ExtensionAPI, runtime: Runtime, ctx: Conso
 	if (runtime.config.passive === true) return;
 	if (runtime.consolidationInFlight) return;
 
-	const entries = ctx.sessionManager.getBranch() as Entry[];
+	const entries = ledgerBranch(ctx.sessionManager as LedgerSession);
 	if (!anyStageDue(entries, runtime, realContextTokens(ctx))) return;
 
 	const runId = `consolidation-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
@@ -240,7 +241,7 @@ async function runObserverStage(
 	ctx: ConsolidationCtx,
 	resolveModel: (stage: "observer") => Promise<ResolvedModel | undefined>,
 ): Promise<StageOutcome> {
-	const entries = ctx.sessionManager.getBranch() as Entry[];
+	const entries = ledgerBranch(ctx.sessionManager as LedgerSession);
 	const currentTokens = realContextTokens(ctx);
 	const real = currentTokens !== undefined ? realTokensSinceAnchor(entries, OM_OBSERVATIONS_RECORDED, currentTokens) : undefined;
 	const tokens = real !== undefined ? real : rawTokensSinceObservationCoverage(entries); // fallback: no usage baseline / basis change
@@ -366,7 +367,7 @@ async function runObserverStage(
 		observationTokens: observations.reduce((sum, observation) => sum + observation.tokenCount, 0),
 		coversUpToId,
 	});
-	appendEntry(pi, OM_OBSERVATIONS_RECORDED, data);
+	appendEntry(ctx, OM_OBSERVATIONS_RECORDED, data);
 	debugLog("observer.appended", { count: observations.length, coversUpToId });
 	if (shouldNotifyWorker(runtime, ctx)) ctx.ui?.notify(
 		`Observational memory: ${observations.length} observation${observations.length === 1 ? "" : "s"} recorded`,
@@ -381,7 +382,7 @@ async function runReflectorStage(
 	ctx: ConsolidationCtx,
 	resolveModel: (stage: "reflector") => Promise<ResolvedModel | undefined>,
 ): Promise<ReflectorStageResult> {
-	const entries = ctx.sessionManager.getBranch() as Entry[];
+	const entries = ledgerBranch(ctx.sessionManager as LedgerSession);
 	const currentTokens = realContextTokens(ctx);
 	const real = currentTokens !== undefined ? realTokensSinceAnchor(entries, OM_REFLECTIONS_RECORDED, currentTokens) : undefined;
 	const reflectionTokens = real !== undefined ? real : rawTokensSinceReflectionCoverage(entries); // fallback: no usage baseline / basis change
@@ -414,7 +415,7 @@ async function runReflectorStage(
 
 	const data = buildReflectionsRecordedData(reflections, observationCoverageId);
 	if (!data) return { outcome: "continue", sameRunReflections: [] };
-	appendEntry(pi, OM_REFLECTIONS_RECORDED, data);
+	appendEntry(ctx, OM_REFLECTIONS_RECORDED, data);
 	return {
 		outcome: "continue",
 		sameRunReflections: reflections,
@@ -435,7 +436,7 @@ async function runDropperStage(
 		return "continue";
 	}
 
-	const entries = ctx.sessionManager.getBranch() as Entry[];
+	const entries = ledgerBranch(ctx.sessionManager as LedgerSession);
 	const observationCoverageId = latestCoverageMarkerId(entries, OM_OBSERVATIONS_RECORDED);
 	if (!observationCoverageId) return "continue";
 
@@ -494,6 +495,6 @@ async function runDropperStage(
 		dataBuilt: data !== undefined,
 		appended: data !== undefined,
 	});
-	if (data) appendEntry(pi, OM_OBSERVATIONS_DROPPED, data);
+	if (data) appendEntry(ctx, OM_OBSERVATIONS_DROPPED, data);
 	return "continue";
 }

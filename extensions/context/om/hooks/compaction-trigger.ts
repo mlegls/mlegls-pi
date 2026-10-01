@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { resolveCompactAfterTokens } from "../config.js";
 import { rawTokensSinceLastCompaction, type Entry } from "../session-ledger/index.js";
 import type { Runtime } from "../runtime.js";
+import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
 
 export function registerCompactionTrigger(pi: ExtensionAPI, runtime: Runtime): void {
 	// Pi emits agent_settled only after retries, automatic compaction, and queued
@@ -11,7 +12,7 @@ export function registerCompactionTrigger(pi: ExtensionAPI, runtime: Runtime): v
 		if (runtime.config.passive === true) return;
 		if (runtime.compactInFlight) return;
 
-		const entries = ctx.sessionManager?.getBranch?.() as Entry[] | undefined;
+		const entries = (ctx.sessionManager ? ledgerBranch(ctx.sessionManager as LedgerSession) : undefined);
 		if (!entries) return;
 		const progress = rawTokensSinceLastCompaction(entries);
 		const contextWindow = typeof ctx.model?.contextWindow === "number" ? ctx.model.contextWindow : undefined;
@@ -39,7 +40,7 @@ export function registerCompactionTrigger(pi: ExtensionAPI, runtime: Runtime): v
 					);
 					return;
 				}
-				const currentEntries = ctx.sessionManager?.getBranch?.() as Entry[] | undefined;
+				const currentEntries = (ctx.sessionManager ? ledgerBranch(ctx.sessionManager as LedgerSession) : undefined);
 				if (!currentEntries) {
 					runtime.compactInFlight = false;
 					return;

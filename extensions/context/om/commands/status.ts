@@ -12,6 +12,7 @@ import {
 	visibleProjection,
 	type Entry,
 } from "../session-ledger/index.js";
+import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
 
 function pct(current: number, total: number): number {
 	return total > 0 ? Math.round((current / total) * 100) : 0;
@@ -39,7 +40,7 @@ export function registerStatusCommand(pi: ExtensionAPI, runtime: Runtime): void 
 		description: "Show observational memory status",
 		handler: async (_args, ctx) => {
 			runtime.ensureConfig(ctx.cwd);
-			const entries = ctx.sessionManager.getBranch() as Entry[];
+			const entries = ledgerBranch(ctx.sessionManager as LedgerSession);
 			const folded = foldLedger(entries);
 			const visible = visibleProjection(entries);
 			const full = fullProjection(entries);

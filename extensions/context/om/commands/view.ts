@@ -9,6 +9,7 @@ import {
 	type Entry,
 	type Projection,
 } from "../session-ledger/index.js";
+import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
 
 function firstArg(args: unknown): string | undefined {
 	if (Array.isArray(args)) return typeof args[0] === "string" ? args[0] : undefined;
@@ -45,7 +46,7 @@ export function registerViewCommand(pi: ExtensionAPI, runtime: Runtime, options:
 		description: "Print and copy observational memory content (visible by default, full for recorded memory)",
 		handler: async (args, ctx) => {
 			runtime.ensureConfig(ctx.cwd);
-			const entries = ctx.sessionManager.getBranch() as Entry[];
+			const entries = ledgerBranch(ctx.sessionManager as LedgerSession);
 			const mode = firstArg(args);
 
 			const notifyWithCopy = async (output: string) => {

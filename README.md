@@ -10,7 +10,7 @@ decisions are codemode's built-in `models.classify` (`lib/decide.ts` for code ou
 
 - `extensions/system-prompt`: the short system prompt.
 - `extensions/workspace`: switch a session's workspace.
-- `extensions/context`: context policy (the worker fence) over pi-observational-memory, the compaction mechanism.
+- `extensions/context`: observational memory (`om/`, vendored from pi-observational-memory, its ledger in the records store as schema `om`) and context policy on top of it (the worker fence).
 - `extensions/stances`: `stance/<agent>` virtual models routing by each agent's model list and `allocation.json`.
 - `extensions/supervision`: `dispatch`, `integrate`, `retire` tools and `/jump`.
 - `extensions/hashline`: anchored `read`/`grep`/`edit` over the built-ins (`lib/outline-read`).

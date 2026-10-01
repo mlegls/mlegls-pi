@@ -12,6 +12,7 @@ import {
 import type { Observation, Reflection } from "../session-ledger/index.js";
 import { renderRecallSourceEntries, renderRecallSourceEntry } from "../serialize.js";
 import { estimateEntryTokens } from "../tokens.js";
+import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
 
 export const RECALL_OBSERVATION_TOOL_NAME = "recall";
 
@@ -468,7 +469,7 @@ export const recallObservationTool = defineTool({
 			const message = `Memory id must be 12 lowercase hex characters. Received: ${memoryId}`;
 			return textResult(message, emptyDetails("invalid_id", memoryId, message));
 		}
-		const branchEntries = ctx.sessionManager.getBranch() as Entry[];
+		const branchEntries = ledgerBranch(ctx.sessionManager as LedgerSession);
 		const result = recallMemorySources(branchEntries, memoryId);
 		if (result.status === "not_found") {
 			const message = `No observation or reflection with id ${memoryId} was found on the current branch.`;

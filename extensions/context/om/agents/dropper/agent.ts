@@ -238,8 +238,8 @@ export async function runDropper(args: RunDropperArgs): Promise<string[] | undef
 
 	const fullnessPercent = Math.round(fullness * 100);
 	const userText = `CURRENT REFLECTIONS:\n${joinOrEmpty(reflections.map(reflectionToSummaryLine))}\n\nCURRENT OBSERVATIONS:\n${joinOrEmpty(observations.map((observation) => observationToDropperLine(observation, coverageTierForObservation(observation, coverageById))))}\n\nActive observation pool: ~${observationTokens.toLocaleString()} tokens; target: ~${targetTokens.toLocaleString()} tokens; fullness against target: ~${fullnessPercent.toLocaleString()}%; over target by ~${tokensOverTarget.toLocaleString()} tokens.\nMaximum drops allowed this run: ${maxDropsAllowed.toLocaleString()} observation${maxDropsAllowed === 1 ? "" : "s"}. This maximum is sized to move the active pool toward the target if every proposed drop is clearly safe.\nThis maximum is a hard upper bound, not a target. Drop fewer or none if fewer observations are clearly safe.`;
-	const prompts: Message[] = [{ role: "user", content: [{ type: "text", text: userText }], timestamp: Date.now() }];
-	const context: AgentContext = { systemPrompt: DROPPER_SYSTEM, messages: [], tools: [dropObservations as AgentTool<any>] };
+	const prompts: Message[] = [{ role: "system", content: DROPPER_SYSTEM, timestamp: Date.now() } as Message, { role: "user", content: [{ type: "text", text: userText }], timestamp: Date.now() }];
+	const context: AgentContext = { messages: [], tools: [dropObservations as AgentTool<any>] };
 	const reasoning = (model as { reasoning?: unknown }).reasoning;
 	const thinkingLevel = args.thinkingLevel ?? "low";
 	const effectiveMaxTurns = args.maxTurns && args.maxTurns > 0 ? args.maxTurns : undefined;
@@ -262,7 +262,7 @@ export async function runDropper(args: RunDropperArgs): Promise<string[] | undef
 		context,
 		config,
 		signal,
-		resolveWorkerStreamSimple(model, args.modelRegistry, args.streamSimple),
+		resolveWorkerStreamSimple(model, args.modelRegistry, args.streamSimple) as any, // pi-ai is duplicated under pi-agent-core; same runtime shape
 	);
 	for await (const event of stream) {
 		// Tool execution collects candidate ids.

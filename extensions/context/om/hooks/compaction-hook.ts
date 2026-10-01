@@ -3,6 +3,7 @@ import type {
 	ExtensionContext,
 	SessionBeforeCompactEvent,
 } from "@earendil-works/pi-coding-agent";
+import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
 
 import type { Runtime } from "../runtime.js";
 import { buildCompactionProjection, renderSummary, type Entry } from "../session-ledger/index.js";
@@ -34,7 +35,7 @@ export function registerCompactionHook(pi: ExtensionAPI, runtime: Runtime): void
 			const { preparation, branchEntries } = event;
 			const { firstKeptEntryId, tokensBefore } = preparation;
 			const projection = buildCompactionProjection(
-				branchEntries as Entry[],
+				ledgerBranch(ctx.sessionManager as LedgerSession, branchEntries as Entry[]),
 				firstKeptEntryId,
 				{ observationsPoolMaxTokens: observationsPoolMaxTokens(runtime) },
 			);

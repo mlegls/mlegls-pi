@@ -188,6 +188,24 @@ export function select(schema: string, options: { after?: number; where?: string
 	return [...bySeq.values()];
 }
 
+export interface StoredEdge {
+	record: number;
+	src: string;
+	rel: string;
+	dst: string;
+}
+
+/** Edges written with the given records, in write order. */
+export function edgesOf(seqs: readonly number[], d: Database = db()): StoredEdge[] {
+	if (!seqs.length) return [];
+	const out: StoredEdge[] = [];
+	for (let i = 0; i < seqs.length; i += 500) {
+		const chunk = seqs.slice(i, i + 500);
+		out.push(...d.query(`SELECT record, src, rel, dst FROM edges WHERE record IN (${chunk.map(() => "?").join(",")}) ORDER BY rowid`).all(...chunk) as StoredEdge[]);
+	}
+	return out;
+}
+
 /** Highest seq in the store (any schema); 0 when empty. A cursor for `select({ after })`. */
 export function lastSeq(d: Database = db()): number {
 	return (d.query("SELECT coalesce(max(seq), 0) AS n FROM records").get() as { n: number }).n;
