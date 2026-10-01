@@ -1,0 +1,12 @@
+{
+  "name": "obsidian-tracker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "obsidian": "latest"
+  }
+}

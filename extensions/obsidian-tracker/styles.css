@@ -1,0 +1,25 @@
+.trk { font-size: var(--font-ui-small); padding: 4px 8px; }
+.trk-row { display: flex; gap: 8px; align-items: baseline; padding: 3px 6px; border-radius: 4px; }
+.trk-row:hover { background: var(--background-modifier-hover); }
+.trk-row.done { opacity: .45; }
+.trk-row.dim > .trk-title { color: var(--text-faint); }
+.trk-title { flex: 1; cursor: pointer; color: var(--text-normal); text-decoration: none; }
+.trk-title:hover { text-decoration: underline; }
+.trk-badge { font-family: var(--font-monospace); font-size: 10px; padding: 0 5px; border-radius: 3px; background: var(--background-secondary); color: var(--text-muted); white-space: nowrap; }
+.trk-meta { color: var(--text-faint); font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; gap: 2px; }
+.trk-icon svg { width: 11px; height: 11px; }
+.trk-proj { color: var(--text-faint); font-size: 11px; }
+.trk-tree { margin-left: 14px; border-left: 1px solid var(--background-modifier-border); }
+.trk-toggle { display: inline-block; width: 12px; color: var(--text-faint); cursor: pointer; user-select: none; font-family: var(--font-monospace); }
+.trk-empty { color: var(--text-faint); padding: 6px; font-style: italic; }
+.trk-h { margin: 12px 0 4px; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.trk-bar { display: flex; gap: 10px; align-items: center; padding: 4px 0 8px; }
+.trk-graph { width: 100%; height: calc(100% - 40px); min-height: 400px; background: var(--background-secondary); border-radius: 6px; user-select: none; }
+.trk-node { cursor: pointer; }
+.trk-node.lone text { display: none; }
+.trk-node.lone:hover text { display: block; }
+.trk-board { display: flex; align-items: flex-start; gap: 12px; overflow-x: auto; }
+.trk-column { flex: 1 1 200px; min-width: 180px; max-width: 360px; padding: 8px; border-radius: 6px; background: var(--background-secondary); }
+.trk-column .trk-row { flex-wrap: wrap; margin: 8px 0; padding: 10px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); }
+.trk-column .trk-title { flex-basis: 100%; order: -1; }
+.trk-node:focus text { display: block; }

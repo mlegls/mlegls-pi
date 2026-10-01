@@ -1,0 +1,9 @@
+{
+  "id": "tracker",
+  "name": "Tracker",
+  "version": "0.1.0",
+  "minAppVersion": "1.10.0",
+  "description": "Bases views over docs/issues/ frontmatter: recursive readiness, frontier, mine, tree.",
+  "author": "mlegls",
+  "isDesktopOnly": false
+}
