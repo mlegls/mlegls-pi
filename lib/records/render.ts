@@ -8,6 +8,11 @@ export interface Section {
 	text: string;
 	/** Structured form of the section, stored by the consumer (e.g. compaction details). */
 	details?: unknown;
+	/**
+	 * The section as conversation turns, for a consumer that can put them in context (e.g. the
+	 * agent's own tool calls). `text` stays the plain form for consumers that can't.
+	 */
+	messages?: unknown[];
 }
 
 export interface Renderer<View, Found = unknown> {

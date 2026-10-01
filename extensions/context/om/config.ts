@@ -233,6 +233,8 @@ export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): Partial<Con
  *     dropper: { targetTokens }, agent: { maxTurns, maxTokens },
  *     compaction: { afterTokens, mode, ratio }, budget, showWorkerNotifications, passive, debugLog }
  *
+ * `enabled: false` means passive (no observing, no compaction trigger) unless passive is set.
+ *
  * `budget` is the compaction renderer's: upstream's observationsPoolMaxTokens.
  */
 export function flattenSchemaSettings(om: Record<string, unknown>): Record<string, unknown> {
@@ -253,7 +255,7 @@ export function flattenSchemaSettings(om: Record<string, unknown>): Record<strin
 		compactAfterTokensMode: compaction.mode,
 		compactAfterTokensRatio: compaction.ratio,
 		showWorkerNotifications: om.showWorkerNotifications,
-		passive: om.passive,
+		passive: om.passive ?? (om.enabled === false ? true : undefined),
 		debugLog: om.debugLog,
 	};
 	for (const k of Object.keys(flat)) if (flat[k] === undefined) delete flat[k];

@@ -1,8 +1,9 @@
-// context: when and how a session's context is managed. The mechanism is observational memory
-// (./om, vendored from pi-observational-memory with its ledger moved into the records store as
-// the `om` schema): it observes and reflects in the background and triggers compaction on its
-// own compactAfterTokens, for interactive and headless sessions alike; ./compaction.ts renders
-// the summary from each mechanism's renderer. This extension adds policy on top.
+// context: when and how a session's context is managed. Two memory mechanisms, one active per
+// session (/memory switches; ./compaction.ts): ./journal.ts, the agent's own entries written
+// through a `journal` tool and rendered back as those tool calls, and observational memory (./om,
+// vendored from pi-observational-memory with its ledger moved into the records store as the `om`
+// schema), which observes and reflects in the background unless disabled. The active one triggers
+// compaction; if the journal checkpoint fails, OM renders instead. This extension adds policy on top.
 //
 // Fence, for spawned workers (PI_BOARD_TOPIC set): when usage crosses the threshold, steer the
 // agent once with AGENTS_DIR/_fence.md (finish if within reach, else checkpoint into the ticket
@@ -18,6 +19,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { registerCompaction } from "./compaction.ts";
 import observationalMemory from "./om/index.ts";
+import journal from "./journal.ts";
 
 const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
 
@@ -36,7 +38,7 @@ function fenceText(percent: number, topic: string): string {
 }
 
 export default function (pi: ExtensionAPI) {
-	registerCompaction(pi, [observationalMemory(pi)]);
+	registerCompaction(pi, [journal(pi), observationalMemory(pi)]);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;
 	let armed = true;

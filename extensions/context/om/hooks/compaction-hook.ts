@@ -34,6 +34,10 @@ export function compactionMechanism(runtime: Runtime): CompactionMechanism {
 	return {
 		renderer: omRenderer,
 		budget: () => observationsPoolMaxTokens(runtime),
+		enabled(ctx: ExtensionContext) {
+			runtime.ensureConfig(ctx.cwd);
+			return runtime.config.passive !== true;
+		},
 		begin(ctx: ExtensionContext) {
 			if (runtime.compactHookInFlight) return false;
 			runtime.compactHookInFlight = true;
