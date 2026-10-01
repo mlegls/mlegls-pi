@@ -1,5 +1,5 @@
 interface:
   display_name: "Advance"
-  short_description: "Make progress on an issue by its status: shape it or execute it"
+  short_description: "Make progress on an issue by its status: shape it or hand it to supervision"
 policy:
   allow_implicit_invocation: false
