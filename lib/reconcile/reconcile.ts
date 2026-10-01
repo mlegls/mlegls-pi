@@ -154,7 +154,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	};
 
 	// --- launching -------------------------------------------------------------------------------------
-	const live = () => Object.values(s.chains).filter(c => c.handle && !c.held).length + Object.values(s.exceptions).filter(e => e.handler).length;
+	// Launches in flight count too: visit() fans siblings out with Promise.all, and each checks the budget
+	// before any handle is assigned. launch() takes its slot synchronously, before its first await.
+	let launching = 0;
+	const live = () => launching + Object.values(s.chains).filter(c => c.handle && !c.held).length + Object.values(s.exceptions).filter(e => e.handler).length;
 	const rel = (file: string) => relative(cwd, file).replace(/^.*?docs\/issues\//, "docs/issues/");
 	const pinned = (assignee: string | null | undefined) => /\bagent:([a-z0-9-]+)/.exec(assignee ?? "")?.[1];
 	async function pick(role: string, issue: Issue | undefined, text: string, only?: string[]): Promise<string> {
@@ -171,6 +174,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
 	async function launch(handle: string, role: string, prompt: string, base: string, issue?: Issue, only?: string[]): Promise<Handle> {
+		launching++;
+		try { return await launchNow(handle, role, prompt, base, issue, only); } finally { launching--; }
+	}
+	async function launchNow(handle: string, role: string, prompt: string, base: string, issue?: Issue, only?: string[]): Promise<Handle> {
 		const agentName = await pick(role, issue, prompt, only);
 		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd, maxConcurrent: 1, active: [], session: s.root, follow: s.root, parent: s.ownerSession || undefined });
