@@ -3,7 +3,7 @@
 //              right (l/→ to enter it), a live preview underneath; closes after a jump.
 //   sidebar:   workspace, status, or project/session tree; stays open (Ghostty split).
 //   agents:    every agent grouped by state, across workspaces (s in the dashboard).
-// Mouse: click selects (a second click, or any click in the sidebar, opens), wheel scrolls,
+// Mouse: click selects (a double-click, or any click in the sidebar, opens), wheel scrolls,
 // clicking a fold arrow folds. UI state persists in ~/.local/state/ab-tree/ui.json.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -70,6 +70,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	let message = "";
 	let help = false;
 	let current: string | undefined;
+	let scroll = { left: 0, right: 0, agents: 0 };
+	let followSelection = true;
+	let hover: { x: number; y: number } | undefined;
+	let buttons: { y: number; x0: number; x1: number; act: () => void }[] = [];
 	let geometry: { y: number; x0: number; x1: number; act: (dbl: boolean) => void; fold?: () => void; foldX?: number }[] = [];
 
 	const save = () => {
@@ -134,7 +138,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const was = current;
 			current = act.currentSession();
 			// The sidebar's selection follows where you are when you move by other means.
-			if (sidebar && current !== was) { const here = [...spaces.values()].find(w => w.session === current); if (here) selLeft = here.key; }
+			if (sidebar && current !== was) { const here = [...spaces.values()].find(w => w.session === current); if (here) { selLeft = here.key; followSelection = true; } }
 			rebuild();
 			draw();
 		} catch (e) { message = String(e); draw(); }
@@ -211,7 +215,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 
 	function draw() {
 		const width = W(), height = H();
-		geometry = [];
+		geometry = []; buttons = [];
 		const hint = sidebar ? "? for help" : view !== "workspaces" ? "enter open  i send  z park  p prune  U prune idle  s views  / filter  ? help"
 			: focus === "left" ? "enter open  l windows  n pi  c term  N branch  m merge  x close  p prune  U prune idle  s views  ? help"
 			: "enter open  i send  z park  x kill window  h back  ? help";
@@ -225,15 +229,35 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		const screen: string[] = [];
 		const listHeight = sidebar ? height - 1 : height - 1 - Math.floor(height * preview / 100);
 		const hl = (s: string, w: number, on: boolean, dim = false) => on ? `\x1b[48;5;${dim ? 236 : 238}m` + truncateToWidth(s.replace(/\x1b\[0m/g, `\x1b[0m\x1b[48;5;${dim ? 236 : 238}m`), w, "", true) + "\x1b[0m" : truncateToWidth(s, w, "", true);
-		const window = <T,>(list: T[], at: number, h: number) => { const top = Math.max(0, Math.min(at - Math.floor(h / 2), list.length - h)); return { top, items: list.slice(top, top + h) }; };
+		const window = <T,>(list: T[], at: number, h: number, pane: keyof typeof scroll) => {
+			const max = Math.max(0, list.length - h);
+			if (followSelection) scroll[pane] = at - Math.floor(h / 2);
+			const top = scroll[pane] = Math.max(0, Math.min(scroll[pane], max));
+			return { top, items: list.slice(top, top + h) };
+		};
+		// Keep the labels honest: closing a tmux session is not recursive archive.
+		const withButtons = (text: string, y: number, w: Workspace | undefined, select: () => void, free = false) => {
+			if (!sidebar || help || input || hover?.y !== y || (!w && !free)) return text;
+			const actions = [...(w?.parent && spaces.has(w.parent) ? [{ label: "merge", key: "m" }] : []), { label: "new", key: "n" }];
+			const names = actions.map(a => `[${a.label}]`).join(" ");
+			if (width < names.length + 5) return text;
+			let x = width - names.length;
+			for (const a of actions) {
+				buttons.push({ y, x0: x, x1: x + a.label.length + 2, act: () => { select(); handleKey(a.key); } });
+				x += a.label.length + 3;
+			}
+			return truncateToWidth(text, width - names.length - 1, "…", true) + " " + c("1;36", names);
+		};
 
 		if (view !== "workspaces") {
 			const at = Math.max(0, agents.findIndex(r => view === "tree" ? treeKey(r) === selTree : r.node?.id === selAgent));
-			const { top, items } = window(agents, at, listHeight);
+			const { top, items } = window(agents, at, listHeight, "agents");
 			items.forEach((r, i) => {
 				const y = i + 1;
 				const text = view === "tree" ? treeLine(r) : r.kind === "header" ? "  ".repeat(r.depth) + c("1", `${collapsed.has(r.key!) ? "▸" : "▾"} ${r.label}`) + c("90", ` ${r.count}`) : "  ".repeat(r.depth) + agentText(r.node!) + c("90", "  " + (workspaceFor(r.node) ? label(workspaceFor(r.node)!) : home(r.node!.cwd)) + "  " + age(r.node!.updated));
-				screen.push(hl(sidebar ? truncateToWidth(text, width) : text, width, top + i === at));
+				const w = r.node ? workspaceFor(r.node) : view === "tree" ? [...spaces.values()].find(w => w.main && w.project === r.label) : undefined;
+				const select = () => { if (view === "tree") selTree = treeKey(r); if (r.node) selAgent = r.node.id; };
+				screen.push(hl(withButtons(text, y, w, select), width, top + i === at));
 				geometry.push({ y, x0: 0, x1: width, act: (dbl) => { if (view === "tree") selTree = treeKey(r); if (r.node) { if (sidebar) { selAgent = r.node.id; openAgent(r.node); } else { if (dbl && selAgent === r.node.id) openAgent(r.node); selAgent = r.node.id; } } else { toggle(view === "tree" ? treeKey(r) : r.key!); } },
 					fold: view === "tree" && r.node && (r.count ?? 1) > 1 ? () => toggle(treeKey(r)) : undefined,
 					foldX: view === "tree" ? r.node ? r.depth : 0 : undefined });
@@ -243,12 +267,13 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const lw = sidebar ? width : Math.max(30, Math.floor(width * 0.42));
 			const rw = width - lw - 1;
 			const at = Math.max(0, left.findIndex(r => leftKey(r) === selLeft));
-			const L = window(left, at, listHeight);
+			const L = window(left, at, listHeight, "left");
 			const w = selectedWs();
-			const R = window(right, selRight, listHeight);
+			const R = window(right, selRight, listHeight, "right");
 			for (let i = 0; i < listHeight; i++) {
 				const r = L.items[i];
-				let line = r ? hl(leftLine(r, lw), lw, L.top + i === at, focus === "right") : " ".repeat(lw);
+				const rowWs = r?.kind === "ws" ? r.w : r ? [...spaces.values()].find(w => w.main && w.project === r.project) : undefined;
+				let line = r ? hl(withButtons(leftLine(r, lw), i + 1, rowWs, () => { selLeft = leftKey(r); focus = "left"; buildRight(); }, r.kind === "project" && r.project === "tmux"), lw, L.top + i === at, focus === "right") : " ".repeat(lw);
 				if (r) {
 					const idx = L.top + i;
 					geometry.push({ y: i + 1, x0: 0, x1: lw, act: (dbl) => { const same = selLeft === leftKey(r); selLeft = leftKey(r); focus = "left"; buildRight(); if (r.kind === "project") toggle("project:" + r.project); else if (sidebar) { openLeft(); leaveSidebar(); } else if (dbl && same) openLeft(); void idx; },
@@ -266,6 +291,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			const ph = height - 1 - listHeight;
 			screen.push(c("90", "─".repeat(width)), ...previewFor(ph - 1, width));
 		}
+		followSelection = false;
 		out.write("\x1b[H\x1b[2J" + screen.slice(0, height - 1).join("\x1b[0m\r\n") + `\x1b[0m\x1b[${height};1H` + footer);
 	}
 
@@ -280,11 +306,11 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	const selectedPane = (): string | undefined => { const r = right[selRight]; return focus === "right" && r?.kind === "window" ? (r.win.panes.find(p => p.active) ?? r.win.panes[0])?.id : undefined; };
 
 	const suspend = (f: () => void) => {
-		out.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l");
+		out.write("\x1b[?1003l\x1b[?1006l\x1b[?25h\x1b[?1049l");
 		process.stdin.setRawMode(false);
-		try { f(); } finally { process.stdin.setRawMode(true); out.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h"); draw(); }
+		try { f(); } finally { process.stdin.setRawMode(true); out.write("\x1b[?1049h\x1b[?25l\x1b[?1003h\x1b[?1006h"); draw(); }
 	};
-	const quit = (status = 0) => { save(); out.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l"); process.exit(status); };
+	const quit = (status = 0) => { save(); out.write("\x1b[?1003l\x1b[?1006l\x1b[?25h\x1b[?1049l"); process.exit(status); };
 	const runTool = (line: string) => { if (sidebar || line.startsWith("zed ")) act.run(line, "popup"); else suspend(() => act.run(line, "here")); };
 	const wsTool = (kind: Parameters<typeof act.tool>[0]) => {
 		const w = selectedWs();
@@ -293,31 +319,22 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		attempt(() => runTool(act.tool(kind, { id: w.key, cwd: w.path }, parent?.branch)));
 	};
 
-	// Sidebar navigation: moving the selection switches the tmux client there right away; the
-	// keyboard stays here (the sidebar is a Ghostty split outside tmux) until enter/esc/click.
+	// Selection never opens a thread; click or Enter does.
 	const tm = (...a: string[]) => execFileSync("tmux", a, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 	const navSession = (d: number) => {
-		// Skip parked workspaces; headings are selectable without switching the tmux client.
-		const ws = left.filter(r => r.kind === "project" || !!r.w.session);
-		if (!ws.length) return;
-		const at = ws.findIndex(r => leftKey(r) === selLeft);
-		const from = at >= 0 ? at : Math.max(0, ws.findIndex(r => r.kind === "ws" && r.w.session === current));
-		const to = ws[Math.max(0, Math.min(ws.length - 1, from + d))]!;
-		selLeft = leftKey(to);
-		if (to.kind === "ws") try { const s = to.w.session!; act.switchTo(s); current = s; } catch (e) { message = String(e); }
+		const at = Math.max(0, left.findIndex(r => leftKey(r) === selLeft));
+		const to = left[Math.max(0, Math.min(left.length - 1, at + d))];
+		if (to) { selLeft = leftKey(to); buildRight(); }
 	};
 	const navWindow = (d: number) => {
 		const session = current ?? act.currentSession();
 		if (session) attempt(() => { tm("select-window", "-t", "=" + session + ":" + (d > 0 ? "+" : "-")); });
 	};
-	const navAgent = () => {
-		const n = selectedAgent();
-		if (n && act.paneAlive(n.pane)) attempt(() => act.open(n, workspaceFor(n)));
-	};
 	const leaveSidebar = () => { if (ghostty.inGhostty()) ghostty.focusMain(); };
 
 	const handleKey = (data: string) => {
 		const k = parseKey(data) ?? data;
+		followSelection = true;
 		message = "";
 		if (input) {
 			if (input.kind === "confirm") { const i = input; input = undefined; if (k === "enter") i.then?.(""); }
@@ -351,7 +368,6 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			} else if (view === "agents") moveAgent(d);
 			else if (focus === "right") selRight = Math.max(0, Math.min(right.length - 1, selRight + d));
 			else moveLeft(d);
-			if (sidebar && view !== "workspaces") navAgent();
 		};
 		switch (k) {
 			case "q": case "ctrl+c": return quit();
@@ -379,7 +395,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				else { const r = left.find(x => leftKey(x) === selLeft); if (r) { const k2 = leftKey(r); if ((r.kind === "project" || r.w.children.length) && !collapsed.has(k2)) { collapsed.add(k2); rebuild(); } else { const i = left.indexOf(r); const up = left.slice(0, i).reverse().find(x => x.kind === "project" || (r.kind === "ws" && x.kind === "ws" && x.depth < r.depth)); if (up) selLeft = leftKey(up); buildRight(); } } }
 				break;
 			case "space": if (view === "tree") { const r = selectedTree(); if (r && (!r.node || (r.count ?? 1) > 1)) toggle(treeKey(r)); } else if (focus === "left") { const r = left.find(x => leftKey(x) === selLeft); if (r) toggle(leftKey(r)); } break;
-			case "s": case "tab": view = view === "workspaces" ? "agents" : view === "agents" ? "tree" : "workspaces"; focus = "left"; rebuild(); save(); break;
+			case "s": case "tab": view = view === "workspaces" ? "agents" : view === "agents" ? "tree" : "workspaces"; scroll = { left: 0, right: 0, agents: 0 }; hover = undefined; focus = "left"; rebuild(); save(); break;
 			case "/": input = { kind: "filter", text: query }; break;
 			case "enter": if (view === "tree") { const r = selectedTree(); if (r?.node) openAgent(r.node); else if (r) toggle(treeKey(r)); } else if (view === "agents") { const n = nodes.get(selAgent ?? ""); if (n) openAgent(n); } else focus === "right" ? openRight() : openLeft(); break;
 			case "i": {
@@ -488,19 +504,25 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 	let lastClick = { y: -1, x: -1, at: 0 };
 	const handleMouse = (data: string) => {
 		const m = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/.exec(data);
-		if (!m || m[4] !== "M") return;
+		if (!m) return;
 		const b = Number(m[1]), x = Number(m[2]) - 1, y = Number(m[3]);
-		message = "";
-		if ((b === 64 || b === 65) && sidebar && view === "workspaces") { navSession(b === 64 ? -1 : 1); draw(); return; }
+		const changedRow = hover?.y !== y;
+		hover = { x, y };
+		if (b & 32 || m[4] !== "M") { if (sidebar && changedRow) draw(); return; }
+		if (input || help) return;
 		if (b === 64 || b === 65) {
-			const d = b === 64 ? -3 : 3;
-			const inRight = !sidebar && view === "workspaces" && geometry.some(g => g.y === y && g.x0 > 0 && x >= g.x0);
-			if (inRight) selRight = Math.max(0, Math.min(right.length - 1, selRight + d));
-			else if (view !== "workspaces") { for (let i = 0; i < Math.abs(d); i++) handleKey(d > 0 ? "j" : "k"); return; }
-			else { const i = Math.max(0, Math.min(left.length - 1, Math.max(0, left.findIndex(r => leftKey(r) === selLeft)) + d)); selLeft = left[i] && leftKey(left[i]!); buildRight(); }
+			const pane = view !== "workspaces" ? "agents" : !sidebar && x > Math.max(30, Math.floor(W() * 0.42)) ? "right" : "left";
+			const length = pane === "agents" ? agents.length : pane === "right" ? right.length : left.length;
+			const h = sidebar ? H() - 1 : H() - 1 - Math.floor(H() * preview / 100);
+			scroll[pane] = Math.max(0, Math.min(Math.max(0, length - h), scroll[pane] + (b === 64 ? -3 : 3)));
+			followSelection = false;
 			draw(); return;
 		}
 		if (b !== 0) return;
+		message = "";
+		followSelection = true;
+		const button = buttons.find(g => g.y === y && x >= g.x0 && x < g.x1);
+		if (button) { button.act(); draw(); return; }
 		const g = geometry.find(g => g.y === y && x >= g.x0 && x < g.x1);
 		const dbl = Date.now() - lastClick.at < 400 && lastClick.y === y;
 		lastClick = { y, x, at: Date.now() };
@@ -550,7 +572,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			setTimeout(() => { sizing = false; }, 1000);
 		})();
 	}
-	out.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h");
+	out.write("\x1b[?1049h\x1b[?25l\x1b[?1003h\x1b[?1006h");
 	message = "loading…";
 	draw();
 	await refresh();
@@ -577,14 +599,16 @@ function keys(chunk: string): string[] {
 const SIDEBAR_HELP = `ab tree · sidebar
 
 workspaces · live tmux
- j/k ↑/↓  switch session
+ j/k ↑/↓  select session
  h/l ←/→  prev/next window
  enter   open  esc focus tmux
 
 s/tab  workspace/status/tree
- j/k    follow live agent
+ j/k    select agent
  h/l    fold/expand in tree
  enter  open or resume agent
+wheel  scroll without selecting
+hover  existing merge/new actions
 
 n/c    new pi / terminal
 N/m    worktree / merge parent
