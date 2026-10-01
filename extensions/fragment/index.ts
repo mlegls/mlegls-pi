@@ -12,6 +12,7 @@ import { markdownSource } from "../../lib/outline-read/outline/markdown";
 import { outlineWithModel } from "../../lib/outline-read/outline/model";
 import { treeSitterSource } from "../../lib/outline-read/outline/treesitter";
 import { registerReadTool } from "../../lib/outline-read/read";
+import { morphKey, registerWarpGrepTool } from "../../lib/outline-read/warpgrep";
 
 export default function (pi: ExtensionAPI) {
 	// read and grep still sync a ledger; with plain output its anchors are never shown or persisted.
@@ -24,4 +25,6 @@ export default function (pi: ExtensionAPI) {
 	});
 	registerFragmentEditTool(pi, { sources });
 	registerGrepTool(pi, { ledger, persist, sources, plain: true });
+	const key = morphKey();
+	if (key && process.env.PI_WARPGREP !== "0") registerWarpGrepTool(pi, { ledger, persist, sources, plain: true }, key);
 }

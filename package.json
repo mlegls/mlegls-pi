@@ -47,6 +47,7 @@
     "typescript": "5"
   },
   "dependencies": {
+    "@morphllm/morphsdk": "^0.2.196",
     "diff": "^8",
     "tree-sitter-go": "^0.25.0",
     "tree-sitter-java": "^0.23.5",
