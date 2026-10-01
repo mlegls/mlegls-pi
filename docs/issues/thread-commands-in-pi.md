@@ -14,3 +14,7 @@ Session mode: hacking. The pi side of [[projects/mlegls-pi/issues/thread-registr
 - `/workspace <path>` in a canonical pi forks a new thread there instead of moving this one; unchanged in free sessions.
 
 First use: in a canonical pi, `/new`, then quit pi and see it come back on the new session; `/thread fork --worktree x` and find the fork in `ab thread ls --tree spawn`; `/thread promote` a free session.
+
+## Verification
+
+[Independent first-use packet](../attachments/thread-commands-in-pi/index.md), including [predictions and replayable checks](../attachments/thread-commands-in-pi/drive.md). Lifecycle commands failed; remaining required journeys held on c496408.

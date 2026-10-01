@@ -32,3 +32,7 @@ All owned fixtures, external pi processes and authentication links were removed.
 `bun test extensions/workspace lib/thread lib/session-meta/index.test.ts`: 28 passed. `bunx tsc --noEmit`: passed after the existing frozen dependency installation in `extensions/obsidian-tracker`. That setup boundary is already tracked in `docs/issues/root-setup-still-omits-obsidian-typecheck-dependencies.md`.
 
 The old fork-tab tests asserted tmux window creation and cyber-mux worktree ownership; they were removed with that transport. No new permanent acceptance tests were added. The fresh driver still owns independent encounters with `/resume`, the alias, lifecycle commands and free workspace switching. Existing workspace handoff/cancellation regressions and thread lifecycle/CLI regressions passed.
+
+## Independent drive
+
+[Predictions, encounter, checks and cleanup](drive.md). Creation, fork/alias, session tracking, promotion and canonical/free workspace behavior held. Bare `/thread archive`, `/thread abandon` and `/thread merge` in an owning child's pi all failed with the cleanup-controller guard; passing a child ID from another pi returned usage. [Lifecycle failure frame](drive-cleanup-errors.png).
