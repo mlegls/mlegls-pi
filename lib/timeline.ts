@@ -46,7 +46,7 @@ button{background:#222;color:#ddd;border:1px solid #444;padding:2px 8px}
 <div id="tip"></div>
 <script>
 const D = __DATA__;
-const C = {model:"#4caf50",tool:"#ff9800",asked:"#e53935",idle:"#333",stall:"#fff",parent:"#7e57c2",board:"#1e88e5",other:"#555"};
+const C = {model:"#4caf50",tool:"#ff9800",asked:"#e53935",idle:"#333",stall:"#fff",parent:"#7e57c2",board:"#1e88e5",process:"#00acc1",other:"#555"};
 const fmt = ms => ms<6e4?(ms/1e3).toFixed(0)+"s":ms<36e5?(ms/6e4).toFixed(1)+"m":(ms/36e5).toFixed(1)+"h";
 const clock = t => new Date(t).toLocaleString([], {month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
 document.getElementById("ttl").textContent = D.id.slice(-8)+" "+D.title+" · "+clock(D.from)+" → "+clock(D.to)+" ("+fmt(D.to-D.from)+")";

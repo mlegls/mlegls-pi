@@ -32,12 +32,15 @@ export interface Profile {
 	tools: Record<string, { n: number; ms: number; errors: number }>;
 	/** Inner calls keyed by tool, or "bash: <first word>". */
 	inner: Record<string, { n: number; ms: number }>;
+	/** Waiting, keyed by what was waited on: "process: <command> [until <pattern>]" (process waits and wakes),
+	 * "sleep → <what followed>" (bash sleeps, the pre-process idiom), "board". */
+	waits: Record<string, { n: number; ms: number }>;
 	children: Profile[];
 }
 
-export type Kind = "model" | "tool" | "asked" | "idle" | "stall" | "parent" | "board" | "other";
+export type Kind = "model" | "tool" | "asked" | "idle" | "stall" | "parent" | "board" | "process" | "other";
 export interface Segment { k: Kind; s: number; e: number; note?: string }
-const KINDS: Kind[] = ["model", "tool", "asked", "idle", "stall", "parent", "board", "other"];
+const KINDS: Kind[] = ["model", "tool", "asked", "idle", "stall", "parent", "board", "process", "other"];
 /** A reply that leaves something pending on the human. Heuristic; jev would do better. */
 const ASKS = /\?\s*$|\?\s*\n|\b(blocked|needs-input|needs input|waiting (on|for) (you|your)|your (call|decision|go-ahead)|want me to|should i|shall i|let me know|which (one|do you))\b/i;
 
@@ -46,6 +49,7 @@ const textOf = (c: unknown): string => typeof c === "string" ? c : Array.isArray
 const add = (m: Record<string, { n: number; ms: number }>, k: string, ms: number) => { const e = (m[k] ??= { n: 0, ms: 0 }); e.n++; e.ms += ms; };
 /** Inner call key: the tool, or for bash its command and (when it looks like one) subcommand, after a leading cd. */
 const innerKey = (c: any) => {
+	if (c.name === "process") return "process " + (c.arguments?.action ?? "?");
 	if (c.name !== "bash") return c.name;
 	const w = String(c.arguments?.command ?? "").trim().replace(/^cd \S+\s*(&&|;)\s*/, "").split(/\s+/);
 	return "bash: " + w[0] + (w[1] && /^[a-z][\w-]*$/.test(w[1]) ? " " + w[1] : "");
@@ -56,7 +60,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		id: node.id, title: node.title.replace(/^<skill name="([^"]+)"[\s\S]*/, "/$1"), model: node.model, start: 0, end: 0,
 		time: Object.fromEntries(KINDS.map(k => [k, 0])) as Record<Kind, number>, segments: [], cost: 0, costByModel: {},
 		tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextPeak: 0, compactions: 0, turns: 0,
-		user: { turns: 0, words: 0, generated: 0 }, tools: {}, inner: {},
+		user: { turns: 0, words: 0, generated: 0 }, tools: {}, inner: {}, waits: {},
 	};
 	// A spawned or invoked session's user turns are its assignment and steers from its parent, not the human.
 	const spawned = node.parentKind === "spawn" || node.parentKind === "invoked";
@@ -71,6 +75,21 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	const snippet = (m: any) => textOf(m?.content).trim().slice(-240);
 	const gapKind = (): Kind => spawned ? "parent" : lastAssistant?.stopReason === "error" ? "stall" : ASKS.test(snippet(lastAssistant)) ? "asked" : "idle";
 	const toolCalls = new Map<string, string>();
+	// pi-processes (@mjakl/pi-processes): process ids and names → their command, to say what a wait was for.
+	const procs = new Map<string, string>();
+	const procOf = (id: unknown) => procs.get(String(id ?? "").toLowerCase()) ?? String(id ?? "?");
+	const call = (c: any, ms: number) => {
+		const a = c.arguments ?? {};
+		if (c.name === "process" && a.action === "start") procs.set(String(a.name ?? "").toLowerCase(), String(a.command ?? "").slice(0, 80));
+		if (c.name === "process" && a.action === "wait") add(p.waits, "process: " + procOf(a.id) + (a.until === "output" ? " until " + a.pattern : ""), ms);
+		if (c.name === "bash") {
+			const cmd = String(a.command ?? "");
+			const secs = [...cmd.matchAll(/\bsleep\s+([\d.]+)/g)].reduce((s, m) => s + Number(m[1]), 0);
+			const next = cmd.split(/\bsleep\s+[\d.]+\s*(?:;|&&|\n)?\s*/)[1]?.trim().replace(/^cd \S+\s*(&&|;)\s*/, "").split(/\s+/).slice(0, 2).join(" ").slice(0, 40);
+			if (secs) add(p.waits, "sleep → " + (next || "(end)"), Math.min(secs * 1000, ms || secs * 1000));
+		}
+		add(p.inner, innerKey(c), ms);
+	};
 	for (const line of readFileSync(file, "utf8").split("\n")) {
 		if (!line) continue;
 		let e: any; try { e = JSON.parse(line); } catch { continue; }
@@ -84,7 +103,13 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			for (const k of ["input", "output", "cacheRead", "cacheWrite"] as const) p.tokens[k] += u?.[k] ?? 0;
 		};
 		if (e.type === "usage") cost(e.usage, (e.kind ?? "usage") + ":" + e.model);
-		if (e.type === "custom_message" && e.customType === "board" && prev) { seg("board", prev, t, textOf(e.content).slice(0, 160)); prev = t; }
+		if (e.type === "custom_message" && e.customType === "board" && prev) { seg("board", prev, t, textOf(e.content).slice(0, 160)); add(p.waits, "board", t - prev); prev = t; }
+		if (e.type === "custom_message" && String(e.customType).startsWith("pi-processes:") && prev) {
+			const d = e.details ?? {};
+			if (d.processId && d.command) procs.set(String(d.processId).toLowerCase(), String(d.command).slice(0, 80));
+			const what = "process: " + (d.command ? String(d.command).slice(0, 80) : procOf(d.processName ?? d.processId)) + (d.pattern ? " until " + d.pattern : "");
+			seg("process", prev, t, what); add(p.waits, what, t - prev); prev = t;
+		}
 		if (e.type !== "message") continue;
 		const m = e.message;
 		if (m.role === "user") {
@@ -110,8 +135,8 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			r.n++; r.ms += ms; if (m.isError) r.errors++;
 			seg("tool", prev, t);
 			const nested = m.nestedCalls?.calls ?? m.details?.calls;
-			if (Array.isArray(nested)) for (const c of nested) add(p.inner, innerKey({ ...c, arguments: c.arguments ?? safe(c.args) }), c.durationMs ?? 0);
-			else add(p.inner, name === "bash" ? innerKey({ name, arguments: findArgs(lastAssistant, m.toolCallId) }) : name, ms);
+			if (Array.isArray(nested)) for (const c of nested) call({ ...c, arguments: c.arguments ?? safe(c.args) }, c.durationMs ?? 0);
+			else call({ name, arguments: findArgs(lastAssistant, m.toolCallId) ?? {} }, ms);
 			prev = t;
 		} else if (prev) { seg("other", prev, t); prev = t; }
 		p.end = Math.max(p.end, t);
@@ -194,6 +219,7 @@ export function render(root: Profile): string {
 		"cost by model: " + Object.entries(byModel).sort((a, b) => b[1] - a[1]).map(([m, c]) => m + " " + usd(c)).join(", "),
 		"tools: " + top(merge(all.map(p => p.tools)), 6),
 		"inner: " + top(merge(all.map(p => p.inner)), 12),
+		"waits: " + top(merge(all.map(p => p.waits)), 10),
 		"by agent: " + Object.entries(all.slice(1).reduce((o, p) => { const a = p.agent ?? "?", e = (o[a] ??= { n: 0, ms: 0, cost: 0 }); e.n++; e.ms += p.time.model + p.time.tool; e.cost += p.cost; return o; }, {} as Record<string, { n: number; ms: number; cost: number }>))
 			.sort((a, b) => b[1].cost - a[1].cost).map(([a, v]) => a + " " + v.n + "× " + dur(v.ms) + " " + usd(v.cost)).join(", "),
 		"",
