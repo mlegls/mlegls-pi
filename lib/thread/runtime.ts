@@ -41,12 +41,7 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 	validateLaunch(options.launch);
 	const spawning = checkout(resolve(options.cwd ?? process.cwd()));
 	const parent = await spawnParent(options);
-	if (options.worker && await workerThread(options.worker.handle, spawning.cwd, options.worker.run))
-		throw new Error("Active worker already exists: " + options.worker.run + "/" + options.worker.handle);
 	const source = options.forkFrom && await sessionFile(options.forkFrom, spawning.cwd);
-	const origin = options.parentSession ?? process.env.PI_SESSION_ID;
-	const parentSession = origin ? readLive().find(l => l.sessionId === origin || l.sessionFile === origin)?.sessionFile
-		?? (options.parentSession && existsSync(options.parentSession) ? resolve(options.parentSession) : origin === process.env.PI_SESSION_ID ? process.env.PI_SESSION_FILE : undefined) : undefined;
 	const id = randomUUID();
 	const name = options.worktree ?? options.worker?.handle ?? id;
 	let location: ReturnType<typeof checkout>;
@@ -61,10 +56,12 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		if (existsSync(path)) throw new Error("Worktree path already exists (not owned): " + path);
 		location = { cwd: path, project: spawning.project, worktree: path, branch: name };
 	}
+	if (options.worker && await workerThread(options.worker.handle, owning ? spawning.cwd : location.cwd, options.worker.run))
+		throw new Error("Active worker already exists: " + options.worker.run + "/" + options.worker.handle);
 	let thread: ThreadRecord | undefined;
 	let file: string | undefined;
 	try {
-		const manager = source ? SessionManager.forkFrom(source, location.cwd, undefined, { id }) : SessionManager.create(location.cwd, undefined, { id, parentSession });
+		const manager = source ? SessionManager.forkFrom(source, location.cwd, undefined, { id }) : SessionManager.create(location.cwd, undefined, { id });
 		file = manager.getSessionFile()!;
 		if (!source) await persistHeader(file, id, location.cwd);
 		thread = {
