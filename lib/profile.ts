@@ -1,7 +1,7 @@
 // Profile pi sessions for wall time and cost: where a session (and the workers it spawned) spent
 // its clock and its money. Feeds the retro profile pass; see skills/enabled/profile.
 //   bun lib/profile.ts                      this session ($PI_SESSION_ID) and its descendants
-//   bun lib/profile.ts SESSION [--json]     a session id (or unique fragment) and its descendants
+//   bun lib/profile.ts SESSION [--json] [--fast]  a session id (or unique fragment) and its descendants
 //   bun lib/profile.ts --project P --last N one line per recent root session in a project
 //
 // Timing comes from the session log: an assistant entry's message.timestamp is when the request
@@ -9,11 +9,14 @@
 // tool finished. codemode's nestedCalls carry per-call durations.
 //
 // Gaps are classified by what preceded them. Before a user message: "stall" if the last reply ended in
-// an error, "asked" if it looks like it asked for something (question, blocked, a decision), else
-// "idle" (nothing pending). A spawned session's user messages come from its parent ("parent").
+// an error, "asked" if the reply left work blocked on you (a question, decision, approval), else
+// "idle" (done, or an optional offer). The decider (judgeWaits, Jev via lib/decide.ts) judges this,
+// cached in ~/.cache/profile/waits.json; --fast, or no classifier, falls back to a regex. A spawned session's user messages come from its parent ("parent").
 // Before a board message: "board" (waiting on workers/peers). Whether you were away or busy elsewhere
 // during an "asked" gap is a property of your global timeline (humanTurns), not of the session.
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { graph, type Node } from "./tree/graph";
 import { GENERATED } from "./prompts";
 
@@ -23,7 +26,7 @@ export interface Profile {
 	time: Record<Kind, number>;
 	segments: Segment[];
 	/** How the session's last reply left things: the kind its trailing gap would have. */
-	ended?: { k: Kind; note: string };
+	ended?: { k: Kind; note: string; judge?: Judge };
 	cost: number; costByModel: Record<string, number>;
 	tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
 	contextPeak: number; compactions: number; turns: number;
@@ -39,9 +42,11 @@ export interface Profile {
 }
 
 export type Kind = "model" | "tool" | "asked" | "idle" | "stall" | "parent" | "board" | "process" | "other";
-export interface Segment { k: Kind; s: number; e: number; note?: string }
+export interface Segment { k: Kind; s: number; e: number; note?: string; judge?: Judge }
+/** A wait after a reply, for the decider: the reply's tail and a stable cache key (session/entry). */
+interface Judge { key: string; reply: string }
 const KINDS: Kind[] = ["model", "tool", "asked", "idle", "stall", "parent", "board", "process", "other"];
-/** A reply that leaves something pending on the human. Heuristic; jev would do better. */
+/** A reply that leaves something pending on the human: the fallback when no classifier is available (judgeWaits). */
 const ASKS = /\?\s*$|\?\s*\n|\b(blocked|needs-input|needs input|waiting (on|for) (you|your)|your (call|decision|go-ahead)|want me to|should i|shall i|let me know|which (one|do you))\b/i;
 
 const ts = (s: unknown) => typeof s === "number" ? s : Date.parse(String(s));
@@ -65,7 +70,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	// A spawned or invoked session's user turns are its assignment and steers from its parent, not the human.
 	const spawned = node.parentKind === "spawn" || node.parentKind === "invoked";
 	let prev = 0; // timestamp of the previous timed entry
-	let lastAssistant: any;
+	let lastAssistant: any, lastAssistantId = "";
 	const seg = (k: Kind, a: number, b: number, note?: string) => {
 		if (!a || b <= a) return;
 		p.time[k] += b - a;
@@ -74,6 +79,10 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	};
 	const snippet = (m: any) => textOf(m?.content).trim().slice(-240);
 	const gapKind = (): Kind => spawned ? "parent" : lastAssistant?.stopReason === "error" ? "stall" : ASKS.test(snippet(lastAssistant)) ? "asked" : "idle";
+	const judge = (): Judge | undefined => {
+		const reply = textOf(lastAssistant?.content).trim().slice(-1500);
+		return !spawned && reply && lastAssistant.stopReason !== "error" ? { key: node.id + "/" + lastAssistantId, reply } : undefined;
+	};
 	const toolCalls = new Map<string, string>();
 	// pi-processes (@mjakl/pi-processes): process ids and names → their command, to say what a wait was for.
 	const procs = new Map<string, string>();
@@ -116,6 +125,8 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			const text = textOf(m.content).replace(/<skill[\s\S]*?<\/skill>/g, "").trim();
 			const kind = gapKind();
 			if (prev) seg(kind, prev, t, (kind === "stall" ? "error: " + (lastAssistant?.errorMessage ?? "") : snippet(lastAssistant)) + "\n→ " + text.slice(0, 160));
+			const last = p.segments.at(-1);
+			if (prev && last?.e === t && (kind === "asked" || kind === "idle")) last.judge = judge();
 			if (spawned || !text || GENERATED.test(text)) p.user.generated++; else { p.user.turns++; p.user.words += text.split(/\s+/).filter(Boolean).length; }
 			prev = t;
 		} else if (m.role === "assistant") {
@@ -127,7 +138,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			const u = m.usage ?? {};
 			p.contextPeak = Math.max(p.contextPeak, (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0));
 			for (const c of Array.isArray(m.content) ? m.content : []) if (c?.type === "toolCall") toolCalls.set(c.id, c.name);
-			lastAssistant = m; prev = t;
+			lastAssistant = m; lastAssistantId = String(e.id ?? t); prev = t;
 		} else if (m.role === "toolResult") {
 			const name = m.toolName ?? toolCalls.get(m.toolCallId) ?? "?";
 			const ms = prev ? Math.max(0, t - prev) : 0;
@@ -141,7 +152,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		} else if (prev) { seg("other", prev, t); prev = t; }
 		p.end = Math.max(p.end, t);
 	}
-	if (lastAssistant) { const k = gapKind(); p.ended = { k, note: k === "stall" ? "error: " + (lastAssistant.errorMessage ?? "") : snippet(lastAssistant) }; }
+	if (lastAssistant) { const k = gapKind(); p.ended = { k, note: k === "stall" ? "error: " + (lastAssistant.errorMessage ?? "") : snippet(lastAssistant), judge: k === "asked" || k === "idle" ? judge() : undefined }; }
 	return p;
 }
 const safe = (s: unknown) => { try { return typeof s === "string" ? JSON.parse(s) : s; } catch { return {}; } };
@@ -165,11 +176,59 @@ export function humanTurns(nodes: Map<string, Node>, from: number, to: number): 
 	return out.sort((a, b) => a.t - b.t);
 }
 
-export async function profile(ref?: string, days = 30): Promise<Profile> {
-	return (await profileWithGraph(ref, days)).profile;
+export async function profile(ref?: string, days = 30, options: { judge?: boolean } = {}): Promise<Profile> {
+	return (await profileWithGraph(ref, days, options)).profile;
 }
 
-export async function profileWithGraph(ref?: string, days = 30): Promise<{ profile: Profile; nodes: Map<string, Node> }> {
+const WAIT = {
+	type: "choice" as const,
+	instructions: "An AI coding agent's turn ended with this reply to its human user, and the agent did nothing more until the user wrote again. What did the reply leave with the user?",
+	criteria: {
+		blocked: "The agent cannot continue without the user: it asks a question, needs a decision, approval, credentials, or an action only the user can take.",
+		offered: "The work is finished or reported; the agent offers optional next steps or asks whether to go on, but nothing is stuck.",
+		done: "The work is finished or reported, and nothing is asked of the user.",
+	},
+};
+const WAITS_CACHE = join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "profile", "waits.json");
+
+/** Reclassify asked/idle waits with the decider (lib/decide.ts): blocked → asked, offered or done → idle.
+ * Judgments are cached by session/entry; without a classifier the regex classification stands. */
+export async function judgeWaits(all: Profile[]): Promise<void> {
+	type J = { choice: string; p: number };
+	let cache: Record<string, J> = {};
+	try { cache = JSON.parse(readFileSync(WAITS_CACHE, "utf8")); } catch {}
+	const items: { p: Profile; s: { k: Kind; s: number; e: number; note?: string; judge?: Judge } }[] = [];
+	for (const p of all) {
+		for (const s of p.segments) if (s.judge) items.push({ p, s });
+		if (p.ended?.judge) items.push({ p, s: { k: p.ended.k, s: 0, e: 0, judge: p.ended.judge, get note() { return p.ended!.note; }, set note(n) { p.ended!.note = n!; } } as any });
+	}
+	const todo = items.filter(i => !cache[i.s.judge!.key]);
+	if (todo.length) {
+		let decide: typeof import("./decide").decide;
+		try { decide = (await import("./decide")).decide; } catch { return; }
+		let failed = 0;
+		const queue = [...todo];
+		await Promise.all(Array.from({ length: 8 }, async () => {
+			for (let i = queue.shift(); i; i = queue.shift()) {
+				try { const { wait } = await decide({ reply: i.s.judge!.reply }, { wait: WAIT }); cache[i.s.judge!.key] = { choice: wait.choice, p: wait.p }; }
+				catch { failed++; }
+			}
+		}));
+		if (failed === todo.length) return; // no classifier: keep the regex kinds
+		mkdirSync(dirname(WAITS_CACHE), { recursive: true });
+		writeFileSync(WAITS_CACHE, JSON.stringify(cache));
+	}
+	for (const { p, s } of items) {
+		const j = cache[s.judge!.key];
+		if (!j) continue;
+		const k: Kind = j.choice === "blocked" ? "asked" : "idle";
+		s.note = "[" + j.choice + " " + j.p.toFixed(2) + "] " + (s.note ?? "");
+		if (s.e > s.s) { p.time[s.k] -= s.e - s.s; p.time[k] += s.e - s.s; s.k = k; }
+		else if (p.ended) p.ended.k = k;
+	}
+}
+
+export async function profileWithGraph(ref?: string, days = 30, options: { judge?: boolean } = {}): Promise<{ profile: Profile; nodes: Map<string, Node> }> {
 	const nodes = await graph({ days });
 	const ref2 = (ref ?? process.env.PI_SESSION_ID ?? "").replace(/^(session|mail)\//, "");
 	const hits = ref2 ? [...nodes.keys()].filter(k => k === ref2 || k.endsWith(ref2) || k.startsWith(ref2)) : [];
@@ -181,6 +240,8 @@ export async function profileWithGraph(ref?: string, days = 30): Promise<{ profi
 	// An interactive session's last reply waits until your next turn anywhere: an overnight stall on a
 	// question shows up here, since nothing more is written to the session itself.
 	const all: Profile[] = []; const walk = (p: Profile) => { all.push(p); p.children.forEach(walk); }; walk(root);
+	if (options.judge !== false) await judgeWaits(all);
+	for (const p of all) { for (const s of p.segments) delete s.judge; if (p.ended) delete p.ended.judge; }
 	const open = all.filter(p => p.ended && nodes.get(p.id)?.interactive);
 	if (open.length) {
 		const turns = humanTurns(nodes, root.start, Date.now());
@@ -261,12 +322,13 @@ if (import.meta.main) {
 	const args = process.argv.slice(2);
 	const flag = (f: string) => { const i = args.indexOf(f); return i < 0 ? undefined : args.splice(i, 2)[1]; };
 	const json = args.includes("--json"); if (json) args.splice(args.indexOf("--json"), 1);
+	const fast = args.includes("--fast"); if (fast) args.splice(args.indexOf("--fast"), 1);
 	const project = flag("--project"), last = flag("--last"), days = flag("--days");
 	if (project) {
 		const ps = await recent(project, Number(last ?? 10), Number(days ?? 14));
 		console.log(json ? JSON.stringify(ps) : renderRecent(ps));
 	} else {
-		const p = await profile(args[0], Number(days ?? 30));
+		const p = await profile(args[0], Number(days ?? 30), { judge: !fast });
 		console.log(json ? JSON.stringify(p) : render(p));
 	}
 }

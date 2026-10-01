@@ -2,7 +2,8 @@
 // kinds from profile.ts), plus a "you" lane of your turns across every interactive session, so an
 // "asked" gap shows whether you were away or busy elsewhere.
 //   ab timeline [SESSION]                                   writes HTML under ~/.cache/profile/, opens it, prints its path
-//   bun lib/timeline.ts [SESSION] [--days N] [--out FILE]   same; --out writes there without opening
+//   bun lib/timeline.ts [SESSION] [--days N] [--out FILE] [--fast]   same; --out writes there without opening;
+//                                                           --fast skips the decider (profile.ts judgeWaits)
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -10,8 +11,8 @@ import { humanTurns, profileWithGraph, type Profile } from "./profile";
 
 interface Lane { id: string; depth: number; label: string; cost: number; segments: Profile["segments"] }
 
-export async function timeline(ref?: string, days = 30): Promise<string> {
-	const { profile: root, nodes } = await profileWithGraph(ref, days);
+export async function timeline(ref?: string, days = 30, options: { judge?: boolean } = {}): Promise<string> {
+	const { profile: root, nodes } = await profileWithGraph(ref, days, options);
 	const lanes: Lane[] = [];
 	const walk = (p: Profile, depth: number) => {
 		lanes.push({ id: p.id, depth, label: p.id.slice(-8) + (p.agent ? " [" + p.agent + "]" : "") + " " + p.title.replace(/\s+/g, " ").slice(0, 70), cost: p.cost, segments: p.segments });
@@ -103,8 +104,8 @@ rows.addEventListener("mouseleave", () => tip.style.display = "none");
 `;
 
 /** Write the timeline under ~/.cache/profile and open it in the browser; returns the file. */
-export async function openTimeline(ref?: string, days = 30, out?: string): Promise<string> {
-	const html = await timeline(ref, days);
+export async function openTimeline(ref?: string, days = 30, out?: string, options: { judge?: boolean } = {}): Promise<string> {
+	const html = await timeline(ref, days, options);
 	const dir = join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "profile");
 	const file = out ?? join(dir, "timeline-" + (ref ?? process.env.PI_SESSION_ID ?? "session").slice(-8) + ".html");
 	mkdirSync(dir, { recursive: true });
@@ -117,5 +118,6 @@ if (import.meta.main) {
 	const args = process.argv.slice(2);
 	const flag = (f: string) => { const i = args.indexOf(f); return i < 0 ? undefined : args.splice(i, 2)[1]; };
 	const days = Number(flag("--days") ?? 30), out = flag("--out");
-	console.log(await openTimeline(args[0], days, out));
+	const fast = args.includes("--fast"); if (fast) args.splice(args.indexOf("--fast"), 1);
+	console.log(await openTimeline(args[0], days, out, { judge: !fast }));
 }
