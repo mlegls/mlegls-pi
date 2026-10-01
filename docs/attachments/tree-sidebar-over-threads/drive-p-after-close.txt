@@ -1,0 +1,4 @@
+  name=0012b4c2-402b-4378-bb38-407691a2182c.agent	pid=74812	clients=0	created=1790867639	cwd=file://s-MacBook-Pro.local/private/tmp/owned-sidebar-drive-p/project	role=agent	thread=0012b4c2-402b-4378-bb38-407691a2182c
+  name=6f485251-3e55-49e7-a8d9-fd1ad3c0226b.agent	pid=74869	clients=0	created=1790867639	cwd=file://s-MacBook-Pro.local/private/tmp/owned-sidebar-drive-p/project	role=agent	thread=6f485251-3e55-49e7-a8d9-fd1ad3c0226b
+  name=d5e202cb-641e-471a-9c43-3c33614a5f25.agent	pid=74833	clients=0	created=1790867639	cwd=file://s-MacBook-Pro.local/private/tmp/owned-sidebar-drive-p/project__worktrees/sidebar-child	role=agent	thread=d5e202cb-641e-471a-9c43-3c33614a5f25
+  name=d63edd5e-7227-42f9-9615-be5302bd9a1e.agent	pid=74854	clients=0	created=1790867639	cwd=file://s-MacBook-Pro.local/private/tmp/owned-sidebar-drive-p/project__worktrees/sidebar-grandchild	role=agent	thread=d63edd5e-7227-42f9-9615-be5302bd9a1e

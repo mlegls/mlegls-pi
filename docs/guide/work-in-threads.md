@@ -8,6 +8,8 @@ Run `ab thread new --in "$PWD"` for a thread in the current checkout, or `ab thr
 
 Run `ab tree sidebar` from the project. It opens a fresh Ghostty window with two splits: the thread sidebar and one main terminal. Existing windows are untouched. Use this checkout's `bin/ab` when trying an uninstalled change. Ghostty on macOS needs its AppleScript dictionary; zmx comes from the project's mise setup.
 
+The first row is shown immediately when the window opens; moving the selection later does not attach until Enter.
+
 Point at a row to reveal its buttons. They wrap below the row in a narrow sidebar. Click the row, or select with j/k and press Enter, to show its `.agent` in the main split. `▌` marks the shown thread. Hovering, scrolling and j/k alone never attach. Click the fold arrow or press Space to hide/show descendants. Escape gives the keyboard to the bound main split; pointing at either split focuses it when Ghostty's `focus-follows-mouse` is enabled.
 
 Click the heading, or use Tab/s, to switch between the spawn and merge trees. These are the same orders as `ab thread ls --tree spawn|merge`. `/` filters; submit an empty filter to clear it. A matching descendant keeps its ancestors visible. `r` refreshes; `R` reloads the sidebar code.

@@ -1,5 +1,6 @@
 # Thread sidebar — implementation first use
 
+Independent encounter: [predictions, actions, outcomes and replayable checks](independent-drive.md). Basic native display, keyboard switch and detach held; hover/lifecycle acceptance remains unobservable.
 Code: `3fef025` (base `590758db`). Earlier native and private-pty encounters used `3d082fc` and `13f561f`; the final re-drive covers the added zmx leader guard. This is an implementer's self-check, not independent acceptance.
 
 ## Setup and entry point
