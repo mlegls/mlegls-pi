@@ -22,6 +22,7 @@ import { registerCompaction } from "./compaction.ts";
 import observationalMemory from "./om/index.ts";
 import journal from "./journal.ts";
 import elide from "./elide.ts";
+import recall from "./recall.ts";
 
 const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
 
@@ -42,6 +43,7 @@ function fenceText(percent: number, topic: string): string {
 export default function (pi: ExtensionAPI) {
 	elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
 	registerCompaction(pi, [journal(pi), observationalMemory(pi)]);
+	recall(pi);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;
 	let armed = true;

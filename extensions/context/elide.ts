@@ -7,7 +7,7 @@
 //
 // Each elision is also a record of schema `elided` in the records store: id a hash of the entry id (so the pointer
 // stays a pure function of the branch), a `source` edge to the entry, tags for tool, tokens and what was called.
-// The body stays in the session file; OM's `recall` resolves these ids too (recallElided), so old outputs come back
+// The body stays in the session file; `recall` (./recall.ts) resolves these ids too, so old outputs come back
 // through the same tool as memories, and are findable across sessions by tool or command.
 //
 // Lifetimes err long (under-eliding): Anthropic, Bedrock, xAI 330s (5-minute TTL refreshed on hit); OpenAI, Codex,
