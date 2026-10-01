@@ -1,5 +1,5 @@
 interface:
   display_name: "Advance"
-  short_description: "Begin the next prepared session of recorded work"
+  short_description: "Make progress on an issue by its status: shape it or execute it"
 policy:
   allow_implicit_invocation: false
