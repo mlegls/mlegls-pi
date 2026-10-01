@@ -23,6 +23,7 @@ export async function openSidebar(): Promise<void> {
 		(/^(PI_|XDG_|ZMX_|AB_THREAD_)/.test(key) || ["PATH", "SHELL", "HOME", "TMPDIR"].includes(key)) &&
 		!["ZMX_SESSION", "ZMX_SESSION_PREFIX", "AB_THREAD_ID", "PI_SESSION_ID", "PI_SESSION_FILE"].includes(key))
 		.map(([key, value]) => key + "=" + value);
+	env.push("AB_TREE_TOKEN=" + token, "ZMX_TRACK_ENV=" + (process.env.ZMX_TRACK_ENV ?? "DISPLAY,SSH_AUTH_SOCK,SSH_AGENT_PID,SSH_CONNECTION,WINDOWID,XAUTHORITY,KITTY_LISTEN_ON,KITTY_PID,KITTY_WINDOW_ID") + ",AB_TREE_TOKEN");
 	osa(`tell application "Ghostty"
 	set cfg to new surface configuration
 	set initial working directory of cfg to ${q(process.cwd())}

@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { abandonThread, archiveThread, ensureTerminal, forkThread, newThread, type ThreadRecord, type ThreadRow } from "../thread";
 import { command } from "../thread/process";
-import { zmxBinary } from "../thread/zmx";
+import { zmx, zmxBinary } from "../thread/zmx";
 import * as ghostty from "./ghostty";
 
 export type Action = "new" | "worktree" | "fork" | "merge" | "archive" | "abandon" | "children";
@@ -12,6 +12,11 @@ export async function open(id: string, shown?: string): Promise<string> {
 	const terminal = await ensureTerminal(id);
 	if (shown === terminal.name) return terminal.name;
 	if (shown) {
+		// zmx 0.8.1 shuts the source down on NoLeaderFound. Never send that switch.
+		const leader = await zmx(["print-env", shown]);
+		if (!leader.trim()) throw new Error("Main client has no zmx leader; type in it or reattach before switching");
+		if (process.env.AB_TREE_TOKEN && !leader.split("\n").includes("AB_TREE_TOKEN=" + process.env.AB_TREE_TOKEN))
+			throw new Error("Another window leads this thread; type in this main split before switching");
 		const env: NodeJS.ProcessEnv = { ...process.env, ZMX_SESSION: shown };
 		delete env.ZMX_SESSION_PREFIX;
 		await command(await zmxBinary(), ["attach", terminal.name], undefined, env);
