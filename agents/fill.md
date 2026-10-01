@@ -1,6 +1,6 @@
 ---
 name: fill
-description: Implement a thoroughly specced change. Use for parallelizing work you would essentially be able to do in the next turn otherwise.
+description: Work specified so completely (interfaces, files, behavior) that doing it is close to transcription, such as filling committed stubs.
 model: openai-codex/gpt-6-luna:high, zai/glm-5.3-flash:high, deepseek/deepseek-flash:high
 role: implement
 ---

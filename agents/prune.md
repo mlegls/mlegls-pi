@@ -1,6 +1,6 @@
 ---
 name: prune
-description: Use for large refactors where less or similar code is added than removed/changed.
+description: Refactors and removals that mostly delete or reshape existing code rather than add to it.
 model: openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high, zai/glm-5.3-flash:high
 role: implement
 ---

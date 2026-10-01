@@ -1,6 +1,6 @@
 ---
 name: auto-routine
-description: General auftragstaktik worker for straightforward tasks.
+description: Straightforward work with an obvious approach that still needs finding one's way around the code; no notable judgment calls.
 model: openai-codex/gpt-6-luna:max, zai/glm-5.3-flash:high, anthropic/claude-sonnet-5-5:medium
 role: implement
 ---

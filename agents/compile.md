@@ -1,6 +1,6 @@
 ---
 name: compile
-description: Refine a spec whose design is closed but too big for one session: close the shared interfaces as committed stubs, then partition the rest into closed fill tickets.
+description: Specs whose design is closed but too big for one session, so shared interfaces can be fixed up front and the rest split into fully specified tickets.
 model: openai-codex/gpt-6.1-sol:xhigh, anthropic/claude-opus-5-5:medium
 role: refine
 ---

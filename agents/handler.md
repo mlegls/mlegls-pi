@@ -1,6 +1,6 @@
 ---
 name: handler
-description: Exception handler for a node of a reconciled execution tree; resolves within its contract, moves misclassified work out, or escalates.
+description: Exceptions in a reconciled execution tree that no mechanical handler resolved.
 model: openai-codex/gpt-6.1-sol:high, anthropic/claude-opus-5-5:medium
 role: handle
 ---

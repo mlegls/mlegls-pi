@@ -1,6 +1,6 @@
 ---
 name: manager
-description: Refine a spec that deliberately delegates design: partition it into outcomes with boundaries and let each child own its how.
+description: Specs that leave design open on purpose, best split by outcome so each child decides its own approach.
 model: openai-codex/gpt-6.1-sol:high, anthropic/claude-opus-5-5:medium
 role: refine
 ---

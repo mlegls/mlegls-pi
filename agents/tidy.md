@@ -1,6 +1,6 @@
 ---
 name: tidy
-description: Review at a join, where several changes landed together: repair failed crossing stories at their seam, then tidy across the changes in behavior-preserving steps (extract the shared piece, align names and conventions, inline what doesn't earn its keep).
+description: Review at a join, where several children's changes landed together and must be reconciled across their seams.
 model: anthropic/claude-sonnet-5-5:high, openai-codex/gpt-6.1-sol:high
 role: review
 ---

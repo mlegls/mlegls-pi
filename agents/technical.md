@@ -1,6 +1,6 @@
 ---
 name: technical
-description: Execute work whose acceptance criterion is clear (metric, stub, contract...) but whose fulfilment is hard and requires strong reasoning (complex systems, difficult or novel algorithms, performance optimization).
+description: Work with a crisp acceptance criterion (metric, contract, stub) that is hard to meet: complex systems, difficult or novel algorithms, performance.
 model: openai-codex/gpt-6.1-sol:max, anthropic/claude-opus-5-5:medium
 role: implement
 ---

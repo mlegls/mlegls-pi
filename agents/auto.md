@@ -1,6 +1,6 @@
 ---
 name: auto
-description: General auftragstaktik worker for ambiguous tasks.
+description: Work whose intent is clear but whose approach is open: it needs investigation, judgment calls, or a choice among designs.
 model: openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high, zai/glm-5.3-flash:high
 role: implement
 ---

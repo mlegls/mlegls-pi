@@ -1,6 +1,6 @@
 ---
 name: visual-reviewer
-description: Review rendered work: judges what a user sees from screenshots or by driving the surface, and repairs visual and UX defects directly.
+description: Review of work whose outcome is something a user sees, judged by looking at it.
 model: anthropic/claude-opus-5-5:medium, openai-codex/gpt-6.1-sol:high
 role: review
 ---
