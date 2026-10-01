@@ -244,7 +244,9 @@
     "piPidBefore": 55655,
     "piPidAfter": 60673,
     "userMessageCountAfter": 1,
-    "assistantText": "bootstrap-ok"
+    "assistantText": "bootstrap-ok",
+    "sessionFileBefore": "/private/tmp/ab-pi-nGXBtJ/agent/sessions/--private-tmp-ab-pi-nGXBtJ-repo--/2026-10-01T10-35-44-046Z_7b056d6e-3bc4-43b1-9f4c-c3558939ed97.jsonl",
+    "sessionFileAfter": "/private/tmp/ab-pi-nGXBtJ/agent/sessions/--private-tmp-ab-pi-nGXBtJ-repo--/2026-10-01T10-35-44-046Z_7b056d6e-3bc4-43b1-9f4c-c3558939ed97.jsonl"
   },
   "emptyExternalPromotion": {
     "sessionId": "01a0f70c-9bfa-77d4-b277-12d07a6e4341",
