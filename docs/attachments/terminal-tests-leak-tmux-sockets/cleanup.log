@@ -1,0 +1,10 @@
+Stopping exact owned sentinel:
+kill-server exit=0
+
+Removing worker-owned temporary directory:
+directory absent check exit=0
+Sentinel PID 56675 is gone
+Owned server PID 56181 gone
+Owned server PID 56361 gone
+Owned server PID 56540 gone
+Owned server PID 56675 gone

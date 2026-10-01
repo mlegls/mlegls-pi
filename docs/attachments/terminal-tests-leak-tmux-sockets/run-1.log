@@ -1,0 +1,56 @@
+bun test v1.4.2 (744846f84)
+
+lib/session-meta/index.test.ts:
+(pass) spawnMeta > reads wm's env [0.07ms]
+(pass) spawnMeta > undefined without run and handle [0.01ms]
+(pass) spawnMeta > omits optional provenance
+(pass) extension > records one entry at session start with ambient parent drive-probe-parent [0.39ms]
+(pass) extension > records one entry at session start with ambient parent %s [0.03ms]
+(pass) extension > persists parent provenance drive-probe-parent [1.38ms]
+(pass) extension > persists parent provenance %s [0.51ms]
+(pass) extension > records launch mode without spawn metadata, only once across resumes [0.06ms]
+(pass) invokedBy > records the calling session for headless children, not for wm workers [0.02ms]
+
+lib/session-meta/identity.test.ts:
+(pass) session identity is distinct from its delivery address [0.09ms]
+
+lib/session-meta/live.test.ts:
+(pass) turn state preserves the board subscription and its store [1.46ms]
+(pass) a retirement mark is consumed once and bound to its session [0.93ms]
+
+lib/session/tmux.test.ts:
+(pass) TmuxTerminalManager > ignores user config that creates extra sessions [125.10ms]
+(pass) TmuxTerminalManager > captures output and exit status from a completed command [112.42ms]
+(pass) TmuxTerminalManager > keeps shell state across send calls [257.06ms]
+87 | 			}, 150);
+88 | 		});
+89 | 		const changed = await instance.view({ id: "waiting", cursor: initial.cursor, waitMs: 2_000 });
+90 | 		await send;
+91 | 
+92 | 		expect(changed.timedOut).not.toBe(true);
+                                    ^
+error: expect(received).not.toBe(expected)
+
+Expected: not true
+
+      at <anonymous> (/Users/mlegls/dev/mlegls-pi__worktrees/terminal-tests-leak-tmux-sockets-drive/lib/session/tmux.test.ts:92:32)
+(fail) TmuxTerminalManager > waits for output to change from a previous cursor [3116.06ms]
+(pass) TmuxTerminalManager > wait any returns the first terminal to exit [2686.75ms]
+(pass) TmuxTerminalManager > wait any detects output changes from provided cursors [2143.64ms]
+(pass) TmuxTerminalManager > wait all returns once every terminal has exited [668.43ms]
+(pass) TmuxTerminalManager > wait times out when nothing changes [533.31ms]
+(pass) TmuxTerminalManager > sends control keys and ends sessions [213.24ms]
+
+lib/session/alerts.test.ts:
+(pass) SessionAlertMonitor > alerts once when output contains the configured literal [518.37ms]
+(pass) SessionAlertMonitor > restores an exit alert after the process has already exited [197.43ms]
+(pass) SessionAlertMonitor > does not alert when the terminal is explicitly ended [319.19ms]
+(pass) SessionAlertMonitor > returns immediately and wakes the agent after exit [485.06ms]
+
+1 tests failed:
+(fail) TmuxTerminalManager > waits for output to change from a previous cursor [3116.06ms]
+
+ 24 pass
+ 1 fail
+ 85 expect() calls
+Ran 25 tests across 5 files. [12.01s]

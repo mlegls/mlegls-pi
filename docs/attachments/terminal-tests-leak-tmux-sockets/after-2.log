@@ -1,0 +1,10 @@
+After unchanged second suite:
+/tmp/pi-socket-drive.kDkpvW/tmux-501/drive-unrelated-stale
+/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-live
+
+Live sentinel:
+pid=56675 socket=/private/tmp/pi-socket-drive.kDkpvW/tmux-501/pi-terminal-test-drive-live
+display-message exit=0
+
+Remaining test-prefix tmux server processes:
+56675       04:12 tmux -f /dev/null -L pi-terminal-test-drive-live new-session -d -s drive sleep 600

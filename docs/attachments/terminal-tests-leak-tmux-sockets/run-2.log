@@ -1,0 +1,41 @@
+bun test v1.4.2 (744846f84)
+
+lib/session-meta/index.test.ts:
+(pass) spawnMeta > reads wm's env [0.07ms]
+(pass) spawnMeta > undefined without run and handle [0.02ms]
+(pass) spawnMeta > omits optional provenance
+(pass) extension > records one entry at session start with ambient parent drive-probe-parent [0.45ms]
+(pass) extension > records one entry at session start with ambient parent %s [0.04ms]
+(pass) extension > persists parent provenance drive-probe-parent [2.08ms]
+(pass) extension > persists parent provenance %s [0.85ms]
+(pass) extension > records launch mode without spawn metadata, only once across resumes [0.10ms]
+(pass) invokedBy > records the calling session for headless children, not for wm workers [0.02ms]
+
+lib/session-meta/identity.test.ts:
+(pass) session identity is distinct from its delivery address [0.10ms]
+
+lib/session-meta/live.test.ts:
+(pass) turn state preserves the board subscription and its store [2.37ms]
+(pass) a retirement mark is consumed once and bound to its session [1.59ms]
+
+lib/session/tmux.test.ts:
+(pass) TmuxTerminalManager > ignores user config that creates extra sessions [163.36ms]
+(pass) TmuxTerminalManager > captures output and exit status from a completed command [212.84ms]
+(pass) TmuxTerminalManager > keeps shell state across send calls [283.30ms]
+(pass) TmuxTerminalManager > waits for output to change from a previous cursor [336.42ms]
+(pass) TmuxTerminalManager > wait any returns the first terminal to exit [405.39ms]
+(pass) TmuxTerminalManager > wait any detects output changes from provided cursors [409.72ms]
+(pass) TmuxTerminalManager > wait all returns once every terminal has exited [625.30ms]
+(pass) TmuxTerminalManager > wait times out when nothing changes [436.29ms]
+(pass) TmuxTerminalManager > sends control keys and ends sessions [207.42ms]
+
+lib/session/alerts.test.ts:
+(pass) SessionAlertMonitor > alerts once when output contains the configured literal [454.69ms]
+(pass) SessionAlertMonitor > restores an exit alert after the process has already exited [165.87ms]
+(pass) SessionAlertMonitor > does not alert when the terminal is explicitly ended [213.60ms]
+(pass) SessionAlertMonitor > returns immediately and wakes the agent after exit [405.54ms]
+
+ 25 pass
+ 0 fail
+ 87 expect() calls
+Ran 25 tests across 5 files. [4.84s]

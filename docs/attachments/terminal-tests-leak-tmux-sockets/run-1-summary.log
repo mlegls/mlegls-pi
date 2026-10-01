@@ -1,0 +1,5 @@
+tests: "1 failed, 24 passed (12.0s) across 5 files"
+failures[1]{at,test,message}:
+  "tmux.test.ts:92:32",TmuxTerminalManager > waits for output to change from a previous cursor,"expect(received).not.toBe(expected) Expected: not true"
+log: /var/folders/jx/w79f2km515l0h8lvdh8n8j_w0000gn/T/bun-axi/terminal-tests-leak-tmux-sockets-drive-51a9dd7b/test.log
+help[1]: "Run `bun-axi test lib/session/tmux.test.ts -t \"waits for output to change from a previous cursor\"` to rerun the first failure"
