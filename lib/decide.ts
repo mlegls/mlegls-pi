@@ -8,7 +8,7 @@
 //   route.choice, route.p, route.dist
 //
 // `noul` is a bool question whose dist is { true, false }. p is the chosen option's probability.
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { ClassifierModel, ClassifierQuestion, ClassifierApi } from "@earendil-works/pi-ai";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
@@ -29,7 +29,8 @@ const PREFERRED = [{ provider: "typesafe", id: "jev-latest" }, { provider: "open
 let runtime: Promise<ModelRuntime> | undefined;
 
 async function classifier(options: Options): Promise<{ rt: ModelRuntime; model: ClassifierModel<ClassifierApi> }> {
-	const rt = await (runtime ??= ModelRuntime.create());
+	// Loaded lazily: the SDK costs seconds to import, and the tracker CLI only needs it when it judges.
+	const rt = await (runtime ??= import("@earendil-works/pi-coding-agent").then(m => m.ModelRuntime.create()));
 	const available = await rt.getAvailableOfType("classifier");
 	for (const want of options.model ? [options.model] : PREFERRED) {
 		const model = available.find(m => m.provider === want.provider && m.id === want.id);
