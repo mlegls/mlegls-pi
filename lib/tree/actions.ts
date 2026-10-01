@@ -32,7 +32,7 @@ export async function create(action: "new" | "worktree" | "fork", selected?: Thr
 
 export async function retire(action: "merge" | "archive" | "abandon" | "children", selected: ThreadRecord, rows: ThreadRow[]): Promise<string[]> {
 	const ids = action === "children"
-		? rows.filter(r => r.thread.parent === selected.id).map(r => r.thread.id) : [selected.id];
+		? rows.filter(r => r.treeParent === selected.id).map(r => r.thread.id) : [selected.id];
 	const closed: string[] = [];
 	for (const id of ids) {
 		const result = action === "abandon" || action === "children" ? await abandonThread(id) : await archiveThread(id);

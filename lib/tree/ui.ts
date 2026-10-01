@@ -75,7 +75,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 			if (kind === "worktree") ask("Worktree branch: ", name => { if (name.trim()) create(name.trim()); });
 			else create();
 		} else if (row) {
-			const verb = kind === "children" ? "abandon every spawned descendant of" : kind;
+			const verb = kind === "children" ? "abandon all children in the " + mode + " tree of" : kind;
 			ask(`${verb} ${label(row)}? [y/N] `, answer => {
 				if (answer !== "y") { message = "cancelled"; return; }
 				perform(async () => {
@@ -125,7 +125,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				if (children) hits.push({ y, x0: 1 + indent.length, x1: 2 + indent.length, id, action: "fold" });
 				if (id !== hovered || input || busy) continue;
 				const actions: act.Action[] = ["new", "worktree", "fork", "merge", "archive", "abandon"];
-				if (rows.some(r => r.thread.parent === id)) actions.push("children");
+				if (children) actions.push("children");
 				let line = "", x = 0;
 				for (const a of actions) {
 					const button = "[" + names[a] + "]";
@@ -240,7 +240,7 @@ click   attach; fold arrow folds
 wheel   scroll without selecting
 hover   new / worktree / fork /
         merge / archive / abandon
-X       abandon spawned descendants
+X       abandon children in this tree
 n/N     new here / new worktree
 f       fork here
 m/a/x   merge / archive / abandon
