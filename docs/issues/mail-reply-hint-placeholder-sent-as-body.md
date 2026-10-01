@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 author: session:01a0f324-32e8-732c-96ad-132d2d15485e
@@ -12,3 +12,7 @@ Fix: `ab mail` refuses a body that is exactly the placeholder. Better still, the
 ## Result
 
 First-use CLI and live Pi RPC drive: exact `TEXT` refusal, address-only reply hints and real-message compatibility held. [Evidence packet](../attachments/mail-reply-hint-placeholder-sent-as-body/index.md). No rendered UI journey; no product repairs by the driver.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/mail-reply-hint-placeholder-sent-as-body/index.md).
