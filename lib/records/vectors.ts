@@ -46,10 +46,13 @@ async function embed(texts: string[]): Promise<Float32Array[]> {
 	const key = apiKey();
 	if (!key) throw new Error("no OpenRouter key (OPENROUTER_API_KEY or ~/.pi/agent/auth.json); similarity recall needs it");
 	for (let attempt = 0; ; attempt++) {
+		// A stalled provider shouldn't hang recall: time out and retry (OpenRouter routes the retry elsewhere).
 		const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+			signal: AbortSignal.timeout(texts.length > 1 ? 60_000 : 8_000),
 			method: "POST", headers: { authorization: "Bearer " + key, "content-type": "application/json" },
 			body: JSON.stringify({ model: MODEL, dimensions: DIMS, input: texts }),
-		});
+		}).catch((err) => { if (attempt < 2 && err?.name === "TimeoutError") return undefined; throw err; });
+		if (!res) continue;
 		if (res.ok) return ((await res.json()) as any).data.map((x: any) => Float32Array.from(x.embedding));
 		if (attempt < 4 && (res.status === 429 || res.status >= 500)) { await Bun.sleep(1000 * 2 ** attempt); continue; }
 		throw new Error("embeddings " + res.status + ": " + (await res.text()).slice(0, 300));
