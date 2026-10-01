@@ -50,6 +50,17 @@ test("rebases the worker branch onto the parent and fast-forwards", async () => 
   expect(r.git(r.main, "log", "--format=%s")).toBe("a\nb\nroot");
 });
 
+// Ticket contract: integration destination is the branch's recorded ab-parent, never the caller's HEAD.
+test("integrates into the recorded ab-parent even when called from another checkout", async () => {
+  const r = await repo();
+  const other = join(r.main, "..", "other");
+  r.git(r.main, "worktree", "add", "-q", "-b", "other", other);
+  r.commit(r.work, "a", "worker");
+  await integrate(r.worker, { cwd: other, keep: true });
+  expect(r.git(r.main, "log", "--format=%s")).toBe("a\nroot");
+  expect(r.git(other, "log", "--format=%s")).toBe("root");
+});
+
 test("refuses uncommitted work and reports conflicts after aborting", async () => {
   const r = await repo();
   writeFileSync(join(r.work, "dirty"), "");

@@ -1,9 +1,23 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { SessionManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { install as sessionMeta, spawnMeta } from "./host";
+import { saveThread } from "../thread";
+import { readLive } from "./live";
+
+// Registry and live state are isolated: membership must not depend on the developer's own threads.
+let state: string, oldState: string | undefined, oldThread: string | undefined;
+beforeEach(() => {
+	oldState = process.env.XDG_STATE_HOME; oldThread = process.env.AB_THREAD_ID;
+	state = mkdtempSync(join(tmpdir(), "session-meta-state-"));
+	process.env.XDG_STATE_HOME = state; delete process.env.AB_THREAD_ID;
+});
+afterEach(() => {
+	for (const [k, v] of Object.entries({ XDG_STATE_HOME: oldState, AB_THREAD_ID: oldThread })) v === undefined ? delete process.env[k] : (process.env[k] = v);
+	rmSync(state, { recursive: true, force: true });
+});
 
 type Handler = (event: unknown, ctx: ExtensionContext) => void | Promise<void>;
 type Entry = { type: "custom"; customType: string; data: unknown };
@@ -13,7 +27,7 @@ afterEach(() => { for (const stop of active) stop(); active.clear(); });
 function host(manager?: SessionManager) {
 	const entries: Entry[] = [];
 	const handlers = new Map<string, Handler>();
-	const ctx = { mode: "tui", sessionManager: { getBranch: () => manager?.getBranch() ?? entries, getSessionId: () => manager?.getSessionId() ?? "unregistered", getSessionFile: () => manager?.getSessionFile() } } as unknown as ExtensionContext;
+	const ctx = { mode: "tui", sessionManager: { getBranch: () => manager?.getBranch() ?? entries, getSessionId: () => manager?.getSessionId() ?? "unregistered", getSessionFile: () => manager?.getSessionFile(), getCwd: () => manager?.getCwd() ?? process.cwd() } } as unknown as ExtensionContext;
 	const api = {
 		on: (name: string, handler: Handler) => handlers.set(name, handler),
 		appendEntry: (customType: string, data: unknown) => {
@@ -95,6 +109,26 @@ describe("extension", () => {
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
+	});
+
+	// wm-workers-over-threads: a canonical thread member records and publishes its thread id, even resumed by hand
+	// with no worker env; a free pi in the same cwd does neither.
+	test.each([["canonical pi records", true], ["free pi omits", false]] as const)("%s thread identity", async (_name, member) => {
+		const dir = mkdtempSync(join(tmpdir(), "session-meta-test-"));
+		try {
+			await withEnv({ PI_WM_RUN: undefined, PI_WM_HANDLE: undefined, PI_SESSION_ID: undefined }, async () => {
+				const manager = SessionManager.create(dir, dir);
+				const id = "11111111-1111-4111-8111-111111111111";
+				if (member) await saveThread({ id, sessionId: manager.getSessionId(), sessionFile: manager.getSessionFile()!, cwd: dir, project: dir, worktree: dir,
+					ownership: "guest", worker: undefined, archived: false, created: new Date().toISOString() } as never);
+				const h = host(manager);
+				sessionMeta(h.api);
+				await h.start();
+				const live = readLive().find(l => l.sessionId === manager.getSessionId());
+				expect(live?.thread).toBe(member ? id : undefined);
+				expect((h.entries[0]?.data as { thread?: string }).thread).toBe(member ? id : undefined);
+			});
+		} finally { rmSync(dir, { recursive: true, force: true }); }
 	});
 
 	test("records launch mode without spawn metadata, only once across resumes", async () => {

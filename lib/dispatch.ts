@@ -188,7 +188,7 @@ export async function integrate(given: Handle | string,
 }
 
 /** Retire through lifecycle, then delete only patches already in the recorded ab-parent. */
-export async function retire(given: Handle | string, options: { cwd?: string; branch?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
+export async function retire(given: Handle | string, options: { cwd?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const { worker, thread } = await recordOf(given, cwd);
   const git = (...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
