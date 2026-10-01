@@ -8,7 +8,8 @@ import { dirname, relative, resolve } from "node:path";
 export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
 /** The project's integration gate: --test when given, else a `pre-integrate` mise task the project declares
- * (a lifecycle point, like its worktree post_create hook). Reviewer-listed tests run beside it, never instead. */
+ * (a lifecycle point, like its worktree post_create hook). Reviewer-listed tests run beside it, never instead.
+ * The gate is the one place a ticket runs the full suite: workers run the project's `test:affected` task against their base. */
 export const declaredGate = (cwd: string): string | undefined => {
  try { return (JSON.parse(execFileSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })) as { name: string }[]).some(t => t.name === "pre-integrate") ? "mise run pre-integrate" : undefined; }
  catch { return undefined; }
