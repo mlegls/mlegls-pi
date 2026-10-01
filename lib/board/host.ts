@@ -184,7 +184,11 @@ export function install(pi: ExtensionAPI) {
 		cursor = restoredCursor ?? logSize();
 		// A spawned worker (PI_BOARD_TOPIC set by its parent) starts subscribed with wake to its own
 		// topic, so the parent's follow-ups and needs-input answers reach it without it asking.
-		subs = restoredSubs ?? (process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []);
+		subs = restoredSubs ?? [
+			...(process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []),
+			// Siblings' decisions (PI_BOARD_FOLLOW, set by the reconciler) arrive on the next turn without waking it.
+			...(process.env.PI_BOARD_FOLLOW ? [{ topic: process.env.PI_BOARD_FOLLOW, tags: "decision", wake: false }] : []),
+		];
 		// Every session has a mailbox (mail/xxxxxxxx): supervision loops, ab tree, `ab mail`, and
 		// other sessions reach it there. Shown in pi's footer and, under tmux, the status bar.
 		const box = mailbox(sessionId);

@@ -41,6 +41,7 @@ export interface SpawnOptions {
 	session?: string; // tmux session; default slug of run
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
 	parentSessionFile?: string; // session jsonl; --fork needs the path because the child's cwd is a different project
+	follow?: string; // board topic glob whose decisions the worker sees without waking (siblings' coordination)
 	from?: "fork" | "summary"; // fork: pi --fork <parent>; summary: prepend an extract of the parent session to the prompt
 }
 
@@ -117,7 +118,7 @@ export function prompt(o: { run: string; handle: string; prompt: string; agent?:
 }
 
 /** Env exported into the worker's agent command: board identity, spawn provenance, and the fence's checkpoint ratio. */
-export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string }): string[] {
+export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string; follow?: string }): string[] {
 	return [
 		`PI_BOARD_NAME=${o.handle}`,
 		`PI_BOARD_TOPIC=${o.run}/${o.handle}`,
@@ -126,6 +127,8 @@ export function spawnEnv(o: { run: string; handle: string; agent?: string; paren
 		`PI_WM_HANDLE=${o.handle}`,
 		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
 		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
+		// Quoted: the env prefix runs through the worker's shell, where a bare glob like run/** aborts the command.
+		o.follow && `PI_BOARD_FOLLOW='${o.follow}'`,
 		// The tmux window doesn't inherit this process's env: carry a non-default agent dir to the worker.
 		process.env.PI_CODING_AGENT_DIR && `PI_CODING_AGENT_DIR=${process.env.PI_CODING_AGENT_DIR}`,
 	].filter((v): v is string => Boolean(v));
@@ -525,7 +528,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			cmd = withFork(cmd, source);
 		}
 		// Board identity, spawn provenance (session-meta), and the fence ratio ride the agent command's env.
-		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint });
+		const env = spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint, follow: o.follow });
 		args.push("-a", `${env.join(" ")} ${cmd}`);
 		if (o.base) args.push("--base", o.base);
 		const out = await sh("workmux", args, cwd);

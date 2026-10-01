@@ -34,6 +34,10 @@ export interface Options {
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
   active: Handle[];
+  /** tmux session for the workers' windows; default the run's slug. */
+  session?: string;
+  /** Board topic glob whose `decision` messages each worker sees on its next turn, without waking. */
+  follow?: string;
 }
 
 /** A tracker issue's `assignee` must admit the launch: `agent` admits any agent, `agent:<stance>` that
@@ -132,7 +136,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       const wm = await import("./wm.ts");
       const cursor = (await (await import("./children.ts")).last(options.run + "/" + task.handle))?.cursor;
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, model: task.model, effort: task.effort, cwd, parentSession: parent });
+        agent: task.agent, role: task.role, base: task.base, model: task.model, effort: task.effort, cwd, parentSession: parent, session: options.session, follow: options.follow });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, ...(cursor && { cursor }) });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {

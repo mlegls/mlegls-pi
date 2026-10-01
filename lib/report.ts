@@ -1,6 +1,6 @@
 import { parseDocument } from "yaml";
 
-export const HANDOFF_KEYS = ["commit", "setup", "stories", "evidence", "caveats", "question"] as const;
+export const HANDOFF_KEYS = ["commit", "setup", "stories", "evidence", "caveats", "question", "resolution"] as const;
 
 type Status = "done" | "blocked" | "needs-input" | "checkpoint";
 export interface Report {

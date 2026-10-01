@@ -22,6 +22,7 @@ export interface Agent {
 	checkpoint?: string; // context ratio at which the fence extension fires; see extensions/context
 	/** Pipeline roles this agent can fill (`role: implement` or `role: drive, review`); see agents/roles/. */
 	roles: string[];
+	description?: string;
 	body: string;
 }
 
@@ -38,7 +39,7 @@ export function agent(name: string): Agent | undefined {
 	}
 	const first = fm.model ? executions(fm.model)[0] : undefined;
 	if (fm.model && !first) throw new Error(`Agent ${name}: model list names no provider/model:effort`);
-	return { name, routing: fm.model, model: first?.model, effort: first?.effort, checkpoint: fm.checkpoint, roles: fm.role ? fm.role.split(",").map(r => r.trim()).filter(Boolean) : [], body: (m ? text.slice(m[0].length) : text).trim() };
+	return { name, routing: fm.model, model: first?.model, effort: first?.effort, checkpoint: fm.checkpoint, roles: fm.role ? fm.role.split(",").map(r => r.trim()).filter(Boolean) : [], description: fm.description, body: (m ? text.slice(m[0].length) : text).trim() };
 }
 
 /** Agents that can fill a role: the candidate set a role's router chooses among. */

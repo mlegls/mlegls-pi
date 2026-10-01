@@ -8,6 +8,8 @@ import { Type } from "typebox";
 import { dispatch, integrate, retire, type Assignment, type Handle } from "../../lib/dispatch";
 import { childSession } from "../../lib/session/jump";
 import { dataTool } from "../../lib/tool";
+import { mailbox } from "../../lib/board/mailbox";
+import { campaigns, resolveException, start, summary } from "../../lib/reconcile/main";
 
 const namespace = { name: "supervision", description: "Dispatch wm workers (workmux worktree + tmux window running pi), integrate their branches, retire them" };
 
@@ -60,6 +62,36 @@ export default function (pi: ExtensionAPI) {
 		run: (p, ctx) => retire(p.worker as Handle | string, { cwd: ctx.cwd }),
 	});
 
+	const reconcileNs = { name: "reconcile", description: "Execute a ready issue subtree autonomously: a reconciler process runs specs to tickets and tickets through implement → drive → review → integrate, handles mechanical failures itself, and mails this session only for exceptions no handler could resolve, and when it finishes" };
+	dataTool(pi, {
+		name: "reconcile", namespace: reconcileNs,
+		description: "Start (or confirm running) the reconciler for a ready spec or ticket and its subtree. Its work lands in this checkout. You (this session's mailbox) are its owner: you get root-level exceptions and the final report. `budget` caps its live workers (default 6).",
+		parameters: Type.Object({ issue: Type.String(), budget: Type.Optional(Type.Number()) }),
+		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: mailbox(ctx.sessionManager.getSessionId()), budget: p.budget ?? 6 }),
+	});
+	dataTool(pi, {
+		name: "reconcile_status", namespace: reconcileNs, readOnly: true,
+		description: "Reconcilers in this repository: running or finished, each node's phase and worker, pending exceptions, moved-out nodes, recent log.",
+		parameters: Type.Object({ issue: Type.Optional(Type.String()) }),
+		run: (p, ctx) => campaigns(ctx.cwd).filter(s => !p.issue || s.root === p.issue).map(summary),
+	});
+	dataTool(pi, {
+		name: "reconcile_resolve", namespace: reconcileNs,
+		description: "Resolve an exception the reconciler escalated to you. answer: `message` goes to the waiting worker. retry: relaunch the failed phase with `note`. redispatch: restart the node's implementation with `note`. move-out: after you moved it out in the tracker (lifecycle), with `summary`. escalate is not available at the root: decide, or ask the user.",
+		parameters: Type.Object({
+			issue: Type.String({ description: "The reconciler's root issue" }), node: Type.String(),
+			action: Type.Union([Type.Literal("answer"), Type.Literal("retry"), Type.Literal("redispatch"), Type.Literal("move-out")]),
+			target: Type.Optional(Type.String()), message: Type.Optional(Type.String()), note: Type.Optional(Type.String()), summary: Type.Optional(Type.String()),
+		}),
+		run: (p, ctx) => { const { issue, node, ...resolution } = p; resolveException(ctx.cwd, issue, node, resolution); return { queued: true }; },
+	});
+	// Reconcilers this session owns come back with it: a stopped process resumes from its state.
+	pi.on("session_start", (_event, ctx) => {
+		try {
+			const me = mailbox(ctx.sessionManager.getSessionId());
+			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.running) start({ cwd: s.cwd, root: s.root, owner: me, budget: s.budget });
+		} catch {}
+	});
 	pi.registerCommand("jump", {
 		description: "Switch this session to a worker's session file: /jump <handle>",
 		handler: async (args, ctx) => {
