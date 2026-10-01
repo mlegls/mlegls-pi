@@ -12,3 +12,5 @@ Investigate whether the DevTools accessibility snapshot drops portal options des
 2026-09-28, peek-links first use: the model-search snapshot again showed an empty listbox while the DOM held a `scripted/tutor` option ([[projects/concept/attachments/peek-links-from-the-transcript-without-leaving-the-session/index|packet]], friction 2).
 
 triage, 2026-09-30: not filed upstream: the owner (app markup vs. the accessibility snapshot) is unestablished. File at https://github.com/kunchenguid/chrome-devtools-axi/issues once a minimal repro isolates it.
+
+The naming-ticket drive again saw no options in the compact CLI snapshot while a direct Playwright semantic query returned `openai/gpt-5-mini` and `openai/gpt-5-mini:batch` in the filtered OpenRouter picker; clicking the exact semantic first option worked. [[projects/concept/attachments/name-things-by-their-names-not-ids/index|Packet]]. No app-source or minimal-owner isolation was attempted.
