@@ -76,6 +76,12 @@ describe("system prompt extension", () => {
 		expect(withCodemode).toContain(skill.filePath);
 	});
 
+	test("prefers the anchored file tools over bash whenever they're reachable", () => {
+		const rule = "rather than cat, sed, rg";
+		expect(buildPrompt({ cwd: "/work", selectedTools: ["codemode"] } as BuildSystemPromptOptions)).toContain(rule);
+		expect(buildPrompt({ cwd: "/work", selectedTools: ["bash"] } as BuildSystemPromptOptions)).not.toContain(rule);
+	});
+
 	test("retains pi identity but omits documentation guidance from the default prompt", () => {
 		const originalPrompt = [
 			"- Main documentation: /pi/README.md",

@@ -10,9 +10,16 @@ function escapeXml(value: string): string {
 	})[character]!);
 }
 
+function readsFiles(options: BuildSystemPromptOptions): boolean {
+	return !options.selectedTools || options.selectedTools.some((name) => name === "read" || name === "codemode");
+}
+
+// Pi derives a rule like this from the read tool's own guidelines, but this prompt replaces Pi's,
+// and under codemode the nested read/grep/edit aren't selected tools anyway.
+const FILE_TOOLS = "Use read, grep and edit for files rather than cat, sed, rg or redirects in bash: their output carries the anchors edit takes, so grep → edit needs no second look, and large files come back as outlines. bash is for running things.";
+
 function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
-	const hasRead = !options.selectedTools || options.selectedTools.some((name) => name === "read" || name === "codemode");
-	if (!hasRead) return undefined;
+	if (!readsFiles(options)) return undefined;
 	const skills = options.skills?.filter((skill) => !skill.disableModelInvocation);
 	if (!skills?.length) return undefined;
 	const entries = skills.map((skill) => [
@@ -31,6 +38,8 @@ function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: strin
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
 		"Be concise and show file paths clearly when working with files.",
 	].join("\n\n"));
+
+	if (readsFiles(options)) parts.push(FILE_TOOLS);
 
 	if (options.appendSystemPrompt?.trim()) parts.push(options.appendSystemPrompt.trim());
 
