@@ -1,3 +1,13 @@
+# Independent drive
+
+Tested `692b5df86302ea1547f6f4c1621cda0eb7044479` through this worktree's freshly allocated disposable fixture. [Predictions, encounter, expectations, frictions and replayable checks](driver-log.md); [selected joins](driver-observations.json); [literal-send sequence](driver-literal.txt).
+
+Owning/guest/no-setup, fork identity/reporting, both trees and labels, same-id restart with one bootstrap, live external promotion handover, literal send with explicit CR, current-session switching and headless CLI attach/detach held. Repeated aux ensure was not exposed by the fixture guide and remains for the ticket reviewer (check C6). Fork subscriptions retained parent thread/mail topics despite correct reporting; [captured separately](../../issues/forked-thread-retains-parent-board-subscriptions.md). [Fixture help/PTY friction](../../issues/thread-fixture-help-and-headless-pty-entry.md).
+
+Regression rerun: 167 passed, 2 skipped. Typecheck passed after the existing frozen Obsidian plugin install workaround. Fixture cleanup returned no terminals or active threads; its root and all owned PTY processes were removed. Nonvisual library/CLI evidence; no browser or native UI encounter.
+
+---
+
 # Thread registry / zmx launch first use
 
 Registry and launch loop implemented. This is implementer first use through the library and zmx, not independent acceptance or a sidebar encounter. Starting ref: `b7eeaced`; tested source: `da956d5`. Installed pi 0.99.1, Bun 1.4.2, zmx 0.8.1.
