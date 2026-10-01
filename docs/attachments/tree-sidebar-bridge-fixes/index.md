@@ -45,7 +45,7 @@ The fixture intentionally suppresses the legacy resize/focus-main AppleScript he
 
 **Configuration:** `~/.config/system-config/.config/ghostty/config` has `focus-follows-mouse=true`, committed there as `17a318c` and deployed only to the Ghostty config directory with the repository's rsync copy strategy. `ghostty +show-config` reads back `focus-follows-mouse = true`. Ghostty documents that this only focuses splits within the already focused window, not background windows. The user's running instance was not reloaded.
 
-**Checks:** [root typecheck](typecheck.txt) exits 0 after preparing the plugin's existing locked dependencies. [Regressions](regressions.txt): 9/9 tree tests pass with a longer timeout; the full run has 166 passing, 2 skipped and one timeout, which passed alone with unchanged assertions. [Host-load owner](../../issues/host-load-times-out-existing-regressions.md), [setup owner](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md). No permanent acceptance tests were added; no other project lint is defined.
+**Checks:** [root typecheck](typecheck.txt) exits 0 after preparing the plugin's existing locked dependencies. [Regressions](regressions.txt): 9/9 tree tests pass with a longer timeout; the full run has 166 passing, 2 skipped and one timeout, which passed alone with unchanged assertions. [Host-load owner](../../issues/host-load-times-out-existing-regressions.md), [setup owner](../../issues/root-setup-still-omits-obsidian-typecheck-dependencies.md). [Tracker check](tracker-check.txt) reports 20 unchanged historical-link failures ([owner](../../issues/tracker-check-links-to-deleted-history.md)). No permanent acceptance tests were added; no other project lint is defined.
 
 ## Danger
 
