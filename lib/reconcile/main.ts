@@ -11,13 +11,13 @@ import { load, resolutionsDir, run, stateDir, type State } from "./reconcile.ts"
 
 const alive = (pid?: number) => { if (!pid) return false; try { process.kill(pid, 0); return true; } catch { return false; } };
 
-export function start(o: { cwd: string; root: string; owner: string; budget: number }): { pid: number; log: string } {
+export function start(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number }): { pid: number; log: string } {
 	const prior = load(o.cwd, o.root);
 	if (prior && !prior.finished && alive(prior.pid)) return { pid: prior.pid!, log: join(stateDir(o.cwd), o.root + ".log") };
 	mkdirSync(stateDir(o.cwd), { recursive: true });
 	const log = join(stateDir(o.cwd), o.root + ".log");
 	const fd = openSync(log, "a");
-	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", o.cwd],
+	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", o.cwd, ...(o.ownerSession ? ["--owner-session", o.ownerSession] : [])],
 		{ cwd: o.cwd, stdio: ["ignore", fd, fd], env: { ...process.env, PI_SESSION_ID: "" } });
 	child.unref();
 	closeSync(fd);
@@ -46,10 +46,10 @@ export function resolveException(cwd: string, root: string, node: string, resolu
 
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
-		owner: { type: "string" }, budget: { type: "string", default: "6" }, cwd: { type: "string", default: process.cwd() } } });
+		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, cwd: { type: "string", default: process.cwd() } } });
 	const [cmd, root, ...rest] = positionals;
 	const cwd = resolve(values.cwd!);
-	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, budget: Number(values.budget) }); }
+	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget) }); }
 	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, budget: Number(values.budget) })));
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
 	else if (cmd === "resolve" && root && rest.length === 2) resolveException(cwd, root, rest[0], JSON.parse(rest[1]));

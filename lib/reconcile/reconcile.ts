@@ -61,7 +61,7 @@ interface Exception {
 	mailed?: boolean;
 }
 export interface State {
-	root: string; cwd: string; owner: string; budget: number; pid?: number;
+	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
 	collectors: Record<string, { path: string; branch: string }>;
 	chains: Record<string, Chain>;
 	exceptions: Record<string, Exception>;
@@ -86,12 +86,23 @@ export function load(cwd: string, root: string): State | undefined {
 const finished = (i: Issue) => i.done || !!i.archived;
 const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + "\n```";
 
-export async function run(o: { cwd: string; root: string; owner: string; budget: number; signal?: AbortSignal }) {
+export async function run(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number; signal?: AbortSignal }) {
 	const cwd = repoRoot(o.cwd);
 	mkdirSync(stateDir(cwd), { recursive: true });
 	mkdirSync(resolutionsDir(cwd, o.root), { recursive: true });
+	// One reconciler per subtree: a second would launch and judge the same workers against the first.
+	const lock = join(stateDir(cwd), o.root + ".lock");
+	try { mkdirSync(lock); }
+	catch {
+		let pid = 0; try { pid = Number(readFileSync(join(lock, "pid"), "utf8")); } catch {}
+		let alive = false; try { if (pid) { process.kill(pid, 0); alive = true; } } catch {}
+		if (alive && pid !== process.pid) throw new Error("reconciler for " + o.root + " already running as pid " + pid);
+	}
+	writeFileSync(join(lock, "pid"), String(process.pid));
+	process.on("exit", () => { try { if (readFileSync(join(lock, "pid"), "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true }); } catch {} });
+	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
 	const s: State = load(cwd, o.root) ?? { root: o.root, cwd, owner: o.owner, budget: o.budget, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
-	Object.assign(s, { owner: o.owner, budget: o.budget, pid: process.pid, finished: undefined });
+	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
 	const save = () => { const f = stateFile(cwd, o.root); writeFileSync(f + ".tmp", JSON.stringify(s, null, 1)); renameSync(f + ".tmp", f); };
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	const tellOwner = (body: string) => { try { mail(s.owner, "[reconcile " + s.root + "] " + body, { name: "reconcile/" + s.root }); } catch (e) { note("mail owner failed: " + e); } };
@@ -162,7 +173,7 @@ export async function run(o: { cwd: string; root: string; owner: string; budget:
 	async function launch(handle: string, role: string, prompt: string, base: string, issue?: Issue): Promise<Handle> {
 		const agentName = await pick(role, issue, prompt);
 		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...(role === "implement" && issue ? { issue: issue.slug, assignee: issue.assignee ?? undefined } : {}) }],
-			{ run: s.root, cwd, maxConcurrent: 1, active: [], session: s.root, follow: s.root, parent: process.env.PI_SESSION_ID ?? s.owner });
+			{ run: s.root, cwd, maxConcurrent: 1, active: [], session: s.root, follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
@@ -199,7 +210,7 @@ export async function run(o: { cwd: string; root: string; owner: string; budget:
 		const parent = issues.get(slug)?.partOf;
 		const level = slug === s.root || !parent ? "owner" : parent;
 		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: text.slice(-6000), at: new Date().toISOString(), level };
-		note("exception " + slug + ": " + reason + " → " + level);
+		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
 	}
 	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate"; target?: string; message?: string; note?: string; summary?: string };

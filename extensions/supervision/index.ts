@@ -67,7 +67,7 @@ export default function (pi: ExtensionAPI) {
 		name: "reconcile", namespace: reconcileNs,
 		description: "Start (or confirm running) the reconciler for a ready spec or ticket and its subtree. Its work lands in this checkout. You (this session's mailbox) are its owner: you get root-level exceptions and the final report. `budget` caps its live workers (default 6).",
 		parameters: Type.Object({ issue: Type.String(), budget: Type.Optional(Type.Number()) }),
-		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: mailbox(ctx.sessionManager.getSessionId()), budget: p.budget ?? 6 }),
+		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: mailbox(ctx.sessionManager.getSessionId()), ownerSession: ctx.sessionManager.getSessionId(), budget: p.budget ?? 6 }),
 	});
 	dataTool(pi, {
 		name: "reconcile_status", namespace: reconcileNs, readOnly: true,
@@ -89,7 +89,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
 		try {
 			const me = mailbox(ctx.sessionManager.getSessionId());
-			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.running) start({ cwd: s.cwd, root: s.root, owner: me, budget: s.budget });
+			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.running) start({ cwd: s.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget });
 		} catch {}
 	});
 	pi.registerCommand("jump", {
