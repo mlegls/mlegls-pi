@@ -63,7 +63,7 @@ function cacheSeconds(long: boolean): Record<string, number> {
 	return { default: 86400, anthropic, "amazon-bedrock": anthropic, xai: 330, openai, "openai-codex": openai, "azure-openai-responses": openai };
 }
 
-function settings(cwd: string) {
+export function settings(cwd: string) {
 	let s: Record<string, any> = {};
 	for (const path of [join(getAgentDir(), "settings.json"), join(cwd, ".pi", "settings.json")]) {
 		if (!existsSync(path)) continue;

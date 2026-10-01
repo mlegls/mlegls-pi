@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { humanTurns, profileWithGraph, type Profile } from "./profile";
-import { contextFile, judgePurposes, strip, type Context } from "./context";
+import { contextFile, elideSettings, judgePurposes, strip, type Context } from "./context";
 
 interface Lane { id: string; depth: number; label: string; cost: number; segments: Profile["segments"]; ctx?: Context }
 
@@ -21,7 +21,8 @@ export async function timeline(ref?: string, days = 30, options: { judge?: boole
 	};
 	walk(root, 0);
 	// Context composition per lane, for the bento view (click a lane label).
-	for (const l of lanes) { const n = nodes.get(l.id); try { if (n) l.ctx = contextFile(n.file, l.id); } catch {} }
+	const elide = await elideSettings().catch(() => undefined);
+	for (const l of lanes) { const n = nodes.get(l.id); try { if (n) l.ctx = contextFile(n.file, l.id, elide); } catch {} }
 	if (options.judge !== false) await judgePurposes(lanes.flatMap(l => l.ctx ? [l.ctx] : []));
 	for (const l of lanes) if (l.ctx) l.ctx = strip(l.ctx);
 	const from = Math.min(...lanes.flatMap(l => l.segments.map(s => s.s)), root.start);
@@ -55,7 +56,7 @@ button{background:#222;color:#ddd;border:1px solid #444;padding:2px 8px}
 #bmap div.g{border:2px solid #151515;background:none!important;pointer-events:none;color:#fff;font-weight:bold;text-shadow:0 0 3px #000;padding:2px 4px;z-index:1}
 body.open #wrap{padding-bottom:48vh}
 </style>
-<header><b id="ttl"></b><span id="keys"></span><span>zoom <button id="zo">-</button> <button id="zi">+</button> (ctrl-wheel)</span></header>
+<header><b id="ttl"></b><span id="keys"></span><span>zoom <button id="zo">-</button> <button id="zi">+</button> (ctrl-wheel)</span><span style="color:#aaa">click a session for its context</span></header>
 <div id="wrap"><div id="labels"><div style="height:18px;border-bottom:1px solid #333"></div></div><div id="scroll"><div id="axis"></div><div id="rows"></div></div></div>
 <div id="bento"><div class="bar"><b id="bttl"></b><span><button id="bnow">in window</button> <button id="bheld">token &times; calls held</button></span><span id="bcall">call <input type="range" id="bslide" min="0"> <span id="bcn"></span></span><span id="bkeys"></span><button id="bx">close</button></div><div id="bmap"></div></div>
 <div id="tip"></div>
@@ -113,6 +114,7 @@ rows.addEventListener("mousemove", e => {
   tip.style.left = Math.min(e.clientX + 12, innerWidth - 540) + "px"; tip.style.top = (e.clientY + 14) + "px";
 });
 rows.addEventListener("mouseleave", () => tip.style.display = "none");
+rows.addEventListener("click", e => { const l = e.target.dataset.l ?? e.target.closest(".row")?.querySelector("[data-l]")?.dataset.l; if (l !== undefined && D.lanes[+l].ctx) openBento(+l); });
 // ---- bento: one lane's context, cells grouped by purpose (squarified treemap)
 const P = {system:"#9e9e9e",user:"#fff59d",summary:"#bcaaa4",message:"#90a4ae",orient:"#64b5f6",discuss:"#fff176",plan:"#ce93d8",edit:"#81c784",verify:"#4db6ac",debug:"#ff8a65",coordinate:"#7986cb",noise:"#e57373",other:"#616161"};
 const B = {lane:null, mode:"now", call:0};
@@ -137,7 +139,9 @@ function drawBento() {
   const l = D.lanes[B.lane], x = l.ctx, held = B.mode === "held";
   document.getElementById("bnow").className = held ? "" : "on"; document.getElementById("bheld").className = held ? "on" : "";
   document.getElementById("bcall").style.display = held ? "none" : "";
-  const cells = x.cells.map((c,i) => ({c, i, v: held ? c.tok*(c.died-c.born) : (c.born<=B.call && B.call<c.died ? c.tok : 0)})).filter(o => o.v > 0);
+  const EL = 25, at = (c, k) => c.born<=k && k<c.died ? (c.elided!==undefined && k>=c.elided ? EL : c.tok) : 0;
+  const hold = c => c.elided===undefined ? c.tok*(c.died-c.born) : c.tok*(c.elided-c.born) + EL*(c.died-c.elided);
+  const cells = x.cells.map((c,i) => ({c, i, v: held ? hold(c) : at(c, B.call)})).filter(o => o.v > 0);
   const groups = {}; for (const o of cells) (groups[o.c.purpose] ??= []).push(o);
   const gs = Object.entries(groups).map(([p, its]) => ({p, its: its.sort((a,b)=>b.v-a.v), v: its.reduce((s,o)=>s+o.v,0)})).sort((a,b)=>b.v-a.v);
   const total = gs.reduce((s,g)=>s+g.v,0);
@@ -146,7 +150,7 @@ function drawBento() {
   const W = bmap.clientWidth, H = bmap.clientHeight; let h = "";
   for (const g of squarify(gs, 0, 0, W, H)) {
     for (const r of squarify(g.it.its, g.x, g.y, g.w, g.h)) { const c = r.it.c;
-      h += '<div data-c="'+r.it.i+'" style="left:'+r.x+'px;top:'+r.y+'px;width:'+r.w+'px;height:'+r.h+'px;background:'+(P[c.purpose]||"#777")+'">'+(r.w>60&&r.h>14?c.label.replace(/[<&]/g, ch => ch=="<"?"&lt;":"&amp;"):"")+'</div>'; }
+      h += '<div data-c="'+r.it.i+'" style="left:'+r.x+'px;top:'+r.y+'px;width:'+r.w+'px;height:'+r.h+'px;background:'+(P[c.purpose]||"#777")+(c.elided!==undefined?';background-image:repeating-linear-gradient(45deg,#0004 0 3px,transparent 3px 7px)':'')+'">'+(r.w>60&&r.h>14?c.label.replace(/[<&]/g, ch => ch=="<"?"&lt;":"&amp;"):"")+'</div>'; }
     if (g.w > 40 && g.h > 16) h += '<div class="g" style="left:'+g.x+'px;top:'+g.y+'px;width:'+g.w+'px;height:'+g.h+'px">'+g.it.p+'</div>';
   }
   bmap.innerHTML = h;
@@ -167,7 +171,7 @@ addEventListener("resize", () => { if (B.lane !== null && bento.style.display !=
 bmap.addEventListener("mousemove", e => {
   const d = e.target.dataset; if (d.c === undefined) { tip.style.display = "none"; return; }
   const c = D.lanes[B.lane].ctx.cells[+d.c];
-  tip.textContent = c.purpose + (c.p ? " " + c.p.toFixed(2) : "") + " · " + c.k + " · " + tk(c.tok) + " tok × " + (c.died-c.born) + " calls (" + (c.born+1) + "→" + c.died + ") = " + tk(c.tok*(c.died-c.born)) + "\n" + c.label + (c.preview ? "\n\n" + c.preview : "");
+  tip.textContent = c.purpose + (c.p ? " " + c.p.toFixed(2) : "") + " · " + c.k + " · " + tk(c.tok) + " tok, calls " + (c.born+1) + "→" + c.died + (c.elided!==undefined ? ", elided at " + (c.elided+1) + " (cold cache)" : "") + ", held " + tk(c.elided===undefined ? c.tok*(c.died-c.born) : c.tok*(c.elided-c.born) + 25*(c.died-c.elided)) + "\n" + c.label + (c.preview ? "\n\n" + c.preview : "");
   tip.style.display = "block"; tip.style.left = Math.min(e.clientX + 12, innerWidth - 540) + "px"; tip.style.top = Math.max(0, e.clientY - 120) + "px";
 });
 bmap.addEventListener("mouseleave", () => tip.style.display = "none");
