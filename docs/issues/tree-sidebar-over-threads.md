@@ -27,7 +27,7 @@ Replaced the tmux dashboard, inferred worktree ancestry and popup actions with r
 ## Evidence
 
 Before: the sidebar listed tmux/workspace windows and could only offer the legacy merge/new actions. After: private-pty first use covered both trees and all actions; native Ghostty showed thread switches and kept the agents alive after window closure. Eighteen affected regressions and typecheck passed. Independent driving/review remains.
-[Independent driving](../attachments/tree-sidebar-over-threads/independent-drive.md) reached both trees, keyboard switching and detach. Hover/lifecycle actions remain unobservable after scoped native input failures; review must re-drive them before acceptance.
+[Independent driving](../attachments/tree-sidebar-over-threads/independent-drive.md) reached both trees, keyboard switching and detach natively; its review section re-drove hover and every lifecycle action, including conflict routing, on a private pty against real zmx and found/fixed the sidebar ignoring switches during a conflict wait.
 
 The zmx no-leader switch failure found during first use is guarded; its concurrent-disconnect race has an [upstream owner](zmx-switch-without-a-leader-kills-the-source.md). Tool owners: [native Cua input](cua-ghostty-pixel-click-lands-on-another-row.md), [sheet capture](cua-sheet-capture-shows-parent-window.md), [temporary pty teardown](private-pty-sidebar-driver-hangs-at-exit.md).
 
