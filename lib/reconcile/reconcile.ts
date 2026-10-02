@@ -31,6 +31,8 @@ const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const TICK_MS = 5_000;
 const START_GRACE_MS = 120_000;
 const WAITING_MS = 3 * 60 * 60_000;
+/** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
+const WAITING_NUDGE_MS = 30 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
@@ -54,6 +56,8 @@ interface Chain {
 	held?: boolean;
 	/** ts of a `waiting` report: the worker is idle on a process it started, until its notification. */
 	waitingSince?: string;
+	/** ts of the latest `waiting` report or nudge in this wait. */
+	waitingCheckedAt?: string;
 	retries: Record<string, number>;
 	workers: Handle[];
 	note?: string;
@@ -263,6 +267,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		delete s.exceptions[ex.node];
 		if (ex.node !== target && s.chains[ex.node]) s.chains[ex.node].held = false;
+		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
+		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; }
 		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issues.get(target)!, issues); } }
 		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
@@ -386,7 +392,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	async function onReport(slug: string, c: Chain, m: Message, issues: Map<string, Issue>) {
 		const issue = issues.get(slug)!;
-		c.handledTs = m.ts; c.waitingSince = undefined; save();
+		// Consecutive `waiting` reports are one wait: its stall clock runs from the first.
+		const waitedSince = c.waitingSince;
+		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; save();
 		const r = parse(m.body), text = m.body, h = c.handle!;
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
@@ -402,7 +410,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			c.retries.respec = kept; return save();
 		}
 		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
-		if (r.status === "waiting") { c.waitingSince = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
+		if (r.status === "waiting") { c.waitingSince = waitedSince ?? m.ts; c.waitingCheckedAt = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
 		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
 		if (r.status === "checkpoint") {
 			c.retries.checkpoint = (c.retries.checkpoint ?? 0) + 1;
@@ -508,7 +516,14 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (c.held) return "active";
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
 		if (m) { try { await onReport(slug, c, m, issues); } catch (e) { raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues); } return "active"; }
-		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report in " + WAITING_MS / 3_600_000 + "h after the worker reported waiting at " + c.waitingSince + ".", issues); return "active"; }
+		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report other than `waiting` in " + WAITING_MS / 3_600_000 + "h after the worker first reported waiting at " + c.waitingSince + ".", issues); return "active"; }
+		// The completion notice never comes while a descendant the process left behind (an orphaned server or executor) holds its process group.
+		if (c.waitingSince && c.handle && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_NUDGE_MS && alive(c.handle) !== false) {
+			c.waitingCheckedAt = new Date().toISOString(); save();
+			note(c.phase + " " + slug + " nudged: waiting since " + c.waitingSince);
+			await sendChild(topic(c.handle), "You reported `waiting` and no completion notice has reached you in " + WAITING_NUDGE_MS / 60_000 + "m. Check the process you are waiting on (process list, process output). If its output shows the command finished but it still shows as running, a descendant it left behind (an orphaned server or executor) is holding its process group, so its notice will not come: take the result from its output, kill it with the process tool (and anything it left behind), and continue. If it is genuinely still running, end your turn `waiting` again.");
+			return "active";
+		}
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
 			c.retries.relaunch = (c.retries.relaunch ?? 0) + 1;
 			if (c.retries.relaunch > BUDGET.relaunch) raise(slug, c.phase + " worker died " + BUDGET.relaunch + " times", "worktree " + c.handle.path, issues);
