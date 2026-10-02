@@ -11,7 +11,8 @@ background=
 [ -n "$background" ] && set -- taskpolicy -b "$@"
 # A waiting sem ignores SIGTERM and still runs CMD once a slot frees; it honours
 # SIGINT, so a stopped caller forwards TERM as INT.
-sem --id heavy -j "${HEAVY_SLOTS:-2}" --fg -q -- "$@" &
+# -u: sem otherwise buffers CMD's output until it exits.
+sem --id heavy -j "${HEAVY_SLOTS:-2}" --fg -u -q -- "$@" &
 pid=$!
 trap 'kill -INT "$pid" 2>/dev/null' TERM INT HUP
 while :; do
