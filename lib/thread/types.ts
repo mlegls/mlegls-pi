@@ -30,6 +30,10 @@ export interface ThreadRecord {
 	worker?: WorkerIdentity;
 	launch?: AgentLaunch;
 	blocked?: ThreadBlock;
+	/** A session a person types into, set at spawn. Interactive threads have no spawn parent; legacy records infer it. */
+	interactive?: boolean;
+	/** When a frontend last showed this thread; a turn ending after it is unread. */
+	seenAt?: string;
 }
 export interface ThreadTerminal { name: string; role: string }
 export interface ThreadSnapshot {
@@ -40,7 +44,13 @@ export interface ThreadSnapshot {
 	mergeParentThread?: string;
 	terminals: ThreadTerminal[];
 	report?: { tag: string; ts: string; body: string };
+	interactive: boolean;
+	/** needs-you > unread > read > running; workers' needs-you rolls up to their interactive ancestor in listThreads. */
+	attention: Attention;
+	/** When the current idle period began. */
+	idleSince?: string;
 }
+export type Attention = "needs-you" | "unread" | "read" | "running";
 export interface ThreadRow extends ThreadSnapshot {
 	depth: number;
 	treeParent?: string; // selected tree's parent thread
@@ -55,6 +65,7 @@ export interface NewThreadOptions {
 	forkFrom?: string; // session id or file; copied once before launch
 	launch?: AgentLaunch;
 	worker?: WorkerIdentity;
+	interactive?: boolean;
 }
 export interface ThreadIntegration {
 	branch: string;

@@ -1,6 +1,7 @@
 // Frontends call the registry directly; lifecycle and terminal ownership stay in lib/thread.
 import { abandonThread, archiveThread, ensureTerminal, forkThread, newThread, type ThreadRecord, type ThreadRow } from "../thread";
 import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
@@ -50,6 +51,31 @@ export async function create(action: "new" | "worktree" | "fork", selected?: Thr
 		return forkThread(selected.sessionFile, options);
 	}
 	if (action === "worktree" && !name?.trim()) throw new Error("Supply a worktree branch name");
+	return newThread(options);
+}
+
+/** Where a sibling worktree branches from: the checkout of the selected thread's merge parent. */
+async function siblingBase(selected: ThreadRecord): Promise<string> {
+	const { worktrees } = await import("../thread/lifecycle-git");
+	const { listThreads } = await import("../thread");
+	const row = (await listThreads({ cwd: selected.project })).find(r => r.thread.id === selected.id);
+	const parent = row?.mergeParent && (await worktrees(selected.project)).find(t => t.branch === row.mergeParent);
+	return parent ? parent.path : selected.project;
+}
+
+/** One worktree, one canonical interactive session: every new or forked thread gets its own worktree,
+ * a child (merges into the selected thread's branch) or a sibling (merges where the selected one does). */
+export async function spawn(kind: "new" | "fork", selected: ThreadRecord | undefined, opts: { sibling?: boolean; name?: string; project?: string } = {}): Promise<ThreadRecord> {
+	const project = opts.project ? resolveProject(opts.project) : undefined;
+	if (opts.project && !project) throw new Error("No such project: " + opts.project);
+	const cwd = project ?? (selected ? (opts.sibling ? await siblingBase(selected) : selected.cwd) : undefined);
+	if (!cwd) throw new Error("Select a thread or a project");
+	const name = opts.name?.trim() || "t-" + randomBytes(3).toString("hex");
+	const options = { cwd, worktree: name, interactive: true };
+	if (kind === "fork") {
+		if (!selected) throw new Error("Select a thread to fork");
+		return forkThread(selected.sessionFile, options);
+	}
 	return newThread(options);
 }
 

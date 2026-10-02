@@ -67,7 +67,7 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		thread = {
 			id, sessionId: manager.getSessionId(), sessionFile: file, ...location,
 			ownership: owning ? "owner" : "guest", parent, archived: false, created: new Date().toISOString(),
-			worker: options.worker, launch: options.launch,
+			worker: options.worker, launch: options.launch, ...(options.interactive ? { interactive: true } : {}),
 		};
 		await saveThread(thread);
 		if (owning) {
@@ -116,12 +116,22 @@ export async function promoteThread(session: string, cwd = process.cwd()): Promi
 	const location = checkout(current?.cwd ?? header.cwd);
 	const thread: ThreadRecord = {
 		id: header.id, sessionId: header.id, sessionFile: file, ...location,
-		ownership: "guest", archived: false, created: new Date().toISOString(),
+		ownership: "guest", archived: false, created: new Date().toISOString(), interactive: true,
 	};
 	await saveThread(thread);
 	try { await ensureTerminal(thread.id); }
 	catch (error) { throw new Error("Promoted thread " + thread.id + " at " + thread.cwd + " remains registered: " + String(error)); }
 	return thread;
+}
+
+/** Records from before the field: workers and agent-spawned children are not interactive. */
+export function isInteractive(thread: ThreadRecord): boolean {
+	return thread.interactive ?? (!thread.worker && !thread.parent);
+}
+
+/** A frontend showed the thread: its current turn end is read. */
+export async function seeThread(id: string): Promise<void> {
+	await saveThread({ ...await activeThread(id), seenAt: new Date().toISOString() });
 }
 
 function mergeParent(thread: ThreadRecord): string | undefined {
@@ -142,8 +152,13 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 		.filter(m => m.ts >= thread.created && (pi?.state !== "working" || m.ts >= pi.since) && (!isPiLaunch(thread.launch) || !m.from.session || m.from.session === thread.sessionId)).at(-1);
 	const tag = ["done", "blocked", "needs-input", "checkpoint", "turn-end"].find(t => report?.tags.includes(t));
 	const fixture = !isPiLaunch(thread.launch) && ownedTerminals.find(t => t.role === "agent");
+	const state = pi?.state ?? (fixture && !fixture.ended ? "working" : "exited");
+	const idleSince = pi?.state === "idle" ? pi.since : undefined;
+	const attention: ThreadSnapshot["attention"] = thread.blocked || (state !== "working" && (tag === "blocked" || tag === "needs-input")) ? "needs-you"
+		: state === "working" ? "running"
+		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
-		thread, state: pi?.state ?? (fixture && !fixture.ended ? "working" : "exited"), pid: pi?.pid,
+		thread, state, pid: pi?.pid, interactive: isInteractive(thread), attention, idleSince,
 		mergeParent: parent, mergeParentThread: parentThread?.id,
 		terminals: ownedTerminals.map(t => ({ name: t.name, role: t.role! })),
 		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,
@@ -178,6 +193,18 @@ export async function listThreads(options: { tree?: "spawn" | "merge"; cwd?: str
 	for (const root of rows) if (!root.treeParent) visit(root, 0);
 	// A malformed/reparented cycle is still visible, never silently drops active threads.
 	for (const row of rows) if (!seen.has(row.thread.id)) { row.treeParent = undefined; visit(row, 0); }
+	// A worker that needs you raises its interactive spawn ancestor.
+	const byThread = new Map(rows.map(r => [r.thread.id, r]));
+	for (const row of rows) {
+		if (row.interactive || row.attention !== "needs-you") continue;
+		let up = row.thread.parent, hops = 0;
+		while (up && hops++ < 64) {
+			const ancestor = byThread.get(up);
+			if (!ancestor) break;
+			if (ancestor.interactive) { ancestor.attention = "needs-you"; break; }
+			up = ancestor.thread.parent;
+		}
+	}
 	return ordered;
 }
 

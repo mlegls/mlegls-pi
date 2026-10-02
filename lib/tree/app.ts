@@ -4,7 +4,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import { listThreads } from "../thread";
+import { abandonThread, archiveThread, getThread, integrateThread, seeThread } from "../thread";
 import * as act from "./actions";
 import { threadEnv } from "./ghostty";
 
@@ -19,27 +19,27 @@ export async function launchApp(): Promise<void> {
 	child.unref();
 }
 
-const ACTIONS = ["new", "worktree", "fork", "merge", "archive", "abandon", "children", "project"] as const;
+const ACTIONS = ["new", "fork", "merge", "continue", "abandon", "seen"] as const;
+const USAGE = "usage: ab tree do new|fork [--id ID] [--sibling] [--name BRANCH] [--project QUERY] | merge|continue|abandon|seen --id ID";
 
 export async function perform(args: string[]): Promise<void> {
-	const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
-		id: { type: "string" }, tree: { type: "string" }, name: { type: "string" } } });
-	const kind = positionals[0] as typeof ACTIONS[number];
-	if (!ACTIONS.includes(kind)) { console.error("usage: ab tree do " + ACTIONS.join("|") + " [--id ID] [--tree spawn|merge] [--name NAME]"); process.exitCode = 1; return; }
-	try { console.log(JSON.stringify(await run(kind, values))); }
-	catch (e) { console.error(e instanceof Error ? e.message : String(e)); process.exitCode = 1; }
+	try {
+		const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
+			id: { type: "string" }, name: { type: "string" }, project: { type: "string" }, sibling: { type: "boolean" } } });
+		const kind = positionals[0] as typeof ACTIONS[number];
+		if (!ACTIONS.includes(kind)) throw new Error(USAGE);
+		console.log(JSON.stringify(await run(kind, values)));
+	} catch (e) { console.error(e instanceof Error ? e.message : String(e)); process.exitCode = 1; }
 }
 
-async function run(kind: typeof ACTIONS[number], values: { id?: string; tree?: string; name?: string }) {
-	const rows = await listThreads({ tree: values.tree === "merge" ? "merge" : "spawn" });
-	const row = rows.find(r => r.thread.id === values.id);
-	if (values.id && !row) throw new Error("No active thread: " + values.id);
-	let result: { thread?: string; closed?: string[] };
-	if (kind === "project") result = { thread: (await act.openProject(values.name ?? "")).id };
-	else if (kind === "new" || kind === "worktree" || kind === "fork") result = { thread: (await act.create(kind, row?.thread, values.name)).id };
-	else {
-		if (!row) throw new Error("Select a thread");
-		result = { closed: await act.retire(kind, row.thread, rows) };
-	}
-	return result;
+async function run(kind: typeof ACTIONS[number], values: { id?: string; name?: string; project?: string; sibling?: boolean }) {
+	const thread = values.id ? await getThread(values.id) : undefined;
+	if (values.id && (!thread || thread.archived)) throw new Error("No active thread: " + values.id);
+	if (kind === "new" || kind === "fork") return { thread: (await act.spawn(kind, thread, values)).id };
+	if (!thread) throw new Error("Select a thread");
+	if (kind === "seen") { await seeThread(thread.id); return {}; }
+	if (kind === "continue") { await integrateThread(thread.id); return {}; }
+	const result = kind === "abandon" ? await abandonThread(thread.id) : await archiveThread(thread.id);
+	if (result.blocked) throw new Error("Blocked at " + result.blocked.threadId + ": " + result.blocked.block.reason);
+	return { closed: result.closed };
 }

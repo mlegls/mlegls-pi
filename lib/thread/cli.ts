@@ -1,10 +1,10 @@
 import { parseArgs, type ParseArgsOptionsConfig } from "node:util";
 import { threadForSession } from "./registry";
-import { archiveThread, abandonThread } from "./lifecycle";
-import { attachThread, forkThread, historyThread, listThreads, newThread, promoteThread, sendThread } from "./runtime";
+import { archiveThread, abandonThread, integrateThread } from "./lifecycle";
+import { attachThread, forkThread, historyThread, listThreads, newThread, promoteThread, seeThread, sendThread } from "./runtime";
 import type { ThreadRow } from "./types";
 
-const usage = "usage: ab thread ls [--tree spawn|merge] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] [--exclusive] | send|history <id> | archive|abandon|merge <id>";
+const usage = "usage: ab thread ls [--tree spawn|merge] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] [--exclusive] | send|history|seen <id> | archive|abandon|merge <id> | merge <id> --continue";
 
 function options(args: string[], schema: ParseArgsOptionsConfig) {
 	return parseArgs({ args, allowPositionals: true, strict: true, options: schema });
@@ -85,7 +85,17 @@ export async function thread(args: string[]): Promise<void> {
 			out(await historyThread(rest[0]!));
 			return;
 		}
+		case "seen": {
+			if (rest.length !== 1) throw new Error(usage);
+			await seeThread(rest[0]!);
+			return;
+		}
 		case "archive": case "merge": case "abandon": {
+			if (command === "merge" && rest.length === 2 && rest[1] === "--continue") {
+				// Land the branch and keep the session working on it: the branch tip is now the merged commit.
+				out(JSON.stringify(await integrateThread(rest[0]!) ?? null) + "\n");
+				return;
+			}
 			if (rest.length !== 1) throw new Error(usage);
 			const result = command === "abandon" ? await abandonThread(rest[0]!) : await archiveThread(rest[0]!);
 			out(JSON.stringify(result) + "\n");
