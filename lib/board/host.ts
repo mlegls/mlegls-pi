@@ -135,7 +135,15 @@ export function install(pi: ExtensionAPI) {
 	 * handle, its first prompt, or its directory. Read at each send, so a later rename shows. */
 	function label(): string {
 		const role = subs.find((s) => s.topic.startsWith("role/"))?.topic.slice(5).replaceAll("/", " ");
-		return pi.getSessionName() ?? role ?? process.env.PI_BOARD_NAME ?? firstPrompt() ?? name;
+		return pi.getSessionName() ?? role ?? own("PI_BOARD_NAME") ?? firstPrompt() ?? name;
+	}
+
+	/** Board identity from the environment is this session's only when it was launched as a thread or
+	 * worker. A pi run from another session's tool (pi sets PI_SESSION_ID for those) inherits that
+	 * session's identity and must not report as it. */
+	function own(key: "PI_BOARD_NAME" | "PI_BOARD_TOPIC" | "PI_BOARD_FOLLOW"): string | undefined {
+		const invoker = process.env.PI_SESSION_ID;
+		return invoker && invoker !== sessionId ? undefined : process.env[key];
 	}
 
 	function firstPrompt(): string | undefined {
@@ -216,7 +224,7 @@ export function install(pi: ExtensionAPI) {
 		seen.clear();
 		sessionId = ctx.sessionManager.getSessionId();
 		cwd = ctx.cwd;
-		name = process.env.PI_BOARD_NAME ?? basename(ctx.cwd);
+		name = own("PI_BOARD_NAME") ?? basename(ctx.cwd);
 		let restoredCursor: number | undefined;
 		let restoredSubs: Subscription[] | undefined;
 		const state = readCursor<DeliveryState>(ctx.sessionManager, CURSOR_KEY);
@@ -242,9 +250,9 @@ export function install(pi: ExtensionAPI) {
 		// A spawned worker (PI_BOARD_TOPIC set by its parent) starts subscribed with wake to its own
 		// topic, so the parent's follow-ups and needs-input answers reach it without it asking.
 		subs = restoredSubs ?? [
-			...(process.env.PI_BOARD_TOPIC ? [{ topic: process.env.PI_BOARD_TOPIC, wake: true }] : []),
+			...(own("PI_BOARD_TOPIC") ? [{ topic: own("PI_BOARD_TOPIC")!, wake: true }] : []),
 			// Decisions across its run (PI_BOARD_FOLLOW names the run) arrive on the next turn without waking it.
-			...(process.env.PI_BOARD_FOLLOW ? [{ topic: process.env.PI_BOARD_FOLLOW + "/**", tags: "decision", wake: false }] : []),
+			...(own("PI_BOARD_FOLLOW") ? [{ topic: own("PI_BOARD_FOLLOW") + "/**", tags: "decision", wake: false }] : []),
 		];
 		// Every session has a mailbox (mail/xxxxxxxx): the reconciler, ab tree and
 		// other sessions reach it there. Shown in pi's footer and, under tmux, the status bar.
@@ -279,8 +287,9 @@ export function install(pi: ExtensionAPI) {
 	// tagged with the status it starts with (done/blocked/needs-input) or `turn-end` when it has none,
 	// so the parent (wm's poller, children.turnEnd, a supervision loop) reads the report, not a pane.
 	pi.on("agent_end", async (event, ctx) => {
-		const member = process.env.PI_BOARD_TOPIC ? undefined : await canonicalThread(ctx.sessionManager.getSessionId(), ctx.sessionManager.getSessionFile());
-		const topic = process.env.PI_BOARD_TOPIC ?? (member && "thread/" + member.id);
+		const assigned = own("PI_BOARD_TOPIC");
+		const member = assigned ? undefined : await canonicalThread(ctx.sessionManager.getSessionId(), ctx.sessionManager.getSessionFile());
+		const topic = assigned ?? (member && "thread/" + member.id);
 		if (!topic) return;
 		const last = [...event.messages].reverse().find((m) => (m as { role?: string }).role === "assistant") as { content?: unknown } | undefined;
 		const content = last?.content;
