@@ -20,6 +20,11 @@ Retain a driver's check as an automated test only when it guards something a lat
 
 Run your retained tests and the tests your repairs affect, not the full suite (the commit hook runs the repository's checks): `BASE=<the change's base> mise run test:affected` when the project declares that task. The integration gate runs the full suite on your final head and sends a regression back to you.
 
+Name under `caveats` any choice the change makes that buys something (isolation, coverage, fidelity) with wall time or cost, with its measure: nobody else sees that trade before it lands.
+
+> No: per-test Accounts and learners, landed silently.
+> Yes: "caveat: per-test fixtures for isolation; browser batch 30 → 48 min at 2 workers"
+
 Stop drive servers you started when finished, including on failure. Do not leave them running until branch integration.
 
 End `done` only when every required story holds on your final head; otherwise `blocked` or `needs-input`. Handoff (fenced yaml): `stories` (each has `story` and exact `outcome: held` for done; qualifications go in `caveats`), `evidence` (complete object: `path` to the committed Markdown index under `docs/attachments/`, `visual` boolean, `shots` listing committed image paths, nonempty for visual journeys and `[]` otherwise), `tests` (paths of the test files encoding the checks, plus earlier ones you changed), `filed` (issue links), `redrive: true` only if you changed behavior the tests don't cover and a fresh driver should use it again, `caveats`. Repeat the full evidence object even when reusing the driver's unchanged packet; `updated: true` is not a substitute.
