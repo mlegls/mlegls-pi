@@ -116,7 +116,9 @@ struct Saved: Codable {
     var collapsed: [String: [String]] = [:]
     var shown: String?
 
-    static let url = URL(fileURLWithPath: (ProcessInfo.processInfo.environment["XDG_STATE_HOME"] ?? NSHomeDirectory() + "/.local/state") + "/ab-tree/app.json")
+    /// THREADS_STATE points a second instance (a dev build) at its own file, so it doesn't reopen the first one's thread.
+    static let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["THREADS_STATE"]
+        ?? (ProcessInfo.processInfo.environment["XDG_STATE_HOME"] ?? NSHomeDirectory() + "/.local/state") + "/ab-tree/app.json")
     static func load() -> Saved { (try? JSONDecoder().decode(Saved.self, from: Data(contentsOf: url))) ?? Saved() }
     func save() {
         try? FileManager.default.createDirectory(at: Saved.url.deletingLastPathComponent(), withIntermediateDirectories: true)
