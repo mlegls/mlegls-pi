@@ -30,6 +30,7 @@ import { close, declaredGates, evidenceShapeError, evidencePacket, git, storySha
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const TICK_MS = 5_000;
 const START_GRACE_MS = 120_000;
+const WAITING_MS = 3 * 60 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
@@ -51,6 +52,8 @@ interface Chain {
 	evidence?: Record<string, unknown>;
 	/** Waiting on an exception for this node. */
 	held?: boolean;
+	/** ts of a `waiting` report: the worker is idle on a process it started, until its notification. */
+	waitingSince?: string;
 	retries: Record<string, number>;
 	workers: Handle[];
 	note?: string;
@@ -61,6 +64,8 @@ interface Exception {
 	level: string;
 	handler?: Handle; handlerLaunchedAt?: number; handlerHandledTs?: string;
 	mailed?: boolean;
+	/** ts of the report that raised it: an answer consumes only up to here, so a report that arrived while held still counts. */
+	reportTs?: string;
 }
 export interface State {
 	backend: "threads";
@@ -131,7 +136,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	// Latest terminal report per topic, read incrementally from the board log.
 	const reports = new Map<string, Message>();
 	let offset = 0;
-	const TERMINAL = ["done", "blocked", "needs-input", "checkpoint", "turn-end"];
+	const TERMINAL = ["done", "blocked", "needs-input", "checkpoint", "waiting", "turn-end"];
 	const pollBoard = () => {
 		const { messages, offset: next } = readFrom(offset);
 		offset = next;
@@ -239,7 +244,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (s.exceptions[slug]) return;
 		const parent = issues.get(slug)?.partOf;
 		const level = slug === s.root || !parent ? "owner" : parent;
-		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: text.slice(-6000), at: new Date().toISOString(), level };
+		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
 		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
 	}
@@ -258,7 +263,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		delete s.exceptions[ex.node];
 		if (ex.node !== target && s.chains[ex.node]) s.chains[ex.node].held = false;
-		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = new Date().toISOString(); }
+		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issues.get(target)!, issues); } }
 		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
 		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
@@ -381,11 +386,11 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	async function onReport(slug: string, c: Chain, m: Message, issues: Map<string, Issue>) {
 		const issue = issues.get(slug)!;
-		c.handledTs = m.ts; save();
+		c.handledTs = m.ts; c.waitingSince = undefined; save();
 		const r = parse(m.body), text = m.body, h = c.handle!;
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
-		if (r.status === null) return repair(slug, c, "status", "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input` or `checkpoint` as the first line, then the handoff.", issues, text);
+		if (r.status === null) return repair(slug, c, "status", "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first line, then the handoff.", issues, text);
 		if (c.phase === "implement" && !c.self && r.handoff?.respec) {
 			c.retries.respec = (c.retries.respec ?? 0) + 1;
 			if (c.retries.respec > 1) return raise(slug, "respec after refinement", text, issues);
@@ -396,6 +401,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			await startPhase(slug, c, "refine", issue, issues, "An implementer found this bigger than one session:\n\n" + String(r.handoff.respec));
 			c.retries.respec = kept; return save();
 		}
+		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
+		if (r.status === "waiting") { c.waitingSince = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
 		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
 		if (r.status === "checkpoint") {
 			c.retries.checkpoint = (c.retries.checkpoint ?? 0) + 1;
@@ -501,6 +508,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (c.held) return "active";
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
 		if (m) { try { await onReport(slug, c, m, issues); } catch (e) { raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues); } return "active"; }
+		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report in " + WAITING_MS / 3_600_000 + "h after the worker reported waiting at " + c.waitingSince + ".", issues); return "active"; }
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
 			c.retries.relaunch = (c.retries.relaunch ?? 0) + 1;
 			if (c.retries.relaunch > BUDGET.relaunch) raise(slug, c.phase + " worker died " + BUDGET.relaunch + " times", "worktree " + c.handle.path, issues);

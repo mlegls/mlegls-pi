@@ -16,6 +16,10 @@ test("surfaces malformed fenced handoff parse errors", () => {
   expect(json.handoffError).toContain("JSON");
 });
 
+test("recognizes waiting as a report status", () => {
+  expect(parse("waiting on proc_2: the kept browser batch").status).toBe("waiting");
+});
+
 test("recognizes checkpoint as a report status", () => {
   expect(parse("checkpoint").status).toBe("checkpoint");
 });

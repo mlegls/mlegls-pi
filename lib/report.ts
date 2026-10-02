@@ -2,7 +2,7 @@ import { parseDocument } from "yaml";
 
 export const HANDOFF_KEYS = ["commit", "setup", "stories", "evidence", "caveats", "question", "resolution"] as const;
 
-type Status = "done" | "blocked" | "needs-input" | "checkpoint";
+type Status = "done" | "blocked" | "needs-input" | "checkpoint" | "waiting";
 export interface Report {
   status: Status | null;
   handoff: Record<string, unknown> | null;
@@ -17,7 +17,7 @@ function firstStatus(text: string, handoff: Record<string, unknown> | null): { s
   const lines = text.split(/\r?\n/);
   const statusAt = (line: string): Status | null => {
     const token = line.trim().replace(/^(?:(?:>+\s*)|(?:#{1,6}\s*)|(?:[-+*]\s+)|(?:\*\*|__|\*|_))*/, "");
-    const match = /^(done|blocked|needs-input|checkpoint)(?=$|[\s*_`:#—–.!?,;])/i.exec(token);
+    const match = /^(done|blocked|needs-input|checkpoint|waiting)(?=$|[\s*_`:#—–.!?,;])/i.exec(token);
     return match ? match[1].toLowerCase() as Status : null;
   };
   const nonblank = lines.filter(line => line.trim());
@@ -40,7 +40,7 @@ function firstStatus(text: string, handoff: Record<string, unknown> | null): { s
     }
   }
   const handedOff = handoff?.status;
-  if (typeof handedOff === "string" && ["done", "blocked", "needs-input", "checkpoint"].includes(handedOff.toLowerCase())) {
+  if (typeof handedOff === "string" && ["done", "blocked", "needs-input", "checkpoint", "waiting"].includes(handedOff.toLowerCase())) {
     candidates.push(handedOff.toLowerCase() as Status);
   }
   const unique = [...new Set(candidates)];

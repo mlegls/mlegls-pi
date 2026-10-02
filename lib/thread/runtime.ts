@@ -149,9 +149,9 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 	const parent = mergeParent(thread);
 	const parentThread = parent ? records.find(t => t.project === thread.project && t.ownership === "owner" && t.branch === parent) : undefined;
 	const topic = thread.worker ? thread.worker.run + "/" + thread.worker.handle : "thread/" + thread.id;
-	const report = read({ topic, tags: "done | blocked | needs-input | checkpoint | turn-end", limit: Infinity }).messages
+	const report = read({ topic, tags: "done | blocked | needs-input | checkpoint | waiting | turn-end", limit: Infinity }).messages
 		.filter(m => m.ts >= thread.created && (pi?.state !== "working" || m.ts >= pi.since) && (!isPiLaunch(thread.launch) || !m.from.session || m.from.session === thread.sessionId)).at(-1);
-	const tag = ["done", "blocked", "needs-input", "checkpoint", "turn-end"].find(t => report?.tags.includes(t));
+	const tag = ["done", "blocked", "needs-input", "checkpoint", "waiting", "turn-end"].find(t => report?.tags.includes(t));
 	const fixture = !isPiLaunch(thread.launch) && ownedTerminals.find(t => t.role === "agent");
 	const state = pi?.state ?? (fixture && !fixture.ended ? "working" : "exited");
 	const idleSince = pi?.state === "idle" ? pi.since : undefined;
