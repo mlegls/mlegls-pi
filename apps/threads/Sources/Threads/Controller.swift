@@ -73,6 +73,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         outline.rowHeight = 24
         outline.style = .fullWidth // sourceList insets rows ~10pt from the sidebar edge
         outline.indentationPerLevel = 12
+        outline.autoresizesOutlineColumn = false // else the column grows by the indent per expanded level and overflows the viewport
         outline.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         outline.dataSource = self
         outline.delegate = self

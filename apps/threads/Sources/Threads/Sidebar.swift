@@ -112,7 +112,7 @@ final class RowCell: NSTableCellView {
         addSubview(stack)
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ] + (g == nil ? [] : [glyph.widthAnchor.constraint(equalToConstant: 12)]))
         textField = title
