@@ -20,6 +20,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     var scratch: [Workspace] = []
     var unread: Set<String> = []
     static let scratchpad = "x:scratchpad"
+    static let projectDrag = NSPasteboard.PasteboardType("app.threads.project")
 
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
                           styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
@@ -74,6 +75,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         outline.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         outline.dataSource = self
         outline.delegate = self
+        outline.registerForDraggedTypes([Self.projectDrag])
+        outline.setDraggingSourceOperationMask(.move, forLocal: true)
+        outline.setDraggingSourceOperationMask([], forLocal: false)
         outline.menuForRow = { [weak self] row in self?.menu(forRow: row) }
         let scroll = NSScrollView()
         scroll.documentView = outline
@@ -212,6 +216,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             child.parent = target
         }
         if attention { top.sort { Self.sectionOrder.firstIndex(of: String($0.key.dropFirst(2)))! < Self.sectionOrder.firstIndex(of: String($1.key.dropFirst(2)))! } }
+        else {
+            let order = saved.projectOrder ?? []
+            let rank = Dictionary(order.enumerated().map { ("p:" + $0.element, $0.offset) }, uniquingKeysWith: { a, _ in a })
+            top = top.enumerated().sorted {
+                let a = rank[$0.element.key] ?? order.count, b = rank[$1.element.key] ?? order.count
+                return a == b ? $0.offset < $1.offset : a < b
+            }.map(\.element)
+        }
         // The Scratchpad heads both views: shells anywhere, outside the registry.
         let pad = node(Self.scratchpad, .scratchpad)
         fresh[pad.key] = pad
@@ -252,6 +264,50 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func outlineView(_: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int { (item as? Node)?.children.count ?? roots.count }
     func outlineView(_: NSOutlineView, child index: Int, ofItem item: Any?) -> Any { (item as? Node)?.children[index] ?? roots[index] }
     func outlineView(_: NSOutlineView, isItemExpandable item: Any) -> Bool { !((item as? Node)?.children.isEmpty ?? true) }
+
+    // MARK: project ordering
+
+    func outlineView(_: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+        guard saved.view == "project", let n = item as? Node, case .project(let path) = n.kind else { return nil }
+        let writer = NSPasteboardItem()
+        writer.setString(path, forType: Self.projectDrag)
+        return writer
+    }
+
+    func outlineView(_: NSOutlineView, draggingSession _: NSDraggingSession, willBeginAt _: NSPoint, forItems _: [Any]) {
+        outline.dragged = true
+    }
+
+    func outlineView(_ view: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
+        guard saved.view == "project", info.draggingSource as? NSOutlineView === outline,
+              let path = info.draggingPasteboard.string(forType: Self.projectDrag),
+              roots.contains(where: { $0.key == "p:" + path }) else { return [] }
+        // Dropping on a project means before it, never inside it. Child rows aren't reparenting targets.
+        if let n = item as? Node, case .project = n.kind, let target = roots.firstIndex(where: { $0 === n }) {
+            view.setDropItem(nil, dropChildIndex: target)
+            return .move
+        }
+        guard item == nil, index >= 1, index <= roots.count else { return [] }
+        return .move
+    }
+
+    func outlineView(_: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
+        guard saved.view == "project", info.draggingSource as? NSOutlineView === outline,
+              item == nil, index >= 1, index <= roots.count,
+              let path = info.draggingPasteboard.string(forType: Self.projectDrag),
+              let source = roots.firstIndex(where: { $0.key == "p:" + path }) else { return false }
+        let moved = roots.remove(at: source)
+        roots.insert(moved, at: index > source ? index - 1 : index)
+        let order = roots.compactMap { n -> String? in
+            if case .project(let path) = n.kind { return path }
+            return nil
+        }
+        // Retain absent projects ahead of projects we haven't seen yet.
+        saved.projectOrder = order + (saved.projectOrder ?? []).filter { !order.contains($0) }
+        saved.save()
+        reload()
+        return true
+    }
 
     /// Workers under a node, not crossing into other interactive threads.
     func rollup(_ n: Node) -> String {
@@ -449,7 +505,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func outlineViewSelectionDidChange(_: Notification) {
         guard !reloading, let n = outline.item(atRow: outline.selectedRow) as? Node else { return }
         cursor = n.key
-        activate(n)
+        if outline.trackingClick { outline.activateAfterClick = { [weak self] in self?.activate(n) } }
+        else { activate(n) }
     }
 
     func activate(_ n: Node) {

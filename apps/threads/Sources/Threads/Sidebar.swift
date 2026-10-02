@@ -14,6 +14,21 @@ final class Node: NSObject {
 /// Clicking acts without taking the keyboard from the terminal; scrolling never selects.
 final class PassiveOutline: NSOutlineView {
     var menuForRow: ((Int) -> NSMenu?)?
+    var trackingClick = false
+    var dragged = false
+    var activateAfterClick: (() -> Void)?
+
+    // AppKit changes selection while tracking a mouse-down. Wait until it knows whether this is a drag.
+    override func mouseDown(with event: NSEvent) {
+        trackingClick = true
+        dragged = false
+        activateAfterClick = nil
+        super.mouseDown(with: event)
+        trackingClick = false
+        let activate = activateAfterClick
+        activateAfterClick = nil
+        if !dragged { activate?() }
+    }
     override var acceptsFirstResponder: Bool { false }
     override func acceptsFirstMouse(for _: NSEvent?) -> Bool { true }
     override func menu(for event: NSEvent) -> NSMenu? {

@@ -134,11 +134,13 @@ enum AB {
     }
 }
 
-/// UI state that outlives the app: view, folds per view, the shown thread.
+/// UI state that outlives the app: view, folds per view, project order, the shown thread.
 struct Saved: Codable {
     var view = "project"
     var collapsed: [String: [String]] = [:]
     var shown: String?
+    /// Project paths, not thread ids: closing a project's main thread doesn't move its header.
+    var projectOrder: [String]?
     /// Top-level threads' delta base: "origin" (unpushed) or "local" (unmerged).
     var delta: String?
 

@@ -15,7 +15,9 @@ When I already have a worktree, I can add it from Threads without creating anoth
 
 When I just need a shell or a quick pi that isn't a thread, I open it in Threads instead of a separate terminal. ⌘N → a workspace under Scratchpad in ~ → tabs and splits as anywhere else → close its last pane and it's gone. A bell in one I'm not looking at marks its row.
 
-Source: "let's add a \"scratchpad\" pseudo-project to Threads, where i can spawn pi sessions and terminal tabs that aren't actually threads, so i don't have to open a separate terminal"; "let's add a way in the Threads app to add a specific worktree (attaching to existing) as a thread"; "let's put it as a dropdown with the + button on a project"; "i often accidentally scroll through the sidebar and accidentally open a bunch of closed sessions i meant to just 'hover' on"; "i'll have 10s of non-interactive sessions and they can't be tabs".
+With several projects open, I can drag their headers into the order I want. The order survives refreshes, view switches and restarting Threads; new projects appear after the ones I've arranged. Scratchpad stays first. Rearranging projects doesn't change thread parentage or open a different session.
+
+Source: "let's make it possible to rearrange projects in the Threads sidebar"; "let's add a \"scratchpad\" pseudo-project to Threads, where i can spawn pi sessions and terminal tabs that aren't actually threads, so i don't have to open a separate terminal"; "let's add a way in the Threads app to add a specific worktree (attaching to existing) as a thread"; "let's put it as a dropdown with the + button on a project"; "i often accidentally scroll through the sidebar and accidentally open a bunch of closed sessions i meant to just 'hover' on"; "i'll have 10s of non-interactive sessions and they can't be tabs".
 
 Issues: [[projects/mlegls-pi/issues/threads-on-zmx-with-a-native-sidebar]].
 
