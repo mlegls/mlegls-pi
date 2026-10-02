@@ -51,6 +51,9 @@ struct ThreadRow: Equatable {
 
     var projectName: String { (project as NSString).lastPathComponent }
 
+    /// The project's own thread, in its main checkout: the project view shows it as the project row.
+    var isProjectThread: Bool { interactive && handle == nil && cwd == project }
+
     var status: (String, NSColor) {
         if blocked != nil || report == "blocked" { return ("⊘", .systemRed) }
         if attention == "needs-you" { return ("!", .systemOrange) }
@@ -136,8 +139,6 @@ struct Saved: Codable {
     var view = "project"
     var collapsed: [String: [String]] = [:]
     var shown: String?
-    /// Projects the project view lists even with no threads, so new threads can start there.
-    var pinned: [String]?
     /// Top-level threads' delta base: "origin" (unpushed) or "local" (unmerged).
     var delta: String?
 

@@ -51,11 +51,14 @@ export function initProject(text: string): string {
 	return real;
 }
 
-/** A root thread in another project's checkout. */
-export async function openProject(text: string): Promise<ThreadRecord> {
-	const path = resolveProject(text);
+/** The project's own thread: the interactive session in its main checkout, started if none is live.
+ * Frontends show it as the project, so closing the project retires it. */
+export async function openProject(text: string, init = false): Promise<ThreadRecord> {
+	const path = init ? initProject(text) : resolveProject(text);
 	if (!path) throw new Error("No such project: " + text);
-	return newThread({ cwd: path, in: path });
+	const { allThreads, isInteractive } = await import("../thread");
+	const live = (await allThreads()).find(t => !t.archived && t.cwd === path && !t.worktree && !t.worker && isInteractive(t));
+	return live ?? newThread({ cwd: path, in: path, interactive: true });
 }
 
 export async function create(action: "new" | "worktree" | "fork", selected?: ThreadRecord, name?: string): Promise<ThreadRecord> {

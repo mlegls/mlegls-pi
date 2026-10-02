@@ -172,7 +172,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             top.append(n)
             return n
         }
-        for row in rows { fresh[row.id] = node(row.id, .thread, row) }
+        // Project view: a project's own thread is its header row, keyed by both.
+        let projectThread = attention ? [:] : Dictionary(rows.filter(\.isProjectThread).map { ($0.project, $0) }, uniquingKeysWith: { a, b in a.created < b.created ? a : b })
+        for row in rows {
+            if let p = projectThread[row.project], p.id == row.id { fresh[row.id] = header("p:" + row.project, .project(row.project)); fresh[row.id]!.row = row }
+            else { fresh[row.id] = node(row.id, .thread, row) }
+        }
         func home(_ r: ThreadRow) -> String {
             let fallback = attention ? "s:" + r.attention : "p:" + r.project
             if r.interactive {
@@ -187,7 +192,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             for s in Self.sectionOrder where rows.contains(where: { home($0) == "s:" + s }) { _ = header("s:" + s, .section(s)) }
         }
         let ordered = attention ? rows.sorted { ($0.idleSince ?? $0.created) < ($1.idleSince ?? $1.created) } : rows
-        for row in ordered {
+        for row in ordered where projectThread[row.project]?.id != row.id {
             let key = home(row)
             let parent = key.hasPrefix("s:") ? header(key, .section(String(key.dropFirst(2))))
                 : key.hasPrefix("p:") ? header(key, .project(String(key.dropFirst(2)))) : fresh[key]!
@@ -200,7 +205,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             target.children.append(child)
             child.parent = target
         }
-        if !attention { for p in saved.pinned ?? [] { _ = header("p:" + p, .project(p)) } }
         if attention { top.sort { Self.sectionOrder.firstIndex(of: String($0.key.dropFirst(2)))! < Self.sectionOrder.firstIndex(of: String($1.key.dropFirst(2)))! } }
         roots = top
         nodes = fresh
@@ -255,10 +259,24 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         case .section(let s):
             return RowCell(glyph: nil, title: Self.sections[s] ?? s, detail: "\(n.children.count)", bold: false, dim: false, header: true, buttons: [])
         case .project(let path):
-            let plus = Plain(symbol: "plus", tip: "New thread in a worktree of " + (path as NSString).lastPathComponent) { [weak self] in
+            let name = (path as NSString).lastPathComponent
+            let plus = Plain(symbol: "plus", tip: "New thread in a worktree of " + name) { [weak self] in
                 self?.spawn("new", nil, project: path)
             }
-            let cell = RowCell(glyph: nil, title: (path as NSString).lastPathComponent, detail: "", bold: false, dim: false, header: true, buttons: [plus])
+            // With its own thread the project row is that thread: its status, its delta, and closing it closes the project.
+            guard let row = n.row else {
+                let open = Plain(symbol: "terminal", tip: "Open a thread in " + name + "'s main checkout") { [weak self] in self?.openProject(path) }
+                return RowCell(glyph: nil, title: name, detail: "", bold: false, dim: false, header: true, buttons: [plus, open])
+            }
+            let close = Plain(symbol: "xmark", tip: "Close " + name) { [weak self] in self?.confirmClose(row.id) }
+            let r = rollup(n)
+            let cell = RowCell(glyph: row.status, title: name, detail: r, bold: row.id == shown, dim: false, header: true,
+                               delta: row.delta, deltaTip: row.deltaTip, buttons: [plus, close])
+            cell.onHover = { [weak self] inside in
+                guard let self else { return }
+                if inside { hovered = row.id } else if hovered == row.id { hovered = nil }
+                updateWhere()
+            }
             return cell
         case .thread:
             guard let row = n.row else { return nil }
@@ -341,8 +359,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         let name = (path as NSString).lastPathComponent
         menu.addItem(menuItem("New Thread") { [weak self] in self?.spawn("new", nil, project: path) })
         menu.addItem(.separator())
-        let pinned = isPinned(path)
-        menu.addItem(menuItem(pinned ? "Unpin" : "Pin") { [weak self] in self?.pin(path, !pinned) })
+        if let p = rows.first(where: { $0.isProjectThread && $0.project == path }) {
+            menu.addItem(menuItem("Close Project…") { [weak self] in self?.confirmClose(p.id) })
+            menu.addItem(menuItem("Mark Read") { [weak self] in self?.markSeen(p.id) })
+            menu.addItem(menuItem("Timeline") { [weak self] in self?.timeline(p.id) })
+        } else {
+            menu.addItem(menuItem("Open Project Thread") { [weak self] in self?.openProject(path) })
+        }
+        menu.addItem(.separator())
         menu.addItem(menuItem("Abandon All Threads…") { [weak self] in
             guard let self else { return }
             let ids = rows.filter { $0.project == path && $0.interactive }.map(\.id)
@@ -352,14 +376,13 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         return menu
     }
 
-    func isPinned(_ path: String) -> Bool { saved.pinned?.contains(path) ?? false }
-    /// Unpinning a project with threads changes nothing visible until its last thread ends.
-    func pin(_ path: String, _ on: Bool) {
-        var p = (saved.pinned ?? []).filter { $0 != path }
-        if on { p.append(path) }
-        saved.pinned = p
-        saved.save()
-        rebuild()
+    /// Starts (or finds) the project's own thread in its main checkout; makeProject creates the repo first.
+    func openProject(_ path: String, makeProject: Bool = false) { perform("open", nil, project: path, makeProject: makeProject) }
+
+    func confirmClose(_ id: String) {
+        guard let row = byId[id] else { return }
+        confirm("Close \(row.projectName)?", "Ends the project's own thread and the workers it spawned. Its checkout and its worktree threads stay.",
+                button: "Close", destructive: false) { [weak self] in self?.perform("merge", id) }
     }
 
     func abandonAll(_ ids: [String]) {
@@ -381,7 +404,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func outlineViewSelectionDidChange(_: Notification) {
         guard !reloading, let n = outline.item(atRow: outline.selectedRow) as? Node else { return }
         cursor = n.key
-        if n.row != nil { open(n.key) }
+        if let r = n.row { open(r.id) }
     }
 
     func outlineViewItemDidCollapse(_ note: Notification) { fold(note, collapsed: true) }
@@ -414,7 +437,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             saved.shown = id
             saved.save()
             placeholder.isHidden = true
-            window.title = row.label
+            window.title = row.isProjectThread ? row.projectName : row.label
             reload()
         }
         if w.isDetached { w.reattach() }
@@ -473,8 +496,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                 let result = try await AB.perform(action, id: id, sibling: sibling, name: name, project: project, makeProject: makeProject)
                 say(action == "continue" ? "merged; session continues" : result.closed.isEmpty ? "" : "retired \(result.closed.count) thread(s)")
                 await refresh()
-                // A project made here is pinned, under the path the registry knows it by.
-                if makeProject, let id = result.thread, let p = byId[id]?.project { pin(p, true) }
                 if let id = result.thread { open(id) }
             } catch { say(error.localizedDescription) }
         }
@@ -542,7 +563,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     }
     func land(_ n: Node) {
         cursor = n.key
-        if n.row != nil { open(n.key) } else { reloading = true; selectCursor(); reloading = false }
+        if let r = n.row { open(r.id) } else { reloading = true; selectCursor(); reloading = false }
     }
 
     // ⌘P finds or makes threads and projects; ⌘O (and the sidebar's folder button) only projects.
@@ -585,20 +606,20 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             for p in known where (projectsOnly || !q.isEmpty) && words.allSatisfy({ key(p).contains($0) }) {
                 let name = (p as NSString).lastPathComponent, path = (p as NSString).abbreviatingWithTildeInPath
                 if name.lowercased() == q.lowercased() || p == target { exact = true }
-                if let latest = rows.filter({ $0.project == p && $0.interactive }).max(by: { $0.created < $1.created }) {
-                    items.append(.init(title: "▸  " + name, detail: latest.label + " · " + path) { [weak self] in self?.open(latest.id) })
+                // The project itself is its main-checkout thread: go to it, or start it.
+                if let own = rows.first(where: { $0.isProjectThread && $0.project == p }) {
+                    items.append(.init(title: "▸  " + name, detail: path) { [weak self] in self?.open(own.id) })
+                } else {
+                    items.append(.init(title: "Open " + name, detail: "thread in the main checkout · " + path) { [weak self] in self?.openProject(p) })
                 }
-                items.append(.init(title: "New thread in " + name, detail: path) { [weak self] in self?.spawn("new", nil, project: p) })
-                if projectsOnly, !isPinned(p) {
-                    items.append(.init(title: "Pin " + name, detail: path) { [weak self] in self?.pin(p, true) })
-                }
+                items.append(.init(title: "New thread in " + name, detail: "worktree · " + path) { [weak self] in self?.spawn("new", nil, project: p) })
                 shownProjects += 1
                 if shownProjects >= 40 { break }
             }
             items += named
             if !q.isEmpty, !exact {
                 items.append(.init(title: "New project “\(q)”", detail: (target as NSString).abbreviatingWithTildeInPath) { [weak self] in
-                    self?.spawn("new", nil, project: target, makeProject: true)
+                    self?.openProject(target, makeProject: true)
                 })
             }
             if projectsOnly {
@@ -617,7 +638,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         panel.directoryURL = URL(fileURLWithPath: NSHomeDirectory() + "/dev")
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
-            self?.spawn("new", nil, project: url.path, makeProject: true)
+            self?.openProject(url.path, makeProject: true)
         }
     }
 
