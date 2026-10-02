@@ -4,6 +4,14 @@ for: maintainer
 
 # Work in threads
 
+## Rearrange the native Threads sidebar
+
+Drag project headers to arrange projects. Scratchpad stays first. Drag thread rows to arrange siblings, including nested threads and workers. Dropping on a sibling inserts before it; dropping between siblings uses that position. Threads cannot be dragged to another parent or attention section.
+
+Thread order is saved separately for each view and parent, survives refreshes and restarting the app, and puts new siblings after the arranged ones. Dragging does not open a different session or change the registry's parentage.
+
+## Terminal sidebar
+
 Run `ab thread new --in "$PWD"` for a thread in the current checkout, or `ab thread new --worktree <branch>` for an owned worktree. To register an existing pi session, use `ab thread promote <session-file>`. Threads run in zmx; closing a window detaches, rather than stopping them.
 
 Run `ab tree sidebar` from the project. It opens a fresh Ghostty window with two splits: the thread sidebar and one main terminal. Existing windows are untouched. Use this checkout's `bin/ab` when trying an uninstalled change. Ghostty on macOS needs its AppleScript dictionary; zmx comes from the project's mise setup.
