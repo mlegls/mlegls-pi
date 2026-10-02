@@ -3,6 +3,8 @@
 //   bun lib/profile.ts                      this session ($PI_SESSION_ID) and its descendants
 //   bun lib/profile.ts SESSION [--json] [--fast]  a session id (or unique fragment) and its descendants
 //   bun lib/profile.ts --project P --last N one line per recent root session in a project
+//   bun lib/profile.ts SESSION --since T --until T   only entries in a time window (a wave of a long-lived supervisor)
+//   bun lib/profile.ts SESSION --run SLUG     one reconciler run: workers titled SLUG/…, and the supervisor over their span
 //
 // Timing comes from the session log: an assistant entry's message.timestamp is when the request
 // started and its entry timestamp when the reply finished; a toolResult's entry timestamp is when the
@@ -60,7 +62,10 @@ const innerKey = (c: any) => {
 	return "bash: " + w[0] + (w[1] && /^[a-z][\w-]*$/.test(w[1]) ? " " + w[1] : "");
 };
 
-export function profileFile(file: string, node: Pick<Node, "id" | "title" | "model" | "parentKind">): Omit<Profile, "children"> {
+/** Entries outside it are skipped (ms since epoch). */
+export interface Window { since?: number; until?: number }
+
+export function profileFile(file: string, node: Pick<Node, "id" | "title" | "model" | "parentKind">, win: Window = {}): Omit<Profile, "children"> {
 	const p: Omit<Profile, "children"> = {
 		id: node.id, title: node.title.replace(/^<skill name="([^"]+)"[\s\S]*/, "/$1"), model: node.model, start: 0, end: 0,
 		time: Object.fromEntries(KINDS.map(k => [k, 0])) as Record<Kind, number>, segments: [], cost: 0, costByModel: {},
@@ -107,7 +112,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		const t = ts(e.timestamp);
 		if (!Number.isFinite(t)) continue;
 		if (e.type === "session") born = t;
-		if (t < born) continue;
+		if (t < born || t < (win.since ?? 0) || t > (win.until ?? Infinity)) continue;
 		if (!p.start) p.start = t;
 		if (e.type === "custom" && e.customType === "session-meta" && e.data?.agent) p.agent = e.data.agent;
 		if (e.type === "compaction") p.compactions++;
@@ -180,7 +185,9 @@ export function humanTurns(nodes: Map<string, Node>, from: number, to: number): 
 	return out.sort((a, b) => a.t - b.t);
 }
 
-export async function profile(ref?: string, days = 30, options: { judge?: boolean } = {}): Promise<Profile> {
+export interface ProfileOptions extends Window { judge?: boolean; run?: string }
+
+export async function profile(ref?: string, days = 30, options: ProfileOptions = {}): Promise<Profile> {
 	return (await profileWithGraph(ref, days, options)).profile;
 }
 
@@ -232,14 +239,26 @@ export async function judgeWaits(all: Profile[]): Promise<void> {
 	}
 }
 
-export async function profileWithGraph(ref?: string, days = 30, options: { judge?: boolean } = {}): Promise<{ profile: Profile; nodes: Map<string, Node> }> {
+export async function profileWithGraph(ref?: string, days = 30, options: ProfileOptions = {}): Promise<{ profile: Profile; nodes: Map<string, Node> }> {
 	const nodes = await graph({ days });
 	const ref2 = (ref ?? process.env.PI_SESSION_ID ?? "").replace(/^(session|mail)\//, "");
 	const hits = ref2 ? [...nodes.keys()].filter(k => k === ref2 || k.endsWith(ref2) || k.startsWith(ref2)) : [];
 	if (hits.length !== 1) throw new Error((hits.length ? "ambiguous: " : "no session matches ") + (ref ?? "$PI_SESSION_ID") + (days < 365 ? " (within --days " + days + ")" : ""));
 	const id = hits[0]!;
 	if (!id) throw new Error("no session matches " + (ref ?? "$PI_SESSION_ID"));
-	const build = (n: Node): Profile => ({ ...profileFile(n.file, n), children: n.children.map(c => nodes.get(c)!).filter(Boolean).map(build) });
+	const win: Window = { since: options.since, until: options.until };
+	let keep = (_: Node) => true;
+	if (options.run) {
+		// A reconciler names its workers <root slug>/<handle>; the supervisor counts over their span.
+		const inRun = (n: Node) => n.title.startsWith(options.run + "/");
+		const under = (n: Node): Node[] => n.children.map(c => nodes.get(c)!).filter(Boolean).flatMap(c => [c, ...under(c)]);
+		const workers = under(nodes.get(id)!).filter(inRun).map(n => profileFile(n.file, n, win)).filter(p => p.start);
+		if (!workers.length) throw new Error("no worker of run " + options.run + " under " + id.slice(-8));
+		win.since = Math.min(...workers.map(p => p.start));
+		win.until = Math.max(...workers.map(p => p.end));
+		keep = inRun;
+	}
+	const build = (n: Node): Profile => ({ ...profileFile(n.file, n, win), children: n.children.map(c => nodes.get(c)!).filter(c => c && keep(c)).map(build).filter(p => p.start) });
 	const root = build(nodes.get(id)!);
 	// An interactive session's last reply waits until your next turn anywhere: an overnight stall on a
 	// question shows up here, since nothing more is written to the session itself.
@@ -328,11 +347,13 @@ if (import.meta.main) {
 	const json = args.includes("--json"); if (json) args.splice(args.indexOf("--json"), 1);
 	const fast = args.includes("--fast"); if (fast) args.splice(args.indexOf("--fast"), 1);
 	const project = flag("--project"), last = flag("--last"), days = flag("--days");
+	const at = (s?: string) => s === undefined ? undefined : Number.isFinite(Date.parse(s)) ? Date.parse(s) : (() => { throw new Error("not a time: " + s); })();
+	const since = at(flag("--since")), until = at(flag("--until")), run = flag("--run");
 	if (project) {
 		const ps = await recent(project, Number(last ?? 10), Number(days ?? 14));
 		console.log(json ? JSON.stringify(ps) : renderRecent(ps));
 	} else {
-		const p = await profile(args[0], Number(days ?? 30), { judge: !fast });
+		const p = await profile(args[0], Number(days ?? 30), { judge: !fast, since, until, run });
 		console.log(json ? JSON.stringify(p) : render(p));
 	}
 }
