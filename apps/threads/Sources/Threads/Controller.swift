@@ -260,7 +260,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             return RowCell(glyph: nil, title: Self.sections[s] ?? s, detail: "\(n.children.count)", bold: false, dim: false, header: true, buttons: [])
         case .project(let path):
             let name = (path as NSString).lastPathComponent
-            let plus = Plain(symbol: "plus", tip: "New thread in a worktree of " + name) { [weak self] in
+            let start = NSMenu()
+            start.addItem(menuItem("New Worktree") { [weak self] in self?.spawn("new", nil, project: path) })
+            start.addItem(menuItem("Add Existing Worktree…") { [weak self] in self?.chooseWorktree(near: path) })
+            let plus = Combo(symbol: "plus", tip: "New worktree in " + name + " (▾ add existing)", menu: start) { [weak self] in
                 self?.spawn("new", nil, project: path)
             }
             // With its own thread the project row is that thread: its status, its delta, and closing it closes the project.
@@ -358,6 +361,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         let menu = NSMenu()
         let name = (path as NSString).lastPathComponent
         menu.addItem(menuItem("New Thread") { [weak self] in self?.spawn("new", nil, project: path) })
+        menu.addItem(menuItem("Add Existing Worktree…") { [weak self] in self?.chooseWorktree(near: path) })
         menu.addItem(.separator())
         if let p = rows.first(where: { $0.isProjectThread && $0.project == path }) {
             menu.addItem(menuItem("Close Project…") { [weak self] in self?.confirmClose(p.id) })
@@ -376,7 +380,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         return menu
     }
 
-    /// Starts (or finds) the project's own thread in its main checkout; makeProject creates the repo first.
+    /// Starts (or finds) a checkout's interactive thread; makeProject creates the repo first.
     func openProject(_ path: String, makeProject: Bool = false) { perform("open", nil, project: path, makeProject: makeProject) }
 
     func confirmClose(_ id: String) {
@@ -569,6 +573,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     // ⌘P finds or makes threads and projects; ⌘O (and the sidebar's folder button) only projects.
     @objc func quickOpen(_: Any?) { find(projectsOnly: false) }
     @objc func openProject(_: Any?) { find(projectsOnly: true) }
+    @objc func addExistingWorktree(_: Any?) { chooseWorktree(near: shown.flatMap { byId[$0]?.cwd }) }
 
     func find(projectsOnly: Bool) {
         if projectCache.isEmpty { Task { projectCache = await AB.projects(); palette.reload() } }
@@ -622,10 +627,28 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                     self?.openProject(target, makeProject: true)
                 })
             }
+            items.append(.init(title: "Add Existing Worktree…", detail: "choose a checkout; reuse its thread or start a guest") { [weak self] in self?.addExistingWorktree(nil) })
             if projectsOnly {
                 items.append(.init(title: "Choose a folder…", detail: "any directory; made a git repo if it isn't one") { [weak self] in self?.chooseFolder() })
             }
             return items
+        }
+    }
+
+    func chooseWorktree(near path: String?) {
+        guard !busy else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Add Thread"
+        panel.message = "Choose an existing git worktree. Opens its thread or starts a guest; the checkout stays yours."
+        panel.directoryURL = path.map { URL(fileURLWithPath: $0).deletingLastPathComponent() }
+            ?? URL(fileURLWithPath: NSHomeDirectory() + "/dev")
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.openProject(url.path)
         }
     }
 
@@ -680,6 +703,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         case #selector(newChild(_:)), #selector(newSibling(_:)), #selector(forkChild(_:)), #selector(forkSibling(_:)),
              #selector(mergeThread(_:)), #selector(mergeContinue(_:)):
             return interactive && !busy
+        case #selector(addExistingWorktree(_:)):
+            return !busy
         case #selector(abandonThread(_:)), #selector(showTimeline(_:)):
             return shown != nil && !busy
         case #selector(splitRight(_:)), #selector(splitDown(_:)), #selector(newTab(_:)), #selector(closePane(_:)),

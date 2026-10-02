@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { command } from "../thread/process";
+import { checkout } from "../thread/git";
 import { zmx, zmxBinary } from "../thread/zmx";
 import * as ghostty from "./ghostty";
 
@@ -51,14 +52,16 @@ export function initProject(text: string): string {
 	return real;
 }
 
-/** The project's own thread: the interactive session in its main checkout, started if none is live.
- * Frontends show it as the project, so closing the project retires it. */
+/** Open a checkout's canonical interactive thread, or start a guest without claiming its worktree.
+ * A main checkout's thread is shown as the project; a linked checkout stays a worktree row. */
 export async function openProject(text: string, init = false): Promise<ThreadRecord> {
 	const path = init ? initProject(text) : resolveProject(text);
 	if (!path) throw new Error("No such project: " + text);
 	const { allThreads, isInteractive } = await import("../thread");
-	const live = (await allThreads()).find(t => !t.archived && t.cwd === path && !t.worktree && !t.worker && isInteractive(t));
-	return live ?? newThread({ cwd: path, in: path, interactive: true });
+	const location = checkout(path);
+	const root = location.worktree ?? location.project;
+	const live = (await allThreads()).find(t => t.project === location.project && (t.worktree ?? t.project) === root && !t.worker && isInteractive(t));
+	return live ?? newThread({ cwd: root, in: root, interactive: true });
 }
 
 export async function create(action: "new" | "worktree" | "fork", selected?: ThreadRecord, name?: string): Promise<ThreadRecord> {

@@ -11,7 +11,9 @@ Point at a row → see its actions → new / fork / archive → the main pane sh
 
 Scrolling the sidebar never opens anything. Archiving a thread closes what it spawned and merges its children into it, then it into its parent; a conflict goes back to the agent that made it.
 
-Source: "i often accidentally scroll through the sidebar and accidentally open a bunch of closed sessions i meant to just 'hover' on"; "i'll have 10s of non-interactive sessions and they can't be tabs".
+When I already have a worktree, I can add it from Threads without creating another checkout. Project’s + dropdown → Add Existing Worktree… → choose its folder → open its existing interactive thread, or start one there as a guest. Closing or abandoning that guest leaves the worktree and branch intact.
+
+Source: "let's add a way in the Threads app to add a specific worktree (attaching to existing) as a thread"; "let's put it as a dropdown with the + button on a project"; "i often accidentally scroll through the sidebar and accidentally open a bunch of closed sessions i meant to just 'hover' on"; "i'll have 10s of non-interactive sessions and they can't be tabs".
 
 Issues: [[projects/mlegls-pi/issues/threads-on-zmx-with-a-native-sidebar]].
 
