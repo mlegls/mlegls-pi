@@ -62,7 +62,7 @@ afterAll(async () => {
 	rmSync(root, { recursive: true, force: true });
 });
 
-test("raw integrate follows ab-parent, refuses dirty or unprepared trees, and leaves threads active", async () => {
+test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lands beside unrelated destination edits, and leaves threads active", async () => {
 	const name = fresh();
 	const mid = await newThread({ cwd: repo, worktree: name + "m", launch: sleeper });
 	const kid = await newThread({ cwd: mid.cwd, parent: mid.id, worktree: name + "k", launch: sleeper });
@@ -79,10 +79,18 @@ test("raw integrate follows ab-parent, refuses dirty or unprepared trees, and le
 	rmSync(join(kid.cwd, "left.txt"));
 	expect(git(repo, "rev-parse", "main")).toBe(mainBefore);
 
+	// Destination edits block only where the merge would overwrite them.
+	writeFileSync(join(repo, name + ".txt"), "in place");
+	await expect(integrateThread(kid.id)).rejects.toThrow("would be overwritten");
+	rmSync(join(repo, name + ".txt"));
+	writeFileSync(join(repo, name + "-unrelated.txt"), "in place");
+
 	const from = process.cwd(); // not any thread's checkout
 	expect(from).not.toBe(repo);
 	expect(await integrateThread(kid.id)).toEqual({ branch: kid.branch!, parentBranch: "main", path: repo, mode: "rebase" });
 	expect(readFileSync(join(repo, name + ".txt"), "utf8")).toBe("kid");
+	expect(readFileSync(join(repo, name + "-unrelated.txt"), "utf8")).toBe("in place");
+	rmSync(join(repo, name + "-unrelated.txt"));
 	expect(git(mid.cwd, "branch", "--contains", git(kid.cwd, "rev-parse", "HEAD"))).not.toContain(mid.branch!);
 	expect((await getThread(kid.id))!.archived).toBe(false);
 	expect(existsSync(kid.cwd)).toBe(true);

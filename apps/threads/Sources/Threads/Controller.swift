@@ -532,7 +532,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             var closed = 0
             for id in ids {
                 do { closed += try await AB.perform("abandon", id: id).closed.count }
-                catch { say(error.localizedDescription); break }
+                catch { fail("abandon", error); break }
             }
             if closed > 0 { say("retired \(closed) thread(s)") }
             await refresh()
@@ -740,8 +740,19 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                 say(action == "continue" ? "merged; session continues" : result.closed.isEmpty ? "" : "retired \(result.closed.count) thread(s)")
                 await refresh()
                 if let id = result.thread { open(id) }
-            } catch { say(error.localizedDescription) }
+            } catch { fail(action, error) }
         }
+    }
+
+    /// A clicked action that failed gets an alert, not only the status line.
+    func fail(_ action: String, _ error: Error) {
+        say(error.localizedDescription)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = action.prefix(1).uppercased() + action.dropFirst() + " failed"
+        let detail = (error as? AB.Failure)?.detail ?? ""
+        alert.informativeText = detail.isEmpty ? error.localizedDescription : detail
+        alert.beginSheetModal(for: window)
     }
 
     func timeline(_ id: String?) {

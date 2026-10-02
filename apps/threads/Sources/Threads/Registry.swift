@@ -80,6 +80,8 @@ enum AB {
 
     struct Failure: LocalizedError {
         let message: String
+        /// The whole stderr, for an alert; message is its first line.
+        var detail = ""
         var errorDescription: String? { message }
     }
 
@@ -101,9 +103,10 @@ enum AB {
                 let data = out.fileHandleForReading.readDataToEndOfFile()
                 group.wait(); p.waitUntilExit()
                 if p.terminationStatus == 0 { done.resume(returning: String(decoding: data, as: UTF8.self)); return }
-                let message = String(decoding: errData, as: UTF8.self).split(separator: "\n")
+                let stderr = String(decoding: errData, as: UTF8.self)
+                let message = stderr.split(separator: "\n")
                     .map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty } ?? exe + " " + args.joined(separator: " ") + " failed"
-                done.resume(throwing: Failure(message: message))
+                done.resume(throwing: Failure(message: message, detail: stderr.trimmingCharacters(in: .whitespacesAndNewlines)))
             }
         }
     }

@@ -74,7 +74,7 @@ export async function integrateThread(id: string, options: {
 	}
 	await options.prepare?.(thread);
 	await clean(thread.cwd, "preparation left ");
-	await clean(path, "destination has ");
+	// The destination may be dirty (a thread working in place there): git itself refuses only when the merge would overwrite those files.
 	if (mode === "merge") {
 		const merged = await gitAttempt(path, ...diff3, "merge", "--no-ff", "--no-edit", branch);
 		if (merged.code) await conflict(path, "merge");
