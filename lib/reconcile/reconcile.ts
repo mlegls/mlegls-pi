@@ -455,9 +455,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			save();
 		}
 	}
+	const collectorPath = (slug: string) => resolve(repoRoot(cwd) + "__worktrees", slug + "--tree");
 	function ensureCollector(slug: string, into: string) {
 		if (s.collectors[slug]) return s.collectors[slug];
-		const path = resolve(repoRoot(cwd) + "__worktrees", slug + "--tree"), branch = "tree/" + slug;
+		const path = collectorPath(slug), branch = "tree/" + slug;
 		const parentBranch = git(pathOf(into), "branch", "--show-current");
 		if (!parentBranch) throw new Error("Collector destination needs a branch: " + pathOf(into));
 		if (!existsSync(path)) git(cwd, "worktree", "add", "-q", "-b", branch, path, git(pathOf(into), "rev-parse", "HEAD"));
@@ -473,6 +474,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		visited.add(slug);
 		const issue = issues.get(slug);
 		if (!issue || finished(issue) || s.moved[slug]) return "done";
+		// A restart with fresh state adopts the collector left on disk before reading its children:
+		// a kid can be frontier only there (its blockers landed in the collector, not the owner).
+		if (!s.collectors[slug] && existsSync(collectorPath(slug))) ensureCollector(slug, into);
 		const own = s.collectors[slug] ? snapshot(s.collectors[slug].path) : issues;
 		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !s.moved[i.slug]);
 		if (kids.length && !s.chains[slug]) {
