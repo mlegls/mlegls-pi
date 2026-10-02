@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 2
 author: "session:95cf9e55-d246-406a-a3bc-f0780b3b2a49"
@@ -21,3 +21,30 @@ holes:
 
 - The limit: sample `memory_pressure`/`vm_stat` during a busy period after concept's f58edb6f (before it, every `codegen:check` leaked a Convex local-backend executor, which inflated pressure).
 - Whether this and worker admission share one token pool (jobserver-style) or stay two queues.
+
+
+## Result
+
+`bin/heavy` (on PATH through system-config's `home/.local/bin/heavy`, with `parallel` added to its flake): `heavy [-b] CMD [ARG...]` waits for one of `HEAVY_SLOTS` (default 2) host-wide FIFO slots, then runs CMD in the caller's own process tree. GNU parallel's `sem --id heavy --fg` instead of pueue: under pueue the job is the daemon's child, so the process tool, `retire`'s leftover-process cleanup and a cancelled caller don't reach it without traps in every caller; with sem, output, exit status and cancellation are the caller's own, and there is no daemon to keep alive. `-b` adds `taskpolicy -b`.
+
+A waiting `sem` ignores SIGTERM (GNU parallel's "finish gracefully") and still runs its command once a slot frees; INT, HUP and KILL cancel it. Supervisors stop process groups with TERM first, so the wrapper forwards TERM to sem as INT.
+
+Not done here: concept declaring its heavy commands. Its batch runner is on the garden root's branch, so `heavy -b` is a line in [[projects/concept/issues/declare-a-main-verification-task-and-drop-pre-integrate-owner]]. Scoped spec runs and seeds are left unwrapped: a FIFO would put a one-spec review run behind a 30-minute batch.
+
+## Evidence
+
+`/tmp` scripts at `HEAVY_SLOTS=1`, isolated `PARALLEL_HOME`, then the installed command:
+
+- two callers in different directories: the second started when the first ended; exits 3 and 5 each to their own caller; an argument with a space and the caller's cwd survived.
+- TERM to a waiter: status 255, its command never ran. Bare sem in the same position ran it.
+- TERM to a holder: its job gone, the next caller admitted in 0.11 s.
+- KILL to a holder (the wrapper alone, not its group): the slot freed (sem detects the dead pid), but the job was orphaned until it exited. Not forwardable; group kills reach it.
+
+Not checked: real concept batches through it, and `-b`'s QoS beyond `taskpolicy` accepting it.
+
+## Danger
+
+**Door:** two-way. Nothing calls `heavy` yet.
+**Blast radius:** local. One more package in the profile.
+
+Holes carried on: the slot count is a guess until a memory sample during a busy period after concept's f58edb6f; whether worker admission shares the pool is now a note on [[projects/mlegls-pi/issues/admit-workers-against-a-host-wide-budget]].

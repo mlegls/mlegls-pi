@@ -15,3 +15,6 @@ Fix: one host-wide admission gate in front of every worker launch, across all ow
 Done when a second owner's launches queue behind the first's at the cap, and a launch under forced memory pressure waits and then proceeds when pressure falls.
 
 Concept root supervisor (`mail/2d15485e`), 2026-10-01: about six browser workers is this host's observed practical limit. Dead workers' Convex-local backends, packaged Node servers and bash/node chains remained in their old worktrees until integration, about 630 MB per worker. With 8–10 GB swap this contributed to further check+test deaths (exit 137). Runs started before 0be483a. Stopping a dead handle's processes before relaunch fixes that leak, but does not replace host-wide admission across owners.
+
+
+2026-10-02, from [[projects/mlegls-pi/issues/admit-heavy-checks-against-the-host-budget]]: heavy checks now take host-wide slots through `bin/heavy` over GNU parallel's `sem --id heavy` (FIFO, the caller's own process tree, dead holders reclaimed). A worker gate could be `sem --id workers` the same way. Sharing one pool with heavy checks would mean a worker holding a slot while its batch waits for another, so two ids is probably right; jobserver-style sharing works only if a worker hands its token to its batch.

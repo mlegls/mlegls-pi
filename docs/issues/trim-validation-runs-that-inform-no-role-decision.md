@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 author: "session:95cf9e55-d246-406a-a3bc-f0780b3b2a49"
@@ -20,3 +20,22 @@ Changes in `agents/roles/`:
 - `scc:delta` and jev-lint stop being required reports on every implement; the project instruction stays where it gates (`simplify:check`).
 
 Done when the role files say this and a ticket's implement → review → drive runs show none of the dropped commands.
+
+
+## Result
+
+- `agents/roles/implement.md` and the `implement` skill: don't hand-run checks the commit hook runs; no per-ticket size/complexity report.
+- `agents/roles/review.md`: retained and affected tests only, beside the hook.
+- `agents/roles/drive.md`: unit tests and repository checks are not the driver's.
+- `agents/_common.md`: check deployment readiness before a browser run, stop on not-ready.
+- `setup-project`'s `lints.md`: `scc-delta.sh` and jev-lint run on demand; `simplify` still requires both totals down.
+- concept `AGENTS.md`: the same for `scc:delta` and jev-lint, and names `scripts/wait-for-local-deployment.mjs` as its readiness check.
+
+## Evidence
+
+Only the text changed. Not yet checked: the done-when, that a supervised ticket's implement → review → drive runs show none of the dropped commands. The next run's sessions show it (`ab` session search for `bun run check`, `scc:delta`, `jev-lint` under implement and drive handles).
+
+## Danger
+
+**Door:** two-way.
+**Blast radius:** local. A defect the hook doesn't cover now waits for the integration gate rather than an implementer's hand run.
