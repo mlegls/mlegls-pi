@@ -60,6 +60,7 @@ func mainMenu(_ c: Controller) -> NSMenu {
         item("Open…", #selector(Controller.quickOpen(_:)), "p", target: c),
         item("Find or New Project…", #selector(Controller.openProject(_:)), "o", target: c),
         item("Command Palette…", #selector(Controller.commandPalette(_:)), "p", [.command, .shift], target: c),
+        item("New Scratch Workspace", #selector(Controller.newScratchWorkspace(_:)), "n", target: c),
         .separator(),
         item("New Child Worktree", #selector(Controller.newChild(_:)), target: c),
         item("New Sibling Worktree", #selector(Controller.newSibling(_:)), target: c),

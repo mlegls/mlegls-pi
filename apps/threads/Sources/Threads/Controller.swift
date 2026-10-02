@@ -16,6 +16,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     var reloading = false
     var workspaces: [String: Workspace] = [:]
     var projectCache: [String] = []
+    /// Scratch workspaces: shells under the Scratchpad header, not threads. They live as long as the app.
+    var scratch: [Workspace] = []
+    var unread: Set<String> = []
+    static let scratchpad = "x:scratchpad"
 
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
                           styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
@@ -122,12 +126,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func say(_ text: String) { status.stringValue = text; status.toolTip = text }
 
     func updateWhere() {
-        let row = byId[hovered ?? shown ?? ""]
-        let text = row?.blocked ?? row.map { ($0.cwd as NSString).abbreviatingWithTildeInPath } ?? ""
+        let key = hovered ?? shown ?? ""
+        let row = byId[key]
+        let text = row?.blocked ?? (row?.cwd ?? scratchSpace(key)?.cwd).map { ($0 as NSString).abbreviatingWithTildeInPath } ?? ""
         where_.stringValue = text; where_.toolTip = text
     }
 
-    var workspace: Workspace? { shown.flatMap { workspaces[$0] } }
+    var workspace: Workspace? { shown.flatMap { workspaces[$0] ?? scratchSpace($0) } }
+    func scratchSpace(_ id: String) -> Workspace? { scratch.first { $0.id == id } }
     func focusTerminal() { if let w = workspace { w.focus(w.focused) } }
 
     // MARK: registry
@@ -206,7 +212,16 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             child.parent = target
         }
         if attention { top.sort { Self.sectionOrder.firstIndex(of: String($0.key.dropFirst(2)))! < Self.sectionOrder.firstIndex(of: String($1.key.dropFirst(2)))! } }
-        roots = top
+        // The Scratchpad heads both views: shells anywhere, outside the registry.
+        let pad = node(Self.scratchpad, .scratchpad)
+        fresh[pad.key] = pad
+        for w in scratch {
+            let n = node(w.id, .scratch)
+            n.parent = pad
+            pad.children.append(n)
+            fresh[w.id] = n
+        }
+        roots = [pad] + top
         nodes = fresh
         reload()
     }
@@ -256,6 +271,23 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func outlineView(_: NSOutlineView, viewFor _: NSTableColumn?, item: Any) -> NSView? {
         guard let n = item as? Node else { return nil }
         switch n.kind {
+        case .scratchpad:
+            let plus = Combo(symbol: "plus", tip: "New scratch workspace in ~ (▾ elsewhere)", menu: scratchMenu()) { [weak self] in self?.newScratch() }
+            return RowCell(glyph: nil, title: "Scratchpad", detail: "", bold: false, dim: false, header: true, buttons: [plus])
+        case .scratch:
+            guard let w = scratchSpace(n.key) else { return nil }
+            let id = w.id
+            let close = Plain(symbol: "xmark", tip: "Close workspace (its shells end)") { [weak self] in self?.closeScratch(id) }
+            let dir = (w.cwd as NSString).abbreviatingWithTildeInPath
+            let cell = RowCell(glyph: unread.contains(id) ? ("●", .controlAccentColor) : ("$", .tertiaryLabelColor), title: w.label,
+                               detail: w.label.contains((w.cwd as NSString).lastPathComponent) || dir.hasSuffix(w.label) ? "" : dir,
+                               bold: id == shown, dim: false, header: false, buttons: [close])
+            cell.onHover = { [weak self] inside in
+                guard let self else { return }
+                if inside { hovered = id } else if hovered == id { hovered = nil }
+                updateWhere()
+            }
+            return cell
         case .section(let s):
             return RowCell(glyph: nil, title: Self.sections[s] ?? s, detail: "\(n.children.count)", bold: false, dim: false, header: true, buttons: [])
         case .project(let path):
@@ -342,8 +374,16 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func menu(forRow index: Int) -> NSMenu? {
         guard let n = outline.item(atRow: index) as? Node else { return nil }
         if case .project(let path) = n.kind { return projectMenu(path) }
+        if case .scratchpad = n.kind { return scratchMenu() }
+        if case .scratch = n.kind {
+            let menu = NSMenu()
+            menu.addItem(menuItem("Close Workspace") { [weak self] in self?.closeScratch(n.key) })
+            return menu
+        }
         guard let row = n.row else { return nil }
         let menu = NSMenu()
+        menu.addItem(menuItem("New Scratch Workspace Here") { [weak self] in self?.newScratch(row.cwd) })
+        menu.addItem(.separator())
         if row.interactive {
             startMenu(row.id).items.forEach { $0.menu?.removeItem($0); menu.addItem($0) }
             menu.addItem(.separator())
@@ -362,6 +402,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         let name = (path as NSString).lastPathComponent
         menu.addItem(menuItem("New Thread") { [weak self] in self?.spawn("new", nil, project: path) })
         menu.addItem(menuItem("Add Existing Worktree…") { [weak self] in self?.chooseWorktree(near: path) })
+        menu.addItem(menuItem("New Scratch Workspace Here") { [weak self] in self?.newScratch(path) })
         menu.addItem(.separator())
         if let p = rows.first(where: { $0.isProjectThread && $0.project == path }) {
             menu.addItem(menuItem("Close Project…") { [weak self] in self?.confirmClose(p.id) })
@@ -408,7 +449,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func outlineViewSelectionDidChange(_: Notification) {
         guard !reloading, let n = outline.item(atRow: outline.selectedRow) as? Node else { return }
         cursor = n.key
-        if let r = n.row { open(r.id) }
+        activate(n)
+    }
+
+    func activate(_ n: Node) {
+        if let r = n.row { open(r.id) } else if case .scratch = n.kind { openScratch(n.key) }
     }
 
     func outlineViewItemDidCollapse(_ note: Notification) { fold(note, collapsed: true) }
@@ -431,23 +476,90 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             workspaces[id] = w
             return w
         }()
-        if shown != id {
-            workspace?.view.removeFromSuperview()
-            w.view.frame = main.bounds
-            w.view.autoresizingMask = [.width, .height]
-            main.addSubview(w.view)
-            shown = id
-            cursor = id
-            saved.shown = id
-            saved.save()
-            placeholder.isHidden = true
-            window.title = row.isProjectThread ? row.projectName : row.label
-            reload()
-        }
+        present(w, title: row.isProjectThread ? row.projectName : row.label, remember: true)
         if w.isDetached { w.reattach() }
         w.focus(w.focused)
         if row.attention == "unread" { markSeen(id) }
     }
+
+    /// Puts a workspace in the main area. Only threads are remembered across launches: scratch shells end with the app.
+    func present(_ w: Workspace, title: String, remember: Bool) {
+        guard shown != w.id else { return }
+        workspace?.view.removeFromSuperview()
+        w.view.frame = main.bounds
+        w.view.autoresizingMask = [.width, .height]
+        main.addSubview(w.view)
+        shown = w.id
+        cursor = w.id
+        if remember { saved.shown = w.id; saved.save() }
+        placeholder.isHidden = true
+        window.title = title
+        reload()
+    }
+
+    // MARK: scratch workspaces
+
+    func scratchMenu() -> NSMenu {
+        let m = NSMenu()
+        m.addItem(menuItem("New Scratch Workspace") { [weak self] in self?.newScratch() })
+        m.addItem(menuItem("New Scratch Workspace in Folder…") { [weak self] in self?.chooseScratchFolder() })
+        return m
+    }
+
+    func newScratch(_ cwd: String = NSHomeDirectory()) {
+        let w = Workspace(id: "x:" + UUID().uuidString, cwd: cwd, controller: ghostty, canonical: false)
+        let id = w.id
+        w.onLabel = { [weak self] in self?.relabel(id) }
+        w.onBell = { [weak self] in
+            guard let self, shown != id || !window.isKeyWindow else { return }
+            unread.insert(id)
+            relabel(id)
+        }
+        w.onEmpty = { [weak self] in self?.closeScratch(id) }
+        scratch.append(w)
+        rebuild()
+        openScratch(id)
+    }
+
+    func openScratch(_ id: String) {
+        guard let w = scratchSpace(id) else { return }
+        unread.remove(id)
+        present(w, title: w.label, remember: false)
+        relabel(id)
+        w.focus(w.focused)
+    }
+
+    func relabel(_ id: String) {
+        guard let w = scratchSpace(id), let n = nodes[id] else { return }
+        if shown == id { window.title = w.label }
+        reloading = true
+        outline.reloadItem(n)
+        selectCursor()
+        reloading = false
+    }
+
+    func closeScratch(_ id: String) {
+        guard let w = scratchSpace(id) else { return }
+        scratch.removeAll { $0 === w }
+        unread.remove(id)
+        w.teardown()
+        if shown == id { show(nil, saying: "Workspace closed") }
+        rebuild()
+    }
+
+    func chooseScratchFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.prompt = "Open Workspace"
+        panel.directoryURL = URL(fileURLWithPath: NSHomeDirectory())
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.newScratch(url.path)
+        }
+    }
+
+    @objc func newScratchWorkspace(_: Any?) { newScratch() }
 
     func show(_ id: String?, saying text: String) {
         workspace?.view.removeFromSuperview()
@@ -567,7 +679,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     }
     func land(_ n: Node) {
         cursor = n.key
-        if let r = n.row { open(r.id) } else { reloading = true; selectCursor(); reloading = false }
+        if n.row != nil || scratchSpace(n.key) != nil { activate(n) } else { reloading = true; selectCursor(); reloading = false }
     }
 
     // ⌘P finds or makes threads and projects; ⌘O (and the sidebar's folder button) only projects.
@@ -587,6 +699,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                 for r in threads.prefix(40) {
                     items.append(.init(title: r.status.0 + "  " + r.label, detail: r.projectName + (r.interactive ? "" : " · worker")) { [weak self] in self?.open(r.id) })
                 }
+                let words = q.lowercased().split(separator: " ")
+                for w in scratch where words.allSatisfy({ (w.label + " " + w.cwd).lowercased().contains($0) }) {
+                    items.append(.init(title: "$  " + w.label, detail: "scratch · " + (w.cwd as NSString).abbreviatingWithTildeInPath) { [weak self] in self?.openScratch(w.id) })
+                }
+                // A path that is a directory opens a scratch workspace there; anything else, one in ~.
+                var isDir: ObjCBool = false
+                let dir = (q.hasPrefix("~") || q.hasPrefix("/")) && FileManager.default.fileExists(atPath: (q as NSString).expandingTildeInPath, isDirectory: &isDir) && isDir.boolValue
+                    ? (q as NSString).expandingTildeInPath : NSHomeDirectory()
+                named.append(.init(title: "New scratch workspace", detail: (dir as NSString).abbreviatingWithTildeInPath) { [weak self] in self?.newScratch(dir) })
                 let slug = q.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()
                     .split(separator: "-").joined(separator: "-")
                 // A path names a project, never a thread; named threads come after the projects.
@@ -702,7 +823,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
              #selector(mergeThread(_:)), #selector(mergeContinue(_:)):
             return interactive && !busy
         case #selector(abandonThread(_:)), #selector(showTimeline(_:)):
-            return shown != nil && !busy
+            return shown.flatMap { byId[$0] } != nil && !busy
         case #selector(splitRight(_:)), #selector(splitDown(_:)), #selector(newTab(_:)), #selector(closePane(_:)),
              #selector(previousPane(_:)), #selector(nextPane(_:)), #selector(previousTab(_:)), #selector(nextTab(_:)):
             return workspace != nil

@@ -2,7 +2,7 @@ import AppKit
 
 /// Outline item. Reused across refreshes so NSOutlineView keeps expansion state by identity.
 final class Node: NSObject {
-    enum Kind { case section(String), project(String), thread }
+    enum Kind { case section(String), project(String), thread, scratchpad, scratch }
     let key: String
     var kind: Kind
     var row: ThreadRow?

@@ -24,13 +24,17 @@ final class ThreadSurface: AppTerminalView {
 
 /// The surface delegate is weak in GhosttyTerminal; one retained box per surface carries its callbacks.
 @MainActor
-final class SurfaceBox: NSObject, TerminalSurfaceCloseDelegate, TerminalSurfaceTitleDelegate, TerminalSurfaceFocusDelegate {
+final class SurfaceBox: NSObject, TerminalSurfaceCloseDelegate, TerminalSurfaceTitleDelegate, TerminalSurfaceFocusDelegate,
+    TerminalSurfaceBellDelegate, TerminalSurfaceDesktopNotificationDelegate {
     var onClose: (Bool) -> Void = { _ in }
     var onTitle: (String) -> Void = { _ in }
     var onFocus: () -> Void = {}
+    var onBell: () -> Void = {}
     func terminalDidClose(processAlive: Bool) { onClose(processAlive) }
     func terminalDidChangeTitle(_ title: String) { onTitle(title) }
     func terminalDidChangeFocus(_ focused: Bool) { if focused { onFocus() } }
+    func terminalDidRingBell() { onBell() }
+    func terminalDidRequestDesktopNotification(title _: String, body _: String) { onBell() }
 }
 
 /// Holds one child filling it: a tab's root, or the canonical slot while detached.
@@ -137,6 +141,7 @@ final class DockLayout: NSView {
 /// One worktree's window contents. Tab 0 is IDE-like: the canonical pi session (zmx-backed, attached exclusively),
 /// a side dock to its right and a bottom dock under both, toggled by ⌘D / ⇧⌘D from the pi pane.
 /// Inside the docks and in other tabs, panes are plain shells that split like Ghostty's and live as long as the app.
+/// A scratch workspace has no canonical session: tab 0 is a plain shell too, and closing its last pane closes it.
 @MainActor
 final class Workspace: NSObject {
     let id: String
@@ -156,9 +161,15 @@ final class Workspace: NSObject {
     let controller: TerminalController
     var lastFocus: ThreadSurface?
     var onCanonicalClosed: () -> Void = {}
+    let hasCanonical: Bool
+    /// A pane's title or focus changed: a scratch row shows the last focused pane's title.
+    var onLabel: () -> Void = {}
+    var onBell: () -> Void = {}
+    var onEmpty: () -> Void = {}
 
-    init(id: String, cwd: String, controller: TerminalController) {
+    init(id: String, cwd: String, controller: TerminalController, canonical: Bool = true) {
         self.id = id
+        hasCanonical = canonical
         self.cwd = cwd
         self.controller = controller
         super.init()
@@ -181,8 +192,14 @@ final class Workspace: NSObject {
         ])
         let first = Holder()
         tabs = [first]
-        first.put(docks)
-        attachCanonical()
+        if canonical {
+            first.put(docks)
+            attachCanonical()
+        } else {
+            let s = makeSurface(command: nil, canonical: false)
+            first.put(s)
+            lastFocus = s
+        }
         show(tab: 0)
     }
 
@@ -197,11 +214,13 @@ final class Workspace: NSObject {
             if s === self.canonical { if alive { self.attachCanonical(); self.focus(self.canonical) } else { self.detached() } }
             else { self.remove(s) }
         }
-        box.onFocus = { [weak self, weak s] in self?.lastFocus = s }
+        box.onFocus = { [weak self, weak s] in self?.lastFocus = s; self?.onLabel() }
+        box.onBell = { [weak self] in self?.onBell() }
         box.onTitle = { [weak self, weak s] title in
             guard let self, let s else { return }
             self.titles[ObjectIdentifier(s)] = title
             self.updateStrip()
+            if s === self.lastFocus { self.onLabel() }
         }
         boxes[ObjectIdentifier(s)] = box
         s.delegate = box
@@ -225,7 +244,7 @@ final class Workspace: NSObject {
         strip.segmentCount = tabs.count
         for (i, tab) in tabs.enumerated() {
             let first = leaves(tab).first
-            let title = i == 0 ? "pi" : first.flatMap { titles[ObjectIdentifier($0)] } ?? "shell"
+            let title = i == 0 && hasCanonical ? "pi" : first.flatMap { titles[ObjectIdentifier($0)] } ?? "shell"
             strip.setLabel(String(title.prefix(24)), forSegment: i)
         }
         strip.selectedSegment = current
@@ -352,7 +371,7 @@ final class Workspace: NSObject {
             return
         } else if let tab = parent as? Holder, let index = tabs.firstIndex(of: tab), tab.subviews.isEmpty {
             tabs.remove(at: index)
-            if tabs.isEmpty { return }
+            if tabs.isEmpty { onEmpty(); return }
             show(tab: min(current, tabs.count - 1))
             return
         }
@@ -379,7 +398,12 @@ final class Workspace: NSObject {
         lastFocus = pi
     }
 
-    var isDetached: Bool { canonical == nil }
+    var isDetached: Bool { hasCanonical && canonical == nil }
+
+    /// The last focused pane's title (the shell's, or what runs in it), else the directory.
+    var label: String {
+        lastFocus.flatMap { titles[ObjectIdentifier($0)] } ?? (cwd as NSString).lastPathComponent
+    }
 
     /// The canonical session ended here (another client took it, or pi exited); the aux panes stay.
     func detached() {
