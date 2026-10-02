@@ -65,7 +65,7 @@ final class RowCell: NSTableCellView {
     let buttons = NSStackView()
     var onHover: (Bool) -> Void = { _ in }
 
-    init(glyph g: (String, NSColor)?, title t: String, detail d: String, bold: Bool, dim: Bool, header: Bool, delta dl: NSAttributedString? = nil, buttons bs: [NSView]) {
+    init(glyph g: (String, NSColor)?, title t: String, detail d: String, bold: Bool, dim: Bool, header: Bool, delta dl: NSAttributedString? = nil, deltaTip: String? = nil, buttons bs: [NSView]) {
         super.init(frame: .zero)
         glyph.stringValue = g?.0 ?? ""
         glyph.textColor = g?.1
@@ -84,7 +84,7 @@ final class RowCell: NSTableCellView {
         bs.forEach(buttons.addArrangedSubview)
         buttons.spacing = 2
         buttons.isHidden = true
-        if let dl { delta.attributedStringValue = dl }
+        if let dl { delta.attributedStringValue = dl; delta.toolTip = deltaTip }
         delta.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
         let views: [NSView] = (g == nil ? [] : [glyph]) + [title, detail, NSView()] + (dl == nil ? [] : [delta]) + [buttons]
         let stack = NSStackView(views: views)

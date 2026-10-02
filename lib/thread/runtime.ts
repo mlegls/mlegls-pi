@@ -141,6 +141,25 @@ function mergeParent(thread: ThreadRecord): string | undefined {
 	catch (error) { if ((error as { status?: number }).status !== 1) throw error; }
 }
 
+const defaults = new Map<string, string | undefined>();
+/** The remote's default branch (origin/HEAD), else a local main/master. */
+function defaultBranch(project: string): string | undefined {
+	if (defaults.has(project)) return defaults.get(project);
+	let ref: string | undefined;
+	for (const args of [["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], ["rev-parse", "--abbrev-ref", "main"], ["rev-parse", "--abbrev-ref", "master"]]) {
+		try { ref = git(project, ...args) || undefined; } catch {}
+		if (ref) break;
+	}
+	defaults.set(project, ref);
+	return ref;
+}
+
+/** A top-level thread (no parent, or merging into the default branch's local copy) measures against the default branch itself. */
+function deltaBase(project: string, parent: string | undefined): string | undefined {
+	const base = defaultBranch(project);
+	return !parent || parent === base?.replace(/^origin\//, "") ? base ?? parent : parent;
+}
+
 function delta(thread: ThreadRecord, parent: string | undefined): ThreadSnapshot["delta"] {
 	const dir = thread.worktree ?? thread.cwd;
 	if (!parent || !existsSync(dir)) return;
@@ -148,7 +167,7 @@ function delta(thread: ThreadRecord, parent: string | undefined): ThreadSnapshot
 		const [behind, ahead] = git(dir, "rev-list", "--left-right", "--count", parent + "...HEAD").split(/\s+/).map(Number);
 		const stat = git(dir, "diff", "--shortstat", git(dir, "merge-base", parent, "HEAD"));
 		const n = (re: RegExp) => Number(re.exec(stat)?.[1] ?? 0);
-		return { files: n(/(\d+) files? changed/), added: n(/(\d+) insertion/), removed: n(/(\d+) deletion/), ahead, behind };
+		return { against: parent, files: n(/(\d+) files? changed/), added: n(/(\d+) insertion/), removed: n(/(\d+) deletion/), ahead, behind };
 	} catch { return; }
 }
 
@@ -171,7 +190,7 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
 		thread, state, pid: pi?.pid, interactive: isInteractive(thread), attention, idleSince,
-		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, parent),
+		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, deltaBase(thread.project, parent)),
 		terminals: ownedTerminals.map(t => ({ name: t.name, role: t.role! })),
 		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,
 	};

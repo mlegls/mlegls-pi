@@ -7,6 +7,7 @@ struct ThreadRow: Equatable {
     let guest, interactive: Bool
     let state, attention: String
     let added, removed, ahead, behind: Int
+    let against: String
 
     init?(_ json: [String: Any]) {
         guard let t = json["thread"] as? [String: Any], let id = t["id"] as? String else { return nil }
@@ -28,9 +29,12 @@ struct ThreadRow: Equatable {
         attention = json["attention"] as? String ?? "read"
         let d = json["delta"] as? [String: Any] ?? [:]
         (added, removed, ahead, behind) = (d["added"] as? Int ?? 0, d["removed"] as? Int ?? 0, d["ahead"] as? Int ?? 0, d["behind"] as? Int ?? 0)
+        against = d["against"] as? String ?? ""
     }
 
     /// +added −removed against the merge base, and ↓behind when the target moved on.
+    var deltaTip: String { "vs \(against): \(ahead) ahead, \(behind) behind" }
+
     var delta: NSAttributedString? {
         let s = NSMutableAttributedString()
         let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)

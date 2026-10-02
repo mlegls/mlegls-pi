@@ -271,7 +271,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             let buttons: [NSView] = row.interactive ? [startCombo(id), endCombo(id)]
                 : [Plain(symbol: "trash", tip: "Abandon") { [weak self] in self?.confirmAbandon(id) }]
             let cell = RowCell(glyph: row.status, title: row.label, detail: bits.joined(separator: " "),
-                               bold: id == shown, dim: !row.interactive, header: false, delta: row.delta, buttons: buttons)
+                               bold: id == shown, dim: !row.interactive, header: false, delta: row.delta, deltaTip: row.deltaTip, buttons: buttons)
             cell.onHover = { [weak self] inside in
                 guard let self else { return }
                 if inside { hovered = id } else if hovered == id { hovered = nil }

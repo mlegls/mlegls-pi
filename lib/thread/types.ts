@@ -49,8 +49,8 @@ export interface ThreadSnapshot {
 	attention: Attention;
 	/** When the current idle period began. */
 	idleSince?: string;
-	/** The worktree (uncommitted tracked edits included) against its merge base with mergeParent; ahead/behind in commits. */
-	delta?: { added: number; removed: number; files: number; ahead: number; behind: number };
+	/** The worktree (uncommitted tracked edits included) against its merge base with `against`: mergeParent under a parent thread, else the project's default branch (origin/HEAD first), so a top-level thread shows what hasn't reached the remote. ahead/behind in commits. */
+	delta?: { against: string; added: number; removed: number; files: number; ahead: number; behind: number };
 }
 export type Attention = "needs-you" | "unread" | "read" | "running";
 export interface ThreadRow extends ThreadSnapshot {
