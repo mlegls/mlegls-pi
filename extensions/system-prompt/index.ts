@@ -1,4 +1,4 @@
-import type { BuildSystemPromptOptions, ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { BuildSystemPromptOptions, ExtensionAPI, ToolInfo } from "@earendil-works/pi-coding-agent";
 
 function escapeXml(value: string): string {
 	return value.replace(/[&<>"']/g, (character) => ({
@@ -35,7 +35,41 @@ function visibleSkills(options: BuildSystemPromptOptions): string | undefined {
 	return `Skills provide task-specific instructions. Read a matching skill file before using it.\n\n<available_skills>\n${entries}\n</available_skills>`;
 }
 
-function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: string): string {
+// Codemode inlines full tool sections cheapest-first within a token budget and drops the rest
+// silently, so an expensive tool the prompt tells agents to use (process, recall) looked absent.
+// Settings set that budget to 0; this catalog names every nested tool in one line instead, and
+// describeTool supplies the full declaration on demand.
+function signature(tool: ToolInfo): string {
+	const schema = tool.parameters as { properties?: Record<string, unknown>; required?: string[] } | undefined;
+	const required = new Set(schema?.required ?? []);
+	const args = Object.keys(schema?.properties ?? {}).map((name) => required.has(name) ? name : name + "?");
+	return `${tool.name}({${args.join(", ")}})`;
+}
+
+function summary(description: string | undefined): string {
+	const first = (description ?? "").trim().split(/\n|(?<=[.!?])\s/)[0] ?? "";
+	return first.length > 160 ? first.slice(0, 157) + "…" : first;
+}
+
+function toolCatalog(pi: ExtensionAPI): string | undefined {
+	const active = new Set(pi.getActiveTools());
+	if (!active.has("codemode")) return undefined;
+	const callable = pi.getAllTools().filter((tool) => tool.name !== "codemode" &&
+		(tool.exposure === "codemode" || tool.exposure === "deferred" || (tool.exposure === "direct" && active.has(tool.name))));
+	const loose = callable.filter((tool) => !tool.namespace);
+	const namespaces = new Map<string, ToolInfo[]>();
+	for (const tool of callable) if (tool.namespace) namespaces.set(tool.namespace.name, [...(namespaces.get(tool.namespace.name) ?? []), tool]);
+	const lines = loose.map((tool) => `- ${signature(tool)}: ${summary(tool.description)}`);
+	for (const [name, members] of namespaces) {
+		const about = summary(members[0]!.namespace!.description);
+		// Deferred namespaces (MCP servers) can be large; name them and let describeNamespace list them.
+		if (members.every((tool) => tool.exposure === "deferred")) lines.push(`- ${name} (${members.length} tools)${about ? ": " + about : ""}`);
+		else lines.push(`- ${name}${about ? ": " + about : ""}`, ...members.map((tool) => `  - ${signature(tool)}: ${summary(tool.description)}`));
+	}
+	return `Codemode tools, all on \`tools\` in scripts. Before first using one whose arguments or result you don't know, read it with \`await describeTool(name)\` (a namespace: \`describeNamespace(name)\`).\n${lines.join("\n")}`;
+}
+
+function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: string, catalog?: string): string {
 	const parts: string[] = [];
 	parts.push(options.customPrompt?.trim() || [
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
@@ -44,6 +78,7 @@ function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: strin
 
 	if (readsFiles(options)) parts.push(FILE_TOOLS);
 	if (options.selectedTools?.includes("codemode")) parts.push(CODEMODE_PAYLOADS);
+	if (catalog) parts.push(catalog);
 
 	if (options.appendSystemPrompt?.trim()) parts.push(options.appendSystemPrompt.trim());
 
@@ -64,6 +99,6 @@ function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: strin
 
 export default function (pi: ExtensionAPI) {
 	pi.on("before_agent_start", (event, ctx) => ({
-		systemPrompt: buildPrompt(event.systemPromptOptions, ctx.sessionManager.getHeader()?.timestamp),
+		systemPrompt: buildPrompt(event.systemPromptOptions, ctx.sessionManager.getHeader()?.timestamp, toolCatalog(pi)),
 	}));
 }
