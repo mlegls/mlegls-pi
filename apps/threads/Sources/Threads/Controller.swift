@@ -83,6 +83,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         let scroll = NSScrollView()
         scroll.documentView = outline
         scroll.hasVerticalScroller = true
+        scroll.scrollerStyle = .overlay
+        scroll.autohidesScrollers = true
         scroll.drawsBackground = false
 
         let newProject = Plain(symbol: "folder.badge.plus", tip: "Find or new project (⌘O)") { [weak self] in self?.openProject(nil) }
