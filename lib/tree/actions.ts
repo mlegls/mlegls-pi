@@ -52,15 +52,17 @@ export function initProject(text: string): string {
 	return real;
 }
 
-/** Open a checkout's canonical interactive thread, or start a guest without claiming its worktree.
- * A main checkout's thread is shown as the project; a linked checkout stays a worktree row. */
-export async function openProject(text: string, init = false): Promise<ThreadRecord> {
+/** Go to a checkout's oldest interactive thread, or start a guest there without claiming its worktree.
+ * fresh always starts another: a main checkout may hold any number of threads, none of them the project. */
+export async function openProject(text: string, init = false, fresh = false): Promise<ThreadRecord> {
 	const path = init ? initProject(text) : resolveProject(text);
 	if (!path) throw new Error("No such project: " + text);
 	const { allThreads, isInteractive } = await import("../thread");
 	const location = checkout(path);
 	const root = location.worktree ?? location.project;
-	const live = (await allThreads()).find(t => t.project === location.project && (t.worktree ?? t.project) === root && !t.worker && isInteractive(t));
+	const live = fresh ? undefined : (await allThreads())
+		.filter(t => t.project === location.project && (t.worktree ?? t.project) === root && !t.worker && isInteractive(t))
+		.sort((a, b) => a.created.localeCompare(b.created))[0];
 	return live ?? newThread({ cwd: root, in: root, interactive: true });
 }
 

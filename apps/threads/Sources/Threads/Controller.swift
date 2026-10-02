@@ -172,7 +172,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         return n
     }
 
-    /// project: project → interactive threads nested by merge target → their workers by spawn parent.
+    /// project: project (its main checkout) → interactive threads nested by merge target → their workers by spawn parent.
+    /// Threads in the main checkout itself sit directly under the project, first by default.
     /// attention: sections needs-you → unread → read → running → interactive threads → their workers.
     func rebuild() {
         let attention = saved.view == "attention"
@@ -185,12 +186,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             top.append(n)
             return n
         }
-        // Project view: a project's own thread is its header row, keyed by both.
-        let projectThread = attention ? [:] : Dictionary(rows.filter(\.isProjectThread).map { ($0.project, $0) }, uniquingKeysWith: { a, b in a.created < b.created ? a : b })
-        for row in rows {
-            if let p = projectThread[row.project], p.id == row.id { fresh[row.id] = header("p:" + row.project, .project(row.project)); fresh[row.id]!.row = row }
-            else { fresh[row.id] = node(row.id, .thread, row) }
-        }
+        for row in rows { fresh[row.id] = node(row.id, .thread, row) }
         func home(_ r: ThreadRow) -> String {
             let fallback = attention ? "s:" + r.attention : "p:" + r.project
             if r.interactive {
@@ -204,8 +200,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         if attention {
             for s in Self.sectionOrder where rows.contains(where: { home($0) == "s:" + s }) { _ = header("s:" + s, .section(s)) }
         }
-        let ordered = attention ? rows.sorted { ($0.idleSince ?? $0.created) < ($1.idleSince ?? $1.created) } : rows
-        for row in ordered where projectThread[row.project]?.id != row.id {
+        let ordered = attention ? rows.sorted { ($0.idleSince ?? $0.created) < ($1.idleSince ?? $1.created) }
+            : rows.filter(\.inPlace) + rows.filter { !$0.inPlace }
+        for row in ordered {
             let key = home(row)
             let parent = key.hasPrefix("s:") ? header(key, .section(String(key.dropFirst(2))))
                 : key.hasPrefix("p:") ? header(key, .project(String(key.dropFirst(2)))) : fresh[key]!
@@ -406,21 +403,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             let plus = Combo(symbol: "plus", tip: "New worktree in " + name + " (▾ add existing)", menu: start) { [weak self] in
                 self?.spawn("new", nil, project: path)
             }
-            // With its own thread the project row is that thread: its status, its delta, and closing it closes the project.
-            guard let row = n.row else {
-                let open = Plain(symbol: "terminal", tip: "Open a thread in " + name + "'s main checkout") { [weak self] in self?.openProject(path) }
-                return RowCell(glyph: nil, title: name, detail: "", bold: false, dim: false, header: true, buttons: [plus, open])
-            }
-            let close = Plain(symbol: "xmark", tip: "Close " + name) { [weak self] in self?.confirmClose(row.id) }
-            let r = rollup(n)
-            let cell = RowCell(glyph: row.status, title: row.displayTitle, detail: r, bold: row.id == shown, dim: false, header: true,
-                               delta: row.delta, deltaTip: row.deltaTip, buttons: [plus, close])
-            cell.onHover = { [weak self] inside in
-                guard let self else { return }
-                if inside { hovered = row.id } else if hovered == row.id { hovered = nil }
-                updateWhere()
-            }
-            return cell
+            // The project row is the main checkout, not a thread: threads in it are ordinary children.
+            let open = Plain(symbol: "terminal", tip: "Go to a thread in " + name + "'s main checkout, or start one") { [weak self] in self?.openProject(path) }
+            return RowCell(glyph: nil, title: name, detail: "", bold: false, dim: false, header: true, buttons: [plus, open])
         case .thread:
             guard let row = n.row else { return nil }
             let id = row.id
@@ -429,7 +414,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             let r = rollup(n)
             if !r.isEmpty { bits.append(r) }
             if row.blocked != nil { bits.append("blocked") }
-            let buttons: [NSView] = row.interactive ? [startCombo(id), endCombo(id)]
+            let buttons: [NSView] = row.inPlace ? [startCombo(id), Plain(symbol: "xmark", tip: "Close") { [weak self] in self?.confirmClose(id) }]
+                : row.interactive ? [startCombo(id), endCombo(id)]
                 : [Plain(symbol: "trash", tip: "Abandon") { [weak self] in self?.confirmAbandon(id) }]
             let cell = RowCell(glyph: row.status, title: row.label, detail: bits.joined(separator: " "),
                                bold: id == shown, dim: !row.interactive, header: false, delta: row.delta, deltaTip: row.deltaTip, buttons: buttons)
@@ -493,7 +479,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         menu.addItem(menuItem("Rename…") { [weak self] in self?.rename(row.id) })
         menu.addItem(menuItem("New Scratch Workspace Here") { [weak self] in self?.newScratch(row.cwd) })
         menu.addItem(.separator())
-        if row.interactive {
+        if row.inPlace {
+            startMenu(row.id).items.forEach { $0.menu?.removeItem($0); menu.addItem($0) }
+            menu.addItem(.separator())
+            menu.addItem(menuItem("Close…") { [weak self] in self?.confirmClose(row.id) })
+        } else if row.interactive {
             startMenu(row.id).items.forEach { $0.menu?.removeItem($0); menu.addItem($0) }
             menu.addItem(.separator())
             endMenu(row.id).items.forEach { $0.menu?.removeItem($0); menu.addItem($0) }
@@ -509,18 +499,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func projectMenu(_ path: String) -> NSMenu {
         let menu = NSMenu()
         let name = (path as NSString).lastPathComponent
-        menu.addItem(menuItem("New Thread") { [weak self] in self?.spawn("new", nil, project: path) })
+        menu.addItem(menuItem("New Worktree Thread") { [weak self] in self?.spawn("new", nil, project: path) })
+        menu.addItem(menuItem("New Thread in Main Checkout") { [weak self] in self?.openProject(path, fresh: true) })
         menu.addItem(menuItem("Add Existing Worktree…") { [weak self] in self?.chooseWorktree(near: path) })
         menu.addItem(menuItem("New Scratch Workspace Here") { [weak self] in self?.newScratch(path) })
         menu.addItem(.separator())
-        if let p = rows.first(where: { $0.isProjectThread && $0.project == path }) {
-            menu.addItem(menuItem("Rename…") { [weak self] in self?.rename(p.id) })
-            menu.addItem(menuItem("Close Project…") { [weak self] in self?.confirmClose(p.id) })
-            menu.addItem(menuItem("Mark Read") { [weak self] in self?.markSeen(p.id) })
-            menu.addItem(menuItem("Timeline") { [weak self] in self?.timeline(p.id) })
-        } else {
-            menu.addItem(menuItem("Open Project Thread") { [weak self] in self?.openProject(path) })
-        }
         menu.addItem(.separator())
         menu.addItem(menuItem("Abandon All Threads…") { [weak self] in
             guard let self else { return }
@@ -531,12 +514,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         return menu
     }
 
-    /// Starts (or finds) a checkout's interactive thread; makeProject creates the repo first.
-    func openProject(_ path: String, makeProject: Bool = false) { perform("open", nil, project: path, makeProject: makeProject) }
+    /// Finds a checkout's interactive thread or starts one (fresh: always starts another); makeProject creates the repo first.
+    func openProject(_ path: String, makeProject: Bool = false, fresh: Bool = false) { perform(fresh ? "open-new" : "open", nil, project: path, makeProject: makeProject) }
 
     func confirmClose(_ id: String) {
         guard let row = byId[id] else { return }
-        confirm("Close \(row.projectName)?", "Ends the project's own thread and the workers it spawned. Its checkout and its worktree threads stay.",
+        confirm("Close \(row.label)?", "Ends this main-checkout thread and the workers it spawned. The checkout and its worktree threads stay.",
                 button: "Close", destructive: false) { [weak self] in self?.perform("merge", id) }
     }
 
@@ -876,8 +859,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             for p in known where (projectsOnly || !q.isEmpty) && words.allSatisfy({ key(p).contains($0) }) {
                 let name = (p as NSString).lastPathComponent, path = (p as NSString).abbreviatingWithTildeInPath
                 if name.lowercased() == q.lowercased() || p == target { exact = true }
-                // The project itself is its main-checkout thread: go to it, or start it.
-                if let own = rows.first(where: { $0.isProjectThread && $0.project == p }) {
+                // Going to a project means going to its (oldest) main-checkout thread, or starting one.
+                if let own = rows.filter({ $0.inPlace && $0.project == p }).min(by: { $0.created < $1.created }) {
                     items.append(.init(title: "▸  " + name, detail: path) { [weak self] in self?.open(own.id) })
                 } else {
                     items.append(.init(title: "Open " + name, detail: "thread in the main checkout · " + path) { [weak self] in self?.openProject(p) })

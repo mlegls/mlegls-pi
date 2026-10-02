@@ -48,7 +48,7 @@ struct ThreadRow: Equatable {
     }
 
     var label: String { customName ?? defaultLabel }
-    var displayTitle: String { customName ?? (isProjectThread ? projectName : defaultLabel) }
+    var displayTitle: String { inPlace ? projectName + " · " + label : label }
 
     var defaultLabel: String {
         (handle ?? branch ?? (cwd as NSString).lastPathComponent) + (guest ? " ·" + id.prefix(6) : "")
@@ -56,8 +56,9 @@ struct ThreadRow: Equatable {
 
     var projectName: String { (project as NSString).lastPathComponent }
 
-    /// The project's own thread, in its main checkout: the project view shows it as the project row.
-    var isProjectThread: Bool { interactive && handle == nil && cwd == project }
+    /// An interactive thread in the project's main checkout, not a worktree: by convention the project's supervisor.
+    /// Its edits are already in the tree the project's worktrees merge into, so it can be closed but not merged.
+    var inPlace: Bool { interactive && handle == nil && cwd == project }
 
     var status: (String, NSColor) {
         if blocked != nil || report == "blocked" { return ("⊘", .systemRed) }

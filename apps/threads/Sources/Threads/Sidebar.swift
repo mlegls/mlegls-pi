@@ -8,7 +8,6 @@ final class Node: NSObject {
     var row: ThreadRow?
     var children: [Node] = []
     weak var parent: Node?
-    /// A project thread reuses its header node across views, but thread order follows its id.
     var orderingKey: String {
         if case .thread = kind, let row { return row.id }
         return key

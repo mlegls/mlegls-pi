@@ -48,8 +48,8 @@ export function printEnv(): void {
 	process.stdout.write("\x1eENV" + JSON.stringify(threadEnv()) + "\x1eENV");
 }
 
-const ACTIONS = ["new", "fork", "open", "merge", "continue", "abandon", "seen"] as const;
-const USAGE = "usage: ab tree do new|fork [--id ID] [--sibling] [--name BRANCH] [--project QUERY [--init]] | open --project QUERY [--init] | merge|continue|abandon|seen --id ID";
+const ACTIONS = ["new", "fork", "open", "open-new", "merge", "continue", "abandon", "seen"] as const;
+const USAGE = "usage: ab tree do new|fork [--id ID] [--sibling] [--name BRANCH] [--project QUERY [--init]] | open|open-new --project QUERY [--init] | merge|continue|abandon|seen --id ID";
 
 export async function perform(args: string[]): Promise<void> {
 	try {
@@ -64,7 +64,7 @@ export async function perform(args: string[]): Promise<void> {
 async function run(kind: typeof ACTIONS[number], values: { id?: string; name?: string; project?: string; sibling?: boolean; init?: boolean }) {
 	const thread = values.id ? await getThread(values.id) : undefined;
 	if (values.id && (!thread || thread.archived)) throw new Error("No active thread: " + values.id);
-	if (kind === "open") return { thread: (await act.openProject(values.project ?? "", values.init)).id };
+	if (kind === "open" || kind === "open-new") return { thread: (await act.openProject(values.project ?? "", values.init, kind === "open-new")).id };
 	if (kind === "new" || kind === "fork") return { thread: (await act.spawn(kind, thread, values)).id };
 	if (!thread) throw new Error("Select a thread");
 	if (kind === "seen") { await seeThread(thread.id); return {}; }
