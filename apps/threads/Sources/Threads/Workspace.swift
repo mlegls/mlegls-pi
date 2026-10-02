@@ -246,6 +246,7 @@ final class Workspace: NSObject {
             let first = leaves(tab).first
             let title = i == 0 && hasCanonical ? "pi" : first.flatMap { titles[ObjectIdentifier($0)] } ?? "shell"
             strip.setLabel(String(title.prefix(24)), forSegment: i)
+            strip.setWidth(160, forSegment: i)
         }
         strip.selectedSegment = current
         strip.isHidden = tabs.count < 2
