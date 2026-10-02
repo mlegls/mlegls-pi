@@ -20,7 +20,6 @@ func mainMenu(_ c: Controller) -> NSMenu {
         top.submenu = menu
         return top
     }
-    let backspace = String(Character(UnicodeScalar(NSBackspaceCharacter)!))
     let bar = NSMenu()
     bar.addItem(submenu("Threads", [
         item("Hide Threads", #selector(NSApplication.hide(_:)), "h"),
@@ -33,27 +32,40 @@ func mainMenu(_ c: Controller) -> NSMenu {
         item("Select All", #selector(NSText.selectAll(_:)), "a"),
     ]))
     bar.addItem(submenu("Thread", [
-        item("New Thread Here", #selector(Controller.newThread(_:)), "n", target: c),
-        item("New Thread in Worktree…", #selector(Controller.newWorktree(_:)), "n", [.command, .shift], target: c),
-        item("Fork", #selector(Controller.forkThread(_:)), "d", target: c),
-        item("New Thread in Project…", #selector(Controller.openProject(_:)), "o", target: c),
+        item("Open…", #selector(Controller.quickOpen(_:)), "p", target: c),
+        item("Command Palette…", #selector(Controller.commandPalette(_:)), "p", [.command, .shift], target: c),
         .separator(),
-        item("Merge", #selector(Controller.mergeThread(_:)), "m", [.command, .shift], target: c),
-        item("Archive", #selector(Controller.archiveThread(_:)), "a", [.command, .shift], target: c),
-        item("Abandon", #selector(Controller.abandonThread(_:)), backspace, [.command, .shift], target: c),
-        item("Abandon All Children", #selector(Controller.abandonChildren(_:)), target: c),
+        item("New Child Worktree", #selector(Controller.newChild(_:)), target: c),
+        item("New Sibling Worktree", #selector(Controller.newSibling(_:)), target: c),
+        item("Fork Into Child Worktree", #selector(Controller.forkChild(_:)), target: c),
+        item("Fork Into Sibling Worktree", #selector(Controller.forkSibling(_:)), target: c),
         .separator(),
-        item("Timeline", #selector(Controller.showTimeline(_:)), "t", [.command, .option], target: c),
+        item("Merge", #selector(Controller.mergeThread(_:)), target: c),
+        item("Merge & Continue", #selector(Controller.mergeContinue(_:)), target: c),
+        item("Abandon", #selector(Controller.abandonThread(_:)), target: c),
+        .separator(),
+        item("Timeline", #selector(Controller.showTimeline(_:)), target: c),
     ]))
-    bar.addItem(submenu("Go", [
-        item("Previous Thread", #selector(Controller.previousThread(_:)), "[", target: c),
-        item("Next Thread", #selector(Controller.nextThread(_:)), "]", target: c),
+    bar.addItem(submenu("Shell", [
+        item("Split Right", #selector(Controller.splitRight(_:)), "d", target: c),
+        item("Split Down", #selector(Controller.splitDown(_:)), "d", [.command, .shift], target: c),
+        item("New Tab", #selector(Controller.newTab(_:)), "t", target: c),
+        item("Close Pane", #selector(Controller.closePane(_:)), "w", target: c),
         .separator(),
-    ] + (1...9).map { item("Thread \($0)", #selector(Controller.gotoThread(_:)), String($0), target: c, tag: $0 - 1) }))
+        item("Previous Pane", #selector(Controller.previousPane(_:)), "[", target: c),
+        item("Next Pane", #selector(Controller.nextPane(_:)), "]", target: c),
+        item("Previous Tab", #selector(Controller.previousTab(_:)), "[", [.command, .shift], target: c),
+        item("Next Tab", #selector(Controller.nextTab(_:)), "]", [.command, .shift], target: c),
+    ] + (1...9).map { item("Tab ($0)", #selector(Controller.gotoTab(_:)), String($0), target: c, tag: $0 - 1) }))
+    bar.addItem(submenu("Go", [
+        item("Down", #selector(Controller.treeDown(_:)), "j", [.command, .control], target: c),
+        item("Up", #selector(Controller.treeUp(_:)), "k", [.command, .control], target: c),
+        item("Out", #selector(Controller.treeOut(_:)), "h", [.command, .control], target: c),
+        item("In", #selector(Controller.treeIn(_:)), "l", [.command, .control], target: c),
+    ]))
     bar.addItem(submenu("View", [
-        item("Switch Tree", #selector(Controller.toggleTree(_:)), "t", [.command, .shift], target: c),
-        item("Filter", #selector(Controller.focusFilter(_:)), "f", [.command, .shift], target: c),
-        item("Refresh", #selector(Controller.refreshNow(_:)), "r", target: c),
+        item("Switch View", #selector(Controller.toggleView(_:)), "t", [.command, .shift], target: c),
+        item("Refresh", #selector(Controller.refreshNow(_:)), target: c),
         item("Toggle Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control]),
     ]))
     bar.addItem(submenu("Window", [

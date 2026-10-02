@@ -1,41 +1,14 @@
 import AppKit
 
-enum Action: String, CaseIterable {
-    case new, worktree, fork, merge, archive, abandon, children
-
-    var title: String {
-        switch self {
-        case .new: "New Thread Here"
-        case .worktree: "New Thread in Worktree…"
-        case .fork: "Fork"
-        case .merge: "Merge"
-        case .archive: "Archive"
-        case .abandon: "Abandon"
-        case .children: "Abandon All Children"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .new: "plus"
-        case .worktree: "folder.badge.plus"
-        case .fork: "arrow.triangle.branch"
-        case .merge: "arrow.triangle.merge"
-        case .archive: "archivebox"
-        case .abandon: "trash"
-        case .children: "xmark.bin"
-        }
-    }
-
-    var retires: Bool { [.merge, .archive, .abandon, .children].contains(self) }
-}
-
 /// Outline item. Reused across refreshes so NSOutlineView keeps expansion state by identity.
 final class Node: NSObject {
-    let id: String
-    var row: ThreadRow
+    enum Kind { case section(String), project(String), thread }
+    let key: String
+    var kind: Kind
+    var row: ThreadRow?
     var children: [Node] = []
-    init(_ row: ThreadRow) { id = row.id; self.row = row }
+    weak var parent: Node?
+    init(key: String, kind: Kind, row: ThreadRow? = nil) { self.key = key; self.kind = kind; self.row = row }
 }
 
 /// Clicking acts without taking the keyboard from the terminal; scrolling never selects.
@@ -49,63 +22,77 @@ final class PassiveOutline: NSOutlineView {
     }
 }
 
-final class RowButton: NSButton {
+/// A hover action: a default click plus a menu of variants (`NSComboButton`).
+final class Combo: NSComboButton {
     var run: () -> Void = {}
-    convenience init(_ action: Action, run: @escaping () -> Void) {
+    convenience init(symbol: String, tip: String, menu: NSMenu, run: @escaping () -> Void) {
         self.init(frame: .zero)
         self.run = run
-        bezelStyle = .accessoryBarAction
-        isBordered = false
-        if let image = NSImage(systemSymbolName: action.symbol, accessibilityDescription: action.title) { self.image = image }
-        else { title = action.rawValue }
-        toolTip = action.title
+        image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
+        title = ""
+        toolTip = tip
+        self.menu = menu
+        controlSize = .small
         target = self
-        self.action = #selector(fire)
+        action = #selector(fire)
     }
     override func acceptsFirstMouse(for _: NSEvent?) -> Bool { true }
     @objc private func fire() { run() }
 }
 
-/// A thread row: status, label, detail, and actions that appear only under the pointer.
-final class ThreadCell: NSTableCellView {
+final class Plain: NSButton {
+    var run: () -> Void = {}
+    convenience init(symbol: String, tip: String, run: @escaping () -> Void) {
+        self.init(frame: .zero)
+        self.run = run
+        bezelStyle = .accessoryBarAction
+        isBordered = false
+        image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
+        toolTip = tip
+        target = self
+        action = #selector(fire)
+    }
+    override func acceptsFirstMouse(for _: NSEvent?) -> Bool { true }
+    @objc private func fire() { run() }
+}
+
+/// A row: glyph, title, detail, and buttons that appear only under the pointer.
+final class RowCell: NSTableCellView {
     let glyph = NSTextField(labelWithString: "")
     let title = NSTextField(labelWithString: "")
     let detail = NSTextField(labelWithString: "")
     let buttons = NSStackView()
     var onHover: (Bool) -> Void = { _ in }
 
-    init(row: ThreadRow, shown: Bool, actions: [Action], perform: @escaping (Action) -> Void) {
+    init(glyph g: (String, NSColor)?, title t: String, detail d: String, bold: Bool, dim: Bool, header: Bool, buttons bs: [NSView]) {
         super.init(frame: .zero)
-        let (symbol, color) = row.status
-        glyph.stringValue = symbol
-        glyph.textColor = color
+        glyph.stringValue = g?.0 ?? ""
+        glyph.textColor = g?.1
         glyph.alignment = .center
-        title.stringValue = row.label
-        title.font = shown ? .boldSystemFont(ofSize: NSFont.systemFontSize) : .systemFont(ofSize: NSFont.systemFontSize)
+        title.stringValue = t
+        title.font = header ? .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
+            : bold ? .boldSystemFont(ofSize: NSFont.systemFontSize) : .systemFont(ofSize: NSFont.systemFontSize)
+        title.textColor = header || dim ? .secondaryLabelColor : .labelColor
         title.lineBreakMode = .byTruncatingTail
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        var bits: [String] = []
-        if row.depth == 0 { bits.append((row.project as NSString).lastPathComponent) }
-        if row.guest { bits.append("guest") }
-        if row.blocked != nil { bits.append("blocked") }
-        detail.stringValue = bits.joined(separator: " ")
-        detail.textColor = row.blocked != nil ? .systemRed : .secondaryLabelColor
+        detail.stringValue = d
+        detail.textColor = .tertiaryLabelColor
         detail.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         detail.lineBreakMode = .byTruncatingTail
         detail.setContentCompressionResistancePriority(.defaultLow - 1, for: .horizontal)
-        for a in actions { buttons.addArrangedSubview(RowButton(a) { perform(a) }) }
+        bs.forEach(buttons.addArrangedSubview)
         buttons.spacing = 2
         buttons.isHidden = true
-        let stack = NSStackView(views: [glyph, title, detail, NSView(), buttons])
+        let views: [NSView] = (g == nil ? [] : [glyph]) + [title, detail, NSView(), buttons]
+        let stack = NSStackView(views: views)
         stack.spacing = 5
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
         NSLayoutConstraint.activate([
-            glyph.widthAnchor.constraint(equalToConstant: 12),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
+        ] + (g == nil ? [] : [glyph.widthAnchor.constraint(equalToConstant: 12)]))
         textField = title
     }
 

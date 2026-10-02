@@ -15,7 +15,7 @@ shape:
 - two views, both foldable, each with its own fold state:
   - project: project → worktrees nested by merge target → the worktree's canonical session; its non-interactive workers fold under it as a roll-up (`●●○ 3 workers`), dimmed when expanded, with only open/abandon.
   - attention: interactive sessions flat, in sections needs-you → unread → read → running ("running should be the bottom bc there's nothing i can do in them"). Sections keep a stable order inside; a blocked or needs-input worker raises its interactive ancestor into needs-you. Read means shown while the window was key after the last turn ended; `seenAt` lives in the registry, not the app.
-- hover shows two buttons, start ▾ and end ▾, with everything on right-click too. Start is {new, fork} × {child, sibling} worktree; end is merge ▾ (merge & continue, archive, abandon).
+- hover shows two buttons, start ▾ and end ▾, with everything on right-click too. Start is {new, fork} × {child, sibling} worktree (click new child, ⌥ sibling, ⇧ fork); end is merge ▾ (merge & continue, abandon). Archive is left out: in the registry it is the same walk as merge.
 - merge & continue lands the branch and keeps the session, "so that how long branches diverge for is separate from how long a chat context can be continuous". With rebase + fast-forward the branch tip already is the merged commit, so the session keeps going in the same directory; pi and zmx never notice.
 - keys: ⌃⌘hjkl walk the current view's tree (j/k siblings, h parent, l first child, unfolding); moving shows the thread. ⌘P is quick open over threads and zoxide projects, creating a thread on a project or on no match. ⇧⌘P is the command palette with every action. ⇧⌘T toggles the view, ⌃⌘S the sidebar. ⌘D / ⇧⌘D / ⌘T / ⌘W / ⌘[ ⌘] / ⌘1–9 / ⌥⌘arrows / ⌘K stay Ghostty's; ⌘D and ⇧⌘D keep spawning splits rather than toggling. ⌘W never closes the canonical pi pane.
 - aux tabs and splits are plain app processes, like Ghostty tabs: switching rows hides surfaces instead of closing them, and they die with the app. Only the canonical session is zmx-backed.
@@ -37,7 +37,7 @@ holes:
 - `resizeThrottleMilliseconds` for pi's inline redraws during live drags.
 - the package points `GHOSTTY_RESOURCES_DIR` at its own bundle and loads the config by explicit path; `config-file` includes and the catppuccin theme look unchecked.
 - libghostty-spm's `TerminalCallbackBridge.handleAction` forwards only title, bell, cell size, render, progress, color and URLs; `new_split`, `new_tab`, `goto_split`, `toggle_command_palette` are dropped. An upstream `onAction` hook would let the user's own Ghostty keybinds drive panes; until then the app binds those keys itself.
-- splits: vendor Ghostty's MIT `macos/Sources/Features/Splits/SplitTree.swift` + `SplitView` rather than nesting NSSplitViews.
+- splits are nested NSSplitViews (apps/threads Workspace.swift), with no zoom, equalize, resize keys or directional ⌥⌘arrows yet. Ghostty's MIT `macos/Sources/Features/Splits/SplitTree.swift` has all of that, but it's 1.4k lines that want `Codable` views and a SwiftUI host; vendor it if those features are wanted.
 - the registry assumes several threads per worktree today (`ab tree do fork` forks in place); the invariant needs an audit there.
 - whether the project root (main checkout) has a canonical session or is a sessionless node; leaning sessionless.
 - board edges: hovering a session highlights the ones it talks to (brushing and linking), from mailbox and `run/**` traffic. Later.

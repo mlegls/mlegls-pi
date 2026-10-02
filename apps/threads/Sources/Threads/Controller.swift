@@ -1,68 +1,63 @@
 import AppKit
 import GhosttyTerminal
 
-/// Ghostty bindings (cmd+n, cmd+d, cmd+[ …) would otherwise eat the app's thread shortcuts:
-/// the menu gets the first look at key equivalents, then the terminal.
-final class ThreadSurface: AppTerminalView {
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if NSApp.mainMenu?.performKeyEquivalent(with: event) == true { return true }
-        return super.performKeyEquivalent(with: event)
-    }
-}
-
-/// The window: thread sidebar beside one terminal attached to the shown thread.
+/// The window: the thread sidebar beside the shown thread's workspace (tabs and splits around its pi session).
 @MainActor
-final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate,
-    NSSearchFieldDelegate, NSMenuItemValidation, TerminalSurfaceCloseDelegate, TerminalSurfaceTitleDelegate
-{
+final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuItemValidation {
     var saved = Saved.load()
     var rows: [ThreadRow] = []
+    var byId: [String: ThreadRow] = [:]
     var roots: [Node] = []
     var nodes: [String: Node] = [:]
     var shown: String?
+    var cursor: String?
     var hovered: String?
     var busy = false
     var reloading = false
+    var workspaces: [String: Workspace] = [:]
+    var projectCache: [String] = []
 
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
                           styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
     let outline = PassiveOutline()
-    let search = NSSearchField()
-    let modes = NSSegmentedControl(labels: ["spawn", "merge"], trackingMode: .selectOne, target: nil, action: nil)
+    let views = NSSegmentedControl(labels: ["project", "attention"], trackingMode: .selectOne, target: nil, action: nil)
     let where_ = NSTextField(labelWithString: "")
     let status = NSTextField(labelWithString: "")
     let main = NSView()
-    let placeholder = NSTextField(labelWithString: "Choose a thread")
+    let placeholder = NSTextField(labelWithString: "⌘P to open or start a thread")
     let ghostty = TerminalController(configFilePath: NSHomeDirectory() + "/.config/ghostty/config")
-    var surface: ThreadSurface?
+    let palette = Palette()
+
+    static let sections = ["needs-you": "Needs you", "unread": "Unread", "read": "Read", "running": "Running"]
+    static let sectionOrder = ["needs-you", "unread", "read", "running"]
 
     override init() {
         super.init()
         build()
-        if let id = saved.shown { shown = nil; Task { await refresh(); if rows.contains(where: { $0.id == id }) { open(id) } } }
-        else { Task { await refresh() } }
+        let restore = saved.shown
+        Task {
+            await refresh()
+            if let id = restore, byId[id] != nil { open(id) }
+        }
         Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { if let self, !self.busy { Task { await self.refresh() } } }
         }
+        palette.onClose = { [weak self] in self?.focusTerminal() }
     }
 
     // MARK: layout
 
     func build() {
-        modes.selectedSegment = saved.mode == "merge" ? 1 : 0
-        modes.target = self; modes.action = #selector(modeChanged)
-        modes.segmentDistribution = .fillEqually
-        modes.controlSize = .small
-        search.placeholderString = "Filter"
-        search.delegate = self
-        search.controlSize = .small
+        views.selectedSegment = saved.view == "attention" ? 1 : 0
+        views.target = self; views.action = #selector(viewChanged)
+        views.segmentDistribution = .fillEqually
+        views.controlSize = .small
         for label in [where_, status] {
             label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
             label.textColor = .secondaryLabelColor
             label.lineBreakMode = .byTruncatingMiddle
             label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
-
         let column = NSTableColumn(identifier: .init("thread"))
         column.resizingMask = .autoresizingMask
         outline.addTableColumn(column)
@@ -80,12 +75,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
 
-        let side = NSStackView(views: [modes, search, scroll, where_, status])
+        let side = NSStackView(views: [views, scroll, where_, status])
         side.orientation = .vertical
         side.alignment = .leading
         side.spacing = 6
         side.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
-        for v in [modes, search, scroll] as [NSView] { v.widthAnchor.constraint(equalTo: side.widthAnchor, constant: -16).isActive = true }
+        for v in [views, scroll] as [NSView] { v.widthAnchor.constraint(equalTo: side.widthAnchor, constant: -16).isActive = true }
         for v in [where_, status] { v.widthAnchor.constraint(lessThanOrEqualTo: side.widthAnchor, constant: -16).isActive = true }
         scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
 
@@ -111,7 +106,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         window.setFrameAutosaveName("ab-tree-window")
         if !window.setFrameUsingName("ab-tree-window") { window.center() }
         window.makeKeyAndOrderFront(nil)
-        window.makeFirstResponder(nil) // the filter field takes focus only when asked
         if UserDefaults.standard.object(forKey: "NSSplitView Subview Frames ab-tree-split") == nil {
             split.splitView.layoutSubtreeIfNeeded()
             split.splitView.setPosition(300, ofDividerAt: 0)
@@ -121,54 +115,109 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func say(_ text: String) { status.stringValue = text; status.toolTip = text }
 
     func updateWhere() {
-        let row = rows.first { $0.id == (hovered ?? shown) }
+        let row = byId[hovered ?? shown ?? ""]
         let text = row?.blocked ?? row.map { ($0.cwd as NSString).abbreviatingWithTildeInPath } ?? ""
         where_.stringValue = text; where_.toolTip = text
     }
+
+    var workspace: Workspace? { shown.flatMap { workspaces[$0] } }
+    func focusTerminal() { if let w = workspace { w.focus(w.focused) } }
 
     // MARK: registry
 
     func refresh() async {
         do {
-            let fresh = try await AB.list(tree: saved.mode)
-            if fresh != rows { rows = fresh; rebuild() }
-            if let id = shown, !rows.contains(where: { $0.id == id }) { close(saying: "Thread ended") }
+            let fresh = try await AB.list()
+            if fresh != rows {
+                rows = fresh
+                byId = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                rebuild()
+            }
+            for (id, w) in workspaces where byId[id] == nil {
+                w.teardown()
+                workspaces[id] = nil
+                if shown == id { show(nil, saying: "Thread ended") }
+            }
+            if let id = shown, window.isKeyWindow, byId[id]?.attention == "unread" { markSeen(id) }
         } catch { say(error.localizedDescription) }
     }
 
+    func markSeen(_ id: String) {
+        Task { _ = try? await AB.perform("seen", id: id) }
+    }
+
+    func node(_ key: String, _ kind: Node.Kind, _ row: ThreadRow? = nil) -> Node {
+        let n = nodes[key] ?? Node(key: key, kind: kind, row: row)
+        n.kind = kind; n.row = row; n.children = []; n.parent = nil
+        return n
+    }
+
+    /// project: project → interactive threads nested by merge target → their workers by spawn parent.
+    /// attention: sections needs-you → unread → read → running → interactive threads → their workers.
     func rebuild() {
-        let query = search.stringValue
-        let byId = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        var keep = Set(rows.filter { $0.matches(query) }.map(\.id))
-        for id in keep {
-            var parent = byId[id]?.parent, seen = Set<String>()
-            while let p = parent, !seen.contains(p) { seen.insert(p); keep.insert(p); parent = byId[p]?.parent }
-        }
+        let attention = saved.view == "attention"
         var fresh: [String: Node] = [:]
-        roots = []
-        for row in rows where keep.contains(row.id) {
-            let node = nodes[row.id] ?? Node(row)
-            node.row = row; node.children = []
-            fresh[row.id] = node
+        var top: [Node] = []
+        func header(_ key: String, _ kind: Node.Kind) -> Node {
+            if let n = fresh[key] { return n }
+            let n = node(key, kind)
+            fresh[key] = n
+            top.append(n)
+            return n
         }
-        for row in rows where keep.contains(row.id) {
-            if let p = row.parent, let parent = fresh[p] { parent.children.append(fresh[row.id]!) } else { roots.append(fresh[row.id]!) }
+        for row in rows { fresh[row.id] = node(row.id, .thread, row) }
+        func home(_ r: ThreadRow) -> String {
+            let fallback = attention ? "s:" + r.attention : "p:" + r.project
+            if r.interactive {
+                if attention { return fallback }
+                if let m = r.mergeParent, let p = byId[m], p.interactive, p.project == r.project { return m }
+                return fallback
+            }
+            if let s = r.spawnParent, byId[s] != nil { return s }
+            return fallback
         }
+        if attention {
+            for s in Self.sectionOrder where rows.contains(where: { home($0) == "s:" + s }) { _ = header("s:" + s, .section(s)) }
+        }
+        let ordered = attention ? rows.sorted { ($0.idleSince ?? $0.created) < ($1.idleSince ?? $1.created) } : rows
+        for row in ordered {
+            let key = home(row)
+            let parent = key.hasPrefix("s:") ? header(key, .section(String(key.dropFirst(2))))
+                : key.hasPrefix("p:") ? header(key, .project(String(key.dropFirst(2)))) : fresh[key]!
+            let child = fresh[row.id]!
+            // A spawn/merge cycle would hide rows: attach them at the top instead.
+            var up: Node? = parent, hops = 0, cycle = false
+            while let u = up, hops < 128 { if u === child { cycle = true; break }; up = u.parent; hops += 1 }
+            let target = cycle ? header(attention ? "s:" + row.attention : "p:" + row.project,
+                                        attention ? .section(row.attention) : .project(row.project)) : parent
+            target.children.append(child)
+            child.parent = target
+        }
+        if attention { top.sort { Self.sectionOrder.firstIndex(of: String($0.key.dropFirst(2)))! < Self.sectionOrder.firstIndex(of: String($1.key.dropFirst(2)))! } }
+        roots = top
         nodes = fresh
+        reload()
+    }
+
+    func reload() {
         reloading = true
         outline.reloadData()
-        for row in rows {
-            guard let node = nodes[row.id], !node.children.isEmpty else { continue }
-            if saved.collapsed.contains(row.id) { outline.collapseItem(node) } else { outline.expandItem(node) }
+        let collapsed = Set(saved.collapsed[saved.view] ?? [])
+        func walk(_ n: Node) {
+            guard !n.children.isEmpty else { return }
+            if collapsed.contains(n.key) { outline.collapseItem(n) } else { outline.expandItem(n); n.children.forEach(walk) }
         }
-        selectShown()
+        roots.forEach(walk)
+        selectCursor()
         reloading = false
         updateWhere()
     }
 
-    func selectShown() {
-        let index = shown.flatMap { nodes[$0] }.map { outline.row(forItem: $0) } ?? -1
-        if index >= 0 { outline.selectRowIndexes([index], byExtendingSelection: false) } else { outline.deselectAll(nil) }
+    func selectCursor() {
+        let key = cursor.flatMap { nodes[$0] != nil ? $0 : nil } ?? shown
+        let index = key.flatMap { nodes[$0] }.map { outline.row(forItem: $0) } ?? -1
+        if index >= 0 { outline.selectRowIndexes([index], byExtendingSelection: false); outline.scrollRowToVisible(index) }
+        else { outline.deselectAll(nil) }
     }
 
     // MARK: outline
@@ -177,160 +226,200 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func outlineView(_: NSOutlineView, child index: Int, ofItem item: Any?) -> Any { (item as? Node)?.children[index] ?? roots[index] }
     func outlineView(_: NSOutlineView, isItemExpandable item: Any) -> Bool { !((item as? Node)?.children.isEmpty ?? true) }
 
-    func outlineView(_: NSOutlineView, viewFor _: NSTableColumn?, item: Any) -> NSView? {
-        guard let node = item as? Node else { return nil }
-        let id = node.id
-        var actions: [Action] = [.new, .worktree, .fork, .merge, .archive, .abandon]
-        if !node.children.isEmpty { actions.append(.children) }
-        let cell = ThreadCell(row: node.row, shown: id == shown, actions: actions) { [weak self] a in self?.act(a, on: id) }
-        cell.onHover = { [weak self] inside in
-            guard let self else { return }
-            if inside { hovered = id } else if hovered == id { hovered = nil }
-            updateWhere()
+    /// Workers under a node, not crossing into other interactive threads.
+    func rollup(_ n: Node) -> String {
+        var working = 0, idle = 0, needs = 0
+        func walk(_ m: Node) {
+            for c in m.children {
+                guard let r = c.row, !r.interactive else { continue }
+                if r.attention == "needs-you" { needs += 1 } else if r.state == "working" { working += 1 } else { idle += 1 }
+                walk(c)
+            }
         }
-        return cell
+        walk(n)
+        return [needs > 0 ? "!\(needs)" : "", working > 0 ? "◐\(working)" : "", idle > 0 ? "○\(idle)" : ""]
+            .filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    func outlineView(_: NSOutlineView, viewFor _: NSTableColumn?, item: Any) -> NSView? {
+        guard let n = item as? Node else { return nil }
+        switch n.kind {
+        case .section(let s):
+            return RowCell(glyph: nil, title: Self.sections[s] ?? s, detail: "\(n.children.count)", bold: false, dim: false, header: true, buttons: [])
+        case .project(let path):
+            let plus = Plain(symbol: "plus", tip: "New thread in a worktree of " + (path as NSString).lastPathComponent) { [weak self] in
+                self?.spawn("new", nil, project: path)
+            }
+            let cell = RowCell(glyph: nil, title: (path as NSString).lastPathComponent, detail: "", bold: false, dim: false, header: true, buttons: [plus])
+            return cell
+        case .thread:
+            guard let row = n.row else { return nil }
+            let id = row.id
+            var bits: [String] = []
+            if saved.view == "attention" { bits.append(row.projectName) }
+            let r = rollup(n)
+            if !r.isEmpty { bits.append(r) }
+            if row.blocked != nil { bits.append("blocked") }
+            let buttons: [NSView] = row.interactive ? [startCombo(id), endCombo(id)]
+                : [Plain(symbol: "trash", tip: "Abandon") { [weak self] in self?.confirmAbandon(id) }]
+            let cell = RowCell(glyph: row.status, title: row.label, detail: bits.joined(separator: " "),
+                               bold: id == shown, dim: !row.interactive, header: false, buttons: buttons)
+            cell.onHover = { [weak self] inside in
+                guard let self else { return }
+                if inside { hovered = id } else if hovered == id { hovered = nil }
+                updateWhere()
+            }
+            return cell
+        }
+    }
+
+    func startCombo(_ id: String) -> Combo {
+        Combo(symbol: "plus", tip: "New child worktree (⌥ sibling, ⇧ fork)", menu: startMenu(id)) { [weak self] in
+            let mods = NSApp.currentEvent?.modifierFlags ?? []
+            self?.spawn(mods.contains(.shift) ? "fork" : "new", id, sibling: mods.contains(.option))
+        }
+    }
+
+    func endCombo(_ id: String) -> Combo {
+        Combo(symbol: "arrow.triangle.merge", tip: "Merge into its parent and retire", menu: endMenu(id)) { [weak self] in self?.confirmMerge(id) }
+    }
+
+    func menuItem(_ title: String, _ run: @escaping () -> Void) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: #selector(runClosure(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = run
+        return item
+    }
+    @objc func runClosure(_ sender: NSMenuItem) { (sender.representedObject as? () -> Void)?() }
+
+    func startMenu(_ id: String) -> NSMenu {
+        let m = NSMenu()
+        m.addItem(menuItem("New Child Worktree") { [weak self] in self?.spawn("new", id) })
+        m.addItem(menuItem("New Sibling Worktree") { [weak self] in self?.spawn("new", id, sibling: true) })
+        m.addItem(menuItem("Fork Into Child Worktree") { [weak self] in self?.spawn("fork", id) })
+        m.addItem(menuItem("Fork Into Sibling Worktree") { [weak self] in self?.spawn("fork", id, sibling: true) })
+        return m
+    }
+
+    func endMenu(_ id: String) -> NSMenu {
+        let m = NSMenu()
+        m.addItem(menuItem("Merge") { [weak self] in self?.confirmMerge(id) })
+        m.addItem(menuItem("Merge & Continue") { [weak self] in self?.perform("continue", id) })
+        m.addItem(.separator())
+        m.addItem(menuItem("Abandon") { [weak self] in self?.confirmAbandon(id) })
+        return m
+    }
+
+    func menu(forRow index: Int) -> NSMenu? {
+        guard let n = outline.item(atRow: index) as? Node, let row = n.row else { return nil }
+        let menu = NSMenu()
+        if row.interactive {
+            startMenu(row.id).items.forEach { $0.menu?.removeItem($0); menu.addItem($0) }
+            menu.addItem(.separator())
+            endMenu(row.id).items.forEach { $0.menu?.removeItem($0); menu.addItem($0) }
+        } else {
+            menu.addItem(menuItem("Abandon") { [weak self] in self?.confirmAbandon(row.id) })
+        }
+        menu.addItem(.separator())
+        menu.addItem(menuItem("Mark Read") { [weak self] in self?.markSeen(row.id) })
+        menu.addItem(menuItem("Timeline") { [weak self] in self?.timeline(row.id) })
+        return menu
     }
 
     func outlineViewSelectionDidChange(_: Notification) {
-        guard !reloading, let node = outline.item(atRow: outline.selectedRow) as? Node else { return }
-        open(node.id)
+        guard !reloading, let n = outline.item(atRow: outline.selectedRow) as? Node else { return }
+        cursor = n.key
+        if n.row != nil { open(n.key) }
     }
 
     func outlineViewItemDidCollapse(_ note: Notification) { fold(note, collapsed: true) }
     func outlineViewItemDidExpand(_ note: Notification) { fold(note, collapsed: false) }
     func fold(_ note: Notification, collapsed: Bool) {
-        guard !reloading, let node = note.userInfo?["NSObject"] as? Node else { return }
-        saved.collapsed.removeAll { $0 == node.id }
-        if collapsed { saved.collapsed.append(node.id) }
+        guard !reloading, let n = note.userInfo?["NSObject"] as? Node else { return }
+        var keys = saved.collapsed[saved.view] ?? []
+        keys.removeAll { $0 == n.key }
+        if collapsed { keys.append(n.key) }
+        saved.collapsed[saved.view] = keys
         saved.save()
     }
 
-    func menu(forRow index: Int) -> NSMenu? {
-        guard let node = outline.item(atRow: index) as? Node else { return nil }
-        let menu = NSMenu()
-        for a in Action.allCases where a != .children || !node.children.isEmpty {
-            if a == .merge { menu.addItem(.separator()) }
-            let item = NSMenuItem(title: a.title, action: #selector(menuAct(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = [a.rawValue, node.id]
-            menu.addItem(item)
-        }
-        menu.addItem(.separator())
-        let timeline = NSMenuItem(title: "Timeline", action: #selector(menuTimeline(_:)), keyEquivalent: "")
-        timeline.target = self; timeline.representedObject = node.id
-        menu.addItem(timeline)
-        return menu
-    }
-
-    @objc func menuAct(_ sender: NSMenuItem) {
-        guard let pair = sender.representedObject as? [String], let a = Action(rawValue: pair[0]) else { return }
-        act(a, on: pair[1])
-    }
-
-    @objc func menuTimeline(_ sender: NSMenuItem) { timeline(sender.representedObject as? String) }
-
-    // MARK: terminal
+    // MARK: workspaces
 
     func open(_ id: String) {
-        guard let row = rows.first(where: { $0.id == id }) else { return }
-        if shown == id, let surface { window.makeFirstResponder(surface); return }
-        close(saying: nil)
-        let view = ThreadSurface(frame: main.bounds)
-        view.autoresizingMask = [.width, .height]
-        view.delegate = self
-        view.controller = ghostty
-        view.configuration = TerminalSurfaceOptions(backend: .exec, workingDirectory: row.cwd, command: AB.attachCommand(id),
-                                                    waitAfterCommand: false, resizeThrottleMilliseconds: 60)
-        main.addSubview(view)
-        surface = view
-        shown = id
-        saved.shown = id
-        saved.save()
-        placeholder.isHidden = true
-        window.title = row.label
-        window.makeFirstResponder(view)
-        reloadCells()
+        guard let row = byId[id] else { return }
+        let w = workspaces[id] ?? {
+            let w = Workspace(id: id, cwd: row.cwd, controller: ghostty)
+            workspaces[id] = w
+            return w
+        }()
+        if shown != id {
+            workspace?.view.removeFromSuperview()
+            w.view.frame = main.bounds
+            w.view.autoresizingMask = [.width, .height]
+            main.addSubview(w.view)
+            shown = id
+            cursor = id
+            saved.shown = id
+            saved.save()
+            placeholder.isHidden = true
+            window.title = row.label
+            reload()
+        }
+        if w.isDetached { w.reattach() }
+        w.focus(w.focused)
+        if row.attention == "unread" { markSeen(id) }
     }
 
-    func close(saying text: String?) {
-        guard surface != nil || text != nil else { return }
-        surface?.delegate = nil
-        surface?.removeFromSuperview()
-        surface = nil
+    func show(_ id: String?, saying text: String) {
+        workspace?.view.removeFromSuperview()
         shown = nil
-        if text != nil { saved.shown = nil; saved.save() }
-        placeholder.stringValue = text ?? "Choose a thread"
+        saved.shown = nil
+        saved.save()
+        placeholder.stringValue = text
         placeholder.isHidden = false
         window.title = "threads"
-        reloadCells()
+        reload()
     }
 
-    /// Redraw rows for the bold shown marker without rebuilding the tree.
-    func reloadCells() {
-        reloading = true
-        outline.reloadData()
-        selectShown()
-        reloading = false
-        updateWhere()
+    // MARK: actions (ab owns them)
+
+    func spawn(_ kind: String, _ id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil) {
+        perform(kind, id, sibling: sibling, name: name, project: project)
     }
 
-    func terminalDidClose(processAlive _: Bool) {
-        close(saying: "Detached. Click the thread to reattach.")
-    }
-
-    func terminalDidChangeTitle(_: String) {}
-
-    // MARK: actions
-
-    func act(_ a: Action, on id: String?) {
-        guard !busy else { return }
-        let row = id.flatMap { id in rows.first { $0.id == id } }
-        switch a {
-        case .new, .fork:
-            if a == .fork && row == nil { return }
-            run(a.rawValue, row, nil)
-        case .worktree:
-            ask("New thread in a worktree", field: "Branch name") { [weak self] name in self?.run(a.rawValue, row, name) }
-        default:
-            guard let row else { return }
-            let verb = a == .children ? "Abandon all children in the \(saved.mode) tree of" : a.rawValue.capitalized
-            let alert = NSAlert()
-            alert.messageText = "\(verb) \(row.label)?"
-            alert.informativeText = a == .abandon || a == .children
-                ? "Discards without merging, recursively." : "Merges into its parent and retires, recursively."
-            alert.addButton(withTitle: a.rawValue.capitalized)
-            alert.addButton(withTitle: "Cancel")
-            if a == .abandon || a == .children { alert.buttons[0].hasDestructiveAction = true }
-            alert.beginSheetModal(for: window) { [weak self] response in
-                if response == .alertFirstButtonReturn { self?.run(a.rawValue, row, nil) }
-            }
-        }
-    }
-
-    func ask(_ title: String, field placeholder: String, then: @escaping (String) -> Void) {
+    func confirm(_ title: String, _ info: String, button: String, destructive: Bool, then: @escaping () -> Void) {
         let alert = NSAlert()
         alert.messageText = title
-        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
-        input.placeholderString = placeholder
-        alert.accessoryView = input
-        alert.addButton(withTitle: "OK")
+        alert.informativeText = info
+        alert.addButton(withTitle: button)
         alert.addButton(withTitle: "Cancel")
-        alert.window.initialFirstResponder = input
-        alert.beginSheetModal(for: window) { response in
-            let text = input.stringValue.trimmingCharacters(in: .whitespaces)
-            if response == .alertFirstButtonReturn, !text.isEmpty { then(text) }
+        alert.buttons[0].hasDestructiveAction = destructive
+        alert.beginSheetModal(for: window) { response in if response == .alertFirstButtonReturn { then() } }
+    }
+
+    func confirmMerge(_ id: String) {
+        guard let row = byId[id] else { return }
+        confirm("Merge \(row.label)?", "Merges into its parent worktree and retires it with its workers.", button: "Merge", destructive: false) { [weak self] in
+            self?.perform("merge", id)
         }
     }
 
-    func run(_ action: String, _ row: ThreadRow?, _ name: String?) {
+    func confirmAbandon(_ id: String) {
+        guard let row = byId[id] else { return }
+        confirm("Abandon \(row.label)?", "Discards without merging, with its workers.", button: "Abandon", destructive: true) { [weak self] in
+            self?.perform("abandon", id)
+        }
+    }
+
+    func perform(_ action: String, _ id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil) {
+        guard !busy else { return }
         busy = true
-        say("working…")
+        say(action + "…")
         Task {
             defer { busy = false }
             do {
-                let result = try await AB.perform(action, id: row?.id, tree: saved.mode, name: name)
-                if let id = shown, result.closed.contains(id) { close(saying: "Retired") }
-                say(result.closed.isEmpty ? "" : "retired \(result.closed.count) thread(s)")
+                let result = try await AB.perform(action, id: id, sibling: sibling, name: name, project: project)
+                say(action == "continue" ? "merged; session continues" : result.closed.isEmpty ? "" : "retired \(result.closed.count) thread(s)")
                 await refresh()
                 if let id = result.thread { open(id) }
             } catch { say(error.localizedDescription) }
@@ -338,7 +427,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     }
 
     func timeline(_ id: String?) {
-        guard let row = rows.first(where: { $0.id == id }) else { return }
+        guard let row = byId[id ?? ""] else { return }
         say("timeline…")
         Task {
             do { say(try await AB.run(["timeline", row.sessionId]).trimmingCharacters(in: .whitespacesAndNewlines)) }
@@ -346,64 +435,138 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         }
     }
 
-    // MARK: menu commands (they act on the shown thread)
+    // MARK: menu commands: thread verbs act on the shown thread
 
-    @objc func newThread(_: Any?) { act(.new, on: shown) }
-    @objc func newWorktree(_: Any?) { act(.worktree, on: shown) }
-    @objc func forkThread(_: Any?) { act(.fork, on: shown) }
-    @objc func mergeThread(_: Any?) { act(.merge, on: shown) }
-    @objc func archiveThread(_: Any?) { act(.archive, on: shown) }
-    @objc func abandonThread(_: Any?) { act(.abandon, on: shown) }
-    @objc func abandonChildren(_: Any?) { act(.children, on: shown) }
+    @objc func newChild(_: Any?) { spawn("new", shown) }
+    @objc func newSibling(_: Any?) { spawn("new", shown, sibling: true) }
+    @objc func forkChild(_: Any?) { spawn("fork", shown) }
+    @objc func forkSibling(_: Any?) { spawn("fork", shown, sibling: true) }
+    @objc func mergeThread(_: Any?) { if let id = shown { confirmMerge(id) } }
+    @objc func mergeContinue(_: Any?) { if let id = shown { perform("continue", id) } }
+    @objc func abandonThread(_: Any?) { if let id = shown { confirmAbandon(id) } }
     @objc func showTimeline(_: Any?) { timeline(shown) }
-    @objc func openProject(_: Any?) {
-        guard !busy else { return }
-        ask("New thread in a project", field: "Path or zoxide query") { [weak self] text in self?.run("project", nil, text) }
-    }
     @objc func refreshNow(_: Any?) { Task { await refresh() } }
-    @objc func focusFilter(_: Any?) { window.makeFirstResponder(search) }
-    @objc func toggleTree(_: Any?) { modes.selectedSegment = 1 - modes.selectedSegment; modeChanged() }
-    @objc func modeChanged() {
-        saved.mode = modes.selectedSegment == 1 ? "merge" : "spawn"
+    @objc func toggleView(_: Any?) { views.selectedSegment = 1 - views.selectedSegment; viewChanged() }
+    @objc func viewChanged() {
+        saved.view = views.selectedSegment == 1 ? "attention" : "project"
         saved.save()
-        rows = []
-        Task { await refresh() }
+        cursor = shown
+        rebuild()
     }
 
-    @objc func previousThread(_: Any?) { step(-1) }
-    @objc func nextThread(_: Any?) { step(1) }
-    @objc func gotoThread(_ sender: NSMenuItem) { if let node = outline.item(atRow: sender.tag) as? Node { open(node.id) } }
+    // panes and tabs, as in Ghostty
+    @objc func splitRight(_: Any?) { workspace?.split(right: true) }
+    @objc func splitDown(_: Any?) { workspace?.split(right: false) }
+    @objc func newTab(_: Any?) { workspace?.newTab() }
+    @objc func closePane(_: Any?) { if workspace?.closeFocused() != true { NSSound.beep() } }
+    @objc func previousPane(_: Any?) { workspace?.cyclePane(-1) }
+    @objc func nextPane(_: Any?) { workspace?.cyclePane(1) }
+    @objc func previousTab(_: Any?) { workspace?.cycleTab(-1) }
+    @objc func nextTab(_: Any?) { workspace?.cycleTab(1) }
+    @objc func gotoTab(_ sender: NSMenuItem) { workspace?.show(tab: sender.tag) }
+
+    // ⌃⌘hjkl: a zipper over the current view's tree; landing on a thread shows it
+    @objc func treeDown(_: Any?) { step(1) }
+    @objc func treeUp(_: Any?) { step(-1) }
+    @objc func treeOut(_: Any?) { if let n = here?.parent { land(n) } }
+    @objc func treeIn(_: Any?) {
+        guard let n = here, let first = n.children.first else { return }
+        if !outline.isItemExpanded(n) { outline.expandItem(n) }
+        land(first)
+    }
+    var here: Node? { (cursor ?? shown).flatMap { nodes[$0] } }
     func step(_ delta: Int) {
-        guard outline.numberOfRows > 0 else { return }
-        let current = shown.flatMap { nodes[$0] }.map { outline.row(forItem: $0) } ?? -1
-        let next = current < 0 ? 0 : max(0, min(outline.numberOfRows - 1, current + delta))
-        if let node = outline.item(atRow: next) as? Node { open(node.id) }
+        guard let n = here else { if let first = roots.first { land(first) }; return }
+        let siblings = n.parent?.children ?? roots
+        guard let i = siblings.firstIndex(where: { $0 === n }) else { return }
+        land(siblings[max(0, min(siblings.count - 1, i + delta))])
+    }
+    func land(_ n: Node) {
+        cursor = n.key
+        if n.row != nil { open(n.key) } else { reloading = true; selectCursor(); reloading = false }
     }
 
-    func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        switch item.action {
-        case #selector(forkThread(_:)), #selector(mergeThread(_:)), #selector(archiveThread(_:)),
-             #selector(abandonThread(_:)), #selector(showTimeline(_:)):
-            return shown != nil && !busy
-        case #selector(abandonChildren(_:)):
-            return shown.flatMap { nodes[$0] }.map { !$0.children.isEmpty } ?? false
-        case #selector(gotoThread(_:)):
-            return item.tag < outline.numberOfRows
-        case #selector(newThread(_:)), #selector(newWorktree(_:)), #selector(openProject(_:)):
-            return !busy
-        default:
-            return true
+    // ⌘P: threads, projects, and "new thread named …"
+    @objc func quickOpen(_: Any?) {
+        Task { if projectCache.isEmpty { projectCache = await AB.projects() } }
+        palette.open(over: window, placeholder: "Open a thread or project, or name a new thread") { [weak self] q in
+            guard let self else { return [] }
+            var items: [Palette.Item] = []
+            let threads = rows.filter { $0.matches(q) }.sorted { $0.interactive && !$1.interactive }
+            for r in threads.prefix(40) {
+                items.append(.init(title: r.status.0 + "  " + r.label, detail: r.projectName + (r.interactive ? "" : " · worker")) { [weak self] in self?.open(r.id) })
+            }
+            let slug = q.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()
+                .split(separator: "-").joined(separator: "-")
+            if !slug.isEmpty, let id = shown, let row = byId[id], row.interactive {
+                items.append(.init(title: "New thread “(slug)” as a child of (row.label)", detail: row.projectName) { [weak self] in
+                    self?.spawn("new", id, name: slug)
+                })
+                items.append(.init(title: "New thread “(slug)” as a sibling of (row.label)", detail: row.projectName) { [weak self] in
+                    self?.spawn("new", id, sibling: true, name: slug)
+                })
+            }
+            // Projects match on their name unless the query names a path.
+            let words = q.lowercased().split(separator: " ")
+            let key = { (p: String) in (q.contains("/") ? p : (p as NSString).lastPathComponent).lowercased() }
+            for p in projectCache where !q.isEmpty && words.allSatisfy({ key(p).contains($0) }) {
+                items.append(.init(title: "New thread in " + (p as NSString).lastPathComponent, detail: (p as NSString).abbreviatingWithTildeInPath) { [weak self] in
+                    self?.spawn("new", nil, project: p)
+                })
+                if items.count > 60 { break }
+            }
+            return items
         }
     }
 
-    // MARK: filter field
+    // ⇧⌘P: every enabled menu command
+    @objc func commandPalette(_: Any?) {
+        var commands: [(String, NSMenuItem)] = []
+        func walk(_ menu: NSMenu, _ path: String) {
+            for item in menu.items {
+                if let sub = item.submenu { walk(sub, item.title); continue }
+                guard let action = item.action, action != #selector(commandPalette(_:)), !item.isSeparatorItem else { continue }
+                commands.append((path + " › " + item.title, item))
+            }
+        }
+        if let bar = NSApp.mainMenu { walk(bar, "") }
+        palette.open(over: window, placeholder: "Command") { [weak self] q in
+            guard let self else { return [] }
+            let words = q.lowercased().split(separator: " ")
+            return commands.filter { c in words.allSatisfy { c.0.lowercased().contains($0) } && self.validateMenuItem(c.1) }
+                .map { c in
+                    let keys = c.1.keyEquivalent.isEmpty ? "" : Self.keys(c.1)
+                    return .init(title: c.0, detail: keys) { [weak self] in
+                        self?.focusTerminal()
+                        NSApp.sendAction(c.1.action!, to: c.1.target, from: c.1)
+                    }
+                }
+        }
+    }
 
-    func controlTextDidChange(_: Notification) { rebuild() }
-    func control(_: NSControl, textView _: NSTextView, doCommandBy selector: Selector) -> Bool {
-        guard selector == #selector(NSResponder.cancelOperation(_:)) || selector == #selector(NSResponder.insertNewline(_:)) else { return false }
-        if selector == #selector(NSResponder.cancelOperation(_:)) && !search.stringValue.isEmpty { search.stringValue = ""; rebuild() }
-        if let surface { window.makeFirstResponder(surface) }
-        return true
+    static func keys(_ item: NSMenuItem) -> String {
+        let m = item.keyEquivalentModifierMask
+        let key = item.keyEquivalent
+        return (m.contains(.control) ? "⌃" : "") + (m.contains(.option) ? "⌥" : "") + (m.contains(.shift) || key != key.lowercased() ? "⇧" : "")
+            + (m.contains(.command) ? "⌘" : "") + key.uppercased()
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        let interactive = shown.flatMap { byId[$0] }?.interactive ?? false
+        switch item.action {
+        case #selector(newChild(_:)), #selector(newSibling(_:)), #selector(forkChild(_:)), #selector(forkSibling(_:)),
+             #selector(mergeThread(_:)), #selector(mergeContinue(_:)):
+            return interactive && !busy
+        case #selector(abandonThread(_:)), #selector(showTimeline(_:)):
+            return shown != nil && !busy
+        case #selector(splitRight(_:)), #selector(splitDown(_:)), #selector(newTab(_:)), #selector(closePane(_:)),
+             #selector(previousPane(_:)), #selector(nextPane(_:)), #selector(previousTab(_:)), #selector(nextTab(_:)):
+            return workspace != nil
+        case #selector(gotoTab(_:)):
+            return item.tag < (workspace?.tabs.count ?? 0)
+        default:
+            return true
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool { true }
