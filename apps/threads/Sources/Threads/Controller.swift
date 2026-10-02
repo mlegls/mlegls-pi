@@ -145,11 +145,13 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
 
     func refresh() async {
         do {
-            let fresh = try await AB.list(delta: saved.delta ?? "origin")
+            var fresh = try await AB.list(delta: saved.delta ?? "origin")
+            for i in fresh.indices { fresh[i].customName = saved.threadNames?[fresh[i].id] }
             if fresh != rows {
                 rows = fresh
                 byId = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
                 rebuild()
+                if let id = shown, let row = byId[id] { window.title = row.displayTitle }
             }
             for (id, w) in workspaces where byId[id] == nil {
                 w.teardown()
@@ -411,7 +413,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             }
             let close = Plain(symbol: "xmark", tip: "Close " + name) { [weak self] in self?.confirmClose(row.id) }
             let r = rollup(n)
-            let cell = RowCell(glyph: row.status, title: name, detail: r, bold: row.id == shown, dim: false, header: true,
+            let cell = RowCell(glyph: row.status, title: row.displayTitle, detail: r, bold: row.id == shown, dim: false, header: true,
                                delta: row.delta, deltaTip: row.deltaTip, buttons: [plus, close])
             cell.onHover = { [weak self] inside in
                 guard let self else { return }
@@ -488,6 +490,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         }
         guard let row = n.row else { return nil }
         let menu = NSMenu()
+        menu.addItem(menuItem("Rename…") { [weak self] in self?.rename(row.id) })
         menu.addItem(menuItem("New Scratch Workspace Here") { [weak self] in self?.newScratch(row.cwd) })
         menu.addItem(.separator())
         if row.interactive {
@@ -511,6 +514,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         menu.addItem(menuItem("New Scratch Workspace Here") { [weak self] in self?.newScratch(path) })
         menu.addItem(.separator())
         if let p = rows.first(where: { $0.isProjectThread && $0.project == path }) {
+            menu.addItem(menuItem("Rename…") { [weak self] in self?.rename(p.id) })
             menu.addItem(menuItem("Close Project…") { [weak self] in self?.confirmClose(p.id) })
             menu.addItem(menuItem("Mark Read") { [weak self] in self?.markSeen(p.id) })
             menu.addItem(menuItem("Timeline") { [weak self] in self?.timeline(p.id) })
@@ -583,7 +587,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             workspaces[id] = w
             return w
         }()
-        present(w, title: row.isProjectThread ? row.projectName : row.label, remember: true)
+        present(w, title: row.displayTitle, remember: true)
         if w.isDetached { w.reattach() }
         w.focus(w.focused)
         if row.attention == "unread" { markSeen(id) }
@@ -695,6 +699,39 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         alert.beginSheetModal(for: window) { response in if response == .alertFirstButtonReturn { then() } }
     }
 
+    func rename(_ id: String) {
+        guard let row = byId[id] else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename Thread"
+        alert.informativeText = "Display name only; branches and worktrees stay unchanged. Leave blank to restore the default."
+        let field = NSTextField(string: row.customName ?? "")
+        field.placeholderString = row.displayTitle
+        field.setAccessibilityLabel("Thread name")
+        field.frame = NSRect(x: 0, y: 0, width: 360, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            if response == .alertFirstButtonReturn { setThreadName(id, field.stringValue) }
+            focusTerminal()
+        }
+    }
+
+    func setThreadName(_ id: String, _ name: String) {
+        guard let i = rows.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        var names = saved.threadNames ?? [:]
+        names[id] = trimmed.isEmpty ? nil : trimmed
+        saved.threadNames = names.isEmpty ? nil : names
+        saved.save()
+        rows[i].customName = names[id]
+        byId[id] = rows[i]
+        rebuild()
+        if shown == id { window.title = rows[i].displayTitle }
+    }
+
     func confirmMerge(_ id: String) {
         guard let row = byId[id] else { return }
         confirm("Merge \(row.label)?", "Merges into its parent worktree and retires it with its workers.", button: "Merge", destructive: false) { [weak self] in
@@ -742,6 +779,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     @objc func mergeThread(_: Any?) { if let id = shown { confirmMerge(id) } }
     @objc func mergeContinue(_: Any?) { if let id = shown { perform("continue", id) } }
     @objc func abandonThread(_: Any?) { if let id = shown { confirmAbandon(id) } }
+    @objc func renameThread(_: Any?) { if let id = shown { rename(id) } }
     @objc func showTimeline(_: Any?) { timeline(shown) }
     @objc func refreshNow(_: Any?) { Task { await refresh() } }
     @objc func toggleDeltaBase(_: Any?) {
@@ -929,6 +967,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         case #selector(newChild(_:)), #selector(newSibling(_:)), #selector(forkChild(_:)), #selector(forkSibling(_:)),
              #selector(mergeThread(_:)), #selector(mergeContinue(_:)):
             return interactive && !busy
+        case #selector(renameThread(_:)):
+            return shown.flatMap { byId[$0] } != nil
         case #selector(abandonThread(_:)), #selector(showTimeline(_:)):
             return shown.flatMap { byId[$0] } != nil && !busy
         case #selector(splitRight(_:)), #selector(splitDown(_:)), #selector(newTab(_:)), #selector(closePane(_:)),

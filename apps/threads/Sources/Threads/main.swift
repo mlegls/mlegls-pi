@@ -71,6 +71,7 @@ func mainMenu(_ c: Controller) -> NSMenu {
         item("Merge & Continue", #selector(Controller.mergeContinue(_:)), target: c),
         item("Abandon", #selector(Controller.abandonThread(_:)), target: c),
         .separator(),
+        item("Rename…", #selector(Controller.renameThread(_:)), target: c),
         item("Timeline", #selector(Controller.showTimeline(_:)), target: c),
     ]))
     bar.addItem(submenu("Shell", [

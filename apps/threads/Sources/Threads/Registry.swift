@@ -8,6 +8,8 @@ struct ThreadRow: Equatable {
     let state, attention: String
     let added, removed, ahead, behind: Int
     let against: String
+    /// App-local display name, keyed by stable thread identity rather than branch or session.
+    var customName: String?
 
     init?(_ json: [String: Any]) {
         guard let t = json["thread"] as? [String: Any], let id = t["id"] as? String else { return nil }
@@ -45,7 +47,10 @@ struct ThreadRow: Equatable {
         return s.length > 0 ? s : nil
     }
 
-    var label: String {
+    var label: String { customName ?? defaultLabel }
+    var displayTitle: String { customName ?? (isProjectThread ? projectName : defaultLabel) }
+
+    var defaultLabel: String {
         (handle ?? branch ?? (cwd as NSString).lastPathComponent) + (guest ? " ·" + id.prefix(6) : "")
     }
 
@@ -63,7 +68,7 @@ struct ThreadRow: Equatable {
     }
 
     func matches(_ query: String) -> Bool {
-        let hay = [label, id, cwd, projectName, report ?? "", blocked ?? ""].joined(separator: " ").lowercased()
+        let hay = [label, defaultLabel, branch ?? "", id, cwd, projectName, report ?? "", blocked ?? ""].joined(separator: " ").lowercased()
         return query.lowercased().split(separator: " ").allSatisfy { hay.contains($0) }
     }
 }
@@ -143,6 +148,8 @@ struct Saved: Codable {
     var projectOrder: [String]?
     /// Thread ids per view and parent node key; ordering never changes registry parentage.
     var threadOrder: [String: [String: [String]]]?
+    /// Display names only: no change to ab's registry, branches or worker handles.
+    var threadNames: [String: String]?
     /// Top-level threads' delta base: "origin" (unpushed) or "local" (unmerged).
     var delta: String?
 
