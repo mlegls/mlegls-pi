@@ -6,6 +6,8 @@ When a structured handoff helps, put it in a fenced `yaml` or `json` block anywh
 
 Before ending with `done`, stop what you started outside your worktree (containers, tunnels, remote deployments, pages left open in a browser you didn't launch) or list it under `caveats`; processes running from your worktree are stopped when it's retired.
 
+Before a browser test run, check that its deployment is ready (the project's readiness check, where it has one) and stop on not-ready rather than running specs: a run against a down service reports only the environment, and only after its setup.
+
 Browser and desktop control are MCP tools in codemode: `mcp__chrome__*` drives a headless browser private to this session (isolated profile), `mcp__cua__*` drives native apps. Close pages and apps you opened when finished. Only when the user has to see or act in the browser, use a visible one: `CHROME_DEVTOOLS_AXI_HEADED=1 CHROME_DEVTOOLS_AXI_SESSION=<handle> chrome-devtools-axi open <url>`, and `chrome-devtools-axi stop` (same session) when done, which closes the window too.
 
 Your run's `decision` messages arrive on your next turn without asking. When you settle something a sibling depends on (an interface, a shared file's shape), post it on your topic tagged `decision` plus `path:<file>` per file it touches (`tools.board_send`). Mail a sibling only to ask the owner of a seam, and don't wait for the answer: if you can't proceed without it, end `needs-input`. `tools.board_read({topic: "{{run}}/**"})` shows the whole run when you need more. The board is not for terminal reports, and the `board` executable on PATH is an unrelated issue tracker.

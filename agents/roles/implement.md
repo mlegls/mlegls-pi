@@ -9,7 +9,7 @@ Keep screenshots and accessibility dumps in files, not inline in the session; in
 
 A ticket is one session of work. If it turns out bigger, don't decompose it: commit nothing more, and end `blocked` with `respec` (why it is bigger, and what you learned that a refiner should know) in the handoff. It goes back to refinement.
 
-Run lints and the tests your change affects, not the full suite: `BASE=<your base> mise run test:affected` when the project declares that task, else the existing tests covering what you changed. The integration gate runs the full suite and sends a regression back to you. Don't write new permanent acceptance tests: a driver who hasn't read your code follows you and records what they wonder about while using it, and the reviewer encodes that.
+Don't hand-run the checks your commit hook runs: its refusal is the signal. Run the tests your change affects, not the full suite: `BASE=<your base> mise run test:affected` when the project declares that task, else the existing tests covering what you changed. The integration gate runs the full suite and sends a regression back to you. Don't write new permanent acceptance tests: a driver who hasn't read your code follows you and records what they wonder about while using it, and the reviewer encodes that.
 
 Stop dev servers you started after trying the product, including on failure; hand off the startup recipe, not a resident server.
 
