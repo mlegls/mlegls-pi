@@ -21,6 +21,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     var unread: Set<String> = []
     static let scratchpad = "x:scratchpad"
     static let projectDrag = NSPasteboard.PasteboardType("app.threads.project")
+    static let threadDrag = NSPasteboard.PasteboardType("app.threads.thread")
 
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
                           styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
@@ -75,7 +76,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         outline.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         outline.dataSource = self
         outline.delegate = self
-        outline.registerForDraggedTypes([Self.projectDrag])
+        outline.registerForDraggedTypes([Self.projectDrag, Self.threadDrag])
         outline.setDraggingSourceOperationMask(.move, forLocal: true)
         outline.setDraggingSourceOperationMask([], forLocal: false)
         outline.menuForRow = { [weak self] row in self?.menu(forRow: row) }
@@ -224,6 +225,16 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                 return a == b ? $0.offset < $1.offset : a < b
             }.map(\.element)
         }
+        // Preserve each sibling group's default order until it has been arranged.
+        for parent in fresh.values {
+            let order = saved.threadOrder?[saved.view]?[parent.orderingKey] ?? []
+            guard !order.isEmpty else { continue }
+            let rank = Dictionary(order.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: { a, _ in a })
+            parent.children = parent.children.enumerated().sorted {
+                let a = rank[$0.element.orderingKey] ?? order.count, b = rank[$1.element.orderingKey] ?? order.count
+                return a == b ? $0.offset < $1.offset : a < b
+            }.map(\.element)
+        }
         // The Scratchpad heads both views: shells anywhere, outside the registry.
         let pad = node(Self.scratchpad, .scratchpad)
         fresh[pad.key] = pad
@@ -265,12 +276,18 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     func outlineView(_: NSOutlineView, child index: Int, ofItem item: Any?) -> Any { (item as? Node)?.children[index] ?? roots[index] }
     func outlineView(_: NSOutlineView, isItemExpandable item: Any) -> Bool { !((item as? Node)?.children.isEmpty ?? true) }
 
-    // MARK: project ordering
+    // MARK: sidebar ordering
 
     func outlineView(_: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-        guard saved.view == "project", let n = item as? Node, case .project(let path) = n.kind else { return nil }
+        guard let n = item as? Node else { return nil }
         let writer = NSPasteboardItem()
-        writer.setString(path, forType: Self.projectDrag)
+        switch n.kind {
+        case .project(let path) where saved.view == "project":
+            writer.setString(path, forType: Self.projectDrag)
+        case .thread where n.parent != nil:
+            writer.setString(n.orderingKey, forType: Self.threadDrag)
+        default: return nil
+        }
         return writer
     }
 
@@ -278,7 +295,26 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         outline.dragged = true
     }
 
+    /// Only insertion within the current parent is a thread move, never reparenting.
+    func threadDrop(_ info: NSDraggingInfo, item: Any?, index: Int) -> (parent: Node, source: Int, index: Int)? {
+        guard info.draggingSource as? NSOutlineView === outline,
+              let key = info.draggingPasteboard.string(forType: Self.threadDrag),
+              let n = nodes[key], case .thread = n.kind, let parent = n.parent,
+              let source = parent.children.firstIndex(where: { $0 === n }) else { return nil }
+        if index == NSOutlineViewDropOnItemIndex, let sibling = item as? Node,
+           sibling.parent === parent, let target = parent.children.firstIndex(where: { $0 === sibling }) {
+            return (parent, source, target)
+        }
+        guard item as? Node === parent, index >= 0, index <= parent.children.count else { return nil }
+        return (parent, source, index)
+    }
+
     func outlineView(_ view: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
+        if info.draggingPasteboard.string(forType: Self.threadDrag) != nil {
+            guard let drop = threadDrop(info, item: item, index: index) else { return [] }
+            view.setDropItem(drop.parent, dropChildIndex: drop.index)
+            return .move
+        }
         guard saved.view == "project", info.draggingSource as? NSOutlineView === outline,
               let path = info.draggingPasteboard.string(forType: Self.projectDrag),
               roots.contains(where: { $0.key == "p:" + path }) else { return [] }
@@ -292,6 +328,20 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     }
 
     func outlineView(_: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
+        if info.draggingPasteboard.string(forType: Self.threadDrag) != nil {
+            guard let drop = threadDrop(info, item: item, index: index) else { return false }
+            let parent = drop.parent
+            let moved = parent.children.remove(at: drop.source)
+            parent.children.insert(moved, at: drop.index > drop.source ? drop.index - 1 : drop.index)
+            let order = parent.children.map(\.orderingKey)
+            let previous = saved.threadOrder?[saved.view]?[parent.orderingKey] ?? []
+            var orders = saved.threadOrder ?? [:]
+            orders[saved.view, default: [:]][parent.orderingKey] = order + previous.filter { !order.contains($0) }
+            saved.threadOrder = orders
+            saved.save()
+            reload()
+            return true
+        }
         guard saved.view == "project", info.draggingSource as? NSOutlineView === outline,
               item == nil, index >= 1, index <= roots.count,
               let path = info.draggingPasteboard.string(forType: Self.projectDrag),

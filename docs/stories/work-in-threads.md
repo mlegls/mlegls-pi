@@ -17,9 +17,11 @@ When I just need a shell or a quick pi that isn't a thread, I open it in Threads
 
 With several projects open, I can drag their headers into the order I want. The order survives refreshes, view switches and restarting Threads; new projects appear after the ones I've arranged. Scratchpad stays first. Rearranging projects doesn't change thread parentage or open a different session.
 
+When several sibling threads compete for space, I can drag them into the order I want in either view. The order survives refreshes and restarting Threads, separately for each view and parent; new siblings appear after the ones I've arranged. Dragging never changes parentage, moves a thread to another attention section, or opens a different session.
+
 When I have several terminal tabs, each has the same width regardless of its title. Title changes don't move the targets.
 
-Source: "let's make terminal tabs have an even width rather than being only as wide as the title"; "let's make it possible to rearrange projects in the Threads sidebar"; "let's add a \"scratchpad\" pseudo-project to Threads, where i can spawn pi sessions and terminal tabs that aren't actually threads, so i don't have to open a separate terminal"; "let's add a way in the Threads app to add a specific worktree (attaching to existing) as a thread"; "let's put it as a dropdown with the + button on a project"; "i often accidentally scroll through the sidebar and accidentally open a bunch of closed sessions i meant to just 'hover' on"; "i'll have 10s of non-interactive sessions and they can't be tabs".
+Source: "let's implement reordering for sibling threads in Threads, analogous to project reordering"; "let's make terminal tabs have an even width rather than being only as wide as the title"; "let's make it possible to rearrange projects in the Threads sidebar"; "let's add a \"scratchpad\" pseudo-project to Threads, where i can spawn pi sessions and terminal tabs that aren't actually threads, so i don't have to open a separate terminal"; "let's add a way in the Threads app to add a specific worktree (attaching to existing) as a thread"; "let's put it as a dropdown with the + button on a project"; "i often accidentally scroll through the sidebar and accidentally open a bunch of closed sessions i meant to just 'hover' on"; "i'll have 10s of non-interactive sessions and they can't be tabs".
 
 Issues: [[projects/mlegls-pi/issues/threads-on-zmx-with-a-native-sidebar]].
 
