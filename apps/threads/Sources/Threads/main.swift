@@ -1,5 +1,30 @@
 import AppKit
 
+// From the Dock, launchd hands the app a bare environment. Threads need the login shell's
+// (PATH, mise, EDITOR, …), so ask it once, as VS Code and Zed resolve theirs.
+func resolveShellEnvironment() {
+    let env = ProcessInfo.processInfo.environment
+    guard env["THREADS_RESOLVE_ENV"] != nil, let bin = env["AB_BIN"], let pw = getpwuid(getuid()) else { return }
+    let shell = String(cString: pw.pointee.pw_shell)
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: shell)
+    p.arguments = ["-ilc", "'" + bin + "' tree env"]
+    p.currentDirectoryURL = URL(fileURLWithPath: NSHomeDirectory())
+    p.standardInput = FileHandle.nullDevice
+    let out = Pipe()
+    p.standardOutput = out
+    p.standardError = FileHandle.nullDevice
+    guard (try? p.run()) != nil else { return }
+    DispatchQueue.global().asyncAfter(deadline: .now() + 10) { if p.isRunning { p.terminate() } }
+    let data = out.fileHandleForReading.readDataToEndOfFile()
+    p.waitUntilExit()
+    let parts = String(decoding: data, as: UTF8.self).components(separatedBy: "\u{1e}ENV")
+    guard parts.count >= 3, let json = try? JSONSerialization.jsonObject(with: Data(parts[1].utf8)) as? [String: String] else { return }
+    // The bundle's own LSEnvironment (AB_BIN, THREADS_*) wins over whatever the shell exported.
+    for (k, v) in json where k != "AB_BIN" && !k.hasPrefix("THREADS_") { setenv(k, v, 1) }
+}
+resolveShellEnvironment()
+
 // A thread app is a frontend of ab's registry; it must not look like it lives inside a pane or session.
 for name in ["ZMX_SESSION", "ZMX_SESSION_PREFIX", "TMUX", "TMUX_PANE"] { unsetenv(name) }
 

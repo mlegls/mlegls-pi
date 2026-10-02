@@ -80,6 +80,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         top.spacing = 4
         top.distribution = .fill
         views.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        newProject.setContentHuggingPriority(.required, for: .horizontal)
         let side = NSStackView(views: [top, scroll, where_, status])
         side.orientation = .vertical
         side.alignment = .leading
@@ -198,6 +199,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             target.children.append(child)
             child.parent = target
         }
+        if !attention { for p in saved.pinned ?? [] { _ = header("p:" + p, .project(p)) } }
         if attention { top.sort { Self.sectionOrder.firstIndex(of: String($0.key.dropFirst(2)))! < Self.sectionOrder.firstIndex(of: String($1.key.dropFirst(2)))! } }
         roots = top
         nodes = fresh
@@ -316,7 +318,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     }
 
     func menu(forRow index: Int) -> NSMenu? {
-        guard let n = outline.item(atRow: index) as? Node, let row = n.row else { return nil }
+        guard let n = outline.item(atRow: index) as? Node else { return nil }
+        if case .project(let path) = n.kind { return projectMenu(path) }
+        guard let row = n.row else { return nil }
         let menu = NSMenu()
         if row.interactive {
             startMenu(row.id).items.forEach { $0.menu?.removeItem($0); menu.addItem($0) }
@@ -329,6 +333,48 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         menu.addItem(menuItem("Mark Read") { [weak self] in self?.markSeen(row.id) })
         menu.addItem(menuItem("Timeline") { [weak self] in self?.timeline(row.id) })
         return menu
+    }
+
+    func projectMenu(_ path: String) -> NSMenu {
+        let menu = NSMenu()
+        let name = (path as NSString).lastPathComponent
+        menu.addItem(menuItem("New Thread") { [weak self] in self?.spawn("new", nil, project: path) })
+        menu.addItem(.separator())
+        let pinned = isPinned(path)
+        menu.addItem(menuItem(pinned ? "Unpin" : "Pin") { [weak self] in self?.pin(path, !pinned) })
+        menu.addItem(menuItem("Abandon All Threads…") { [weak self] in
+            guard let self else { return }
+            let ids = rows.filter { $0.project == path && $0.interactive }.map(\.id)
+            confirm("Abandon every thread in \(name)?", "\(ids.count) thread(s) and their workers are discarded without merging; their worktrees are removed.",
+                    button: "Abandon All", destructive: true) { [weak self] in self?.abandonAll(ids) }
+        })
+        return menu
+    }
+
+    func isPinned(_ path: String) -> Bool { saved.pinned?.contains(path) ?? false }
+    /// Unpinning a project with threads changes nothing visible until its last thread ends.
+    func pin(_ path: String, _ on: Bool) {
+        var p = (saved.pinned ?? []).filter { $0 != path }
+        if on { p.append(path) }
+        saved.pinned = p
+        saved.save()
+        rebuild()
+    }
+
+    func abandonAll(_ ids: [String]) {
+        guard !busy else { return }
+        busy = true
+        say("abandon…")
+        Task {
+            defer { busy = false }
+            var closed = 0
+            for id in ids {
+                do { closed += try await AB.perform("abandon", id: id).closed.count }
+                catch { say(error.localizedDescription); break }
+            }
+            if closed > 0 { say("retired \(closed) thread(s)") }
+            await refresh()
+        }
     }
 
     func outlineViewSelectionDidChange(_: Notification) {
@@ -426,6 +472,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                 let result = try await AB.perform(action, id: id, sibling: sibling, name: name, project: project, makeProject: makeProject)
                 say(action == "continue" ? "merged; session continues" : result.closed.isEmpty ? "" : "retired \(result.closed.count) thread(s)")
                 await refresh()
+                // A project made here is pinned, under the path the registry knows it by.
+                if makeProject, let id = result.thread, let p = byId[id]?.project { pin(p, true) }
                 if let id = result.thread { open(id) }
             } catch { say(error.localizedDescription) }
         }
@@ -501,7 +549,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             : "Find a thread or project, or name a new one"
         palette.open(over: window, placeholder: placeholder) { [weak self] q in
             guard let self else { return [] }
-            var items: [Palette.Item] = []
+            var items: [Palette.Item] = [], named: [Palette.Item] = []
             let q = q.trimmingCharacters(in: .whitespaces)
             if !projectsOnly {
                 let threads = rows.filter { $0.matches(q) }.sorted { $0.interactive && !$1.interactive }
@@ -510,11 +558,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                 }
                 let slug = q.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()
                     .split(separator: "-").joined(separator: "-")
-                if !slug.isEmpty, let id = shown, let row = byId[id], row.interactive {
-                    items.append(.init(title: "New thread “\(slug)” as a child of \(row.label)", detail: row.projectName) { [weak self] in
+                // A path names a project, never a thread; named threads come after the projects.
+                if !slug.isEmpty, !q.contains("/"), !q.hasPrefix("~"), let id = shown, let row = byId[id], row.interactive {
+                    named.append(.init(title: "New thread “\(slug)” as a child of \(row.label)", detail: row.projectName) { [weak self] in
                         self?.spawn("new", id, name: slug)
                     })
-                    items.append(.init(title: "New thread “\(slug)” as a sibling of \(row.label)", detail: row.projectName) { [weak self] in
+                    named.append(.init(title: "New thread “\(slug)” as a sibling of \(row.label)", detail: row.projectName) { [weak self] in
                         self?.spawn("new", id, sibling: true, name: slug)
                     })
                 }
@@ -534,9 +583,13 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                     items.append(.init(title: "▸  " + name, detail: latest.label + " · " + path) { [weak self] in self?.open(latest.id) })
                 }
                 items.append(.init(title: "New thread in " + name, detail: path) { [weak self] in self?.spawn("new", nil, project: p) })
+                if projectsOnly, !isPinned(p) {
+                    items.append(.init(title: "Pin " + name, detail: path) { [weak self] in self?.pin(p, true) })
+                }
                 shownProjects += 1
                 if shownProjects >= 40 { break }
             }
+            items += named
             if !q.isEmpty, !exact {
                 items.append(.init(title: "New project “\(q)”", detail: (target as NSString).abbreviatingWithTildeInPath) { [weak self] in
                     self?.spawn("new", nil, project: target, makeProject: true)

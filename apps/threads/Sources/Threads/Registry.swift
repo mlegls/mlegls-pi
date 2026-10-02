@@ -118,6 +118,8 @@ struct Saved: Codable {
     var view = "project"
     var collapsed: [String: [String]] = [:]
     var shown: String?
+    /// Projects the project view lists even with no threads, so new threads can start there.
+    var pinned: [String]?
 
     /// THREADS_STATE points a second instance (a dev build) at its own file, so it doesn't reopen the first one's thread.
     static let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["THREADS_STATE"]
