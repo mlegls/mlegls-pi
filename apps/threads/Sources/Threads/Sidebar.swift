@@ -61,10 +61,11 @@ final class RowCell: NSTableCellView {
     let glyph = NSTextField(labelWithString: "")
     let title = NSTextField(labelWithString: "")
     let detail = NSTextField(labelWithString: "")
+    let delta = NSTextField(labelWithString: "")
     let buttons = NSStackView()
     var onHover: (Bool) -> Void = { _ in }
 
-    init(glyph g: (String, NSColor)?, title t: String, detail d: String, bold: Bool, dim: Bool, header: Bool, buttons bs: [NSView]) {
+    init(glyph g: (String, NSColor)?, title t: String, detail d: String, bold: Bool, dim: Bool, header: Bool, delta dl: NSAttributedString? = nil, buttons bs: [NSView]) {
         super.init(frame: .zero)
         glyph.stringValue = g?.0 ?? ""
         glyph.textColor = g?.1
@@ -83,7 +84,9 @@ final class RowCell: NSTableCellView {
         bs.forEach(buttons.addArrangedSubview)
         buttons.spacing = 2
         buttons.isHidden = true
-        let views: [NSView] = (g == nil ? [] : [glyph]) + [title, detail, NSView(), buttons]
+        if let dl { delta.attributedStringValue = dl }
+        delta.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        let views: [NSView] = (g == nil ? [] : [glyph]) + [title, detail, NSView()] + (dl == nil ? [] : [delta]) + [buttons]
         let stack = NSStackView(views: views)
         stack.spacing = 5
         stack.translatesAutoresizingMaskIntoConstraints = false

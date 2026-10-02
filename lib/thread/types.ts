@@ -49,6 +49,8 @@ export interface ThreadSnapshot {
 	attention: Attention;
 	/** When the current idle period began. */
 	idleSince?: string;
+	/** The worktree (uncommitted tracked edits included) against its merge base with mergeParent; ahead/behind in commits. */
+	delta?: { added: number; removed: number; files: number; ahead: number; behind: number };
 }
 export type Attention = "needs-you" | "unread" | "read" | "running";
 export interface ThreadRow extends ThreadSnapshot {

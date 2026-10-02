@@ -141,6 +141,17 @@ function mergeParent(thread: ThreadRecord): string | undefined {
 	catch (error) { if ((error as { status?: number }).status !== 1) throw error; }
 }
 
+function delta(thread: ThreadRecord, parent: string | undefined): ThreadSnapshot["delta"] {
+	const dir = thread.worktree ?? thread.cwd;
+	if (!parent || !existsSync(dir)) return;
+	try {
+		const [behind, ahead] = git(dir, "rev-list", "--left-right", "--count", parent + "...HEAD").split(/\s+/).map(Number);
+		const stat = git(dir, "diff", "--shortstat", git(dir, "merge-base", parent, "HEAD"));
+		const n = (re: RegExp) => Number(re.exec(stat)?.[1] ?? 0);
+		return { files: n(/(\d+) files? changed/), added: n(/(\d+) insertion/), removed: n(/(\d+) deletion/), ahead, behind };
+	} catch { return; }
+}
+
 function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxTerminal[], live: Live[]): ThreadSnapshot {
 	const canonical = live.filter(l => l.sessionId === thread.sessionId && (!l.sessionFile || l.sessionFile === thread.sessionFile));
 	if (canonical.length > 1) throw new Error("Concurrent canonical pi writers for thread " + thread.id);
@@ -160,7 +171,7 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
 		thread, state, pid: pi?.pid, interactive: isInteractive(thread), attention, idleSince,
-		mergeParent: parent, mergeParentThread: parentThread?.id,
+		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, parent),
 		terminals: ownedTerminals.map(t => ({ name: t.name, role: t.role! })),
 		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,
 	};

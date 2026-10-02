@@ -6,6 +6,7 @@ struct ThreadRow: Equatable {
     let branch, handle, report, blocked, spawnParent, mergeParent, idleSince: String?
     let guest, interactive: Bool
     let state, attention: String
+    let added, removed, ahead, behind: Int
 
     init?(_ json: [String: Any]) {
         guard let t = json["thread"] as? [String: Any], let id = t["id"] as? String else { return nil }
@@ -25,6 +26,19 @@ struct ThreadRow: Equatable {
         interactive = json["interactive"] as? Bool ?? true
         state = json["state"] as? String ?? "?"
         attention = json["attention"] as? String ?? "read"
+        let d = json["delta"] as? [String: Any] ?? [:]
+        (added, removed, ahead, behind) = (d["added"] as? Int ?? 0, d["removed"] as? Int ?? 0, d["ahead"] as? Int ?? 0, d["behind"] as? Int ?? 0)
+    }
+
+    /// +added −removed against the merge base, and ↓behind when the target moved on.
+    var delta: NSAttributedString? {
+        let s = NSMutableAttributedString()
+        let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        func add(_ t: String, _ c: NSColor) { s.append(NSAttributedString(string: (s.length > 0 ? " " : "") + t, attributes: [.foregroundColor: c, .font: font])) }
+        if added > 0 { add("+\(added)", .systemGreen) }
+        if removed > 0 { add("−\(removed)", .systemRed) }
+        if behind > 0 { add("↓\(behind)", .tertiaryLabelColor) }
+        return s.length > 0 ? s : nil
     }
 
     var label: String {
