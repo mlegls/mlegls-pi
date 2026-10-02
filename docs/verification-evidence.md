@@ -9,6 +9,8 @@ The setup handoff distinguishes the task's required environment from what was ac
 
 Commit a small packet under `docs/attachments/<ticket>/`, linked from the ticket's Result. Prefer a Markdown index and selected images over a transcript dump. `.wm/` is scratch storage and disappears with the worktree.
 
+Don't commit raw machine output (runner JSON, per-case outcome lists, action or runtime logs) for intermediate rounds. The index states the counts, names each failure with its excerpt, and gives the command that reproduces the run at the tested revision. Commit a raw file only when it is itself the evidence for a claim the index can't carry, and only the final round's. A repeated run replaces its predecessor's file rather than adding a sibling.
+
 The index records:
 
 - Tested revision, setup and reproduction entry point.
