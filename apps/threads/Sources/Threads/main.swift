@@ -59,7 +59,6 @@ func mainMenu(_ c: Controller) -> NSMenu {
     bar.addItem(submenu("Thread", [
         item("Open…", #selector(Controller.quickOpen(_:)), "p", target: c),
         item("Find or New Project…", #selector(Controller.openProject(_:)), "o", target: c),
-        item("Add Existing Worktree…", #selector(Controller.addExistingWorktree(_:)), target: c),
         item("Command Palette…", #selector(Controller.commandPalette(_:)), "p", [.command, .shift], target: c),
         .separator(),
         item("New Child Worktree", #selector(Controller.newChild(_:)), target: c),

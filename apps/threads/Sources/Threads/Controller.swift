@@ -573,7 +573,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     // ⌘P finds or makes threads and projects; ⌘O (and the sidebar's folder button) only projects.
     @objc func quickOpen(_: Any?) { find(projectsOnly: false) }
     @objc func openProject(_: Any?) { find(projectsOnly: true) }
-    @objc func addExistingWorktree(_: Any?) { chooseWorktree(near: shown.flatMap { byId[$0]?.cwd }) }
 
     func find(projectsOnly: Bool) {
         if projectCache.isEmpty { Task { projectCache = await AB.projects(); palette.reload() } }
@@ -627,7 +626,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                     self?.openProject(target, makeProject: true)
                 })
             }
-            items.append(.init(title: "Add Existing Worktree…", detail: "choose a checkout; reuse its thread or start a guest") { [weak self] in self?.addExistingWorktree(nil) })
             if projectsOnly {
                 items.append(.init(title: "Choose a folder…", detail: "any directory; made a git repo if it isn't one") { [weak self] in self?.chooseFolder() })
             }
@@ -703,8 +701,6 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         case #selector(newChild(_:)), #selector(newSibling(_:)), #selector(forkChild(_:)), #selector(forkSibling(_:)),
              #selector(mergeThread(_:)), #selector(mergeContinue(_:)):
             return interactive && !busy
-        case #selector(addExistingWorktree(_:)):
-            return !busy
         case #selector(abandonThread(_:)), #selector(showTimeline(_:)):
             return shown != nil && !busy
         case #selector(splitRight(_:)), #selector(splitDown(_:)), #selector(newTab(_:)), #selector(closePane(_:)),
