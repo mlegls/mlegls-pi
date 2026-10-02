@@ -71,7 +71,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         outline.outlineTableColumn = column
         outline.headerView = nil
         outline.rowHeight = 24
-        outline.style = .sourceList
+        outline.style = .fullWidth // sourceList insets rows ~10pt from the sidebar edge
         outline.indentationPerLevel = 12
         outline.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         outline.dataSource = self
@@ -93,13 +93,20 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         top.distribution = .fill
         views.setContentHuggingPriority(.defaultLow, for: .horizontal)
         newProject.setContentHuggingPriority(.required, for: .horizontal)
-        let side = NSStackView(views: [top, scroll, where_, status])
+        top.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+        let foot = NSStackView(views: [where_, status])
+        foot.orientation = .vertical
+        foot.alignment = .leading
+        foot.spacing = 6
+        foot.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+        for v in [where_, status] { v.widthAnchor.constraint(lessThanOrEqualTo: foot.widthAnchor, constant: -16).isActive = true }
+        // rows run edge to edge: only the controls and footer are inset
+        let side = NSStackView(views: [top, scroll, foot])
         side.orientation = .vertical
         side.alignment = .leading
         side.spacing = 6
-        side.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
-        for v in [top, scroll] as [NSView] { v.widthAnchor.constraint(equalTo: side.widthAnchor, constant: -16).isActive = true }
-        for v in [where_, status] { v.widthAnchor.constraint(lessThanOrEqualTo: side.widthAnchor, constant: -16).isActive = true }
+        side.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+        for v in [top, scroll, foot] as [NSView] { v.widthAnchor.constraint(equalTo: side.widthAnchor).isActive = true }
         scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
 
         placeholder.textColor = .secondaryLabelColor
