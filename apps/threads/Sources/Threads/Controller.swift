@@ -25,7 +25,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     let status = NSTextField(labelWithString: "")
     let main = NSView()
     let placeholder = NSTextField(labelWithString: "⌘P to open or start a thread")
-    let ghostty = TerminalController(configFilePath: NSHomeDirectory() + "/.config/ghostty/config")
+    // An empty theme: the package's default (Afterglow/Alabaster) is appended after the user's config and wins.
+    let ghostty = TerminalController(configFilePath: NSHomeDirectory() + "/.config/ghostty/config", theme: TerminalTheme())
     let palette = Palette()
 
     static let sections = ["needs-you": "Needs you", "unread": "Unread", "read": "Read", "running": "Running"]
