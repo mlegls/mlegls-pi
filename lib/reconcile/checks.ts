@@ -7,12 +7,17 @@ import { dirname, relative, resolve } from "node:path";
 
 export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
-/** The project's integration gate: --test when given, else a `pre-integrate` mise task the project declares
- * (a lifecycle point, like its worktree post_create hook). Reviewer-listed tests run beside it, never instead.
- * The gate is the one place a ticket runs the full suite: workers run the project's `test:affected` task against their base. */
-export const declaredGate = (cwd: string): string | undefined => {
- try { return (JSON.parse(execFileSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })) as { name: string }[]).some(t => t.name === "pre-integrate") ? "mise run pre-integrate" : undefined; }
- catch { return undefined; }
+/** The project's integration gates: mise tasks it declares as lifecycle points, like its worktree post_create hook.
+ * `pre-integrate` runs on every landing (capped at 30 min, since the integrate lock serializes landings);
+ * `pre-integrate:owner` runs after it only on a landing into the owner's checkout, once per run, for checks too
+ * heavy to sit on every landing (a full browser batch). Reviewer-listed tests run beside them, never instead.
+ * The gates are the one place a ticket runs the full suite: workers run the project's `test:affected` task against their base. */
+export const declaredGates = (cwd: string, owner: boolean): { cmd: string; timeout: number }[] => {
+  let names: Set<string>;
+  try { names = new Set((JSON.parse(execFileSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })) as { name: string }[]).map(t => t.name)); }
+  catch { return []; }
+  const gates = [{ task: "pre-integrate", timeout: 30 * 60_000 }, ...owner ? [{ task: "pre-integrate:owner", timeout: 2 * 60 * 60_000 }] : []];
+  return gates.filter(g => names.has(g.task)).map(g => ({ cmd: "mise run " + g.task, timeout: g.timeout }));
 };
 // Tests encoding the driver's checks (written by the reviewer; older drivers wrote their own): the integration gate runs them on the reviewer's final head.
 // Handoff `tests` name committed test files (repository-relative); anything else (prose, commands) is not run.

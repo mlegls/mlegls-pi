@@ -31,7 +31,7 @@ async function spawnParent(options: NewThreadOptions): Promise<string | undefine
 async function setup(cwd: string): Promise<void> {
 	let declared: boolean;
 	try { declared = (JSON.parse(await command("mise", ["tasks", "ls", "--json"], cwd)) as { name: string }[]).some(t => t.name === "setup"); }
-	catch { return; } // Same task discovery boundary as reconcile/checks.ts declaredGate.
+	catch { return; } // Same task discovery boundary as reconcile/checks.ts declaredGates.
 	if (declared) await command("mise", ["run", "setup"], cwd);
 }
 

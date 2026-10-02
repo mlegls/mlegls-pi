@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:86d24b04-f507-431f-be52-5c33b3e2f361
 ---
@@ -11,3 +11,7 @@ Concept's committed fresh-seed command is `bun run test:browser`. Its prior comp
 `ab supervise start <ticket> --test CMD`, named by the Concept ticket, is also absent in this installation: `ab supervise --help` exits 1 with `usage: ab tree [ui|sidebar|open|send] ... | ab timeline [SESSION]`. The current reconciler discovers `mise run pre-integrate` through `lib/reconcile/checks.ts:declaredGate`, independent of reviewer-listed files. Updating Concept's task to include the fresh-seed batch is the project-side workaround for the retired invocation, but not for the timeout.
 
 Asked the Concept supervising owner to authorize the current declared-gate entry and arrange a timeout repair at the harness owner before attempting supervised integration. A hand-selected subset, pre-rebase run or manual fast-forward would not meet the browser ticket. No global supervisor change is authorized in that ticket. Relevant owner: [[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]].
+
+## Result
+
+Agreed with concept's supervisor: a second lifecycle gate rather than a longer per-landing timeout, since the integrate lock serializes landings. `declaredGates` in `lib/reconcile/checks.ts` runs `pre-integrate` on every landing (still 30 min) and, only on a landing into the owner's checkout, `mise run pre-integrate:owner` after it with a 2 h timeout. Concept declares the full kept browser batch as `pre-integrate:owner`.

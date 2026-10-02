@@ -25,7 +25,7 @@ import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
-import { close, declaredGate, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
+import { close, declaredGates, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const TICK_MS = 5_000;
@@ -342,9 +342,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const before = git(into, "rev-parse", "HEAD");
 		try {
 			await locked(() => integrate(h, { cwd: into, keep: true, prepare: async worker => {
-				const run = (cmd: string[]) => execFileSync(cmd[0], cmd.slice(1), { cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout: 30 * 60_000 });
-				const gate = declaredGate(worker.path);
-				if (gate) run(["bash", "-lc", gate]);
+				const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), { cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout });
+				for (const gate of declaredGates(worker.path, c.into === cwd)) run(["bash", "-lc", gate.cmd], gate.timeout);
 				for (const file of new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])) { const cmd = testRun(worker.path, file); if (cmd) run(cmd); }
 				const packet = c.self || !c.evidence ? undefined : evidencePacket(worker.path, c.evidence);
 				const file = join(worker.path, relative(pathOf(c.into), issue.file));
