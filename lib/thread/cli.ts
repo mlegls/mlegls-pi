@@ -4,7 +4,7 @@ import { archiveThread, abandonThread, integrateThread } from "./lifecycle";
 import { attachThread, forkThread, historyThread, listThreads, newThread, promoteThread, seeThread, sendThread } from "./runtime";
 import type { ThreadRow } from "./types";
 
-const usage = "usage: ab thread ls [--tree spawn|merge] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] [--exclusive] | send|history|seen <id> | archive|abandon|merge <id> | merge <id> --continue";
+const usage = "usage: ab thread ls [--tree spawn|merge] [--delta origin|local] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] [--exclusive] | send|history|seen <id> | archive|abandon|merge <id> | merge <id> --continue";
 
 function options(args: string[], schema: ParseArgsOptionsConfig) {
 	return parseArgs({ args, allowPositionals: true, strict: true, options: schema });
@@ -26,9 +26,10 @@ export async function thread(args: string[]): Promise<void> {
 	try {
 		switch (command) {
 		case "ls": {
-			const { values, positionals } = options(rest, { tree: { type: "string" }, json: { type: "boolean" } });
-			if (positionals.length || (values.tree !== undefined && values.tree !== "spawn" && values.tree !== "merge")) throw new Error(usage);
-			const rows = await listThreads({ tree: values.tree as "spawn" | "merge" | undefined });
+			const { values, positionals } = options(rest, { tree: { type: "string" }, delta: { type: "string" }, json: { type: "boolean" } });
+			if (positionals.length || (values.tree !== undefined && values.tree !== "spawn" && values.tree !== "merge")
+				|| (values.delta !== undefined && values.delta !== "origin" && values.delta !== "local")) throw new Error(usage);
+			const rows = await listThreads({ tree: values.tree as "spawn" | "merge" | undefined, delta: values.delta as "origin" | "local" | undefined });
 			if (values.json) out(JSON.stringify(rows) + "\n");
 			else for (const row of rows) out(rowLine(row) + "\n");
 			return;

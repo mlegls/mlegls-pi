@@ -154,10 +154,11 @@ function defaultBranch(project: string): string | undefined {
 	return ref;
 }
 
-/** A top-level thread (no parent, or merging into the default branch's local copy) measures against the default branch itself. */
-function deltaBase(project: string, parent: string | undefined): string | undefined {
-	const base = defaultBranch(project);
-	return !parent || parent === base?.replace(/^origin\//, "") ? base ?? parent : parent;
+/** A top-level thread (no parent, or merging into the default branch's local copy) measures against the default branch: the remote's ("origin", unpushed work) or its local copy ("local", unmerged work). */
+function deltaBase(project: string, parent: string | undefined, mode: "origin" | "local"): string | undefined {
+	const base = defaultBranch(project), local = base?.replace(/^origin\//, "");
+	if (parent && parent !== local) return parent;
+	return (mode === "local" ? local : base) ?? parent;
 }
 
 function delta(thread: ThreadRecord, parent: string | undefined): ThreadSnapshot["delta"] {
@@ -171,7 +172,7 @@ function delta(thread: ThreadRecord, parent: string | undefined): ThreadSnapshot
 	} catch { return; }
 }
 
-function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxTerminal[], live: Live[]): ThreadSnapshot {
+function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxTerminal[], live: Live[], mode: "origin" | "local" = "origin"): ThreadSnapshot {
 	const canonical = live.filter(l => l.sessionId === thread.sessionId && (!l.sessionFile || l.sessionFile === thread.sessionFile));
 	if (canonical.length > 1) throw new Error("Concurrent canonical pi writers for thread " + thread.id);
 	const pi = canonical[0];
@@ -190,7 +191,7 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
 		thread, state, pid: pi?.pid, interactive: isInteractive(thread), attention, idleSince,
-		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, deltaBase(thread.project, parent)),
+		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, deltaBase(thread.project, parent, mode)),
 		terminals: ownedTerminals.map(t => ({ name: t.name, role: t.role! })),
 		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,
 	};
@@ -203,12 +204,12 @@ export async function threadSnapshot(id: string): Promise<ThreadSnapshot> {
 }
 
 /** Active threads, globally unless cwd scopes a git project. */
-export async function listThreads(options: { tree?: "spawn" | "merge"; cwd?: string } = {}): Promise<ThreadRow[]> {
+export async function listThreads(options: { tree?: "spawn" | "merge"; cwd?: string; delta?: "origin" | "local" } = {}): Promise<ThreadRow[]> {
 	const project = options.cwd === undefined ? undefined : checkout(options.cwd).project;
 	const records = (await allThreads()).filter(t => project === undefined || t.project === project);
 	const inventory = await terminals(), live = readLive();
 	const rows = records.map(t => {
-		const snap = snapshot(t, records, inventory, live);
+		const snap = snapshot(t, records, inventory, live, options.delta);
 		return { ...snap, depth: 0, treeParent: options.tree === "merge" ? snap.mergeParentThread : t.parent };
 	});
 	const byId = new Map(rows.map(r => [r.thread.id, r]));

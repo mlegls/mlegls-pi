@@ -92,6 +92,7 @@ func mainMenu(_ c: Controller) -> NSMenu {
     bar.addItem(submenu("View", [
         item("Switch View", #selector(Controller.toggleView(_:)), "t", [.command, .shift], target: c),
         item("Refresh", #selector(Controller.refreshNow(_:)), target: c),
+        item("Diff Top-Level Threads Against Local Branch", #selector(Controller.toggleDeltaBase(_:)), target: c),
         item("Toggle Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command, .control]),
     ]))
     bar.addItem(submenu("Window", [

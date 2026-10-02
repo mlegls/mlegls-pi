@@ -134,7 +134,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
 
     func refresh() async {
         do {
-            let fresh = try await AB.list()
+            let fresh = try await AB.list(delta: saved.delta ?? "origin")
             if fresh != rows {
                 rows = fresh
                 byId = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -500,6 +500,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
     @objc func abandonThread(_: Any?) { if let id = shown { confirmAbandon(id) } }
     @objc func showTimeline(_: Any?) { timeline(shown) }
     @objc func refreshNow(_: Any?) { Task { await refresh() } }
+    @objc func toggleDeltaBase(_: Any?) {
+        saved.delta = saved.delta == "local" ? "origin" : "local"
+        saved.save()
+        Task { await refresh() }
+    }
     @objc func toggleView(_: Any?) { views.selectedSegment = 1 - views.selectedSegment; viewChanged() }
     @objc func viewChanged() {
         saved.view = views.selectedSegment == 1 ? "attention" : "project"
@@ -659,6 +664,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         case #selector(splitRight(_:)), #selector(splitDown(_:)), #selector(newTab(_:)), #selector(closePane(_:)),
              #selector(previousPane(_:)), #selector(nextPane(_:)), #selector(previousTab(_:)), #selector(nextTab(_:)):
             return workspace != nil
+        case #selector(toggleDeltaBase(_:)):
+            item.state = saved.delta == "local" ? .on : .off
+            return true
         case #selector(gotoTab(_:)):
             return item.tag < (workspace?.tabs.count ?? 0)
         default:

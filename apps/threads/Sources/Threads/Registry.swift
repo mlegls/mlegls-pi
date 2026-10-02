@@ -99,8 +99,8 @@ enum AB {
         }
     }
 
-    static func list() async throws -> [ThreadRow] {
-        let text = try await run(["thread", "ls", "--json"])
+    static func list(delta: String) async throws -> [ThreadRow] {
+        let text = try await run(["thread", "ls", "--json", "--delta", delta])
         let json = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [[String: Any]] ?? []
         return json.compactMap(ThreadRow.init)
     }
@@ -138,6 +138,8 @@ struct Saved: Codable {
     var shown: String?
     /// Projects the project view lists even with no threads, so new threads can start there.
     var pinned: [String]?
+    /// Top-level threads' delta base: "origin" (unpushed) or "local" (unmerged).
+    var delta: String?
 
     /// THREADS_STATE points a second instance (a dev build) at its own file, so it doesn't reopen the first one's thread.
     static let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["THREADS_STATE"]
