@@ -20,10 +20,20 @@ export const declaredGates = (cwd: string): { cmd: string; timeout: number }[] =
 };
 /** A project that verifies main after landing (concept: .husky/post-merge → scripts/verify-main.sh) keeps
  * `<git-common-dir>/verify-main/red` while main is red, naming the commit, the range landed since green and the log.
- * Landings into the owner's checkout wait for green; landings into collectors don't. */
+ * Landings into the owner's checkout wait for green (see `heldByRed`); landings into collectors don't. */
 export function mainRed(cwd: string): string | undefined {
   const file = join(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "verify-main", "red");
   return existsSync(file) ? readFileSync(file, "utf8") : undefined;
+}
+/** Whether red main holds a landing changing `changed` (repository-relative). Docs-only landings pass: they
+ * change no code, and verify-main inherits main's result for them. So does a landing that touches a failing
+ * case's file (red lists cases as `[project] › <path>:<line> › title`, path relative to the test runner's
+ * directory): it is probably the repair, and holding it would wait on itself. */
+export function heldByRed(red: string, changed: string[]): boolean {
+  const code = changed.filter(f => !f.startsWith("docs/"));
+  if (!code.length) return false;
+  const failing = [...red.matchAll(/\] › ([\w./-]+):\d+/g)].map(m => m[1]);
+  return !code.some(f => failing.some(p => f === p || f.endsWith("/" + p)));
 }
 // Tests encoding the driver's checks (written by the reviewer; older drivers wrote their own): the integration gate runs them on the reviewer's final head.
 // Handoff `tests` name committed test files (repository-relative); anything else (prose, commands) is not run.

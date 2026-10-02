@@ -27,7 +27,7 @@ import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
-import { close, declaredGates, mainRed, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
+import { close, declaredGates, heldByRed, mainRed, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
 const TICK_MS = 5_000;
@@ -360,7 +360,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const into = pathOf(c.into), h = c.handle!;
 		for (let told = false; c.into === cwd; told = true) {
 			const red = mainRed(cwd);
-			if (!red) break;
+			if (!red || !heldByRed(red, git(h.path, "diff", "--name-only", git(into, "rev-parse", "HEAD") + "...HEAD").split("\n").filter(Boolean))) break;
 			if (!told) { note("landing " + slug + " waits for a green main"); tellOwner("landing " + slug + " waits: main is red.\n\n" + red); }
 			await Bun.sleep(60_000);
 		}
