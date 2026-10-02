@@ -21,6 +21,12 @@ Replace `ab supervise start` (an LLM `supervise` worker resident at every non-le
 - **Root**: the top-level interactive supervisor (`tend`) tells the user what's going on and is the mail entrypoint for other sessions. It sees subtree outcomes and what declines all the way up, never ticket-level progress.
 - **Visibility**: the tmux sidebar and dashboard (`lib/tree`) show the execution tree: nodes with phase, their worker sessions and any active handler. Run topics already nest by slug and every spawned session carries `run`/`handle`, so the tree can derive from those.
 
+## Observed assignment friction
+
+2026-10-02, Concept run `tutor-reasoning-degenerates-into-junk-on-deepseek-v4-1-flash`: `replay-the-classical-chinese-full-tutor-turn` was a ticket assigned to `agent:research`. Its implementer reported `respec`; the reconciler selected manager for `refine`, then dispatch rejected the launch: `replay-the-classical-chinese-full-tutor-turn-refine-d is assigned to agent:research, not agent manager`. Source inspection: `pick` honors the stance pin only for implement, while `launchNow` supplies the issue assignee to dispatch for both implement and refine. No refinement worker launched. Handler provenance: `session:b4db85d4-9cc3-40fb-a586-0ac68cde5c66`.
+
+Workaround authorized in Concept's replay ticket: change its assignment to `agent` and retry refinement, retaining research scope and committed diagnostic progress. The retry result is not yet observed. Recommendation: reconcile phase selection with assignment eligibility before launch; preserve explicit selector authority rather than silently bypassing it. A pinned implementer requesting refinement should produce an actionable reassignment decision instead of an uncaught launch error.
+
 ## Sibling coordination
 
 Workers rarely use the shared board on their own initiative. Of 1078 worker sessions since 2026-09-23, 63% never read it; most that did read once at startup, before siblings had decided anything; 72 posted the 100 decisions; 63 of 93 integration failures were in runs with no decision posted at all. So coordination is pushed, not left to pulls:
