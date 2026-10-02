@@ -70,6 +70,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	// A spawned or invoked session's user turns are its assignment and steers from its parent, not the human.
 	const spawned = node.parentKind === "spawn" || node.parentKind === "invoked";
 	let prev = 0; // timestamp of the previous timed entry
+	let born = 0; // the session header's time: a fork copies its parent's earlier entries, which aren't this session's
 	let lastAssistant: any, lastAssistantId = "";
 	const seg = (k: Kind, a: number, b: number, note?: string) => {
 		if (!a || b <= a) return;
@@ -105,6 +106,8 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		let e: any; try { e = JSON.parse(line); } catch { continue; }
 		const t = ts(e.timestamp);
 		if (!Number.isFinite(t)) continue;
+		if (e.type === "session") born = t;
+		if (t < born) continue;
 		if (!p.start) p.start = t;
 		if (e.type === "custom" && e.customType === "session-meta" && e.data?.agent) p.agent = e.data.agent;
 		if (e.type === "compaction") p.compactions++;
