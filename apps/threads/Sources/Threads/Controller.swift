@@ -75,12 +75,17 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
 
-        let side = NSStackView(views: [views, scroll, where_, status])
+        let newProject = Plain(symbol: "folder.badge.plus", tip: "Find or new project (⌘O)") { [weak self] in self?.openProject(nil) }
+        let top = NSStackView(views: [views, newProject])
+        top.spacing = 4
+        top.distribution = .fill
+        views.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let side = NSStackView(views: [top, scroll, where_, status])
         side.orientation = .vertical
         side.alignment = .leading
         side.spacing = 6
         side.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
-        for v in [views, scroll] as [NSView] { v.widthAnchor.constraint(equalTo: side.widthAnchor, constant: -16).isActive = true }
+        for v in [top, scroll] as [NSView] { v.widthAnchor.constraint(equalTo: side.widthAnchor, constant: -16).isActive = true }
         for v in [where_, status] { v.widthAnchor.constraint(lessThanOrEqualTo: side.widthAnchor, constant: -16).isActive = true }
         scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
 
@@ -383,8 +388,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
 
     // MARK: actions (ab owns them)
 
-    func spawn(_ kind: String, _ id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil) {
-        perform(kind, id, sibling: sibling, name: name, project: project)
+    func spawn(_ kind: String, _ id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil, makeProject: Bool = false) {
+        perform(kind, id, sibling: sibling, name: name, project: project, makeProject: makeProject)
     }
 
     func confirm(_ title: String, _ info: String, button: String, destructive: Bool, then: @escaping () -> Void) {
@@ -411,14 +416,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         }
     }
 
-    func perform(_ action: String, _ id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil) {
+    func perform(_ action: String, _ id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil, makeProject: Bool = false) {
         guard !busy else { return }
         busy = true
         say(action + "…")
         Task {
             defer { busy = false }
             do {
-                let result = try await AB.perform(action, id: id, sibling: sibling, name: name, project: project)
+                let result = try await AB.perform(action, id: id, sibling: sibling, name: name, project: project, makeProject: makeProject)
                 say(action == "continue" ? "merged; session continues" : result.closed.isEmpty ? "" : "retired \(result.closed.count) thread(s)")
                 await refresh()
                 if let id = result.thread { open(id) }
@@ -486,36 +491,74 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
         if n.row != nil { open(n.key) } else { reloading = true; selectCursor(); reloading = false }
     }
 
-    // ⌘P: threads, projects, and "new thread named …"
-    @objc func quickOpen(_: Any?) {
-        Task { if projectCache.isEmpty { projectCache = await AB.projects() } }
-        palette.open(over: window, placeholder: "Open a thread or project, or name a new thread") { [weak self] q in
+    // ⌘P finds or makes threads and projects; ⌘O (and the sidebar's folder button) only projects.
+    @objc func quickOpen(_: Any?) { find(projectsOnly: false) }
+    @objc func openProject(_: Any?) { find(projectsOnly: true) }
+
+    func find(projectsOnly: Bool) {
+        if projectCache.isEmpty { Task { projectCache = await AB.projects(); palette.reload() } }
+        let placeholder = projectsOnly ? "Find a project, or name a new one (~/dev/NAME or a path)"
+            : "Find a thread or project, or name a new one"
+        palette.open(over: window, placeholder: placeholder) { [weak self] q in
             guard let self else { return [] }
             var items: [Palette.Item] = []
-            let threads = rows.filter { $0.matches(q) }.sorted { $0.interactive && !$1.interactive }
-            for r in threads.prefix(40) {
-                items.append(.init(title: r.status.0 + "  " + r.label, detail: r.projectName + (r.interactive ? "" : " · worker")) { [weak self] in self?.open(r.id) })
+            let q = q.trimmingCharacters(in: .whitespaces)
+            if !projectsOnly {
+                let threads = rows.filter { $0.matches(q) }.sorted { $0.interactive && !$1.interactive }
+                for r in threads.prefix(40) {
+                    items.append(.init(title: r.status.0 + "  " + r.label, detail: r.projectName + (r.interactive ? "" : " · worker")) { [weak self] in self?.open(r.id) })
+                }
+                let slug = q.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()
+                    .split(separator: "-").joined(separator: "-")
+                if !slug.isEmpty, let id = shown, let row = byId[id], row.interactive {
+                    items.append(.init(title: "New thread “\(slug)” as a child of \(row.label)", detail: row.projectName) { [weak self] in
+                        self?.spawn("new", id, name: slug)
+                    })
+                    items.append(.init(title: "New thread “\(slug)” as a sibling of \(row.label)", detail: row.projectName) { [weak self] in
+                        self?.spawn("new", id, sibling: true, name: slug)
+                    })
+                }
             }
-            let slug = q.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()
-                .split(separator: "-").joined(separator: "-")
-            if !slug.isEmpty, let id = shown, let row = byId[id], row.interactive {
-                items.append(.init(title: "New thread “(slug)” as a child of (row.label)", detail: row.projectName) { [weak self] in
-                    self?.spawn("new", id, name: slug)
-                })
-                items.append(.init(title: "New thread “(slug)” as a sibling of (row.label)", detail: row.projectName) { [weak self] in
-                    self?.spawn("new", id, sibling: true, name: slug)
-                })
-            }
-            // Projects match on their name unless the query names a path.
+            // Projects: the ones with threads first, then zoxide's. Match on the name unless the query names a path.
+            let live = Array(Set(rows.filter(\.interactive).map(\.project))).sorted()
+            let known = live + projectCache.filter { !live.contains($0) }
             let words = q.lowercased().split(separator: " ")
             let key = { (p: String) in (q.contains("/") ? p : (p as NSString).lastPathComponent).lowercased() }
-            for p in projectCache where !q.isEmpty && words.allSatisfy({ key(p).contains($0) }) {
-                items.append(.init(title: "New thread in " + (p as NSString).lastPathComponent, detail: (p as NSString).abbreviatingWithTildeInPath) { [weak self] in
-                    self?.spawn("new", nil, project: p)
+            let target = q.hasPrefix("~") || q.contains("/") ? (q as NSString).expandingTildeInPath : NSHomeDirectory() + "/dev/" + q
+            var exact = false
+            var shownProjects = 0
+            for p in known where (projectsOnly || !q.isEmpty) && words.allSatisfy({ key(p).contains($0) }) {
+                let name = (p as NSString).lastPathComponent, path = (p as NSString).abbreviatingWithTildeInPath
+                if name.lowercased() == q.lowercased() || p == target { exact = true }
+                if let latest = rows.filter({ $0.project == p && $0.interactive }).max(by: { $0.created < $1.created }) {
+                    items.append(.init(title: "▸  " + name, detail: latest.label + " · " + path) { [weak self] in self?.open(latest.id) })
+                }
+                items.append(.init(title: "New thread in " + name, detail: path) { [weak self] in self?.spawn("new", nil, project: p) })
+                shownProjects += 1
+                if shownProjects >= 40 { break }
+            }
+            if !q.isEmpty, !exact {
+                items.append(.init(title: "New project “\(q)”", detail: (target as NSString).abbreviatingWithTildeInPath) { [weak self] in
+                    self?.spawn("new", nil, project: target, makeProject: true)
                 })
-                if items.count > 60 { break }
+            }
+            if projectsOnly {
+                items.append(.init(title: "Choose a folder…", detail: "any directory; made a git repo if it isn't one") { [weak self] in self?.chooseFolder() })
             }
             return items
+        }
+    }
+
+    func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Start Thread"
+        panel.directoryURL = URL(fileURLWithPath: NSHomeDirectory() + "/dev")
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.spawn("new", nil, project: url.path, makeProject: true)
         }
     }
 

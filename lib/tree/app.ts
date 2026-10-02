@@ -20,19 +20,19 @@ export async function launchApp(): Promise<void> {
 }
 
 const ACTIONS = ["new", "fork", "merge", "continue", "abandon", "seen"] as const;
-const USAGE = "usage: ab tree do new|fork [--id ID] [--sibling] [--name BRANCH] [--project QUERY] | merge|continue|abandon|seen --id ID";
+const USAGE = "usage: ab tree do new|fork [--id ID] [--sibling] [--name BRANCH] [--project QUERY [--init]] | merge|continue|abandon|seen --id ID";
 
 export async function perform(args: string[]): Promise<void> {
 	try {
 		const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
-			id: { type: "string" }, name: { type: "string" }, project: { type: "string" }, sibling: { type: "boolean" } } });
+			id: { type: "string" }, name: { type: "string" }, project: { type: "string" }, sibling: { type: "boolean" }, init: { type: "boolean" } } });
 		const kind = positionals[0] as typeof ACTIONS[number];
 		if (!ACTIONS.includes(kind)) throw new Error(USAGE);
 		console.log(JSON.stringify(await run(kind, values)));
 	} catch (e) { console.error(e instanceof Error ? e.message : String(e)); process.exitCode = 1; }
 }
 
-async function run(kind: typeof ACTIONS[number], values: { id?: string; name?: string; project?: string; sibling?: boolean }) {
+async function run(kind: typeof ACTIONS[number], values: { id?: string; name?: string; project?: string; sibling?: boolean; init?: boolean }) {
 	const thread = values.id ? await getThread(values.id) : undefined;
 	if (values.id && (!thread || thread.archived)) throw new Error("No active thread: " + values.id);
 	if (kind === "new" || kind === "fork") return { thread: (await act.spawn(kind, thread, values)).id };

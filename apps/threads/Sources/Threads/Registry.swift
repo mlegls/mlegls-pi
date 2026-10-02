@@ -88,12 +88,13 @@ enum AB {
     }
 
     /// `ab tree do` result: a created thread, or the threads a merge/abandon closed.
-    static func perform(_ action: String, id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil) async throws -> (thread: String?, closed: [String]) {
+    static func perform(_ action: String, id: String?, sibling: Bool = false, name: String? = nil, project: String? = nil, makeProject: Bool = false) async throws -> (thread: String?, closed: [String]) {
         var args = ["tree", "do", action]
         if let id { args += ["--id", id] }
         if sibling { args.append("--sibling") }
         if let name { args += ["--name", name] }
         if let project { args += ["--project", project] }
+        if makeProject { args.append("--init") }
         let text = try await run(args)
         let json = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] ?? [:]
         return (json["thread"] as? String, json["closed"] as? [String] ?? [])
@@ -101,7 +102,9 @@ enum AB {
 
     static func projects() async -> [String] {
         let text = (try? await run(["query", "-l"], tool: "zoxide")) ?? ""
-        return text.split(separator: "\n").prefix(300).map(String.init)
+        // zoxide also knows bin and cache dirs; a project is a repo (a checkout or a worktree, .git dir or file).
+        return text.split(separator: "\n").prefix(500).map(String.init)
+            .filter { FileManager.default.fileExists(atPath: $0 + "/.git") }
     }
 
     /// The shell command a surface runs: attach, detaching any other viewer so this one owns the pty size.

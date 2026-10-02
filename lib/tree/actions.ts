@@ -2,7 +2,7 @@
 import { abandonThread, archiveThread, ensureTerminal, forkThread, newThread, type ThreadRecord, type ThreadRow } from "../thread";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { command } from "../thread/process";
@@ -36,6 +36,21 @@ export function resolveProject(text: string): string | undefined {
 	try { return execFileSync("zoxide", ["query", ...t.split(/\s+/)], { encoding: "utf8" }).trim() || undefined; } catch { return undefined; }
 }
 
+/** Make TEXT a project: a bare name lands in ~/dev, a path where it says. Creates the directory,
+ * a git repo and an empty first commit as needed (worktrees need a HEAD), and tells zoxide. */
+export function initProject(text: string): string {
+	const t = text.trim().replace(/^~(?=\/|$)/, homedir());
+	if (!t) throw new Error("Name the project");
+	const path = resolve(t.includes("/") ? t : homedir() + "/dev/" + t);
+	mkdirSync(path, { recursive: true });
+	const git = (...args: string[]) => execFileSync("git", ["-C", path, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+	try { git("rev-parse", "--show-toplevel"); } catch { git("init", "-q"); }
+	try { git("rev-parse", "--verify", "-q", "HEAD"); } catch { git("commit", "-q", "--allow-empty", "-m", "init"); }
+	const real = realpathSync(path);
+	try { execFileSync("zoxide", ["add", real]); } catch {}
+	return real;
+}
+
 /** A root thread in another project's checkout. */
 export async function openProject(text: string): Promise<ThreadRecord> {
 	const path = resolveProject(text);
@@ -65,8 +80,8 @@ async function siblingBase(selected: ThreadRecord): Promise<string> {
 
 /** One worktree, one canonical interactive session: every new or forked thread gets its own worktree,
  * a child (merges into the selected thread's branch) or a sibling (merges where the selected one does). */
-export async function spawn(kind: "new" | "fork", selected: ThreadRecord | undefined, opts: { sibling?: boolean; name?: string; project?: string } = {}): Promise<ThreadRecord> {
-	const project = opts.project ? resolveProject(opts.project) : undefined;
+export async function spawn(kind: "new" | "fork", selected: ThreadRecord | undefined, opts: { sibling?: boolean; name?: string; project?: string; init?: boolean } = {}): Promise<ThreadRecord> {
+	const project = opts.project ? (opts.init ? initProject(opts.project) : resolveProject(opts.project)) : undefined;
 	if (opts.project && !project) throw new Error("No such project: " + opts.project);
 	const cwd = project ?? (selected ? (opts.sibling ? await siblingBase(selected) : selected.cwd) : undefined);
 	if (!cwd) throw new Error("Select a thread or a project");

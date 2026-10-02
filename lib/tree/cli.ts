@@ -3,7 +3,7 @@
 //   ab tree ui [--sidebar] [QUERY]   thread tree; no tmux dashboard
 //   ab tree sidebar                  open the sidebar split
 //   ab tree app                      build and open the native thread app (apps/threads)
-//   ab tree do new|fork|merge|continue|abandon|seen [--id ID] [--sibling] [--name BRANCH] [--project Q]   app action, JSON result
+//   ab tree do new|fork|merge|continue|abandon|seen [--id ID] [--sibling] [--name BRANCH] [--project Q [--init]]   app action; --init makes Q a project (bare name: ~/dev/Q), JSON result
 //   ab tree open ID | send ID [TEXT]   thread attach / send
 //   ab timeline [SESSION]   HTML timeline of a session tree (default this session), opened in the browser
 import { parseArgs } from "node:util";
