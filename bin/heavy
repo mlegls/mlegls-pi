@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# heavy [-b] CMD [ARG...]: run CMD once one of the host's heavy-work slots is
+# free, FIFO across every caller on the host (GNU parallel's sem). CMD stays in
+# this process tree, with this caller's output and exit status. HEAVY_SLOTS
+# sets the slot count (default 2); -b also runs CMD at background QoS
+# (taskpolicy -b), for work nobody waits on.
+set -u
+background=
+[ "${1:-}" = -b ] && { background=1; shift; }
+[ $# -gt 0 ] || { echo "usage: heavy [-b] CMD [ARG...]" >&2; exit 2; }
+[ -n "$background" ] && set -- taskpolicy -b "$@"
+# A waiting sem ignores SIGTERM and still runs CMD once a slot frees; it honours
+# SIGINT, so a stopped caller forwards TERM as INT.
+sem --id heavy -j "${HEAVY_SLOTS:-2}" --fg -q -- "$@" &
+pid=$!
+trap 'kill -INT "$pid" 2>/dev/null' TERM INT HUP
+while :; do
+	wait "$pid"
+	status=$?
+	kill -0 "$pid" 2>/dev/null || exit "$status"
+done
