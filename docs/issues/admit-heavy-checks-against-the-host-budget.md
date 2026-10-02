@@ -48,3 +48,5 @@ Not checked: real concept batches through it, and `-b`'s QoS beyond `taskpolicy`
 **Blast radius:** local. One more package in the profile.
 
 Holes carried on: the slot count is a guess until a memory sample during a busy period after concept's f58edb6f; whether worker admission shares the pool is now a note on [[projects/mlegls-pi/issues/admit-workers-against-a-host-wide-budget]].
+
+2026-10-02: `-b` is wrong for browser batches: background QoS starved timers in concept's `quiz-custom-next.spec.ts:103` (15 ticks, wants >20). Use it only for work that measures nothing about time.
