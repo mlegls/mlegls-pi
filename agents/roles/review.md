@@ -23,7 +23,7 @@ Run your retained tests and the tests your repairs affect, not the full suite (t
 Name under `caveats` any choice the change makes that buys something (isolation, coverage, fidelity) with wall time or cost, with its measure: nobody else sees that trade before it lands.
 
 > No: per-test Accounts and learners, landed silently.
-> Yes: "caveat: per-test fixtures for isolation; browser batch 30 → 48 min at 2 workers"
+> Yes: "caveat: per-test fixtures for isolation; each case pays its own sign-in and seed, ~29 s, nothing shared"
 
 Stop drive servers you started when finished, including on failure. Do not leave them running until branch integration.
 
