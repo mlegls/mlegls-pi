@@ -1,6 +1,8 @@
 // One child pi at a time. Exiting pi leaves the thread active; restarting never resubmits its bootstrap.
 import { spawn } from "node:child_process";
+import { openSync } from "node:fs";
 import { open } from "node:fs/promises";
+import { clearSetup, declaresSetup, readSetup, setupLog, writeSetup } from "./setup";
 import { join } from "node:path";
 import { readLive } from "../session-meta/live";
 import { getThread, threadDir } from "./registry";
@@ -37,7 +39,20 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 	});
 }
 
+/** Pending setup starts beside the first pi, its output in a log; the workspace extension reports it at pi's next turn. */
+async function pendingSetup(thread: ThreadRecord): Promise<void> {
+	if (readSetup(thread.id)?.state !== "pending") return;
+	if (!await declaresSetup(thread.cwd)) return void await clearSetup(thread.id);
+	const log = setupLog(thread.id), out = openSync(log, "w");
+	const proc = spawn("mise", ["run", "setup"], { cwd: thread.cwd, env: launchEnv(thread), stdio: ["ignore", out, out] });
+	proc.once("error", () => writeSetup(thread.id, { state: "done", code: -1, log }));
+	proc.once("exit", code => writeSetup(thread.id, { state: "done", code, log }));
+	if (proc.pid) writeSetup(thread.id, { state: "running", pid: proc.pid, log });
+}
+
 async function run(id: string): Promise<void> {
+	const first = await getThread(id);
+	if (first && !first.archived) await pendingSetup(first);
 	while (true) {
 		const thread = await getThread(id);
 		if (!thread || thread.archived) return;

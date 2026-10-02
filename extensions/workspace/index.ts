@@ -3,6 +3,7 @@ import { Type } from "typebox";
 import { SessionManager, type ExtensionAPI, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { resolveWorkspacePath } from "./workspace";
 import { currentThread, registerThread, runThread } from "./thread";
+import { registerSetup } from "./setup";
 
 export async function switchWorkspace(target: string, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<void> {
 	const sourceSession = ctx.sessionManager.getSessionFile();
@@ -37,6 +38,7 @@ export async function switchWorkspace(target: string, ctx: ExtensionCommandConte
 
 export default function (pi: ExtensionAPI) {
 	registerThread(pi);
+	registerSetup(pi);
 	let pendingWorkspace: string | undefined;
 
 	pi.registerTool({

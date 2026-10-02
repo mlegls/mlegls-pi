@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
+import { declaresSetup, writeSetup } from "./setup";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { read } from "../board/store";
@@ -29,10 +30,7 @@ async function spawnParent(options: NewThreadOptions): Promise<string | undefine
 }
 
 async function setup(cwd: string): Promise<void> {
-	let declared: boolean;
-	try { declared = (JSON.parse(await command("mise", ["tasks", "ls", "--json"], cwd)) as { name: string }[]).some(t => t.name === "setup"); }
-	catch { return; } // Same task discovery boundary as reconcile/checks.ts declaredGates.
-	if (declared) await command("mise", ["run", "setup"], cwd);
+	if (await declaresSetup(cwd)) await command("mise", ["run", "setup"], cwd);
 }
 
 export async function newThread(options: NewThreadOptions = {}): Promise<ThreadRecord> {
@@ -77,7 +75,10 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 			thread = { ...thread, ...location };
 			await saveThread(thread);
 			git(location.cwd, "config", "branch." + location.branch + ".ab-parent", spawning.branch!);
-			await setup(location.cwd);
+			// A project's setup can take tens of seconds: an interactive thread's runs beside its pi (lib/thread/setup.ts);
+			// a worker's spawn still fails on a failed setup.
+			if (options.interactive) writeSetup(id, { state: "pending" });
+			else await setup(location.cwd);
 		}
 		launchAttempted = true;
 		await ensureTerminal(id);
