@@ -86,6 +86,16 @@ export async function threadCommand(args: string, ctx: ExtensionCommandContext, 
 	await runThread(argv, ctx, pi);
 }
 
+/** A thread's conversation has one writer: resuming another thread's session would share it, and
+ * the registry could not follow (a session belongs to at most one thread). */
+export async function resumeRefusal(target: string, ctx: ExtensionContext): Promise<string | undefined> {
+	const owner = await threadForSession(target);
+	if (!owner || owner.id === (await currentThread(ctx))?.id) return;
+	return owner.archived
+		? "That session is archived thread " + owner.id + "'s conversation; /fork from it instead of resuming it"
+		: "That session is thread " + owner.id + "'s conversation; open the thread (ab thread attach " + owner.id + ") instead of resuming it here";
+}
+
 export function registerThread(pi: ExtensionAPI) {
 	const handler = async (args: string, ctx: ExtensionCommandContext) => {
 		try { await threadCommand(args, ctx, pi); }
@@ -94,9 +104,16 @@ export function registerThread(pi: ExtensionAPI) {
 	pi.registerCommand("thread", { description: usage, handler });
 	pi.registerCommand("fork-tab", { description: "Alias of /thread fork [--worktree <name>]", handler: (args, ctx) => handler("fork " + args, ctx) });
 
+	pi.on("session_before_switch", async (event, ctx) => {
+		const refusal = event.reason === "resume" && event.targetSessionFile && await resumeRefusal(event.targetSessionFile, ctx);
+		if (!refusal) return;
+		ctx.ui.notify(refusal, "error");
+		return { cancel: true };
+	});
 	// pi 0.65+ replaced session_switch with session_start + reason/previousSessionFile.
+	// /new, /resume and pi's own /fork all leave the thread on the session pi continues in.
 	pi.on("session_start", async (event, ctx) => {
-		if ((event.reason !== "new" && event.reason !== "resume") || !event.previousSessionFile) return;
+		if (event.reason === "startup" || event.reason === "reload" || !event.previousSessionFile) return;
 		const previous = await threadForSession(event.previousSessionFile);
 		if (!previous || previous.archived) return; // free sessions do not acquire membership
 		const file = ctx.sessionManager.getSessionFile();
