@@ -20,6 +20,8 @@ import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
 import { send as sendChild } from "../children.ts";
 import { mail } from "../board/mailbox.ts";
+import { subscriberStatus } from "../board/subscribers.ts";
+import { supervisorTopic } from "../board/scopes.ts";
 import { readFrom, type Message } from "../board/store.ts";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
@@ -122,7 +124,13 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
 	const save = () => { const f = stateFile(cwd, o.root); writeFileSync(f + ".tmp", JSON.stringify(s, null, 1)); renameSync(f + ".tmp", f); };
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
-	const tellOwner = (body: string) => { try { mail(s.owner, "[reconcile " + s.root + "] " + body, { name: "reconcile/" + s.root }); } catch (e) { note("mail owner failed: " + e); } };
+	// An owner that has closed hands over to whichever session holds the project's supervisor role.
+	const tellOwner = (body: string) => {
+		try {
+			const to = subscriberStatus(s.owner) === "none" ? supervisorTopic(cwd) ?? s.owner : s.owner;
+			mail(to, "[reconcile " + s.root + "] " + body, { name: "reconcile/" + s.root });
+		} catch (e) { note("mail owner failed: " + e); }
+	};
 	save();
 
 	// --- observation -----------------------------------------------------------------------------------

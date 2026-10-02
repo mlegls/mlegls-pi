@@ -11,6 +11,19 @@ function git(cwd: string, ...args: string[]): string | undefined {
 	catch { return undefined; }
 }
 
+/** The repository's name: its main checkout's directory, shared by every worktree. */
+export function repoName(cwd: string): string | undefined {
+	const common = git(cwd, "rev-parse", "--git-common-dir");
+	return common ? basename(dirname(resolve(cwd, common))) : undefined;
+}
+
+/** A project's execution supervisor (the `tend` session), whichever session currently holds the role.
+ * Mail here instead of a session id: a successor that subscribes receives what nobody acknowledged. */
+export function supervisorTopic(cwd: string): string | undefined {
+	const repo = repoName(cwd);
+	return repo ? `role/${repo}/supervisor` : undefined;
+}
+
 export function scopes(cwd: string, env: NodeJS.ProcessEnv = process.env): string[] {
 	const common = git(cwd, "rev-parse", "--git-common-dir");
 	const top = git(cwd, "rev-parse", "--show-toplevel");

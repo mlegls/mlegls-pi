@@ -17,7 +17,8 @@ import { Type, type Static, type TSchema } from "typebox";
 import { dataTool } from "../tool";
 import { Text } from "@earendil-works/pi-tui";
 import { compileQuery, parseTags } from "./query";
-import { logSize, meta, noteRead, read, readFrom, send, topics, type Message } from "./store";
+import { logSize, meta, noteRead, read, readFrom, readReadEvents, send, topics, type Message } from "./store";
+import { subscriberStatus } from "./subscribers";
 import { parse } from "../report.ts";
 import { mail, mailbox } from "./mailbox";
 import { scopes } from "./scopes";
@@ -95,11 +96,23 @@ export function install(pi: ExtensionAPI) {
 		parseTags(params.tags);
 		const sub: Subscription = { topic: params.topic, tags: params.tags || undefined, wake: params.wake ?? true };
 		const key = subKey(sub);
+		const fresh = !params.remove && !subs.some((s) => subKey(s) === key);
 		subs = subs.filter((s) => subKey(s) !== key);
 		if (!params.remove) subs.push(sub);
 		rebuildMatchers();
+		if (fresh && sub.topic.startsWith("role/")) takeOverRole(sub);
 		persistSubs();
 		return sub;
+	}
+
+	/** A role outlives the session holding it: its successor receives what no session acknowledged. */
+	function takeOverRole(sub: Subscription) {
+		const acked = new Set(readReadEvents().flatMap((e) => (e.action === "ack" ? e.ids ?? [] : [])));
+		const match = compileQuery(sub);
+		for (const m of read({ topic: sub.topic, limit: Infinity }).messages) {
+			if (!acked.has(m.id) && !seen.has(m.id) && m.from.session !== sessionId && match(m.topic, m.tags)) pending.set(m.id, m);
+		}
+		persistDelivery();
 	}
 
 	pi.events.on("board:subscribe", (params) => {
@@ -115,7 +128,27 @@ export function install(pi: ExtensionAPI) {
 	}
 
 	function reader() {
-		return { session: sessionId, name, cwd };
+		return { session: sessionId, name: label(), cwd };
+	}
+
+	/** Who a message is from, for its readers: the session's name, else a role it holds, a worker's
+	 * handle, its first prompt, or its directory. Read at each send, so a later rename shows. */
+	function label(): string {
+		const role = subs.find((s) => s.topic.startsWith("role/"))?.topic.slice(5).replaceAll("/", " ");
+		return pi.getSessionName() ?? role ?? process.env.PI_BOARD_NAME ?? firstPrompt() ?? name;
+	}
+
+	function firstPrompt(): string | undefined {
+		for (const entry of context?.sessionManager.getBranch() ?? []) {
+			const m = entry.type === "message" ? (entry.message as { role?: string; content?: unknown }) : undefined;
+			if (m?.role !== "user") continue;
+			const text = typeof m.content === "string" ? m.content
+				: Array.isArray(m.content) ? m.content.map((c: { text?: string }) => c.text ?? "").join("") : "";
+			// An invoked skill arrives expanded: name it, then what was asked of it.
+			const skill = /^<skill name="([^"]+)"[\s\S]*?<\/skill>\s*/.exec(text);
+			const line = ((skill ? "/" + skill[1] + " " : "") + text.slice(skill?.[0].length ?? 0)).trim().split("\n")[0]!;
+			return line ? line.slice(0, 40) : undefined;
+		}
 	}
 
 	function acknowledge(ids: string[]) {
@@ -291,7 +324,14 @@ export function install(pi: ExtensionAPI) {
 	tool("board_ack", "Acknowledge handled messages so subscriptions do not deliver them again.",
 		Type.Object({ ids: Type.Array(Type.String()) }), (p) => { acknowledge(p.ids); return { acknowledged: p.ids.length }; });
 	tool("mail", "Message a session's mailbox (mail/xxxxxxxx, bare xxxxxxxx, or a session id) or any topic, e.g. a worker's run/handle to answer or steer it. Signed with this session's mailbox so the reader can reply.",
-		Type.Object({ to: Type.String(), body: Type.String() }), (p) => mail(p.to, p.body, { session: sessionId, name }));
+		Type.Object({ to: Type.String(), body: Type.String() }), (p) => {
+			const m = mail(p.to, p.body, { session: sessionId, name: label() });
+			if (subscriberStatus(m.topic) !== "none") return m;
+			const role = m.topic.startsWith("role/");
+			return { ...m, warning: `No live session listens on ${m.topic}` + (role
+				? "; it waits there for the next session to take the role."
+				: "; it is delivered only if that session resumes. For a project's supervisor, mail role/<repo>/supervisor.") };
+		});
 	pi.registerCommand("board", {
 		description: "Show board topics and this session's subscriptions",
 		handler: async (_args, ctx) => {
