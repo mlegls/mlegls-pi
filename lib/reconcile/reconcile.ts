@@ -209,17 +209,25 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[]): Promise<Handle> {
 		launching++;
-		try { return await launchNow(handle, role, prompt, base, into, issue, only); } finally { launching--; }
+		try {
+			// Concurrent launches race on .git/config's lock (ab-parent, setup's mise); a failed attempt may leave
+			// its worktree behind, so a retry takes a fresh handle.
+			for (let attempt = 0; ; attempt++) {
+				try { return await launchNow(attempt ? handle.slice(0, 86) + "-r" + attempt : handle, role, prompt, base, into, issue, only); }
+				catch (e) { if (attempt >= 3 || !/could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e))) throw e; note("launch " + handle + " hit a git lock, retrying: " + String(e).split("\n")[0]); await Bun.sleep(2000 + Math.random() * 3000); }
+			}
+		} finally { launching--; }
 	}
 	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[]): Promise<Handle> {
 		const agentName = await pick(role, issue, prompt, only);
-		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: issue.assignee ?? undefined } : {}) }],
+		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
 	}
-	const nextHandle = (slug: string, kind: string) => (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90);
+	// Saved before the launch: a crash mid-launch must not hand the same name (and its leftover worktree) out again.
+	const nextHandle = (slug: string, kind: string) => { const h = (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90); save(); return h; };
 	const ticketText = (i: Issue, from?: string) => {
 		const f = from && existsSync(join(from, rel(i.file))) ? join(from, rel(i.file)) : i.file;
 		return "Issue " + i.slug + " (" + rel(i.file) + "):\n\n" + readFileSync(f, "utf8");
@@ -237,8 +245,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (phase === "refine" || phase === "implement") prompt = [ticketText(issue, from),
 			c.self ? "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
 			siblings(slug, issues), phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
-		else if (phase === "drive") prompt = [ticketText(issue, from), "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", extra].filter(Boolean).join("\n\n");
-		else prompt = [ticketText(issue, from), "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), extra].filter(Boolean).join("\n\n");
+		else if (phase === "drive") prompt = [ticketText(issue, from), "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
+		else prompt = [ticketText(issue, from), "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
@@ -254,16 +262,21 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const c = s.chains[slug];
 		if (c) c.held = true;
 		if (s.exceptions[slug]) return;
+		dropResolution(slug);
 		const parent = issues.get(slug)?.partOf;
 		const level = slug === s.root || !parent ? "owner" : parent;
 		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
 		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
 	}
+	/** A queued resolution answers the exception pending when it was queued, never a later one. */
+	const dropResolution = (node: string) => rmSync(join(resolutionsDir(cwd, s.root), node + ".json"), { force: true });
 	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate"; target?: string; message?: string; note?: string; summary?: string };
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
+		// Nodes under a collector are only in its snapshot, not the owner's.
+		const issue = (c && snapshot(pathOf(c.into)).get(target)) || issues.get(target);
 		(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + (r.message ? ": " + r.message : r.note ? ": " + r.note : r.summary ? ": " + r.summary : ""));
 		if (r.action === "escalate") {
 			const up = ex.level === "owner" ? undefined : issues.get(ex.level)?.partOf;
@@ -278,9 +291,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; }
 		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
-		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issues.get(target)!, issues); } }
+		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in its branch's tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues); } }
 		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
-		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
+		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } dropResolution(target); s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
 		note("resolved " + ex.node + ": " + r.action + (target !== ex.node ? " on " + target : ""));
 		save();
 	}
@@ -293,20 +306,22 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(cwd, s.root), ex.node + ".json");
-				if (existsSync(f)) { const r = JSON.parse(readFileSync(f, "utf8")) as Resolution; rmSync(f); await applyResolution(ex, r, issues); }
+				// Removed only once applied: a crash midway replays it after restart.
+				if (existsSync(f)) { const r = JSON.parse(readFileSync(f, "utf8")) as Resolution; await applyResolution(ex, r, issues); rmSync(f, { force: true }); }
 				continue;
 			}
 			const col = s.collectors[ex.level];
 			if (!col) { ex.level = "owner"; save(); continue; }
 			if (!ex.handler) {
 				if (live() >= s.budget) continue;
-				const parent = issues.get(ex.level), node = issues.get(ex.node);
+				const here = snapshot(col.path);
+				const parent = here.get(ex.level), node = here.get(ex.node);
 				const prompt = [
 					"Exception in the execution tree under " + ex.level + ", for " + ex.node + ": " + ex.reason,
 					"Report and context:\n\n" + ex.text,
 					parent ? "The node whose contract you hold:\n\n" + ticketText(parent) : "",
 					node && node !== parent ? ticketText(node) : "",
-					"State of its children:\n" + [...issues.values()].filter(i => i.partOf === ex.level).map(i => "- " + i.slug + ": " + (finished(i) ? "done" : s.exceptions[i.slug] ? "exception: " + s.exceptions[i.slug].reason : s.chains[i.slug] ? s.chains[i.slug].phase : "waiting")).join("\n"),
+					"State of its children:\n" + [...here.values()].filter(i => i.partOf === ex.level).map(i => "- " + i.slug + ": " + (finished(i) ? "done" : s.exceptions[i.slug] ? "exception: " + s.exceptions[i.slug].reason : s.chains[i.slug] ? s.chains[i.slug].phase : "waiting")).join("\n"),
 					s.resolved[ex.node]?.length ? "Earlier resolutions for " + ex.node + ":\n" + s.resolved[ex.node].map(l => "- " + l).join("\n") : "",
 				].filter(Boolean).join("\n\n");
 				try {
@@ -440,6 +455,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			if (!kids.length) {
 				if (after.get(slug)?.effectiveStage !== "ticket") return repair(slug, c, "refine", "You reported done, but " + slug + " is neither promoted (stage: ticket) nor partitioned into children. Do one, commit, and report done again.", issues, text);
 				note("promoted " + slug);
+				c.note = undefined;
 				return startPhase(slug, c, "implement", issue, issues);
 			}
 			{
@@ -458,12 +474,14 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			if (!c.self && [...snapshot(h.path).values()].some(i => i.partOf === slug && !finished(i)))
 				return repair(slug, c, "decompose", "Implementers don't decompose: drop the children you committed, and either implement the ticket whole or end `blocked` with `respec` in the handoff.", issues, text);
 			c.setup = r.handoff?.setup ?? null;
+			c.note = undefined;
 			return startPhase(slug, c, "drive", issue, issues);
 		}
 		if (c.phase === "drive") {
 			const shape = storyShapeError(r.handoff, c.self) ?? (r.handoff?.evidence !== undefined ? evidenceShapeError(r.handoff) : null);
 			if (shape) return repair(slug, c, "drive-shape", "Your handoff is malformed: " + shape + ". Repost it.", issues, text);
 			c.drive = r.handoff!;
+			c.note = undefined;
 			return startPhase(slug, c, "review", issue, issues, "Driver's final message:\n\n" + text.slice(-4000));
 		}
 		// review
@@ -501,12 +519,12 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function visit(slug: string, into: string, issues: Map<string, Issue>): Promise<"done" | "active" | "stuck"> {
 		visited.add(slug);
 		const issue = issues.get(slug);
-		if (!issue || finished(issue) || s.moved[slug]) return "done";
+		if (!issue || finished(issue) || isMoved(issue)) return "done";
 		// A restart with fresh state adopts the collector left on disk before reading its children:
 		// a kid can be frontier only there (its blockers landed in the collector, not the owner).
 		if (!s.collectors[slug] && existsSync(collectorPath(slug))) ensureCollector(slug, into);
 		const own = s.collectors[slug] ? snapshot(s.collectors[slug].path) : issues;
-		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !s.moved[i.slug]);
+		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i));
 		if (kids.length && !s.chains[slug]) {
 			const col = ensureCollector(slug, into);
 			const below = await Promise.all(kids.map(k => k.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, snapshot(col.path)) : Promise.resolve("stuck" as const)));
@@ -564,21 +582,39 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		save();
 	}
 	const visited = new Set<string>();
+	// A moved-out node is assigned to a person; reassigned to an agent (and back under its parent), it's moved back in.
+	function isMoved(i: Issue): boolean {
+		if (!s.moved[i.slug]) return false;
+		if (!/^(agent|model:)/.test(i.assignee?.trim() ?? "")) return true;
+		note("moved back in: " + i.slug); delete s.moved[i.slug]; dropResolution(i.slug); save();
+		return false;
+	}
 
 	// --- main loop -------------------------------------------------------------------------------------
 	tellOwner("started (budget " + s.budget + ")");
+	// A tick that throws is told to the owner once per distinct error and retried, never a silent exit.
+	let tickError = "";
 	for (;;) {
 		if (o.signal?.aborted) return;
+		try { if (await tick()) return; tickError = ""; }
+		catch (e) {
+			const msg = String((e as Error)?.stack ?? e);
+			if (msg.split("\n")[0] !== tickError) { tickError = msg.split("\n")[0]; note("tick failed: " + msg.slice(0, 2000)); tellOwner("tick failed, retrying every " + TICK_MS / 1000 + "s:\n\n" + msg.slice(0, 3000)); }
+		}
+		await Bun.sleep(TICK_MS);
+	}
+	/** One reconciliation pass; true when the run is over. */
+	async function tick(): Promise<boolean> {
 		pollBoard();
 		await observeHost();
 		const top = snapshot(cwd);
-		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return; }
+		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return true; }
 		visited.clear();
 		const result = await visit(s.root, cwd, top);
 		await handleExceptions(top);
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); delete s.chains[slug]; save(); }
-		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug)) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; save(); }
+		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug)) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
 		if (result !== "active" && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			const all = snapshot(cwd);
 			const open = [...all.values()].filter(i => !finished(i) && (i.slug === s.root || under(i, all)));
@@ -586,9 +622,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			save();
 			tellOwner((result === "done" ? "done: " + s.root + " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", "HEAD") : "stopped with open work: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", "))
 				+ (Object.keys(s.moved).length ? "\nMoved out: " + Object.entries(s.moved).map(([k, v]) => k + ": " + v).join("; ") : ""));
-			return;
+			return true;
 		}
-		await Bun.sleep(TICK_MS);
+		return false;
 	}
 	function under(i: Issue, all: Map<string, Issue>): boolean { for (let p = i.partOf; p; p = all.get(p)?.partOf ?? null) if (p === s.root) return true; return false; }
 }
