@@ -13,6 +13,24 @@ import { mailbox } from "../board/mailbox";
 import { send } from "../board/store";
 import { getThread, threadForSession } from "../thread/registry";
 import type { ThreadRecord } from "../thread/types";
+import { appendFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+// Diagnostic: workers died of an uncaught "EPIPE: broken pipe, write" whose Bun stack names no caller.
+// Pi's crash handler exits, so record what the pipe was (error fields, open fds, child processes) first.
+const epipe = (e: unknown) => {
+	if ((e as { code?: string })?.code !== "EPIPE") return;
+	const run = (cmd: string, args: string[]) => { try { return execFileSync(cmd, args, { encoding: "utf8", timeout: 3000 }); } catch (x) { return String(x); } };
+	try {
+		appendFileSync(join(homedir(), ".pi/agent/epipe.jsonl"), JSON.stringify({ ts: new Date().toISOString(), pid: process.pid, cwd: process.cwd(),
+			error: { ...(e as object), message: (e as Error).message, stack: (e as Error).stack },
+			fds: run("lsof", ["-p", String(process.pid)]).split("\n").filter(l => /PIPE|unix|FIFO/.test(l)),
+			children: run("ps", ["-o", "pid,ppid,stat,lstart,command", "-g", String(process.pid)]) }) + "\n");
+	} catch {}
+};
+const watchEpipe = () => { process.off("uncaughtException", epipe); process.prependListener("uncaughtException", epipe); };
 
 export const SPAWN_META = "session-meta";
 
@@ -60,8 +78,11 @@ export function install(pi: ExtensionAPI) {
 				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, mode: ctx.mode, parentSession, thread });
 		} catch {}
 	};
+	// Prepended after pi's own handler (installed at startup), so it runs before pi exits.
+	pi.on("agent_start", () => watchEpipe());
 	pi.on("session_start", async (_event, c) => {
 		ctx = c;
+		watchEpipe();
 		const saved = c.sessionManager.getBranch().filter((entry) => entry.type === "custom" && entry.customType === SPAWN_META).at(-1);
 		const provenance = saved?.type === "custom" ? saved.data as SpawnMeta : undefined;
 		const member = await canonicalThread(c.sessionManager.getSessionId(), c.sessionManager.getSessionFile());
