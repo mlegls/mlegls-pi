@@ -41,6 +41,9 @@ export function summary(s: State & { running: boolean }) {
 }
 
 export function resolveException(cwd: string, root: string, node: string, resolution: object) {
+	const s = load(cwd, root);
+	if (!s || s.finished || !alive(s.pid)) throw new Error("no running reconciler for " + root + ": start it first (its state resumes)");
+	if (!s.exceptions[node] && !s.chains[node]) throw new Error(node + " has no exception or running chain in " + root + "'s reconciler");
 	mkdirSync(resolutionsDir(cwd, root), { recursive: true });
 	writeFileSync(join(resolutionsDir(cwd, root), node + ".json"), JSON.stringify(resolution));
 }

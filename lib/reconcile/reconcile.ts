@@ -308,6 +308,18 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	const pendingNotes = new Map<string, string | undefined>();
 	async function handleExceptions(issues: Map<string, Issue>) {
+		// A resolution for a node with no exception is the owner steering a live chain (e.g. one stuck where no report
+		// reached us): apply it to the chain, or drop it with a reason when there is none.
+		for (const f of readdirSync(resolutionsDir(cwd, s.root)).filter(f => f.endsWith(".json"))) {
+			const node = f.slice(0, -5);
+			if (s.exceptions[node]) continue;
+			const r = JSON.parse(readFileSync(join(resolutionsDir(cwd, s.root), f), "utf8")) as Resolution;
+			if (!s.chains[node] || r.action === "escalate") { dropResolution(node); tellOwner("ignored " + r.action + " for " + node + ": it has no exception or running chain"); continue; }
+			const ex: Exception = { id: node + "-owner-" + Date.now().toString(36), node, reason: "owner " + r.action, text: "", at: new Date().toISOString(), level: "owner", mailed: true, reportTs: s.chains[node].handledTs };
+			s.exceptions[node] = ex;
+			await applyResolution(ex, r, issues);
+			dropResolution(node);
+		}
 		for (const ex of Object.values(s.exceptions)) {
 			if (ex.level === "owner") {
 				// One mail per class: later workers stopped by the same provider error join the first's exception.
