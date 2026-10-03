@@ -26,9 +26,11 @@ export async function launchApp(): Promise<void> {
 /** extra: more LSEnvironment, e.g. THREADS_STATE for a dev copy. */
 export function installApp(bundle: string, extra: Record<string, string> = {}): string {
 	mkdirSync(bundle + "/Contents/MacOS", { recursive: true });
+	mkdirSync(bundle + "/Contents/Resources", { recursive: true });
 	copyFileSync(APP + "/.build/release/Threads", bundle + "/Contents/MacOS/Threads");
+	copyFileSync(APP + "/Resources/AppIcon.icns", bundle + "/Contents/Resources/AppIcon.icns");
 	writeFileSync(bundle + "/Contents/Info.plist", plist({
-		CFBundleIdentifier: "dev.mlegls.threads", CFBundleName: "Threads", CFBundleExecutable: "Threads",
+		CFBundleIdentifier: "dev.mlegls.threads", CFBundleName: "Threads", CFBundleExecutable: "Threads", CFBundleIconFile: "AppIcon",
 		CFBundlePackageType: "APPL", CFBundleShortVersionString: "0.1", LSMinimumSystemVersion: "14.0",
 		NSHighResolutionCapable: true, LSEnvironment: { AB_BIN: AB, THREADS_RESOLVE_ENV: "1", ...extra } }));
 	spawnSync("codesign", ["--force", "--sign", "-", bundle], { stdio: "ignore" });
