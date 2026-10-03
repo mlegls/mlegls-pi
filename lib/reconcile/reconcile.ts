@@ -140,7 +140,13 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const head = git(path, "rev-parse", "HEAD");
 		const hit = snapCache.get(path);
 		if (hit && hit.head === head && path !== cwd) return hit.issues;
-		const out = execFileSync("bun", [TRACKER, "snapshot", "--json"], { cwd: path, encoding: "utf8", maxBuffer: 64 << 20, env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } });
+		let out: string;
+		try { out = execFileSync("bun", [TRACKER, "snapshot", "--json"], { cwd: path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } }); }
+		catch (e: any) {
+			// Fails closed on a malformed issue; name it, so the owner knows to fix the tracker first.
+			const why = String(e?.stderr ?? "").split("\n").find(l => l.startsWith("error:")) ?? String(e?.message ?? e).split("\n")[0];
+			throw new Error("tracker snapshot failed in " + path + " (fix the tracker; the reconciler resumes by itself): " + why.replace(/^error:\s*/, ""));
+		}
 		const issues = new Map((JSON.parse(out).issues as Issue[]).map(i => [i.slug, i]));
 		snapCache.set(path, { head, issues });
 		return issues;
