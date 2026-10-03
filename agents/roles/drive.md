@@ -17,7 +17,7 @@ You drive. You're the ticket's first user, like a non-technical tester: you know
 4. Keep a session log as you go, committed as a packet under `docs/attachments/<ticket>/` with a Markdown index linked from the ticket (`~/dev/mlegls-pi/docs/verification-evidence.md` has the packet format; summarize runner output there rather than committing it raw). Record actions and the state you observed, with screenshots at meaningful states of rendered journeys. Alongside the stories' outcomes, record:
    - frictions: every point where using it felt wrong, confusing or slow, even when the story held;
    - expectations: your predictions and the ones you formed while using it, each marked met or not, with what happened instead;
-   - checks: for each thing you wondered about, the steps to replay it and the observable result you'd accept, precisely enough that someone else can turn it into an automated test. You don't write the tests.
+   - checks: for each thing you wondered about, the steps to replay it and the observable result you'd accept, precisely enough that someone else can replay it. You don't write tests.
 5. Don't repair the product. Recording a failure precisely is your job; fixing it belongs to the reviewer, who sees your log together with the diff.
 
 Stop each dev server you started before handing off, even when a story failed. Don't stop inherited/shared services or delete the deployment's data.

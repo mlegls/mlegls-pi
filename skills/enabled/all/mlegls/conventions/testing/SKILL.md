@@ -1,14 +1,18 @@
 ---
 name: testing
-description: "Use when writing or editing tests."
+description: "Use when writing, editing, auditing or deleting tests."
 ---
 
-Tests come from encounters with the real thing. The maintainer, importing developer and programmer are real users too.
+The baseline is no tests. A test earns its place only if it asserts an externally depended-on behavior of a nontrivial algorithm that could plausibly change in response to future demands.
 
-1. Locate the story and the actual use that motivates the test. Try the behavior through that user's surface; retain the actions, inputs and relevant observations.
-2. Review the encounter. An assertion belongs where you noticed a failure, uncertainty, expected affordance or promise you were relying on. Mirror what you were trying to do, placing the check at that moment. An intended outcome in a spec is not by itself an assertion inventory.
-3. Extend the existing replay at the smallest meaningful scope. Reproduce a newly noticed promise and add its check at that moment; add a scenario only for a distinct route or condition, a linked story for an independently meaningful want. Zero new assertions is legitimate when existing checks suffice or the encounter yields nothing worth retaining. First use means first use of the changed behavior, not a new end-to-end expedition.
-4. Write or update the guide and replay together. Reuse the real starting state and step utilities; cache the end state of an upstream sequence when another starts there. At a boundary, save a real value and consume that same value on the other side.
-5. Replay the accepted sequence. Update guide and recording together when the journey changes; re-drive what is new or fails. Keep detailed encounter evidence linked from the story.
+- Externally depended on: its consumers are outside a change's view (people, persisted data, published artifacts, network APIs, a package's public operations). Inside the view, the author, reviewer and typechecker see both sides.
+- Nontrivial algorithm: not a declaration interpreted by a trusted system. If you trust React and HTML, the element you wrote is there; if you trust Convex, a mutation that throws writes nothing; an explicitly written exception clause is a declaration. At most, one smoke test that the whole system is connected.
+- Could plausibly change: a future demand could make someone rewrite it unknowingly. A bug that happened once is not such a reason; its fix is in the code for everyone to notice. Where a fix looks deletable, prefer making the mistake unrepresentable, then a comment stating why.
 
-Never manufacture tests from an implementation checklist or a decomposition into program steps. A lower-level test needs the same grounding in actual use, at that user's boundary. Retain checks for information, not coverage counts: even a trace of speculative test-writing becomes precedent for the next agent.
+A test may assert that a mechanism has the behavior its author expects. It may not assert one decision over a different viable decision: having chosen between alternatives often means the other was viable, and we might change to it. Assert absence only when our own code produces it (a filter), never behavior nobody wrote.
+
+Many similar-flavored assertions across different consumers are a smell: extract the declarative system they share, test it once as a mechanism, and trust it.
+
+How a kept system is tested can change: scenarios, property tests against a naive reference, a model test over interleavings, formal verification. Prefer one property over many scenarios.
+
+Adding a test needs the maintainer's explicit approval; the change lands without it. Propose it in the ticket result as one sentence naming the property and the system, not as code. Weakening or removing a kept assertion is a change of intent too: say so in the result.
