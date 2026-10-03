@@ -264,13 +264,16 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 
 	// --- exceptions ------------------------------------------------------------------------------------
-	function raise(slug: string, reason: string, text: string, issues: Map<string, Issue>) {
+	/** Provider errors no handler can fix (credentials, quota) go to the owner, grouped by class. */
+	const errorClass = (body: string) => /invalid_grant|oauth|refresh token|unauthori[sz]ed|\b401\b|\b403\b|api key|authentication/i.test(body) ? "authentication"
+		: /\b429\b|rate.?limit|quota|usage limit|overloaded|\b529\b/i.test(body) ? "rate limit or quota" : body.replace(/^error:\s*/, "").split("\n")[0].slice(0, 80);
+	function raise(slug: string, reason: string, text: string, issues: Map<string, Issue>, at?: "owner") {
 		const c = s.chains[slug];
 		if (c) c.held = true;
 		if (s.exceptions[slug]) return;
 		dropResolution(slug);
 		const parent = issues.get(slug)?.partOf;
-		const level = slug === s.root || !parent ? "owner" : parent;
+		const level = at ?? (slug === s.root || !parent ? "owner" : parent);
 		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
 		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
@@ -307,13 +310,22 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function handleExceptions(issues: Map<string, Issue>) {
 		for (const ex of Object.values(s.exceptions)) {
 			if (ex.level === "owner") {
+				// One mail per class: later workers stopped by the same provider error join the first's exception.
+				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
+				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
 				if (!ex.mailed) {
 					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(cwd, s.root), ex.node + ".json");
 				// Removed only once applied: a crash midway replays it after restart.
-				if (existsSync(f)) { const r = JSON.parse(readFileSync(f, "utf8")) as Resolution; await applyResolution(ex, r, issues); rmSync(f, { force: true }); }
+				if (existsSync(f)) {
+					const r = JSON.parse(readFileSync(f, "utf8")) as Resolution;
+					const same = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).filter(o => o !== ex && o.level === "owner" && o.reason === ex.reason) : [];
+					await applyResolution(ex, r, issues);
+					for (const o of same) if (s.exceptions[o.node] === o) await applyResolution(o, { ...r, target: undefined }, issues);
+					rmSync(f, { force: true });
+				}
 				continue;
 			}
 			const col = s.collectors[ex.level];
@@ -432,6 +444,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; save();
 		const r = parse(m.body), text = m.body, h = c.handle!;
 		if (c.phase === "integrate") { c.phase = "review"; }
+		if (m.tags.includes("error")) return raise(slug, "provider error: " + errorClass(m.body), text, issues, "owner");
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
 		if (r.status === null) return repair(slug, c, "status", "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first line, then the handoff.", issues, text);
 		if (c.phase === "implement" && !c.self && r.handoff?.respec) {

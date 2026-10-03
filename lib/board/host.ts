@@ -291,7 +291,9 @@ export function install(pi: ExtensionAPI) {
 		const member = assigned ? undefined : await canonicalThread(ctx.sessionManager.getSessionId(), ctx.sessionManager.getSessionFile());
 		const topic = assigned ?? (member && "thread/" + member.id);
 		if (!topic) return;
-		const last = [...event.messages].reverse().find((m) => (m as { role?: string }).role === "assistant") as { content?: unknown } | undefined;
+		const last = [...event.messages].reverse().find((m) => (m as { role?: string }).role === "assistant") as { content?: unknown; stopReason?: string; errorMessage?: string; provider?: string; model?: string } | undefined;
+		// A turn the provider ended (auth, quota, retries exhausted) has no text; report it, or the parent sees a worker still busy.
+		if (last?.stopReason === "error") return void send({ topic, tags: ["turn-end", "error"], from: reader(), body: "error: " + (last.provider ? last.provider + "/" + last.model + ": " : "") + (last.errorMessage ?? "the provider ended the turn with an error") });
 		const content = last?.content;
 		const text = typeof content === "string" ? content
 			: Array.isArray(content) ? content.filter((c) => c?.type === "text").map((c) => c.text as string).join("\n") : "";
