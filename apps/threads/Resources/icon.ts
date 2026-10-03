@@ -13,20 +13,22 @@ const phase = [0, 1, 2].map(i => i * 2 * Math.PI / 3);
 const spread: number[] = [];
 [0, 1, 2].sort((a, b) => Math.sin(k * split + phase[a]) - Math.sin(k * split + phase[b])).forEach((i, r) => spread[i] = [-210, 0, 210][r]);
 
-type Seg = { x1: number; y1: number; x2: number; y2: number; z: number; i: number };
+type Seg = { x1: number; y1: number; x2: number; y2: number; z: number; depth: number; i: number };
 const segs: Seg[] = [];
 for (let i = 0; i < 3; i++) {
-	let prev: { x: number; y: number; z: number } | undefined;
+	let prev: { x: number; y: number; z: number; depth: number } | undefined;
 	for (let y = top; y <= bottom; y += 2.5) {
 		const th = k * y + phase[i];
 		const t = y <= split ? 0 : Math.min(1, (y - split) / (bottom - split - 70));
 		const e = t * t * (3 - 2 * t);
 		const x = cx + amp * (1 - e) * Math.sin(th) + spread[i] * e, z = Math.cos(th) * (1 - e);
-		if (prev) segs.push({ x1: prev.x, y1: prev.y, x2: x, y2: y, z: (z + prev.z) / 2, i });
-		prev = { x, y, z };
+		// Stacking freezes at the split: as z flattens to 0 the strands would tie and draw through each other.
+		const depth = Math.cos(k * Math.min(y, split) + phase[i]);
+		if (prev) segs.push({ x1: prev.x, y1: prev.y, x2: x, y2: y, z: (z + prev.z) / 2, depth: (depth + prev.depth) / 2, i });
+		prev = { x, y, z, depth };
 	}
 }
-segs.sort((a, b) => a.z - b.z); // painter's order: strands behind are drawn first, and darker
+segs.sort((a, b) => a.depth - b.depth); // painter's order: strands behind are drawn first, and darker
 const shade = (hex: string, f: number) => { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16) * f | 0},${((n >> 8) & 255) * f | 0},${(n & 255) * f | 0})`; };
 const f = (n: number) => n.toFixed(1);
 const strands = segs.map(s => `<line x1="${f(s.x1)}" y1="${f(s.y1)}" x2="${f(s.x2)}" y2="${f(s.y2)}" stroke="${shade(colors[s.i], 0.6 + 0.2 * (s.z + 1))}" stroke-width="40" stroke-linecap="round"/>`).join("");
