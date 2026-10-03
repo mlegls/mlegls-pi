@@ -19,3 +19,5 @@ Fixes: the gate (concept) should stop its executors; upstream, pi-processes coul
 ## Fix (2026-10-02)
 
 pi-processes now stops what still holds a command's group 10 s after the command exits, names those processes in stderr, and keeps the command's own exit code: mlegls/pi-processes `stop-leftover-group-members` (65ac227), loaded locally from ~/dev/pi-processes through system-config's pi settings, upstream as https://github.com/mjakl/pi-processes/pull/7. Concept's own leak is [[projects/concept/issues/local-convex-backends-leak-executors-and-temp-bundles]].
+
+Upstream: https://github.com/mjakl/pi-processes/issues/8 (notify when the leader exits, naming the descendants still holding the group).
