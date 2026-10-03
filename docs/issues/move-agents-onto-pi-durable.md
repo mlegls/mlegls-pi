@@ -10,7 +10,7 @@ Upstream already draws that line. \`packages/coding-agent/src/experimental/\` (a
 
 ## destination
 
-A supervision tree is the supervisor's own Session: root conversation = supervisor, the reconciler a durable task, each worker a conversation that task owns, its worktree as \`cwd\`. Ownership is real (abort, idle, task graph across the tree), \`/jump\` becomes switching conversations in the client, the per-tree host is just the Session worker that \`pi server\` keeps alive or restarts. One Session per worker was the alternative: separate blast radius and storage, but no ownership, and all of today's polling glue stays.
+A supervision tree is the supervisor's own Session: root conversation = supervisor, the reconciler a durable task, each worker a conversation that task owns, its worktree as \`cwd\`. Ownership is real (abort, idle, task graph across the tree; each reconciler becomes a node of the tree, so its death is visible, where today its workers sit flat under the owner session and a dead reconciler shows nowhere), \`/jump\` becomes switching conversations in the client, the per-tree host is just the Session worker that \`pi server\` keeps alive or restarts. A non-session thread kind for reconcilers in today's zmx thread registry was considered and dropped: this move replaces that layer. One Session per worker was the alternative: separate blast radius and storage, but no ownership, and all of today's polling glue stays.
 
 Until then, interactive sessions stay on the stock pi TUI and tree nodes move first (below).
 
