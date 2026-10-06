@@ -1,6 +1,6 @@
 // One child pi at a time. Exiting pi leaves the thread active; restarting never resubmits its bootstrap.
 import { spawn } from "node:child_process";
-import { openSync } from "node:fs";
+import { openSync, writeFileSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { clearSetup, declaresSetup, readSetup, setupLog, writeSetup } from "./setup";
 import { join } from "node:path";
@@ -24,7 +24,12 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 	const launch = thread.launch;
 	validateLaunch(launch);
 	const args = [...(launch?.args ?? []), "--session", thread.sessionFile];
-	if (prompt !== undefined) args.push("--", prompt);
+	// The prompt goes in as a file, not argv: argv is visible host-wide, and a `pkill -f` matching a phrase from a ticket killed workers.
+	if (prompt !== undefined) {
+		const file = join(threadDir(), thread.id + ".prompt.md");
+		writeFileSync(file, prompt, { mode: 0o600 });
+		args.push("--", "@" + file);
+	}
 	const env = launchEnv(thread);
 	// Keep the current terminal's zmx identity for explicit attach/switch inside pi.
 	env.ZMX_SESSION = process.env.ZMX_SESSION;
