@@ -14,12 +14,22 @@
 // the prompt prefix stays cached. Forgetting is a record too: a summary is live unless a later
 // "forget" names it or a block inside it.
 //
+// It can also be the session's compaction mechanism (/memory memo, or memory.default "memo"), the way Victor uses
+// OptMem: at compaction the agent is asked (over a replay of its context, as journal's checkpoint does) to memo what
+// should outlast the folded history, including where the work stands, and the folded history is replaced by the
+// memory rendered fresh. From then on the system prompt carries only the instructions, so the cover isn't twice in
+// context.
+//
 // Workers (PI_BOARD_TOPIC set) neither read nor write it, like OptMem's subagents: they can't judge
 // what is already known.
 //
-// Settings: memory.schemas.memo { enabled (default false), wakeLines (96), model { provider, id, thinking } }.
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+// Settings: memory.schemas.memo { enabled (default false), wakeLines (96), model { provider, id, thinking },
+// compaction: { afterTokens, ratio (0.5) } (when it's the active mechanism), maxOutputTokens (8000, the checkpoint) }.
+import type { Message, ToolCall } from "@earendil-works/pi-ai";
+import { convertToLlm, getAgentDir, type ExtensionAPI, type ExtensionContext, type SessionBeforeCompactEvent, type SessionEntry } from "@earendil-works/pi-coding-agent";
+import type { Renderer } from "../../lib/records/render.ts";
+import { isActive, type CompactionMechanism, type CompactionView } from "./compaction.ts";
+import { activeTools, replay } from "./journal.ts";
 import { Type } from "typebox";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -32,7 +42,7 @@ export const SCHEMA = "memo";
 export const ENTRY_BYTES = 280;
 const RAW_MAX = 16;
 
-interface Settings { enabled: boolean; wakeLines: number; model?: { provider: string; id: string; thinking?: string } }
+interface Settings { enabled: boolean; wakeLines: number; maxOutputTokens: number; model?: { provider: string; id: string; thinking?: string }; compaction: { afterTokens?: number; ratio?: number } }
 
 export function settings(cwd: string): Settings {
 	let j: Record<string, any> = {}, om: Record<string, any> = {};
@@ -40,7 +50,7 @@ export function settings(cwd: string): Settings {
 		if (!existsSync(path)) continue;
 		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.memo }; om = { ...om, ...s?.om }; } catch {}
 	}
-	return { enabled: false, wakeLines: 96, model: om.model, ...j };
+	return { enabled: false, wakeLines: 96, maxOutputTokens: 8000, model: om.model, ...j, compaction: { ratio: 0.5, ...j.compaction } };
 }
 
 // ---------- the tree (pure) ----------
@@ -184,7 +194,7 @@ export function zoom(s: State, b: Block): string {
 		z - a === 1 ? noteLine(s.notes[a]) : "#" + blockName([a, z]) + " " + (s.summary([a, z]) ?? "(not compressed yet; zoom further)")).join("\n");
 }
 
-const PROMPT = (rendered: string[], T: number) => [
+const PROMPT = (rendered: string[] | undefined, T: number) => [
 	"## Memory",
 	"",
 	"This is your memory: one log shared by every session on this machine, outliving sessions, compaction and model changes. " +
@@ -196,8 +206,31 @@ const PROMPT = (rendered: string[], T: number) => [
 	"",
 	"recall searches every note word for word (search with schema \"memo\"); recall q \"zoom\" args [\"lo-hi\"] opens a block into its halves, down to the notes.",
 	"",
-	T ? rendered.join("\n") : "(no notes yet)",
+	rendered === undefined ? "Your memory as of the last compaction is where the earlier context was." : T ? rendered.join("\n") : "(no notes yet)",
 ].join("\n");
+
+// ---------- as a compaction mechanism ----------
+
+const CHECKPOINT = "Your context is about to be compacted: everything before the recent tail will be dropped, and your memory, rendered fresh, will stand in for it. " +
+	"Call memo once for each thing in the context above that should outlast it and isn't in memory yet: decisions and their reasons, what was tried and how it went, " +
+	"facts and preferences learned, and where the work in progress stands and what comes next. One line each, at most " + ENTRY_BYTES + " bytes, standing alone " +
+	"(name the project and files; a later reader has none of this context). Don't repeat what memory or your earlier memo calls already hold. If nothing is missing, say so.";
+
+/** Whether this branch's latest compaction was memo's: its summary then carries the cover, so the system prompt doesn't. */
+const compacted = (branch: SessionEntry[]) => (branch.findLast((e) => e.type === "compaction") as any)?.details?.kind === SCHEMA;
+
+export const memoRenderer: Renderer<CompactionView & { wakeLines?: number }, State> = {
+	name: SCHEMA,
+	role: "memory",
+	query: () => load(),
+	cut(s, budget, view) {
+		const lines = wake(s, Number.isFinite(budget) ? budget : 96);
+		return {
+			text: "Earlier context was compacted. What of it lasts is in your memory, as of now (#n date text: a note; #lo-hi text: a summary of notes lo..hi):\n\n" + (lines.join("\n") || "(no notes yet)"),
+			details: { kind: SCHEMA, T: s.notes.length, ...(view.prepared as object | undefined) },
+		};
+	},
+};
 
 // ---------- naps ----------
 
@@ -258,8 +291,17 @@ export async function nap(env: NapEnv, cfg: Settings, session: string): Promise<
 
 // ---------- extension ----------
 
-export default function memo(pi: ExtensionAPI) {
-	if (process.env.PI_BOARD_TOPIC) return;
+export default function memo(pi: ExtensionAPI): CompactionMechanism {
+	let wakeLines = 96, busy = false, triggering = false;
+	const mechanism: CompactionMechanism = {
+		renderer: memoRenderer,
+		budget: () => wakeLines,
+		enabled: (ctx) => !process.env.PI_BOARD_TOPIC && settings(ctx.cwd).enabled,
+		prepare: (event, ctx) => checkpoint(event, ctx),
+		begin() { if (busy) return false; busy = true; return true; },
+		end() { busy = false; },
+	};
+	if (process.env.PI_BOARD_TOPIC) return mechanism;
 	let frozen: string | undefined;
 	let stop = new AbortController();
 	const session = (ctx: ExtensionContext) => ctx.sessionManager.getSessionId();
@@ -278,6 +320,7 @@ export default function memo(pi: ExtensionAPI) {
 		frozen = undefined;
 		if (stop.signal.aborted) stop = new AbortController();
 		const cfg = settings(ctx.cwd);
+		wakeLines = cfg.wakeLines;
 		if (cfg.enabled) napLater(ctx, cfg);
 		else pi.setActiveTools(pi.getActiveTools().filter((n) => n !== "memo"));
 	});
@@ -286,9 +329,42 @@ export default function memo(pi: ExtensionAPI) {
 		const cfg = settings(ctx.cwd);
 		if (!cfg.enabled) return;
 		// Rendered once per session, so the prompt prefix stays cached; this session's own notes are in its context already.
+		if (compacted(ctx.sessionManager.getBranch() as SessionEntry[])) return { systemPrompt: event.systemPrompt + "\n\n" + PROMPT(undefined, 0) };
 		if (frozen === undefined) { const s = load(); frozen = PROMPT(wake(s, cfg.wakeLines), s.notes.length); }
 		return { systemPrompt: event.systemPrompt + "\n\n" + frozen };
 	});
+
+	pi.on("agent_settled", (_event, ctx) => {
+		const cfg = settings(ctx.cwd);
+		if (!cfg.enabled || triggering || busy || !isActive(SCHEMA, ctx)) return;
+		const u = ctx.getContextUsage();
+		if (!u?.tokens) return;
+		if (u.tokens < (cfg.compaction.afterTokens ?? Math.floor(u.contextWindow * (cfg.compaction.ratio ?? 0.5)))) return;
+		triggering = true;
+		ctx.compact({ onComplete: () => { triggering = false; }, onError: () => { triggering = false; } });
+	});
+
+	/** One turn over the replayed context asking for memo calls; the notes are written before the history is dropped. */
+	async function checkpoint(event: SessionBeforeCompactEvent, ctx: ExtensionContext) {
+		const cfg = settings(ctx.cwd);
+		if (!ctx.model) throw new Error("no active model");
+		const started = Date.now(), sm = ctx.sessionManager, leaf = sm.getLeafId();
+		const { messages, prefixMode } = replay(event, ctx, () => activeTools(pi));
+		messages.push({ role: "user", content: [{ type: "text", text: CHECKPOINT + (event.customInstructions ? "\n\nFocus: " + event.customInstructions : "") }], timestamp: Date.now() });
+		const thinking = pi.getThinkingLevel();
+		const response = await ctx.modelRegistry.streamSimple(ctx.model, { messages: convertToLlm(messages) as Message[] }, {
+			sessionId: session(ctx), reasoning: thinking === "off" ? undefined : thinking, maxTokens: Math.min(cfg.maxOutputTokens, ctx.model.maxTokens || cfg.maxOutputTokens), signal: event.signal,
+		} as any).result();
+		if (response.stopReason === "error" || response.stopReason === "aborted") throw new Error("checkpoint failed: " + (response.errorMessage ?? response.stopReason));
+		const current = sm.getBranch() as SessionEntry[], was = current.findIndex((e) => e.id === leaf);
+		if (was < 0 || current.slice(was + 1).some((e) => e.type !== "custom")) throw new Error("session changed during the checkpoint");
+		const notes: number[] = [], rejected: string[] = [];
+		for (const c of response.content.filter((b): b is ToolCall => b.type === "toolCall" && b.name === "memo")) {
+			try { notes.push(note(String((c.arguments as any).note ?? ""), session(ctx), ctx.cwd)); } catch (e) { rejected.push(e instanceof Error ? e.message : String(e)); }
+		}
+		if (notes.length) napLater(ctx, cfg);
+		return { notes, rejected, prefixMode, ms: Date.now() - started, usage: response.usage };
+	}
 
 	pi.registerTool({
 		name: "memo",
@@ -303,4 +379,5 @@ export default function memo(pi: ExtensionAPI) {
 			return { content: [{ type: "text", text: "Saved as #" + i + "." }], details: { i } };
 		},
 	});
+	return mechanism;
 }

@@ -1,11 +1,12 @@
-// context: when and how a session's context is managed. Two memory mechanisms, one active per
+// context: when and how a session's context is managed. Memory mechanisms, one active per
 // session (/memory switches; ./compaction.ts): ./journal.ts, the agent's own entries written
 // through a `journal` tool and rendered back as those tool calls, and observational memory (./om,
 // vendored from pi-observational-memory with its ledger moved into the records store as the `om`
 // schema), which observes and reflects per memory.schemas.om.observe (always | active | never). The active one triggers
 // compaction; if the journal checkpoint fails, OM renders instead. ./elide.ts drops old tool outputs behind
-// cold-cache gaps. ./memo.ts is a third, cross-session memory (OptMem's log and merge tree) rendered
-// into the system prompt. This extension adds policy on top.
+// cold-cache gaps. ./memo.ts is a cross-session memory (OptMem's log and merge tree) rendered into
+// the system prompt, and a third mechanism: compaction replaces history with that memory. This
+// extension adds policy on top.
 //
 // Fence, for spawned workers (PI_BOARD_TOPIC set): when usage crosses the threshold, steer the
 // agent once with AGENTS_DIR/_fence.md (finish if within reach, else checkpoint into the ticket
@@ -44,9 +45,8 @@ function fenceText(percent: number, topic: string): string {
 
 export default function (pi: ExtensionAPI) {
 	elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
-	registerCompaction(pi, [journal(pi), observationalMemory(pi)]);
+	registerCompaction(pi, [journal(pi), observationalMemory(pi), memo(pi)]);
 	recall(pi);
-	memo(pi);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;
 	let armed = true;

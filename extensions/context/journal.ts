@@ -221,8 +221,31 @@ ${focus ? `\nFocus: ${focus}` : ""}`;
 interface Snapshot { session: string; leaf: string | null; model: string; messages: any[] }
 const modelKey = (ctx: ExtensionContext) => `${ctx.model?.provider}/${ctx.model?.id}`;
 
+// The request exactly as last sent (captured below), so a checkpoint replays it (cache hit) instead of rebuilding.
+let snapshot: Snapshot | undefined;
+
+/** The context about to be compacted, as messages to append a checkpoint instruction to: the captured request plus
+ * what followed it when that still matches the branch, else rebuilt. Shared by every mechanism that checkpoints. */
+export function replay(event: SessionBeforeCompactEvent, ctx: ExtensionContext, tools: () => unknown[]): { messages: any[]; prefixMode: "captured" | "reconstructed" } {
+	const sm = ctx.sessionManager;
+	const branch = event.branchEntries as SessionEntry[];
+	const at = snapshot?.leaf ? branch.findIndex((e) => e.id === snapshot!.leaf) : -1;
+	const additions = at >= 0 ? branch.slice(at + 1) : [];
+	if (snapshot && snapshot.session === sm.getSessionId() && snapshot.model === modelKey(ctx) && at >= 0 && !additions.some((e) => e.type === "compaction" || e.type === "branch_summary"))
+		return { messages: [...snapshot.messages, ...additions.flatMap((e) => sessionEntryToContextMessages(e))], prefixMode: "captured" };
+	return { messages: [{ role: "system", content: ctx.getSystemPrompt(), toolsAdded: tools() }, ...expand(buildSessionContext(branch).messages, sm as unknown as BranchSession, branch)], prefixMode: "reconstructed" };
+}
+
+/** The active tools as declared to the model, for a rebuilt checkpoint request. */
+export const activeTools = (pi: ExtensionAPI) => {
+	const all = new Map(pi.getAllTools().map((t) => [t.name, t]));
+	return pi.getActiveTools().flatMap((name) => {
+		const t = all.get(name);
+		return t ? [{ name: t.name, description: t.description, parameters: t.parameters }] : [];
+	});
+};
+
 export default function journal(pi: ExtensionAPI): CompactionMechanism {
-	let snapshot: Snapshot | undefined;
 	let busy = false;
 	let triggering = false;
 
@@ -234,18 +257,11 @@ export default function journal(pi: ExtensionAPI): CompactionMechanism {
 		const out = expand(event.messages, ctx.sessionManager as unknown as BranchSession, ctx.sessionManager.getBranch() as SessionEntry[]);
 		return out === event.messages ? undefined : { messages: out };
 	});
-	// The request exactly as sent, so the checkpoint replays it (cache hit) instead of rebuilding.
 	pi.on("context_with_system", (event, ctx) => {
 		snapshot = { session: ctx.sessionManager.getSessionId(), leaf: ctx.sessionManager.getLeafId(), model: modelKey(ctx), messages: structuredClone(event.messages) };
 	});
 
-	const tools = () => {
-		const all = new Map(pi.getAllTools().map((t) => [t.name, t]));
-		return pi.getActiveTools().flatMap((name) => {
-			const t = all.get(name);
-			return t ? [{ name: t.name, description: t.description, parameters: t.parameters }] : [];
-		});
-	};
+	const tools = () => activeTools(pi);
 
 	pi.on("agent_settled", (_event, ctx) => {
 		const s = settings(ctx.cwd);
@@ -268,17 +284,7 @@ export default function journal(pi: ExtensionAPI): CompactionMechanism {
 		const choices = tailChoices(inContext);
 		if (!choices.some((c) => sources(inContext.slice(0, c.index)).length)) throw new Error("nothing to fold outside a continuous tail");
 
-		let messages: any[];
-		let prefixMode = "reconstructed";
-		const at = snapshot?.leaf ? branch.findIndex((e) => e.id === snapshot!.leaf) : -1;
-		const additions = at >= 0 ? branch.slice(at + 1) : [];
-		if (snapshot && snapshot.session === session && snapshot.model === model && at >= 0 && !additions.some((e) => e.type === "compaction" || e.type === "branch_summary")) {
-			messages = [...snapshot.messages, ...additions.flatMap((e) => sessionEntryToContextMessages(e))];
-			prefixMode = "captured";
-		} else {
-			messages = [{ role: "system", content: ctx.getSystemPrompt(), toolsAdded: tools() },
-				...expand(buildSessionContext(branch).messages, sm as unknown as BranchSession, branch)];
-		}
+		const { messages, prefixMode } = replay(event, ctx, tools);
 		const selfAuthored = messages.every((m) => m.role !== "assistant" || (m.provider === ctx.model!.provider && m.model === ctx.model!.id));
 		const folding = sources(inContext.slice(0, choices.at(-1)!.index));
 		messages.push({ role: "user", content: [{ type: "text", text: instruction(folding, choices, s.keepRecentTokens, s.budget, selfAuthored, event.customInstructions) }], timestamp: Date.now() });
