@@ -18,19 +18,31 @@ import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-// Diagnostic: workers died of an uncaught "EPIPE: broken pipe, write" whose Bun stack names no caller.
-// Pi's crash handler exits, so record what the pipe was (error fields, open fds, child processes) first.
+// Workers died of an uncaught "EPIPE: broken pipe, write" from a Bun fs/tty write stream whose stack names no
+// caller (docs/issues/workers-crash-on-uncaught-epipe.md). An EPIPE means a reader went away; it loses that one
+// stream's output, so it isn't worth the session: record what we can, and keep pi's crash handler from exiting on it.
+const stream = (s: NodeJS.WriteStream) => { const w = (s as any)._writableState; return { fd: (s as any).fd, isTTY: s.isTTY, destroyed: s.destroyed, errored: w?.errored ? String(w.errored) : null }; };
 const epipe = (e: unknown) => {
 	if ((e as { code?: string })?.code !== "EPIPE") return;
 	const run = (cmd: string, args: string[]) => { try { return execFileSync(cmd, args, { encoding: "utf8", timeout: 3000 }); } catch (x) { return String(x); } };
 	try {
-		appendFileSync(join(homedir(), ".pi/agent/epipe.jsonl"), JSON.stringify({ ts: new Date().toISOString(), pid: process.pid, cwd: process.cwd(),
+		appendFileSync(join(homedir(), ".pi/agent/epipe.jsonl"), JSON.stringify({ ts: new Date().toISOString(), pid: process.pid, cwd: process.cwd(), swallowed: true,
 			error: { ...(e as object), message: (e as Error).message, stack: (e as Error).stack },
-			fds: run("lsof", ["-p", String(process.pid)]).split("\n").filter(l => /PIPE|unix|FIFO/.test(l)),
-			children: run("ps", ["-o", "pid,ppid,stat,lstart,command", "-g", String(process.pid)]) }) + "\n");
+			stdout: stream(process.stdout), stderr: stream(process.stderr),
+			fds: run("lsof", ["-p", String(process.pid)]).split("\n").filter(l => !/\b(REG|DIR)\b/.test(l)),
+			children: run("ps", ["-A", "-o", "pid=,ppid=,stat=,lstart=,command="]).split("\n").filter(l => l.trim().split(/\s+/)[1] === String(process.pid)) }) + "\n");
 	} catch {}
 };
-const watchEpipe = () => { process.off("uncaughtException", epipe); process.prependListener("uncaughtException", epipe); };
+const SKIPS_EPIPE = Symbol("skips-epipe");
+const watchEpipe = () => {
+	process.off("uncaughtException", epipe);
+	for (const l of process.listeners("uncaughtException")) {
+		if ((l as any)[SKIPS_EPIPE]) continue;
+		const wrapped = Object.assign((e: unknown, origin: any) => { if ((e as { code?: string })?.code !== "EPIPE") (l as any)(e, origin); }, { [SKIPS_EPIPE]: true });
+		process.off("uncaughtException", l); process.on("uncaughtException", wrapped);
+	}
+	process.prependListener("uncaughtException", epipe);
+};
 
 export const SPAWN_META = "session-meta";
 
