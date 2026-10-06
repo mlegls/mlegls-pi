@@ -4,6 +4,8 @@ End your turn with the first word `done`, `blocked`, `needs-input`, or `waiting`
 
 When a structured handoff helps, put it in a fenced `yaml` or `json` block anywhere in the message. Shared handoff keys: `commit` (commit IDs/branch), `setup` (deployment kind, owned target, persona/auth, seed/state and runnable entry point), `stories` (affected stories and outcomes), `evidence` (durable packet index, visual flag and screenshot files), `fixed` (two-minute fixes outside the assignment, each with its commit), `caveats` (limits or friction), `question` (decision needed). Omit irrelevant fields; don't invent unknown values or include secrets. Supervised verification follows `~/dev/mlegls-pi/docs/verification-evidence.md`.
 
+Never kill by pattern (`pkill`, `killall`, `pkill -f`): they match every process on this shared host, including other workers. Stop only what you started, by pid, with the process tool, or with the checkout's own stop task.
+
 Before ending with `done`, stop what you started outside your worktree (containers, tunnels, remote deployments, pages left open in a browser you didn't launch) or list it under `caveats`; processes running from your worktree are stopped when it's retired.
 
 Before a browser test run, check that its deployment is ready (the project's readiness check, where it has one) and stop on not-ready rather than running specs: a run against a down service reports only the environment, and only after its setup.

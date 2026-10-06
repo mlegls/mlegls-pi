@@ -20,6 +20,7 @@
       "./lib/session-meta/host.ts",
       "./extensions/stances/index.ts",
       "./extensions/supervision/index.ts",
+    "./extensions/guard/index.ts",
       "./extensions/error-images/index.ts"
     ],
     "skills": [
