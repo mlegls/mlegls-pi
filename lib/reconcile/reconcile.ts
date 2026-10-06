@@ -222,7 +222,14 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			// its worktree behind, so a retry takes a fresh handle.
 			for (let attempt = 0; ; attempt++) {
 				try { return await launchNow(attempt ? handle.slice(0, 86) + "-r" + attempt : handle, role, prompt, base, into, issue, only); }
-				catch (e) { if (attempt >= 3 || !/could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e))) throw e; note("launch " + handle + " hit a git lock, retrying: " + String(e).split("\n")[0]); await Bun.sleep(2000 + Math.random() * 3000); }
+				catch (e) {
+					const lock = /could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e));
+					// Setup fetching over a flaky network (Convex backend lookup, GitHub TLS) recovers on a plain retry.
+					const net = /fetch failed|failed to fetch|socket hang up|TLS handshake timeout|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN/i.test(String(e));
+					if (!(lock && attempt < 3) && !(net && attempt < 2)) throw e;
+					note("launch " + handle + " hit a " + (lock ? "git lock" : "network error") + ", retrying: " + String(e).split("\n")[0]);
+					await Bun.sleep(lock ? 2000 + Math.random() * 3000 : 15_000 * (attempt + 1));
+				}
 			}
 		} finally { launching--; }
 	}
