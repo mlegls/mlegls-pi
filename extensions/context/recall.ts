@@ -14,6 +14,7 @@ import { storePath } from "../../lib/records/store.ts";
 import { dedupe, nearest } from "../../lib/records/vectors.ts";
 import { spawnSync } from "node:child_process";
 import { recallElided } from "./elide.ts";
+import { load as loadMemo, parseBlock, zoom } from "./memo.ts";
 import { formatRecallRenderedResultForTui, recallObservationTool } from "./om/tools/recall-observation.ts";
 
 const DESCRIPTION = "Recall anything remembered: OM memories, journal notes, elided tool outputs, board messages, session entries. " +
@@ -22,9 +23,10 @@ const DESCRIPTION = "Recall anything remembered: OM memories, journal notes, eli
 	"- id: q \"id\", args [id], or just q \"<id>\": a 12-hex memory id (OM observation/reflection, with its sources; an elided output, in full) or any record id (board message ids like muppbafa-6uviod), shown with tags and edges.\n" +
 	"- entry: args [\"entry:<session>/<entry>\" or an entry id on this branch, ...]: the session entries' text.\n" +
 	"- search: args [text, schema?]: full-text search (all words, stemmed, bm25-ranked); falls back to substring match.\n" +
+	"- zoom: args [\"lo-hi\"]: open a block of the memo log (#lo-hi in the Memory section) into its two halves, down to the notes.\n" +
 	"- similar: args [question or description, schema?, k?, \"rerank\"?]: records nearest in meaning (embeddings fused with full-text rank, near-duplicates dropped), best first; for when you don't know the exact words. \"rerank\" has Jev reorder and drop weak matches (+~1s).\n" +
 	"SQL (SQLite, read-only; at most 100 rows, long cells cut):\n" +
-	"- records(seq, id, ts, schema, body): append-only; schema is om | journal | elided | board | cursor.\n" +
+	"- records(seq, id, ts, schema, body): append-only; schema is om | journal | memo | elided | board | cursor.\n" +
 	"- tags(record → records.seq, key, value, ord): every record has session. om: om.kind (observation | reflection | drop), om.id (the 12-hex memory id), om.timestamp, om.relevance, om.tokenCount. journal: journal.via, journal.model. elided: tool, tokens. board: topic, name, cwd, free tags (decision, blocked, done, …) and board.<field> data.\n" +
 	"- edges(record, src, rel, dst): at → entry:<session>/<entry> (where it was written); cites, source → entries; om reflects, drops → om:<memory id>; journal corrects → records.\n" +
 	"- temp branch(pos, id, type, role, tool, text): this session's current branch, oldest first.\n" +
@@ -154,7 +156,7 @@ export default function (pi: ExtensionAPI) {
 			"Use recall with SQL to answer questions about earlier work across sessions (decisions, board history, what an output said).",
 		],
 		parameters: Type.Object({
-			q: Type.String({ description: "id | entry | search | similar | a memory or record id | a SELECT/WITH query" }),
+			q: Type.String({ description: "id | entry | search | similar | zoom | a memory or record id | a SELECT/WITH query" }),
 			args: Type.Optional(Type.Array(Type.Union([Type.String(), Type.Number()]), { description: "Function arguments, or the query's ? parameters" })),
 		}),
 		renderResult(result: any, options) {
@@ -166,7 +168,7 @@ export default function (pi: ExtensionAPI) {
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			const branch = ctx.sessionManager.getBranch() as SessionEntry[];
 			const q = params.q.trim(), args = params.args ?? [];
-			const fn = /^\w+$/.test(q) && ["id", "entry", "search", "similar"].includes(q) ? q : /^(select|with)\b/i.test(q) ? "sql" : "id";
+			const fn = /^\w+$/.test(q) && ["id", "entry", "search", "similar", "zoom"].includes(q) ? q : /^(select|with)\b/i.test(q) ? "sql" : "id";
 			const id = fn === "id" ? String(q === "id" ? args[0] ?? "" : q) : "";
 			if (fn === "id" && MEMORY_ID.test(id)) {
 				const om = await recallObservationTool.execute(toolCallId, { id }, signal, onUpdate as any, ctx);
@@ -178,6 +180,10 @@ export default function (pi: ExtensionAPI) {
 				const [question, schema, k, rerank] = args;
 				if (!question) return text("similar needs args: [question, schema?, k?, \"rerank\"?]");
 				return text(await hybrid(String(question), schema ? String(schema) : undefined, Number(k) || 10, rerank === "rerank"));
+			}
+			if (fn === "zoom") {
+				const b = parseBlock(String(args[0] ?? ""));
+				return text(b ? zoom(loadMemo(), b) : "zoom needs args: [\"lo-hi\"], a block id as the Memory section prints it, like 16-31");
 			}
 			if (fn === "entry") return text(args.length ? entries(args.map(String), branch) : "entry needs args: entry refs or ids");
 			const d = open(branch);

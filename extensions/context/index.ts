@@ -4,7 +4,8 @@
 // vendored from pi-observational-memory with its ledger moved into the records store as the `om`
 // schema), which observes and reflects per memory.schemas.om.observe (always | active | never). The active one triggers
 // compaction; if the journal checkpoint fails, OM renders instead. ./elide.ts drops old tool outputs behind
-// cold-cache gaps. This extension adds policy on top.
+// cold-cache gaps. ./memo.ts is a third, cross-session memory (OptMem's log and merge tree) rendered
+// into the system prompt. This extension adds policy on top.
 //
 // Fence, for spawned workers (PI_BOARD_TOPIC set): when usage crosses the threshold, steer the
 // agent once with AGENTS_DIR/_fence.md (finish if within reach, else checkpoint into the ticket
@@ -23,6 +24,7 @@ import observationalMemory from "./om/index.ts";
 import journal from "./journal.ts";
 import elide from "./elide.ts";
 import recall from "./recall.ts";
+import memo from "./memo.ts";
 
 const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
 
@@ -44,6 +46,7 @@ export default function (pi: ExtensionAPI) {
 	elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
 	registerCompaction(pi, [journal(pi), observationalMemory(pi)]);
 	recall(pi);
+	memo(pi);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;
 	let armed = true;
