@@ -426,6 +426,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		try {
 			await locked(() => integrate(h, { cwd: into, keep: true, prepare: async worker => {
 				const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), { cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout });
+				// A malformed issue file would stop every reconciler's snapshot once it lands: send it back instead.
+				execFileSync("bun", [TRACKER, "snapshot", "--json"], { cwd: worker.path, stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } });
 				for (const gate of declaredGates(worker.path)) run(["bash", "-lc", gate.cmd], gate.timeout);
 				for (const file of new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])) { const cmd = testRun(worker.path, file); if (cmd) run(cmd); }
 				const packet = c.self || !c.evidence ? undefined : evidencePacket(worker.path, c.evidence);
