@@ -37,7 +37,7 @@ const WAITING_NUDGE_MS = 30 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
-export interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; done: boolean; archived?: boolean; effectiveStage: string; stage?: string }
+export interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; blockers?: string[]; done: boolean; archived?: boolean; effectiveStage: string; stage?: string }
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
 interface Chain {
 	/** Branch this chain lands in: the parent's collector, or the owner's checkout for the root. */
@@ -577,6 +577,17 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			const col = ensureCollector(slug, into);
 			const below = await Promise.all(kids.map(k => k.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, snapshot(col.path)) : Promise.resolve("stuck" as const)));
 			return below.includes("active") ? "active" : "stuck";
+		}
+		// A node that gained an open blocker (e.g. a reopened sibling) is parked: its chain is retired, and it starts
+		// fresh from the collector once the blocker has landed there.
+		if (s.chains[slug] && slug !== s.root && issue.blockers?.length) {
+			const parked = s.chains[slug];
+			note("parked " + slug + " behind " + issue.blockers.join(", "));
+			tellOwner("parked " + slug + " behind " + issue.blockers.join(", ") + ": its workers are retired and it restarts once they land" + (s.exceptions[slug] ? "; its pending exception (" + s.exceptions[slug].reason + ") is dropped" : ""));
+			if (s.exceptions[slug]?.handler) await retireHandle(s.exceptions[slug].handler!, pathOf(parked.into));
+			delete s.exceptions[slug]; dropResolution(slug);
+			await retireChain(parked); delete s.chains[slug]; save();
+			return "stuck";
 		}
 		if (s.exceptions[slug]) return "active";
 		const c = s.chains[slug];
