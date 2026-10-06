@@ -388,6 +388,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				if (git(handler.path, "rev-list", "--count", git(col.path, "rev-parse", "HEAD") + "..HEAD") !== "0") {
 					const outside = git(handler.path, "diff", "--name-only", git(col.path, "rev-parse", "HEAD") + "...HEAD").split("\n").filter(f => f && !f.startsWith("docs/"));
 					if (outside.length) throw new Error("handler changed files outside docs/: " + outside.join(", "));
+					trackerParses(handler.path);
 					await locked(() => integrate(handler, { cwd: col.path, keep: true }));
 				}
 			} catch (e) { await applyResolution(ex, { action: "escalate", summary: "handler's tracker change could not land: " + e }, issues); await retireHandle(handler, col.path); continue; }
@@ -397,6 +398,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 	}
 
+	const trackerParses = (path: string) => execFileSync("bun", [TRACKER, "snapshot", "--json"], { cwd: path, stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } });
 	// --- integration -----------------------------------------------------------------------------------
 	const lockDir = join(stateDir(cwd), "integrate.lock");
 	async function locked<T>(fn: () => Promise<T>): Promise<T> {
@@ -427,7 +429,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			await locked(() => integrate(h, { cwd: into, keep: true, prepare: async worker => {
 				const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), { cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout });
 				// A malformed issue file would stop every reconciler's snapshot once it lands: send it back instead.
-				execFileSync("bun", [TRACKER, "snapshot", "--json"], { cwd: worker.path, stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } });
+				trackerParses(worker.path);
 				for (const gate of declaredGates(worker.path)) run(["bash", "-lc", gate.cmd], gate.timeout);
 				for (const file of new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])) { const cmd = testRun(worker.path, file); if (cmd) run(cmd); }
 				const packet = c.self || !c.evidence ? undefined : evidencePacket(worker.path, c.evidence);
