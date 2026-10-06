@@ -23,4 +23,4 @@ Evidence so far:
 - **Records:** each EPIPE goes to `~/.pi/agent/epipe.jsonl`, with the error, stdout/stderr stream state, every non-file fd, and direct children.
 - **Keeps the worker alive:** it wraps pi's uncaughtException handlers so an EPIPE no longer exits. That loses one stream's output instead of the session.
 
-Still open: which stream it is. Once that's known, fix it there and drop the wrapper.
+Likely cause, 2026-10-06: outline-read's model fallback (`lib/outline-read/outline/model.ts`, used for a large file without a structural outline) spawns `pi` and writes the numbered file to its stdin, with no error listener on stdin. Two entries at 16:17:49 and 16:17:51, in different workers, each show a direct child spawned that same second and already a zombie: a short-lived child that exited without reading its stdin. In Bun, `stdin.end()` of about 2MB to a child that exits without reading raises an uncaught EPIPE; with an error listener it doesn't. The listener is now there. Keep the wrapper and the recording until epipe.jsonl stays empty for a few days of worker traffic, then drop both.

@@ -94,6 +94,8 @@ function runPi(args: string[], stdin: string, signal?: AbortSignal): Promise<str
 			if (code === 0) resolve(stdout);
 			else reject(new Error(`pi exited with ${code}: ${stderr.trim().split("\n").pop() ?? ""}`));
 		});
+		// A child that exits before reading all of stdin makes this write EPIPE; unhandled, that error killed the session.
+		child.stdin.on("error", () => {});
 		child.stdin.end(stdin);
 	});
 }
