@@ -253,6 +253,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		return sib.length ? "Sibling issues in flight beside yours (their decisions reach you on the board, tagged `decision`; post yours on your topic tagged `decision` plus `path:<file>` per file it touches):\n" + sib.map(i => "- " + i.slug + " (" + rel(i.file) + ")").join("\n") : "";
 	};
 	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "") {
+		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
+		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
+		const prev = c.handle;
+		if (prev && existsSync(prev.path)) { try { await stop(prev, { cwd: pathOf(c.into) }); } catch (e) { note("stop " + prev.handle + ": " + e); } }
 		const base = c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : git(pathOf(c.into), "rev-parse", "HEAD");
 		const from = c.handle && existsSync(c.handle.path) ? c.handle.path : undefined;
 		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
@@ -266,7 +270,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
 		const handle = await launch(nextHandle(slug, phase), phase, prompt, base, pathOf(c.into), issue, only);
-		if (c.handle) c.workers.push(c.handle);
+		if (prev && !await retireHandle(prev, pathOf(c.into))) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0 };
 		save();
@@ -406,8 +410,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		try { return await fn(); } finally { rmSync(lockDir, { recursive: true, force: true }); }
 	}
-	async function retireHandle(h: Handle, into: string) {
-		try { await retire(h, { cwd: into }); } catch (e) { note("retire " + h.handle + ": " + e); }
+	async function retireHandle(h: Handle, into: string): Promise<boolean> {
+		try { await retire(h, { cwd: into }); return true; } catch (e) { note("retire " + h.handle + ": " + e); return false; }
 	}
 	async function retireChain(c: Chain) { for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into)); }
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
