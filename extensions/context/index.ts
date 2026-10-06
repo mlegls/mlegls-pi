@@ -4,9 +4,8 @@
 // vendored from pi-observational-memory with its ledger moved into the records store as the `om`
 // schema), which observes and reflects per memory.schemas.om.observe (always | active | never). The active one triggers
 // compaction; if the journal checkpoint fails, OM renders instead. ./elide.ts drops old tool outputs behind
-// cold-cache gaps. ./memo.ts is a cross-session memory (OptMem's log and merge tree) rendered into
-// the system prompt, and a third mechanism: compaction replaces history with that memory. This
-// extension adds policy on top.
+// cold-cache gaps. ./memo.ts is a third: OptMem's log and merge tree, in global, project and local
+// logs. This extension adds policy on top.
 //
 // Fence, for spawned workers (PI_BOARD_TOPIC set): when usage crosses the threshold, steer the
 // agent once with AGENTS_DIR/_fence.md (finish if within reach, else checkpoint into the ticket
