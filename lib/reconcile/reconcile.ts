@@ -124,8 +124,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const save = () => { const f = stateFile(cwd, o.root); writeFileSync(f + ".tmp", JSON.stringify(s, null, 1)); renameSync(f + ".tmp", f); };
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	// An owner that has closed hands over to whichever session holds the project's supervisor role.
-	// To a worker through its own board topic (it subscribes with wake), not typed into its terminal: typed text
-	// was lost on an idle worker (escape sequences in gate output reach pi's editor as keys), and a post persists.
+	// To a worker through its own board topic (it subscribes with wake), not typed into its terminal: a send-back
+	// typed into an idle worker's terminal never reached its session (2026-10-03, cause unknown); a post persists.
 	const sendChild = async (workerTopic: string, body: string) => { mail(workerTopic, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { name: "reconcile/" + s.root }); };
 	const tellOwner = (body: string) => {
 		try {
