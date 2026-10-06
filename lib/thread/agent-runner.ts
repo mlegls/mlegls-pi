@@ -1,6 +1,6 @@
 // One child pi at a time. Exiting pi leaves the thread active; restarting never resubmits its bootstrap.
 import { spawn } from "node:child_process";
-import { openSync, writeFileSync } from "node:fs";
+import { openSync, rmSync, writeFileSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { clearSetup, declaresSetup, readSetup, setupLog, writeSetup } from "./setup";
 import { join } from "node:path";
@@ -25,8 +25,9 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 	validateLaunch(launch);
 	const args = [...(launch?.args ?? []), "--session", thread.sessionFile];
 	// The prompt goes in as a file, not argv: argv is visible host-wide, and a `pkill -f` matching a phrase from a ticket killed workers.
+	let file: string | undefined;
 	if (prompt !== undefined) {
-		const file = join(threadDir(), thread.id + ".prompt.md");
+		file = join(threadDir(), thread.id + ".prompt.md");
 		writeFileSync(file, prompt, { mode: 0o600 });
 		args.push("--", "@" + file);
 	}
@@ -42,6 +43,8 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 		proc.once("error", reject);
 		proc.once("exit", () => resolve());
 	});
+	// The session holds the prompt once pi has run; a restart never resubmits it.
+	if (file) rmSync(file, { force: true });
 }
 
 /** Pending setup starts beside the first pi, its output in a log; the workspace extension reports it at pi's next turn. */
