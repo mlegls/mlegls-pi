@@ -60,6 +60,8 @@ interface Chain {
 	/** ts of the latest `waiting` report or nudge in this wait. */
 	waitingCheckedAt?: string;
 	retries: Record<string, number>;
+	/** Why drive is skipped for this chain (the ticket's `drive: none`, or a supervisor's skip-drive). */
+	skipDrive?: string;
 	workers: Handle[];
 	note?: string;
 }
@@ -247,6 +249,13 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const f = from && existsSync(join(from, rel(i.file))) ? join(from, rel(i.file)) : i.file;
 		return "Issue " + i.slug + " (" + rel(i.file) + "):\n\n" + readFileSync(f, "utf8");
 	};
+	/** A ticket whose acceptance only shows after landing says `drive: none` in its frontmatter: drive would only rerun the implementer's checks. */
+	const driveNone = (from: string, i: Issue): string | undefined => {
+		const f = existsSync(join(from, rel(i.file))) ? join(from, rel(i.file)) : i.file;
+		const fm = /^---\n([\s\S]*?)\n---/.exec(readFileSync(f, "utf8"))?.[1] ?? "";
+		return /^drive:\s*none\s*$/m.test(fm) ? "the ticket declares `drive: none`" : undefined;
+	};
+	const skippedDrive = (why: string) => "Drive was skipped (" + why + "): there is no driver's packet, and you are the only pass before integration. Review the change against the ticket directly, and check the implementer's own evidence (rehearsals, runs) rather than redoing it. Your handoff still needs `stories` and `evidence`; commit an index under docs/attachments/ that records what established each story. Say in `caveats` that drive was skipped, and which post-landing gate carries the acceptance and who owns it, as the ticket names them.";
 	const siblings = (slug: string, issues: Map<string, Issue>) => {
 		const parent = issues.get(slug)?.partOf;
 		const sib = [...issues.values()].filter(i => i.partOf === parent && i.slug !== slug && !finished(i));
@@ -293,7 +302,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(cwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate"; target?: string; message?: string; note?: string; summary?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive"; target?: string; message?: string; note?: string; summary?: string };
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
@@ -315,6 +324,12 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in its branch's tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues); } }
 		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
+		else if (r.action === "skip-drive") {
+			if (c) {
+				c.held = false; c.skipDrive = r.note ?? r.message ?? "skipped by the supervisor";
+				if (c.phase === "drive") await startPhase(target, c, "review", issue!, issues, skippedDrive(c.skipDrive));
+			}
+		}
 		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } dropResolution(target); s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
 		note("resolved " + ex.node + ": " + r.action + (target !== ex.node ? " on " + target : ""));
 		save();
@@ -523,6 +538,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				return repair(slug, c, "decompose", "Implementers don't decompose: drop the children you committed, and either implement the ticket whole or end `blocked` with `respec` in the handoff.", issues, text);
 			c.setup = r.handoff?.setup ?? null;
 			c.note = undefined;
+			c.skipDrive ??= driveNone(h.path, issue);
+			if (c.skipDrive) { note("drive skipped for " + slug + ": " + c.skipDrive); return startPhase(slug, c, "review", issue, issues, skippedDrive(c.skipDrive)); }
 			return startPhase(slug, c, "drive", issue, issues);
 		}
 		if (c.phase === "drive") {
