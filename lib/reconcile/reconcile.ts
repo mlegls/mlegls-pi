@@ -37,7 +37,7 @@ const WAITING_NUDGE_MS = 30 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
-export interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; blockers?: string[]; done: boolean; archived?: boolean; effectiveStage: string; stage?: string }
+export interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; blockers?: string[]; done: boolean; archived?: boolean; effectiveStage: string; ownStage?: string | null; ready?: boolean; eligible?: boolean; deferred?: boolean; claims?: { slug: string; claimedBy: string }[]; selectors?: { slug: string; assignee: string | null }[] }
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
 interface Chain {
 	/** Branch this chain lands in: the parent's collector, or the owner's checkout for the root. */
@@ -580,6 +580,24 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 
 	// --- the walk --------------------------------------------------------------------------------------
+	/** An idea filed under the tree (a worker's friction) is an observation, not work, but it lowers every ancestor's
+	 * effective stage, so nothing above it is ever frontier or done. Set it aside: drop its part-of in the branch it
+	 * landed in, keep the link in its body, and tell the owner so it gets triaged. True when it changed the branch. */
+	async function setAsideIdeas(slug: string, view: Map<string, Issue>, branch: string): Promise<boolean> {
+		const inside = (i: Issue) => { for (let p = i.partOf; p; p = view.get(p)?.partOf ?? null) if (p === slug) return true; return false; };
+		const ideas = [...view.values()].filter(i => i.ownStage === "idea" && !finished(i) && inside(i));
+		if (!ideas.length) return false;
+		await locked(async () => {
+			for (const i of ideas) {
+				const text = readFileSync(i.file, "utf8");
+				const link = /^part-of:\s*(.*)$/m.exec(text)?.[1]?.trim().replace(/^"(.*)"$/, "$1") ?? i.partOf;
+				writeFileSync(i.file, text.replace(/^part-of:.*\n/m, "").trimEnd() + "\n\nFiled under " + link + " while the " + s.root + " reconciler ran it; set aside from that tree, since an idea under it holds every ancestor at stage idea.\n");
+				git(branch, "commit", "-qm", "Set aside idea " + i.slug + " from " + i.partOf, "--", i.file);
+			}
+		});
+		for (const i of ideas) { note("set aside idea " + i.slug + " from " + i.partOf); tellOwner("set aside idea " + i.slug + " (filed under " + i.partOf + "): it no longer holds the tree; triage it in " + (branch === cwd ? "the owner's checkout" : branch + " until that lands")); }
+		return true;
+	}
 	/** Visit a node; returns whether anything under it is unsettled and progressing or launchable. */
 	async function visit(slug: string, into: string, issues: Map<string, Issue>): Promise<"done" | "active" | "stuck"> {
 		visited.add(slug);
@@ -588,7 +606,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		// A restart with fresh state adopts the collector left on disk before reading its children:
 		// a kid can be frontier only there (its blockers landed in the collector, not the owner).
 		if (!s.collectors[slug] && existsSync(collectorPath(slug))) ensureCollector(slug, into);
-		const own = s.collectors[slug] ? snapshot(s.collectors[slug].path) : issues;
+		let own = s.collectors[slug] ? snapshot(s.collectors[slug].path) : issues;
+		if ((s.collectors[slug] || slug === s.root) && await setAsideIdeas(slug, own, s.collectors[slug]?.path ?? cwd)) own = snapshot(s.collectors[slug]?.path ?? cwd);
 		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i));
 		if (kids.length && !s.chains[slug]) {
 			const col = ensureCollector(slug, into);
