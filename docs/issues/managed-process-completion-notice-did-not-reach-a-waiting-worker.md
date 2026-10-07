@@ -21,3 +21,7 @@ Fixes: the gate (concept) should stop its executors; upstream, pi-processes coul
 pi-processes now stops what still holds a command's group 10 s after the command exits, names those processes in stderr, and keeps the command's own exit code: mlegls/pi-processes `stop-leftover-group-members` (65ac227), loaded locally from ~/dev/pi-processes through system-config's pi settings, upstream as https://github.com/mjakl/pi-processes/pull/7. Concept's own leak is [[projects/concept/issues/local-convex-backends-leak-executors-and-temp-bundles]].
 
 Upstream: https://github.com/mjakl/pi-processes/issues/8 (notify when the leader exits, naming the descendants still holding the group).
+
+## Recurrence — arkhai-payments 2026-10-07
+
+`card-top-up-reversals-drive-f` reported `waiting reversal-drive-retry` at 07:22 UTC; by 07:25 no drive process existed and the containers for its chosen ports had never been created (podman healthy). The worker stayed idle until the owner mailed it to inspect the process output and rerun. The reconciler showed the chain in `drive` with `waitingSince` set and no live worker process. A reconciler-side check, a waiting chain whose named process no longer exists, would have caught it without the owner.
