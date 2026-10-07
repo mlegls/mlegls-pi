@@ -25,3 +25,5 @@ Upstream: https://github.com/mjakl/pi-processes/issues/8 (notify when the leader
 ## Recurrence — arkhai-payments 2026-10-07
 
 `card-top-up-reversals-drive-f` reported `waiting reversal-drive-retry` at 07:22 UTC; by 07:25 no drive process existed and the containers for its chosen ports had never been created (podman healthy). The worker stayed idle until the owner mailed it to inspect the process output and rerun. The reconciler showed the chain in `drive` with `waitingSince` set and no live worker process. A reconciler-side check, a waiting chain whose named process no longer exists, would have caught it without the owner.
+
+Reconciler check (3f23216): a chain still `waiting` 2 minutes after its report, whose worker is idle and whose pi has no managed process (a process-group leader under pi with stdin on /dev/null, which tells it from pi's MCP servers), is told its process has ended or never started, once per `waiting` report. The 30-minute nudge stays for processes that are still running. Untried against a live worker: the detection was checked by hand against this session's own pi with and without a managed process.
