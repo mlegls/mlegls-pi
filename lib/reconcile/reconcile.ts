@@ -580,6 +580,29 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 
 	// --- the walk --------------------------------------------------------------------------------------
+	/** A collector forks its parent's branch once and reads blockers from its own copy of the tracker, so a blocker
+	 * that lands in the parent (another tree's work on the owner's main) afterwards stays open here and holds its
+	 * dependents. When one is held only by that, merge the parent's branch in; a conflict goes to the owner. */
+	async function catchUp(slug: string, into: string, own: Map<string, Issue>, parent: Map<string, Issue>): Promise<boolean> {
+		const landed = new Set<string>();
+		for (const k of own.values()) {
+			if (finished(k) || k.frontier || !k.blockers?.length) continue;
+			if (k.blockers.every(b => { const x = parent.get(b); return !!x && finished(x); })) k.blockers.forEach(b => landed.add(b));
+		}
+		if (!landed.size) return false;
+		const col = s.collectors[slug], head = git(pathOf(into), "rev-parse", "HEAD"), what = [...landed].join(", ");
+		return locked(async () => {
+			try { git(col.path, "merge", "--no-edit", "-m", "Merge " + col.parentBranch + " into " + col.branch + ": " + what + " landed there", head); }
+			catch (e: any) {
+				const files = (() => { try { return git(col.path, "diff", "--name-only", "--diff-filter=U"); } catch { return ""; } })();
+				try { git(col.path, "merge", "--abort"); } catch {}
+				raise(slug, "collector cannot take its parent's landing of " + what, "Blockers " + what + " are done in " + col.parentBranch + " but open in " + col.branch + ", which holds work here. Merging " + col.parentBranch + " (" + head.slice(0, 10) + ") into " + col.branch + " failed" + (files ? " with conflicts in:\n" + files : ": " + String(e?.stderr ?? e?.message ?? e).slice(0, 2000)) + "\n\nMerge it by hand in " + col.path + ", commit, then resolve with retry.", parent, "owner");
+				return false;
+			}
+			note("merged " + col.parentBranch + " into " + col.branch + ": " + what + " landed there");
+			return true;
+		});
+	}
 	/** An idea filed under the tree (a worker's friction) is an observation, not work, but it lowers every ancestor's
 	 * effective stage, so nothing above it is ever frontier or done. Set it aside: drop its part-of in the branch it
 	 * landed in, keep the link in its body, and tell the owner so it gets triaged. True when it changed the branch. */
@@ -608,6 +631,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (!s.collectors[slug] && existsSync(collectorPath(slug))) ensureCollector(slug, into);
 		let own = s.collectors[slug] ? snapshot(s.collectors[slug].path) : issues;
 		if ((s.collectors[slug] || slug === s.root) && await setAsideIdeas(slug, own, s.collectors[slug]?.path ?? cwd)) own = snapshot(s.collectors[slug]?.path ?? cwd);
+		if (s.collectors[slug] && !s.exceptions[slug] && await catchUp(slug, into, own, issues)) own = snapshot(s.collectors[slug].path);
 		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i));
 		if (kids.length && !s.chains[slug]) {
 			const col = ensureCollector(slug, into);
