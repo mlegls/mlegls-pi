@@ -102,6 +102,7 @@ export function load(cwd: string, root: string): State | undefined {
 }
 
 const finished = (i: Issue) => i.done || !!i.archived;
+const descends = (i: Issue, slug: string, view: Map<string, Issue>) => { for (let p = i.partOf; p; p = view.get(p)?.partOf ?? null) if (p === slug) return true; return false; };
 const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + "\n```";
 
 export async function run(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number; signal?: AbortSignal }) {
@@ -580,6 +581,24 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 
 	// --- the walk --------------------------------------------------------------------------------------
+	/** What keeps each open node from starting, recorded by the walk for the stop message: the owner shouldn't have to read a collector's tracker to find out. */
+	const holds = new Map<string, string>();
+	let ownerView = new Map<string, Issue>();
+	const why = (i: Issue, view: Map<string, Issue>): string => {
+		const r: string[] = [];
+		if (!i.ready) {
+			const low = [...view.values()].filter(d => !finished(d) && !!d.ownStage && !["spec", "ticket", "done"].includes(d.ownStage) && descends(d, i.slug, view));
+			r.push("effective stage " + i.effectiveStage + (low.length ? " through " + low.map(d => d.slug + " (" + d.ownStage + ")").join(", ") : ""));
+		}
+		for (const b of i.blockers ?? []) {
+			const here = view.get(b), main = ownerView.get(b);
+			r.push("blocked by " + b + (!here ? (main ? " (" + (finished(main) ? "done" : "open") + " in the owner's checkout, absent from this branch)" : "") : main && finished(main) && view !== ownerView ? " (done in the owner's checkout, open in this branch)" : " (open)"));
+		}
+		for (const c of i.claims ?? []) r.push(c.slug + " claimed by " + c.claimedBy);
+		if (i.ready && !i.eligible) r.push("not all agent-assigned: " + (i.selectors ?? []).filter(x => !/^(agent|model:)/.test(x.assignee ?? "")).map(x => x.slug + " (" + (x.assignee ?? "unassigned") + ")").join(", "));
+		if (i.deferred) r.push("deferred (priority 4)");
+		return r.join("; ") || "not frontier";
+	};
 	/** A collector forks its parent's branch once and reads blockers from its own copy of the tracker, so a blocker
 	 * that lands in the parent (another tree's work on the owner's main) afterwards stays open here and holds its
 	 * dependents. When one is held only by that, merge the parent's branch in; a conflict goes to the owner. */
@@ -607,8 +626,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	 * effective stage, so nothing above it is ever frontier or done. Set it aside: drop its part-of in the branch it
 	 * landed in, keep the link in its body, and tell the owner so it gets triaged. True when it changed the branch. */
 	async function setAsideIdeas(slug: string, view: Map<string, Issue>, branch: string): Promise<boolean> {
-		const inside = (i: Issue) => { for (let p = i.partOf; p; p = view.get(p)?.partOf ?? null) if (p === slug) return true; return false; };
-		const ideas = [...view.values()].filter(i => i.ownStage === "idea" && !finished(i) && inside(i));
+		const ideas = [...view.values()].filter(i => i.ownStage === "idea" && !finished(i) && descends(i, slug, view));
 		if (!ideas.length) return false;
 		await locked(async () => {
 			for (const i of ideas) {
@@ -635,7 +653,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i));
 		if (kids.length && !s.chains[slug]) {
 			const col = ensureCollector(slug, into);
-			const below = await Promise.all(kids.map(k => k.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, snapshot(col.path)) : Promise.resolve("stuck" as const)));
+			const below = await Promise.all(kids.map(k => k.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, snapshot(col.path)) : (holds.set(k.slug, why(k, snapshot(col.path))), Promise.resolve("stuck" as const))));
 			return below.includes("active") ? "active" : "stuck";
 		}
 		// A node that gained an open blocker (e.g. a reopened sibling) is parked: its chain is retired, and it starts
@@ -647,12 +665,13 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			if (s.exceptions[slug]?.handler) await retireHandle(s.exceptions[slug].handler!, pathOf(parked.into));
 			delete s.exceptions[slug]; dropResolution(slug);
 			await retireChain(parked); delete s.chains[slug]; save();
+			holds.set(slug, "parked behind " + issue.blockers.join(", "));
 			return "stuck";
 		}
 		if (s.exceptions[slug]) return "active";
 		const c = s.chains[slug];
 		if (!c) {
-			if (!issue.frontier && slug !== s.root) return "stuck";
+			if (!issue.frontier && slug !== s.root) { holds.set(slug, why(issue, issues)); return "stuck"; }
 			if (live() >= s.budget) return "active";
 			const chain: Chain = { into, self: !!s.collectors[slug], phase: "implement", retries: {}, workers: [], note: pendingNotes.get(slug) };
 			pendingNotes.delete(slug);
@@ -727,6 +746,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		pollBoard();
 		await observeHost();
 		const top = snapshot(cwd);
+		ownerView = top; holds.clear();
 		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return true; }
 		visited.clear();
 		const result = await visit(s.root, cwd, top);
@@ -739,7 +759,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			const open = [...all.values()].filter(i => !finished(i) && (i.slug === s.root || under(i, all)));
 			s.finished = result === "done" ? "done" : "stuck";
 			save();
-			tellOwner((result === "done" ? "done: " + s.root + " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", "HEAD") : "stopped with open work: " + open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", "))
+			tellOwner((result === "done" ? "done: " + s.root + " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", "HEAD") : "stopped with open work: " + (holds.size ? [...holds].map(([k, v]) => "\n- " + k + ": " + v).join("") : open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ")))
 				+ (Object.keys(s.moved).length ? "\nMoved out: " + Object.entries(s.moved).map(([k, v]) => k + ": " + v).join("; ") : ""));
 			return true;
 		}
