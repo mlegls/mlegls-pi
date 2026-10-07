@@ -34,6 +34,8 @@ const START_GRACE_MS = 120_000;
 const WAITING_MS = 3 * 60 * 60_000;
 /** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
 const WAITING_NUDGE_MS = 30 * 60_000;
+/** A waiting worker whose session runs no managed process this long after its report is told so (its notice raced, or nothing started). */
+const WAITING_VOID_MS = 2 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
@@ -59,6 +61,8 @@ interface Chain {
 	waitingSince?: string;
 	/** ts of the latest `waiting` report or nudge in this wait. */
 	waitingCheckedAt?: string;
+	/** This wait was nudged for having no running process; once per `waiting` report. */
+	waitingVoidNudged?: boolean;
 	retries: Record<string, number>;
 	/** Why drive is skipped for this chain (the ticket's `drive: none`, or a supervisor's skip-drive). */
 	skipDrive?: string;
@@ -190,12 +194,24 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		catch (e) { host = undefined; note("thread observation deferred: " + e); }
 	};
+	const rowOf = (h: Handle) => host?.find(r => h.threadId ? r.thread.id === h.threadId : r.thread.worker?.handle === h.handle && r.thread.worker.run === h.run && r.thread.cwd === h.path);
 	const alive = (h: Handle): boolean | undefined => {
 		if (!host) return undefined; // backend failure never establishes exit
-		const row = host.find(r => h.threadId ? r.thread.id === h.threadId : r.thread.worker?.handle === h.handle && r.thread.worker.run === h.run && r.thread.cwd === h.path);
+		const row = rowOf(h);
 		if (!row || !row.terminals.some(t => t.role === "agent")) return false;
 		const previous = observedPids.get(row.thread.id);
 		return !exitedPids.has(row.thread.id) && (row.state !== "exited" || (previous?.session === row.thread.sessionId && pidAlive(previous.pid)));
+	};
+	/** Whether an idle worker's pi still runs a managed process. The process tool starts each as a process-group leader
+	 * under pi with stdin closed (/dev/null); pi's MCP servers lead groups too but read a pipe, and an idle worker runs
+	 * no bash tool. Undefined when that can't be observed: only a definite false counts. */
+	const runsProcess = (h: Handle): boolean | undefined => {
+		const row = rowOf(h);
+		if (!row?.pid || row.state !== "idle") return undefined;
+		try {
+			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === row.pid && pid === pgid).map(([pid]) => pid);
+			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8" })); } catch { return true; } });
+		} catch { return undefined; }
 	};
 
 	// --- launching -------------------------------------------------------------------------------------
@@ -321,7 +337,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		delete s.exceptions[ex.node];
 		if (ex.node !== target && s.chains[ex.node]) s.chains[ex.node].held = false;
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
-		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; }
+		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
 		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in its branch's tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues); } }
 		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
@@ -486,7 +502,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const issue = issues.get(slug)!;
 		// Consecutive `waiting` reports are one wait: its stall clock runs from the first.
 		const waitedSince = c.waitingSince;
-		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; save();
+		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; save();
 		const r = parse(m.body), text = m.body, h = c.handle!;
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (m.tags.includes("error")) return raise(slug, "provider error: " + errorClass(m.body), text, issues, "owner");
@@ -687,6 +703,13 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
 		if (m) { try { await onReport(slug, c, m, issues); } catch (e) { raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues); } return "active"; }
 		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report other than `waiting` in " + WAITING_MS / 3_600_000 + "h after the worker first reported waiting at " + c.waitingSince + ".", issues); return "active"; }
+		// A worker idle on a wait whose process has already gone (it never started, or ended without waking it) would idle until the nudge below.
+		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && runsProcess(c.handle) === false) {
+			c.waitingVoidNudged = true; c.waitingCheckedAt = new Date().toISOString(); save();
+			note(c.phase + " " + slug + " nudged: waiting with no running process");
+			await sendChild(topic(c.handle), "You reported `waiting`, but your session runs no managed process: the one you are waiting on has ended without its notice reaching you, or never started. Check it (process list, process output): take its result if it finished, start it again if it didn't run, and continue.");
+			return "active";
+		}
 		// The completion notice never comes while a descendant the process left behind (an orphaned server or executor) holds its process group.
 		if (c.waitingSince && c.handle && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_NUDGE_MS && alive(c.handle) !== false) {
 			c.waitingCheckedAt = new Date().toISOString(); save();
