@@ -38,3 +38,13 @@ The supplied surface takes a boolean and substitutes callback logging for a work
 - Required regression test coverage: unobservable (reviewer responsibility).
 
 Nonvisual library journey; no screenshots. No services, background processes, browser pages or external resources started.
+
+## Review
+
+Read diff with the log. Wiring: `onReport` passes `runsProcess(h)` and `repair(..., "checkpoint-process", ...)` to `checkpoint` (`lib/reconcile/checkpoint.ts`); the repair goes to the same worker's topic, so it keeps its session and processes. `runsProcess` is `true` only for an idle worker with a stdin-/dev/null process-group leader under pi; `undefined` (state not yet idle, host unobserved) falls through to the old relaunch. `observeHost` runs once per tick before the report is handled, so a report arriving in the same instant as the idle transition can still relaunch.
+
+`bun test lib/reconcile`: 2 pass (`checkpoint.test.ts` covers both `runsProcess` outcomes, repair message, and counts 2→2 / 2→3). Root `bun run typecheck` exits 0 after `bun install --frozen-lockfile --cwd extensions/obsidian-tracker`.
+
+Outcomes after review: library transitions held; regression test covers both outcomes: held. Live-worker ownership through completion remains unobserved end to end (no real worker/process was run); it follows from the repair being delivered to the same session.
+
+Repair-count note: the repair goes through `repair()`, so `retries["checkpoint-process"]` is bounded by `BUDGET.repair` (2); a third live-process checkpoint raises `checkpoint-process (after 2 repairs)`. Bounded, separate from `BUDGET.checkpoint`.
