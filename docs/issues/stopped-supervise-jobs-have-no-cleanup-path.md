@@ -21,3 +21,9 @@ ticket contract, 2026-09-30: a stopped job's workers can be retired and its chil
 Contract in reconciler terms, 2026-10-08: `reconcile_stop({issue})` (and `main.ts stop`) stops the reconciler process, retires its live workers and handlers (threads and owned worktrees, killing their owned leftover processes), keeps unmerged branches and `tree/<slug>` collectors, and marks the state finished with reason "stopped". `reconcile_status` then shows it finished, with no live workers. The `ab supervise` and `wt/<repo>/<name>` parts are moot: that CLI and naming are gone.
 
 Tests (approved): one `lib/reconcile` test with the shell-worker fixture: start a run with a live worker, stop it, and show the worker's thread and worktree are gone, its unmerged branch remains, and the state reads finished/stopped.
+
+## Implementation
+
+`reconcile_stop({issue})` and `bun lib/reconcile/main.ts stop <issue> --cwd DIR` stop the process, retire workers and handlers through the existing lifecycle, and clear their receipts. Unmerged branches and collectors remain. A cleanup failure keeps a stopping latch so session startup cannot relaunch the run; retry stop to finish cleanup.
+
+[First-use setup and implementation self-check](../attachments/stopped-supervise-jobs-have-no-cleanup-path/index.md): the approved shell-worker test passed, three affected existing regressions passed, and the CLI's fresh replay left no live threads, terminals or owned leftover processes. Typecheck passed with the existing nested Obsidian dependency workaround. Fixtures were removed; independent driving/review follows.
