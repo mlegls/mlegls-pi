@@ -8,6 +8,8 @@ Done: a worker that reports `checkpoint` while its session still runs a managed 
 
 Owner: mlegls-pi reconciler / drive continuation tooling.
 
+Drive evidence: [checkpoint transition packet](../attachments/reconciler-drive-continuation-loses-managed-process-ownership/index.md). Library behavior held; live worker wiring and regression coverage remain for review.
+
 Encounters, 2026-10-01/02 (full accounts in this file's git history before 2026-10-08):
 - [[projects/concept/issues/fold-welcome-browser-journey-onto-fresh-accounts]]: `drive-18` checkpointed while awaiting its replay's completion notice; its continuation `drive-1a` ran in a new session, inherited no managed processes, and asked whether to adopt the old services or provision again. Workaround: ownership-verified adoption, with provenance and cleanup responsibility.
 - [[projects/concept/issues/reconcile-folded-browser-scenarios-on-the-common-seed]]: `implement-1i`, waiting on an inherited 124-case run, alternated plain waiting and checkpoints, raising "checkpointed 3 times" and `status (after 2 repairs)` repeatedly ("The harness rejects plain waiting but turns checkpoints into exceptions"). `drive-1s` and [[projects/concept/issues/run-the-kept-browser-batch-on-a-fresh-seed-with-one-command]]'s worker `22` yielded `needs-input` for pending completions, and each answer to hold spawned another handler.
