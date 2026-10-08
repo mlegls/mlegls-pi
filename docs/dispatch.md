@@ -1,6 +1,6 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker: a thread: a worktree and a zmx session running pi, reporting on board topic `<run>/<handle>`.
+The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker, a thread (a worktree and a zmx session running pi), reporting on board topic `<run>/<handle>`.
 
 ```js
 const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: [], assignments: [

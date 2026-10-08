@@ -254,7 +254,7 @@ export function install(pi: ExtensionAPI) {
 			...(own("PI_BOARD_FOLLOW") ? [{ topic: own("PI_BOARD_FOLLOW") + "/**", tags: "decision", wake: false }] : []),
 		];
 		// Every session has a mailbox (mail/xxxxxxxx): the reconciler, ab tree and
-		// other sessions reach it there. Shown in pi's footer and.
+		// other sessions reach it there. Shown in pi's footer.
 		const box = mailbox(sessionId);
 		// Plus the worktree and ticket it works in (lib/board/scopes): shared channels, on trial.
 		const shared = scopes(ctx.cwd);

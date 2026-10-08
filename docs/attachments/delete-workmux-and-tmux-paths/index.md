@@ -38,3 +38,12 @@ Setup handoff was null: no deployment, persona/auth, seed, launch command or che
 
 No servers, workers, pages, containers or other resources were started. Nonvisual encounter; no screenshots.
 
+## Review
+
+Reviewed `71de92e..661c610` against the ticket.
+
+- Removal held: `.workmux.yaml`, `bin/ab-nav`, the `@mailbox` tmux call in `lib/board/host.ts`, `tmuxPane` in live records/child-exit message, `pane` in `lib/tree/graph.ts`; `grep -rniE 'workmux|tmux'` outside docs/attachments and docs/issues leaves only deliberate hits (env scrubbing of inherited `TMUX*` in thread launch/tests, `cyber-mux` description, a pre-cutover reconciler error, a "no tmux dashboard" note).
+- system-config: commit `0114f37` removes workmux config, status extension and tmux bindings; `cargo:raine/workmux` stays in mise so the binary stays installed, as the ticket asks.
+- Repairs: a dangling "footer and." comment in `lib/board/host.ts`; "a thread: a worktree…" grammar in `docs/dispatch.md`.
+- Checks: `bun test lib/tree lib/session-meta lib/board lib/children*` 48 pass, 0 fail. `tsc --noEmit` reports only `extensions/obsidian-tracker/*` errors (`obsidian` types not installed in this worktree); none elsewhere.
+- Namespace load: the `supervision` description in `extensions/supervision/index.ts` now reads "threads: a worktree and a zmx session running pi"; a fresh session load wasn't driven, the source string is the claim.
