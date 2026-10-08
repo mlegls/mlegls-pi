@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 author: session:8b7a8886-119b-4cd8-bceb-d802d71a9915
@@ -45,3 +45,7 @@ Recommendation for the mlegls-pi reconciler: preserve the immediate-parent base 
 [First-use observations and historical divergence recheck](../attachments/replacement-drive-misses-recorded-offline-audit-scope/index.md): collector rulings reached the successor's history, setup and launch prompt; 26 affected regressions passed and root typechecking passed after the known plugin preparation workaround. The historical reviewer/collector merge still conflicts in the six reported files, but all four missing decisions and the review-claim rescope are available in its pending merge without replaying ancestor commits. Historical recovery was not completed or gated.
 
 The explicitly approved `lib/reconcile/refresh.test.ts` regression passed: an integrated handler docs ruling reaches the successor's history, setup and launch prompt while retaining predecessor work. Its fixture/setup is committed and requires no inference. Independent story acceptance remains with the next verifier.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/replacement-drive-misses-recorded-offline-audit-scope/independent-drive.md).
