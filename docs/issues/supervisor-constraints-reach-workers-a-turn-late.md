@@ -23,3 +23,7 @@ ticket contract, 2026-09-30: an owner can attach constraints to a supervised chi
 Contract in reconciler terms, 2026-10-08: a `reconcile_constrain({issue, node, text})` tool (and `main.ts constrain`) records the constraint in the reconciler's state file under the node, mails the node's current worker, and every later phase launch for that node (retry, redispatch, drive, review, continuation) puts all recorded constraints in its first prompt. `reconcile_status` shows them. The `supervise` skill line about live-target tickets stays as written.
 
 Tests (approved): one `lib/reconcile` test with the shell-worker fixture: constrain a node while its implement worker runs, then show the drive and review launch prompts both contain the constraint text, and a node with no constraint gets none.
+
+## Verification evidence
+
+[First-use shell-worker encounter](../attachments/supervisor-constraints-reach-workers-a-turn-late/index.md): the approved scenario passed from the committed setup (1 pass, 0 failures).
