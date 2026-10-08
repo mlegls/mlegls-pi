@@ -86,10 +86,10 @@ if (import.meta.main) {
 		use(f.env);
 		if (action === "stop") {
 			const child = Bun.spawn(["bun", join(packagePath, "lib/reconcile/main.ts"), "stop", "fixture", "--cwd", f.cwd],
-				{ cwd: packagePath, stdio: ["ignore", "inherit", "inherit"] });
+				{ cwd: packagePath, env: process.env, stdio: ["ignore", "inherit", "inherit"] });
 			process.exitCode = await child.exited;
 		} else if (action === "inspect") console.log(JSON.stringify({
-			state: campaigns(f.cwd).map(summary), threads: await allThreads(), terminals: await terminals(),
+			state: campaigns(f.cwd).map(summary), threads: (await allThreads()).map(t => ({ id: t.id, worker: t.worker, cwd: t.cwd })), terminals: await terminals(),
 			reconcilerAlive: pidAlive(f.pid), leftoverAlive: pidAlive(f.leftoverPid), collectorExists: existsSync(f.collector),
 			worktrees: git(f.cwd, "worktree", "list", "--porcelain"), branches: git(f.cwd, "branch", "--list"),
 		}, null, 2));
