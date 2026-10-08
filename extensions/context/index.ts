@@ -43,8 +43,8 @@ function fenceText(percent: number, topic: string): string {
 }
 
 export default function (pi: ExtensionAPI) {
-	elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
-	registerMechanisms(pi, [journal(pi), observationalMemory(pi), memo(pi)]);
+	const elider = elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
+	registerMechanisms(pi, [journal(pi), observationalMemory(pi), memo(pi), elider]);
 	recall(pi);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;

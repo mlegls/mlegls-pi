@@ -14,6 +14,8 @@
 // Azure 3660s ("5-10 minutes of inactivity, up to one hour"); anything unpublished or best-effort (DeepSeek "hours to
 // days", Z.ai, Gemini implicit, routers) a day. PI_CACHE_RETENTION=long (1h Anthropic, 24h OpenAI) moves them.
 //
+// A memory system owning "context" (./mechanism.ts): off while one that builds requests itself (optmem) is on.
+//
 // Settings: memory.elide { enabled, idleSeconds: number | { [provider]: seconds, default }, minTokens, keepTurns }.
 import { estimateTokens, getAgentDir, type ExtensionAPI, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";
@@ -21,7 +23,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { anchor, entryRef, type BranchSession } from "../../lib/records/branch.ts";
 import { db, write } from "../../lib/records/store.ts";
-import { ownsContext } from "./mechanism.ts";
+import { isActive, type Mechanism } from "./mechanism.ts";
 
 export interface ElideOptions { /** Idle time after which the named provider's prompt cache is assumed gone. */ idleMs: (provider: string) => number; minTokens: number; keepTurns: number }
 
@@ -99,13 +101,13 @@ export function recallElided(branch: SessionEntry[], id: string): { entry: Sessi
 	for (const e of branch) if (e.type === "message" && e.message.role === "toolResult" && elidedId(e.id) === id) return { entry: e, content: e.message.content as any[] };
 }
 
-export default function (pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI): Mechanism {
 	let count = 0;
 	const written = new Set<string>();
 	pi.on("session_start", () => { count = 0; });
 	pi.on("context", (event, ctx) => {
 		const s = settings(ctx.cwd);
-		if (!s.enabled || ownsContext(ctx)) return;
+		if (!s.enabled || !isActive("elide", ctx)) return;
 		const r = elideCold(event.messages, ctx.sessionManager.getBranch() as SessionEntry[], {
 			idleMs: (p) => (s.idleSeconds[p] ?? s.idleSeconds.default) * 1000, minTokens: s.minTokens, keepTurns: s.keepTurns,
 		});
@@ -115,4 +117,5 @@ export default function (pi: ExtensionAPI) {
 		catch (err) { console.warn("[elide] records not written: " + (err as Error).message); }
 		return r.elided ? { messages: r.messages } : undefined;
 	});
+	return { name: "elide", owns: ["context"], enabled: (ctx) => settings(ctx.cwd).enabled };
 }
