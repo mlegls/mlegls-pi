@@ -627,7 +627,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (!landed.size) return false;
 		const col = s.collectors[slug], head = git(pathOf(into), "rev-parse", "HEAD"), what = [...landed].join(", ");
 		return locked(async () => {
-			try { git(col.path, "merge", "--no-edit", "-m", "Merge " + col.parentBranch + " into " + col.branch + ": " + what + " landed there", head); }
+			// Someone (the owner resolving a conflict) is mid-merge here: leave it alone, and never abort their merge.
+			if (existsSync(join(git(col.path, "rev-parse", "--absolute-git-dir"), "MERGE_HEAD"))) { note("collector " + slug + " is mid-merge; catch-up waits"); return false; }
+			// Projects' diff-shape hooks refuse large commits without a `[big: <why>]` trailer; a catch-up merge is large by nature.
+			try { git(col.path, "merge", "--no-edit", "-m", "Merge " + col.parentBranch + " into " + col.branch + ": " + what + " landed there\n\n[big: merge of " + col.parentBranch + " into the tree branch]", head); }
 			catch (e: any) {
 				const files = (() => { try { return git(col.path, "diff", "--name-only", "--diff-filter=U"); } catch { return ""; } })();
 				try { git(col.path, "merge", "--abort"); } catch {}
