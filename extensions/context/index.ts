@@ -4,9 +4,10 @@
 // vendored from pi-observational-memory with its ledger moved into the records store as the `om`
 // schema), which observes and reflects per memory.schemas.om.observe (always | active | never). The active one triggers
 // compaction; if the journal checkpoint fails, OM renders instead. ./elide.ts drops old tool outputs behind
-// cold-cache gaps. ./memo.ts is a third: OptMem's log and merge tree, in global, project and local
-// logs. ./optmem is UniiChat: the session as one chat that never ends, each request a view of its
-// summary tree plus the current run. This extension adds policy on top.
+// cold-cache gaps. ./optmem is a third: UniiChat, the session as one chat that never ends, each
+// request a view of its summary tree plus the current run. ./notes.ts composes with any of them:
+// global and project logs that outlive sessions, as OptMem's log and merge tree. This extension
+// adds policy on top.
 //
 // Fence, for spawned workers (PI_BOARD_TOPIC set): when usage crosses the threshold, steer the
 // agent once with AGENTS_DIR/_fence.md (finish if within reach, else checkpoint into the ticket
@@ -25,7 +26,7 @@ import observationalMemory from "./om/index.ts";
 import journal from "./journal.ts";
 import elide from "./elide.ts";
 import recall from "./recall.ts";
-import memo from "./memo.ts";
+import notes from "./notes.ts";
 import optmem from "./optmem/index.ts";
 
 const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
@@ -46,7 +47,7 @@ function fenceText(percent: number, topic: string): string {
 
 export default function (pi: ExtensionAPI) {
 	const elider = elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
-	registerMechanisms(pi, [journal(pi), observationalMemory(pi), memo(pi), optmem(pi), elider]);
+	registerMechanisms(pi, [journal(pi), observationalMemory(pi), optmem(pi), elider, notes(pi)]);
 	recall(pi);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;

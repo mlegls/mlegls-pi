@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 process.env.PI_BOARD_DIR = mkdtempSync(join(tmpdir(), "memo-"));
-const m = await import("./memo.ts");
+const m = await import("./notes.ts");
 
 test("cover tiles [0,T) with aligned blocks, within budget, finest at the present", () => {
 	for (const T of [1, 5, 96, 97, 200, 1000, 12345]) {

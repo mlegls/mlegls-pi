@@ -1,22 +1,20 @@
-// memo: memory as OptMem's log and merge tree (VictorTaelin/OptMem), as one of the session's memory
-// mechanisms (/memory memo, or memory.default "memo"). Inactive, it does nothing: no prompt section, no tool.
+// notes: memory that outlives sessions, as OptMem's log and merge tree (VictorTaelin/OptMem). A
+// memory system owning nothing (./mechanism.ts), so it composes with whatever owns compaction and
+// context; on when listed in memory.systems, or by default when enabled in its settings.
 //
-// There are three logs. global is shared by every session on this machine; project by every session
-// in one git repository (keyed by its common dir, so worktrees share it); local by one session and
-// the forks of it (a cursor holds its key). The agent notes one line (≤280 bytes) at a time, to local
-// unless it names another log; a worker can't write global. Each log numbers its notes 0, 1, 2 …;
-// aligned power-of-two blocks of notes ([0,2), [2,4), [0,4) …) are compressed into one line each,
-// bottom-up, forming a binary merge tree: leaves up to RAW_MAX notes compress from the notes
-// themselves, larger blocks from their two halves. A log renders as a cover in at most its wakeLines
-// lines, finest near the present: a block is kept whole iff its size is at most alpha times its age,
-// alpha the smallest that fits (a tilted time frame). recall's zoom opens a block into its halves.
+// There are two logs. global is shared by every session on this machine; project by every session
+// in one git repository (keyed by its common dir, so worktrees share it). The agent notes one line
+// (≤280 bytes) at a time, to project unless it names global; a worker can't write global. Each log
+// numbers its notes 0, 1, 2 …; aligned power-of-two blocks of notes ([0,2), [2,4), [0,4) …) are
+// compressed into one line each, bottom-up, forming a binary merge tree: leaves up to RAW_MAX notes
+// compress from the notes themselves, larger blocks from their two halves. A log renders as a
+// cover in at most its wakeLines lines, finest near the present: a block is kept whole iff its size
+// is at most alpha times its age, alpha the smallest that fits (a tilted time frame). recall's zoom
+// opens a block into its halves.
 //
-// global and project render into the system prompt once per session and again after each
-// compaction, so the prefix stays cached in between.
-// local is the compaction: at compaction the agent is asked, over a replay of its context (as
-// journal's checkpoint does), to note what should outlast the folded history (where the work stands
-// included) and to re-note in project or global what it learned that holds beyond this session; the
-// folded history is then replaced by the local log's cover.
+// Both render into the system prompt once per session and again after each compaction, so the
+// prefix stays cached in between. (Session-local memory belongs to whichever system owns
+// compaction; optmem is OptMem's own successor for it.)
 //
 // Differences from OptMem, because we own the harness: notes and summaries are records of schema
 // "memo" in the shared records store (so search/similar/SQL already reach them); naps run in the
@@ -24,22 +22,15 @@
 // written yet renders as its halves instead of blocking wake. Forgetting is a record too: a summary
 // is live unless a later "forget" names it or a block inside it.
 //
-// Settings: memory.schemas.memo { enabled (default false), wakeLines { global 24, project 48, local 64 },
-// model { provider, id, thinking } (naps; default OM's), compaction { afterTokens, ratio (0.5) },
-// maxOutputTokens (8000, the checkpoint) }.
-import type { Message, ToolCall } from "@earendil-works/pi-ai";
-import { convertToLlm, getAgentDir, type ExtensionAPI, type ExtensionContext, type SessionBeforeCompactEvent, type SessionEntry } from "@earendil-works/pi-coding-agent";
+// Settings: memory.schemas.notes (memory.schemas.memo before it) { enabled (default false),
+// wakeLines { global 24, project 48 }, model { provider, id, thinking } (naps; default OM's) }.
+import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { BranchSession } from "../../lib/records/branch.ts";
-import { readCursor, writeCursor } from "../../lib/records/cursor.ts";
-import type { Renderer } from "../../lib/records/render.ts";
 import { db, write } from "../../lib/records/store.ts";
-import { isActive, type Mechanism, type CompactionView } from "./mechanism.ts";
-import { activeTools, replay } from "./journal.ts";
+import { isActive, type Mechanism } from "./mechanism.ts";
 import { DEFAULTS } from "./om/config.ts";
 import { Runtime } from "./om/runtime.ts";
 import { resolveWorkerStreamSimple } from "./om/agents/worker-stream.ts";
@@ -48,22 +39,19 @@ export const SCHEMA = "memo";
 export const ENTRY_BYTES = 280;
 const RAW_MAX = 16;
 
-export type Scope = "global" | "project" | "local";
-export const SCOPES: Scope[] = ["global", "project", "local"];
+export type Scope = "global" | "project";
+export const SCOPES: Scope[] = ["global", "project"];
+const NAME = "notes";
 
-interface Settings {
-	enabled: boolean; wakeLines: Record<Scope, number>; maxOutputTokens: number;
-	model?: { provider: string; id: string; thinking?: string }; compaction: { afterTokens?: number; ratio?: number };
-}
+interface Settings { enabled: boolean; wakeLines: Record<Scope, number>; model?: { provider: string; id: string; thinking?: string } }
 
 export function settings(cwd: string): Settings {
 	let j: Record<string, any> = {}, om: Record<string, any> = {};
 	for (const path of [join(getAgentDir(), "settings.json"), join(cwd, ".pi", "settings.json")]) {
 		if (!existsSync(path)) continue;
-		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.memo }; om = { ...om, ...s?.om }; } catch {}
+		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.memo, ...s?.notes }; om = { ...om, ...s?.om }; } catch {}
 	}
-	return { enabled: false, maxOutputTokens: 8000, model: om.model, ...j,
-		wakeLines: { global: 24, project: 48, local: 64, ...j.wakeLines }, compaction: { ratio: 0.5, ...j.compaction } };
+	return { enabled: false, model: om.model, ...j, wakeLines: { global: 24, project: 48, ...j.wakeLines } };
 }
 
 // ---------- the tree (pure) ----------
@@ -194,18 +182,10 @@ export function projectOf(cwd: string): string | undefined {
 	return projects.get(cwd);
 }
 
-const LOCAL_KEY = "memo.local";
-/** This branch's local log key; created (as a cursor, so forks inherit it) only when create is set. */
-export function localOf(sm: BranchSession, create = false): string | undefined {
-	let id = readCursor<string>(sm, LOCAL_KEY);
-	if (!id && create) { id = randomUUID(); writeCursor(sm, LOCAL_KEY, id); }
-	return id && "local:" + id;
-}
-
-export function logOf(scope: Scope, cwd: string, sm: BranchSession, create = false): string | undefined {
+export function logOf(scope: Scope, cwd: string): string | undefined {
 	if (scope === "global") return "global";
-	if (scope === "project") { const p = projectOf(cwd); return p && "project:" + p; }
-	return localOf(sm, create);
+	const p = projectOf(cwd);
+	return p && "project:" + p;
 }
 
 // ---------- rendering ----------
@@ -238,23 +218,23 @@ export function zoom(s: State, b: Block): string {
 /** recall's zoom, for the calling session: args [scope, "lo-hi"]. */
 export function zoomFor(ctx: ExtensionContext, scope: string, block: string): string {
 	const b = parseBlock(block);
-	if (!SCOPES.includes(scope as Scope) || !b) return "zoom needs args: [global | project | local, \"lo-hi\"], a block as the memory prints it, like [\"project\", \"16-31\"]";
-	const log = logOf(scope as Scope, ctx.cwd, ctx.sessionManager as unknown as BranchSession);
+	if (!SCOPES.includes(scope as Scope) || !b) return "zoom needs args: [global | project, \"lo-hi\"], a block as the memory prints it, like [\"project\", \"16-31\"]";
+	const log = logOf(scope as Scope, ctx.cwd);
 	return log ? zoom(load(log), b) : "This session has no " + scope + " log.";
 }
 
 const section = (title: string, rendered: string[]) => "### " + title + "\n" + (rendered.join("\n") || "(no notes yet)");
 
 const PROMPT = (worker: boolean, global: string[], project: string[] | undefined, root: string | undefined) => [
-	"## Memory",
+	"## Notes",
 	"",
-	"Your memory is three logs that outlive sessions, compaction and model changes: global (every session on this machine), " +
-	(root ? "project (every session in " + root + ")" : "project (none here: not in a git repository)") + ", and local (this session; it replaces earlier context at compaction). " +
+	"Your notes are two logs that outlive sessions, compaction and model changes: global (every session on this machine) and " +
+	(root ? "project (every session in " + root + ")" : "project (none here: not in a git repository)") + ". " +
 	"Each line is a note (#n date text) or a one-line summary of a block of notes (#lo-hi text); detail decays with age.",
 	"",
-	"Call memo({note, log}) whenever you learn something new or something worth keeping happens: a decision, a fact or insight the user teaches you, " +
+	"Call note({note, log}) whenever you learn something that holds beyond this session: a decision, a fact or insight the user teaches you, " +
 	"anything you learn about their life or preferences, a task worth real effort and how it went, any event of lasting effect. One line, at most " + ENTRY_BYTES + " bytes, standing alone. " +
-	"log is local (the default: this session's work and state), project (true of this repository beyond this session) or global (true of the user or your work in general)" +
+	"log is project (the default: true of this repository) or global (true of the user or your work in general)" +
 	(worker ? "; as a worker you can't write global" : "") + ". Don't note what is already below. Compression happens on its own.",
 	"",
 	"recall searches every note word for word (search with schema \"memo\"); recall q \"zoom\" args [log, \"lo-hi\"] opens a block into its halves, down to the notes.",
@@ -263,30 +243,6 @@ const PROMPT = (worker: boolean, global: string[], project: string[] | undefined
 	"",
 	project ? section("project", project) : "",
 ].join("\n").trimEnd();
-
-// ---------- as a compaction mechanism ----------
-
-const CHECKPOINT = "Your context is about to be compacted: everything before the recent tail will be dropped, and your local memory log, rendered fresh, will stand in for it. " +
-	"Call memo once for each thing in the context above that should outlast it and isn't in memory yet: decisions and their reasons, what was tried and how it went, " +
-	"facts and preferences learned, and where the work in progress stands and what comes next. One line each, at most " + ENTRY_BYTES + " bytes, standing alone. " +
-	"Local by default; anything (including local notes you made earlier) that holds beyond this session, note again in project or global. " +
-	"Don't repeat what memory or your earlier memo calls already hold. If nothing is missing, say so.";
-
-export const memoRenderer: Renderer<CompactionView, { log?: string; state?: State }> = {
-	name: SCHEMA,
-	role: "memory",
-	query(view) {
-		const log = localOf(view.session);
-		return { log, state: log ? load(log) : undefined };
-	},
-	cut({ state }, budget, view) {
-		const lines = state ? wake(state, Number.isFinite(budget) ? budget : 64) : [];
-		return {
-			text: "Earlier context was compacted. What of it lasts is in your local memory log, as of now (#n date text: a note; #lo-hi text: a summary of notes lo..hi):\n\n" + (lines.join("\n") || "(no notes yet)"),
-			details: { kind: SCHEMA, T: state?.notes.length ?? 0, ...(view.prepared as object | undefined) },
-		};
-	},
-};
 
 // ---------- naps ----------
 
@@ -349,97 +305,44 @@ export async function nap(env: NapEnv, cfg: Settings, logs: string[], session: s
 
 // ---------- extension ----------
 
-export default function memo(pi: ExtensionAPI): Mechanism {
+export default function notes(pi: ExtensionAPI): Mechanism {
 	const worker = !!process.env.PI_BOARD_TOPIC;
-	let localLines = 64, busy = false, triggering = false;
 	let frozen: string | undefined;
 	let stop = new AbortController();
-	const sm = (ctx: ExtensionContext) => ctx.sessionManager as unknown as BranchSession;
 	const session = (ctx: ExtensionContext) => ctx.sessionManager.getSessionId();
-	const on = (ctx: ExtensionContext) => settings(ctx.cwd).enabled && isActive(SCHEMA, ctx);
-	const logs = (ctx: ExtensionContext) => SCOPES.flatMap((s) => logOf(s, ctx.cwd, sm(ctx)) ?? []);
+	const logs = (ctx: ExtensionContext) => SCOPES.flatMap((s) => logOf(s, ctx.cwd) ?? []);
 	const napLater = (ctx: ExtensionContext) => {
 		const env: NapEnv = { model: ctx.model, modelRegistry: ctx.modelRegistry, signal: stop.signal };
 		const notify = ctx.hasUI ? ctx.ui.notify.bind(ctx.ui) : undefined;
 		nap(env, settings(ctx.cwd), logs(ctx), session(ctx)).catch((e) => {
 			if (env.signal.aborted) return; // pending blocks wait for the next session
-			try { notify?.("memo: compression failed: " + (e instanceof Error ? e.message : String(e)), "warning"); } catch {}
+			try { notify?.("notes: compression failed: " + (e instanceof Error ? e.message : String(e)), "warning"); } catch {}
 		});
 	};
-	const remember = (ctx: ExtensionContext, text: string, scope: Scope = "local") => {
+	const remember = (ctx: ExtensionContext, text: string, scope: Scope = "project") => {
 		if (scope === "global" && worker) throw new Error("A worker can't write the global log: note it in project, or report it.");
-		const log = logOf(scope, ctx.cwd, sm(ctx), true);
+		const log = logOf(scope, ctx.cwd);
 		if (!log) throw new Error("No " + scope + " log here (not in a git repository).");
 		return { scope, i: note(log, text, session(ctx), ctx.cwd) };
 	};
 
 	pi.on("session_shutdown", () => { stop.abort(); });
-	// The cache breaks at compaction anyway; re-rendering keeps what this session noted to global or project, whose tool calls just left context.
+	// The cache breaks at compaction anyway; re-rendering keeps what this session noted, whose tool calls just left context.
 	pi.on("session_compact", () => { frozen = undefined; });
-
 	pi.on("session_start", (_e, ctx) => {
 		frozen = undefined;
 		if (stop.signal.aborted) stop = new AbortController();
-		localLines = settings(ctx.cwd).wakeLines.local;
-		if (on(ctx)) napLater(ctx);
+		if (isActive(NAME, ctx)) napLater(ctx);
 	});
-
-	pi.on("agent_settled", (_event, ctx) => {
-		const cfg = settings(ctx.cwd);
-		if (triggering || busy || !on(ctx)) return;
-		const u = ctx.getContextUsage();
-		if (!u?.tokens) return;
-		if (u.tokens < (cfg.compaction.afterTokens ?? Math.floor(u.contextWindow * (cfg.compaction.ratio ?? 0.5)))) return;
-		triggering = true;
-		ctx.compact({ onComplete: () => { triggering = false; }, onError: () => { triggering = false; } });
-	});
-
-	/** One turn over the replayed context asking for memo calls; the notes are written before the history is dropped. */
-	async function checkpoint(event: SessionBeforeCompactEvent, ctx: ExtensionContext) {
-		const cfg = settings(ctx.cwd);
-		if (!ctx.model) throw new Error("no active model");
-		const started = Date.now(), leaf = ctx.sessionManager.getLeafId();
-		const { messages, prefixMode } = replay(event, ctx, () => activeTools(pi));
-		messages.push({ role: "user", content: [{ type: "text", text: CHECKPOINT + (event.customInstructions ? "\n\nFocus: " + event.customInstructions : "") }], timestamp: Date.now() });
-		const thinking = pi.getThinkingLevel();
-		const notes: { scope: Scope; i: number }[] = [], rejected: string[] = [];
-		const usage: unknown[] = [];
-		// Models often make one call per turn: answer each round's calls and go on until a round makes none.
-		for (let round = 0; round < 8; round++) {
-			const response = await ctx.modelRegistry.streamSimple(ctx.model, { messages: convertToLlm(messages) as Message[] }, {
-				sessionId: session(ctx), reasoning: thinking === "off" ? undefined : thinking, maxTokens: Math.min(cfg.maxOutputTokens, ctx.model.maxTokens || cfg.maxOutputTokens), signal: event.signal,
-			} as any).result();
-			if (response.stopReason === "error" || response.stopReason === "aborted") throw new Error("checkpoint failed: " + (response.errorMessage ?? response.stopReason));
-			usage.push(response.usage);
-			const calls = response.content.filter((b): b is ToolCall => b.type === "toolCall");
-			if (!calls.length) break;
-			messages.push(response);
-			for (const c of calls) {
-				let out: string;
-				if (c.name !== "memo") out = "Only memo is available now.";
-				else {
-					const a = c.arguments as { note?: string; log?: Scope };
-					try { const r = remember(ctx, String(a.note ?? ""), a.log); notes.push(r); out = "Saved to " + r.scope + " as #" + r.i + "."; }
-					catch (e) { out = e instanceof Error ? e.message : String(e); rejected.push(out); }
-				}
-				messages.push({ role: "toolResult", toolCallId: c.id, toolName: c.name, content: [{ type: "text", text: out }], isError: false, timestamp: Date.now() });
-			}
-		}
-		const current = ctx.sessionManager.getBranch() as SessionEntry[], was = current.findIndex((e) => e.id === leaf);
-		if (was < 0 || current.slice(was + 1).some((e) => e.type !== "custom")) throw new Error("session changed during the checkpoint");
-		localOf(sm(ctx), true); // the render needs a log even when nothing was noted
-		if (notes.length) napLater(ctx);
-		return { notes, rejected, prefixMode, ms: Date.now() - started, usage };
-	}
 
 	pi.registerTool({
-		name: "memo",
-		label: "memo",
-		description: "Record one memory: one line, at most " + ENTRY_BYTES + " bytes, standing alone, in your local log (default), the project's, or the global one. " +
-			"For anything learned or decided of lasting effect. Don't repeat what memory already holds.",
+		name: "note",
+		label: "note",
+		description: "Record one note that outlives this session: one line, at most " + ENTRY_BYTES + " bytes, standing alone, in the project's log (default) or the global one. " +
+			"For anything learned or decided of lasting effect. Don't repeat what your notes already hold.",
 		parameters: Type.Object({
 			note: Type.String({ description: "One line, at most " + ENTRY_BYTES + " bytes." }),
-			log: Type.Optional(Type.Union([Type.Literal("local"), Type.Literal("project"), Type.Literal("global")], { description: "local (default): this session; project: this repository beyond this session; global: the user or your work in general." })),
+			log: Type.Optional(Type.Union([Type.Literal("project"), Type.Literal("global")], { description: "project (default): true of this repository; global: the user or your work in general." })),
 		}),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
 			const r = remember(ctx, params.note, params.log);
@@ -449,20 +352,17 @@ export default function memo(pi: ExtensionAPI): Mechanism {
 	});
 
 	return {
-		renderer: memoRenderer,
-		tools: ["memo"],
+		name: NAME,
+		owns: [],
+		tools: ["note"],
 		prompt(_event, ctx) {
-			// Rendered once per session and per compaction, so the prompt prefix stays cached; local renders into the compaction instead.
+			// Rendered once per session and per compaction, so the prompt prefix stays cached.
 			if (frozen === undefined) {
-				const w = settings(ctx.cwd).wakeLines, project = logOf("project", ctx.cwd, sm(ctx));
+				const w = settings(ctx.cwd).wakeLines, project = logOf("project", ctx.cwd);
 				frozen = PROMPT(worker, wake(load("global"), w.global), project ? wake(load(project), w.project) : undefined, projectOf(ctx.cwd)?.replace(/\/\.git$/, ""));
 			}
 			return frozen;
 		},
-		budget: () => localLines,
 		enabled: (ctx) => settings(ctx.cwd).enabled,
-		prepare: (event, ctx) => checkpoint(event, ctx),
-		begin() { if (busy) return false; busy = true; return true; },
-		end() { busy = false; },
 	};
 }

@@ -1,7 +1,7 @@
 // Memory systems: disjoint, configurable systems for what a session remembers and how its context
 // is built. Several are on at once as long as they don't overlap: each declares the surfaces it
 // owns exclusively (`owns`: "compaction" is what a compaction is, "context" is how each request's
-// messages are built). OM, journal, memo and optmem each own compaction, so they are alternatives;
+// messages are built). OM, journal and optmem each own compaction, so they are alternatives;
 // optmem also owns context, as does elide (a policy over pi's own context); a system owning
 // nothing (notes) composes with anything. Tools and prompt sections stack.
 //
