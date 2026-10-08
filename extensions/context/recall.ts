@@ -28,7 +28,7 @@ const DESCRIPTION = "Recall anything remembered: OM memories, journal notes, eli
 	"SQL (SQLite, read-only; at most 100 rows, long cells cut):\n" +
 	"- records(seq, id, ts, schema, body): append-only; schema is om | journal | memo (notes) | optmem | elided | board | cursor.\n" +
 	"- tags(record → records.seq, key, value, ord): every record has session. om: om.kind (observation | reflection | drop), om.id (the 12-hex memory id), om.timestamp, om.relevance, om.tokenCount. journal: journal.via, journal.model. elided: tool, tokens. board: topic, name, cwd, free tags (decision, blocked, done, …) and board.<field> data.\n" +
-	"- edges(record, src, rel, dst): at → entry:<session>/<entry> (where it was written); cites, source → entries; om reflects, drops → om:<memory id>; journal corrects → records; optmem summarizes → entries (a message's line) or optmem:<key> (a merge's parts).\n" +
+	"- edges(record, src, rel, dst): at → entry:<session>/<entry> (where it was written); cites, source → entries; om reflects, drops → om:<memory id>; journal corrects → records; optmem summarizes → entries (a message's line) or optmem:<key> (a merge's parts); optmem scores, obsoletes, duplicates → optmem:<key> (scored cut).\n" +
 	"- temp branch(pos, id, type, role, tool, text): this session's current branch, oldest first.\n" +
 	"Examples: SELECT r.ts, r.body FROM records r JOIN tags t ON t.record = r.seq AND t.key = 'topic' WHERE r.schema = 'board' AND t.value LIKE 'run/%' ORDER BY r.seq DESC LIMIT 10\n" +
 	"SELECT r.body FROM records r JOIN edges e ON e.record = r.seq AND e.rel = 'at' JOIN branch b ON e.dst LIKE '%/' || b.id WHERE r.schema = 'journal'\n" +
