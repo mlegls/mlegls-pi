@@ -4,6 +4,7 @@ assignee: agent
 priority: 2
 author: session:01a0f324-32e8-732c-96ad-132d2d15485e
 part-of: "[[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]]"
+blocked-by: ["[[projects/mlegls-pi/issues/probe-conflicts-and-prepare-deps-around-integrate]]"]
 ---
 
 Retargeted 2026-10-01: the ab daemon is deleted in the rebuild; the gate belongs to every reconciler and `dispatch` call instead. Its decision and trial evidence below still hold.
@@ -18,3 +19,7 @@ Concept root supervisor (`mail/2d15485e`), 2026-10-01: about six browser workers
 
 
 2026-10-02, from [[projects/mlegls-pi/issues/admit-heavy-checks-against-the-host-budget]]: heavy checks now take host-wide slots through `bin/heavy` over GNU parallel's `sem --id heavy` (FIFO, the caller's own process tree, dead holders reclaimed). A worker gate could be `sem --id workers` the same way. Sharing one pool with heavy checks would mean a worker holding a slot while its batch waits for another, so two ids is probably right; jobserver-style sharing works only if a worker hands its token to its batch.
+
+Contract, 2026-10-08: every worker launch (reconciler phases and `tools.dispatch`) takes a slot from a host-wide pool separate from `bin/heavy`'s, e.g. `sem --id workers -j ${WORKER_SLOTS:-6}`, held for the worker's life and released when it ends or is retired; a launch also waits while memory pressure is high (macOS `memory_pressure` free below a threshold, or swap above one). A waiting launch shows as queued in `reconcile_status` and the tree view.
+
+Tests (approved): (1) with the slot count at 1, a second owner's launch stays queued until the first worker is retired, then starts; (2) with the pressure probe stubbed high, a launch waits, and starts once the stub reports low. Both may use shell workers in place of pi.
