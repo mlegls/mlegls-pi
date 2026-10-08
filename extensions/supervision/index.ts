@@ -9,7 +9,7 @@ import { dispatch, integrate, retire, type Assignment, type Handle } from "../..
 import { childSession } from "../../lib/session/jump";
 import { dataTool } from "../../lib/tool";
 import { mailbox } from "../../lib/board/mailbox";
-import { campaigns, resolveException, start, summary } from "../../lib/reconcile/main";
+import { campaigns, constrain, resolveException, start, summary } from "../../lib/reconcile/main";
 
 const namespace = { name: "supervision", description: "Dispatch wm workers (workmux worktree + tmux window running pi), integrate their branches, retire them" };
 
@@ -71,7 +71,7 @@ export default function (pi: ExtensionAPI) {
 	});
 	dataTool(pi, {
 		name: "reconcile_status", namespace: reconcileNs, readOnly: true,
-		description: "Reconcilers in this repository: running or finished, each node's phase and worker, pending exceptions, moved-out nodes, recent log.",
+		description: "Reconcilers in this repository: running or finished, each node's phase and worker, recorded constraints, pending exceptions, moved-out nodes, recent log.",
 		parameters: Type.Object({ issue: Type.Optional(Type.String()) }),
 		run: (p, ctx) => campaigns(ctx.cwd).filter(s => !p.issue || s.root === p.issue).map(summary),
 	});
@@ -84,6 +84,12 @@ export default function (pi: ExtensionAPI) {
 			target: Type.Optional(Type.String()), message: Type.Optional(Type.String()), note: Type.Optional(Type.String()), summary: Type.Optional(Type.String()),
 		}),
 		run: (p, ctx) => { const { issue, node, ...resolution } = p; resolveException(ctx.cwd, issue, node, resolution); return { queued: true }; },
+	});
+	dataTool(pi, {
+		name: "reconcile_constrain", namespace: reconcileNs,
+		description: "Record a persistent constraint for a node, mail its current worker, and include all its constraints in every later phase's first prompt. Mail does not interrupt the running turn. Constraints survive retries, redispatch and restart.",
+		parameters: Type.Object({ issue: Type.String({ description: "The reconciler's root issue" }), node: Type.String(), text: Type.String() }),
+		run: (p, ctx) => constrain(ctx.cwd, p.issue, p.node, p.text),
 	});
 	// Reconcilers this session owns come back with it: a stopped process resumes from its state.
 	pi.on("session_start", (_event, ctx) => {

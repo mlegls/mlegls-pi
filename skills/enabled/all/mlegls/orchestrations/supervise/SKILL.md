@@ -17,6 +17,8 @@ Execution belongs to the reconciler (`tools.reconcile`). It gets specs to ticket
 3. Resolve exceptions within recorded decisions and your delegated authority with `tools.reconcile_resolve`: `answer` the waiting worker, `retry` the failed phase or `redispatch` the node with a note, or move the node out (`tracker` lifecycle: honest stage, `assignee: human`, problem and recommendation in its body, parent `blocked-by` it when its acceptance depends on it) and resolve `move-out`. A question that would take redesign is a move-out, not a wait. Before relaying a proposed test, load `testing`. At the root, tell the user once per problem, batched with recommendations; when an answer arrives, move the node back in and start the reconciler again.
 4. Finish when every reconciler reports done. Reconcile the tracker with the evidence, then report to your parent, the user at the root: outcomes, moved-out nodes and what resumes them.
 
+Attach persistent node restrictions with `tools.reconcile_constrain({issue, node, text})`; the current worker gets mail and every later phase gets them in its first prompt. A ticket whose first use is the user's own live setup should say in its body what drive and review may and may not redo there.
+
 Between mails, end your turn: the reconciler's mail wakes you. Don't poll or narrate. Work outside the tracker still goes through `tools.dispatch` and `merge` (`multi-agent`).
 
 The user sets the root's concurrency budget; each reconciler's `budget` counts against it.

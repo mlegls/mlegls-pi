@@ -4,10 +4,13 @@
 //   bun lib/reconcile/main.ts run <issue> --owner mail/xxxxxxxx [--budget N]                 foreground
 //   bun lib/reconcile/main.ts status [--cwd DIR]
 //   bun lib/reconcile/main.ts resolve <issue> <node> <json> [--cwd DIR]
+//   bun lib/reconcile/main.ts constrain <issue> <node> TEXT [--cwd DIR]
+import { mail } from "../board/mailbox";
+import { topic } from "../dispatch";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { assertThreadState, load, resolutionsDir, run, stateDir, type State } from "./reconcile.ts";
+import { assertThreadState, load, resolutionsDir, run, stateDir, updateState, type State } from "./reconcile.ts";
 
 const alive = (pid?: number) => { if (!pid) return false; try { process.kill(pid, 0); return true; } catch { return false; } };
 
@@ -36,6 +39,7 @@ export function summary(s: State & { running: boolean }) {
 		root: s.root, backend: s.backend, running: s.running, finished: s.finished ?? null, owner: s.owner, budget: s.budget,
 		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, threadId: c.handle?.threadId, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into }])),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null }])),
+		constraints: s.constraints ?? {},
 		moved: s.moved, log: s.log.slice(-15),
 	};
 }
@@ -48,6 +52,21 @@ export function resolveException(cwd: string, root: string, node: string, resolu
 	writeFileSync(join(resolutionsDir(cwd, root), node + ".json"), JSON.stringify(resolution));
 }
 
+export function constrain(cwd: string, root: string, node: string, text: string) {
+	if (!text.trim()) throw new Error("constraint text must not be empty");
+	const s = updateState(cwd, root, prior => {
+		if (!prior || prior.finished) throw new Error("no active reconciler for " + root);
+		assertThreadState(prior);
+		if (!prior.chains[node] && !prior.exceptions[node] && !prior.collectors[node]) throw new Error(node + " is not an active node in " + root);
+		(prior.constraints ??= {})[node] ??= [];
+		prior.constraints[node].push(text);
+		return prior;
+	});
+	const worker = s.chains[node]?.handle;
+	if (worker) mail(topic(worker), "Constraint from the supervisor (applies throughout this node's work):\n\n" + text, { name: "reconcile/" + root });
+	return { recorded: true, mailed: !!worker };
+}
+
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
 		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, cwd: { type: "string", default: process.cwd() } } });
@@ -57,5 +76,6 @@ if (import.meta.main) {
 	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, budget: Number(values.budget) })));
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
 	else if (cmd === "resolve" && root && rest.length === 2) resolveException(cwd, root, rest[0], JSON.parse(rest[1]));
-	else { console.error("usage: main.ts start|run <issue> --owner mail/x [--budget N] | status | resolve <issue> <node> <json>"); process.exit(2); }
+	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(constrain(cwd, root, rest[0], rest[1])));
+	else { console.error("usage: main.ts start|run <issue> --owner mail/x [--budget N] | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT"); process.exit(2); }
 }

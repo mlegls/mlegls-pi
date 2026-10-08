@@ -10,7 +10,8 @@
 //
 // Steps are idempotent: worker handles are deterministic, a launched handle whose worktree exists is reused,
 // and a node already done in its parent's branch is never integrated again. State on disk is a cache of what
-// was launched and decided; deleting it loses budgets and history, not correctness.
+// was launched and decided, including owner constraints; preserve it across restarts.
+import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { basename, join, relative, resolve } from "node:path";
@@ -85,6 +86,8 @@ export interface State {
 	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
 	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
 	chains: Record<string, Chain>;
+	/** Owner restrictions survive chain replacement and reconciler restarts. */
+	constraints?: Record<string, string[]>;
 	exceptions: Record<string, Exception>;
 	/** Test files each branch's integrations must keep passing. */
 	tests: Record<string, string[]>;
@@ -105,6 +108,36 @@ export const resolutionsDir = (cwd: string, root: string) => join(stateDir(cwd),
 export function load(cwd: string, root: string): State | undefined {
 	const f = stateFile(cwd, root);
 	return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : undefined;
+}
+
+/** State has two writers: the loop and constrain. Serialize read/modify/rename so neither loses constraints. */
+export function updateState(cwd: string, root: string, change: (prior: State | undefined) => State): State {
+	const file = stateFile(cwd, root);
+	mkdirSync(stateDir(cwd), { recursive: true });
+	// SQLite supplies a process-shared, crash-released write lock; the public state stays JSON.
+	const lock = new Database(file + ".lock.sqlite", { create: true });
+	try {
+		lock.exec("PRAGMA busy_timeout = 5000");
+		return lock.transaction(() => {
+			const s = change(load(cwd, root));
+			writeFileSync(file + ".tmp", JSON.stringify(s, null, 1));
+			renameSync(file + ".tmp", file);
+			return s;
+		}).immediate();
+	} finally { lock.close(); }
+}
+
+export function saveState(s: State): void {
+	updateState(s.cwd, s.root, prior => {
+		s.constraints = prior?.constraints ?? s.constraints;
+		return s;
+	});
+}
+
+/** Read at launch, including after checkout preparation, rather than caching at the preceding phase. */
+export function constrainedPrompt(cwd: string, root: string, node: string, prompt: string): string {
+	const constraints = load(cwd, root)?.constraints?.[node] ?? [];
+	return constraints.length ? prompt + "\n\nConstraints from the supervisor (apply throughout this node's work):\n\n" + constraints.join("\n\n") : prompt;
 }
 
 const finished = (i: Issue) => i.done || !!i.archived;
@@ -130,7 +163,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
 	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
-	const save = () => { const f = stateFile(cwd, o.root); writeFileSync(f + ".tmp", JSON.stringify(s, null, 1)); renameSync(f + ".tmp", f); };
+	const save = () => saveState(s);
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	// An owner that has closed hands over to whichever session holds the project's supervisor role.
 	// To a worker through its own board topic (it subscribes with wake), not typed into its terminal: a send-back
@@ -255,8 +288,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		} finally { launching--; }
 	}
 	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>): Promise<Handle> {
-		const agentName = await pick(role, issue, prompt, only);
-		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, prepare, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
+		const restrict = (text: string) => issue ? constrainedPrompt(cwd, s.root, issue.slug, text) : text;
+		const agentName = await pick(role, issue, restrict(prompt), only);
+		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
