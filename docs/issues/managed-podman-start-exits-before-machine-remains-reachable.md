@@ -4,7 +4,7 @@ assignee: agent
 author: "session:ccea9429-e217-4757-b9bc-ea647fbf07f0"
 ---
 
-Done: in `~/dev/pi-processes` (fork `mlegls/pi-processes`), a managed command is finalized when its leader exits, and processes left in its group keep running and are named in the completion notice. First confirm the cause with the repro below. A test there starts a command that leaves a daemon in its group and shows the record finishes, the daemon survives, and the notice names it. Then a managed `podman machine start` leaves the machine reachable.
+Done: in `~/dev/pi-processes` (fork `mlegls/pi-processes`), a managed command is finalized when its leader exits, and processes left in its group keep running and are named in the completion notice. First confirm the cause with the repro below. A test there starts a command that leaves a daemon in its group and shows the record finishes, the daemon survives, and the notice names it. Then a managed `podman machine start` leaves the machine reachable. `65ac227` is upstream PR mjakl/pi-processes#7 (open, unreviewed); the fix lands there as a revision of that PR, on branch `stop-leftover-group-members`, so upstream never gets the kill behaviour.
 
 During SCM `settle-through-arkhai-payments` real-ledger setup, managed `podman machine start` reported exit 0 after 25 seconds. The next `podman ps` and managed `bun run ledger:local` failed to connect to `127.0.0.1:62901` (connection refused). Machine list showed no running machine. Repeating startup inside one managed command that continued into ledger setup and the long-lived payments HTTP service worked; its containers and `/health` became reachable.
 
