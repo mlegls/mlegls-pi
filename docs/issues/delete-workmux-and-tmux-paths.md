@@ -3,7 +3,6 @@ stage: ticket
 assignee: agent
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 part-of: "[[projects/mlegls-pi/issues/thread-registry-on-zmx]]"
-blocked-by: ["[[projects/mlegls-pi/issues/thread-commands-in-pi]]", "[[projects/mlegls-pi/issues/tree-sidebar-over-threads]]"]
 priority: 2
 ---
 
