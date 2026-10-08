@@ -32,3 +32,7 @@ At the tested revision, run `bun test lib/reconcile/constraints.test.ts` from a 
 ## Cleanup
 
 The foreground runner exited; no driver-started service, browser, or external deployment remains. Temporary target cleanup is provided by the committed fixture according to the setup handoff, not independently inspected.
+
+## Review
+
+Read the diff (e1584cd) against the ticket contract. `constrain` (tool, `main.ts constrain`) records under the node in the state file under a SQLite-held write lock, so the loop's `saveState` cannot erase it (it re-reads prior constraints), mails the node's current worker, and rejects empty text or inactive nodes. `launchNow` appends constraints to the launch prompt and to the prepared prompt (read after checkout preparation, so a constraint recorded during preparation still lands); every launch carrying an issue (implement, retry, redispatch, drive, review, continuation) goes through it. `reconcile_status` shows them via `summary`. The skill lines are present. Exception-handler launches carry no issue and so no node constraints; that is outside the ticket's listed phases. No defects found, no repairs. Reran `bun test lib/reconcile`: 3 pass, 0 fail. The test's fixture calls `constrainedPrompt` from its own prepare, so `launchNow`'s wiring is read, not exercised; the CLI/tool wrappers likewise.
