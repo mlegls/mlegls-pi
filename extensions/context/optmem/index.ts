@@ -65,7 +65,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 	const branchOf = (ctx: ExtensionContext) => ctx.sessionManager.getBranch() as SessionEntry[];
 
 	const env = (ctx: ExtensionContext): Env => {
-		const notify = ctx.hasUI ? ctx.ui.notify.bind(ctx.ui) : undefined;
+		const notify = ctx.hasUI ? ctx.ui.notify.bind(ctx.ui) : (m: string) => console.error(m); // print mode: stderr
 		return {
 			session: ctx.sessionManager.getSessionId(), sm: sm(ctx), model: ctx.model, modelRegistry: ctx.modelRegistry, signal: stop.signal,
 			turn: () => ({ systemPrompt: ctx.getSystemPrompt(), tools: activeTools(pi) }),

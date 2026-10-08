@@ -52,3 +52,13 @@ test("the view goes in 4-line blocks; the Anthropic mark sits on the last whole 
 	expect(JSON.stringify(out).match(/cache_control/g)).toHaveLength(4);
 	expect(markView({ input: [] })).toEqual({ input: [] });
 });
+
+test("scored: a reply's overlays are cut out of its line, named lines before it only", () => {
+	const c: any = new Chat(2, { ...settings(tmpdir()), cut: "scored" });
+	c.msgs = Array.from({ length: 10 }, (_, k) => ({ kind: "user", text: "m" + k, entry: "e" + k, k: 0, date: "", at: k }));
+	const got = c.parse("user: did X. obsoletes: 0+1 2+2\nduplicates: 4+1, 9+1", 6);
+	expect(got.text).toBe("user: did X.");
+	expect(got.overlays).toEqual([[c.key([0, 0]), "obsoletes"], [c.key([1, 1]), "obsoletes"], [c.key([0, 4]), "duplicates"]]);
+	const due: any = new Chat(2, { ...settings(tmpdir()), cut: "due" });
+	expect(due.parse("a. obsoletes: 0+1", 6).text).toBe("a. obsoletes: 0+1");
+});

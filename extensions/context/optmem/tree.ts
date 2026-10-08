@@ -14,9 +14,10 @@
 // cache entry dies. Only merges are stored (leaves past upTo are implicit), so it is saved once per batch.
 //
 // cut "scored" keeps the tree and the sawtooth but weighs each candidate by its stored loss (the
-// chance that the merge drops a detail still needed, judged once when the merge is built): it folds
-// the group with the highest due / (LOSS_FLOOR + loss), so lossless merges go early and lossy ones
-// late, still oldest first among equals. A batch also turns every line some later message
+// chance that the merge drops a detail still needed, judged once when the merge is built) and by
+// the share of its bytes it frees (GreedyDual-Size): it folds the group with the highest
+// due · max(freed share, MIN_SHARE) / (LOSS_FLOOR + loss), so lossless, shrinking merges go early
+// and lossy or useless ones late, still oldest first among equals. A batch also turns every line some later message
 // obsoleted or repeated into a stub (overlays), before merging anything; stubs are kept in the
 // view, so they too change only at batches.
 
@@ -40,6 +41,8 @@ export type Cut = "due" | "scored";
 /** A scored cut's loss floor (a lossless merge is 1/LOSS_FLOOR times as due), and the loss assumed while unscored. */
 export const LOSS_FLOOR = 0.1;
 export const UNSCORED = 0.5;
+/** The freed share a merge that frees nothing (or grows, over a stub) counts as, so it still happens once old enough. */
+export const MIN_SHARE = 0.05;
 
 export const emptyView = (b: number): View => ({ b, nodes: [], upTo: 0, shrinking: false });
 
@@ -110,7 +113,10 @@ export function advance(v: View, T: number, t: Texts, high: number, low: number,
 			if (!t.built(up)) continue;
 			const last = (i + b) * b ** l - 1;
 			let due = (T - last) / b ** l;
-			if (cut === "scored") due /= LOSS_FLOOR + (t.loss?.(up) ?? UNSCORED);
+			if (cut === "scored") {
+				const was = lens.slice(k, k + b).reduce((a, x) => a + x, 0), now = bytes(line(b, up, t.text(up))) + 1;
+				due *= Math.max((was - now) / was, MIN_SHARE) / (LOSS_FLOOR + (t.loss?.(up) ?? UNSCORED));
+			}
 			if (due > bestDue) { bestDue = due; best = k; } // strict: the oldest of equals wins
 		}
 		if (best < 0) break;

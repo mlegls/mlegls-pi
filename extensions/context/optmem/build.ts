@@ -19,9 +19,9 @@
 // short prompt (./prompt.ts).
 //
 // cut "scored" (./tree.ts) adds two kinds of record: each merge's loss, judged by Jev once
-// (./score.ts; a loss record "scores" the merge), and overlays: a leaf call may name earlier lines
-// its message obsoletes or repeats, recorded as obsoletes/duplicates edges from the leaf to them.
-// Messages short enough to need no call never name any.
+// (./score.ts; a loss record "scores" the merge), and overlays: a call may name earlier lines its
+// input obsoletes or repeats, recorded as obsoletes/duplicates edges from the node to them. A short
+// message needs no call of its own, so its overlays wait for the first merge over it that does.
 import { getAgentDir, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -93,10 +93,11 @@ function headBytes(s: string, max: number): string {
 	return buf.subarray(0, max).toString("utf8").replace(/\uFFFD$/, "");
 }
 
-const OVERLAY_NOTE = "\nThen, only if this message makes earlier lines of <chat> wholly obsolete (a newer\nversion of the same file or plan, a reversed decision, an error now fixed) or\nrepeats them, add a line for each kind, naming those lines exactly as <chat> does:\nobsoletes: 12+1 40+2\nduplicates: 7+1\nMost messages make nothing obsolete; then add nothing.";
-const OVERLAY = /^(obsoletes|duplicates):\s*(.*)$/i;
+const OVERLAY_NOTE = (what: string) => "\nThen, only if " + what + " makes earlier lines of <chat> wholly obsolete (a newer\nversion of the same file or plan, a reversed decision, an error now fixed) or\nrepeats them, add a line for each kind, naming those lines exactly as <chat> does:\nobsoletes: 12+1 40+2\nduplicates: 7+1\nMost messages make nothing obsolete; then add nothing.";
+/** Models put it on its own line or at the end of theirs. */
+const OVERLAY = /\b(obsoletes|duplicates):\s*((?:\d+\+\d+[\s,;]*)+)/gi;
 type Rel = "obsoletes" | "duplicates";
-const STUB: Record<Rel, (by: number) => string> = { obsoletes: (by) => "(obsolete: superseded by message " + by + ")", duplicates: (by) => "(repeated in message " + by + ")" };
+const STUB: Record<Rel, (by: string) => string> = { obsoletes: (by) => "(obsolete: superseded in " + by + ")", duplicates: (by) => "(repeated in " + by + ")" };
 
 const oxford = (xs: string[]) => xs.length <= 2 ? xs.join(" and ") : xs.slice(0, -1).join(", ") + " and " + xs.at(-1);
 
@@ -113,7 +114,7 @@ export class Chat {
 	private frontier = 0;
 	/** Scored cut: each merge's loss, and each overlaid node's overlay, by node key. */
 	private losses = new Map<string, number>();
-	private overlays = new Map<string, { rel: Rel; by: number }>();
+	private overlays = new Map<string, { rel: Rel; by: Pair }>();
 	private scoreQueue: Pair[] = [];
 	private scoreQueued = new Set<string>();
 	private scoring = 0;
@@ -165,7 +166,9 @@ export class Chat {
 
 	stub(p: Pair, T: number): string | undefined {
 		const o = this.overlays.get(this.key(p));
-		return o && o.by < T ? STUB[o.rel](o.by) : undefined;
+		if (!o) return undefined;
+		const [s, n] = span(this.b, o.by);
+		return s + n <= T ? STUB[o.rel](s + "+" + n) : undefined;
 	}
 
 	readonly texts: Texts;
@@ -185,11 +188,11 @@ export class Chat {
 			this.losses.clear(); this.overlays.clear(); this.scoreQueue = []; this.scoreQueued.clear();
 			for (const r of visible(env.sm, chainRecords(env.sm, SCHEMA), branch as unknown as { id: string }[])) {
 				const tag = (key: string) => r.record.tags.find((t) => t.key === key)?.value;
-				const k = tag("optmem.key"), scores = tag("optmem.scores"), i = tag("optmem.i");
+				const k = tag("optmem.key"), scores = tag("optmem.scores"), l = tag("optmem.l"), i = tag("optmem.i");
 				if (typeof scores === "string") { this.losses.set(scores, Number(tag("optmem.loss"))); continue; }
 				if (typeof k === "string") this.stored.set(k, r.record.body);
-				for (const e of r.edges) if ((e.rel === "obsoletes" || e.rel === "duplicates") && typeof i === "number")
-					this.overlays.set(e.dst.slice(SCHEMA.length + 1), { rel: e.rel, by: i });
+				for (const e of r.edges) if ((e.rel === "obsoletes" || e.rel === "duplicates") && typeof l === "number" && typeof i === "number")
+					this.overlays.set(e.dst.slice(SCHEMA.length + 1), { rel: e.rel, by: [l, i] });
 			}
 		}
 		else for (const p of retry) this.settle(p);
@@ -276,7 +279,7 @@ export class Chat {
 			this.build(p, env).then(({ text, overlays }) => {
 				if (gen !== this.gen) return; // the path changed; the record is there for whoever returns
 				this.stored.set(k, text);
-				for (const [target, rel] of overlays) this.overlays.set(target, { rel, by: p[1] });
+				for (const [target, rel] of overlays) this.overlays.set(target, { rel, by: p });
 				this.settle(p);
 				this.waiters = this.waiters.filter((w) => { if (this.ready(w.upTo)) { w.done(); return false; } return true; });
 			}).catch((e) => {
@@ -317,28 +320,28 @@ export class Chat {
 		const [s, n] = span(this.b, p);
 		if (p[0] === 0) {
 			const m = this.msgs[s]!;
-			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\n<input>\n" + m.kind + ": " + m.text + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE : "");
+			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\n<input>\n" + m.kind + ": " + m.text + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE("this message") : "");
 		}
 		const kids = children(this.b, p);
 		const names = kids.map((c) => { const [cs, cn] = span(this.b, c); return cs + "+" + cn; });
 		return "Compaction: merge lines " + oxford(names) + ", adjacent, into one line of at most\n" + NODE_BYTES + " bytes (about 70 words), the length of this ruler:\n" + RULER +
 			"\n<chat> may hold their messages, " + s + " to " + (s + n - 1) + ", in more detail: take details\nof them from there too.\n<input>\n" +
-			kids.map((c) => line(this.b, c, this.resolve(c)!)).join("\n") + "\n</input>";
+			kids.map((c) => line(this.b, c, this.resolve(c)!)).join("\n") + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE("what these lines say") : "");
 	}
 
-	/** A leaf reply's line, and the overlays it names (scored cut): lines before message s, by node key. */
+	/** A reply's line, and the overlays it names (scored cut): lines before message s, by node key. */
 	private parse(reply: string, s: number): { text: string; overlays: [string, Rel][] } {
-		const keep: string[] = [], overlays: [string, Rel][] = [];
-		for (const l of reply.split("\n")) {
-			const m = this.cfg.cut === "scored" ? OVERLAY.exec(l.trim()) : null;
-			if (!m) { keep.push(l); continue; }
-			for (const nm of m[2]!.split(/[\s,]+/)) {
+		const overlays: [string, Rel][] = [];
+		if (this.cfg.cut !== "scored") return { text: reply, overlays };
+		const text = reply.replace(OVERLAY, (_all, rel: string, names: string) => {
+			for (const nm of names.match(/\d+\+\d+/g) ?? []) {
 				const [id, n] = nm.split("+").map(Number);
 				const q = nodeAt(this.b, id!, n!, s);
-				if (typeof q !== "string") overlays.push([this.key(q), m[1]!.toLowerCase() as Rel]);
+				if (typeof q !== "string") overlays.push([this.key(q), rel.toLowerCase() as Rel]);
 			}
-		}
-		return { text: keep.join("\n").trim(), overlays };
+			return "";
+		});
+		return { text: text.trim(), overlays };
 	}
 
 	private async build(p: Pair, env: Env): Promise<{ text: string; overlays: [string, Rel][] }> {
@@ -363,7 +366,7 @@ export class Chat {
 			} as any).result();
 			if (msg.stopReason === "error" || msg.stopReason === "aborted") throw new Error(msg.errorMessage ?? msg.stopReason);
 			const reply = (msg.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n").trim().replace(/^\d+\+\d+\|/, "");
-			const got = p[0] === 0 ? this.parse(reply, s) : { text: reply, overlays: [] };
+			const got = this.parse(reply, s);
 			const text = got.text;
 			if (!text) throw new Error("empty reply");
 			if (best === undefined || bytes(text) < bytes(best.text)) best = got;
