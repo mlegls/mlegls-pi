@@ -29,6 +29,7 @@ import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
+import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
 import { close, declaredGates, heldByRed, mainRed, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -503,20 +504,28 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			if (!told) { note("landing " + slug + " waits for a green main"); tellOwner("landing " + slug + " waits: main is red.\n\n" + red); }
 			await Bun.sleep(60_000);
 		}
-		const before = git(into, "rev-parse", "HEAD");
+		let before = git(into, "rev-parse", "HEAD"), head = git(h.path, "rev-parse", "HEAD");
 		try {
-			await locked(() => integrate(h, { cwd: into, keep: true, prepare: async worker => {
-				const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), { cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout });
-				// A malformed issue file would stop every reconciler's snapshot once it lands: send it back instead.
-				trackerParses(worker.path);
-				for (const gate of declaredGates(worker.path)) run(["bash", "-lc", gate.cmd], gate.timeout);
-				for (const file of new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])) { const cmd = testRun(worker.path, file); if (cmd) run(cmd); }
-				const packet = c.self || !c.evidence ? undefined : evidencePacket(worker.path, c.evidence);
-				const file = join(worker.path, relative(pathOf(c.into), issue.file));
-				close(worker.path, existsSync(file) ? file : issue.file.replace(cwd, worker.path), slug, packet?.path);
-			} }));
+			const failure = await locked(async () => {
+				before = git(into, "rev-parse", "HEAD");
+				head = git(h.path, "rev-parse", "HEAD");
+				const conflict = landingConflict(h.path, before, head);
+				if (conflict) return conflict;
+				await integrate(h, { cwd: into, keep: true, prepare: async worker => {
+					prepareLandingDependencies(worker.path, head);
+					const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), { cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout });
+					// A malformed issue file would stop every reconciler's snapshot once it lands: send it back instead.
+					trackerParses(worker.path);
+					for (const gate of declaredGates(worker.path)) run(["bash", "-lc", gate.cmd], gate.timeout);
+					for (const file of new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])) { const cmd = testRun(worker.path, file); if (cmd) run(cmd); }
+					const packet = c.self || !c.evidence ? undefined : evidencePacket(worker.path, c.evidence);
+					const file = join(worker.path, relative(pathOf(c.into), issue.file));
+					close(worker.path, existsSync(file) ? file : issue.file.replace(cwd, worker.path), slug, packet?.path);
+				} });
+			});
+			if (failure) return failure;
 		} catch (e: any) {
-			return e instanceof MergeConflict ? "merge conflict in " + (e as any).files?.join(", ") : String(e?.message ?? e) + "\n" + String(e?.stdout ?? "").slice(-3000) + String(e?.stderr ?? "").slice(-3000);
+			return e instanceof MergeConflict ? conflictDetails(h.path, before, git(h.path, "merge-base", before, head), e.files) : String(e?.message ?? e) + "\n" + String(e?.stdout ?? "").slice(-3000) + String(e?.stderr ?? "").slice(-3000);
 		}
 		s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
 		const landed = git(into, "diff", "--name-only", before, "HEAD").split("\n").filter(Boolean);
@@ -624,7 +633,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (failure) {
 			c.retries.integrate = (c.retries.integrate ?? 0) + 1;
 			if (c.retries.integrate > BUDGET.integrate) return raise(slug, "integration failed " + BUDGET.integrate + " times", failure, issues);
-			await sendChild(topic(h), "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + failure.slice(-5000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
+			await sendChild(topic(h), "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + failure + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
 			note("integration of " + slug + " failed (" + c.retries.integrate + "), sent back: " + failure.split("\n")[0]);
 			save();
 		}
