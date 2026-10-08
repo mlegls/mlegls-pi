@@ -24,3 +24,10 @@ Evidence so far:
 - **Keeps the worker alive:** it wraps pi's uncaughtException handlers so an EPIPE no longer exits. That loses one stream's output instead of the session.
 
 Likely cause, 2026-10-06: outline-read's model fallback (`lib/outline-read/outline/model.ts`, used for a large file without a structural outline) spawns `pi` and writes the numbered file to its stdin, with no error listener on stdin. Two entries at 16:17:49 and 16:17:51, in different workers, each show a direct child spawned that same second and already a zombie: a short-lived child that exited without reading its stdin. In Bun, `stdin.end()` of about 2MB to a child that exits without reading raises an uncaught EPIPE; with an error listener it doesn't. The listener is now there. Keep the wrapper and the recording until epipe.jsonl stays empty for a few days of worker traffic, then drop both.
+
+After the fix (61e3b15, 2026-10-06 17:15 UTC), epipe.jsonl went from 59 entries on 10-06 to 3 on 10-07, in Concept workers started after the fix landed. So the outline-read listener was most of it, not all. All three were swallowed, and stdout/stderr were healthy ttys. Each shows the same pattern: a direct child spawned in the same second, already defunct, and spawned alongside a tool call:
+- 06:32:54, `hub-release-map-leaves-a-tall-empty-band-review-3`: first buffered write after construction (`onConstructed → clearBuffer → underscoreWriteFast`).
+- 12:36:36, `bound-copyright-aware-release-selection-implement-d`: `end → _destroy`, beside a bash tool child `git add … && git commit …` started that second.
+- 15:07:15, `list-outside-references-in-a-references-playground-implement-1`: `end → _destroy`, a second after managed `mise run test:affected` started.
+
+In this repo the only stdin writers, outline-read's `runPi` and `extensions/context/om/clipboard.ts`, both have error listeners. The remaining writer is something else that spawns a short-lived child per tool call and writes to it: another extension, pi core or a dependency. The stacks are `internal:fs/streams`, a Bun fs-backed Writable; whether that is how Bun backs node:child_process stdin is not checked.
