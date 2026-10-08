@@ -30,3 +30,7 @@ From the tested revision, run `mise run setup`, then `bun docs/attachments/probe
 
 No product friction encountered. Fixture CLI provides the actual child message and task order as structured output, so no browser or screenshots were needed. Coverage is the four documented seeded local Git journeys, not a live worker/model session or an exhaustive manifest/lockfile matrix. The obsolete resume/decompose paragraph is outside the contract. Both processes finished; fixture-owned targets are documented as automatically removed. No servers or external resources were started.
 
+
+## Review
+
+Diff read against the ticket; landing.test.ts passes and tsc is clean. One repair: the 5000-character cap on the integration-failure message to the child, dropped by the change, is restored (head-truncated, so a conflict keeps its header and first files). Stories unchanged: all held. Cost caveat: landing.test.ts runs the reconciler on seeded Git fixtures, ~7 s per case.
