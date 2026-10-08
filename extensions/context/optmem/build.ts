@@ -17,6 +17,11 @@
 // A compaction uses the turns' system prompt and tools (never called) when it runs on the turn
 // model, so both read one cache entry; on another model nothing is shared, so it gets its own
 // short prompt (./prompt.ts).
+//
+// cut "scored" (./tree.ts) adds two kinds of record: each merge's loss, judged by Jev once
+// (./score.ts; a loss record "scores" the merge), and overlays: a leaf call may name earlier lines
+// its message obsoletes or repeats, recorded as obsoletes/duplicates edges from the leaf to them.
+// Messages short enough to need no call never name any.
 import { getAgentDir, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -28,7 +33,8 @@ import { resolveWorkerStreamSimple } from "../om/agents/worker-stream.ts";
 import { chatParts, markView } from "./cache.ts";
 import { messagesOf, msgKey, source, type Msg } from "./log.ts";
 import { COMPACTOR_PROMPT } from "./prompt.ts";
-import { advance, bytes, children, emptyView, line, NODE_BYTES, nodesAt, parent, PLACEHOLDER, span, type Pair, type Texts, type View } from "./tree.ts";
+import { lossOf } from "./score.ts";
+import { advance, bytes, children, emptyView, line, NODE_BYTES, nodeAt, nodesAt, parent, PLACEHOLDER, span, type Cut, type Pair, type Texts, type View } from "./tree.ts";
 
 export const SCHEMA = "optmem";
 const VERSION = "v1";
@@ -47,6 +53,10 @@ export interface Settings {
 	model?: { provider: string; id: string; thinking?: string };
 	/** "auto": the turns' when the compactor runs on the turn model, else its own. */
 	systemPrompt: "auto" | "turn" | "own";
+	/** "due": UniiChat's, by age alone; "scored": by age over each merge's Jev-judged loss, with overlays. */
+	cut: Cut;
+	/** The classifier for cut "scored" (default: Jev, wherever there are credentials). */
+	scorer?: { provider: string; id: string };
 }
 
 export function settings(cwd: string): Settings {
@@ -56,7 +66,7 @@ export function settings(cwd: string): Settings {
 		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.optmem }; om = { ...om, ...s?.om }; } catch {}
 	}
 	return {
-		enabled: true, fanout: 2, concurrency: 8, retries: 5, waitSeconds: 30, tailBytes: 128_000, systemPrompt: "auto", model: om.model, ...j,
+		enabled: true, fanout: 2, cut: "due", concurrency: 8, retries: 5, waitSeconds: 30, tailBytes: 128_000, systemPrompt: "auto", model: om.model, ...j,
 		view: { high: 128_000, low: 64_000, ...j.view }, compactorView: { high: 32_000, low: 16_000, ...j.compactorView },
 	};
 }
@@ -83,6 +93,11 @@ function headBytes(s: string, max: number): string {
 	return buf.subarray(0, max).toString("utf8").replace(/\uFFFD$/, "");
 }
 
+const OVERLAY_NOTE = "\nThen, only if this message makes earlier lines of <chat> wholly obsolete (a newer\nversion of the same file or plan, a reversed decision, an error now fixed) or\nrepeats them, add a line for each kind, naming those lines exactly as <chat> does:\nobsoletes: 12+1 40+2\nduplicates: 7+1\nMost messages make nothing obsolete; then add nothing.";
+const OVERLAY = /^(obsoletes|duplicates):\s*(.*)$/i;
+type Rel = "obsoletes" | "duplicates";
+const STUB: Record<Rel, (by: number) => string> = { obsoletes: (by) => "(obsolete: superseded by message " + by + ")", duplicates: (by) => "(repeated in message " + by + ")" };
+
 const oxford = (xs: string[]) => xs.length <= 2 ? xs.join(" and ") : xs.slice(0, -1).join(", ") + " and " + xs.at(-1);
 
 export class Chat {
@@ -96,9 +111,21 @@ export class Chat {
 	private waiters: { upTo: number; done: () => void }[] = [];
 	private cview: View;
 	private frontier = 0;
+	/** Scored cut: each merge's loss, and each overlaid node's overlay, by node key. */
+	private losses = new Map<string, number>();
+	private overlays = new Map<string, { rel: Rel; by: number }>();
+	private scoreQueue: Pair[] = [];
+	private scoreQueued = new Set<string>();
+	private scoring = 0;
 	env?: Env;
 
-	constructor(readonly b: number, readonly cfg: Settings) { this.cview = emptyView(b); }
+	constructor(readonly b: number, readonly cfg: Settings) {
+		this.cview = emptyView(b);
+		this.texts = {
+			text: (p) => this.resolve(p) ?? PLACEHOLDER, built: (p) => this.resolve(p) !== undefined,
+			...(cfg.cut === "scored" ? { loss: (p: Pair) => this.loss(p), stub: (p: Pair, T: number) => this.stub(p, T) } : {}),
+		};
+	}
 
 	get T() { return this.msgs.length; }
 
@@ -130,7 +157,18 @@ export class Chat {
 		return out;
 	}
 
-	texts: Texts = { text: (p) => this.resolve(p) ?? PLACEHOLDER, built: (p) => this.resolve(p) !== undefined };
+	/** A merge's loss: recorded, or 0 when it is its children word for word. */
+	loss(p: Pair): number | undefined {
+		const k = this.key(p);
+		return this.losses.get(k) ?? (this.stored.has(k) || this.resolve(p) === undefined ? undefined : 0);
+	}
+
+	stub(p: Pair, T: number): string | undefined {
+		const o = this.overlays.get(this.key(p));
+		return o && o.by < T ? STUB[o.rel](o.by) : undefined;
+	}
+
+	readonly texts: Texts;
 
 	/** Read the branch: load its recorded nodes when the path changed, then queue what its new messages need. */
 	sync(branch: readonly SessionEntry[], env: Env) {
@@ -144,9 +182,14 @@ export class Chat {
 		if (!same || !old.length) {
 			this.gen++;
 			this.stored.clear(); this.resolved.clear(); this.queue = []; this.queued.clear(); this.frontier = 0; this.cview = emptyView(this.b);
+			this.losses.clear(); this.overlays.clear(); this.scoreQueue = []; this.scoreQueued.clear();
 			for (const r of visible(env.sm, chainRecords(env.sm, SCHEMA), branch as unknown as { id: string }[])) {
-				const k = r.record.tags.find((t) => t.key === "optmem.key")?.value;
+				const tag = (key: string) => r.record.tags.find((t) => t.key === key)?.value;
+				const k = tag("optmem.key"), scores = tag("optmem.scores"), i = tag("optmem.i");
+				if (typeof scores === "string") { this.losses.set(scores, Number(tag("optmem.loss"))); continue; }
 				if (typeof k === "string") this.stored.set(k, r.record.body);
+				for (const e of r.edges) if ((e.rel === "obsoletes" || e.rel === "duplicates") && typeof i === "number")
+					this.overlays.set(e.dst.slice(SCHEMA.length + 1), { rel: e.rel, by: i });
 			}
 		}
 		else for (const p of retry) this.settle(p);
@@ -160,6 +203,7 @@ export class Chat {
 	/** A node became available (or arrived): queue it if unbuilt, else see whether its parent is ready. */
 	private settle(p: Pair) {
 		if (this.resolve(p) === undefined) { if (p[0] === 0) this.enqueue(p); return; }
+		if (this.cfg.cut === "scored" && p[0] && this.loss(p) === undefined) this.enqueueScore(p);
 		const q = parent(this.b, p);
 		const [s, n] = span(this.b, q);
 		if (s + n > this.T) return;
@@ -173,6 +217,34 @@ export class Chat {
 		if (this.queued.has(k) || this.failed.has(k)) return;
 		this.queued.add(k);
 		this.queue.push(p);
+	}
+
+	private enqueueScore(p: Pair) {
+		const k = this.key(p);
+		if (this.scoreQueued.has(k)) return;
+		this.scoreQueued.add(k);
+		this.scoreQueue.push(p);
+	}
+
+	/** Scores run beside builds, as many at once; one that fails is tried again on the next path change. */
+	private pumpScores() {
+		while (this.scoring < this.cfg.concurrency && this.scoreQueue.length && this.env && !this.env.signal.aborted) {
+			const p = this.scoreQueue.shift()!;
+			const env = this.env, gen = this.gen, k = this.key(p);
+			const parts = children(this.b, p).map((c) => line(this.b, c, this.resolve(c)!)), merged = line(this.b, p, this.resolve(p)!);
+			this.scoring++;
+			lossOf(env.modelRegistry, parts, merged, env.signal, this.cfg.scorer).then((loss) => {
+				const last = this.msgs[span(this.b, p).reduce((a, x) => a + x) - 1]!;
+				write({
+					schema: SCHEMA, body: "loss " + loss.toFixed(3),
+					tags: [{ key: "session", value: env.session }, { key: "optmem.scores", value: k }, { key: "optmem.loss", value: loss }],
+					edges: [{ rel: "at", dst: entryRef(env.session, last.entry) }, { rel: "scores", dst: SCHEMA + ":" + k }],
+				});
+				if (gen === this.gen) this.losses.set(k, loss);
+			}).catch((e) => {
+				if (!env.signal.aborted) env.notify?.("optmem: scoring failed: " + (e instanceof Error ? e.message : String(e)), "warning");
+			}).finally(() => { this.scoring--; this.pumpScores(); });
+		}
 	}
 
 	/** How many messages from the start are summarized. */
@@ -201,9 +273,10 @@ export class Chat {
 			const p = this.queue.shift()!;
 			const env = this.env, gen = this.gen, k = this.key(p);
 			this.running++;
-			this.build(p, env).then((text) => {
+			this.build(p, env).then(({ text, overlays }) => {
 				if (gen !== this.gen) return; // the path changed; the record is there for whoever returns
 				this.stored.set(k, text);
+				for (const [target, rel] of overlays) this.overlays.set(target, { rel, by: p[1] });
 				this.settle(p);
 				this.waiters = this.waiters.filter((w) => { if (this.ready(w.upTo)) { w.done(); return false; } return true; });
 			}).catch((e) => {
@@ -218,12 +291,13 @@ export class Chat {
 				this.pump();
 			});
 		}
+		this.pumpScores();
 	}
 
 	/** The compaction view's lines up to message limit, stopping at the first unbuilt line. */
 	contextLines(limit: number): string[] {
 		this.ready(0);
-		this.cview = advance(this.cview, this.frontier, this.texts, this.cfg.compactorView.high, this.cfg.compactorView.low).view;
+		this.cview = advance(this.cview, this.frontier, this.texts, this.cfg.compactorView.high, this.cfg.compactorView.low, this.cfg.cut).view;
 		const out: string[] = [];
 		for (const p of nodesAt(this.cview, this.frontier)) {
 			const [s, n] = span(this.b, p);
@@ -236,14 +310,14 @@ export class Chat {
 
 	/** The chat's view merged: the compaction view restarts from it, merged further. */
 	rebase(view: View, T: number) {
-		this.cview = advance({ ...view, shrinking: true }, Math.min(T, this.frontier || T), this.texts, this.cfg.compactorView.high, this.cfg.compactorView.low).view;
+		this.cview = advance({ ...view, shrinking: true }, Math.min(T, this.frontier || T), this.texts, this.cfg.compactorView.high, this.cfg.compactorView.low, this.cfg.cut).view;
 	}
 
 	private task(p: Pair): string {
 		const [s, n] = span(this.b, p);
 		if (p[0] === 0) {
 			const m = this.msgs[s]!;
-			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\n<input>\n" + m.kind + ": " + m.text + "\n</input>";
+			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\n<input>\n" + m.kind + ": " + m.text + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE : "");
 		}
 		const kids = children(this.b, p);
 		const names = kids.map((c) => { const [cs, cn] = span(this.b, c); return cs + "+" + cn; });
@@ -252,7 +326,22 @@ export class Chat {
 			kids.map((c) => line(this.b, c, this.resolve(c)!)).join("\n") + "\n</input>";
 	}
 
-	private async build(p: Pair, env: Env): Promise<string> {
+	/** A leaf reply's line, and the overlays it names (scored cut): lines before message s, by node key. */
+	private parse(reply: string, s: number): { text: string; overlays: [string, Rel][] } {
+		const keep: string[] = [], overlays: [string, Rel][] = [];
+		for (const l of reply.split("\n")) {
+			const m = this.cfg.cut === "scored" ? OVERLAY.exec(l.trim()) : null;
+			if (!m) { keep.push(l); continue; }
+			for (const nm of m[2]!.split(/[\s,]+/)) {
+				const [id, n] = nm.split("+").map(Number);
+				const q = nodeAt(this.b, id!, n!, s);
+				if (typeof q !== "string") overlays.push([this.key(q), m[1]!.toLowerCase() as Rel]);
+			}
+		}
+		return { text: keep.join("\n").trim(), overlays };
+	}
+
+	private async build(p: Pair, env: Env): Promise<{ text: string; overlays: [string, Rel][] }> {
 		const [s, n] = span(this.b, p);
 		const rt = new Runtime();
 		rt.config = { ...DEFAULTS, model: this.cfg.model as any };
@@ -265,7 +354,7 @@ export class Chat {
 		const sys = useTurn ? env.turn() : { systemPrompt: COMPACTOR_PROMPT(this.b), tools: [] };
 		const messages: any[] = [{ role: "user", content: [...chatParts(this.contextLines(p[0] ? s + n : s)), { type: "text", text: this.task(p) }], timestamp: Date.now() }];
 		const stream = resolveWorkerStreamSimple(model, env.modelRegistry);
-		let best: string | undefined;
+		let best: { text: string; overlays: [string, Rel][] } | undefined;
 		for (let attempt = 0; attempt < this.cfg.retries; attempt++) {
 			const msg: any = await stream(model, { systemPrompt: sys.systemPrompt, messages, tools: sys.tools as any }, {
 				// sse: a cached websocket per sessionId would outlive the session (and keep pi -p from exiting)
@@ -273,19 +362,22 @@ export class Chat {
 				reasoning: (this.cfg.model?.thinking ?? "medium") as any, maxTokens: 4000, onPayload: (payload: unknown) => markView(payload),
 			} as any).result();
 			if (msg.stopReason === "error" || msg.stopReason === "aborted") throw new Error(msg.errorMessage ?? msg.stopReason);
-			const text = (msg.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n").trim().replace(/^\d+\+\d+\|/, "");
+			const reply = (msg.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n").trim().replace(/^\d+\+\d+\|/, "");
+			const got = p[0] === 0 ? this.parse(reply, s) : { text: reply, overlays: [] };
+			const text = got.text;
 			if (!text) throw new Error("empty reply");
-			if (best === undefined || bytes(text) < bytes(best)) best = text;
+			if (best === undefined || bytes(text) < bytes(best.text)) best = got;
 			if (bytes(text) <= NODE_BYTES) break;
 			messages.push(msg, { role: "user", content: [{ type: "text", text: RETRIES_NOTE(bytes(text), headBytes(text, NODE_BYTES)) }], timestamp: Date.now() });
 		}
 		const last = this.msgs[s + n - 1]!;
 		const summarizes = p[0] === 0 ? [entryRef(env.session, last.entry)] : children(this.b, p).map((c) => SCHEMA + ":" + this.key(c));
 		write({
-			schema: SCHEMA, body: best!,
+			schema: SCHEMA, body: best!.text,
 			tags: [{ key: "session", value: env.session }, { key: "optmem.key", value: this.key(p) }, { key: "optmem.l", value: p[0] }, { key: "optmem.i", value: p[1] },
 				{ key: "optmem.b", value: this.b }, { key: "optmem.model", value: model.provider + "/" + model.id }],
-			edges: [{ rel: "at", dst: entryRef(env.session, last.entry) }, ...summarizes.map((dst) => ({ rel: "summarizes", dst }))],
+			edges: [{ rel: "at", dst: entryRef(env.session, last.entry) }, ...summarizes.map((dst) => ({ rel: "summarizes", dst })),
+				...best!.overlays.map(([target, rel]) => ({ rel, dst: SCHEMA + ":" + target }))],
 		});
 		return best!;
 	}

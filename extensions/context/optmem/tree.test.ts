@@ -67,3 +67,33 @@ test("an unbuilt leaf shows the placeholder", () => {
 	const t: Texts = { text: ([l, i]: Pair) => i === 2 ? PLACEHOLDER : "m" + i, built: () => false };
 	expect(lines(emptyView(2), 3, t)).toEqual(["0+1|m0", "1+1|m1", "2+1|" + PLACEHOLDER]);
 });
+
+test("scored: lossless merges fold before lossy ones of the same age and level", () => {
+	// pairs whose first leaf is a multiple of 4 merge losslessly; the rest lose everything
+	const t: Texts = { ...uniform(2), loss: ([l, i]) => l === 1 ? (i % 2 ? 1 : 0) : 0.5 };
+	const v = advance(emptyView(2), 400, t, 4000, 2000, "scored").view;
+	const level1 = v.nodes.filter(([l]) => l === 1).map(([, i]) => i);
+	const even = level1.filter((i) => i % 2 === 0).length, odd = level1.length - even;
+	expect(even).toBeGreaterThan(odd);
+	// due alone treats them alike
+	const d = advance(emptyView(2), 400, t, 4000, 2000, "due").view.nodes.filter(([l]) => l === 1).map(([, i]) => i);
+	expect(Math.abs(d.filter((i) => i % 2 === 0).length - d.filter((i) => i % 2).length)).toBeLessThanOrEqual(1);
+});
+
+test("scored: between batches the view only grows at its end, stubs included", () => {
+	// message 3k obsoletes message 3k-1 (an overlay known as soon as message 3k exists)
+	const t: Texts = { ...uniform(2), loss: ([l, i]) => (i * 7 % 10) / 10, stub: ([l, i], T) => l === 0 && i % 3 === 2 && i + 1 < T ? "(obsolete)" : undefined };
+	let v: View = emptyView(2), prev: string[] = [], batches = 0;
+	for (let T = 1; T <= 3000; T++) {
+		const r = advance(v, T, t, 4000, 2000, "scored");
+		const now = lines(r.view, T, t);
+		if (r.merged) { batches++; expect(viewBytes(now)).toBeLessThanOrEqual(2000); }
+		else expect(now.slice(0, prev.length)).toEqual(prev);
+		v = r.view; prev = now;
+	}
+	expect(batches).toBeGreaterThan(5);
+	// a batch stubs what it can: an overlaid leaf still showing is newer than the last batch
+	const stubbed = new Set(v.stubs);
+	for (const p of nodesAt(v, 3000)) if (p[0] === 0 && p[1] < v.upTo - 1 && t.stub!(p, v.upTo)) expect(stubbed.has(span(2, p).join("+"))).toBe(true);
+	expect(stubbed.size).toBeGreaterThan(0);
+});

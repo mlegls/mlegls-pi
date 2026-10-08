@@ -17,7 +17,8 @@
 //
 // Settings: memory.schemas.optmem { fanout (2), view { high 128000, low 64000 }, compactorView
 // { high 32000, low 16000 }, concurrency (8), retries (5), waitSeconds (30), tailBytes (128000),
-// model { provider, id, thinking } (default OM's), systemPrompt ("auto" | "turn" | "own") }.
+// model { provider, id, thinking } (default OM's), systemPrompt ("auto" | "turn" | "own"),
+// cut ("due" | "scored", ./tree.ts), scorer { provider, id } (default Jev) }.
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { sessionEntryToContextMessages, type ExtensionAPI, type ExtensionContext, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -76,7 +77,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 	const synced = (ctx: ExtensionContext): Chat | undefined => {
 		if (!isActive(NAME, ctx)) return undefined;
 		const cfg = settings(ctx.cwd);
-		if (!chat || chat.b !== cfg.fanout) chat = new Chat(cfg.fanout, cfg);
+		if (!chat || chat.b !== cfg.fanout || chat.cfg.cut !== cfg.cut) chat = new Chat(cfg.fanout, cfg);
 		chat.sync(branchOf(ctx), env(ctx));
 		return chat;
 	};
@@ -85,7 +86,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 	const viewAt = (ctx: ExtensionContext, c: Chat, cfg: Settings, T: number): string[] => {
 		let v = readCursor<View>(sm(ctx), VIEW_KEY);
 		if (!v || v.b !== c.b || v.upTo > T) v = emptyView(c.b);
-		const r = advance(v, T, c.texts, cfg.view.high, cfg.view.low);
+		const r = advance(v, T, c.texts, cfg.view.high, cfg.view.low, cfg.cut);
 		if (r.view !== v) writeCursor(sm(ctx), VIEW_KEY, r.view);
 		if (r.merged) c.rebase(r.view, T);
 		return lines(r.view, T, c.texts);
