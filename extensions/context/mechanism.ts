@@ -58,7 +58,7 @@ export interface Mechanism {
 	/** A section appended to the system prompt while active. */
 	prompt?(event: BeforeAgentStartEvent, ctx: ExtensionContext): Promise<string | undefined> | string | undefined;
 	/** Builds each request's messages while active (runs after every other context hook). */
-	context?(messages: AgentMessage[], ctx: ExtensionContext): AgentMessage[] | undefined;
+	context?(messages: AgentMessage[], ctx: ExtensionContext): Promise<AgentMessage[] | undefined> | AgentMessage[] | undefined;
 	/** Edits the provider payload while active; returns a replacement or undefined. */
 	request?(payload: unknown, ctx: ExtensionContext): unknown;
 	/** Usable in this cwd (settings); a disabled system is neither active nor a fallback. */
@@ -183,9 +183,9 @@ export function registerMechanisms(pi: ExtensionAPI, mechanisms: Mechanism[]): v
 		for (const s of activeSystems(ctx)) { const t = await s.prompt?.(event, ctx); if (t) sections.push(t); }
 		return sections.length ? { systemPrompt: event.systemPrompt + "\n\n" + sections.join("\n\n") } : undefined;
 	});
-	pi.on("context", (event, ctx) => {
+	pi.on("context", async (event, ctx) => {
 		let messages: AgentMessage[] | undefined;
-		for (const s of activeSystems(ctx)) messages = s.context?.(messages ?? event.messages, ctx) ?? messages;
+		for (const s of activeSystems(ctx)) messages = (await s.context?.(messages ?? event.messages, ctx)) ?? messages;
 		return messages ? { messages } : undefined;
 	});
 	pi.on("before_provider_request", (event, ctx) => {

@@ -1,11 +1,12 @@
-// context: when and how a session's context is managed. Memory mechanisms, one active per
-// session (/memory switches; ./mechanism.ts): ./journal.ts, the agent's own entries written
+// context: when and how a session's context is managed. Memory systems, on together unless they
+// own the same surface (/memory switches; ./mechanism.ts): ./journal.ts, the agent's own entries written
 // through a `journal` tool and rendered back as those tool calls, and observational memory (./om,
 // vendored from pi-observational-memory with its ledger moved into the records store as the `om`
 // schema), which observes and reflects per memory.schemas.om.observe (always | active | never). The active one triggers
 // compaction; if the journal checkpoint fails, OM renders instead. ./elide.ts drops old tool outputs behind
 // cold-cache gaps. ./memo.ts is a third: OptMem's log and merge tree, in global, project and local
-// logs. This extension adds policy on top.
+// logs. ./optmem is UniiChat: the session as one chat that never ends, each request a view of its
+// summary tree plus the current run. This extension adds policy on top.
 //
 // Fence, for spawned workers (PI_BOARD_TOPIC set): when usage crosses the threshold, steer the
 // agent once with AGENTS_DIR/_fence.md (finish if within reach, else checkpoint into the ticket
@@ -25,6 +26,7 @@ import journal from "./journal.ts";
 import elide from "./elide.ts";
 import recall from "./recall.ts";
 import memo from "./memo.ts";
+import optmem from "./optmem/index.ts";
 
 const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
 
@@ -44,7 +46,7 @@ function fenceText(percent: number, topic: string): string {
 
 export default function (pi: ExtensionAPI) {
 	const elider = elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
-	registerMechanisms(pi, [journal(pi), observationalMemory(pi), memo(pi), elider]);
+	registerMechanisms(pi, [journal(pi), observationalMemory(pi), memo(pi), optmem(pi), elider]);
 	recall(pi);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;
