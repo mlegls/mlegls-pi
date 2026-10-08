@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: "session:01a0f86d-9beb-71bb-8518-b44c8d4eebbd"
 ---
@@ -25,3 +25,7 @@ The plain-waiting loop above predates the `waiting` status (ffdc983, 2026-10-02)
 
 decisions:
 - 2026-10-08 checkpoint with a live managed process: the reconciler refuses it. On a checkpoint report, if `runsProcess(handle)` is true, repair with "wait for your running process (report `waiting`), then checkpoint after it completes" instead of relaunching; the checkpoint stays uncounted. Rejected: resuming the same session (defeats the context reset a checkpoint is for) and a durable completion/log handoff (the hand-built `fs.watch` workaround as machinery; more general, more to build; revisit if a worker runs out of context partway through a multi-hour run).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/reconciler-drive-continuation-loses-managed-process-ownership/index.md).
