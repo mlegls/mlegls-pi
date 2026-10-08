@@ -22,6 +22,8 @@ export interface Assignment {
   model?: string;
   effort?: string;
   base?: string;
+  /** Library-only preparation in the new checkout, before setup/launch; may replace the task prompt. */
+  prepare?: (cwd: string) => Promise<string | void>;
 }
 
 export interface Options {
@@ -137,7 +139,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       const wm = await import("./wm.ts");
       const cursor = (await (await import("./children.ts")).last(options.run + "/" + task.handle))?.cursor;
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, model: task.model, effort: task.effort, cwd, parentSession: parent, session: options.session, follow: options.follow });
+        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, session: options.session, follow: options.follow });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, threadId: worker.threadId, ...(cursor && { cursor }) });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {

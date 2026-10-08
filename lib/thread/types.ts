@@ -62,6 +62,7 @@ export interface NewThreadOptions {
 	in?: string; // guest destination cwd; mutually exclusive with worktree
 	worktree?: string; // requested branch/worktree name; default new thread id
 	base?: string; // initial git ref; does not change the merge parent
+	prepare?: (thread: ThreadRecord) => Promise<void>; // after checkout creation, before setup/launch
 	parent?: string;
 	parentSession?: string; // resolves default parent; free-session provenance remains separate
 	forkFrom?: string; // session id or file; copied once before launch

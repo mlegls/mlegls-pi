@@ -34,6 +34,7 @@ export interface SpawnOptions {
 	agent?: string; // name of a stance file in AGENTS_DIR
 	role?: string; // which of the agent's roles this spawn fills (default: its first)
 	base?: string; // git ref to branch from
+	prepare?: (cwd: string) => Promise<string | void>; // before setup/launch; may replace the task prompt
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // legacy receipt field; never selects a transport
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
@@ -496,7 +497,10 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			throw new Error(`from must be "fork" or "summary"`);
 		}
 		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint, follow: o.follow }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
-		const options = { cwd, worktree: o.handle, base: o.base, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, worker: { run: o.run, handle: o.handle },
+		const options = { cwd, worktree: o.handle, base: o.base, prepare: o.prepare ? async (thread: ThreadRecord) => {
+			const prepared = await o.prepare!(thread.cwd);
+			if (prepared !== undefined) thread.launch!.prompt = prompt({ ...o, prompt: prepared, agent: a });
+		} : undefined, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, worker: { run: o.run, handle: o.handle },
 			launch: { cmd: o.command, args: o.command === undefined ? ["--approve", "--model", o.model!, "--thinking", o.effort!] : undefined, env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
 		const source = o.parentSessionFile ?? o.parentSession ?? process.env.PI_SESSION_FILE ?? process.env.PI_SESSION_ID;
 		if (o.from === "fork" && !source) throw new Error('from: "fork" needs parentSessionFile, parentSession, or PI_SESSION_ID');

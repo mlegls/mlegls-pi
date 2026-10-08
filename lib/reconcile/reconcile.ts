@@ -26,6 +26,7 @@ import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
+import { refreshWorker } from "./refresh.ts";
 import { close, declaredGates, heldByRed, mainRed, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -234,13 +235,13 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[]): Promise<Handle> {
+	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>): Promise<Handle> {
 		launching++;
 		try {
 			// Concurrent launches race on .git/config's lock (ab-parent, setup's mise); a failed attempt may leave
 			// its worktree behind, so a retry takes a fresh handle.
 			for (let attempt = 0; ; attempt++) {
-				try { return await launchNow(attempt ? handle.slice(0, 86) + "-r" + attempt : handle, role, prompt, base, into, issue, only); }
+				try { return await launchNow(attempt ? handle.slice(0, 86) + "-r" + attempt : handle, role, prompt, base, into, issue, only, prepare); }
 				catch (e) {
 					const lock = /could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e));
 					// Setup fetching over a flaky network (Convex backend lookup, GitHub TLS) recovers on a plain retry.
@@ -252,9 +253,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			}
 		} finally { launching--; }
 	}
-	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[]): Promise<Handle> {
+	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>): Promise<Handle> {
 		const agentName = await pick(role, issue, prompt, only);
-		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
+		const r = await dispatch([{ handle, prompt, agent: agentName, role, base, prepare, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
@@ -286,16 +287,23 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const base = c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : git(pathOf(c.into), "rev-parse", "HEAD");
 		const from = c.handle && existsSync(c.handle.path) ? c.handle.path : undefined;
 		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
-		let prompt: string;
-		if (phase === "refine" || phase === "implement") prompt = [ticketText(issue, from),
-			c.self ? "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
-			siblings(slug, issues), phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
-		else if (phase === "drive") prompt = [ticketText(issue, from), "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
-		else prompt = [ticketText(issue, from), "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
+		const phasePrompt = (from?: string, contract = ticketText(issue, from)) => {
+			if (phase === "refine" || phase === "implement") return [contract,
+				c.self ? "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
+				siblings(slug, issues), phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
+			if (phase === "drive") return [contract, "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
+			return [contract, "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
+		};
 		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
-		const handle = await launch(nextHandle(slug, phase), phase, prompt, base, pathOf(c.into), issue, only);
+		const handle = await launch(nextHandle(slug, phase), phase, phasePrompt(from), base, pathOf(c.into), issue, only, async path => {
+			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
+			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
+			const refreshed = refreshWorker(path, pathOf(c.into));
+			const contract = refreshed.conflicts.length ? "Issue " + issue.slug + " (" + rel(issue.file) + "):\n\n" + git(path, "show", refreshed.head + ":" + rel(issue.file)) : undefined;
+			return [phasePrompt(path, contract), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve both the collector's recorded rulings (the ticket above) and the previous worker's results, then commit the merge before continuing this phase. Do not abort the merge or rebase away either history." : ""].filter(Boolean).join("\n\n");
+		});
 		if (prev && !await retireHandle(prev, pathOf(c.into))) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0 };

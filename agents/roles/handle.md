@@ -13,7 +13,7 @@ Read the report and the issues. Answer from recorded decisions and the node's co
 - `move-out`: the node (or `target`, any node in your subtree) was misclassified: it needs shaping, or a human decision. Apply the tracker lifecycle's move-out yourself on your branch (honest stage, `assignee: human`, the problem and a recommendation in its body; detach it from the tree; add it to the parent's `blocked-by` when the parent's acceptance depends on it), commit, and give a one-line `summary`. A spec that needs a human decision goes back to goal with why.
 - `escalate`: the decision is outside this node's contract. Give a `summary` the next level can act on without rereading everything, with your recommendation.
 
-Record the decision where it lasts: an answer or ruling that future work depends on goes into the affected issue's body, committed on your branch (tracker files only; the reconciler lands them). Your session is not the record.
+Record the decision where it lasts: an answer or ruling that future work depends on goes into the affected issue's body, committed on your branch (tracker files only; the reconciler lands them). Your session is not the record. A ruling that changes what done means edits the ticket's acceptance and Stories lines, not only adds prose: name the required handoff claims and keep failed product observations separate rather than calling them held.
 
 End `done` with a fenced yaml handoff:
 

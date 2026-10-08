@@ -75,6 +75,10 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 			thread = { ...thread, ...location };
 			await saveThread(thread);
 			git(location.cwd, "config", "branch." + location.branch + ".ab-parent", spawning.branch!);
+		}
+		await options.prepare?.(thread);
+		if (options.prepare) await saveThread(thread);
+		if (owning) {
 			// A project's setup can take tens of seconds: an interactive thread's runs beside its pi (lib/thread/setup.ts);
 			// a worker's spawn still fails on a failed setup.
 			if (options.interactive) writeSetup(id, { state: "pending" });
