@@ -163,6 +163,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
                 rebuild()
                 if let id = shown, let row = byId[id] { window.title = row.displayTitle }
             }
+            // A thread moved by /workspace keeps its workspace: new panes open where it is now, not where it started.
+            for (id, w) in workspaces { if let cwd = byId[id]?.cwd { w.cwd = cwd } }
             for (id, w) in workspaces where byId[id] == nil {
                 w.teardown()
                 workspaces[id] = nil
