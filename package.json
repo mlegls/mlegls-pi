@@ -7,7 +7,7 @@
     "pi-package"
   ],
   "scripts": {
-    "setup": "bun install --frozen-lockfile",
+    "setup": "bun install --frozen-lockfile && bun install --cwd extensions/obsidian-tracker --frozen-lockfile",
     "typecheck": "tsc --noEmit"
   },
   "pi": {
