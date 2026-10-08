@@ -37,3 +37,11 @@ The reconciler reported three failed integrations of measurement reviewer head `
 Workaround authorized in [[projects/concept/issues/measure-live-classical-chinese-first-turns#Integration recovery]]: preserve the reviewed packet; reconcile against the immediate parent, retain the approved outer-tree update, avoid replaying already-landed preparation, and union parent rulings with worker results. Retry the unchanged final-head gate, not the experiment. Successful recovery is not yet observed.
 
 Recommendation for the mlegls-pi reconciler: preserve the immediate-parent base when applying enclosing-tree gate updates, and ensure conflict recovery retains handler decisions alongside worker results. Check for patch-equivalent ancestor replay before another blind integration retry. This shares the existing branch-state/delivery observation's tooling owner; it is not evidence that any particular resolution message was unread.
+
+## Implementation check
+
+`99c14ac` merges the collector into each successor before setup/launch and reads its assignment from the refreshed checkout. A conflicting merge remains for the successor's first step, with the collector's ticket supplied explicitly. `agents/roles/handle.md` now requires acceptance/Stories edits when a ruling changes done.
+
+[First-use observations and historical divergence recheck](../attachments/replacement-drive-misses-recorded-offline-audit-scope/index.md): collector rulings reached the successor's history, setup and launch prompt; 26 affected regressions passed and root typechecking passed after the known plugin preparation workaround. The historical reviewer/collector merge still conflicts in the six reported files, but all four missing decisions and the review-claim rescope are available in its pending merge without replaying ancestor commits. Historical recovery was not completed or gated.
+
+The required permanent `lib/reconcile` regression is pending explicit maintainer approval under `testing`; temporary diagnostics established first use without adding a test.
