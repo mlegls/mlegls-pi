@@ -27,6 +27,7 @@ import { pidAlive } from "../wm.ts";
 import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
 import { refreshWorker } from "./refresh.ts";
+import { checkpoint } from "./checkpoint.ts";
 import { close, declaredGates, heldByRed, mainRed, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
 const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
@@ -529,13 +530,12 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
 		if (r.status === "waiting") { c.waitingSince = waitedSince ?? m.ts; c.waitingCheckedAt = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
 		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
-		if (r.status === "checkpoint") {
-			c.retries.checkpoint = (c.retries.checkpoint ?? 0) + 1;
-			if (c.retries.checkpoint > BUDGET.checkpoint) return raise(slug, "checkpointed " + BUDGET.checkpoint + " times", text, issues);
-			const kept = c.retries.checkpoint;
-			await startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint:\n\n" + text.slice(-6000));
-			c.retries.checkpoint = kept; return save();
-		}
+		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h), BUDGET.checkpoint, {
+			repair: message => repair(slug, c, "checkpoint-process", message, issues, text),
+			raise: reason => raise(slug, reason, text, issues),
+			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint:\n\n" + text.slice(-6000)),
+			save,
+		});
 		if (git(h.path, "status", "--porcelain")) return repair(slug, c, "dirty", "You reported done with uncommitted changes. Commit everything that belongs to the change, then report done again.", issues, text);
 		if (c.phase === "refine") {
 			const after = snapshot(h.path);
