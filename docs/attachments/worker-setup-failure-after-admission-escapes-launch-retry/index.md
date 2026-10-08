@@ -1,5 +1,7 @@
 # Worker setup and provider retry — implementation first use
 
+Independent drive: [predictions, observations and replayable checks](drive.md). All five approved fixture stories held at `fe3340f`; the fresh CLI trial exited 0.
+
 Tested revision: `b5d1438` (the final code and fixture). Offline macOS trial; no model or credentials. Independent driving remains with the supervisor.
 
 Entry point:
