@@ -268,7 +268,8 @@ export class Chat {
 		let best: string | undefined;
 		for (let attempt = 0; attempt < this.cfg.retries; attempt++) {
 			const msg: any = await stream(model, { systemPrompt: sys.systemPrompt, messages, tools: sys.tools as any }, {
-				apiKey: r.apiKey, headers: r.headers, signal: env.signal, sessionId: "optmem-" + env.session,
+				// sse: a cached websocket per sessionId would outlive the session (and keep pi -p from exiting)
+				apiKey: r.apiKey, headers: r.headers, signal: env.signal, sessionId: "optmem-" + env.session, transport: "sse",
 				reasoning: (this.cfg.model?.thinking ?? "medium") as any, maxTokens: 4000, onPayload: (payload: unknown) => markView(payload),
 			} as any).result();
 			if (msg.stopReason === "error" || msg.stopReason === "aborted") throw new Error(msg.errorMessage ?? msg.stopReason);

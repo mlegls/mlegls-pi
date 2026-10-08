@@ -10,5 +10,9 @@ export const PROMPT = (b: number) => TEXT
 	.replace("{groups}", b === 2 ? "adjacent lines are merged in pairs" : "every " + b + " adjacent lines are merged into one")
 	.replace("{opens}", b === 2 ? "the two lines" : "the " + b + " lines");
 
-/** A compactor's own system prompt, when it can't share the turns' cache. */
-export const COMPACTOR_PROMPT = (b: number) => "You are the compactor of a coding agent's memory.\n\n" + PROMPT(b);
+/**
+ * A compactor's own system prompt, when it can't share the turns' cache: without the section on
+ * turns, which only invites a compactor to answer the chat instead of compressing it.
+ */
+export const COMPACTOR_PROMPT = (b: number) => "You are not the agent: you write the memory of a coding agent, one line at a time.\n\n" +
+	PROMPT(b).replace(/\n## Turns\n[\s\S]*?(?=\n## )/, "\n");
