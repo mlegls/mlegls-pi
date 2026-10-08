@@ -1,4 +1,8 @@
-# Landing first-use rehearsal
+# Landing verification
+
+Independent drive at `6e554688cb898865b01132f5eaea10b8869ff4b1`: all four documented backend journeys held. See [predictions, encounter and replayable checks](drive.md). Nonvisual; no screenshots.
+
+## Earlier implementation rehearsal
 
 Implementation self-check at `99c2a6a` (setup repair `e4c8bcb`), 2026-10-08. This is not an independent driver's acceptance packet.
 
