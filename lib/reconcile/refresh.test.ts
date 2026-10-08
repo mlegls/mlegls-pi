@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getThread } from "../thread/registry";
 import { merge, spawn, type Worker } from "../wm";
@@ -45,6 +45,8 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 		expect(git(successor.dir, "merge-base", "--is-ancestor", decision, "HEAD")).toBe("");
 		expect(git(successor.dir, "merge-base", "--is-ancestor", previousHead, "HEAD")).toBe("");
 		expect(readFileSync(join(successor.dir, "result.txt"), "utf8")).toBe("retained packet\n");
+		// Worker setup runs after host admission, so it lands shortly after spawn returns.
+		for (let i = 0; i < 100 && !existsSync(join(successor.dir, "setup-contract")); i++) await new Promise(r => setTimeout(r, 100));
 		expect(readFileSync(join(successor.dir, "setup-contract"), "utf8")).toBe(ruling);
 		const record = await getThread(successor.threadId!);
 		expect(record?.launch?.prompt).toContain(ruling);

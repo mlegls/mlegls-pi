@@ -39,3 +39,12 @@ Repeat with `prepare pressure`: accept queued pressure reason in threads/tree/st
 Both cleanup commands completed successfully, closing remaining threads, killing six owned processes each, and deleting owned worker branches. Both fixture directories were removed. No servers or external resources remain.
 
 Nonvisual encounter: no screenshots. Uses the approved shell-worker substitution and isolated semaphore pool. Reconcile status was the real projection over fixture-seeded paused caches, not an autonomous reconcile run. This packet verifies the approved two admission trials and CLI tree, not native sidebar rendering or a real high-pressure host.
+
+## Review
+
+Reviewer pass over 9b844cd..HEAD, reading the diff against the driver's log.
+
+- The ticket's two approved tests were not in the change. Added `lib/thread/admission.test.ts`: shell workers, isolated `PARALLEL_HOME`, `WORKER_SLOTS=1`, two repositories as two owners; (1) second owner's worker stays `queued: worker slots` until the first is retired, then runs; (2) probe stubbed to 1% free queues with a memory reason, then runs after the stub reports 80%. Three consecutive passes, about 10 s per run, no fixtures left in zmx or /tmp.
+- `lib/reconcile/refresh.test.ts` asserted worker setup had completed when `spawn` returned. Setup now runs after admission, so that assertion waits for `setup-contract` to appear (assertions on its content unchanged). Failed at the change's head before the edit, passes on the base and after.
+- Driver outcomes stand: all three stories held; the repairs touch only tests. `bunx tsc --noEmit` clean; `lib/thread`, `lib/tree`, `lib/reconcile`, `lib/dispatch` tests pass.
+- Filed [[projects/mlegls-pi/issues/worker-setup-failure-after-admission-escapes-launch-retry]]: moving setup behind admission means reconcile's transient-network setup retry no longer sees the failure.
