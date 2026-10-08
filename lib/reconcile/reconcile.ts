@@ -96,6 +96,8 @@ export interface State {
 	counter: number;
 	log: string[];
 	finished?: string;
+	/** Explicit stop owns cleanup until it succeeds; session startup must not resume this run. */
+	stopping?: boolean;
 }
 
 const repoRoot = (cwd: string) => resolve(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "..");
@@ -110,7 +112,7 @@ export function load(cwd: string, root: string): State | undefined {
 	return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : undefined;
 }
 
-/** State has two writers: the loop and constrain. Serialize read/modify/rename so neither loses constraints. */
+/** Serialize the loop and owner writes so neither loses constraints or an in-progress stop. */
 export function updateState(cwd: string, root: string, change: (prior: State | undefined) => State): State {
 	const file = stateFile(cwd, root);
 	mkdirSync(stateDir(cwd), { recursive: true });
@@ -130,6 +132,7 @@ export function updateState(cwd: string, root: string, change: (prior: State | u
 export function saveState(s: State): void {
 	updateState(s.cwd, s.root, prior => {
 		s.constraints = prior?.constraints ?? s.constraints;
+		s.stopping = prior?.stopping ?? s.stopping;
 		return s;
 	});
 }
@@ -148,6 +151,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const cwd = resolve(o.cwd);
 	const prior = load(cwd, o.root);
 	assertThreadState(prior);
+	if (prior?.stopping) throw new Error("cleanup in progress for " + o.root + ": retry stop to finish it");
 	mkdirSync(stateDir(cwd), { recursive: true });
 	mkdirSync(resolutionsDir(cwd, o.root), { recursive: true });
 	// One reconciler per subtree: a second would launch and judge the same workers against the first.

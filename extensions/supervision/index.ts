@@ -9,7 +9,7 @@ import { dispatch, integrate, retire, type Assignment, type Handle } from "../..
 import { childSession } from "../../lib/session/jump";
 import { dataTool } from "../../lib/tool";
 import { mailbox } from "../../lib/board/mailbox";
-import { campaigns, constrain, resolveException, start, summary } from "../../lib/reconcile/main";
+import { campaigns, constrain, resolveException, start, stop, summary } from "../../lib/reconcile/main";
 
 const namespace = { name: "supervision", description: "Dispatch wm workers (threads: a worktree and a zmx session running pi), integrate their branches, retire them" };
 
@@ -70,6 +70,12 @@ export default function (pi: ExtensionAPI) {
 		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: mailbox(ctx.sessionManager.getSessionId()), ownerSession: ctx.sessionManager.getSessionId(), budget: p.budget ?? 6 }),
 	});
 	dataTool(pi, {
+		name: "reconcile_stop", namespace: reconcileNs,
+		description: "Stop a reconciler and retire its workers and exception handlers, closing their threads and owned worktrees and killing owned leftover processes. Keeps unmerged branches and tree/<slug> collectors; status then reads finished/stopped. Retry stop if cleanup fails.",
+		parameters: Type.Object({ issue: Type.String() }),
+		run: (p, ctx) => stop(ctx.cwd, p.issue),
+	});
+	dataTool(pi, {
 		name: "reconcile_status", namespace: reconcileNs, readOnly: true,
 		description: "Reconcilers in this repository: running or finished, each node's phase and worker, recorded constraints, pending exceptions, moved-out nodes, recent log.",
 		parameters: Type.Object({ issue: Type.Optional(Type.String()) }),
@@ -91,11 +97,11 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({ issue: Type.String({ description: "The reconciler's root issue" }), node: Type.String(), text: Type.String() }),
 		run: (p, ctx) => constrain(ctx.cwd, p.issue, p.node, p.text),
 	});
-	// Reconcilers this session owns come back with it: a stopped process resumes from its state.
+	// A missing process resumes with its owner; an explicit stop owns cleanup and never auto-resumes.
 	pi.on("session_start", (_event, ctx) => {
 		try {
 			const me = mailbox(ctx.sessionManager.getSessionId());
-			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.running) start({ cwd: s.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget });
+			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.stopping && !s.running) start({ cwd: s.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget });
 		} catch {}
 	});
 	pi.registerCommand("jump", {
