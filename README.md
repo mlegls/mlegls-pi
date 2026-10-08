@@ -15,10 +15,10 @@ decisions are codemode's built-in `models.classify` (`lib/decide.ts` for code ou
 - `extensions/supervision`: `dispatch`, `integrate`, `retire` tools and `/jump`.
 - `extensions/hashline`: anchored `read`/`grep`/`edit` over the built-ins (`lib/outline-read`).
 - `lib/board`: shared pubsub log for coordinating sessions, with `board_*` and `mail` tools; every session has a mailbox topic.
-- `lib/dispatch.ts`, `lib/wm.ts`: launch ready waves of `wm` workers (workmux worktree + tmux window).
+- `lib/dispatch.ts`, `lib/wm.ts`: launch ready waves of `wm` workers (threads: a worktree and a zmx session running pi).
 - `lib/reconcile`: the execution-tree reconciler behind the `reconcile` tools (`docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md`).
 - `extensions/obsidian-tracker`: the Obsidian tracker view; `dist/` is symlinked into the vault's plugins.
-- `lib/tree`: the tmux dashboard and Ghostty sidebar, `ab tree ui [--sidebar]`; `bin/ab-nav` is window history.
+- `lib/tree`: the thread tree, `ab tree ui [--sidebar]`.
 
 The prototype this replaces (exec cells, the bash outer loop, the `ab` program, supervise
 loop, memory log) is tagged `prototype`.

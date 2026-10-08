@@ -33,4 +33,4 @@ commit in meaningful chunks as you make changes.
 
 # General guidance moved from pi.md
 
-Use tmux or the session tool for running background or parallel tasks. but don't start a task async unless you intend to do something else in parallel.
+Use the session tool for running background or parallel tasks. but don't start a task async unless you intend to do something else in parallel.

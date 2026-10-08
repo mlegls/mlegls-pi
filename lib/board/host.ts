@@ -23,7 +23,6 @@ import { parse } from "../report.ts";
 import { mail, mailbox } from "./mailbox";
 import { scopes } from "./scopes";
 import { writeLiveSubscriptions, type BoardSubscription } from "../session-meta/live";
-import { execFile } from "node:child_process";
 import { readCursor, writeCursor } from "../records/cursor";
 import { canonicalThread } from "../session-meta/host";
 
@@ -255,13 +254,12 @@ export function install(pi: ExtensionAPI) {
 			...(own("PI_BOARD_FOLLOW") ? [{ topic: own("PI_BOARD_FOLLOW") + "/**", tags: "decision", wake: false }] : []),
 		];
 		// Every session has a mailbox (mail/xxxxxxxx): the reconciler, ab tree and
-		// other sessions reach it there. Shown in pi's footer and, under tmux, the status bar.
+		// other sessions reach it there. Shown in pi's footer and.
 		const box = mailbox(sessionId);
 		// Plus the worktree and ticket it works in (lib/board/scopes): shared channels, on trial.
 		const shared = scopes(ctx.cwd);
 		for (const topic of [box, ...shared]) if (!subs.some((s) => s.topic === topic && !s.tags)) subs.push({ topic, wake: true });
 		if (ctx.hasUI) ctx.ui.setStatus("mailbox", ["✉ " + box, ...shared.map((t) => "# " + t)].join("  "));
-		if (process.env.TMUX_PANE) execFile("tmux", ["set", "-p", "-t", process.env.TMUX_PANE, "@mailbox", box], () => {});
 		if (!restoredSubs || subs.length !== restoredSubs.length) persistSubs();
 		else writeLiveSubscriptions(sessionId, cwd, subs);
 		for (const id of seen) pending.delete(id);

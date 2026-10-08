@@ -87,7 +87,7 @@ export function install(pi: ExtensionAPI) {
 		const sm = ctx.sessionManager;
 		try {
 			writeLive({ pid: process.pid, sessionId: sm.getSessionId(), sessionFile: sm.getSessionFile(), cwd: sm.getCwd(), state,
-				since: new Date().toISOString(), tmuxPane: process.env.TMUX_PANE, mode: ctx.mode, parentSession, thread });
+				since: new Date().toISOString(), mode: ctx.mode, parentSession, thread });
 		} catch {}
 	};
 	// Prepended after pi's own handler (installed at startup), so it runs before pi exits.
@@ -109,7 +109,7 @@ export function install(pi: ExtensionAPI) {
 			const next = new Map(readLive().filter(child => child.parentSession === c.sessionManager.getSessionId()).map(child => [child.pid, child]));
 			// Print-mode children (pi -p) are one-shot runs whose caller reads their output; their exit is the expected end.
 			for (const [pid, child] of children) if (!next.has(pid) && !takeRetired(child) && child.mode !== "print" && child.mode !== "json") {
-				send({ topic: mailbox(c.sessionManager.getSessionId()), tags: ["child-exit"], from: { name: "child-monitor" }, body: `Child process exited: ${child.sessionId} (pid ${pid}, last state ${child.state}).\nWorkspace: ${child.cwd}\n${child.tmuxPane ? "Pane: " + child.tmuxPane : "No tmux pane recorded"}. Inspect its report before resuming; process exit alone does not establish a crash.` });
+				send({ topic: mailbox(c.sessionManager.getSessionId()), tags: ["child-exit"], from: { name: "child-monitor" }, body: `Child process exited: ${child.sessionId} (pid ${pid}, last state ${child.state}).\nWorkspace: ${child.cwd}\nInspect its report before resuming; process exit alone does not establish a crash.` });
 			}
 			children = next;
 		}, 5000);

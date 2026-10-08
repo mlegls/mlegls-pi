@@ -1,5 +1,5 @@
 // Live records: one small JSON file per running pi process, so views (ab tree) can join a
-// process to its session file, tmux pane, and working/idle state without scanning processes.
+// process to its session file, and working/idle state without scanning processes.
 // Session-meta updates state on agent start/end; the board keeps its subscription snapshot here too.
 // check the pid, since a killed process leaves its record behind.
 
@@ -23,7 +23,6 @@ export interface Live {
 	cwd: string;
 	state: "working" | "idle";
 	since: string;
-	tmuxPane?: string;
 	mode?: "tui" | "rpc" | "json" | "print";
 	subscriptions?: BoardSubscription[];
 	/** Store whose board host registered these subscriptions. */

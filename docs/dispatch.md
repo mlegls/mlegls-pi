@@ -1,6 +1,6 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker: a workmux worktree and tmux window running pi, reporting on board topic `<run>/<handle>`.
+The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker: a thread: a worktree and a zmx session running pi, reporting on board topic `<run>/<handle>`.
 
 ```js
 const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: [], assignments: [
@@ -17,7 +17,7 @@ Assignments require `handle`, a self-contained `prompt`, and either `agent` (a r
 The receipt contains:
 
 - `submitted`: `{handle, run, path}` per launch, plain data you can persist; `<run>/<handle>` is its board topic.
-- `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree workmux may have created before deciding what to do.
+- `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree the thread may have created before deciding what to do.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
 
 ## Supervision
@@ -30,7 +30,7 @@ For peer coordination, read `tools.board_read({ topic: "<run>/**" })` without a 
 
 After the worker is settled and completion is accepted, `tools.integrate({worker, mode?, keep?})` uses plain Git. It refuses uncommitted worker changes. Default `mode: "rebase"` rebases onto parent HEAD and fast-forwards; `mode: "merge"` makes a `--no-ff` merge commit. Conflicts abort and return `{conflict: true, branch, files}`; send those to the worker to resolve on its branch. The caller owns settlement and acceptance; integration does not infer them from idle status.
 
-`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: workmux removes the worker's window and worktree. Processes still running from inside the worktree (a dev server, a watcher) are sent SIGTERM (`killed`); workmux doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `tools.retire({worker})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Both take the receipt's handle or just its name, found under `<checkout>__worktrees/`. Cleanup is sequential, not transactional: if it fails after the merge, the merge remains. Inspect the worktree before repeating cleanup. Nothing is removed on merge failure.
+`keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: the worker's thread session and worktree are removed. Processes still running from inside the worktree (a dev server, a watcher) are sent SIGTERM (`killed`); the thread's teardown doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `tools.retire({worker})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Both take the receipt's handle or just its name, found under `<checkout>__worktrees/`. Cleanup is sequential, not transactional: if it fails after the merge, the merge remains. Inspect the worktree before repeating cleanup. Nothing is removed on merge failure.
 
 ## Stance models
 

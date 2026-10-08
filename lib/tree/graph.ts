@@ -36,7 +36,6 @@ export interface Node {
 	/** User-facing session: not agent-spawned, and not running headless. */
 	interactive: boolean;
 	pid?: number;
-	pane?: string;
 	report?: { tag: string; ts: string; body: string };
 	/** Live or parked while its parent has ended, or its parent is unknown. */
 	orphan?: boolean;
@@ -108,7 +107,7 @@ function project(cwd: string, cache: Cache): string {
 			name = basename(common.endsWith("/.git") ? dirname(common) : common.replace(/\.git$/, ""));
 		} catch { name = basename(cwd); }
 	} else {
-		// Deleted worktree: a sibling under the same worktree root that still resolved, or workmux's layout.
+		// Deleted worktree: a sibling under the same worktree root that still resolved, or the `<project>__worktrees` layout.
 		const root = dirname(cwd);
 		let sibling: string | undefined;
 		try { sibling = readdirSync(root).map(n => join(root, n)).find(d => d !== cwd && existsSync(join(d, ".git"))); } catch {}
@@ -210,7 +209,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
 			parent, parentKind: kind, run, handle,
 			state, interactive: kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
-			pid: l?.pid, pane: l?.tmuxPane, report: run && handle ? board.get(run + "/" + handle) : undefined,
+			pid: l?.pid, report: run && handle ? board.get(run + "/" + handle) : undefined,
 			lastText: p.lastText, children: [],
 		});
 	}

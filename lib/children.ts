@@ -37,7 +37,7 @@ function fromMessage(id: string, message: Message): TurnEnd {
 function followsCursor(message: Message, cursor: string | undefined): boolean {
   if (!cursor) return true;
   if (cursor === message.id) return false;
-  // Older supervise states saved a synthetic workmux exit cursor instead of the last board cursor.
+  // Older supervise states saved a synthetic worker exit cursor instead of the last board cursor.
   const endedAt = /^wm:[^:]+:(\d+)$/.exec(cursor)?.[1];
   return endedAt ? Date.parse(message.ts) > Number(endedAt) : true;
 }
@@ -51,7 +51,7 @@ function wmTarget(id: string): { run: string; handle: string; topic: string } {
   }
   const boardTopic = process.env.PI_BOARD_TOPIC;
   const run = process.env.PI_WM_RUN || (boardTopic ? boardTopic.slice(0, boardTopic.lastIndexOf("/")) : "");
-  if (!run) throw new Error("workmux child ID must be run/handle (or PI_WM_RUN must be set): " + id);
+  if (!run) throw new Error("child ID must be run/handle (or PI_WM_RUN must be set): " + id);
   return { run, handle: id, topic: run + "/" + id };
 }
 
@@ -101,7 +101,7 @@ async function turnEndWm(ids: string[], options: TurnEndOptions): Promise<TurnEn
   }
 }
 
-/** Wait for the first child turn end after its cursor. IDs are workmux run/handle topics. */
+/** Wait for the first child turn end after its cursor. IDs are run/handle topics. */
 export async function turnEnd(ids: string[], options: TurnEndOptions = {}): Promise<TurnEnd> {
   if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => !id))
     throw new Error("children.turnEnd requires child IDs");
@@ -148,7 +148,7 @@ export async function last(id: string): Promise<TurnEnd | null> {
   return lastWm(id);
 }
 
-/** Send a follow-up: to a wm worker's pane, or to a mailbox (mail/xxxxxxxx) as a waking board message. */
+/** Send a follow-up: to a wm worker's session, or to a mailbox (mail/xxxxxxxx) as a waking board message. */
 export async function send(id: string, text: string): Promise<void> {
   if (typeof text !== "string") throw new Error("children.send requires text");
   if (id.startsWith("mail/")) {
