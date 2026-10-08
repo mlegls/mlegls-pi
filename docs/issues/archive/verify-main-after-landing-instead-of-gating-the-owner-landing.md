@@ -3,7 +3,6 @@ stage: done
 assignee: agent
 priority: 2
 author: "session:95cf9e55-d246-406a-a3bc-f0780b3b2a49"
-blocked-by: ["[[projects/concept/issues/declare-a-main-verification-task-and-drop-pre-integrate-owner]]"]
 ---
 
 A root's landing into the owner's checkout runs the project's slow checks after the landing, outside the integrate lock, instead of before it. From [[projects/concept/issues/streamline-validation-by-value-and-wall-time]]: concept's per-landing `pre-integrate` is under a minute of work; the 30+ minutes are the kept browser batch, which e365f94 runs as `pre-integrate:owner` inside the lock on every owner landing. There are no users; a briefly red main harms nobody (concept's root supervisor, 2026-10-02: staging deploys only by hand or by running the workflow, prod is a separate push).
