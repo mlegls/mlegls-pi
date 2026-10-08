@@ -22,4 +22,6 @@ Concept root supervisor (`mail/2d15485e`), 2026-10-01: about six browser workers
 
 Contract, 2026-10-08: every worker launch (reconciler phases and `tools.dispatch`) takes a slot from a host-wide pool separate from `bin/heavy`'s, e.g. `sem --id workers -j ${WORKER_SLOTS:-6}`, held for the worker's life and released when it ends or is retired; a launch also waits while memory pressure is high (macOS `memory_pressure` free below a threshold, or swap above one). A waiting launch shows as queued in `reconcile_status` and the tree view.
 
+Independent drive evidence: [capacity and pressure encounter](../attachments/admit-workers-against-a-host-wide-budget/index.md).
+
 Tests (approved): (1) with the slot count at 1, a second owner's launch stays queued until the first worker is retired, then starts; (2) with the pressure probe stubbed high, a launch waits, and starts once the stub reports low. Both may use shell workers in place of pi.
