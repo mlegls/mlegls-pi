@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 author: session:01a0e5e9-67b7-732e-90ce-7e6ac7a4ad76
@@ -20,3 +20,7 @@ ticket contract, 2026-09-30: as the body proposes: probe with `git merge-tree` b
 Contract in reconciler terms, 2026-10-08: in `land()` (`lib/reconcile/reconcile.ts`), probe with `git merge-tree --write-tree --name-only <target> <head>` before rebasing; on conflict, send the child the conflicting files and, per file, the target's commits touching it since the merge base (`git log --oneline <base>..<target> -- <file>`). After the integration rebase, if the lockfile or a manifest changed, run the repository's dependency setup (its `deps` mise task if declared, else the worktree setup hook) before the gate. The `resume … integrate` paragraph stays moot.
 
 Tests (approved): `lib/reconcile` tests on a local Git fixture: (1) a child whose branch conflicts with a target commit gets a message naming the file and that commit's subject, and nothing is integrated; (2) a landing whose rebase changes the lockfile runs the declared `deps` task before `pre-integrate` (a fixture task that records its order).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/probe-conflicts-and-prepare-deps-around-integrate/index.md).
