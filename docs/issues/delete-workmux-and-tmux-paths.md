@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 part-of: "[[projects/mlegls-pi/issues/thread-registry-on-zmx]]"
@@ -15,3 +15,7 @@ Tests, 2026-10-08: no new tests. Delete tests that only exercise removed workmux
 ## Verification
 
 [First-use packet](../attachments/delete-workmux-and-tmux-paths/index.md): thread dispatch documentation and installed binaries observed; internal removals, fresh namespace load and repository checks remain for reviewer/integration verification.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/delete-workmux-and-tmux-paths/index.md).
