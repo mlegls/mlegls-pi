@@ -2,6 +2,8 @@
 
 Implementation self-check, not independent acceptance. Runtime revision: 6f77315.
 
+[Independent CLI encounter](drive.md): live workers, handler and leftover process retired; unmerged commits and collector retained; immediate status and repeated stop held on revision 0a00b73.
+
 ~~~text
 reconcile_stop({issue}) / main.ts stop <issue>
   → stop reconciler PID
