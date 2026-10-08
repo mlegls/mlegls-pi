@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
@@ -27,3 +27,7 @@ Tests (approved): one `lib/reconcile` test with the shell-worker fixture: start 
 `reconcile_stop({issue})` and `bun lib/reconcile/main.ts stop <issue> --cwd DIR` stop the process, retire workers and handlers through the existing lifecycle, and clear their receipts. Unmerged branches and collectors remain. A cleanup failure keeps a stopping latch so session startup cannot relaunch the run; retry stop to finish cleanup.
 
 [First-use setup and implementation self-check](../attachments/stopped-supervise-jobs-have-no-cleanup-path/index.md): the approved shell-worker test passed, three affected existing regressions passed, and the CLI's fresh replay left no live threads, terminals or owned leftover processes. Typecheck passed with the existing nested Obsidian dependency workaround. Fixtures were removed; independent driving/review follows.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/stopped-supervise-jobs-have-no-cleanup-path/index.md).
