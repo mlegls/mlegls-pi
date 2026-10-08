@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 2
 author: session:01a0f065-abaf-776c-bc8b-419cb9b312e4
@@ -27,3 +27,7 @@ Tests (approved): one `lib/reconcile` test with the shell-worker fixture: constr
 ## Verification evidence
 
 [First-use shell-worker encounter](../attachments/supervisor-constraints-reach-workers-a-turn-late/index.md): the approved scenario passed from the committed setup (1 pass, 0 failures).
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/supervisor-constraints-reach-workers-a-turn-late/index.md).
