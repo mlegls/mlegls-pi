@@ -36,3 +36,7 @@ Use the index's prepare command; substitute its freshly printed ROOT below (do n
 ## Frictions and limits
 
 No product friction encountered on the changed CLI journey. The fixture's isolated selectors make setup and replay straightforward. This is nonvisual CLI evidence; no screenshots. The model-facing tool invocation was not driven independently; the public CLI stop/status behavior was. Cleanup-failure latch behavior is outside this live happy-path encounter.
+
+## Review (2026-10-08)
+
+Read the diff against the ticket's reconciler-terms contract and reran `lib/reconcile/stop.test.ts` plus constraints, checkpoint and refresh tests on the final head: 4 passed. All four stories hold on the diff's logic: the stopping latch is set before observation; PID reuse is guarded by a command check; handles missing from the chain are found through the thread registry; restart after a stopped run clears `finished` in `run`; session startup skips `stopping` runs. One repair: the supervise skill told supervisors only to start and resolve, so it now names `reconcile_stop` instead of killing the process. Not driven: cleanup-failure retry path.
