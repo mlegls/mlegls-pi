@@ -11,3 +11,7 @@ Session mode: hacking. Once [[projects/mlegls-pi/issues/thread-core-and-workers-
 Remove code only: the workmux and tmux binaries stay installed. Concept's supervisor reported (2026-10-02) that no workmux reconcilers remain there: garden runs on the threads reconciler and link-delayed is done. lib/reconcile already moved onto threads in 0be483a; graph.ts and children.ts still mention workmux.
 
 Tests, 2026-10-08: no new tests. Delete tests that only exercise removed workmux/tmux paths; the remaining suite and typecheck pass.
+
+## Verification
+
+[First-use packet](../attachments/delete-workmux-and-tmux-paths/index.md): thread dispatch documentation and installed binaries observed; internal removals, fresh namespace load and repository checks remain for reviewer/integration verification.
