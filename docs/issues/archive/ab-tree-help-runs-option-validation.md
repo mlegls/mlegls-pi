@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0f75a-a8f9-713c-ab66-9c81d8f04a29
 ---
@@ -9,3 +9,5 @@ During [[projects/mlegls-pi/issues/thread-cli-over-registry]] CLI first use, `./
 Observation belongs to mlegls-pi's existing tree CLI, not the new thread routing. Consider accepting help before option validation. [Encounter](../attachments/thread-cli-over-registry/index.md).
 
 Reproduced with `./bin/ab tree --help` at `a33a06c` during delete-workmux-and-tmux-paths verification: exit 1, same `ERR_PARSE_ARGS_UNKNOWN_OPTION`. Global `ab` reached the canonical checkout; explicit checkout-local entry reproduced it without opening UI. [Evidence](../attachments/delete-workmux-and-tmux-paths/index.md).
+
+result: fixed 2026-10-08. `ab tree --help` (or `-h`) prints the usage, which moved from the header comment of `lib/tree/cli.ts` into a `USAGE` constant. An unknown option prints the parse error and the usage and exits 1, with no stack trace.

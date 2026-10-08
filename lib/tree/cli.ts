@@ -1,17 +1,19 @@
 // ab tree: session views over lib/tree, every pi session with its parent, project and live state.
-//   ab tree [-m tree|projects|status] [-a] [--json] [--days N] [--hours N] [QUERY]
-//   ab tree ui [--sidebar] [QUERY]   thread tree; no tmux dashboard
-//   ab tree sidebar                  open the sidebar split
-//   ab tree app                      build, install ~/Applications/Threads.app and open it (apps/threads)
-//   ab tree env                      the environment threads inherit, as JSON between \x1eENV markers
-//   ab tree do new|fork|merge|continue|abandon|seen [--id ID] [--sibling] [--name BRANCH] [--project Q [--init]]   app action; --init makes Q a project (bare name: ~/dev/Q), JSON result
-//   ab tree open ID | send ID [TEXT]   thread attach / send
-//   ab timeline [SESSION]   HTML timeline of a session tree (default this session), opened in the browser
 import { parseArgs } from "node:util";
+
+const USAGE = `ab tree [-m tree|projects|status] [-a] [--json] [--days N] [--hours N] [QUERY]
+ab tree ui [--sidebar] [QUERY]   thread tree; no tmux dashboard
+ab tree sidebar                  open the sidebar split
+ab tree app                      build, install ~/Applications/Threads.app and open it (apps/threads)
+ab tree env                      the environment threads inherit, as JSON between \\x1eENV markers
+ab tree do new|fork|merge|continue|abandon|seen [--id ID] [--sibling] [--name BRANCH] [--project Q [--init]]   app action; --init makes Q a project (bare name: ~/dev/Q), JSON result
+ab tree open ID | send ID [TEXT]   thread attach / send
+ab timeline [SESSION]   HTML timeline of a session tree (default this session), opened in the browser`;
 
 const fail = (message: string): never => { console.error(message); process.exit(1); };
 
 export async function tree(args: string[]) {
+	if (args.includes("--help") || args.includes("-h")) return console.log(USAGE);
 	if (args[0] === "sidebar") return (await import("./ghostty.ts")).openSidebar();
 	if (args[0] === "env") return (await import("./app.ts")).printEnv();
 	if (args[0] === "app") return (await import("./app.ts")).launchApp();
@@ -25,9 +27,13 @@ export async function tree(args: string[]) {
 		else await sendThread(id, (args.slice(2).join(" ") || await Bun.stdin.text()) + "\r");
 		return;
 	}
-	const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
-		mode: { type: "string", short: "m", default: "tree" }, all: { type: "boolean", short: "a" },
-		json: { type: "boolean" }, days: { type: "string" }, hours: { type: "string" } } });
+	let parsed;
+	try {
+		parsed = parseArgs({ args, allowPositionals: true, options: {
+			mode: { type: "string", short: "m", default: "tree" }, all: { type: "boolean", short: "a" },
+			json: { type: "boolean" }, days: { type: "string" }, hours: { type: "string" } } });
+	} catch (e) { return fail((e instanceof Error ? e.message : String(e)) + "\n" + USAGE); }
+	const { values, positionals } = parsed;
 	const { graph } = await import("./graph.ts");
 	const view = await import("./view.ts");
 	const nodes = await graph({ days: values.days ? Number(values.days) : undefined });
@@ -41,6 +47,6 @@ export async function tree(args: string[]) {
 if (import.meta.main) {
 	const [command, ...rest] = process.argv.slice(2);
 	if (command === "timeline") { const { openTimeline } = await import("../timeline.ts"); console.log(await openTimeline(rest[0])); process.exit(0); }
-	if (command !== "tree") fail("usage: ab tree [ui|sidebar|open|send] ... | ab timeline [SESSION]");
+	if (command !== "tree") fail(USAGE);
 	await tree(rest);
 }

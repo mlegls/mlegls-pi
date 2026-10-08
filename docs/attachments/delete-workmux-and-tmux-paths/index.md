@@ -22,7 +22,7 @@ Setup handoff was null: no deployment, persona/auth, seed, launch command or che
 
 ## Frictions
 
-- Tree help raises an argument-parser stack trace rather than usage. Existing owner: [[projects/mlegls-pi/issues/ab-tree-help-runs-option-validation]].
+- Tree help raises an argument-parser stack trace rather than usage. Existing owner: [[projects/mlegls-pi/issues/archive/ab-tree-help-runs-option-validation]].
 - Global `ab` targets the canonical checkout. Workaround for CLI discovery: explicit `./bin/ab`.
 - Null setup supplies no isolated worker/thread seed or runnable lifecycle journey.
 
