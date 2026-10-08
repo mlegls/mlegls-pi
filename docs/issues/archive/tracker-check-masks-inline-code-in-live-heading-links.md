@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: session:a4607284-a9a1-451a-8c0e-abe9b8530f5c
 ---
 
@@ -8,3 +8,5 @@ Tracker `issues.ts check` reports valid heading links as missing when their anch
 Owner: tracker `scripts/issues.ts:402-430`. `checkLinks` matches links against `maskMarkdownCode(raw)` and compares the masked anchor with unmasked headings. The masking introduced by [[projects/mlegls-pi/issues/archive/tracker-check-flags-inline-fixture-wikilinks]] correctly ignores literal example links, but also destroys inline-code text inside a live link.
 
 Tried: read the two source links and target headings, then inspect `checkLinks`; this is not a missing target or heading. Workaround for refinement: the issue-tree query validates the new contracts; distinguish these two known false positives from real link findings in the global check. No project evidence links were weakened to silence the tool. A source repair is outside that worker's tracker/stub-only assignment.
+
+result: `checkLinks` still finds links in the masked text, then reads each link's target and anchor from the raw text at the same offsets. Masking keeps offsets, so a code span inside a live link keeps its text, and a link wholly inside a code span is still skipped. Test: `check accepts a live heading link whose anchor contains inline code` in `issues.test.ts`. Run against Concept, `check` now reports no heading findings.

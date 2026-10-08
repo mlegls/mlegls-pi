@@ -402,7 +402,10 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
     const text = maskMarkdownCode(raw);
     const edits = new Map<number, { end: number; replacement: string; message: string }>();
     const rel = f.slice(docs.length + 1);
-    for (const m of text.matchAll(/\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g)) {
+    const link = /\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g;
+    for (const masked of text.matchAll(link)) {
+      // Masking finds live links; their text comes from the source, so code spans inside a live anchor survive.
+      const m = Object.assign(raw.slice(masked.index!, masked.index! + masked[0].length).match(new RegExp(`^${link.source}$`)) ?? masked, { index: masked.index });
       const target = m[1].trim().replace(/\\$/, ""); // [[x\|alias]] inside a table
       const key = rel + m[0];
       const first = !seen.has(key);

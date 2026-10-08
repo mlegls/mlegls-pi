@@ -97,6 +97,16 @@ test("check ignores wikilinks in inline and fenced code, including when fixing o
   rmSync(moved);
 });
 
+test("check accepts a live heading link whose anchor contains inline code", () => {
+  const evidence = join(cwd, "docs/code-anchor.md");
+  writeFileSync(join(cwd, "docs/drive-5.md"), "## Review (after `133272a0`)\n");
+  writeFileSync(evidence, "[[projects/fixture/drive-5#Review (after `133272a0`)]] and `[[projects/fixture/drive-5#Example]]`\n");
+  const checked = run("check");
+  expect(checked.out).not.toContain("code-anchor.md");
+  rmSync(evidence);
+  rmSync(join(cwd, "docs/drive-5.md"));
+});
+
 // Review of small-ab-cli-fixes: a stray backtick once masked every link up to a later, unrelated code span.
 test("check still reports a broken link between an unmatched backtick and a later code span", () => {
   const evidence = join(cwd, "docs/stray-tick.md");
