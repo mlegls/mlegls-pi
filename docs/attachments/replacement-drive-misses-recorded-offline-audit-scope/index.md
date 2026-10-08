@@ -9,7 +9,21 @@ A temporary local Git fixture used `wm.spawn` with a shell worker over isolated 
 - A later-phase checkout received a second collector ruling. Refreshing again made no further change.
 - A competing ticket edit left that file conflicted with the collector as `MERGE_HEAD`, available for the worker's first-step resolution rather than silently dropping either history.
 
-The fixture's shell worker was closed and its temporary repository, linked worktrees, zmx state and registry were removed. The temporary diagnostic was not retained as a test: the required regression awaits explicit maintainer approval under `testing`.
+The fixture's shell worker was closed and its temporary repository, linked worktrees, zmx state and registry were removed.
+
+The approved regression is `lib/reconcile/refresh.test.ts`: it uses actual shell-worker checkouts and integrates the handler's docs commit before creating the successor. It passed (1 test, 7 assertions), and root typechecking passed. The earlier 26 affected regressions also passed. The earlier next-phase and pending-conflict observations remain temporary diagnostics, not additional permanent tests.
+
+## First-use setup and entry
+
+From the committed checkout:
+
+```sh
+mise run setup && bun install --frozen-lockfile --cwd extensions/obsidian-tracker && bun test ./lib/reconcile/refresh.test.ts
+```
+
+Required and prepared environment: local Git, Bun, mise and zmx; no Cloud deployment, credentials or paid inference. The entry prepares an isolated temporary repository, board, agent/session store and zmx directory; the collector and worker checkouts are fixture-owned. It seeds a live-drive ticket and predecessor packet, integrates the offline measurement ruling, then opens the successor from the predecessor HEAD. The seed and setup are committed in the regression, not inherited from a worker's ignored files. Readiness was observed by successful setup and shell-worker launch; cleanup closes the workers and removes all fixture state.
+
+For an independent library encounter, the surface is `refreshWorker(successorCheckout, collectorCheckout)` from `lib/reconcile/refresh.ts`, used as the pre-setup/launch callback of `wm.spawn`. Use disposable, owned Git checkouts; the operation merges the collector into the successor, leaving genuine conflicts for its first-step resolution.
 
 ## Existing regressions and preparation
 
