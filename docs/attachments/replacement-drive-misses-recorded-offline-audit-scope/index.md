@@ -1,5 +1,7 @@
 # Collector refresh: implementation check
 
+[Independent first-use drive](independent-drive.md): the authorized regression entry passed (1 test, 7 assertions); handler acceptance instructions were observed directly. Historical recheck was replayed from the retained evidence below, not independently recovered.
+
 Implementation: `99c14ac`. These are implementer first-use observations, not independent acceptance. No model or paid inference ran.
 
 A temporary local Git fixture used `wm.spawn` with a shell worker over isolated zmx, board, thread registry and agent state. The predecessor committed a retained result; its collector then changed the ticket from live product success to offline measurement claims. The successor branched from the predecessor and refreshed the collector before setup/launch.
