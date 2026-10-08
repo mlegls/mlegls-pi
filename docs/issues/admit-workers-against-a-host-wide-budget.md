@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 2
 author: session:01a0f324-32e8-732c-96ad-132d2d15485e
@@ -25,3 +25,7 @@ Contract, 2026-10-08: every worker launch (reconciler phases and `tools.dispatch
 Independent drive evidence: [capacity and pressure encounter](../attachments/admit-workers-against-a-host-wide-budget/index.md).
 
 Tests (approved): (1) with the slot count at 1, a second owner's launch stays queued until the first worker is retired, then starts; (2) with the pressure probe stubbed high, a launch waits, and starts once the stub reports low. Both may use shell workers in place of pi.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/admit-workers-against-a-host-wide-budget/index.md).
