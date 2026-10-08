@@ -1,6 +1,7 @@
 // One child pi at a time. Exiting pi leaves the thread active; restarting never resubmits its bootstrap.
 import { spawn } from "node:child_process";
-import { openSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { transientNetworkError, networkRetryDelay } from "../retry";
 import { open } from "node:fs/promises";
 import { clearSetup, declaresSetup, readSetup, setupLog, writeSetup } from "./setup";
 import { join } from "node:path";
@@ -52,15 +53,37 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 async function pendingSetup(thread: ThreadRecord): Promise<void> {
 	if (readSetup(thread.id)?.state !== "pending") return;
 	if (!await declaresSetup(thread.cwd)) return void await clearSetup(thread.id);
-	const log = setupLog(thread.id), out = openSync(log, "w");
-	const proc = spawn("mise", ["run", "setup"], { cwd: thread.cwd, env: launchEnv(thread), stdio: ["ignore", out, out] });
-	proc.once("error", () => writeSetup(thread.id, { state: "done", code: -1, log }));
-	proc.once("exit", code => writeSetup(thread.id, { state: "done", code, log }));
-	if (proc.pid) writeSetup(thread.id, { state: "running", pid: proc.pid, log });
-	if (thread.worker) await new Promise<void>((resolve, reject) => {
-		proc.once("error", reject);
-		proc.once("exit", code => code === 0 ? resolve() : reject(new Error("Worker setup failed: " + code + " (see " + log + ")")));
-	});
+	const log = setupLog(thread.id);
+	writeFileSync(log, "");
+	const out = openSync(log, "a");
+	const setup = async () => {
+		try {
+			for (let attempt = 0; ; attempt++) {
+				const offset = statSync(log).size;
+				const code = await new Promise<number | null>((resolve, reject) => {
+					const proc = spawn("mise", ["run", "setup"], { cwd: thread.cwd, env: launchEnv(thread), stdio: ["ignore", out, out] });
+					proc.once("error", reject);
+					proc.once("exit", resolve);
+					if (proc.pid) writeSetup(thread.id, { state: "running", pid: proc.pid, log });
+				});
+				// Inspect only this attempt: an earlier network error must not retry a later non-network failure.
+				if (thread.worker && code !== 0 && attempt < 2 && transientNetworkError(readFileSync(log).subarray(offset).toString())) {
+					const wait = networkRetryDelay(attempt);
+					appendFileSync(log, "\nWorker setup network error; retry " + (attempt + 1) + "/2 in " + wait / 1000 + "s\n");
+					await delay(wait);
+					continue;
+				}
+				writeSetup(thread.id, { state: "done", code, log });
+				if (thread.worker && code !== 0) throw new Error("Worker setup failed: " + code + " (see " + log + ")");
+				return;
+			}
+		} catch (error) {
+			if (readSetup(thread.id)?.state !== "done") writeSetup(thread.id, { state: "done", code: -1, log });
+			throw error;
+		} finally { closeSync(out); }
+	};
+	if (thread.worker) await setup();
+	else void setup().catch(() => {});
 }
 
 async function run(id: string): Promise<void> {

@@ -283,11 +283,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				try { return await launchNow(attempt ? handle.slice(0, 86) + "-r" + attempt : handle, role, prompt, base, into, issue, only, prepare); }
 				catch (e) {
 					const lock = /could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e));
-					// Setup fetching over a flaky network (Convex backend lookup, GitHub TLS) recovers on a plain retry.
-					const net = /fetch failed|failed to fetch|socket hang up|TLS handshake timeout|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN/i.test(String(e));
-					if (!(lock && attempt < 3) && !(net && attempt < 2)) throw e;
-					note("launch " + handle + " hit a " + (lock ? "git lock" : "network error") + ", retrying: " + String(e).split("\n")[0]);
-					await Bun.sleep(lock ? 2000 + Math.random() * 3000 : 15_000 * (attempt + 1));
+					if (!lock || attempt >= 3) throw e;
+					note("launch " + handle + " hit a git lock, retrying: " + String(e).split("\n")[0]);
+					await Bun.sleep(2000 + Math.random() * 3000);
 				}
 			}
 		} finally { launching--; }
@@ -346,7 +344,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		});
 		if (prev && !await retireHandle(prev, pathOf(c.into))) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
-		c.retries = { integrate: c.retries.integrate ?? 0 };
+		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
 		save();
 	}
 
@@ -561,7 +559,15 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; save();
 		const r = parse(m.body), text = m.body, h = c.handle!;
 		if (c.phase === "integrate") { c.phase = "review"; }
-		if (m.tags.includes("error")) return raise(slug, "provider error: " + errorClass(m.body), text, issues, "owner");
+		if (m.tags.includes("error")) {
+			const kind = errorClass(text);
+			if (kind !== "authentication" && kind !== "rate limit or quota" && !c.retries.provider) {
+				c.retries.provider = 1; save();
+				note("provider error on " + slug + "; retrying " + c.phase + " once: " + kind);
+				return startPhase(slug, c, c.phase, issue, issues);
+			}
+			return raise(slug, "provider error: " + kind, text, issues, "owner");
+		}
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
 		if (r.status === null) return repair(slug, c, "status", "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first line, then the handoff.", issues, text);
 		if (c.phase === "implement" && !c.self && r.handoff?.respec) {
