@@ -1,9 +1,11 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 priority: 3
 author: session:8b7a8886-119b-4cd8-bceb-d802d71a9915
 ---
+
+Done: a worker the reconciler relaunches (retry, answered exception, next phase) starts from a base that contains every commit integrated into its level's collector, so a handler's recorded ruling is in its tracker. A test in `lib/reconcile` shows a handler's `docs/` commit reaching the next worker's checkout. The handler prompt says a ruling that changes what done means edits the ticket's acceptance/Stories lines. Then recheck the integration divergence below against the fix.
 
 Observed under [[projects/concept/issues/measure-live-classical-chinese-first-turns]], verifying [[projects/concept/stories/plan]], [[projects/concept/stories/session]] and [[projects/concept/stories/meter-managed-usage]]. Owning tool/repository: mlegls-pi reconciler; related owner [[projects/mlegls-pi/issues/reconcile-the-execution-tree-with-lazy-exception-handlers]].
 
@@ -15,10 +17,10 @@ Recommendation: ensure replacement workers receive applicable ancestor contract 
 
 Cause, from `lib/reconcile/reconcile.ts` (2026-10-08): a handler's tracker commits are integrated into the level's collector (`:418-424`), but `startPhase` bases the next worker on the previous worker's HEAD and reads the ticket from that worker's checkout (`:287-291`). A retry, an answered exception or the next phase therefore never sees what a handler recorded. The handler's message reaches only the first relaunch, as `c.note`, which is cleared at the next phase change (`:538`, `:557`). That is the missing `9660f4d` in `569485f`.
 
-holes:
-- base for a relaunched or next-phase worker. Proposed: when the collector has advanced past the previous worker's base, merge the collector HEAD into the new worker's worktree before launch. Handler commits only touch `docs/`, so a conflict is a ticket the worker also edited; the new worker resolves it as its first step. Reading only the ticket from the collector would leave the worker's own tracker stale and move the conflict to integration.
-- acceptance under a scope ruling (the section below): the handler prompt should say that a ruling which changes what done means edits the ticket's acceptance/Stories lines, not only adds prose. Separate from the base fix.
-- integration history divergence (the last section): probably the same missing-collector-commits cause; recheck after the base fix before treating it as its own issue.
+decisions:
+- 2026-10-08 base for a relaunched or next-phase worker: when the collector has advanced past the previous worker's base, merge the collector HEAD into the new worker's worktree before launch. Handler commits only touch `docs/`, so a conflict is a ticket the worker also edited; the new worker resolves it as its first step. Reading only the ticket from the collector would leave the worker's own tracker stale and move the conflict to integration.
+- 2026-10-08 acceptance under a scope ruling (the section below): the handler prompt says that a ruling which changes what done means edits the ticket's acceptance/Stories lines, not only adds prose.
+- 2026-10-08 integration history divergence (the last section): probably the same missing-collector-commits cause; recheck after the base fix before treating it as its own issue.
 
 ## Measurement acceptance versus product-success handoff
 

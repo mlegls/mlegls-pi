@@ -1,8 +1,10 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 author: "session:01a0f86d-9beb-71bb-8518-b44c8d4eebbd"
 ---
+
+Done: a worker that reports `checkpoint` while its session still runs a managed process is not relaunched. The reconciler repairs it, telling it to report `waiting` until the process completes and checkpoint after that, and the checkpoint does not count against `BUDGET.checkpoint`. A test in `lib/reconcile` covers both outcomes of `runsProcess`.
 
 Owner: mlegls-pi reconciler / drive continuation tooling.
 
@@ -36,5 +38,5 @@ During [[projects/concept/issues/reconcile-folded-browser-scenarios-on-the-commo
 
 The plain-waiting loop above predates the `waiting` status (ffdc983, 2026-10-02): a worker may now end `waiting` on a process it started without raising, and one whose session runs no managed process is told so after 2m (`WAITING_VOID_MS`). Recheck that the loop is gone; no recurrence since is recorded. What remains is a checkpoint while the worker's session still runs a managed process: `onReport` (`lib/reconcile/reconcile.ts`, `status === "checkpoint"`) relaunches in a new session, which cannot own that process.
 
-holes:
-- checkpoint with a live managed process. Proposed: the reconciler refuses it. On a checkpoint report, if `runsProcess(handle)` is true, repair with "wait for your running process (report `waiting`), then checkpoint after it completes" instead of relaunching; the checkpoint stays uncounted. Alternatives were resuming the same session (defeats the context reset a checkpoint is for) and a durable completion/log handoff (the hand-built `fs.watch` workaround as machinery; more general, more to build).
+decisions:
+- 2026-10-08 checkpoint with a live managed process: the reconciler refuses it. On a checkpoint report, if `runsProcess(handle)` is true, repair with "wait for your running process (report `waiting`), then checkpoint after it completes" instead of relaunching; the checkpoint stays uncounted. Rejected: resuming the same session (defeats the context reset a checkpoint is for) and a durable completion/log handoff (the hand-built `fs.watch` workaround as machinery; more general, more to build; revisit if a worker runs out of context partway through a multi-hour run).

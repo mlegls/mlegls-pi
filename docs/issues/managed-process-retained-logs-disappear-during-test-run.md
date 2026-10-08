@@ -1,7 +1,10 @@
 ---
-stage: idea
+stage: ticket
+assignee: agent
 author: "session:ccea9429-e217-4757-b9bc-ea647fbf07f0"
 ---
+
+Done: in `~/dev/pi-processes`, when a completion notice or `process output` cannot read a log, it says why (error code and path), and the process record keeps that error. A test makes the read fail and checks the notice. The fix for the underlying failure is a later ticket once a recurrence or repro shows the code.
 
 While verifying SCM's `settle-through-arkhai-payments` (VM storefront unit/integration suites), the process tool reported completion but could not read its retained logs. `process output` for the same process returned `Could not read output for: proc_10`. Other process records in the same session remained readable. This happened on `convergence-checks`, `import-regressions`, and `vm-import-recheck`; a repeat captured through `tee .wm/vm-check.log` retained its 895 unit passes (one skipped) and 152 integration passes.
 
