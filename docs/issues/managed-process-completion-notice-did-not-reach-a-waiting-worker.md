@@ -8,7 +8,7 @@ During [[projects/concept/issues/gate-supervised-integration-on-the-kept-browser
 
 No process restart, duplicate trial, lost test outcome or new worktree/session occurred in this encounter. `process output proc_2` could still recover the retained output after root's notice. The worker had ended with `blocked` pending-process reports under the old sentinel contract; root then introduced `waiting` and the worker replied `waiting (proc_2)`. Whether notification delivery, report suspension or exception handling caused the missing wake is not established.
 
-Owner: mlegls-pi process notifications and reconciler waiting/report handling. Workaround was the root's one-off terminal-result notice with the existing log, not polling or a second process. Related inherited-session ownership observation: [[projects/mlegls-pi/issues/checkpoint-continuation-cannot-observe-inherited-managed-processes]]; this encounter retained the original session, so it does not establish that same cause.
+Owner: mlegls-pi process notifications and reconciler waiting/report handling. Workaround was the root's one-off terminal-result notice with the existing log, not polling or a second process. Related inherited-session ownership observation: [[projects/mlegls-pi/issues/reconciler-drive-continuation-loses-managed-process-ownership]]; this encounter retained the original session, so it does not establish that same cause.
 
 ## Cause (2026-10-02 11:20 UTC)
 

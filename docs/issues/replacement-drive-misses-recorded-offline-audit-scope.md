@@ -13,6 +13,13 @@ Workaround: answer again with the complete offline scope, the exact packet entry
 
 Recommendation: ensure replacement workers receive applicable ancestor contract decisions as active setup, including authorized scope exceptions, rather than only the preceding implementer's one-shot invocation. Investigate message delivery and branch refresh before attributing a cause.
 
+Cause, from `lib/reconcile/reconcile.ts` (2026-10-08): a handler's tracker commits are integrated into the level's collector (`:418-424`), but `startPhase` bases the next worker on the previous worker's HEAD and reads the ticket from that worker's checkout (`:287-291`). A retry, an answered exception or the next phase therefore never sees what a handler recorded. The handler's message reaches only the first relaunch, as `c.note`, which is cleared at the next phase change (`:538`, `:557`). That is the missing `9660f4d` in `569485f`.
+
+holes:
+- base for a relaunched or next-phase worker. Proposed: when the collector has advanced past the previous worker's base, merge the collector HEAD into the new worker's worktree before launch. Handler commits only touch `docs/`, so a conflict is a ticket the worker also edited; the new worker resolves it as its first step. Reading only the ticket from the collector would leave the worker's own tracker stale and move the conflict to integration.
+- acceptance under a scope ruling (the section below): the handler prompt should say that a ruling which changes what done means edits the ticket's acceptance/Stories lines, not only adds prose. Separate from the base fix.
+- integration history divergence (the last section): probably the same missing-collector-commits cause; recheck after the base fix before treating it as its own issue.
+
 ## Measurement acceptance versus product-success handoff
 
 At reviewer head `637d157a`, the required integration gate passed, but review remained blocked after an explicit ruling to finish the measurement-only audit while preserving `plan`/`session` failures. The reviewer correctly noted that the standard handoff requires every required story row to be `held`; the scope ruling still left the ticket's Stories line and failed product rows as the apparent required claims. This is a contract mismatch, not a failed gate or an authorization to repair production.
