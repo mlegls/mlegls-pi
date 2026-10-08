@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { conflicts } from "./compaction.ts";
+import { conflicts } from "./mechanism.ts";
 
 test("same role from different mechanisms conflicts; different roles compose", () => {
 	expect(conflicts([

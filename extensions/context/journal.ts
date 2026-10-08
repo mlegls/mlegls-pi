@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { anchor, chainRecords, entryOf, entryRef, visible, type Anchored, type BranchSession } from "../../lib/records/branch.ts";
 import { render, type Renderer } from "../../lib/records/render.ts";
 import { db, stamp, write, type Tag } from "../../lib/records/store.ts";
-import { isActive, type CompactionMechanism, type CompactionView, type Prepared } from "./compaction.ts";
+import { isActive, type Mechanism, type CompactionView, type Prepared } from "./mechanism.ts";
 
 export const SCHEMA = "journal";
 const NAME = "journal";
@@ -245,7 +245,7 @@ export const activeTools = (pi: ExtensionAPI) => {
 	});
 };
 
-export default function journal(pi: ExtensionAPI): CompactionMechanism {
+export default function journal(pi: ExtensionAPI): Mechanism {
 	let busy = false;
 	let triggering = false;
 

@@ -1,7 +1,11 @@
-// Compaction as a choice among memory mechanisms (lib/records/render renderers). A session has
-// one active mechanism: `/memory <name>` switches it (a `cursor` record, so it follows the branch
-// and forks inherit it), else settings `memory.default`, else the first enabled one. The active
-// mechanism may `prepare` first (e.g. write records with a model call); if that fails, the next
+// Memory mechanisms: disjoint, configurable systems for what a session remembers and how its
+// context is built (lib/records/render renderers, plus whatever harness surface they own). A
+// session has one active mechanism: `/memory <name>` switches it (a `cursor` record, so it follows
+// the branch and forks inherit it), else settings `memory.default`, else the first enabled one.
+// Switching swaps the whole system: only the active mechanism's tools are declared, its prompt
+// section appended, its `context` builds each request and its `request` edits the provider payload.
+//
+// At compaction the active mechanism may `prepare` first (e.g. write records with a model call); if that fails, the next
 // enabled mechanism renders instead, and with none left pi's native summarizer runs. The section's
 // details are the compaction's details. Mechanisms gate their own compaction triggers on
 // `isActive`, so only the active one triggers, while any may keep observing in the background.
@@ -10,7 +14,8 @@
 // conflict check is across extensions (each announces its roles on the event bus as
 // `memory:roles`) and against upstream pi-observational-memory, which predates roles and is
 // recognized by its package in settings.
-import { getAgentDir, type ExtensionAPI, type ExtensionContext, type SessionBeforeCompactEvent } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type BeforeAgentStartEvent, type ExtensionAPI, type ExtensionContext, type SessionBeforeCompactEvent } from "@earendil-works/pi-coding-agent";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BranchSession } from "../../lib/records/branch.ts";
@@ -32,8 +37,16 @@ export interface Prepared {
 	[key: string]: unknown;
 }
 
-export interface CompactionMechanism {
+export interface Mechanism {
 	renderer: Renderer<CompactionView, any>;
+	/** Tools declared only while this mechanism is active. */
+	tools?: string[];
+	/** A section appended to the system prompt while active. */
+	prompt?(event: BeforeAgentStartEvent, ctx: ExtensionContext): Promise<string | undefined> | string | undefined;
+	/** Builds each request's messages while active (runs after every other context hook). */
+	context?(messages: AgentMessage[], ctx: ExtensionContext): AgentMessage[] | undefined;
+	/** Edits the provider payload while active; returns a replacement or undefined. */
+	request?(payload: unknown, ctx: ExtensionContext): unknown;
 	budget(): number;
 	/** Usable in this cwd (settings); a disabled mechanism is neither active nor a fallback. */
 	enabled?(ctx: ExtensionContext): boolean;
@@ -47,7 +60,7 @@ export interface CompactionMechanism {
 interface RoleClaim { role: string; name: string; owner: string }
 
 const MODE_KEY = "memory.mode";
-let registered: CompactionMechanism[] = [];
+let registered: Mechanism[] = [];
 
 function readSettings(cwd: string): Record<string, any> {
 	let out: Record<string, any> = {};
@@ -70,6 +83,11 @@ export function activeMechanism(ctx: ExtensionContext): string | undefined {
 }
 
 export const isActive = (name: string, ctx: ExtensionContext) => activeMechanism(ctx) === name;
+
+const active = (ctx: ExtensionContext) => { const name = activeMechanism(ctx); return registered.find((m) => m.renderer.name === name); };
+
+/** Whether the active mechanism builds requests itself (so other context policies stand aside). */
+export const ownsContext = (ctx: ExtensionContext) => !!active(ctx)?.context;
 
 /** Packages in global and project settings that are known to render a role without declaring it. */
 function undeclared(cwd: string): RoleClaim[] {
@@ -95,7 +113,7 @@ export function conflicts(claims: RoleClaim[]): string[] {
 		.map(([role, cs]) => `${cs.length} memory mechanisms claim role "${role}": ${cs.map((c) => `${c.name} (${c.owner})`).join(", ")}`);
 }
 
-export function registerCompaction(pi: ExtensionAPI, mechanisms: CompactionMechanism[]): void {
+export function registerMechanisms(pi: ExtensionAPI, mechanisms: Mechanism[]): void {
 	registered = mechanisms;
 	const owner = import.meta.url; // a second copy of this package loaded from elsewhere is a different owner
 	const mine: RoleClaim[] = mechanisms.map((m) => ({ role: m.renderer.role, name: m.renderer.name, owner }));
@@ -103,7 +121,29 @@ export function registerCompaction(pi: ExtensionAPI, mechanisms: CompactionMecha
 	pi.events.on("memory:roles", (claims) => {
 		for (const c of claims as RoleClaim[]) if (c.owner !== owner) others.push(c);
 	});
+	/** Declare the active mechanism's tools, withdraw the others'. */
+	const syncTools = (ctx: ExtensionContext) => {
+		const on = active(ctx);
+		const owned = new Set(mechanisms.flatMap((m) => m.tools ?? []));
+		const want = new Set(on?.tools ?? []);
+		const current = pi.getActiveTools();
+		const next = [...current.filter((n) => !owned.has(n) || want.has(n)), ...[...want].filter((n) => !current.includes(n))];
+		if (next.length !== current.length || next.some((n, i) => n !== current[i])) pi.setActiveTools(next);
+	};
+	pi.on("session_tree", (_event, ctx) => syncTools(ctx));
+	pi.on("before_agent_start", async (event, ctx) => {
+		syncTools(ctx);
+		const section = await active(ctx)?.prompt?.(event, ctx);
+		return section ? { systemPrompt: event.systemPrompt + "\n\n" + section } : undefined;
+	});
+	pi.on("context", (event, ctx) => {
+		const messages = active(ctx)?.context?.(event.messages, ctx);
+		return messages ? { messages } : undefined;
+	});
+	pi.on("before_provider_request", (event, ctx) => active(ctx)?.request?.(event.payload, ctx));
+
 	pi.on("session_start", (_event, ctx) => {
+		syncTools(ctx);
 		pi.events.emit("memory:roles", mine);
 		const warnings = conflicts([...mine, ...others, ...undeclared(ctx.cwd)]);
 		for (const w of warnings) {
@@ -121,6 +161,7 @@ export function registerCompaction(pi: ExtensionAPI, mechanisms: CompactionMecha
 			if (want) {
 				if (!names.includes(want)) { ctx.ui.notify(`Memory: "${want}" is not an enabled mechanism (${names.join(", ") || "none"})`, "warning"); return; }
 				writeCursor(ctx.sessionManager as unknown as BranchSession, MODE_KEY, want);
+				syncTools(ctx);
 			}
 			const active = activeMechanism(ctx);
 			ctx.ui.notify(`Memory: ${active ?? "none (pi native)"}${names.length > 1 ? ` (enabled: ${names.join(", ")})` : ""}`, "info");

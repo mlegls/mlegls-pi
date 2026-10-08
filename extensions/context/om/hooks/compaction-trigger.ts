@@ -3,7 +3,7 @@ import { resolveCompactAfterTokens } from "../config.js";
 import { rawTokensSinceLastCompaction, type Entry } from "../session-ledger/index.js";
 import type { Runtime } from "../runtime.js";
 import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
-import { isActive } from "../../compaction.ts";
+import { isActive } from "../../mechanism.ts";
 
 export function registerCompactionTrigger(pi: ExtensionAPI, runtime: Runtime): void {
 	// Pi emits agent_settled only after retries, automatic compaction, and queued

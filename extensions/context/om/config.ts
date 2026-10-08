@@ -59,7 +59,7 @@ export interface Config {
 	passive: boolean;
 	/**
 	 * When OM observes and reflects: `always` (default), `active` (only while it is the session's
-	 * memory mechanism, see extensions/context/compaction.ts), or `never` (OM is off: passive, and
+	 * memory mechanism, see extensions/context/mechanism.ts), or `never` (OM is off: passive, and
 	 * neither switchable to nor a fallback).
 	 */
 	observe?: "always" | "active" | "never";

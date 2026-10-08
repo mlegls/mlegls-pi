@@ -1,5 +1,5 @@
 // context: when and how a session's context is managed. Memory mechanisms, one active per
-// session (/memory switches; ./compaction.ts): ./journal.ts, the agent's own entries written
+// session (/memory switches; ./mechanism.ts): ./journal.ts, the agent's own entries written
 // through a `journal` tool and rendered back as those tool calls, and observational memory (./om,
 // vendored from pi-observational-memory with its ledger moved into the records store as the `om`
 // schema), which observes and reflects per memory.schemas.om.observe (always | active | never). The active one triggers
@@ -19,7 +19,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { registerCompaction } from "./compaction.ts";
+import { registerMechanisms } from "./mechanism.ts";
 import observationalMemory from "./om/index.ts";
 import journal from "./journal.ts";
 import elide from "./elide.ts";
@@ -44,7 +44,7 @@ function fenceText(percent: number, topic: string): string {
 
 export default function (pi: ExtensionAPI) {
 	elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
-	registerCompaction(pi, [journal(pi), observationalMemory(pi), memo(pi)]);
+	registerMechanisms(pi, [journal(pi), observationalMemory(pi), memo(pi)]);
 	recall(pi);
 	const topic = process.env.PI_BOARD_TOPIC;
 	if (!topic) return;

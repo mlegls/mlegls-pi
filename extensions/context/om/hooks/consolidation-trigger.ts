@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { isActive } from "../../compaction.ts";
+import { isActive } from "../../mechanism.ts";
 import { runDropper } from "../agents/dropper/agent.js";
 import { observationPoolMetrics } from "../agents/dropper/pool.js";
 import { ObserverStreamError, runObserver } from "../agents/observer/agent.js";

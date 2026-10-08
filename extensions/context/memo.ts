@@ -38,7 +38,7 @@ import type { BranchSession } from "../../lib/records/branch.ts";
 import { readCursor, writeCursor } from "../../lib/records/cursor.ts";
 import type { Renderer } from "../../lib/records/render.ts";
 import { db, write } from "../../lib/records/store.ts";
-import { isActive, type CompactionMechanism, type CompactionView } from "./compaction.ts";
+import { isActive, type Mechanism, type CompactionView } from "./mechanism.ts";
 import { activeTools, replay } from "./journal.ts";
 import { DEFAULTS } from "./om/config.ts";
 import { Runtime } from "./om/runtime.ts";
@@ -349,7 +349,7 @@ export async function nap(env: NapEnv, cfg: Settings, logs: string[], session: s
 
 // ---------- extension ----------
 
-export default function memo(pi: ExtensionAPI): CompactionMechanism {
+export default function memo(pi: ExtensionAPI): Mechanism {
 	const worker = !!process.env.PI_BOARD_TOPIC;
 	let localLines = 64, busy = false, triggering = false;
 	let frozen: string | undefined;
@@ -366,12 +366,6 @@ export default function memo(pi: ExtensionAPI): CompactionMechanism {
 			try { notify?.("memo: compression failed: " + (e instanceof Error ? e.message : String(e)), "warning"); } catch {}
 		});
 	};
-	/** The memo tool is declared only while memo is the active mechanism. */
-	const syncTool = (ctx: ExtensionContext) => {
-		const active = pi.getActiveTools(), want = on(ctx);
-		if (want !== active.includes("memo")) pi.setActiveTools(want ? [...active, "memo"] : active.filter((n) => n !== "memo"));
-		return want;
-	};
 	const remember = (ctx: ExtensionContext, text: string, scope: Scope = "local") => {
 		if (scope === "global" && worker) throw new Error("A worker can't write the global log: note it in project, or report it.");
 		const log = logOf(scope, ctx.cwd, sm(ctx), true);
@@ -387,17 +381,7 @@ export default function memo(pi: ExtensionAPI): CompactionMechanism {
 		frozen = undefined;
 		if (stop.signal.aborted) stop = new AbortController();
 		localLines = settings(ctx.cwd).wakeLines.local;
-		if (syncTool(ctx)) napLater(ctx);
-	});
-
-	pi.on("before_agent_start", (event, ctx) => {
-		if (!syncTool(ctx)) return;
-		// Rendered once per session and per compaction, so the prompt prefix stays cached; local renders into the compaction instead.
-		if (frozen === undefined) {
-			const w = settings(ctx.cwd).wakeLines, project = logOf("project", ctx.cwd, sm(ctx));
-			frozen = PROMPT(worker, wake(load("global"), w.global), project ? wake(load(project), w.project) : undefined, projectOf(ctx.cwd)?.replace(/\/\.git$/, ""));
-		}
-		return { systemPrompt: event.systemPrompt + "\n\n" + frozen };
+		if (on(ctx)) napLater(ctx);
 	});
 
 	pi.on("agent_settled", (_event, ctx) => {
@@ -466,6 +450,15 @@ export default function memo(pi: ExtensionAPI): CompactionMechanism {
 
 	return {
 		renderer: memoRenderer,
+		tools: ["memo"],
+		prompt(_event, ctx) {
+			// Rendered once per session and per compaction, so the prompt prefix stays cached; local renders into the compaction instead.
+			if (frozen === undefined) {
+				const w = settings(ctx.cwd).wakeLines, project = logOf("project", ctx.cwd, sm(ctx));
+				frozen = PROMPT(worker, wake(load("global"), w.global), project ? wake(load(project), w.project) : undefined, projectOf(ctx.cwd)?.replace(/\/\.git$/, ""));
+			}
+			return frozen;
+		},
 		budget: () => localLines,
 		enabled: (ctx) => settings(ctx.cwd).enabled,
 		prepare: (event, ctx) => checkpoint(event, ctx),

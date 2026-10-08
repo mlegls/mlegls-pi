@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { anchor, entryRef, type BranchSession } from "../../lib/records/branch.ts";
 import { db, write } from "../../lib/records/store.ts";
+import { ownsContext } from "./mechanism.ts";
 
 export interface ElideOptions { /** Idle time after which the named provider's prompt cache is assumed gone. */ idleMs: (provider: string) => number; minTokens: number; keepTurns: number }
 
@@ -104,7 +105,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", () => { count = 0; });
 	pi.on("context", (event, ctx) => {
 		const s = settings(ctx.cwd);
-		if (!s.enabled) return;
+		if (!s.enabled || ownsContext(ctx)) return;
 		const r = elideCold(event.messages, ctx.sessionManager.getBranch() as SessionEntry[], {
 			idleMs: (p) => (s.idleSeconds[p] ?? s.idleSeconds.default) * 1000, minTokens: s.minTokens, keepTurns: s.keepTurns,
 		});
