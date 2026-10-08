@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 part-of: "[[projects/mlegls-pi/issues/threads-on-zmx-with-a-native-sidebar]]"
@@ -17,3 +17,5 @@ Make the existing `ab tree ui --sidebar` (`lib/tree/ui.ts`, `lib/tree/ghostty.ts
 Wheel scrolls the viewport without selecting/opening; j/k select without opening. Sidebar hover uses mode 1003 and offers only the existing `[merge]` (confirmed workmux parent merge) and `[new]` (pi window). No archive is advertised. Ghostty `focus-follows-mouse=true` is committed and deployed from system-config (`17a318c`); the user's running instance still needs its normal config reload.
 
 [First-use setup and observations](../attachments/tree-sidebar-bridge-fixes/index.md): private-pty motion, merge confirmation, scroll/Enter and both agent views worked. The real hidden Ghostty trial was blank and not AX-addressable; native interaction remains pending [[projects/mlegls-pi/issues/cua-hidden-ghostty-has-no-addressable-window]]. The fixture suppresses the legacy [[projects/mlegls-pi/issues/sidebar-ghostty-helpers-target-the-front-window]] helpers. Root typecheck passes after the existing plugin-dependency workaround ([[projects/mlegls-pi/issues/root-setup-still-omits-obsidian-typecheck-dependencies]]); regression timeouts rerun successfully ([[projects/mlegls-pi/issues/host-load-times-out-existing-regressions]]).
+
+result: superseded, triaged 2026-10-08. The bridge shipped as recorded in its Result. The sidebar was then rebuilt over threads ([[projects/mlegls-pi/issues/tree-sidebar-over-threads]], done), which keeps wheel-scrolls-without-selecting and mode-1003 hover in `lib/tree/ui.ts`. The workmux `[merge]` it wired no longer applies. Native interaction stays with [[projects/mlegls-pi/issues/cua-hidden-ghostty-has-no-addressable-window]].

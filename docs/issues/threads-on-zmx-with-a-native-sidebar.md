@@ -20,7 +20,7 @@ These are nested-transaction commit and abort, as in [[projects/mlegls-pi/issues
 substeps:
 1. [[projects/mlegls-pi/issues/check-zmx-reattach-with-pi]]: decides how the fork's main area holds surfaces.
 2. [[projects/mlegls-pi/issues/thread-registry-on-zmx]]: the CLI both frontends sit on.
-3. [[projects/mlegls-pi/issues/tree-sidebar-bridge-fixes]]: makes the current TUI sidebar tolerable on top of 2; parallel with 2 for the parts that don't need it.
+3. [[projects/mlegls-pi/issues/archive/tree-sidebar-bridge-fixes]]: makes the current TUI sidebar tolerable on top of 2; parallel with 2 for the parts that don't need it.
 4. [[projects/mlegls-pi/issues/native-thread-sidebar-in-a-ghostty-fork]]
 
 decisions:

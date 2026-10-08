@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 2
 author: "session:95cf9e55-d246-406a-a3bc-f0780b3b2a49"
@@ -35,3 +35,5 @@ verify(sha)                                one at a time; a newer sha supersedes
 holes:
 
 - Where the marker lives so every reconciler and a manual `integrate` read it (`.git/` of the owner's checkout is the obvious place).
+
+result: done in a different shape, triaged 2026-10-08. The project owns verification of main: concept's `.husky/post-merge` runs `scripts/verify-main.sh` and keeps `<git-common-dir>/verify-main/red` while main is red. The reconciler deleted `pre-integrate:owner` and holds code landings into the owner's checkout while that marker is set, except docs-only landings and landings that touch a failing case's file (`ac126bd`, `mainRed`/`heldByRed` in `lib/reconcile/checks.ts`). The blocker [[projects/concept/issues/declare-a-main-verification-task-and-drop-pre-integrate-owner]] is done.

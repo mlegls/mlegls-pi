@@ -12,7 +12,7 @@ Sibling of [[projects/mlegls-pi/issues/admit-workers-against-a-host-wide-budget]
 Buy, don't rebuild: `ab check`'s two-slot queue was a homegrown version, removed in b40cdec with open bugs about timeouts cancelling waiters and lost waiters (archived `ab-check-*` issues).
 
 - pueue group `heavy` with `pueue parallel <n> -g heavy`; callers `pueue add -g heavy -p -- <cmd>` then `pueue wait`/`pueue log`. A thin wrapper on PATH so roles and project tasks say one word.
-- `taskpolicy -b` for work nobody waits on (post-landing verify: [[projects/mlegls-pi/issues/verify-main-after-landing-instead-of-gating-the-owner-landing]]).
+- `taskpolicy -b` for work nobody waits on (post-landing verify: [[projects/mlegls-pi/issues/archive/verify-main-after-landing-instead-of-gating-the-owner-landing]]).
 - Which commands count as heavy is declared by the project (e.g. its browser and seed tasks call the wrapper), not guessed from argv.
 
 Done when two concurrent browser batches from different worktrees run one after the other at limit 1, both callers get their own exit status and log, and a cancelled caller frees its slot.
