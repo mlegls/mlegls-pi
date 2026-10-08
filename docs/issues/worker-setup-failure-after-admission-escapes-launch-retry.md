@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 3
 author: "session:review-of-admit-workers-against-a-host-wide-budget"
@@ -18,3 +18,7 @@ Decision, 2026-10-08: one rule for transient failures, whichever stage they hit.
 - The dead `net` branch in `launch` goes; the git-lock retry stays.
 
 Tests (approved): (1) agent-runner with a stub setup command that fails once with `fetch failed` then succeeds: the worker starts, and the log records one retry; one that fails with a non-network error exits without retry. (2) `lib/reconcile` shell-worker fixture: a worker whose first report carries the `error` tag with a generic body is relaunched with no owner mail; a second error report on the same node raises to the owner; an authentication-class error raises at once.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/worker-setup-failure-after-admission-escapes-launch-retry/index.md).
