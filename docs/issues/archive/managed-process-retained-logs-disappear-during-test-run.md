@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: "session:ccea9429-e217-4757-b9bc-ea647fbf07f0"
 ---
@@ -17,3 +17,5 @@ While verifying SCM's `settle-through-arkhai-payments` (VM storefront unit/integ
 Owner: pi process log retention. The cause is not established; test cleanup may be involved. Workaround: tee long checks into a worktree-owned file and record summarized final evidence. Investigate why a still-retained process record can point to missing log files, and preserve enough final output to diagnose failure even when retention is lost.
 
 2026-10-08: the process tool is the local fork `~/dev/pi-processes`. The notice's "logs could not be read" is `readTailLines` (`src/utils/log-files.ts:396`) returning `null` from a catch that drops the error. Next: record the error (code and path) in the notice and the process record, then reproduce with output large enough to make the bounded log discard old bytes during a long run, or wait for a recurrence. No decision is pending until the error is known.
+
+result: fixed upstream as mjakl/pi-processes#9 (`054e616`). A failed write no longer blocks reads and is reported as `logWriteError`. A failed read is no longer remembered past the next successful read, and its error is reported as `logReadError`. Notices include both. `~/dev/pi-processes` now runs branch `local-integration`, which merges #7 and #9 (`4ff9fd8`); sessions pick it up when pi reloads. Whether the test-run encounters were writes after `end` is unconfirmed. If they recur, the notice now names the error.
