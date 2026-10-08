@@ -121,9 +121,10 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 				const children = rows.some(r => r.treeParent === id);
 				const indent = " ".repeat(Math.min(row.depth, Math.max(0, w - 10)));
 				const marker = shown === id + ".agent" ? "▌" : " ";
-				const status = t.blocked || row.report?.tag === "blocked" ? "⊘" : row.report?.tag === "needs-input" ? "!" : row.state === "working" ? "●" : row.state === "idle" ? "○" : "·";
+				const status = t.blocked || row.report?.tag === "blocked" ? "⊘" : row.report?.tag === "needs-input" ? "!" : row.state === "queued" ? "⌛" : row.state === "working" ? "●" : row.state === "idle" ? "○" : "·";
 				let text = `${marker}${indent}${children ? collapsed.has(id) ? "▸" : "▾" : " "}${status} ${label(row)}`;
 				if (row.depth === 0) text += color("90", "  " + basename(t.project));
+				if (row.state === "queued") text += color("33", " queued: " + row.admission?.reason);
 				if (t.ownership === "guest") text += color("90", " guest");
 				if (t.blocked) text += color("31", " blocked");
 				if (id === selected) text = color("7", text);
@@ -149,7 +150,7 @@ export async function ui(opts: { sidebar?: boolean; query?: string }) {
 		}
 		while (screen.length < h - 2) put("");
 		const selectedRow = rows.find(r => r.thread.id === (hovered ?? selected));
-		put(color("90", selectedRow?.thread.blocked?.reason ?? selectedRow?.thread.cwd ?? query));
+		put(color("90", selectedRow?.thread.blocked?.reason ?? (selectedRow ? (selectedRow.state === "queued" ? "queued: " + selectedRow.admission?.reason + " · " : "") + selectedRow.thread.cwd + (selectedRow.workspace ? " · " + selectedRow.workspace.processes + " processes / " + selectedRow.workspace.rssMB + "MB RSS" : "") : query)));
 		put(color("7", input ? input.prompt + input.text + "█" : message || "/ filter  enter open  ? help"));
 		out.write("\x1b[H" + screen.join("\r\n") + "\x1b[J");
 	}
@@ -271,4 +272,4 @@ merge and archive retire recursively.
 abandon discards without merging.
 Destructive actions ask [y/N].
 ▌ shown  ● working  ○ idle
-! needs input  ⊘ blocked  · exited`;
+! needs input  ⊘ blocked  ⌛ queued  · exited`;

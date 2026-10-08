@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { markRetired, readLive, type Live } from "../session-meta/live";
@@ -6,29 +5,13 @@ import { getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { command, delay } from "./process";
 import { terminals, zmx } from "./zmx";
+import { cwdProcesses } from "./resources";
 import type { ThreadCleanup, ThreadRecord } from "./types";
 
-const inside = (cwd: string, root: string) => cwd === root || cwd.startsWith(root + "/");
 const alive = (pid: number) => {
 	try { process.kill(pid, 0); return true; }
 	catch (error) { if ((error as { code?: string }).code === "ESRCH") return false; throw error; }
 };
-
-async function cwdProcesses(root: string): Promise<number[]> {
-	// Discover before removing the worktree: no trash-directory naming assumption.
-	const listing = await new Promise<string>((resolve, reject) => {
-		execFile("lsof", ["-d", "cwd", "-Fpn"], { encoding: "utf8", maxBuffer: 64 << 20 }, (error, out) => {
-			if (error && error.code !== 1) reject(error); else resolve(out);
-		});
-	});
-	const pids: number[] = [];
-	let pid = 0;
-	for (const line of listing.split("\n")) {
-		if (line.startsWith("p")) pid = Number(line.slice(1));
-		else if (line.startsWith("n") && pid && inside(line.slice(1), root)) pids.push(pid);
-	}
-	return pids;
-}
 
 /** Stop only this thread's owned processes; preserve its workspace and registry record for retry. */
 export async function stopThreadProcesses(thread: ThreadRecord): Promise<ThreadCleanup> {

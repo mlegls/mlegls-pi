@@ -8,6 +8,8 @@ struct ThreadRow: Equatable {
     let state, attention: String
     let added, removed, ahead, behind: Int
     let against: String
+    let queueReason: String?
+    let workspaceProcesses, workspaceRSS: Int?
     /// App-local display name, keyed by stable thread identity rather than branch or session.
     var customName: String?
 
@@ -29,6 +31,10 @@ struct ThreadRow: Equatable {
         interactive = json["interactive"] as? Bool ?? true
         state = json["state"] as? String ?? "?"
         attention = json["attention"] as? String ?? "read"
+        queueReason = (json["admission"] as? [String: Any])?["reason"] as? String
+        let workspace = json["workspace"] as? [String: Any]
+        workspaceProcesses = workspace?["processes"] as? Int
+        workspaceRSS = workspace?["rssMB"] as? Int
         let d = json["delta"] as? [String: Any] ?? [:]
         (added, removed, ahead, behind) = (d["added"] as? Int ?? 0, d["removed"] as? Int ?? 0, d["ahead"] as? Int ?? 0, d["behind"] as? Int ?? 0)
         against = d["against"] as? String ?? ""
@@ -63,13 +69,14 @@ struct ThreadRow: Equatable {
     var status: (String, NSColor) {
         if blocked != nil || report == "blocked" { return ("⊘", .systemRed) }
         if attention == "needs-you" { return ("!", .systemOrange) }
+        if state == "queued" { return ("⌛", .systemOrange) }
         if state == "working" { return ("◐", .systemGreen) }
         if attention == "unread" { return ("●", .controlAccentColor) }
         return state == "idle" ? ("○", .secondaryLabelColor) : ("·", .tertiaryLabelColor)
     }
 
     func matches(_ query: String) -> Bool {
-        let hay = [label, defaultLabel, branch ?? "", id, cwd, projectName, report ?? "", blocked ?? ""].joined(separator: " ").lowercased()
+        let hay = [label, defaultLabel, branch ?? "", id, cwd, projectName, report ?? "", blocked ?? "", state, queueReason ?? ""].joined(separator: " ").lowercased()
         return query.lowercased().split(separator: " ").allSatisfy { hay.contains($0) }
     }
 }

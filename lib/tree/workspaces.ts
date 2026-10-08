@@ -9,7 +9,7 @@ export const label = (row: ThreadRow) => (row.thread.worker?.handle ?? row.threa
 /** Keep query ancestors and respect folds without changing the registry's ordering. */
 export function visibleRows(rows: ThreadRow[], query: string, collapsed: Set<string>): ThreadRow[] {
 	const byId = new Map(rows.map(r => [r.thread.id, r]));
-	const shown = new Set(rows.filter(r => [label(r), r.thread.id, r.thread.cwd, r.thread.project, r.report?.tag, r.thread.blocked?.reason]
+	const shown = new Set(rows.filter(r => [label(r), r.thread.id, r.thread.cwd, r.thread.project, r.report?.tag, r.thread.blocked?.reason, r.state, r.admission?.reason]
 		.join(" ").toLowerCase().includes(query.toLowerCase())).map(r => r.thread.id));
 	for (const id of [...shown]) {
 		let parent = byId.get(id)?.treeParent;

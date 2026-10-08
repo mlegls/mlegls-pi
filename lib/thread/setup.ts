@@ -12,7 +12,7 @@ export function declaresSetup(cwd: string): Promise<boolean> {
 }
 
 /** An interactive thread's setup runs beside its pi (agent-runner) rather than before it, so the pane opens at once;
- * the workspace extension tells the session how it went at its next turn. Workers still set up before launch. */
+ * the workspace extension tells the session how it went at its next turn. Workers set up after admission, before pi; a failed setup exits their runner. */
 export type SetupStatus =
 	| { state: "pending" }
 	| { state: "running"; pid: number; log: string; told?: boolean }

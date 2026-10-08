@@ -372,16 +372,16 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
 
     /// Workers under a node, not crossing into other interactive threads.
     func rollup(_ n: Node) -> String {
-        var working = 0, idle = 0, needs = 0
+        var working = 0, idle = 0, needs = 0, queued = 0
         func walk(_ m: Node) {
             for c in m.children {
                 guard let r = c.row, !r.interactive else { continue }
-                if r.attention == "needs-you" { needs += 1 } else if r.state == "working" { working += 1 } else { idle += 1 }
+                if r.state == "queued" { queued += 1 } else if r.attention == "needs-you" { needs += 1 } else if r.state == "working" { working += 1 } else { idle += 1 }
                 walk(c)
             }
         }
         walk(n)
-        return [needs > 0 ? "!\(needs)" : "", working > 0 ? "◐\(working)" : "", idle > 0 ? "○\(idle)" : ""]
+        return [needs > 0 ? "!\(needs)" : "", working > 0 ? "◐\(working)" : "", idle > 0 ? "○\(idle)" : "", queued > 0 ? "⌛\(queued)" : ""]
             .filter { !$0.isEmpty }.joined(separator: " ")
     }
 
@@ -426,11 +426,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSOutlineViewDataSource
             let r = rollup(n)
             if !r.isEmpty { bits.append(r) }
             if row.blocked != nil { bits.append("blocked") }
+            if row.state == "queued" { bits.append("queued: " + (row.queueReason ?? "worker slots")) }
             let buttons: [NSView] = row.inPlace ? [startCombo(id), Plain(symbol: "xmark", tip: "Close") { [weak self] in self?.confirmClose(id) }]
                 : row.interactive ? [startCombo(id), endCombo(id)]
                 : [Plain(symbol: "trash", tip: "Abandon") { [weak self] in self?.confirmAbandon(id) }]
             let cell = RowCell(glyph: row.status, title: row.label, detail: bits.joined(separator: " "),
                                bold: id == shown, dim: !row.interactive, header: false, delta: row.delta, deltaTip: row.deltaTip, buttons: buttons)
+            if let processes = row.workspaceProcesses, let rss = row.workspaceRSS {
+                cell.toolTip = row.cwd + " · \(processes) workspace processes / \(rss) MB RSS (includes services)"
+            }
             cell.onHover = { [weak self] inside in
                 guard let self else { return }
                 if inside { hovered = id } else if hovered == id { hovered = nil }

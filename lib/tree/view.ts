@@ -10,8 +10,8 @@ import type { Node, State } from "./graph";
 export type Mode = "tree" | "projects" | "status";
 export interface Row { kind: "header" | "node"; depth: number; label: string; key?: string; node?: Node; count?: number; match?: boolean; urgency?: string; needs?: number }
 
-const ACTIVE: State[] = ["working", "idle"];
-export const STATE_ORDER: State[] = ["working", "idle", "resumable", "gone"];
+const ACTIVE: State[] = ["queued", "working", "idle"];
+export const STATE_ORDER: State[] = ["working", "queued", "idle", "resumable", "gone"];
 
 export function attention(n: Node): "needs" | "blocked" | "done" | undefined {
 	if (n.report?.tag === "needs-input" || n.report?.tag === "checkpoint") return "needs";
@@ -161,7 +161,7 @@ export function age(iso: string): string {
 	return s < 60 ? Math.floor(s) + "s" : s < 3600 ? Math.floor(s / 60) + "m" : s < 86400 ? Math.floor(s / 3600) + "h" : Math.floor(s / 86400) + "d";
 }
 
-export const ICON: Record<State, string> = { working: "●", idle: "○", resumable: "·", gone: "×" };
+export const ICON: Record<State, string> = { queued: "⌛", working: "●", idle: "○", resumable: "·", gone: "×" };
 
 /** Plain-text line for a row, for the CLI and for tests. */
 export function line(r: Row): string {
@@ -169,5 +169,5 @@ export function line(r: Row): string {
 	const n = r.node!;
 	const flag = attention(n) === "needs" ? " !" : attention(n) === "blocked" ? " ⊘" : n.orphan ? " orphan" : "";
 	const model = n.model ? " " + n.model.split("/").pop() : "";
-	return "  ".repeat(r.depth) + `${ICON[n.state]} ${n.title.replace(/\s+/g, " ").slice(0, 70)}${flag}  ${age(n.updated)}${model}`;
+	return "  ".repeat(r.depth) + `${ICON[n.state]} ${n.title.replace(/\s+/g, " ").slice(0, 70)}${flag}${n.state === "queued" ? " queued: " + n.admission?.reason : ""}  ${age(n.updated)}${model}${n.workspace ? " · " + n.workspace.processes + " processes / " + n.workspace.rssMB + "MB" : ""}`;
 }

@@ -16,8 +16,10 @@ function stringOption(values: Record<string, unknown>, key: string): string | un
 function rowLine(row: ThreadRow): string {
 	const t = row.thread;
 	const blocked = t.blocked ? ` blocked=${t.blocked.action}:${t.blocked.reason}` : "";
+	const queued = row.state === "queued" ? " wait=" + row.admission?.reason : "";
+	const resources = row.workspace ? " processes=" + row.workspace.processes + " rssMB=" + row.workspace.rssMB : "";
 	const report = row.report ? ` report=${row.report.tag}:${row.report.body.replace(/\s+/g, " ")}` : "";
-	return `${"  ".repeat(row.depth)}${t.id} session=${t.sessionId} ${t.ownership} ${row.state} cwd=${t.cwd}${t.branch ? ` branch=${t.branch}` : ""}${report}${blocked}`;
+	return `${"  ".repeat(row.depth)}${t.id} session=${t.sessionId} ${t.ownership} ${row.state} cwd=${t.cwd}${t.branch ? ` branch=${t.branch}` : ""}${queued}${resources}${report}${blocked}`;
 }
 function out(text: string) { process.stdout.write(text); }
 

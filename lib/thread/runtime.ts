@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { declaresSetup, writeSetup } from "./setup";
+import { readAdmission } from "./admission";
+import { workerResources } from "./resources";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { read } from "../board/store";
@@ -79,9 +81,8 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		await options.prepare?.(thread);
 		if (options.prepare) await saveThread(thread);
 		if (owning) {
-			// A project's setup can take tens of seconds: an interactive thread's runs beside its pi (lib/thread/setup.ts);
-			// a worker's spawn still fails on a failed setup.
-			if (options.interactive) writeSetup(id, { state: "pending" });
+			// Workers prepare only after admission; interactive setup still runs beside pi.
+			if (options.interactive || options.worker) writeSetup(id, { state: "pending" });
 			else await setup(location.cwd);
 		}
 		launchAttempted = true;
@@ -188,13 +189,14 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 		.filter(m => m.ts >= thread.created && (pi?.state !== "working" || m.ts >= pi.since) && (!isPiLaunch(thread.launch) || !m.from.session || m.from.session === thread.sessionId)).at(-1);
 	const tag = ["done", "blocked", "needs-input", "checkpoint", "waiting", "turn-end"].find(t => report?.tags.includes(t));
 	const fixture = !isPiLaunch(thread.launch) && ownedTerminals.find(t => t.role === "agent");
-	const state = pi?.state ?? (fixture && !fixture.ended ? "working" : "exited");
+	const admission = thread.worker ? readAdmission(thread.id) : undefined;
+	const state = admission?.state === "queued" ? "queued" : pi?.state ?? (admission?.state === "running" || fixture && !fixture.ended ? "working" : "exited");
 	const idleSince = pi?.state === "idle" ? pi.since : undefined;
 	const attention: ThreadSnapshot["attention"] = thread.blocked || (state !== "working" && (tag === "blocked" || tag === "needs-input")) ? "needs-you"
 		: state === "working" ? "running"
 		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
-		thread, state, pid: pi?.pid, interactive: isInteractive(thread), attention, idleSince,
+		thread, state, admission, pid: pi?.pid, interactive: isInteractive(thread), attention, idleSince,
 		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, deltaBase(thread.project, parent, mode)),
 		terminals: ownedTerminals.map(t => ({ name: t.name, role: t.role! })),
 		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,
@@ -204,17 +206,17 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 export async function threadSnapshot(id: string): Promise<ThreadSnapshot> {
 	const thread = await getThread(id);
 	if (!thread) throw new Error("Unknown thread: " + id);
-	return snapshot(thread, await allThreads(), await terminals(), readLive());
+	return { ...snapshot(thread, await allThreads(), await terminals(), readLive()), workspace: (await workerResources([thread])).get(thread.id) };
 }
 
 /** Active threads, globally unless cwd scopes a git project. */
 export async function listThreads(options: { tree?: "spawn" | "merge"; cwd?: string; delta?: "origin" | "local" } = {}): Promise<ThreadRow[]> {
 	const project = options.cwd === undefined ? undefined : checkout(options.cwd).project;
 	const records = (await allThreads()).filter(t => project === undefined || t.project === project);
-	const inventory = await terminals(), live = readLive();
+	const [inventory, resources] = await Promise.all([terminals(), workerResources(records)]), live = readLive();
 	const rows = records.map(t => {
 		const snap = snapshot(t, records, inventory, live, options.delta);
-		return { ...snap, depth: 0, treeParent: options.tree === "merge" ? snap.mergeParentThread : t.parent };
+		return { ...snap, workspace: resources.get(t.id), depth: 0, treeParent: options.tree === "merge" ? snap.mergeParentThread : t.parent };
 	});
 	const byId = new Map(rows.map(r => [r.thread.id, r]));
 	for (const row of rows) if (!row.treeParent || !byId.has(row.treeParent) || row.treeParent === row.thread.id) row.treeParent = undefined;

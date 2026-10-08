@@ -303,6 +303,7 @@ export class Worker {
 			this.emit({ kind: "exited", tail: await this.capture(30) });
 			return;
 		}
+		if (entry.state === "queued") return;
 		if (entry.pid) this.observedPid = entry.pid;
 		if (!this.quietIsIdle) {
 			if (entry.state === "exited" && !this.observedPid && Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS))

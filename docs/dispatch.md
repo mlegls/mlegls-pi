@@ -10,7 +10,7 @@ const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: 
 store("wave", wave);
 ```
 
-Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` (default 8) is a parent-scoped budget, not a daemon-wide limit or queue. Excess assignments remain `pending`.
+Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` (default 8) is a parent-scoped budget. Excess assignments remain `pending`. Submitted workers also enter the host-wide admission queue; they keep their handles and show `queued` until a slot and memory are available.
 
 Assignments require `handle`, a self-contained `prompt`, and either `agent` (a roster stance in `agents/`; its execution is the `stance/<agent>` virtual model) or an exact `model` (`provider/model`) and `effort`. Optional `base` passes the exact Git ref; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, dependency scheduling, or inherited issue ownership.
 
@@ -19,6 +19,16 @@ The receipt contains:
 - `submitted`: `{handle, run, path}` per launch, plain data you can persist; `<run>/<handle>` is its board topic.
 - `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree the thread may have created before deciding what to do.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
+
+## Host admission
+
+Every worker runner (including reconciler phases and exception handlers) holds a GNU parallel `sem --id workers` slot while it runs, including idle turns and waits. `WORKER_SLOTS` defaults to 6; use the same setting across owners. This pool is separate from `bin/heavy` so worker checks cannot deadlock on their own worker slots. A process exit releases its slot; a pi restart acquires a new one. Retirement stops both queued runners and admitted workers; dead semaphore holders are reclaimed by GNU parallel.
+
+On macOS, admission waits while `memory_pressure` reports free percentage below `WORKER_MIN_FREE_PERCENT` (default 10). Swap used is reported; `WORKER_MAX_SWAP_MB` optionally adds a swap ceiling. Swap has no default ceiling because historical swap can stay high after current pressure falls. Failed probes wait rather than admitting blindly. `WORKER_PRESSURE_PROBE` is a trusted shell override that prints JSON `{freePercent, swapMB}` for trials.
+
+Submission returns before admission and worker setup. Setup runs after admission, before pi; failure exits the runner with its log under the thread state directory. `reconcile_status` reports admission beside each chain/handler. `ab thread ls`, the sidebar and Threads show queued workers with their wait reason. Thread JSON also reports `workspace: {processes, rssMB}`: a census of processes whose cwd is in the owned worker worktree, including runner infrastructure and services left behind after pi exits. RSS is a rough sum, not the pressure sensor; guest/shared-cwd processes are not attributed to a worker. Threads exposes the census in its row tooltip; the sidebar shows it in the selected row footer.
+
+GNU parallel (`sem`), Bun and the project’s zmx installation must be on PATH. For isolated first use without models or the real host pool, see [the shell fixture](attachments/worker-admission/index.md).
 
 ## Supervision
 

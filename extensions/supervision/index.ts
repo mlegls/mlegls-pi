@@ -21,7 +21,7 @@ export default function (pi: ExtensionAPI) {
 		name: "dispatch", namespace,
 		description: "Launch a ready wave of workers; no waiting or retries. Each assignment is a self-contained prompt with an `agent` stance (agents/<agent>.md; its model list routes through stance/<agent>) or an exact model+effort. " +
 			"Workers report by ending their turn (done | blocked | needs-input | checkpoint first) on board topic run/handle; this session is subscribed to run/** with wake. " +
-			"`active` lists every outstanding handle from earlier waves for the maxConcurrent budget. Returns {submitted, pending, failed?}: retain submitted handles for integrate; inspect a failure before retrying.",
+			"`active` lists every outstanding handle from earlier waves for the maxConcurrent budget. Returns {submitted, pending, failed?}: submitted workers may queue for host slots or memory; retain their handles for integrate. Inspect a failure before retrying.",
 		parameters: Type.Object({
 			run: Type.String({ description: "Parent topic/branch prefix, e.g. compile/1726" }),
 			assignments: Type.Array(Type.Object({

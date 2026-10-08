@@ -15,10 +15,14 @@ import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "../session-meta/live";
 import { read } from "../board/store";
 import { resolveSession } from "../session-meta/identity";
+import { allThreads } from "../thread/registry";
+import { isInteractive } from "../thread/runtime";
+import { readAdmission, type Admission } from "../thread/admission";
+import { workerResources, type WorkspaceResources } from "../thread/resources";
 
 /** working/idle: a pi with a live record;
  * resumable: no process, reopen with pi --session; gone: its directory was deleted. */
-export type State = "working" | "idle" | "resumable" | "gone";
+export type State = "queued" | "working" | "idle" | "resumable" | "gone";
 export interface Node {
 	id: string;
 	file: string;
@@ -33,6 +37,8 @@ export interface Node {
 	run?: string;
 	handle?: string;
 	state: State;
+	admission?: Admission;
+	workspace?: WorkspaceResources;
 	/** User-facing session: not agent-spawned, and not running headless. */
 	interactive: boolean;
 	pid?: number;
@@ -138,6 +144,10 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	const since = Date.now() - (options.days ?? 3) * 86_400_000;
 	const live = readLive();
 	const liveBySession = new Map<string, Live>(live.map(l => [l.sessionId, l]));
+	const threads = await allThreads();
+	const threadBySession = new Map(threads.map(t => [t.sessionId, t]));
+	const threadById = new Map(threads.map(t => [t.id, t]));
+	const resources = await workerResources(threads);
 
 	// Files in the window, live ones, and (below) ancestors of either.
 	const byId = new Map<string, string>();
@@ -154,6 +164,10 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		}
 	}
 	for (const l of live) if (l.sessionFile) byId.set(l.sessionId, l.sessionFile);
+	for (const t of threads) {
+		byId.set(t.sessionId, t.sessionFile);
+		if (!files.includes(t.sessionFile)) files.push(t.sessionFile);
+	}
 
 	const parsed = new Map<string, Parsed>();
 	const read = (path: string): Parsed | undefined => {
@@ -178,6 +192,8 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	for (const l of live) if (l.sessionFile) want.add(l.sessionFile);
 
 	const parentOf = (p: Parsed): { id?: string; kind?: Node["parentKind"] } => {
+		const parent = threadBySession.get(p.id)?.parent;
+		if (parent) return { id: threadById.get(parent)?.sessionId ?? parent, kind: "spawn" };
 		if (p.meta?.parentSession) return { id: resolveSession(p.meta.parentSession, byId.keys()) ?? p.meta.parentSession, kind: "spawn" };
 		if (p.meta?.invokedBy && p.meta.invokedBy !== p.id) return { id: p.meta.invokedBy, kind: "invoked" };
 		if (p.forkOf) return { id: basename(p.forkOf).slice(basename(p.forkOf).indexOf("_") + 1, -6), kind: "fork" };
@@ -201,14 +217,16 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		const { id: parent, kind } = parentOf(p);
 		const l = liveBySession.get(p.id);
 		const exists = existsSync(p.cwd);
-		const state: State = l ? l.state : !exists ? "gone" : "resumable";
-		const run = p.meta?.run, handle = p.meta?.handle;
+		const thread = threadBySession.get(p.id);
+		const admission = thread?.worker ? readAdmission(thread.id) : undefined;
+		const state: State = admission?.state === "queued" ? "queued" : l ? l.state : admission?.state === "running" ? "working" : !exists ? "gone" : "resumable";
+		const run = thread?.worker?.run ?? p.meta?.run, handle = thread?.worker?.handle ?? p.meta?.handle;
 		nodes.set(p.id, {
 			id: p.id, file: path, cwd: p.cwd, project: project(p.cwd, cache),
 			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
 			parent, parentKind: kind, run, handle,
-			state, interactive: kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
+			state, admission, workspace: thread ? resources.get(thread.id) : undefined, interactive: thread ? isInteractive(thread) : kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
 			pid: l?.pid, report: run && handle ? board.get(run + "/" + handle) : undefined,
 			lastText: p.lastText, children: [],
 		});
@@ -217,7 +235,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		const parent = node.parent ? nodes.get(node.parent) : undefined;
 		if (parent) parent.children.push(node.id);
 		// Kept: running, or resumable inside an unmerged worktree (work still pending).
-		const kept = (x: Node) => x.state === "working" || x.state === "idle" || (x.state === "resumable" && isWorktree(x.cwd));
+		const kept = (x: Node) => x.state === "queued" || x.state === "working" || x.state === "idle" || (x.state === "resumable" && isWorktree(x.cwd));
 		const alive = kept(node);
 		const parentAlive = parent && kept(parent);
 		if (alive && node.parent && node.parentKind !== "fork" && !parentAlive) node.orphan = true;

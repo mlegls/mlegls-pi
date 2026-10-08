@@ -7,7 +7,8 @@ import { join } from "node:path";
 import { readLive } from "../session-meta/live";
 import { getThread, threadDir } from "./registry";
 import { isPiLaunch, launchEnv, validateLaunch } from "./launch";
-import { delay, quote } from "./process";
+import { delay, executable, quote } from "./process";
+import { waitForMemory, workerSlot } from "./admission";
 import type { ThreadRecord } from "./types";
 
 async function bootstrap(thread: ThreadRecord): Promise<string | undefined> {
@@ -56,11 +57,15 @@ async function pendingSetup(thread: ThreadRecord): Promise<void> {
 	proc.once("error", () => writeSetup(thread.id, { state: "done", code: -1, log }));
 	proc.once("exit", code => writeSetup(thread.id, { state: "done", code, log }));
 	if (proc.pid) writeSetup(thread.id, { state: "running", pid: proc.pid, log });
+	if (thread.worker) await new Promise<void>((resolve, reject) => {
+		proc.once("error", reject);
+		proc.once("exit", code => code === 0 ? resolve() : reject(new Error("Worker setup failed: " + code + " (see " + log + ")")));
+	});
 }
 
 async function run(id: string): Promise<void> {
 	const first = await getThread(id);
-	if (first && !first.archived) await pendingSetup(first);
+	if (first && !first.archived && !first.worker) await pendingSetup(first);
 	while (true) {
 		const thread = await getThread(id);
 		if (!thread || thread.archived) return;
@@ -69,10 +74,21 @@ async function run(id: string): Promise<void> {
 			await delay(500);
 			continue;
 		}
-		await child(thread, await bootstrap(thread));
+		if (thread.worker) await workerSlot(id, [executable("bun"), import.meta.path, id, "--admitted"]);
+		else await child(thread, await bootstrap(thread));
 		if (!isPiLaunch(thread.launch)) return;
 		await delay(500);
 	}
 }
 
-if (import.meta.main) await run(process.argv[2]!);
+if (import.meta.main) {
+	const id = process.argv[2]!;
+	if (process.argv[3] === "--admitted") {
+		await waitForMemory(id);
+		const thread = await getThread(id);
+		if (thread && !thread.archived) {
+			await pendingSetup(thread);
+			await child(thread, await bootstrap(thread));
+		}
+	} else await run(id);
+}

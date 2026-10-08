@@ -38,7 +38,9 @@ export interface ThreadRecord {
 export interface ThreadTerminal { name: string; role: string }
 export interface ThreadSnapshot {
 	thread: ThreadRecord;
-	state: "working" | "idle" | "exited";
+	state: "queued" | "working" | "idle" | "exited";
+	admission?: import("./admission").Admission;
+	workspace?: import("./resources").WorkspaceResources;
 	pid?: number; // canonical pi pid from readLive, never zmx ls's shell pid
 	mergeParent?: string; // branch.<branch>.ab-parent
 	mergeParentThread?: string;
