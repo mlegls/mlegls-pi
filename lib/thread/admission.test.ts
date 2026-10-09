@@ -15,7 +15,8 @@ const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, 
 const pressure = join(root, "pressure.json");
 const probe = (freePercent: number) => writeFileSync(pressure, JSON.stringify({ freePercent, swapMB: 0 }));
 const repos = { a: join(root, "a"), b: join(root, "b") };
-const shell = { cmd: "sleep 300" };
+// stty touches the terminal as pi does: a worker left in a background process group stops there and never runs.
+const shell = { cmd: "stty -echo; sleep 300" };
 
 async function until<T>(read: () => T | undefined | false, ms = 20_000): Promise<T> {
 	for (let i = 0; i < ms / 100; i++) { const value = read(); if (value) return value; await new Promise(r => setTimeout(r, 100)); }
