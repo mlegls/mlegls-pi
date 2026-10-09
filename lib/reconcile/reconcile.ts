@@ -322,7 +322,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
 		const prev = c.handle;
 		if (prev && existsSync(prev.path)) { try { await stop(prev, { cwd: pathOf(c.into) }); } catch (e) { note("stop " + prev.handle + ": " + e); } }
-		const base = c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : git(pathOf(c.into), "rev-parse", "HEAD");
+		// A retired worker (keepBranch) leaves no worktree but its branch still holds the chain's work so far.
+		const kept = (h: Handle) => { try { return git(pathOf(c.into), "rev-parse", "--verify", "-q", "refs/heads/" + h.handle); } catch { return ""; } };
+		const base = (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || git(pathOf(c.into), "rev-parse", "HEAD");
+		if (c.handle && !existsSync(c.handle.path) && phase !== "refine" && phase !== "implement" && base === git(pathOf(c.into), "rev-parse", "HEAD")) note("no worktree or branch for " + c.handle.handle + "; " + phase + " for " + slug + " starts from " + c.into + ", without the chain's earlier work");
 		const from = c.handle && existsSync(c.handle.path) ? c.handle.path : undefined;
 		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
 		const phasePrompt = (from?: string, contract = ticketText(issue, from)) => {
