@@ -293,6 +293,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>): Promise<Handle> {
 		const restrict = (text: string) => issue ? constrainedPrompt(cwd, s.root, issue.slug, text) : text;
 		const agentName = await pick(role, issue, restrict(prompt), only);
+		// Starting a reconciler on a root delegates the root: a goal root rarely names an assignee, and its own stage
+		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
+		// frontier when agent-assigned; an explicit human or session assignee still refuses.
+		if (issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
 		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
