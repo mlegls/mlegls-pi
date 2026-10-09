@@ -1,7 +1,7 @@
 // The semaphore belongs to the host, not the spawning session or repository.
 // GNU parallel owns locking and dead-holder reclamation; this file only observes the wait.
 import { spawn } from "node:child_process";
-import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { command, delay } from "./process";
 import { threadDir, validId } from "./registry";
@@ -65,7 +65,7 @@ export async function pressure(): Promise<Pressure> {
 	return p;
 }
 
-/** Runs inside sem, before setup or pi. A pressure wait retains its reservation. */
+/** Runs while holding a slot, before setup or pi. A pressure wait retains its reservation. */
 export async function waitForMemory(id: string): Promise<void> {
 	const min = setting("WORKER_MIN_FREE_PERCENT", 10);
 	if (min > 100) throw new Error("WORKER_MIN_FREE_PERCENT must be at most 100");
@@ -83,21 +83,28 @@ export async function waitForMemory(id: string): Promise<void> {
 	}
 }
 
-/** Foreground sem stays in the runner's process tree, so retirement reaches waiting and live holders. */
-export async function workerSlot(id: string, argv: string[]): Promise<void> {
+/** sem runs its job in a process group of its own, which the terminal treats as background: an interactive pi there
+ * stops (SIGTTOU) at its first terminal write and never starts. So the job only holds the slot (until `body` ends or
+ * the runner dies) and `body` runs here, in the runner's foreground group. */
+export async function workerSlot(id: string, body: () => Promise<void>): Promise<void> {
 	record(id, "queued", "worker slots");
+	const held = file(id) + ".held";
+	rmSync(held, { force: true });
+	const hold = 'touch "$1"; while [ -e "$1" ] && kill -0 "$2" 2>/dev/null; do sleep 1; done';
+	const proc = spawn("sem", ["--id", "workers", "-j", String(slots()), "--fg", "-u", "-q", "--", "/bin/sh", "-c", hold, "hold", held, String(process.pid)], { stdio: "inherit" });
+	const exited = new Promise<void>((resolve, reject) => {
+		proc.once("error", reject);
+		proc.once("exit", (code, signal) => code === 0 ? resolve() : reject(new Error("Worker semaphore exited: " + (signal ?? code))));
+	});
 	try {
-		await new Promise<void>((resolve, reject) => {
-			const proc = spawn("sem", ["--id", "workers", "-j", String(slots()), "--fg", "-u", "-q", "--", ...argv], { stdio: "inherit" });
-			// A waiting sem ignores TERM, but INT cancels it rather than eventually launching.
-			const stop = () => proc.kill("SIGINT");
-			for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(signal, stop);
-			const clear = () => { for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.off(signal, stop); };
-			proc.once("error", error => { clear(); reject(error); });
-			proc.once("exit", (code, signal) => {
-				clear();
-				if (code === 0) resolve(); else reject(new Error("Worker semaphore exited: " + (signal ?? code)));
-			});
-		});
-	} finally { rmSync(file(id), { force: true }); }
+		// A waiting sem ignores TERM, but INT cancels it rather than eventually launching.
+		const stop = () => proc.kill("SIGINT");
+		for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(signal, stop);
+		try { await Promise.race([exited.then(() => { throw new Error("Worker semaphore exited before admitting"); }), (async () => { while (!existsSync(held)) await delay(200); })()]); }
+		finally { for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.off(signal, stop); }
+		await body();
+		rmSync(held, { force: true });
+		await exited;
+	} finally { rmSync(held, { force: true }); rmSync(file(id), { force: true }); }
 }
+

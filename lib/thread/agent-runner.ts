@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { readLive } from "../session-meta/live";
 import { getThread, threadDir } from "./registry";
 import { isPiLaunch, launchEnv, validateLaunch } from "./launch";
-import { delay, executable, quote } from "./process";
+import { delay, quote } from "./process";
 import { waitForMemory, workerSlot } from "./admission";
 import type { ThreadRecord } from "./types";
 
@@ -97,7 +97,13 @@ async function run(id: string): Promise<void> {
 			await delay(500);
 			continue;
 		}
-		if (thread.worker) await workerSlot(id, [executable("bun"), import.meta.path, id, "--admitted"]);
+		if (thread.worker) await workerSlot(id, async () => {
+			await waitForMemory(id);
+			const current = await getThread(id);
+			if (!current || current.archived) return;
+			await pendingSetup(current);
+			await child(current, await bootstrap(current));
+		});
 		else await child(thread, await bootstrap(thread));
 		if (!isPiLaunch(thread.launch)) return;
 		await delay(500);
@@ -105,13 +111,5 @@ async function run(id: string): Promise<void> {
 }
 
 if (import.meta.main) {
-	const id = process.argv[2]!;
-	if (process.argv[3] === "--admitted") {
-		await waitForMemory(id);
-		const thread = await getThread(id);
-		if (thread && !thread.archived) {
-			await pendingSetup(thread);
-			await child(thread, await bootstrap(thread));
-		}
-	} else await run(id);
+	await run(process.argv[2]!);
 }
