@@ -43,7 +43,7 @@ Assignment is local, never inherited, and independent of readiness:
 - `agent:<existing stance>`: named agent prompt/workflow
 - `model:<provider>/<model>:<effort>`: explicit model override, resolved by routing
 
-Only stance and model override may combine, in either order: `assignee: "agent:fill, model:zai/glm-5.3-flash:high"`. Duplicate/conflicting components and bare aliases are invalid. Effort is none, minimal, low, medium, high or xhigh. Absent assignment is unknown and does not authorize agent execution. Remaining selectors stay visible to routing; supervisors cannot bypass them.
+Only stance and model override may combine, in either order: `assignee: "agent:fill, model:zai/glm-5.3-flash:high"`. Duplicate/conflicting components and bare aliases are invalid. Effort is none, minimal, low, medium, high or xhigh. Absent assignment is unknown and does not authorize agent execution. Before spec, the assignee is whoever resolves the open question: `agent` when research, an experiment or planning can, `human` when a product choice remains. No process shapes agent-assigned goals on its own; `advance` does. An idea waiting on evidence (a recurrence, a captured payload) says so in its body and waits for whoever meets that evidence to add it. Remaining selectors stay visible to routing; supervisors cannot bypass them.
 
 `claimed-by` identifies the session actively touching the issue, with a resolvable mailbox for coordination. It does not replace assignment. A stored claim does not prove liveness but conservatively blocks execution until explicitly cleared; lack of a worktree is not permission to take over. Session references should resolve to durable transcript context and a mailbox when live.
 
