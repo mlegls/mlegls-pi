@@ -1,5 +1,5 @@
 // One child pi at a time. Exiting pi leaves the thread active; restarting never resubmits its bootstrap.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, closeSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { transientNetworkError, networkRetryDelay } from "../retry";
 import { open } from "node:fs/promises";
@@ -49,10 +49,15 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 	if (file) rmSync(file, { force: true });
 }
 
+const unmerged = (cwd: string) => { try { return !!execFileSync("git", ["-C", cwd, "diff", "--name-only", "--diff-filter=U"], { encoding: "utf8" }).trim(); } catch { return false; } };
+
 /** Pending setup starts beside the first pi, its output in a log; the workspace extension reports it at pi's next turn. */
 async function pendingSetup(thread: ThreadRecord): Promise<void> {
 	if (readSetup(thread.id)?.state !== "pending") return;
 	if (!await declaresSetup(thread.cwd)) return void await clearSetup(thread.id);
+	// A worker handed a pending merge (a reconciler's collector refresh) would run setup over conflict markers and die
+	// before it could resolve them. Its assignment says to resolve, then run setup.
+	if (thread.worker && unmerged(thread.cwd)) return void await clearSetup(thread.id);
 	const log = setupLog(thread.id);
 	writeFileSync(log, "");
 	const out = openSync(log, "a");

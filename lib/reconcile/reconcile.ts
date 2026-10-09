@@ -343,7 +343,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
 			const refreshed = refreshWorker(path, pathOf(c.into));
 			const contract = refreshed.conflicts.length ? "Issue " + issue.slug + " (" + rel(issue.file) + "):\n\n" + git(path, "show", refreshed.head + ":" + rel(issue.file)) : undefined;
-			return [phasePrompt(path, contract), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve both the collector's recorded rulings (the ticket above) and the previous worker's results, then commit the merge before continuing this phase. Do not abort the merge or rebase away either history." : ""].filter(Boolean).join("\n\n");
+			return [phasePrompt(path, contract), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve both the collector's recorded rulings (the ticket above) and the previous worker's results, then commit the merge before continuing this phase. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (`mise run setup`, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
 		});
 		if (prev && !await retireHandle(prev, pathOf(c.into))) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
