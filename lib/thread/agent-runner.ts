@@ -116,5 +116,8 @@ async function run(id: string): Promise<void> {
 }
 
 if (import.meta.main) {
+	// A Ctrl-C while pi exits or starts reaches the whole foreground group while the tty is cooked; the runner
+	// survives it, else the thread falls to a bare shell. Closing a thread goes through archive, not the terminal.
+	process.on("SIGINT", () => {});
 	await run(process.argv[2]!);
 }
