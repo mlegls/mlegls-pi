@@ -7,7 +7,7 @@ The setup handoff distinguishes the task's required environment from what was ac
 
 ## Packet
 
-Commit a small packet under `docs/attachments/<ticket>/`, linked from the ticket's Result. Prefer a Markdown index and selected images over a transcript dump. `.wm/` is scratch storage and disappears with the worktree.
+Commit a small packet under `docs/attachments/<ticket>/`, linked from the ticket's Result. Prefer a Markdown index and selected images over a transcript dump. `.wm/` is scratch storage and disappears with the worktree. Every worktree checks out every packet, and the repository keeps them forever in history: selected means a few images per journey (WebP or reduced PNG), not one per action. Code a test imports moves beside the test rather than staying in the packet. Once the ticket is done and no story, guide or open issue links the packet, gardening may remove it from HEAD; the Result's link then pins the last commit that had it.
 
 Don't commit raw machine output (runner JSON, per-case outcome lists, action or runtime logs) for intermediate rounds. The index states the counts, names each failure with its excerpt, and gives the command that reproduces the run at the tested revision. Commit a raw file only when it is itself the evidence for a claim the index can't carry, and only the final round's. A repeated run replaces its predecessor's file rather than adding a sibling.
 
