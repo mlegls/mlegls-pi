@@ -168,6 +168,7 @@ export async function ledger(mode: Mode, replayCut: "delivered" | "prepared" = "
 			assert.equal(state().landed.a.into, "root");
 			if (mode === "restart" || mode === "linked-owner") {
 				const cut = structuredClone(state()), gatesBefore = receiptCount();
+				assert.equal(gatesBefore, 1);
 				controller.abort(); await running;
 				saveState(cut); // Restore the observed durable cut verbatim, not a computed frontier.
 				observations.restartCut = { ledger: cut.landed, result: cut.results.a, bHandle: bFirst.handle,
@@ -175,6 +176,8 @@ export async function ledger(mode: Mode, replayCut: "delivered" | "prepared" = "
 				begin(main); // Persisted cwd wins, including when owner is linked.
 				await ready("b", "implement");
 				assert.equal(state().cwd, owner); assert.equal(state().chains.b.handle?.handle, bFirst.handle);
+				assert.equal(state().chains.b.handle?.threadId, bFirst.threadId);
+				assert.deepEqual(state().results.a, cut.results.a);
 				assert.equal(receiptCount(), gatesBefore); assert(!state().chains.a);
 			}
 			await finishChain("b");
@@ -182,9 +185,16 @@ export async function ledger(mode: Mode, replayCut: "delivered" | "prepared" = "
 			// Fixture-owned sentinel holds the final review report, hence integration.
 			const sentinel = join(root, "release-root"); assert(!existsSync(sentinel));
 			const canonical = getTracker(main).snapshot(), s = state();
-			for (const slug of ["a", "b"]) assert(!canonical.get(slug)?.done);
-			assert(canonical.get("a")?.claims.some(c => c.claimedBy.includes("awaiting target")));
-			assert(!canonical.get("outside")?.frontier);
+			for (const slug of ["a", "b"]) {
+				const row = canonical.get(slug);
+				assert(row, slug + " missing from canonical pause snapshot");
+				assert.equal(row.ownStage, "ticket"); assert.equal(row.done, false); assert.equal(row.frontier, false);
+				assert(row.claims.some(c => c.claimedBy.includes("awaiting target")));
+				assert.equal(s.landed[slug].into, "root"); assert(!s.results[slug].closedAt);
+			}
+			assert.equal(canonical.get("root")?.ownStage, "spec");
+			assert.equal(canonical.get("outside")?.frontier, false);
+			assert(canonical.get("outside")?.blockedBy.includes("a"));
 			assert.equal(s.collectors.root.parentBranch, mode === "linked-owner" ? "owned" : "main");
 			assert.equal(git(collector.path, "config", "branch." + collector.branch + ".ab-parent"), s.collectors.root.parentBranch);
 			const threads = await allThreads(true);
@@ -195,8 +205,12 @@ export async function ledger(mode: Mode, replayCut: "delivered" | "prepared" = "
 				collector, gates: receiptCount() };
 			writeFileSync(sentinel, "release\n"); assert(existsSync(sentinel)); report(joined.review, "root");
 			await final();
-			assert.equal(receiptCount(), 3);
-			assert.equal(state().results.a.summary, observations.restartCut ? (observations.restartCut as { result: { summary: string } }).result.summary : "a reviewed result");
+			assert.equal(receiptCount(), 3); assert.equal(state().counter, 9);
+			if (observations.restartCut) {
+				const { closedAt, ...savedResult } = state().results.a;
+				assert(closedAt);
+				assert.deepEqual(savedResult, (observations.restartCut as { result: State["results"][string] }).result);
+			}
 			if (mode === "linked-owner") {
 				for (const slug of ["a", "b", "root"]) assert(!existsSync(join(main, slug + ".txt")));
 				assert(tracker.text("root").includes("root reviewed result"));
