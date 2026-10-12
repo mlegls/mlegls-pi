@@ -19,7 +19,7 @@ export function wakeBb(message: { topic: string; from: { session?: string; name?
 		// bb runs the moved pi under its own session ids, so its turn-end posts to its worker topic can't be matched by
 		// session; matching by worker handle keeps a thread from waking itself in a loop.
 		if (entry.topic && message.topic === entry.topic && message.from.name === entry.topic.slice(entry.topic.indexOf("/") + 1)) continue;
-		if (readLive().some(l => l.sessionId === entry.sessionId)) continue; // running: its board host delivers
+		if (readLive().some(l => l.sessionId === entry.sessionId || l.thread === id)) continue; // running: its board host delivers
 		// One resume per burst: the turn it starts takes everything pending.
 		const stamp = join(threadDir(), id + ".bb-woke");
 		try { if (Date.now() - Number(readFileSync(stamp, "utf8")) < DEBOUNCE_MS) continue; } catch {}

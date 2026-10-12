@@ -222,7 +222,7 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 		: state === "working" ? "running"
 		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
-		thread, state, admission, pid: pi?.pid, interactive: isInteractive(thread), attention, idleSince,
+		thread, state, admission, pid: pi?.pid, ...(inBb && { bbStatus: inBb.status }), interactive: isInteractive(thread), attention, idleSince,
 		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, deltaBase(thread.project, parent, mode)),
 		terminals: thread.bb ? (bbState === "exited" ? [] : [{ name: thread.id + ".agent", role: "agent" }]) : ownedTerminals.map(t => ({ name: t.name, role: t.role! })),
 		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,

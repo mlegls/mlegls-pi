@@ -6,6 +6,8 @@ When a structured handoff helps, put it in a fenced `yaml` or `json` block anywh
 
 Never kill by pattern (`pkill`, `killall`, `pkill -f`): they match every process on this shared host, including other workers. Stop only what you started, by pid, with the process tool, or with the checkout's own stop task.
 
+Never bypass git hooks (`--no-verify`, `commit -n`, `-c core.hooksPath=…`, `HUSKY=0`): they are the project's own checks. A slow hook runs as a managed process you wait for; a hook failing outside your change is a `blocked` report with its output.
+
 Before ending with `done`, stop what you started outside your worktree (containers, tunnels, remote deployments, pages left open in a browser you didn't launch) or list it under `caveats`; processes running from your worktree are stopped when it's retired.
 
 Before a browser test run, check that its deployment is ready (the project's readiness check, where it has one) and stop on not-ready rather than running specs: a run against a down service reports only the environment, and only after its setup.

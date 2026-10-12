@@ -24,7 +24,7 @@ export async function trial() {
 		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
 			PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: join(root, "agents"), ZMX_DIR: join(root, "zmx"),
 			PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "2", WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'",
-			MISE_TRUSTED_CONFIG_PATHS: root, PI_THREAD_RUNTIME: "zmx", TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PATH: bin + ":" + saved.PATH });
+			MISE_TRUSTED_CONFIG_PATHS: root, PI_RECONCILE_ERROR_SETTLE_MS: "0", PI_THREAD_RUNTIME: "zmx", TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PATH: bin + ":" + saved.PATH });
 		for (const dir of [repo, bin, setupBin, join(root, "agents/roles")]) mkdirSync(dir, { recursive: true });
 		writeFileSync(join(bin, "pi"), "#!/bin/sh\ntouch shell-started\nexec sleep 120\n", { mode: 0o755 });
 		writeFileSync(join(root, "agents/shell.md"), "---\nrole: implement\n---\nShell fixture.\n");

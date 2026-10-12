@@ -44,6 +44,8 @@ export interface ThreadSnapshot {
 	admission?: import("./admission").Admission;
 	workspace?: import("./resources").WorkspaceResources;
 	pid?: number; // canonical pi pid from readLive, never zmx ls's shell pid
+	/** bb's own status for a bb-run thread; `error` is a bb command that failed (thread.start, turn.submit), which pi never reports. */
+	bbStatus?: import("./bb").BbThread["status"];
 	mergeParent?: string; // branch.<branch>.ab-parent
 	mergeParentThread?: string;
 	terminals: ThreadTerminal[];
