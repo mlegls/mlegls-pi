@@ -36,3 +36,12 @@ Run the entry above on this revision after setup:
 
 No browser, server or remote deployment was opened. Final owned-directory and writer-PID absence independently checked after replay.
 
+## Review (join review, after the driver)
+
+Diff read: the ticket's whole change (`3d46a524..HEAD`: children 1, 2a, 2b, instructions, this join) and the driver's log above. The driver's three stories were not re-driven end to end: the repair below is outside what the rehearsal exercises (it sets `TRACKER_CLI`, so the pin path is bypassed there).
+
+**Defect found and repaired (`7284dc25`).** Merging main's `pinTracker` (docs/issues/bb-reconciler-workers-lose-work-and-stall item 7: a reconciler must not run tracker scripts from a live checkout mid-merge) with `getTracker` left `pinTracker` exported and unused; the reconciler's CLI calls ran from the live checkout again, and `pinTracker` would also have pinned `~/.pi/agent/skills/tracker`, an installed copy that predates the write verbs before cutover. Now `getTracker` takes `cli?`, `reconcilerTracker(cwd)` (reconcile.ts) passes `TRACKER_CLI ?? pinTracker()`, `run` and `main.ts` use it, and the pin source is the CLI beside the reconciler's own code.
+
+Check after the repair (scratch repo and vault, `TRACKER_CLI` unset): `reconcilerTracker` unpacked the pin for HEAD `7284dc25`, then create, update with body replacement, text, snapshot, close and remove all succeeded through it; `bun test lib/reconcile lib/dispatch.test.ts lib/thread skills/enabled/all/mlegls/conventions/tracker/scripts extensions/system-prompt` 63 pass, 0 fail; `tsc --noEmit` clean.
+
+**Structural pass.** Searched for leftovers of the removed per-branch machinery (`catchUp`, `trackerParses`, `appendUnion`, per-path snapshot cache, `ticketText(issue, from)`, branch-committing `setAsideIdeas`): none remain; no consumer opens `Issue.file`. Two `persist` helpers (completion.ts, refinement.ts) and `git` in checks.ts vs lib/thread/git.ts differ in what they restore or trim (`trim` vs `trimEnd`, which matters for porcelain output), so merging them would not be behavior-preserving; left. Stale "dormant protocols / atomic cutover" comments in tracker-state.ts corrected. Nothing larger worth doing.

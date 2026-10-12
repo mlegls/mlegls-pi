@@ -8,8 +8,7 @@ export interface Landing {
 }
 export type LandingLedger = Record<string, Landing>;
 
-/** Shared persisted seams for the dormant protocols below. Runtime activation is
- * owned by activate-global-reconcile-runtime, not by the helper children. */
+/** Persisted shapes of the completion (completion.ts) and refinement (refinement.ts) protocols. */
 export interface ReviewedResult {
 	parent: string | null;
 	summary: string;
@@ -60,7 +59,7 @@ export interface RefinementAttempt {
 	};
 }
 
-/** State extends this at the atomic cutover. Missing landed is a manual rebuild,
+/** The reconciler's State extends this. Missing landed is a manual rebuild,
  * not an empty ledger; the other maps are initialized with every new run. */
 export interface GlobalRunState {
 	root: string;
