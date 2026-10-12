@@ -15,6 +15,13 @@ system-prompt tests passed. All five exact fixture targets were independently
 confirmed removed. Separate process/module caches and private repositories cost
 4m 59s for the complete run, with no model calls.
 
+Latest rebased verification at e3447bea (parent beb3eaf9): [rebase recovery and
+measurements](../rehearse-collector-ledger-and-owner-restart/index.md#parent-rebase-recovery--latest-final-head).
+Dropped the duplicate prompt-fixture repair in favor of the identical parent API
+shape. All four modes held again in 4m 53s; all five targets cleaned. Reconciler,
+thread/dispatch, tracker and prompt gate: 63 passed, 942 assertions, zero failures,
+plus typecheck. No production changes or kept assertion changes.
+
 ## Reproduce / prepared setup
 
 From any cwd, with this checkout's setup completed and Bun, Git, mise and zmx available:

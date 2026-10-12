@@ -111,3 +111,40 @@ absent after exit. No browser, service, tunnel or shared deployment started.
 Isolation tradeoff: separate subprocess/module cache and repository per mode
 (two repositories for close-replay), five repositories total, 4m 59s for the
 complete re-drive; no model calls. Original first-use record above is preserved.
+
+### Parent rebase recovery / latest final head
+
+Rebased onto beb3eaf9d733542677e51b7d757af3855d0de1f6. The only conflict
+was duplicate system-prompt fixture repairs: parent's 727bd5c4/16053ce5/fc888281
+already supply the same APIs. Dropped duplicate 3f07f776 and preserved the parent's
+file exactly; no kept assertion changed. Rebased measurement commit: aabec8d0.
+Earlier revision IDs above identify the original encounters, not current ancestry.
+
+Re-drove the same /tmp entry point at e3447beaba9c6df60443f26e80aa44781cf5b217:
+exit 0, empty stderr, 4m 53s. All four stories held again under the rebased parent.
+Prepared local shell setup/readiness, persona and cleanup are unchanged.
+
+| Story/cut | Latest target and distinguishing measurements |
+| --- | --- |
+| collector — held | /private/tmp/rc-global-ledger-Rggz18/repo. Paused a/b ticket/open/non-frontier with pending collector claims; outside blocked by a. One b-implement-4, thread 2a3d7486-ffb5-4880-b7b5-0f2f8213e9b9, launch base d4ff399cf151729265e13cfb821dab20c00c1328, a code present. Final owner ledger head 44546beaf011bd6d4a8618ff541d4b8a08acbcc9, nine launches/three gates. |
+| restart — held | /private/tmp/rc-global-ledger-91uRqs/repo. Cut a head 684458d0637ad16dbc5caddf01f5c7d905722840, one gate; b-implement-4/thread 0032c7a9-3699-4a2e-a325-065585e9bd4e unchanged, launch base equal to a head with a code. Full saved a result retained except new closedAt. Final owner ledger head 59125419358861afb300ca6d70f097d1e666fb64, nine launches/three gates. |
+| close-replay delivered — held | /private/tmp/rc-global-ledger-gF0tnf/repo. Prepared/delivered head 5f9730efa6e3fd70c5bbae88e190cc5dda45e4e2, a closed and b/root pending. Zero launches/gates; canonical history close a (seed), b, root. |
+| close-replay prepared — held | /private/tmp/rc-global-ledger-enN5cz/repo. Prepared head efc31937b1251f8e37c402c98e682bac9df88714, root initially absent from ledger and b into root. Recovery created root's owner ledger entry and transferred b at 0ed8c67c3f7c27d0014114116c6d7e6e25178e2a. Zero launches/gates; same child-first close history. |
+| linked-owner — held | Main /private/tmp/rc-global-ledger-08FEb8/repo, target /private/tmp/rc-global-ledger-08FEb8/linked-owner. Restart from main kept b-implement-4/thread ba1fc060-797c-4125-bc11-a761a738f462 and persisted owner. Base equal to a cut head 1e930919e07801868472fa3a0ecb9eb7eb6854e0, a code present. Collector parent owned; all final ledger destinations linked owner at 3b90f1f7f072d184aba62b805da114aec8ba2a06; main lacks delivered code, global results readable there. Nine launches/three gates. |
+
+Every latest final run finished done only with all own results closed, separate
+a/b/root summaries and evidence, owner code present, and outside frontier.
+All five exact fixture parent directories independently confirmed absent after exit.
+No managed process remains running; no shared resource was started.
+
+Rebased gate (2m 26s including typecheck):
+
+```sh
+bun test extensions/system-prompt/index.test.ts lib/reconcile lib/thread lib/dispatch.test.ts skills/enabled/all/mlegls/conventions/tracker/scripts && bunx tsc --noEmit
+```
+
+63 tests passed across 17 files, 942 assertions, zero failures; typecheck passed.
+The gate includes sibling refinement checks as well as reconciler, thread/dispatch,
+tracker and prompt checks. No gate weakened, no new tests or unresolved friction.
+Latest isolation cost: five private repositories/subprocess caches, 4m 53s for all
+journeys; no model calls.
