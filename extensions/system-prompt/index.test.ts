@@ -11,17 +11,23 @@ type BeforeAgentStartHandler = (event: {
 
 function promptBuilder(getHeader: GetHeader = () => null) {
 	let handler: BeforeAgentStartHandler | undefined;
+	let selectedTools: string[] = [];
 	systemPromptExtension({
+		getActiveTools: () => selectedTools,
+		getAllTools: () => [],
 		on(event, candidate) {
 			if (event === "before_agent_start") handler = candidate as BeforeAgentStartHandler;
 		},
 	} as ExtensionAPI);
 	if (!handler) throw new Error("before_agent_start handler was not registered");
 	const registeredHandler = handler;
-	return (options: BuildSystemPromptOptions, systemPrompt = "") => registeredHandler(
-		{ systemPrompt, systemPromptOptions: options },
-		{ sessionManager: { getHeader } },
-	).systemPrompt;
+	return (options: BuildSystemPromptOptions, systemPrompt = "") => {
+		selectedTools = options.selectedTools ?? [];
+		return registeredHandler(
+			{ systemPrompt, systemPromptOptions: options },
+			{ sessionManager: { getHeader } },
+		).systemPrompt;
+	};
 }
 
 const buildPrompt = promptBuilder();
