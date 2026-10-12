@@ -10,6 +10,7 @@ import type { Database } from "bun:sqlite";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { compileQuery, type Query } from "./query";
+import { wakeBb } from "../thread/bb-wake";
 import { db, fieldTags, fieldsOf, lastSeq, select, stamp, storeDir, version, write, type StoredRecord, type Tag } from "../records/store";
 
 export interface Message {
@@ -162,6 +163,7 @@ export function send(input: Omit<Message, "id" | "ts">): Message {
 	store(message);
 	// Legacy bridge (see syncLegacy).
 	if (existsSync(legacyLogPath())) appendFileSync(legacyLogPath(), JSON.stringify(message) + "\n");
+	try { wakeBb(message); } catch {}
 	return message;
 }
 
