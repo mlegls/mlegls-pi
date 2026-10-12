@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f4c-1aa6-75fe-9c2b-d81acad80dbd
 part-of: "[[projects/mlegls-pi/issues/reconcile-github-tracked-projects]]"
