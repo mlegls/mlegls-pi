@@ -72,3 +72,7 @@ The interruption wrapper checks its parent PID against saved `State.pid` and ver
 - `fc88828`, `16053ce`, `727bd5c`: the full existing suite exposed a baseline system-prompt mock missing the already-used `getActiveTools`/`getAllTools` API. Updated that existing mock (and its partial-API typing), not assertions or product behavior. Final prompt tests: 7 pass; typecheck pass.
 
 Regression commands: `bun test` → **226 pass, 2 skip, 0 fail**, 228 tests across 51 files. `bunx tsc --noEmit` → pass after the mock annotation repair; `bun test extensions/system-prompt/index.test.ts` → 7 pass on the final source. No tracker lifecycle expectations weakened, no new retained tests, no unresolved tooling friction. Child y is intentionally left running only until fixture cleanup: this packet tests dispatch/ownership/replay, not the enclosing collector-to-owner completion story (owned by the parallel ledger rehearsal).
+
+## Independent drive
+
+At revision `e2c5f1c`, a fresh driver invoked the default entry from /tmp. All four modes held (exit 0, 2m58s), with distinct ready disposable targets and cleanup confirmed. Predictions, selected actual receipts and replay checks are in the [independent encounter packet](../rehearse-failed-and-adopted-global-refinement/index.md). No source inspection or product repairs by the driver.
