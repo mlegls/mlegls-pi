@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f88-e529-7473-951d-ed4cb0f4a7c5
 part-of: "[[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]"
@@ -31,3 +31,7 @@ Commit a disposable `projection-probe.ts` (ordinary Bun script, not a test-suite
 Use checkout-local CLI paths derived from `import.meta.dir`, isolated tracker/board/state selectors and explicit author provenance for any seed writes; own and delete only the temporary vault. No models or credentials. Run `bunx tsc --noEmit`.
 
 This is `drive: none` because production selection is deliberately dormant. The post-landing gate is the enclosing ticket's join using the actual scheduler's ledger rehearsal, after atomic activation; the module probe establishes only the helper's contract. Name that limit in the handoff. No new retained tests are approved.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/reconcile-with-global-tracker-and-landing-ledger/projection.md).
