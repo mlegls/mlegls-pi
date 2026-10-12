@@ -12,7 +12,7 @@
 // and a ledger-landed node is never integrated again. State on disk durably records what
 // was launched and decided, including owner constraints; preserve it across restarts.
 import { Database } from "bun:sqlite";
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -164,7 +164,21 @@ export async function stopRefinementWriter(state: GlobalRunState, attempt: Refin
 export const resolutionsDir = (cwd: string, root: string) => join(stateDir(cwd), root + ".resolutions");
 export function load(cwd: string, root: string): State | undefined {
 	const f = stateFile(cwd, root);
-	return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : undefined;
+	return existsSync(f) ? withEmptyLedger(JSON.parse(readFileSync(f, "utf8"))) : undefined;
+}
+/** A pre-ledger state that provably has nothing to put in a ledger gets an empty one; any other stays refused by
+ * assertThreadState. Nothing landed (no `landed` log line), no refinement ever launched, no chain reached review or
+ * integration, and no collector: then no landing, reviewed result, landing operation or refinement attempt can be
+ * missing. Supervisor sessions loaded before the ledger write such states for fresh roots (2026-10-12). */
+function withEmptyLedger(state: State): State {
+	if (state.backend !== "threads" || (state.landed && state.results && state.landingOps && state.refinements)) return state;
+	if (state.landed || state.results || state.landingOps || state.refinements) return state;
+	const log = state.log ?? [];
+	// The log keeps its last 400 lines: a full one may have dropped a landing.
+	if (log.length >= 400 || log.some(l => / landed | \(refine, /.test(l))) return state;
+	if (Object.keys(state.collectors ?? {}).length || Object.keys(state.tests ?? {}).length) return state;
+	if (Object.values(state.chains ?? {}).some(c => c.phase !== "implement" && c.phase !== "drive" || c.refinement)) return state;
+	return { ...state, landed: {}, results: {}, landingOps: {}, refinements: {} };
 }
 
 /** Serialize the loop and owner writes so neither loses constraints or an in-progress stop. */
@@ -602,9 +616,12 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function locked<T>(fn: () => Promise<T>): Promise<T> {
 		for (;;) {
 			try { mkdirSync(lockDir); writeFileSync(join(lockDir, "pid"), String(process.pid)); break; }
-			catch {
-				const pid = Number(readFileSync(join(lockDir, "pid"), "utf8").trim() || 0);
-				let dead = !pid; try { if (pid) process.kill(pid, 0); } catch { dead = true; }
+			catch (e) {
+				if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+				// Another process may have made the lock and not yet written its pid: wait, unless that lock is stale.
+				let pid = 0, made = Date.now();
+				try { made = statSync(lockDir).mtimeMs; pid = Number(readFileSync(join(lockDir, "pid"), "utf8").trim() || 0); } catch { if (!existsSync(lockDir)) continue; }
+				let dead = !pid && Date.now() - made > 10_000; try { if (pid) process.kill(pid, 0); } catch { dead = true; }
 				if (dead) rmSync(lockDir, { recursive: true, force: true }); else await Bun.sleep(1000);
 			}
 		}
