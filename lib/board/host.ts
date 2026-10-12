@@ -213,6 +213,9 @@ export function install(pi: ExtensionAPI) {
 		// Keep busy-session notifications cancellable by board_read / wm_wait. Pi's
 		// follow-up queue cannot retract a report the model has since read through a tool.
 		if (!context?.isIdle()) return;
+		// bb's sessionless pi beside each thread (rpc, --no-session) shares the thread's cwd and so its worktree and
+		// ticket topics; a wake there would run a turn nobody sees, a second writer in the worktree.
+		if (context.mode === "rpc" && !context.sessionManager.getSessionFile()) return;
 		const messages = takePending(true);
 		if (messages.length) pi.sendMessage(notification(messages), { triggerTurn: true, deliverAs: "followUp" });
 	}
