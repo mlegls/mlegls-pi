@@ -9,9 +9,12 @@
 //
 // [slug] scopes to that issue's subtree.
 //
-// Run from anywhere inside a project; the nearest docs/issues/ upward is used.
+// Git projects use the main worktree's canonical vault; non-git vaults discover upward.
 
-import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
+import { Database } from "bun:sqlite";
+import { createHash, randomUUID } from "node:crypto";
+import { checkout, git } from "../../../../../../../lib/thread/git.ts";
 import { homedir } from "node:os";
 import { join, basename, dirname, resolve, relative, sep } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -39,8 +42,7 @@ type Issue = {
 
 const slugOf = (link: string) => basename(link.replace(/^\[\[|\]\]$/g, "").split("|")[0]);
 
-function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "file" | "archived"> {
-  try {
+function contract(text: string) {
     const m = text.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m);
     if (!m || m.index !== 0) throw new Error("missing or unterminated frontmatter");
     const doc = parseDocument(m[1], { uniqueKeys: true, merge: false });
@@ -55,11 +57,16 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
         if (pair.key.value === "<<") throw new Error("YAML merge keys are not supported");
       },
     });
-    const fm = doc.toJS({ maxAliasCount: 0 });
+    return { doc, body: text.slice(m[0].length) };
+}
+
+function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "file" | "archived"> {
+  try {
+    const fm = contract(text).doc.toJS({ maxAliasCount: 0 });
     const link = (value: unknown): string => {
       if (typeof value !== "string" || !/^\[\[projects\/[^/\[\]#|\s]+\/issues\/(?:archive\/)?[^/\[\]#|\s]+(?:\|[^\[\]\r\n]+)?\]\]$/.test(value))
         throw new Error("relations must be vault-absolute issue wikilinks");
-      return slugOf(value);
+      return validSlug(slugOf(value));
     };
     if ("next" in fm) {
       if (!KINDS.includes(fm.next)) throw new Error("next must be one of " + KINDS.join(" "));
@@ -88,11 +95,17 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
   }
 }
 
-function findIssuesDir(from: string): string {
-  let dir = resolve(from);
+export function findIssuesDir(from: string): string {
+  const probe = spawnSync("git", ["-C", realpathSync(from), "rev-parse", "--git-common-dir"], { encoding: "utf8" });
+  if (probe.status === 0) {
+    const canonical = join(checkout(from).project, "docs", "issues");
+    if (existsSync(canonical) && statSync(canonical).isDirectory()) return realpathSync(canonical);
+    throw new Error("no supported tracker: canonical docs/issues/ absent in " + checkout(from).project);
+  }
+  let dir = realpathSync(from);
   for (;;) {
     for (const cand of [join(dir, "docs", "issues"), join(dir, "issues")]) {
-      if (existsSync(cand) && statSync(cand).isDirectory()) return cand;
+      if (existsSync(cand) && statSync(cand).isDirectory()) return realpathSync(cand);
     }
     const up = dirname(dir);
     if (up === dir) throw new Error("no docs/issues/ found upward from " + from);
@@ -117,6 +130,175 @@ function load(dir: string): Map<string, Issue> {
   };
   walk(dir, false);
   return issues;
+}
+
+/** Validate the complete candidate, including legacy graphs, before any output or write. */
+function validateGraph(all: Map<string, Issue>): void {
+  for (const i of all.values()) {
+    for (const relation of ["partOf", "blockedBy", "completion"] as const) {
+      const visit = (n: Issue, path: Set<string>) => {
+        if (path.has(n.slug)) throw new Error(i.file + ": " + relation + " cycle");
+        const next = new Set(path).add(n.slug);
+        const edges = relation === "partOf" ? (n.partOf ? [n.partOf] : []) : relation === "blockedBy" ? n.blockedBy : n.archived ? [] : [...n.blockedBy, ...children(n, all).filter(c => !c.archived).map(c => c.slug)];
+        for (const edge of edges) if (all.has(edge)) visit(all.get(edge)!, next);
+      };
+      visit(i, new Set());
+    }
+    if (!i.next && !i.stage && !children(i, all).length) throw new Error(i.file + ": omitted stage requires children");
+    if (!i.next && i.archived && i.stage !== "done") throw new Error(i.file + ": archive requires stage done");
+  }
+}
+
+function validSlug(slug: string): string {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(slug)) throw new Error("invalid issue slug: " + slug);
+  return slug;
+}
+
+function issueFor(slug: string, all: Map<string, Issue>): Issue {
+  validSlug(slug);
+  const i = all.get(slug);
+  if (!i) throw new Error("no issue " + slug);
+  return i;
+}
+
+function fieldsOf(i: Issue): Record<string, unknown> {
+  const fields = contract(readFileSync(i.file, "utf8")).doc.toJS({ maxAliasCount: 0 });
+  if ("part-of" in fields) fields["part-of"] = i.partOf;
+  if ("blocked-by" in fields) fields["blocked-by"] = fields["blocked-by"].map((v: string) => v.startsWith("[[") ? slugOf(v) : v);
+  return fields;
+}
+
+function projectName(dir: string): string {
+  const docs = realpathSync(dirname(dir));
+  const projects = join(process.env.TRACKER_VAULT ?? join(homedir(), "obsidian"), "projects");
+  if (existsSync(projects)) for (const name of readdirSync(projects).sort()) {
+    const path = join(projects, name);
+    if (existsSync(path) && realpathSync(path) === docs) return name;
+  }
+  return basename(dirname(docs));
+}
+
+function storageFields(fields: Record<string, unknown>, dir: string, all: Map<string, Issue>): Record<string, unknown> {
+  if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw new Error("fields must be a JSON object");
+  const relation = (value: unknown) => {
+    if (typeof value !== "string") throw new Error("relation must be an issue slug");
+    if (value.startsWith("[[")) return value; // Compatibility input is still strictly validated by parseFrontmatter.
+    validSlug(value);
+    const path = all.has(value) ? relative(dir, all.get(value)!.file).replaceAll(sep, "/").replace(/\.md$/, "") : value;
+    return "[[projects/" + projectName(dir) + "/issues/" + path + "]]";
+  };
+  const out = { ...fields };
+  if (out["part-of"] !== undefined && out["part-of"] !== null) out["part-of"] = relation(out["part-of"]);
+  if (out["blocked-by"] !== undefined && out["blocked-by"] !== null) {
+    if (!Array.isArray(out["blocked-by"])) throw new Error("blocked-by must be a list");
+    out["blocked-by"] = out["blocked-by"].map(v => typeof v === "string" && /^[a-z][a-z0-9-]*: \S/.test(v) ? v : relation(v));
+  }
+  return out;
+}
+
+function replaceContract(text: string, fields: Record<string, unknown>, body?: string): string {
+  const { doc, body: previous } = contract(text);
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === null) doc.delete(key);
+    else doc.set(key, value);
+  }
+  // Quote links/guards and other strings through the YAML AST, never regex field rewriting.
+  return "---\n" + doc.toString({ lineWidth: 0, defaultStringType: "QUOTE_DOUBLE" }) + "---\n" + (body ?? previous);
+}
+
+function withVaultLock<T>(dir: string, change: () => T): T {
+  const p = spawnSync("git", ["-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" });
+  const lockDir = p.status === 0 ? p.stdout.trim() : join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "mlegls-pi", "tracker-locks");
+  mkdirSync(lockDir, { recursive: true });
+  const file = join(lockDir, "vault-" + createHash("sha256").update(realpathSync(dir)).digest("hex") + ".lock.sqlite");
+  const lock = new Database(file, { create: true });
+  try {
+    lock.exec("PRAGMA busy_timeout = 5000");
+    return lock.transaction(change).immediate();
+  } finally { lock.close(); }
+}
+
+/** Validate an in-memory candidate before atomically publishing each touched file.
+ * Persistence is path-limited; unrelated staged paths never enter this commit. */
+function publish(dir: string, changes: Map<string, string | null>, message: string): void {
+  const all = load(dir);
+  for (const [file, text] of changes) {
+    const slug = basename(file, ".md");
+    if (text === null) { all.delete(slug); continue; }
+    if (all.has(slug) && all.get(slug)!.file !== file) throw new Error("duplicate issue slug " + slug);
+    const archived = relative(dir, file).split(sep).includes("archive");
+    all.set(slug, { slug, file, archived, ...parseFrontmatter(text, file) });
+  }
+  validateGraph(all);
+  let published = 0;
+  try {
+    for (const [file, text] of changes) {
+      if (text === null) unlinkSync(file);
+      else {
+        const tmp = file + "." + randomUUID() + ".tmp";
+        try { writeFileSync(tmp, text); renameSync(tmp, file); }
+        finally { if (existsSync(tmp)) unlinkSync(tmp); }
+      }
+      published++;
+    }
+    const p = spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
+    if (p.status !== 0 || !changes.size) return;
+    const root = p.stdout.trim();
+    const paths = [...changes.keys()].map(file => relative(root, file));
+    // --only also captures the working tree for the named paths, not the rest of the index.
+    git(root, "add", "--", ...paths);
+    if (git(root, "diff", "--name-only", "HEAD", "--", ...paths))
+      git(root, "commit", "--only", "-m", message, "--", ...paths);
+  } catch (error) {
+    throw new Error("Validated tracker working-tree write " + (published === changes.size ? "happened" : published ? "partially happened" : "did not happen") + "; publication/persistence failed: " + String(error));
+  }
+}
+
+function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body?: string, summary?: string, evidence?: string): void {
+  validSlug(slug);
+  withVaultLock(dir, () => {
+    const all = load(dir);
+    validateGraph(all);
+    const changes = new Map<string, string | null>();
+    if (cmd === "create") {
+      if (all.has(slug)) throw new Error("duplicate issue slug " + slug);
+      const author = fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined);
+      if (!author) throw new Error("create requires author or PI_SESSION_ID provenance");
+      const text = replaceContract("---\n{}\n---\n", storageFields({ ...fields, author }, dir, all), body);
+      changes.set(join(dir, slug + ".md"), text);
+    } else {
+      const i = issueFor(slug, all);
+      if (cmd === "remove") changes.set(i.file, null);
+      else if (cmd === "update") {
+        const existing = fieldsOf(i);
+        if ("author" in fields && existing.author !== undefined && fields.author !== existing.author) throw new Error("author provenance is immutable");
+        changes.set(i.file, replaceContract(readFileSync(i.file, "utf8"), storageFields(fields, dir, all), body));
+      } else if (cmd === "close") {
+        if (i.archived) throw new Error("close requires a live issue");
+        if (evidence !== undefined && (!evidence || evidence.startsWith("/") || evidence.includes("\\") || evidence.split("/").some(p => p === ".." || p === "." || !p)))
+          throw new Error("evidence must be a repository-relative code artifact locator");
+        const raw = readFileSync(i.file, "utf8");
+        let nextBody = contract(raw).body;
+        const additions = [summary, evidence === undefined ? undefined : "Evidence: [" + evidence + "](" + evidence + ")"].filter((s): s is string => s !== undefined && s !== "");
+        // Exact replay preserves the body; each result item is appended at most once.
+        const result = nextBody.split("## Result\n").slice(1).join("## Result\n").trim();
+        const missing = additions.filter(s => !("\n\n" + result + "\n\n").includes("\n\n" + s + "\n\n"));
+        if (missing.length) nextBody += (nextBody.endsWith("\n") ? "\n" : "\n\n") + (nextBody.includes("## Result\n") ? "" : "## Result\n\n") + missing.join("\n\n") + "\n";
+        changes.set(i.file, replaceContract(raw, { stage: "done", next: null, "claimed-by": null }, nextBody));
+        const candidate = new Map(all);
+        candidate.set(slug, { ...i, next: undefined, stage: "done", claimedBy: undefined });
+        const resolved = new Set([...candidate.values()].filter(n => complete(n, candidate) && (n.slug === slug || !complete(all.get(n.slug)!, all))).map(n => n.slug));
+        for (const dependent of all.values()) {
+          const fm = fieldsOf(dependent);
+          if (!dependent.blockedBy.some(b => resolved.has(b))) continue;
+          const blockers = (fm["blocked-by"] as string[]).filter(b => !resolved.has(b));
+          const text = changes.get(dependent.file) ?? readFileSync(dependent.file, "utf8");
+          changes.set(dependent.file, replaceContract(text, storageFields({ "blocked-by": blockers.length ? blockers : null }, dir, all)));
+        }
+      }
+    }
+    publish(dir, changes, "tracker: " + cmd + " " + slug);
+  });
 }
 
 const KINDS = ["grill", "research", "prototype", "measure", "simplify", "implement", "wait", "done"];
@@ -338,16 +520,17 @@ function maskMarkdownCode(source: string): string {
   }
   return chars.join("");
 }
-function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fixTargets?: Set<string>) {
+function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, repair: boolean, fixTargets?: Set<string>) {
   const files: string[] = [];
   const walk = (d: string) => {
     for (const name of readdirSync(d)) {
       const p = join(d, name);
-      if (statSync(p).isDirectory()) walk(p);
+      if (statSync(p).isDirectory()) { if (p !== join(docs, "issues")) walk(p); }
       else if (name.endsWith(".md")) files.push(p);
     }
   };
-  walk(docs);
+  if (existsSync(docs)) walk(docs);
+  walk(issuesDir);
   // Top-level vault notes (project pages, ideas) are link targets too; only the vault root, not its project symlinks.
   const vault = process.env.TRACKER_VAULT ?? join(process.env.HOME ?? "", "obsidian");
   const targets = [...files];
@@ -365,12 +548,12 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
     const [common, top] = p.stdout.trim().split("\n");
     return realpathSync(common) + "\n" + relative(realpathSync(top), realpathSync(path));
   };
-  const ownIdentity = identity(docs);
+  const ownIdentity = identity(dirname(issuesDir));
   const projectRoots = new Map<string, string>();
   const projectRoot = (name: string) => {
     if (!projectRoots.has(name)) {
       const path = join(vault, "projects", name);
-      const local = existsSync(path) && (realpathSync(path) === realpathSync(docs) || (ownIdentity !== undefined && identity(path) === ownIdentity));
+      const local = existsSync(path) && (realpathSync(path) === realpathSync(dirname(issuesDir)) || (ownIdentity !== undefined && identity(path) === ownIdentity));
       projectRoots.set(name, local ? docs : path);
     }
     return projectRoots.get(name)!;
@@ -379,7 +562,8 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
     const segs = target.split("/");
     if (segs[0] === "projects" && segs.length >= 3) {
       // Never fall back to a local namesake for an explicit foreign project.
-      const path = join(projectRoot(segs[1]), ...segs.slice(2));
+      const root = projectRoot(segs[1]);
+      const path = root === docs && segs[2] === "issues" ? join(issuesDir, ...segs.slice(3)) : join(root, ...segs.slice(2));
       return [path + ".md", path].find((p) => existsSync(p) && statSync(p).isFile());
     }
     const cands = byBase.get(segs[segs.length - 1]) ?? [];
@@ -409,7 +593,7 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
     const raw = readFileSync(f, "utf8");
     const text = maskMarkdownCode(raw);
     const edits = new Map<number, { end: number; replacement: string; message: string }>();
-    const rel = f.slice(docs.length + 1);
+    const rel = relative(docs, f);
     const link = WIKILINK;
     for (const masked of text.matchAll(link)) {
       // Masking finds live links; their text comes from the source, so code spans inside a live anchor survive.
@@ -519,7 +703,39 @@ function outline(note: string, all: Map<string, Issue>): string[] {
   return out;
 }
 
+async function main() {
 const rawArgs = process.argv.slice(2);
+const verb = rawArgs[0];
+if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
+  const slug = rawArgs[1];
+  if (!slug || slug.startsWith("--")) throw new Error(verb + " requires an issue slug");
+  const opts = new Map<string, string>();
+  for (let n = 2; n < rawArgs.length; n++) {
+    const key = rawArgs[n];
+    if (key === "--json" && verb === "fields") continue;
+    const allowed = verb === "create" || verb === "update" ? ["--fields", "--body-file"] : verb === "close" ? ["--summary", "--evidence"] : [];
+    if (!allowed.includes(key) || opts.has(key) || n + 1 === rawArgs.length) throw new Error("invalid option " + key);
+    opts.set(key, rawArgs[++n]);
+  }
+  const dir = findIssuesDir(process.cwd());
+  if (verb === "text" || verb === "fields") {
+    const all = load(dir);
+    validateGraph(all);
+    const i = issueFor(slug, all);
+    if (verb === "text") process.stdout.write(readFileSync(i.file, "utf8"));
+    else console.log(JSON.stringify(fieldsOf(i), null, 2));
+    return;
+  }
+  if (verb === "create" && (!opts.has("--fields") || !opts.has("--body-file"))) throw new Error("create requires --fields and --body-file");
+  if (verb === "update" && !opts.size) throw new Error("update requires --fields and/or --body-file");
+  const fields = opts.has("--fields") ? JSON.parse(opts.get("--fields")!) : {};
+  if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw new Error("fields must be a JSON object");
+  const bodyFile = opts.get("--body-file");
+  const body = bodyFile === undefined ? undefined : readFileSync(bodyFile === "-" ? 0 : resolve(process.cwd(), bodyFile), "utf8");
+  mutate(dir, verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"));
+  if (verb === "create") console.log(slug);
+  return;
+}
 const json = rawArgs.includes("--json");
 const repair = rawArgs.includes("--fix");
 const positional = rawArgs.filter(a => a !== "--json" && a !== "--fix");
@@ -530,21 +746,8 @@ if (cmd === "check" && !repair && positional.length > 1) throw new Error("moved 
 const fixTargets = cmd === "check" && repair && positional.length > 1 ? movedIssuePaths(positional.slice(1)) : undefined;
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);
+validateGraph(all);
 flight = inflight(dir, slug => !all.has(slug) || all.get(slug)!.archived || complete(all.get(slug)!, all));
-// Validate graph before any output, including legacy graphs.
-for (const i of all.values()) {
-  for (const relation of ["partOf", "blockedBy", "completion"] as const) {
-    const visit = (n: Issue, path: Set<string>) => {
-      if (path.has(n.slug)) throw new Error(i.file + ": " + relation + " cycle");
-      const next = new Set(path).add(n.slug);
-      const edges = relation === "partOf" ? (n.partOf ? [n.partOf] : []) : relation === "blockedBy" ? n.blockedBy : n.archived ? [] : [...n.blockedBy, ...children(n, all).filter(c => !c.archived).map(c => c.slug)];
-      for (const edge of edges) if (all.has(edge)) visit(all.get(edge)!, next);
-    };
-    visit(i, new Set());
-  }
-  if (!i.next && !i.stage && !children(i, all).length) throw new Error(i.file + ": omitted stage requires children");
-  if (!i.next && i.archived && i.stage !== "done") throw new Error(i.file + ": archive requires stage done");
-}
 const scoped = [...all.values()].filter(within(arg, all));
 const open = scoped.filter(i => !i.archived && !complete(i, all));
 const selected = (kind: string) => (kind === "done" ? scoped.filter(i => !i.next && !i.archived && complete(i, all)) : open.filter(i => {
@@ -621,7 +824,9 @@ if (cmd !== "lint") switch (cmd) {
     // Observations are issues in a vault project; a side log is read by nobody who triages.
     if (existsSync(join(dirname(dir), "frictions.md"))) say("docs/frictions.md: frictions in a vault project are stage: idea issues");
     for (const slug of uncommitted(dir)) if (all.has(slug) && !all.get(slug)!.author) say(`${slug}: new issue without author provenance`);
-    checkLinks(dirname(dir), say, repair, fixTargets);
+    const p = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
+    const codeDocs = p.status === 0 ? join(p.stdout.trim(), "docs") : dirname(dir);
+    checkLinks(codeDocs, dir, say, repair, fixTargets);
     if (!bad) console.log("ok");
     else process.exitCode = 1;
     break;
@@ -636,4 +841,10 @@ if (cmd !== "lint") switch (cmd) {
   default:
     console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
     process.exitCode = 2;
+}
+}
+
+if (import.meta.main) {
+  try { await main(); }
+  catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; }
 }

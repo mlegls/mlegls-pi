@@ -1,14 +1,21 @@
-/** Worktree/landing seam; implementation belongs to global-vault-tracker-backend. */
+import { execFileSync } from "node:child_process";
+import { git } from "./git.ts";
 
-/** Exclude docs/issues/ from this worker or collector before prepare/setup/launch.
- * Other paths, including docs/attachments/, stay checked out. */
-export function excludeTracker(_cwd: string): void {
-	throw new Error("Sparse tracker exclusion not implemented: global-vault-tracker-backend");
+/** Exclude docs/issues/ before prepare/setup/launch. Sparse absence is an index
+ * setting, not a commit deleting files; attachments and every other path remain. */
+export function excludeTracker(cwd: string): void {
+	git(cwd, "sparse-checkout", "init", "--no-cone");
+	execFileSync("git", ["-C", cwd, "sparse-checkout", "set", "--no-cone", "--stdin"], {
+		input: "/*\n!/docs/issues/\n", stdio: ["pipe", "pipe", "pipe"],
+	});
+	git(cwd, "read-tree", "-mu", "HEAD");
 }
 
-/** Refuse changes authored by source relative to target (merge-base diff), before
- * rebase/merge can overwrite the global tracker. Recheck after preparation.
- * Canonical tracker persistence already inherited from target is not a source edit. */
-export function assertNoTrackerChanges(_cwd: string, _target: string, _source = "HEAD"): void {
-	throw new Error("Tracker landing refusal not implemented: global-vault-tracker-backend");
+/** Compare source's authored changes, not canonical persistence inherited from
+ * target. Disable rename detection so moves out of the tracker include deletions. */
+export function assertNoTrackerChanges(cwd: string, target: string, source = "HEAD"): void {
+	const base = git(cwd, "merge-base", target, source);
+	const paths = git(cwd, "diff", "--no-renames", "--name-only", "-z", base, source, "--", ":(top)docs/issues/")
+		.split("\0").filter(Boolean);
+	if (paths.length) throw new Error("Forbidden tracker changes: " + paths.join(", ") + ". Mutations belong through the tracker, not code branches.");
 }

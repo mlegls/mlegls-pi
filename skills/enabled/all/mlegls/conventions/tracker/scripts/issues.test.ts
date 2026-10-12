@@ -446,7 +446,7 @@ test("check proposes a unique heading repair without writing; --fix applies it",
   rmSync(join(vault, "projects/fixture-anchors"));
   p.done();
 }, 30_000);
-test("worktree links use branch docs; foreign projects retain vault state", () => {
+test("worktree links use canonical issues and branch evidence; foreign projects retain vault state", () => {
   const p = project({
     "issues/moved.md": frontmatter("stage: done"),
     "issues/deleted.md": frontmatter("stage: idea"),
@@ -489,15 +489,15 @@ test("worktree links use branch docs; foreign projects retain vault state", () =
     const result = check();
     const out = result.stdout.toString();
     expect(result.exitCode).toBe(1);
-    expect(out).toContain("[[projects/branch-fixture/issues/deleted]] does not exist");
+    expect(out).not.toContain("[[projects/branch-fixture/issues/deleted]] does not exist");
     expect(out).toContain("[[projects/unmapped/guide]] does not exist");
-    expect(out).toContain("[[projects/branch-fixture/issues/moved]] -> [[projects/branch-fixture/issues/archive/moved]]");
+    expect(out).toContain("[[projects/branch-fixture/issues/archive/moved]] -> [[projects/branch-fixture/issues/moved]]");
     expect(out).not.toContain("has no such heading");
     expect(out).not.toContain("probe.ts");
     expect(out).not.toContain("sibling-fixture");
     expect(readFileSync(evidence, "utf8")).toBe(text);
     check("--fix");
-    expect(readFileSync(evidence, "utf8")).toBe(text.replace("issues/moved|", "issues/archive/moved|"));
+    expect(readFileSync(evidence, "utf8")).toBe(text.replace("issues/archive/moved", "issues/moved"));
     expect(readFileSync(join(p.root, "docs/issues/moved.md"), "utf8")).toBe(frontmatter("stage: done"));
   } finally {
     sh("worktree", "remove", "--force", branch);
