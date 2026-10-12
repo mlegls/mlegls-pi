@@ -45,7 +45,9 @@ export async function moveToBb(id: string): Promise<ThreadRecord> {
 	const { model, effort } = sessionModel(thread.sessionFile);
 	// The zmx runner would restart pi on the old file; stop it before two writers share the session.
 	await stopAgent(thread);
-	const bb = await spawnBb(thread, undefined, { model, effort, prompt: "Continued from pi session " + thread.sessionId + " (" + thread.sessionFile + "): its history is in your context but not shown in this thread. Reply only: ok" });
+	// Keep the spawn tree: a worker moved out of zmx still belongs under its parent's bb thread.
+	const parentBb = thread.parent ? (await getThread(thread.parent))?.bb : undefined;
+	const bb = await spawnBb(thread, parentBb, { model, effort, prompt: "Continued from pi session " + thread.sessionId + " (" + thread.sessionFile + "): its history is in your context but not shown in this thread. Reply only: ok" });
 	await waitBb(bb, 300);
 	const target = await bbSessionFile(bb);
 	await stopBb(bb);
