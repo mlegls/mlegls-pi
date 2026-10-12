@@ -37,7 +37,7 @@ export async function landingProbe() {
 		put(root, "agents/roles/review.md", "Offline registered worker fixture; no agent launch.\n");
 		git(repo, "init", "-qb", "main");
 		git(repo, "config", "user.name", "Landing probe"); git(repo, "config", "user.email", "probe@example.invalid");
-		git(repo, "config", "commit.gpgSign", "false"); git(repo, "config", "core.hooksPath", "/dev/null");
+		git(repo, "config", "commit.gpgSign", "false");
 		put(repo, "code.txt", "base\n"); put(repo, "bun.lock", "base lock\n");
 		put(repo, "retained.sh", "echo test >> " + orderFile + "\n");
 		put(repo, "mise.toml", '[tasks.deps]\nrun = "echo deps >> ' + orderFile + '"\n'

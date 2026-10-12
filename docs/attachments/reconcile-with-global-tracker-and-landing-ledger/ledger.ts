@@ -51,7 +51,7 @@ export async function ledger(mode: Mode, replayCut: "delivered" | "prepared" = "
 		const { send } = await import("../../../lib/board/store.ts");
 		git(main, "init", "-qb", "main"); git(main, "config", "user.name", "Ledger fixture");
 		git(main, "config", "user.email", "fixture@example.invalid");
-		git(main, "config", "commit.gpgSign", "false"); git(main, "config", "core.hooksPath", "/dev/null");
+		git(main, "config", "commit.gpgSign", "false");
 		mkdirSync(join(main, "docs/issues"), { recursive: true });
 		commit(main, ".gitignore", "shell-started\nshell-base\n");
 		const gates = join(root, "gates");
