@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:fill
 author: session:01a12f88-e529-7473-951d-ed4cb0f4a7c5
 part-of: "[[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]"
@@ -27,3 +27,7 @@ Read the enclosing ticket's first-use/story contract and fixed `GlobalRunState`/
 Each mode creates a private mkdtemp repo and restores process.env on exit. Set isolated XDG_STATE_HOME, PI_BOARD_DIR, PI_CODING_AGENT_DIR, ZMX_DIR, MISE_TRUSTED_CONFIG_PATHS and any host-slot/pressure selectors used by the shell precedent. Explicit PI_THREAD_RUNTIME=zmx; checkout-local TRACKER_CLI and PI_AGENTS_DIR/role paths derived from import.meta.dir, configured before importing modules that cache them. Clear inherited PI session/worker/board selectors, BB identity/runtime ancestry and tmux/zmx identities. Explicit fixture authors avoid dependence on a live session's provenance. Fake pi is a shell command, never a real model client. Observe readiness before sending reports: fixture setup/registration/launch receipts, not just PID existence. Each fixture owns and cleans only its started PIDs, registered workers and worktrees; cleanup also covers failure paths, no kill-by-pattern.
 
 Record commands, prepared target/readiness, transient pause data (canonical stages/frontier/claims, ledger into/head, b launch/base/code), restart cut points and final results in ledger.md per docs/verification-evidence.md. Make these named modes fail nonzero on a story mismatch, not merely print success counts. Do not retain raw intermediate logs. No new retained tests are approved. The enclosing ticket joins this with sparse/refinement modes under one index/entry point; it owns the combined run and any final seams.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/rehearse-collector-ledger-and-owner-restart/index.md).
