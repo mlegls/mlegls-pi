@@ -1,32 +1,30 @@
 ---
 name: writing-skills
-description: "Use when writing or revising a skill: what a line has to be to belong in one."
+description: "Use when writing or revising skills, or any agent-facing prompts/instructions/documentation"
 ---
 
-a skill is either an ergonomic invocation of something i say often, or a steering away from default behavior.
+think of skills subtractively, like sculpting. we're constraining the possibility space of what the agent might do.
 
-for the first, write it like i'd say it. you can understand when i say it, so the skill doesn't have to add any more. the reader is an omniscient frontier LLM, so in fact knows more than me. use one word names for things that have been thought of before (basically everything). contrast from these where it's shorter than the positive explanation from scratch.
+consequences:
 
-for the second, we'll add a line for each undesired behavior (ideally with verbatim yes/no example, when it reads standalone outside its project) only when we actually see it. you cannot anticipate it: whoever reads the skill later is you, or someone much like you, so whatever you think is right, they think so too. anything you think "should" be cautioned/advised on is "default".
+- positive statements are coarse cuts (cutting away everything-but); negative statements are fine cuts
+- never "cut air". consider for every word/phrase if it's actually a meaningful cut through the remaining space
+- you only need to cut away what's undesirable. whether you need to make each extra cut depends also on the capability/nature of current models
+- skills can never add to the possibility space. it's largely useless to try to "teach" something broad that's not already parametrically learned. skills are entirely different from explanations to humans in this. the tersest pointer to a space-region has exactly the same effect as an elaborated explanation.
 
 ## concrete counter-defaults
 
 assume the reader will understand and do exactly what you intend.
 
-> No: "Do x, not y"
-> Yes: "Do x"
-
-a skill is a note to a peer, not a spec. no definitions, no reasons unless the instruction is counter-default and the reason is what persuades.
-
 > No: "Run the existing suite. It is the accumulated proof of the other stories; a failure is a regression, not a test to update."
 > Yes: "run the full existing test suite to ensure no behavioral regressions."
 
-don't enumerate cases. the reader derives them.
+don't enumerate cases if they can be easily found/derived.
 
 > No: "Per inner skill: `implement` over a spec: one integration branch; on a remote tracker also a draft PR... `verify-story` over a tree: units are subtrees... `simplify` over a repository: units are disjoint file sets..."
 > Yes: "prompt by auftragstaktik, specifying desiderata only to the extent necessary for coordination without churn"
 
-the description is the trigger, not a summary of the body.
+the description only is a trigger
 
 > No: "Use to make a bounded, agreed change: the quickest implementation of the shaped design that keeps the vocabulary, run the suite, then drive the affected stories."
 > Yes: "Use to make a bounded, agreed change."
