@@ -29,6 +29,7 @@ import { join } from "node:path";
 import type { BranchSession } from "../../lib/records/branch.ts";
 import { readCursor, writeCursor } from "../../lib/records/cursor.ts";
 import { render, type Renderer } from "../../lib/records/render.ts";
+import { notice } from "../../lib/notice.ts";
 
 export interface CompactionView {
 	session: BranchSession;
@@ -224,19 +225,19 @@ export function registerMechanisms(pi: ExtensionAPI, mechanisms: Mechanism[]): v
 			if (arg) {
 				const sign = /^[+-]/.test(arg) ? arg[0] : "", name = arg.slice(sign.length);
 				const s = systems.find((m) => m.name === name);
-				if (!s) { ctx.ui.notify("Memory: no system named " + name + " (" + systems.map((m) => m.name).join(", ") + ")", "warning"); return; }
+				if (!s) { notice(pi, ctx, "Memory: no system named " + name + " (" + systems.map((m) => m.name).join(", ") + ")", "warning"); return; }
 				const current = state(ctx).on.map((m) => m.name);
 				let next: string[];
 				if (sign === "-") next = current.filter((n) => n !== name);
 				else if (sign === "+") {
 					const clash = state(ctx).on.find((a) => a !== s && shared(a, s));
-					if (clash) { ctx.ui.notify("Memory: " + name + " and " + clash.name + " both own " + shared(clash, s) + "; use /memory " + name + " to swap", "error"); return; }
+					if (clash) { notice(pi, ctx, "Memory: " + name + " and " + clash.name + " both own " + shared(clash, s) + "; use /memory " + name + " to swap", "error"); return; }
 					next = current.includes(name) ? current : [...current, name];
 				} else next = [name, ...state(ctx).on.filter((a) => a !== s && !shared(a, s)).map((m) => m.name)];
 				writeCursor(ctx.sessionManager as unknown as BranchSession, LIST_KEY, next);
 				syncTools(ctx);
 			}
-			ctx.ui.notify(describe(ctx), state(ctx).errors.length ? "warning" : "info");
+			notice(pi, ctx, describe(ctx), state(ctx).errors.length ? "warning" : "info");
 		},
 	});
 

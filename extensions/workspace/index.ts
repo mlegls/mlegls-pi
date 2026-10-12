@@ -5,13 +5,18 @@ import { resolveWorkspacePath } from "./workspace";
 import { currentThread, registerThread } from "./thread";
 import { moveRefusal, moveThread } from "./move";
 import { registerSetup } from "./setup";
+import { insideBb, notice } from "../../lib/notice.ts";
+
+// bb records each thread's directory and restarts pi there with its own session file, so a pi-side session switch
+// would be undone; bb's own move keeps the conversation.
+const BB_MOVE = "Under bb, bb owns this thread's directory: ask the agent to move the thread with update_environment_directory.";
 
 /** Returns why a canonical thread could not move, without switching. */
 export async function switchWorkspace(target: string, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<string | undefined> {
 	const sourceSession = ctx.sessionManager.getSessionFile();
 	if (!sourceSession) throw new Error("Workspace switching requires a persisted session");
 	if (target === ctx.cwd) {
-		ctx.ui.notify(`Already in workspace: ${target}`, "info");
+		notice(pi, ctx, `Already in workspace: ${target}`);
 		return;
 	}
 
@@ -29,12 +34,12 @@ export async function switchWorkspace(target: string, ctx: ExtensionCommandConte
 		withSession: async (replacementCtx) => {
 			// The thread moves with this pi and the system closes the merged worktree it left, which its own session could not.
 			const left = thread && await moveThread(thread.id, replacementCtx.cwd, { id: fork.getSessionId(), file: targetSession });
-			replacementCtx.ui.notify(`Switched workspace to ${replacementCtx.cwd}${left ? `; ${left}` : ""}`, "info");
+			notice(replacementCtx, replacementCtx, `Switched workspace to ${replacementCtx.cwd}${left ? `; ${left}` : ""}`);
 		},
 	});
 	if (result.cancelled) {
 		await rm(targetSession, { force: true });
-		ctx.ui.notify("Workspace switch cancelled", "info");
+		notice(pi, ctx, "Workspace switch cancelled");
 		return;
 	}
 }
@@ -57,6 +62,12 @@ export default function (pi: ExtensionAPI) {
 			path: Type.String({ description: "Target directory, absolute or relative to the current workspace" }),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			if (insideBb()) {
+				return {
+					content: [{ type: "text" as const, text: "Workspace switch not requested: under bb, call update_environment_directory with the absolute target path instead." }],
+					details: { current: ctx.cwd },
+				};
+			}
 			const target = await resolveWorkspacePath(params.path, ctx.cwd);
 			if (target === ctx.cwd) {
 				return {
@@ -86,22 +97,27 @@ export default function (pi: ExtensionAPI) {
 			const argument = args?.trim() ?? "";
 			if (!argument || argument === "status") {
 				const pending = pendingWorkspace ? `\nPending: ${pendingWorkspace}` : "\nPending: none";
-				ctx.ui.notify(`Workspace: ${ctx.cwd}${pending}\nUsage: /workspace <path> | accept | cancel`, "info");
+				notice(pi, ctx, `Workspace: ${ctx.cwd}${pending}\nUsage: /workspace <path> | accept | cancel${insideBb() ? "\n" + BB_MOVE : ""}`);
 				return;
 			}
 			if (argument === "cancel" || argument === "reject") {
 				if (!pendingWorkspace) {
-					ctx.ui.notify("No workspace switch is pending", "info");
+					notice(pi, ctx, "No workspace switch is pending");
 					return;
 				}
 				const cancelled = pendingWorkspace;
 				pendingWorkspace = undefined;
-				ctx.ui.notify(`Cancelled workspace switch to ${cancelled}`, "info");
+				notice(pi, ctx, `Cancelled workspace switch to ${cancelled}`);
+				return;
+			}
+			if (insideBb()) {
+				pendingWorkspace = undefined;
+				notice(pi, ctx, BB_MOVE, "error");
 				return;
 			}
 			if (argument === "accept") {
 				if (!pendingWorkspace) {
-					ctx.ui.notify("No workspace switch is pending", "error");
+					notice(pi, ctx, "No workspace switch is pending", "error");
 					return;
 				}
 				const target = pendingWorkspace;
@@ -114,7 +130,7 @@ export default function (pi: ExtensionAPI) {
 
 			const target = await resolveWorkspacePath(argument, ctx.cwd);
 			const refusal = await switchWorkspace(target, ctx, pi);
-			if (refusal) ctx.ui.notify(refusal, "error");
+			if (refusal) notice(pi, ctx, refusal, "error");
 		},
 	});
 }

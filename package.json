@@ -15,6 +15,7 @@
       "./extensions/system-prompt/index.ts",
       "./extensions/fragment/index.ts",
       "./extensions/workspace/index.ts",
+      "./extensions/bb/index.ts",
       "./extensions/context/index.ts",
       "./lib/board/host.ts",
       "./lib/session-meta/host.ts",

@@ -4,4 +4,7 @@
 // An explicit PI_AGENTS_DIR still wins.
 import { fileURLToPath } from 'node:url';
 
+// Tests run as if in a terminal even when the session running them is a bb thread (lib/notice.ts reads this).
+delete process.env.BB_THREAD_ID;
+
 process.env.PI_AGENTS_DIR ??= fileURLToPath(new URL('../agents', import.meta.url));
