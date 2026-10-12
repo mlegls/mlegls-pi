@@ -57,7 +57,7 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 	let owned = false;
 	let launchAttempted = false;
 	// bb runs pi only: a command override (a shell fixture) stays on zmx.
-	const runtime = options.runtime ?? (options.launch?.cmd !== undefined ? "zmx" : defaultRuntime());
+	const runtime = options.runtime ?? (options.launch?.cmd !== undefined ? "zmx" : parent && (await getThread(parent))?.bb ? "bb" : defaultRuntime());
 	if (runtime === "bb" && options.forkFrom) throw new Error("bb runtime cannot fork a session; use the zmx runtime");
 	if (options.in !== undefined) location = checkout(resolve(spawning.cwd, options.in));
 	else {

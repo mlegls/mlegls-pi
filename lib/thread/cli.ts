@@ -4,7 +4,7 @@ import { archiveThread, abandonThread, integrateThread } from "./lifecycle";
 import { attachThread, forkThread, historyThread, listThreads, newThread, promoteThread, seeThread, sendThread } from "./runtime";
 import type { ThreadRow } from "./types";
 
-const usage = "usage: ab thread ls [--tree spawn|merge] [--delta origin|local] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] [--exclusive] | send|history|seen <id> | archive|abandon|merge <id> | merge <id> --continue";
+const usage = "usage: ab thread ls [--tree spawn|merge] [--delta origin|local] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] [--cmd …] | fork [--worktree <name>|--in <cwd>] | promote [<session>] | attach <id> [--role agent|…] [--exclusive] | send|history|seen <id> | archive|abandon|merge <id> | merge <id> --continue | to-bb <id>";
 
 function options(args: string[], schema: ParseArgsOptionsConfig) {
 	return parseArgs({ args, allowPositionals: true, strict: true, options: schema });
@@ -103,6 +103,12 @@ export async function thread(args: string[]): Promise<void> {
 			const result = command === "abandon" ? await abandonThread(rest[0]!) : await archiveThread(rest[0]!);
 			out(JSON.stringify(result) + "\n");
 			if (result.blocked) { process.exitCode = 1; console.error(`Thread ${result.blocked.threadId} blocked: ${result.blocked.block.reason}`); }
+			return;
+		}
+		case "to-bb": {
+			if (rest.length !== 1) throw new Error(usage);
+			const { moveToBb } = await import("./to-bb");
+			out(JSON.stringify(await moveToBb(rest[0]!)) + "\n");
 			return;
 		}
 		default: throw new Error(usage);

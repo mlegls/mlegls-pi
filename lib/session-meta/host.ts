@@ -73,7 +73,7 @@ export async function canonicalThread(sessionId: string, sessionFile?: string): 
 	let record = await threadForSession(sessionId);
 	if (!record && process.env.AB_THREAD_ID) record = await getThread(process.env.AB_THREAD_ID);
 	// bb runs a bb-run thread's pi on bb's own session file: that session becomes the thread's current one.
-	if (record && !record.archived && record.bb && record.bb === process.env.BB_THREAD_ID && sessionFile && record.sessionId !== sessionId) {
+	if (record && !record.archived && record.bb && record.bb === process.env.BB_THREAD_ID && sessionFile && (record.sessionId !== sessionId || record.sessionFile !== sessionFile)) {
 		record = { ...record, sessionId, sessionFile };
 		await saveThread(record);
 	}

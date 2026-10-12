@@ -4,6 +4,7 @@
 // worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { command, quote } from "./process";
 import { threadDir } from "./registry";
 import { launchEnv } from "./launch";
@@ -63,12 +64,14 @@ function modelOf(thread: ThreadRecord): { model?: string; effort?: string } {
 }
 
 /** Start the thread's pi in bb under parent (a bb thread id), submitting its launch prompt. */
-export async function spawnBb(thread: ThreadRecord, parent: string | undefined): Promise<string> {
+export async function spawnBb(thread: ThreadRecord, parent: string | undefined, o: { model?: string; effort?: string; prompt?: string } = {}): Promise<string> {
 	if (thread.launch?.cmd !== undefined) throw new Error("bb runtime runs pi only; a command override needs the zmx runtime");
-	writeLaunchEnv(thread);
-	const { model, effort } = modelOf(thread);
+	// A worker owns its worktree; an interactive thread may share its checkout with other sessions, so it carries no
+	// identity file (its registry record is found by session id).
+	if (thread.worker) writeLaunchEnv(thread);
+	const { model, effort } = o.model ? o : modelOf(thread);
 	const prompt = join(threadDir(), thread.id + ".prompt.md");
-	writeFileSync(prompt, thread.launch?.prompt?.trim() || "Continue.", { mode: 0o600 });
+	writeFileSync(prompt, o.prompt ?? (thread.launch?.prompt?.trim() || "Continue."), { mode: 0o600 });
 	try {
 		const title = thread.worker ? thread.worker.run + "/" + thread.worker.handle : thread.branch ?? thread.id;
 		const created = await bb<{ id: string }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
@@ -78,6 +81,14 @@ export async function spawnBb(thread: ThreadRecord, parent: string | undefined):
 	} finally { rmSync(prompt, { force: true }); }
 }
 
+export const waitBb = (id: string, seconds: number) => command(cli(), ["thread", "wait", id, "--status", "idle", "--timeout", String(seconds), "--json"]);
+/** The pi session bb keeps for a thread: ~/.bb/pi-bridge-sessions/<providerThreadId>.jsonl. */
+export async function bbSessionFile(id: string): Promise<string> {
+	const events = JSON.parse(await command(cli(), ["thread", "log", id, "--json", "--all"])) as { data?: { providerThreadId?: string } }[];
+	const provider = events.map(e => e.data?.providerThreadId).filter(Boolean).at(-1);
+	if (!provider) throw new Error("bb thread " + id + " has no pi session yet");
+	return join(process.env.BB_PI_BRIDGE_SESSION_DIR || join(homedir(), ".bb", "pi-bridge-sessions"), provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl");
+}
 export const tellBb = (id: string, text: string) => bb(["thread", "tell", id, text]);
 /** Stop the turn and release bb's pi; the thread stays for a later message. */
 export const stopBb = (id: string) => bb(["thread", "stop", id]).catch(error => { if (!/not (?:running|active)|idle/i.test(String(error))) throw error; });
