@@ -1,10 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { integrate, type Handle } from "../dispatch.ts";
 import type { Issue, Tracker } from "../tracker.ts";
 import { getThread, workerThread } from "../thread/registry.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
+import { git, isAncestor } from "./checks.ts";
 import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
 
 export interface RefinementContext {
@@ -27,9 +27,6 @@ export interface RefinementAcceptance {
 }
 export type RefinementOutcome = { kind: "promoted" | "decomposed"; children: string[] };
 
-const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], {
-	encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
-}).trim();
 const stableClaim = (context: RefinementContext) => "reconcile:" + context.state.root;
 const attemptOf = (context: RefinementContext, handle: string) => {
 	const attempt = context.state.refinements[handle];
@@ -104,7 +101,7 @@ function assertAbortable(context: RefinementContext, attempt: RefinementAttempt)
 	// Once stubs reached the collector, deleting their contracts would strand
 	// committed code. A prepared-head receipt also proves a merge-before-save.
 	const intent = attempt.acceptance;
-	if (intent?.landedHead || (intent?.preparedHead && contains(intent.destination, intent.preparedHead)))
+	if (intent?.landedHead || (intent?.preparedHead && isAncestor(intent.destination, intent.preparedHead)))
 		throw new Error("Recover refinement claim conversion before replacing: " + attempt.handle + " (stubs already landed)");
 	const converted = subtree(context.tracker.snapshot(), attempt.node).some(row =>
 		!attempt.baseline.includes(row.slug) && attempt.owned.includes(row.slug)
@@ -265,14 +262,6 @@ function validateAcceptance(context: RefinementContext, handle: string, children
 	return { kind: children.length ? "decomposed" : "promoted", children: [...children] };
 }
 
-function contains(cwd: string, head: string): boolean {
-	try { git(cwd, "merge-base", "--is-ancestor", head, "HEAD"); return true; }
-	catch (error) {
-		if ((error as { status?: number }).status === 1) return false;
-		throw error;
-	}
-}
-
 async function accept(context: RefinementContext, handle: string): Promise<RefinementOutcome> {
 	let attempt = attemptOf(context, handle);
 	const intent = attempt.acceptance;
@@ -282,10 +271,10 @@ async function accept(context: RefinementContext, handle: string): Promise<Refin
 	const destination = realpathSync(intent.destination);
 	if (destination === realpathSync(context.state.cwd) || isAbsolute(intent.into))
 		throw new Error("Refinement stubs must land in a collector, not the owner");
-	if (intent.landedHead && !contains(destination, intent.preparedHead ?? intent.landedHead))
+	if (intent.landedHead && !isAncestor(destination, intent.preparedHead ?? intent.landedHead))
 		throw new Error("Saved refinement stubs no longer reach their collector");
 	if (!intent.landedHead) {
-		if (intent.preparedHead && contains(destination, intent.preparedHead)) {
+		if (intent.preparedHead && isAncestor(destination, intent.preparedHead)) {
 			persist(context, () => { attemptOf(context, handle).acceptance!.landedHead = git(destination, "rev-parse", "HEAD"); });
 		} else {
 			const worker = attempt.worker;
@@ -305,7 +294,7 @@ async function accept(context: RefinementContext, handle: string): Promise<Refin
 				persist(context, () => { attemptOf(context, handle).acceptance!.preparedHead = head; });
 			} });
 			const prepared = attemptOf(context, handle).acceptance!.preparedHead!;
-			if (!contains(destination, prepared)) throw new Error("Refinement integration did not reach its collector");
+			if (!isAncestor(destination, prepared)) throw new Error("Refinement integration did not reach its collector");
 			persist(context, () => { attemptOf(context, handle).acceptance!.landedHead = git(destination, "rev-parse", "HEAD"); });
 		}
 	}

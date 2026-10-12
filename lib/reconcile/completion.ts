@@ -3,7 +3,7 @@ import { isAbsolute } from "node:path";
 import { integrate, MergeConflict, type Handle } from "../dispatch.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
 import type { Tracker } from "../tracker.ts";
-import { declaredGates, evidencePacket, git, testCommands, testRun } from "./checks.ts";
+import { declaredGates, evidencePacket, git, isAncestor, testCommands, testRun } from "./checks.ts";
 import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
 import type { CollectorRecord, GlobalRunState, LandingOperation, ReviewedResult } from "./tracker-state.ts";
 
@@ -66,9 +66,7 @@ function recordLanding(context: CompletionContext, operation: LandingOperation, 
 function reached(operation: LandingOperation): string | undefined {
 	if (!operation.preparedHead) return;
 	const head = git(operation.destination, "rev-parse", "HEAD");
-	try { git(operation.destination, "merge-base", "--is-ancestor", operation.preparedHead, head); }
-	catch (error: any) { if (error.status === 1) return; throw error; }
-	return head;
+	return isAncestor(operation.destination, operation.preparedHead, head) ? head : undefined;
 }
 
 /** Real integrate(keep:true), conflict/refusal probe, dependency prep, declared

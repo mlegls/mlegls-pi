@@ -7,6 +7,15 @@ import { join, resolve } from "node:path";
 
 export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
+/** Exact commit ancestry: whether `ancestor` is reachable from `descendant` in cwd's repository. */
+export function isAncestor(cwd: string, ancestor: string, descendant = "HEAD"): boolean {
+	try { git(cwd, "merge-base", "--is-ancestor", ancestor, descendant); return true; }
+	catch (error) {
+		if ((error as { status?: number }).status === 1) return false;
+		throw error;
+	}
+}
+
 /** The project's integration gate: a mise task it declares as a lifecycle point, like its worktree post_create hook.
  * `pre-integrate` runs on every landing (capped at 30 min, since the integrate lock serializes landings).
  * Checks too heavy for every landing (a full browser batch) run after it, by the project: see `mainRed`.
