@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Runnable first-use fixture, not a retained test suite. Owns only its mkdtemp tree.
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, symlinkSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -67,6 +67,24 @@ try {
   observe("stored vault relations", readFileSync(join(main, "docs/issues/child.md"), "utf8"));
   tracker.update("seed", { priority: 1, extra: null });
   observe("metadata merge preserved body", tracker.text("seed"));
+  const concurrent = ["left", "right"].map(key => Bun.spawn(["bun", cli, "update", "seed", "--fields", JSON.stringify({ [key]: "preserved" })], {
+    cwd: worker, env: process.env, stdout: "ignore", stderr: "pipe",
+  }));
+  const exits = await Promise.all(concurrent.map(p => p.exited));
+  if (exits.some(code => code !== 0)) throw new Error("concurrent mutation failed");
+  observe("cross-process merge serialized", { left: tracker.fields("seed").left, right: tracker.fields("seed").right });
+  const hook = join(main, ".git/hooks/pre-commit");
+  writeFileSync(hook, "#!/bin/sh\nexit 1\n");
+  chmodSync(hook, 0o755);
+  const persistedHead = git(main, "rev-parse", "HEAD");
+  const persistenceError = rejected(worker, ["update", "seed", "--fields", '{"persistence":"published"}']);
+  observe("persistence failure is distinguished", {
+    diagnostic: persistenceError.split(";")[0],
+    validatedWriteVisible: tracker.fields("seed").persistence === "published",
+    noCommit: git(main, "rev-parse", "HEAD") === persistedHead,
+  });
+  rmSync(hook);
+  tracker.update("seed", { persistence: null });
   writeFileSync(join(worker, "body.md"), "Replacement contract from the calling worktree.\n");
   run(worker, ["update", "child", "--body-file", "body.md"]);
   tracker.update("child", {}, "");

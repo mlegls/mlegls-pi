@@ -17,7 +17,7 @@ Cleanup runs in `finally`: remove only the fixture worktrees through their ownin
 
 ## Encounter
 
-The corrected rehearsal completed successfully. The first fixture attempt accidentally made a child both part of and blocked by its parent: the existing completion-cycle validator correctly refused it. The seed was corrected to add that blocker only after detaching the parent relation.
+Tested backend revision: `6d0bfdb2` (on implementation base `294a02bf`); the final packet revision adds concurrent-write and persistence-failure observations without changing the backend. The corrected rehearsal completed successfully. The first fixture attempt accidentally made a child both part of and blocked by its parent: the existing completion-cycle validator correctly refused it. The seed was corrected to add that blocker only after detaching the parent relation.
 
 | Claim | Action and observed result |
 | --- | --- |
@@ -26,7 +26,7 @@ The corrected rehearsal completed successfully. The first fixture attempt accide
 | Field/body contract | Field-only update preserved the seed body and immutable provenance, removed a null-valued key, and body-file replacement resolved in the calling worker. A supplied empty body replaced the whole body. |
 | Invalid writes are inert | A self-blocking update reported `blockedBy cycle`, with issue text and canonical HEAD unchanged. Author mutation and `../escape` creation were rejected. |
 | Close and remove | Close wrote live `stage: done`, dropped the claim, removed only the issue blocker and retained `approval: maintainer`. Evidence referenced `docs/attachments/result.md`, which existed only in the worker and was not copied. Replaying close changed neither text nor canonical HEAD. Owned provisional creation/removal left no issue. |
-| Path-limited persistence | The unrelated `sentinel.txt` remained staged throughout and never appeared in commit history. |
+| Serialized and path-limited persistence | Two concurrent CLI processes merged distinct fields on the same issue; both values survived. The unrelated `sentinel.txt` remained staged throughout and never appeared in commit history. An owned fixture pre-commit hook then deliberately refused persistence: the diagnostic began `Validated tracker working-tree write happened`, the validated field was visible, and canonical HEAD stayed unchanged. The fixture removed its hook and reverted that probe field through the API. |
 | Landing refusal | A code/evidence-only commit was accepted despite later canonical persistence. The separate bad branch added `hidden.txt`, modified `seed.md`, and deleted `child.md` under `docs/issues/`; refusal named all three paths and said mutations belong through the tracker. Destination status and HEAD were unchanged. |
 
 Nonvisual CLI/library evidence; no screenshots. This is runnable setup and encounter evidence, not another retained test suite. Runtime activation and connected ledger stories remain the next child's work.
@@ -39,4 +39,4 @@ bun test lib/thread/runtime.test.ts lib/thread/lifecycle.test.ts lib/reconcile/l
 bunx tsc --noEmit
 ```
 
-Observed: 23 tracker tests and 13 thread/landing tests passed; typecheck passed. No new tests were added. Changed existing assertions: `worktree links use canonical issues and branch evidence; foreign projects retain vault state` now accepts canonical issue targets despite branch deletion/archive edits, repairs an archived link back to the live canonical identity, and retains branch-specific heading/attachment plus foreign-project assertions. Branch-runtime assertions were not weakened.
+Observed: 23 tracker tests and 13 thread/landing tests passed; typecheck passed. After routing `check --fix` through the same canonical lock/validation/publication/persistence machinery, the 23 tracker tests, typecheck and full scratch replay passed again. Non-tracker documentation repairs still stay in the checked code tree; canonical issue repairs alone enter tracker persistence. No new tests were added. Changed existing assertions: `worktree links use canonical issues and branch evidence; foreign projects retain vault state` now accepts canonical issue targets despite branch deletion/archive edits, repairs an archived link back to the live canonical identity, and retains branch-specific heading/attachment plus foreign-project assertions. Branch-runtime assertions were not weakened.
