@@ -92,7 +92,9 @@ export async function bbSessionFile(id: string): Promise<string> {
 }
 export const tellBb = (id: string, text: string) => bb(["thread", "tell", id, text]);
 /** Stop the turn and release bb's pi; the thread stays for a later message. */
-export const stopBb = (id: string) => bb(["thread", "stop", id]).catch(error => { if (!/not (?:running|active)|idle/i.test(String(error))) throw error; });
-export const archiveBb = (id: string) => bb(["thread", "archive", id]);
+// A thread deleted in bb (or with its project) has nothing left to stop or archive.
+const gone = (error: unknown) => /not found|404/i.test(String(error));
+export const stopBb = (id: string) => bb(["thread", "stop", id]).catch(error => { if (!gone(error) && !/not (?:running|active)|idle/i.test(String(error))) throw error; });
+export const archiveBb = (id: string) => bb(["thread", "archive", id]).catch(error => { if (!gone(error)) throw error; });
 export const logBb = (id: string) => command(cli(), ["thread", "log", id, "--all"]);
 export const openBb = (id: string) => command(cli(), ["thread", "open", id]);
