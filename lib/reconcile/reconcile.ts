@@ -412,10 +412,28 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(cwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string };
+	/** Bind an owner retry to its original attempt before any replacement writes.
+	 * Recovery can finish that replacement before replaying the resolution file. */
+	function readResolution(file: string, node: string): Resolution {
+		const r = JSON.parse(readFileSync(file, "utf8")) as Resolution;
+		if (r.action === "retry" && !r.refinement && s.chains[node]?.phase === "refine") {
+			r.refinement = s.chains[node].refinement;
+			const tmp = file + ".tmp";
+			writeFileSync(tmp, JSON.stringify(r)); renameSync(tmp, file);
+		}
+		return r;
+	}
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
+		if (r.action === "retry" && r.refinement && s.refinements[r.refinement]?.successor) {
+			delete s.exceptions[ex.node];
+			if (c) c.held = false;
+			// The saved replacement (including partial adoption) is recovered by
+			// tick before resolutions; do not replace its successor a second time.
+			return save();
+		}
 		const issue = view(c?.into ?? cwd).get(target);
 		(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + (r.message ? ": " + r.message : r.note ? ": " + r.note : r.summary ? ": " + r.summary : ""));
 		if (r.action === "escalate") {
@@ -450,7 +468,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		for (const f of readdirSync(resolutionsDir(cwd, s.root)).filter(f => f.endsWith(".json"))) {
 			const node = f.slice(0, -5);
 			if (s.exceptions[node]) continue;
-			const r = JSON.parse(readFileSync(join(resolutionsDir(cwd, s.root), f), "utf8")) as Resolution;
+			const r = readResolution(join(resolutionsDir(cwd, s.root), f), node);
 			if (!s.chains[node] || r.action === "escalate") { dropResolution(node); tellOwner("ignored " + r.action + " for " + node + ": it has no exception or running chain"); continue; }
 			const ex: Exception = { id: node + "-owner-" + Date.now().toString(36), node, reason: "owner " + r.action, text: "", at: new Date().toISOString(), level: "owner", mailed: true, reportTs: s.chains[node].handledTs };
 			s.exceptions[node] = ex;
@@ -469,7 +487,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				const f = join(resolutionsDir(cwd, s.root), ex.node + ".json");
 				// Removed only once applied: a crash midway replays it after restart.
 				if (existsSync(f)) {
-					const r = JSON.parse(readFileSync(f, "utf8")) as Resolution;
+					const r = readResolution(f, ex.node);
 					const same = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).filter(o => o !== ex && o.level === "owner" && o.reason === ex.reason) : [];
 					await applyResolution(ex, r, issues);
 					for (const o of same) if (s.exceptions[o.node] === o) await applyResolution(o, { ...r, target: undefined }, issues);
