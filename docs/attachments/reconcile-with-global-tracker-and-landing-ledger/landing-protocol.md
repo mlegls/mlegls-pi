@@ -94,3 +94,10 @@ Both conflict checkouts stayed unchanged. Tracker refusal was not an append unio
 - No production call sites, State activation, Tracker/CLI writes, existing fixtures or retained tests changed.
 
 This helper proves the dormant protocol through actual integration and global tracker writes. It does **not** prove actual scheduler dispatch, campaign restart, linked-owner execution or green-owner waiting. Those remain the enclosing ticket's activated actual-run join, as specified by this ticket's `drive: none`.
+
+## Review (drive skipped: ticket declares `drive: none`)
+
+Reviewed `lib/reconcile/completion.ts` against the ticket's seven contract points and the existing `reconcile.ts:land` mechanics; no defects found, no repairs made.
+Re-ran on head `1919f293`: `bunx tsc --noEmit` clean; `bun test lib/reconcile/landing.test.ts` 2 pass; `landing-probe.ts` re-executed, all assertions held (24 saves, same outcomes as above), fixture root removed afterwards.
+Checked by reading: conflict probe runs after `assertNoTrackerChanges`; prepared receipt is saved inside the prepare callback after gates and packet validation and a save failure there aborts before the merge; post-merge save failure rethrows (replayable via `recoverLandings`/`landReviewed`); `closeAtTarget` skips only archived issues, never a visible done stage; collector landings (`into` ≠ absolute `cwd`) are never closed.
+Acceptance for runtime behavior (scheduling, restart, linked-owner, green-owner waiting) belongs to the post-landing gate: the actual-run join of activate-global-reconcile-runtime under the enclosing ticket reconcile-with-global-tracker-and-landing-ledger.
