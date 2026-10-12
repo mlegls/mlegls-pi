@@ -18,7 +18,7 @@ function promptBuilder(getHeader: GetHeader = () => null) {
 		on(event, candidate) {
 			if (event === "before_agent_start") handler = candidate as BeforeAgentStartHandler;
 		},
-	} as ExtensionAPI);
+	} as unknown as ExtensionAPI);
 	if (!handler) throw new Error("before_agent_start handler was not registered");
 	const registeredHandler = handler;
 	return (options: BuildSystemPromptOptions, systemPrompt = "") => {
