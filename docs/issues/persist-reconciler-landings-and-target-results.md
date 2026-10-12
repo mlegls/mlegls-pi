@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f88-e529-7473-951d-ed4cb0f4a7c5
 part-of: "[[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]"
@@ -34,3 +34,7 @@ Commit `landing-probe.ts`, a disposable Bun rehearsal using isolated git reposit
 Use checkout-local tracker paths, isolated state/board/agent/zmx selectors, no model calls, and only fixture-owned process/worktree cleanup. Record code heads, ledger entries and result locators in `landing-protocol.md`; do not claim actual scheduling from this helper probe. Run `bunx tsc --noEmit`.
 
 This is `drive: none` while the module is dormant. The enclosing join's actual-run restart/linked-owner modes are the post-landing gate. No new retained tests are approved.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/reconcile-with-global-tracker-and-landing-ledger/landing-protocol.md).
