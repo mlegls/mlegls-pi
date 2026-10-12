@@ -14,8 +14,7 @@
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { basename, isAbsolute, join, resolve } from "node:path";
-import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import { dispatch, integrate, retire, stop, topic, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
@@ -725,7 +724,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	// --- the walk --------------------------------------------------------------------------------------
 	/** What keeps each open node from starting, recorded by the walk for the stop message: the owner shouldn't have to read a collector's tracker to find out. */
 	const holds = new Map<string, string>();
-		const why = (i: Issue, view: Map<string, Issue>): string => {
+	const why = (i: Issue, view: Map<string, Issue>): string => {
 		const r: string[] = [];
 		if (!i.ready) {
 			const low = [...view.values()].filter(d => !finished(d) && !!d.ownStage && !["spec", "ticket", "done"].includes(d.ownStage) && descends(d, i.slug, view));
