@@ -64,3 +64,11 @@ Exercised source revision: 8be1197 (the following packet commit changes document
 - Promotion preparedHead / collector HEAD: cad92be2a3927a03c94d83fbc153e4c6873f0aeb; ownerHasStub was false.
 
 Fixture commit hashes vary on rerun because commit timestamps are real; the ancestry and no-second-merge assertions are the stable criterion.
+
+## Review (drive skipped: ticket declares drive: none)
+
+Reviewer read lib/reconcile/refinement.ts against the ticket contract and re-ran the committed probe from /tmp on the final head: every stated transition held (see table above), fixture removed. bunx tsc --noEmit clean; bun test lib/reconcile: 7 pass, 0 fail, 51 assertions. No test:affected task exists in this checkout, so the reconcile test directory was run whole. No repairs were needed; no new idea issues are in the diff to triage; no retained test was added or changed.
+
+Outcomes: failure cleanup and parent stage restoration, baseline/unowned/friction protection, stop-failure gate, unadopted replacement, adopted relabel, acceptance validation, merge-before-save replay without a second merge, interrupted claim conversion replay, promotion stubs into the collector, tracker-edit refusal, and move-out claim release all held in the local rehearsal. Production activation is dormant; the enclosing join's actual-run failed/replaced/adopted refinement mode is the post-landing gate, owned by the parent reconcile-with-global-tracker-and-landing-ledger ticket.
+
+Observed limit (not a defect): once acceptance has saved landedHead, a later discard before any claim conversion would still remove the children while the stubs remain in the collector; the runtime owns choosing replace versus recovery at that point.
