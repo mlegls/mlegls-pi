@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f5a-57a3-74f5-be56-010e18f3b368
 part-of: "[[projects/mlegls-pi/issues/reconcile-against-a-global-tracker]]"
@@ -45,3 +45,7 @@ Provide a committed, runnable scratch rehearsal under `docs/attachments/global-v
 - Existing tracker script, affected thread and landing tests pass after their per-branch assumptions are retargeted. Relevant commands: `bun test skills/enabled/all/mlegls/conventions/tracker/scripts`, `bun test lib/thread/runtime.test.ts lib/thread/lifecycle.test.ts lib/reconcile/landing.test.ts`, and `bunx tsc --noEmit`. Do not weaken the current branch-runtime assertions here: those callers remain unchanged until the next child. If a fixture now invokes the strict backend directly, give its contract valid frontmatter. The next child owns `lib/reconcile/refresh.test.ts`'s global-contract rewrite.
 
 No new retained tests are authorized; the scratch rehearsal is first-use setup/evidence, not another assertion suite. Name changed assertions in the result. Instruction deployment and the end-to-end sibling ledger story belong to the following children and parent join.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/global-vault-tracker-backend/index.md).
