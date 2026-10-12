@@ -74,3 +74,25 @@ landing-ledger persistence or global close was exercised here. The enclosing
 ticket's actual-scheduler ledger rehearsal, **after atomic runtime activation**,
 owns the post-landing gate and combined acceptance. This probe does not replace
 that gate.
+
+## Review (drive skipped: ticket is `drive: none`)
+
+Reviewer read `lib/reconcile/scheduling.ts` against the ticket contract and the
+CLI's `children/effectiveStage/complete/subtree/model/openBlockers`
+(`issues.ts`), then replayed the implementer's evidence on the final head:
+`bun .../projection-probe.ts` exited 0 (22-row CLI parity, collector/owner
+contexts, immutability true, vault deleted, nothing left in the OS temp dir) and
+`bunx tsc --noEmit` exited 0.
+
+| Contract clause | Established by |
+| --- | --- |
+| Empty-overlay parity with the CLI projection | Probe parity comparison, 22/22 rows (replayed) |
+| Landing releases b only in its collector; owner path stays blocked | Probe "Different collector" and "Owner path" output (replayed) |
+| Omitted-stage parent, foreign claim, opaque guard, human residual, priority-4 scope, withheld claimed child | Probe rows for `omitted`, `human`/`residual`, `guarded`, `deferred`, `provisional*` (replayed) |
+| No input mutation; no rollup `blockers` input | Probe immutability line; stale `blockers` seeded in DTO and overwritten |
+| Code review: stage min over live children, `satisfied` rule, blocker/guard handling, own-claim recovery, exact ignore set, withheld suppression | Read side by side with CLI; no defects found, no repairs made |
+
+No repairs, no tests added or changed, no ideas filed. Acceptance of production
+selection rests on the enclosing ticket's join (actual scheduler ledger
+rehearsal after atomic activation, owned by
+`activate-global-reconcile-runtime` / the enclosing ticket), not this probe.
