@@ -1,5 +1,7 @@
 # Global Tracker / landing ledger: combined rehearsal
 
+Independent verification of the combined revision: [driver encounter](drive.md) (all nine modes held).
+
 Nonvisual CLI/library evidence (`visual: false`, `shots: []`). This packet joins
 six integrated children; production behavior is exercised by deterministic shell
 workers and reports, not model decisions. The outer parent owns the instructions/
