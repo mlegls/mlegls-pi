@@ -52,7 +52,7 @@ async function child(thread: ThreadRecord, prompt?: string): Promise<void> {
 const unmerged = (cwd: string) => { try { return !!execFileSync("git", ["-C", cwd, "diff", "--name-only", "--diff-filter=U"], { encoding: "utf8" }).trim(); } catch { return false; } };
 
 /** Pending setup starts beside the first pi, its output in a log; the workspace extension reports it at pi's next turn. */
-async function pendingSetup(thread: ThreadRecord): Promise<void> {
+export async function pendingSetup(thread: ThreadRecord): Promise<void> {
 	if (readSetup(thread.id)?.state !== "pending") return;
 	if (!await declaresSetup(thread.cwd)) return void await clearSetup(thread.id);
 	// A worker handed a pending merge (a reconciler's collector refresh) would run setup over conflict markers and die

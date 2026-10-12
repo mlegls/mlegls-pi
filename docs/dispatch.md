@@ -30,6 +30,12 @@ Submission returns before admission and worker setup. Setup runs after admission
 
 GNU parallel (`sem`), Bun and the project’s zmx installation must be on PATH. For isolated first use without models or the real host pool, see [the shell fixture](attachments/worker-admission/index.md).
 
+## bb runtime
+
+A thread spawned from a session running inside [bb](https://github.com/get-bb/bb) (`BB_THREAD_ID` set), or with `PI_THREAD_RUNTIME=bb`, runs its pi as a bb thread instead of in a zmx session: bb's desktop, web and mobile apps show it, nested under the spawning session's bb thread. `PI_THREAD_RUNTIME=zmx` forces the old runtime. The registry, worktree, setup, board reports and integration are unchanged (`lib/thread/bb.ts`). Setup runs before bb starts pi; there's no host admission (no `sem` slot, no memory gate), so the parent's `maxConcurrent` and the reconciler's budget are the only limits. A bb thread's state is bb's (`idle`, `working`, `exited` once archived), since bb may release an idle thread's pi; retiring stops and archives it in bb.
+
+bb gives every thread the same environment, so a worker's identity (board topic, stance, checkpoint ratio) is written to `.wm/launch.env` in its worktree, and bb runs pi through `bin/bb-pi`, which sources it: set it once with `bb-app env set BB_PI_BRIDGE_COMMAND <this checkout>/bin/bb-pi`. Start bb from the Dock or with a clean environment: a bb started from a pi session's shell passes that session's `PI_BOARD_TOPIC` to every thread.
+
 ## Supervision
 
 Workers report by ending their turn: the last message starts with `done`, `blocked`, `needs-input` or `checkpoint` (`lib/report.ts`), posted on `<run>/<handle>`. Dispatch subscribes the parent to `<run>/**` with wake, so reports start its next turn. `tools.mail({to: "<run>/<handle>", body})` answers a question or steers a worker. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.

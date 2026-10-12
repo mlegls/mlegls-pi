@@ -34,6 +34,8 @@ export interface ThreadRecord {
 	interactive?: boolean;
 	/** When a frontend last showed this thread; a turn ending after it is unread. */
 	seenAt?: string;
+	/** bb thread id when bb runs this thread's pi (lib/thread/bb.ts) instead of a zmx terminal. */
+	bb?: string;
 }
 export interface ThreadTerminal { name: string; role: string }
 export interface ThreadSnapshot {
@@ -71,6 +73,8 @@ export interface NewThreadOptions {
 	launch?: AgentLaunch;
 	worker?: WorkerIdentity;
 	interactive?: boolean;
+	/** Default defaultRuntime(): bb inside a bb session, else zmx. */
+	runtime?: import("./bb").Runtime;
 }
 export interface ThreadIntegration {
 	branch: string;

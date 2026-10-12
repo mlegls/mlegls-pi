@@ -5,6 +5,7 @@ import { getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { command, delay } from "./process";
 import { terminals, zmx } from "./zmx";
+import { archiveBb, stopBb } from "./bb";
 import { cwdProcesses } from "./resources";
 import type { ThreadCleanup, ThreadRecord } from "./types";
 
@@ -35,6 +36,8 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 		// Resolve aliases before matching lsof cwd paths.
 		if (entry) root = realpathSync(root);
 	}
+	// bb would restart a pi killed under it: release its runtime first, then sweep what's left.
+	if (thread.bb) await stopBb(thread.bb);
 	const inventory = await terminals();
 	const named = inventory.filter(t => t.thread === thread.id || t.name.startsWith(thread.id + "."));
 	if (named.some(t => t.thread && t.thread !== thread.id)) throw new Error("Thread terminal has conflicting ownership: " + thread.id);
@@ -89,6 +92,7 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 			}
 		}
 	}
+	if (thread.bb) await archiveBb(thread.bb);
 	// Current session can change while cleanup waits; never overwrite it with the walk's snapshot.
 	const current = await getThread(thread.id);
 	if (!current) throw new Error("Thread disappeared during cleanup: " + thread.id);

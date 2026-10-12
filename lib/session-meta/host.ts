@@ -11,7 +11,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { readLive, removeLive, takeRetired, writeLive, type Live } from "./live";
 import { mailbox } from "../board/mailbox";
 import { send } from "../board/store";
-import { getThread, threadForSession } from "../thread/registry";
+import { getThread, saveThread, threadForSession } from "../thread/registry";
 import type { ThreadRecord } from "../thread/types";
 import { appendFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -72,6 +72,11 @@ export function spawnMeta(env: Record<string, string | undefined> = process.env)
 export async function canonicalThread(sessionId: string, sessionFile?: string): Promise<ThreadRecord | undefined> {
 	let record = await threadForSession(sessionId);
 	if (!record && process.env.AB_THREAD_ID) record = await getThread(process.env.AB_THREAD_ID);
+	// bb runs a bb-run thread's pi on bb's own session file: that session becomes the thread's current one.
+	if (record && !record.archived && record.bb && record.bb === process.env.BB_THREAD_ID && sessionFile && record.sessionId !== sessionId) {
+		record = { ...record, sessionId, sessionFile };
+		await saveThread(record);
+	}
 	return record && !record.archived && record.sessionId === sessionId && record.sessionFile === sessionFile ? record : undefined;
 }
 

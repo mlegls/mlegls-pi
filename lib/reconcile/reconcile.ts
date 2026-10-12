@@ -239,6 +239,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (!host) return undefined; // backend failure never establishes exit
 		const row = rowOf(h);
 		if (!row || !row.terminals.some(t => t.role === "agent")) return false;
+		// bb may release an idle worker's pi without ending it: only bb's state counts.
+		if (row.thread.bb) return row.state !== "exited";
 		const previous = observedPids.get(row.thread.id);
 		return !exitedPids.has(row.thread.id) && (row.state !== "exited" || (previous?.session === row.thread.sessionId && pidAlive(previous.pid)));
 	};
