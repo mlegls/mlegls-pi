@@ -4,7 +4,7 @@ description: "Use when arriving at a project or asking where things stand and wh
 argument-hint: "an issue subtree, or nothing for the project"
 ---
 
-At entry, refresh semantic tracker lint for the requested scope: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` from the project. Reconcile triage signals before selecting work; lint errors mean unavailable evidence, not a clean tracker. This is advisory, not a dispatch gate. Run once per orientation/campaign, not before each child dispatch.
+At entry, refresh semantic tracker lint for the requested scope: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` from the project. Reconcile triage signals before selecting work; lint errors mean unavailable evidence, not a clean tracker.
 
 Take the project views and read over them yourself: `bun ~/dev/mlegls-pi/lib/views.ts` from the project.
 
