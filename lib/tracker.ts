@@ -57,13 +57,15 @@ export interface Tracker {
 export interface TrackerOptions {
 	/** Default true. Reconciler observation omits the derived inflight display overlay. */
 	inflight?: boolean;
+	/** The issues.ts to run; default TRACKER_CLI, else the one bundled beside this module. */
+	cli?: string;
 }
 
 /** Select by project convention; every operation uses the bundled canonical CLI.
  * A subprocess keeps per-query inflight state isolated and honors TRACKER_CLI. */
 export function getTracker(cwd: string, options: TrackerOptions = {}): Tracker {
 	findIssuesDir(cwd);
-	const cli = process.env.TRACKER_CLI ?? join(import.meta.dir, "../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts");
+	const cli = options.cli ?? process.env.TRACKER_CLI ?? join(import.meta.dir, "../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts");
 	const run = (args: string[], input?: string) => {
 		try {
 			return execFileSync("bun", [cli, ...args], {

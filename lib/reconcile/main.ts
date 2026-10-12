@@ -15,10 +15,9 @@ import { checkout } from "../thread/git";
 import { pidAlive as alive } from "../wm";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { getTracker } from "../tracker";
 import { discardRefinement, replaceRefinement } from "./refinement";
 import { parseArgs } from "node:util";
-import { assertThreadState, load, resolutionsDir, run, saveState, stateDir, stopRefinementWriter, updateState, type State } from "./reconcile.ts";
+import { assertThreadState, load, reconcilerTracker, resolutionsDir, run, saveState, stateDir, stopRefinementWriter, updateState, type State } from "./reconcile.ts";
 
 export function start(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number }): { pid: number; log: string } {
 	const prior = load(o.cwd, o.root);
@@ -66,7 +65,7 @@ export async function stop(cwd: string, root: string) {
 	// A launch may have registered its thread just before termination, without saving its receipt.
 	const s = load(cwd, root)!;
 	cwd = s.cwd;
-	const refinement = { state: s, tracker: getTracker(cwd, { inflight: false }), save: () => saveState(s),
+	const refinement = { state: s, tracker: reconcilerTracker(cwd), save: () => saveState(s),
 		locked: async <T>(work: () => Promise<T>) => work(),
 		stopWriter: (attempt: State["refinements"][string]) => stopRefinementWriter(s, attempt) };
 	for (const attempt of Object.values(s.refinements)) if (attempt.phase === "adopting" && attempt.successor)

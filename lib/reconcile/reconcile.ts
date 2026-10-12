@@ -16,6 +16,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameS
 import { execFileSync } from "node:child_process";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { dispatch, integrate, retire, stop, topic, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
@@ -39,7 +40,8 @@ import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, rev
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
 import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
-const LIVE_TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
+/** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
+const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
 /** The tracker scripts as committed at HEAD of the checkout they live in, unpacked once per commit: a run must not read
  * the live checkout, where a merge in progress left conflict markers that stopped every reconciler's snapshot (2026-10-12).
  * Fixes reach a run on its next start. */
@@ -61,6 +63,8 @@ export function pinTracker(live = LIVE_TRACKER): string {
 	try { renameSync(temp, dir); } catch { rmSync(temp, { recursive: true, force: true }); if (!existsSync(pinned)) throw new Error("tracker pin failed: " + dir); }
 	return pinned;
 }
+/** The reconciler's tracker: the pinned scripts (see pinTracker), so a merge in progress in the live checkout can't stop its queries. */
+export const reconcilerTracker = (cwd: string) => getTracker(cwd, { inflight: false, cli: process.env.TRACKER_CLI ?? pinTracker() });
 const TICK_MS = 5_000;
 /** An `error` turn-end is not the end of a worker: pi retries a failed request itself (an idle WebSocket, an overloaded
  * provider) and carries on. Act on one only once it has stood this long and the worker is no longer working. */
@@ -235,7 +239,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
-	const tracker = getTracker(cwd, { inflight: false });
+	const tracker = reconcilerTracker(cwd);
 	const snapshot = () => {
 		try { return tracker.snapshot(); }
 		catch (e) { throw new Error("tracker snapshot failed in " + cwd + " (fix the tracker; the reconciler resumes by itself): " + String((e as Error)?.message ?? e).replace(/^error:\s*/, "")); }
