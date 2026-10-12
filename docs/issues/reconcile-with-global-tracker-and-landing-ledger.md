@@ -20,7 +20,23 @@ Read the parent's decisions and committed `lib/tracker.ts` / `lib/reconcile/trac
 
 Own these runtime/state/projection files and affected fixtures. Child 1 has already filled the backend and sparse/refusal helper, but intentionally left their runtime activation here, atomic with removing branch-local reads/close; child 3 owns instructions, not runtime. The only seam child 3 needs is the provisional claim token supplied in the prompt, `reconcile:<root>/<refine-handle>`, and the global write verbs already fixed by the parent.
 
-## Edit contract
+## Execution partition
+
+2026-10-12: the first implementer returned this as larger than one session: scheduling overlay, replayable landing/results and provisional ownership were all intertwined in run, with no durable transition seam. Partition those protocols as dormant modules before one atomic runtime cutover; this preserves the parent's decision that sparse/refusal activation cannot precede removing branch-local reads/close. No product decisions changed.
+
+The committed seams are `lib/reconcile/tracker-state.ts` (`GlobalRunState`, reviewed results, write-ahead landing receipts and refinement attempts), `scheduling.ts`, `completion.ts` and `refinement.ts`. The latter three are intentionally uncalled throwing stubs until their owners fill them. Helper children do not modify State or production call sites. Each helper has a standalone disposable probe; `drive: none` means the enclosing actual-run join, not that source review proves runtime behavior.
+
+- In parallel: [[projects/mlegls-pi/issues/project-collector-local-tracker-lifecycle]], [[projects/mlegls-pi/issues/persist-reconciler-landings-and-target-results]], and [[projects/mlegls-pi/issues/own-provisional-refinement-through-global-tracker]].
+- Then [[projects/mlegls-pi/issues/activate-global-reconcile-runtime]] owns all production wiring, sparse/refusal activation, append-union removal, inflight projection and existing fixture retargeting in one integratable change. Its `sparse.ts` rehearses activated thread/collector paths.
+- After activation, in parallel: [[projects/mlegls-pi/issues/rehearse-collector-ledger-and-owner-restart]] and [[projects/mlegls-pi/issues/rehearse-failed-and-adopted-global-refinement]] supply the long actual-run modes in disjoint files.
+
+Implementation seam: an explicitly adopting owner continuation is `{action: "retry", adopt: true}`; checkpoint continuation also adopts. Ordinary replacements discard. The activation child adds the optional resolution/tool field; instructions already use the fixed attempt token. Write-ahead prepared code heads establish replay after merge-before-save, and accepted-refinement reports are persisted independently of the board cursor. Neither is tracker migration or a new lifecycle meaning.
+
+### This issue's residual work
+
+Once the six children land, do only the joins: repair mismatched helper/runtime seams while preserving the contract below; write `docs/attachments/reconcile-with-global-tracker-and-landing-ledger/rehearse.ts` as an entry selecting `all|sparse|collector|restart|close-replay|linked-owner|failed|replaced|adopted|accept-replay`, invoking the committed standalone scripts from any cwd. Write `index.md` linking the protocol probes, runtime/ledger/refinement observations, setup and per-mode commands. Run every mode against the combined revision and record transient outcomes per `docs/verification-evidence.md`, plus the existing reconciler, dispatch/thread and tracker tests and typecheck. Name changed branch-local assertions (global ruling freshness and tracker-append refusal, including removal of appendUnion-only assertions). Keep the join bounded: do not reimplement the children or reload/hot-swap this live pre-ledger campaign. The outer parent still owns the combined instructions/backend cross-child drive and deployment.
+
+## End-state edit contract (distributed above)
 
 Activate child 1's helpers in this same change: create owning `options.worker` threads (`lib/thread/runtime.ts`) and collectors with `--no-checkout`, call `excludeTracker` before prepare/setup, retaining the existing non-worker/guest behavior. In `lib/thread/lifecycle.ts: integrateThread`, call `assertNoTrackerChanges` before rebase/merge and after preparation; call it before the reconciler's conflict probe too. Delete `lib/thread/append-union.ts`, its `lib/dispatch.ts` export and `settleAppends` special case after locating consumers. Ordinary merge conflicts retain abort/report behavior. Retarget the affected existing tests at this activation, preserving their code-conflict/cleanup properties. The predecessor was deliberately regression-free while these helpers were dormant.
 
