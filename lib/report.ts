@@ -10,7 +10,8 @@ export interface Report {
   body: string;
 }
 
-const keySet = new Set<string>([...HANDOFF_KEYS, "status"]);
+// Refiners and respec implementers may report only their phase-specific seam.
+const keySet = new Set<string>([...HANDOFF_KEYS, "status", "children", "respec"]);
 const fencePattern = /^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(json|yaml|yml)[ \t]*\r?\n([\s\S]*?)^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(?=\r?$)/gim;
 
 function firstStatus(text: string, handoff: Record<string, unknown> | null): { status: Status | null; error: string | null } {
