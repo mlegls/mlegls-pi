@@ -40,7 +40,7 @@ export async function allThreads(includeArchived = false): Promise<ThreadRecord[
 	let files: string[];
 	try { files = await readdir(threadDir()); }
 	catch (error) { if (missing(error)) return []; throw error; }
-	const records = await Promise.all(files.filter(f => f.endsWith(".json") && f !== "bb-index.json").map(f => getThread(f.slice(0, -5))));
+	const records = await Promise.all(files.filter(f => f.endsWith(".json")).map(f => getThread(f.slice(0, -5))));
 	return records.filter((t): t is ThreadRecord => !!t && (includeArchived || !t.archived))
 		.sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id));
 }
@@ -74,7 +74,8 @@ export async function setCurrentSession(id: string, session: { id: string; file:
 }
 
 export interface BbEntry { bb: string; sessionId: string; topic?: string }
-const bbIndexPath = () => join(threadDir(), "bb-index.json");
+// Not *.json: every listing of the registry directory, including older running copies of this code, reads those as records.
+const bbIndexPath = () => join(threadDir(), "bb.index");
 /** Active bb-run threads by id, kept by saveThread, so a board send finds them without reading every record. */
 export function bbIndex(): Record<string, BbEntry> {
 	try { return JSON.parse(readFileSync(bbIndexPath(), "utf8")); } catch { return {}; }

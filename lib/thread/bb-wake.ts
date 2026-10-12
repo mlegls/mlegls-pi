@@ -12,7 +12,7 @@ const mailboxOf = (sessionId: string) => "mail/" + sessionId.replaceAll("-", "")
 const DEBOUNCE_MS = 60_000;
 
 export function wakeBb(message: { topic: string; from: { session?: string } }): void {
-	if (!existsSync(join(threadDir(), "bb-index.json"))) return;
+	if (!existsSync(join(threadDir(), "bb.index"))) return;
 	for (const [id, entry] of Object.entries(bbIndex())) {
 		if (message.topic !== mailboxOf(entry.sessionId) && message.topic !== entry.topic) continue;
 		if (message.from.session === entry.sessionId) continue;
