@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f88-e529-7473-951d-ed4cb0f4a7c5
 part-of: "[[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]"
@@ -34,3 +34,7 @@ Commit a disposable `refinement-probe.ts` invoking the actual helper with a real
 Selectors/paths are checkout-local and isolated as in the enclosing ticket's first-use setup. Remove only fixture-owned resources. Run `bunx tsc --noEmit`. No new retained tests are approved.
 
 This is `drive: none`: helper behavior is locally rehearsed, but production ownership is dormant. The enclosing join's actual-run failed/replaced/adopted refinement mode is the post-landing gate.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/reconcile-with-global-tracker-and-landing-ledger/refinement-protocol.md).
