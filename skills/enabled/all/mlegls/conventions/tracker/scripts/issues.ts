@@ -277,6 +277,8 @@ function movedIssuePaths(paths: string[]): Set<string> {
   }
   return moved;
 }
+const WIKILINK = /\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g;
+
 function maskMarkdownCode(source: string): string {
   const chars = source.split("");
   const blank = (start: number, end: number) => {
@@ -308,7 +310,13 @@ function maskMarkdownCode(source: string): string {
   // A code span cannot cross a blank line, so a stray backtick must not mask the paragraphs after it.
   const fenceMasked = chars.join("");
   const paragraphEnd = (from: number) => { const m = /\r?\n[ \t]*\r?\n/g; m.lastIndex = from; return m.exec(fenceMasked)?.index ?? chars.length; };
+  const wikilink = new RegExp(WIKILINK, "y");
   for (let i = 0; i < chars.length;) {
+    // A live wikilink owns its backticks; an enclosing code span is masked before we reach it.
+    if (chars[i] === "[" && chars[i + 1] === "[") {
+      wikilink.lastIndex = i;
+      if (wikilink.exec(fenceMasked)) { i = wikilink.lastIndex; continue; }
+    }
     if (chars[i] !== "`" || escaped(i)) { i++; continue; }
     let runEnd = i + 1;
     while (chars[runEnd] === "`") runEnd++;
@@ -402,7 +410,7 @@ function checkLinks(docs: string, say: (s: string) => void, repair: boolean, fix
     const text = maskMarkdownCode(raw);
     const edits = new Map<number, { end: number; replacement: string; message: string }>();
     const rel = f.slice(docs.length + 1);
-    const link = /\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g;
+    const link = WIKILINK;
     for (const masked of text.matchAll(link)) {
       // Masking finds live links; their text comes from the source, so code spans inside a live anchor survive.
       const m = Object.assign(raw.slice(masked.index!, masked.index! + masked[0].length).match(new RegExp(`^${link.source}$`)) ?? masked, { index: masked.index });
