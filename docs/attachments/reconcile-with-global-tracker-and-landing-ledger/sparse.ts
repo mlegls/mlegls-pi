@@ -4,14 +4,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { start, stop } from "../../../lib/reconcile/main.ts";
-import { load } from "../../../lib/reconcile/reconcile.ts";
-import { newThread } from "../../../lib/thread/runtime.ts";
-import { allThreads, getThread } from "../../../lib/thread/registry.ts";
-import { abandonThread } from "../../../lib/thread/lifecycle.ts";
-import { integrate, type Handle } from "../../../lib/dispatch.ts";
-import { getTracker } from "../../../lib/tracker.ts";
-import { send } from "../../../lib/board/store.ts";
+import type { Handle } from "../../../lib/dispatch.ts";
 
 const packagePath = realpathSync(join(import.meta.dir, "../../.."));
 const cli = join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts");
@@ -27,11 +20,10 @@ export async function sparse() {
 		mkdirSync(join(path, file, ".."), { recursive: true }); writeFileSync(join(path, file), text);
 		git(path, "add", ...(sparse ? ["--sparse"] : []), "--", file); git(path, "commit", "-qm", file);
 	};
-	const report = (h: Handle, status: string, handoff: object) => send({ from: {}, topic: h.run + "/" + h.handle,
-		tags: [status], body: status + "\n\n" + "\x60\x60\x60json\n" + JSON.stringify(handoff) + "\n\x60\x60\x60" });
 	let launched = false;
+	let cleanup: (() => Promise<void>) | undefined, diagnose: (() => void) | undefined;
 	try {
-		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
+		for (const key of Object.keys(process.env)) if (/^(?:PI_.*|AB_.*|BB_.*|ZMX_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
 		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
 			PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"),
 			PI_AGENTS_DIR: agents, TRACKER_CLI: cli, PI_THREAD_RUNTIME: "zmx", MISE_TRUSTED_CONFIG_PATHS: root,
@@ -43,6 +35,26 @@ export async function sparse() {
 			writeFileSync(join(agents, name + ".md"), "---\nrole: " + role + "\n---\nNo-model shell fixture.\n");
 			writeFileSync(join(agents, "roles", role + ".md"), "No-model shell fixture.\n");
 		}
+		// agents.ts caches its roster at import: isolate before loading the runtime.
+		const { start, stop } = await import("../../../lib/reconcile/main.ts");
+		const { load } = await import("../../../lib/reconcile/reconcile.ts");
+		const { newThread } = await import("../../../lib/thread/runtime.ts");
+		const { allThreads, getThread } = await import("../../../lib/thread/registry.ts");
+		const { abandonThread } = await import("../../../lib/thread/lifecycle.ts");
+		const { integrate } = await import("../../../lib/dispatch.ts");
+		const { getTracker } = await import("../../../lib/tracker.ts");
+		const { send } = await import("../../../lib/board/store.ts");
+		const report = (h: Handle, status: string, handoff: object) => send({ from: {}, topic: h.run + "/" + h.handle,
+			tags: [status], body: status + "\n\n" + "\x60\x60\x60json\n" + JSON.stringify(handoff) + "\n\x60\x60\x60" });
+		cleanup = async () => {
+			if (launched) await stop(cwd, "root");
+			for (const thread of await allThreads()) await abandonThread(thread.id);
+		};
+		diagnose = () => {
+			if (!launched) return;
+			const log = join(cwd, ".git/reconcile/root.log");
+			console.error(JSON.stringify({ state: load(cwd, "root"), log: existsSync(log) ? readFileSync(log, "utf8") : null }));
+		};
 		git(cwd, "init", "-qb", "main"); git(cwd, "config", "user.name", "Fixture"); git(cwd, "config", "user.email", "fixture@example.invalid");
 		commit(cwd, "docs/issues/root.md", "---\nstage: spec\nassignee: agent\n---\n\nSparse collector fixture.\n");
 		commit(cwd, "docs/issues/child.md", "---\nstage: ticket\nassignee: agent:shell\npart-of: \"[[projects/repo/issues/root]]\"\n---\n\nOriginal global contract.\n");
@@ -128,15 +140,11 @@ export async function sparse() {
 			refusedWorkerRetained: true, codeOnlyDestinationAfter: git(cwd, "rev-parse", "HEAD"), codeOnlyWorkerRetired: true }));
 		return { sparse: true, freshness: true, refusal: true, codeOnly: true };
 	} catch (error) {
-		if (existsSync(cwd)) {
-			const log = join(cwd, ".git/reconcile/root.log");
-			console.error(JSON.stringify({ state: load(cwd, "root"), log: existsSync(log) ? readFileSync(log, "utf8") : null }));
-		}
+		diagnose?.();
 		throw error;
 	} finally {
 		try {
-			if (launched) await stop(cwd, "root");
-			for (const thread of await allThreads()) await abandonThread(thread.id);
+			await cleanup?.();
 		} finally { process.env = saved; rmSync(root, { recursive: true, force: true }); }
 	}
 }
