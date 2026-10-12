@@ -1,5 +1,7 @@
 # Global tracker: parent join
 
+Independent post-merge replay: [driver log](drive.md), tested b2c82c1; vault and all nine runtime modes held.
+
 Nonvisual CLI/library first use (`visual: false`, `shots: []`). Implementation
 base: `fb3c65af9312bd64121c1a040d3edfd7bf03385b`; final tested source:
 `d446436e4d9d6df27137ba42b7021f4e651757b2`. The children already implement
