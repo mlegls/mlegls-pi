@@ -101,6 +101,11 @@ export function observeRefinements(context: RefinementContext): void {
 
 function assertAbortable(context: RefinementContext, attempt: RefinementAttempt): void {
 	if (attempt.phase !== "accepting") return;
+	// Once stubs reached the collector, deleting their contracts would strand
+	// committed code. A prepared-head receipt also proves a merge-before-save.
+	const intent = attempt.acceptance;
+	if (intent?.landedHead || (intent?.preparedHead && contains(intent.destination, intent.preparedHead)))
+		throw new Error("Recover refinement claim conversion before replacing: " + attempt.handle + " (stubs already landed)");
 	const converted = subtree(context.tracker.snapshot(), attempt.node).some(row =>
 		!attempt.baseline.includes(row.slug) && attempt.owned.includes(row.slug)
 		&& context.tracker.fields(row.slug)["claimed-by"] === stableClaim(context));
