@@ -1,6 +1,6 @@
 ---
-stage: spec
-assignee: agent
+stage: ticket
+assignee: agent:technical
 author: session:01a12f4c-1aa6-75fe-9c2b-d81acad80dbd
 part-of: "[[projects/mlegls-pi/issues/reconcile-github-tracked-projects]]"
 priority: 2
@@ -24,6 +24,7 @@ decisions:
 - 2026-10-12: the vault's single copy is `docs/issues/` in the main worktree of the repository's git common dir, which `~/obsidian/projects/<repo>` already links. The CLI resolves it from any worktree. Writes edit that working tree; committing is only persistence, path-limited to the issue files a write touched.
 - 2026-10-12: worker worktrees carry no `docs/issues/` (sparse checkout at worktree creation, `lib/thread/runtime.ts` and the collector's `worktree add`), so no agent edits or reads a stale copy. The landing gate refuses a branch that changes `docs/issues/` anyway. `docs/attachments/` evidence stays with the code.
 - 2026-10-12: `issues.ts` gains write verbs (create, update fields, close with result, remove), so prompts and skills say "through the tracker" and are backend-agnostic; the GitHub backend implements the same verbs.
+- 2026-10-12: `update(slug, fields, body?)` also replaces an existing issue's whole Markdown body; body-only updates are allowed. CLI: `update --body-file`; the GitHub backend maps it to `gh issue edit --body-file` (refiner proposal, supervisor approved on the run board).
 
 shape:
 
@@ -33,7 +34,7 @@ interface Tracker {
   text(slug: string): string                         // the contract, for prompts
   fields(slug: string): Record<string, unknown>       // frontmatter-equivalent, e.g. drive: none
   create(issue: NewIssue): string                     // returns its slug
-  update(slug: string, fields: Partial<Fields>): void // stage, part-of, blocked-by, assignee, claimed-by
+  update(slug: string, fields: Partial<Fields>, body?: string): void // fields and/or whole body replacement
   close(slug: string, result: { summary?: string; evidence?: string }): void
   remove(slug: string): void                          // provisional children only
 }
@@ -42,12 +43,41 @@ interface Tracker {
 
 The reconciler takes its backend from the project (the tracker skill's rule: `docs/issues/` means vault). The tracker skill's procedure changes with it: a ticket's completion no longer rides its implementation branch, and friction is filed straight into the tracker, not on the branch. Role prompts (`agents/roles/`, `agents/reviewer.md`, `agents/tidy.md`) write through the tracker.
 
-substeps (for refine; 1 first, then 2 and 3 in parallel):
-1. vault backend: canonical resolution, write verbs, worktrees without `docs/issues/`, the landing gate's refusal.
-2. reconciler on the interface with the ledger; `inflight.ts` reads the ledger.
-3. tracker skill references and role prompts.
+## Execution contracts
 
-acceptance: existing `lib/reconcile` and tracker script tests pass, rewritten where they encoded per-branch behavior. Drive on a scratch repository with a vault tree: a spec root with tickets a and b, b blocked by a, and an outside issue blocked by a.
+The committed seams are `lib/tracker.ts` (`Tracker`, snapshot DTO, `getTracker(cwd, options?)`) and `lib/reconcile/tracker-state.ts` (`LandingLedger`). The factory is a stub until child 1 fills it. Operations are synchronous, like the current subprocess observation. Fields use frontmatter-equivalent keys, but `part-of` and issue entries in `blocked-by` are logical slugs; guards remain opaque strings. Backends serialize their own relations. Null in an update removes a field; the stored vault YAML never gets a null stage. Markdown body input excludes frontmatter; `text` returns the complete prompt contract. No reconciler consumer opens `Issue.file`, an optional backend locator.
+
+CLI contract (JSON fields use the same logical relations):
+```text
+issues.ts text <slug>
+issues.ts fields <slug> [--json]
+issues.ts create <slug> --fields '<json>' --body-file <path|->
+issues.ts update <slug> [--fields '<json>'] [--body-file <path|->]
+issues.ts close <slug> [--summary <text>] [--evidence <repo-relative-path>]
+issues.ts remove <slug>
+```
+`create` prints the resulting slug; mutation success is exit 0 and failure is nonzero with a diagnostic. Queries retain today's JSON schema. `fields` prints JSON, with or without `--json`. A body file is resolved from the calling cwd, not the canonical checkout; `-` reads stdin. Updates merge metadata and preserve the body unless replacement was supplied. Mutations validate the resulting tracker before publication and persist only their touched issue paths in the canonical checkout, never unrelated staged work. Non-git vaults retain upward directory discovery and omit git persistence.
+
+The ledger's `into` follows `Chain.into`: collector issue slug, or the absolute owner checkout path. `head` is the destination's post-integration code head, `at` is ISO-8601. Landing a collector moves the pending entries it carries into the next destination; only entries reaching the owner checkout may be closed. Keep entries for restart/idempotence and display pending ones as derived claims.
+
+Provisional children are created with `claimed-by: reconcile:<root>/<refine-handle>` in the same write that creates them. The reconciler supplies that token in the refine prompt, records the pre-attempt subtree, and owns cleanup only for new children with its token. A continuation/retry may explicitly adopt those children; successful decomposition converts the attempt claim to the run reservation `reconcile:<root>` after its stubs land, retained until target close or move-out. Unrelated issues and pre-existing children are never removed. Role text in child 3 follows this token contract; child 2 owns the state and cleanup.
+
+## Children
+
+1. [[projects/mlegls-pi/issues/global-vault-tracker-backend]]: canonical CLI/backend, sparse workers and collectors, reject tracker changes in landing branches, remove tracker append unions.
+2. After 1, in parallel:
+   - [[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]: reconciler state, scheduler, provisional refinement, inflight projection, runnable scratch rehearsal.
+   - [[projects/mlegls-pi/issues/write-tracker-through-global-api-in-agent-instructions]]: tracker references and agent-facing instructions.
+
+## Residual edit contract
+
+Once these children land, this ticket owns their join, not another implementation of them. Remove any remaining stub, repair mismatched CLI/type/prompt seams, and run the existing reconciler and tracker suites together. Use child 2's committed rehearsal to drive the crossing stories below from the combined revision; record the encounter under `docs/attachments/reconcile-against-a-global-tracker/` per [verification evidence](../verification-evidence.md). First use is an isolated scratch git repository with its own vault, board, thread state and shell workers, not this live campaign or another user's tracker.
+
+Cutover: validate the new package/CLI from this checkout in scratch first; do not hot-swap a live pre-ledger reconciler halfway through this campaign. After integration the supervisor restarts/reloads the installed package and agent instructions. A pre-ledger live run requires the already-decided manual ledger rebuild, not an automatic migration feature.
+
+## Stories and acceptance
+
+Existing `lib/reconcile` and tracker script tests pass, rewritten where they encoded per-branch behavior. Keep their surviving properties; don't add retained tests without approval (`testing`). Drive on a scratch repository with a vault tree: a spec root with tickets a and b, b blocked by a, and an outside issue blocked by a.
 - b starts after a lands in the root's collector; the canonical tracker shows neither done, and a as in flight, until the root lands; then a, b and the root are done and the outside issue is frontier.
 - a refine that fails after creating children leaves none behind.
 - a worker worktree has no `docs/issues/`, and the tracker CLI run inside it reads the canonical tracker.
