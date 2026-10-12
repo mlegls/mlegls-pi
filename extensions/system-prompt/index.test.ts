@@ -15,7 +15,7 @@ function promptBuilder(getHeader: GetHeader = () => null) {
 	systemPromptExtension({
 		getActiveTools: () => selectedTools,
 		getAllTools: () => [],
-		on(event, candidate) {
+		on(event: string, candidate: unknown) {
 			if (event === "before_agent_start") handler = candidate as BeforeAgentStartHandler;
 		},
 	} as unknown as ExtensionAPI);
