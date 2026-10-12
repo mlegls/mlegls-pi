@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:fill
 author: session:01a12f5a-57a3-74f5-be56-010e18f3b368
 part-of: "[[projects/mlegls-pi/issues/reconcile-against-a-global-tracker]]"
@@ -42,3 +42,7 @@ This is `drive: none`: the post-landing gate is owned by the parent join, which 
 - Nobody following the changed prompts marks a reconciled node globally done merely because it reported done or landed in a collector.
 
 Review the listed source instructions as one protocol and compare all example commands/types with the committed parent contract and child 1's actual CLI help. Search the scoped files for surviving `implementation branch`, `tracker files only`, `commit children`, `on their branch`, and branch-local issue reads, examining hits rather than blanket-replacing generic code instructions. No new tests, no new process or model run required. Provide nonvisual review evidence under `docs/attachments/write-tracker-through-global-api-in-agent-instructions/`; the parent scratch encounter is the post-landing acceptance, not a prose search claiming product success.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/write-tracker-through-global-api-in-agent-instructions/index.md).
