@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:fill
 author: session:01a12f88-e529-7473-951d-ed4cb0f4a7c5
 part-of: "[[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]"
@@ -27,3 +27,7 @@ Read the enclosing first-use/story contract, `lib/reconcile/refinement.ts`, `tra
 Mirror the enclosing first-use isolation: private mkdtemp repo; isolated XDG_STATE_HOME/PI_BOARD_DIR/PI_CODING_AGENT_DIR/ZMX_DIR/MISE_TRUSTED_CONFIG_PATHS; explicit PI_THREAD_RUNTIME=zmx; checkout-local tracker CLI and shell agent/role paths established before cached-module imports; clear inherited session/BB/runtime/worker/tmux selectors. Fixture seed writes supply author provenance. Fake pi/saved reports replace inference only; actual run, launch/stop, global tracker, scheduler and integrate still perform transitions. Wait for setup/thread readiness before reports. Track and clean only fixture-owned PIDs/registered threads/worktrees on success and failure.
 
 Record commands, setup/readiness, original baseline, attempt/successor tokens, before/after child lists, stub ancestry and actual child launch receipts in refinement.md per docs/verification-evidence.md. Each named mode fails nonzero on a mismatch. These are drive scripts, not imported retained tests; no new retained tests are approved. The enclosing ticket owns the combined index/entry and final cross-mode drive.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/rehearse-failed-and-adopted-global-refinement/index.md).
