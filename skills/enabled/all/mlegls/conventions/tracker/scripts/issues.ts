@@ -204,7 +204,7 @@ function replaceContract(text: string, fields: Record<string, unknown>, body?: s
     else doc.set(key, value);
   }
   // Quote links/guards and other strings through the YAML AST, never regex field rewriting.
-  return "---\n" + doc.toString({ lineWidth: 0, defaultStringType: "QUOTE_DOUBLE" }) + "---\n" + (body ?? previous);
+  return "---\n" + doc.toString({ lineWidth: 0, defaultKeyType: "PLAIN", defaultStringType: "QUOTE_DOUBLE" }) + "---\n" + (body ?? previous);
 }
 
 function withVaultLock<T>(dir: string, change: () => T): T {

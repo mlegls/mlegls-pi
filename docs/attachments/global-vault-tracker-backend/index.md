@@ -44,3 +44,12 @@ bunx tsc --noEmit
 ```
 
 Observed: 23 tracker tests and 13 thread/landing tests passed; typecheck passed. After routing `check --fix` through the same canonical lock/validation/publication/persistence machinery, the 23 tracker tests, typecheck and full scratch replay passed again. Non-tracker documentation repairs still stay in the checked code tree; canonical issue repairs alone enter tracker persistence. No new tests were added. Changed existing assertions: `worktree links use canonical issues and branch evidence; foreign projects retain vault state` now accepts canonical issue targets despite branch deletion/archive edits, repairs an archived link back to the live canonical identity, and retains branch-specific heading/attachment plus foreign-project assertions. Branch-runtime assertions were not weakened.
+
+## Review pass
+
+Reviewed the diff against the ticket on the head above. Re-ran the committed rehearsal (exit 0, fixture cleaned), `bun test skills/enabled/all/mlegls/conventions/tracker/scripts` (23 pass), `bun test lib/thread/runtime.test.ts lib/thread/lifecycle.test.ts lib/reconcile/landing.test.ts` (13 pass) and `bunx tsc --noEmit` (clean). The project declares no `test:affected` task.
+
+Repair: new keys written by `create`/`update` were double-quoted (`"stage": "ticket"`) because the writer's default string type also applied to keys; keys are now plain (`defaultKeyType: PLAIN`). Values stay quoted. Rehearsal and tracker tests re-run after the change; behavior otherwise unchanged.
+
+Observed, unchanged: `update` accepts a `part-of`/`blocked-by` slug that names no issue (existing parser tolerates dangling relations), and `remove` of an issue with children leaves them with a dangling `part-of`. Neither is specified by the ticket; `remove` is for owned provisional children only.
+
