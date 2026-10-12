@@ -73,7 +73,8 @@ export async function spawnBb(thread: ThreadRecord, parent: string | undefined, 
 	const prompt = join(threadDir(), thread.id + ".prompt.md");
 	writeFileSync(prompt, o.prompt ?? (thread.launch?.prompt?.trim() || "Continue."), { mode: 0o600 });
 	try {
-		const title = thread.worker ? thread.worker.run + "/" + thread.worker.handle : thread.branch ?? thread.id;
+		const project = thread.project.split("/").at(-1)!;
+		const title = thread.worker ? thread.worker.run + "/" + thread.worker.handle : thread.worktree && thread.branch ? project + "/" + thread.branch : project;
 		const created = await bb<{ id: string }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
 			"--provider", "pi", ...(model ? ["--model", model] : []), ...(effort ? ["--reasoning-level", effort] : []),
 			"--title", title, "--prompt-file", prompt, ...(parent ? ["--parent-thread", parent] : [])]);
