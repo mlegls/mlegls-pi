@@ -130,3 +130,7 @@ and integrated by the activation child; this residual adds no retained tests.
 Do not hot-swap the live pre-ledger campaign. Missing ledger state is a **manual
 rebuild**, not an empty-ledger default or branch-blob migration. The owner checkout
 is persisted State.cwd, not necessarily canonical main.
+
+## Join review
+
+Structural pass over the six children (partition `06f87ba7`..head). One consolidation: `refinement.ts` carried a private copy of `checks.ts`'s `git` wrapper and its own `contains()` ancestry check, while `completion.ts` inlined the same `merge-base --is-ancestor` try/catch; all now use `isAncestor` from `checks.ts`. Behavior-preserving. After it: `bun test lib/reconcile` (12 pass), `bunx tsc --noEmit` clean, and rehearsal modes `close-replay` (prepared-head recovery, uses the shared ancestry check), `adopted` and `accept-replay` held; the full 56-test/16-file run and all nine modes held on the unchanged logic before it. No seam mismatches found; no other duplication worth the churn.
