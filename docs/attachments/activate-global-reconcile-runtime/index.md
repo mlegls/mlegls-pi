@@ -37,3 +37,7 @@ Replay the supplied command on the reviewed checkout. Accept only setupReady plu
 ## Scope
 
 No source, diffs, tests or fixtures read; no product repairs or retained checks run. Required repository test/typecheck results remain the implementer/reviewer responsibility. Longer scheduler/restart/refinement journeys belong to the following scheduler-mode tickets, as specified by this ticket. The parent should link this packet from the global ticket Result through Tracker (not a branch-file mutation).
+
+## Review
+
+Reviewer pass at the driver's head, after the driver's record above (not rewritten). Replayed the supplied command: sparse, freshness, refusal and code-only outcomes all true again, refusal heads unchanged before/after, temporary target absent afterwards. Required checks on the head: `bun test lib/reconcile` 12/12, `lib/dispatch.test.ts` 6/6, `lib/thread` 15/15, tracker scripts 23/23, `bunx tsc --noEmit` clean. The supervisor's retained-test constraints are met by `scheduling.test.ts`, `completion.test.ts` and `refinement.test.ts` (including the landedHead / prepared-head no-discard case). Read the diff against the ten wiring orders; found only unused imports, a stray indent and a missing EOF newline (fixed in a separate commit). All four stories hold.
