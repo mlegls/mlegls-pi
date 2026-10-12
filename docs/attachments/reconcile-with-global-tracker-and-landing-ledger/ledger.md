@@ -7,6 +7,14 @@ not a retained test suite. The enclosing ticket owns the combined rehearsal inde
 
 Independent first-use drive at ad18fed: [predictions, transient observations and replayable checks](../rehearse-collector-ledger-and-owner-restart/index.md). All four modes held from /tmp; fixture targets were cleaned.
 
+Review re-drive at 05a2972: [final measurements and review](../rehearse-collector-ledger-and-owner-restart/index.md#review-and-final-re-drive).
+All four modes held again from /tmp in 4m 59s after strengthening pause-row,
+full saved-result, restart-thread identity and nine-launch assertions. No production
+behavior or retained test assertions changed; typecheck and all seven existing
+system-prompt tests passed. All five exact fixture targets were independently
+confirmed removed. Separate process/module caches and private repositories cost
+4m 59s for the complete run, with no model calls.
+
 ## Reproduce / prepared setup
 
 From any cwd, with this checkout's setup completed and Bun, Git, mise and zmx available:
