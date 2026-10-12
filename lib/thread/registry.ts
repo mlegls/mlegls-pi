@@ -40,7 +40,7 @@ export async function allThreads(includeArchived = false): Promise<ThreadRecord[
 	let files: string[];
 	try { files = await readdir(threadDir()); }
 	catch (error) { if (missing(error)) return []; throw error; }
-	const records = await Promise.all(files.filter(f => f.endsWith(".json")).map(f => getThread(f.slice(0, -5))));
+	const records = await Promise.all(files.filter(f => f.endsWith(".json") && f !== "bb-index.json").map(f => getThread(f.slice(0, -5))));
 	return records.filter((t): t is ThreadRecord => !!t && (includeArchived || !t.archived))
 		.sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id));
 }
