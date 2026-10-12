@@ -22,3 +22,14 @@ Source paths: `agents/_common.md`, `agents/compile.md`, `agents/reviewer.md`, `a
 Required target: the parent's combined revision with child 2's isolated scratch git repository and shell-worker rehearsal, not the live campaign. Actually prepared here: source instructions only; inherited `mise run setup` completed, and the bundled CLI help was opened above. No live prompt deployment, persona/auth, seed, browser or server was needed or created. Installed skill/role symlinks were not assumed to switch to this worktree.
 
 After integration, the supervisor restarts/reloads the installed package and agent instructions (system-config's `agents-apply` for installed role material where required) before launching fresh agents. Do not hot-swap this pre-ledger live run; the parent owns cutover and any manual ledger rebuild. Reproduction entry for this source review: `bun skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts --help` from the combined checkout, then read the source paths above beside child 2's rehearsal. Deployed sparse-create, global-ruling and collector/target-close stories remain for that post-landing encounter; this search is not product-success evidence.
+
+## Review pass (drive skipped: `drive: none`)
+
+Reviewer re-read the full diff against the ticket's nine edit-contract points and acceptance. Checks beyond the implementer's:
+
+- CLI help (`issues.ts --help`) lists exactly `text`, `fields`, `create`, `update`, `close`, `remove` with the documented options.
+- The vault reference's create/update example was run verbatim (with `PI_SKILL_DIR`, `PI_SESSION_ID`, `CLAIM_TOKEN` set) in a throwaway git repo: the child was created with `part-of` rendered as a vault link and `claimed-by: reconcile:root/h1` in one commit; the parent update replaced the body, set `stage`, and removed `priority` via null; each write produced one `tracker:` commit and left the tree clean. The temp repo was outside this worktree.
+- Re-ran the contradiction search (`implementation branch`, `tracker files only`, `commit children`, `on their branch`, `on your branch`, `closed on`, `git show`, `commit the claim`, `commit tracker`) over `agents/` and the owned skills: surviving hits are the generic code-commit/non-integration sentences and the new `not worker files or git show` prohibition. `git diff --check` clean.
+- Acceptance: refiner can create claimed children and replace a parent contract without `docs/issues/` edits on its branch (example above, refine.md, compile.md); handler records rulings/move-outs globally (handle.md); friction global, code/evidence local (_common.md, vault procedure); no role closes a reconciled node on report or collector landing (_common, implement, drive, review, lifecycle, vault resolve).
+
+Outcome: no defects found; no repairs made. The landing ledger described in lifecycle.md is not yet in `scripts/inflight.ts` here; it comes from the parent's sibling work, which the parent join gates.
