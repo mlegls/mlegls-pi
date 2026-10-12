@@ -64,9 +64,9 @@ Provisional children are created with `claimed-by: reconcile:<root>/<refine-hand
 
 ## Children
 
-1. [[projects/mlegls-pi/issues/global-vault-tracker-backend]]: canonical CLI/backend, sparse workers and collectors, reject tracker changes in landing branches, remove tracker append unions.
+1. [[projects/mlegls-pi/issues/global-vault-tracker-backend]]: canonical CLI/backend and filled sparse/refusal helpers. Keep these runtime helpers dormant until 2: activating them while the old reconciler still reads/closes branch-local issues would make the intermediate integration red.
 2. After 1, in parallel:
-   - [[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]: reconciler state, scheduler, provisional refinement, inflight projection, runnable scratch rehearsal.
+   - [[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]: atomically activate sparse workers/collectors and landing refusal while replacing branch-local state/scheduling/close, remove tracker append unions, add provisional refinement and inflight ledger projection, provide the runnable scratch rehearsal.
    - [[projects/mlegls-pi/issues/write-tracker-through-global-api-in-agent-instructions]]: tracker references and agent-facing instructions.
 
 ## Residual edit contract
