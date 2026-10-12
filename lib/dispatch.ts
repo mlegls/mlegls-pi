@@ -151,10 +151,8 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
   return receipt;
 }
 
-export { appendUnion } from "./thread/append-union";
-
 /** Merge a settled worker's branch into the parent checkout, then retire its host resources.
- * Uncommitted work refuses; conflicts abort, except appends to tracker issues (see appendUnion). Optional prepare runs on the child after
+ * Uncommitted work and authored tracker changes refuse; ordinary conflicts abort. Optional prepare runs on the child after
  * rebase (or before a merge-mode merge), before touching the parent; it must leave clean commits.
  * keep leaves cleanup to the caller, e.g. after persisting supervision state. */
 export class MergeConflict extends Error {

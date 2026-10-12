@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
+import { excludeTracker } from "./tracker-worktree";
 import { declaresSetup, writeSetup } from "./setup";
 import { readAdmission } from "./admission";
 import { workerResources } from "./resources";
@@ -82,8 +83,9 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		};
 		await saveThread(thread);
 		if (owning) {
-			git(spawning.cwd, "worktree", "add", "-b", name, location.cwd, options.base ?? "HEAD");
+			git(spawning.cwd, "worktree", "add", ...(options.worker ? ["--no-checkout"] : []), "-b", name, location.cwd, options.base ?? "HEAD");
 			owned = true;
+			if (options.worker) excludeTracker(location.cwd);
 			location = checkout(location.cwd);
 			thread = { ...thread, ...location };
 			await saveThread(thread);

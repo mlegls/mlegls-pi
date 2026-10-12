@@ -1,9 +1,9 @@
 // Mechanical checks the reconciler applies to worker handoffs and integrations, carried over from the
 // prototype's supervise loop (lib/jobs/supervise.ts at the prototype tag): the integration gate, story and
-// evidence shapes, and closing an issue on the branch that lands it.
+// evidence shapes. Global completion is owned by completion.ts.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
@@ -88,16 +88,4 @@ export function evidencePacket(cwd: string, handoff: Record<string, unknown> | n
  const shots = e.shots.map(tracked);
  if (shots.some(p => !/\.(png|jpe?g|webp)$/i.test(p))) throw new Error("Shots must name image files, not directories");
  return { path, visual: e.visual, shots };
-}
-
-/** Mark an issue done on the branch that lands it, linking its verification evidence. */
-export function close(cwd: string, file: string, slug: string, evidence?: string) {
-	if (!existsSync(file)) throw new Error("Missing issue " + slug + " in " + cwd);
-	const text = readFileSync(file, "utf8");
-	if (/^stage: done$/m.test(text)) return;
-	git(cwd, "ls-files", "--error-unmatch", "--", file);
-	let body = text.replace(/^stage: \w+$/m, "stage: done");
-	if (evidence) body = body.trimEnd() + "\n\n## Verification evidence\n\n[Encounter and evidence](" + relative(realpathSync(dirname(file)), realpathSync(resolve(cwd, evidence))) + ").\n";
-	writeFileSync(file, body);
-	git(cwd, "commit", "-qm", "Close " + slug, "--", file);
 }

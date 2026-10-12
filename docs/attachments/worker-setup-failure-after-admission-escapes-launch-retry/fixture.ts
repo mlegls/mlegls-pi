@@ -20,11 +20,11 @@ export async function trial() {
 	const repo = join(root, "repo"), bin = join(root, "bin"), setupBin = join(root, "setup-bin");
 	const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 	try {
-		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
 		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
 			PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: join(root, "agents"), ZMX_DIR: join(root, "zmx"),
 			PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "2", WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'",
-			MISE_TRUSTED_CONFIG_PATHS: root, PATH: bin + ":" + saved.PATH });
+			MISE_TRUSTED_CONFIG_PATHS: root, PI_THREAD_RUNTIME: "zmx", TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PATH: bin + ":" + saved.PATH });
 		for (const dir of [repo, bin, setupBin, join(root, "agents/roles")]) mkdirSync(dir, { recursive: true });
 		writeFileSync(join(bin, "pi"), "#!/bin/sh\ntouch shell-started\nexec sleep 120\n", { mode: 0o755 });
 		writeFileSync(join(root, "agents/shell.md"), "---\nrole: implement\n---\nShell fixture.\n");

@@ -249,7 +249,10 @@ function validateAcceptance(context: RefinementContext, handle: string, children
 		if (owned ? claim !== attempt.claim && !converted : claim !== undefined && claim !== stableClaim(context))
 			throw new Error("Foreign or missing refinement claim: " + row.slug);
 		if (!row.archived && !row.done) {
-			if (!row.ready || !row.eligible || (row.ownStage !== null && !["spec", "ticket", "done"].includes(row.ownStage)))
+			// Starting a run delegates an unassigned root, but never its children.
+			const delegatedRoot = row.slug === context.state.root && !row.assignee && row.selectors.every(selector =>
+				selector.slug === row.slug || selector.assignee === "agent" || selector.assignee?.startsWith("agent:") || selector.assignee?.startsWith("model:"));
+			if (!row.ready || (!row.eligible && !delegatedRoot) || (row.ownStage !== null && !["spec", "ticket", "done"].includes(row.ownStage)))
 				throw new Error("Non-executable refinement contract: " + row.slug);
 			if (!context.tracker.text(row.slug).trim()) throw new Error("Empty refinement child contract: " + row.slug);
 		}

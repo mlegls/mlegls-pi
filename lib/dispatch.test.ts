@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { appendUnion, integrate, MergeConflict, retire } from "./dispatch.ts";
+import { integrate, MergeConflict, retire } from "./dispatch.ts";
 import { Worker } from "./wm.ts";
 import { randomUUID } from "node:crypto";
 import { saveThread, type ThreadRecord } from "./thread";
@@ -74,27 +74,30 @@ test("refuses uncommitted work and reports conflicts after aborting", async () =
   expect(r.git(r.main, "log", "--format=%s")).toBe("dirty\nroot");
 });
 
-test("unions appends to a tracker issue; other conflicts in it still abort", async () => {
+test("refuses authored tracker changes before mutation and after preparation", async () => {
   const r = await repo();
   const issue = "docs/issues/x.md";
   mkdirSync(join(r.main, "docs/issues"), { recursive: true });
   r.commit(r.main, issue, "---\nstage: idea\n---\n\nBody.\n");
   r.git(r.work, "reset", "-q", "--hard", "main");
   r.commit(r.work, issue, "---\nstage: idea\n---\n\nBody.\n\nWorker saw it.\n");
-  r.commit(r.main, issue, "---\nstage: idea\n---\n\nBody.\n\nSibling saw it.\n");
-  await integrate(r.worker, { cwd: r.main, keep: true });
-  expect(readFileSync(join(r.main, issue), "utf8")).toBe("---\nstage: idea\n---\n\nBody.\n\nSibling saw it.\n\nWorker saw it.\n");
-  r.commit(r.work, issue, "---\nstage: done\n---\n\nBody.\n\nSibling saw it.\n\nWorker saw it.\n");
-  r.commit(r.main, issue, "---\nstage: ready\n---\n\nBody.\n\nSibling saw it.\n\nWorker saw it.\n");
-  const failure = await integrate(r.worker, { cwd: r.main, keep: true }).catch(e => e);
-  expect(failure).toBeInstanceOf(MergeConflict);
-  expect(r.git(r.work, "status", "--porcelain")).toBe("");
-});
-
-test("appendUnion refuses frontmatter and changed-line conflicts", () => {
-  expect(appendUnion("---\n<<<<<<< a\nx: 1\n||||||| b\n=======\ny: 2\n>>>>>>> c\n---\n")).toBeNull();
-  expect(appendUnion("---\n---\n<<<<<<< a\nx\n||||||| b\nold\n=======\ny\n>>>>>>> c\n")).toBeNull();
-  expect(appendUnion("---\n---\nk\n<<<<<<< a\nx\n||||||| b\n=======\ny\n>>>>>>> c\n")).toBe("---\n---\nk\nx\ny\n");
+  r.commit(r.main, issue, "---\nstage: idea\n---\n\nBody.\n\nGlobal ruling.\n");
+  const target = r.git(r.main, "rev-parse", "HEAD"), worker = r.git(r.work, "rev-parse", "HEAD");
+  const close = spyOn(Worker.prototype, "close");
+  try {
+    await expect(integrate(r.worker, { cwd: r.main })).rejects.toThrow("Forbidden tracker changes: " + issue);
+    expect(r.git(r.main, "rev-parse", "HEAD")).toBe(target);
+    expect(r.git(r.work, "rev-parse", "HEAD")).toBe(worker);
+    expect(close).not.toHaveBeenCalled();
+    r.git(r.work, "reset", "-q", "--hard", "main");
+    r.commit(r.work, "code", "permitted");
+    await expect(integrate(r.worker, { cwd: r.main, prepare: async h => {
+      r.commit(h.path, issue, "---\nstage: idea\n---\n\nForbidden preparation.\n");
+    } })).rejects.toThrow("Forbidden tracker changes: " + issue);
+    expect(r.git(r.main, "rev-parse", "HEAD")).toBe(target);
+    expect(r.git(r.work, "status", "--porcelain")).toBe("");
+    expect(close).not.toHaveBeenCalled();
+  } finally { close.mockRestore(); }
 });
 
 test("closes the worker only after Git integration; keep retains it", async () => {

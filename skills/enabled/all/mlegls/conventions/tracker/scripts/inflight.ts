@@ -1,14 +1,8 @@
-// Work in flight that the checked-out docs/issues/ cannot show. The reconciler integrates upward, so a leaf's
-// close lands on its parent's collector branch and reaches the main checkout only when the root integrates;
-// meanwhile the tracker would offer that leaf again. Three sources, all derived, never written back:
-//   - reconciler state under the repository's git dir: every node of an unfinished run (stalled when its
-//     process is gone);
-//   - workers lib/dispatch.ts recorded under the git dir (ab-dispatch/), while their worktree lives;
-//   - worktree branches ahead of the main checkout: a branch named for the issue, or one whose tip
-//     already has the issue at stage: done.
+// Derived reservations from unfinished reconciler runs (including pending landings),
+// dispatch receipts and issue-named worktree branches. Never written back.
 // A slug with entries is treated as claimed. TRACKER_NO_INFLIGHT=1 disables the overlay.
-import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const git = (cwd: string, ...args: string[]) => {
@@ -18,7 +12,7 @@ const git = (cwd: string, ...args: string[]) => {
 
 // A reconciler's state (lib/reconcile, <git-common-dir>/reconcile/<root>.json) names every node it is
 // carrying; unfinished state whose pid is gone is a stalled run nothing advances.
-interface Run { root: string; pid?: number; finished?: string; chains?: Record<string, { phase: string; held?: boolean; handle?: { handle?: string } }> }
+interface Run { root: string; cwd?: string; landed?: Record<string, { into: string; head: string; at: string }>; pid?: number; finished?: string; chains?: Record<string, { phase: string; held?: boolean; handle?: { handle?: string } }> }
 
 function runs(common: string): Run[] {
   const d = join(common, "reconcile");
@@ -48,7 +42,10 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
   for (const r of runs(common)) {
     if (r.finished) continue;
     const how = alive(r.pid) ? "" : " (stalled: reconciler for " + r.root + " not running)";
-    for (const [slug, c] of Object.entries(r.chains ?? {}))
+    if (!done(r.root)) add(r.root, "reconciling subtree" + how);
+    for (const [slug, entry] of Object.entries(r.landed ?? {})) if (!done(slug))
+      add(slug, (entry.into === r.cwd ? "landed in owner checkout (awaiting close)" : "landed in " + entry.into + " (awaiting target)") + how);
+    for (const [slug, c] of Object.entries(r.chains ?? {})) if (!done(slug))
       add(slug, "reconciling " + c.phase + (c.handle?.handle ? " by " + c.handle.handle : "") + (c.held ? " (held)" : "") + how);
   }
 
@@ -65,20 +62,12 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
     } catch {}
   }
 
-  const issuesRel = relative(realpathSync(top), realpathSync(issuesDir));
   for (const t of trees.slice(1)) {
     if (!t.branch || t.head === main.head) continue;
     const ahead = Number(git(issuesDir, "rev-list", "--count", main.head + ".." + t.head) ?? 0);
     if (!ahead) continue;
     const leaf = basename(t.branch);
     if (!done(leaf)) add(leaf, "branch " + t.branch + " +" + ahead);
-    const changed = (git(issuesDir, "diff", "--name-only", main.head + "..." + t.head, "--", ":/" + issuesRel) ?? "").split("\n").filter(f => f.endsWith(".md") && !f.includes("/attachments/"));
-    for (const f of changed) {
-      const slug = basename(f, ".md");
-      if (done(slug)) continue;
-      const text = git(issuesDir, "show", t.head + ":" + f);
-      if (text && /^stage: done$/m.test(text.split(/^---$/m)[1] ?? "")) add(slug, "closed on " + t.branch);
-    }
   }
   return found;
 }

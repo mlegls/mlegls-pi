@@ -1,6 +1,6 @@
 // Reconciler for one dispatched issue subtree (docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md).
 //
-// Each tick recomputes what every node needs from observed state (the tracker in each node's branch, the
+// Each tick recomputes what every node needs from observed state (the global tracker and private landing ledger, the
 // workers' board reports and current thread/live observations) and takes the next step. Specs get to tickets through the refine
 // role (compile or manager), which promotes them or commits children; an implementer who finds its ticket
 // bigger than one session sends it back there (respec). Tickets run implement → drive → review → integrate, a leaf into its parent's branch, a node with children once they
@@ -9,14 +9,14 @@
 // ancestor with children, which resolves it, or escalates up to the owner session (the root supervisor).
 //
 // Steps are idempotent: worker handles are deterministic, a launched handle whose worktree exists is reused,
-// and a node already done in its parent's branch is never integrated again. State on disk is a cache of what
+// and a ledger-landed node is never integrated again. State on disk durably records what
 // was launched and decided, including owner constraints; preserve it across restarts.
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { dispatch, integrate, retire, stop, topic, MergeConflict, type Handle } from "../dispatch.ts";
+import { dispatch, integrate, retire, stop, topic, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
 import { mail } from "../board/mailbox.ts";
@@ -29,10 +29,15 @@ import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
-import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
-import { close, declaredGates, heldByRed, mainRed, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
-
-const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
+import { heldByRed, mainRed, evidenceShapeError, git, storyShapeError, testCommands } from "./checks.ts";
+import { getTracker } from "../tracker.ts";
+import { getThread, workerThread } from "../thread/registry.ts";
+import { excludeTracker } from "../thread/tracker-worktree.ts";
+import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
+import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
+import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
+import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
+export type { ScheduledIssue as Issue } from "./scheduling.ts";
 const TICK_MS = 5_000;
 const START_GRACE_MS = 120_000;
 const WAITING_MS = 3 * 60 * 60_000;
@@ -43,9 +48,11 @@ const WAITING_VOID_MS = 2 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
-export interface Issue { slug: string; file: string; partOf: string | null; assignee?: string | null; frontier: boolean; blockers?: string[]; done: boolean; archived?: boolean; effectiveStage: string; ownStage?: string | null; ready?: boolean; eligible?: boolean; deferred?: boolean; claims?: { slug: string; claimedBy: string }[]; selectors?: { slug: string; assignee: string | null }[] }
+
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
 interface Chain {
+	/** Exact provisional attempt, independent of the board report cursor. */
+	refinement?: string;
 	/** Branch this chain lands in: the parent's collector, or the owner's checkout for the root. */
 	into: string;
 	/** The node has children that landed in its collector; this chain is its own residual work and joins. */
@@ -82,7 +89,7 @@ interface Exception {
 	/** ts of the report that raised it: an answer consumes only up to here, so a report that arrived while held still counts. */
 	reportTs?: string;
 }
-export interface State {
+export interface State extends GlobalRunState {
 	backend: "threads";
 	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
 	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
@@ -106,7 +113,24 @@ export const stateDir = (cwd: string) => join(git(cwd, "rev-parse", "--path-form
 export const stateFile = (cwd: string, root: string) => join(stateDir(cwd), root + ".json");
 export function assertThreadState(state?: State): void {
 	if (state && state.backend !== "threads") throw new Error("Pre-cutover reconciler state: resume it with its original worker implementation; this checkout does not migrate workmux runs");
+	if (state && (!isAbsolute(state.cwd) || !state.landed || !state.results || !state.landingOps || !state.refinements))
+		throw new Error("Pre-ledger reconciler state for " + state.root + ": manually rebuild the landing ledger, reviewed results, pending landing operations and refinement attempts from the original run before restarting; no automatic migration or issue-blob inference is supported (" + state.cwd + ")");
 }
+/** Recover only the exact registered run/handle; absence of a receipt is not
+ * authority to guess a worktree or stop another worker. Stop failure propagates. */
+export async function stopRefinementWriter(state: GlobalRunState, attempt: RefinementAttempt): Promise<void> {
+	const thread = attempt.worker?.threadId ? await getThread(attempt.worker.threadId)
+		: await workerThread(attempt.handle, state.cwd, state.root);
+	if (!thread) {
+		if (attempt.worker) throw new Error("Missing registered refinement writer: " + attempt.handle);
+		return;
+	}
+	if (thread.worker?.run !== state.root || thread.worker.handle !== attempt.handle
+		|| (attempt.worker && resolve(attempt.worker.path) !== thread.cwd))
+		throw new Error("Refinement writer receipt mismatch: " + attempt.handle);
+	if (!thread.archived) await stop({ run: state.root, handle: attempt.handle, path: thread.cwd, threadId: thread.id }, { cwd: state.cwd });
+}
+
 export const resolutionsDir = (cwd: string, root: string) => join(stateDir(cwd), root + ".resolutions");
 export function load(cwd: string, root: string): State | undefined {
 	const f = stateFile(cwd, root);
@@ -144,14 +168,15 @@ export function constrainedPrompt(cwd: string, root: string, node: string, promp
 	return constraints.length ? prompt + "\n\nConstraints from the supervisor (apply throughout this node's work):\n\n" + constraints.join("\n\n") : prompt;
 }
 
-const finished = (i: Issue) => i.done || !!i.archived;
+const finished = (i: Issue) => i.satisfied;
 const descends = (i: Issue, slug: string, view: Map<string, Issue>) => { for (let p = i.partOf; p; p = view.get(p)?.partOf ?? null) if (p === slug) return true; return false; };
 const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + "\n```";
 
 export async function run(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number; signal?: AbortSignal }) {
-	const cwd = resolve(o.cwd);
-	const prior = load(cwd, o.root);
+	const prior = load(resolve(o.cwd), o.root);
 	assertThreadState(prior);
+	const cwd = prior?.cwd ?? resolve(o.cwd);
+	process.chdir(cwd);
 	if (prior?.stopping) throw new Error("cleanup in progress for " + o.root + ": retry stop to finish it");
 	mkdirSync(stateDir(cwd), { recursive: true });
 	mkdirSync(resolutionsDir(cwd, o.root), { recursive: true });
@@ -166,7 +191,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	writeFileSync(join(lock, "pid"), String(process.pid));
 	process.on("exit", () => { try { if (readFileSync(join(lock, "pid"), "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true }); } catch {} });
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
-	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
+	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget, landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
 	const save = () => saveState(s);
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
@@ -184,22 +209,19 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
-	const snapCache = new Map<string, { head: string; issues: Map<string, Issue> }>();
-	const snapshot = (path: string): Map<string, Issue> => {
-		const head = git(path, "rev-parse", "HEAD");
-		const hit = snapCache.get(path);
-		if (hit && hit.head === head && path !== cwd) return hit.issues;
-		let out: string;
-		try { out = execFileSync("bun", [TRACKER, "snapshot", "--json"], { cwd: path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } }); }
-		catch (e: any) {
-			// Fails closed on a malformed issue; name it, so the owner knows to fix the tracker first.
-			const why = String(e?.stderr ?? "").split("\n").find(l => l.startsWith("error:")) ?? String(e?.message ?? e).split("\n")[0];
-			throw new Error("tracker snapshot failed in " + path + " (fix the tracker; the reconciler resumes by itself): " + why.replace(/^error:\s*/, ""));
-		}
-		const issues = new Map((JSON.parse(out).issues as Issue[]).map(i => [i.slug, i]));
-		snapCache.set(path, { head, issues });
-		return issues;
+	const tracker = getTracker(cwd, { inflight: false });
+	const snapshot = () => {
+		try { return tracker.snapshot(); }
+		catch (e) { throw new Error("tracker snapshot failed in " + cwd + " (fix the tracker; the reconciler resumes by itself): " + String((e as Error)?.message ?? e).replace(/^error:\s*/, "")); }
 	};
+	const view = (into: string): Map<string, Issue> => {
+		const attempts = Object.values(s.refinements).filter(a => a.phase !== "accepted" && a.phase !== "removed");
+		return schedulingView(snapshot(), { root: s.root, into, landed: s.landed,
+			attemptClaims: new Set(attempts.map(a => a.claim)),
+			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
+	};
+	const completion = { state: s, tracker, save, pathOf, locked };
+	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
 	// Latest terminal report per topic, read incrementally from the board log.
 	const reports = new Map<string, Message>();
 	let offset = 0;
@@ -261,7 +283,6 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	// before any handle is assigned. launch() takes its slot synchronously, before its first await.
 	let launching = 0;
 	const live = () => launching + Object.values(s.chains).filter(c => c.handle && !c.held).length + Object.values(s.exceptions).filter(e => e.handler).length;
-	const rel = (file: string) => relative(cwd, file).replace(/^.*?docs\/issues\//, "docs/issues/");
 	const pinned = (assignee: string | null | undefined) => /\bagent:([a-z0-9-]+)/.exec(assignee ?? "")?.[1];
 	async function pick(role: string, issue: Issue | undefined, text: string, only?: string[]): Promise<string> {
 		const pin = role === "implement" ? pinned(issue?.assignee) : undefined;
@@ -276,14 +297,40 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>): Promise<Handle> {
+	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }): Promise<Handle> {
 		launching++;
 		try {
 			// Concurrent launches race on .git/config's lock (ab-parent, setup's mise); a failed attempt may leave
 			// its worktree behind, so a retry takes a fresh handle.
 			for (let attempt = 0; ; attempt++) {
-				try { return await launchNow(attempt ? handle.slice(0, 86) + "-r" + attempt : handle, role, prompt, base, into, issue, only, prepare); }
+				const actual = attempt ? handle.slice(0, 86) + "-r" + attempt : handle;
+				if (refining) {
+					refining.chain.phase = "refine";
+					const old = refining.chain.refinement;
+					if (old && old !== actual && !["accepted", "removed"].includes(s.refinements[old].phase))
+						await replaceRefinement(refinement, old, actual, refining.adopt && attempt === 0);
+					else beginRefinement(refinement, issue!.slug, actual);
+					refining.chain.refinement = actual;
+					save();
+				}
+				const claimed = (text: string) => refining ? text + "\n\nCreate provisional children through the tracker with this exact claimed-by token, atomically with part-of: " + s.refinements[actual].claim : text;
+				try {
+					const worker = await launchNow(actual, role, claimed(prompt), base, into, issue, only,
+						async path => claimed(await prepare?.(path) ?? prompt));
+					if (refining) {
+						s.refinements[actual].worker = worker;
+						refining.chain.handle = worker;
+						refining.chain.launchedAt = Date.now();
+						save();
+					}
+					return worker;
+				}
 				catch (e) {
+					if (refining) {
+						await discardRefinement(refinement, actual);
+						const record = await workerThread(actual, cwd, s.root);
+						if (record) await retire({ run: s.root, handle: actual, path: record.cwd, threadId: record.id }, { cwd });
+					}
 					const lock = /could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e));
 					if (!lock || attempt >= 3) throw e;
 					note("launch " + handle + " hit a git lock, retrying: " + String(e).split("\n")[0]);
@@ -307,34 +354,27 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	// Saved before the launch: a crash mid-launch must not hand the same name (and its leftover worktree) out again.
 	const nextHandle = (slug: string, kind: string) => { const h = (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90); save(); return h; };
-	const ticketText = (i: Issue, from?: string) => {
-		const f = from && existsSync(join(from, rel(i.file))) ? join(from, rel(i.file)) : i.file;
-		return "Issue " + i.slug + " (" + rel(i.file) + "):\n\n" + readFileSync(f, "utf8");
-	};
-	/** A ticket whose acceptance only shows after landing says `drive: none` in its frontmatter: drive would only rerun the implementer's checks. */
-	const driveNone = (from: string, i: Issue): string | undefined => {
-		const f = existsSync(join(from, rel(i.file))) ? join(from, rel(i.file)) : i.file;
-		const fm = /^---\n([\s\S]*?)\n---/.exec(readFileSync(f, "utf8"))?.[1] ?? "";
-		return /^drive:\s*none\s*$/m.test(fm) ? "the ticket declares `drive: none`" : undefined;
-	};
+	const ticketText = (i: Issue) => "Issue " + i.slug + ":\n\n" + tracker.text(i.slug);
+	/** Current global metadata, not a worker branch copy. */
+	const driveNone = (i: Issue): string | undefined => tracker.fields(i.slug).drive === "none" ? "the ticket declares `drive: none`" : undefined;
 	const skippedDrive = (why: string) => "Drive was skipped (" + why + "): there is no driver's packet, and you are the only pass before integration. Review the change against the ticket directly, and check the implementer's own evidence (rehearsals, runs) rather than redoing it. Your handoff still needs `stories` and `evidence`; commit an index under docs/attachments/ that records what established each story. Say in `caveats` that drive was skipped, and which post-landing gate carries the acceptance and who owns it, as the ticket names them.";
 	const siblings = (slug: string, issues: Map<string, Issue>) => {
 		const parent = issues.get(slug)?.partOf;
 		const sib = [...issues.values()].filter(i => i.partOf === parent && i.slug !== slug && !finished(i));
-		return sib.length ? "Sibling issues in flight beside yours (their decisions reach you on the board, tagged `decision`; post yours on your topic tagged `decision` plus `path:<file>` per file it touches):\n" + sib.map(i => "- " + i.slug + " (" + rel(i.file) + ")").join("\n") : "";
+		return sib.length ? "Sibling issues in flight beside yours (their decisions reach you on the board, tagged `decision`; post yours on your topic tagged `decision` plus `path:<file>` per file it touches):\n" + sib.map(i => "- " + i.slug).join("\n") : "";
 	};
-	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "") {
+	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string) {
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
 		const prev = c.handle;
-		if (prev && existsSync(prev.path)) { try { await stop(prev, { cwd: pathOf(c.into) }); } catch (e) { note("stop " + prev.handle + ": " + e); } }
+		if (prev && existsSync(prev.path)) await stop(prev, { cwd: pathOf(c.into) });
 		// A retired worker (keepBranch) leaves no worktree but its branch still holds the chain's work so far.
 		const kept = (h: Handle) => { try { return git(pathOf(c.into), "rev-parse", "--verify", "-q", "refs/heads/" + h.handle); } catch { return ""; } };
 		const base = (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || git(pathOf(c.into), "rev-parse", "HEAD");
 		if (c.handle && !existsSync(c.handle.path) && phase !== "refine" && phase !== "implement" && base === git(pathOf(c.into), "rev-parse", "HEAD")) note("no worktree or branch for " + c.handle.handle + "; " + phase + " for " + slug + " starts from " + c.into + ", without the chain's earlier work");
-		const from = c.handle && existsSync(c.handle.path) ? c.handle.path : undefined;
 		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
-		const phasePrompt = (from?: string, contract = ticketText(issue, from)) => {
+		const phasePrompt = () => {
+			const contract = ticketText(issue);
 			if (phase === "refine" || phase === "implement") return [contract,
 				c.self ? "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
 				siblings(slug, issues), phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
@@ -344,13 +384,12 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
-		const handle = await launch(nextHandle(slug, phase), phase, phasePrompt(from), base, pathOf(c.into), issue, only, async path => {
+		const handle = await launch(resumeAttempt ?? nextHandle(slug, phase), phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
 			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
 			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
 			const refreshed = refreshWorker(path, pathOf(c.into));
-			const contract = refreshed.conflicts.length ? "Issue " + issue.slug + " (" + rel(issue.file) + "):\n\n" + git(path, "show", refreshed.head + ":" + rel(issue.file)) : undefined;
-			return [phasePrompt(path, contract), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve both the collector's recorded rulings (the ticket above) and the previous worker's results, then commit the merge before continuing this phase. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (`mise run setup`, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
-		});
+			return [phasePrompt(), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve the collector's code and the previous worker's results, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
+		}, phase === "refine" ? { chain: c, adopt } : undefined);
 		if (prev && !await retireHandle(prev, pathOf(c.into))) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
@@ -374,12 +413,11 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(cwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive"; target?: string; message?: string; note?: string; summary?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean };
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
-		// Nodes under a collector are only in its snapshot, not the owner's.
-		const issue = (c && snapshot(pathOf(c.into)).get(target)) || issues.get(target);
+		const issue = view(c?.into ?? cwd).get(target);
 		(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + (r.message ? ": " + r.message : r.note ? ": " + r.note : r.summary ? ": " + r.summary : ""));
 		if (r.action === "escalate") {
 			const up = ex.level === "owner" ? undefined : issues.get(ex.level)?.partOf;
@@ -394,7 +432,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
 		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
-		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in its branch's tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues); } }
+		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in the global tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "", r.action === "retry" && r.adopt === true); } }
 		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
 		else if (r.action === "skip-drive") {
 			if (c) {
@@ -402,7 +440,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				if (c.phase === "drive") await startPhase(target, c, "review", issue!, issues, skippedDrive(c.skipDrive));
 			}
 		}
-		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } dropResolution(target); s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
+		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } releaseRefinementClaims(refinement, target); dropResolution(target); s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
 		note("resolved " + ex.node + ": " + r.action + (target !== ex.node ? " on " + target : ""));
 		save();
 	}
@@ -444,9 +482,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			if (!col) { ex.level = "owner"; save(); continue; }
 			if (!ex.handler) {
 				if (live() >= s.budget) continue;
-				const here = snapshot(col.path);
+				const here = view(ex.level);
 				const parent = here.get(ex.level), node = here.get(ex.node);
-				const prompt = [
+				const prompt = () => [
 					"Exception in the execution tree under " + ex.level + ", for " + ex.node + ": " + ex.reason,
 					"Report and context:\n\n" + ex.text,
 					parent ? "The node whose contract you hold:\n\n" + ticketText(parent) : "",
@@ -456,7 +494,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				].filter(Boolean).join("\n\n");
 				try {
 					ex.handlerLaunchedAt = Date.now();
-					ex.handler = await launch(nextHandle(ex.level, "handler"), "handle", prompt, git(col.path, "rev-parse", "HEAD"), col.path);
+					ex.handler = await launch(nextHandle(ex.level, "handler"), "handle", prompt(), git(col.path, "rev-parse", "HEAD"), col.path, undefined, undefined, async () => prompt());
 					save();
 				} catch (e) { note("handler launch failed: " + e); ex.level = "owner"; save(); }
 				continue;
@@ -470,22 +508,20 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			const r = parse(m.body);
 			const res = r.handoff?.resolution as Resolution | undefined;
 			const handler = ex.handler;
-			// Tracker edits the handler committed (answers recorded, moves out) land in the level's branch.
+			// Global rulings are already published; only permitted docs/evidence artifacts land.
 			try {
 				if (git(handler.path, "rev-list", "--count", git(col.path, "rev-parse", "HEAD") + "..HEAD") !== "0") {
 					const outside = git(handler.path, "diff", "--name-only", git(col.path, "rev-parse", "HEAD") + "...HEAD").split("\n").filter(f => f && !f.startsWith("docs/"));
 					if (outside.length) throw new Error("handler changed files outside docs/: " + outside.join(", "));
-					trackerParses(handler.path);
 					await locked(() => integrate(handler, { cwd: col.path, keep: true }));
 				}
-			} catch (e) { await applyResolution(ex, { action: "escalate", summary: "handler's tracker change could not land: " + e }, issues); await retireHandle(handler, col.path); continue; }
+			} catch (e) { await applyResolution(ex, { action: "escalate", summary: "handler's docs/evidence change could not land: " + e }, issues); await retireHandle(handler, col.path); continue; }
 			await retireHandle(handler, col.path);
 			ex.handler = undefined;
 			await applyResolution(ex, r.status === "done" && res?.action ? res : { action: "escalate", summary: res?.summary ?? r.body.slice(-1500) }, issues);
 		}
 	}
 
-	const trackerParses = (path: string) => execFileSync("bun", [TRACKER, "snapshot", "--json"], { cwd: path, stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } });
 	// --- integration -----------------------------------------------------------------------------------
 	const lockDir = join(stateDir(cwd), "integrate.lock");
 	async function locked<T>(fn: () => Promise<T>): Promise<T> {
@@ -502,7 +538,31 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function retireHandle(h: Handle, into: string): Promise<boolean> {
 		try { await retire(h, { cwd: into }); return true; } catch (e) { note("retire " + h.handle + ": " + e); return false; }
 	}
-	async function retireChain(c: Chain) { for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into)); }
+	async function retireChain(c: Chain) {
+		if (c.refinement && !["accepted", "removed"].includes(s.refinements[c.refinement].phase))
+			await discardRefinement(refinement, c.refinement);
+		for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into));
+	}
+	/** Receipts outlive chains. A partial retirement/deletion is retried next tick. */
+	async function cleanupLandings() {
+		for (const operation of Object.values(s.landingOps)) {
+			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
+			try {
+				for (const worker of operation.workers) {
+					const result = await retire(worker, { cwd });
+					if (git(cwd, "branch", "--list", worker.handle) && result.branchKept)
+						throw new Error(result.branchKept);
+				}
+				const col = operation.collector;
+				if (col) {
+					if (existsSync(col.path)) git(cwd, "worktree", "remove", "--force", col.path);
+					if (git(cwd, "branch", "--list", col.branch)) git(cwd, "branch", "-D", col.branch);
+					if (s.collectors[operation.slug]?.path === col.path) delete s.collectors[operation.slug];
+				}
+				finishLandingCleanup(completion, operation.slug);
+			} catch (e) { note("landing cleanup " + operation.slug + " deferred: " + e); }
+		}
+	}
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
 		const into = pathOf(c.into), h = c.handle!;
 		for (let told = false; c.into === cwd; told = true) {
@@ -511,37 +571,19 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			if (!told) { note("landing " + slug + " waits for a green main"); tellOwner("landing " + slug + " waits: main is red.\n\n" + red); }
 			await Bun.sleep(60_000);
 		}
-		let before = git(into, "rev-parse", "HEAD"), head = git(h.path, "rev-parse", "HEAD");
-		try {
-			const failure = await locked(async () => {
-				before = git(into, "rev-parse", "HEAD");
-				head = git(h.path, "rev-parse", "HEAD");
-				const conflict = landingConflict(h.path, before, head);
-				if (conflict) return conflict;
-				await integrate(h, { cwd: into, keep: true, prepare: async worker => {
-					prepareLandingDependencies(worker.path, head);
-					const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), { cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout });
-					// A malformed issue file would stop every reconciler's snapshot once it lands: send it back instead.
-					trackerParses(worker.path);
-					for (const gate of declaredGates(worker.path)) run(["bash", "-lc", gate.cmd], gate.timeout);
-					for (const file of new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])) { const cmd = testRun(worker.path, file); if (cmd) run(cmd); }
-					const packet = c.self || !c.evidence ? undefined : evidencePacket(worker.path, c.evidence);
-					const file = join(worker.path, relative(pathOf(c.into), issue.file));
-					close(worker.path, existsSync(file) ? file : issue.file.replace(cwd, worker.path), slug, packet?.path);
-				} });
-			});
-			if (failure) return failure;
-		} catch (e: any) {
-			return e instanceof MergeConflict ? conflictDetails(h.path, before, git(h.path, "merge-base", before, head), e.files) : String(e?.message ?? e) + "\n" + String(e?.stdout ?? "").slice(-3000) + String(e?.stderr ?? "").slice(-3000);
-		}
+		const before = git(into, "rev-parse", "HEAD");
+		const result = s.results[slug];
+		if (!result) throw new Error("No saved reviewed result for " + slug);
+		const outcome = await landReviewed(completion, { slug, into: c.into, worker: h,
+			workers: c.workers, collector: s.collectors[slug], result,
+			tests: [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])] });
+		if (!outcome.ok) return outcome.failure;
 		s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
-		const landed = git(into, "diff", "--name-only", before, "HEAD").split("\n").filter(Boolean);
+		const landed = git(into, "diff", "--name-only", before, outcome.head).split("\n").filter(Boolean);
 		note("landed " + slug + " in " + (c.into === cwd ? "the owner's checkout" : c.into));
 		delete s.chains[slug];
 		save();
-		await retireChain({ ...c, handle: h });
-		const col = s.collectors[slug];
-		if (col) { try { git(cwd, "worktree", "remove", "--force", col.path); git(cwd, "branch", "-D", col.branch); } catch (e) { note("collector cleanup " + slug + ": " + e); } delete s.collectors[slug]; save(); }
+		await cleanupLandings();
 		// Early overlap notices: siblings still implementing over the files that just landed rebase now.
 		for (const [other, oc] of Object.entries(s.chains)) {
 			if (oc.into !== c.into || oc.phase !== "implement" || !oc.handle || !existsSync(oc.handle.path) || !oc.base) continue;
@@ -564,8 +606,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function onReport(slug: string, c: Chain, m: Message, issues: Map<string, Issue>) {
 		const issue = issues.get(slug)!;
 		// Consecutive `waiting` reports are one wait: its stall clock runs from the first.
-		const waitedSince = c.waitingSince;
-		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; save();
+		const waitedSince = c.waitingSince, previousCursor = c.handledTs;
+		// Save the successful refinement/review transition before consuming its report.
+		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined;
 		const r = parse(m.body), text = m.body, h = c.handle!;
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (m.tags.includes("error")) {
@@ -575,6 +618,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				note("provider error on " + slug + "; retrying " + c.phase + " once: " + kind);
 				return startPhase(slug, c, c.phase, issue, issues);
 			}
+			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, "provider error: " + kind, text, issues, "owner");
 		}
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
@@ -591,41 +635,41 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
 		if (r.status === "waiting") { c.waitingSince = waitedSince ?? m.ts; c.waitingCheckedAt = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
-		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
+		if (r.status === "blocked" || r.status === "needs-input") {
+			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
+			return raise(slug, c.phase + " " + r.status, text, issues);
+		}
 		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h), BUDGET.checkpoint, {
 			repair: message => repair(slug, c, "checkpoint-process", message, issues, text),
 			raise: reason => raise(slug, reason, text, issues),
-			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint:\n\n" + text.slice(-6000)),
+			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint:\n\n" + text.slice(-6000), true),
 			save,
 		});
 		if (git(h.path, "status", "--porcelain")) return repair(slug, c, "dirty", "You reported done with uncommitted changes. Commit everything that belongs to the change, then report done again.", issues, text);
 		if (c.phase === "refine") {
-			const after = snapshot(h.path);
-			const kids = [...after.values()].filter(i => i.partOf === slug && !finished(i));
-			if (!kids.length) {
-				if (after.get(slug)?.effectiveStage !== "ticket") return repair(slug, c, "refine", "You reported done, but " + slug + " is neither promoted (stage: ticket) nor partitioned into children. Do one, commit, and report done again.", issues, text);
-				note("promoted " + slug);
-				c.note = undefined;
-				return startPhase(slug, c, "implement", issue, issues);
+			if (!c.refinement) throw new Error("Refine chain has no saved attempt: " + slug);
+			const children = r.handoff?.children;
+			if (!Array.isArray(children) || children.some(child => typeof child !== "string"))
+				return repair(slug, c, "refine", "Refinement handoff needs children: [slug, ...], or children: [] for promotion. Repost your report.", issues, text);
+			// Collector creation saves state too; keep the report replayable until
+			// acceptRefinement has persisted its independent report/transition.
+			c.handledTs = previousCursor;
+			const col = ensureCollector(slug, c.into);
+			try {
+				await acceptRefinement(refinement, c.refinement, { worker: h, children: children as string[],
+					reportTs: m.ts, report: text, into: slug, destination: col.path });
+			} catch (e) {
+				c.handledTs = m.ts;
+				return repair(slug, c, "refine", "Refinement could not be accepted: " + e + ". Repair the global contract/stubs and repost your report.", issues, text);
 			}
-			{
-				const col = ensureCollector(slug, c.into);
-				// Refinement created children: redirect its prepared branch into the new collector.
-				git(h.path, "config", "branch." + h.handle + ".ab-parent", col.branch);
-				try { await locked(() => integrate(h, { cwd: col.path, keep: true })); }
-				catch (e) { return raise(slug, "decomposition did not land: " + e, text, issues); }
-				note("decomposed " + slug + " into " + kids.map(k => k.slug).join(", "));
-				delete s.chains[slug]; save();
-				await retireChain({ ...c });
-				return;
-			}
+			return finishRefinement(slug, c);
 		}
 		if (c.phase === "implement") {
-			if (!c.self && [...snapshot(h.path).values()].some(i => i.partOf === slug && !finished(i)))
+			if (!c.self && [...view(c.into).values()].some(i => i.partOf === slug && !finished(i)))
 				return repair(slug, c, "decompose", "Implementers don't decompose: drop the children you committed, and either implement the ticket whole or end `blocked` with `respec` in the handoff.", issues, text);
 			c.setup = r.handoff?.setup ?? null;
 			c.note = undefined;
-			c.skipDrive ??= driveNone(h.path, issue);
+			c.skipDrive ??= driveNone(issue);
 			if (c.skipDrive) { note("drive skipped for " + slug + ": " + c.skipDrive); return startPhase(slug, c, "review", issue, issues, skippedDrive(c.skipDrive)); }
 			return startPhase(slug, c, "drive", issue, issues);
 		}
@@ -643,9 +687,15 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const notHeld = stories.findIndex(x => x.outcome !== "held");
 		if (notHeld >= 0) return repair(slug, c, "unheld", "You reported done, but stories[" + notHeld + "] is not held. `done` needs every story held on your final head: repair it, or report `blocked`/`needs-input`.", issues, text);
 		c.evidence = { ...r.handoff!, tests: [...new Set([...testCommands(c.drive), ...testCommands(r.handoff)])] };
+		s.results[slug] = reviewedResult(issue.partOf, c.evidence, text);
 		c.phase = "integrate"; save();
+		return integrateReview(slug, c, issue, issues);
+	}
+	async function integrateReview(slug: string, c: Chain, issue: Issue, issues: Map<string, Issue>) {
+		const h = c.handle!;
 		const failure = await land(slug, c, issue);
 		if (failure) {
+			c.phase = "review";
 			c.retries.integrate = (c.retries.integrate ?? 0) + 1;
 			if (c.retries.integrate > BUDGET.integrate) return raise(slug, "integration failed " + BUDGET.integrate + " times", failure, issues);
 			await sendChild(topic(h), "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + failure.slice(0, 5000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
@@ -653,13 +703,19 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			save();
 		}
 	}
+	const sparseCollectors = new Set<string>();
 	const collectorPath = (slug: string) => resolve(repoRoot(cwd) + "__worktrees", slug + "--tree");
 	function ensureCollector(slug: string, into: string) {
-		if (s.collectors[slug]) return s.collectors[slug];
+		if (s.collectors[slug]) {
+			if (!sparseCollectors.has(slug)) { excludeTracker(s.collectors[slug].path); sparseCollectors.add(slug); }
+			return s.collectors[slug];
+		}
 		const path = collectorPath(slug), branch = "tree/" + slug;
 		const parentBranch = git(pathOf(into), "branch", "--show-current");
 		if (!parentBranch) throw new Error("Collector destination needs a branch: " + pathOf(into));
-		if (!existsSync(path)) git(cwd, "worktree", "add", "-q", "-b", branch, path, git(pathOf(into), "rev-parse", "HEAD"));
+		if (!existsSync(path)) git(cwd, "worktree", "add", "--no-checkout", "-q", "-b", branch, path, git(pathOf(into), "rev-parse", "HEAD"));
+		excludeTracker(path);
+		sparseCollectors.add(slug);
 		git(path, "config", "branch." + branch + ".ab-parent", parentBranch);
 		s.collectors[slug] = { path, branch, parentBranch };
 		save();
@@ -669,97 +725,93 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	// --- the walk --------------------------------------------------------------------------------------
 	/** What keeps each open node from starting, recorded by the walk for the stop message: the owner shouldn't have to read a collector's tracker to find out. */
 	const holds = new Map<string, string>();
-	let ownerView = new Map<string, Issue>();
-	const why = (i: Issue, view: Map<string, Issue>): string => {
+		const why = (i: Issue, view: Map<string, Issue>): string => {
 		const r: string[] = [];
 		if (!i.ready) {
 			const low = [...view.values()].filter(d => !finished(d) && !!d.ownStage && !["spec", "ticket", "done"].includes(d.ownStage) && descends(d, i.slug, view));
 			r.push("effective stage " + i.effectiveStage + (low.length ? " through " + low.map(d => d.slug + " (" + d.ownStage + ")").join(", ") : ""));
 		}
 		for (const b of i.blockers ?? []) {
-			const here = view.get(b), main = ownerView.get(b);
-			r.push("blocked by " + b + (!here ? (main ? " (" + (finished(main) ? "done" : "open") + " in the owner's checkout, absent from this branch)" : "") : main && finished(main) && view !== ownerView ? " (done in the owner's checkout, open in this branch)" : " (open)"));
+			const here = view.get(b);
+			r.push("blocked by " + b + (here ? " (not satisfied at this destination)" : " (guard or external identity)"));
 		}
 		for (const c of i.claims ?? []) r.push(c.slug + " claimed by " + c.claimedBy);
 		if (i.ready && !i.eligible) r.push("not all agent-assigned: " + (i.selectors ?? []).filter(x => !/^(agent|model:)/.test(x.assignee ?? "")).map(x => x.slug + " (" + (x.assignee ?? "unassigned") + ")").join(", "));
 		if (i.deferred) r.push("deferred (priority 4)");
 		return r.join("; ") || "not frontier";
 	};
-	/** A collector forks its parent's branch once and reads blockers from its own copy of the tracker, so a blocker
-	 * that lands in the parent (another tree's work on the owner's main) afterwards stays open here and holds its
-	 * dependents. When one is held only by that, merge the parent's branch in; a conflict goes to the owner. */
-	async function catchUp(slug: string, into: string, own: Map<string, Issue>, parent: Map<string, Issue>): Promise<boolean> {
-		const landed = new Set<string>();
-		for (const k of own.values()) {
-			if (finished(k) || k.frontier || !k.blockers?.length) continue;
-			if (k.blockers.every(b => { const x = parent.get(b); return !!x && finished(x); })) k.blockers.forEach(b => landed.add(b));
-		}
-		if (!landed.size) return false;
-		const col = s.collectors[slug], head = git(pathOf(into), "rev-parse", "HEAD"), what = [...landed].join(", ");
-		return locked(async () => {
-			// Someone (the owner resolving a conflict) is mid-merge here: leave it alone, and never abort their merge.
-			if (existsSync(join(git(col.path, "rev-parse", "--absolute-git-dir"), "MERGE_HEAD"))) { note("collector " + slug + " is mid-merge; catch-up waits"); return false; }
-			// Projects' diff-shape hooks refuse large commits without a `[big: <why>]` trailer; a catch-up merge is large by nature.
-			try { git(col.path, "merge", "--no-edit", "-m", "Merge " + col.parentBranch + " into " + col.branch + ": " + what + " landed there\n\n[big: merge of " + col.parentBranch + " into the tree branch]", head); }
-			catch (e: any) {
-				const files = (() => { try { return git(col.path, "diff", "--name-only", "--diff-filter=U"); } catch { return ""; } })();
-				try { git(col.path, "merge", "--abort"); } catch {}
-				raise(slug, "collector cannot take its parent's landing of " + what, "Blockers " + what + " are done in " + col.parentBranch + " but open in " + col.branch + ", which holds work here. Merging " + col.parentBranch + " (" + head.slice(0, 10) + ") into " + col.branch + " failed" + (files ? " with conflicts in:\n" + files : ": " + String(e?.stderr ?? e?.message ?? e).slice(0, 2000)) + "\n\nMerge it by hand in " + col.path + ", commit, then resolve with retry.", parent, "owner");
-				return false;
-			}
-			note("merged " + col.parentBranch + " into " + col.branch + ": " + what + " landed there");
-			return true;
-		});
-	}
-	/** An idea filed under the tree (a worker's friction) is an observation, not work, but it lowers every ancestor's
-	 * effective stage, so nothing above it is ever frontier or done. Set it aside: drop its part-of in the branch it
-	 * landed in, keep the link in its body, and tell the owner so it gets triaged. True when it changed the branch. */
-	async function setAsideIdeas(slug: string, view: Map<string, Issue>, branch: string): Promise<boolean> {
-		const ideas = [...view.values()].filter(i => i.ownStage === "idea" && !finished(i) && descends(i, slug, view));
+	/** Accidental ideas are global observations, not executable descendants. */
+	async function setAsideIdeas(slug: string, current: Map<string, Issue>): Promise<boolean> {
+		const ideas = [...current.values()].filter(i => i.ownStage === "idea" && !finished(i) && !i.provisional && descends(i, slug, current));
 		if (!ideas.length) return false;
-		await locked(async () => {
-			for (const i of ideas) {
-				const text = readFileSync(i.file, "utf8");
-				const link = /^part-of:\s*(.*)$/m.exec(text)?.[1]?.trim().replace(/^"(.*)"$/, "$1") ?? i.partOf;
-				writeFileSync(i.file, text.replace(/^part-of:.*\n/m, "").trimEnd() + "\n\nFiled under " + link + " while the " + s.root + " reconciler ran it; set aside from that tree, since an idea under it holds every ancestor at stage idea.\n");
-				git(branch, "commit", "-qm", "Set aside idea " + i.slug + " from " + i.partOf, "--", i.file);
-			}
-		});
-		for (const i of ideas) { note("set aside idea " + i.slug + " from " + i.partOf); tellOwner("set aside idea " + i.slug + " (filed under " + i.partOf + "): it no longer holds the tree; triage it in " + (branch === cwd ? "the owner's checkout" : branch + " until that lands")); }
+		for (const i of ideas) {
+			const body = tracker.text(i.slug).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "").trimEnd();
+			tracker.update(i.slug, { "part-of": null }, body + "\n\nFiled under [[" + i.partOf + "]] while the " + s.root + " reconciler ran it; set aside from that tree, since an idea under it holds every ancestor at stage idea.\n");
+			note("set aside idea " + i.slug + " from " + i.partOf);
+			tellOwner("set aside global idea " + i.slug + " (filed under " + i.partOf + "): it no longer holds the tree; triage it through the tracker");
+		}
 		return true;
+	}
+	/** Deliver a saved accepted transition, even when the board cursor consumed its report. */
+	async function finishRefinement(slug: string, c: Chain) {
+		const attempt = s.refinements[c.refinement!];
+		if (attempt.phase !== "accepted" || !attempt.acceptance) throw new Error("Refinement not accepted: " + slug);
+		const intent = attempt.acceptance;
+		c.handledTs = intent.reportTs;
+		if (intent.children.length) {
+			note("decomposed " + slug + " into " + intent.children.join(", "));
+			delete s.chains[slug]; save();
+			await retireChain(c);
+		} else {
+			note("promoted " + slug);
+			c.note = undefined; c.self = false;
+			const issue = view(c.into).get(slug)!;
+			await startPhaseFrom(slug, c, issue, view(c.into), intent.destination);
+		}
 	}
 	/** Visit a node; returns whether anything under it is unsettled and progressing or launchable. */
 	async function visit(slug: string, into: string, issues: Map<string, Issue>): Promise<"done" | "active" | "stuck"> {
 		visited.add(slug);
-		const issue = issues.get(slug);
+		let issue = view(into).get(slug);
 		if (!issue || finished(issue) || isMoved(issue)) return "done";
 		// A restart with fresh state adopts the collector left on disk before reading its children:
 		// a kid can be frontier only there (its blockers landed in the collector, not the owner).
 		if (!s.collectors[slug] && existsSync(collectorPath(slug))) ensureCollector(slug, into);
-		let own = s.collectors[slug] ? snapshot(s.collectors[slug].path) : issues;
-		if ((s.collectors[slug] || slug === s.root) && await setAsideIdeas(slug, own, s.collectors[slug]?.path ?? cwd)) own = snapshot(s.collectors[slug]?.path ?? cwd);
-		if (s.collectors[slug] && !s.exceptions[slug] && await catchUp(slug, into, own, issues)) own = snapshot(s.collectors[slug].path);
+		let own = view(s.collectors[slug] ? slug : into);
+		if ((s.collectors[slug] || slug === s.root) && await setAsideIdeas(slug, own)) {
+			own = view(s.collectors[slug] ? slug : into);
+			issue = view(into).get(slug)!;
+		}
+		const refining = s.chains[slug]?.phase === "refine";
+		// Visit the writer before its newly published children. Withholding is
+		// also enforced by schedulingView for every destination.
 		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i));
-		if (kids.length && !s.chains[slug]) {
-			const col = ensureCollector(slug, into);
-			const below = await Promise.all(kids.map(k => k.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, snapshot(col.path)) : (holds.set(k.slug, why(k, snapshot(col.path))), Promise.resolve("stuck" as const))));
+		if (kids.length && !s.chains[slug] && !refining) {
+			ensureCollector(slug, into);
+			const below = await Promise.all(kids.map(k => {
+				const current = view(slug), child = current.get(k.slug)!;
+				return child.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, current)
+					: (holds.set(k.slug, why(child, current)), Promise.resolve("stuck" as const));
+			}));
 			return below.includes("active") ? "active" : "stuck";
 		}
 		// A node that gained an open blocker (e.g. a reopened sibling) is parked: its chain is retired, and it starts
 		// fresh from the collector once the blocker has landed there.
-		if (s.chains[slug] && slug !== s.root && issue.blockers?.length) {
+		const parkingBlockers = refining ? [...issue.blockedBy.filter(blocker => !issues.get(blocker)?.satisfied), ...issue.guards] : issue.blockers;
+		if (s.chains[slug] && slug !== s.root && parkingBlockers.length) {
 			const parked = s.chains[slug];
-			note("parked " + slug + " behind " + issue.blockers.join(", "));
-			tellOwner("parked " + slug + " behind " + issue.blockers.join(", ") + ": its workers are retired and it restarts once they land" + (s.exceptions[slug] ? "; its pending exception (" + s.exceptions[slug].reason + ") is dropped" : ""));
+			note("parked " + slug + " behind " + parkingBlockers.join(", "));
+			tellOwner("parked " + slug + " behind " + parkingBlockers.join(", ") + ": its workers are retired and it restarts once they land" + (s.exceptions[slug] ? "; its pending exception (" + s.exceptions[slug].reason + ") is dropped" : ""));
 			if (s.exceptions[slug]?.handler) await retireHandle(s.exceptions[slug].handler!, pathOf(parked.into));
 			delete s.exceptions[slug]; dropResolution(slug);
 			await retireChain(parked); delete s.chains[slug]; save();
-			holds.set(slug, "parked behind " + issue.blockers.join(", "));
+			holds.set(slug, "parked behind " + parkingBlockers.join(", "));
 			return "stuck";
 		}
 		if (s.exceptions[slug]) return "active";
 		const c = s.chains[slug];
 		if (!c) {
+			if (s.collectors[slug]) issue = own.get(slug)!;
 			if (!issue.frontier && slug !== s.root) { holds.set(slug, why(issue, issues)); return "stuck"; }
 			if (live() >= s.budget) return "active";
 			const chain: Chain = { into, self: !!s.collectors[slug], phase: "implement", retries: {}, workers: [], note: pendingNotes.get(slug) };
@@ -773,6 +825,20 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			return "active";
 		}
 		if (c.held) return "active";
+		if (c.phase === "refine" && c.refinement && s.refinements[c.refinement].phase === "writing" && !s.refinements[c.refinement].worker) {
+			await startPhase(slug, c, "refine", issue, issues, "Resume the saved refinement attempt after an interrupted launch.", false, c.refinement);
+			return "active";
+		}
+		if (c.phase === "refine" && c.refinement && s.refinements[c.refinement].phase === "accepted") {
+			await finishRefinement(slug, c); return "active";
+		}
+		if (c.phase === "integrate") {
+			await integrateReview(slug, c, issue, issues); return "active";
+		}
+		if (!c.handle) {
+			await startPhase(slug, c, c.phase, issue, issues);
+			return "active";
+		}
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
 		if (m) { try { await onReport(slug, c, m, issues); } catch (e) { raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues); } return "active"; }
 		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report other than `waiting` in " + WAITING_MS / 3_600_000 + "h after the worker first reported waiting at " + c.waitingSince + ".", issues); return "active"; }
@@ -792,14 +858,17 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
 			c.retries.relaunch = (c.retries.relaunch ?? 0) + 1;
-			if (c.retries.relaunch > BUDGET.relaunch) raise(slug, c.phase + " worker died " + BUDGET.relaunch + " times", "worktree " + c.handle.path, issues);
+			if (c.retries.relaunch > BUDGET.relaunch) {
+				if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
+				raise(slug, c.phase + " worker died " + BUDGET.relaunch + " times", "worktree " + c.handle.path, issues);
+			}
 			else {
 				note(c.phase + " worker for " + slug + " is gone; relaunching");
 				const kept = c.retries.relaunch;
 				// Stop leaked services before adding a replacement; retain the worktree as its base.
 				try { await stop(c.handle, { cwd: pathOf(c.into) }); }
 				catch (e) { raise(slug, "dead worker cleanup failed", String(e), issues); return "active"; }
-				await startPhase(slug, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "A previous worker on this phase died; its worktree may hold partial commits in your base.");
+				await startPhase(slug, c, c.phase, issue, issues, "A previous worker on this phase died; its worktree may hold partial commits in your base.");
 				c.retries.relaunch = kept; save();
 			}
 		}
@@ -807,11 +876,13 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	// A node's own chain after its children: the implementer starts from the collector, so its branch carries them up.
 	async function startPhaseFrom(slug: string, c: Chain, issue: Issue, issues: Map<string, Issue>, from: string) {
-		const saved = c.into;
+		const saved = c.into, previous = c.handle;
+		if (previous) await stop(previous, { cwd });
 		c.base = git(from, "rev-parse", "HEAD");
-		const prompt = [ticketText(issue), "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children.", c.note ? "Note from the supervisor: " + c.note : ""].filter(Boolean).join("\n\n");
+		const prompt = [ticketText(issue), c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "", c.note ? "Note from the supervisor: " + c.note : ""].filter(Boolean).join("\n\n");
 		const launchedAt = Date.now();
-		c.handle = await launch(nextHandle(slug, "implement"), "implement", prompt, c.base, pathOf(c.into), issue);
+		c.handle = await launch(nextHandle(slug, "implement"), "implement", prompt, c.base, pathOf(c.into), issue, undefined, async () => [ticketText(issue), c.self ? "Its children are all satisfied in your base; implement its residual work and joins." : "", c.note ?? ""].filter(Boolean).join("\n\n"));
+		if (previous && !await retireHandle(previous, cwd)) c.workers.push(previous);
 		Object.assign(c, { into: saved, phase: "implement", launchedAt, handledTs: undefined });
 		save();
 	}
@@ -841,17 +912,52 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function tick(): Promise<boolean> {
 		pollBoard();
 		await observeHost();
-		const top = snapshot(cwd);
-		ownerView = top; holds.clear();
+		for (const [slug, col] of Object.entries(s.collectors)) if (!sparseCollectors.has(slug)) ensureCollector(slug, col.parentBranch);
+		await locked(async () => recoverLandings(completion));
+		closeAtTarget(completion);
+		await recoverRefinements(refinement);
+		// A registry save can precede the receipt save. Adopt only exact run/handle.
+		for (const [slug, c] of Object.entries(s.chains)) {
+			if (s.landed[slug]) {
+				s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
+				delete s.chains[slug]; save(); continue;
+			}
+			if (!c.refinement || c.phase !== "refine") continue;
+			let attempt = s.refinements[c.refinement];
+			if (attempt.successor) { c.refinement = attempt.successor; attempt = s.refinements[c.refinement]; }
+			if (attempt.phase === "writing" && !attempt.worker) {
+				const record = await workerThread(attempt.handle, cwd, s.root);
+				if (record) { attempt.worker = { run: s.root, handle: attempt.handle, path: record.cwd, threadId: record.id }; save(); }
+			}
+			if (attempt.worker && c.handle?.handle !== attempt.handle) { c.handle = attempt.worker; c.launchedAt = Date.now(); c.handledTs = undefined; save(); }
+		}
+		await cleanupLandings();
+		// Acceptance/discard receipts also outlive the chain. Retire the exact
+		// recorded writer after delivery/replacement, retrying a failed retirement.
+		for (const attempt of Object.values(s.refinements)) {
+			if (!["accepted", "removed"].includes(attempt.phase) || !attempt.worker) continue;
+			const c = s.chains[attempt.node];
+			if (c?.phase === "refine" && c.handle?.handle === attempt.handle) continue;
+			const thread = attempt.worker.threadId ? await getThread(attempt.worker.threadId)
+				: await workerThread(attempt.handle, cwd, s.root);
+			if (thread && !thread.archived) await retireHandle(attempt.worker, cwd);
+		}
+		const top = view(cwd);
+		holds.clear();
 		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return true; }
 		visited.clear();
 		const result = await visit(s.root, cwd, top);
 		await handleExceptions(top);
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
-		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); delete s.chains[slug]; save(); }
+		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
 		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug)) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
 		if (result !== "active" && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
-			const all = snapshot(cwd);
+			closeAtTarget(completion);
+			if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
+			const all = view(cwd);
+			for (const attempt of Object.values(s.refinements)) {
+				if (attempt.phase !== "accepted" && attempt.phase !== "removed") await discardRefinement(refinement, attempt.handle);
+			}
 			const open = [...all.values()].filter(i => !finished(i) && (i.slug === s.root || under(i, all)));
 			s.finished = result === "done" ? "done" : "stuck";
 			save();

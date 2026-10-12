@@ -395,20 +395,17 @@ test("a new uncommitted issue needs author provenance; committed history is left
   p.done();
 }, 30_000);
 
-test("work in flight elsewhere leaves the frontier: reconciler nodes, closes on branches, stalled runs", () => {
+test("work in flight elsewhere leaves the frontier: roots, pending ledgers, workers and stalled runs", () => {
   const t = (s: string) => frontmatter("stage: ticket\nassignee: agent") + s;
   const p = project({ "issues/closed.md": t(""), "issues/named.md": t(""), "issues/watched.md": t(""), "issues/stalled.md": t(""), "issues/finished.md": t(""), "issues/free.md": t("") }, true);
   const dir = p.root;
   const sh = (cwd: string, ...args: string[]) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd });
-  sh(dir, "worktree", "add", "-q", "-b", "sup/closer", dir + "-wt1");
-  writeFileSync(dir + "-wt1/docs/issues/closed.md", frontmatter("stage: done"));
-  sh(dir + "-wt1", "commit", "-qam", "Close closed");
   sh(dir, "worktree", "add", "-q", "-b", "sup/named", dir + "-wt2");
   writeFileSync(dir + "-wt2/x", "x"); sh(dir + "-wt2", "add", "x"); sh(dir + "-wt2", "commit", "-qm", "work");
   mkdirSync(join(dir, ".git/reconcile"));
-  const run = (root: string, pid: number, slug: string, extra: object = {}) => writeFileSync(join(dir, ".git/reconcile", root + ".json"), JSON.stringify({ root, pid, chains: { [slug]: { phase: "drive", held: true, handle: { handle: slug + "-drive" } } }, ...extra }));
-  run("live", process.pid, "watched");
-  run("dead", 0, "stalled");
+  const run = (root: string, pid: number, slug: string, extra: object = {}) => writeFileSync(join(dir, ".git/reconcile", root + ".json"), JSON.stringify({ root, cwd: dir, pid, landed: {}, chains: { [slug]: { phase: "drive", held: true, handle: { handle: slug + "-drive" } } }, ...extra }));
+  run("free", process.pid, "watched", { landed: { closed: { into: "retired-collector", head: "saved", at: new Date().toISOString() } } });
+  run("dead", 0, "stalled", { landed: { stalled: { into: dir, head: "saved", at: new Date().toISOString() } } });
   run("over", process.pid, "finished", { finished: "done" });
   writeFileSync(join(dir, "docs/issues/sent.md"), t(""));
   mkdirSync(join(dir, ".git/ab-dispatch"));
@@ -416,15 +413,17 @@ test("work in flight elsewhere leaves the frontier: reconciler nodes, closes on 
   writeFileSync(join(dir, ".git/ab-dispatch/r-gone.json"), JSON.stringify({ run: "root", handle: "g", issue: "free", path: dir + "-nowhere", agent: "x" }));
   const snap = JSON.parse(Bun.spawnSync([process.execPath, cli, "snapshot", "--json"], { cwd: dir }).stdout.toString()).issues;
   const claim = (s: string) => snap.find((i: any) => i.slug === s).claims.map((c: any) => c.claimedBy).join();
-  expect(claim("closed")).toContain("closed on sup/closer");
+  expect(claim("closed")).toBe("landed in retired-collector (awaiting target)");
+  expect(claim("free")).toBe("reconciling subtree");
   expect(claim("named")).toContain("branch sup/named +1");
   expect(claim("watched")).toBe("reconciling drive by watched-drive (held)");
-  expect(claim("stalled")).toBe("reconciling drive by stalled-drive (held) (stalled: reconciler for dead not running)");
+  expect(claim("stalled")).toContain("reconciling drive by stalled-drive (held) (stalled: reconciler for dead not running)");
+  expect(claim("stalled")).toContain("landed in owner checkout (awaiting close) (stalled: reconciler for dead not running)");
   expect(claim("sent")).toContain("dispatched fedcba987654 (root, +1)");
-  expect(snap.filter((i: any) => i.frontier).map((i: any) => i.slug).sort()).toEqual(["finished", "free"]);
+  expect(snap.filter((i: any) => i.frontier).map((i: any) => i.slug).sort()).toEqual(["finished"]);
   const off = JSON.parse(Bun.spawnSync([process.execPath, cli, "snapshot", "--json"], { cwd: dir, env: { ...process.env, TRACKER_NO_INFLIGHT: "1" } }).stdout.toString()).issues;
   expect(off.filter((i: any) => i.frontier).length).toBe(7);
-  rmSync(dir + "-wt1", { recursive: true, force: true }); rmSync(dir + "-wt2", { recursive: true, force: true });
+  rmSync(dir + "-wt2", { recursive: true, force: true });
   p.done();
 }, 30_000);
 

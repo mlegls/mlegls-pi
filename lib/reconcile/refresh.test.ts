@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { join } from "node:path";
 import { getThread } from "../thread/registry";
 import { merge, spawn, type Worker } from "../wm";
+import { getTracker } from "../tracker";
 import { refreshWorker } from "./refresh";
 
 // Local shell workers exercise the real checkout/setup/launch seam; no model or paid API.
@@ -12,20 +13,23 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 	const saved = { ...process.env }, workers: Worker[] = [];
 	const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 	const ticket = "docs/issues/measure.md", ruling = "Done: offline packet audit; no paid inference\nStories: measurement claims\n";
+	const cli = realpathSync(join(import.meta.dir, "../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"));
+	const trackerModule = realpathSync(join(import.meta.dir, "../tracker.ts"));
 	const commit = (cwd: string, file: string, content: string) => {
 		writeFileSync(join(cwd, file), content);
 		git(cwd, "add", file); git(cwd, "commit", "-qm", file);
 		return git(cwd, "rev-parse", "HEAD");
 	};
 	try {
-		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_THREAD_ID|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*)$/.test(key)) delete process.env[key];
-		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root });
+		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "6",
+			WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PI_THREAD_RUNTIME: "zmx", TRACKER_CLI: cli, PI_AGENTS_DIR: realpathSync(join(import.meta.dir, "../../agents")) });
 		mkdirSync(repo); git(repo, "init", "-qb", "main");
 		git(repo, "config", "user.name", "Fixture"); git(repo, "config", "user.email", "fixture@example.invalid");
 		mkdirSync(join(repo, "docs/issues"), { recursive: true });
-		commit(repo, ticket, "Done: live drive\nStories: product success\n");
+		commit(repo, ticket, "---\nstage: ticket\nassignee: agent\n---\n\nDone: live drive\nStories: product success\n");
 		commit(repo, ".gitignore", "setup-contract\n");
-		commit(repo, "setup.ts", 'import { readFileSync, writeFileSync } from "node:fs"; writeFileSync("setup-contract", readFileSync("docs/issues/measure.md"));\n');
+		commit(repo, "setup.ts", 'import { writeFileSync } from "node:fs"; import { getTracker } from ' + JSON.stringify(trackerModule) + '; writeFileSync("setup-contract", getTracker(process.cwd()).text("measure"));\n');
 		commit(repo, "mise.toml", '[tasks.setup]\nrun = "bun setup.ts"\n');
 		const fixture = async (handle: string, base?: string, prepare?: (cwd: string) => Promise<string | void>) => {
 			const worker = await spawn({ cwd: repo, run: "fixture", handle, base, prepare, prompt: "old contract", command: "sleep 120" });
@@ -35,19 +39,20 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 		const previous = await fixture("previous");
 		const previousHead = commit(previous.dir, "result.txt", "retained packet\n");
 		const handler = await fixture("handler");
-		commit(handler.dir, ticket, ruling);
+		getTracker(handler.dir, { inflight: false }).update("measure", { drive: "none" }, ruling);
+		commit(handler.dir, "handler-artifact.txt", "offline ruling artifact\n");
 		await merge(handler);
 		const decision = git(repo, "rev-parse", "HEAD");
 		const successor = await fixture("successor", previousHead, async cwd => {
 			refreshWorker(cwd, repo);
-			return readFileSync(join(cwd, ticket), "utf8");
+			return getTracker(cwd, { inflight: false }).text("measure");
 		});
 		expect(git(successor.dir, "merge-base", "--is-ancestor", decision, "HEAD")).toBe("");
 		expect(git(successor.dir, "merge-base", "--is-ancestor", previousHead, "HEAD")).toBe("");
 		expect(readFileSync(join(successor.dir, "result.txt"), "utf8")).toBe("retained packet\n");
 		// Worker setup runs after host admission, so it lands shortly after spawn returns.
 		for (let i = 0; i < 100 && !existsSync(join(successor.dir, "setup-contract")); i++) await new Promise(r => setTimeout(r, 100));
-		expect(readFileSync(join(successor.dir, "setup-contract"), "utf8")).toBe(ruling);
+		expect(readFileSync(join(successor.dir, "setup-contract"), "utf8")).toContain(ruling);
 		const record = await getThread(successor.threadId!);
 		expect(record?.launch?.prompt).toContain(ruling);
 		expect(record?.launch?.prompt).not.toContain("old contract");

@@ -4,7 +4,7 @@ import { parse } from "../report";
 import { allThreads, getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { retireThread } from "./lifecycle-cleanup";
-import { settleAppends } from "./append-union";
+import { assertNoTrackerChanges } from "./tracker-worktree";
 import { delay } from "./process";
 import type { ThreadBlock, ThreadCleanup, ThreadIntegration, ThreadRecord } from "./types";
 
@@ -49,18 +49,18 @@ export async function integrateThread(id: string, options: {
 	const path = destination.path;
 	if (await gitChecked(path, "branch", "--show-current") !== parentBranch)
 		throw new Error("integrate: ab-parent " + parentBranch + " is no longer checked out in " + path);
+	const base = await gitChecked(path, "rev-parse", "HEAD");
+	assertNoTrackerChanges(thread.cwd, base);
 	const mode = options.mode ?? "rebase";
 	const diff3 = ["-c", "merge.conflictStyle=diff3"];
-	// Tracker-issue appends from parallel siblings union; anything else aborts.
+	// Ordinary code conflicts capture their files before aborting.
 	const conflict = async (cwd: string, operation: "merge" | "rebase") => {
-		if (await settleAppends(cwd, operation)) return;
 		// Capture before abort removes the unmerged index.
 		const files = (await gitChecked(cwd, "diff", "--name-only", "--diff-filter=U", "-z")).split("\0").filter(Boolean);
 		await gitChecked(cwd, operation, "--abort");
 		throw new ThreadMergeConflict(id, branch, parentBranch, files);
 	};
 	if (mode === "rebase") {
-		const base = await gitChecked(path, "rev-parse", "HEAD");
 		const contains = await gitAttempt(thread.cwd, "merge-base", "--is-ancestor", base, "HEAD");
 		if (contains.code > 1) throw new Error("integrate: cannot check ancestry: " + contains.err);
 		if (contains.code) {
@@ -73,6 +73,7 @@ export async function integrateThread(id: string, options: {
 		}
 	}
 	await options.prepare?.(thread);
+	assertNoTrackerChanges(thread.cwd, base);
 	await clean(thread.cwd, "preparation left ");
 	// The destination may be dirty (a thread working in place there): git itself refuses only when the merge would overwrite those files.
 	if (mode === "merge") {

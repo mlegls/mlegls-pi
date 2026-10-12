@@ -17,9 +17,11 @@ export type Fixture = { root: string; cwd: string; collector: string; env: Recor
 	pid: number; leftoverPid: number; workers: { receipt: Handle; branch: string }[] };
 export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 const selectors = (root: string) => ({ XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
-	PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root });
+	PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "6",
+	WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PI_THREAD_RUNTIME: "zmx",
+	TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(packagePath, "agents") });
 export function use(env: Record<string, string>) {
-	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|ZMX_.*|TMUX.*)$/.test(key)) delete process.env[key];
+	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
 	Object.assign(process.env, env);
 }
 export async function prepare(): Promise<Fixture> {
@@ -48,7 +50,7 @@ export async function prepare(): Promise<Fixture> {
 		const leftover = Bun.spawn(["sleep", "600"], { cwd: implement.path, stdio: ["ignore", "ignore", "ignore"] });
 		leftover.unref(); f.leftoverPid = leftover.pid; save();
 		const state: State = { backend: "threads", root: "fixture", cwd, owner: "mail/fixture", budget: 3,
-			collectors: { fixture: { path: collector, branch: "tree/fixture", parentBranch: "main" } },
+			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: { fixture: { path: collector, branch: "tree/fixture", parentBranch: "main" } },
 			chains: { fixture: { into: cwd, self: false, phase: "implement", retries: {}, workers: [implement],
 				handle: implement, launchedAt: Date.now() } },
 			exceptions: { fixture: { id: "fixture", node: "fixture", reason: "fixture", text: "", at: new Date().toISOString(),

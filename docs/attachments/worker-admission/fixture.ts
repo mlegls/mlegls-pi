@@ -14,11 +14,12 @@ import { readAdmission } from "../../../lib/thread/admission";
 
 function environment(root: string) {
 	if (!existsSync(join(root, "fixture.json"))) throw new Error("Not a worker admission fixture: " + root);
-	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
 	Object.assign(process.env, {
 		XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
 		XDG_CACHE_HOME: join(root, "cache"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"),
-		PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "1", MISE_TRUSTED_CONFIG_PATHS: root,
+		PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "1", MISE_TRUSTED_CONFIG_PATHS: root, PI_THREAD_RUNTIME: "zmx",
+		TRACKER_CLI: join(import.meta.dir, "../../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(import.meta.dir, "../../../agents"),
 		PATH: join(root, "bin") + ":" + process.env.PATH,
 		WORKER_PRESSURE_PROBE: "bun -e " + quote("process.stdout.write(require('fs').readFileSync(process.argv[1], 'utf8'))") + " " + quote(join(root, "pressure.json")),
 	});
@@ -93,7 +94,7 @@ if (action === "prepare") {
 		const worker = receipt.submitted[0]!;
 		// A paused cache exercises the actual reconcile_status projection; no autonomous reconciler runs.
 		saveState({ backend: "threads", root: "worker-budget-fixture", cwd, owner: "mail/fixture", budget: 1,
-			collectors: {}, chains: { [handle!]: { into: cwd, self: false, phase: "implement", handle: worker, workers: [], retries: {} } },
+			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { [handle!]: { into: cwd, self: false, phase: "implement", handle: worker, workers: [], retries: {} } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] });
 		console.log(JSON.stringify(receipt));
 	} else if (action === "inspect") await observe(arg!);

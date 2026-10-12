@@ -14,8 +14,10 @@ test("a mid-implement constraint reaches drive and review first prompts, not an 
 	const saved = { ...process.env }, workers: Worker[] = [];
 	const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 	try {
-		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_THREAD_ID|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*)$/.test(key)) delete process.env[key];
-		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root });
+		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "6",
+			WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PI_THREAD_RUNTIME: "zmx",
+			TRACKER_CLI: join(import.meta.dir, "../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(import.meta.dir, "../../agents") });
 		mkdirSync(repo); git("init", "-qb", "main");
 		git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid");
 		writeFileSync(join(repo, "README.md"), "Shell constraint fixture\n");
@@ -28,7 +30,7 @@ test("a mid-implement constraint reaches drive and review first prompts, not an 
 		};
 		const implement = await fixture("implement", "live");
 		const state: State = { backend: "threads", root: "fixture", cwd: repo, owner: "mail/fixture", budget: 1, pid: process.pid,
-			collectors: {}, chains: { live: { into: repo, self: false, phase: "implement", retries: {}, workers: [],
+			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { live: { into: repo, self: false, phase: "implement", retries: {}, workers: [],
 				handle: { run: "fixture", handle: "implement", path: implement.dir, threadId: implement.threadId } } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 		saveState(state);

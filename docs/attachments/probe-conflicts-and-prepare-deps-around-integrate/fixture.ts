@@ -14,9 +14,10 @@ export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged
 	const controller = new AbortController();
 	let timer: ReturnType<typeof setInterval> | undefined;
 	try {
-		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|ZMX_.*|TMUX.*)$/.test(key)) delete process.env[key];
+		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*)$/.test(key)) delete process.env[key];
 		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
-			PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root });
+			PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PI_THREAD_RUNTIME: "zmx",
+			TRACKER_CLI: join(import.meta.dir, "../../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(import.meta.dir, "../../../agents") });
 		mkdirSync(join(cwd, "docs/issues"), { recursive: true });
 		git(cwd, "init", "-qb", "main");
 		git(cwd, "config", "user.name", "Fixture"); git(cwd, "config", "user.email", "fixture@example.invalid");
@@ -40,7 +41,7 @@ export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged
 			cwd: child, project: cwd, worktree: child, ownership: "owner", branch: "child", archived: false,
 			created: new Date().toISOString(), worker: { run: "fixture", handle: "child" } });
 		saveState({ backend: "threads", root: "fixture", cwd, owner: "mail/fixture-owner", budget: 1,
-			collectors: {}, chains: { fixture: { into: cwd, self: true, phase: "review", retries: {}, workers: [],
+			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { fixture: { into: cwd, self: true, phase: "review", retries: {}, workers: [],
 				handle: { run: "fixture", handle: "child", path: child, threadId: "fixture-child" } } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] });
 		send({ topic: "fixture/child", tags: ["done"], from: {}, body: 'done\n\n' + "\x60\x60\x60json\n"
