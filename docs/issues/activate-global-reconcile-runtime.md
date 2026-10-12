@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f88-e529-7473-951d-ed4cb0f4a7c5
 part-of: "[[projects/mlegls-pi/issues/reconcile-with-global-tracker-and-landing-ledger]]"
@@ -39,3 +39,7 @@ Retarget the existing dispatch tracker-append test to production refusal before 
 Commit `sparse.ts` as a standalone disposable rehearsal. Through actual newThread owning workers and actual run collector creation, observe absent docs/issues, present docs/attachments and a canonical CLI read from the sparse worker. Update the global contract while worker code HEAD stays fixed and observe fresh successor/handler prompt and drive:none behavior. Attempt an actual integrate of a tracker-editing branch (force materialize only the fixture's forbidden file) and show refusal leaves destination HEAD/cleanup unchanged; keep a successful code-only integration beside it. Record commands, sparse/setup observations, refusal path and heads in runtime.md. Reuse the backend helper rehearsal only as precedent, not as a substitute for activated production paths.
 
 Use the enclosing first-use isolation/no-model/owned-cleanup setup. This ticket's actual-run sparse mode and retargeted tests are its first use; the two following scheduler-mode tickets own the remaining long stories. Run `bun test lib/reconcile`, `bun test lib/dispatch.test.ts`, `bun test lib/thread`, `bun test skills/enabled/all/mlegls/conventions/tracker/scripts`, and `bunx tsc --noEmit`. A no-model shell roster has one stance per role so pick never invokes decide; saved review chains may seed terminal reports. Do not reload the installed package or hot-swap this live pre-ledger campaign.
+
+## Verification evidence
+
+[Encounter and evidence](../attachments/activate-global-reconcile-runtime/index.md).
