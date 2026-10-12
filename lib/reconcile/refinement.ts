@@ -234,6 +234,7 @@ function validateAcceptance(context: RefinementContext, handle: string, children
 		// A stable claim is replay authority only for recorded creation ownership
 		// within this saved acceptance intent, never for a new unrelated identity.
 		const converted = replay && attempt.owned.includes(row.slug) && claim === stableClaim(context);
+		if (owned && (row.archived || row.done)) throw new Error("Non-executable provisional child: " + row.slug);
 		if (owned ? claim !== attempt.claim && !converted : claim !== undefined && claim !== stableClaim(context))
 			throw new Error("Foreign or missing refinement claim: " + row.slug);
 		if (!row.archived && !row.done) {
@@ -262,6 +263,8 @@ async function accept(context: RefinementContext, handle: string): Promise<Refin
 	const destination = realpathSync(intent.destination);
 	if (destination === realpathSync(context.state.cwd) || isAbsolute(intent.into))
 		throw new Error("Refinement stubs must land in a collector, not the owner");
+	if (intent.landedHead && !contains(destination, intent.preparedHead ?? intent.landedHead))
+		throw new Error("Saved refinement stubs no longer reach their collector");
 	if (!intent.landedHead) {
 		if (intent.preparedHead && contains(destination, intent.preparedHead)) {
 			persist(context, () => { attemptOf(context, handle).acceptance!.landedHead = git(destination, "rev-parse", "HEAD"); });
@@ -292,9 +295,11 @@ async function accept(context: RefinementContext, handle: string): Promise<Refin
 	// before reservations, recognizing a conversion published before a crash.
 	validateAcceptance(context, handle, intent.children, true);
 	for (const row of stillOwned(context, attempt, context.tracker.snapshot())) {
+		if (!stillOwned(context, attempt, context.tracker.snapshot()).some(current => current.slug === row.slug)) continue;
 		context.tracker.update(row.slug, { "claimed-by": stableClaim(context) });
 		context.save();
 	}
+	validateAcceptance(context, handle, intent.children, true);
 	persist(context, () => { attemptOf(context, handle).phase = "accepted"; });
 	return outcome;
 }

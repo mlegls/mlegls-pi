@@ -177,6 +177,7 @@ export async function refinementProbe() {
 
 		// Acceptance persists the report and prepared head, actual integrate
 		// merges, then a deterministic save failure interrupts its receipt.
+		create("existing-part", "decompose", undefined, { stage: "ticket" });
 		const decomposition = beginRefinement(context, "decompose", "decompose-first");
 		const decompositionWorker = await register(decomposition.handle);
 		create("part-a", "decompose", decomposition.claim, { stage: "ticket" });
@@ -184,11 +185,11 @@ export async function refinementProbe() {
 		actual.update("decompose", { stage: null });
 		await expectFailure(() => acceptRefinement(context, decomposition.handle, accepts(decompositionWorker, ["part-a"])), "do not match");
 		actual.update("part-b", { "claimed-by": "session:foreign" });
-		await expectFailure(() => acceptRefinement(context, decomposition.handle, accepts(decompositionWorker, ["part-a", "part-b"])), "Foreign");
+		await expectFailure(() => acceptRefinement(context, decomposition.handle, accepts(decompositionWorker, ["existing-part", "part-a", "part-b"])), "Foreign");
 		actual.update("part-b", { "claimed-by": decomposition.claim });
 		const stubBefore = git(decompositionWorker.path, "rev-parse", "HEAD"), collectorBefore = git(destination, "rev-parse", "HEAD");
 		failSave = value => !!value.refinements[decomposition.handle]?.acceptance?.landedHead;
-		await expectFailure(() => acceptRefinement(context, decomposition.handle, accepts(decompositionWorker, ["part-a", "part-b"])), "Interrupted state save");
+		await expectFailure(() => acceptRefinement(context, decomposition.handle, accepts(decompositionWorker, ["existing-part", "part-a", "part-b"])), "Interrupted state save");
 		const collectorMerged = git(destination, "rev-parse", "HEAD");
 		reload();
 		require(state.refinements[decomposition.handle]!.phase === "accepting" && !state.refinements[decomposition.handle]!.acceptance!.landedHead, "Lost merge-before-save condition");
@@ -196,12 +197,17 @@ export async function refinementProbe() {
 		failUpdate = "part-a";
 		await expectFailure(() => recoverRefinements(context), "Interrupted after tracker update");
 		reload();
-		const midConversion = rows().filter(row => ["part-a", "part-b"].includes(row.slug));
+		const midConversion = rows().filter(row => ["existing-part", "part-a", "part-b"].includes(row.slug));
+		failSave = value => value.refinements[decomposition.handle]?.phase === "accepted";
+		await expectFailure(() => recoverRefinements(context), "Interrupted state save");
+		reload();
+		const beforeAcceptedSave = rows().filter(row => ["existing-part", "part-a", "part-b"].includes(row.slug));
 		await recoverRefinements(context);
 		require(git(destination, "rev-parse", "HEAD") === collectorMerged, "Recovery merged twice");
 		require(state.refinements[decomposition.handle]!.phase === "accepted" && claim("part-a") === "reconcile:fixture" && claim("part-b") === "reconcile:fixture", "Acceptance did not save stable claims");
+		require(claim("existing-part") === undefined, "Acceptance reserved a baseline child");
 		require(Object.keys(state.landed).length === 0 && !actual.snapshot().get("decompose")!.done, "Stub acceptance closed tracker or wrote completion ledger");
-		observations.acceptance = { collectorBefore, stubBefore, collectorMerged, savedReceipt, midConversion, accepted: state.refinements[decomposition.handle], after: rows().filter(row => ["decompose", "part-a", "part-b"].includes(row.slug)) };
+		observations.acceptance = { collectorBefore, stubBefore, collectorMerged, savedReceipt, midConversion, beforeAcceptedSave, accepted: state.refinements[decomposition.handle], after: rows().filter(row => ["decompose", "part-a", "part-b"].includes(row.slug)) };
 
 		const promotion = beginRefinement(context, "promote", "promote-first");
 		const promotionWorker = await register(promotion.handle);
