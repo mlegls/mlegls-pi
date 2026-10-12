@@ -721,21 +721,11 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
 		if (r.status === "waiting") { c.waitingSince = waitedSince ?? m.ts; c.waitingCheckedAt = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
-<<<<<<< HEAD
 		if (r.status === "blocked" || r.status === "needs-input") {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, c.phase + " " + r.status, text, issues);
 		}
-		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h), BUDGET.checkpoint, {
-||||||| 1a49d6cb
-		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
-		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h), BUDGET.checkpoint, {
-=======
-		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
-		// A worker woken mid-wait (by mail) is working, so runsProcess can't see its process: a checkpoint during a wait is
-		// held to "wait first" unless its process is definitely gone.
 		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h) ?? (waitedSince && alive(h) !== false ? true : undefined), BUDGET.checkpoint, {
->>>>>>> c41545d5e9ad9fd6dba1fcb0f7aa9c45a079c363
 			repair: message => repair(slug, c, "checkpoint-process", message, issues, text),
 			raise: reason => raise(slug, reason, text, issues),
 			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint:\n\n" + text.slice(-6000), true),
@@ -1020,7 +1010,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	/** One reconciliation pass; true when the run is over. */
 	async function tick(): Promise<boolean> {
 		await observeHost();
-<<<<<<< HEAD
+		pollBoard();
 		for (const [slug, col] of Object.entries(s.collectors)) if (!sparseCollectors.has(slug)) ensureCollector(slug, col.parentBranch);
 		await locked(async () => recoverLandings(completion));
 		closeAtTarget(completion);
@@ -1053,14 +1043,6 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		const top = view(cwd);
 		holds.clear();
-||||||| 1a49d6cb
-		const top = snapshot(cwd);
-		ownerView = top; holds.clear();
-=======
-		pollBoard();
-		const top = snapshot(cwd);
-		ownerView = top; holds.clear();
->>>>>>> c41545d5e9ad9fd6dba1fcb0f7aa9c45a079c363
 		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return true; }
 		visited.clear();
 		const result = await visit(s.root, cwd, top);
