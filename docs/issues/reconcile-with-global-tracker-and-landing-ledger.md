@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f5a-57a3-74f5-be56-010e18f3b368
 part-of: "[[projects/mlegls-pi/issues/reconcile-against-a-global-tracker]]"
