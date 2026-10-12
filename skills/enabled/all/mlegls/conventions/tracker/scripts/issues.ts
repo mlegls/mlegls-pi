@@ -198,6 +198,7 @@ function storageFields(fields: Record<string, unknown>, dir: string, all: Map<st
 
 function replaceContract(text: string, fields: Record<string, unknown>, body?: string): string {
   const { doc, body: previous } = contract(text);
+  if (isMap(doc.contents) && !doc.contents.items.length) doc.contents.flow = false;
   for (const [key, value] of Object.entries(fields)) {
     if (value === null) doc.delete(key);
     else doc.set(key, value);
@@ -223,6 +224,7 @@ function withVaultLock<T>(dir: string, change: () => T): T {
 function publish(dir: string, changes: Map<string, string | null>, message: string): void {
   const all = load(dir);
   for (const [file, text] of changes) {
+    if (!file.endsWith(".md") || relative(dir, file).split(sep).includes("attachments")) continue;
     const slug = basename(file, ".md");
     if (text === null) { all.delete(slug); continue; }
     if (all.has(slug) && all.get(slug)!.file !== file) throw new Error("duplicate issue slug " + slug);
@@ -431,19 +433,17 @@ function tree(root: Issue | undefined, all: Map<string, Issue>, depth = 0): stri
 
 // Every [[link]] and [[link#Heading]] under docs/, resolved as Obsidian does: by
 // basename, disambiguated by the link's trailing path segments; inline and fenced code ignored.
-// Repairs are opt-in; checking a branch must not rewrite it against canonical state.
+// Repairs are opt-in: issue links use canonical state, evidence uses the checked code tree.
 
 // A done blocker no longer constrains scheduling; --fix drops it, leaving guards and live blockers in place.
-function dropBlockers(file: string, done: Set<string>) {
-  const text = readFileSync(file, "utf8");
-  const m = text.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m)!;
-  const start = m[0].indexOf("\n") + 1;
-  const doc = parseDocument(m[1]);
+function dropBlockers(file: string, done: Set<string>): string {
+  const { doc, body } = contract(readFileSync(file, "utf8"));
   const seq = doc.get("blocked-by", true);
-  if (!isSeq(seq)) return;
-  seq.items = seq.items.filter((it) => !(isScalar(it) && typeof it.value === "string" && it.value.startsWith("[[") && done.has(slugOf(it.value))));
-  if (!seq.items.length) doc.delete("blocked-by");
-  writeFileSync(file, text.slice(0, start) + doc.toString({ lineWidth: 0 }) + text.slice(start + m[1].length));
+  if (isSeq(seq)) {
+    seq.items = seq.items.filter((it) => !(isScalar(it) && typeof it.value === "string" && it.value.startsWith("[[") && done.has(slugOf(it.value))));
+    if (!seq.items.length) doc.delete("blocked-by");
+  }
+  return "---\n" + doc.toString({ lineWidth: 0 }) + "---\n" + body;
 }
 function movedIssuePaths(paths: string[]): Set<string> {
   const moved = new Set<string>();
@@ -520,7 +520,7 @@ function maskMarkdownCode(source: string): string {
   }
   return chars.join("");
 }
-function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, repair: boolean, fixTargets?: Set<string>) {
+function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, repair: boolean, changes: Map<string, string>, fixed: string[], fixTargets?: Set<string>) {
   const files: string[] = [];
   const walk = (d: string) => {
     for (const name of readdirSync(d)) {
@@ -553,7 +553,7 @@ function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, r
   const projectRoot = (name: string) => {
     if (!projectRoots.has(name)) {
       const path = join(vault, "projects", name);
-      const local = existsSync(path) && (realpathSync(path) === realpathSync(dirname(issuesDir)) || (ownIdentity !== undefined && identity(path) === ownIdentity));
+      const local = existsSync(path) ? realpathSync(path) === realpathSync(dirname(issuesDir)) || (ownIdentity !== undefined && identity(path) === ownIdentity) : name === projectName(issuesDir);
       projectRoots.set(name, local ? docs : path);
     }
     return projectRoots.get(name)!;
@@ -590,7 +590,7 @@ function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, r
   };
   const seen = new Set<string>();
   for (const f of files) {
-    const raw = readFileSync(f, "utf8");
+    const raw = changes.get(f) ?? readFileSync(f, "utf8");
     const text = maskMarkdownCode(raw);
     const edits = new Map<number, { end: number; replacement: string; message: string }>();
     const rel = relative(docs, f);
@@ -632,10 +632,10 @@ function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, r
       out = out.slice(0, start) + edit.replacement + out.slice(edit.end);
       if (messages.has(edit.message)) continue;
       messages.add(edit.message);
-      if (repair) console.log("fixed " + edit.message);
+      if (repair) fixed.push("fixed " + edit.message);
       else say("repair available (check --fix): " + edit.message);
     }
-    if (repair) writeFileSync(f, out);
+    if (repair) changes.set(f, out);
   }
 }
 
@@ -786,6 +786,11 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   case "check": {
+    withVaultLock(dir, () => {
+    const all = load(dir);
+    validateGraph(all);
+    const changes = new Map<string, string>();
+    const fixed: string[] = [];
     let bad = 0;
     const say = (s: string) => (bad++, console.log(s));
     for (const i of all.values()) {
@@ -800,7 +805,7 @@ if (cmd !== "lint") switch (cmd) {
         else done.add(b);
       }
       for (const b of unselected) say(`${i.slug}: blocked-by ${b} is done; remove it (check --fix without moved issue paths)`);
-      if (done.size && repair) { dropBlockers(i.file, done); console.log(`fixed ${i.slug}: removed done blocked-by ${[...done].join(", ")}`); }
+      if (done.size && repair) { changes.set(i.file, dropBlockers(i.file, done)); fixed.push(`fixed ${i.slug}: removed done blocked-by ${[...done].join(", ")}`); }
       else for (const b of done) say(`${i.slug}: blocked-by ${b} is done; remove it (check --fix)`);
       if (i.next === "done" && !i.archived) say(`${i.slug}: done but not in archive/`);
       if (i.next && i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
@@ -826,9 +831,19 @@ if (cmd !== "lint") switch (cmd) {
     for (const slug of uncommitted(dir)) if (all.has(slug) && !all.get(slug)!.author) say(`${slug}: new issue without author provenance`);
     const p = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
     const codeDocs = p.status === 0 ? join(p.stdout.trim(), "docs") : dirname(dir);
-    checkLinks(codeDocs, dir, say, repair, fixTargets);
+    checkLinks(codeDocs, dir, say, repair, changes, fixed, fixTargets);
+    const canonical = new Map([...changes].filter(([file]) => !relative(dir, file).startsWith(".." + sep)));
+    publish(dir, canonical, "tracker: check --fix");
+    // Non-tracker documentation repairs belong to the checked code tree, not a tracker commit.
+    for (const [file, text] of changes) if (!canonical.has(file)) {
+      const tmp = file + "." + randomUUID() + ".tmp";
+      try { writeFileSync(tmp, text); renameSync(tmp, file); }
+      finally { if (existsSync(tmp)) unlinkSync(tmp); }
+    }
+    fixed.forEach(s => console.log(s));
     if (!bad) console.log("ok");
     else process.exitCode = 1;
+    });
     break;
   }
   case "outline": {
@@ -839,7 +854,7 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
+    console.log("usage: issues text <slug> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|-] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
     process.exitCode = 2;
 }
 }
