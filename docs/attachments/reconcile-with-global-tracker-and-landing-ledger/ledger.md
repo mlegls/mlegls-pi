@@ -5,6 +5,8 @@ runtime base 8648784abe2e6fbc2bc1662fc83853aa89774b7c, with the exact
 [ledger.ts](ledger.ts) shipped at f184f5b. This is disposable drive machinery,
 not a retained test suite. The enclosing ticket owns the combined rehearsal index.
 
+Independent first-use drive at ad18fed: [predictions, transient observations and replayable checks](../rehearse-collector-ledger-and-owner-restart/index.md). All four modes held from /tmp; fixture targets were cleaned.
+
 ## Reproduce / prepared setup
 
 From any cwd, with this checkout's setup completed and Bun, Git, mise and zmx available:
