@@ -198,6 +198,8 @@ export async function refinementProbe() {
 		await expectFailure(() => recoverRefinements(context), "Interrupted after tracker update");
 		reload();
 		const midConversion = rows().filter(row => ["existing-part", "part-a", "part-b"].includes(row.slug));
+		require(claim("part-a") === "reconcile:fixture" && claim("part-b") === decomposition.claim, "Conversion interruption missed partial claim state");
+		await expectFailure(() => discardRefinement(context, decomposition.handle), "Recover refinement claim conversion");
 		failSave = value => value.refinements[decomposition.handle]?.phase === "accepted";
 		await expectFailure(() => recoverRefinements(context), "Interrupted state save");
 		reload();
@@ -207,7 +209,7 @@ export async function refinementProbe() {
 		require(state.refinements[decomposition.handle]!.phase === "accepted" && claim("part-a") === "reconcile:fixture" && claim("part-b") === "reconcile:fixture", "Acceptance did not save stable claims");
 		require(claim("existing-part") === undefined, "Acceptance reserved a baseline child");
 		require(Object.keys(state.landed).length === 0 && !actual.snapshot().get("decompose")!.done, "Stub acceptance closed tracker or wrote completion ledger");
-		observations.acceptance = { collectorBefore, stubBefore, collectorMerged, savedReceipt, midConversion, beforeAcceptedSave, accepted: state.refinements[decomposition.handle], after: rows().filter(row => ["decompose", "part-a", "part-b"].includes(row.slug)) };
+		observations.acceptance = { collectorBefore, stubBefore, collectorMerged, savedReceipt, midConversion, beforeAcceptedSave, accepted: state.refinements[decomposition.handle], after: rows().filter(row => ["decompose", "existing-part", "part-a", "part-b"].includes(row.slug)) };
 
 		const promotion = beginRefinement(context, "promote", "promote-first");
 		const promotionWorker = await register(promotion.handle);
@@ -221,10 +223,13 @@ export async function refinementProbe() {
 		const refusal = beginRefinement(context, "refusal", "refusal-first");
 		const forbiddenWorker = await register(refusal.handle, true, true);
 		actual.update("refusal", { stage: "ticket" });
+		create("refusal-child", "refusal", refusal.claim, { stage: "ticket" });
 		const beforeRefusal = git(destination, "rev-parse", "HEAD");
-		const refusalError = await expectFailure(() => acceptRefinement(context, refusal.handle, accepts(forbiddenWorker, [])), "Forbidden tracker changes");
+		const refusalError = await expectFailure(() => acceptRefinement(context, refusal.handle, accepts(forbiddenWorker, ["refusal-child"])), "Forbidden tracker changes");
 		require(git(destination, "rev-parse", "HEAD") === beforeRefusal, "Refused branch landed");
-		observations.refusal = refusalError;
+		await replaceRefinement(context, refusal.handle, "refusal-second", false);
+		require(!actual.snapshot().has("refusal-child"), "Failed acceptance leaked provisional child");
+		observations.refusal = { error: refusalError, replacement: state.refinements["refusal-second"] };
 
 		actual.update("part-b", { "claimed-by": "session:foreign" });
 		releaseRefinementClaims(context, "decompose");

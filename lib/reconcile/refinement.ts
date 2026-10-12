@@ -61,7 +61,8 @@ function subtree(rows: Map<string, Issue>, node: string): Issue[] {
 function stillOwned(context: RefinementContext, attempt: RefinementAttempt, rows: Map<string, Issue>): Issue[] {
 	const baseline = new Set(attempt.baseline);
 	return subtree(rows, attempt.node).filter(row => row.slug !== attempt.node && !baseline.has(row.slug)
-		&& context.tracker.fields(row.slug)["claimed-by"] === attempt.claim);
+		&& context.tracker.fields(row.slug)["claimed-by"] === attempt.claim)
+		.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 function remember(context: RefinementContext, handle: string, slugs: string[]): void {
@@ -98,11 +99,20 @@ export function observeRefinements(context: RefinementContext): void {
 	}
 }
 
+function assertAbortable(context: RefinementContext, attempt: RefinementAttempt): void {
+	if (attempt.phase !== "accepting") return;
+	const converted = subtree(context.tracker.snapshot(), attempt.node).some(row =>
+		!attempt.baseline.includes(row.slug) && attempt.owned.includes(row.slug)
+		&& context.tracker.fields(row.slug)["claimed-by"] === stableClaim(context));
+	if (converted) throw new Error("Recover refinement claim conversion before replacing: " + attempt.handle);
+}
+
 async function discard(context: RefinementContext, handle: string): Promise<void> {
 	let attempt = attemptOf(context, handle);
 	if (attempt.phase === "removed") return;
-	if (["accepted", "accepting", "adopting"].includes(attempt.phase))
+	if (["accepted", "adopting"].includes(attempt.phase))
 		throw new Error("Cannot discard refinement in phase " + attempt.phase + ": " + handle);
+	assertAbortable(context, attempt);
 	if (attempt.phase !== "cleaning") {
 		persist(context, () => { attemptOf(context, handle).phase = "stopping"; });
 		await context.stopWriter(attemptOf(context, handle));
@@ -192,7 +202,8 @@ export async function replaceRefinement(context: RefinementContext, oldHandle: s
 			persist(context, () => { attemptOf(context, oldHandle).successor = newHandle; });
 			return next;
 		}
-		if (!["writing", "stopping"].includes(old.phase)) throw new Error("Cannot adopt refinement in phase " + old.phase);
+		if (!["writing", "stopping", "accepting"].includes(old.phase)) throw new Error("Cannot adopt refinement in phase " + old.phase);
+		assertAbortable(context, old);
 		if (context.state.refinements[newHandle]) throw new Error("Successor handle already exists: " + newHandle);
 		persist(context, () => {
 			context.state.refinements[newHandle] = {
