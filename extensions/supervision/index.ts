@@ -83,7 +83,7 @@ export default function (pi: ExtensionAPI) {
 	});
 	dataTool(pi, {
 		name: "reconcile_resolve", namespace: reconcileNs,
-		description: "Resolve an exception the reconciler escalated to you. answer: `message` goes to the waiting worker. retry: relaunch the failed phase with `note`. redispatch: restart the node's implementation with `note`. move-out: after you moved it out in the tracker (lifecycle), with `summary`. skip-drive: the chain goes implement → review without drive (a drive in progress is replaced by review), `note` saying why and who owns the post-landing gate; tickets can declare it up front with `drive: none`. escalate is not available at the root: decide, or ask the user.",
+		description: "Resolve an exception the reconciler escalated to you. answer: `message` goes to the waiting worker. retry: relaunch the failed phase with `note`. redispatch: restart the node's implementation from its parent's head with `note` (the superseded chain's commits stay on its kept branch, which the new implementer is told about); retry keeps the chain's work as its base. move-out: after you moved it out in the tracker (lifecycle), with `summary`. skip-drive: the chain goes implement → review without drive (a drive in progress is replaced by review), `note` saying why and who owns the post-landing gate; tickets can declare it up front with `drive: none`. escalate is not available at the root: decide, or ask the user.",
 		parameters: Type.Object({
 			issue: Type.String({ description: "The reconciler's root issue" }), node: Type.String(),
 			action: Type.Union([Type.Literal("answer"), Type.Literal("retry"), Type.Literal("redispatch"), Type.Literal("move-out"), Type.Literal("skip-drive")]),

@@ -12,7 +12,7 @@
 // and a node already done in its parent's branch is never integrated again. State on disk is a cache of what
 // was launched and decided, including owner constraints; preserve it across restarts.
 import { Database } from "bun:sqlite";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { basename, join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -27,13 +27,38 @@ import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
+import { logBb } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
 import { close, declaredGates, heldByRed, mainRed, evidenceShapeError, evidencePacket, git, storyShapeError, testCommands, testRun } from "./checks.ts";
 
-const TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
+const LIVE_TRACKER = join(homedir(), ".pi/agent/skills/tracker/scripts/issues.ts");
+/** The tracker scripts as committed at HEAD of the checkout they live in, unpacked once per commit: a run must not read
+ * the live checkout, where a merge in progress left conflict markers that stopped every reconciler's snapshot (2026-10-12).
+ * Fixes reach a run on its next start. */
+export function pinTracker(live = LIVE_TRACKER): string {
+	const scripts = realpathSync(join(live, ".."));
+	const top = git(scripts, "rev-parse", "--show-toplevel");
+	const head = git(top, "rev-parse", "HEAD");
+	const sub = relative(top, scripts);
+	const dir = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "mlegls-pi", "tracker-pin", head);
+	const pinned = join(dir, sub, basename(live));
+	if (existsSync(pinned)) return pinned;
+	const temp = dir + "." + process.pid + ".tmp";
+	rmSync(temp, { recursive: true, force: true });
+	mkdirSync(temp, { recursive: true });
+	// issues.ts imports ../lib (tracker-lint, decide); packages resolve from the live checkout's installs, which a merge doesn't touch.
+	execFileSync("bash", ["-c", 'git -C "$1" archive "$2" -- lib "$3" package.json tsconfig.json | tar -x -C "$4"', "_", top, head, sub, temp]);
+	symlinkSync(join(top, "node_modules"), join(temp, "node_modules"));
+	if (existsSync(join(scripts, "node_modules"))) symlinkSync(join(scripts, "node_modules"), join(temp, sub, "node_modules"));
+	try { renameSync(temp, dir); } catch { rmSync(temp, { recursive: true, force: true }); if (!existsSync(pinned)) throw new Error("tracker pin failed: " + dir); }
+	return pinned;
+}
 const TICK_MS = 5_000;
+/** An `error` turn-end is not the end of a worker: pi retries a failed request itself (an idle WebSocket, an overloaded
+ * provider) and carries on. Act on one only once it has stood this long and the worker is no longer working. */
+const ERROR_SETTLE_MS = Number(process.env.PI_RECONCILE_ERROR_SETTLE_MS ?? 90_000);
 const START_GRACE_MS = 120_000;
 const WAITING_MS = 3 * 60 * 60_000;
 /** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
@@ -169,6 +194,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
 	const save = () => saveState(s);
+	const TRACKER = pinTracker();
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	// An owner that has closed hands over to whichever session holds the project's supervisor role.
 	// To a worker through its own board topic (it subscribes with wake), not typed into its terminal: a send-back
@@ -207,7 +233,15 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const pollBoard = () => {
 		const { messages, offset: next } = readFrom(offset);
 		offset = next;
-		for (const m of messages) if (m.topic.startsWith(s.root + "/") && TERMINAL.some(t => m.tags.includes(t))) reports.set(m.topic, m);
+		for (const m of messages) {
+			if (!m.topic.startsWith(s.root + "/") || !TERMINAL.some(t => m.tags.includes(t))) continue;
+			// Only the worker's own session reports for it. A second pi on its topic (bb's sessionless pi took the worker's
+			// identity until a5f4f80e) posted `checkpoint` for a drive that was waiting on its setup, and the reconciler
+			// replaced the drive mid-setup (2026-10-12). The registry follows the worker's current session, bb's included.
+			const row = host?.find(r => r.thread.worker && r.thread.worker.run + "/" + r.thread.worker.handle === m.topic);
+			if (row && m.from.session && m.from.session !== row.thread.sessionId) { note("ignored " + m.tags.join(",") + " on " + m.topic + " from session " + m.from.session + ", not the worker's " + row.thread.sessionId); continue; }
+			reports.set(m.topic, m);
+		}
 	};
 	const fresh = (h: Handle | undefined, after?: string, launchedAt?: number) => {
 		if (!h) return undefined;
@@ -395,7 +429,14 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
 		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in its branch's tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues); } }
-		else if (r.action === "redispatch") { if (c) { await retireChain(c); delete s.chains[target]; } s.resolved[target] ??= []; pendingNotes.set(target, r.note ?? r.message); }
+		else if (r.action === "redispatch") {
+			// A redispatch starts over from the parent's head; the superseded chain's commits stay on its kept branch,
+			// which the new implementer is told about rather than silently missing (2026-10-12: it had to ask for them).
+			const kept = c?.handle ? keptWork(c) : undefined;
+			if (c) { await retireChain(c); delete s.chains[target]; }
+			s.resolved[target] ??= [];
+			pendingNotes.set(target, [r.note ?? r.message, kept].filter(Boolean).join("\n\n") || undefined);
+		}
 		else if (r.action === "skip-drive") {
 			if (c) {
 				c.held = false; c.skipDrive = r.note ?? r.message ?? "skipped by the supervisor";
@@ -407,6 +448,16 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		save();
 	}
 	const pendingNotes = new Map<string, string | undefined>();
+	/** The chain's committed work beyond its destination, as a note for a fresh start that doesn't take it as its base. */
+	function keptWork(c: Chain): string | undefined {
+		try {
+			const h = c.handle!, into = pathOf(c.into);
+			const head = existsSync(h.path) ? git(h.path, "rev-parse", "HEAD") : git(into, "rev-parse", "--verify", "-q", "refs/heads/" + h.handle);
+			const ahead = Number(git(into, "rev-list", "--count", "HEAD.." + head));
+			if (!ahead) return;
+			return "The superseded attempt's " + ahead + " commit(s) are not in your base; they stay on branch " + h.handle + " at " + head + " (git log HEAD.." + head + "). Take what holds of them (merge or cherry-pick) or leave them, as the note above directs.";
+		} catch { return; }
+	}
 	async function handleExceptions(issues: Map<string, Issue>) {
 		// A resolution for a node with no exception is the owner steering a live chain (e.g. one stuck where no report
 		// reached us): apply it to the chain, or drop it with a reason when there is none.
@@ -463,7 +514,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			}
 			const m = fresh(ex.handler, ex.handlerHandledTs, ex.handlerLaunchedAt);
 			if (!m) {
-				if (Date.now() - (ex.handlerLaunchedAt ?? 0) > START_GRACE_MS && alive(ex.handler) === false) await applyResolution(ex, { action: "escalate", summary: "the handler died without resolving" }, issues);
+				if (bbErrored(ex.handler)) { const why = await bbError(ex.handler); await retireHandle(ex.handler, col.path); await applyResolution(ex, { action: "escalate", summary: "the handler errored in bb without resolving: " + why }, issues); }
+				else if (Date.now() - (ex.handlerLaunchedAt ?? 0) > START_GRACE_MS && alive(ex.handler) === false) await applyResolution(ex, { action: "escalate", summary: "the handler died without resolving" }, issues);
 				continue;
 			}
 			ex.handlerHandledTs = m.ts;
@@ -500,8 +552,23 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		try { return await fn(); } finally { rmSync(lockDir, { recursive: true, force: true }); }
 	}
 	async function retireHandle(h: Handle, into: string): Promise<boolean> {
-		try { await retire(h, { cwd: into }); return true; } catch (e) { note("retire " + h.handle + ": " + e); return false; }
+		try {
+			const r = await retire(h, { cwd: into });
+			const wip = ((r.removed as { branchesKept?: { branch: string; reason: string }[] } | undefined)?.branchesKept ?? []).find(b => b.reason.startsWith("uncommitted work saved"));
+			if (wip) { note("retired " + h.handle + " with uncommitted work: branch " + wip.branch + ", " + wip.reason); tellOwner("retired " + h.handle + " with uncommitted work in its worktree; it is kept on branch " + wip.branch + " (" + wip.reason + ")."); }
+			return true;
+		} catch (e) { note("retire " + h.handle + ": " + e); return false; }
 	}
+	/** Working by an observation of its pi (bb's status, or a live pi's own state), not inferred from admission. */
+	const observedWorking = (h: Handle) => { const row = rowOf(h); return row?.state === "working" && !!(row.thread.bb || row.pid); };
+	/** bb's own failure for a worker (a thread.start or turn.submit that failed): pi never runs or reports, so nothing else notices. */
+	const bbErrored = (h: Handle) => rowOf(h)?.bbStatus === "error";
+	const bbError = async (h: Handle) => {
+		const row = rowOf(h);
+		let detail = "";
+		try { detail = (await logBb(row!.thread.bb!)).split("── Error").slice(1).at(-1)?.replace(/^[─\s]+/, "").trim() ?? ""; } catch (e) { detail = "(bb thread log failed: " + e + ")"; }
+		return "bb thread " + row?.thread.bb + " for " + h.handle + " is in error and its pi will not report:\n" + (detail || "(no error block in its log)");
+	};
 	async function retireChain(c: Chain) { for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into)); }
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
 		const into = pathOf(c.into), h = c.handle!;
@@ -541,7 +608,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		save();
 		await retireChain({ ...c, handle: h });
 		const col = s.collectors[slug];
-		if (col) { try { git(cwd, "worktree", "remove", "--force", col.path); git(cwd, "branch", "-D", col.branch); } catch (e) { note("collector cleanup " + slug + ": " + e); } delete s.collectors[slug]; save(); }
+		// Not forced: uncommitted work in a collector (an owner's merge resolution in progress) keeps it, for the owner to clear.
+		if (col) { try { git(cwd, "worktree", "remove", col.path); git(cwd, "branch", "-D", col.branch); } catch (e) { note("collector cleanup " + slug + ": " + e); tellOwner("collector " + col.path + " for landed " + slug + " was left in place: " + String(e).split("\n")[0]); } delete s.collectors[slug]; save(); }
 		// Early overlap notices: siblings still implementing over the files that just landed rebase now.
 		for (const [other, oc] of Object.entries(s.chains)) {
 			if (oc.into !== c.into || oc.phase !== "implement" || !oc.handle || !existsSync(oc.handle.path) || !oc.base) continue;
@@ -592,7 +660,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
 		if (r.status === "waiting") { c.waitingSince = waitedSince ?? m.ts; c.waitingCheckedAt = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
 		if (r.status === "blocked" || r.status === "needs-input") return raise(slug, c.phase + " " + r.status, text, issues);
-		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h), BUDGET.checkpoint, {
+		// A worker woken mid-wait (by mail) is working, so runsProcess can't see its process: a checkpoint during a wait is
+		// held to "wait first" unless its process is definitely gone.
+		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h) ?? (waitedSince && alive(h) !== false ? true : undefined), BUDGET.checkpoint, {
 			repair: message => repair(slug, c, "checkpoint-process", message, issues, text),
 			raise: reason => raise(slug, reason, text, issues),
 			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint:\n\n" + text.slice(-6000)),
@@ -757,6 +827,17 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			holds.set(slug, "parked behind " + issue.blockers.join(", "));
 			return "stuck";
 		}
+		// A worker stopped by a provider or bb error that then carries on by itself (pi retried, bb recovered) withdraws its
+		// exception with its next report: a drive held behind one finished its work and was replaced anyway (2026-10-12).
+		const ex = s.exceptions[slug], hc = s.chains[slug];
+		if (ex && !ex.handler && hc?.handle && /^provider error: | errored in bb$/.test(ex.reason)) {
+			const later = fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt);
+			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) {
+				delete s.exceptions[slug]; dropResolution(slug); hc.held = false; save();
+				note("withdrew exception " + slug + " (" + ex.reason + "): its worker reported again");
+				if (ex.mailed) tellOwner("withdrew the exception for " + slug + " (" + ex.reason + "): its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution.");
+			}
+		}
 		if (s.exceptions[slug]) return "active";
 		const c = s.chains[slug];
 		if (!c) {
@@ -774,6 +855,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 		if (c.held) return "active";
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
+		if (m && m.tags.includes("error") && c.handle && (Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS || observedWorking(c.handle))) return "active";
+		if (!m && c.handle && bbErrored(c.handle)) { raise(slug, c.phase + " worker errored in bb", await bbError(c.handle), issues, "owner"); return "active"; }
 		if (m) { try { await onReport(slug, c, m, issues); } catch (e) { raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues); } return "active"; }
 		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report other than `waiting` in " + WAITING_MS / 3_600_000 + "h after the worker first reported waiting at " + c.waitingSince + ".", issues); return "active"; }
 		// A worker idle on a wait whose process has already gone (it never started, or ended without waking it) would idle until the nudge below.
@@ -839,8 +922,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	/** One reconciliation pass; true when the run is over. */
 	async function tick(): Promise<boolean> {
-		pollBoard();
 		await observeHost();
+		pollBoard();
 		const top = snapshot(cwd);
 		ownerView = top; holds.clear();
 		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return true; }
