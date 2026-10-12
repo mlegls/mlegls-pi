@@ -202,6 +202,7 @@ export async function ledger(mode: Mode, replayCut: "delivered" | "prepared" = "
 			observations.pause = { sentinel: "root review withheld until release-root", canonical: Object.fromEntries(
 				["a", "b", "outside", "root"].map(slug => [slug, canonical.get(slug)])),
 				ledger: s.landed, b: bReceipt,
+				joinPrompt: (await getThread(joined.first.threadId!))?.launch?.prompt?.match(/Its children[^\n]+/)?.[0],
 				collector, gates: receiptCount() };
 			writeFileSync(sentinel, "release\n"); assert(existsSync(sentinel)); report(joined.review, "root");
 			await final();

@@ -4,7 +4,8 @@ Nonvisual CLI/library first use (`visual: false`, `shots: []`). Implementation
 base: `fb3c65af9312bd64121c1a040d3edfd7bf03385b`. The children already implement
 the backend, runtime/ledger and instructions; this residual joins their runnable
 surfaces and exercises the committed instructions in a real sparse shell worker.
-No production logic or retained tests changed.
+Residual/handler prompts now call collector-landed children satisfied, not globally
+done. No scheduling/persistence logic or retained tests changed.
 
 ## Prepared setup and entry
 

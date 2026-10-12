@@ -375,7 +375,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const phasePrompt = () => {
 			const contract = ticketText(issue);
 			if (phase === "refine" || phase === "implement") return [contract,
-				c.self ? "Its children are all done and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
+				c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
 				siblings(slug, issues), phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 			if (phase === "drive") return [contract, "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 			return [contract, "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
@@ -507,7 +507,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 					"Report and context:\n\n" + ex.text,
 					parent ? "The node whose contract you hold:\n\n" + ticketText(parent) : "",
 					node && node !== parent ? ticketText(node) : "",
-					"State of its children:\n" + [...here.values()].filter(i => i.partOf === ex.level).map(i => "- " + i.slug + ": " + (finished(i) ? "done" : s.exceptions[i.slug] ? "exception: " + s.exceptions[i.slug].reason : s.chains[i.slug] ? s.chains[i.slug].phase : "waiting")).join("\n"),
+					"State of its children:\n" + [...here.values()].filter(i => i.partOf === ex.level).map(i => "- " + i.slug + ": " + (finished(i) ? (i.done ? "done" : "satisfied here (awaiting target)") : s.exceptions[i.slug] ? "exception: " + s.exceptions[i.slug].reason : s.chains[i.slug] ? s.chains[i.slug].phase : "waiting")).join("\n"),
 					s.resolved[ex.node]?.length ? "Earlier resolutions for " + ex.node + ":\n" + s.resolved[ex.node].map(l => "- " + l).join("\n") : "",
 				].filter(Boolean).join("\n\n");
 				try {
