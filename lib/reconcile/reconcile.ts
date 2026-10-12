@@ -417,8 +417,9 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	 * Recovery can finish that replacement before replaying the resolution file. */
 	function readResolution(file: string, node: string): Resolution {
 		const r = JSON.parse(readFileSync(file, "utf8")) as Resolution;
-		if (r.action === "retry" && !r.refinement && s.chains[node]?.phase === "refine") {
-			r.refinement = s.chains[node].refinement;
+		const target = r.target && s.chains[r.target] ? r.target : node;
+		if (r.action === "retry" && !r.refinement && s.chains[target]?.phase === "refine") {
+			r.refinement = s.chains[target].refinement;
 			const tmp = file + ".tmp";
 			writeFileSync(tmp, JSON.stringify(r)); renameSync(tmp, file);
 		}
