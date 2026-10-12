@@ -36,8 +36,6 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 		// Resolve aliases before matching lsof cwd paths.
 		if (entry) root = realpathSync(root);
 	}
-	// bb would restart a pi killed under it: release its runtime first, then sweep what's left.
-	if (thread.bb) await stopBb(thread.bb);
 	const inventory = await terminals();
 	const named = inventory.filter(t => t.thread === thread.id || t.name.startsWith(thread.id + "."));
 	if (named.some(t => t.thread && t.thread !== thread.id)) throw new Error("Thread terminal has conflicting ownership: " + thread.id);
@@ -64,6 +62,9 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 	}
 	for (const pid of protectedPids) selected.delete(pid);
 	for (const record of live) if (selected.has(record.pid)) markRetired(record);
+	// Marked first, so the parent's child monitor reads bb's exit as retirement. bb would restart a pi killed under it:
+	// release its runtime, then sweep what's left.
+	if (thread.bb) await stopBb(thread.bb);
 	const retiring = [...selected].filter(alive);
 	// Stop the restart loop before stopping canonical pi, including a promoted pi open elsewhere.
 	for (const terminal of named) await zmx(["kill", terminal.name, "--force"]);
