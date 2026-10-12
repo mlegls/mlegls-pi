@@ -18,9 +18,11 @@ You drive. You're the ticket's first user, like a non-technical tester: you know
    - frictions: every point where using it felt wrong, confusing or slow, even when the story held;
    - expectations: your predictions and the ones you formed while using it, each marked met or not, with what happened instead;
    - checks: for each thing you wondered about, the steps to replay it and the observable result you'd accept, precisely enough that someone else can replay it. You don't write tests.
-5. Don't repair the product. Recording a failure precisely is your job; fixing it belongs to the reviewer, who sees your log together with the diff.
+5. File unresolved friction immediately through the tracker outside the active execution subtree and link it from the packet/report. Don't repair the product. Recording a failure precisely is your job; fixing it belongs to the reviewer, who sees your log together with the diff.
 
 Stop each dev server you started before handing off, even when a story failed. Don't stop inherited/shared services or delete the deployment's data.
+
+Do not close the execution ticket; the reconciler closes with the result after code reaches its owner's target, not on this report or a collector landing.
 
 End `done` once you've driven what you can, even when stories failed; `blocked` only when you couldn't reach the surface at all. If the setup handoff's entry point didn't get you to the story's surface, say exactly what it got you instead: that's a setup failure, not yours. Handoff (fenced yaml):
 

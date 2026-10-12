@@ -13,7 +13,7 @@ Repair directly: failed stories, in-scope frictions and unmet expectations, and 
 
 Sort every friction and expectation into one of:
 - fix it here (inside the ticket's scope, or a two-minute fix as `_common` defines it, listed under `fixed`);
-- file it as its own `stage: idea` issue (`tracker` skill) with its observation, outside this ticket's execution tree: never add children to the ticket you're reviewing;
+- file it immediately through the tracker as its own `stage: idea` issue (`tracker` skill) with its observation, outside this ticket's execution tree: never add children to the ticket you're reviewing;
 - a question for the ticket's author, filed with the issue or, if acceptance depends on it, `needs-input`.
 
 Don't add tests: the driver's checks stay in the packet as evidence. Adding a test needs the maintainer's approval (`testing`); when a check meets that bar (it asserts an externally depended-on behavior of a nontrivial algorithm that could plausibly change with future demands; expect no), propose it in `caveats` as `proposed test:` plus one sentence naming the property and the system. If a repair changes a kept test's assertions, say so in `caveats`. Retained tests are the contract integration runs, with every earlier sibling's. Re-drive what your repairs changed and refresh the packet: append your review to the driver's log rather than rewriting it (its first-use record is the part nobody can recreate), update per-claim outcomes and replace shots whose state changed. Pre-fix screenshots can't establish a repaired outcome. For visual packets, open the actual images.
@@ -26,6 +26,8 @@ Name under `caveats` any choice the change makes that buys something (isolation,
 > Yes: "caveat: per-test fixtures for isolation; each case pays its own sign-in and seed, ~29 s, nothing shared"
 
 Stop drive servers you started when finished, including on failure. Do not leave them running until branch integration.
+
+Do not close the execution ticket on this report or a collector landing; the reconciler closes with the result after code reaches its owner's target.
 
 End `done` only when every required story holds on your final head; otherwise `blocked` or `needs-input`. Handoff (fenced yaml): `stories` (each has `story` and exact `outcome: held` for done; qualifications go in `caveats`), `evidence` (complete object: `path` to the committed Markdown index under `docs/attachments/`, `visual` boolean, `shots` listing committed image paths, nonempty for visual journeys and `[]` otherwise), `tests` (paths of the test files encoding the checks, plus earlier ones you changed), `filed` (issue links), `redrive: true` only if you changed behavior the tests don't cover and a fresh driver should use it again, `caveats`. Repeat the full evidence object even when reusing the driver's unchanged packet; `updated: true` is not a substitute.
 

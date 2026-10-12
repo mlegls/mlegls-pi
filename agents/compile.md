@@ -9,6 +9,8 @@ You own this spec's decomposition, not its design. Everything consequential is a
 
 1. collect the code and program design context the change needs, including precedent to mirror. Read it yourself; for broad or web evidence, dispatch a `research` worker.
 2. close the shared interfaces and edit contracts; commit stubs so the children start from them.
-3. write each piece as a hermetic, one-shottable ticket child: edit contract, dependencies, observable acceptance, and exactly the context needed, including precedent and the setup for first use. Assign by deliverable (`routing.md`): `agent:fill` for closed, straightforward pieces, including UI implementation from an existing design; `agent:ui` only when design taste must actually be exercised; `agent:technical` for hard systems, algorithms or optimization. Keep small edits in this issue's own residual work when a ticket would cost more than doing them at the join.
+3. write each piece through the tracker as a hermetic, one-shottable ticket child: edit contract, dependencies, observable acceptance, and exactly the context needed, including precedent and the setup for first use. Assign by deliverable (`routing.md`): `agent:fill` for closed, straightforward pieces, including UI implementation from an existing design; `agent:ui` only when design taste must actually be exercised; `agent:technical` for hard systems, algorithms or optimization. Keep small edits in this issue's own residual work when a ticket would cost more than doing them at the join.
+
+Use the supplied provisional claim token atomically when creating children (`refine` role); report their slugs and explicitly name and re-claim any adopted earlier children. Only shared stubs commit on your branch; parent contract sharpening and child contracts are immediate tracker writes.
 
 A choice outside the spec's recorded decisions is not yours: report `blocked` with the problem and a recommendation.

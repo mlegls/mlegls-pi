@@ -2,7 +2,7 @@
 
 The [lifecycle contract](lifecycle.md) defines stage, readiness, assignment and completion.
 
-work is markdown under `docs/issues/`, browsed as `~/obsidian/projects/<repo>`. no service; publishing is writing the file.
+Storage is Markdown under `docs/issues/` in the git common dir's main worktree, browsed as `~/obsidian/projects/<repo>`. The CLI resolves that single vault from linked or sparse worker worktrees; it never prefers a worker copy. Outside git, discovery walks upward for `docs/issues/` or `issues/` and omits git persistence.
 
 ```
 docs/issues/<slug>.md           live
@@ -30,7 +30,7 @@ Omit stage only when all residual work is delegated to children; null is invalid
 
 `check` also flags a spec or ticket whose effective stage is lower than its own (it names the child: refinement never lowers a node, so that child moves out of the tree), a `docs/frictions.md` beside a vault tracker, and a new uncommitted issue without `author`.
 
-`check` is read-only: it reports dangling links and available archive/heading repairs, exiting nonzero for findings. `check --fix <moved issue paths...>` takes paths to archived issue files, relative to the current working directory or absolute, and only repairs links, and drops `blocked-by` links, whose targets are those files; other repairs remain reported. Without paths, `check --fix` applies all link repairs and drops every `blocked-by` link to a done issue (guards and live blockers stay). Each repair prints as `fixed`; other diagnostics still require review. Same-project vault links resolve against the checkout being checked (same Git common directory and repository-relative docs path), not the canonical checkout behind the vault symlink. Other projects resolve through the vault. An absent local target never falls back to its canonical copy.
+`check` is read-only: it reports dangling links and available archive/heading repairs, exiting nonzero for findings. `check --fix <moved issue paths...>` takes paths to archived issue files, relative to the current working directory or absolute, and only repairs links, and drops `blocked-by` links, whose targets are those files; other repairs remain reported. Without paths, `check --fix` applies all link repairs and drops every `blocked-by` link to a done issue (guards and live blockers stay). Each repair prints as `fixed`; other diagnostics still require review. Same-project vault links resolve against the canonical vault in the git common dir's main worktree. Other projects resolve through the vault.
 
 The CLI uses the skill-owned lock: `bun install --frozen-lockfile --cwd $PI_SKILL_DIR/scripts`; regressions: `bun test --cwd $PI_SKILL_DIR/scripts`.
 
@@ -74,13 +74,37 @@ the reader is me later, or an agent who has to be me. state the current state; g
 > No: "Acknowledge only persisted submissions; show a submission failure visibly. Reject empty symptoms. Reporting is signed-in only, not an anonymous sign-in-failure endpoint. No automatic conversation/page/screenshot capture. No report list, triage controls, `processed` editor, or GitHub integration. […] Run relevant Application tests, `bun test`, `bun run check` and the Application build. Record any unavailable external-service checks honestly."
 > Yes: "a report button in the app shell, signed-in, symptom + optional detail, route and Profile attached. capture only; triage is [[…/capture-learner-and-tutor-friction-reports…]]."
 
+## Global operations
+
+Read contracts and metadata through the backend:
+
+```text
+bun "$PI_SKILL_DIR/scripts/issues.ts" text <slug>
+bun "$PI_SKILL_DIR/scripts/issues.ts" fields <slug> [--json]
+bun "$PI_SKILL_DIR/scripts/issues.ts" create <slug> --fields '<json>' --body-file <path|->
+bun "$PI_SKILL_DIR/scripts/issues.ts" update <slug> [--fields '<json>'] [--body-file <path|->]
+bun "$PI_SKILL_DIR/scripts/issues.ts" close <slug> [--summary <text>] [--evidence <repo-relative-path>]
+bun "$PI_SKILL_DIR/scripts/issues.ts" remove <slug>
+```
+
+Fields use logical slugs for `part-of` and issue entries in `blocked-by`; guards stay opaque strings. The backend serializes vault links. Null in an update removes a key. Body input excludes YAML frontmatter and, when supplied (even empty), replaces the whole body; body-only update is allowed. Body paths resolve from the caller's cwd; `-` reads stdin. `text` returns the full contract; `fields` prints JSON with or without `--json`; `create` prints the resulting slug. Mutations succeed with exit 0, otherwise a diagnostic and nonzero exit.
+
+Copyable create/update for an existing `example-parent` (`PI_SKILL_DIR` names this tracker skill; `PI_SESSION_ID` is your session; the supplied `CLAIM_TOKEN` is `reconcile:<root>/<refine-handle>` during refinement):
+
+```sh
+printf '%s\n' 'Implement the recorded child contract.' | bun "$PI_SKILL_DIR/scripts/issues.ts" create example-child --fields "{\"stage\":\"ticket\",\"assignee\":\"agent:fill\",\"author\":\"session:$PI_SESSION_ID\",\"part-of\":\"example-parent\",\"claimed-by\":\"$CLAIM_TOKEN\"}" --body-file -
+printf '%s\n' 'The sharpened parent contract, including its acceptance.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ticket","priority":null}' --body-file -
+```
+
+Writes validate the resulting global tracker before publication and commit only touched canonical issue paths for persistence, never unrelated staged files. This is not permission to commit unrelated canonical files. `remove` is reserved for owned provisional children, not general triage. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.
+
 ## procedure
 
-claim: `claimed-by` before anything else; sessions share the directory, so read before editing.
+claim: write `claimed-by` through the tracker before anything else; read the current global contract before updating it.
 
-a ticket is a `wt` worktree on a branch named for its slug; `wt merge` when its stories drive. commit implementation changes in the ticket’s worktree as you go. commit the claim in the canonical checkout before branching. shared tracker changes—parent decisions, dependencies, new tickets—belong in the canonical checkout; workers report these to the coordinator. a defect whose fix is evident and smaller than its issue would be is fixed in place (two-minute rule, [lifecycle](lifecycle.md)). any other new friction or bug idea is not shared state: whoever meets it files it at once, on their branch when the tracker is git-tracked (it merges as a new file), otherwise straight into the tracker's directory. a report or ticket body mentions it by link, never in its place. the ticket’s completion and archival ride its implementation branch.
+A ticket's code, shared interface stubs, already-authorized tests and `docs/attachments/` evidence commit on its worker branch. Workers do not integrate or push the canonical checkout. Parent decisions, dependencies, child contracts and new friction go through the tracker immediately, not through the coordinator or a branch issue commit. A defect whose fix is evident and smaller than its issue would be is fixed in place (two-minute rule, [lifecycle](lifecycle.md)); other friction is filed outside the active execution subtree and linked from the report.
 
-resolve: record the answer or land the code and satisfy its recorded acceptance (including story verification), write the result, `stage: done`, drop the claim and remove resolved dependent blockers. Leave the result live for review/digestion; move to `archive/` once it has fulfilled its enclosing purpose. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
+resolve: record the answer or satisfy recorded acceptance (including story verification) and actually land the code in its owner's target, then close with the result. Under a reconciler, workers supply their handoffs and leave closing to it after target landing. Collector-landed code remains pending in the landing ledger, visible as derived inflight, not globally done. Closing drops the claim and removes resolved dependent blockers. Leave the result live for review/digestion; move to `archive/` once it has fulfilled its enclosing purpose. a parent whose children are all done goes with them when its destination is met. commit message names the issue.
 
 friction: `stage: idea`, immutable `author: session:<origin>`, the observation raw with its originating story and evidence. Priority follows observed impact; unknown impact stays unknown. Triage before execution.
 

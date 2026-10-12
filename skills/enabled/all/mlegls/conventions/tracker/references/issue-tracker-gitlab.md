@@ -4,7 +4,7 @@ the [vault](issue-tracker-vault.md) model over GitLab issues with `glab`.
 
 `next` is a label `next:<kind>`. `part-of` is `Part of #n` atop the description and a link in the parent. `blocked-by` is `/blocked_by #n` as a note (Premium+), else `Blocked by: #n` atop the description. claim by assignee. priority is a label `p1|p2|p3` on roots.
 
-read `glab issue view <n> --comments`; list `glab issue list -F json`; create `glab issue create`; resolve by `glab issue note --message` then `glab issue close` (close takes no message), and update the parent's decision line. comments are notes, on MRs too; labels are `--label`/`--unlabel`.
+read `glab issue view <n> --comments`; list `glab issue list -F json`; create `glab issue create`; record decisions and friction immediately through this backend; resolve by `glab issue note --message` then `glab issue close` (close takes no message) after recorded acceptance and actual target landing, and update the parent's decision line. Under a reconciler, workers hand off and it closes after owner's target landing, not collector landing. Code/evidence stay on worker branches. Use this backend's publishing commands, not the vault CLI verbs. comments are notes, on MRs too; labels are `--label`/`--unlabel`.
 
 frontier and mine are the same filters over labels and open blockers (`glab api projects/:id/issues/:iid/links`, plus body relations).
 
