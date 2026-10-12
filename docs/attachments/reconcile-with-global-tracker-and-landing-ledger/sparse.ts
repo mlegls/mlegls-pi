@@ -33,8 +33,9 @@ export async function sparse() {
 		writeFileSync(join(bin, "pi"), "#!/bin/sh\ntouch shell-started\nexec sleep 600\n", { mode: 0o755 });
 		for (const [name, role] of [["shell", "implement"], ["shell-refine", "refine"], ["shell-drive", "drive"], ["shell-handler", "handle"], ["tidy", "review"]]) {
 			writeFileSync(join(agents, name + ".md"), "---\nrole: " + role + "\n---\nNo-model shell fixture.\n");
-			writeFileSync(join(agents, "roles", role + ".md"), "No-model shell fixture.\n");
+			writeFileSync(join(agents, "roles", role + ".md"), readFileSync(join(packagePath, "agents/roles", role + ".md"), "utf8"));
 		}
+		writeFileSync(join(agents, "_common.md"), readFileSync(join(packagePath, "agents/_common.md"), "utf8"));
 		// agents.ts caches its roster at import: isolate before loading the runtime.
 		const { start, stop } = await import("../../../lib/reconcile/main.ts");
 		const { load } = await import("../../../lib/reconcile/reconcile.ts");
@@ -79,6 +80,34 @@ export async function sparse() {
 		console.log(JSON.stringify({ story: "sparse", worker: first.handle, workerPath: first.path, collector: collector.path,
 			issuesAbsent: true, attachmentsPresent: true, canonicalCliRead: true, setupReady: true }));
 
+		// Join the shipped instructions to the actual sparse worker and global CLI.
+		const firstPrompt = (await getThread(first.threadId!))!.launch!.prompt!;
+		assert(firstPrompt.includes("Do not close this execution ticket on your report or a collector landing"));
+		assert(firstPrompt.includes("File through the tracker immediately, outside the active execution subtree"));
+		const skill = join(packagePath, "skills/enabled/all/mlegls/conventions/tracker");
+		const reference = readFileSync(join(skill, "references/issue-tracker-vault.md"), "utf8");
+		const example = reference.match(/```sh\n([\s\S]*?)```/)?.[1];
+		assert(example, "copyable tracker example is present");
+		const docsTracker = getTracker(first.path, { inflight: false });
+		docsTracker.create({ slug: "example-parent", fields: { stage: "spec", assignee: "human", author: "session:doc-fixture", priority: 2 }, body: "Example parent.\n" });
+		const exampleHead = git(first.path, "rev-parse", "HEAD"), claim = "reconcile:example-parent/doc-refine";
+		execFileSync("sh", ["-c", example], { cwd: first.path, encoding: "utf8", env: { ...process.env,
+			PI_SKILL_DIR: skill, PI_SESSION_ID: "doc-fixture", CLAIM_TOKEN: claim } });
+		const exampleChild = docsTracker.fields("example-child"), exampleParent = docsTracker.fields("example-parent");
+		assert.equal(exampleChild["part-of"], "example-parent");
+		assert.equal(exampleChild["claimed-by"], claim);
+		assert.equal(exampleParent.stage, "ticket");
+		assert(!("priority" in exampleParent));
+		assert(docsTracker.text("example-parent").includes("The sharpened parent contract, including its acceptance."));
+		docsTracker.create({ slug: "instruction-friction", fields: { stage: "idea", assignee: "agent", author: "session:doc-fixture" }, body: "Seeded instruction rehearsal observation; outside the active execution tree.\n" });
+		assert(!docsTracker.fields("instruction-friction")["part-of"]);
+		assert.equal(git(first.path, "rev-parse", "HEAD"), exampleHead);
+		assert(!existsSync(join(first.path, "docs/issues")));
+		assert.equal(git(first.path, "status", "--porcelain"), "");
+		console.log(JSON.stringify({ story: "shipped-instructions", ownedTarget: cwd, worker: first.path,
+			commonAndImplementRoleLoaded: true, exampleExecutedFromReference: true, exampleChild,
+			exampleParent, frictionFiledOutsideTree: true, unchangedWorkerHead: exampleHead, noWorkerTrackerFilesOrChanges: true }));
+
 		commit(first.path, "child-code.txt", "predecessor code\n");
 		const fixedHead = git(first.path, "rev-parse", "HEAD"), tracker = getTracker(first.path, { inflight: false });
 		tracker.update("child", {}, "Global ruling one: offline only.\n");
@@ -89,9 +118,17 @@ export async function sparse() {
 			return h && existsSync(join(h.path, "shell-started")) && (await getThread(h.threadId!))?.launch?.prompt?.includes("Global ruling one") && h;
 		});
 		assert(!existsSync(join(handler.path, "docs/issues")));
+		assert((await getThread(handler.threadId!))!.launch!.prompt!.includes("goes into the affected issue's body through the tracker immediately"));
 		commit(handler.path, "docs/attachments/handler.md", "# Handler code evidence artifact\n");
 		const handlerHead = git(handler.path, "rev-parse", "HEAD");
-		tracker.update("child", { drive: "none" }, "Global ruling two: drive after landing, no model.\n");
+		const handlerTracker = getTracker(handler.path, { inflight: false });
+		handlerTracker.update("child", { drive: "none" }, "Global ruling two: drive after landing, no model.\n");
+		handlerTracker.update("example-child", { "part-of": null, "claimed-by": null, stage: "goal", assignee: "human" }, "Fixture move-out: a human decision is needed.\n");
+		handlerTracker.update("example-parent", { "blocked-by": ["example-child"] });
+		const moved = getTracker(cwd, { inflight: false }).fields("example-child");
+		assert.equal(moved.stage, "goal"); assert.equal(moved.assignee, "human"); assert(!("part-of" in moved));
+		console.log(JSON.stringify({ story: "handler-global-writes", worker: handler.path, rulingVisibleFromOwner: tracker.text("child").includes("Global ruling two"),
+			moved, parentBlockers: handlerTracker.fields("example-parent")["blocked-by"], codeArtifactLocal: !existsSync(join(cwd, "docs/attachments/handler.md")) }));
 		assert.equal(git(first.path, "rev-parse", "HEAD"), fixedHead);
 		report(handler, "done", { resolution: { action: "answer", message: "Continue; ruling is global." } });
 		await until(() => !load(cwd, "root")?.exceptions.child);
