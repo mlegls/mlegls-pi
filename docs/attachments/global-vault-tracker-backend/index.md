@@ -15,6 +15,10 @@ The runnable entry is [rehearse.ts](rehearse.ts). It creates a short-lived `vaul
 
 Cleanup runs in `finally`: remove only the fixture worktrees through their owning main repo, then remove that one temp directory. There are no resident processes. If the script is forcibly interrupted before `finally`, remove the printed fixture directory; do not touch other worktrees or kill processes by pattern.
 
+## Independent drive
+
+See [independent CLI encounter](drive.md) for predictions recorded before first use, observed replay on `46c9d650`, frictions and replayable checks. The independent rehearsal exited 0 and cleaned its owned fixture.
+
 ## Encounter
 
 Tested backend revision: `6d0bfdb2` (on implementation base `294a02bf`); the final packet revision adds concurrent-write and persistence-failure observations without changing the backend. The corrected rehearsal completed successfully. The first fixture attempt accidentally made a child both part of and blocked by its parent: the existing completion-cycle validator correctly refused it. The seed was corrected to add that blocker only after detaching the parent relation.
