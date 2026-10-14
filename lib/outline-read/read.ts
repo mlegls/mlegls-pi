@@ -21,7 +21,21 @@ const parameters = Type.Object({
 	limit: Type.Optional(Type.Number({ description: "Alternative to a selector (single path): number of lines from offset." })),
 });
 
+const imageOutputSchema = Type.Object({
+	type: Type.Literal("image"), data: Type.String(), mimeType: Type.String(), note: Type.String(),
+});
+const fileOutputSchema = Type.Union([Type.String(), imageOutputSchema]);
+const outputSchema = Type.Union([Type.String(), imageOutputSchema, Type.Array(fileOutputSchema)]);
+
 type ToolResult = AgentToolResult<unknown>;
+
+/** Older pi versions do not yet populate structuredContent on builtin reads. */
+function readOutput(result: ToolResult) {
+	if (result.structuredContent !== undefined) return result.structuredContent;
+	const text = result.content.filter((c) => c.type === "text").map((c) => c.text).join("\n\n");
+	const image = result.content.find((c) => c.type === "image");
+	return image ? { type: "image", data: image.data, mimeType: image.mimeType, note: text } : text;
+}
 
 export interface ReadDeps {
 	ledger: Ledger;
@@ -72,13 +86,15 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 		description:
 			"Read one or more files in one call (paths whitespace-separated). Files over a size threshold come back as an outline: definitions and headings are shown with their line numbers, bodies are replaced by `⋯ start-end` markers. " +
 			"Re-read only the ranges you need by appending a selector to the path (`file:50-200`, `file:5-16,40-80`), or `file:all` for the whole file. " +
-			"Small files are returned in full." + (deps.plain ? "" : " Every line is prefixed with its anchor as `abcd│`; anchors are what the edit tool takes."),
+			"Small files are returned in full. Programmatic callers receive text, or for a single image an image block {type: \"image\", data, mimeType, note} accepted by image(). " +
+			"Multi-file reads containing images return an array of per-file text strings/image blocks in path order; text-only reads return one merged string." + (deps.plain ? "" : " Every line is prefixed with its anchor as `abcd│`; anchors are what the edit tool takes."),
 		promptSnippet: "Read files (several per call); large files return an outline with line ranges to read on demand",
 		promptGuidelines: [
 			"Use read to examine files instead of cat or sed; name every file you want in one call.",
 			"When read returns an outline, read only the ranges you need with `path:start-end` (several: `path:5-16,40-80`); do not guess at elided content and do not use `path:all` unless you need the whole file.",
 		],
 		parameters,
+		outputSchema,
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			const config = loadConfig(ctx.cwd);
 			const specs = words(params.path);
@@ -97,7 +113,11 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 				if (c.type === "text" && last?.type === "text") last.text += `\n\n${c.text}`;
 				else merged.push({ ...c });
 			}
-			return { content: merged, details: results.length === 1 ? results[0].details : undefined };
+			const outputs = results.map(readOutput);
+			const structuredContent = outputs.every((output) => typeof output === "string")
+				? outputs.join("\n\n")
+				: outputs.length === 1 ? outputs[0] : outputs;
+			return { content: merged, structuredContent, details: results.length === 1 ? results[0].details : undefined };
 
 			async function readOne(spec: string, p: { offset?: number; limit?: number }): Promise<ToolResult> {
 				const { path, selector: pathSelector } = splitSelector(spec);
