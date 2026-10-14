@@ -47,3 +47,7 @@ Here `\t` represents one literal tab. From the temporary vault, ran `bun <driver
 ## Frictions and limits
 
 No user-facing friction observed. Nonvisual CLI journey; no screenshots. No servers started; no external resources retained. Implementation, tests and supplied runner source were not read.
+
+## Review (after 30cf342c)
+
+Read the `maskMarkdownCode` diff with the packet. `bun test issues.test.ts` in the tracker scripts passes (24 tests, including the indented-code, list-continuation and CRLF case). No repairs. Remaining limit: indented code directly after an ATX heading or a closing fence, with no blank line, is not masked. CommonMark allows it, but here it is checked as prose, which errs towards reporting links.
