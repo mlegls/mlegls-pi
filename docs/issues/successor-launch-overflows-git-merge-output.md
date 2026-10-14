@@ -1,9 +1,10 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 priority: 2
 author: "session:6df456dd-f50e-4712-b604-7a873689d1d7"
 ---
+Done: automatic successor refresh merges with `--no-stat` (in `lib/reconcile/refresh.ts`), and `lib/reconcile/checks.ts`'s `git` helper sets a generous `maxBuffer` (e.g. 64 MiB) so no reconciler git call fails with ENOBUFS on a large repository; a test exercises a merge whose diffstat would exceed 1 MiB, or at least asserts the arguments. Also check `newThread`'s cleanup when worktree creation throws before `owned = true` and fix it if it leaks.
 
 Common Concept's `serve-the-tutor-to-agent-harnesses-over-mcp` reconciler failed launching the `show-harness-session-clients-and-accepted-calls` driver: `spawnSync git ENOBUFS (stdout or stderr buffer reached maxBuffer size limit)`. The implementer's branch and evidence were intact; the failed driver never ran.
 
