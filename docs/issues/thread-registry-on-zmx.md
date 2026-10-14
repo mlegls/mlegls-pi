@@ -1,5 +1,5 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 part-of: "[[projects/mlegls-pi/issues/threads-on-zmx-with-a-native-sidebar]]"
@@ -39,3 +39,7 @@ ab thread archive|abandon|merge <id>          # post-order walk
 zmx sessions `<id>.<role>`, labelled `thread=<id> role=<role>`. Merge parent `branch.<b>.ab-parent`.
 
 Story: [[projects/mlegls-pi/stories/work-in-threads]].
+
+## Result
+
+Superseded 2026-10-14: bb is the GUI for threads and workers, so the native Threads/Ghostty sidebar, the zmx-hosted thread GUI and tmux hosting are no longer pursued. All children landed; workers now run on bb (bb-reconciler-workers-lose-work-and-stall).
