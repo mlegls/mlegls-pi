@@ -1,5 +1,7 @@
 # GitHub PR transport — first use
 
+Independent verifier: [drive log, predictions and live PR #2 evidence](drive.md), tested `75b267a96b8965eec4763ba93117943c6a6bc710`.
+
 Final tested implementation: `1c0c859d3ba3203161a9ce98794a558fb0dde230` (base `945972002389360132946febab22f83208c2e9ab`), 2026-10-14. Creation/recovery ran at `1e80390df393509b9c46f79c03ba9313763cd9b2`; after preserving independent check suites, typecheck, seeded check fixtures and the read-only live entry point were re-driven on the final source. Nonvisual library/API journey; no screenshots. The shared `PullRequestHost` contract is unchanged. No retained tests were added.
 
 ## Required environment and prepared target
