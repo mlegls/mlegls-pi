@@ -365,8 +365,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function pick(role: string, issue: Issue | undefined, text: string, only?: string[]): Promise<string> {
 		const pin = role === "implement" ? pinned(issue?.assignee) : undefined;
 		if (pin) return pin;
-		let names = byRole(role).map(a => a.name);
-		if (only) names = names.filter(n => only.includes(n));
+		const names = only ? only.filter(name => stance(name)) : byRole(role).map(a => a.name);
 		if (!names.length) throw new Error("no agent fills role " + role);
 		if (names.length === 1) return names[0];
 		try {

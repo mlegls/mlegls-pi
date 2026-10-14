@@ -185,11 +185,13 @@ function syncOwner(context: CompletionContext): void {
 	let ownerSync: "updated" | "left" = "left";
 	try {
 		const cwd = context.state.cwd;
-		const base = git(pr.path, "rev-parse", "refs/remotes/" + pr.remote + "/" + pr.baseBranch);
-		if (git(cwd, "branch", "--show-current") === pr.baseBranch && !git(cwd, "status", "--porcelain") &&
-			isAncestor(cwd, "HEAD", base)) {
-			git(cwd, "merge", "--ff-only", base);
-			ownerSync = "updated";
+		if (git(cwd, "branch", "--show-current") === pr.baseBranch && !git(cwd, "status", "--porcelain")) {
+			git(pr.path, "fetch", pr.remote, "+refs/heads/" + pr.baseBranch + ":refs/remotes/" + pr.remote + "/" + pr.baseBranch);
+			const base = git(pr.path, "rev-parse", "refs/remotes/" + pr.remote + "/" + pr.baseBranch);
+			if (isAncestor(cwd, "HEAD", base)) {
+				git(cwd, "merge", "--ff-only", base);
+				ownerSync = "updated";
+			}
 		}
 	} catch { /* Missing/unusable owner and refused ff leave it untouched. */ }
 	persist(context, { pr: { ...pr, ownerSync } });

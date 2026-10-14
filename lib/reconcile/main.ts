@@ -1,7 +1,7 @@
 // Reconciler processes, one per dispatched subtree, detached from any session; state and log live under
 // <git-common-dir>/reconcile/.
-//   bun lib/reconcile/main.ts start <issue> --owner mail/xxxxxxxx [--budget N] [--cwd DIR]   detached
-//   bun lib/reconcile/main.ts run <issue> --owner mail/xxxxxxxx [--budget N]                 foreground
+//   bun lib/reconcile/main.ts start <issue> --owner mail/xxxxxxxx [--budget N] [--land MODE] [--cwd DIR]   detached
+//   bun lib/reconcile/main.ts run <issue> --owner mail/xxxxxxxx [--budget N] [--land MODE]   foreground
 //   bun lib/reconcile/main.ts status [--cwd DIR]
 //   bun lib/reconcile/main.ts stop <issue> [--cwd DIR]
 //   bun lib/reconcile/main.ts resolve <issue> <node> <json> [--cwd DIR]
@@ -127,12 +127,12 @@ export function constrain(cwd: string, root: string, node: string, text: string)
 	const s = updateState(cwd, root, prior => {
 		if (!prior || prior.finished || prior.stopping) throw new Error("no active reconciler for " + root);
 		assertThreadState(prior);
-		if (!prior.chains[node] && !prior.exceptions[node] && !prior.collectors[node]) throw new Error(node + " is not an active node in " + root);
+		if (!prior.chains[node] && !prior.exceptions[node] && !prior.collectors[node] && !(prior.pr && node === root)) throw new Error(node + " is not an active node in " + root);
 		(prior.constraints ??= {})[node] ??= [];
 		prior.constraints[node].push(text);
 		return prior;
 	});
-	const worker = s.chains[node]?.handle;
+	const worker = s.chains[node]?.handle ?? (node === root ? s.pr?.repair?.worker : undefined);
 	if (worker) mail(topic(worker), "Constraint from the supervisor (applies throughout this node's work):\n\n" + text, { name: "reconcile/" + root });
 	return { recorded: true, mailed: !!worker };
 }

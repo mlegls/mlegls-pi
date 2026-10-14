@@ -17,7 +17,7 @@ export function landingMode(value: unknown): LandingMode {
 export function resolveLanding(cwd: string, explicit?: LandingMode, prior?: GlobalRunState): LandingMode {
 	if (explicit !== undefined) landingMode(explicit);
 	if (prior) {
-		const captured = prior.land ?? "local";
+		const captured = landingMode(prior.land ?? "local");
 		if (explicit !== undefined && explicit !== captured)
 			throw new Error("Run already captured --land " + captured + "; cannot resume with " + explicit);
 		return captured;
@@ -56,6 +56,7 @@ export function prepareStaging(state: GlobalRunState, host: PullRequestHost, sav
 			git(pr.path, "branch", "--show-current") !== pr.branch)
 			throw new Error("PR staging identity mismatch: " + pr.path);
 	} else {
+		if (pr.phase !== "preparing") throw new Error("Recorded PR staging checkout is missing: " + pr.path);
 		// Never guess/adopt a similarly named branch or another checkout.
 		if (!pr.baseHead) {
 			git(state.cwd, "fetch", pr.remote, "+refs/heads/" + pr.baseBranch + ":refs/remotes/" + pr.remote + "/" + pr.baseBranch);

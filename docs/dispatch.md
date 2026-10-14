@@ -48,6 +48,39 @@ After the worker is settled and completion is accepted, `tools.integrate({worker
 
 `keep: true` stops after Git integration. Otherwise cleanup happens **after** integration: the worker's thread session and worktree are removed. Processes still running from inside the worktree (a dev server, a watcher) are sent SIGTERM (`killed`); the thread's teardown doesn't reach them. Then the worker's branch is deleted when all its patches are in HEAD (`git cherry`, since rebasing rewrites commits; `branchDeleted`); if it is unmerged or still checked out, it is kept and the reason is in `branchKept`. `tools.retire({worker})` does the same cleanup without integrating, e.g. for dropped work, whose unmerged branch survives. Both take the receipt's handle or just its name, found under `<checkout>__worktrees/`. Cleanup is sequential, not transactional: if it fails after the merge, the merge remains. Inspect the worktree before repeating cleanup. Nothing is removed on merge failure.
 
+## Reconciler landings
+
+Reconcile/start captures an optional `land` (`local`, `pr-merge`, `pr-review`),
+otherwise the owner's committed `.pi/reconcile.json`, otherwise local. CLI:
+`bun lib/reconcile/main.ts start <issue> --owner mail/x --land pr-review`.
+A resume keeps its saved mode; an explicit conflicting override refuses. Old
+states without a mode remain local despite configuration changes.
+
+Local targets the owner checkout. PR modes fetch the captured default base and
+own a deterministic staging branch/worktree under the repository's worktree
+area. Root and repair workers' ab-parent is staging; collector destinations
+remain issue slugs. Integration still runs the existing gates, retained tests,
+packet validation and write-ahead recovery. Collector/staging results stay
+globally open, with their original reviewed handoffs retained after retirement.
+
+Status includes `land`, `pr` (phase, URL, branch/path, repair receipt) and
+`target`; inflight distinguishes staging from owner landing. Ordinary workers
+retire while the PR waits. Root PR exceptions resolve on that receipt, not by
+redispatching completed children. Stop retires owned workers but retains
+staging/published history and receipts, without closing a PR or issues.
+
+Only MERGED plus fetched base ancestry transfers the ledger to
+`github:<owner/name>:<base branch>` and closes child-first. Owner sync is
+best-effort afterward: fast-forward only when clean and on the base branch.
+Dirty, divergent, other-branch or unavailable owners are left untouched; the
+saved ownerSync outcome prevents repeating it. PR modes ignore local mainRed.
+
+**Intermediate revision:** publication/polling remains dormant behind
+`pullRequestLifecycleReady` until `advancePullRequest` is filled. PR runs can
+reach opening/staging, but do not publish or finish there. The supplied-host
+library seam is for seeded scratch observations, not live GitHub evidence.
+See [staging first use](attachments/stage-reconciled-root-for-pr-landing/index.md).
+
 ## Stance models
 
 `stance/<agent>` is a pi virtual model (`extensions/stances`) for each agent file with a `model:` list. Each new user turn goes to the first entry whose provider has credentials and delegated capacity left; continuations stay on it so prompt caches hold, and a retry after a rate-limit or overload error moves down the list. Model choice lives in each agent's `model:` list; the reasoning behind those lines is in `docs/models.md`, and the stances themselves are described in `routing.md`.
