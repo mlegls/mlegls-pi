@@ -1,14 +1,6 @@
-import { basename } from "node:path";
 import type { ThreadRecord, AgentLaunch } from "./types";
 
 const inheritedIdentity = /^(?:AB_THREAD_ID|PI_SESSION_(?:ID|FILE)|PI_BOARD_(?:TOPIC|NAME|FOLLOW)|PI_WM_.*|PI_CHECKPOINT|TMUX(?:_PANE)?)$/;
-
-/** A direct literal pi command is an override of pi's arguments, not a shell fixture. */
-export function isPiLaunch(launch?: AgentLaunch): boolean {
-	if (launch?.cmd === undefined) return true;
-	const word = /^\s*(?:'([^']+)'|"([^"$`]+)"|([^\s'"\\;&|<>]+))(?=\s|$)/.exec(launch.cmd);
-	return !!word && basename(word[1] ?? word[2] ?? word[3]!) === "pi";
-}
 
 export function launchEnv(thread: ThreadRecord): NodeJS.ProcessEnv {
 	const env = { ...process.env };
@@ -23,15 +15,13 @@ export function launchEnv(thread: ThreadRecord): NodeJS.ProcessEnv {
 	}
 	delete env.PI_SESSION_ID;
 	delete env.PI_SESSION_FILE;
-	delete env.ZMX_SESSION_PREFIX;
 	return env;
 }
 
-/** The runner supplies session identity; options that allocate/resume elsewhere cannot override it. */
+/** The thread supplies session identity; options that allocate/resume elsewhere cannot override it. */
 export function validateLaunch(launch?: AgentLaunch): void {
-	if (launch?.cmd !== undefined && !launch.cmd.trim()) throw new Error("command must not be empty");
-	if (!isPiLaunch(launch)) return;
+	if ((launch as { cmd?: unknown } | undefined)?.cmd !== undefined) throw new Error("Threads run pi in bb; a launch command is not supported");
 	const identity = /(?:^|\s)(?:--fork|--session|--session-id|--no-session|--continue|--resume|-c|-r)(?:\s|=|$)/;
-	if (identity.test(launch?.cmd ?? "") || launch?.args?.some(a => identity.test(a)))
+	if (launch?.args?.some(a => identity.test(a)))
 		throw new Error("Thread launches supply --session; remove conflicting session arguments");
 }

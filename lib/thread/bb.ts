@@ -1,5 +1,5 @@
 // bb (get-bb/bb) as a thread runtime: bb runs pi (its Pi provider) and shows the thread in its desktop, web and mobile
-// apps, in place of a zmx terminal running agent-runner. The registry, worktree, setup and integration stay ours.
+// apps, as the only thread runtime. The registry, worktree, setup and integration stay ours.
 // bb gives every thread the same environment, so a worker's identity reaches pi through .wm/launch.env in its
 // worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -10,20 +10,18 @@ import { threadDir } from "./registry";
 import { launchEnv } from "./launch";
 import type { ThreadRecord } from "./types";
 
-export type Runtime = "zmx" | "bb";
-/** A session running inside bb spawns into bb; PI_THREAD_RUNTIME overrides either way. */
-export function defaultRuntime(env = process.env): Runtime {
-	const forced = env.PI_THREAD_RUNTIME;
-	if (forced === "bb" || forced === "zmx") return forced;
-	return env.BB_THREAD_ID ? "bb" : "zmx";
-}
-
 const cli = () => process.env.BB_CLI || "bb";
 async function bb<T = unknown>(args: string[], cwd?: string): Promise<T> {
 	const out = await command(cli(), [...args, "--json"], cwd);
 	const value = JSON.parse(out);
 	if (value && typeof value === "object" && value.ok === false) throw new Error("bb " + args.join(" ") + ": " + (value.error?.message ?? out));
 	return value as T;
+}
+
+/** Fail before any worktree exists when no bb daemon answers: the CLI reaches it from a bb thread or a plain terminal alike. */
+export async function assertBb(): Promise<void> {
+	try { await bb(["project", "list"]); }
+	catch (error) { throw new Error("bb is not running: start the bb app (threads and workers run as bb threads). " + String(error).split("\n")[0]); }
 }
 
 interface BbProject { id: string; sources: { path: string }[] }
@@ -45,7 +43,7 @@ export async function bbThreads(): Promise<Map<string, BbThread>> {
 	return new Map((await bb<BbThread[]>(["thread", "list", "--include-hidden"])).map(t => [t.id, t]));
 }
 
-// A zmx thread inherits its spawner's whole env; a bb thread gets its identity and, when the spawner set them, the
+// A bb thread gets its identity and, when the spawner set them, the
 // state locations that isolate a fixture (registry, board, agent and roster dirs).
 const IDENTITY = /^(?:AB_THREAD_ID|PI_BOARD_(?:TOPIC|NAME|FOLLOW|DIR)|PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME)$/;
 /** The worker's identity env, for bin/bb-pi to source. */
@@ -65,7 +63,6 @@ function modelOf(thread: ThreadRecord): { model?: string; effort?: string } {
 
 /** Start the thread's pi in bb under parent (a bb thread id), submitting its launch prompt. */
 export async function spawnBb(thread: ThreadRecord, parent: string | undefined, o: { model?: string; effort?: string; prompt?: string } = {}): Promise<string> {
-	if (thread.launch?.cmd !== undefined) throw new Error("bb runtime runs pi only; a command override needs the zmx runtime");
 	// A worker owns its worktree; an interactive thread may share its checkout with other sessions, so it carries no
 	// identity file (its registry record is found by session id).
 	if (thread.worker) writeLaunchEnv(thread);

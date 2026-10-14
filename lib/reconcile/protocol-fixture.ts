@@ -12,11 +12,11 @@ export function protocolFixture() {
 	const root = realpathSync(mkdtempSync("/tmp/rc-protocol-")), cwd = join(root, "repo");
 	const saved = { ...process.env };
 	for (const key of Object.keys(process.env))
-		if (/^(?:PI_.*|BB_.*|AB_.*|ZMX_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
+		if (/^(?:PI_.*|BB_.*|AB_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
 	Object.assign(process.env, {
 		XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
 		PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"),
-		PI_AGENTS_DIR: join(root, "agents"), ZMX_DIR: join(root, "zmx"), PI_THREAD_RUNTIME: "zmx",
+		PI_AGENTS_DIR: join(root, "agents"),
 		MISE_TRUSTED_CONFIG_PATHS: root, TRACKER_CLI: realpathSync(join(import.meta.dir,
 			"../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts")),
 	});
