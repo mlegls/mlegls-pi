@@ -106,3 +106,12 @@ belong to the later rehearsal. This ticket implements the dormant review repair
 executor (required per-thread replies, marker receipts, processed/repaired IDs),
 but deliberately does not fill or pretend to exercise submitted-review selection.
 The packet is nonvisual library/CLI evidence; no screenshots are applicable.
+
+## Review
+
+Reviewed `009ca3d2..41991ddc` against the ticket; the driver's first-use record is unchanged. Two repairs:
+
+- The review selector's dormancy was an undeclared property read through a type cast (`prReviewLifecycleReady`), invisible to the sibling ticket that fills `nextReviewAction`. It is now an exported `false` flag beside the stub in `pr-reviews.ts`, mirroring `pullRequestLifecycleReady`.
+- `integrationFailures` accumulated across the PR's life, so a second repair (budget 3 integration attempts) inherited the first's failures and an owner `retry` of an integration-exhausted exception re-held at once. It now resets when a repair starts and on a PR-repair resolution.
+
+Re-drove on the repaired head: both probe modes exit 0; `bun test lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts` 37 pass / 0 fail (839 assertions, 163 s); `bunx tsc --noEmit` clean. No tests added or changed.

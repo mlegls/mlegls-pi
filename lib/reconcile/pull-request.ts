@@ -106,7 +106,7 @@ function mergeHistory(cwd: string, target: string): void {
 async function beginRepair(c: PullRequestContext, request: PrRepairRequest): Promise<"waiting" | "held"> {
 	if (c.state.pr!.repairs >= REPAIRS) return hold(c, "PR repair budget exhausted", request.message);
 	persist(c, pr => {
-		pr.phase = "repairing"; pr.repairs++;
+		pr.phase = "repairing"; pr.repairs++; pr.integrationFailures = 0; // integration budget is per repair
 		pr.repair = { request, launchedAt: Date.now() };
 	});
 	return await launchRepair(c);
@@ -393,7 +393,7 @@ export async function advancePullRequest(c: PullRequestContext): Promise<"waitin
 				"checks:" + snapshot.head + ":" + failed.map(check => check.id).sort().join(","),
 				"Failing checks on exact PR head " + snapshot.head + ":\n\n" + checksMessage(failed)));
 			if (c.state.land === "pr-review" && snapshot.reviews.length &&
-				(reviewSelector as typeof reviewSelector & { prReviewLifecycleReady?: boolean }).prReviewLifecycleReady) {
+				reviewSelector.prReviewLifecycleReady) {
 				const action = reviewSelector.nextReviewAction(pr, snapshot);
 				persist(c, next => { next.reviews.processed = [...new Set([...next.reviews.processed, ...action.processed])]; });
 				if (action.kind === "exception") return hold(c, action.reason, action.message);

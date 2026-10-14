@@ -563,6 +563,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			pr.repair.launchedAt = undefined;
 			pr.repair.handledTs = undefined;
 			pr.repair.launchHandle = undefined;
+			pr.integrationFailures = 0;
 			pr.repair.handoff = undefined;
 			pr.repair.preparedHead = undefined;
 			pr.repair.integratedHead = undefined;
