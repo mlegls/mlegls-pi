@@ -85,6 +85,8 @@ test("adoption saves successor ownership before claim transfer; ordinary replace
 	} finally { f.close(); }
 }, 30_000);
 
+// Two tracker/Git recovery cuts, not a timing property: shared worker hosts
+// can spend over 30s in these subprocess round-trips.
 test("landed refinement stubs forbid discard or replacement before claim conversion; recovery needs no source checkout", async () => {
 	// Cover both the durable landed receipt and merge-before-that-save ancestry.
 	for (const interruption of ["conversion", "landing-save"] as const) {
@@ -138,4 +140,4 @@ test("landed refinement stubs forbid discard or replacement before claim convers
 			expect(context.state.landed).toEqual({});
 		} finally { f.close(); }
 	}
-}, 30_000);
+}, 120_000);
