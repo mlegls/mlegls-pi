@@ -29,10 +29,22 @@ test("cli send then meta-read round-trips json", () => {
 	expect(batch.messages[0].data).toBeUndefined();
 });
 
-test("cli wait requires from-offset", () => {
-	const r = run(["wait", "--topic", "x"]);
-	expect(r.code).not.toBe(0);
-	expect(r.stderr).toContain("from-offset");
+test("cli help bypasses validation and usage errors stay on stderr", () => {
+	const help = run(["--help"]);
+	expect(help.code).toBe(0);
+	expect(help.stderr).toBe("");
+	expect(help.stdout).toStartWith("usage: bun lib/board.ts cursor\n");
+	for (const args of [["-h"], ["help"], ["wait", "--help"], ["send", "--help"], ["read", "--limit", "nope", "--help"]]) {
+		expect(run(args)).toEqual(help);
+	}
+	for (const [args, message] of [
+		[["wait", "--topic", "x"], "--from-offset required (bun lib/board.ts cursor before spawn)"],
+		[["send"], "topic required"],
+	] as const) {
+		const r = run([...args]);
+		expect(r).toEqual({ code: 2, stdout: "", stderr: `error: ${message}\n${help.stdout}` });
+	}
+	expect(run(["unknown"])).toEqual({ code: 2, stdout: "", stderr: help.stdout });
 });
 
 test("cli rejects non-integer numeric flags", () => {
