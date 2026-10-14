@@ -1,5 +1,4 @@
 import { parseArgs, type ParseArgsOptionsConfig } from "node:util";
-import { threadForSession } from "./registry";
 import { archiveThread, abandonThread, integrateThread } from "./lifecycle";
 import { attachThread, historyThread, listThreads, newThread, seeThread, sendThread } from "./runtime";
 import type { ThreadRow } from "./types";

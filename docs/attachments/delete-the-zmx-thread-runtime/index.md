@@ -35,3 +35,20 @@ Predictions from ticket and docs:
 ## Outcome and limits
 
 Dispatch/integrate and plain-terminal bb launch held, as did legacy listing and dropped CLI command option. Daemon-down and direct launch.cmd rejection were not observed. No rendered UI, screenshots, servers or browser pages. All child resources created by this encounter were retired; shared daemon left untouched.
+
+## Review (appended; the driver's record above is unchanged)
+
+Revision reviewed: f3faba83 plus the repairs below. Source review against the ticket, the supervisor's ruling and the diff since 1421862a.
+
+Repairs:
+- **Setup regression** (commit "Worker setup keeps the conflict-marker skip and network retry"). The rewritten `pendingSetup` in lib/thread/setup.ts had dropped three behaviors of the deleted agent-runner: a worker handed a pending merge skips setup (the reconciler's refresh prompt promises this; without it the spawn would fail on conflict markers), a worker's setup retries transient network failures twice, and an interactive thread's setup runs beside its pi instead of before it. Restored, with the worker's launch env.
+- **Deleted tests restored on a fake bb CLI** (supervisor ruling 1). lib/thread/fake-bb.ts is a script on `BB_CLI` that answers project, thread spawn/list/stop/archive/tell/log/wait/open, keeps each bb thread as a file under `FAKE_BB_DIR` and logs calls. Restored: lib/reconcile/refresh.test.ts (both tests; the first never touched zmx), constraints.test.ts, stop.test.ts (fixture in the stopped-supervise attachment), retry.test.ts (fixture rewritten: the setup half now calls `pendingSetup` with a fake mise, the provider half runs the reconciler on fake bb threads; the fake thread goes idle when pi ends its turn on an error, as bb's would), lib/thread/lifecycle.test.ts, runtime.test.ts (owner/guest setup, bare-handle ambiguity, collector base; zmx terminal-ensure and history assertions became fake-bb `tell`/`log`), cli.test.ts (row formatter only; the fork test's subject is gone), lib/wm.local.test.ts (still opt-in with PI_TEST_LOCAL_WM=1). Stay deleted: admission.test.ts and agent-runner (host admission is gone).
+- Unused imports left by the deletion removed (lib/wm.ts, lib/thread/cli.ts).
+
+Stories the driver could not observe, now observed:
+- **Unreachable daemon fails before worktree creation: held.** `BB_CLI=/usr/bin/false ./bin/ab thread new --worktree probe-wt` in a fresh repo printed one line (`bb is not running: start the bb app …`); no `__worktrees` directory, no branch, `git worktree list` unchanged.
+- **Direct launch.cmd rejection: held.** `newThread({ launch: { cmd: "echo hi" } })` throws `Threads run pi in bb; a launch command is not supported`. `wm.spawn({ command })` throws its own unsupported-command error (lib/wm.ts).
+
+Supervisor ruling 3 (extensions/workspace): kept. `index.ts`/`move.ts` serve /workspace in any pi, plain terminal sessions included (under bb the command refuses and points at update_environment_directory); the `session_start` handler in thread.ts keeps the registry on the session pi continues in, whichever process hosts the pi. The restart-on-quit sentence was the zmx runner's and is already gone from the README.
+
+Measured: the restored suites on fake bb add roughly 100 s of wall time to `bun test` (full suite 142 s, 222 pass, 0 fail, 2 skip); retry.test.ts is 43 s of that, 15 s of it the real network-retry backoff.
