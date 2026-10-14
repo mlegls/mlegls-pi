@@ -1,5 +1,5 @@
 ---
-stage: goal
+stage: done
 assignee: human
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 priority: 2
@@ -35,3 +35,7 @@ shape:
 - zmx owns ptys. Every terminal is a zmx session named `<thread-id>.<role>` (`.agent`, `.lg`, `.server`); non-interactive threads are zmx sessions nobody is attached to.
 - the registry owns structure: `lib/tree/graph.ts` plus a branch-parent field. Ownership is in the names, so a zmx session not matching a live thread is a stray by definition.
 - the UI is a pure view: the two-tree sidebar plus a main area whose surfaces run `zmx attach …`. Switching threads swaps which sessions are attached.
+
+## Result
+
+Superseded 2026-10-14: bb is the GUI for threads and workers, so the native Threads/Ghostty sidebar, the zmx-hosted thread GUI and tmux hosting are no longer pursued. Its built children (thread registry, CLI, workers on threads, tmux deletion) landed; the native sidebar is dropped.
