@@ -65,13 +65,13 @@ export default function (pi: ExtensionAPI) {
 	const reconcileNs = { name: "reconcile", description: "Execute a ready issue subtree autonomously: a reconciler process runs specs to tickets and tickets through implement → drive → review → integrate, handles mechanical failures itself, and mails this session only for exceptions no handler could resolve, and when it finishes" };
 	dataTool(pi, {
 		name: "reconcile", namespace: reconcileNs,
-		description: "Start (or confirm running) the reconciler for a ready spec or ticket and its subtree. Its work lands in this checkout. You (this session's mailbox) are its owner: you get root-level exceptions and the final report. `budget` caps its live workers (default 6).",
-		parameters: Type.Object({ issue: Type.String(), budget: Type.Optional(Type.Number()) }),
-		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: mailbox(ctx.sessionManager.getSessionId()), ownerSession: ctx.sessionManager.getSessionId(), budget: p.budget ?? 6 }),
+		description: "Start (or confirm running) the reconciler for a ready spec or ticket and its subtree. Local work lands in this checkout; PR modes stage independently until remote merge. Mode is captured from land, committed .pi/reconcile.json, or local. You (this session's mailbox) are its owner: you get root-level exceptions and the final report. `budget` caps its live workers (default 6).",
+		parameters: Type.Object({ issue: Type.String(), budget: Type.Optional(Type.Number()), land: Type.Optional(Type.Union([Type.Literal("local"), Type.Literal("pr-merge"), Type.Literal("pr-review")])) }),
+		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: mailbox(ctx.sessionManager.getSessionId()), ownerSession: ctx.sessionManager.getSessionId(), budget: p.budget ?? 6, land: p.land }),
 	});
 	dataTool(pi, {
 		name: "reconcile_stop", namespace: reconcileNs,
-		description: "Stop a reconciler and retire its workers and exception handlers, closing their threads and owned worktrees and killing owned leftover processes. Keeps unmerged branches and tree/<slug> collectors; status then reads finished/stopped. Retry stop if cleanup fails.",
+		description: "Stop a reconciler and retire its workers and exception handlers, closing their threads and owned worktrees and killing owned leftover processes. Keeps unmerged branches, tree/<slug> collectors and the independent PR staging branch/receipt (never closes the PR); status then reads finished/stopped. Retry stop if cleanup fails.",
 		parameters: Type.Object({ issue: Type.String() }),
 		run: (p, ctx) => stop(ctx.cwd, p.issue),
 	});

@@ -40,8 +40,9 @@ export function reviewedResult(parent: string | null, handoff: Record<string, un
 
 /** A refused save must not leave an in-memory success which a later tick treats
  * as durable. Tracker writes and code merges cannot be rolled back this way. */
-function persist(context: CompletionContext, next: Partial<Pick<GlobalRunState, "landed" | "results" | "landingOps">>): void {
-	const previous = { landed: context.state.landed, results: context.state.results, landingOps: context.state.landingOps };
+function persist(context: CompletionContext, next: Partial<Pick<GlobalRunState, "landed" | "results" | "landingOps" | "target" | "pr">>): void {
+	const previous = { landed: context.state.landed, results: context.state.results, landingOps: context.state.landingOps,
+		target: context.state.target, pr: context.state.pr };
 	Object.assign(context.state, next);
 	try { context.save(); }
 	catch (error) { Object.assign(context.state, previous); throw error; }
@@ -150,13 +151,58 @@ export function recoverLandings(context: CompletionContext): void {
 	}
 }
 
-/** Exact replay of pending owner-reaching results, child first. Record each
+/** Only an observed MERGED receipt plus freshly fetched ancestry can turn a
+ * staging landing into a remote target landing. The owner is not the proof. */
+function completionTarget(context: CompletionContext): string | undefined {
+	const s = context.state;
+	if ((s.land ?? "local") === "local") {
+		if (!isAbsolute(s.cwd)) throw new Error("Completion target must be an absolute owner checkout");
+		return s.cwd;
+	}
+	const pr = s.pr;
+	if (pr?.phase !== "merged" || !pr.mergeCommit) return;
+	git(pr.path, "fetch", pr.remote, "+refs/heads/" + pr.baseBranch + ":refs/remotes/" + pr.remote + "/" + pr.baseBranch);
+	const base = git(pr.path, "rev-parse", "refs/remotes/" + pr.remote + "/" + pr.baseBranch);
+	if (!isAncestor(pr.path, pr.mergeCommit, base))
+		throw new Error("Observed PR merge is not in fetched base: " + pr.mergeCommit);
+	const target = "github:" + pr.repository + ":" + pr.baseBranch;
+	const entries = Object.entries(s.landed).filter(([, entry]) => entry.into === pr.path || entry.into === target);
+	if (!entries.some(([slug]) => slug === s.root)) return;
+	for (const [slug, entry] of entries)
+		if (!isAncestor(pr.path, entry.head, pr.mergeCommit))
+			throw new Error("PR merge does not carry reviewed landing: " + slug);
+	if (s.target !== target || entries.some(([, entry]) => entry.into !== target))
+		persist(context, { target, landed: Object.fromEntries(Object.entries(s.landed).map(([slug, entry]) =>
+			[slug, entry.into === pr.path ? { ...entry, into: target, head: pr.mergeCommit! } : entry])) });
+	return target;
+}
+
+/** Best effort mirror after close, never reset/stash and never completion proof.
+ * Saving the outcome makes restart a no-op; an interrupted ff is itself idempotent. */
+function syncOwner(context: CompletionContext): void {
+	const pr = context.state.pr;
+	if (!pr || pr.phase !== "merged" || pr.ownerSync) return;
+	let ownerSync: "updated" | "left" = "left";
+	try {
+		const cwd = context.state.cwd;
+		const base = git(pr.path, "rev-parse", "refs/remotes/" + pr.remote + "/" + pr.baseBranch);
+		if (git(cwd, "branch", "--show-current") === pr.baseBranch && !git(cwd, "status", "--porcelain") &&
+			isAncestor(cwd, "HEAD", base)) {
+			git(cwd, "merge", "--ff-only", base);
+			ownerSync = "updated";
+		}
+	} catch { /* Missing/unusable owner and refused ff leave it untouched. */ }
+	persist(context, { pr: { ...pr, ownerSync } });
+}
+
+/** Exact replay of pending target-reaching results, child first. Record each
  * close only after Tracker.close returns; throw on failure and retry next tick. */
 export function closeAtTarget(context: CompletionContext): void {
-	if (!isAbsolute(context.state.cwd)) throw new Error("Completion target must be an absolute owner checkout");
+	const target = completionTarget(context);
+	if (!target) return;
 	const pending = Object.keys(context.state.landed).filter(slug =>
-		context.state.landed[slug].into === context.state.cwd && context.state.results[slug] && !context.state.results[slug].closedAt);
-	if (!pending.length) return;
+		context.state.landed[slug].into === target && context.state.results[slug] && !context.state.results[slug].closedAt);
+	if (!pending.length) { if ((context.state.land ?? "local") !== "local") syncOwner(context); return; }
 	const order: string[] = [], visiting = new Set<string>(), visited = new Set<string>();
 	const visit = (slug: string) => {
 		if (visiting.has(slug)) throw new Error("Cycle in carried landing results at " + slug);
@@ -179,6 +225,7 @@ export function closeAtTarget(context: CompletionContext): void {
 		if (!snapshot.get(slug)?.archived) context.tracker.close(slug, { summary: result.summary, evidence: result.evidence });
 		persist(context, { results: { ...context.state.results, [slug]: { ...result, closedAt: new Date().toISOString() } } });
 	}
+	if ((context.state.land ?? "local") !== "local") syncOwner(context);
 }
 
 /** Confirmation from the runtime, not a retirement attempt. Receipts remain

@@ -17,23 +17,23 @@ import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, writeF
 import { join, resolve } from "node:path";
 import { discardRefinement, replaceRefinement } from "./refinement";
 import { parseArgs } from "node:util";
-import { assertThreadState, load, reconcilerTracker, resolutionsDir, run, saveState, stateDir, stopRefinementWriter, updateState, type State } from "./reconcile.ts";
+import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, run, saveState, stateDir, stopRefinementWriter, updateState, type State } from "./reconcile.ts";
 
-export function start(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number }): { pid: number; log: string } {
-	const prior = load(o.cwd, o.root);
-	assertThreadState(prior);
-	o = { ...o, cwd: prior?.cwd ?? resolve(o.cwd) };
+export function start(o: StartOptions): { pid: number; log: string } {
+	const prior = prepareStart(o);
+	o = { ...o, cwd: prior.cwd };
+	const controlCwd = prior.pr?.path ?? o.cwd;
 	if (prior?.stopping) throw new Error("cleanup in progress for " + o.root + ": retry stop to finish it");
-	if (prior && !prior.finished && prior.pid && alive(prior.pid)) return { pid: prior.pid!, log: join(stateDir(o.cwd), o.root + ".log") };
-	mkdirSync(stateDir(o.cwd), { recursive: true });
-	const log = join(stateDir(o.cwd), o.root + ".log");
+	if (prior && !prior.finished && prior.pid && alive(prior.pid)) return { pid: prior.pid!, log: join(stateDir(controlCwd), o.root + ".log") };
+	mkdirSync(stateDir(controlCwd), { recursive: true });
+	const log = join(stateDir(controlCwd), o.root + ".log");
 	const fd = openSync(log, "a");
-	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", o.cwd, ...(o.ownerSession ? ["--owner-session", o.ownerSession] : [])],
-		{ cwd: o.cwd, stdio: ["ignore", fd, fd], env: { ...process.env, PI_SESSION_ID: "" } });
+	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", controlCwd, "--land", prior.land ?? "local", ...(o.ownerSession ? ["--owner-session", o.ownerSession] : [])],
+		{ cwd: controlCwd, stdio: ["ignore", fd, fd], env: { ...process.env, PI_SESSION_ID: "" } });
 	child.unref();
 	closeSync(fd);
 	// Publish before returning, including on the first start: an immediate stop must know its PID.
-	updateState(o.cwd, o.root, prior => ({
+	updateState(controlCwd, o.root, prior => ({
 		...(prior ?? { backend: "threads", root: o.root, cwd: o.cwd, owner: o.owner, budget: o.budget,
 			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] }),
 		pid: child.pid,
@@ -64,7 +64,7 @@ export async function stop(cwd: string, root: string) {
 	}
 	// A launch may have registered its thread just before termination, without saving its receipt.
 	const s = load(cwd, root)!;
-	cwd = s.cwd;
+	cwd = s.pr?.path ?? s.cwd;
 	const refinement = { state: s, tracker: reconcilerTracker(cwd), save: () => saveState(s),
 		locked: async <T>(work: () => Promise<T>) => work(),
 		stopWriter: (attempt: State["refinements"][string]) => stopRefinementWriter(s, attempt) };
@@ -79,6 +79,7 @@ export async function stop(cwd: string, root: string) {
 	for (const e of Object.values(s.exceptions)) if (e.handler) add(e.handler);
 	for (const op of Object.values(s.landingOps)) for (const h of op.workers) add(h);
 	for (const a of Object.values(s.refinements)) if (a.worker) add(a.worker);
+	if (s.pr?.repair?.worker) add(s.pr.repair.worker);
 	for (const t of threads) if (!t.archived && t.project === project && t.worker?.run === root)
 		add({ ...t.worker, path: t.cwd, threadId: t.id });
 	const retired = [];
@@ -104,9 +105,10 @@ export function campaigns(cwd: string): (State & { running: boolean })[] {
 export function summary(s: State & { running: boolean }) {
 	return {
 		root: s.root, backend: s.backend, running: s.running, finished: s.finished ?? null, stopping: !!s.stopping, owner: s.owner, budget: s.budget,
-		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, threadId: c.handle?.threadId, admission: c.handle?.threadId ? readAdmission(c.handle.threadId) : undefined, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into }])),
+		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, threadId: c.handle?.threadId, admission: c.handle?.threadId ? readAdmission(c.handle.threadId) : undefined, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into === s.pr?.path ? "(PR staging)" : c.into }])),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null, admission: e.handler?.threadId ? readAdmission(e.handler.threadId) : undefined }])),
-		cwd: s.cwd, landed: s.landed, results: s.results, landingOps: s.landingOps, refinements: s.refinements,
+		cwd: s.cwd, land: s.land ?? "local", target: s.target ?? (s.pr ? "github:" + s.pr.repository + ":" + s.pr.baseBranch : s.cwd),
+		pr: s.pr, landed: s.landed, results: s.results, landingOps: s.landingOps, refinements: s.refinements,
 		constraints: s.constraints ?? {},
 		moved: s.moved, log: s.log.slice(-15),
 	};
@@ -137,14 +139,14 @@ export function constrain(cwd: string, root: string, node: string, text: string)
 
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
-		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, cwd: { type: "string", default: process.cwd() } } });
+		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, cwd: { type: "string", default: process.cwd() } } });
 	const [cmd, root, ...rest] = positionals;
 	const cwd = resolve(values.cwd!);
-	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget) }); }
-	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, budget: Number(values.budget) })));
+	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"] }); }
+	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, budget: Number(values.budget), land: values.land as StartOptions["land"] })));
 	else if (cmd === "stop" && root) console.log(JSON.stringify(await stop(cwd, root)));
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
 	else if (cmd === "resolve" && root && rest.length === 2) resolveException(cwd, root, rest[0], JSON.parse(rest[1]));
 	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(constrain(cwd, root, rest[0], rest[1])));
-	else { console.error("usage: main.ts start|run <issue> --owner mail/x [--budget N] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT"); process.exit(2); }
+	else { console.error("usage: main.ts start|run <issue> --owner mail/x [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT"); process.exit(2); }
 }

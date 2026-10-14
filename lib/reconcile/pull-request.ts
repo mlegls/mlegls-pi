@@ -2,6 +2,7 @@ import type { Handle } from "../dispatch.ts";
 import type { Message } from "../board/store.ts";
 import type { Tracker } from "../tracker.ts";
 import type { GlobalRunState } from "./tracker-state.ts";
+import { createPullRequestHost } from "./pr-host.ts";
 import type { PrRepairRequest, PullRequestHost } from "./pr-types.ts";
 
 /** Run-owned hooks; PR polling holds no idle worker. The landing checkout remains
@@ -9,7 +10,7 @@ import type { PrRepairRequest, PullRequestHost } from "./pr-types.ts";
 export interface PullRequestContext {
 	state: GlobalRunState;
 	tracker: Tracker;
-	host: PullRequestHost;
+	host?: PullRequestHost;
 	save: () => void;
 	locked: <T>(work: () => Promise<T>) => Promise<T>;
 	tests: string[];
@@ -21,6 +22,10 @@ export interface PullRequestContext {
 
 /** Filled by reconcile-pr-checks-and-branch-updates. Invoked after root integrate,
  * and on restart of an opening/waiting/repairing run, before normal tree scheduling. */
-export async function advancePullRequest(_context: PullRequestContext): Promise<"waiting" | "merged" | "held"> {
+export const pullRequestLifecycleReady = false;
+
+export async function advancePullRequest(context: PullRequestContext): Promise<"waiting" | "merged" | "held"> {
+	const host = context.host ?? createPullRequestHost();
+	void host;
 	throw new Error("reconcile-pr-checks-and-branch-updates has not filled advancePullRequest");
 }

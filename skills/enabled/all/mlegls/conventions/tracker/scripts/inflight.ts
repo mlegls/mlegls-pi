@@ -12,7 +12,7 @@ const git = (cwd: string, ...args: string[]) => {
 
 // A reconciler's state (lib/reconcile, <git-common-dir>/reconcile/<root>.json) names every node it is
 // carrying; unfinished state whose pid is gone is a stalled run nothing advances.
-interface Run { root: string; cwd?: string; landed?: Record<string, { into: string; head: string; at: string }>; pid?: number; finished?: string; chains?: Record<string, { phase: string; held?: boolean; handle?: { handle?: string } }> }
+interface Run { root: string; cwd?: string; land?: string; target?: string; pr?: { path: string; repository: string; baseBranch: string; phase: string; url?: string }; landed?: Record<string, { into: string; head: string; at: string }>; pid?: number; finished?: string; chains?: Record<string, { phase: string; held?: boolean; handle?: { handle?: string } }> }
 
 function runs(common: string): Run[] {
   const d = join(common, "reconcile");
@@ -42,9 +42,12 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
   for (const r of runs(common)) {
     if (r.finished) continue;
     const how = alive(r.pid) ? "" : " (stalled: reconciler for " + r.root + " not running)";
-    if (!done(r.root)) add(r.root, "reconciling subtree" + how);
+    const pr = r.land !== "local" ? r.pr : undefined;
+    const target = r.target ?? (pr ? "github:" + pr.repository + ":" + pr.baseBranch : r.cwd);
+    const prStatus = pr ? " (" + r.land + ", " + pr.phase + (pr.url ? ", " + pr.url : "") + ", target " + target + ")" : "";
+    if (!done(r.root)) add(r.root, "reconciling subtree" + prStatus + how);
     for (const [slug, entry] of Object.entries(r.landed ?? {})) if (!done(slug))
-      add(slug, (entry.into === r.cwd ? "landed in owner checkout (awaiting close)" : "landed in " + entry.into + " (awaiting target)") + how);
+      add(slug, (pr && entry.into === pr.path ? "landed in PR staging (awaiting " + target + ")" + prStatus : entry.into === target ? "landed in " + (pr ? target : "owner checkout") + " (awaiting close)" : "landed in " + entry.into + " (awaiting target)") + how);
     for (const [slug, c] of Object.entries(r.chains ?? {})) if (!done(slug))
       add(slug, "reconciling " + c.phase + (c.handle?.handle ? " by " + c.handle.handle : "") + (c.held ? " (held)" : "") + how);
   }

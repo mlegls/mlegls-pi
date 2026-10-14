@@ -39,6 +39,10 @@ import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
 import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
+import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
+import { prepareStaging, resolveLanding } from "./pr-config.ts";
+import { createPullRequestHost } from "./pr-host.ts";
+import { advancePullRequest, pullRequestLifecycleReady } from "./pull-request.ts";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -199,7 +203,7 @@ export function updateState(cwd: string, root: string, change: (prior: State | u
 }
 
 export function saveState(s: State): void {
-	updateState(s.cwd, s.root, prior => {
+	updateState(s.pr && existsSync(s.pr.path) ? s.pr.path : s.cwd, s.root, prior => {
 		s.constraints = prior?.constraints ?? s.constraints;
 		s.stopping = prior?.stopping ?? s.stopping;
 		return s;
@@ -216,16 +220,38 @@ const finished = (i: Issue) => i.satisfied;
 const descends = (i: Issue, slug: string, view: Map<string, Issue>) => { for (let p = i.partOf; p; p = view.get(p)?.partOf ?? null) if (p === slug) return true; return false; };
 const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + "\n```";
 
-export async function run(o: { cwd: string; root: string; owner: string; ownerSession?: string; budget: number; signal?: AbortSignal }) {
+export interface StartOptions {
+	cwd: string; root: string; owner: string; ownerSession?: string; budget: number;
+	land?: LandingMode;
+	/** Scratch observation uses the same lifecycle, with no live GitHub calls. */
+	prHost?: PullRequestHost;
+}
+
+/** Called before spawning/publication as well as by foreground run. */
+export function prepareStart(o: StartOptions): State {
 	const prior = load(resolve(o.cwd), o.root);
 	assertThreadState(prior);
 	const cwd = prior?.cwd ?? resolve(o.cwd);
-	process.chdir(cwd);
 	if (prior?.stopping) throw new Error("cleanup in progress for " + o.root + ": retry stop to finish it");
-	mkdirSync(stateDir(cwd), { recursive: true });
-	mkdirSync(resolutionsDir(cwd, o.root), { recursive: true });
+	const land = resolveLanding(cwd, o.land, prior);
+	if (prior && !prior.finished && prior.pid && prior.pid !== process.pid && pidAlive(prior.pid)) return prior;
+	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget,
+		land, landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: {}, exceptions: {},
+		tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
+	saveState(s);
+	prepareStaging(s, o.prHost ?? createPullRequestHost(), () => saveState(s), resolve(o.cwd));
+	return s;
+}
+
+export async function run(o: StartOptions & { signal?: AbortSignal }) {
+	const s = prepareStart(o);
+	const cwd = s.cwd;
+	const controlCwd = s.pr?.path ?? cwd;
+	process.chdir(controlCwd);
+	mkdirSync(stateDir(controlCwd), { recursive: true });
+	mkdirSync(resolutionsDir(controlCwd, o.root), { recursive: true });
 	// One reconciler per subtree: a second would launch and judge the same workers against the first.
-	const lock = join(stateDir(cwd), o.root + ".lock");
+	const lock = join(stateDir(controlCwd), o.root + ".lock");
 	try { mkdirSync(lock); }
 	catch {
 		let pid = 0; try { pid = Number(readFileSync(join(lock, "pid"), "utf8")); } catch {}
@@ -235,7 +261,6 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	writeFileSync(join(lock, "pid"), String(process.pid));
 	process.on("exit", () => { try { if (readFileSync(join(lock, "pid"), "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true }); } catch {} });
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
-	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget, landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
 	const save = () => saveState(s);
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
@@ -245,7 +270,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const sendChild = async (workerTopic: string, body: string) => { mail(workerTopic, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { name: "reconcile/" + s.root }); };
 	const tellOwner = (body: string) => {
 		try {
-			const to = subscriberStatus(s.owner) === "none" ? supervisorTopic(cwd) ?? s.owner : s.owner;
+			const to = subscriberStatus(s.owner) === "none" ? supervisorTopic(controlCwd) ?? s.owner : s.owner;
 			mail(to, "[reconcile " + s.root + "] " + body, { name: "reconcile/" + s.root });
 		} catch (e) { note("mail owner failed: " + e); }
 	};
@@ -253,7 +278,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
-	const tracker = reconcilerTracker(cwd);
+	const tracker = reconcilerTracker(controlCwd);
+	const destination = () => s.pr?.path ?? cwd;
 	const snapshot = () => {
 		try { return tracker.snapshot(); }
 		catch (e) { throw new Error("tracker snapshot failed in " + cwd + " (fix the tracker; the reconciler resumes by itself): " + String((e as Error)?.message ?? e).replace(/^error:\s*/, "")); }
@@ -298,7 +324,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	const observeHost = async () => {
 		try {
 			readLive(true);
-			host = await listThreads({ cwd });
+			host = await listThreads({ cwd: controlCwd });
 			for (const row of host) {
 				const previous = observedPids.get(row.thread.id);
 				if (previous?.session === row.thread.sessionId && !pidAlive(previous.pid)) exitedPids.add(row.thread.id);
@@ -334,7 +360,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	// Launches in flight count too: visit() fans siblings out with Promise.all, and each checks the budget
 	// before any handle is assigned. launch() takes its slot synchronously, before its first await.
 	let launching = 0;
-	const live = () => launching + Object.values(s.chains).filter(c => c.handle && !c.held).length + Object.values(s.exceptions).filter(e => e.handler).length;
+	const live = () => launching + (s.pr?.repair?.worker ? 1 : 0) + Object.values(s.chains).filter(c => c.handle && !c.held).length + Object.values(s.exceptions).filter(e => e.handler).length;
 	const pinned = (assignee: string | null | undefined) => /\bagent:([a-z0-9-]+)/.exec(assignee ?? "")?.[1];
 	async function pick(role: string, issue: Issue | undefined, text: string, only?: string[]): Promise<string> {
 		const pin = role === "implement" ? pinned(issue?.assignee) : undefined;
@@ -380,8 +406,8 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 				catch (e) {
 					if (refining) {
 						await discardRefinement(refinement, actual);
-						const record = await workerThread(actual, cwd, s.root);
-						if (record) await retire({ run: s.root, handle: actual, path: record.cwd, threadId: record.id }, { cwd });
+						const record = await workerThread(actual, controlCwd, s.root);
+						if (record) await retire({ run: s.root, handle: actual, path: record.cwd, threadId: record.id }, { cwd: controlCwd });
 					}
 					const lock = /could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e));
 					if (!lock || attempt >= 3) throw e;
@@ -392,7 +418,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		} finally { launching--; }
 	}
 	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>): Promise<Handle> {
-		const restrict = (text: string) => issue ? constrainedPrompt(cwd, s.root, issue.slug, text) : text;
+		const restrict = (text: string) => issue ? constrainedPrompt(controlCwd, s.root, issue.slug, text) : text;
 		const agentName = await pick(role, issue, restrict(prompt), only);
 		// Starting a reconciler on a root delegates the root: a goal root rarely names an assignee, and its own stage
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
@@ -464,7 +490,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		save();
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
-	const dropResolution = (node: string) => rmSync(join(resolutionsDir(cwd, s.root), node + ".json"), { force: true });
+	const dropResolution = (node: string) => rmSync(join(resolutionsDir(controlCwd, s.root), node + ".json"), { force: true });
 	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string };
 	/** Bind an owner retry to its original attempt before any replacement writes.
 	 * Recovery can finish that replacement before replaying the resolution file. */
@@ -479,6 +505,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		return r;
 	}
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
+		if (s.pr && s.landed[s.root] && ex.node === s.root) return resolvePr(ex, r);
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
 		if (r.action === "retry" && r.refinement && s.refinements[r.refinement]?.successor) {
@@ -522,6 +549,41 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		note("resolved " + ex.node + ": " + r.action + (target !== ex.node ? " on " + target : ""));
 		save();
 	}
+	/** PR exceptions operate on the receipt, never redispatch the satisfied tree. */
+	async function resolvePr(ex: Exception, r: Resolution): Promise<void> {
+		const pr = s.pr!;
+		if (!["answer", "retry", "redispatch"].includes(r.action))
+			throw new Error("PR landing accepts answer/retry/redispatch; stop preserves the published PR");
+		(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + ": " + (r.note ?? r.message ?? ""));
+		const worker = pr.repair?.worker;
+		if (r.action === "answer" && worker && alive(worker) !== false)
+			await sendChild(topic(worker), r.message ?? r.note ?? "");
+		else if (pr.repair) {
+			if (worker && !await retireHandle(worker, pr.path)) throw new Error("PR repair retirement failed");
+			pr.repair.worker = undefined;
+			pr.repair.launchedAt = undefined;
+			pr.repair.handledTs = undefined;
+			pr.repair.request.message += "\n\nOwner resolution: " + (r.note ?? r.message ?? "retry");
+			pr.phase = "repairing";
+		} else {
+			pr.phase = pr.number ? "waiting" : "opening";
+		}
+		delete s.exceptions[ex.node];
+		save();
+	}
+
+	async function launchRepair(request: PrRepairRequest): Promise<Handle> {
+		if (live() >= s.budget) throw new Error("PR repair exceeds run worker budget");
+		const pr = s.pr!, issue = view(pr.path).get(s.root);
+		const prompt = [issue ? ticketText(issue) : tracker.text(s.root),
+			"Repair this run's PR from staging HEAD. Preserve published history; do not rebase or force-push.",
+			"Repair request:\n" + yaml(request), "Saved reviewed results:\n" + yaml(s.results),
+			"Retained tests:\n" + yaml(s.tests[pr.path] ?? []),
+			"Run the project's existing integration gates. Commit the repair and report the full reviewed handoff.",
+		].join("\n\n");
+		return launch(nextHandle(s.root, "pr-repair"), "review", prompt,
+			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"]);
+	}
 	const pendingNotes = new Map<string, string | undefined>();
 	/** The chain's committed work beyond its destination, as a note for a fresh start that doesn't take it as its base. */
 	function keptWork(c: Chain): string | undefined {
@@ -536,10 +598,10 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	async function handleExceptions(issues: Map<string, Issue>) {
 		// A resolution for a node with no exception is the owner steering a live chain (e.g. one stuck where no report
 		// reached us): apply it to the chain, or drop it with a reason when there is none.
-		for (const f of readdirSync(resolutionsDir(cwd, s.root)).filter(f => f.endsWith(".json"))) {
+		for (const f of readdirSync(resolutionsDir(controlCwd, s.root)).filter(f => f.endsWith(".json"))) {
 			const node = f.slice(0, -5);
 			if (s.exceptions[node]) continue;
-			const r = readResolution(join(resolutionsDir(cwd, s.root), f), node);
+			const r = readResolution(join(resolutionsDir(controlCwd, s.root), f), node);
 			if (!s.chains[node] || r.action === "escalate") { dropResolution(node); tellOwner("ignored " + r.action + " for " + node + ": it has no exception or running chain"); continue; }
 			const ex: Exception = { id: node + "-owner-" + Date.now().toString(36), node, reason: "owner " + r.action, text: "", at: new Date().toISOString(), level: "owner", mailed: true, reportTs: s.chains[node].handledTs };
 			s.exceptions[node] = ex;
@@ -555,7 +617,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out.");
 					ex.mailed = true; save();
 				}
-				const f = join(resolutionsDir(cwd, s.root), ex.node + ".json");
+				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
 				// Removed only once applied: a crash midway replays it after restart.
 				if (existsSync(f)) {
 					const r = readResolution(f, ex.node);
@@ -612,7 +674,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 
 	// --- integration -----------------------------------------------------------------------------------
-	const lockDir = join(stateDir(cwd), "integrate.lock");
+	const lockDir = join(stateDir(controlCwd), "integrate.lock");
 	async function locked<T>(fn: () => Promise<T>): Promise<T> {
 		for (;;) {
 			try { mkdirSync(lockDir); writeFileSync(join(lockDir, "pid"), String(process.pid)); break; }
@@ -656,14 +718,14 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
 			try {
 				for (const worker of operation.workers) {
-					const result = await retire(worker, { cwd });
-					if (git(cwd, "branch", "--list", worker.handle) && result.branchKept)
+					const result = await retire(worker, { cwd: controlCwd });
+					if (git(controlCwd, "branch", "--list", worker.handle) && result.branchKept)
 						throw new Error(result.branchKept);
 				}
 				const col = operation.collector;
 				if (col) {
-					if (existsSync(col.path)) git(cwd, "worktree", "remove", col.path);
-					if (git(cwd, "branch", "--list", col.branch)) git(cwd, "branch", "-D", col.branch);
+					if (existsSync(col.path)) git(controlCwd, "worktree", "remove", col.path);
+					if (git(controlCwd, "branch", "--list", col.branch)) git(controlCwd, "branch", "-D", col.branch);
 					if (s.collectors[operation.slug]?.path === col.path) delete s.collectors[operation.slug];
 				}
 				finishLandingCleanup(completion, operation.slug);
@@ -672,7 +734,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 	}
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
 		const into = pathOf(c.into), h = c.handle!;
-		for (let told = false; c.into === cwd; told = true) {
+		for (let told = false; (s.land ?? "local") === "local" && c.into === cwd; told = true) {
 			const red = mainRed(cwd);
 			if (!red || !heldByRed(red, git(h.path, "diff", "--name-only", git(into, "rev-parse", "HEAD") + "...HEAD").split("\n").filter(Boolean))) break;
 			if (!told) { note("landing " + slug + " waits for a green main"); tellOwner("landing " + slug + " waits: main is red.\n\n" + red); }
@@ -688,6 +750,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
 		const landed = git(into, "diff", "--name-only", before, outcome.head).split("\n").filter(Boolean);
 		note("landed " + slug + " in " + (c.into === cwd ? "the owner's checkout" : c.into));
+		if (slug === s.root && s.pr) { s.pr.preparedHead = outcome.head; s.pr.phase = "opening"; }
 		delete s.chains[slug];
 		save();
 		await cleanupLandings();
@@ -811,7 +874,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		}
 	}
 	const sparseCollectors = new Set<string>();
-	const collectorPath = (slug: string) => resolve(repoRoot(cwd) + "__worktrees", slug + "--tree");
+	const collectorPath = (slug: string) => resolve(repoRoot(controlCwd) + "__worktrees", slug + "--tree");
 	function ensureCollector(slug: string, into: string) {
 		if (s.collectors[slug]) {
 			if (!sparseCollectors.has(slug)) { excludeTracker(s.collectors[slug].path); sparseCollectors.add(slug); }
@@ -820,7 +883,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		const path = collectorPath(slug), branch = "tree/" + slug;
 		const parentBranch = git(pathOf(into), "branch", "--show-current");
 		if (!parentBranch) throw new Error("Collector destination needs a branch: " + pathOf(into));
-		if (!existsSync(path)) git(cwd, "worktree", "add", "--no-checkout", "-q", "-b", branch, path, git(pathOf(into), "rev-parse", "HEAD"));
+		if (!existsSync(path)) git(controlCwd, "worktree", "add", "--no-checkout", "-q", "-b", branch, path, git(pathOf(into), "rev-parse", "HEAD"));
 		excludeTracker(path);
 		sparseCollectors.add(slug);
 		git(path, "config", "branch." + branch + ".ab-parent", parentBranch);
@@ -1046,7 +1109,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			let attempt = s.refinements[c.refinement];
 			if (attempt.successor) { c.refinement = attempt.successor; attempt = s.refinements[c.refinement]; }
 			if (attempt.phase === "writing" && !attempt.worker) {
-				const record = await workerThread(attempt.handle, cwd, s.root);
+				const record = await workerThread(attempt.handle, controlCwd, s.root);
 				if (record) { attempt.worker = { run: s.root, handle: attempt.handle, path: record.cwd, threadId: record.id }; save(); }
 			}
 			if (attempt.worker && c.handle?.handle !== attempt.handle) { c.handle = attempt.worker; c.launchedAt = Date.now(); c.handledTs = undefined; save(); }
@@ -1059,14 +1122,39 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 			const c = s.chains[attempt.node];
 			if (c?.phase === "refine" && c.handle?.handle === attempt.handle) continue;
 			const thread = attempt.worker.threadId ? await getThread(attempt.worker.threadId)
-				: await workerThread(attempt.handle, cwd, s.root);
-			if (thread && !thread.archived) await retireHandle(attempt.worker, cwd);
+				: await workerThread(attempt.handle, controlCwd, s.root);
+			if (thread && !thread.archived) await retireHandle(attempt.worker, controlCwd);
 		}
-		const top = view(cwd);
+		const top = view(destination());
+		if (s.pr && (s.landed[s.root] || s.pr.phase !== "preparing")) {
+			// Staging satisfies the tree, not the global target. PR waiting never
+			// revisits completed descendants, including on an opening restart.
+			if (s.pr.phase === "preparing") { s.pr.phase = "opening"; s.pr.preparedHead = s.landed[s.root].head; save(); }
+			await handleExceptions(top);
+			if (Object.keys(s.exceptions).length) return false;
+			if (s.pr.phase !== "merged" && pullRequestLifecycleReady) await advancePullRequest({
+				state: s, tracker, host: o.prHost, save, locked, tests: s.tests[s.pr.path] ?? [],
+				launchRepair, report: fresh,
+				retireRepair: async worker => {
+					if (!await retireHandle(worker, s.pr!.path)) throw new Error("PR repair retirement failed: " + worker.handle);
+				},
+				raiseOwner: (reason, message) => raise(s.root, reason, message, top, "owner"),
+			});
+			if (s.pr.phase === "merged") {
+				closeAtTarget(completion);
+				if (!s.target || Object.values(s.results).some(result => !result.closedAt)) return false;
+				if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
+				s.finished = "done"; save();
+				tellOwner("done: " + s.root + " landed in " + s.target + (s.pr.url ? "\n" + s.pr.url : ""));
+				return true;
+			}
+			return false;
+		}
 		holds.clear();
 		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return true; }
 		visited.clear();
-		const result = await visit(s.root, cwd, top);
+		const result = await visit(s.root, destination(), top);
+		if (s.pr && s.landed[s.root]) return false;
 		await handleExceptions(top);
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
@@ -1074,7 +1162,7 @@ export async function run(o: { cwd: string; root: string; owner: string; ownerSe
 		if (result !== "active" && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			closeAtTarget(completion);
 			if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
-			const all = view(cwd);
+			const all = view(destination());
 			for (const attempt of Object.values(s.refinements)) {
 				if (attempt.phase !== "accepted" && attempt.phase !== "removed") await discardRefinement(refinement, attempt.handle);
 			}
