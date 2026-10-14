@@ -57,7 +57,7 @@ async function staging(ownerCase: string) {
 		commit(main, ".gitignore", "shell-started\nshell-base\n");
 		assert.equal(resolveLanding(main), "local");
 		commit(main, ".pi/reconcile.json", '{"land":"pr-review"}\n');
-		commit(main, "gate.sh", "#!/bin/sh\nprintf '%s ' \"$PWD\" >> " + gateLog + "\ngit rev-parse HEAD | tr '\\n' ' ' >> " + gateLog + "\ngit config --get branch.$(git branch --show-current).ab-parent >> " + gateLog + "\n");
+		commit(main, "gate.sh", "#!/bin/sh\nprintf '%s ' \"$PWD\" >> " + gateLog + "\ngit rev-parse HEAD | tr '\\n' ' ' >> " + gateLog + "\nparent=$(git config --get branch.$(git branch --show-current).ab-parent || git branch --show-current)\nprintf '%s\\n' \"$parent\" >> " + gateLog + "\n");
 		commit(main, "mise.toml", '[tasks.setup]\nrun = "true"\n[tasks.pre-integrate]\nrun = "bash gate.sh"\n');
 		mkdirSync(join(main, "docs/issues"), { recursive: true });
 		const tracker = getTracker(main, { inflight: false });
@@ -69,11 +69,18 @@ async function staging(ownerCase: string) {
 		git(main, "worktree", "add", "-qb", "main", owner);
 		git(main, "init", "--bare", "-q", remote); git(main, "remote", "add", "origin", remote);
 		git(owner, "push", "-q", "origin", "main");
+		let published = false, creates = 0;
+		const snapshot = (): PullRequestSnapshot => merged ?? {
+			number: 1, url: "https://github.com/seeded/staging/pull/1", state: "OPEN",
+			headBranch: identity.branch, head: git(main, "rev-parse", "refs/heads/" + identity.branch),
+			baseBranch: "main", base: git(main, "rev-parse", "refs/remotes/origin/main"), mergeable: "MERGEABLE",
+			checks: [], reviews: [], threads: [],
+		};
 		const host: PullRequestHost = {
 			project: () => ({ repository: "seeded/staging", remote: "origin", baseBranch: "main" }),
-			observe: () => { assert(merged); return merged; },
-			find: () => { throw new Error("publication not authorized in bootstrap"); },
-			create: () => { throw new Error("publication not authorized in bootstrap"); },
+			observe: () => { assert(published); return snapshot(); },
+			find: () => published ? snapshot() : undefined,
+			create: () => { published = true; creates++; return snapshot(); },
 			checks: () => [], merge: () => { throw new Error("seeded merge is performed by actual Git"); },
 			reply: () => { throw new Error("reviews out of scope"); },
 		};
@@ -142,17 +149,18 @@ async function staging(ownerCase: string) {
 		for (const slug of ["a", "b"]) assert.equal(tracker.fields(slug).stage, "ticket");
 		assert.equal(tracker.snapshot().get("outside")?.frontier, false);
 		report(review, "root");
-		await until(() => state().landingOps.root?.cleanupDone && !Object.keys(state().chains).length);
+		await until(() => state().landingOps.root?.cleanupDone && !Object.keys(state().chains).length && state().pr?.phase === "waiting");
 		const staged = structuredClone(state());
-		assert.equal(staged.pr?.phase, "opening"); assert.equal(staged.landed.root.into, identity.path);
+		assert.equal(staged.pr?.phase, "waiting"); assert.equal(staged.landed.root.into, identity.path);
+		assert.equal(creates, 1); assert.equal(staged.pr?.number, 1);
 		assert.equal(head(owner), ownerHead); assert(!existsSync(join(owner, "root.txt")));
 		for (const slug of ["a", "b", "root"]) {
 			assert.equal(staged.landed[slug].into, identity.path); assert(!staged.results[slug].closedAt);
 			assert.equal(staged.results[slug].summary, slug + " reviewed result");
 		}
 		const gates = readFileSync(gateLog, "utf8").trim().split("\n");
-		assert.equal(gates.length, 3); assert(gates.at(-1)?.endsWith(identity.branch));
-		assert(gates.at(-1)?.includes(review.path)); assert((await getThread(review.threadId!))?.archived);
+		assert.equal(gates.length, 4); assert(gates.at(-1)?.endsWith(identity.branch));
+		assert(gates[2].includes(review.path)); assert(gates[3].includes(identity.path)); assert((await getThread(review.threadId!))?.archived);
 		assert(!(await allThreads()).some(t => !t.archived && t.worker?.run === "root"));
 		assert(getTracker(main).snapshot().get("root")?.claims.some(c => c.claimedBy.includes("PR staging")));
 		const status = summary({ ...staged, running: true });
@@ -182,7 +190,7 @@ async function staging(ownerCase: string) {
 		git(merger, "merge", "--no-ff", "--no-edit", identity.branch); const mergeCommit = head(merger);
 		git(merger, "push", "-q", "origin", "HEAD:refs/heads/main");
 		merged = { number: 1, url: "https://github.com/seeded/staging/pull/1", state: "MERGED", headBranch: identity.branch,
-			head: staged.landed.root.head, baseBranch: "main", base: mergeCommit, mergeable: "MERGEABLE",
+			head: staged.pr!.pushedHead!, baseBranch: "main", base: mergeCommit, mergeable: "MERGEABLE",
 			checks: [], reviews: [], threads: [], mergedAt: new Date().toISOString(), mergeCommit };
 		if (ownerCase === "dirty") put(owner, "uncommitted.txt", "do not overwrite\n");
 		if (ownerCase === "other") git(owner, "checkout", "-qb", "unrelated");
@@ -204,7 +212,8 @@ async function staging(ownerCase: string) {
 		else if (ownerCase !== "missing") assert.equal(head(owner), beforeClose);
 		if (ownerCase === "dirty") assert.equal(readFileSync(join(owner, "uncommitted.txt"), "utf8"), "do not overwrite\n");
 		if (ownerCase === "other") assert.equal(git(owner, "branch", "--show-current"), "unrelated");
-		assert.equal(final.counter, staged.counter); assert.equal(readFileSync(gateLog, "utf8").trim().split("\n").length, 3);
+		assert.equal(final.counter, staged.counter); assert.equal(creates, 1);
+		assert.equal(readFileSync(gateLog, "utf8").trim().split("\n").length, 4);
 		const subjects = git(main, "log", "--reverse", "--format=%s", ownerHead + "..tracker").split("\n");
 		const closes = subjects.filter(s => s.includes("close ")).map(s => s.slice(s.indexOf("close ")));
 		assert.deepEqual(closes, ["close a", "close b", "close root"]);
@@ -214,7 +223,7 @@ async function staging(ownerCase: string) {
 		assert.equal(state().pr?.ownerSync, final.pr?.ownerSync);
 		observations.merged = { mergeCommit, fetchedBase: git(identity.path, "rev-parse", "refs/remotes/origin/main"),
 			target: final.target, closeOrder: closes, ownerSync: final.pr?.ownerSync, ownerHead: beforeClose,
-			counter: final.counter, replayCloses, hooks: readFileSync(hookLog, "utf8").trim().split("\n").length };
+			counter: final.counter, creates, replayCloses, hooks: readFileSync(hookLog, "utf8").trim().split("\n").length };
 		console.log("RESULT " + JSON.stringify(observations));
 	} finally {
 		try { controller.abort(); if (running) await running; }
