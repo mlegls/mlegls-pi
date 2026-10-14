@@ -2,7 +2,8 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { thread } from "./cli";
+import { rowLine, thread } from "./cli";
+import type { ThreadRow } from "./types";
 import { newThread } from "./runtime";
 import { terminals, zmx } from "./zmx";
 
@@ -41,6 +42,27 @@ afterAll(async () => {
 	for (const t of await terminals().catch(() => [])) await zmx(["kill", t.name, "--force"]).catch(() => {});
 	process.env = saved;
 	rmSync(root, { recursive: true, force: true });
+});
+
+test("row formatter keeps a multiline blocked reason on one line with bounded summaries", () => {
+	const reason = "Archive conflict unresolved\r\nblocked\n" + "details ".repeat(40);
+	const row: ThreadRow = {
+		thread: {
+			id: "child", sessionId: "child", sessionFile: "/tmp/child.jsonl",
+			cwd: "/tmp/repo", project: "/tmp/repo", ownership: "guest", archived: false,
+			created: "2026-10-14T00:00:00Z",
+			blocked: { action: "archive", parentBranch: "main", files: [], reason },
+		},
+		state: "exited", terminals: [], interactive: false, attention: "needs-you", depth: 1,
+		report: { tag: "blocked", ts: "2026-10-14T00:00:00Z", body: reason },
+	};
+	const line = rowLine(row);
+	expect(line).not.toMatch(/[\r\n]/);
+	const compact = reason.replace(/\s+/g, " ").slice(0, 159) + "…";
+	expect(line).toContain(" report=blocked:" + compact);
+	expect(line).toEndWith(" blocked=archive:" + compact);
+	expect(row.thread.blocked?.reason).toBe(reason);
+	expect(row.report?.body).toBe(reason);
 });
 
 test("fork records its source thread as parent with a matching id, a bare file, or a stale id", async () => {
