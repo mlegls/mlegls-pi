@@ -25,3 +25,10 @@ Replay: create a one-line file with a space in its name, call the two read argum
 The setup entry point reached a test runner, not a fresh direct/codemode runtime. The live tool advertised quoting yet rejected it. A loaded-extension discrepancy is a hypothesis only; no implementation was inspected. The existing owning [ticket](../../issues/codemode-read-does-not-honor-quoted-space-containing-paths.md) has this observation and packet link; no duplicate issue filed. Reviewer should establish both fresh surfaces before acceptance.
 
 Nonvisual CLI/tool encounter; no screenshots or services started.
+
+## Review (2026-10-14, review-3, head e8700bb0)
+
+- The driver's live-codemode failure is explained, not a defect in the change: the session's codemode loads the canonical checkout (`~/.pi/agent/settings.json` package `../../dev/mlegls-pi`), whose `lib/outline-read/read.ts:87` still has the old `specs.length === 1 || …` line until this branch is merged. Reproduced in the review session: `read({path: '"/tmp/sp test/a b.md"'})` → ENOENT with literal quotes (old code); unquoted → content.
+- Fresh checkout-loaded runtime: `bun test lib/outline-read/read.test.ts` drives the tool registered by `registerReadTool` (called by both `extensions/fragment` and `extensions/hashline`) through `execute`: quoted and unquoted literal paths both return `dir/a b.md (1 lines)` + content, with both split paths existing. 1 pass, 2 expects.
+- Diff read: `single` uses the literal path only when `words` yields >1 specs and the literal exists; a single spec (quoted or plain) is read from `specs`, so offset/limit apply as before. No defects found.
+- Outcomes: Quoted path through codemode — held on this branch's code (live codemode shows it after merge/reload); Existing unquoted literal wins — held; Quoted path directly — held via `execute` in the test (same registered tool).
