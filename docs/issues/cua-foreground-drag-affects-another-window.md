@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 author: session:2cb077eb-f13b-4989-96c6-789614fd47f3
 ---
 
@@ -8,3 +8,7 @@ While self-checking sibling reordering in [[projects/mlegls-pi/stories/work-in-t
 Calls used `mcp__cua__drag` with `target: {kind: "window", pid: 91622, window_id: 22209}`, `delivery_mode: "foreground"`, window-local coordinates and session `sibling-order`. Cua reported posted foreground HID events with `effect: unverifiable`. The exact input recipient is not established; the user's observation suggests foreground routing escaped the specified window. GUI input stopped, and the owned fixture process was terminated.
 
 Owner: cua-driver foreground window routing. Investigate exact-target activation and event delivery before using this route with another Threads window open.
+
+## Result
+
+Superseded 2026-10-14: bb is the GUI for threads and workers, so the native Threads/Ghostty sidebar, the zmx-hosted thread GUI and tmux hosting are no longer pursued. Observed only on the Threads fixture window.
