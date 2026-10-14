@@ -33,6 +33,10 @@ exception are observed. Normal and failure cleanup retire registered fixture
 workers and remove the invocation-owned directory. No resident service is
 required or retained.
 
+## Independent drive
+
+[Fresh-user predictions, replay and observations](drive.md) on `715ec08d87ea3a284650ab2957685b5868355acf`: both supplied modes exited 0 with owned resources retired. No implementation, probe internals or tests were read by the driver.
+
 ## Encounters
 
 | Claim | Action and observation |
