@@ -1,5 +1,7 @@
 # scc-delta: Git-selected source
 
+Independent acceptance: [CLI encounter, predictions and replayable checks](drive.md).
+
 Implementation first-use notes (not independent acceptance). Base: `a52c3e82d1987b71c13dedc6c81df55b94a9c249`.
 
 ## Runnable setup
