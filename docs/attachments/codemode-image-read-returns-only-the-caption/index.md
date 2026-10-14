@@ -1,5 +1,7 @@
 # Codemode read first use
 
+Independent driver encounter at `4d24e97c`: [predictions, outcomes and replayable checks](drive-2.md).
+
 Implementation revision: `45f505a4` (base `a52c3e82d1987b71c13dedc6c81df55b94a9c249`).
 
 ## Prepared setup and entry point
