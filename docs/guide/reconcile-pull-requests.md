@@ -36,6 +36,8 @@ Inspect status before resolving. Closed-unmerged PRs are owner exceptions; issue
 bun lib/reconcile/main.ts resolve ROOT ROOT '{"action":"answer","note":"Owner acknowledges; await human merge"}' --cwd /absolute/owner-checkout
 ```
 
+A transient GitHub transport error (HTTP 5xx or a brief 404 on a just-pushed commit) also raises `PR observation/publication failed`; it never reads as passing or absent checks. Acknowledge it with the same `answer` resolution, with a note naming the transport error rather than a review state, and the reconciler re-observes the same saved PR (number, branch, repair and results unchanged).
+
 For a repair needing another attempt use `retry` only after inspecting its saved request/budget; this is not permission to reset the tree or overwrite reviewed results. An acknowledged unresolved submitted review may still hold again; an exception does not prevent observing a subsequent human merge.
 
 Only observed `MERGED` metadata plus fetched Git ancestry closes carried nodes, child-first, with their original result packets. The owner checkout is a best-effort mirror: fetch/fast-forward only if clean and on the captured base branch. Dirty, other-branch or divergent owners are left alone; they do not prevent remote-target completion.

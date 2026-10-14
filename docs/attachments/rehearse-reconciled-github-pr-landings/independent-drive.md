@@ -33,3 +33,17 @@ Supplied retained private repository: mlegls/reconcile-pr-transport-20261014-357
 ## Cleanup
 
 Documented cleanup completed: explicitStop=true, #6 closed unmerged, unique remote branch deleted, local area retained. Direct API confirmed CLOSED/null mergeCommit at original head. Exact production PIDs 66792 and 87925 absent on ps. Retained supplied repo/main and inherited history belong to parent; local scratch retained for inspection. No browsers, accounts, tokens, deployments or tunnels created. Original successful recordings are not modified by this cleanup.
+
+## Review: cause of the 404 and the repeat
+
+Added by the reviewer; the driver's record above is unchanged.
+
+**502 (first exception).** The reconciler itself saw it: PR observation/publication failure is raised as an owner exception (`pull-request.ts` hold). That is the designed behavior for a transport error: it never reads as "no checks" or "passed", and the public acknowledgement continues the same saved PR (re-observed below with an injected 502).
+
+**404 (second failure).** Not a recovery bug in the product. Evidence from the driver's area `/private/tmp/rehearse-github-pr-ftlUxQ`: the saved state had `exceptions: {}`, the reconciler log ended at `launched …-pr-repair-a` and the PR's `pushedHead` was the published head `0cdf8ed8`, so resume asked the host only about heads that exist on the remote; the `failure` record is the *controller's* exception. Immediately after `failedCheck` the journey pushes a base commit to `main` and calls its own `host.checks(…, base)` (`green(m.contributor, base)`), a read of a just-pushed commit through `check-runs`/`statuses`, which GitHub can briefly answer 404. The failed script path then exited 1 (halt + `failure`). The reconciler's own checks (`checks`, `baseHeld`) only name remote-fetched heads (`snapshot.head`, fetched base), and any transport error there is an owner exception, never an abort. This is inferred from the saved state and code, not reproduced: GitHub did not 404 again in the repeat, where the same read is now retried.
+
+**Fixed (journey.ts only).** (1) `settle`: the controller's own reads of GitHub (`observe`, `green`) retry GitHub transport errors up to 8 times with growing sleeps. (2) `ack` no longer hard-codes a pr-review message: `acknowledge` builds the note from the saved exception (transport / closed-unmerged / generic with mode) and requires a pending exception. (3) Real transient exceptions during a run are acknowledged up to three times, as an owner would; (4) an `inject-transport` receipt arms a one-shot 502 on the next `api graphql` through the private `gh` wrapper, so the transport path is repeatable. (5) the contributor commit content embeds the root (earlier runs' merged content made a later run's commit empty).
+
+**Repeat.** pr-merge completed once after the injected transport exception: see the [index](index.md#repeat-after-a-transport-interruption). Stories: collector unlocks b without global closure (held); repeatable pr-merge repair and completion (held on PR #8); pr-review live COMMENTED repair and the maintainer-reduced review states stay as recorded in the index (not re-driven here).
+
+No retained test: the restart idempotency and transport-error semantics are already covered by `lib/reconcile/*.test.ts`; the 404 was a controller read, not product behavior.

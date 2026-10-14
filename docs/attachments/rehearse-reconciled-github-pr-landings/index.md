@@ -1,6 +1,6 @@
 # Owned live GitHub PR landing rehearsal
 
-Independent verification on a2e9b1b: [first-user encounter](independent-drive.md) reached PR #6 but its repeat stopped on transport 502/404; later lifecycle claims were not independently re-observed. Prior successful observations below remain historical evidence, not a successful final repeat.
+Independent verification on a2e9b1b: [first-user encounter](independent-drive.md) reached PR #6 but its repeat stopped on transport 502/404. The review that follows it ([cause and repeat](independent-drive.md#review-cause-of-the-404-and-the-repeat)) located the 404 in the journey controller, fixed it and the fixed acknowledgement note, and repeated pr-merge to completion on PR #8 after an injected transport exception: see [Repeat after a transport interruption](#repeat-after-a-transport-interruption). Other observations below remain historical evidence.
 
 Nonvisual CLI/API/Git evidence. Production host/start/run/state/dispatch/integration/gates/retirement/closure; deterministic shell phase workers, not paid models. No ledger writes by the controller. Git hooks stayed enabled. Both landing modes are complete under the maintainer-approved live/seeded boundary recorded below.
 
@@ -57,6 +57,25 @@ Owned directory `/private/tmp/rehearse-github-pr-ihGuRa`; root `rehearsal-merge-
 Original evidence is available at the original staged head, `docs/attachments/rehearsal/{rehearsal-merge-ihgura-a,rehearsal-merge-ihgura-b,rehearsal-merge-ihgura}.md`; PR body preserved original summaries/story outcomes and staged OID. Repair history is additional state, not replacement node results. The prototype reused the root evidence path for repair text at the repaired head; original bytes remain in its ancestor, explicitly distinguished here.
 
 Tree worker joins (implement → drive → review) used handles suffixes a `1/2/3`, b `4/5/6`, root `7/8/9`, with exactly nine tree launches. Review thread IDs: a `47440332-0fbc-4f86-ad99-716f8ef937c2`; b `8d0aeac8-6b63-4694-ac8e-b2e0db10ea43`; root `eba2910e-d7ca-462c-9445-933518bd0c72`.
+
+## Repeat after a transport interruption
+
+Controller revision: the commit that added this section (journey.ts: `settle` retry on controller reads, mode/exception-aware `acknowledge`, `inject-transport` fault). Production code unchanged. Same scratch repository; owned directory `/private/tmp/rehearse-github-pr-PSzfZ6`; root `rehearsal-merge-pszfz6`; [PR #8](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/pull/8), branch `reconcile/pr/rehearsal-merge-pszfz6-f42a9061387a`. Single command: `bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-merge` (7 min 36 s, exit 0).
+
+Prediction before contact: an injected 502 on the first reconciler GraphQL read after publication raises the owner exception `PR observation/publication failed`; the public acknowledgement continues the *same* saved PR to one bounded check repair, restart, conflict+contributor merge, green merge, child-first close and owner ff, with no duplicated tree workers.
+
+| Action / sensor | Observed result |
+| --- | --- |
+| Fault | Wrapper `gh` on the private PATH fails the next `api graphql` once with `gh: Server Error (HTTP 502)` (receipt file `injected`). Reconciler raised `PR observation/publication failed` for #8 at head `598fb871…` with text `GitHub transport: gh: Server Error (HTTP 502)`. |
+| Acknowledgement | Public resolve `answer` with a note generated from the saved exception: "Owner acknowledges a transient GitHub transport interruption (PR observation/publication failed); retry observation of the same saved PR." (no pr-review/changes-requested wording). Applied; exception cleared; PR number unchanged. |
+| Continuation | Observed real failing checks `115934506056`/`115934554470` (runs `38587848191`/`38587861459`) on `598fb871…`; one repair worker `rehearsal-merge-pszfz6-pr-repair-a` (thread `8a5a6c44-18cb-47ad-9ac3-29dda4436031`); nine tree launches only. |
+| Restart | Exact reconciler PID `44352` killed; production start resumed as `62482`; same #8, `pr-merge`, branch, empty review cursor, original result packets. |
+| Histories | Base advance `a5279f89…` conflicted with a's fixture edit; separate-clone contributor push `7a09065f…` to the PR branch. Repair merged both (`0452d850…`), no rebase/force. |
+| Gates | Original gate on staged head `598fb871…`; repair-worker gate `0452d850…`; final staging gate and pre-push hook both on pushed head `a91d36bd1eeb8cb16524818c157036f5d419c81a`. Checks on that head green before merge. |
+| Merge / close | GitHub merge commit `c9082cef0dbe26554e5f9a76195edda4b93ab660` (two parents, contains `a91d36bd…`, base and contributor commits). Tracker commits in order: `close …-a`, `close …-b`, `close rehearsal-merge-pszfz6`; original result packets unchanged apart from `closedAt`; outside dependent ready; owner clean on `main` fast-forwarded to `c9082cef…` (`ownerSync: updated`); zero live workers. |
+| Cleanup | Documented `cleanup`: explicit stop; branch `reconcile/pr/rehearsal-merge-pszfz6-f42a9061387a` deleted; no open PRs in the scratch repository; no process of this area left; local area retained. |
+
+The first attempt of this repeat (`…-4mqQ8t`, #7) passed the injected 502, acknowledgement and failed-check observation, then stopped on a controller defect: the contributor commit wrote identical content to `fixture/contributor.txt`, already on `main` from the earlier merged run (nothing to commit). The file now embeds the root. #7 was closed unmerged and its branch deleted via `cleanup`.
 
 ## pr-review: held at the approved live/seeded boundary
 

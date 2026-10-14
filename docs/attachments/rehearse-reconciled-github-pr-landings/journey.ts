@@ -44,7 +44,11 @@ mkdirSync(bin, { recursive: true });
 // this private PATH, so zero recorded merge requests proves no reconciler actuation.
 writeFileSync(join(bin, "gh"), "#!/bin/sh\nprintf 'call\\n' >> '" + join(area, "host-calls") +
 	"'\ncase \"$*\" in *'/merge'*|*'mergePullRequest'*|pr\\ merge*) printf 'merge\\n' >> '" + join(area, "host-merges") +
-	"' ;; esac\nexec '" + nativeGh + "' \"$@\"\n", { mode: 0o755 });
+	"' ;; esac\n" +
+	// Injected transport interruption: while armed, the next GraphQL read fails once exactly as a real 502 would.
+	"if [ -e '" + join(area, "inject-transport") + "' ]; then case \"$*\" in 'api graphql'*) rm -f '" + join(area, "inject-transport") +
+	"'; printf 'injected\\n' >> '" + join(area, "injected") + "'; echo 'gh: Server Error (HTTP 502)' >&2; exit 1 ;; esac; fi\n" +
+	"exec '" + nativeGh + "' \"$@\"\n", { mode: 0o755 });
 writeFileSync(join(bin, "pi"), "#!/bin/sh\ngit rev-parse HEAD > shell-base\ntouch shell-started\nexec sleep 3600\n", { mode: 0o755 });
 for (const [name, role] of [["shell", "implement"], ["shell-drive", "drive"], ["tidy", "review"], ["technical", "implement"]]) {
 	put(agents, name + ".md", "---\nrole: " + role + "\n---\nDeterministic shell rehearsal.\n");
@@ -66,9 +70,14 @@ const report = (h: Handle, slug: string, replies?: Record<string, string>, evide
 		setup: { kind: "owned-github-scratch", entry: "mise run pre-integrate" },
 		stories: [{ story: slug + " code and joins", outcome: "held" }],
 		evidence: { path: evidencePath, visual: false, shots: [] }, tests: [], ...(replies ? { threadReplies: replies } : {}) }) + "\n\x60\x60\x60" });
+let transportAcks = 0;
 const until = async <T>(fn: () => T | false | undefined, label: string, allowException = false): Promise<T> => {
 	for (let n = 0; n < 900; n++) {
 		const s = state();
+		const transport = s?.exceptions[m.root];
+		// A real transient GitHub interruption is acknowledged once per occurrence (bounded), as an owner would.
+		if (!allowException && transport && Object.keys(s.exceptions).length === 1 && /observation\/publication failed/.test(transport.reason) &&
+			/GitHub transport/.test(transport.text) && transportAcks++ < 3) { await acknowledge("transportAcknowledgement" + transportAcks); continue; }
 		if (!allowException && s && Object.keys(s.exceptions).length) throw new Error("Owner exception: " + JSON.stringify(s.exceptions));
 		const value = fn(); if (value) return value;
 		await Bun.sleep(1000);
@@ -79,7 +88,18 @@ const ready = (slug: string, phase: string) => until(() => {
 	const c = state()?.chains[slug], h = c?.handle;
 	return c?.phase === phase && h && existsSync(join(h.path, "shell-started")) && h;
 }, slug + " " + phase);
-const observe = () => host.observe(m.owner, repository, state().pr!.number!);
+// GitHub's REST/GraphQL reads can briefly 404/5xx just after a push or under load. The controller's own
+// observations retry such transport errors (bounded); the production reconciler's behavior is not touched.
+const settle = <T>(fn: () => T): T => {
+	for (let n = 0; ; n++) {
+		try { return fn(); }
+		catch (error) {
+			if (n >= 8 || !String(error).includes("GitHub transport")) throw error;
+			Bun.sleepSync(2000 * (n + 1));
+		}
+	}
+};
+const observe = () => settle(() => host.observe(m.owner, repository, state().pr!.number!));
 const pausedIdentity = (s: State) => ({ number: s.pr!.number, branch: s.pr!.branch, land: s.land,
 	reviews: s.pr!.reviews, results: s.results, counter: s.counter, workers: Object.keys(s.chains) });
 const cut = async (label: string) => {
@@ -91,6 +111,19 @@ const cut = async (label: string) => {
 	assert.deepEqual(pausedIdentity(state()), identity);
 	record(label, { exactKilledPid: before.pid, resumedPid: restarted.pid, ...identity });
 };
+// The owner's public acknowledgement states what the saved exception actually is, never a fixed story.
+const acknowledge = async (label: string) => {
+	const exception = state().exceptions[m.root];
+	assert(exception, "No pending owner exception to acknowledge");
+	const before = state().resolved[m.root]?.length ?? 0;
+	const note = /transport|observation\/publication/i.test(exception.reason + exception.text)
+		? "Owner acknowledges a transient GitHub transport interruption (" + exception.reason + "); retry observation of the same saved PR."
+		: /closed without merge/i.test(exception.reason) ? "Owner acknowledges a closed-unmerged PR; the same PR was reopened, resume waiting on it."
+		: "Owner acknowledges: " + exception.reason + " (" + m.mode + "); resume the saved landing.";
+	resolveException(m.owner, m.root, m.root, { action: "answer", note });
+	await until(() => (state().resolved[m.root]?.length ?? 0) > before && !state().exceptions[m.root], "public acknowledgement applied", true);
+	record(label, { applied: true, exception: { reason: exception.reason, text: exception.text.slice(-300) }, note, resolved: state().resolved });
+};
 const halt = async () => {
 	const s = state(); if (!s?.pid || s.finished) return;
 	// A crash cut preserves resumable state; explicit cleanup uses production stop.
@@ -98,7 +131,7 @@ const halt = async () => {
 	await Bun.sleep(500);
 };
 const green = async (cwd: string, oid: string) => until(() => {
-	const checks = host.checks(cwd, repository, oid);
+	const checks = settle(() => host.checks(cwd, repository, oid));
 	return checks.length > 0 && checks.every(c => c.state === "pass") && checks;
 }, "real Actions green at " + oid);
 let tracker: Tracker;
@@ -183,6 +216,17 @@ try {
 		assert(!state().pr!.publication!.body.includes("Closes #"));
 		record("seededBackendCapability", { logicalSlugs: ids, closingLines: body.split("\n").filter(line => /^(Closes|Part of) #/.test(line)), vaultOmitted: true, realAdapterAvailable: false });
 		m.progress = "published"; persist();
+		if (m.mode === "pr-merge") {
+			// Injected (and, if GitHub also errs for real, real) transport interruption: the owner exception is
+			// acknowledged through the public resolution surface and the same saved PR continues to repair and merge.
+			const resolvedBefore = state().resolved[m.root]?.length ?? 0, number = state().pr!.number;
+			writeFileSync(join(area, "inject-transport"), "armed\n");
+			await until(() => /observation\/publication failed/.test(state().exceptions[m.root]?.reason ?? ""), "injected transport exception", true);
+			assert(existsSync(join(area, "injected")));
+			await acknowledge("transportAcknowledgement");
+			assert.equal(state().pr!.number, number);
+			assert((state().resolved[m.root]?.length ?? 0) > resolvedBefore);
+		}
 	}
 	if (action === "status") { console.log(JSON.stringify(state(), null, 2)); }
 	else if (action === "restart") { await cut("restartAfterHostRepair"); }
@@ -194,10 +238,7 @@ try {
 		record("cleanup", { explicitStop: true, pr: pr.number, branchDeleted: state().pr!.branch, localAreaRetained: area });
 	} else if (action === "ack") {
 		start({ cwd: m.owner, root: m.root, owner: "mail/rehearsal", budget: 1 });
-		const resolutionsBefore = state().resolved[m.root]?.length ?? 0;
-		resolveException(m.owner, m.root, m.root, { action: "answer", note: "Owner acknowledges later changes-requested; awaiting authorized human merge." });
-		await until(() => (state().resolved[m.root]?.length ?? 0) > resolutionsBefore, "public acknowledgement applied", true);
-		record("acknowledgement", { applied: true, resolved: state().resolved });
+		await acknowledge("acknowledgement");
 		await halt();
 	} else {
 		if (!fresh) record("resume", { ...start({ cwd: m.owner, root: m.root, owner: "mail/rehearsal", budget: 1 }), mode: state().land });
@@ -211,7 +252,7 @@ try {
 			const base = commit(m.contributor, "fixture/conflict.txt", "base edit\n"); git(m.contributor, "push", "-q", "origin", "main");
 			await green(m.contributor, base);
 			git(m.contributor, "checkout", "-qb", "contributor-" + m.root, "origin/" + state().pr!.branch);
-			const foreign = commit(m.contributor, "fixture/contributor.txt", "separate clone, same authorized mlegls login\n");
+			const foreign = commit(m.contributor, "fixture/contributor.txt", "separate clone, same authorized mlegls login: " + m.root + "\n");
 			git(m.contributor, "push", "-q", "origin", "HEAD:refs/heads/" + state().pr!.branch);
 			await until(() => existsSync(join(repair.path, "shell-started")), "repair shell ready");
 			await cut("restartDuringRepair");
