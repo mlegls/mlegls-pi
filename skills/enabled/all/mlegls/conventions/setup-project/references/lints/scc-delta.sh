@@ -16,8 +16,8 @@ git -C "$root" worktree add --detach "$tmp" "$ref" >/dev/null 2>&1
 
 totals() { scc --no-cocomo --no-size --format json "$@" 2>/dev/null \
   | jq -r 'map(select(.Name != "Markdown" and .Name != "JSON" and .Name != "YAML")) | {code: map(.Code) | add, complexity: map(.Complexity) | add}'; }
-rel=${PWD#"$root"}
-before=$(cd "$tmp$rel" && totals "${paths[@]}")
+rel=$(git rev-parse --show-prefix)
+before=$(cd "$tmp/$rel" && totals "${paths[@]}")
 after=$(totals "${paths[@]}")
 jq -n --argjson b "$before" --argjson a "$after" -r '
   "code       \($b.code) → \($a.code)  (\($a.code - $b.code))",
