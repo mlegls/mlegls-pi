@@ -232,7 +232,11 @@ async function finishRepair(c: PullRequestContext, host: PullRequestHost): Promi
 		const ids = receipt.request.reviewIds ?? [];
 		next.reviews.processed = [...new Set([...next.reviews.processed, ...ids])];
 		next.reviews.repaired = [...new Set([...next.reviews.repaired, ...ids])];
-		if (ids.length) next.reviews.lastRepair = { at: new Date().toISOString(), head: receipt.pushedHead!, reviewIds: ids };
+		if (ids.length) {
+			const at = new Date().toISOString();
+			next.reviews.firstRepairAt ??= next.reviews.lastRepair?.at ?? at;
+			next.reviews.lastRepair = { at, head: receipt.pushedHead!, reviewIds: ids };
+		}
 	});
 	await retireRepair(c);
 	persist(c, next => {
@@ -392,8 +396,7 @@ export async function advancePullRequest(c: PullRequestContext): Promise<"waitin
 			if (failed.length) return await beginRepair(c, repairRequest("checks", snapshot.head,
 				"checks:" + snapshot.head + ":" + failed.map(check => check.id).sort().join(","),
 				"Failing checks on exact PR head " + snapshot.head + ":\n\n" + checksMessage(failed)));
-			if (c.state.land === "pr-review" && snapshot.reviews.length &&
-				reviewSelector.prReviewLifecycleReady) {
+			if (c.state.land === "pr-review" && snapshot.reviews.length) {
 				const action = reviewSelector.nextReviewAction(pr, snapshot);
 				persist(c, next => { next.reviews.processed = [...new Set([...next.reviews.processed, ...action.processed])]; });
 				if (action.kind === "exception") return hold(c, action.reason, action.message);

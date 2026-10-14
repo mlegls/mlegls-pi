@@ -19,6 +19,7 @@ export interface SubmittedReview {
 	id: string;
 	state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED";
 	submittedAt: string;
+	url?: string;
 	commit: string;
 }
 export interface ReviewThread {
@@ -82,6 +83,8 @@ export interface PrReviewProgress {
 	processed: string[]; // submitted review IDs only
 	repaired: string[]; // persisted only after repair integration and push
 	replies: Record<string, string>; // replay marker -> posted reply receipt
+	/** First successful submitted-review repair; later comment follow-ups do not reset the policy. */
+	firstRepairAt?: string;
 	lastRepair?: { at: string; head: string; reviewIds: string[] };
 }
 

@@ -130,12 +130,12 @@ function observe(cwd: string, repository: string, number: number): PullRequestSn
 		&& ["OPEN", "MERGED", "CLOSED"].includes(pr.state) && ["MERGEABLE", "CONFLICTING", "UNKNOWN"].includes(pr.mergeable), "incomplete pull request observation for " + repository + "#" + number);
 	oid(pr.headRefOid);
 	oid(pr.baseRefOid);
-	type Review = { id: string; state: string; submittedAt: string | null; commit: { oid: string } | null };
+	type Review = { id: string; state: string; submittedAt: string | null; url: string; commit: { oid: string } | null };
 	const reviews = connection<Review, { repository: { pullRequest: { reviews: Connection<Review> } } }>(cwd,
-		"query($owner: String!, $name: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviews(first: 100, after: $cursor) { nodes { id state submittedAt commit { oid } } " + pageInfo + " } } } }",
+		"query($owner: String!, $name: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviews(first: 100, after: $cursor) { nodes { id state submittedAt url commit { oid } } " + pageInfo + " } } } }",
 		variables, data => data.repository?.pullRequest?.reviews).filter(r => r.state !== "PENDING").map(r => {
 			requireValue(r.id && r.submittedAt && r.commit?.oid && ["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"].includes(r.state), "incomplete submitted review " + r.id);
-			return { id: r.id, state: r.state as SubmittedReview["state"], submittedAt: r.submittedAt, commit: r.commit.oid };
+			return { id: r.id, state: r.state as SubmittedReview["state"], submittedAt: r.submittedAt, url: r.url, commit: r.commit.oid };
 		});
 	type Thread = { id: string; isResolved: boolean };
 	const threads = connection<Thread, { repository: { pullRequest: { reviewThreads: Connection<Thread> } } }>(cwd,
