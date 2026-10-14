@@ -6,6 +6,37 @@ import { getThread } from "../thread/registry";
 import { merge, spawn, type Worker } from "../wm";
 import { getTracker } from "../tracker";
 import { refreshWorker } from "./refresh";
+import { git as reconcilerGit } from "./checks";
+
+// The ticket authorizes this output/argument regression: large git output must not abort a successor.
+test("successor merge suppresses diffstat and reconciler git accepts output above 1 MiB", () => {
+	const repo = realpathSync(mkdtempSync("/tmp/rc-output-"));
+	const trace = join(repo, "merge.trace");
+	const savedTrace = process.env.GIT_TRACE;
+	try {
+		reconcilerGit(repo, "init", "-qb", "main");
+		reconcilerGit(repo, "config", "user.name", "Fixture");
+		reconcilerGit(repo, "config", "user.email", "fixture@example.invalid");
+		reconcilerGit(repo, "commit", "--allow-empty", "-qm", "seed");
+		const successor = join(repo, "successor");
+		reconcilerGit(repo, "worktree", "add", "-b", "successor", successor);
+		const content = "x".repeat(2 * 1024 * 1024);
+		writeFileSync(join(repo, "large.txt"), content);
+		reconcilerGit(repo, "add", "large.txt");
+		reconcilerGit(repo, "commit", "-qm", "collector");
+		// Override repository defaults: the automatic merge must suppress its own summary.
+		reconcilerGit(repo, "config", "merge.stat", "true");
+		process.env.GIT_TRACE = trace;
+		const refreshed = refreshWorker(successor, repo);
+		expect(refreshed.conflicts).toEqual([]);
+		expect(readFileSync(trace, "utf8")).toContain("merge --no-edit --no-verify --no-stat");
+		expect(reconcilerGit(successor, "show", "HEAD:large.txt")).toBe(content);
+	} finally {
+		if (savedTrace === undefined) delete process.env.GIT_TRACE;
+		else process.env.GIT_TRACE = savedTrace;
+		rmSync(repo, { recursive: true, force: true });
+	}
+});
 
 // Local shell workers exercise the real checkout/setup/launch seam; no model or paid API.
 test("an integrated handler ruling reaches a successor before setup and launch, keeping predecessor work", async () => {

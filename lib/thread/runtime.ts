@@ -66,6 +66,7 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		git(spawning.cwd, "check-ref-format", "--branch", name);
 		const path = resolve(spawning.project + "__worktrees", name);
 		if (existsSync(path)) throw new Error("Worktree path already exists (not owned): " + path);
+		if (git(spawning.cwd, "branch", "--list", name)) throw new Error("Worktree branch already exists (not owned): " + name);
 		location = { cwd: path, project: spawning.project, worktree: path, branch: name };
 	}
 	if (options.worker && await workerThread(options.worker.handle, owning ? spawning.cwd : location.cwd, options.worker.run))
@@ -83,8 +84,9 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		};
 		await saveThread(thread);
 		if (owning) {
-			git(spawning.cwd, "worktree", "add", ...(options.worker ? ["--no-checkout"] : []), "-b", name, location.cwd, options.base ?? "HEAD");
+			// Own the attempt: git can create a branch/path and then fail during checkout.
 			owned = true;
+			git(spawning.cwd, "worktree", "add", ...(options.worker ? ["--no-checkout"] : []), "-b", name, location.cwd, options.base ?? "HEAD");
 			if (options.worker) excludeTracker(location.cwd);
 			location = checkout(location.cwd);
 			thread = { ...thread, ...location };
@@ -114,8 +116,10 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		}
 		if (owned && !cleanup.length) {
 			try {
-				git(spawning.cwd, "worktree", "remove", "--force", location.cwd);
-				git(spawning.cwd, "branch", "-D", name);
+				const registered = git(spawning.cwd, "worktree", "list", "--porcelain", "-z").split("\0").includes("worktree " + location.cwd);
+				if (registered) git(spawning.cwd, "worktree", "remove", "--force", location.cwd);
+				else await rm(location.cwd, { recursive: true, force: true });
+				if (git(spawning.cwd, "branch", "--list", name)) git(spawning.cwd, "branch", "-D", name);
 			} catch (e) { cleanup.push(String(e)); }
 		}
 		if (thread && !cleanup.length) await saveThread({ ...thread, archived: true });

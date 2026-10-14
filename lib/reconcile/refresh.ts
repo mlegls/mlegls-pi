@@ -6,7 +6,7 @@ export function refreshWorker(path: string, collector: string): { head: string; 
 	const head = git(collector, "rev-parse", "HEAD");
 	const missing = git(path, "rev-list", "--count", "HEAD.." + head) !== "0";
 	if (!missing) return { head, conflicts: [] };
-	try { git(path, "-c", "merge.conflictStyle=diff3", "merge", "--no-edit", "--no-verify", head); }
+	try { git(path, "-c", "merge.conflictStyle=diff3", "merge", "--no-edit", "--no-verify", "--no-stat", head); }
 	catch (error) {
 		const conflicts = git(path, "diff", "--name-only", "--diff-filter=U", "-z").split("\0").filter(Boolean);
 		if (!conflicts.length || git(path, "rev-parse", "MERGE_HEAD") !== head) throw error;

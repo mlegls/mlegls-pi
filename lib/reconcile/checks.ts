@@ -5,7 +5,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+// Repository gardening can produce multi-MiB git output; the default 1 MiB limit aborts successful commands.
+export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 }).trim();
 
 /** Exact commit ancestry: whether `ancestor` is reachable from `descendant` in cwd's repository. */
 export function isAncestor(cwd: string, ancestor: string, descendant = "HEAD"): boolean {
