@@ -36,3 +36,15 @@ No runner failure or tooling friction encountered. Evidence friction: the suppli
 ## Cleanup and limits
 
 Managed runner exited normally. No server, browser, external deployment or other retained resource started by this driver. Nonvisual packet; no screenshots. This encounter verifies the supplied runner rather than the original Common Concept deployment.
+
+## Review (appended)
+
+Read the diff of `6289fc1f`: `refresh.ts` adds `--no-stat`; `checks.ts` `git` sets `maxBuffer` 64 MiB; `refresh.test.ts` traces the merge arguments with `merge.stat=true` set and merges a 2 MiB file; `runtime.ts` sets `owned = true` before `worktree add`, pre-checks branch existence, and makes cleanup tolerate an unregistered path and an absent branch.
+
+Prediction 3 (previously unobservable) established by fault injection (scratch test, not committed): a repository whose `.gitattributes` sets a required smudge filter that fails, so `git worktree add -b boom` creates the branch and then fails at checkout, driven through the real `newThread`.
+- Base `a52c3e82` `runtime.ts`: error reports "Partial resources cleaned", but branch `boom` remained (leak; the message was false).
+- Head: path absent, branch `boom` absent, `git worktree list` shows only main. Also a nonexistent `base` (git fails before creating anything) leaves nothing.
+- Outcome: **held**. No review repairs were needed. Re-ran `bun test lib/reconcile/refresh.test.ts lib/thread/runtime.test.ts lib/thread/lifecycle.test.ts`: 13 pass, 0 fail.
+
+Residual: the cleanup's registered-worktree check compares the raw `git worktree list` path with `location.cwd`; a symlinked project path (e.g. `/tmp` vs `/private/tmp`) would take the `rm` branch and leave a stale registration. `location.cwd` derives from `spawning.project`, which is already realpath-normalised elsewhere, so not observed.
+
