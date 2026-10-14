@@ -2,8 +2,6 @@
 stage: "ticket"
 assignee: "agent"
 author: "session:01a13a17-ba44-7373-87c5-ca7eff662862"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/delete-the-threads-gui-and-tree-sidebar]]"
 ---
 Make bb the only thread runtime and delete the zmx one, so workers and threads always run as bb threads.
 
