@@ -46,3 +46,7 @@ Run the same entry command at the tested revision (or select clean/dirty/other/d
 ## Cleanup and evidence limits
 
 All five exact invocation directories were checked after completion and no longer existed. No browser, server, tunnel or shared service was opened. No product code or tests changed. Earlier `receipts.json` belongs to the implementer's revision; this Markdown summarizes this independent run rather than relabeling those older receipts. GitHub observations are **seeded**, actual merge/fetch is against a private local bare remote, not live GitHub. Visual: false; shots: [].
+
+## Review (appended)
+
+Reviewed diff e03a1f6e..HEAD against the ticket. `bunx tsc --noEmit`, `bun test lib/reconcile` (13 pass) and the tracker script tests (24 pass) pass on the reviewed head. One repair: `stop` now falls back to the owner checkout when a recorded PR staging path is missing (e.g. stop during `preparing`) instead of failing on a nonexistent cwd; `stop.test.ts` still passes. No story outcome changed; the driver's packet was not re-run because the repair touches only that fallback.
