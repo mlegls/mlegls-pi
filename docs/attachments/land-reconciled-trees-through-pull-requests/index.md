@@ -1,5 +1,7 @@
 # Reconciled tree → one pull request: combined join
 
+Independent combined-revision drive on `f5ac5b28`: [encounter](independent-drive.md) is **blocked before collector/PR surface**. Green base/setup succeeded, but committed shell-worker setup failed under the merged BB runtime (`Failed to resolve Pi model "stance/shell"`). Earlier successful encounters below do not prove this revision. Cleanup stopped/retired workers then failed querying an absent PR identity. [Global friction](../../../issues/scratch-pr-rehearsal-shell-model-unavailable.md) owns the setup incompatibility and cleanup encounter.
+
 Nonvisual CLI/API/Git evidence. Starting revision `e36fc32e`; production join `66a1c218` removes the completed staging lifecycle guard; final runnable-fixture revision `7419f1e0` changes only the one-off staging setup, not production behaviour. The submitted-review selector remains enabled (`prReviewLifecycleReady = true`); its marker-filter regression is retained in `lib/reconcile/pr-reviews.test.ts`. No new retained tests were added at this join.
 
 The root integrates into run-owned staging; collectors remain local. Publication, polling, budgeted merge-only repairs and submitted-review receipts use that same destination. Only observed MERGED plus fetched base ancestry transfers pending results to `github:<repository>:<base>` and closes them child-first. The owner checkout remains a best-effort mirror.
