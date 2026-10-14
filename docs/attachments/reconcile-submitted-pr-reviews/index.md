@@ -54,4 +54,4 @@ Real Git commits and runtime identity from the final disposable run, not hosted 
 - `bun test`: 225 passed, two existing skipped, zero failed (51 files).
 - No new permanent tests added.
 - An earlier probe assertion compared the whole result object across legitimate target-completion metadata updates. It was narrowed to preserved original handoff/summary; final encounter replayed successfully.
-- Implementer first use; independent driver/reviewer acceptance follows.
+- Implementer first use above; [independent driver replay](drive.md) on revision `4166ee2438f6eddd84a5717cff5606ce4ab3885f` also exited 0 with one repair worker, two reply posts and zero host merge calls. Reviewer acceptance follows.
