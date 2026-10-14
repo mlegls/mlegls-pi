@@ -432,7 +432,7 @@ function tree(root: Issue | undefined, all: Map<string, Issue>, depth = 0): stri
 }
 
 // Every [[link]] and [[link#Heading]] under docs/, resolved as Obsidian does: by
-// basename, disambiguated by the link's trailing path segments; inline and fenced code ignored.
+// basename, disambiguated by the link's trailing path segments; Markdown code ignored.
 // Repairs are opt-in: issue links use canonical state, evidence uses the checked code tree.
 
 // A done blocker no longer constrains scheduling; --fix drops it, leaving guards and live blockers in place.
@@ -467,6 +467,11 @@ function maskMarkdownCode(source: string): string {
     for (let i = start; i < end; i++) if (chars[i] !== "\r" && chars[i] !== "\n") chars[i] = " ";
   };
   let fence: { marker: string; length: number } | undefined;
+  let indented = false;
+  let previousBlank = true;
+  // Content columns of enclosing list items: their ordinary continuations are prose,
+  // not top-level indented code. Tabs advance to CommonMark's four-column stops.
+  const listColumns: number[] = [];
   let offset = 0;
   for (const line of source.match(/[^\r\n]*(?:\r\n|\r|\n|$)/g) ?? []) {
     if (!line) break;
@@ -475,12 +480,40 @@ function maskMarkdownCode(source: string): string {
       blank(offset, offset + body.length);
       if (new RegExp(`^ {0,3}${fence.marker}{${fence.length},}[ \\t]*$`).test(body)) fence = undefined;
     } else {
+      let column = 0;
+      const expanded = body.replace(/[^\t]|\t/g, (char) => {
+        const width = char === "\t" ? 4 - column % 4 : 1;
+        column += width;
+        return char === "\t" ? " ".repeat(width) : char;
+      });
+      const empty = /^ *$/.test(expanded);
+      const indent = expanded.match(/^ */)![0].length;
+      if (!empty) {
+        while (listColumns.length && indent < listColumns[listColumns.length - 1]) listColumns.pop();
+      }
+      const container = listColumns.at(-1) ?? 0;
+      const code = !empty && indent >= container + 4 && (indented || previousBlank);
+      if (code || (empty && indented)) {
+        blank(offset, offset + body.length);
+        indented = true;
+        previousBlank = empty;
+        offset += line.length;
+        continue;
+      }
+      indented = false;
+      // List markers can be indented up to three columns within their container.
+      const item = expanded.slice(container).match(/^( {0,3})(?:[-+*]|\d{1,9}[.)])( +|$)/);
+      if (item) {
+        const padding = item[2].length;
+        listColumns.push(container + item[0].length - padding + (padding > 0 && padding <= 4 ? padding : 1));
+      }
       const open = body.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
       if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
         fence = { marker: open[1][0], length: open[1].length };
         blank(offset, offset + body.length);
       }
     }
+    previousBlank = /^[ \t]*$/.test(body) && !fence;
     offset += line.length;
   }
 
