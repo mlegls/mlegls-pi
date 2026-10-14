@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a13a33-2a17-714d-a4b1-0ff4fb53f8f0"
 part-of: "[[projects/mlegls-pi/issues/land-reconciled-trees-through-pull-requests]]"
-claimed-by: "reconcile:land-reconciled-trees-through-pull-requests"
 priority: 2
 ---
 # Deliverable
@@ -47,3 +46,52 @@ The maintainer decided not to supply a distinct reviewer. This expressly superse
 Reuse and keep only the supplied private scratch repository `mlegls/reconcile-pr-transport-20261014-35767b2d`; no new repository/accounts/tokens/permissions. Finish live PR #5 by resuming its production reconciler, then invoking `gh pr merge 5 --merge` separately outside that process as `mlegls`, the maintainer-authorized stand-in human merger. Verify the reconciler itself never requests merge in pr-review, observes MERGED plus fetched ancestry, closes a/b/root child-first with saved evidence, releases the outside dependent and advances the clean/base owner. Live pr-merge acceptance and the other recorded recovery/base-history claims remain unchanged. Record the live-versus-seeded boundary and retained scratch cleanup ownership in the committed packet. The worker reports done without closing this execution ticket; closure remains with the enclosing reconciler after target integration.
 
 Authority: parent run board decision mv884mdq-xoy620, 2026-10-14 14:47:24Z, carrying the maintainer's ruling.
+
+## Result
+
+done — the 404 came from the journey controller, not the product, and the pr-merge repeat now reaches merge after a transport exception. I inferred that cause from the saved state and the code and didn't reproduce it.
+
+**Cause of the 404.** In the failed drive, the saved state showed no exception, and the reconciler log ended at `launched …-pr-repair-a`. The resumed reconciler only asks about heads that exist on the remote. The 404 came from the journey script's own `host.checks` read of a base commit it had just pushed (`green(m.contributor, base)`). The 502 is the designed owner exception, and the public acknowledgement clears it. No product change and no retained test: the product code was unchanged, and the existing `lib/reconcile/*.test.ts` cover restart and transport-error handling.
+
+**Fixes in `docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts`, commit `e36fc32e`.**
+- **Retry:** the script's own GitHub reads (`observe`, `green`) retry transport errors up to 8 times with growing sleeps.
+- **Acknowledgement:** the note is now built from the saved exception, and it refuses if no exception is pending. It no longer says "later changes-requested; awaiting authorized human merge" for every case.
+- **Fault injection:** an `inject-transport` file makes the next `api graphql` call fail once with a 502, so the transport path is repeatable.
+- **Contributor fixture:** the file now embeds the root name. My first rerun failed with "nothing to commit" because `main` already held the same content from an earlier merged run. I cleaned that attempt up (#7 closed unmerged, branch deleted).
+
+**Repeat result: PR #8, `rehearsal-merge-pszfz6`.** The run took 7 min 36 s.
+- **Transport exception:** the injected 502 raised `PR observation/publication failed`. The public acknowledgement cleared it and the same PR continued.
+- **Repair:** one bounded repair worker, and nine tree launches in total with no duplicates.
+- **Restart:** killing the exact reconciler PID 44352 and restarting it as 62482 kept the PR number, mode, branch, review cursor and original result packets.
+- **Histories:** the base conflict and the contributor push were both kept, with no rebase or force-push.
+- **Gate and merge:** the gate ran on pushed head `a91d36bd`. Merge commit `c9082cef` has two parents. The tracker closed a, b, then root, the outside dependent became ready, and the clean owner fast-forwarded.
+
+`bunx tsc --noEmit` is clean and `bun test lib/reconcile` passes. Cleanup ran and no process of mine is left. The scratch repository has no open PRs, and the local directories under `/private/tmp` are kept.
+
+I added the review and repeat to `index.md` and `independent-drive.md`, with a short transport-exception note in `docs/guide/reconcile-pull-requests.md`. I closed `scratch-pr-rehearsal-transport-interruption` with that cause and fix.
+
+```yaml
+commit: e36fc32e
+stories:
+  - story: Collector unlocks b without global closure; one PR preserves owner
+    outcome: held
+  - story: Repeatable pr-merge repair and completion
+    outcome: held
+  - story: pr-review and remaining lifecycle acceptance
+    outcome: held   # at the maintainer-reduced live/seeded boundary recorded in index.md; not re-driven in this pass
+evidence:
+  path: docs/attachments/rehearse-reconciled-github-pr-landings/index.md
+  visual: false
+  shots: []
+filed: []
+fixed:
+  - journey.ts retry, honest acknowledgement, fault injection and contributor fixture (e36fc32e)
+caveats:
+  - The 404 cause is inferred from saved state and code. It did not recur in the repeat, where the same read is now retried.
+  - The first attempt of the repeat failed on the contributor fixture; that is in the index.
+  - Settling friction scratch-pr-rehearsal-transport-interruption closes it before this branch is integrated. Its fix lives only on this branch.
+  - The only real transport failure in the repeat was the injected one. No real 404 occurred.
+  - Retained cost: each full pr-merge repeat takes about 7.5 min, mostly real Actions waits.
+```
+
+Evidence: [docs/attachments/rehearse-reconciled-github-pr-landings/index.md](docs/attachments/rehearse-reconciled-github-pr-landings/index.md)
