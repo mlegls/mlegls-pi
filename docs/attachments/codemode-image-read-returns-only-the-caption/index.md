@@ -57,3 +57,7 @@ The initial smoke run failed because the chosen base64 PNG fixture was invalid
 and builtin image processing correctly returned an omission note. Replacing it
 with a valid Photon-generated 1×1 PNG made the focused run pass. No production
 behavior was changed to accommodate the invalid fixture.
+
+## Review
+
+Resolved the collector merge of `62b59416` (only `lib/outline-read/read.test.ts` conflicted; both tests kept, imports unioned). After merge: `bun test lib/outline-read` 45 pass, `bun run typecheck` clean, `try-read.ts` still emits image/png items. Diff reviewed against ticket: schema, structuredContent passthrough/derivation and multi-file shape match the contract and tool description; no repairs needed.
