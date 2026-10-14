@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a13a33-2a17-714d-a4b1-0ff4fb53f8f0"
 part-of: "[[projects/mlegls-pi/issues/land-reconciled-trees-through-pull-requests]]"
-claimed-by: "reconcile:land-reconciled-trees-through-pull-requests"
 priority: 2
 ---
 # Deliverable
@@ -32,3 +31,42 @@ Own `reconcile.ts`, `main.ts`, `completion.ts`, `extensions/supervision/index.ts
 Mirror the isolated environment and shell workers in `docs/attachments/reconcile-with-global-tracker-and-landing-ledger/ledger.ts` (read before using): private repository, board, registry, agents and XDG state, no model calls. Do not inherit its fixture hook-disabling lines; execute hooks normally. Stage a two-ticket tree and inspect the real integration receipt before publication: collector work stays pending, root gate ran in the staging-parented worker, owner HEAD/code is unchanged, all results survive retirement/reload. Use a supplied merged host observation and an actual fetched merge commit to exercise target close; a dirty owner and an owner on another branch stay untouched. A scripted host observation is labelled seeded, not live GitHub evidence. Record under `docs/attachments/stage-reconciled-root-for-pr-landing/` with setup and runnable entry point. Full live publication/restart acceptance belongs to the later rehearsal.
 
 Run `bunx tsc --noEmit`, existing `bun test lib/reconcile` and tracker script tests; adapt kept tests only where the deliberate mode/target behavior requires it. No new retained tests are authorized. Acceptance: absent config/local is unchanged; captured modes survive resume/config changes; PR root integration cannot close nodes or touch owner code; proven merge closes child-first exactly once logically, and optional owner ff never overwrites work.
+
+## Result
+
+done — the PR staging and target-closure slice holds against the ticket, with one small repair of mine. All five of the driver's stories hold on the final head.
+
+`bunx tsc --noEmit` is clean, `bun test lib/reconcile` passes 13, and the tracker script tests pass 24. The repo has no `test:affected` task, so I ran those instead. I didn't re-run the driver's scenarios (~10 min); my change only touches `stop` when the staging path is missing.
+
+The repair is in `lib/reconcile/main.ts`. `stop` now falls back to the owner checkout when the recorded PR staging path doesn't exist yet (for example, stopping while still `preparing`). Before, it would have used a nonexistent cwd. I appended a review note to `drive.md` and committed everything as `009ca3d2`.
+
+I read the diff and found nothing else to fix:
+- **`pick` change:** it was needed because the `technical` stance has role `implement`, but the repair worker is launched with the `review` role.
+- **Inflight and status:** local output is unchanged.
+- **Dormant lifecycle:** `pullRequestLifecycleReady=false` keeps publication dormant, as the ticket intends.
+
+The driver filed no frictions, so there was nothing to triage. This isn't a join review, so there are no `changes` to report.
+
+```yaml
+commit: 009ca3d2
+stories:
+  - {story: Captured modes and resume/refusal behavior, outcome: held}
+  - {story: Staging-only root landing preserves owner and pending results, outcome: held}
+  - {story: Retirement/reload preserves staging receipts, outcome: held}
+  - {story: Proven merge closes child-first without duplicate closure, outcome: held}
+  - {story: Owner synchronization protects dirty/other/divergent/missing owners, outcome: held}
+evidence:
+  path: docs/attachments/stage-reconciled-root-for-pr-landing/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+fixed:
+  - {what: "stop falls back to the owner checkout when the PR staging path is missing", commit: 009ca3d2}
+caveats:
+  - GitHub host observations are seeded, not live. The merge and fetch run against a private local bare remote.
+  - Each case of the driver's acceptance run costs about 10 minutes for 9 worker launches, because it uses real shell workers and real integration gates. The five cases are run one after another.
+  - Live publication, CI/review repairs and restart are for later tickets.
+```
+
+Evidence: [docs/attachments/stage-reconciled-root-for-pr-landing/index.md](docs/attachments/stage-reconciled-root-for-pr-landing/index.md)
