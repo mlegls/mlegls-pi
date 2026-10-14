@@ -2,7 +2,7 @@
 
 Independent combined-revision [encounter and final replay](independent-drive.md#authorized-fixture-repair-and-final-replay) on fixture revision `daf01ced`: **held**. After supervisor-authorized BB-only fixture adaptation, live PR #10 completed check repair, histories/restart, merge/child-first closure and owner ff; seeded reviews/checks/zero-check and all five staging cases passed. Typecheck passed. Both prepublication and completed cleanup passed. [Global friction](../../../issues/scratch-pr-rehearsal-shell-model-unavailable.md) records the initial setup incompatibility and repaired evidence pending target integration.
 
-Nonvisual CLI/API/Git evidence. Starting revision `e36fc32e`; production join `66a1c218` removes the completed staging lifecycle guard; final runnable-fixture revision `7419f1e0` changes only the one-off staging setup, not production behaviour. The submitted-review selector remains enabled (`prReviewLifecycleReady = true`); its marker-filter regression is retained in `lib/reconcile/pr-reviews.test.ts`. No new retained tests were added at this join.
+Nonvisual CLI/API/Git evidence. Starting revision `e36fc32e`; production join `66a1c218` removes the completed staging lifecycle guard; final runnable-fixture revision `7419f1e0` changes only the one-off staging setup, not production behaviour. The submitted-review selector is unconditional (the dormancy flag was removed in review); its marker-filter regression is retained in `lib/reconcile/pr-reviews.test.ts`. No new retained tests were added at this join.
 
 The root integrates into run-owned staging; collectors remain local. Publication, polling, budgeted merge-only repairs and submitted-review receipts use that same destination. Only observed MERGED plus fetched base ancestry transfers pending results to `github:<repository>:<base>` and closes them child-first. The owner checkout remains a best-effort mirror.
 
@@ -84,3 +84,9 @@ The current replay also mapped nonnumeric logical node slugs through the optiona
 ## Cleanup and limits
 
 No browser, deployment, container or tunnel was opened. Seeded fixtures clean their owned resources. Live cleanup completed and the two owned reconciler PIDs are absent; zero live worker registry rows and no remaining process whose command names the owned area. The local scratch directory and supplied repository are retained for parent inspection/disposal; the run's remote branch was deleted. No global execution ticket is closed by this worker.
+
+## Join review
+
+Reviewed the combined change at `93cdd613` against the ticket's residual contract. Production diff of the join is small (guard removal, tick override); the driver's live PR #10 and seeded replays in [independent-drive.md](independent-drive.md) were read against it and every story holds. Re-ran `bun test lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts` (38 pass, 847 assertions, 71 s) and `bun run typecheck`: clean, before and after the one tidy below.
+
+Structural pass: no duplicate gh transports (`pr-diagnostics.ts` only fetches failed-job logs that `pr-host.ts` does not; both share the ordinary `gh` identity); `isAncestor` is the single ancestry check used by integration, refinement and PR completion; no remaining stubs or `pullRequestLifecycleReady` guards. One tidy: removed the dead exported `prReviewLifecycleReady` constant in `lib/reconcile/pr-reviews.ts` (no reader; the selector is called unconditionally). Behavior-preserving; no test touched. The fixture-only changes needed none.

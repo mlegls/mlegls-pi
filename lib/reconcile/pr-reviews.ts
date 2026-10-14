@@ -1,12 +1,9 @@
 import type { PrReviewAction, PullRequestLanding, PullRequestSnapshot } from "./pr-types.ts";
 
-/** Submitted boundaries, not comment activity, own repair rounds. */
-export const prReviewLifecycleReady = true;
-
 /** Every reply the reconciler posts carries this prefix; GitHub files each reply as its own COMMENTED review. */
 export const replyMarkerPrefix = (root: string) => "reconcile:" + root + ":review:";
 
-/** Pure selection; the caller saves non-actionable progress and requests before dispatch. */
+/** Submitted boundaries, not comment activity, own repair rounds. Pure selection; the caller saves non-actionable progress and requests before dispatch. */
 export function nextReviewAction(pr: PullRequestLanding, snapshot: PullRequestSnapshot, root: string): PrReviewAction {
 	const processed: string[] = [];
 	const reviews = snapshot.reviews.filter(review => review.submittedAt &&
