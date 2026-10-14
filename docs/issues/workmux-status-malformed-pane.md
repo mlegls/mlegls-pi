@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 ---
 
@@ -8,3 +8,7 @@ assignee: agent
 Reproduce with `workmux status --json`; repair or update workmux's pane parser, then drive a live dispatch/report/cleanup cycle. No live workers were started during this verification.
 
 2026-09-30 reconciliation: current `lib/dispatch.ts` uses `wm.spawn`, integration and retirement use workmux status, and [[projects/mlegls-pi/dispatch]] documents that backend. The supported caller exists again; this is no longer blocked on the retired Orca trial. The original parser failure still needs reproduction before choosing a repair.
+
+## Result
+
+Obsolete on triage 2026-10-14: workmux paths were deleted (delete-workmux-and-tmux-paths is done; lib/wm.ts no longer calls workmux).
