@@ -31,6 +31,7 @@ const commit = (cwd: string, path: string, content: string) => { put(cwd, path, 
 const persist = () => writeFileSync(manifestPath, JSON.stringify(m, null, 2) + "\n");
 const record = (key: string, value: unknown) => { m.observations[key] = value; persist(); console.log(key + " " + JSON.stringify(value)); };
 const bin = join(area, "bin"), agents = join(area, "agents");
+const nativeGh = Bun.which("gh"); assert(nativeGh, "Existing gh is required");
 for (const key of Object.keys(process.env)) if (/^(?:PI_.*|BB_.*|AB_.*|ZMX_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
 Object.assign(process.env, { XDG_STATE_HOME: join(area, "state"), XDG_CACHE_HOME: join(area, "cache"),
 	PI_BOARD_DIR: join(area, "board"), PI_CODING_AGENT_DIR: join(area, "agent"), PI_AGENTS_DIR: agents,
@@ -39,6 +40,11 @@ Object.assign(process.env, { XDG_STATE_HOME: join(area, "state"), XDG_CACHE_HOME
 	PARALLEL_HOME: join(area, "parallel"), WORKER_SLOTS: "2",
 	WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PATH: bin + ":" + process.env.PATH });
 mkdirSync(bin, { recursive: true });
+// Observational wrapper: delegate every host call unchanged. Merge stays outside
+// this private PATH, so zero recorded merge requests proves no reconciler actuation.
+writeFileSync(join(bin, "gh"), "#!/bin/sh\nprintf 'call\\n' >> '" + join(area, "host-calls") +
+	"'\ncase \"$*\" in *'/merge'*|*'mergePullRequest'*|pr\\ merge*) printf 'merge\\n' >> '" + join(area, "host-merges") +
+	"' ;; esac\nexec '" + nativeGh + "' \"$@\"\n", { mode: 0o755 });
 writeFileSync(join(bin, "pi"), "#!/bin/sh\ngit rev-parse HEAD > shell-base\ntouch shell-started\nexec sleep 3600\n", { mode: 0o755 });
 for (const [name, role] of [["shell", "implement"], ["shell-drive", "drive"], ["tidy", "review"], ["technical", "implement"]]) {
 	put(agents, name + ".md", "---\nrole: " + role + "\n---\nDeterministic shell rehearsal.\n");
@@ -194,7 +200,7 @@ try {
 		record("acknowledgement", { applied: true, resolved: state().resolved });
 		await halt();
 	} else {
-		if (!fresh) start({ cwd: m.owner, root: m.root, owner: "mail/rehearsal", budget: 1 });
+		if (!fresh) record("resume", { ...start({ cwd: m.owner, root: m.root, owner: "mail/rehearsal", budget: 1 }), mode: state().land });
 		if (m.mode === "pr-merge" && m.progress === "published") {
 			const repair = await until(() => state().pr?.repair?.worker, "failing Actions repair");
 			assert.equal(state().pr!.repair!.request.kind, "checks");
@@ -221,6 +227,7 @@ try {
 			m.progress = "merge-submitted"; persist();
 		}
 		if (!fresh && m.mode === "pr-review" && observe().state === "OPEN") {
+			console.log("external-merge-wait");
 			await Bun.sleep(70_000);
 			record("humanObservation", { snapshot: observe(), exceptions: state().exceptions, repairs: state().pr!.repairs, results: state().results });
 		}
@@ -229,6 +236,7 @@ try {
 			const s = state(), pr = observe(), repair = s.pr!.repairHistory![0];
 			assert.equal(pr.state, "MERGED"); assert.equal(s.pr!.ownerSync, "updated"); assert.equal(head(m.owner), pr.mergeCommit);
 			assert.equal(git(m.owner, "show", "-s", "--format=%P", pr.mergeCommit!).split(" ").length, 2);
+			git(m.owner, "merge-base", "--is-ancestor", pr.head, pr.mergeCommit!);
 			assert(tracker.snapshot().get(outside)?.frontier);
 			for (const slug of nodes) { assert.equal(tracker.fields(slug).stage, "done"); assert.equal(s.results[slug].evidence, packet(slug)); }
 			if (m.mode === "pr-merge") {
@@ -240,6 +248,18 @@ try {
 			assert(!(await allThreads()).some(t => !t.archived && t.worker?.run === m.root));
 			record("merged", { pr, results: s.results, closeSubjects: git(m.repo, "log", "--reverse", "--format=%s", m.ownerBefore! + "..HEAD").split("\n").filter(x => x.includes("close ")),
 				owner: head(m.owner), ownerSync: s.pr!.ownerSync, outsideReady: true, repair, gates, hooks: readFileSync(join(area, "hooks"), "utf8").trim().split("\n"), liveWorkers: 0 });
+			const originals = (m.observations.published as { pendingResults: State["results"] }).pendingResults;
+			for (const slug of nodes) {
+				const { closedAt, ...original } = s.results[slug]; assert(closedAt); assert.deepEqual(original, originals[slug]);
+			}
+			const closes = (m.observations.merged as { closeSubjects: string[] }).closeSubjects;
+			assert.deepEqual(closes, nodes.map(slug => "tracker: close " + slug));
+			if (m.mode === "pr-review") {
+				assert.equal(s.counter, 10); assert.equal(s.pr!.repairs, 1);
+				assert(!existsSync(join(area, "host-merges")), "Review reconciler must never request merge");
+				record("externalMergeProof", { mergeRequests: 0, delegatedHostCalls: readFileSync(join(area, "host-calls"), "utf8").trim().split("\n").length,
+					mode: s.land, ancestry: true, originalResultsPreserved: true, nodesChildFirst: nodes, counter: s.counter });
+			}
 			m.progress = "done"; persist();
 		} else if (m.progress === "published") {
 			await green(m.owner, state().pr!.pushedHead!);
