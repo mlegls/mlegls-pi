@@ -13,7 +13,7 @@ Code under test: initial implementation base `d1d17ed4`; repaired production hos
 ```sh
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-merge
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-review
-# Commands print OWNED_DIRECTORY. Local board/registry/agents/XDG/zmx/tracker are private there.
+# Commands print OWNED_DIRECTORY. Local board/registry/agents/XDG/fake-BB/tracker are private there.
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts status OWNED_DIRECTORY
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts resume OWNED_DIRECTORY
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts ack OWNED_DIRECTORY
