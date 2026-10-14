@@ -20,3 +20,5 @@ Done:
 
 decisions:
 - 2026-10-14: bb is the only runtime, also from plain terminals; no zmx fallback; non-pi worker commands are dropped.
+
+Drive evidence (pending review, not completion): [bb-only encounter](../attachments/delete-the-zmx-thread-runtime/index.md).
