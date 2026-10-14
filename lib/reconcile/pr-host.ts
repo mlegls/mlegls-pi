@@ -79,7 +79,7 @@ function threadComments(cwd: string, thread: string): Comment[] {
 }
 interface CheckRun {
 	id: number; name: string; status: string; conclusion: string | null; head_sha: string;
-	app: { id: number }; details_url?: string; html_url?: string;
+	app: { id: number }; check_suite: { id: number }; details_url?: string; html_url?: string;
 	output?: { title?: string; summary?: string; text?: string };
 }
 interface CommitStatus { id: number; context: string; state: string; description?: string; target_url?: string; url?: string }
@@ -90,8 +90,9 @@ function checks(cwd: string, repository: string, commit: string): ReportedCheck[
 	const statuses = restList<CommitStatus>(cwd, "repos/" + repository + "/commits/" + commit + "/statuses?per_page=100");
 	const latestRuns = new Map<string, CheckRun>();
 	for (const run of runs) {
-		requireValue(run.id && run.name && run.app?.id && typeof run.status === "string" && run.head_sha?.toLowerCase() === commit.toLowerCase(), "incomplete check run on " + commit);
-		const key = run.app.id + ":" + run.name;
+		requireValue(run.id && run.name && run.app?.id && run.check_suite?.id && typeof run.status === "string" && run.head_sha?.toLowerCase() === commit.toLowerCase(), "incomplete check run on " + commit);
+		// Independent workflows can report identical job names; reruns belong to their check suite.
+		const key = run.app.id + ":" + run.check_suite.id + ":" + run.name;
 		if (!latestRuns.has(key) || latestRuns.get(key)!.id < run.id) latestRuns.set(key, run);
 	}
 	const latestStatuses = new Map<string, CommitStatus>();
