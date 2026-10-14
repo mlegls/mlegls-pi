@@ -13,12 +13,17 @@ function stringOption(values: Record<string, unknown>, key: string): string | un
 	const value = values[key];
 	return typeof value === "string" ? value : undefined;
 }
-function rowLine(row: ThreadRow): string {
+// Human-readable summaries stay bounded and on one physical line; JSON retains the source text.
+function summary(text: string): string {
+	const line = text.replace(/\s+/g, " ").trim();
+	return line.length > 160 ? line.slice(0, 159) + "…" : line;
+}
+export function rowLine(row: ThreadRow): string {
 	const t = row.thread;
-	const blocked = t.blocked ? ` blocked=${t.blocked.action}:${t.blocked.reason}` : "";
+	const blocked = t.blocked ? ` blocked=${t.blocked.action}:${summary(t.blocked.reason)}` : "";
 	const queued = row.state === "queued" ? " wait=" + row.admission?.reason : "";
 	const resources = row.workspace ? " processes=" + row.workspace.processes + " rssMB=" + row.workspace.rssMB : "";
-	const report = row.report ? ` report=${row.report.tag}:${row.report.body.replace(/\s+/g, " ")}` : "";
+	const report = row.report ? ` report=${row.report.tag}:${summary(row.report.body)}` : "";
 	return `${"  ".repeat(row.depth)}${t.id} session=${t.sessionId} ${t.ownership} ${row.state} cwd=${t.cwd}${t.branch ? ` branch=${t.branch}` : ""}${queued}${resources}${report}${blocked}`;
 }
 function out(text: string) { process.stdout.write(text); }
