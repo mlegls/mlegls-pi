@@ -1,9 +1,13 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 author: "session:53c0d69f-e221-4a86-b75d-9cf3b3c46e6a"
 priority: 3
 ---
+Done: in codemode, `await tools.read({path: "x.png"})` resolves to pi's documented image block `{type: "image", data, mimeType, note}` that `image()` accepts, and text files still resolve to their text. Test in `lib/outline-read` asserting `structuredContent` for an image and a text read, plus a multi-file read.
+
+Cause (2026-10-14 triage): this repo's `lib/outline-read/read.ts` overrides pi's `read` tool without pi's `outputSchema` and `structuredContent`, so codemode falls back to the text content (the caption). pi's built-in (`dist/core/tools/read.js`, `toReadOutput`) declares `outputSchema: String | {type:image,data,mimeType,note}` and returns `structuredContent`. Declare the same output schema and return `structuredContent` from `execute` (pass through the builtin result's for images; the merged text otherwise). Decide what a multi-path read with an image returns and document it in the tool description. Reproduced 2026-10-14 with a 1×1 PNG.
+
 During Concept's `drive-the-joined-review-and-checkpoint-paths` packet collection, codemode's `tools.read({path: ".../01-joined-path.png"})` returned a string containing only `Read image file [image/png]` and resize instructions, not the image block documented in the installed pi `docs/codemode.md`. `image(await tools.read(...))` failed with `invalid image output. Pass a base64 data URI instead`. A second read confirmed `typeof result === "string"` and its entire 134-character caption.
 
 The same failure recurred on 2026-10-09 while reconciling Concept's audit evidence (`reconcile-audit-evidence-and-prototype-access`, session `b12315c3-b5bd-41b5-a4c5-8d71c03e0f25`): reading `/tmp/audit-guard-contact.jpg` through codemode and passing it to `image()` returned `invalid image output`. `base64 -i /tmp/audit-guard-contact.jpg` through bash, then `image("data:image/jpeg;base64," + result.output.replace(/\s/g, ""))`, displayed both contact sheets. No bridge source was changed.
