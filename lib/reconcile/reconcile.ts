@@ -42,7 +42,7 @@ import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
 import { prepareStaging, resolveLanding } from "./pr-config.ts";
 import { createPullRequestHost } from "./pr-host.ts";
-import { advancePullRequest, pullRequestLifecycleReady } from "./pull-request.ts";
+import { advancePullRequest } from "./pull-request.ts";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -1149,7 +1149,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			// revisits completed descendants, including on an opening restart.
 			if (s.pr.phase === "preparing") { s.pr.phase = "opening"; s.pr.preparedHead = s.landed[s.root].head; save(); }
 			await handleExceptions(top);
-			if ((s.pr.phase !== "merged" || (s.pr.repair?.worker && !s.pr.repair.retiredAt)) && pullRequestLifecycleReady) await advancePullRequest({
+			if (s.pr.phase !== "merged" || (s.pr.repair?.worker && !s.pr.repair.retiredAt)) await advancePullRequest({
 				state: s, tracker, host: o.prHost, save, locked, tests: s.tests[s.pr.path] ?? [],
 				ownerHeld: Object.keys(s.exceptions).length > 0,
 				launchRepair, report: fresh,

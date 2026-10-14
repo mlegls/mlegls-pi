@@ -33,7 +33,6 @@ export interface PullRequestContext {
 	raiseOwner: (reason: string, message: string) => void;
 }
 
-export const pullRequestLifecycleReady = true;
 const POLL_MS = 60_000, REPAIRS = 2, INTEGRATIONS = 3;
 class SaveFailure extends Error {}
 function persist(c: PullRequestContext, change: (pr: PullRequestLanding) => void): void {
