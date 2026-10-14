@@ -105,6 +105,7 @@ Production PR body generation with a Tracker implementing `githubIssue` mapped n
 
 - PR #4 merged; its unique remote PR branch was deleted. Supplied repository, inherited branches and setup/main history remain. The parent owns final supplied-repo disposal.
 - Finished merge reconciler `41377` exited; all workers retired. Review reconciler `76453` was crash-paused and all its workers retired. SSH proxies `nc` left after the intentional crashes were stopped by exact owned PIDs `30627` and `60372`, never a pattern. PR #5 and its unique branch are deliberately retained for the requested human controls.
+- Managed-process finished-record kill refused a reported leftover; exact-PID TERM cleaned it up. Recurrence added to the existing [pi-processes friction](../../../docs/issues/managed-process-completion-notice-did-not-reach-a-waiting-worker.md).
 - Local scratch directories are retained for inspection/resume; only ticket-owned files may be removed. No browser pages, deployments or tunnels were created.
 - Dirty/other-branch owner preservation is not a live claim here; prior [seeded-host actual-Git evidence](../stage-reconciled-root-for-pr-landing/index.md) is separate.
 - Distinct reviewer identity, initial live CHANGES_REQUESTED repair, later request exception, approval and human merge still require authorization/actions; partial COMMENTED evidence will not waive these.
