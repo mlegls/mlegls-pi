@@ -51,4 +51,4 @@ Stories the driver could not observe, now observed:
 
 Supervisor ruling 3 (extensions/workspace): kept. `index.ts`/`move.ts` serve /workspace in any pi, plain terminal sessions included (under bb the command refuses and points at update_environment_directory); the `session_start` handler in thread.ts keeps the registry on the session pi continues in, whichever process hosts the pi. The restart-on-quit sentence was the zmx runner's and is already gone from the README.
 
-Measured: the restored suites on fake bb add roughly 100 s of wall time to `bun test` (full suite 142 s, 222 pass, 0 fail, 2 skip); retry.test.ts is 43 s of that, 15 s of it the real network-retry backoff.
+Measured: the restored suites on fake bb add about 80 s of wall time (summed per-test times) to `bun test` (full suite 142 s, 222 pass, 0 fail, 2 skip); retry.test.ts is 43 s of that, 15 s of it the real network-retry backoff.
