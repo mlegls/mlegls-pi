@@ -26,8 +26,8 @@ Prepared successfully with the committed recipe; root `/tmp/owned-sidebar-drive-
 ## Expectations and frictions
 
 - Fresh two-split window, main switch on Enter, j without attach, wheel without attach, agents surviving closure: **met** within the seed above.
-- Accurate child-row pixel selection: **not met**; click changed tree heading instead. Native tooling owner: [[projects/mlegls-pi/issues/cua-ghostty-pixel-click-lands-on-another-row]]. Foreground key/focus failures also prevented continuing this encounter; same owner has the new observations.
-- Hover buttons, fold/filter, new/worktree/fork, destructive confirmation/subtree retirement and conflict routing: **not observed**, not accepted. Remain required by [[projects/mlegls-pi/issues/tree-sidebar-over-threads]] for review/re-drive.
+- Accurate child-row pixel selection: **not met**; click changed tree heading instead. Native tooling owner: [[projects/mlegls-pi/issues/archive/cua-ghostty-pixel-click-lands-on-another-row]]. Foreground key/focus failures also prevented continuing this encounter; same owner has the new observations.
+- Hover buttons, fold/filter, new/worktree/fork, destructive confirmation/subtree retirement and conflict routing: **not observed**, not accepted. Remain required by [[projects/mlegls-pi/issues/archive/tree-sidebar-over-threads]] for review/re-drive.
 - During use I expected a confirmed key post to be reflected by the next capture: **not met**; child selection appeared only in a later capture. Treat tool success as input facts, not product outcome.
 - During close I expected Ghostty's warning to mean agents would terminate: **not met** (beneficial product behavior, misleading host wording). Guide correctly says closing detaches.
 
@@ -67,7 +67,7 @@ Claims, all on the pty harness:
 
 ## Sorted
 
-- Intended native pixel click and hover remain a tooling matter ([[projects/mlegls-pi/issues/cua-ghostty-pixel-click-lands-on-another-row]]); product pty route above shows the sidebar handles those events.
+- Intended native pixel click and hover remain a tooling matter ([[projects/mlegls-pi/issues/archive/cua-ghostty-pixel-click-lands-on-another-row]]); product pty route above shows the sidebar handles those events.
 - Ghostty's close warning wording is host behaviour, left.
 - `Esc` → `ghostty.focusMain()` errors outside Ghostty (osascript): expected in the pty harness, not exercised natively here.
 - A switch is asynchronous in zmx: an action fired immediately after a switch can be refused with "Main client has no zmx leader" until the client lands; the refusal is the guard, no process is killed. Upstream owner already filed.

@@ -90,7 +90,7 @@ Tracker structural/link check still reports the same 20 historical dangling link
 
 ## Independent CLI drive
 
-[Predictions, replay observations, frictions and reviewer checks](drive.md) on revision `8378ecd9cb04db4308f121ae10119606ef9b6ae6`; [post-turn replay](drive-warm.json) and [six fresh-resume trials](drive-resume.json). All required measurement/policy stories held through the documented CLI. Replay footprint extrapolation was 10.63 / 12.29 GiB for 30; resume medians 1.8032 / 2.6855 seconds. Exact RSS/CPU and one 4.0552-second trial differed from the earlier run. All 40 sampled processes stopped; source hashes unchanged. This is nonvisual CLI evidence, not native terminal/image-render verification. Captured progress and endpoint-witness friction is [[projects/mlegls-pi/issues/idle-cost-benchmark-console-and-readiness-evidence]].
+[Predictions, replay observations, frictions and reviewer checks](drive.md) on revision `8378ecd9cb04db4308f121ae10119606ef9b6ae6`; [post-turn replay](drive-warm.json) and [six fresh-resume trials](drive-resume.json). All required measurement/policy stories held through the documented CLI. Replay footprint extrapolation was 10.63 / 12.29 GiB for 30; resume medians 1.8032 / 2.6855 seconds. Exact RSS/CPU and one 4.0552-second trial differed from the earlier run. All 40 sampled processes stopped; source hashes unchanged. This is nonvisual CLI evidence, not native terminal/image-render verification. Captured progress and endpoint-witness friction is [[projects/mlegls-pi/issues/archive/idle-cost-benchmark-console-and-readiness-evidence]].
 
 ## Review
 

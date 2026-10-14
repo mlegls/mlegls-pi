@@ -34,6 +34,6 @@ Merge, archive and abandonment ask `[y/N]`; type `y` and Enter to proceed, or Es
 
 Auxiliary shells, editors and servers aren't managed in this sidebar. Use plain Ghostty terminals separately. `q` closes the sidebar; closing the whole window leaves active threads running. Open another sidebar window to look at them again.
 
-If the sidebar says another window leads the thread, type in this window's main split before switching. If it has no leader, reattach the main client or reopen the sidebar. zmx 0.8.1's underlying switch failure is tracked in [[projects/mlegls-pi/issues/zmx-switch-without-a-leader-kills-the-source]]; the sidebar refuses known unsafe switches.
+If the sidebar says another window leads the thread, type in this window's main split before switching. If it has no leader, reattach the main client or reopen the sidebar. zmx 0.8.1's underlying switch failure is tracked in [[projects/mlegls-pi/issues/archive/zmx-switch-without-a-leader-kills-the-source]]; the sidebar refuses known unsafe switches.
 
 Implementation first use: [[projects/mlegls-pi/attachments/tree-sidebar-over-threads/index]]. Story: [[projects/mlegls-pi/stories/work-in-threads]].
