@@ -1,8 +1,9 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 author: "session:01a0f6a0-ff40-771b-b2e0-7b4b2c2a1dfe"
 ---
+Done: the setup-project skill no longer advertises a runner that doesn't exist. `lib/lint` was removed deliberately in `b40cdecd` ("Cut to the confirmed core"), so delete the dangling `skills/enabled/all/mlegls/conventions/setup-project/references/lints/jev-lint` symlink and the "Meaning, as a ranked advisory" paragraph in `references/lints.md`, and grep this repo's skills/agents for other `jev-lint` references. Report (don't edit) any Concept instructions that still name it so they can be fixed there.
 
 Concept’s `plan.back` browser fold ran its documented advisory check:
 `bun ~/.pi/agent/skills/setup-project/references/lints/jev-lint/run.ts . cc21de9ca646db3291b1f15043ee1e3747bc819e`.
