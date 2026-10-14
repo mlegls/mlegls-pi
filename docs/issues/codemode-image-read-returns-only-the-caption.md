@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: "session:53c0d69f-e221-4a86-b75d-9cf3b3c46e6a"
 priority: 3
@@ -17,3 +17,38 @@ Recurred during Concept's Agent 0.7.2 artifact-repair first use, 2026-10-10 loca
 The successful workaround read the PNG bytes with Bun in bash, returned base64 to codemode and called `image("data:image/png;base64," + result.output.trim())`. This displayed the actual 1280×2631 frame. No image transport implementation was investigated or repaired. Owner is the pi codemode read bridge or its advertised return contract, not Concept's screenshot files.
 
 Recurred 2026-10-13 in Concept mounted catalog first-use (session 01a132e6-2aac-7757-ab82-c90c5553accd): tools.read(author-en.png) returned only the 26-character caption string; image(result) refused it. Bun byte-to-base64 conversion through bash followed by image(data URI) displayed the original 1440×960 frame successfully. No bridge code changed. Evidence owner: Concept docs/attachments/mount-the-resource-tutor-catalog/index.md.
+
+## Result
+
+done
+
+I resolved the pending merge of collector 62b59416. Only `lib/outline-read/read.test.ts` conflicted. I kept both tests (the image/text/multi-file read contract and the quoted-path test) and combined their imports, then committed the merge as `549fa6e1`. I ran `mise run setup` afterwards.
+
+Checks on the merged head:
+- `bun test lib/outline-read`: 45 pass, 0 fail.
+- `bun run typecheck`: clean.
+- The driver's `try-read.ts` still produces `image/png` output items.
+
+I reviewed the diff against the ticket and found nothing to repair. The output schema, `structuredContent` handling and multi-file shape match the ticket's contract and the tool description. I did not run `mise run test:affected`, because the project declares no such task. I appended a short review note to the packet's `index.md` and committed it.
+
+```yaml
+commit: 549fa6e1 (merge), plus the review-note commit on top
+stories:
+  - story: Image read returns a block accepted by image()
+    outcome: held
+  - story: Text read remains a string
+    outcome: held
+  - story: Multi-path reads preserve text and usable images
+    outcome: held
+evidence:
+  path: docs/attachments/codemode-image-read-returns-only-the-caption/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/outline-read/read.test.ts
+caveats:
+  - The driver verified the library and QuickJS entry point, not a fresh installed pi session.
+  - The installed pi 1.2.0 builtin read may return `structuredContent` itself. The repo's pinned pi 1.0.0 does not, so `readOutput` in `lib/outline-read/read.ts` builds the image block from the result content when it is missing.
+```
+
+Evidence: [docs/attachments/codemode-image-read-returns-only-the-caption/index.md](docs/attachments/codemode-image-read-returns-only-the-caption/index.md)
