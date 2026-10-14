@@ -562,11 +562,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			pr.repair.worker = undefined;
 			pr.repair.launchedAt = undefined;
 			pr.repair.handledTs = undefined;
+			pr.repair.launchHandle = undefined;
+			pr.repair.handoff = undefined;
+			pr.repair.preparedHead = undefined;
+			pr.repair.integratedHead = undefined;
+			pr.repair.pushedHead = undefined;
+			pr.repair.retiredAt = undefined;
 			pr.repair.request.message += "\n\nOwner resolution: " + (r.note ?? r.message ?? "retry");
 			pr.phase = "repairing";
 		} else {
 			pr.phase = pr.number ? "waiting" : "opening";
 		}
+		pr.lastPolledAt = undefined;
 		delete s.exceptions[ex.node];
 		save();
 	}
@@ -579,8 +586,19 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			"Repair request:\n" + yaml(request), "Saved reviewed results:\n" + yaml(s.results),
 			"Retained tests:\n" + yaml(s.tests[pr.path] ?? []),
 			"Run the project's existing integration gates. Commit the repair and report the full reviewed handoff.",
+			"If this needs a product choice or scope expansion, report needs-input; do not choose for the owner.",
+			"For review requests, include threadReplies: {<thread id>: <what changed>} for EVERY requested thread. Do not resolve threads.",
 		].join("\n\n");
-		return launch(nextHandle(s.root, "pr-repair"), "review", prompt,
+		const receipt = pr.repair!;
+		if (!receipt.launchHandle) { receipt.launchHandle = nextHandle(s.root, "pr-repair"); save(); }
+		const registered = await workerThread(receipt.launchHandle, controlCwd, s.root);
+		if (registered) {
+			if (registered.archived) throw new Error("Recorded PR repair is retired: " + receipt.launchHandle);
+			return { run: s.root, handle: receipt.launchHandle, path: registered.cwd, threadId: registered.id };
+		}
+		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
+		// a partial failure. Retry adopts its exact registry entry or raises to owner.
+		return launchNow(receipt.launchHandle, "review", prompt,
 			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"]);
 	}
 	const pendingNotes = new Map<string, string | undefined>();
@@ -1130,16 +1148,22 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			// revisits completed descendants, including on an opening restart.
 			if (s.pr.phase === "preparing") { s.pr.phase = "opening"; s.pr.preparedHead = s.landed[s.root].head; save(); }
 			await handleExceptions(top);
-			if (Object.keys(s.exceptions).length) return false;
-			if (s.pr.phase !== "merged" && pullRequestLifecycleReady) await advancePullRequest({
+			if ((s.pr.phase !== "merged" || (s.pr.repair?.worker && !s.pr.repair.retiredAt)) && pullRequestLifecycleReady) await advancePullRequest({
 				state: s, tracker, host: o.prHost, save, locked, tests: s.tests[s.pr.path] ?? [],
+				ownerHeld: Object.keys(s.exceptions).length > 0,
 				launchRepair, report: fresh,
+				sendRepair: (worker, message) => sendChild(topic(worker), message),
+				repairAlive: worker => alive(worker),
 				retireRepair: async worker => {
 					if (!await retireHandle(worker, s.pr!.path)) throw new Error("PR repair retirement failed: " + worker.handle);
 				},
 				raiseOwner: (reason, message) => raise(s.root, reason, message, top, "owner"),
 			});
 			if (s.pr.phase === "merged") {
+				if (s.pr.repair?.worker && !s.pr.repair.retiredAt) return false;
+				// Terminal remote landing supersedes a held owner exception without
+				// requiring the owner's session to be present.
+				if (s.exceptions[s.root]) { delete s.exceptions[s.root]; save(); }
 				closeAtTarget(completion);
 				if (!s.target || Object.values(s.results).some(result => !result.closedAt)) return false;
 				if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;

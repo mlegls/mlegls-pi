@@ -66,10 +66,14 @@ export interface PrRepairRequest {
 export interface PrRepairReceipt {
 	request: PrRepairRequest;
 	worker?: Handle;
+	/** Written before dispatch; registry recovery adopts this exact identity. */
+	launchHandle?: string;
 	launchedAt?: number;
 	handledTs?: string;
 	preparedHead?: string;
 	pushedHead?: string;
+	integratedHead?: string;
+	retiredAt?: string;
 	handoff?: Record<string, unknown>;
 	/** Review worker supplies a reply for each requested thread in its handoff. */
 	threadReplies?: Record<string, string>;
@@ -92,6 +96,10 @@ export interface PullRequestLanding extends GitHubProject {
 	preparedHead?: string;
 	pushedHead?: string;
 	lastPolledAt?: string;
+	/** Saved once before create, never rebuilt from subsequently repaired results. */
+	publication?: { title: string; body: string };
+	/** Additional evidence; never replaces a node's original reviewed result. */
+	repairHistory?: PrRepairReceipt[];
 	baseHead?: string;
 	mergeCommit?: string;
 	mergedAt?: string;
