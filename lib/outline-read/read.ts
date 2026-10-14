@@ -100,7 +100,7 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 			const specs = words(params.path);
 			if (!specs.length) throw new Error("path required");
 			// A literal filename containing whitespace wins over the split reading when it exists.
-			const single = specs.length === 1 || (await stat(resolve(ctx.cwd, params.path)).catch(() => null)) ? [params.path] : specs;
+			const single = specs.length > 1 && (await stat(resolve(ctx.cwd, params.path)).catch(() => null)) ? [params.path] : specs;
 			const results: ToolResult[] = [];
 			for (const spec of single) {
 				results.push(await readOne(spec, single.length === 1 ? params : {}));
