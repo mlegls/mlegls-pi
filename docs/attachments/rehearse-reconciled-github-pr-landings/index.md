@@ -1,12 +1,12 @@
 # Owned live GitHub PR landing rehearsal
 
-Nonvisual CLI/API/Git evidence. Production host/start/run/state/dispatch/integration/gates/retirement/closure; deterministic shell phase workers, not paid models. No ledger writes by the controller. Git hooks stayed enabled. This packet is **in progress**, not acceptance of both primary journeys.
+Nonvisual CLI/API/Git evidence. Production host/start/run/state/dispatch/integration/gates/retirement/closure; deterministic shell phase workers, not paid models. No ledger writes by the controller. Git hooks stayed enabled. Both landing modes are complete under the maintainer-approved live/seeded boundary recorded below.
 
 ## Setup and repeat
 
-Authorization: supervisor supplied only private `mlegls/reconcile-pr-transport-20261014-35767b2d`; preserve that repo and its inherited branches. `gh api user` returned `mlegls`, repo permission ADMIN, default `main`, Actions enabled. SSH clone/fetch/push succeeded. No credentials were copied or printed. A distinct human reviewer is still unavailable. A contributor push uses a separate clone as `mlegls`, explicitly approved by the supervisor; it is not evidence of a second GitHub identity.
+Authorization: supervisor supplied only private `mlegls/reconcile-pr-transport-20261014-35767b2d`; preserve that repo and its inherited branches. `gh api user` returned `mlegls`, repo permission ADMIN, default `main`, Actions enabled. SSH clone/fetch/push succeeded. No credentials were copied or printed. The maintainer chose not to supply a distinct reviewer (dated acceptance reduction below). A contributor push uses a separate clone as `mlegls`, explicitly approved by the supervisor; it is not evidence of a second GitHub identity.
 
-Code under test: initial implementation base `d1d17ed4`; repaired production host `c8f19000`; committed controller `785e00e6`. The tested revision of this packet is the commit containing this file; later human evidence will append its tested head.
+Code under test: initial implementation base `d1d17ed4`; repaired production host `c8f19000`; initial controller `785e00e6`; live external-merge observation and final seeded review replay `1883a713`. Final documentation-only revision is the commit containing this packet.
 
 ```sh
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-merge
@@ -20,7 +20,11 @@ bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts cleanup O
 
 Fresh commands append ordinary setup commits to scratch `main`, then wait for real green Actions before starting the reconciler. The global vault lives on a separate local tracker branch; the owner is clean on `main`. Both use a spec root with two tickets (b blocked by a) and an outside dependent blocked by a. `mise run setup` and `mise run pre-integrate` are committed in scratch; the local gate records exact Git heads and checks fixture presence/conflict markers. Actions independently requires `fixture/ci.txt = green`. Shell workers commit ordinary evidence and publish structured reports on their ordinary worker board topics; the controller releases phase reports and repairs only the located fixtures.
 
-Automated: setup, tree phases, CI repair, base/contributor histories, restart, close observation, COMMENTED submitted-review repair/replies. Required humans: distinct-account approval/changes-requested review boundaries and human merge. No seeded review substitutes for those live primary requirements.
+Automated: setup, tree phases, CI repair, base/contributor histories, restart, close observation, COMMENTED submitted-review repair/replies. External control: the operator performs the authorized merge outside the reconciler.
+
+### Maintainer decision — 2026-10-14
+
+[Recorded through the global tracker](../../../docs/issues/rehearse-reconciled-github-pr-landings.md), from board decision mv884mdq-xoy620: no distinct reviewer. Accept APPROVED, first CHANGES_REQUESTED repair and later changes-requested escalation on **seeded probe evidence**, combined with today's **live** COMMENTED repair, real marker reply reviews ignored and restart idempotency. Authorize mlegls to merge #5 outside the reconciler as the stand-in human. This is an explicit acceptance/scope reduction; those three review-state boundaries are not claimed as live submissions. Keep the supplied scratch repository.
 
 ## Predictions before contact
 
@@ -52,9 +56,9 @@ Original evidence is available at the original staged head, `docs/attachments/re
 
 Tree worker joins (implement → drive → review) used handles suffixes a `1/2/3`, b `4/5/6`, root `7/8/9`, with exactly nine tree launches. Review thread IDs: a `47440332-0fbc-4f86-ad99-716f8ef937c2`; b `8d0aeac8-6b63-4694-ac8e-b2e0db10ea43`; root `eba2910e-d7ca-462c-9445-933518bd0c72`.
 
-## pr-review: pending live human boundary
+## pr-review: held at the approved live/seeded boundary
 
-Owned directory /private/tmp/rehearse-github-pr-jydX8J; root rehearsal-review-jydx8j; [PR #5](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/pull/5), branch reconcile/pr/rehearsal-review-jydx8j-6da6fe42cdc2. Live automation through COMMENTED repair held; distinct-human primary still unobservable.
+Owned directory /private/tmp/rehearse-github-pr-jydX8J; root rehearsal-review-jydx8j; [PR #5](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/pull/5), branch reconcile/pr/rehearsal-review-jydx8j-6da6fe42cdc2. Live COMMENTED repair, replies/recovery and authorized external merge/target close held; APPROVED and CHANGES_REQUESTED policy encounters are explicitly seeded.
 
 | Action / sensor | Observed result |
 | --- | --- |
@@ -67,7 +71,7 @@ Owned directory /private/tmp/rehearse-github-pr-jydX8J; root rehearsal-review-jy
 | Real reply reviews | GitHub created separate COMMENTED reviews 5519647373 / PRR_kwDOVJGTm88AAAABSP8ijQ and 5519649248 / PRR_kwDOVJGTm88AAAABSP8p4A for the two marker replies (material below). Both threads remain unresolved; no manual resolve. |
 | Reply crash/start | After replies, killed exact PID 63051; start resumed 76453, preserving review cursor, reply receipts, firstRepairAt=14:35:44.836Z, all original results and counter=10. After another 70 seconds own reply review IDs were processed, repairs stayed 1, four total thread comments remained (no duplicate replies), no live workers, PR OPEN. |
 | Final checks / owner | Checks 115913625210 / 115913658485, runs 38581885361 / 38581896281, completed/success on fdf1f1e1…. Owner remained original clean/main base; no node closed and no automatic merge. |
-| Pause for human | Exact reconciler PID 76453 stopped by crash cut, preserving resume state; process absent. PR #5 deliberately remains OPEN. |
+| Pause for human | Exact reconciler PID 76453 crash-paused with state preserved; #5 stayed OPEN until the maintainer authorized the outside-process merge. |
 
 Small live API material establishing reply → review linkage (not seeded):
 
@@ -86,16 +90,27 @@ Each reply body was:
 
 Both reply review IDs appear in saved reviews.processed, only the original submitted ID in reviews.repaired, repairs=1. Saved replies have two receipts at 14:35:38.755Z and 14:35:44.807Z. The original evidence remains at original staged head; this loaded prototype also reused root evidence path at repaired head. The committed controller now writes repair evidence under a separate -repair path on future drives.
 
-### Exact remaining human controls
+### Authorized external merge and completion
 
-Use the existing authorized distinct account; no credential sharing or permission broadening. **Do not merge until the owner exception is observed and acknowledged.**
+Predicted before the final control: saved pr-review resumes unchanged, remains waiting until the outside process acts, never requests merge itself, then proves ancestry and closes a/b/root child-first.
 
-1. On #5, submit approval without new inline threads. Run journey.ts resume /private/tmp/rehearse-github-pr-jydX8J; observe OPEN/no new repair/no auto merge.
-2. Submit a later CHANGES_REQUESTED review with at least two unresolved inline threads (same fixture paths above suffice). Resume; observe owner exception, repairs still 1, no second repair or merge, and issues still pending.
-3. Run journey.ts ack /private/tmp/rehearse-github-pr-jydX8J to record public owner acknowledgement. An unchanged unresolved review may re-hold; terminal human merge is still observed.
-4. Authorized person merges #5 **with a merge commit**. Resume; observe ancestry, child-first closure, original results and owner ff. Then cleanup the unique scratch PR branch.
+1. Committed controller 1883a713 installed an observational gh wrapper in the private PATH; all GitHub calls delegated unchanged, merge endpoint/mutation attempts counted separately. Production start resumed PID 33057 in saved **pr-review**, same #5 and branch; controller reported external-merge-wait.
+2. From this worker's ordinary PATH, **outside** that process, executed:
 
-The initial **CHANGES_REQUESTED → repair** primary claim still needs a fresh distinct-reviewer run: #5 repaired COMMENTED, not CHANGES_REQUESTED. Once reviewer action is supplied, seed the same two-ticket shape, submit the first changes-requested review before releasing review repair, then later the second request/approval/merge controls. This boundary is explicitly unobservable, not waived by the live COMMENTED probe.
+       gh pr merge 5 --repo mlegls/reconcile-pr-transport-20261014-35767b2d --merge --match-head-commit fdf1f1e13cb4763c7333932f189503e73538e26c
+
+   GitHub returned MERGED at 2026-10-14T14:49:43Z, mergedBy.login=mlegls, two-parent merge commit **35fec773c4c06ad1e5331c34ba3ed9b5dc7fe5d8**. This is the maintainer-authorized stand-in, not a different account.
+3. Production observed MERGED, fetched the base, and proved fdf1f1e1… is an ancestor of the merge. Global close commit subjects were exactly a, b, root in that order. closedAt: **14:50:52.632Z**, **14:50:53.242Z**, **14:50:53.955Z**. Deep comparison after excluding only closedAt showed every original saved node result unchanged; all stage done. Outside became frontier.
+4. Owner clean/main ff reached 35fec773… with ownerSync=updated. counter=10, repairs=1, zero live workers. During this resumed lifetime **44 delegated GitHub calls, zero merge requests** were observed from the private controller/reconciler PATH. No duplicated tree workers/replies or second repair.
+5. Run exited successfully; exact PID 33057 absent. Unique PR #5 remote branch deleted. Merge-triggered Actions also completed/success on 35fec773…. Supplied repository retained.
+
+To repeat external control after a fresh pr-review pauses, use two shells: journey.ts resume OWNED_DIRECTORY in one, then the displayed PR's gh pr merge NUMBER --repo <supplied repo> --merge --match-head-commit <status head> from the normal operator PATH in the other.
+
+### Accepted seeded review controls, replayed on 1883a713
+
+Entry: bun docs/attachments/reconcile-submitted-pr-reviews/probe.ts. [Earlier independently driven/reviewed packet](../reconcile-submitted-pr-reviews/index.md) supplies the full seeded claims; the final replay exited 0 in 87 s. APPROVED without associated unresolved threads was processed without repair/merge. R1 CHANGES_REQUESTED plus R2 COMMENTED coalesced into one repair with T1/T2; later changes-requested yielded the owner exception, no second worker/merge. Post-before-save reply recovery posted exactly twice, launched one worker, made zero host merge calls, ran five gates and closed only after an explicit contributor-side merge.
+
+Final seeded markers used pushed head a3797b7fa1fa60eb3b46dbd8e7608d41c3fa3cfe; repair commit 08bfb5981caeb5d9fd79a3137577208fd3d00639. Second exception excerpt: Second changes-requested review after repair, with review id second, state CHANGES_REQUESTED, submittedAt 2026-10-14T14:51:38.701Z. closedStage=done; target=github:seeded/lifecycle:main. Host review submissions were seeded; Git, workers, gates and merge ancestry were real. All resources from that replay retired.
 
 ## Backend capability (seeded, compiled contract only)
 
@@ -103,12 +118,12 @@ Production PR body generation with a Tracker implementing `githubIssue` mapped n
 
 ## Cleanup and limits
 
-- PR #4 merged; its unique remote PR branch was deleted. Supplied repository, inherited branches and setup/main history remain. The parent owns final supplied-repo disposal.
-- Finished merge reconciler `41377` exited; all workers retired. Review reconciler `76453` was crash-paused and all its workers retired. SSH proxies `nc` left after the intentional crashes were stopped by exact owned PIDs `30627` and `60372`, never a pattern. PR #5 and its unique branch are deliberately retained for the requested human controls.
+- PRs #4 and #5 merged; both unique remote PR branches were deleted. Supplied repository, inherited branches and setup/main history remain. The parent owns final supplied-repo disposal.
+- Finished merge reconciler `41377` exited; all workers retired. Review reconciler `76453` was crash-paused, resumed as `33057`, then completed/exited; all its workers retired. SSH proxies `nc` left after the intentional crashes were stopped by exact owned PIDs `30627` and `60372`, never a pattern. Neither scratch PR remains open; no owned process remains running.
 - Managed-process finished-record kill refused a reported leftover; exact-PID TERM cleaned it up. Recurrence added to the existing [pi-processes friction](../../../docs/issues/managed-process-completion-notice-did-not-reach-a-waiting-worker.md).
-- Local scratch directories are retained for inspection/resume; only ticket-owned files may be removed. No browser pages, deployments or tunnels were created.
+- Local scratch directories are retained for inspection; only ticket-owned files may be removed. No browser pages, deployments or tunnels were created.
 - Dirty/other-branch owner preservation is not a live claim here; prior [seeded-host actual-Git evidence](../stage-reconciled-root-for-pr-landing/index.md) is separate.
-- Distinct reviewer identity, initial live CHANGES_REQUESTED repair, later request exception, approval and human merge still require authorization/actions; partial COMMENTED evidence will not waive these.
+- Distinct reviewer identity and live APPROVED/CHANGES_REQUESTED submissions were intentionally removed from this ticket by the dated maintainer ruling; their accepted seeded evidence remains explicitly labeled.
 
 ## Existing regression checks
 

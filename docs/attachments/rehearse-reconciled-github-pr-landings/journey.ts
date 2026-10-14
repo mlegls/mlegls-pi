@@ -303,9 +303,9 @@ try {
 		}
 		if (m.mode === "pr-review" && m.progress !== "done") {
 			record("humanBoundary", { url: state().pr!.url, number: state().pr!.number, root: m.root, area, progress: m.progress,
-				required: ["Distinct authorized account: approval while PR is open; observe no reconciler merge",
-					"Distinct account: CHANGES_REQUESTED with at least two unresolved inline threads; observe owner exception after earlier COMMENTED repair",
-					"Public ack through journey.ts ack; authorized human merge commit; journey.ts resume observes child-first closure"] });
+				required: ["2026-10-14 maintainer ruling: approval/changes-requested controls accepted on explicitly seeded probe",
+					"Resume this run; authorized operator performs gh pr merge NUMBER --merge from outside the private reconciler PATH",
+					"Observe zero reconciler merge requests, fetched ancestry and child-first closure; retain supplied repo"] });
 			await halt();
 		}
 	}

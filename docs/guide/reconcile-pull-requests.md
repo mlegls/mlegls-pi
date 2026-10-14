@@ -1,6 +1,6 @@
 # Landing a reconciled tree through a pull request
 
-Use an owned GitHub repository with ordinary `gh` authentication, push access, a fetched default branch and working checks. The reconciler uses that repository's existing GitHub identity. Review mode needs a **different authorized person** for approval/changes-requested reviews and merge; GitHub prevents self-review.
+Use an owned GitHub repository with ordinary `gh` authentication, push access, a fetched default branch and working checks. The reconciler uses that repository's existing GitHub identity. GitHub requires a **different authorized person** to submit approval/changes-requested reviews; it prevents self-review. The merger acts outside the reconciler, using the repository’s ordinary authorization.
 
 ## Choose before starting
 
@@ -49,4 +49,4 @@ bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-merge
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-review
 ```
 
-These commands mutate **only the explicitly supplied disposable scratch repo**, with isolated local tracker/board/registry state and deterministic shell workers. They are not a production-project launcher. The first command was driven through real Actions repair, merge, target closure and owner ff. The second stops at the authorized-human boundary; it must not be reported as complete until those live actions occur.
+These commands mutate **only the explicitly supplied disposable scratch repo**, with isolated local tracker/board/registry state and deterministic shell workers. They are not a production-project launcher. The first command was driven through real Actions repair, merge, target closure and owner ff. The second pauses after live COMMENTED repair; resume it and merge from a separate operator shell to complete. In this 2026-10-14 scratch rehearsal the maintainer authorized same-account external merge and accepted approval/changes-requested policy on explicitly seeded evidence. Live target closure and zero reconciler merge requests were observed.
