@@ -1,0 +1,271 @@
+// Tracker: a read-only view of a project's vault tracker (docs/issues, the tracker skill) with the agent actions that
+// matter: send a ready issue tree to a new or existing supervisor, start a shaping session on one that isn't, and
+// discuss selected issues in a new thread with them mentioned. Issues are only written by agents, through the tracker.
+import { execFile } from "node:child_process";
+import { watch, readdirSync, readFileSync, type FSWatcher } from "node:fs";
+import { homedir } from "node:os";
+import { basename, join } from "node:path";
+import { promisify } from "node:util";
+import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
+import { z } from "zod";
+import { bun, pinTracker, pinnedTop, readIssue, snapshot, tracker, trackerRoot, type Cli } from "./tracker";
+import { CHANGED, MENTION_PROVIDER, notReady, stageLabel, type Snapshot } from "./model";
+
+const projectSchema = z.object({ id: z.string(), name: z.string(), root: z.string() });
+export type TrackerProject = z.infer<typeof projectSchema>;
+const supervisorSchema = z.object({
+	threadId: z.string().nullable(),
+	title: z.string(),
+	status: z.string(),
+	/** Issues this plugin sent it; empty for a role holder it didn't start. */
+	issues: z.array(z.string()),
+	/** Holds role/<repo>/supervisor on the board. */
+	role: z.boolean(),
+});
+export type Supervisor = z.infer<typeof supervisorSchema>;
+const slugs = z.array(z.string().regex(/^[a-z0-9][a-z0-9._-]*$/i)).min(1).max(50);
+const target = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("new") }),
+	z.object({ kind: z.literal("thread"), threadId: z.string() }),
+	z.object({ kind: z.literal("role") }),
+]);
+export type SuperviseTarget = z.infer<typeof target>;
+
+export const rpcContract = defineRpcContract({
+	projects: { input: z.null(), output: z.object({ projects: z.array(projectSchema) }) },
+	snapshot: { input: z.object({ projectId: z.string() }), output: z.custom<Snapshot>() },
+	issue: { input: z.object({ projectId: z.string(), slug: z.string() }), output: z.object({ frontmatter: z.string(), body: z.string(), path: z.string() }) },
+	supervisors: { input: z.object({ projectId: z.string() }), output: z.object({ supervisors: z.array(supervisorSchema) }) },
+	supervise: { input: z.object({ projectId: z.string(), slugs, target }), output: z.object({ threadId: z.string().nullable(), note: z.string() }) },
+	refine: { input: z.object({ projectId: z.string(), slugs }), output: z.object({ threadId: z.string() }) },
+});
+
+const run = promisify(execFile);
+const wikilink = (repo: string, slug: string) => "[[projects/" + repo + "/issues/" + slug + "]]";
+
+export default async function plugin(bb: BbPluginApi) {
+	const settings = bb.settings.define({
+		trackerScript: { type: "string", label: "Tracker CLI", description: "The tracker skill's issues.ts; run from a copy pinned at its checkout's HEAD.", default: "~/.pi/agent/skills/tracker/scripts/issues.ts" },
+		bun: { type: "string", label: "bun", description: "Path to bun; empty finds it through your login shell.", default: "" },
+	});
+
+	async function cli(): Promise<Cli> {
+		const s = await settings.get();
+		const live = String(s.trackerScript || "~/.pi/agent/skills/tracker/scripts/issues.ts").replace(/^~\//, homedir() + "/");
+		return { bun: bun(String(s.bun ?? "")), script: pinTracker(live) };
+	}
+
+	// Projects: a bb project is tracked when one of its sources resolves to a vault.
+	const roots = new Map<string, TrackerProject>();
+	async function projects(): Promise<TrackerProject[]> {
+		const list = await bb.sdk.projects.list();
+		const out: TrackerProject[] = [];
+		for (const p of list as unknown as { id: string; name: string; sources?: { path?: string | null }[] }[]) {
+			for (const s of p.sources ?? []) {
+				const root = s.path ? trackerRoot(s.path) : undefined;
+				if (root) { const t = { id: p.id, name: p.name, root }; roots.set(p.id, t); out.push(t); break; }
+			}
+		}
+		return out;
+	}
+	async function project(projectId: string): Promise<TrackerProject> {
+		const hit = roots.get(projectId) ?? (await projects(), roots.get(projectId));
+		if (!hit) throw new Error("project " + projectId + " has no docs/issues tracker");
+		return hit;
+	}
+
+	// Snapshots are cached per root and dropped when anything under docs/issues changes.
+	const cache = new Map<string, Promise<Snapshot>>();
+	/** The last good snapshot per root, kept across invalidation so mention search never waits on the CLI. */
+	const latest = new Map<string, Snapshot>();
+	const watchers = new Map<string, FSWatcher>();
+	const timers = new Map<string, ReturnType<typeof setTimeout>>();
+	function watchRoot(root: string) {
+		if (watchers.has(root)) return;
+		try {
+			const w = watch(join(root, "docs", "issues"), { recursive: true }, (_event, file) => {
+				if (file && !String(file).endsWith(".md")) return;
+				clearTimeout(timers.get(root));
+				timers.set(root, setTimeout(() => { cache.delete(root); bb.realtime.publish(CHANGED, { root }); }, 300));
+			});
+			w.on("error", (e) => { bb.log.warn("watch " + root + ": " + e); watchers.delete(root); });
+			watchers.set(root, w);
+		} catch (e) { bb.log.warn("watch " + root + ": " + e); }
+	}
+	async function snap(root: string): Promise<Snapshot> {
+		watchRoot(root);
+		let hit = cache.get(root);
+		if (!hit) {
+			hit = cli().then((c) => snapshot(c, root));
+			cache.set(root, hit);
+			hit.then((s) => latest.set(root, s), (e) => { cache.delete(root); bb.log.warn("snapshot " + root + ": " + e); });
+		}
+		return hit;
+	}
+	bb.onDispose(() => { for (const w of watchers.values()) w.close(); for (const t of timers.values()) clearTimeout(t); });
+
+	/** Whether each slug can go to a supervisor now: the tracker's frontier (ready subtree, unblocked, unclaimed). */
+	async function requireReady(root: string, wanted: string[]): Promise<Snapshot> {
+		cache.delete(root);
+		const s = await snap(root);
+		const bySlug = new Map(s.issues.map((i) => [i.slug, i]));
+		const why = wanted.flatMap((slug) => {
+			const i = bySlug.get(slug);
+			if (!i) return [slug + " not found"];
+			return i.frontier ? [] : [slug + ": " + notReady(i)];
+		});
+		if (why.length) throw new Error("not ready for supervision. " + why.join("; "));
+		return s;
+	}
+
+	// Supervisors: threads this plugin started as supervisors, plus whichever session holds the project's
+	// supervisor role on the board (lib/board/scopes supervisorTopic), found through its live pi record.
+	/** The bb thread a pi process runs for: bb starts each thread's pi with BB_THREAD_ID in its environment. */
+	async function bbThreadOf(pid: number): Promise<string | undefined> {
+		try {
+			const { stdout } = await run("ps", ["eww", "-p", String(pid), "-o", "command="], { timeout: 5_000 });
+			return / BB_THREAD_ID=(thr_[A-Za-z0-9]+)/.exec(stdout)?.[1];
+		} catch { return undefined; }
+	}
+	function roleHolders(repo: string): { pid: number; sessionId: string }[] {
+		const dir = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "pi-live");
+		const topic = "role/" + repo + "/supervisor";
+		const out: { pid: number; sessionId: string }[] = [];
+		let names: string[] = [];
+		try { names = readdirSync(dir); } catch { return out; }
+		for (const name of names) {
+			if (!name.endsWith(".json")) continue;
+			try {
+				const r = JSON.parse(readFileSync(join(dir, name), "utf8")) as { pid: number; sessionId: string; subscriptions?: { topic: string; wake?: boolean }[] };
+				if (!r.subscriptions?.some((s) => s.topic === topic && s.wake)) continue;
+				process.kill(r.pid, 0);
+				out.push(r);
+			} catch {}
+		}
+		return out;
+	}
+	async function supervisors(projectId: string): Promise<Supervisor[]> {
+		const p = await project(projectId);
+		const listed = (await bb.sdk.threads.list({ projectId, archived: false })) as unknown as { id: string; title: string | null; titleFallback?: string | null; status: string; providerId?: string; runtime?: { displayStatus?: string } }[];
+		const out = new Map<string, Supervisor>();
+		for (let at = 0; at < listed.length; at += 200) {
+			const { threads } = await bb.sdk.threads.experimental_listPluginMetadata({ threadIds: listed.slice(at, at + 200).map((t) => t.id) });
+			for (const row of threads) {
+				if (row.metadata?.role !== "supervisor") continue;
+				const t = listed.find((x) => x.id === row.threadId)!;
+				out.set(t.id, { threadId: t.id, title: t.title || t.titleFallback || t.id, status: t.runtime?.displayStatus ?? t.status, issues: Array.isArray(row.metadata.issues) ? row.metadata.issues.map(String) : [], role: false });
+			}
+		}
+		for (const holder of roleHolders(basename(p.root))) {
+			const id = await bbThreadOf(holder.pid);
+			const match = id ? listed.find((t) => t.id === id) : undefined;
+			if (match) {
+				const prev = out.get(match.id);
+				out.set(match.id, { threadId: match.id, title: match.title || match.titleFallback || match.id, status: match.runtime?.displayStatus ?? match.status, issues: prev?.issues ?? [], role: true });
+			} else out.set("role:" + holder.sessionId, { threadId: null, title: "Session " + holder.sessionId.slice(-8) + " (outside bb)", status: "live", issues: [], role: true });
+		}
+		return [...out.values()].sort((a, b) => Number(b.role) - Number(a.role));
+	}
+
+	async function mailRole(repo: string, body: string) {
+		const c = await cli();
+		const top = pinnedTop(c.script, String((await settings.get()).trackerScript || "~/.pi/agent/skills/tracker/scripts/issues.ts"));
+		const code = "const { send } = await import(process.argv[1]); send({ topic: process.argv[2], tags: ['supervise'], from: { name: 'bb-tracker' }, body: process.argv[3] });";
+		await run(c.bun, ["-e", code, join(top, "lib/board/store.ts"), "role/" + repo + "/supervisor", body], { timeout: 15_000 });
+	}
+
+	async function spawn(projectId: string, prompt: string, title: string, metadata: Record<string, string | string[]>): Promise<string> {
+		const t = await bb.sdk.threads.spawn({ projectId, environment: { type: "project-default" }, providerId: "pi", prompt, title, pluginMetadata: metadata });
+		return (t as unknown as { id: string }).id;
+	}
+
+	bb.rpc.register(rpcContract, {
+		projects: async () => ({ projects: await projects() }),
+		snapshot: async ({ projectId }) => snap((await project(projectId)).root),
+		issue: async ({ projectId, slug }) => {
+			const p = await project(projectId);
+			const i = (await snap(p.root)).issues.find((x) => x.slug === slug);
+			if (!i) throw new Error("no issue " + slug);
+			return { ...readIssue(p.root, i.path), path: join(p.root, i.path) };
+		},
+		supervisors: async ({ projectId }) => ({ supervisors: await supervisors(projectId) }),
+		supervise: async ({ projectId, slugs, target }) => {
+			const p = await project(projectId);
+			const s = await requireReady(p.root, slugs);
+			const links = slugs.map((slug) => wikilink(s.repo, slug)).join(" ");
+			if (target.kind === "new") {
+				const threadId = await spawn(projectId, "/skill:supervise " + links, "supervise " + slugs.join(", "), { role: "supervisor", issues: slugs, repo: s.repo });
+				return { threadId, note: "started a supervisor" };
+			}
+			const body = "Also supervise " + links + " (sent from the bb tracker; the tracker lists " + (slugs.length > 1 ? "them" : "it") + " as ready).";
+			if (target.kind === "role") {
+				await mailRole(s.repo, body);
+				return { threadId: null, note: "mailed role/" + s.repo + "/supervisor" };
+			}
+			await bb.sdk.threads.send({ threadId: target.threadId, mode: "auto", input: [{ type: "text", text: body, mentions: [] }] });
+			try {
+				const meta = await bb.sdk.threads.getPluginMetadata({ threadId: target.threadId });
+				const prior = Array.isArray(meta.issues) ? meta.issues.map(String) : [];
+				await bb.sdk.threads.updatePluginMetadata({ threadId: target.threadId, set: { role: "supervisor", repo: s.repo, issues: [...new Set([...prior, ...slugs])] } });
+			} catch (e) { bb.log.warn("tag supervisor: " + e); }
+			return { threadId: target.threadId, note: "sent to the supervisor" };
+		},
+		refine: async ({ projectId, slugs }) => {
+			const p = await project(projectId);
+			cache.delete(p.root);
+			const s = await snap(p.root);
+			const lines = slugs.map((slug) => {
+				const i = s.issues.find((x) => x.slug === slug);
+				return "- " + wikilink(s.repo, slug) + (i ? ": " + notReady(i) : "");
+			});
+			const prompt = "/skill:shape " + slugs.map((slug) => wikilink(s.repo, slug)).join(" ") + "\n\nOpened from the bb tracker to bring " + (slugs.length > 1 ? "these trees" : "this tree") + " to agent-ready specs or tickets for supervision. Where it stands now:\n" + lines.join("\n");
+			return { threadId: await spawn(projectId, prompt, "shape " + slugs.join(", "), { role: "refine", issues: slugs, repo: s.repo }) };
+		},
+	});
+
+	// Warm every tracked project so the first #mention search has something to show.
+	setTimeout(() => { projects().then((ps) => { for (const p of ps) void snap(p.root).catch(() => {}); }, (e) => bb.log.warn("preload: " + e)); }, 0);
+
+	// #issue mentions in any composer: the agent gets the issue's path, state, subtree and contract.
+	bb.ui.registerMentionProvider({
+		id: MENTION_PROVIDER,
+		label: "Issues",
+		triggers: ["#"],
+		async search({ query, projectId }) {
+			// An untracked or personal project searches every tracked one.
+			const scope = projectId && roots.has(projectId) ? [roots.get(projectId)!] : [...roots.values()];
+			const q = query.toLowerCase().replace(/\s+/g, "-");
+			const items: { id: string; title: string; subtitle: string; rank: number }[] = [];
+			for (const p of scope) {
+				const s = latest.get(p.root);
+				void snap(p.root).catch(() => {});
+				for (const i of s?.issues ?? []) {
+					if (i.archived || !i.slug.includes(q)) continue;
+					items.push({ id: p.id + "/" + i.slug, title: i.slug, subtitle: [stageLabel(i), i.assignee, scope.length > 1 ? p.name : ""].filter(Boolean).join(" · "), rank: (i.done ? 2 : 0) + (i.slug.startsWith(q) ? 0 : 1) });
+				}
+			}
+			// Open issues and prefix matches first.
+			return items.sort((a, b) => a.rank - b.rank || a.title.localeCompare(b.title)).slice(0, 30).map(({ rank: _, ...item }) => item);
+		},
+		async resolve(itemId) {
+			const at = itemId.indexOf("/");
+			const p = await project(itemId.slice(0, at));
+			const slug = itemId.slice(at + 1);
+			const s = await snap(p.root);
+			const i = s.issues.find((x) => x.slug === slug);
+			if (!i) throw new Error("no issue " + slug + " in " + p.name);
+			const c = await cli();
+			const tree = await tracker(c, p.root, ["tree", slug]).catch(() => "");
+			const { frontmatter, body } = readIssue(p.root, i.path);
+			return {
+				context: [
+					"Tracker issue " + wikilink(s.repo, slug) + " at " + join(p.root, i.path) + ". Read and write it through the tracker skill.",
+					"State: " + stageLabel(i) + (i.frontier ? ", ready for supervision" : ", " + notReady(i)) + ".",
+					tree.trim() ? "Subtree (issues.ts tree):\n" + tree.trim() : "",
+					"---\n" + frontmatter + "\n---\n" + body,
+				].filter(Boolean).join("\n\n"),
+			};
+		},
+	});
+}
+
