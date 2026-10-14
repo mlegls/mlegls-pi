@@ -55,11 +55,11 @@ const state = () => load(m.repo, m.root)!;
 const packet = (slug: string) => "docs/attachments/rehearsal/" + slug + ".md";
 const childA = m.root + "-a", childB = m.root + "-b", outside = m.root + "-outside";
 const nodes = [childA, childB, m.root];
-const report = (h: Handle, slug: string, replies?: Record<string, string>) => send({ from: {}, topic: h.run + "/" + h.handle, tags: ["done"],
+const report = (h: Handle, slug: string, replies?: Record<string, string>, evidencePath = packet(slug)) => send({ from: {}, topic: h.run + "/" + h.handle, tags: ["done"],
 	body: "done\n\n" + "\x60\x60\x60json\n" + JSON.stringify({ summary: slug + " reviewed result",
 		setup: { kind: "owned-github-scratch", entry: "mise run pre-integrate" },
 		stories: [{ story: slug + " code and joins", outcome: "held" }],
-		evidence: { path: packet(slug), visual: false, shots: [] }, tests: [], ...(replies ? { threadReplies: replies } : {}) }) + "\n\x60\x60\x60" });
+		evidence: { path: evidencePath, visual: false, shots: [] }, tests: [], ...(replies ? { threadReplies: replies } : {}) }) + "\n\x60\x60\x60" });
 const until = async <T>(fn: () => T | false | undefined, label: string, allowException = false): Promise<T> => {
 	for (let n = 0; n < 900; n++) {
 		const s = state();
@@ -214,8 +214,8 @@ try {
 			assert(conflict); put(repair.path, "fixture/conflict.txt", "branch edit + base edit\n");
 			git(repair.path, "add", "fixture/conflict.txt"); git(repair.path, "commit", "-qm", "Merge base conflict preserving both histories");
 			commit(repair.path, "fixture/ci.txt", "green\n");
-			commit(repair.path, packet(m.root), "# Repair evidence\n\nObserved Actions failure: fixture/ci.txt was red; now green. Base and contributor histories retained.\n");
-			report(repair, m.root);
+			commit(repair.path, packet(m.root + "-repair"), "# Repair evidence\n\nObserved Actions failure: fixture/ci.txt was red; now green. Base and contributor histories retained.\n");
+			report(repair, m.root, undefined, packet(m.root + "-repair"));
 			record("repairSubmitted", { base, foreign, worker: repair.handle, head: head(repair.path), conflictObserved: conflict, pusherIdentity: "mlegls (separate clone, supervisor-approved)" });
 			m.progress = "merge-submitted"; persist();
 		}
@@ -264,8 +264,8 @@ try {
 			assert.equal(state().pr!.repair!.request.kind, "review"); assert.equal(state().pr!.repair!.request.threadIds!.length, 2);
 			commit(repair.path, "fixture/conflict.txt", "branch edit; base meaning preserved\n");
 			commit(repair.path, "fixture/" + childB + ".txt", childB + " code; evidence clarified\n");
-			commit(repair.path, packet(m.root), "# Live COMMENTED repair\n\nBoth inline fixture observations repaired, integration gates rerun.\n");
-			report(repair, m.root, Object.fromEntries(state().pr!.repair!.request.threadIds!.map(id => [id, "Committed fixture clarification; integration gate passed on pushed head."])));
+			commit(repair.path, packet(m.root + "-repair"), "# Live COMMENTED repair\n\nBoth inline fixture observations repaired, integration gates rerun.\n");
+			report(repair, m.root, Object.fromEntries(state().pr!.repair!.request.threadIds!.map(id => [id, "Committed fixture clarification; integration gate passed on pushed head."])), packet(m.root + "-repair"));
 			await until(() => !state().pr!.repair && state().pr!.reviews.repaired.includes(review.node_id), "pushed repair and each live reply");
 			const snapshot = observe();
 			const ownComments = snapshot.threads.flatMap(t => t.comments).filter(c => c.body.includes("reconcile:" + m.root + ":review:"));
