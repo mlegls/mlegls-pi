@@ -102,7 +102,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
 		try {
 			const me = mailbox(ctx.sessionManager.getSessionId());
-			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.stopping && !s.running) start({ cwd: s.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget });
+			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.stopping && !s.running) start({ cwd: ctx.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget, land: s.land ?? "local" });
 		} catch {}
 	});
 	pi.registerCommand("jump", {

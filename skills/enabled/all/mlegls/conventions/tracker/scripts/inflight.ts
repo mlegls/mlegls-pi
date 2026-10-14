@@ -42,7 +42,7 @@ export function inflight(issuesDir: string, done: (slug: string) => boolean): Ma
   for (const r of runs(common)) {
     if (r.finished) continue;
     const how = alive(r.pid) ? "" : " (stalled: reconciler for " + r.root + " not running)";
-    const pr = r.land !== "local" ? r.pr : undefined;
+    const pr = (r.land ?? "local") !== "local" ? r.pr : undefined;
     const target = r.target ?? (pr ? "github:" + pr.repository + ":" + pr.baseBranch : r.cwd);
     const prStatus = pr ? " (" + r.land + ", " + pr.phase + (pr.url ? ", " + pr.url : "") + ", target " + target + ")" : "";
     if (!done(r.root)) add(r.root, "reconciling subtree" + prStatus + how);

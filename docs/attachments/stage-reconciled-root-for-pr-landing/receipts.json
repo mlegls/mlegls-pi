@@ -1,0 +1,263 @@
+{
+  "tested": "078782f6",
+  "github": "Seeded host observations; actual local bare-remote Git merge/fetch. Not live GitHub.",
+  "clean": {
+    "owner": "/private/tmp/rc-pr-staging-PI5GUg/owner",
+    "ownerHeadBeforeIntegration": "39ec4a565f612602ec170c0448f2f614ab6dc640",
+    "identityAtBootstrap": {
+      "repository": "seeded/staging",
+      "remote": "origin",
+      "baseBranch": "main",
+      "path": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-41352c6e5a2c--pr",
+      "branch": "reconcile/pr/root-41352c6e5a2c",
+      "phase": "preparing",
+      "repairs": 0,
+      "integrationFailures": 0,
+      "reviews": {
+        "processed": [],
+        "repaired": [],
+        "replies": {}
+      },
+      "baseHead": "27fd5ea181eee096e98bf539eedc5d158ee9d3cb"
+    },
+    "ledgerBeforePublication": {
+      "a": {
+        "into": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-41352c6e5a2c--pr",
+        "head": "7a6336a4a34d0bb1e5ca42c353ad1c206628a998",
+        "at": "2026-10-14T12:35:53.842Z"
+      },
+      "b": {
+        "into": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-41352c6e5a2c--pr",
+        "head": "7a6336a4a34d0bb1e5ca42c353ad1c206628a998",
+        "at": "2026-10-14T12:36:22.054Z"
+      },
+      "root": {
+        "into": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-41352c6e5a2c--pr",
+        "head": "7a6336a4a34d0bb1e5ca42c353ad1c206628a998",
+        "at": "2026-10-14T12:36:48.951Z"
+      }
+    },
+    "rootIntegration": {
+      "slug": "root",
+      "into": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-41352c6e5a2c--pr",
+      "destination": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-41352c6e5a2c--pr",
+      "before": "27fd5ea181eee096e98bf539eedc5d158ee9d3cb",
+      "worker": {
+        "handle": "root-review-9",
+        "run": "root",
+        "path": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-review-9",
+        "threadId": "57a6f5f6-1eae-42b2-9c07-04da1560da45"
+      },
+      "carried": [
+        "a",
+        "b"
+      ],
+      "result": {
+        "parent": null,
+        "summary": "root reviewed result",
+        "evidence": "docs/attachments/fixture/root.md",
+        "handoff": {
+          "summary": "root reviewed result",
+          "setup": {
+            "kind": "isolated-shell"
+          },
+          "stories": [
+            {
+              "story": "root code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/fixture/root.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      },
+      "workers": [
+        {
+          "handle": "root-review-9",
+          "run": "root",
+          "path": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-review-9",
+          "threadId": "57a6f5f6-1eae-42b2-9c07-04da1560da45"
+        }
+      ],
+      "collector": {
+        "path": "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root--tree",
+        "branch": "tree/root",
+        "parentBranch": "reconcile/pr/root-41352c6e5a2c"
+      },
+      "preparedHead": "7a6336a4a34d0bb1e5ca42c353ad1c206628a998",
+      "landedHead": "7a6336a4a34d0bb1e5ca42c353ad1c206628a998",
+      "at": "2026-10-14T12:36:48.951Z",
+      "cleanupDone": "2026-10-14T12:36:49.880Z"
+    },
+    "gates": [
+      "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/a-review-3 432996cb9ea8694a954cee368afea0897ab9e885 tree/root",
+      "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/b-review-6 0f45300c1197d5150f8aa935a74cd3379c8c7e30 tree/root",
+      "/private/tmp/rc-pr-staging-PI5GUg/repo__worktrees/root-review-9 7a6336a4a34d0bb1e5ca42c353ad1c206628a998 reconcile/pr/root-41352c6e5a2c"
+    ],
+    "pendingResults": {
+      "a": {
+        "parent": "root",
+        "summary": "a reviewed result",
+        "evidence": "docs/attachments/fixture/a.md",
+        "handoff": {
+          "summary": "a reviewed result",
+          "setup": {
+            "kind": "isolated-shell"
+          },
+          "stories": [
+            {
+              "story": "a code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/fixture/a.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      },
+      "b": {
+        "parent": "root",
+        "summary": "b reviewed result",
+        "evidence": "docs/attachments/fixture/b.md",
+        "handoff": {
+          "summary": "b reviewed result",
+          "setup": {
+            "kind": "isolated-shell"
+          },
+          "stories": [
+            {
+              "story": "b code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/fixture/b.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      },
+      "root": {
+        "parent": null,
+        "summary": "root reviewed result",
+        "evidence": "docs/attachments/fixture/root.md",
+        "handoff": {
+          "summary": "root reviewed result",
+          "setup": {
+            "kind": "isolated-shell"
+          },
+          "stories": [
+            {
+              "story": "root code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/fixture/root.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      }
+    },
+    "status": {
+      "land": "pr-review",
+      "target": "github:seeded/staging:main",
+      "phase": "opening",
+      "chains": {}
+    },
+    "merged": {
+      "mergeCommit": "d6e902e1851607a77fabb392c3b1dec7a2f64d32",
+      "fetchedBase": "d6e902e1851607a77fabb392c3b1dec7a2f64d32",
+      "target": "github:seeded/staging:main",
+      "closeOrder": [
+        "close a",
+        "close b",
+        "close root"
+      ],
+      "ownerSync": "updated",
+      "ownerHead": "39ec4a565f612602ec170c0448f2f614ab6dc640",
+      "counter": 9,
+      "replayCloses": 0,
+      "hooks": 20
+    }
+  },
+  "otherOwners": [
+    {
+      "case": "dirty",
+      "owner": "/private/tmp/rc-pr-staging-GBI38O/owner",
+      "mergeCommit": "a57bfa2254c77df5a627ba05c2f299fcc506fa2a",
+      "fetchedBase": "a57bfa2254c77df5a627ba05c2f299fcc506fa2a",
+      "target": "github:seeded/staging:main",
+      "closeOrder": [
+        "close a",
+        "close b",
+        "close root"
+      ],
+      "ownerSync": "left",
+      "ownerHead": "f226f5ab83420720e9a80edfd0fe9745107df9fc",
+      "counter": 9,
+      "replayCloses": 0,
+      "hooks": 20
+    },
+    {
+      "case": "other",
+      "owner": "/private/tmp/rc-pr-staging-X6D9WZ/owner",
+      "mergeCommit": "74232c8e6a312421f4176638fc2f84ebf09cd5ee",
+      "fetchedBase": "74232c8e6a312421f4176638fc2f84ebf09cd5ee",
+      "target": "github:seeded/staging:main",
+      "closeOrder": [
+        "close a",
+        "close b",
+        "close root"
+      ],
+      "ownerSync": "left",
+      "ownerHead": "c149898fd62e47eabcbf2a7666f656be80c0af2a",
+      "counter": 9,
+      "replayCloses": 0,
+      "hooks": 20
+    },
+    {
+      "case": "divergent",
+      "owner": "/private/tmp/rc-pr-staging-E3eL6s/owner",
+      "mergeCommit": "e7a0115794e02cb3300bca5bfbe56d6d044fb269",
+      "fetchedBase": "e7a0115794e02cb3300bca5bfbe56d6d044fb269",
+      "target": "github:seeded/staging:main",
+      "closeOrder": [
+        "close a",
+        "close b",
+        "close root"
+      ],
+      "ownerSync": "left",
+      "ownerHead": "91d00035b7e63107ec0d547d1414eca107f7ec8c",
+      "counter": 9,
+      "replayCloses": 0,
+      "hooks": 21
+    },
+    {
+      "case": "missing",
+      "owner": "/private/tmp/rc-pr-staging-QU8393/owner",
+      "mergeCommit": "25af77f3a6f357ae96a88cd12ee07966d525b9b4",
+      "fetchedBase": "25af77f3a6f357ae96a88cd12ee07966d525b9b4",
+      "target": "github:seeded/staging:main",
+      "closeOrder": [
+        "close a",
+        "close b",
+        "close root"
+      ],
+      "ownerSync": "left",
+      "counter": 9,
+      "replayCloses": 0,
+      "hooks": 20
+    }
+  ]
+}
