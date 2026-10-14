@@ -44,7 +44,7 @@ Only observed `MERGED` metadata plus fetched Git ancestry closes carried nodes, 
 
 ## Rehearsal and evidence
 
-[Owned live rehearsal](../attachments/rehearse-reconciled-github-pr-landings/index.md):
+[Combined join evidence](../attachments/land-reconciled-trees-through-pull-requests/index.md) and [owned live rehearsal](../attachments/rehearse-reconciled-github-pr-landings/index.md):
 
 ```sh
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-merge

@@ -1,5 +1,7 @@
 # PR staging and target closure
 
+Historical bootstrap evidence follows. The fixture now also publishes/waits through the completed lifecycle; see the [combined join replay](../land-reconciled-trees-through-pull-requests/index.md) for current results.
+
 Independent first-use replay at `cd2ee859`: [predictions, observations and replayable checks](drive.md). All five supplied encounters completed successfully.
 
 ## Setup and replay
