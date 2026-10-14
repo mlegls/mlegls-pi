@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:fill"
 author: "session:01a13a33-2a17-714d-a4b1-0ff4fb53f8f0"
 part-of: "[[projects/mlegls-pi/issues/land-reconciled-trees-through-pull-requests]]"
-claimed-by: "reconcile:land-reconciled-trees-through-pull-requests"
 priority: 2
 ---
 # Deliverable
@@ -25,3 +24,42 @@ A review arriving during repair remains available afterward; do not consume late
 Drive the connected lifecycle in an isolated scratch repo with an injected host sequence and real shell repair worker: comment without submitted review -> no worker; submitted changes-requested with threads -> one worker from the current PR head, gated/pushed code and one reply per thread; replay the same review/post-before-save reply -> no duplicate; second later changes-requested -> owner exception and no repair launch; externally merged -> target completion. Save the one-off probe/index under `docs/attachments/reconcile-submitted-pr-reviews/`, labelled seeded API sequence, with actual worker/commit identities. Real submitted reviews require a second authorized GitHub identity (GitHub disallows reviewing your own PR); the later live rehearsal explicitly provisions that first-use setup or stops blocked.
 
 Acceptance: submitted boundaries rather than comment activity control work, all requested threads get post-push replies, replay is idempotent, second changes-requested escalates, approval never causes reconciler merge, and human merge still closes the tree. Run typecheck and existing reconciler tests. No new retained tests are authorized.
+
+## Result
+
+done — I fixed the repair loop. After every repair the reconciler's own thread replies would have started another repair round until the budget ran out. Typecheck, the reconciler tests (14 pass) and the seeded probe all pass on the fixed head.
+
+**Cause:** GitHub files each reply as its own COMMENTED review inside the still-unresolved thread, and `nextReviewAction` treated that review as actionable. The seeded probe couldn't show it because its reply storage creates no review.
+
+**Fix:**
+- `nextReviewAction` now takes `root` and ignores a submitted review whose comments all carry the `reconcile:<root>:review:` marker. The test is on the marker, not the author. Ignored IDs are marked processed.
+- A human review in the same thread still triggers a repair.
+- The marker prefix is `replyMarkerPrefix`, which `pull-request.ts` also uses to build the reply markers.
+- A thread whose latest comment is our reply is only requested again if a later human review comments in it. Threads are requested only through the reviews that selected them.
+- Caveat: a human comment that arrived during a repair and sits before our reply still triggers a follow-up repair. I kept this so a review arriving during repair is never lost, and it can't loop because the follow-up's own reply is ignored.
+- I added the retained test `lib/reconcile/pr-reviews.test.ts`. It covers our marker reply ignored, another root's marker not ours, and a human COMMENTED review in the same thread still triggering.
+
+I appended the review section to the packet at `docs/attachments/reconcile-submitted-pr-reviews/index.md`. The probe replay exited 0 with one worker, two replies and zero merge calls. The driver reported no frictions, so I filed nothing. The fix is committed as `d1d17ed4`.
+
+```yaml
+commit: d1d17ed4
+stories:
+  - {story: Submitted reviews control repair, outcome: held}
+  - {story: Gated repair replies to every requested thread, outcome: held}
+  - {story: Replay is idempotent, outcome: held}
+  - {story: Second changes-requested escalates without repair, outcome: held}
+  - {story: No automatic merge; human merge completes target, outcome: held}
+evidence:
+  path: docs/attachments/reconcile-submitted-pr-reviews/index.md
+  visual: false
+  shots: []
+tests: [lib/reconcile/pr-reviews.test.ts]
+filed: []
+redrive: false
+caveats:
+  - Seeded API only; the own-reply-review loop is established by the unit test, not live GitHub. The later live rehearsal should confirm that reply reviews carry the marker body and that GitHub's reply comment appears under the new review ID.
+  - The new test exists because the supervisor authorized it. The marker match is a substring on comment body, so a human who quotes a marker would be ignored (unlikely).
+  - Wall time: the lib/reconcile suite took ~116s and the probe ~45s; nothing else added.
+```
+
+Evidence: [docs/attachments/reconcile-submitted-pr-reviews/index.md](docs/attachments/reconcile-submitted-pr-reviews/index.md)
