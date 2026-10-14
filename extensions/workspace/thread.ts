@@ -9,7 +9,7 @@ import { persistHeader } from "../../lib/thread/sessions";
 import type { ThreadRecord } from "../../lib/thread/types";
 
 const ab = fileURLToPath(new URL("../../bin/ab", import.meta.url));
-const usage = "Usage: /thread new|fork [--worktree <name>] | promote | archive|abandon|merge [<thread>]";
+const usage = "Usage: /thread new [--worktree <name>] | archive|abandon|merge [<thread>]";
 
 export async function currentThread(ctx: ExtensionContext): Promise<ThreadRecord | undefined> {
 	const file = ctx.sessionManager.getSessionFile();
@@ -58,20 +58,18 @@ export async function threadCommand(args: string, ctx: ExtensionCommandContext, 
 	});
 	const [action] = positionals;
 	const cleanup = action === "archive" || action === "abandon" || action === "merge";
-	if (positionals.length > (cleanup ? 2 : 1) || !action || !["new", "fork", "promote", "archive", "abandon", "merge"].includes(action))
+	if (positionals.length > (cleanup ? 2 : 1) || !action || !["new", "archive", "abandon", "merge"].includes(action))
 		throw new Error(usage);
 	const argv = [action];
-	if (action === "new" || action === "fork") {
+	if (action === "new") {
 		if (values.worktree !== undefined) argv.push("--worktree", values.worktree);
-		if (action === "new") {
-			const parent = await currentThread(ctx);
-			if (parent) argv.push("--parent", parent.id);
-		}
+		const parent = await currentThread(ctx);
+		if (parent) argv.push("--parent", parent.id);
 	} else {
 		if (values.worktree !== undefined) throw new Error(usage);
 		if (cleanup) {
 			const target = positionals[1] ?? (await currentThread(ctx))?.id;
-			if (!target) throw new Error("/thread " + action + " requires a thread id here: this session is not canonical (/thread promote makes it one)");
+			if (!target) throw new Error("/thread " + action + " requires a thread id here: this session is not a registered thread");
 			const record = await getThread(target);
 			if (!record) throw new Error("Unknown thread: " + target);
 			argv.push(target);
@@ -102,7 +100,6 @@ export function registerThread(pi: ExtensionAPI) {
 		catch (error) { ctx.ui.notify(error instanceof Error ? error.message : String(error), "error"); }
 	};
 	pi.registerCommand("thread", { description: usage, handler });
-	pi.registerCommand("fork-tab", { description: "Alias of /thread fork [--worktree <name>]", handler: (args, ctx) => handler("fork " + args, ctx) });
 
 	pi.on("session_before_switch", async (event, ctx) => {
 		const refusal = event.reason === "resume" && event.targetSessionFile && await resumeRefusal(event.targetSessionFile, ctx);

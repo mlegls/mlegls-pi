@@ -3,8 +3,6 @@ stage: ticket
 assignee: agent:technical
 author: session:01a12f4c-1aa6-75fe-9c2b-d81acad80dbd
 part-of: "[[projects/mlegls-pi/issues/reconcile-github-tracked-projects]]"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
 priority: 2
 ---
 A reconciler can land its tree through one GitHub pull request instead of a local merge into the owner's checkout. Collector landings stay local, and this works with either tracker backend. The `pr` landing comes after `integrate` of the root: push the root branch, open the PR with a [pr](../../skills/enabled/all/mlegls/conventions/tracker/references/pr.md) body (`Closes #…` for every node when the tracker is GitHub), and follow it to merged or closed.
@@ -61,7 +59,7 @@ All were created atomically with provisional claim `reconcile:land-reconciled-tr
 
 After the children land, this issue owns their join, not another implementation of them. Remove remaining stubs/dormant guards, reconcile the host/target/callback/review-progress seams, rerun the kept reconciler/tracker suites together and typecheck. Verify the child rehearsal guide and final packet against the combined revision, re-driving any crossing behavior changed at the join. Commit the combined evidence index under `docs/attachments/land-reconciled-trees-through-pull-requests/`.
 
-Cross-backend join waits for [[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]], currently still a human-assigned goal. That backend must expose the optional githubIssue capability. The PR children can run independently now; the residual join must drive the production adapter on native scratch issues, including nonnumeric logical identity if the adapter chooses it, Closes references for all completed nodes, preserved results and no premature global close. Seeded capability observations establish the transport seam, not that unavailable backend's live acceptance. No unresolved backend design is delegated to these PR workers.
+2026-10-13 (supervisor): this tree does not wait for [[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]. Its acceptance uses the vault tracker; `Closes #…` for GitHub-tracked nodes is accepted under that backend's tree, which uses this PR transport.
 
 First use is an explicitly owned disposable GitHub repository/fork and isolated local board/registry/state, with the harness's existing GitHub identity, push/Actions access, and a distinct authorized reviewer/human merge identity (GitHub prevents self-review). The rehearsal ticket requests missing setup/action rather than faking those live observations. This does not authorize creating accounts/tokens or changing protection/permissions in project repositories.
 

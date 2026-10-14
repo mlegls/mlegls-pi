@@ -13,24 +13,22 @@ import { execFile } from "node:child_process";
 import { agent, AGENTS_DIR, roleBody, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
-import { abandonThread, forkThread, getThread, historyThread, integrateThread, listThreads, newThread, sendThread, threadSnapshot, ThreadMergeConflict, workerThread, type ThreadRecord, type ThreadSnapshot } from "./thread";
-import { isPiLaunch } from "./thread/launch";
+import { join, resolve } from "node:path";
+import { abandonThread, getThread, historyThread, integrateThread, listThreads, newThread, sendThread, threadSnapshot, ThreadMergeConflict, workerThread, type ThreadRecord, type ThreadSnapshot } from "./thread";
 import { boardDir, logSize, readFrom, type Message } from "./board/store";
 import { readLive } from "./session-meta/live";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: Message } // checkpoint: fenced on context; paused for a follow-up like needs-input
-	| { kind: "idle"; tail: string; message?: Message } // turn ended without a status: the pi's turn-end post (message), or for other commands a quiet pane
+	| { kind: "idle"; tail: string; message?: Message } // turn ended without a status: the pi's turn-end post (message)
 	| { kind: "exited"; tail: string }; // pi process gone
 
 export interface SpawnOptions {
 	run: string; // board topic prefix, e.g. compile/1726 or orch/rework-auth
 	handle: string;
 	prompt: string;
-	model?: string; // routed provider/model; required with effort unless command is supplied
+	model?: string; // routed provider/model; required, with effort
 	effort?: string;
-	command?: string; // explicit process; mutually exclusive with model/effort
 	agent?: string; // name of a stance file in AGENTS_DIR
 	role?: string; // which of the agent's roles this spawn fills (default: its first)
 	base?: string; // git ref to branch from
@@ -38,19 +36,9 @@ export interface SpawnOptions {
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // legacy receipt field; never selects a transport
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
-	parentSessionFile?: string; // session jsonl; --fork needs the path because the child's cwd is a different project
+	parentSessionFile?: string; // session jsonl that from: "summary" extracts from
 	follow?: string; // board topic glob whose decisions the worker sees without waking (siblings' coordination)
-	from?: "fork" | "summary"; // fork: pi --fork <parent>; summary: prepend an extract of the parent session to the prompt
-}
-
-/** Insert `--fork <source>` after the pi binary. Source should be the parent session file when the child cwd differs. */
-export function withFork(cmd: string, source: string): string {
-	if (/(?:^|\s)--fork(?:\s|$|=)/.test(cmd)) return cmd;
-	const i = cmd.search(/\s/);
-	const bin = i < 0 ? cmd : cmd.slice(0, i);
-	if (basename(bin) !== "pi") throw new Error(`from: "fork" needs a pi command, got ${cmd}`);
-	const arg = /[\s"$\\]/.test(source) ? JSON.stringify(source) : source;
-	return `${bin} --fork ${arg}${i < 0 ? "" : cmd.slice(i)}`;
+	from?: "summary"; // prepend an extract of the parent session to the prompt
 }
 
 function contentText(content: unknown): string {
@@ -78,7 +66,6 @@ export function parentSummary(file: string, max = 12_000): string {
 }
 
 const TERMINAL = ["done", "blocked", "needs-input", "checkpoint"] as const;
-const IDLE_GRACE_MS = 8_000;
 const POLL_MS = 1_000;
 const START_GRACE_MS = 120_000;
 const REATTACH_GRACE_MS = 8_000;
@@ -214,15 +201,9 @@ export class Worker {
 		return this.waiters.length > 0 || this.listeners.size > 0;
 	}
 	private ended?: Outcome;
-	private idleSince?: number;
-	private reportedAfterIdle = false;
-	private lastReportTs = 0;
 	private observedPid?: number;
 	private observedSession?: string;
 	private observingSince = Date.now();
-	private quietTail?: string;
-	/** Explicit non-pi fixtures may infer quiet turns from terminal history. */
-	quietIsIdle = false;
 	/** Reattachment gets bounded current-state observation, not a fresh launch grace. */
 	reattached = false;
 
@@ -259,7 +240,6 @@ export class Worker {
 		this.threadId = record.id;
 		this.dir = record.cwd;
 		this.owningBranch = record.branch;
-		this.quietIsIdle = !isPiLaunch(record.launch);
 	}
 	private async id(): Promise<string> {
 		const record = await this.record();
@@ -274,10 +254,6 @@ export class Worker {
 	/** @internal */
 	emit(o: Outcome) {
 		if (this.ended) return;
-		if (o.kind !== "idle") {
-			this.lastReportTs = Date.now();
-			this.reportedAfterIdle = true;
-		}
 		if (o.kind === "exited") {
 			this.ended = o;
 			poller.remove(this);
@@ -303,25 +279,10 @@ export class Worker {
 			this.emit({ kind: "exited", tail: await this.capture(30) });
 			return;
 		}
-		if (entry.state === "queued") return;
 		if (entry.pid) this.observedPid = entry.pid;
-		if (!this.quietIsIdle) {
-			if (entry.state === "exited" && !this.observedPid && Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS))
-				this.emit({ kind: "exited", tail: await this.capture(30) });
-			return; // normal pi turns come only from the board
-		}
-		if (entry.state === "exited") { this.emit({ kind: "exited", tail: await this.capture(30) }); return; }
-		const tail = await this.capture(30);
-		if (tail !== this.quietTail) {
-			this.quietTail = tail;
-			this.idleSince = Date.now();
-			this.reportedAfterIdle = this.lastReportTs >= Date.now() - 2_000;
-		}
-		this.idleSince ??= Date.now();
-		if (!this.reportedAfterIdle && Date.now() - this.idleSince >= IDLE_GRACE_MS) {
-			this.reportedAfterIdle = true;
-			this.emit({ kind: "idle", tail });
-		}
+		if (entry.state === "exited" && !this.observedPid && Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS))
+			this.emit({ kind: "exited", tail: await this.capture(30) });
+		// pi turns come only from the board
 	}
 
 	/** Next event of any kind. After exit, always the exit outcome. Aborting the signal withdraws the wait without consuming anything. */
@@ -384,8 +345,6 @@ export class Worker {
 	}
 
 	async send(text: string) {
-		this.idleSince = undefined;
-		this.reportedAfterIdle = false;
 		await sendThread(await this.id(), text);
 	}
 
@@ -479,12 +438,8 @@ async function excludeWm(cwd: string) {
 export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const a = o.agent ? agent(o.agent) : undefined;
 	if (o.agent && !a) throw new Error("Unknown agent stance: " + o.agent);
-	if (o.command !== undefined && (o.model !== undefined || o.effort !== undefined))
-		throw new Error("Supply model/effort or command, not both");
-	if (o.command === undefined && (!o.model?.includes("/") || !o.effort))
-		throw new Error("wm.spawn requires routed model (provider/model) and effort, or an explicit command");
-	if (o.command !== undefined && !o.command.trim()) throw new Error("command must not be empty");
-	if (o.from === "fork" && o.command !== undefined && !isPiLaunch({ cmd: o.command })) throw new Error('from: "fork" needs a pi command');
+	if ((o as { command?: unknown }).command !== undefined) throw new Error("wm.spawn runs pi as a bb thread; a worker command is not supported");
+	if (!o.model?.includes("/") || !o.effort) throw new Error("wm.spawn requires routed model (provider/model) and effort");
 	const cwd = resolve(o.cwd ?? process.cwd());
 	await excludeWm(cwd);
 	const w = new Worker(o.run, o.handle, cwd, o.session);
@@ -494,18 +449,16 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		if (o.from === "summary") {
 			const file = o.parentSessionFile ?? process.env.PI_SESSION_FILE;
 			if (file && existsSync(file)) text = [parentSummary(file), o.prompt].filter(Boolean).join("\n\n---\n\n");
-		} else if (o.from && o.from !== "fork") {
-			throw new Error(`from must be "fork" or "summary"`);
+		} else if (o.from) {
+			throw new Error(`from must be "summary"; bb threads cannot fork a session`);
 		}
 		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint, follow: o.follow }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
 		const options = { cwd, worktree: o.handle, base: o.base, prepare: o.prepare ? async (thread: ThreadRecord) => {
 			const prepared = await o.prepare!(thread.cwd);
 			if (prepared !== undefined) thread.launch!.prompt = prompt({ ...o, prompt: prepared, agent: a });
 		} : undefined, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, worker: { run: o.run, handle: o.handle },
-			launch: { cmd: o.command, args: o.command === undefined ? ["--approve", "--model", o.model!, "--thinking", o.effort!] : undefined, env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
-		const source = o.parentSessionFile ?? o.parentSession ?? process.env.PI_SESSION_FILE ?? process.env.PI_SESSION_ID;
-		if (o.from === "fork" && !source) throw new Error('from: "fork" needs parentSessionFile, parentSession, or PI_SESSION_ID');
-		w.bind(o.from === "fork" ? await forkThread(source!, options) : await newThread(options));
+			launch: { args: ["--approve", "--model", o.model!, "--thinking", o.effort!], env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
+		w.bind(await newThread(options));
 		w.launching = false;
 		return w;
 	} catch (err) {
@@ -550,7 +503,7 @@ if (import.meta.main) {
 		case "spawn": {
 			const promptFile = opt("prompt-file");
 			const prompt = promptFile ? readFileSync(promptFile, "utf8") : need(opt("prompt"), "prompt");
-			const w = await spawn({ run: need(opt("run"), "run"), handle: need(pos[0], "handle"), prompt, model: opt("model"), effort: opt("effort"), command: opt("command"), agent: opt("agent"), base: opt("base"), session: opt("session"), from: opt("from") as "fork" | "summary" | undefined, parentSessionFile: process.env.PI_SESSION_FILE });
+			const w = await spawn({ run: need(opt("run"), "run"), handle: need(pos[0], "handle"), prompt, model: opt("model"), effort: opt("effort"), agent: opt("agent"), base: opt("base"), session: opt("session"), from: opt("from") as "summary" | undefined, parentSessionFile: process.env.PI_SESSION_FILE });
 			print(w);
 			process.exit(0);
 		}
@@ -593,7 +546,7 @@ if (import.meta.main) {
 			process.exit(0);
 		}
 		default:
-			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) (--model provider/model --effort E | --command C) [--agent A] [--base B] [--from fork|summary]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status | agents");
+			console.error("usage: wm.ts spawn <handle> --run R (--prompt P | --prompt-file F) --model provider/model --effort E [--agent A] [--base B] [--from summary]\n       wm.ts next|done|capture|merge|close <handle> --run R\n       wm.ts send <handle> <text> --run R\n       wm.ts status | agents");
 			process.exit(2);
 	}
 }

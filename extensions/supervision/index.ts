@@ -11,7 +11,7 @@ import { dataTool } from "../../lib/tool";
 import { mailbox } from "../../lib/board/mailbox";
 import { campaigns, constrain, resolveException, start, stop, summary } from "../../lib/reconcile/main";
 
-const namespace = { name: "supervision", description: "Dispatch wm workers (threads: a worktree and a zmx session running pi), integrate their branches, retire them" };
+const namespace = { name: "supervision", description: "Dispatch wm workers (bb threads: a worktree and a pi run by bb), integrate their branches, retire them" };
 
 const HandleSchema = Type.Object({ handle: Type.String(), run: Type.String(), path: Type.String(), threadId: Type.Optional(Type.String()), session: Type.Optional(Type.String()), cursor: Type.Optional(Type.String()) });
 const Worker = Type.Union([HandleSchema, Type.String({ description: "Bare handle, looked up among registered workers in this checkout's project" })]);

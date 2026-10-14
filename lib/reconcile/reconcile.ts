@@ -69,7 +69,9 @@ export function pinTracker(live = LIVE_TRACKER): string {
 }
 /** The reconciler's tracker: the pinned scripts (see pinTracker), so a merge in progress in the live checkout can't stop its queries. */
 export const reconcilerTracker = (cwd: string) => getTracker(cwd, { inflight: false, cli: process.env.TRACKER_CLI ?? pinTracker() });
-const TICK_MS = 5_000;
+// Offline trials can advance reports promptly; production still polls every five seconds.
+const tickMs = Number(process.env.PI_RECONCILE_TICK_MS ?? 5_000);
+const TICK_MS = Number.isFinite(tickMs) && tickMs >= 0 ? tickMs : 5_000;
 /** An `error` turn-end is not the end of a worker: pi retries a failed request itself (an idle WebSocket, an overloaded
  * provider) and carries on. Act on one only once it has stood this long and the worker is no longer working. */
 const ERROR_SETTLE_MS = Number(process.env.PI_RECONCILE_ERROR_SETTLE_MS ?? 90_000);

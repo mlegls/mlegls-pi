@@ -1,4 +1,3 @@
-// Shared seam for thread-registry-on-zmx. Implementations are partitioned in docs/issues/thread-core-and-workers-on-zmx.md.
 export interface WorkerIdentity { run: string; handle: string }
 export interface ThreadBlock {
 	action: "archive" | "merge";
@@ -7,9 +6,7 @@ export interface ThreadBlock {
 	reason: string;
 }
 export interface AgentLaunch {
-	/** Trusted shell command override (wm.spawn's explicit command / CLI --cmd). */
-	cmd?: string;
-	/** Additional pi arguments; the runner supplies --session using the current record. */
+	/** Additional pi arguments; the thread's pi gets --session from the current record. */
 	args?: string[];
 	env?: Record<string, string>;
 	/** Submitted on first launch only, never replayed by the restart loop. */
@@ -34,16 +31,15 @@ export interface ThreadRecord {
 	interactive?: boolean;
 	/** When a frontend last showed this thread; a turn ending after it is unread. */
 	seenAt?: string;
-	/** bb thread id when bb runs this thread's pi (lib/thread/bb.ts) instead of a zmx terminal. */
+	/** The bb thread running this thread's pi (lib/thread/bb.ts); absent on a record from the retired zmx runtime. */
 	bb?: string;
 }
 export interface ThreadTerminal { name: string; role: string }
 export interface ThreadSnapshot {
 	thread: ThreadRecord;
-	state: "queued" | "working" | "idle" | "exited";
-	admission?: import("./admission").Admission;
+	state: "working" | "idle" | "exited";
 	workspace?: import("./resources").WorkspaceResources;
-	pid?: number; // canonical pi pid from readLive, never zmx ls's shell pid
+	pid?: number; // canonical pi pid from readLive, from the session's own live record
 	/** bb's own status for a bb-run thread; `error` is a bb command that failed (thread.start, turn.submit), which pi never reports. */
 	bbStatus?: import("./bb").BbThread["status"];
 	mergeParent?: string; // branch.<branch>.ab-parent
@@ -71,12 +67,9 @@ export interface NewThreadOptions {
 	prepare?: (thread: ThreadRecord) => Promise<void>; // after checkout creation, before setup/launch
 	parent?: string;
 	parentSession?: string; // resolves default parent; free-session provenance remains separate
-	forkFrom?: string; // session id or file; copied once before launch
 	launch?: AgentLaunch;
 	worker?: WorkerIdentity;
 	interactive?: boolean;
-	/** Default defaultRuntime(): bb inside a bb session, else zmx. */
-	runtime?: import("./bb").Runtime;
 }
 export interface ThreadIntegration {
 	branch: string;

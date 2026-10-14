@@ -5,7 +5,7 @@ author: "session:01a13a33-2a17-714d-a4b1-0ff4fb53f8f0"
 part-of: "[[projects/mlegls-pi/issues/land-reconciled-trees-through-pull-requests]]"
 blocked-by:
   - "[[projects/mlegls-pi/issues/reconcile-submitted-pr-reviews]]"
-claimed-by: "reconcile:land-reconciled-trees-through-pull-requests/land-reconciled-trees-through-pull-requests-refine-1"
+claimed-by: "reconcile:land-reconciled-trees-through-pull-requests"
 priority: 2
 ---
 # Deliverable
@@ -33,3 +33,19 @@ Backend seam: the vault primary runs omit closing references. Exercise PR body g
 Commit an index at the tested revision with scratch repo/PR/check/review/thread/worker/head identifiers, mode-specific predictions before contact, actions/observations, original-vs-repaired gate evidence, close ordering, restart cut and cleanup; secrets redacted. Provide the runnable entry point and separate fully automated actions from required human review/merge controls. Durable links alone are insufficient if the scratch repo will be removed: preserve the small observations establishing each claim. This is nonvisual API/CLI/git evidence unless you actually drive a rendered surface.
 
 Both live primary journeys satisfy the parent's recorded acceptance; observed gaps stop the assignment instead of silently weakening it. Repair narrow in-scope lifecycle seams when located and re-drive; larger/new choices go through the tracker. Existing `bun test lib/reconcile`, tracker suites and `bunx tsc --noEmit` pass on the combined revision. No new retained tests are authorized; these one-off driven scripts/check fixtures are the prescribed first-use machinery, not suite additions.
+
+## Setup exception ruling (2026-10-14)
+
+The implement worker reports only the existing `mlegls` identity authenticated, no supplied disposable rehearsal target or distinct authorized reviewer, and no scratch resources or processes started. Both primary live journeys are unobserved because setup is missing, not failed product observations.
+
+Escalate the setup choice to the enclosing owner/maintainer: supply an explicitly disposable repository/fork with push and Actions/check access (or explicitly authorize creation of a fresh owned scratch repository), and name an existing distinct authorized reviewer willing to submit both changes-requested reviews and an approval, push a contributor commit, and perform the final merge. Human-operated controls suffice; no credentials need be sent. The transport child's retained scratch repository is not automatically authorized for this rehearsal or disposal.
+
+This is the setup request required by the existing contract, not a reclassification of the rehearsal ticket. Keep its stage, claim, scope and live acceptance unchanged. Do not retry blind, substitute seeded reviews/self-review, create accounts/tokens, or broaden project permissions. Resume implementation once target ownership/disposal and the reviewer actions are confirmed; preflight their access and Actions before starting. Required eventual handoff remains both live primary outcomes and their durable PR/check/review/thread/worker/head, restart and cleanup evidence.
+
+## Maintainer acceptance reduction (2026-10-14)
+
+The maintainer decided not to supply a distinct reviewer. This expressly supersedes the original distinct-human live review requirement and the earlier setup-exception ruling for this ticket: accept APPROVED, first CHANGES_REQUESTED repair and later changes-requested owner escalation from the committed seeded submitted-review probe evidence, combined with today's live same-account COMMENTED repair, real marker-bearing reply reviews ignored, and restart idempotency. This is an approved scope reduction, not a claim those review states were submitted live.
+
+Reuse and keep only the supplied private scratch repository `mlegls/reconcile-pr-transport-20261014-35767b2d`; no new repository/accounts/tokens/permissions. Finish live PR #5 by resuming its production reconciler, then invoking `gh pr merge 5 --merge` separately outside that process as `mlegls`, the maintainer-authorized stand-in human merger. Verify the reconciler itself never requests merge in pr-review, observes MERGED plus fetched ancestry, closes a/b/root child-first with saved evidence, releases the outside dependent and advances the clean/base owner. Live pr-merge acceptance and the other recorded recovery/base-history claims remain unchanged. Record the live-versus-seeded boundary and retained scratch cleanup ownership in the committed packet. The worker reports done without closing this execution ticket; closure remains with the enclosing reconciler after target integration.
+
+Authority: parent run board decision mv884mdq-xoy620, 2026-10-14 14:47:24Z, carrying the maintainer's ruling.

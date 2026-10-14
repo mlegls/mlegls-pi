@@ -1,4 +1,4 @@
-// Disposable shell-worker setup for trying reconcile stop through the CLI. No model or credentials.
+// Disposable fake-bb worker setup for trying reconcile stop through the CLI. No daemon, model or credentials.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -7,7 +7,7 @@ import { campaigns, start, stop, summary } from "../../../lib/reconcile/main";
 import { load, saveState, type State } from "../../../lib/reconcile/reconcile";
 import { allThreads } from "../../../lib/thread/registry";
 import { abandonThread } from "../../../lib/thread/lifecycle";
-import { terminals } from "../../../lib/thread/zmx";
+import { fakeBb, threads } from "../../../lib/thread/fake-bb";
 import { readFrom } from "../../../lib/board/store";
 import { pidAlive, spawn } from "../../../lib/wm";
 import type { Handle } from "../../../lib/dispatch";
@@ -17,21 +17,21 @@ export type Fixture = { root: string; cwd: string; collector: string; env: Recor
 	pid: number; leftoverPid: number; workers: { receipt: Handle; branch: string }[] };
 export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 const selectors = (root: string) => ({ XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
-	PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "6",
-	WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PI_THREAD_RUNTIME: "zmx",
+	PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root, BB_CLI: join(root, "fake-bb/bb"), FAKE_BB_DIR: join(root, "fake-bb"),
 	TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(packagePath, "agents") });
 export function use(env: Record<string, string>) {
-	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|FAKE_BB_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
 	Object.assign(process.env, env);
 }
 export async function prepare(): Promise<Fixture> {
 	const root = realpathSync(mkdtempSync("/tmp/rc-stop-")), cwd = join(root, "repo"), collector = join(root, "repo__worktrees/fixture--tree");
 	const env = selectors(root);
 	use(env);
+	fakeBb(root); // writes the BB_CLI that env names
 	mkdirSync(cwd); git(cwd, "init", "-qb", "main");
 	git(cwd, "config", "user.name", "Fixture"); git(cwd, "config", "user.email", "fixture@example.invalid");
 	mkdirSync(join(cwd, "docs/issues"), { recursive: true });
-	writeFileSync(join(cwd, "docs/issues/fixture.md"), "---\nstage: ticket\nassignee: agent\n---\n\nShell stop fixture.\n");
+	writeFileSync(join(cwd, "docs/issues/fixture.md"), "---\nstage: ticket\nassignee: agent\n---\n\nStop fixture.\n");
 	git(cwd, "add", "."); git(cwd, "commit", "-qm", "fixture");
 	git(cwd, "worktree", "add", "-qb", "tree/fixture", collector);
 	git(cwd, "config", "branch.tree/fixture.ab-parent", "main");
@@ -41,7 +41,7 @@ export async function prepare(): Promise<Fixture> {
 	save();
 	try {
 		for (const handle of ["implement", "handler", "launch-race"]) {
-			const w = await spawn({ cwd: handle === "handler" ? collector : cwd, run: "fixture", handle, prompt: "Shell stop fixture", command: "sleep 600" });
+			const w = await spawn({ cwd: handle === "handler" ? collector : cwd, run: "fixture", handle, prompt: "Stop fixture", model: "fake/model", effort: "low" });
 			f.workers.push({ receipt: { run: w.run, handle: w.handle, path: w.dir, threadId: w.threadId }, branch: w.branch }); save();
 			writeFileSync(join(w.dir, handle + ".txt"), "unmerged " + handle + "\n");
 			git(w.dir, "add", "."); git(w.dir, "commit", "-qm", handle);
@@ -91,10 +91,10 @@ if (import.meta.main) {
 				{ cwd: packagePath, env: process.env, stdio: ["ignore", "inherit", "inherit"] });
 			process.exitCode = await child.exited;
 		} else if (action === "inspect") console.log(JSON.stringify({
-			state: campaigns(f.cwd).map(summary), threads: (await allThreads()).map(t => ({ id: t.id, worker: t.worker, cwd: t.cwd })), terminals: await terminals(),
+			state: campaigns(f.cwd).map(summary), threads: (await allThreads()).map(t => ({ id: t.id, worker: t.worker, cwd: t.cwd })), bbThreads: threads(join(f.root, "fake-bb")).map(t => ({ id: t.id, environment: t.environment, archived: t.archivedAt !== null })),
 			reconcilerAlive: pidAlive(f.pid), leftoverAlive: pidAlive(f.leftoverPid), collectorExists: existsSync(f.collector),
 			worktrees: git(f.cwd, "worktree", "list", "--porcelain"), branches: git(f.cwd, "branch", "--list"),
 		}, null, 2));
 		else { await cleanup(f); console.log("Fixture removed"); }
-	} else console.log("prepare | stop ROOT | inspect ROOT | cleanup ROOT\nDisposable local Git/thread/zmx state, no auth or model. prepare prints a directly runnable stop entry.");
+	} else console.log("prepare | stop ROOT | inspect ROOT | cleanup ROOT\nDisposable local Git/thread state on a fake bb CLI, no auth or model. prepare prints a directly runnable stop entry.");
 }

@@ -4,15 +4,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, wait, type Worker } from "./wm";
 import { send } from "./board/store";
+import { fakeBb } from "./thread/fake-bb";
 
-// Opt in: starts harmless local shell worker threads over isolated zmx, never a model or paid API.
+// Opt in: starts worker threads on a fake bb CLI, never a daemon, model or paid API.
 test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent thread workers preserve any/all reports and close removes owned worktrees", async () => {
 	const root = await mkdtemp("/tmp/wm-user-");
 	const cwd = join(root, "repo"), run = `verify-${process.pid}-${Date.now()}`;
 	const oldBoard = process.env.PI_BOARD_DIR;
-	const oldState = process.env.XDG_STATE_HOME, oldZmx = process.env.ZMX_DIR, oldAgent = process.env.PI_CODING_AGENT_DIR;
+	const oldState = process.env.XDG_STATE_HOME, oldBbCli = process.env.BB_CLI, oldFakeBb = process.env.FAKE_BB_DIR, oldAgent = process.env.PI_CODING_AGENT_DIR;
 	process.env.XDG_STATE_HOME = join(root, "state");
-	process.env.ZMX_DIR = join(root, "zmx");
+	fakeBb(root);
 	process.env.PI_CODING_AGENT_DIR = join(root, "pi");
 	process.env.PI_BOARD_DIR = join(root, "board");
 	const command = async (cmd: string[], dir = root) => {
@@ -25,7 +26,7 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent thread workers pre
 	try {
 		await command(["git", "init", cwd]);
 		await command(["git", "-c", "user.name=Verifier", "-c", "user.email=verify@example.invalid", "commit", "--allow-empty", "-m", "fixture"], cwd);
-		const spawned = await Promise.allSettled(["a", "b"].map(handle => spawn({ cwd, run, handle, prompt: "local fixture", command: "sleep 120" })));
+		const spawned = await Promise.allSettled(["a", "b"].map(handle => spawn({ cwd, run, handle, prompt: "local fixture", model: "fake/model", effort: "low" })));
 		workers = spawned.flatMap(r => r.status === "fulfilled" ? [r.value] : []);
 		expect(spawned.filter(r => r.status === "rejected").map(r => (r as PromiseRejectedResult).reason.message)).toEqual([]);
 		expect((await command(["git", "worktree", "list", "--porcelain"], cwd)).match(/^worktree /gm)).toHaveLength(3);
@@ -42,7 +43,7 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent thread workers pre
 	} finally {
 		await Promise.all(workers.map(w => w.close()));
 		if (oldBoard === undefined) delete process.env.PI_BOARD_DIR; else process.env.PI_BOARD_DIR = oldBoard;
-		for (const [key, value] of Object.entries({ XDG_STATE_HOME: oldState, ZMX_DIR: oldZmx, PI_CODING_AGENT_DIR: oldAgent })) {
+		for (const [key, value] of Object.entries({ XDG_STATE_HOME: oldState, BB_CLI: oldBbCli, FAKE_BB_DIR: oldFakeBb, PI_CODING_AGENT_DIR: oldAgent })) {
 			if (value === undefined) delete process.env[key]; else process.env[key] = value;
 		}
 		await rm(root, { recursive: true, force: true });

@@ -6,16 +6,15 @@ import { send } from "../board/store";
 import { ThreadMergeConflict, archiveThread, integrateThread } from "./lifecycle";
 import { getThread, setCurrentSession } from "./registry";
 import { newThread } from "./runtime";
-import { terminals, zmx } from "./zmx";
+import { fakeBb } from "./fake-bb";
 import type { ThreadRecord } from "./types";
 
 // Unit tests for the contract controls docs/attachments/thread-archive-and-abandon/drive.md leaves to review
-// (C2 report identity/freshness, C6 raw destination/edge controls). Shell-fixture threads: no pi, no model.
-const root = realpathSync(mkdtempSync("/tmp/ab-lifecycle-test-")); // short: zmx socket paths are length-limited
+// (C2 report identity/freshness, C6 raw destination/edge controls). Threads on a fake bb CLI: no pi, no model.
+const root = realpathSync(mkdtempSync("/tmp/ab-lifecycle-test-"));
 const saved = { ...process.env };
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 const repo = join(root, "repo");
-const sleeper = { cmd: "sleep 300" };
 const commit = (cwd: string, file: string, text: string) => {
 	writeFileSync(join(cwd, file), text);
 	git(cwd, "add", file);
@@ -34,8 +33,8 @@ const pending = (promise: Promise<unknown>, ms = 1500) =>
 /** parent (on main) with a child spawned from it; both then edit conflict.txt differently. */
 async function conflicting(): Promise<{ parent: ThreadRecord; child: ThreadRecord }> {
 	const name = fresh();
-	const parent = await newThread({ cwd: repo, worktree: name + "p", launch: sleeper });
-	const child = await newThread({ cwd: parent.cwd, parent: parent.id, worktree: name + "c", launch: sleeper });
+	const parent = await newThread({ cwd: repo, worktree: name + "p" });
+	const child = await newThread({ cwd: parent.cwd, parent: parent.id, worktree: name + "c" });
 	commit(parent.cwd, "conflict.txt", "parent");
 	commit(child.cwd, "conflict.txt", "child");
 	return { parent, child };
@@ -45,8 +44,9 @@ const report = (t: ThreadRecord, session: string, tag: string, body: string) =>
 	send({ topic: topic(t), tags: [tag], from: { session, name: "test" }, body });
 
 beforeAll(() => {
-	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_THREAD_ID|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*)$/.test(key)) delete process.env[key];
-	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root });
+	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|TMUX.*)$/.test(key)) delete process.env[key];
+	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root });
+	fakeBb(root);
 	mkdirSync(repo);
 	git(repo, "init", "-b", "main");
 	git(repo, "config", "user.name", "t");
@@ -57,15 +57,14 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
-	for (const t of await terminals().catch(() => [])) await zmx(["kill", t.name, "--force"]).catch(() => {});
 	process.env = saved;
 	rmSync(root, { recursive: true, force: true });
 });
 
 test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lands beside unrelated destination edits, and leaves threads active", async () => {
 	const name = fresh();
-	const mid = await newThread({ cwd: repo, worktree: name + "m", launch: sleeper });
-	const kid = await newThread({ cwd: mid.cwd, parent: mid.id, worktree: name + "k", launch: sleeper });
+	const mid = await newThread({ cwd: repo, worktree: name + "m" });
+	const kid = await newThread({ cwd: mid.cwd, parent: mid.id, worktree: name + "k" });
 	commit(kid.cwd, name + ".txt", "kid");
 	// Merge lineage is separate from spawn lineage: kid was spawned by mid but now merges into main.
 	git(repo, "config", "branch." + kid.branch + ".ab-parent", "main");
@@ -98,7 +97,7 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 
 test("raw integrate names a missing or deleted ab-parent instead of choosing another target", async () => {
 	const name = fresh();
-	const t = await newThread({ cwd: repo, worktree: name, launch: sleeper });
+	const t = await newThread({ cwd: repo, worktree: name });
 	commit(t.cwd, name + ".txt", "x");
 	git(repo, "config", "--unset", "branch." + t.branch + ".ab-parent");
 	await expect(integrateThread(t.id)).rejects.toThrow("missing ab-parent");
@@ -111,7 +110,7 @@ test("raw integrate names a missing or deleted ab-parent instead of choosing ano
 
 test("a merge-bearing child takes its base by merge, keeping its earlier resolution commits", async () => {
 	const name = fresh();
-	const t = await newThread({ cwd: repo, worktree: name, launch: sleeper });
+	const t = await newThread({ cwd: repo, worktree: name });
 	commit(repo, name + "-a.txt", "a");
 	commit(t.cwd, name + "-0.txt", "0");
 	git(t.cwd, "merge", "--no-ff", "--no-edit", "main"); // child already carries a merge commit

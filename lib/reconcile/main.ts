@@ -10,7 +10,6 @@ import { execFileSync } from "node:child_process";
 import { mail } from "../board/mailbox";
 import { retire, topic, type Handle } from "../dispatch";
 import { allThreads } from "../thread/registry";
-import { readAdmission } from "../thread/admission";
 import { checkout } from "../thread/git";
 import { pidAlive as alive } from "../wm";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -105,8 +104,8 @@ export function campaigns(cwd: string): (State & { running: boolean })[] {
 export function summary(s: State & { running: boolean }) {
 	return {
 		root: s.root, backend: s.backend, running: s.running, finished: s.finished ?? null, stopping: !!s.stopping, owner: s.owner, budget: s.budget,
-		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, threadId: c.handle?.threadId, admission: c.handle?.threadId ? readAdmission(c.handle.threadId) : undefined, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into === s.pr?.path ? "(PR staging)" : c.into }])),
-		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null, admission: e.handler?.threadId ? readAdmission(e.handler.threadId) : undefined }])),
+		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, threadId: c.handle?.threadId, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into === s.pr?.path ? "(PR staging)" : c.into }])),
+		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null }])),
 		cwd: s.cwd, land: s.land ?? "local", target: s.target ?? (s.pr ? "github:" + s.pr.repository + ":" + s.pr.baseBranch : s.cwd),
 		pr: s.pr, landed: s.landed, results: s.results, landingOps: s.landingOps, refinements: s.refinements,
 		constraints: s.constraints ?? {},

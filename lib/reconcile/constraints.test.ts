@@ -7,23 +7,24 @@ import { constrainedPrompt, load, saveState, type State } from "./reconcile";
 import { getThread } from "../thread/registry";
 import { readFrom } from "../board/store";
 import { spawn, type Worker } from "../wm";
+import { fakeBb } from "../thread/fake-bb";
 
-// Approved shell-worker smoke: an owner restriction outlives the running implement turn.
+// Approved fake-bb smoke: an owner restriction outlives the running implement turn.
 test("a mid-implement constraint reaches drive and review first prompts, not an unconstrained node", async () => {
 	const root = realpathSync(mkdtempSync("/tmp/rc-constraint-")), repo = join(root, "repo");
 	const saved = { ...process.env }, workers: Worker[] = [];
 	const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 	try {
-		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
-		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "6",
-			WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PI_THREAD_RUNTIME: "zmx",
+		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root,
 			TRACKER_CLI: join(import.meta.dir, "../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(import.meta.dir, "../../agents") });
+		fakeBb(root);
 		mkdirSync(repo); git("init", "-qb", "main");
 		git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid");
 		writeFileSync(join(repo, "README.md"), "Shell constraint fixture\n");
 		git("add", "."); git("commit", "-qm", "fixture");
 		const fixture = async (handle: string, node: string) => {
-			const worker = await spawn({ cwd: repo, run: "fixture", handle, prompt: "Phase " + handle, command: "sleep 120",
+			const worker = await spawn({ cwd: repo, run: "fixture", handle, prompt: "Phase " + handle, model: "fake/model", effort: "low",
 				prepare: async () => constrainedPrompt(repo, "fixture", node, "Phase " + handle) });
 			workers.push(worker);
 			return worker;

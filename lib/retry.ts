@@ -1,3 +1,7 @@
 /** Network failures that a plain retry of worker setup recovers from (flaky Convex lookup, GitHub TLS). */
 export const transientNetworkError = (text: string): boolean => /fetch failed|failed to fetch|socket hang up|TLS handshake timeout|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN/i.test(text);
-export const networkRetryDelay = (attempt: number): number => 15_000 * (attempt + 1);
+/** Fixtures can skip the wait without changing the retry budget or production's linear backoff. */
+export const networkRetryDelay = (attempt: number): number => {
+	const base = Number(process.env.PI_NETWORK_RETRY_MS ?? 15_000);
+	return (Number.isFinite(base) && base >= 0 ? base : 15_000) * (attempt + 1);
+};

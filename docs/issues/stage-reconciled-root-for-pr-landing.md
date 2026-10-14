@@ -5,7 +5,7 @@ author: "session:01a13a33-2a17-714d-a4b1-0ff4fb53f8f0"
 part-of: "[[projects/mlegls-pi/issues/land-reconciled-trees-through-pull-requests]]"
 blocked-by:
   - "[[projects/mlegls-pi/issues/reconcile-github-pr-transport]]"
-claimed-by: "reconcile:land-reconciled-trees-through-pull-requests/land-reconciled-trees-through-pull-requests-refine-1"
+claimed-by: "reconcile:land-reconciled-trees-through-pull-requests"
 priority: 2
 ---
 # Deliverable

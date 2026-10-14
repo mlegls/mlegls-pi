@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getThread } from "../thread/registry";
+import { fakeBb } from "../thread/fake-bb";
 import { merge, spawn, type Worker } from "../wm";
 import { getTracker } from "../tracker";
 import { refreshWorker } from "./refresh";
@@ -38,7 +39,7 @@ test("successor merge suppresses diffstat and reconciler git accepts output abov
 	}
 });
 
-// Local shell workers exercise the real checkout/setup/launch seam; no model or paid API.
+// Workers on a fake bb CLI exercise the real checkout/setup/launch seam; no daemon, model or paid API.
 test("an integrated handler ruling reaches a successor before setup and launch, keeping predecessor work", async () => {
 	const root = realpathSync(mkdtempSync("/tmp/rc-test-")), repo = join(root, "repo");
 	const saved = { ...process.env }, workers: Worker[] = [];
@@ -52,9 +53,9 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 		return git(cwd, "rev-parse", "HEAD");
 	};
 	try {
-		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
-		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "6",
-			WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PI_THREAD_RUNTIME: "zmx", TRACKER_CLI: cli, PI_AGENTS_DIR: realpathSync(join(import.meta.dir, "../../agents")) });
+		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root, TRACKER_CLI: cli, PI_AGENTS_DIR: realpathSync(join(import.meta.dir, "../../agents")) });
+		fakeBb(root);
 		mkdirSync(repo); git(repo, "init", "-qb", "main");
 		git(repo, "config", "user.name", "Fixture"); git(repo, "config", "user.email", "fixture@example.invalid");
 		mkdirSync(join(repo, "docs/issues"), { recursive: true });
@@ -63,7 +64,7 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 		commit(repo, "setup.ts", 'import { writeFileSync } from "node:fs"; import { getTracker } from ' + JSON.stringify(trackerModule) + '; writeFileSync("setup-contract", getTracker(process.cwd()).text("measure"));\n');
 		commit(repo, "mise.toml", '[tasks.setup]\nrun = "bun setup.ts"\n');
 		const fixture = async (handle: string, base?: string, prepare?: (cwd: string) => Promise<string | void>) => {
-			const worker = await spawn({ cwd: repo, run: "fixture", handle, base, prepare, prompt: "old contract", command: "sleep 120" });
+			const worker = await spawn({ cwd: repo, run: "fixture", handle, base, prepare, prompt: "old contract", model: "fake/model", effort: "low" });
 			workers.push(worker);
 			return worker;
 		};
@@ -81,8 +82,6 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 		expect(git(successor.dir, "merge-base", "--is-ancestor", decision, "HEAD")).toBe("");
 		expect(git(successor.dir, "merge-base", "--is-ancestor", previousHead, "HEAD")).toBe("");
 		expect(readFileSync(join(successor.dir, "result.txt"), "utf8")).toBe("retained packet\n");
-		// Worker setup runs after host admission, so it lands shortly after spawn returns.
-		for (let i = 0; i < 100 && !existsSync(join(successor.dir, "setup-contract")); i++) await new Promise(r => setTimeout(r, 100));
 		expect(readFileSync(join(successor.dir, "setup-contract"), "utf8")).toContain(ruling);
 		const record = await getThread(successor.threadId!);
 		expect(record?.launch?.prompt).toContain(ruling);

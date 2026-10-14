@@ -1,25 +1,20 @@
 import { SessionManager } from "@earendil-works/pi-coding-agent";
-import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { excludeTracker } from "./tracker-worktree";
-import { declaresSetup, writeSetup } from "./setup";
-import { readAdmission } from "./admission";
+import { declaresSetup, pendingSetup, writeSetup } from "./setup";
 import { workerResources } from "./resources";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { read } from "../board/store";
 import { readLive, type Live } from "../session-meta/live";
 import { allThreads, getThread, saveThread, threadForSession, workerThread } from "./registry";
 import { checkout, git } from "./git";
-import { isPiLaunch, launchEnv, validateLaunch } from "./launch";
-import { command, executable } from "./process";
-import { sessionFile, sessionHeader, persistHeader } from "./sessions";
-import { terminals, terminalLock, zmx, zmxBinary, type ZmxTerminal } from "./zmx";
-import { bbThreads, defaultRuntime, logBb, openBb, spawnBb, tellBb, type BbThread } from "./bb";
-import { pendingSetup } from "./agent-runner";
-import type { NewThreadOptions, ThreadRecord, ThreadRow, ThreadSnapshot, ThreadTerminal } from "./types";
+import { validateLaunch } from "./launch";
+import { command } from "./process";
+import { persistHeader } from "./sessions";
+import { assertBb, bbThreads, logBb, openBb, spawnBb, tellBb, type BbThread } from "./bb";
+import type { NewThreadOptions, ThreadRecord, ThreadRow, ThreadSnapshot } from "./types";
 
 async function activeThread(id: string): Promise<ThreadRecord> {
 	const thread = await getThread(id);
@@ -48,18 +43,14 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 	if (options.in !== undefined && options.worktree !== undefined) throw new Error("Supply in or worktree, not both");
 	if (options.in !== undefined && options.base !== undefined) throw new Error("base only applies to a new worktree");
 	validateLaunch(options.launch);
+	await assertBb();
 	const spawning = checkout(resolve(options.cwd ?? process.cwd()));
 	const parent = await spawnParent(options);
-	const source = options.forkFrom && await sessionFile(options.forkFrom, spawning.cwd);
 	const id = randomUUID();
 	const name = options.worktree ?? options.worker?.handle ?? id;
 	let location: ReturnType<typeof checkout>;
 	const owning = options.in === undefined;
 	let owned = false;
-	let launchAttempted = false;
-	// bb runs pi only: a command override (a shell fixture) stays on zmx.
-	const runtime = options.runtime ?? (options.launch?.cmd !== undefined ? "zmx" : parent && (await getThread(parent))?.bb ? "bb" : defaultRuntime());
-	if (runtime === "bb" && options.forkFrom) throw new Error("bb runtime cannot fork a session; use the zmx runtime");
 	if (options.in !== undefined) location = checkout(resolve(spawning.cwd, options.in));
 	else {
 		if (!spawning.branch) throw new Error("A new owning worktree needs a spawning checkout branch: " + spawning.cwd);
@@ -74,9 +65,9 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 	let thread: ThreadRecord | undefined;
 	let file: string | undefined;
 	try {
-		const manager = source ? SessionManager.forkFrom(source, location.cwd, undefined, { id }) : SessionManager.create(location.cwd, undefined, { id });
+		const manager = SessionManager.create(location.cwd, undefined, { id });
 		file = manager.getSessionFile()!;
-		if (!source) await persistHeader(file, id, location.cwd);
+		await persistHeader(file, id, location.cwd);
 		thread = {
 			id, sessionId: manager.getSessionId(), sessionFile: file, ...location,
 			ownership: owning ? "owner" : "guest", parent, archived: false, created: new Date().toISOString(),
@@ -96,24 +87,17 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		await options.prepare?.(thread);
 		if (options.prepare) await saveThread(thread);
 		if (owning) {
-			// Workers prepare only after admission; interactive setup still runs beside pi.
+			// Workers and interactive threads set up just before bb starts pi.
 			if (options.interactive || options.worker) writeSetup(id, { state: "pending" });
 			else await setup(location.cwd);
 		}
-		launchAttempted = true;
-		if (runtime === "bb") {
-			// No agent-runner: setup (pending above) runs here, before bb starts pi.
-			await pendingSetup(thread);
-			thread = { ...thread, bb: await spawnBb(thread, await bbParent(parent)) };
-			await saveThread(thread);
-		} else await ensureTerminal(id);
+		await pendingSetup(thread);
+		thread = { ...thread, bb: await spawnBb(thread, await bbParent(parent)) };
+		await saveThread(thread);
 		return thread;
 	} catch (error) {
 		const cleanup: string[] = [];
-		// No launch precedes registration. Failed setup/launch owns its partial path until cleanup succeeds.
-		if (launchAttempted && runtime === "zmx") {
-			try { await zmx(["kill", id + ".agent", "--force"]); } catch (e) { cleanup.push(String(e)); }
-		}
+		// Failed setup/launch owns its partial path until cleanup succeeds.
 		if (owned && !cleanup.length) {
 			try {
 				const registered = git(spawning.cwd, "worktree", "list", "--porcelain", "-z").split("\0").includes("worktree " + location.cwd);
@@ -126,30 +110,6 @@ export async function newThread(options: NewThreadOptions = {}): Promise<ThreadR
 		if (file && !cleanup.length) await rm(file, { force: true });
 		throw new Error("Thread " + id + " at " + location.cwd + " failed: " + String(error) + (cleanup.length ? "\nPartial resources remain registered: " + cleanup.join("\n") : "\nPartial resources cleaned"));
 	}
-}
-
-export async function forkThread(source: string, options: NewThreadOptions = {}): Promise<ThreadRecord> {
-	return newThread({ ...options, forkFrom: source });
-}
-
-export async function promoteThread(session: string, cwd = process.cwd()): Promise<ThreadRecord> {
-	const file = await sessionFile(session, cwd);
-	const current = readLive().find(l => l.sessionId === session || l.sessionFile === file);
-	if (current) await persistHeader(file, current.sessionId, current.cwd);
-	const header = await sessionHeader(file);
-	const member = await threadForSession(header.id);
-	if (member) return member;
-	const collision = await getThread(header.id);
-	if (collision) throw new Error("Session " + header.id + " is the immutable id of thread " + collision.id + " (current session " + collision.sessionId + "); fork it instead");
-	const location = checkout(current?.cwd ?? header.cwd);
-	const thread: ThreadRecord = {
-		id: header.id, sessionId: header.id, sessionFile: file, ...location,
-		ownership: "guest", archived: false, created: new Date().toISOString(), interactive: true,
-	};
-	await saveThread(thread);
-	try { await ensureTerminal(thread.id); }
-	catch (error) { throw new Error("Promoted thread " + thread.id + " at " + thread.cwd + " remains registered: " + String(error)); }
-	return thread;
 }
 
 /** Records from before the field: workers and agent-spawned children are not interactive. */
@@ -204,31 +164,28 @@ async function bbView(records: ThreadRecord[]): Promise<Map<string, BbThread>> {
 	return records.some(t => t.bb) ? bbThreads() : new Map();
 }
 
-function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxTerminal[], live: Live[], mode: "origin" | "local" = "origin", bb = new Map<string, BbThread>()): ThreadSnapshot {
+function snapshot(thread: ThreadRecord, records: ThreadRecord[], live: Live[], mode: "origin" | "local" = "origin", bb = new Map<string, BbThread>()): ThreadSnapshot {
 	const canonical = live.filter(l => l.sessionId === thread.sessionId && (!l.sessionFile || l.sessionFile === thread.sessionFile));
 	if (canonical.length > 1) throw new Error("Concurrent canonical pi writers for thread " + thread.id);
 	const pi = canonical[0];
-	const ownedTerminals = inventory.filter(t => t.thread === thread.id && t.role && t.name === thread.id + "." + t.role);
 	const parent = mergeParent(thread);
 	const parentThread = parent ? records.find(t => t.project === thread.project && t.ownership === "owner" && t.branch === parent) : undefined;
 	const topic = thread.worker ? thread.worker.run + "/" + thread.worker.handle : "thread/" + thread.id;
 	const report = read({ topic, tags: "done | blocked | needs-input | checkpoint | waiting | turn-end", limit: Infinity }).messages
-		.filter(m => m.ts >= thread.created && (pi?.state !== "working" || m.ts >= pi.since) && (!isPiLaunch(thread.launch) || !m.from.session || m.from.session === thread.sessionId)).at(-1);
+		.filter(m => m.ts >= thread.created && (pi?.state !== "working" || m.ts >= pi.since) && (!m.from.session || m.from.session === thread.sessionId)).at(-1);
 	const tag = ["done", "blocked", "needs-input", "checkpoint", "waiting", "turn-end"].find(t => report?.tags.includes(t));
-	const fixture = !isPiLaunch(thread.launch) && ownedTerminals.find(t => t.role === "agent");
-	const admission = thread.worker ? readAdmission(thread.id) : undefined;
 	// A bb-run thread's state is bb's: bb may release an idle thread's pi, which doesn't end the thread.
 	const inBb = thread.bb ? bb.get(thread.bb) : undefined;
 	const bbState = !inBb || inBb.archivedAt ? "exited" : inBb.status === "idle" || inBb.status === "error" ? "idle" : "working";
-	const state = thread.bb ? bbState : admission?.state === "queued" ? "queued" : pi?.state ?? (admission?.state === "running" || fixture && !fixture.ended ? "working" : "exited");
+	const state = thread.bb ? bbState : pi?.state ?? "exited"; // no bb id: a thread registered under the retired zmx runtime, live only while its pi is
 	const idleSince = pi?.state === "idle" ? pi.since : undefined;
 	const attention: ThreadSnapshot["attention"] = thread.blocked || inBb?.status === "error" || (state !== "working" && (tag === "blocked" || tag === "needs-input")) ? "needs-you"
 		: state === "working" ? "running"
 		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
-		thread, state, admission, pid: pi?.pid, ...(inBb && { bbStatus: inBb.status }), interactive: isInteractive(thread), attention, idleSince,
+		thread, state, pid: pi?.pid, ...(inBb && { bbStatus: inBb.status }), interactive: isInteractive(thread), attention, idleSince,
 		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, deltaBase(thread.project, parent, mode)),
-		terminals: thread.bb ? (bbState === "exited" ? [] : [{ name: thread.id + ".agent", role: "agent" }]) : ownedTerminals.map(t => ({ name: t.name, role: t.role! })),
+		terminals: thread.bb && bbState !== "exited" ? [{ name: thread.id + ".agent", role: "agent" }] : [],
 		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,
 	};
 }
@@ -236,16 +193,16 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], inventory: ZmxT
 export async function threadSnapshot(id: string): Promise<ThreadSnapshot> {
 	const thread = await getThread(id);
 	if (!thread) throw new Error("Unknown thread: " + id);
-	return { ...snapshot(thread, await allThreads(), await terminals(), readLive(), "origin", await bbView([thread])), workspace: (await workerResources([thread])).get(thread.id) };
+	return { ...snapshot(thread, await allThreads(), readLive(), "origin", await bbView([thread])), workspace: (await workerResources([thread])).get(thread.id) };
 }
 
 /** Active threads, globally unless cwd scopes a git project. */
 export async function listThreads(options: { tree?: "spawn" | "merge"; cwd?: string; delta?: "origin" | "local" } = {}): Promise<ThreadRow[]> {
 	const project = options.cwd === undefined ? undefined : checkout(options.cwd).project;
 	const records = (await allThreads()).filter(t => project === undefined || t.project === project);
-	const [inventory, resources, bb] = await Promise.all([terminals(), workerResources(records), bbView(records)]), live = readLive();
+	const [resources, bb] = await Promise.all([workerResources(records), bbView(records)]), live = readLive();
 	const rows = records.map(t => {
-		const snap = snapshot(t, records, inventory, live, options.delta, bb);
+		const snap = snapshot(t, records, live, options.delta, bb);
 		return { ...snap, workspace: resources.get(t.id), depth: 0, treeParent: options.tree === "merge" ? snap.mergeParentThread : t.parent };
 	});
 	const byId = new Map(rows.map(r => [r.thread.id, r]));
@@ -276,66 +233,26 @@ export async function listThreads(options: { tree?: "spawn" | "merge"; cwd?: str
 	return ordered;
 }
 
-export async function ensureTerminal(id: string, role = "agent"): Promise<ThreadTerminal> {
-	if (!/^[a-zA-Z0-9_.-]+$/.test(role)) throw new Error("Invalid terminal role: " + role);
-	const thread = await activeThread(id);
-	const terminal = { name: id + "." + role, role };
-	if (thread.bb && role === "agent") return terminal;
-	await terminalLock(terminal.name, async () => {
-		await activeThread(id);
-		let existing = (await terminals()).find(t => t.name === terminal.name);
-		if (existing && ((existing.thread && existing.thread !== id) || (existing.role && existing.role !== role)))
-			throw new Error("Terminal has conflicting ownership: " + terminal.name);
-		let launched = false;
-		try {
-			if (!existing) {
-				const env = launchEnv(thread);
-				const argv = role === "agent"
-					? [executable("bun"), fileURLToPath(new URL("./agent-runner.ts", import.meta.url)), id]
-					: [env.SHELL ?? process.env.SHELL ?? "/bin/sh", "-l"];
-				launched = true;
-				await zmx(["run", terminal.name, "-d", ...argv], thread.cwd, env);
-			}
-			await zmx(["set", terminal.name, "thread=" + id, "role=" + role]);
-			existing = (await terminals()).find(t => t.name === terminal.name);
-			if (!existing || existing.thread !== id || existing.role !== role) throw new Error("Terminal label readback failed: " + terminal.name);
-		} catch (error) {
-			if (launched) await zmx(["kill", terminal.name, "--force"]).catch(() => {});
-			throw new Error("Thread " + id + " at " + thread.cwd + ": " + String(error));
-		}
-	});
-	return terminal;
+/** Opens the thread in bb. */
+export async function attachThread(id: string): Promise<void> {
+	await openBb(await bbOf(id));
 }
 
-/** exclusive: detach every other client first, so one viewer owns the pty size. */
-export async function attachThread(id: string, role = "agent", opts: { exclusive?: boolean } = {}): Promise<void> {
-	const record = await activeThread(id);
-	if (record.bb && role === "agent") return void await openBb(record.bb);
-	const terminal = await ensureTerminal(id, role);
-	const thread = await activeThread(id);
-	const bin = await zmxBinary();
-	if (opts.exclusive) await command(bin, ["detach"], undefined, { ...process.env, ZMX_SESSION: terminal.name, ZMX_SESSION_PREFIX: undefined }).catch(() => {});
-	await new Promise<void>((resolve, reject) => {
-		// Unlike background commands, attach deliberately keeps ZMX_SESSION for zmx's switch path.
-		const env = { ...process.env };
-		delete env.ZMX_SESSION_PREFIX;
-		const child = spawn(bin, ["attach", terminal.name], { cwd: thread.cwd, env, stdio: "inherit" });
-		child.once("error", reject);
-		child.once("exit", code => code === 0 ? resolve() : reject(new Error("zmx attach " + terminal.name + " exited " + code)));
-	});
+/** The bb thread id of a registered thread; one registered under the retired zmx runtime has none. */
+async function bbOf(id: string, archived = false): Promise<string> {
+	const thread = archived ? await getThread(id) : await activeThread(id);
+	if (!thread) throw new Error("Unknown thread: " + id);
+	if (!thread.bb) throw new Error("Thread " + id + " was registered under the retired zmx runtime and has no bb thread; abandon it (ab thread abandon " + id + ")");
+	return thread.bb;
 }
 
 export async function sendThread(id: string, text: string): Promise<void> {
-	const thread = await activeThread(id);
-	if (thread.bb) return void await tellBb(thread.bb, text);
-	await zmx(["send", id + ".agent", text]);
+	await tellBb(await bbOf(id), text);
 }
 
 export async function historyThread(id: string, lines?: number): Promise<string> {
-	const thread = await getThread(id);
-	if (!thread) throw new Error("Unknown thread: " + id);
 	if (lines !== undefined && (!Number.isInteger(lines) || lines < 0)) throw new Error("lines must be a nonnegative integer");
-	const history = thread.bb ? await logBb(thread.bb) : await zmx(["history", id + ".agent"]);
+	const history = await logBb(await bbOf(id, true));
 	if (lines === undefined) return history;
 	const split = history.replace(/\n$/, "").split("\n");
 	return lines === 0 ? "" : split.slice(-lines).join("\n") + (history.endsWith("\n") ? "\n" : "");

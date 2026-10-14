@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { campaigns, stop, summary } from "./main";
 import { load } from "./reconcile";
 import { allThreads, getThread } from "../thread/registry";
-import { terminals } from "../thread/zmx";
+import { threads } from "../thread/fake-bb";
 import { pidAlive } from "../wm";
 import { cleanup, git, prepare, type Fixture } from "../../docs/attachments/stopped-supervise-jobs-have-no-cleanup-path/fixture";
 
-// Approved shell-worker smoke: explicit stop closes the run's lifetimes without discarding unmerged work.
+// Approved fake-bb smoke: explicit stop closes the run's lifetimes without discarding unmerged work.
 test("stop retires live workers and handlers, keeps their unmerged branches and collectors, and reads finished/stopped", async () => {
 	const saved = { ...process.env };
 	let f: Fixture | undefined;
@@ -20,10 +21,12 @@ test("stop retires live workers and handlers, keeps their unmerged branches and 
 		expect(result.finished).toBe("stopped");
 		expect(result.retired.map(r => r.worker).sort()).toEqual(["fixture/handler", "fixture/implement", "fixture/launch-race"]);
 		expect(pidAlive(f.leftoverPid)).toBe(false);
-		const inventory = await terminals();
+		const bbThreads = threads(join(f.root, "fake-bb"));
 		for (const { receipt: worker, branch } of f.workers) {
 			expect((await getThread(worker.threadId!))?.archived).toBe(true);
-			expect(inventory.some(t => t.thread === worker.threadId || t.name.startsWith(worker.threadId + "."))).toBe(false);
+			const bb = bbThreads.find(t => t.environment === worker.path);
+			expect(bb?.archivedAt).not.toBeNull();
+			expect(bb?.status).toBe("idle");
 			expect(existsSync(worker.path)).toBe(false);
 			expect(git(f.cwd, "show", branch + ":" + worker.handle + ".txt")).toBe("unmerged " + worker.handle);
 		}

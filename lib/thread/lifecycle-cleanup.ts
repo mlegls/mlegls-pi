@@ -4,7 +4,6 @@ import { markRetired, readLive, type Live } from "../session-meta/live";
 import { getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { command, delay } from "./process";
-import { terminals, zmx } from "./zmx";
 import { archiveBb, stopBb } from "./bb";
 import { cwdProcesses } from "./resources";
 import type { ThreadCleanup, ThreadRecord } from "./types";
@@ -46,9 +45,6 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 		// Resolve aliases before matching lsof cwd paths.
 		if (entry) root = realpathSync(root);
 	}
-	const inventory = await terminals();
-	const named = inventory.filter(t => t.thread === thread.id || t.name.startsWith(thread.id + "."));
-	if (named.some(t => t.thread && t.thread !== thread.id)) throw new Error("Thread terminal has conflicting ownership: " + thread.id);
 	const parents = new Map<number, number>();
 	for (const row of (await command("ps", ["-axo", "pid=,ppid="])).trim().split("\n")) {
 		const [pid, parent] = row.trim().split(/\s+/).map(Number);
@@ -59,9 +55,9 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 	for (let pid = process.pid; pid > 0 && !protectedPids.has(pid); pid = parents.get(pid) ?? 0) protectedPids.add(pid);
 	const live = readLive();
 	const canonical = live.filter(l => l.sessionId === thread.sessionId || (l as Live & { thread?: string }).thread === thread.id);
-	if (named.some(t => protectedPids.has(t.pid)) || canonical.some(l => protectedPids.has(l.pid)))
+	if (canonical.some(l => protectedPids.has(l.pid)))
 		throw new Error("Cleanup controller is inside thread " + thread.id + "; run cleanup from another terminal");
-	const selected = new Set<number>([...named.map(t => t.pid), ...canonical.map(l => l.pid), ...owned && root ? await cwdProcesses(root) : []]);
+	const selected = new Set<number>([...canonical.map(l => l.pid), ...owned && root ? await cwdProcesses(root) : []]);
 	// Reach pi children outside the cwd too (e.g. MCP servers); guests never use the shared cwd sweep.
 	let grew = true;
 	while (grew) {
@@ -76,8 +72,6 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 	// release its runtime, then sweep what's left.
 	if (thread.bb) await stopBb(thread.bb);
 	const retiring = [...selected].filter(alive);
-	// Stop the restart loop before stopping canonical pi, including a promoted pi open elsewhere.
-	for (const terminal of named) await zmx(["kill", terminal.name, "--force"]);
 	for (const pid of retiring) {
 		try { process.kill(pid, "SIGTERM"); }
 		catch (error) { if ((error as { code?: string }).code !== "ESRCH") throw error; }
