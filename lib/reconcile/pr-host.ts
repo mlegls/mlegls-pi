@@ -119,17 +119,22 @@ function checks(cwd: string, repository: string, commit: string): ReportedCheck[
 interface Pr {
 	number: number; url: string; state: PullRequestSnapshot["state"];
 	headRefName: string; headRefOid: string; baseRefName: string; baseRefOid: string;
+	baseRef: { target: { oid: string } } | null;
 	mergeable: PullRequestSnapshot["mergeable"]; mergedAt: string | null; mergeCommit: { oid: string } | null;
 }
 function observe(cwd: string, repository: string, number: number): PullRequestSnapshot {
 	const variables = { ...repositoryParts(repository), number };
 	const data = graphql<{ repository: { pullRequest: Pr } }>(cwd,
-		"query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { number url state headRefName headRefOid baseRefName baseRefOid mergeable mergedAt mergeCommit { oid } } } }", variables);
+		"query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { number url state headRefName headRefOid baseRefName baseRefOid baseRef { target { oid } } mergeable mergedAt mergeCommit { oid } } } }", variables);
 	const pr = data.repository?.pullRequest;
 	requireValue(pr && pr.number === number && pr.url && pr.headRefName && pr.baseRefName
 		&& ["OPEN", "MERGED", "CLOSED"].includes(pr.state) && ["MERGEABLE", "CONFLICTING", "UNKNOWN"].includes(pr.mergeable), "incomplete pull request observation for " + repository + "#" + number);
 	oid(pr.headRefOid);
-	oid(pr.baseRefOid);
+	// baseRefOid can remain the old diff base after the branch advances (live #4).
+	// Compare fetched Git with the current branch target, not that cached snapshot.
+	requireValue(pr.state !== "OPEN" || pr.baseRef?.target?.oid, "open PR base branch unavailable");
+	const base = pr.baseRef?.target?.oid ?? pr.baseRefOid;
+	oid(base);
 	type Review = { id: string; state: string; submittedAt: string | null; url: string; commit: { oid: string } | null };
 	const reviews = connection<Review, { repository: { pullRequest: { reviews: Connection<Review> } } }>(cwd,
 		"query($owner: String!, $name: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviews(first: 100, after: $cursor) { nodes { id state submittedAt url commit { oid } } " + pageInfo + " } } } }",
@@ -149,7 +154,7 @@ function observe(cwd: string, repository: string, number: number): PullRequestSn
 			return { id: t.id, resolved: t.isResolved, comments };
 		}).filter(t => t.comments.length);
 	return { number, url: pr.url, state: pr.state, headBranch: pr.headRefName, head: pr.headRefOid,
-		baseBranch: pr.baseRefName, base: pr.baseRefOid, mergeable: pr.mergeable,
+		baseBranch: pr.baseRefName, base, mergeable: pr.mergeable,
 		mergedAt: pr.mergedAt ?? undefined, mergeCommit: pr.mergeCommit?.oid, reviews, threads,
 		checks: checks(cwd, repository, pr.headRefOid) };
 }
