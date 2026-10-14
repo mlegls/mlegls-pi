@@ -30,6 +30,14 @@ hint (nearest match wins) or `@name`/`@Class.method` scope from the outline, and
 `@name` without `old` replaces the whole definition. All hunks resolve before any
 file is written; the result is one line per file, not an echo of the change.
 
+For programmatic callers (including codemode), `read` returns the served text
+for text files, or `{type: "image", data, mimeType, note}` for a single image,
+which can be passed directly to `image()`. Text-only multi-file reads return one
+string with a blank line between files. Multi-file reads containing images return
+an array of per-file text strings/image blocks in path order; pass each image
+block to `image()` separately. Image processing failures return the builtin's text
+note instead of an image block.
+
 ## Read selectors
 
 | Path | Returns |
