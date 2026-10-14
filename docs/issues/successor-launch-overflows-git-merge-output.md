@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 priority: 2
 author: "session:6df456dd-f50e-4712-b604-7a873689d1d7"
@@ -19,3 +19,39 @@ Recommendation: suppress merge summaries in automatic successor refresh (`--no-s
 ## Drive evidence
 
 [Independent runner encounter](../attachments/successor-launch-overflows-git-merge-output/index.md): 13 passing cases at `6289fc1`; merge suppression and output above 1 MiB held at the supplied regression surface. Pre-ownership worktree-creation failure cleanup remains unobservable in the runner output and requires reviewer confirmation under this ticket. Ticket remains open.
+
+## Result
+
+done — the change holds on head with no repairs needed. The pre-ownership cleanup case the driver couldn't observe now holds under fault injection.
+
+The cleanup case, which I checked by fault injection: I used a repo with a required smudge filter that fails. `git worktree add -b boom` creates the branch, then fails at checkout. I drove that through the real `newThread`.
+- **Base `a52c3e82`:** the error said "Partial resources cleaned" but branch `boom` remained, so the message was false.
+- **Head:** the worktree path, the branch and the worktree registration are all gone. A nonexistent `base` also leaves nothing behind.
+
+The other two stories held on the runner. `bun test lib/reconcile/refresh.test.ts lib/thread/runtime.test.ts lib/thread/lifecycle.test.ts` gives 13 pass, 0 fail. The new test traces `merge --no-edit --no-verify --no-stat` with `merge.stat=true` set, and merges a 2 MiB file through the 64 MiB-buffer `git` helper. I read the diff of `6289fc1f` and did not run the full suite or `test:affected`.
+
+I appended the review to the committed packet and committed it as `4fd8f284`. The fault-injection script was a scratch file, not committed. No new tracker frictions turned up, so nothing was filed.
+
+```yaml
+commit: 4fd8f2848c1a58b16a63c21741683067cf16c103
+stories:
+  - story: Successor merge suppresses diffstat
+    outcome: held
+  - story: Reconciler git accepts output above 1 MiB
+    outcome: held
+  - story: Pre-ownership worktree creation failure cleans resources
+    outcome: held
+evidence:
+  path: docs/attachments/successor-launch-overflows-git-merge-output/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/refresh.test.ts
+filed: []
+caveats:
+  - "Cleanup is verified by a scratch fault-injection test, not a retained one. The partial-checkout branch leak is not covered by a retained test; proposed test: newThread removes the branch and worktree when `git worktree add` fails after creating them (lib/thread/runtime.ts). Needs maintainer approval."
+  - "Residual, not observed: the registered-worktree check compares the raw `git worktree list` path with `location.cwd`. A symlinked project path would fall to the `rm` branch and leave a stale registration."
+  - "Cost: the 64 MiB maxBuffer lets a runaway git call hold up to 64 MiB in memory."
+```
+
+Evidence: [docs/attachments/successor-launch-overflows-git-merge-output/index.md](docs/attachments/successor-launch-overflows-git-merge-output/index.md)
