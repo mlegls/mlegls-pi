@@ -36,3 +36,10 @@ All three surface predictions met. The additional expectation that the listing w
 
 No unresolved product friction encountered. The initially selected global command was the wrong deployment and its output was discarded, not treated as a checkout regression. No servers, windows, browser pages or other external resources were started. Nonvisual CLI journey; no screenshots.
 
+
+## Review
+
+- Deleted modules/tests and moved `lib/graph.ts`: remaining importers (profile, context, board host, session-meta) resolve; `bun run typecheck` passes; `bun test`: 225 pass, 2 skip, 0 fail. The graph tests that lived in the deleted `lib/tree/tree.test.ts` went with it, as the ticket directs.
+- Repaired: `docs/attachments/worker-admission/fixture.ts` no longer parsed (the `else throw` branch was cut with the tree actions, leaving an unclosed block, and typecheck does not cover it). Restored the unknown-action error and removed the `tree`/`tree-list` lines from that fixture's index; `bun build` of the fixture now succeeds.
+- Dangling links: the vault (main checkout) still holds `guide/work-in-threads.md` and `stories/work-in-threads.md` until this branch merges; the only live reference, `issues/forked-thread-retains-parent-board-subscriptions.md`, now points at the archived decision issue (tracker commit bc5a083e). Remaining references are in archived issues and attachments, left as is.
+- The unrelated `cua-safari-background-type-changes-frontmost` idea arrived through the merge; it names an owner and an open investigation, so left as filed.
