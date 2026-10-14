@@ -12,4 +12,4 @@ Possible improvement: report expected argument-validation failures as concise CL
 
 ## Result
 
-Fixed already (a8dc8829 era):  now prints  with no stack and exits 1; re-verified on triage 2026-10-14.
+Fixed already (a8dc8829 era): `check --fix docs/issues/archive/does-not-exist.md` now prints `moved issue path does not exist: …` with no stack and exits 1; re-verified on triage 2026-10-14.
