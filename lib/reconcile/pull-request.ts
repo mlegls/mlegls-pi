@@ -275,7 +275,36 @@ async function open(c: PullRequestContext, host: PullRequestHost): Promise<"wait
 	const existing = host.find(pr.path, pr.repository, pr.branch);
 	const opened = existing ?? host.create(pr.path, pr.repository, { ...pr.publication!, headBranch: pr.branch, baseBranch: pr.baseBranch });
 	persist(c, next => { next.number = opened.number; next.url = opened.url; next.phase = next.repair ? "repairing" : "waiting"; });
-	return await terminal(c, opened) ?? "waiting";
+	const ended = await terminal(c, opened);
+	// Zero reported checks needs no artificial minute-long grace period.
+	return ended ?? await mergeIfReady(c, host, opened);
+}
+async function mergeIfReady(c: PullRequestContext, host: PullRequestHost, snapshot: PullRequestSnapshot): Promise<"waiting" | "merged" | "held"> {
+	const pr = c.state.pr!;
+	if (c.state.land !== "pr-merge" || pr.repair || snapshot.checks.some(check => check.state !== "pass")) return "waiting";
+	// Re-observe after gates/pushes; neither stale checks nor a moved base grants permission.
+	const fresh = observe(c, host)!;
+	const ended = await terminal(c, fresh);
+	if (ended) return ended;
+	const current = fetchHeads(c.state.pr!, true);
+	if (fresh.head !== pr.pushedHead || fresh.head !== current.head || fresh.base !== current.base ||
+		fresh.base !== pr.baseHead || fresh.checks.some(check => check.state !== "pass") || baseHeld(c, host, current.base)) {
+		persist(c, next => { next.lastPolledAt = undefined; }); return "waiting";
+	}
+	if (fresh.mergeable === "CONFLICTING") return "waiting";
+	try { host.merge(pr.path, pr.repository, pr.number!, fresh.head); }
+	catch (error) {
+		const newer = observe(c, host);
+		if (newer) {
+			const ended = await terminal(c, newer);
+			if (ended) return ended;
+			if (newer.head !== fresh.head || newer.base !== fresh.base || newer.mergeable === "UNKNOWN") return "waiting";
+		}
+		return hold(c, "PR merge refused", diagnostics(error));
+	}
+	// Successful request is not observed merged metadata. Observe on the next tick.
+	persist(c, next => { next.lastPolledAt = undefined; });
+	return "waiting";
 }
 
 export async function advancePullRequest(c: PullRequestContext): Promise<"waiting" | "merged" | "held"> {
@@ -370,30 +399,7 @@ export async function advancePullRequest(c: PullRequestContext): Promise<"waitin
 				if (action.kind === "exception") return hold(c, action.reason, action.message);
 				if (action.kind === "repair") return await beginRepair(c, action.request);
 			}
-			if (c.state.land === "pr-review" || snapshot.checks.some(check => check.state !== "pass")) return "waiting";
-			// Re-observe after gates/pushes; neither stale checks nor a moved base grants merge permission.
-			const fresh = observe(c, host)!;
-			const ended = await terminal(c, fresh);
-			if (ended) return ended;
-			const current = fetchHeads(c.state.pr!, true);
-			if (fresh.head !== snapshot.head || fresh.base !== snapshot.base || fresh.head !== current.head || fresh.base !== current.base ||
-				fresh.checks.some(check => check.state !== "pass") || baseHeld(c, host, current.base)) {
-				persist(c, next => { next.lastPolledAt = undefined; }); return "waiting";
-			}
-			if (fresh.mergeable === "CONFLICTING") return "waiting";
-			try { host.merge(pr.path, pr.repository, pr.number!, fresh.head); }
-			catch (error) {
-				const newer = observe(c, host);
-				if (newer) {
-					const ended = await terminal(c, newer);
-					if (ended) return ended;
-					if (newer.head !== fresh.head || newer.base !== fresh.base || newer.mergeable === "UNKNOWN") return "waiting";
-				}
-				return hold(c, "PR merge refused", diagnostics(error));
-			}
-			// Successful request is not observed merged metadata. Observe on the next tick.
-			persist(c, next => { next.lastPolledAt = undefined; });
-			return "waiting";
+			return await mergeIfReady(c, host, snapshot);
 		} catch (error) {
 			if (error instanceof SaveFailure) throw error;
 			return hold(c, "PR observation/publication failed", diagnostics(error));
