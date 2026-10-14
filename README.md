@@ -15,7 +15,7 @@ decisions are codemode's built-in `models.classify` (`lib/decide.ts` for code ou
 - `extensions/supervision`: `dispatch`, `integrate`, `retire` tools and `/jump`.
 - `extensions/hashline`: anchored `read`/`grep`/`edit` over the built-ins (`lib/outline-read`).
 - `lib/board`: shared pubsub log for coordinating sessions, with `board_*` and `mail` tools; every session has a mailbox topic.
-- `lib/dispatch.ts`, `lib/wm.ts`: launch ready waves of `wm` workers (threads: a worktree and a zmx session running pi).
+- `lib/dispatch.ts`, `lib/wm.ts`: launch ready waves of `wm` workers (bb threads: a worktree and a pi run by bb).
 - `lib/reconcile`: the execution-tree reconciler behind the `reconcile` tools (`docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md`).
 - `extensions/obsidian-tracker`: the Obsidian tracker view; `dist/` is symlinked into the vault's plugins.
 

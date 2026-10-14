@@ -1,6 +1,6 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker, a thread (a worktree and a zmx session running pi), reporting on board topic `<run>/<handle>`.
+The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker, a bb thread (a worktree and a pi run by bb), reporting on board topic `<run>/<handle>`.
 
 ```js
 const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: [], assignments: [
@@ -10,7 +10,7 @@ const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: 
 store("wave", wave);
 ```
 
-Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` (default 8) is a parent-scoped budget. Excess assignments remain `pending`. Submitted workers also enter the host-wide admission queue; they keep their handles and show `queued` until a slot and memory are available.
+Serialize submissions and pass **all outstanding** handles in `active`, across waves. `maxConcurrent` (default 8) is a parent-scoped budget. Excess assignments remain `pending`.
 
 Assignments require `handle`, a self-contained `prompt`, and either `agent` (a roster stance in `agents/`; its execution is the `stance/<agent>` virtual model) or an exact `model` (`provider/model`) and `effort`. Optional `base` passes the exact Git ref; omission uses the host default, not uncommitted parent changes. The entire wave is validated before the first launch, including issue/assignee constraints below. No implicit retries, dependency scheduling, or inherited issue ownership.
 
@@ -20,19 +20,11 @@ The receipt contains:
 - `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree the thread may have created before deciding what to do.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
 
-## Host admission
-
-Every worker runner (including reconciler phases and exception handlers) holds a GNU parallel `sem --id workers` slot while it runs, including idle turns and waits. `WORKER_SLOTS` defaults to 6; use the same setting across owners. This pool is separate from `bin/heavy` so worker checks cannot deadlock on their own worker slots. A process exit releases its slot; a pi restart acquires a new one. Retirement stops both queued runners and admitted workers; dead semaphore holders are reclaimed by GNU parallel.
-
-On macOS, admission waits while `memory_pressure` reports free percentage below `WORKER_MIN_FREE_PERCENT` (default 10). Swap used is reported; `WORKER_MAX_SWAP_MB` optionally adds a swap ceiling. Swap has no default ceiling because historical swap can stay high after current pressure falls. Failed probes wait rather than admitting blindly. `WORKER_PRESSURE_PROBE` is a trusted shell override that prints JSON `{freePercent, swapMB}` for trials.
-
-Submission returns before admission and worker setup. Setup runs after admission, before pi; failure exits the runner with its log under the thread state directory. `reconcile_status` reports admission beside each chain/handler. `ab thread ls` shows queued workers with their wait reason. Thread JSON also reports `workspace: {processes, rssMB}`: a census of processes whose cwd is in the owned worker worktree, including runner infrastructure and services left behind after pi exits. RSS is a rough sum, not the pressure sensor; guest/shared-cwd processes are not attributed to a worker.
-
-GNU parallel (`sem`), Bun and the project’s zmx installation must be on PATH. For isolated first use without models or the real host pool, see [the shell fixture](attachments/worker-admission/index.md).
-
 ## bb runtime
 
-A thread spawned from a session running inside [bb](https://github.com/get-bb/bb) (`BB_THREAD_ID` set), or with `PI_THREAD_RUNTIME=bb`, runs its pi as a bb thread instead of in a zmx session: bb's desktop, web and mobile apps show it, nested under the spawning session's bb thread. `PI_THREAD_RUNTIME=zmx` forces the old runtime. The registry, worktree, setup, board reports and integration are unchanged (`lib/thread/bb.ts`). Setup runs before bb starts pi; there's no host admission (no `sem` slot, no memory gate), so the parent's `maxConcurrent` and the reconciler's budget are the only limits. A bb thread's state is bb's (`idle`, `working`, `exited` once archived), since bb may release an idle thread's pi; retiring stops and archives it in bb.
+Every worker and thread is a bb thread: [bb](https://github.com/get-bb/bb) runs its pi and shows it in its desktop, web and mobile apps, nested under the spawning session's bb thread when there is one (a spawn from a plain terminal makes a top-level bb thread; board reports and integration don't depend on the nesting). The bb daemon must be running: the bb CLI reaches it from inside a bb thread or a plain terminal alike, and when it doesn't answer, spawning fails before creating a worktree, saying to start bb. The registry, worktree, setup, board reports and integration are ours (`lib/thread/bb.ts`). Setup (the project's `mise run setup`) runs before bb starts pi, and a failing worker setup fails the spawn with its log under the thread state directory. There is no host admission: the parent's `maxConcurrent` and the reconciler's budget are the only limits. A thread's state is bb's (`idle`, `working`, `exited` once archived), since bb may release an idle thread's pi; retiring stops and archives it in bb. Thread JSON also reports `workspace: {processes, rssMB}`: a census of processes whose cwd is in the owned worker worktree, including services left behind after pi exits. RSS is a rough sum; guest/shared-cwd processes are not attributed to a worker.
+
+A worker's command is always pi: `wm.spawn` has no `command` option and `from: "fork"` is gone (bb threads can't fork a session); `from: "summary"` remains. Threads registered under the retired zmx runtime still list in `ab thread ls` (state `exited` unless their pi is still live); abandon them with `ab thread abandon <id>`.
 
 bb gives every thread the same environment, so a worker's identity (board topic, stance, checkpoint ratio) is written to `.wm/launch.env` in its worktree, and bb runs pi through `bin/bb-pi`, which sources it: set it once with `bb-app env set BB_PI_BRIDGE_COMMAND <this checkout>/bin/bb-pi`. Start bb from the Dock or with a clean environment: a bb started from a pi session's shell passes that session's `PI_BOARD_TOPIC` to every thread.
 
