@@ -1,6 +1,7 @@
 // One-off owned first-use machinery, not a retained test or alternate reconciler.
 // All scheduling, integration, gates, publication, recovery and closure are production.
 import assert from "node:assert/strict";
+import { shellBb } from "../land-reconciled-trees-through-pull-requests/shell-bb.ts";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -35,7 +36,7 @@ const nativeGh = Bun.which("gh"); assert(nativeGh, "Existing gh is required");
 for (const key of Object.keys(process.env)) if (/^(?:PI_.*|BB_.*|AB_.*|ZMX_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
 Object.assign(process.env, { XDG_STATE_HOME: join(area, "state"), XDG_CACHE_HOME: join(area, "cache"),
 	PI_BOARD_DIR: join(area, "board"), PI_CODING_AGENT_DIR: join(area, "agent"), PI_AGENTS_DIR: agents,
-	ZMX_DIR: join(area, "zmx"), PI_THREAD_RUNTIME: "zmx", MISE_TRUSTED_CONFIG_PATHS: area,
+	MISE_TRUSTED_CONFIG_PATHS: area,
 	TRACKER_CLI: join(pkg, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"),
 	PARALLEL_HOME: join(area, "parallel"), WORKER_SLOTS: "2",
 	WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PATH: bin + ":" + process.env.PATH });
@@ -49,7 +50,7 @@ writeFileSync(join(bin, "gh"), "#!/bin/sh\nprintf 'call\\n' >> '" + join(area, "
 	"if [ -e '" + join(area, "inject-transport") + "' ]; then case \"$*\" in 'api graphql'*) rm -f '" + join(area, "inject-transport") +
 	"'; printf 'injected\\n' >> '" + join(area, "injected") + "'; echo 'gh: Server Error (HTTP 502)' >&2; exit 1 ;; esac; fi\n" +
 	"exec '" + nativeGh + "' \"$@\"\n", { mode: 0o755 });
-writeFileSync(join(bin, "pi"), "#!/bin/sh\ngit rev-parse HEAD > shell-base\ntouch shell-started\nexec sleep 3600\n", { mode: 0o755 });
+shellBb(area, "git rev-parse HEAD > shell-base\ntouch shell-started\n");
 for (const [name, role] of [["shell", "implement"], ["shell-drive", "drive"], ["tidy", "review"], ["technical", "implement"]]) {
 	put(agents, name + ".md", "---\nrole: " + role + "\n---\nDeterministic shell rehearsal.\n");
 	put(agents, "roles/" + role + ".md", "Deterministic shell rehearsal.\n");
@@ -232,10 +233,12 @@ try {
 	else if (action === "restart") { await cut("restartAfterHostRepair"); }
 	else if (action === "cleanup") {
 		await stop(m.owner, m.root);
-		const pr = observe(); if (pr.state === "OPEN") gh(["pr", "close", String(pr.number), "--repo", repository]);
+		const receipt = state()?.pr;
+		const pr = receipt?.number ? observe() : undefined; if (pr?.state === "OPEN") gh(["pr", "close", String(pr.number), "--repo", repository]);
 		// Only the run's unique PR branch. Supplied repo and inherited branches stay.
-		git(m.repo, "push", "origin", "--delete", state().pr!.branch);
-		record("cleanup", { explicitStop: true, pr: pr.number, branchDeleted: state().pr!.branch, localAreaRetained: area });
+		const branchExists = receipt?.branch && git(m.repo, "ls-remote", "--heads", "origin", receipt.branch);
+		if (branchExists) git(m.repo, "push", "origin", "--delete", receipt!.branch);
+		record("cleanup", { explicitStop: true, pr: pr?.number ?? null, branchDeleted: branchExists ? receipt!.branch : null, localAreaRetained: area });
 	} else if (action === "ack") {
 		start({ cwd: m.owner, root: m.root, owner: "mail/rehearsal", budget: 1 });
 		await acknowledge("acknowledgement");

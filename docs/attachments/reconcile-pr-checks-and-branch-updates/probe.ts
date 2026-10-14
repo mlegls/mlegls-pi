@@ -1,6 +1,7 @@
 // Runnable, one-off first use. Host observations are seeded; Git, gates,
 // shell worker launch/integration/retirement and tracker close are real.
 import assert from "node:assert/strict";
+import { shellBb } from "../land-reconciled-trees-through-pull-requests/shell-bb.ts";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -33,12 +34,12 @@ try {
 		if (/^(?:PI_.*|BB_.*|AB_.*|ZMX_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
 	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
 		PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: agents,
-		ZMX_DIR: join(root, "zmx"), PI_THREAD_RUNTIME: "zmx", MISE_TRUSTED_CONFIG_PATHS: root,
+		MISE_TRUSTED_CONFIG_PATHS: root,
 		TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"),
 		PARALLEL_HOME: join(root, "parallel"), WORKER_SLOTS: "2",
 		WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'", PATH: bin + ":" + saved.PATH });
 	for (const dir of [repo, bin, join(agents, "roles")]) mkdirSync(dir, { recursive: true });
-	writeFileSync(join(bin, "pi"), "#!/bin/sh\ntouch shell-started\nexec sleep 600\n", { mode: 0o755 });
+	shellBb(root, "touch shell-started\n");
 	for (const [name, role] of [["shell", "implement"], ["shell-drive", "drive"], ["tidy", "review"], ["technical", "implement"]]) {
 		put(agents, name + ".md", "---\nrole: " + role + "\n---\nIsolated shell fixture.\n");
 		put(agents, "roles/" + role + ".md", "Isolated shell fixture.\n");
