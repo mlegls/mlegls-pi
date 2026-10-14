@@ -1,6 +1,6 @@
 // Session graph: every pi session as a node, joined to its parent, project, live process and
 // last board report. Sessions are files, so a resumable session (no process) is still a node and
-// an orphan (live, but its parent has ended) is visible. Views (ab tree, sidebar, dashboard)
+// an orphan (live, but its parent has ended) is visible. Views (profile, context)
 // render this; nothing here depends on the multiplexer.
 //
 // Sources: session jsonl headers/meta (parent links: wm's session-meta.parentSession, the bash
@@ -12,13 +12,13 @@ import { execFileSync } from "node:child_process";
 import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { readLive, type Live } from "../session-meta/live";
-import { read } from "../board/store";
-import { resolveSession } from "../session-meta/identity";
-import { allThreads } from "../thread/registry";
-import { isInteractive } from "../thread/runtime";
-import { readAdmission, type Admission } from "../thread/admission";
-import { workerResources, type WorkspaceResources } from "../thread/resources";
+import { readLive, type Live } from "./session-meta/live";
+import { read } from "./board/store";
+import { resolveSession } from "./session-meta/identity";
+import { allThreads } from "./thread/registry";
+import { isInteractive } from "./thread/runtime";
+import { readAdmission, type Admission } from "./thread/admission";
+import { workerResources, type WorkspaceResources } from "./thread/resources";
 
 /** working/idle: a pi with a live record;
  * resumable: no process, reopen with pi --session; gone: its directory was deleted. */

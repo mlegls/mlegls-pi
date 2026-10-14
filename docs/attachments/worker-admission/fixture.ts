@@ -9,7 +9,6 @@ import { allThreads } from "../../../lib/thread/registry";
 import { abandonThread, listThreads } from "../../../lib/thread";
 import { command, quote } from "../../../lib/thread/process";
 import { thread as threadCLI } from "../../../lib/thread/cli";
-import { tree as treeCLI } from "../../../lib/tree/cli";
 import { readAdmission } from "../../../lib/thread/admission";
 
 function environment(root: string) {
@@ -84,9 +83,7 @@ if (action === "prepare") {
 	await observe(root);
 } else {
 	environment(arg!);
-	if (action === "tree") await treeCLI(["ui"]);
-	else if (action === "tree-list") await treeCLI([]);
-	else if (action === "threads") await threadCLI(["ls"]);
+	if (action === "threads") await threadCLI(["ls"]);
 	else if (action === "launch") {
 		const cwd = join(arg!, owner!);
 		const receipt = await dispatch([{ handle: handle!, prompt: "Shell fixture", model: "fixture/shell", effort: "low" }], { cwd, run: owner!, parent: "fixture-" + owner, maxConcurrent: 1, active: [] });
@@ -108,5 +105,4 @@ if (action === "prepare") {
 	} else if (action === "cleanup") {
 		for (const t of await allThreads()) console.log(JSON.stringify(await abandonThread(t.id)));
 		rmSync(arg!, { recursive: true, force: true });
-	} else throw new Error("prepare capacity|pressure | inspect|threads|tree|tree-list|low|retire|cleanup ROOT [HANDLE]");
 }

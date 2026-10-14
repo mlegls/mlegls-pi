@@ -170,7 +170,7 @@ export async function judgePurposes(ctxs: Context[]): Promise<void> {
 export const strip = (x: Context): Context => ({ ...x, cells: (x.cells as Judged[]).map(({ key, judgeText, out, tool, ...c }) => c) });
 
 if (import.meta.main) {
-	const { graph } = await import("./tree/graph");
+	const { graph } = await import("./graph");
 	const args = process.argv.slice(2);
 	const fast = args.includes("--fast"), ref = args.find(a => !a.startsWith("--")) ?? process.env.PI_SESSION_ID ?? "";
 	const nodes = await graph({ days: 30 });

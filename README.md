@@ -18,7 +18,6 @@ decisions are codemode's built-in `models.classify` (`lib/decide.ts` for code ou
 - `lib/dispatch.ts`, `lib/wm.ts`: launch ready waves of `wm` workers (threads: a worktree and a zmx session running pi).
 - `lib/reconcile`: the execution-tree reconciler behind the `reconcile` tools (`docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md`).
 - `extensions/obsidian-tracker`: the Obsidian tracker view; `dist/` is symlinked into the vault's plugins.
-- `lib/tree`: the thread tree, `ab tree ui [--sidebar]`.
 
 The prototype this replaces (exec cells, the bash outer loop, the `ab` program, supervise
 loop, memory log) is tagged `prototype`.

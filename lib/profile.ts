@@ -19,7 +19,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { graph, type Node } from "./tree/graph";
+import { graph, type Node } from "./graph";
 import { GENERATED } from "./prompts";
 
 export interface Profile {
