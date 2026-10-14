@@ -196,3 +196,15 @@ gh repo delete mlegls/reconcile-pr-transport-20261014-35767b2d --yes
 Deletion requires GitHub `delete_repo` permission (not reported in the current login's scopes); use authorized GitHub repository Settings deletion if that permission is unavailable. Do not add credentials/scopes merely to run this transport. Local `.wm/pr-transport-scratch` is worktree-owned scratch and can be removed with the worktree.
 
 **Door:** two-way source change; create/reply/merge calls write to GitHub when their caller invokes them. **Blast radius:** transport. All live writes here were restricted to this explicitly owned scratch repository.
+
+## Review pass (live, 2026-10-14)
+
+Same disposable repository; branch `review-checks-probe` (head `231dbea0515e1cc5595ee2a070fc316431c55fe1`, two Actions workflows A and B each with a job named `build`; A always fails) and PR #3 (closed afterwards with `gh pr close 3`). Cleanup as above.
+
+| Claim | Observed (library host, live) |
+| --- | --- |
+| Real check runs; independent suites with the same job name stay distinct | `checks(head)` returned two `build` entries: A's `fail`, B's `pass`. |
+| Rerun supersedes the earlier attempt | After `gh run rerun` of A, REST `filter=all` listed A's original and rerun runs in the same check suite; `checks` returned one entry for A (the newer id) and B. |
+| Pending reviews are ignored | With an unsubmitted review holding an inline comment, `observe` gave `reviews: []`, `threads: []` (needed a repair: pending thread comments were previously returned). |
+| Submitted review and thread | After submitting: one `COMMENTED` review with exact commit OID; one unresolved thread with comment id, reviewId, path, line, url. |
+| Reply replay | `reply(thread, "fixed", "<!-- marker:abc -->")` called twice produced exactly one reply comment (the second call found the marker). Note GitHub files the reply under its own new review id. |

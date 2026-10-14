@@ -70,11 +70,11 @@ function connection<T, D>(cwd: string, query: string, variables: Record<string, 
 }
 interface Comment {
 	id: string; body: string; path: string | null; line: number | null; originalLine: number | null;
-	url: string; pullRequestReview: { id: string } | null;
+	url: string; state: string; pullRequestReview: { id: string } | null;
 }
 function threadComments(cwd: string, thread: string): Comment[] {
 	return connection<Comment, { node: { comments: Connection<Comment> } }>(cwd,
-		"query($thread: ID!, $cursor: String) { node(id: $thread) { ... on PullRequestReviewThread { comments(first: 100, after: $cursor) { nodes { id body path line originalLine url pullRequestReview { id } } " + pageInfo + " } } } }",
+		"query($thread: ID!, $cursor: String) { node(id: $thread) { ... on PullRequestReviewThread { comments(first: 100, after: $cursor) { nodes { id body path line originalLine url state pullRequestReview { id } } " + pageInfo + " } } } }",
 		{ thread }, data => data.node?.comments);
 }
 interface CheckRun {
@@ -142,12 +142,12 @@ function observe(cwd: string, repository: string, number: number): PullRequestSn
 		"query($owner: String!, $name: String!, $number: Int!, $cursor: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviewThreads(first: 100, after: $cursor) { nodes { id isResolved } " + pageInfo + " } } } }",
 		variables, data => data.repository?.pullRequest?.reviewThreads).map(t => {
 			requireValue(t.id && typeof t.isResolved === "boolean", "incomplete review thread");
-			const comments: ReviewThread["comments"] = threadComments(cwd, t.id).map(c => {
+			const comments: ReviewThread["comments"] = threadComments(cwd, t.id).filter(c => c.state !== "PENDING").map(c => { // pending = private draft
 				requireValue(c.id && typeof c.body === "string", "incomplete review thread comment");
 				return { id: c.id, body: c.body, reviewId: c.pullRequestReview?.id, path: c.path ?? undefined, line: c.line ?? c.originalLine ?? undefined, url: c.url };
 			});
 			return { id: t.id, resolved: t.isResolved, comments };
-		});
+		}).filter(t => t.comments.length);
 	return { number, url: pr.url, state: pr.state, headBranch: pr.headRefName, head: pr.headRefOid,
 		baseBranch: pr.baseRefName, base: pr.baseRefOid, mergeable: pr.mergeable,
 		mergedAt: pr.mergedAt ?? undefined, mergeCommit: pr.mergeCommit?.oid, reviews, threads,
