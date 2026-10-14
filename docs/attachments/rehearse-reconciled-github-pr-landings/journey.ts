@@ -13,7 +13,7 @@ const repository = "mlegls/reconcile-pr-transport-20261014-35767b2d";
 const pkg = realpathSync(join(import.meta.dir, "../../.."));
 const action = process.argv[2];
 const fresh = action === "pr-merge" || action === "pr-review";
-assert(fresh || ["resume", "status", "restart", "ack", "cleanup"].includes(action), "Use pr-merge|pr-review|resume|status|ack|cleanup [owned directory]");
+assert(fresh || ["resume", "status", "restart", "ack", "cleanup"].includes(action), "Use pr-merge|pr-review|resume|status|restart|ack|cleanup [owned directory]");
 const area = fresh ? realpathSync(mkdtempSync("/tmp/rehearse-github-pr-")) : realpathSync(process.argv[3]);
 const manifestPath = join(area, "manifest.json");
 type Manifest = { repository: string; mode: LandingMode; root: string; repo: string; owner: string; contributor: string; ownerBefore?: string; observations: Record<string, unknown>; progress: string };
@@ -188,8 +188,9 @@ try {
 		record("cleanup", { explicitStop: true, pr: pr.number, branchDeleted: state().pr!.branch, localAreaRetained: area });
 	} else if (action === "ack") {
 		start({ cwd: m.owner, root: m.root, owner: "mail/rehearsal", budget: 1 });
+		const resolutionsBefore = state().resolved[m.root]?.length ?? 0;
 		resolveException(m.owner, m.root, m.root, { action: "answer", note: "Owner acknowledges later changes-requested; awaiting authorized human merge." });
-		await until(() => !state().exceptions[m.root], "public acknowledgement applied", true);
+		await until(() => (state().resolved[m.root]?.length ?? 0) > resolutionsBefore, "public acknowledgement applied", true);
 		record("acknowledgement", { applied: true, resolved: state().resolved });
 		await halt();
 	} else {

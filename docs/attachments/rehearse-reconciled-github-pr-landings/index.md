@@ -54,7 +54,48 @@ Tree worker joins (implement → drive → review) used handles suffixes a `1/2/
 
 ## pr-review: pending live human boundary
 
-The second live journey is running. This section will record its PR/check/submitted review/thread/reply IDs and restart cuts before asking for human action. It is not yet held.
+Owned directory /private/tmp/rehearse-github-pr-jydX8J; root rehearsal-review-jydx8j; [PR #5](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/pull/5), branch reconcile/pr/rehearsal-review-jydx8j-6da6fe42cdc2. Live automation through COMMENTED repair held; distinct-human primary still unobservable.
+
+| Action / sensor | Observed result |
+| --- | --- |
+| Readiness / original | Setup/clean owner base fcb8db16fc87f763ef3a905aa639b7380ebba232; base check 115909935402 success. a collector/b base 245db162600dc7698f32da383fbfacc3733e6080; b reviewed 6af8d4d61470be17ce942461a4096b37944ec1f3; original root b2c590e281c447ab6be49af8911cebf25c757d08. Exactly nine tree workers; a global ticket and outside still blocked. |
+| Waiting crash/start | Killed exact PID 52131; production start resumed 63051, same #5/mode/branch/cursor/original results/counter=9. No tree replay. |
+| Closed-unmerged | Real gh pr close; at 14:31:54Z production raised PR closed without merge to owner. All three global stages remained ticket/spec. Reopened same #5, then public resolve answer resumed waiting. No alternative PR. |
+| Individual comment | Ordinary PR comment 6170792391; after 70 seconds repairs stayed 0. |
+| Submitted review | Same-author COMMENTED review 5519614588 / PRR_kwDOVJGTm88AAAABSP6ifA at 14:33:24Z, two unresolved inline threads. Production request used exact original PR head. |
+| Repair / gates | One worker rehearsal-review-jydx8j-pr-repair-a, thread 0e0a84b6-18b6-4999-a360-becd9e381a37. Both fixture observations clarified. Worker gate b2dd71c7ed767f12523543ac3e283cf91586f910; integration/staging gate and pushed head fdf1f1e13cb4763c7333932f189503e73538e26c. Retired at 14:35:45.621Z. |
+| Real reply reviews | GitHub created separate COMMENTED reviews 5519647373 / PRR_kwDOVJGTm88AAAABSP8ijQ and 5519649248 / PRR_kwDOVJGTm88AAAABSP8p4A for the two marker replies (material below). Both threads remain unresolved; no manual resolve. |
+| Reply crash/start | After replies, killed exact PID 63051; start resumed 76453, preserving review cursor, reply receipts, firstRepairAt=14:35:44.836Z, all original results and counter=10. After another 70 seconds own reply review IDs were processed, repairs stayed 1, four total thread comments remained (no duplicate replies), no live workers, PR OPEN. |
+| Final checks / owner | Checks 115913625210 / 115913658485, runs 38581885361 / 38581896281, completed/success on fdf1f1e1…. Owner remained original clean/main base; no node closed and no automatic merge. |
+| Pause for human | Exact reconciler PID 76453 stopped by crash cut, preserving resume state; process absent. PR #5 deliberately remains OPEN. |
+
+Small live API material establishing reply → review linkage (not seeded):
+
+    thread PRRT_kwDOVJGTm86sXbwB; unresolved; fixture/conflict.txt:1
+      original PRRC_kwDOVJGTm87-o-re, review PRR_kwDOVJGTm88AAAABSP6ifA
+      reply PRRC_kwDOVJGTm87-pFJ7, review PRR_kwDOVJGTm88AAAABSP8ijQ
+    thread PRRT_kwDOVJGTm86sXbwJ; unresolved; fixture/rehearsal-review-jydx8j-b.txt:1
+      original PRRC_kwDOVJGTm87-o-rm, review PRR_kwDOVJGTm88AAAABSP6ifA
+      reply PRRC_kwDOVJGTm87-pFfy, review PRR_kwDOVJGTm88AAAABSP8p4A
+
+Each reply body was:
+
+    Committed fixture clarification; integration gate passed on pushed head.
+
+    reconcile:rehearsal-review-jydx8j:review:PRR_kwDOVJGTm88AAAABSP6ifA:thread:<its thread above>:head:fdf1f1e13cb4763c7333932f189503e73538e26c
+
+Both reply review IDs appear in saved reviews.processed, only the original submitted ID in reviews.repaired, repairs=1. Saved replies have two receipts at 14:35:38.755Z and 14:35:44.807Z. The original evidence remains at original staged head; this loaded prototype also reused root evidence path at repaired head. The committed controller now writes repair evidence under a separate -repair path on future drives.
+
+### Exact remaining human controls
+
+Use the existing authorized distinct account; no credential sharing or permission broadening. **Do not merge until the owner exception is observed and acknowledged.**
+
+1. On #5, submit approval without new inline threads. Run journey.ts resume /private/tmp/rehearse-github-pr-jydX8J; observe OPEN/no new repair/no auto merge.
+2. Submit a later CHANGES_REQUESTED review with at least two unresolved inline threads (same fixture paths above suffice). Resume; observe owner exception, repairs still 1, no second repair or merge, and issues still pending.
+3. Run journey.ts ack /private/tmp/rehearse-github-pr-jydX8J to record public owner acknowledgement. An unchanged unresolved review may re-hold; terminal human merge is still observed.
+4. Authorized person merges #5 **with a merge commit**. Resume; observe ancestry, child-first closure, original results and owner ff. Then cleanup the unique scratch PR branch.
+
+The initial **CHANGES_REQUESTED → repair** primary claim still needs a fresh distinct-reviewer run: #5 repaired COMMENTED, not CHANGES_REQUESTED. Once reviewer action is supplied, seed the same two-ticket shape, submit the first changes-requested review before releasing review repair, then later the second request/approval/merge controls. This boundary is explicitly unobservable, not waived by the live COMMENTED probe.
 
 ## Backend capability (seeded, compiled contract only)
 
@@ -63,7 +104,7 @@ Production PR body generation with a Tracker implementing `githubIssue` mapped n
 ## Cleanup and limits
 
 - PR #4 merged; its unique remote PR branch was deleted. Supplied repository, inherited branches and setup/main history remain. The parent owns final supplied-repo disposal.
-- Finished reconciler `41377` exited; all workers retired. An SSH proxy `nc` left after the intentional crash was stopped by its exact owned PID `30627`, never a pattern.
+- Finished merge reconciler `41377` exited; all workers retired. Review reconciler `76453` was crash-paused and all its workers retired. SSH proxies `nc` left after the intentional crashes were stopped by exact owned PIDs `30627` and `60372`, never a pattern. PR #5 and its unique branch are deliberately retained for the requested human controls.
 - Local scratch directories are retained for inspection/resume; only ticket-owned files may be removed. No browser pages, deployments or tunnels were created.
 - Dirty/other-branch owner preservation is not a live claim here; prior [seeded-host actual-Git evidence](../stage-reconciled-root-for-pr-landing/index.md) is separate.
 - Distinct reviewer identity, initial live CHANGES_REQUESTED repair, later request exception, approval and human merge still require authorization/actions; partial COMMENTED evidence will not waive these.
