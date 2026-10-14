@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0f535-86c5-705f-9228-acf119303b56
 ---
@@ -25,3 +25,7 @@ the exact seed and invocation. No product workaround was applied.
 Earlier terminal failures have a different recorded symptom:
 [[projects/mlegls-pi/issues/archive/session-terminal-regressions-fail-with-extra-shell-sessions]].
 Do not assume the same cause.
+
+## Result
+
+Obsolete on triage 2026-10-14: lib/session/tmux.test.ts and the tmux terminal manager were deleted in b40cdecd.
