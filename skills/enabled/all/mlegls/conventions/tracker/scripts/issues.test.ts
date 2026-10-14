@@ -97,6 +97,53 @@ test("check ignores wikilinks in inline and fenced code, including when fixing o
   rmSync(moved);
 });
 
+test("check masks indented code but checks indented list and paragraph continuations", () => {
+  const evidence = join(cwd, "docs/indented-links.md");
+  const link = (name: string) => `[[projects/fixture/issues/${name}]]`;
+  const lines = [
+    `\t${link("tab-code")}`,
+    `    ${link("space-code")}`,
+    "",
+    `      ${link("code-after-blank")}`,
+    "",
+    "Paragraph.",
+    `    ${link("paragraph-continuation")}`,
+    "",
+    `    ${link("new-code")}`,
+    "",
+    "- List item.",
+    `    ${link("list-continuation")}`,
+    "",
+    `\t${link("list-after-blank")}`,
+    "  - Nested item.",
+    "",
+    `    ${link("nested-continuation")}`,
+    "",
+    "10. Ordered item.",
+    "",
+    `    ${link("ordered-continuation")}`,
+    "",
+    "Outside the list.",
+    "",
+    `    ${link("code-after-list")}`,
+    "",
+    link("live-link"),
+  ];
+  try {
+    for (const newline of ["\n", "\r\n"]) {
+      writeFileSync(evidence, lines.join(newline));
+      const checked = run("check");
+      expect(checked.code).toBe(1);
+      for (const name of ["tab-code", "space-code", "code-after-blank", "new-code", "code-after-list"])
+        expect(checked.out).not.toContain(`${link(name)} does not exist`);
+      for (const name of ["paragraph-continuation", "list-continuation", "list-after-blank", "nested-continuation", "ordered-continuation", "live-link"])
+        expect(checked.out).toContain(`${link(name)} does not exist`);
+    }
+  } finally {
+    rmSync(evidence);
+  }
+});
+
 test("check accepts a live heading link whose anchor contains inline code", () => {
   const evidence = join(cwd, "docs/code-anchor.md");
   writeFileSync(join(cwd, "docs/drive-5.md"), "## Review (after `133272a0`)\n");
