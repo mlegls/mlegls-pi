@@ -1,10 +1,9 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a13a33-2a17-714d-a4b1-0ff4fb53f8f0"
 part-of: "[[projects/mlegls-pi/issues/land-reconciled-trees-through-pull-requests]]"
 blocked-by: []
-claimed-by: "reconcile:land-reconciled-trees-through-pull-requests"
 priority: 2
 ---
 # Deliverable
@@ -29,3 +28,42 @@ The optional `Tracker.githubIssue(slug)` seam in `lib/tracker.ts` belongs to the
 Prepare a disposable repository owned by this drive (or a specifically supplied scratch fork), with a remote, default branch and the harness's existing GitHub identity. Readiness: `gh auth status`, repository access, and successful fetch of the default branch. Record its identifier and cleanup instructions; never probe a production run by creating or closing its PRs. From a one-off Bun probe, call the library host to create a scratch PR, find it again, observe it, enumerate an empty and a reported check/status, and close it through ordinary GitHub controls. Capture exact commands and structured observations under `docs/attachments/reconcile-github-pr-transport/index.md`; distinguish live API evidence from seeded transport fixtures. Thread reply and guarded-merge end-to-end evidence is owned by `rehearse-reconciled-github-pr-landings` after the lifecycle is connected.
 
 Acceptance: host returns the complete typed observation; interrupted-create lookup identifies the existing PR; no-check observation is distinguishable from an API failure; the transport preserves the caller's body/base/head and uses only guarded merge commits. Run `bunx tsc --noEmit` and relevant existing reconciler/tracker tests. No new retained tests are authorized; one-off scratch probes and the later rehearsal are the acceptance machinery.
+
+## Result
+
+done
+
+The review is complete, and all four stories hold on my final head, `e03a1f6e`. I found and repaired one defect. `bunx tsc --noEmit` is clean and `bun test lib/reconcile` passes (13 tests, 0 failures).
+
+**Defect repaired.** `observe` returned comments from an unsubmitted (pending) review inside threads. That is a private draft, and the ticket says to ignore pending reviews. `lib/reconcile/pr-host.ts` now skips pending comments and drops threads that have none left. Live check on PR #3: with a pending inline comment, `observe` gave `reviews: []` and `threads: []`; after submitting, it showed one `COMMENTED` review and one thread.
+
+**Check runs, which the driver had not exercised live.** I added two Actions workflows to the scratch repo, each with a job named `build`; one always fails.
+- **Same-named jobs:** `checks` returned two separate `build` entries, one `fail` and one `pass`.
+- **Rerun:** after rerunning the failing workflow, `checks` still returned one entry per workflow, using the newer attempt.
+- **Reply replay:** calling `reply` twice with the same marker posted one comment. GitHub files a reply under its own new review id.
+
+Everything is appended to `docs/attachments/reconcile-github-pr-transport/index.md`. PR #3 is closed; the scratch repo, branch `review-checks-probe` and PRs #1–#3 are retained. My temp clone is removed and nothing is running.
+
+```yaml
+commit: e03a1f6e
+stories:
+  - {story: "Exact create inputs and interrupted-save lookup", outcome: held}
+  - {story: "Typed observation and empty checks versus API failure", outcome: held}
+  - {story: "Latest reported status replaces superseded failure", outcome: held}
+  - {story: "Closed PR remains discoverable", outcome: held}
+evidence:
+  path: docs/attachments/reconcile-github-pr-transport/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+fixed:
+  - "e03a1f6e pending review comments no longer leak into observed threads"
+caveats:
+  - "A submitted review whose commit is null (for example after a force-push removed it) makes observe throw rather than guess. I left this strict, and landings never force-push."
+  - "The reply and guarded-merge calls are exercised live only for reply replay on PR #3; the guarded merge itself is still owned by the lifecycle rehearsal."
+  - "A reply posted through the host creates its own review id. The lifecycle should not mistake that for reviewer feedback; it is a COMMENTED review authored by the gh login."
+  - "Retained tests are unchanged, and I added none."
+```
+
+Evidence: [docs/attachments/reconcile-github-pr-transport/index.md](docs/attachments/reconcile-github-pr-transport/index.md)
