@@ -1,5 +1,7 @@
 # Owned live GitHub PR landing rehearsal
 
+Independent verification on a2e9b1b: [first-user encounter](independent-drive.md) reached PR #6 but its repeat stopped on transport 502/404; later lifecycle claims were not independently re-observed. Prior successful observations below remain historical evidence, not a successful final repeat.
+
 Nonvisual CLI/API/Git evidence. Production host/start/run/state/dispatch/integration/gates/retirement/closure; deterministic shell phase workers, not paid models. No ledger writes by the controller. Git hooks stayed enabled. Both landing modes are complete under the maintainer-approved live/seeded boundary recorded below.
 
 ## Setup and repeat
