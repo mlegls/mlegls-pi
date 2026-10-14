@@ -75,11 +75,18 @@ best-effort afterward: fast-forward only when clean and on the base branch.
 Dirty, divergent, other-branch or unavailable owners are left untouched; the
 saved ownerSync outcome prevents repeating it. PR modes ignore local mainRed.
 
-**Intermediate revision:** publication/polling remains dormant behind
-`pullRequestLifecycleReady` until `advancePullRequest` is filled. PR runs can
-reach opening/staging, but do not publish or finish there. The supplied-host
-library seam is for seeded scratch observations, not live GitHub evidence.
-See [staging first use](attachments/stage-reconciled-root-for-pr-landing/index.md).
+Publication recovers by repository/head lookup, including interrupted creates.
+Remote waits poll about once a minute, with no worker retained. Contributor and
+base updates merge without rewriting history; gates precede normal pushes.
+CI, gate and conflict repairs share a two-worker repair budget and three
+integration attempts. Owner exceptions pause work, not terminal observation.
+`pr-merge` requests a head-guarded merge commit only after every reported head
+check passes; `pr-review` never requests a merge. The submitted-review selector
+remains dormant until its own ticket fills it.
+
+The supplied-host library seam supports seeded scratch observations, not live
+GitHub evidence. See [staging first use](attachments/stage-reconciled-root-for-pr-landing/index.md)
+and [PR lifecycle first use](attachments/reconcile-pr-checks-and-branch-updates/index.md).
 
 ## Stance models
 

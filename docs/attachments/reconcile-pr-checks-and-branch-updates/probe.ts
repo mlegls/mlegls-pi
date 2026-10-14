@@ -70,7 +70,8 @@ try {
 	tracker.create({ slug: "root", fields: { stage: "ticket", assignee: "agent:shell", author: "user:fixture" }, body: "Root fixture contract." });
 	git(repo, "worktree", "add", "-qb", "main", owner);
 	git(repo, "init", "--bare", "-q", remote); git(repo, "remote", "add", "origin", remote); git(owner, "push", "-q", "origin", "main");
-	let identity: ReturnType<typeof prepareStart>["pr"], created = false, publicationCut = true, checksState = "pending";
+	const zeroPublication = process.argv[2] === "publication-zero";
+	let identity: ReturnType<typeof prepareStart>["pr"], created = false, publicationCut = !zeroPublication, checksState = zeroPublication ? "empty" : "pending";
 	let terminalState: PullRequestSnapshot["state"] = "OPEN", mergeCommit: string | undefined, mergeCalls = 0, creates = 0, finds = 0, observes = 0;
 	let body = "", foreign: string | undefined, transportFailure = false, basePending = false;
 	const snapshot = (): PullRequestSnapshot => ({
@@ -109,7 +110,12 @@ try {
 		},
 		reply: () => { throw new Error("review selector is dormant in this probe"); },
 	};
-	const options = { cwd: owner, root: "root", owner: "mail/fixture", budget: 1, prHost: host };
+	git(repo, "clone", "-q", remote, outsider);
+	git(outsider, "checkout", "-qb", "main", "origin/main");
+	git(outsider, "config", "user.name", "Contributor"); git(outsider, "config", "user.email", "contributor@example.invalid");
+	journey: {
+	const options = { cwd: owner, root: "root", owner: "mail/fixture", budget: 1, prHost: host,
+		...(zeroPublication ? { land: "pr-merge" as const } : {}) };
 	identity = prepareStart(options).pr!;
 	stopRun = new AbortController(); running = run({ ...options, signal: stopRun.signal });
 	const until = async <T>(fn: () => T | false | undefined): Promise<T> => {
@@ -129,6 +135,16 @@ try {
 			commit(h.path, "root.txt", "root code\n"); commit(h.path, packet, "# Root reviewed evidence\n");
 		}
 		report(h);
+	}
+	if (zeroPublication) {
+		const merged = await until(() => load(repo, "root")?.finished === "done" && load(repo, "root"));
+		stopRun.abort(); await running; running = undefined;
+		assert.equal(creates, 1); assert.equal(mergeCalls, 1); assert.equal(merged.pr!.phase, "merged");
+		assert.equal(tracker.fields("root").stage, "done");
+		assert(!(await allThreads()).some(t => !t.archived && t.worker?.run === "root"));
+		console.log(JSON.stringify({ zeroPublication: true, creates, mergeCalls, head: merged.pr!.pushedHead, mergeCommit: merged.pr!.mergeCommit,
+			target: merged.target, ownerSync: merged.pr!.ownerSync, readiness: "real shell run finished; scratch resources retired" }, null, 2));
+		break journey;
 	}
 	await until(() => load(repo, "root")?.exceptions.root);
 	stopRun.abort(); await running; running = undefined;
@@ -203,8 +219,7 @@ try {
 	assert(isAncestor(identity.path, state.pr!.repair!.preparedHead!));
 	observations.receiptRecovery = { launchHandle, preparedHead: state.pr!.repair!.preparedHead, liveLaunches: workers.length, integrationFailures: state.pr!.integrationFailures };
 	// Inject another contributor between post-gate fetch and push via the real pre-push hook.
-	git(repo, "clone", "-q", remote, outsider); git(outsider, "checkout", "-qb", "contributor", "origin/" + identity.branch);
-	git(outsider, "config", "user.name", "Contributor"); git(outsider, "config", "user.email", "contributor@example.invalid");
+	git(outsider, "fetch", "-q", "origin"); git(outsider, "checkout", "-qb", "contributor", "origin/" + identity.branch);
 	foreign = commit(outsider, "foreign.txt", "contributor history\n");
 	const oldHook = readFileSync(join(repo, ".git/hooks/pre-push"), "utf8");
 	writeFileSync(join(repo, ".git/hooks/pre-push"), oldHook + "\nif test ! -f " + join(root, "race-once") +
@@ -261,6 +276,7 @@ try {
 	assert(!(await allThreads()).some(t => !t.archived && t.worker?.run === "root"));
 	assert.deepEqual(state.results.root.summary, originalResults.root.summary);
 	console.log(JSON.stringify(observations, null, 2));
+	}
 } finally {
 	stopRun?.abort(); await running?.catch(() => {});
 	// Registry and shell processes are private to this invocation.
