@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:technical
 author: session:01a12f4c-1aa6-75fe-9c2b-d81acad80dbd
 part-of: "[[projects/mlegls-pi/issues/reconcile-github-tracked-projects]]"
@@ -66,3 +66,43 @@ First use is an explicitly owned disposable GitHub repository/fork and isolated 
 ## Stories and acceptance at the join
 
 Preserve the original primary acceptance above: the two-ticket pr-merge failing-check repair/merge/close/owner-ff journey and the pr-review submitted-review repair/thread replies/second-request exception/human-merge-only close journey. The final packet also establishes one PR through restart, pending collector/staging results and outside blockers, base/contributor-history preservation, no idle workers during wait, closed-unmerged exception, and dirty/other-branch owner preservation. The actual GitHub tracker join establishes the same done-means-target property and native closing references; local vault behavior remains unchanged. Run existing tests (adapt kept setup/assertions only for deliberate new mode behavior), not new retained suites: no new retained tests are authorized by this decomposition. One-off driven fixtures are the explicitly recorded acceptance machinery.
+
+## Result
+
+done — every join story holds on the combined head. I made one small cleanup, and the repair at `5ce6d35d` is the driver's.
+
+- **Read:** the driver's packet and the production diff against the ticket's residual contract.
+- **Not re-driven:** I didn't re-run the live journey or the seeded replays. The cleanup removes a constant nothing read, so no behavior changed. The packet's results come from the driver's run at `5ce6d35d`.
+- **Tests:** `bun test lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts` gives 38 pass, 0 fail, 847 assertions in about 71 s. `bun run typecheck` is clean. There is no `test:affected` task here, so I ran the retained suites together.
+- **Structural pass:**
+  - **Duplication:** none. `pr-diagnostics.ts` only fetches failed-job logs, which `pr-host.ts` doesn't, and both use the ordinary `gh` identity. `isAncestor` is the one ancestry check used by integration, refinement and PR completion.
+  - **Stubs and guards:** no stubs and no `pullRequestLifecycleReady` guard remain.
+  - **Cleanup:** I removed the dead exported `prReviewLifecycleReady` constant from `lib/reconcile/pr-reviews.ts`. Nothing read it, and `nextReviewAction` is called unconditionally.
+  - **Packet:** the join-review section is appended to the combined index, and its mention of the flag is updated.
+- **Fixture friction:** `scratch-pr-rehearsal-shell-model-unavailable` stays open until the target integrates the fixture repair. I couldn't read the issue file because `docs/issues` is excluded from this worktree's checkout.
+
+```yaml
+commit: 999c9602
+stories:
+  - story: Two-ticket pr-merge crossing journey
+    outcome: held
+  - story: Submitted reviews and recovery, approved seeded boundary
+    outcome: held
+  - story: Staging, history preservation and owner safety
+    outcome: held
+evidence:
+  path: docs/attachments/land-reconciled-trees-through-pull-requests/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/pr-reviews.test.ts
+changes:
+  - Removed the dead prReviewLifecycleReady export in lib/reconcile/pr-reviews.ts (no reader; selector is unconditional)
+caveats:
+  - No new retained tests and no assertions changed.
+  - Review states (APPROVED, CHANGES_REQUESTED) are seeded under the maintainer's 2026-10-14 ruling, not live. Live evidence covers COMMENTED repair and an outside-process merge.
+  - The live journey and seeded replays cost minutes: pr-merge live 7 min, `staging.ts all` 8.5 min, checks probes 92 s, reviews probe 49 s.
+  - No servers, processes or other resources of mine are running. The scratch repository and local scratch areas are retained for the parent to dispose of.
+```
+
+Evidence: [docs/attachments/land-reconciled-trees-through-pull-requests/index.md](docs/attachments/land-reconciled-trees-through-pull-requests/index.md)
