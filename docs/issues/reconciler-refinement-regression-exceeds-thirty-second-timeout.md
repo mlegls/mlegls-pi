@@ -1,0 +1,6 @@
+---
+stage: "idea"
+assignee: "agent"
+author: "session:01a13a3f-da78-73c0-b126-58508cbcb7fb"
+---
+During reconcile-github-pr-transport first use, `bun test ./lib/reconcile ./lib/tracker-lint.test.ts ./lib/tracker-views.test.ts` timed out the kept `landed refinement stubs forbid discard or replacement before claim conversion; recovery needs no source checkout` test at 30002.76ms (lib/reconcile/refinement.test.ts). The run reported 18 pass, 1 skip, 1 fail plus an unhandled snapshot subprocess error after cancellation. A same-revision isolated rerun with `bun test ./lib/reconcile/refinement.test.ts -t 'landed refinement stubs forbid discard or replacement'` passed in 15407.03ms (34 assertions). No retained test was changed. Cause is not established; shared-host load is only a hypothesis. Workaround: rerun the timed-out case in isolation. See docs/attachments/reconcile-github-pr-transport/index.md for the originating transport story and exact evidence. This is outside the active PR-landing subtree.
