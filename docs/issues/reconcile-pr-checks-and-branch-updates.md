@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a13a33-2a17-714d-a4b1-0ff4fb53f8f0"
 part-of: "[[projects/mlegls-pi/issues/land-reconciled-trees-through-pull-requests]]"
-claimed-by: "reconcile:land-reconciled-trees-through-pull-requests"
 priority: 2
 ---
 # Deliverable
@@ -35,3 +34,41 @@ Expose owner exceptions through the run's existing resolution surface. Retrying 
 Use an owned scratch Git remote and an injected typed host to drive `advancePullRequest` from the real run's staging receipt, with isolated shell workers per the ledger rehearsal. Exercise a publication-save cut, a failing head check repaired within budget, remote contributor push before local push, base advancement/conflict, closed-unmerged, and merged while owner is unavailable. Store a runnable one-off probe and observations under `docs/attachments/reconcile-pr-checks-and-branch-updates/`. Distinguish seeded GitHub observations from real git integration, worker retirement and gate runs. Later rehearsal owns the live GitHub two-ticket journey.
 
 Acceptance: one recovered PR identity; no target close before proven merge; all remote head/base commits survive without rewritten history; gates precede pushes; wait holds no worker; pr-merge calls guarded merge only after all reported head checks pass; pr-review never calls merge; errors/closed/unrepairable/exhausted work become owner exceptions while state is resumable. Run existing reconciler/tracker tests and typecheck. No new retained tests are authorized.
+
+## Result
+
+done — I found two defects in `advancePullRequest` and repaired them. Both probe modes, 37 reconcile/tracker tests and typecheck pass on the repaired head `a937696b`.
+
+Repairs, both in `a937696b`:
+- **Review-selector flag:** the sibling review ticket would have had to guess at an undeclared `prReviewLifecycleReady` flag read through a type cast. It is now an exported `false` in `lib/reconcile/pr-reviews.ts`, next to the `nextReviewAction` stub, mirroring `pullRequestLifecycleReady`. The review path stays dormant until that ticket flips it.
+- **Integration budget:** `integrationFailures` counted across the whole PR, so a second repair started with the first one's failures. An owner `retry` after an integration-budget exhaustion also re-held at once. It now resets when a repair starts (`pull-request.ts` `beginRepair`) and on a PR-repair resolution (`reconcile.ts` `resolvePr`).
+
+I re-drove the normal and `publication-zero` probe modes and re-ran the reconcile and tracker tests. The review is appended to the driver's index, with the driver's first-use record left as written. The driver's frictions list was empty, so there was nothing to triage in the tracker.
+
+I also read the rest of the diff. I found nothing else that needed changing, and it is not a join, so there was no structural pass.
+
+```yaml
+commit: a937696b
+stories:
+  - {story: Publication identity recovery and worker-free waiting, outcome: held}
+  - {story: Bounded repair and contributor/base history preservation, outcome: held}
+  - {story: Resumable errors, exhaustion and closed-unmerged handling, outcome: held}
+  - {story: Review never merges; guarded merge proves ancestry before closure, outcome: held}
+  - {story: Immediate zero-check publication merge, outcome: held}
+evidence:
+  path: docs/attachments/reconcile-pr-checks-and-branch-updates/index.md
+  visual: false
+  shots: []
+tests: []
+fixed:
+  - {what: "Review-selector dormancy flag made explicit", commit: a937696b}
+  - {what: "Integration budget scoped to each repair", commit: a937696b}
+caveats:
+  - "GitHub observations in the probes were seeded; Git, gates and shell workers were real. Live GitHub and submitted-review behavior belong to the later rehearsal."
+  - "The sibling review ticket must set `prReviewLifecycleReady = true` in pr-reviews.ts when it fills `nextReviewAction`."
+  - "After a repair-budget exhaustion (2 repairs), an owner `retry` re-raises on the same failing check unless the owner has pushed a fix. The budget is not reset on retry, by design of the shared budget."
+  - "dfdb972b raises the existing refinement recovery test's timeout from 30 s to 120 s. Its assertions are unchanged."
+  - "The full test run took 163 s, and each probe mode took roughly 1–2 minutes on a shared host."
+```
+
+Evidence: [docs/attachments/reconcile-pr-checks-and-branch-updates/index.md](docs/attachments/reconcile-pr-checks-and-branch-updates/index.md)
