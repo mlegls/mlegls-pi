@@ -221,7 +221,7 @@ async function finishRepair(c: PullRequestContext, host: PullRequestHost): Promi
 	const pr = c.state.pr!, receipt = pr.repair!;
 	for (const thread of receipt.request.threadIds ?? []) {
 		const ids = receipt.request.reviewIds ?? [];
-		const marker = "reconcile:" + c.state.root + ":review:" + [...ids].sort().join(",") +
+		const marker = reviewSelector.replyMarkerPrefix(c.state.root) + [...ids].sort().join(",") +
 			":thread:" + thread + ":head:" + receipt.pushedHead;
 		if (!c.state.pr!.reviews.replies[marker]) {
 			host.reply(pr.path, pr.repository, thread, receipt.threadReplies![thread], marker);
@@ -397,7 +397,7 @@ export async function advancePullRequest(c: PullRequestContext): Promise<"waitin
 				"checks:" + snapshot.head + ":" + failed.map(check => check.id).sort().join(","),
 				"Failing checks on exact PR head " + snapshot.head + ":\n\n" + checksMessage(failed)));
 			if (c.state.land === "pr-review" && snapshot.reviews.length) {
-				const action = reviewSelector.nextReviewAction(pr, snapshot);
+				const action = reviewSelector.nextReviewAction(pr, snapshot, c.state.root);
 				persist(c, next => { next.reviews.processed = [...new Set([...next.reviews.processed, ...action.processed])]; });
 				if (action.kind === "exception") return hold(c, action.reason, action.message);
 				if (action.kind === "repair") return await beginRepair(c, action.request);

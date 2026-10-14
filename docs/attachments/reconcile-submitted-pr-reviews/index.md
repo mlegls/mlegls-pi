@@ -55,3 +55,9 @@ Real Git commits and runtime identity from the final disposable run, not hosted 
 - No new permanent tests added.
 - An earlier probe assertion compared the whole result object across legitimate target-completion metadata updates. It was narrowed to preserved original handoff/summary; final encounter replayed successfully.
 - Implementer first use above; [independent driver replay](drive.md) on revision `4166ee2438f6eddd84a5717cff5606ce4ab3885f` also exited 0 with one repair worker, two reply posts and zero host merge calls. Reviewer acceptance follows.
+
+## Review pass (2026-10-14)
+
+Defect found by reading the diff against GitHub's reply behaviour: `host.reply` posts the reconciler's thread reply as its own submitted COMMENTED review inside the still-unresolved thread, so each repair's replies would have been selected as a new actionable review and looped until the repair budget ran out. The seeded probe cannot show this (its reply storage creates no review).
+
+Repair: `nextReviewAction(pr, snapshot, root)` ignores a submitted review whose comments all carry `reconcile:<root>:review:` (shared via `replyMarkerPrefix`, also used to build reply markers), judged by marker rather than author; such IDs are durably processed. A human COMMENTED/CHANGES_REQUESTED review in the same thread still triggers, and a thread is requested only through the reviews that selected it, so a thread whose latest comment is the reconciler's reply is not re-requested unless a later human review comments in it. Retained test: `lib/reconcile/pr-reviews.test.ts`. Re-ran typecheck, `bun test lib/reconcile` (14 pass) and the seeded probe (exit 0 again: one worker, two replies, zero merge calls).

@@ -3,14 +3,22 @@ import type { PrReviewAction, PullRequestLanding, PullRequestSnapshot } from "./
 /** Submitted boundaries, not comment activity, own repair rounds. */
 export const prReviewLifecycleReady = true;
 
+/** Every reply the reconciler posts carries this prefix; GitHub files each reply as its own COMMENTED review. */
+export const replyMarkerPrefix = (root: string) => "reconcile:" + root + ":review:";
+
 /** Pure selection; the caller saves non-actionable progress and requests before dispatch. */
-export function nextReviewAction(pr: PullRequestLanding, snapshot: PullRequestSnapshot): PrReviewAction {
+export function nextReviewAction(pr: PullRequestLanding, snapshot: PullRequestSnapshot, root: string): PrReviewAction {
 	const processed: string[] = [];
 	const reviews = snapshot.reviews.filter(review => review.submittedAt &&
 		!pr.reviews.processed.includes(review.id) && !pr.reviews.repaired.includes(review.id))
 		.sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt));
+	// Judged by marker, not author: the maintainer may review from the reconciler's own login.
+	const ownReply = (review: { id: string }) => {
+		const comments = snapshot.threads.flatMap(thread => thread.comments.filter(comment => comment.reviewId === review.id));
+		return comments.length > 0 && comments.every(comment => comment.body.includes(replyMarkerPrefix(root)));
+	};
 	const actionable = reviews.filter(review => {
-		const threads = snapshot.threads.some(thread => !thread.resolved &&
+		const threads = !ownReply(review) && snapshot.threads.some(thread => !thread.resolved &&
 			thread.comments.some(comment => comment.reviewId === review.id));
 		if (review.state === "CHANGES_REQUESTED" ||
 			((review.state === "APPROVED" || review.state === "COMMENTED") && threads)) return true;
