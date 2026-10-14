@@ -1,5 +1,7 @@
 # PR staging and target closure
 
+Independent first-use replay at `cd2ee859`: [predictions, observations and replayable checks](drive.md). All five supplied encounters completed successfully.
+
 ## Setup and replay
 
 Tested code/setup: `078782f6` (bootstrap `b9dcb99b`). Required environment is an isolated private Git repository, board, registry, agents and XDG state, with shell workers and **no model calls**. The prepared target is disposable `/tmp/rc-pr-staging-*`, owned entirely by each invocation. A local bare remote provides actual fetch/merge ancestry; `seeded/staging` is a seeded host identity, **not live GitHub evidence**. No authentication or secrets are required.
