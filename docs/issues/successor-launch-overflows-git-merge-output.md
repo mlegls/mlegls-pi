@@ -15,3 +15,7 @@ Workaround applied to Common Concept's shared repository config: `git config --l
 The endpoint successor `serve-authenticated-stateless-mcp-for-authoring-drive-n` also failed with the same launch error. Its handler verified the workaround independently: implementer `4b126f4a49a35c10963743772106e90baf2eb0a0` merged collector `425a2f57bd8dadcdc85f144827e6bba85b2aadc1` in a disposable detached checkout with `merge.stat=false`, the reconciler's exact arguments and the default buffer. It succeeded with 73 bytes of stdout and no unmerged files; the checkout was removed. Retry independent drive, retaining the implementation and unchanged product acceptance.
 
 Recommendation: suppress merge summaries in automatic successor refresh (`--no-stat`), rather than requiring a repository config workaround. Also inspect failure cleanup: `newThread` reports partial resources cleaned, which was true here, but a worktree creation that itself throws before `owned = true` may not be removed. That latter case was not observed in this encounter. No source fix or test was attempted by the tracker-only exception handler.
+
+## Drive evidence
+
+[Independent runner encounter](../attachments/successor-launch-overflows-git-merge-output/index.md): 13 passing cases at `6289fc1`; merge suppression and output above 1 MiB held at the supplied regression surface. Pre-ownership worktree-creation failure cleanup remains unobservable in the runner output and requires reviewer confirmation under this ticket. Ticket remains open.

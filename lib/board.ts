@@ -15,7 +15,12 @@ export { logSize, meta, read, readFrom, send, topics, waitFor } from "./board/st
 export type { Message, Meta, Numbered, ReadOptions, TopicSummary } from "./board/store";
 
 if (import.meta.main) {
+	const usage = "usage: bun lib/board.ts cursor\n       bun lib/board.ts send <topic> [--tag t]... [--body b] [--data json]\n       bun lib/board.ts read [--topic glob] [--tags expr] [--limit n] [--fields full|meta] [--body-chars n]\n       bun lib/board.ts list [--topic glob]\n       bun lib/board.ts wait --topic glob [--tags expr] --from-offset n [--timeout ms]";
 	const [cmd, ...rest] = process.argv.slice(2);
+	if (cmd === "help" || process.argv.slice(2).some((arg) => arg === "--help" || arg === "-h")) {
+		console.log(usage);
+		process.exit(0);
+	}
 	const flags = (name: string) => {
 		const out: string[] = [];
 		for (let i = 0; i < rest.length; i++) if (rest[i] === `--${name}` && rest[i + 1] !== undefined) out.push(rest[++i]!);
@@ -34,53 +39,59 @@ if (import.meta.main) {
 	};
 	const print = (v: unknown) => console.log(JSON.stringify(v, null, 2));
 	const from = { name: process.env.PI_BOARD_NAME ?? basename(process.cwd()), cwd: process.cwd() };
-	switch (cmd) {
-		case "cursor":
-			print({ offset: logSize() });
-			break;
-		case "send": {
-			const data = opt("data");
-			print(send({
-				topic: need(pos[0], "topic"),
-				body: opt("body") ?? "",
-				tags: flags("tag"),
-				data: data !== undefined ? JSON.parse(data) : undefined,
-				from,
-			}));
-			break;
+	try {
+		switch (cmd) {
+			case "cursor":
+				print({ offset: logSize() });
+				break;
+			case "send": {
+				const data = opt("data");
+				print(send({
+					topic: need(pos[0], "topic"),
+					body: opt("body") ?? "",
+					tags: flags("tag"),
+					data: data !== undefined ? JSON.parse(data) : undefined,
+					from,
+				}));
+				break;
+			}
+			case "read": {
+				const fields = opt("fields") ?? "full";
+				if (fields !== "full" && fields !== "meta") throw new Error("fields must be full or meta");
+				const bodyChars = nat("body-chars", opt("body-chars"));
+				const { messages, omitted, total } = read({
+					topic: opt("topic"),
+					tags: opt("tags"),
+					limit: nat("limit", opt("limit")),
+				});
+				print({
+					messages: fields === "meta" ? messages.map((m) => meta(m, bodyChars ?? 120)) : messages,
+					omitted,
+					total,
+				});
+				break;
+			}
+			case "list":
+				print({ topics: topics(opt("topic")) });
+				break;
+			case "wait": {
+				const fromOffset = nat("from-offset", opt("from-offset"));
+				if (fromOffset === undefined) throw new Error("--from-offset required (bun lib/board.ts cursor before spawn)");
+				const hit = await waitFor(
+					{ topic: need(opt("topic"), "topic"), tags: opt("tags") },
+					{ fromOffset, timeoutMs: nat("timeout", opt("timeout")) },
+				);
+				if (!hit) process.exit(1);
+				print(hit);
+				break;
+			}
+			default:
+				console.error(usage);
+				process.exit(2);
 		}
-		case "read": {
-			const fields = opt("fields") ?? "full";
-			if (fields !== "full" && fields !== "meta") throw new Error("fields must be full or meta");
-			const bodyChars = nat("body-chars", opt("body-chars"));
-			const { messages, omitted, total } = read({
-				topic: opt("topic"),
-				tags: opt("tags"),
-				limit: nat("limit", opt("limit")),
-			});
-			print({
-				messages: fields === "meta" ? messages.map((m) => meta(m, bodyChars ?? 120)) : messages,
-				omitted,
-				total,
-			});
-			break;
-		}
-		case "list":
-			print({ topics: topics(opt("topic")) });
-			break;
-		case "wait": {
-			const fromOffset = nat("from-offset", opt("from-offset"));
-			if (fromOffset === undefined) throw new Error("--from-offset required (bun lib/board.ts cursor before spawn)");
-			const hit = await waitFor(
-				{ topic: need(opt("topic"), "topic"), tags: opt("tags") },
-				{ fromOffset, timeoutMs: nat("timeout", opt("timeout")) },
-			);
-			if (!hit) process.exit(1);
-			print(hit);
-			break;
-		}
-		default:
-			console.error("usage: bun lib/board.ts cursor\n       bun lib/board.ts send <topic> [--tag t]... [--body b] [--data json]\n       bun lib/board.ts read [--topic glob] [--tags expr] [--limit n] [--fields full|meta] [--body-chars n]\n       bun lib/board.ts list [--topic glob]\n       bun lib/board.ts wait --topic glob [--tags expr] --from-offset n [--timeout ms]");
-			process.exit(2);
+	} catch (error) {
+		console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+		console.error(usage);
+		process.exit(2);
 	}
 }
