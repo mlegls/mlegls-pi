@@ -1,6 +1,6 @@
 # Lint configurations
 
-Three kinds of check, by what a violation means.
+Two kinds of check, by what a violation means.
 
 Honesty, as errors: `any`, casts, non-null assertions, unnecessary
 conditions, `unwrap`, dead code, unused exports and dependencies, barrels.
