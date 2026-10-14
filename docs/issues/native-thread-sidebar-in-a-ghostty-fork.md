@@ -1,9 +1,9 @@
 ---
-stage: goal
+stage: done
 assignee: human
 author: session:01a0f69a-dbcb-7684-87de-422739d2c54e
 part-of: "[[projects/mlegls-pi/issues/threads-on-zmx-with-a-native-sidebar]]"
-blocked-by: ["[[projects/mlegls-pi/issues/check-zmx-reattach-with-pi]]", "[[projects/mlegls-pi/issues/thread-registry-on-zmx]]"]
+blocked-by: [ "[[projects/mlegls-pi/issues/check-zmx-reattach-with-pi]]", "[[projects/mlegls-pi/issues/thread-registry-on-zmx]]" ]
 priority: 2
 ---
 
@@ -46,3 +46,7 @@ holes:
 - untested by hand: IME, Ghostty keybindings, scroll, selection/copy, Cmd shortcuts.
 - SwiftUI `List`/`OutlineGroup` vs `NSOutlineView` for the sidebar (drag/drop and hover fidelity).
 - how the app hears about registry changes: polling the CLI, or watching files.
+
+## Result
+
+Superseded 2026-10-14: bb is the GUI for threads and workers, so the native Threads/Ghostty sidebar, the zmx-hosted thread GUI and tmux hosting are no longer pursued.
