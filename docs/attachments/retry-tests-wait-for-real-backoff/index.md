@@ -1,5 +1,7 @@
 # Retry trial timing
 
+Independent developer encounter: [driver packet](drive.md) (revision `9ba836be`, targeted run 20.80s; full-suite timeout reproduced as a passing isolated rerun).
+
 Implementation check on `9ceb54f7` (2026-10-14), Bun 1.4.3. Nonvisual offline fixture; fake bb workers, temporary fixture-owned repositories/state, no daemon, model or credentials. Dependencies were prepared with `mise run setup`; typechecking passed with `bun run typecheck`.
 
 ## Reproduce
