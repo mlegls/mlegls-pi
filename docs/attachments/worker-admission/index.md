@@ -19,8 +19,6 @@ Use the printed root as `ROOT`:
 
 - `bun docs/attachments/worker-admission/fixture.ts inspect ROOT`: thread state and the real `reconcile_status` projection over seeded, paused reconciler caches. No autonomous reconciler runs in this fixture.
 - `bun docs/attachments/worker-admission/fixture.ts threads ROOT`: thread CLI, including queued reason and workspace census.
-- `bun docs/attachments/worker-admission/fixture.ts tree-list ROOT`: text tree.
-- `bun docs/attachments/worker-admission/fixture.ts tree ROOT`: interactive sidebar; `q` closes the view without retiring workers.
 - Capacity: `bun docs/attachments/worker-admission/fixture.ts retire ROOT first`.
 - Pressure: `bun docs/attachments/worker-admission/fixture.ts low ROOT`, then inspect after the next two-second probe.
 - Finish: `bun docs/attachments/worker-admission/fixture.ts cleanup ROOT`. This retires only registered fixture workers, removes their worktrees/branches, then deletes the owned fixture directory.

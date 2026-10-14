@@ -105,4 +105,5 @@ if (action === "prepare") {
 	} else if (action === "cleanup") {
 		for (const t of await allThreads()) console.log(JSON.stringify(await abandonThread(t.id)));
 		rmSync(arg!, { recursive: true, force: true });
+	} else throw new Error("prepare capacity|pressure | inspect|threads|low|retire|cleanup ROOT [HANDLE]");
 }
