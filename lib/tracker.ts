@@ -42,6 +42,9 @@ export interface NewIssue {
 export interface Result { summary?: string; evidence?: string }
 
 export interface Tracker {
+	/** Optional backend capability. Vault omits it; GitHub returns the issue's native
+	 * identity regardless of its logical slug, for reconciled PR closing references. */
+	githubIssue?(slug: string): { repository: string; number: number; url: string };
 	snapshot(scope?: string): Map<string, Issue>;
 	/** Complete contract text, including metadata, suitable for a worker prompt. */
 	text(slug: string): string;

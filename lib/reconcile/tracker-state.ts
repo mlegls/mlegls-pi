@@ -64,6 +64,11 @@ export interface RefinementAttempt {
 export interface GlobalRunState {
 	root: string;
 	cwd: string;
+	/** Missing on pre-PR states means local. Captured at start, retained on resume. */
+	land?: import("./pr-types.ts").LandingMode;
+	pr?: import("./pr-types.ts").PullRequestLanding;
+	/** Local cwd, or github:<owner/name>:<base branch> after proven remote merge. */
+	target?: string;
 	landed: LandingLedger;
 	results: Record<string, ReviewedResult>;
 	landingOps: Record<string, LandingOperation>;
