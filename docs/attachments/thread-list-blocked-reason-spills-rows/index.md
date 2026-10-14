@@ -13,6 +13,10 @@ bun docs/attachments/thread-list-blocked-reason-spills-rows/first-use.ts
 bun docs/attachments/thread-list-blocked-reason-spills-rows/first-use.ts --json
 ```
 
+## Independent acceptance
+
+[Fresh driver encounter](drive-2.md) at `85652dad375505404bcc9f1688a23aa2f3143b37`: text rows, long-summary ellipses and full multiline JSON all held. Includes pre-use predictions, setup readiness, observations and replayable checks.
+
 ## Observed
 
 - Text invocation exited 0 and printed three physical lines for three threads. The indented child had both `report=blocked:` and `blocked=archive:` on its own line; each summary ended in `…`. Whitespace was collapsed to spaces, with each summary bounded to 160 characters including the ellipsis.
