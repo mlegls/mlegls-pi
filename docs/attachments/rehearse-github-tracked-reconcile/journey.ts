@@ -10,7 +10,7 @@ import type { State } from "../../../lib/reconcile/reconcile.ts";
 const repository = "mlegls/reconcile-pr-transport-20261014-35767b2d";
 const pkg = realpathSync(join(import.meta.dir, "../../.."));
 const action = process.argv[2] ?? "run";
-assert(["run", "status", "cleanup"].includes(action), "Use run|status|cleanup [owned directory]");
+assert(["run", "resume", "status", "cleanup"].includes(action), "Use run|resume|status|cleanup [owned directory]");
 const area = action === "run" ? realpathSync(mkdtempSync("/tmp/native-reconcile-")) : realpathSync(process.argv[3]);
 const manifestFile = join(area, "manifest.json");
 type Manifest = { repository: string; area: string; cwd: string; tested: string; issues: string[]; roots: string[];
@@ -122,7 +122,7 @@ async function claim(root: string, slug: string, h: Handle) {
   assert.equal(fields["claimed-by"], "reconcile:" + root);
   assert.deepEqual(issue.assignees, ["mlegls"]);
   assert.equal(journal.issues[slug].claim?.claimedBy, "reconcile:" + root);
-  record("claim-" + slug, { worker: h.handle, thread: h.threadId, issue, privateClaim: journal.issues[slug].claim, launchAt: state(root).chains[slug].launchedAt });
+  record("claim-" + slug, { worker: h.handle, thread: h.threadId, issue, privateClaim: journal.issues[slug].claim, launchAt: state(root).chains[slug]?.launchedAt });
 }
 async function finish(root: string, slug: string) {
   for (const phase of ["implement", "drive", "review"]) {
@@ -162,6 +162,7 @@ try {
   if (action === "status") { console.log(JSON.stringify(campaigns(m.cwd).map(summary), null, 2)); }
   else if (action === "cleanup") { await cleanup(); }
   else {
+    if (action === "run") {
     const viewer = api("user"), repo = api("repos/" + repository);
     assert.equal(viewer.login, "mlegls"); assert.equal(repo.full_name, repository);
     assert(repo.private && repo.has_issues && repo.permissions.admin && repo.permissions.push); assert.equal(repo.default_branch, "main");
@@ -194,11 +195,27 @@ try {
     execFileSync("mise", ["run", "pre-integrate"], {cwd:m.cwd,stdio:"pipe"});
     git(m.cwd, "push", "-q", "origin", "main");
     record("readiness", { head: head(m.cwd), setup: true, gate: true, checks: await green(head(m.cwd)), canonicalVaultAbsent: true });
+    }
     const tracker = getTracker(m.cwd, { inflight: false }); assert(tracker.githubIssue);
-    const root = create("native-spec", { stage: "spec" });
-    const a = create("native-a", { stage: "ticket", "part-of": root });
-    const b = create("native-b", { stage: "ticket", "part-of": root, "blocked-by": [a] });
-    const outside = create("native-outside", { stage: "ticket", "blocked-by": [a] });
+    const seed = m.observations.seed;
+    const root = seed?.root ?? create("native-spec", { stage: "spec" });
+    const a = seed?.a ?? create("native-a", { stage: "ticket", "part-of": root });
+    const b = seed?.b ?? create("native-b", { stage: "ticket", "part-of": root, "blocked-by": [a] });
+    const outside = seed?.outside ?? create("native-outside", { stage: "ticket", "blocked-by": [a] });
+    if (action === "resume") {
+      // An aborted controller before any reviewed landing may reuse its own disposed seed.
+      // Never reopen a merged/auto-closed issue, or alter saved completion receipts.
+      const prior = state(root);
+      assert(!Object.keys(prior.results).length && !Object.keys(prior.landed).length && !prior.pr?.number);
+      for (const id of [root,a,b,outside]) {
+        assert(m.issues.includes(id));
+        const row = native(id); assert.equal(row.stateReason,"not_planned");
+        gh(["api","--method","PATCH","repos/"+repository+"/issues/"+id.slice(3),"--input","-"],{state:"open"});
+      }
+      // A public metadata write invalidates the shared observation after explicit seed restoration.
+      cli(["update",root,"--fields",'{"stage":"spec","measurement":"owned-seed-restored"}']);
+      record("restoredOwnedSeed",{root,a,b,outside,noReviewedResults:true,noTargetCloseReceipts:true});
+    }
     const p = githubProject(m.cwd)!;
     const nativeRelations = () => {
       const snapshot = JSON.parse(readFileSync(join(p.directory,"snapshot.json"),"utf8")).snapshot;
@@ -218,7 +235,13 @@ try {
     const invalidated = snapshots(); tracker.snapshot(); assert.equal(snapshots()-invalidated,1);
     record("cache", { warmRequests: 0, warmReads: 24, realExpiryMs: githubCacheLifetime+1000, expiryRequests:1, externalCliWriteNextRefresh:1 });
     boot(root);
-    const ah = await ready(root,a,"implement"); await claim(root,root,ah); await finish(root,a);
+    const ah = await ready(root,a,"implement"); await claim(root,root,ah);
+    const schedulerWarm = snapshots();
+    for(let n=0;n<3;n++) { tracker.snapshot(); tracker.fields(a); tracker.text(root); cli(["snapshot",root,"--json"]); }
+    await Bun.sleep(11_000); // production's five-second loop reads the same complete warm snapshot
+    assert.equal(snapshots()-schedulerWarm,0);
+    record("warmScheduler", {requests:0,publicReads:12,elapsedMs:11000,tickMs:5000,activeWorker:ah.handle});
+    await finish(root,a);
     const bh = await ready(root,b,"implement"), s = state(root);
     assert.equal(s.landed[a].into,root); assert(!s.results[a].closedAt);
     assert(existsSync(join(bh.path,"fixture/"+a+".txt")));
