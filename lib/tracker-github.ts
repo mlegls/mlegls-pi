@@ -43,6 +43,7 @@ interface Node {
 	blockedBy: string[];
 	guards: string[];
 	claims: Issue["claims"];
+	receipt?: GithubReceipt;
 }
 
 function fallbackHeaders(body: string): { parent?: number; blockers: number[] } {
@@ -99,7 +100,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		if (types.length) fields["github-types"] = types.map(label => label.slice("wayfinder:".length));
 		all.set(slug, {
 			native, body: decoded.body, fields, stage: native.state === "CLOSED" ? "done" : "idea",
-			assignee, partOf: null, blockedBy: [], guards: [], claims,
+			assignee, partOf: null, blockedBy: [], guards: [], claims, receipt,
 		});
 	}
 	const parent = (child: Node, parentSlug: string) => {
@@ -116,8 +117,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 				const row = all.get(slugOf(edge.number));
 				requireGithub(row && row.native.id === edge.id && row.native.state === edge.state, "missing/inconsistent native parent " + edge.url);
 				parent(node, slugOf(edge.number));
-			}
-			else node.guards.push("github-parent: " + edge.url);
+			} else node.guards.push("github-parent: " + edge.url);
 		}
 		for (const child of node.native.subIssues) {
 			if (local(child)) {
@@ -145,7 +145,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 	}
 	for (const [slug, node] of all) {
 		const kids = [...all.values()].filter(child => child.partOf === slug);
-		const receipt = readGithubReceipt(project, snapshot, node.native, options.run ?? process.env.PI_WM_RUN);
+		const receipt = node.receipt;
 		if (node.native.state === "OPEN" && node.assignee && agentSelector(node.assignee)) {
 			node.stage = kids.length ? null : node.partOf ? "ticket" : "spec";
 			if (receipt && Object.hasOwn(receipt, "stage")) {
@@ -223,7 +223,7 @@ function logicalFields(node: Node): Fields {
 	if (node.claims.length) fields["claimed-by"] = node.claims.map(claim => claim.claimedBy).join("; ");
 	fields.github = {
 		repository: node.native.repository.nameWithOwner, number: node.native.number, url: node.native.url,
-		state: node.native.state, stateReason: node.native.stateReason, assignees: node.native.assignees,
+		state: node.native.state, stateReason: node.native.stateReason, author: node.native.author, assignees: node.native.assignees,
 		labels: node.native.labels.map(label => label.name), parent: node.native.parent,
 		subIssues: node.native.subIssues, blockedBy: node.native.blockedBy,
 	};

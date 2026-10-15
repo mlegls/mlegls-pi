@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { Database } from "bun:sqlite";
 import { checkout, git } from "./thread/git.ts";
 
@@ -152,6 +153,7 @@ function coverage<T extends { id: string }>(pages: Paged<T>, locator: string): T
 	const nodes = new Map<string, T>();
 	for (const node of [...first.nodes, ...last.nodes]) {
 		requireGithub(node && typeof node.id === "string" && node.id, locator + ": null/malformed node");
+		requireGithub(!nodes.has(node.id) || isDeepStrictEqual(nodes.get(node.id), node), locator + ": inconsistent overlapping node " + node.id);
 		nodes.set(node.id, node);
 	}
 	requireGithub(nodes.size === first.totalCount, locator + ": incomplete connection: " + nodes.size + "/" + first.totalCount
