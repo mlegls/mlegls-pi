@@ -82,7 +82,9 @@ export function decodeGithubBody(body: string): { fields: Fields; body: string; 
 }
 export function encodeGithubBody(body: string, fields: Fields, marker?: string): string {
 	requireGithub(!/<!-- mlegls-pi:tracker(?:\n|$)/.test(body), "replacement body contains reserved adapter envelope");
-	return body + "\n<!-- mlegls-pi:tracker\n" + JSON.stringify({ ...fields, ...(marker ? { $correlation: marker } : {}) }) + "\n-->";
+	// "<" and ">" only occur inside JSON strings: escape them so a value containing "-->" cannot end the HTML comment early.
+	const json = JSON.stringify({ ...fields, ...(marker ? { $correlation: marker } : {}) }).replace(/[<>]/g, char => char === "<" ? "\\u003c" : "\\u003e");
+	return body + "\n<!-- mlegls-pi:tracker\n" + json + "\n-->";
 }
 
 /** Pending create intents are already exact receipts: the random marker, parent,
