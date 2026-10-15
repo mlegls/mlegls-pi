@@ -1,5 +1,7 @@
 # Public GitHub tracker activation
 
+[Independent first-use drive (gh-90/gh-91)](drive.md): predictions, observed public-surface outcomes, replay checks and cleanup.
+
 Nonvisual first use, 2026-10-15. Entry from this package checkout after `mise run setup`:
 
 ```sh
