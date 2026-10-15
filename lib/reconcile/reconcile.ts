@@ -304,7 +304,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	};
 	const view = (into: string): Map<string, Issue> => {
 		const attempts = Object.values(s.refinements).filter(a => a.phase !== "accepted" && a.phase !== "removed");
-		return schedulingView(snapshot(), { root: s.root, into, landed: s.landed,
+		// Dispatch passes a checkout path; collector progress is keyed by its logical issue.
+		const logicalInto = Object.entries(s.collectors).find(([, collector]) => collector.path === into)?.[0] ?? into;
+		return schedulingView(snapshot(), { root: s.root, into: logicalInto, landed: s.landed,
 			attemptClaims: new Set(attempts.map(a => a.claim)),
 			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
 	};
