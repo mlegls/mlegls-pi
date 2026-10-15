@@ -1,6 +1,6 @@
 # Native GitHub reconciler rehearsal
 
-**Current parent join:** [final-revision crossing packet](../github-issues-as-a-tracker-backend/index.md). The supervisor's 2026-10-15 clarification defines one query per refresh as one complete logical snapshot, allowing counted cursor pages within it. The bounded alias detour a5d3b214 is reverted; no connection is capped at 200. The controller now uses the committed CLI pin and checks that every worker's `.wm/launch.env` carries that same revision.
+**Current parent join:** [final-revision crossing packet](../github-issues-as-a-tracker-backend/index.md). The supervisor's 2026-10-15 clarification defines one query per refresh as one complete logical snapshot, allowing counted cursor pages within it. The bounded alias detour a5d3b214 is reverted; no connection is capped at 200. The controller now uses the committed CLI pin and checks that every worker's `.wm/launch.env` carries that same revision. The final 9a6ea956 replay passed: **44 complete logical refreshes / 88 cursor-page requests**, PR #137 merged, both active-run rate-limit holds passed, and all owned workers retired. See the linked packet for current observations; sections below preserve earlier rounds.
 
 Independent drive on bc32a67d: [encounter, predictions and blocking setup gap](drive.md). Prepared inspection passed; full replay then failed setup capacity before launch (see the replay below for the repair).
 
