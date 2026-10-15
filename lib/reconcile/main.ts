@@ -98,7 +98,8 @@ export async function stop(cwd: string, root: string) {
 export function campaigns(cwd: string): (State & { running: boolean })[] {
 	const dir = stateDir(cwd);
 	if (!existsSync(dir)) return [];
-	return readdirSync(dir).filter(f => f.endsWith(".json")).map(f => load(cwd, f.slice(0, -5))!).filter(Boolean).map(s => ({ ...s, running: !s.finished && !!s.pid && alive(s.pid) }));
+	// Only <root>.json is a run's state: the GitHub tracker keeps <root>.github.json journals beside it.
+	return readdirSync(dir).filter(f => /^[^.]+\.json$/.test(f)).map(f => load(cwd, f.slice(0, -5))!).filter(Boolean).map(s => ({ ...s, running: !s.finished && !!s.pid && alive(s.pid) }));
 }
 
 export function summary(s: State & { running: boolean }) {
