@@ -1,5 +1,5 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 author: session:01a12f4c-1aa6-75fe-9c2b-d81acad80dbd
 part-of: "[[projects/mlegls-pi/issues/reconcile-github-tracked-projects]]"
@@ -71,3 +71,41 @@ Worker branch github-issues-as-a-tracker-backend-implement-h, evidence head 62a8
 [Final residual-join packet](../attachments/github-issues-as-a-tracker-backend/index.md): native replay passed in the authorized scratch repository, PR #137 merged with fetched ancestry, child-first saved-result/evidence publication (not a claim of host auto-close ordering), outside dependent unblocked, promotion/restart and exact provisional discard held. Both production run() rate-limit holds preserved worker failure/report state, made zero GitHub requests and raised no owner mail/exceptions. All 44 logical refreshes were complete/minimal: 88 counted snapshot requests, zero orphan pages, up to 129 native issues. Above-200 coverage is fixture evidence, not a live size claim. Existing focused regressions and typecheck passed. All owned workers stopped/retired; supplied history and disposable local inspection area retained, inventory in packet.
 
 Entry: bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run (existing mlegls gh authentication; only mlegls/reconcile-pr-transport-20261014-35767b2d). Read-only pin entry: bun docs/attachments/github-issues-as-a-tracker-backend/pin.ts. Parent owns integration and independent acceptance; this handoff does not close the global ticket.
+
+## Result
+
+done
+
+The collector merge is committed as `c3838e65`. The review note is `f17aa788`. Typecheck is clean and the reconcile and tracker tests pass. I did not re-run the live scratch-repository replay on the merged head.
+
+- **Conflict:** `view()` in `lib/reconcile/reconcile.ts` had two edits. The worker side keyed collector progress by its logical issue (`logicalInto`). The collector side added `inherited` landings, which count a landing into an enclosing collector once the destination contains its head. I kept both and computed `inherited` against `logicalInto`.
+- **Supervisor constraint:** a5d3b214 is still in the history, but 9a6ea956 reverts its snapshot change. Net to f802ab0c, the only changes in `lib/tracker-github.ts` are a comment and the CLI pin fix in `lib/thread/bb.ts`. Cursor paging is back, with the 256-issue, 110-comment fixture in `lib/tracker-github.test.ts`. The dated logical-refresh decision is already in the spec.
+- **Checks:** `bunx tsc --noEmit` is clean. `bun test lib/reconcile lib/tracker` gave 30 pass, 1 skip, 0 fail. The skip is "CLI snapshot parity against selected project vault". There is no `test:affected` task in this project, so I ran those directories directly. Setup ran after the merge.
+- **Not re-run:** the live replay. The merge only touches scheduling for collector landings, which `scheduling.test.ts` and `landing.test.ts` cover.
+
+```yaml
+commit: f17aa788
+stories:
+  - story: Native tree through collector and proven PR merge
+    outcome: held
+  - story: Promotion/restart and failed provisional cleanup
+    outcome: held
+  - story: Complete cached snapshots and rate-limit report preservation
+    outcome: held
+evidence:
+  path: docs/attachments/github-issues-as-a-tracker-backend/drive.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/scheduling.test.ts
+  - lib/reconcile/landing.test.ts
+  - lib/tracker-github.test.ts
+filed:
+  - docs/issues/native-rehearsal-status-fails-after-completion.md
+caveats:
+  - "Live replay not re-run after the collector merge; the merged change is covered by the scheduling and landing tests."
+  - "Above-200 coverage is fixture evidence, not a live size claim."
+  - "No new tests added and no kept-test assertions changed."
+```
+
+Evidence: [docs/attachments/github-issues-as-a-tracker-backend/drive.md](docs/attachments/github-issues-as-a-tracker-backend/drive.md)
