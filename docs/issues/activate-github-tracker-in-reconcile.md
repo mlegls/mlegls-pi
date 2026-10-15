@@ -34,8 +34,8 @@ Use only mlegls/reconcile-pr-transport-20261014-35767b2d for any remote mutation
 
 ## Stories / required handoff claims
 
-- Public GitHub CLI/library wiring and canonical selection: held on the reported final head, with the bounded public API/CLI and canonical selection evidence above.
-- Stable reservation, provisional receipt and native move-out: held on the reported final head for the bounded adapter/entry-point observations actually driven. Do not describe direct adapter calls as an observed production worker launch or supervised run-loop crossing.
+- Public GitHub CLI/library wiring and canonical selection: must hold on the reported final head, with the bounded public API/CLI and canonical selection evidence above.
+- Stable reservation, provisional receipt and native move-out: must hold on the reported final head for the bounded adapter/entry-point observations actually driven. Do not describe direct adapter calls as an observed production worker launch or supervised run-loop crossing.
 
 The activation handoff must list these two required stories with their observed outcomes, final commit and evidence packet. Full worker launch, recovery and target landing is not an activation story and must not appear as held here. Preserve any unexercised run-loop/catch-site wiring and final-head live-encounter limits as explicit evidence caveats; these are pending rehearsal observations, not failed product observations reclassified as held. Any actual failed in-scope product observation still requires repair or a blocker.
 
