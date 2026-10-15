@@ -24,7 +24,7 @@ loop, memory log) is tagged `prototype`.
 
 ## Development
 
-`bun run setup`, then `bun test`. Tracker CLI tests run in their own package:
+`bun run setup`, then `mise run test` (queued behind the host-wide heavy slots; `bun test <file>` for one file). Tracker CLI tests run in their own package:
 `bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts`.
 
 User skills live under `skills/enabled/{all,claude,codex,pi}`, worker agents under `agents/`, and
