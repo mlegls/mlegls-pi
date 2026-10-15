@@ -36,4 +36,7 @@ This probes public wiring, canonical selection, root reservation and backend ope
 - `bun test skills/enabled/all/mlegls/conventions/tracker/scripts`: 24 pass / 0 fail, 681 assertions.
 - `bunx tsc --noEmit`: clean.
 
-No retained tests were added or weakened. Full existing suite results are recorded after the final run below.
+- Final `mise run test`: 223 pass / 2 skip / 0 fail across 51 files, 12,438 assertions (3m23s). Existing skips: concurrent thread workers and selected-project CLI parity.
+- Final `bunx tsc --noEmit`: clean after the reservation/recovery wiring and encounter were complete.
+
+No retained tests were added or weakened. Implementation/evidence commit: `4bb3a68a`; this final check record follows it.
