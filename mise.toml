@@ -1,2 +1,8 @@
 [tasks.setup]
 run = "bun run setup"
+
+[tasks.test]
+run = """
+command -v heavy >/dev/null 2>&1 || { echo "heavy must be on PATH to queue tests" >&2; exit 1; }
+exec heavy bun test
+"""

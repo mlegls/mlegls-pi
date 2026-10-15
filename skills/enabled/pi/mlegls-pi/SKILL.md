@@ -5,7 +5,7 @@ description: "Use when editing this package from any session: repo layout, testi
 
 canonical checkout `~/dev/mlegls-pi`. worktrees under `~/dev/mlegls-pi__worktrees/`. pi-package: `extensions/`, `lib/` (host extensions are `lib/<name>/host.ts`), `skills/enabled/pi/{pi,mlegls-pi}`, `prompts/`, `themes/`. user skills `skills/enabled`, `agents/`, `agent-prompts/` (system-config symlinks these and runs agents-apply).
 
-every extension entrypoint is listed explicitly in `package.json` under `pi.extensions`. `/reload` or restart pi after changing extension code. `bun test`; `bunx tsc --noEmit` for typechecking.
+every extension entrypoint is listed explicitly in `package.json` under `pi.extensions`. `/reload` or restart pi after changing extension code. `mise run test` for the full suite (host-wide heavy queue); `bun test <file>` is fine for a single file. `bunx tsc --noEmit` for typechecking.
 
 ## hosts
 
