@@ -371,8 +371,9 @@ try {
     await claim(root,b,bh);
     commit(bh.path, "fixture/" + b + ".txt", b + " native code\n");
     commit(bh.path, packet(b), "# " + b + "\n\nNative GitHub issue fixture. Code and joins observed via production shell phases. Entry: mise run pre-integrate.\n");
+    const bWriter = writerPid(bh), bHead = head(bh.path); // the worker is retired once its report is consumed
     await holdPendingReport(root,b,bh);
-    record("worker-" + b + "-implement", { handle: bh.handle, thread: bh.threadId, writer: writerPid(bh), head: head(bh.path) });
+    record("worker-" + b + "-implement", { handle: bh.handle, thread: bh.threadId, writer: bWriter, head: bHead });
     await finish(root,b,["drive","review"]); await finish(root,root);
     await until(()=>state(root).pr?.number,"root PR",root);
     const pub = state(root), pr = host.observe(m.cwd,repository,pub.pr!.number!);
