@@ -44,6 +44,17 @@ Only observed `MERGED` metadata plus fetched Git ancestry closes carried nodes, 
 
 ## Rehearsal and evidence
 
+For the native GitHub tracker (not the earlier separate-vault fixture), use the [owned native-issue controller](../attachments/rehearse-github-tracked-reconcile/index.md):
+
+```sh
+bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run
+# Inspect or clean only the directory printed by that command:
+bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts status OWNED_DIRECTORY
+bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts cleanup OWNED_DIRECTORY
+```
+
+It requires existing `gh` authentication as mlegls and mutates only the explicitly authorized private scratch repository. It commits the canonical GitHub convention, seeds native issues/relations, waits for real setup/gates/Actions, and launches deterministic shell phases through the production thread path. It preserves artifact commits and the supplied repository; the manifest lists retained local state and any new labels. No credentials or new permissions are provisioned.
+
 [Combined join evidence](../attachments/land-reconciled-trees-through-pull-requests/index.md) and [owned live rehearsal](../attachments/rehearse-reconciled-github-pr-landings/index.md):
 
 ```sh
