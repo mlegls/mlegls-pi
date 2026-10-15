@@ -10,6 +10,7 @@ export interface GithubReceipt {
 	stage?: Stage | null;
 	claim?: { claimedBy: string; assigneeId: string };
 	removed?: boolean;
+	removing?: { parent: string | null };
 }
 export interface CreationIntent {
 	marker: string;
@@ -30,7 +31,7 @@ export interface GithubJournal {
 	creates: Record<string, CreationIntent>;
 	updates: Record<string, { fields: Fields; body?: string; claim?: GithubReceipt["claim"] }>;
 	closes: Record<string, { marker: string; body: string; done?: boolean }>;
-	removes: Record<string, { claim: NonNullable<GithubReceipt["claim"]>; done?: boolean }>;
+	removes: Record<string, { claim: NonNullable<GithubReceipt["claim"]>; parent: string | null; done?: boolean }>;
 	moves: Record<string, { marker: string; body: string; done?: boolean }>;
 }
 export const reconcileDirectory = (project: GithubProject) => dirname(dirname(project.directory));
@@ -98,6 +99,13 @@ export function readGithubReceipt(project: GithubProject, snapshot: GithubSnapsh
 	for (const raw of journals) {
 		if (raw.repository !== identity(project)) continue;
 		const receipt = raw.issues[slug];
+		const removal = raw.removes[slug];
+		if (removal && !removal.done) {
+			const finished = issue.state === "CLOSED" && issue.stateReason === "NOT_PLANNED" && !issue.parent
+				&& !issue.blockedBy.some(edge => edge.repository.id === snapshot.repository.id)
+				&& !issue.assignees.some(user => user.id === removal.claim.assigneeId);
+			base = { ...base, ...(finished ? { removed: true } : { removing: { parent: removal.parent } }) };
+		}
 		const pending = raw.updates[slug]?.claim;
 		if (pending && issue.assignees.some(user => user.id === pending.assigneeId)) claim = pending;
 		if (receipt?.claim && !pending) {

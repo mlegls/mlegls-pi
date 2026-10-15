@@ -111,6 +111,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		}
 	}
 	for (const [slug, node] of all) {
+		if (!node.partOf && node.receipt?.removing?.parent) parent(node, node.receipt.removing.parent);
 		const fallback = fallbackHeaders(node.body);
 		if (!node.partOf && !node.native.parent && fallback.parent) parent(node, slugOf(fallback.parent));
 		for (const blocker of node.native.blockedBy) {

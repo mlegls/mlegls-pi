@@ -248,6 +248,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 	return {
 		create(request) {
 			return write((snapshot, run) => {
+				requireGithub(typeof request.slug === "string" && request.slug.trim() && typeof request.body === "string", "create requires a requested title/slug and Markdown body");
 				const fields: Fields = { ...request.fields, author: request.fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined) };
 				requireGithub(fields.author, "create requires author or PI_SESSION_ID");
 				const rows = view(snapshot); validate(fields, rows, "new", request.body);
@@ -307,6 +308,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 					const body = resultBody(result.summary, result.evidence), marker = "<!-- mlegls-pi:result:" + hash({ slug, result }) + " -->";
 					intent = journal.closes[slug] = { marker, body: [body, marker].filter(Boolean).join("\n\n") }; saveJournal(project, journal, run?.root);
 				}
+				requireGithub(intent.marker === "<!-- mlegls-pi:result:" + hash({ slug, result }) + " -->", "close already has a different saved reviewed result");
 				if (intent.done) return;
 				if (savedClaim(snapshot, issue)) own(snapshot, issue, run);
 				comment(issue, intent.marker, intent.body, snapshot.viewer.login);
@@ -323,23 +325,31 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 				const issue = native(snapshot, slug), journal = loadJournal(project, run?.root);
 				if (journal.removes[slug]?.done) return;
 				const pending = journal.removes[slug];
+				requireGithub(issue.state === "OPEN" || issue.stateReason === "NOT_PLANNED", "cannot discard an already completed issue");
 				const claim = pending && run && !issue.assignees.length ? pending.claim : own(snapshot, issue, run);
 				requireGithub(run, "remove requires saved run authority");
 				const owner = attempt(run, claim.claimedBy);
-				requireGithub(owner && ["writing", "stopping", "cleaning"].includes(owner.phase) && !owner.baseline.includes(slug) && owner.node !== slug, "remove requires still-owned provisional child");
+				requireGithub(owner && (["writing", "stopping", "cleaning"].includes(owner.phase) || pending && owner.phase === "removed" && !owner.successor)
+					&& !owner.baseline.includes(slug) && owner.node !== slug && (!pending || pending.claim.claimedBy === claim.claimedBy), "remove requires still-owned provisional child");
 				const rows = view(snapshot);
 				requireGithub(contains(rows, slug, owner.node) || journal.removes[slug], "provisional child moved outside attempt");
 				requireGithub(![...rows].some(([id, row]) => id !== slug && (row.partOf === slug || row.blockedBy.includes(slug))), "retained children/dependents prevent removal");
 				requireGithub(issue.assignees.every(user => user.id === claim.assigneeId), "foreign assignment prevents removal");
-				journal.removes[slug] ??= { claim }; saveJournal(project, journal, run?.root);
-				relations(snapshot, issue, { "part-of": null, "blocked-by": [] });
-				if (issue.state === "OPEN") mutation("closeIssue", "CloseIssueInput", { issueId: issue.id, stateReason: "NOT_PLANNED" });
+				const remoteFinished = pending && issue.state === "CLOSED" && issue.stateReason === "NOT_PLANNED" && !issue.parent
+					&& !issue.blockedBy.some(edge => edge.repository.id === snapshot.repository.id) && !issue.assignees.length;
+				if (!remoteFinished) {
+					validate({ "part-of": null, "blocked-by": [] }, rows, slug);
+					journal.removes[slug] ??= { claim, parent: rows.get(slug)?.partOf ?? null }; saveJournal(project, journal, run?.root);
+					if (issue.state === "OPEN") mutation("closeIssue", "CloseIssueInput", { issueId: issue.id, stateReason: "NOT_PLANNED" });
+					applyUpdate(snapshot, slug, { "part-of": null, "blocked-by": [] }, undefined, run);
+				}
 				release(snapshot, issue, run);
 				const shared = loadJournal(project); (shared.issues[slug] ??= {}).removed = true; delete shared.issues[slug]!.claim; saveJournal(project, shared);
 				const complete = loadJournal(project, run?.root); complete.removes[slug]!.done = true; saveJournal(project, complete, run?.root);
 			});
 		},
 		moveOut(slug, reason) {
+			requireGithub(typeof reason === "string" && reason.trim(), "move-out requires a reason");
 			write((snapshot, run) => {
 				const issue = native(snapshot, slug), journal = loadJournal(project, run?.root);
 				let intent = journal.moves[slug];
@@ -349,6 +359,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 					const marker = "<!-- mlegls-pi:move-out:" + hash({ slug, reason }) + " -->";
 					intent = journal.moves[slug] = { marker, body: reason + "\n\n" + marker }; saveJournal(project, journal, run?.root);
 				}
+				requireGithub(intent.marker === "<!-- mlegls-pi:move-out:" + hash({ slug, reason }) + " -->", "move-out already has a different saved reason");
 				if (intent.done) return;
 				requireGithub(issue.labels.some(label => [project.roles["ready-for-agent"], project.roles["ready-for-human"]].includes(label.name)), "owner changed routing during move-out");
 				comment(issue, intent.marker, intent.body, snapshot.viewer.login);
