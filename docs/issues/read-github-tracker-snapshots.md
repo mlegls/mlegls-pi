@@ -3,7 +3,7 @@ stage: "ticket"
 assignee: "agent:technical"
 author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
-claimed-by: "reconcile:github-issues-as-a-tracker-backend/github-issues-as-a-tracker-backend-refine-1"
+claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
 ---
 Implement the read side of the GitHub `Tracker` adapter. Story: a ready GitHub issue tree can enter the existing reconciler without a vault or branch-local issue files; workers receive the actual issue body and comments, and collector-local scheduling still distinguishes global open blockers.
