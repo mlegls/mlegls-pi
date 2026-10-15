@@ -30,3 +30,7 @@ Replay: run inspect.ts and accept the counts above; run journey.ts run and requi
 
 Nonvisual: visual false; shots []. No browser, server, remote fixture mutation or worker started. Both managed commands ended. Inspect reported its clone removed. Failed preflight left owned area /private/tmp/native-reconcile-YfjfSs; its manifest recorded empty issues/roots/labels/branches/processes and progress preflight. Removed that owned area after checking the manifest. Inherited rehearsal areas were not touched.
 
+
+## Review (2026-10-15)
+
+The driver's setup finding was a controller admission guard, not a product failure: repaired and replayed live on the same preserved repository, with the rate-limit hold. Outcomes, ids and measurements are in the [index](index.md#fresh-native-replay-and-rate-limit-hold-review-2026-10-15); the driver's first-use record above is unchanged. Previously unobservable transient stories (claim-before-launch, collector unlock while OPEN, exact-PID recovery, per-refresh accounting, hold with failing worker CLI) are now observed there.

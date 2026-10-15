@@ -1,6 +1,8 @@
 # Native GitHub reconciler rehearsal
 
-Independent drive on bc32a67d: [encounter, predictions and blocking setup gap](drive.md). Prepared inspection passed; full replay failed setup capacity before launch. Required mid-run rate-limit/worker-report survival remains unobservable; historical held sections below do not waive this gate.
+**Fresh replay on the combined final revision: [section below](#fresh-native-replay-and-rate-limit-hold-review-2026-10-15) — all five native journeys plus the active-run rate-limit hold were observed live on the same preserved repository (evidence in [replay/](replay/api-extracts.json)).** The sections after it are the first encounter (bc32a67d), kept as history: its "single-page, 90-issue" admission guard was a controller restriction, since removed; its one-request-per-refresh measurement was specific to repositories of at most 100 issues.
+
+Independent drive on bc32a67d: [encounter, predictions and blocking setup gap](drive.md). Prepared inspection passed; full replay then failed setup capacity before launch (see the replay below for the repair).
 
 Nonvisual: **visual: false; shots: []**. Live native issues, relations, assignments, Git history, Actions and PR merge; deterministic shell phase reports, not paid models. No local vault or mock githubIssue capability.
 
@@ -34,13 +36,57 @@ bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts status OWNED_D
 bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts cleanup OWNED_DIRECTORY
 ~~~
 
-The fresh mutation command preflights enough room for ten issues within one 100-issue page. The retained target now has 95 issues, so another single-page rehearsal is **setup-not-ready**, not a backend failure; use the read-only prepared entry above. Do not delete inherited issues to make room. Pagination is separately covered by the existing reader regression; this packet's one-query claim is measured on the actual 85–95-issue run, not generalized beyond that size.
+The first controller refused to start when the repository already held more than 90 issues (it wanted its ten new issues inside one 100-issue page). That guard was removed in the replay below: the production reader pages by cursor inside one logical refresh, and the controller now accounts for requests per refresh instead of assuming one.
 
 The controller owns private XDG/cache/board/registry/agents and uses the existing shellBb fixture around the production dispatch/thread/phase/integration path. Its ordinary board reports carry committed scratch code/evidence. A live shell writer PID is registered and exact-stop-confirmed; BB CLI turn execution is deterministic, not a live paid provider. Every GitHub backend call delegates unchanged, except the explicitly armed successful-create-response loss. No controller writes landing/refinement/completion receipts.
 
 Canonical docs/agents/issue-tracker.md and the three-column triage table were committed to scratch main, with **no docs/issues**. Four missing labels (needs-triage, needs-info, ready-for-agent, ready-for-human) were created explicitly; inherited wontfix and other labels were preserved. Prepared scratch base **9df76e8420538864beb7ffc52e4b6930fbaa216a** passed setup, the original gate criteria with an owned receipt destination, and real Actions job **116315676514**, run **38703063388**.
 
-## Tested revisions and selected evidence
+## Fresh native replay and rate-limit hold (review, 2026-10-15)
+
+Drive was skipped for this ticket (the driver could not repair the controller); this section is the reviewer's live re-drive, the post-landing gate for the ticket. Predictions above were not changed. Nonvisual: **visual: false; shots: []**.
+
+**What failed before, and the repair.** `journey.ts run` stopped at preflight with "ten new native issues would exceed one 100-issue page" because the preserved repository already held 95 issues. That was the controller's own admission assertion, not a production defect: the snapshot reader follows cursors (d22b1051), and no real run is affected by the repository size. The repair (4fb3ff5c) removes the guard and keeps cursor paging; it does not add an aliased single-query cap. Measurements now group requests into logical refreshes (`refreshes.ts`): one `TrackerSnapshot` plus the `TrackerIssues` cursor pages that the same process issues next. A refresh counts as **complete** only when its unique issue node ids equal the connection `totalCount` and the last page reports no next page; it is **minimal** when its requests equal ceil(issues / 100) with nothing issued per issue.
+
+**Tested revision:** journey run at **3b36ec18885bac85c8b0c18a53474daf658f073a** (production seam 1ee48b03 plus the controller). Later commits change only the regression's hold length, the capture/inspect accounting and this evidence. Command: `bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run`. Persona: existing mlegls gh authentication, private **mlegls/reconcile-pr-transport-20261014-35767b2d** only. Preflight found 95 inherited issues (all closed), eleven PRs, Actions enabled; scratch base **1bd22233…** passed setup, the gate and real Actions job 116339072646. Owned area **/private/tmp/native-reconcile-PJlm0t**; the single interrupted attempt **/private/tmp/native-reconcile-keGcvP** (controller read a retired writer's pid after the hold stories had passed; its seeded #107–#110 were closed NOT_PLANNED by the failure path, never reopened, never merged) is included in the transport accounting but not in the story evidence.
+
+Selected extracts are in [replay/api-extracts.json](replay/api-extracts.json); every refresh is listed in [replay/refreshes.json](replay/refreshes.json).
+
+| Story | Outcome | What established it |
+| --- | --- | --- |
+| 1. Native claims, collector unlock, residual join | held | Native spec **#111**, tickets **#112 (a)** / **#113 (b)**, outside **#114** (b and #114 natively blocked by a). `claimsBeforeLaunch`: for all nine primary workers the native issue was OPEN, assigned to mlegls and had the matching private receipt `reconcile:gh-111` *before* the BB spawn. a's collector landing **428c1912038db8cbbb0f640d5f4f0f942a214daa** (09:07:10Z) was b's starting head; #112/#113 still OPEN, #114 still blocked, **0** target close receipts. |
+| 2. One PR, real merge, saved-result publication | held | One PR [#115](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/pull/115) with exactly Closes #112/#113/#111; at publication all OPEN, workers retired. Real Actions (runs 38710978995, 38710987805) passed; the production pr-merge host merged at 09:11:48Z (**c4b4218926eb63867c03b3ec560443ab8683a536**, head 52cee6e7…, fetched ancestry true, owner ff `updated`). GitHub auto-closed #111–#113 at 09:11:50–51Z (host clock); the reconciler's child-first saved closedAt came later: a 09:12:23, b 09:12:38, spec 09:12:56 with exactly one evidence-linked result comment each ([#112](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/112#issuecomment-6188616146), [#113](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/113#issuecomment-6188622971), [#111](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/111#issuecomment-6188627826)), all COMPLETED, #114 became frontier. No auto-closed issue was reopened. |
+| 3. Promotion and exact-PID restart | held | Ordinary ready-for-agent **#116**, inferred spec; its refine worker `gh-116-refine-1` (thread d211a256…) promoted it through the global API (stage ticket, no stage label), reported `children: []`, acceptance recorded, `gh-116-implement-2` dispatched. Reconciler pid **66048** SIGKILLed after that; restart pid **68074**; six seconds later the same implement handle, counter still 2, one refine, no regenerated child. |
+| 4. Failed refinement, lost publication, exact discard | held | Ready spec **#117** (baseline **#118** completed). Writer `gh-117-refine-1` (live pid **72837**, thread 4ccc0619…) used token `reconcile:gh-117/gh-117-refine-1`; provisional **#119** observed; reconciler pid **71048** killed with the writer alive; the CLI created **#120** while it was away and the proxy deliberately dropped the successful create response (fault injection, not an API failure). Saved `owned` lacked #120 at the cut; on restart production discovered it. The writer's ordinary blocked report triggered production discard: writer stopped first, **#119 and #120 closed NOT_PLANNED, detached, unassigned**; baseline #118 COMPLETED and foreign human-ready **#121** preserved at that point; zero provisional implement launches. |
+| 5. Query accounting | held | See below. |
+| Rate-limit hold inside an active run() | held | See below. |
+
+### Per-refresh query accounting (story 5)
+
+The proxy counted named operations at the real gh transport for every process, including external CLI writers and cleanup. Primary area: **44 logical snapshot refreshes, 85 tracker read requests** (44 `TrackerSnapshot` + 41 `TrackerIssues` cursor pages), plus 10 `TrackerCreate`, 21 `TrackerWrite`, 21 PR-host GraphQL queries and 122 REST commands counted separately. Requests per refresh: **1 for 3 refreshes (≤100 issues: 99–100), 2 for 41 (101–109 issues)**; all 44 complete (unique node ids = totalCount) and minimal; no continuation was unattributed. The interrupted area adds 17 refreshes of one request each (99 issues). Because the repository now exceeds one page, **the per-refresh figure is two requests, not one**; the parent contract is one logical snapshot per refresh with cursor paging inside it, and no refresh reads an issue twice or pages per issue.
+
+- 24 warm snapshot/fields/text/CLI reads → **0 requests**.
+- Real 61 s wait → **1 refresh = 2 requests** (103 issues covered, complete).
+- A public CLI write invalidated the cache → **1 refresh = 2 requests** on the next read.
+- Production worker active for 11 s with twelve more public reads and the five-second scheduler loop → **0 requests**.
+- During both rate-limit holds → **0 gh requests** of any kind (transport log between hold detection and reset).
+
+### Rate-limit hold inside an active production run() (supervisor requirement)
+
+Injection: the **recorded-reset-file cut** — the controller writes `rate-limit.json` (the file every gh-calling process consults before calling gh) with a reset 30 s ahead and drops the snapshot cache, exactly the state a GitHub limit leaves. The real account is not exhausted and no gh call is made while it is in force. While worker `gh-113-implement-4` (thread 0952aa31…) is running:
+
+1. **CLI fails fast, worker gives up** (hold to 09:08:02Z, injected 09:07:31Z). The reconciler logged one `tracker rate limit: holding every node until 09:08:02.000Z`. The worker's real `update` CLI call exited 1 in 355 ms with the typed "GitHub tracker: API rate limit exhausted until …; this is a hold, not a blocker" message (no gh request). The worker reported `blocked` quoting it (board id mv9bfg47-wh0u8s). Reconciler answered at 09:08:09Z, after the reset, with the retry instruction (id mv9bg6xg-sjt7xf) instead of raising an exception; the chain stayed in implement with the same handle, **no owner mail, no exceptions**, and the worker's retry succeeded.
+2. **Pending report replayed** (injected 09:08:20Z, reset 09:08:51Z). The worker's done report (id mv9bginw-79ir3i, 09:08:24Z) was unconsumed mid-hold (phase implement, handledTs unchanged, counter 4); after the reset the same report advanced the chain once to `gh-113-drive-5` (launched after the reset, counter 5). One hold note, **no owner mail and no exceptions** across both holds; the hold windows made **0** gh requests.
+
+Located defect fixed here (1ee48b03): a worker that quoted the typed limit as `blocked`/`needs-input` was forwarded to the owner (and a refining one discarded its attempt). The reconciler now sends it back to retry, capped at ten. Retained regression [lib/reconcile/rate-limit.test.ts](../../../lib/reconcile/rate-limit.test.ts) runs production `run()` against the stateful fake gh: it fails without the fix with "exception gh-2: implement blocked → owner".
+
+### Checks, cleanup and retained resources
+
+- `bun test lib/reconcile lib/tracker-github.test.ts skills/enabled/all/mlegls/conventions/tracker/scripts`; `bunx tsc --noEmit`: results in the final report.
+- Stopped exactly the owned reconcilers (the two deliberate exact-PID kills, 66048 and 71048, and their restarts); all production workers retired (`liveWorkers: 0`); recorded writer pids stopped by the BB stop path. PR #115's remote branch was deleted; no PR is open; all ten issues the primary area created are closed (#111–#113, #118 COMPLETED; #114, #116, #117, #119–#121 NOT_PLANNED). Retained: the supplied repository and history, merged artifact commits (52cee6e7…, c4b42189…), local areas and ten local phase branches listed in [api-extracts.json](replay/api-extracts.json), and the four triage labels created earlier. The same inventory covers the interrupted area (#107–#110 NOT_PLANNED).
+- First-use guide updated: [reconcile-pull-requests.md](../../guide/reconcile-pull-requests.md).
+
+## First encounter: tested revisions and selected evidence (historical)
 
 - Package base: **16b8556bafe61d0ea506f6e3571fc4fa60cabb0f**.
 - Tree continuation, promotion and publication: **f6f6d938**, including collector fix **b47ed111**.
