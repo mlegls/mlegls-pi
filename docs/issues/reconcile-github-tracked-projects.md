@@ -1,5 +1,5 @@
 ---
-stage: goal
+stage: done
 assignee: human
 author: session:01a12f4c-1aa6-75fe-9c2b-d81acad80dbd
 priority: 2
@@ -13,3 +13,7 @@ substeps:
 
 decisions:
 - 2026-10-12: the tracker is global even for the vault; that vault issues are committed in git is storage, and no behavior depends on it. This removes the per-branch tracker views the reconciler leans on today, which a GitHub tracker can't have.
+
+## Result
+
+reconcile runs GitHub-tracked projects and lands through pull requests: global tracker (reconcile-against-a-global-tracker), PR landing modes local/pr-merge/pr-review (land-reconciled-trees-through-pull-requests), GitHub Issues backend on the mattpocock convention (github-issues-as-a-tracker-backend). Rehearsed live on a scratch repository with shell workers; first real-project run pending.
