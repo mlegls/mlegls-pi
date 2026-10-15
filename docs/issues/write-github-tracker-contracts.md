@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
-claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
 ---
 Finish mutations in the GitHub Tracker built by `read-github-tracker-snapshots`. Story: refinement can publish native sub-issues safely during a live run, preserve exact ownership through interruption, and only target completion publishes the final result/closure. This is backend work; CLI/reconciler activation is the next ticket.
@@ -33,3 +32,49 @@ Provide a runnable one-off direct-adapter mutation encounter and nonvisual index
 Observe create -> text/fields -> fields-only/body-only/empty-body updates -> close and provisional remove using actual GitHub issues. Include a parented+assigned provisional create with a deliberately lost local response, exact-token rediscovery/replay without a duplicate issue, stable/adopted claim transfer, ticket promotion and omitted residual round-trip, a failed-refinement cleanup with native NOT_PLANNED children, and preservation of a foreign/baseline issue. Use production `beginRefinement`/discard helpers where practical; full active reconciler dispatch belongs to the following rehearsal child. A renamed triage table fixture and explicit attachment-decline fixture establish those mappings without publishing new convention requirements.
 
 Acceptance: every public Tracker write is usable and replay-safe through its read side; native GitHub relationships/assignment/state/comments agree with logical fields; cache invalidation is measured, outside dependents lose only resolved issue blockers, and cleanup terminates without touching foreign work. The index records owned issue IDs/marker IDs, relevant before/after API observations, setup readiness, commands and cleanup. Close only this encounter's disposable issues as appropriate; leave the supplied repo and inherited resources. Existing tracker and reconcile suites plus `bunx tsc --noEmit` pass. No new retained tests are authorized; the encounter is first-use machinery, not another suite.
+
+## Result
+
+done
+
+Both supervisor constraints are fixed in this review, so neither goes to activation. All four stories held on the final head. The live encounter was re-run end to end there (exit 0, 7m34s). The reconcile, tracker-script and tracker-views suites pass (42 pass, 1 skip, 0 fail) and `bunx tsc --noEmit` is clean. The reader fixture exits 0.
+
+**Repairs** (`d22b1051`, `2788d078`, `04b7978d`):
+- **Snapshot paging:** the 200-node ceiling is gone. The repository's issues and labels, and each issue's connections, are now read with cursor loops in `lib/tracker-github-snapshot.ts`. It is still one logical refresh under the repository lock, and it fails closed unless the unique nodes equal `totalCount`. A live read of the private repo (58 issues) gave identical snapshots at page size 100 and page size 2. That run caught a real bug in the labels page query, now fixed. The read child's fixture (`reader.ts`) now pages a fake server (`fake-gh.ts`) and has a 256-issue case. I added a superseded note to the read child's `index.md`.
+- **Priority:** it is now the `p1|p2|p3` label, read and written, with no p4. Because there is no deferral, `deferred` is always false. The tracker skill's GitHub reference already said `p1|p2|p3` on roots, so I didn't edit it. The encounter now sets and clears the native `p2` label, and refuses 4 and 5 before any write.
+- **Metadata envelope:** `<` and `>` are escaped inside the hidden JSON, so a field value containing `-->` can't end the HTML comment early. Older bodies still decode.
+- **Cleanup:** the removed-child skip in the graph no longer re-reads the private journals once per sub-issue edge.
+
+**Cleanup state:** the final encounter's gh-75..87 are all closed and unassigned (gh-77, gh-86 and gh-87 completed, the rest not planned). My first attempt hit the GraphQL hourly rate limit partway through. I closed its leftovers, gh-69..74, by hand.
+
+**Friction:** I found no worker-filed friction issues to settle, and the driver reported none.
+
+```yaml
+commit: 04b7978d
+stories:
+  - story: Public mutation and metadata round-trips
+    outcome: held
+  - story: Exact ownership, lost-create recovery and adoption
+    outcome: held
+  - story: Replayable provisional cleanup preserving foreign work
+    outcome: held
+  - story: Idempotent completion, evidence and move-out
+    outcome: held
+evidence:
+  path: docs/attachments/write-github-tracker-contracts/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+redrive: false
+fixed:
+  - "d22b1051 snapshot cursor paging beyond 200 nodes (supervisor constraint 1)"
+  - "04b7978d p1-p3 priority labels (supervisor constraint 2)"
+  - "2788d078 escape angle brackets in the metadata envelope"
+caveats:
+  - "Wall time and cost: the encounter takes about 7.5 minutes and about 340 of the hourly 5000 GraphQL points. A snapshot now costs about half what it did, because the issue connection is one page instead of first plus last. The shared GraphQL budget was exhausted once during this review and reset after 17 minutes."
+  - "No retained tests exist for the GitHub tracker, so the fixture and encounter are first-use evidence only. The reader fixture's incomplete-connection messages changed: they no longer carry the old remediation hint."
+  - "Priority labels p1-p3 must exist in the repository; a missing one is reported as an absent required label."
+```
+
+Evidence: [docs/attachments/write-github-tracker-contracts/index.md](docs/attachments/write-github-tracker-contracts/index.md)

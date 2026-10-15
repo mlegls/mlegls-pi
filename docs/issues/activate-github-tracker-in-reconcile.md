@@ -5,8 +5,6 @@ author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
 claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
-blocked-by:
-  - "[[projects/mlegls-pi/issues/write-github-tracker-contracts]]"
 ---
 Activate the completed GitHub adapter from `read-github-tracker-snapshots` + `write-github-tracker-contracts` through the existing public CLI and reconciler. Story: a maintainer starts `reconcile gh-<number> --land pr-merge` in a GitHub-tracked project, workers use the same global commands as on the vault, and no issue is claimed/closed merely by local code landing.
 
