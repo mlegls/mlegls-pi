@@ -8,6 +8,7 @@ import { ROLES, installFakeGh, issue, newState } from "../fixtures/fake-github.t
 // A production run() against the stateful fake gh (lib/fixtures/fake-github.ts) while the account's API budget is exhausted:
 // the reconciler holds without mailing the owner, a worker whose tracker CLI call failed fast is sent back to retry (never
 // forwarded as blocked), and a report that arrives during the hold is consumed once, after the reset.
+const HOLD_MS = 12_000;
 test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker retries, the pending report is replayed", async () => {
 	const saved = { ...process.env }, here = process.cwd();
 	const root = realpathSync(mkdtempSync("/tmp/rc-rate-")), cwd = join(root, "repo"), pkg = join(import.meta.dir, "../..");
@@ -44,7 +45,8 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 			throw new Error("timeout: " + label + "\n" + notes.slice(-12).join("\n"));
 		};
 		const limitFile = join(project.directory, "rate-limit.json");
-		// The account's budget runs out for a few seconds; the adapter's one-minute cache would otherwise hide it from the next tick.
+		// The budget runs out for HOLD_MS, longer than the 5 s tick another test file may have fixed at import; the adapter's one-minute
+		// cache would otherwise hide the limit from the next tick.
 		const exhaust = async (ms: number) => {
 			const next = fake!.read(); next.faults.limitedUntil = Date.now() + ms; fake!.write(next);
 			if (existsSync(join(project.directory, "snapshot.json"))) unlinkSync(join(project.directory, "snapshot.json"));
@@ -62,7 +64,7 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 		let h = (await until(() => state().chains[id]?.phase === "implement" && state().chains[id].handle && existsSync(state().chains[id].handle!.path) && state().chains[id].handle, "implement worker launched"));
 
 		// 1. The limit hits while an implementer is running. Its tracker CLI call fails fast; it gives up and reports blocked.
-		const reset = await exhaust(4_000);
+		const reset = await exhaust(HOLD_MS);
 		const began = Date.now(), failed = cli(h, "update", id, "--fields", JSON.stringify({ priority: 2 }));
 		expect(failed.status).not.toBe(0);
 		expect(failed.stderr).toContain(rateLimitMark);
@@ -77,7 +79,7 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 		expect(cli(h, "update", id, "--fields", JSON.stringify({ priority: 2 })).status).toBe(0);   // the retry succeeds after the reset
 
 		// 2. A done report posted during a second hold stays unconsumed until the reset, then moves the chain on exactly once.
-		const second = await exhaust(4_000);
+		const second = await exhaust(HOLD_MS);
 		writeFileSync(join(h.path, "evidence.md"), "# leaf\n"); git(h.path, "add", "."); git(h.path, "commit", "-qm", "leaf");
 		const done = report(h, "done", { summary: "leaf", setup: { kind: "fixture" }, stories: [{ story: "leaf", outcome: "held" }], evidence: { path: "evidence.md", visual: false, shots: [] }, tests: [] });
 		await Bun.sleep(1_500);

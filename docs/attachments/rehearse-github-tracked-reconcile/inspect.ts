@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { summarize } from "./refreshes.ts";
 const repository="mlegls/reconcile-pr-transport-20261014-35767b2d";
 const area=realpathSync(mkdtempSync("/tmp/inspect-native-reconcile-")), cwd=join(area,"repo");
 const gh=Bun.which("gh")!, pkg=realpathSync(join(import.meta.dir,"../../.."));
@@ -12,7 +13,9 @@ mkdirSync(bin);
 writeFileSync(join(bin,"gh"),"#!/bin/sh\nexec "+JSON.stringify(process.execPath)+" "+JSON.stringify(join(import.meta.dir,"transport.ts"))+" \"$@\"\n",{mode:0o755});
 Object.assign(process.env,{XDG_STATE_HOME:join(area,"state"),XDG_CACHE_HOME:join(area,"cache"),
   REHEARSAL_GH:gh,REHEARSAL_CALLS:calls,REHEARSAL_LOSS:join(area,"never-armed"),PATH:bin+":"+process.env.PATH});
-const snapshots=()=>readFileSync(calls,"utf8").trim().split("\n").map(l=>JSON.parse(l)).filter(c=>c.operation==="TrackerSnapshot").length;
+const rows=()=>readFileSync(calls,"utf8").trim().split("\n").map(l=>JSON.parse(l));
+// Requests, not refreshes: a repository over 100 issues needs cursor pages (TrackerIssues) inside the one logical refresh.
+const snapshots=()=>rows().filter(c=>/^Tracker(Snapshot|Issues|Labels|Connection)$/.test(c.operation)).length;
 const run=(cmd:string,args:string[])=>execFileSync(cmd,args,{cwd:area,encoding:"utf8",stdio:"pipe",timeout:120000}).trim();
 try {
   assert.equal(JSON.parse(run(gh,["api","user"])).login,"mlegls");
@@ -48,5 +51,5 @@ try {
   assert.equal(fields.stage,"done");
   writeFileSync(join(area,"manifest.json"),JSON.stringify({repository,cwd,remoteWrites:0,issues:[],branches:[],labels:[],processes:[]}));
   console.log(JSON.stringify({repository,persona:"mlegls via existing gh auth",root:"gh-96",stage:fields.stage,pr:prs[0],
-    fetchedAncestry:true,exactEvidenceComments:3,discardedNativeIssues:[104,105],snapshotRequests:snapshots(),warmSchedulerReads:3,warmFieldsTextReads:6,warmRequests:snapshots()-firstRefresh,remoteWrites:0,localCloneCleaned:true}));
+    fetchedAncestry:true,exactEvidenceComments:3,discardedNativeIssues:[104,105],snapshotRequests:snapshots(),refreshAccounting:summarize(rows()),warmSchedulerReads:3,warmFieldsTextReads:6,warmRequests:snapshots()-firstRefresh,remoteWrites:0,localCloneCleaned:true}));
 } finally { rmSync(area,{recursive:true,force:true}); }
