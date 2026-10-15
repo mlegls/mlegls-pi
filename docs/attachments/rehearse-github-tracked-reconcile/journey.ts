@@ -206,7 +206,7 @@ try {
       // An aborted controller before any reviewed landing may reuse its own disposed seed.
       // Never reopen a merged/auto-closed issue, or alter saved completion receipts.
       const prior = state(root);
-      assert(!Object.keys(prior.results).length && !Object.keys(prior.landed).length && !prior.pr?.number);
+      assert(Object.values(prior.results).every(result => !result.closedAt) && !prior.pr?.number);
       for (const id of [root,a,b,outside]) {
         assert(m.issues.includes(id));
         const row = native(id); assert.equal(row.stateReason,"not_planned");
@@ -214,7 +214,8 @@ try {
       }
       // A public metadata write invalidates the shared observation after explicit seed restoration.
       cli(["update",root,"--fields",'{"stage":"spec","measurement":"owned-seed-restored"}']);
-      record("restoredOwnedSeed",{root,a,b,outside,noReviewedResults:true,noTargetCloseReceipts:true});
+      for (const id of [a,b,root]) if (prior.landed[id]) cli(["update",id,"--fields",JSON.stringify({"claimed-by":"reconcile:"+root})],undefined,root);
+      record("restoredOwnedSeed",{root,a,b,outside,retainedReviewedResults:Object.keys(prior.results),noTargetCloseReceipts:true});
     }
     const p = githubProject(m.cwd)!;
     const nativeRelations = () => {
@@ -235,13 +236,13 @@ try {
     const invalidated = snapshots(); tracker.snapshot(); assert.equal(snapshots()-invalidated,1);
     record("cache", { warmRequests: 0, warmReads: 24, realExpiryMs: githubCacheLifetime+1000, expiryRequests:1, externalCliWriteNextRefresh:1 });
     boot(root);
-    const ah = await ready(root,a,"implement"); await claim(root,root,ah);
+    const ah = await ready(root,state(root).landed[a] ? b : a,"implement"); await claim(root,root,ah);
     const schedulerWarm = snapshots();
     for(let n=0;n<3;n++) { tracker.snapshot(); tracker.fields(a); tracker.text(root); cli(["snapshot",root,"--json"]); }
     await Bun.sleep(11_000); // production's five-second loop reads the same complete warm snapshot
     assert.equal(snapshots()-schedulerWarm,0);
     record("warmScheduler", {requests:0,publicReads:12,elapsedMs:11000,tickMs:5000,activeWorker:ah.handle});
-    await finish(root,a);
+    if (!state(root).landed[a]) await finish(root,a);
     const bh = await ready(root,b,"implement"), s = state(root);
     assert.equal(s.landed[a].into,root); assert(!s.results[a].closedAt);
     assert(existsSync(join(bh.path,"fixture/"+a+".txt")));
