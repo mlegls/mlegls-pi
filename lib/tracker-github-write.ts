@@ -6,7 +6,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Fields, Tracker, TrackerOptions } from "./tracker.ts";
 import type { GithubNode } from "./tracker-github.ts";
 import {
-	githubApi, invalidateGithubSnapshot, loadGithubSnapshotLocked, requireGithub, triageRoles, withGithubLock,
+	assertWithinBudget, githubApi, GithubRateLimited, invalidateGithubSnapshot, rateLimited, loadGithubSnapshotLocked, requireGithub, triageRoles, withGithubLock,
 	type GithubIssue, type GithubProject, type GithubRelation, type GithubSnapshot,
 } from "./tracker-github-snapshot.ts";
 import {
@@ -26,6 +26,7 @@ const stable = (run: GlobalRunState) => "reconcile:" + run.root;
 const attempt = (run: GlobalRunState, token: unknown) => Object.values(run.refinements).find(value => value.claim === token && value.claim === stable(run) + "/" + value.handle);
 
 export function githubRest<T>(project: GithubProject, method: string, path: string, body?: unknown): T {
+	assertWithinBudget(project);
 	try {
 		const value = execFileSync("gh", ["api", "--hostname", project.host, "--method", method,
 			"repos/" + project.repository + "/" + path, ...(body === undefined ? [] : ["--input", "-"])], {
@@ -37,6 +38,8 @@ export function githubRest<T>(project: GithubProject, method: string, path: stri
 		const e = error as Error & { stderr?: string; stdout?: string };
 		let remoteMessage: string | undefined;
 		try { remoteMessage = JSON.parse(e.stdout ?? "{}").message; } catch { /* transport failure, not unsupported */ }
+		const limited = rateLimited(project, (e.stderr ?? "") + (remoteMessage ?? ""), "core");
+		if (limited) throw limited;
 		throw new GithubRestError("GitHub tracker REST " + method + " " + path + ": " + (e.stderr?.trim() || e.message), Number(e.stderr?.match(/HTTP (\d+)/)?.[1]) || undefined, remoteMessage);
 	}
 }
@@ -47,7 +50,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		return withGithubLock(project, () => {
 			const run = runAuthority(project, options), snapshot = loadGithubSnapshotLocked(project);
 			try { return work(snapshot, run); }
-			catch (error) { throw new Error(String(error) + "; partial mutations retain private replay intent; replay the same operation"); }
+			catch (error) { throw error instanceof GithubRateLimited ? error : new Error(String(error) + "; partial mutations retain private replay intent; replay the same operation"); }
 			finally { invalidateGithubSnapshot(project); }
 		});
 	}

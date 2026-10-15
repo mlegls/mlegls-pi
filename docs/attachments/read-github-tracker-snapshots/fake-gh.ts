@@ -8,7 +8,7 @@ export function serve(payload: { query: string; variables: Record<string, string
 	if (response.errors || !response.data) return raw;
 	const { data, totals = {} } = response;
 	const size = Number(payload.query.match(/first:(\d+)/)![1]);
-	const page = (rows: unknown[], key: string, after?: string | null) => {
+	const page = <T>(rows: T[], key: string, after?: string | null) => {
 		const start = after ? Number(after) : 0;
 		return {
 			totalCount: totals[key] ?? rows.length,
@@ -22,7 +22,7 @@ export function serve(payload: { query: string; variables: Record<string, string
 	});
 	const operation = payload.query.match(/query\s+(\w+)/)![1];
 	const after = payload.variables.after;
-	const { labels, issues, ...repository } = data.repository as { labels: unknown[]; issues: Rows };
+	const { labels, issues, ...repository } = data.repository as Record<string, unknown> & { id: unknown; labels: unknown[]; issues: Rows };
 	if (operation === "TrackerSnapshot") return JSON.stringify({ data: { viewer: data.viewer, repository: {
 		...repository, labels: page(labels, "labels"), issues: { ...page(issues, "issues"), nodes: page(issues, "issues").nodes.map(shape) },
 	} } });

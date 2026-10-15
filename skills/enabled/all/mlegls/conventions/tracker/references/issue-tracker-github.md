@@ -20,4 +20,6 @@ An open ready-for-agent root with no children infers spec; a child infers ticket
 
 Record decisions and friction through the global backend. Under reconciliation, create provisional children with the supplied exact attempt token and part-of atomically. Hand off results; the reconciler closes child-first after actual target landing, not collector/staging integration. Assignments persist while pending target. Supervised move-out publishes mapped human readiness, reason and unassignment. Code/evidence stay on worker branches.
 
+GitHub's API budget is shared with all other `gh` use on the account. When it is exhausted, every command fails with `GitHub tracker: API rate limit exhausted until <time>` and no process calls `gh` before that reset; the reconciler holds every node until then, noting it once rather than raising an exception.
+
 Native escape hatches remain useful: `gh-axi issue view <n> --comments --full`, `gh-axi issue list --state open`, `gh-axi issue subissue add <parent> <child>`, or the dependency API `POST /repos/<o>/<r>/issues/<child>/dependencies/blocked_by` with `{"issue_id": <blocker database id>}`. PRs share the number space but are not tracker intake contracts.

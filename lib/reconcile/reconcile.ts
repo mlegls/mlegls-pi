@@ -33,6 +33,8 @@ import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { heldByRed, mainRed, evidenceShapeError, git, storyShapeError, testCommands } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
+import { GithubRateLimited } from "../tracker-github-snapshot.ts";
+import { untilReset } from "./rate-limit.ts";
 import { getThread, workerThread } from "../thread/registry.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
@@ -288,9 +290,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
-	const tracker = reconcilerTracker(controlCwd, s.root);
+	const tracker = await untilReset(() => reconcilerTracker(controlCwd, s.root), { note, signal: o.signal });
 	if (tracker.githubIssue) {
-		s.githubRepository = tracker.githubIssue(s.root).repository;
+		s.githubRepository = (await untilReset(() => tracker.githubIssue!(s.root), { note, signal: o.signal })).repository;
 		if (s.pr && s.pr.repository.toLowerCase() !== s.githubRepository.toLowerCase())
 			throw new Error("Tracker repository differs from captured PR repository");
 		save();
@@ -298,7 +300,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const destination = () => s.pr?.path ?? cwd;
 	const snapshot = () => {
 		try { return tracker.snapshot(); }
-		catch (e) { throw new Error("tracker snapshot failed in " + cwd + " (fix the tracker; the reconciler resumes by itself): " + String((e as Error)?.message ?? e).replace(/^error:\s*/, "")); }
+		catch (e) { throw e instanceof GithubRateLimited ? e : new Error("tracker snapshot failed in " + cwd + " (fix the tracker; the reconciler resumes by itself): " + String((e as Error)?.message ?? e).replace(/^error:\s*/, "")); }
 	};
 	const view = (into: string): Map<string, Issue> => {
 		const attempts = Object.values(s.refinements).filter(a => a.phase !== "accepted" && a.phase !== "removed");
@@ -874,7 +876,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				await acceptRefinement(refinement, c.refinement, { worker: h, children: children as string[],
 					reportTs: m.ts, report: text, into: slug, destination: col.path });
 			} catch (e) {
-				c.handledTs = m.ts;
+				c.handledTs = e instanceof GithubRateLimited ? previousCursor : m.ts;
+				if (e instanceof GithubRateLimited) throw e;
 				return repair(slug, c, "refine", "Refinement could not be accepted: " + e + ". Repair the global contract/stubs and repost your report.", issues, text);
 			}
 			return finishRefinement(slug, c);
@@ -1047,7 +1050,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			try {
 				if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
 				else await startPhase(slug, chain, issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
-			} catch (e) { raise(slug, "launch failed", String(e), issues); }
+			} catch (e) {
+				// Nothing launched: forget the chain so the post-reset tick starts it afresh.
+				if (e instanceof GithubRateLimited) { delete s.chains[slug]; save(); throw e; }
+				raise(slug, "launch failed", String(e), issues);
+			}
 			return "active";
 		}
 		if (c.held) return "active";
@@ -1068,7 +1075,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
 		if (m && m.tags.includes("error") && c.handle && (Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS || observedWorking(c.handle))) return "active";
 		if (!m && c.handle && bbErrored(c.handle)) { raise(slug, c.phase + " worker errored in bb", await bbError(c.handle), issues, "owner"); return "active"; }
-		if (m) { try { await onReport(slug, c, m, issues); } catch (e) { raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues); } return "active"; }
+		if (m) {
+			const prior = c.handledTs;
+			try { await onReport(slug, c, m, issues); }
+			catch (e) {
+				// A hold, not a reconciler error: the report stays unconsumed and is handled again after the reset.
+				if (e instanceof GithubRateLimited) { c.handledTs = prior; throw e; }
+				raise(slug, "reconciler error", String((e as Error)?.stack ?? e), issues);
+			}
+			return "active";
+		}
 		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report other than `waiting` in " + WAITING_MS / 3_600_000 + "h after the worker first reported waiting at " + c.waitingSince + ".", issues); return "active"; }
 		// A worker idle on a wait whose process has already gone (it never started, or ended without waking it) would idle until the nudge below.
 		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && runsProcess(c.handle) === false) {
@@ -1129,7 +1145,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	let tickError = "";
 	for (;;) {
 		if (o.signal?.aborted) return;
-		try { if (await tick()) return; tickError = ""; }
+		try { if (await untilReset(tick, { note, signal: o.signal })) return; tickError = ""; }
 		catch (e) {
 			const msg = String((e as Error)?.stack ?? e);
 			if (msg.split("\n")[0] !== tickError) { tickError = msg.split("\n")[0]; note("tick failed: " + msg.slice(0, 2000)); tellOwner("tick failed, retrying every " + TICK_MS / 1000 + "s:\n\n" + msg.slice(0, 3000)); }

@@ -9,6 +9,35 @@ export function requireGithub(condition: unknown, message: string): asserts cond
 	if (!condition) throw new Error("GitHub tracker: " + message);
 }
 
+/** The account's shared GitHub API budget is exhausted until resetAt (epoch ms). Neither a failed observation nor
+ * a node problem: callers hold their work until the reset (see reconcile/rate-limit.ts). */
+export class GithubRateLimited extends Error {
+	constructor(readonly resetAt: number) {
+		super("GitHub tracker: API rate limit exhausted until " + new Date(resetAt).toISOString() + "; retry after the reset (partial mutations retain private replay intent)");
+	}
+}
+const limitFile = (project: { directory: string }) => join(project.directory, "rate-limit.json");
+/** One exhausted budget serves every process on this repository: skip gh until the recorded reset. */
+export function assertWithinBudget(project: GithubProject): void {
+	let resetAt = 0;
+	try { resetAt = JSON.parse(readFileSync(limitFile(project), "utf8")).resetAt; } catch { /* no recorded limit */ }
+	if (resetAt > Date.now()) throw new GithubRateLimited(resetAt);
+}
+/** Classifies gh's failure text; the reset comes from the rate_limit endpoint (free of charge), else a minute (secondary limits). */
+export function rateLimited(project: GithubProject, text: string, resource: "graphql" | "core"): GithubRateLimited | undefined {
+	if (!/RATE_LIMITED|rate limit/i.test(text)) return undefined;
+	let resetAt = Date.now() + 60_000;
+	try {
+		const limit = JSON.parse(execFileSync("gh", ["api", "--hostname", project.host, "rate_limit"], { cwd: project.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 30_000 })).resources?.[resource];
+		if (limit?.remaining === 0 && Number.isFinite(limit.reset)) resetAt = limit.reset * 1000;
+	} catch { /* keep the conservative default */ }
+	mkdirSync(project.directory, { recursive: true, mode: 0o700 });
+	const tmp = limitFile(project) + "." + randomUUID() + ".tmp";
+	writeFileSync(tmp, JSON.stringify({ resetAt }), { mode: 0o600 });
+	renameSync(tmp, limitFile(project));
+	return new GithubRateLimited(resetAt);
+}
+
 export const triageRoles = ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix"] as const;
 export type TriageRole = typeof triageRoles[number];
 export interface GithubProject {
@@ -67,6 +96,7 @@ export function githubProject(cwd: string): GithubProject | undefined {
 }
 
 export function githubApi<T>(project: GithubProject, query: string, variables: Record<string, unknown>): T {
+	assertWithinBudget(project);
 	let raw: string;
 	try {
 		raw = execFileSync("gh", ["api", "--hostname", project.host, "graphql", "--input", "-"], {
@@ -74,12 +104,14 @@ export function githubApi<T>(project: GithubProject, query: string, variables: R
 			stdio: ["pipe", "pipe", "pipe"], timeout: 120_000, maxBuffer: 64 << 20,
 		});
 	} catch (error) {
-		const e = error as Error & { stderr?: string };
-		throw new Error("GitHub tracker transport: " + (e.stderr?.trim() || e.message));
+		const e = error as Error & { stderr?: string; stdout?: string };
+		throw rateLimited(project, (e.stderr ?? "") + (e.stdout ?? ""), "graphql") ?? new Error("GitHub tracker transport: " + (e.stderr?.trim() || e.message));
 	}
 	let result: { data?: T; errors?: { message: string }[] };
 	try { result = JSON.parse(raw); }
 	catch { throw new Error("GitHub tracker: invalid JSON response"); }
+	const limited = result?.errors?.length ? rateLimited(project, result.errors.map(e => e.message).join("; "), "graphql") : undefined;
+	if (limited) throw limited;
 	requireGithub(result && !result.errors?.length && result.data, "GraphQL observation failed: " + (result?.errors?.map(e => e.message).join("; ") || "missing data"));
 	return result.data;
 }
