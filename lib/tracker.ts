@@ -45,6 +45,9 @@ export interface Tracker {
 	/** Optional backend capability. Vault omits it; GitHub returns the issue's native
 	 * identity regardless of its logical slug, for reconciled PR closing references. */
 	githubIssue?(slug: string): { repository: string; number: number; url: string };
+	/** Optional remote publication of a supervised move-out. Local trackers retain
+	 * their existing owner-edited move-out protocol. */
+	moveOut?(slug: string, reason: string): void;
 	snapshot(scope?: string): Map<string, Issue>;
 	/** Complete contract text, including metadata, suitable for a worker prompt. */
 	text(slug: string): string;
@@ -58,6 +61,9 @@ export interface Tracker {
 }
 
 export interface TrackerOptions {
+	/** Reconciler root for backend-private ownership/promotion receipts. Workers
+	 * use PI_WM_RUN when omitted; this never turns a native assignee into authority. */
+	run?: string;
 	/** Default true. Reconciler observation omits the derived inflight display overlay. */
 	inflight?: boolean;
 	/** The issues.ts to run; default TRACKER_CLI, else the one bundled beside this module. */
