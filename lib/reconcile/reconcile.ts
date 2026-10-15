@@ -68,7 +68,13 @@ export function pinTracker(live = LIVE_TRACKER): string {
 	return pinned;
 }
 /** The reconciler's tracker: the pinned scripts (see pinTracker), so a merge in progress in the live checkout can't stop its queries. */
-export const reconcilerTracker = (cwd: string) => getTracker(cwd, { inflight: false, cli: process.env.TRACKER_CLI ?? pinTracker() });
+export function reconcilerTracker(cwd: string, root?: string) {
+	const tracker = getTracker(cwd, { run: root, inflight: false, cli: process.env.TRACKER_CLI ?? pinTracker() });
+	const captured = root ? load(cwd, root)?.githubRepository : undefined;
+	if (captured && (!tracker.githubIssue || tracker.githubIssue(root!).repository.toLowerCase() !== captured.toLowerCase()))
+		throw new Error("Tracker repository changed from captured GitHub repository " + captured);
+	return tracker;
+}
 // Offline trials can advance reports promptly; production still polls every five seconds.
 const tickMs = Number(process.env.PI_RECONCILE_TICK_MS ?? 5_000);
 const TICK_MS = Number.isFinite(tickMs) && tickMs >= 0 ? tickMs : 5_000;
@@ -127,6 +133,8 @@ interface Exception {
 }
 export interface State extends GlobalRunState {
 	backend: "threads";
+	/** Native tracker identity survives convention/remote edits and restart. */
+	githubRepository?: string;
 	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
 	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
 	chains: Record<string, Chain>;
@@ -280,7 +288,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
-	const tracker = reconcilerTracker(controlCwd);
+	const tracker = reconcilerTracker(controlCwd, s.root);
+	if (tracker.githubIssue) {
+		s.githubRepository = tracker.githubIssue(s.root).repository;
+		if (s.pr && s.pr.repository.toLowerCase() !== s.githubRepository.toLowerCase())
+			throw new Error("Tracker repository differs from captured PR repository");
+		save();
+	}
 	const destination = () => s.pr?.path ?? cwd;
 	const snapshot = () => {
 		try { return tracker.snapshot(); }
@@ -379,6 +393,17 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }): Promise<Handle> {
 		launching++;
 		try {
+			if (tracker.githubIssue && issue && (role === "refine" || role === "implement")) {
+				const current = view(into).get(issue.slug);
+				const prior = refining?.chain.refinement && s.refinements[refining.chain.refinement];
+				// A saved writer may have provisional children withheld from the frontier.
+				const resuming = prior && !["accepted", "removed"].includes(prior.phase);
+				const agentReady = current?.assignee === "agent" || current?.assignee?.startsWith("agent:") || current?.assignee?.startsWith("model:");
+				if (!current || !agentReady || current.claims.length || (!resuming && !current.frontier))
+					throw new Error("GitHub node is not ready, agent-eligible and unclaimed: " + issue.slug);
+				if (tracker.fields(issue.slug)["claimed-by"] !== "reconcile:" + s.root)
+					tracker.update(issue.slug, { "claimed-by": "reconcile:" + s.root });
+			}
 			// Concurrent launches race on .git/config's lock (ab-parent, setup's mise); a failed attempt may leave
 			// its worktree behind, so a retry takes a fresh handle.
 			for (let attempt = 0; ; attempt++) {
@@ -424,7 +449,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Starting a reconciler on a root delegates the root: a goal root rarely names an assignee, and its own stage
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
 		// frontier when agent-assigned; an explicit human or session assignee still refuses.
-		if (issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
+		if (!tracker.githubIssue && issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
 		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], follow: s.root, parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
@@ -546,7 +571,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				if (c.phase === "drive") await startPhase(target, c, "review", issue!, issues, skippedDrive(c.skipDrive));
 			}
 		}
-		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } releaseRefinementClaims(refinement, target); dropResolution(target); s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
+		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } tracker.moveOut?.(target, r.summary ?? r.note ?? ex.reason); releaseRefinementClaims(refinement, target); dropResolution(target); s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
 		note("resolved " + ex.node + ": " + r.action + (target !== ex.node ? " on " + target : ""));
 		save();
 	}
@@ -1178,6 +1203,17 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		holds.clear();
 		if (!top.get(s.root)) { s.finished = "root issue not found"; save(); tellOwner("stopped: no issue " + s.root); return true; }
+		if (tracker.githubIssue) {
+			const root = top.get(s.root)!;
+			if (!root.satisfied && !isMoved(root) && tracker.fields(s.root)["claimed-by"] !== "reconcile:" + s.root) {
+				if (!root.frontier) {
+					if (!s.exceptions[s.root]) raise(s.root, "GitHub root is not ready for this run", "The root must be ready, agent-eligible and free of foreign native claims before reserving its tree.", top, "owner");
+					await handleExceptions(top);
+					return false;
+				}
+				tracker.update(s.root, { "claimed-by": "reconcile:" + s.root });
+			}
+		}
 		visited.clear();
 		const result = await visit(s.root, destination(), top);
 		if (s.pr && s.landed[s.root]) return false;

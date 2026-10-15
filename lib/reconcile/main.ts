@@ -64,7 +64,7 @@ export async function stop(cwd: string, root: string) {
 	// A launch may have registered its thread just before termination, without saving its receipt.
 	const s = load(cwd, root)!;
 	cwd = s.pr && existsSync(s.pr.path) ? s.pr.path : s.cwd;
-	const refinement = { state: s, tracker: reconcilerTracker(cwd), save: () => saveState(s),
+	const refinement = { state: s, tracker: reconcilerTracker(cwd, root), save: () => saveState(s),
 		locked: async <T>(work: () => Promise<T>) => work(),
 		stopWriter: (attempt: State["refinements"][string]) => stopRefinementWriter(s, attempt) };
 	for (const attempt of Object.values(s.refinements)) if (attempt.phase === "adopting" && attempt.successor)

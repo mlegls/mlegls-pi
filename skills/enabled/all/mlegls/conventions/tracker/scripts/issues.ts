@@ -22,6 +22,7 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight } from "./inflight.ts";
+import { getGithubTracker } from "../../../../../../../lib/tracker-github.ts";
 // Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
 let flight = new Map<string, string[]>();
 
@@ -95,11 +96,14 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
   }
 }
 
-export function findIssuesDir(from: string): string {
+export function findIssuesDir(from: string): string;
+export function findIssuesDir(from: string, required: false): string | undefined;
+export function findIssuesDir(from: string, required = true): string | undefined {
   const probe = spawnSync("git", ["-C", realpathSync(from), "rev-parse", "--git-common-dir"], { encoding: "utf8" });
   if (probe.status === 0) {
     const canonical = join(checkout(from).project, "docs", "issues");
     if (existsSync(canonical) && statSync(canonical).isDirectory()) return realpathSync(canonical);
+    if (!required) return undefined;
     throw new Error("no supported tracker: canonical docs/issues/ absent in " + checkout(from).project);
   }
   let dir = realpathSync(from);
@@ -108,7 +112,10 @@ export function findIssuesDir(from: string): string {
       if (existsSync(cand) && statSync(cand).isDirectory()) return realpathSync(cand);
     }
     const up = dirname(dir);
-    if (up === dir) throw new Error("no docs/issues/ found upward from " + from);
+    if (up === dir) {
+      if (!required) return undefined;
+      throw new Error("no docs/issues/ found upward from " + from);
+    }
     dir = up;
   }
 }
@@ -739,6 +746,7 @@ function outline(note: string, all: Map<string, Issue>): string[] {
 async function main() {
 const rawArgs = process.argv.slice(2);
 const verb = rawArgs[0];
+const github = findIssuesDir(process.cwd(), false) ? undefined : getGithubTracker(process.cwd());
 if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   const slug = rawArgs[1];
   if (!slug || slug.startsWith("--")) throw new Error(verb + " requires an issue slug");
@@ -750,8 +758,13 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
     if (!allowed.includes(key) || opts.has(key) || n + 1 === rawArgs.length) throw new Error("invalid option " + key);
     opts.set(key, rawArgs[++n]);
   }
-  const dir = findIssuesDir(process.cwd());
-  if (verb === "text" || verb === "fields") {
+  if (github && (verb === "text" || verb === "fields")) {
+    if (verb === "text") process.stdout.write(github.text(slug));
+    else console.log(JSON.stringify(github.fields(slug), null, 2));
+    return;
+  }
+  if (!github && (verb === "text" || verb === "fields")) {
+    const dir = findIssuesDir(process.cwd());
     const all = load(dir);
     validateGraph(all);
     const i = issueFor(slug, all);
@@ -765,8 +778,15 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw new Error("fields must be a JSON object");
   const bodyFile = opts.get("--body-file");
   const body = bodyFile === undefined ? undefined : readFileSync(bodyFile === "-" ? 0 : resolve(process.cwd(), bodyFile), "utf8");
-  mutate(dir, verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"));
-  if (verb === "create") console.log(slug);
+  if (github) {
+    if (verb === "create") console.log(github.create({ slug, fields, body: body! }));
+    else if (verb === "update") github.update(slug, fields, body);
+    else if (verb === "close") github.close(slug, { summary: opts.get("--summary"), evidence: opts.get("--evidence") });
+    else github.remove(slug);
+  } else {
+    mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"));
+    if (verb === "create") console.log(slug);
+  }
   return;
 }
 const json = rawArgs.includes("--json");
@@ -776,6 +796,11 @@ const cmd = positional[0];
 const arg = cmd === "check" ? undefined : positional[1];
 if (repair && cmd !== "check") throw new Error("--fix is only supported by check");
 if (cmd === "check" && !repair && positional.length > 1) throw new Error("moved issue paths require check --fix");
+if (github) {
+  if (cmd !== "snapshot") throw new Error("GitHub tracker: unsupported command " + (cmd ?? "(none)") + "; use snapshot, text, fields, create, update, close or remove");
+  console.log(JSON.stringify({ schemaVersion: 1, issues: [...github.snapshot(arg).values()], legacy: [] }, null, 2));
+  return;
+}
 const fixTargets = cmd === "check" && repair && positional.length > 1 ? movedIssuePaths(positional.slice(1)) : undefined;
 const dir = findIssuesDir(process.cwd());
 const all = load(dir);

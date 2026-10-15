@@ -1,6 +1,6 @@
 # Landing a reconciled tree through a pull request
 
-Use an owned GitHub repository with ordinary `gh` authentication, push access, a fetched default branch and working checks. The reconciler uses that repository's existing GitHub identity. GitHub requires a **different authorized person** to submit approval/changes-requested reviews; it prevents self-review. The merger acts outside the reconciler, using the repository’s ordinary authorization.
+Use an owned GitHub repository with ordinary `gh` authentication, push access, a fetched default branch and working checks. The reconciler uses that repository's existing GitHub identity. For GitHub-tracked issues, the canonical checkout selects `# Issue tracker: GitHub` in `docs/agents/issue-tracker.md` and maps all five triage roles in `docs/agents/triage-labels.md`; canonical `docs/issues/` takes precedence. Use `gh-<number>` as ROOT (for example `gh-123`). Workers use the same global tracker commands as vault workers. Agent-ready native issues are reserved before workers start; collector/staging landings keep them open and assigned until target completion. GitHub requires a **different authorized person** to submit approval/changes-requested reviews; it prevents self-review. The merger acts outside the reconciler, using the repository’s ordinary authorization.
 
 ## Choose before starting
 

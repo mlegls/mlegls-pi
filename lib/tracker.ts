@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import { getGithubTracker } from "./tracker-github.ts";
 import { findIssuesDir } from "../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts";
 
 /** Global tracker contract. */
@@ -70,16 +71,21 @@ export interface TrackerOptions {
 	cli?: string;
 }
 
-/** Select by project convention; every operation uses the bundled canonical CLI.
- * A subprocess keeps per-query inflight state isolated and honors TRACKER_CLI. */
+/** Canonical vault wins; otherwise select the canonical project convention.
+ * Vault subprocesses isolate inflight state and honor CLI overrides. GitHub keeps
+ * one adapter (and its captured repository) for the lifetime of the caller. */
 export function getTracker(cwd: string, options: TrackerOptions = {}): Tracker {
-	findIssuesDir(cwd);
+	if (!findIssuesDir(cwd, false)) {
+		const github = getGithubTracker(cwd, options);
+		if (github) return github;
+		findIssuesDir(cwd);
+	}
 	const cli = options.cli ?? process.env.TRACKER_CLI ?? join(import.meta.dir, "../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts");
 	const run = (args: string[], input?: string) => {
 		try {
 			return execFileSync("bun", [cli, ...args], {
 				cwd, input, encoding: "utf8", maxBuffer: 64 << 20,
-				env: { ...process.env, ...(options.inflight === false ? { TRACKER_NO_INFLIGHT: "1" } : {}) },
+				env: { ...process.env, ...(options.run ? { PI_WM_RUN: options.run } : {}), ...(options.inflight === false ? { TRACKER_NO_INFLIGHT: "1" } : {}) },
 				stdio: ["pipe", "pipe", "pipe"],
 			});
 		} catch (error) {
