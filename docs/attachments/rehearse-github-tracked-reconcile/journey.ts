@@ -1,11 +1,12 @@
 // One-off owned live first use, not a retained test or another scheduler/backend.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { shellBb } from "../land-reconciled-trees-through-pull-requests/shell-bb.ts";
 import type { Handle } from "../../../lib/dispatch.ts";
 import type { State } from "../../../lib/reconcile/reconcile.ts";
+import { minimumRequests, refreshes, summarize, trackerRead } from "./refreshes.ts";
 
 const repository = "mlegls/reconcile-pr-transport-20261014-35767b2d";
 const pkg = realpathSync(join(import.meta.dir, "../../.."));
@@ -57,7 +58,9 @@ const { loadJournal } = await import("../../../lib/tracker-github-state.ts");
 const { start, stop, resolveException, campaigns, summary } = await import("../../../lib/reconcile/main.ts");
 const { load } = await import("../../../lib/reconcile/reconcile.ts");
 const { allThreads, getThread } = await import("../../../lib/thread/registry.ts");
-const { send } = await import("../../../lib/board/store.ts");
+const { send, readFrom } = await import("../../../lib/board/store.ts");
+const { topic } = await import("../../../lib/dispatch.ts");
+const { rateLimitMark } = await import("../../../lib/tracker-github-snapshot.ts");
 const { createPullRequestHost } = await import("../../../lib/reconcile/pr-host.ts");
 const host = createPullRequestHost();
 const gh = (args: string[], input?: any) => execFileSync("gh", args, { encoding: "utf8", stdio: "pipe", timeout: 120_000,
@@ -70,7 +73,11 @@ const native = (slug: string) => {
     assignees: r.assignees.map((u: any) => u.login), labels: r.labels.map((l: any) => l.name), url: r.html_url };
 };
 const calls = () => existsSync(process.env.REHEARSAL_CALLS!) ? readFileSync(process.env.REHEARSAL_CALLS!, "utf8").trim().split("\n").filter(Boolean).map(l => JSON.parse(l)) : [];
+// A refresh is one TrackerSnapshot plus its cursor pages (TrackerIssues/Labels/Connection) from the same process.
 const snapshots = () => calls().filter(c => c.operation === "TrackerSnapshot").length;
+const requests = () => calls().filter(c => trackerRead.test(c.operation)).length;
+const pages = () => { const last = refreshes(calls()).rows.at(-1); return minimumRequests(last?.issues.total ?? 0); };
+const logs: Record<string, string> = {};
 async function until<T>(fn: () => T | false | undefined, label: string, root?: string, allowException = false): Promise<T> {
   for (let n = 0; n < 900; n++) {
     const s = root && state(root);
@@ -89,7 +96,7 @@ const writerPid = (h: Handle) => Number(readFileSync(join(h.path, "shell-pid"), 
 const boot = (root: string) => {
   if (!m.roots.includes(root)) m.roots.push(root);
   const result = start({ cwd: m.cwd, root, owner: "mail/native-rehearsal", budget: 1, land: "pr-merge" });
-  m.processes.push(result.pid); persist(); return result;
+  m.processes.push(result.pid); logs[root] = result.log; persist(); return result;
 };
 const crash = async (root: string, label: string) => {
   const s = state(root), pid = s.pid!;
@@ -124,8 +131,8 @@ async function claim(root: string, slug: string, h: Handle) {
   assert.equal(journal.issues[slug].claim?.claimedBy, "reconcile:" + root);
   record("claim-" + slug, { worker: h.handle, thread: h.threadId, issue, privateClaim: journal.issues[slug].claim, launchAt: state(root).chains[slug]?.launchedAt });
 }
-async function finish(root: string, slug: string) {
-  for (const phase of ["implement", "drive", "review"]) {
+async function finish(root: string, slug: string, phases = ["implement", "drive", "review"]) {
+  for (const phase of phases) {
     const h = await ready(root, slug, phase);
     if (phase === "implement") {
       await claim(root, slug, h);
@@ -135,6 +142,65 @@ async function finish(root: string, slug: string) {
     report(h, slug);
     record("worker-" + slug + "-" + phase, { handle: h.handle, thread: h.threadId, writer: writerPid(h), head: head(h.path) });
   }
+}
+// --- tracker rate-limit hold inside the active production run() --------------------------------------
+// Injection is the recorded-reset-file cut (the file every gh-calling process consults before calling gh), plus the
+// snapshot-cache invalidation any own write performs. The real account is never exhausted and no gh request is made
+// while the cut is in force; production code detects, notes and holds exactly as it would for a GitHub limit.
+const ownerMail = (root: string) => readFrom(0).messages.filter(x => x.body.startsWith("[reconcile " + root + "]")).map(x => x.body);
+const holdNotes = (root: string) => readFileSync(logs[root], "utf8").split("\n").filter(l => l.startsWith("tracker rate limit: holding every node until "));
+const inject = (ms: number) => {
+  const dir = githubProject(m.cwd)!.directory, file = join(dir, "rate-limit.json"), resetAt = Math.ceil((Date.now() + ms) / 1000) * 1000;
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(file + ".cut.tmp", JSON.stringify({ resetAt }), { mode: 0o600 }); renameSync(file + ".cut.tmp", file);
+  if (existsSync(join(dir, "snapshot.json"))) unlinkSync(join(dir, "snapshot.json"));
+  return resetAt;
+};
+async function cut(root: string, ms = 30_000) {
+  const mail = ownerMail(root), notes = holdNotes(root).length, injectedAt = new Date().toISOString(), resetAt = inject(ms);
+  await until(() => holdNotes(root).length === notes + 1, "the reconciler holds on the recorded limit", root);
+  const note = holdNotes(root).at(-1)!; assert(note.endsWith(new Date(resetAt).toISOString()), note);
+  return { mail, notes, injectedAt, resetAt, note, settledAt: new Date().toISOString() };
+}
+async function settle(root: string, ctx: Awaited<ReturnType<typeof cut>>) {
+  await until(() => Date.now() > ctx.resetAt, "the recorded reset passes", root);
+  const quiet = calls().filter(c => c.at >= ctx.settledAt && c.at < new Date(ctx.resetAt).toISOString());
+  assert.equal(quiet.length, 0, "gh was called during the hold: " + JSON.stringify(quiet));
+  assert.deepEqual(ownerMail(root), ctx.mail); assert.equal(holdNotes(root).length, ctx.notes + 1); assert.deepEqual(state(root).exceptions, {});
+  return { injectedAt: ctx.injectedAt, resetAt: new Date(ctx.resetAt).toISOString(), note: ctx.note, ghRequestsDuringHold: quiet.length, ownerMailDuringHold: 0, exceptions: 0, holdNotes: 1 };
+}
+/** A worker's tracker CLI call fails fast on the hold; it gives up and reports blocked quoting the error. */
+async function holdCliFailure(root: string, slug: string, h: Handle) {
+  const ctx = await cut(root), began = Date.now();
+  let failure: any;
+  try { cli(["update", slug, "--fields", '{"measurement":"worker-cli-during-hold"}'], undefined, root, h.path); } catch (e) { failure = e; }
+  assert(failure, "the worker's tracker CLI call succeeded during the hold");
+  const stderr = String(failure.stderr).trim(), failedMs = Date.now() - began;
+  assert.equal(failure.status, 1); assert(stderr.includes(rateLimitMark), stderr); assert(failedMs < 5000);
+  const blocked = report(h, slug, "blocked", { question: "Tracker CLI failed: " + stderr });
+  const nudge = await until(() => readFrom(0).messages.find(x => x.topic === topic(h) && x.body.includes("rate limit is a hold, not a blocker")), "worker sent back to retry", root);
+  assert(Date.parse(nudge.ts) >= ctx.resetAt && Date.parse(nudge.ts) > Date.parse(blocked.ts));
+  const c = state(root).chains[slug]; assert.equal(c.phase, "implement"); assert.equal(c.handle?.handle, h.handle);
+  const held = await settle(root, ctx);
+  cli(["update", slug, "--fields", '{"measurement":"worker-retry-after-reset"}'], undefined, root, h.path);
+  record("rateLimitCliFailure", { worker: h.handle, thread: h.threadId, ...held, workerCli: { exit: failure.status, failedMs, stderr, gh: 0 },
+    blockedReport: { id: blocked.id, ts: blocked.ts }, nudge: { id: nudge.id, ts: nudge.ts, afterReset: true, body: nudge.body },
+    forwardedAsBlockedToOwner: false, chainStillImplement: true, retryAfterResetSucceeded: true });
+}
+/** A done report posted during the hold is not consumed until the reset, then moves the chain on exactly once. */
+async function holdPendingReport(root: string, slug: string, h: Handle) {
+  const ctx = await cut(root), before = state(root), chain = before.chains[slug];
+  const pending = report(h, slug);
+  await Bun.sleep(8_000); assert(Date.now() < ctx.resetAt - 2000, "hold ended before the pending-report observation");
+  const mid = state(root).chains[slug];
+  assert.equal(mid.phase, "implement"); assert.equal(mid.handledTs, chain.handledTs); assert.equal(state(root).counter, before.counter);
+  const next = await ready(root, slug, "drive");
+  assert(Date.parse(pending.ts) < ctx.resetAt && state(root).chains[slug].launchedAt! >= ctx.resetAt);
+  assert.equal(state(root).counter, before.counter + 1);
+  const held = await settle(root, ctx);
+  record("rateLimitPendingReport", { worker: h.handle, thread: h.threadId, ...held, report: { id: pending.id, ts: pending.ts, postedDuringHold: true },
+    unconsumedAtMidHold: { phase: mid.phase, handledTs: mid.handledTs, counter: before.counter }, resumedPhase: "drive", nextWorker: next.handle,
+    nextLaunchedAfterReset: true, counterAfter: state(root).counter, sameReportReplayedOnce: true });
 }
 async function cleanup() {
   for (const root of m.roots) if (state(root)) {
@@ -163,6 +229,10 @@ async function cleanup() {
   record("cleanup", { rootsStopped: m.roots, issues: m.issues.map(native), remotePrBranchesDeleted: m.roots.flatMap(root=>state(root)?.pr?.number ? [state(root).pr!.branch] : []), retainedLocalBranches,
     ownedThreadCount:ownedThreads.length, processes:m.processes, localAreaRetained: area, labelsRetained: m.labels, artifactCommitsRetained: true, liveWorkers: live.length });
 }
+// Whole-run transport accounting: named operations at the actual gh proxy, grouped into logical snapshot refreshes.
+const queryReport = () => { const rows=calls(), counts:Record<string,number>={};
+  for(const c of rows) counts[c.operation]=(counts[c.operation]??0)+1;
+  return { counts, ...summarize(rows), includesExternalCliWriters:true }; };
 persist();
 try {
   if (action === "status") { console.log(JSON.stringify(campaigns(m.cwd).map(summary), null, 2)); }
@@ -208,7 +278,6 @@ try {
     assert(repo.private && repo.has_issues && repo.permissions.admin && repo.permissions.push); assert.equal(repo.default_branch, "main");
     assert(api("repos/" + repository + "/actions/permissions").enabled);
     const initial = JSON.parse(gh(["api","repos/" + repository + "/issues?state=all&per_page=100","--paginate","--slurp"])).flat();
-    assert(initial.filter((i:any)=>!i.pull_request).length<=90,"Setup not ready for the single-query live fixture: ten new native issues would exceed one 100-issue page. Use inspect.ts for the prepared target; do not delete inherited issues.");
     record("preflight", { login: viewer.login, repository, private: repo.private, permissions: repo.permissions,
       issues: initial.filter((i:any) => !i.pull_request).map((i:any) => ({number:i.number,state:i.state})),
       prs: initial.filter((i:any) => i.pull_request).map((i:any) => ({number:i.number,state:i.state})), actions: true });
@@ -268,20 +337,24 @@ try {
     };
     tracker.snapshot(); record("seed", { root, a, b, outside, relations: nativeRelations() });
     // Real warm/expiry/write refreshes: no cache-file edits or synthetic clocks.
-    const warmStart = snapshots();
+    // A refresh is one logical snapshot: its first TrackerSnapshot plus cursor pages when the repository exceeds one 100-issue page.
+    const warmStart = requests();
     for (let n=0;n<4;n++) { tracker.snapshot(); tracker.snapshot(root); tracker.fields(a); tracker.text(root); cli(["fields",b]); cli(["text",a]); }
-    assert.equal(snapshots()-warmStart,0);
+    assert.equal(requests()-warmStart,0);
     await Bun.sleep(githubCacheLifetime + 1000);
-    const expired = snapshots(); tracker.snapshot(); assert.equal(snapshots()-expired,1);
+    const expired = snapshots(), expiredRequests = requests(); tracker.snapshot();
+    assert.equal(snapshots()-expired,1); const expiryPerRefresh = requests()-expiredRequests; assert.equal(expiryPerRefresh,pages());
     cli(["update", outside, "--fields", '{"measurement":"own-write-invalidation"}']);
-    const invalidated = snapshots(); tracker.snapshot(); assert.equal(snapshots()-invalidated,1);
-    record("cache", { warmRequests: 0, warmReads: 24, realExpiryMs: githubCacheLifetime+1000, expiryRequests:1, externalCliWriteNextRefresh:1 });
+    const invalidated = snapshots(), invalidatedRequests = requests(); tracker.snapshot();
+    assert.equal(snapshots()-invalidated,1); const writePerRefresh = requests()-invalidatedRequests; assert.equal(writePerRefresh,pages());
+    record("cache", { warmRequests: 0, warmReads: 24, realExpiryMs: githubCacheLifetime+1000, expiryRefreshes:1, expiryRequests:expiryPerRefresh,
+      externalCliWriteNextRefreshes:1, externalCliWriteNextRequests:writePerRefresh, issuesCovered:refreshes(calls()).rows.at(-1)!.issues });
     boot(root);
     const ah = await ready(root,state(root).landed[a] ? b : a,"implement"); await claim(root,root,ah);
-    const schedulerWarm = snapshots();
+    const schedulerWarm = requests();
     for(let n=0;n<3;n++) { tracker.snapshot(); tracker.fields(a); tracker.text(root); cli(["snapshot",root,"--json"]); }
     await Bun.sleep(11_000); // production's five-second loop reads the same complete warm snapshot
-    assert.equal(snapshots()-schedulerWarm,0);
+    assert.equal(requests()-schedulerWarm,0);
     record("warmScheduler", {requests:0,publicReads:12,elapsedMs:11000,tickMs:5000,activeWorker:ah.handle});
     if (!state(root).landed[a]) await finish(root,a);
     const bh = await ready(root,b,"implement"), s = state(root);
@@ -293,7 +366,14 @@ try {
     record("collector", { a:s.landed[a], bStartingHead:head(bh.path), aAncestor:true, issues:collectorNative, outside:tracker.snapshot().get(outside),
       results:s.results, targetReceipts:Object.values(s.results).filter(r=>r.closedAt).length });
     git(bh.path,"merge-base","--is-ancestor",s.landed[a].head,"HEAD");
-    await finish(root,b); await finish(root,root);
+    // The recorded GitHub limit hits twice while b's implementer runs, inside the active production run().
+    await holdCliFailure(root,b,bh);
+    await claim(root,b,bh);
+    commit(bh.path, "fixture/" + b + ".txt", b + " native code\n");
+    commit(bh.path, packet(b), "# " + b + "\n\nNative GitHub issue fixture. Code and joins observed via production shell phases. Entry: mise run pre-integrate.\n");
+    await holdPendingReport(root,b,bh);
+    record("worker-" + b + "-implement", { handle: bh.handle, thread: bh.threadId, writer: writerPid(bh), head: head(bh.path) });
+    await finish(root,b,["drive","review"]); await finish(root,root);
     await until(()=>state(root).pr?.number,"root PR",root);
     const pub = state(root), pr = host.observe(m.cwd,repository,pub.pr!.number!);
     m.branches.push(pub.pr!.branch); persist();
@@ -371,12 +451,9 @@ try {
     await stop(m.cwd,failed);
 
     m.progress="done"; persist(); await cleanup();
-    const operations=calls(), counts:Record<string,number>={};
-    for(const c of operations) counts[c.operation]=(counts[c.operation]??0)+1;
-    const refreshes=operations.filter(c=>/^Tracker(Snapshot|Issues|Labels|Connection)$/.test(c.operation));
-    assert(refreshes.every(c=>c.operation==="TrackerSnapshot" && c.status===0 && !c.more));
-    record("queries", { counts, completeRefreshes:refreshes.length, requestsPerRefresh:1,
-      everyRefreshSinglePage:true, includesExternalCliWriters:true, maxIssueCount:Math.max(...refreshes.map(c=>c.issueCount)) });
+    const queries=queryReport();
+    assert(queries.allComplete && queries.allMinimal && !queries.orphanPages, "a refresh was incomplete, non-minimal or unattributed: " + JSON.stringify(queries));
+    record("queries", queries);
   }
 } catch(error) {
   record("failure",{message:String(error),states:m.roots.map(root=>({root,log:state(root)?.log.slice(-8),exceptions:state(root)?.exceptions}))});
@@ -385,11 +462,6 @@ try {
   throw error;
 }
 if(action !== "status") {
-  const operations=calls(), counts:Record<string,number>={};
-  for(const c of operations) counts[c.operation]=(counts[c.operation]??0)+1;
-  const refreshes=operations.filter(c=>/^Tracker(Snapshot|Issues|Labels|Connection)$/.test(c.operation));
-  record("finalQueries",{counts,completeRefreshes:refreshes.filter(c=>c.operation==="TrackerSnapshot").length,
-    requestsPerRefresh:refreshes.every(c=>c.operation==="TrackerSnapshot" && c.status===0 && !c.more) ? 1 : "inspect pagination/failures",
-    maxIssueCount:Math.max(...refreshes.map(c=>c.issueCount)),includesExternalCliWriters:true,includesCleanup:true});
+  record("finalQueries",{...queryReport(),includesCleanup:true});
 }
 console.log("OWNED_DIRECTORY "+area);

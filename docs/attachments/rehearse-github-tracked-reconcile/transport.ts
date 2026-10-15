@@ -10,6 +10,14 @@ const operation = query.match(/(?:query|mutation)\s+(\w+)/)?.[1]
   ?? (args.includes("graphql") ? "PRGraphQL" : "REST");
 const field = query.match(/\{\s*(\w+)\s*\(input:/)?.[1];
 const started = new Date().toISOString();
+// What one tracker read page covered: kind, node count, the connection's totalCount, whether more follows, and issue node ids.
+function connectionPage(data: any) {
+  const repository = data?.data?.repository, node = data?.data?.node;
+  const kind = repository?.issues ? "issues" : repository?.labels ? "labels" : "connection";
+  const page = repository?.issues ?? repository?.labels ?? (node && Object.values(node)[0]) as any;
+  return { kind, issueCount: page?.nodes?.length, totalCount: page?.totalCount, more: page?.pageInfo?.hasNextPage,
+    ...(kind === "issues" ? { ids: page?.nodes?.map((n: any) => n.id) } : {}) };
+}
 const result = spawnSync(process.env.REHEARSAL_GH!, args, { input, encoding: "utf8", maxBuffer: 64 << 20 });
 let data: any;
 try { data = JSON.parse(result.stdout ?? "{}"); } catch {}
@@ -18,8 +26,7 @@ appendFileSync(process.env.REHEARSAL_CALLS!, JSON.stringify({ at: started, pid: 
   ...(query ? {} : { method: args.includes("--method") ? args[args.indexOf("--method")+1] : "GET",
     endpoint: args.find(a=>a.startsWith("repos/")) }),
   ...(field ? { field } : {}), status: result.status,
-  ...(operation === "TrackerSnapshot" ? { issueCount: data?.data?.repository?.issues?.nodes?.length,
-    more: data?.data?.repository?.issues?.pageInfo?.hasNextPage } : {}),
+  ...(/^Tracker(Snapshot|Issues|Labels|Connection)$/.test(operation) ? connectionPage(data) : {}),
   ...(field === "addComment" ? { subject: payload.variables?.input?.subjectId } : {}),
   ...(field === "closeIssue" ? { subject: payload.variables?.input?.issueId, reason: payload.variables?.input?.stateReason } : {}),
 }) + "\n");
