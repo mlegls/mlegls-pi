@@ -31,3 +31,7 @@ Replay: run the documented entry against the authorized target; accept only exit
 ## Setup readiness
 
 Kind: direct-adapter live API encounter. Authorized target: private mlegls/reconcile-pr-transport-20261014-35767b2d only. Auth: existing gh login mlegls. Independent preflight observed issues enabled, exact owner/name, private visibility and ADMIN access. Entry creates owned temporary clone/config and disposable marked issues; no inherited deployment selectors are reused. Setup completed per harness notification. Entry: `bun docs/attachments/write-github-tracker-contracts/encounter.ts`.
+
+## Reviewer append (not a driver observation)
+
+After the driver's run the reviewer changed snapshot paging, the priority mapping and the metadata envelope, then re-ran the encounter on the final head: exit 0, owned gh-75..87 closed and unassigned. Details are in the index's review section; the driver's first-use record above is unchanged.

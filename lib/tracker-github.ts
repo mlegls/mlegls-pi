@@ -48,6 +48,7 @@ function fallbackHeaders(body: string): { parent?: number; blockers: number[] } 
 
 function graph(project: GithubProject, snapshot: GithubSnapshot, options: TrackerOptions): Map<string, GithubNode> {
 	const all = new Map<string, GithubNode>();
+	const removed = new Set<string>();
 	const local = (edge: GithubRelation) => {
 		const sameId = edge.repository.id === snapshot.repository.id;
 		const sameName = edge.repository.nameWithOwner.toLowerCase() === project.repository.toLowerCase()
@@ -71,14 +72,18 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		delete fields.$guards;
 		// Reserved logical keys come from native state and validated relations,
 		// never stale extra metadata.
-		for (const key of ["stage", "assignee", "part-of", "blocked-by", "claimed-by", "github", "github-comments", "title", "drive"]) delete fields[key];
+		for (const key of ["stage", "assignee", "part-of", "blocked-by", "claimed-by", "github", "github-comments", "title", "drive", "priority"]) delete fields[key];
 		const claims: Issue["claims"] = native.assignees.map(user => ({
 			slug, claimedBy: receipt?.claim?.assigneeId === user.id ? receipt.claim.claimedBy : "github:" + user.login,
 		}));
 		if (labels.has("no-drive")) fields.drive = "none";
+		// Priority is the tracker convention's p1|p2|p3 label; there is no deferral value.
+		const priorities = [1, 2, 3].filter(value => labels.has("p" + value));
+		requireGithub(priorities.length <= 1, slug + ": contradictory priority labels: " + priorities.map(value => "p" + value).join(", "));
+		if (priorities.length) fields.priority = priorities[0]!;
 		const types = [...labels].filter(label => /^wayfinder:(map|research|prototype|grilling|task)$/.test(label));
 		if (types.length) fields["github-types"] = types.map(label => label.slice("wayfinder:".length));
-		if (receipt?.removed) continue;
+		if (receipt?.removed) { removed.add(native.id); continue; }
 		all.set(slug, {
 			native, body: decoded.body, fields, stage: native.state === "CLOSED" ? "done" : "idea",
 			assignee, partOf: null, blockedBy: [], guards: [...guards], claims, receipt,
@@ -101,8 +106,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 			} else node.guards.push("github-parent: " + edge.url);
 		}
 		for (const child of node.native.subIssues) {
-			const localChild = snapshot.issues.find(issue => issue.id === child.id);
-			if (localChild && readGithubReceipt(project, snapshot, localChild)?.removed) continue;
+			if (removed.has(child.id)) continue;
 			if (local(child)) {
 				const row = all.get(slugOf(child.number));
 				requireGithub(row && row.native.id === child.id, "missing native subIssue " + child.url);
@@ -159,7 +163,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 	return all;
 }
 
-function projection(all: Map<string, GithubNode>, explicit: boolean): Map<string, Issue> {
+function projection(all: Map<string, GithubNode>): Map<string, Issue> {
 	const stages: Stage[] = ["idea", "goal", "spec", "ticket", "done"];
 	const kids = (slug: string) => [...all].filter(([, node]) => node.partOf === slug).map(([slug]) => slug);
 	const effective = new Map<string, Stage>();
@@ -186,13 +190,14 @@ function projection(all: Map<string, GithubNode>, explicit: boolean): Map<string
 		const eligible = remaining.length > 0 && selectors.every(selector => agentSelector(selector.assignee));
 		const effectiveStage = effective.get(slug)!;
 		const ready = effectiveStage === "spec" || effectiveStage === "ticket";
-		const deferred = nodes.some(id => all.get(id)!.fields.priority === 4);
 		return [slug, {
 			slug, archived: false, ownStage: node.stage, effectiveStage, partOf: node.partOf,
 			assignee: node.assignee, author: typeof node.fields.author === "string" ? node.fields.author : null,
 			priority: typeof node.fields.priority === "number" ? node.fields.priority : null,
-			blockedBy: [...node.blockedBy], guards: [...node.guards], ready, eligible, claims, selectors, deferred,
-			frontier: ready && eligible && !blockers.length && !claims.length && (explicit || !deferred),
+			blockedBy: [...node.blockedBy], guards: [...node.guards], ready, eligible, claims, selectors,
+			// GitHub priority has no deferral value (no p4), so nothing is hidden from the frontier.
+			deferred: false,
+			frontier: ready && eligible && !blockers.length && !claims.length,
 			done: effectiveStage === "done",
 		}];
 	}));
@@ -230,7 +235,7 @@ export function getGithubTracker(cwd: string, options: TrackerOptions = {}): Tra
 	return {
 		snapshot(scope) {
 			const all = read();
-			const rows = projection(all, !!scope);
+			const rows = projection(all);
 			if (!scope) return rows;
 			requireGithub(rows.has(scope), "no issue " + scope);
 			return new Map([...rows].filter(([slug]) => {

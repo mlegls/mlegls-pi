@@ -112,7 +112,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		if (fields.assignee !== undefined && fields.assignee !== null) requireGithub(agent(fields.assignee) || fields.assignee === "human" || typeof fields.assignee === "string" && /^user:\S+$/.test(fields.assignee), "unsupported assignee selector");
 		if (fields.author !== undefined && fields.author !== null) requireGithub(typeof fields.author === "string" && fields.author.trim(), "author must be nonempty provenance");
 		if (fields.title !== undefined) requireGithub(typeof fields.title === "string" && fields.title.trim(), "title must be nonempty");
-		if (fields.priority !== undefined && fields.priority !== null) requireGithub([1, 2, 3, 4].includes(fields.priority as number), "priority must be 1..4");
+		if (fields.priority !== undefined && fields.priority !== null) requireGithub([1, 2, 3].includes(fields.priority as number), "priority must be 1, 2 or 3 (the p1|p2|p3 label)");
 		if (fields.drive !== undefined && fields.drive !== null) requireGithub(fields.drive === "none", "supported drive override is none");
 		const relation = (value: unknown) => {
 			requireGithub(typeof value === "string" && /^gh-[1-9]\d*$/.test(value) && rows.has(value), "relation must name an existing same-repository gh identity: " + value);
@@ -151,6 +151,10 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 			names = names.filter(name => !triageRoles.some(role => project.roles[role] === name));
 			if (fields.assignee !== null) names.push(project.roles[agent(fields.assignee) ? "ready-for-agent" : "ready-for-human"]);
 		}
+		if ("priority" in fields) {
+			names = names.filter(name => !/^p[123]$/.test(name));
+			if (fields.priority !== null) names.push("p" + fields.priority);
+		}
 		if ("drive" in fields) { names = names.filter(name => name !== "no-drive"); if (fields.drive === "none") names.push("no-drive"); }
 		return [...new Set(names)].map(name => {
 			const label = snapshot.labels.find(label => label.name === name);
@@ -160,7 +164,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 	function extras(issue: GithubIssue | undefined, fields: Fields): Fields {
 		const extra = { ...decodeGithubBody(issue?.body ?? "").fields };
 		for (const [key, value] of Object.entries(fields)) {
-			if (["stage", "part-of", "blocked-by", "claimed-by", "title"].includes(key)) continue;
+			if (["stage", "part-of", "blocked-by", "claimed-by", "title", "priority"].includes(key)) continue;
 			if (value === null) delete extra[key]; else extra[key] = value;
 		}
 		if ("blocked-by" in fields) {
@@ -197,7 +201,7 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 		const input: Record<string, unknown> = { id: issue.id };
 		if ("title" in fields) input.title = fields.title;
 		if (body !== undefined || !isDeepStrictEqual(decoded.fields, extra)) input.body = encodeGithubBody(body ?? decoded.body, extra, decoded.marker);
-		if ("assignee" in fields || "drive" in fields) input.labelIds = labelIds;
+		if ("assignee" in fields || "drive" in fields || "priority" in fields) input.labelIds = labelIds;
 		if ("claimed-by" in fields) input.assigneeIds = [...new Set([
 			...issue.assignees.filter(user => fields["claimed-by"] !== null || user.id !== snapshot.viewer.id).map(user => user.id),
 			...(fields["claimed-by"] === null ? [] : [snapshot.viewer.id]),

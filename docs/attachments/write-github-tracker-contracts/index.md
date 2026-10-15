@@ -169,3 +169,14 @@ issue deletion is used. Supplied repository, pre-existing PRs, labels and inheri
 retained. No browser, server, container, tunnel or remote deployment was started. Owned temporary clones,
 local collector worktrees and wrapper files were removed after recording these observations;
 the runnable entry reconstructs setup rather than depending on those paths.
+
+## Review pass (2026-10-15, after driver)
+
+Repairs on top of the driver's head 60b78b3c; the live encounter was re-run end to end on the final head (exit 0, 7m34s; owned gh-75..87 all closed/unassigned: gh-77, gh-86, gh-87 COMPLETED, the rest NOT_PLANNED; the earlier aborted attempt's gh-69..74 were closed NOT_PLANNED/unassigned by hand after GraphQL hourly rate-limit exhaustion).
+
+- **Snapshot paging (supervisor constraint 1).** The 200-unique-node ceiling is gone: repositories and per-issue connections are drained by cursor within one logical refresh (`TrackerSnapshot`, then `TrackerIssues`/`TrackerLabels` pages and `TrackerConnection` per issue connection over 100) and still fail closed unless unique nodes equal `totalCount`. A live read of this private repository (58 issues, 15 labels, 24 comments) at page size 100 and at page size 2 (every cursor path, ~30 issue pages) produced identical snapshots. The read child's fixture (`read-github-tracker-snapshots/reader.ts fixture`) now pages a fake server and adds a 256-issue case. GraphQL cost per snapshot roughly halved (one issue connection instead of first+last); one full encounter spent ~340 of the hourly 5000 points.
+- **Priority (supervisor constraint 2).** `priority` is the `p1|p2|p3` label (no `p4`/deferral; `deferred` is always false). The encounter now prepares p1–p3, sets priority 2, observes native label `p2`, clears it with null, and refuses 4 and 5 before any write. The tracker skill's GitHub reference already says "label `p1|p2|p3` on roots", so the two agree; no skill edit. A missing `p<n>` label in the repository is reported as an absent required label.
+- **Metadata envelope.** `<` and `>` are escaped inside the hidden JSON so a field value containing `-->` cannot end the HTML comment early; older unescaped bodies still decode.
+- **Structural.** Removed-child skipping in the graph no longer re-reads every private journal per sub-issue edge.
+
+Checks: `bun test lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts lib/tracker-views.test.ts` 42 pass / 1 skip / 0 fail; `bunx tsc --noEmit` clean; reader fixture exits 0.
