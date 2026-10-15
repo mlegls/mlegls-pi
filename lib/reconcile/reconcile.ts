@@ -31,7 +31,7 @@ import { readLive } from "../session-meta/live";
 import { logBb } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
-import { heldByRed, mainRed, evidenceShapeError, git, storyShapeError, testCommands } from "./checks.ts";
+import { heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
@@ -309,7 +309,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const attempts = Object.values(s.refinements).filter(a => a.phase !== "accepted" && a.phase !== "removed");
 		// Dispatch passes a checkout path; collector progress is keyed by its logical issue.
 		const logicalInto = Object.entries(s.collectors).find(([, collector]) => collector.path === into)?.[0] ?? into;
-		return schedulingView(snapshot(), { root: s.root, into: logicalInto, landed: s.landed,
+		// A landing into an enclosing collector counts here once this destination contains its head.
+		const inherited = new Set(Object.entries(s.landed)
+			.filter(([, entry]) => entry.into !== logicalInto && isAncestor(pathOf(logicalInto), entry.head))
+			.map(([slug]) => slug));
+		return schedulingView(snapshot(), { root: s.root, into: logicalInto, landed: s.landed, inherited,
 			attemptClaims: new Set(attempts.map(a => a.claim)),
 			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
 	};

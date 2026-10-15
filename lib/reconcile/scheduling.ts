@@ -17,6 +17,8 @@ export interface SchedulingContext {
 	withheld: ReadonlySet<string>;
 	/** Mirror the CLI's explicit-scope deferral exception for this selection. */
 	explicit?: boolean;
+	/** Landed into another destination whose landed head this destination already contains. */
+	inherited?: ReadonlySet<string>;
 }
 
 /** Rebuild lifecycle rollups from ownStage/relations/guards and own claims.
@@ -30,7 +32,8 @@ export function schedulingView(global: ReadonlyMap<string, Issue>, context: Sche
 		children.set(row.partOf, siblings);
 	}
 	const seeded = (row: Issue) => !context.withheld.has(row.slug)
-		&& (row.archived || row.done || context.landed[row.slug]?.into === context.into);
+		&& (row.archived || row.done || context.landed[row.slug]?.into === context.into
+			|| !!context.inherited?.has(row.slug));
 	const effective = new Map<string, Issue["effectiveStage"]>();
 	const satisfied = new Map<string, boolean>();
 	function resolve(row: Issue, path = new Set<string>()): void {
