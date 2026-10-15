@@ -121,7 +121,7 @@ Both areas, their manifests, retained local staging/collector/unmerged phase bra
 
 ## Existing checks
 
-- Final combined regression command: bun test lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts; bunx tsc --noEmit — final result pending below.
+- Final combined regression command: bun test lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts; bunx tsc --noEmit — **38 pass, 0 fail, 847 assertions; typecheck clean** (3m13s including tsc). Production code is unchanged from 01044679; the packet/inspection entry is cc6178f5 and this check receipt follows it.
 - Reader repair: bun test lib/tracker-github.test.ts — **9 pass, 0 fail, 66 assertions**; tsc clean.
 - Earlier tracker-only rerun: **24 pass / 681 assertions**; reconciler rerun **14 pass / 166 assertions**, tsc clean.
 - Default timeouts intermittently cut the 165-subprocess invalid-input matrix at 30 seconds and the scheduling/legacy checks at five seconds. Standalone reruns established passing assertions. 75eeec35 increases only those existing time budgets (60/30/15 seconds); no assertion, expected value, behavior gate or retained test count changed.
