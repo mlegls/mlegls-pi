@@ -23,6 +23,8 @@ decisions:
 - 2026-10-14: one GraphQL query per run snapshot (sub-issues, blockedBy, labels, assignees, bodies), cached between ticks, refreshed after the reconciler's own writes or after about a minute, against rate limits (maintainer).
 - 2026-10-14: webapp is the first real user (maintainer).
 
+- 2026-10-15: "one GraphQL query per refresh" means one complete logical snapshot per refresh. Cursor pages inside a refresh are allowed and required; a single aliased query that caps connections (first+last) is not (supervisor, under the maintainer's rate-limit decision; webapp already has 182 issues).
+
 The backend lives behind the existing `Tracker` interface and implements the same CLI verbs (`snapshot`, `text`, `fields`, `create`, `update` with optional body, `close`, `remove` as close-as-not-planned since GitHub deletion needs admin), selected when the project has no `docs/issues/` and its `docs/agents/issue-tracker.md` names GitHub. Triage roles come from the repository's `docs/agents/triage-labels.md` table. Blocked-by uses native dependencies, falling back to a `Blocked by: #n` body line where the convention says so; part-of uses sub-issues, falling back to `Part of #n`. Under a PR landing, the PR body carries `Closes #…` for every node in the tree; nodes still close only after the merge is proven, as on the vault.
 
 acceptance: on the private scratch repository mlegls/reconcile-pr-transport-20261014-35767b2d (reuse it; create no other repositories), with GitHub issues: a `ready-for-agent` spec with two sub-issue tickets, b blocked by a, and an outside issue blocked by a.
