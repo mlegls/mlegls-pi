@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "done"
 assignee: "agent"
 author: "session:01a13f11-8666-722e-9480-3a64624a759d"
 ---
@@ -10,3 +10,7 @@ Reproduce: bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts sta
 Observed exit 1: TypeError: Object.entries requires that input parameter not be null or undefined, at summary (lib/reconcile/main.ts:107). The command then entered its failure cleanup path and stopped the three already-stopped owned roots. The earlier run had completed successfully, including cleanup; no running story was interrupted in this observation. Exact recorded PID checks returned none. Expected: documented status can inspect its completed owned directory without error or mutation. Cause not investigated by read-only driver. No workaround except captured packet inspection was attempted.
 
 Evidence: docs/attachments/github-issues-as-a-tracker-backend/drive.md and independent/api-extracts.json on driver branch. This tooling friction is outside the active execution subtree; do not interpret it as a failed native acceptance replay.
+
+## Result
+
+Cause: campaigns() read every *.json in the reconcile state dir as a run, including the GitHub tracker's <root>.github.json journals (no chains), so status crashed in summary() for any GitHub-tracked project, not only the rehearsal. Only <root>.json is read now; lib/reconcile/campaigns.test.ts (74ae599c).
