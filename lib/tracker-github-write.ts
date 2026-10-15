@@ -16,7 +16,9 @@ import { GithubRestError, githubRelations, relationBody } from "./tracker-github
 import { git } from "./thread/git.ts";
 import type { GlobalRunState } from "./reconcile/tracker-state.ts";
 
-const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value, (_key, value) =>
+	value && typeof value === "object" && !Array.isArray(value)
+		? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value)).digest("hex");
 const slugOf = (issue: GithubRelation) => "gh-" + issue.number;
 const agent = (value: unknown): value is string => typeof value === "string" && /^(agent(?::[a-z][\w-]*)?|model:\S+)(,\s*(agent:[a-z][\w-]*|model:\S+))?$/.test(value);
 const guard = (value: unknown): value is string => typeof value === "string" && /^[a-z][a-z0-9-]*: \S/.test(value);
@@ -260,11 +262,15 @@ export function githubMutations(project: GithubProject, options: TrackerOptions,
 					claimChange(snapshot, undefined, rows, run, fields["claimed-by"], fields["part-of"] as string);
 					claim = { claimedBy: fields["claimed-by"] as string, assigneeId: snapshot.viewer.id };
 				}
-				const journal = loadJournal(project, run?.root), key = hash({ request, claim: claim?.claimedBy });
+				const journal = loadJournal(project, run?.root);
+				const prior = Object.entries(journal.creates).filter(([, intent]) => intent.request === request.slug && intent.claim?.claimedBy === claim?.claimedBy);
+				requireGithub(prior.length <= 1, "requested create alias has conflicting private intents");
+				const key = prior[0]?.[0] ?? hash({ requested: request.slug, claim: claim?.claimedBy });
 				const intent = journal.creates[key] ??= {
 					marker: randomUUID(), request: request.slug, fields, body: request.body, claim,
 					parentId: fields["part-of"] ? native(snapshot, fields["part-of"] as string).id : undefined,
 				};
+				requireGithub(isDeepStrictEqual(intent.fields, fields) && intent.body === request.body, "requested create alias already has a different contract; update its actual gh identity instead");
 				saveJournal(project, journal, run?.root);
 				let found = snapshot.issues.filter(issue => decodeGithubBody(issue.body).marker === intent.marker);
 				requireGithub(found.length <= 1, "duplicate native creation correlation marker");
