@@ -1,6 +1,6 @@
 // A stateful fake of the slice of GitHub that lib/tracker-github*.ts uses, installed as a `gh` executable on PATH.
-// Reads go through the committed fixture server (docs/attachments/read-github-tracker-snapshots/fake-gh.ts), which pages
-// connections by cursor like GitHub; mutations edit the JSON state in <dir>/state.json. Faults are scripted in state.faults.
+// Reads go through the committed fixture server (docs/attachments/read-github-tracker-snapshots/fake-gh.ts), which serves
+// bounded first/last connections like GitHub; mutations edit the JSON state in <dir>/state.json. Faults are scripted in state.faults.
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { serve } from "../../docs/attachments/read-github-tracker-snapshots/fake-gh.ts";

@@ -1,6 +1,6 @@
 # Native GitHub reconciler rehearsal
 
-**Fresh replay on the combined final revision: [section below](#fresh-native-replay-and-rate-limit-hold-review-2026-10-15) — all five native journeys plus the active-run rate-limit hold were observed live on the same preserved repository (evidence in [replay/](replay/api-extracts.json)).** The sections after it are the first encounter (bc32a67d), kept as history: its "single-page, 90-issue" admission guard was a controller restriction, since removed; its one-request-per-refresh measurement was specific to repositories of at most 100 issues.
+**Current single-request join:** the parent residual restores the specified bounded first/last:100 query plan. Cursor-paged replay below is historical and does not meet the one-request acceptance. The current controller enforces one named `TrackerSnapshot` per refresh, including nested completeness, and refuses connections beyond 200 unique nodes. New final-revision evidence follows in the parent join packet.
 
 Independent drive on bc32a67d: [encounter, predictions and blocking setup gap](drive.md). Prepared inspection passed; full replay then failed setup capacity before launch (see the replay below for the repair).
 
@@ -36,7 +36,7 @@ bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts status OWNED_D
 bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts cleanup OWNED_DIRECTORY
 ~~~
 
-The first controller refused to start when the repository already held more than 90 issues (it wanted its ten new issues inside one 100-issue page). That guard was removed in the replay below: the production reader pages by cursor inside one logical refresh, and the controller now accounts for requests per refresh instead of assuming one.
+The controller requires inherited issues plus ten new fixtures to fit the single-operation 200-issue coverage. It never deletes inherited issues or substitutes another repository; every nested required connection must also fit. This replaces the first controller's 90-issue guard and the intermediate cursor replay.
 
 The controller owns private XDG/cache/board/registry/agents and uses the existing shellBb fixture around the production dispatch/thread/phase/integration path. Its ordinary board reports carry committed scratch code/evidence. A live shell writer PID is registered and exact-stop-confirmed; BB CLI turn execution is deterministic, not a live paid provider. Every GitHub backend call delegates unchanged, except the explicitly armed successful-create-response loss. No controller writes landing/refinement/completion receipts.
 
@@ -63,7 +63,7 @@ Selected extracts are in [replay/api-extracts.json](replay/api-extracts.json); e
 
 ### Per-refresh query accounting (story 5)
 
-The proxy counted named operations at the real gh transport for every process, including external CLI writers and cleanup. Primary area: **44 logical snapshot refreshes, 85 tracker read requests** (44 `TrackerSnapshot` + 41 `TrackerIssues` cursor pages), plus 10 `TrackerCreate`, 21 `TrackerWrite`, 21 PR-host GraphQL queries and 122 REST commands counted separately. Requests per refresh: **1 for 3 refreshes (≤100 issues: 99–100), 2 for 41 (101–109 issues)**; all 44 complete (unique node ids = totalCount) and minimal; no continuation was unattributed. The interrupted area adds 17 refreshes of one request each (99 issues). Because the repository now exceeds one page, **the per-refresh figure is two requests, not one**; the parent contract is one logical snapshot per refresh with cursor paging inside it, and no refresh reads an issue twice or pages per issue.
+The proxy counted named operations at the real gh transport for every process, including external CLI writers and cleanup. Primary area: **44 logical snapshot refreshes, 85 tracker read requests** (44 `TrackerSnapshot` + 41 `TrackerIssues` cursor pages), plus 10 `TrackerCreate`, 21 `TrackerWrite`, 21 PR-host GraphQL queries and 122 REST commands counted separately. Requests per refresh: **1 for 3 refreshes (≤100 issues: 99–100), 2 for 41 (101–109 issues)**; all 44 complete (unique node ids = totalCount) and minimal; no continuation was unattributed. The interrupted area adds 17 refreshes of one request each (99 issues). Because the repository now exceeds one page, **the per-refresh figure is two requests, not one**; the intermediate implementation used one logical snapshot per refresh with cursor paging inside it (contrary to the parent’s single-request contract; superseded by the residual join), and no refresh reads an issue twice or pages per issue.
 
 - 24 warm snapshot/fields/text/CLI reads → **0 requests**.
 - Real 61 s wait → **1 refresh = 2 requests** (103 issues covered, complete).

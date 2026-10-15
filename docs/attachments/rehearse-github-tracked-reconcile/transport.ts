@@ -10,13 +10,28 @@ const operation = query.match(/(?:query|mutation)\s+(\w+)/)?.[1]
   ?? (args.includes("graphql") ? "PRGraphQL" : "REST");
 const field = query.match(/\{\s*(\w+)\s*\(input:/)?.[1];
 const started = new Date().toISOString();
-// What one tracker read page covered: kind, node count, the connection's totalCount, whether more follows, and issue node ids.
+// Counts only: certify every required end-page union without recording contracts.
 function connectionPage(data: any) {
-  const repository = data?.data?.repository, node = data?.data?.node;
-  const kind = repository?.issues ? "issues" : repository?.labels ? "labels" : "connection";
-  const page = repository?.issues ?? repository?.labels ?? (node && Object.values(node)[0]) as any;
-  return { kind, issueCount: page?.nodes?.length, totalCount: page?.totalCount, more: page?.pageInfo?.hasNextPage,
-    ...(kind === "issues" ? { ids: page?.nodes?.map((n: any) => n.id) } : {}) };
+  const repo = data?.data?.repository;
+  const checks: { locator: string; total: number; unique: number; complete: boolean }[] = [];
+  const union = (object: any, field: string, locator: string) => {
+    const first = object?.[field + "First"], last = object?.[field + "Last"];
+    const nodes = new Map<string, any>();
+    for (const node of [...(first?.nodes ?? []), ...(last?.nodes ?? [])]) if (node?.id) nodes.set(node.id, node);
+    const total = first?.totalCount ?? -1, more = total > 100;
+    checks.push({ locator, total, unique: nodes.size, complete: total >= 0 && total === last?.totalCount && nodes.size === total
+      && first?.nodes?.length === Math.min(total,100) && last?.nodes?.length === Math.min(total,100)
+      && first?.pageInfo?.hasPreviousPage === false && first?.pageInfo?.hasNextPage === more
+      && last?.pageInfo?.hasNextPage === false && last?.pageInfo?.hasPreviousPage === more });
+    return [...nodes.values()];
+  };
+  const issues = union(repo, "issues", "repository.issues");
+  union(repo, "labels", "repository.labels");
+  for (const issue of issues) for (const field of ["subIssues", "blockedBy", "labels", "assignees", "comments"])
+    union(issue, field, "#" + issue.number + "." + field);
+  return { kind: "issues", issueCount: issues.length, totalCount: repo?.issuesFirst?.totalCount, more: false,
+    ids: issues.map(n => n.id), connections: { checked: checks.length, complete: checks.filter(c => c.complete).length,
+      incomplete: checks.filter(c => !c.complete) } };
 }
 const result = spawnSync(process.env.REHEARSAL_GH!, args, { input, encoding: "utf8", maxBuffer: 64 << 20 });
 let data: any;

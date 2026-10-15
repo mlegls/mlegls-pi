@@ -14,7 +14,7 @@ writeFileSync(join(bin,"gh"),"#!/bin/sh\nexec "+JSON.stringify(process.execPath)
 Object.assign(process.env,{XDG_STATE_HOME:join(area,"state"),XDG_CACHE_HOME:join(area,"cache"),
   REHEARSAL_GH:gh,REHEARSAL_CALLS:calls,REHEARSAL_LOSS:join(area,"never-armed"),PATH:bin+":"+process.env.PATH});
 const rows=()=>readFileSync(calls,"utf8").trim().split("\n").map(l=>JSON.parse(l));
-// Requests, not refreshes: a repository over 100 issues needs cursor pages (TrackerIssues) inside the one logical refresh.
+// Count obsolete continuation operations too: no extra query may escape the measurement.
 const snapshots=()=>rows().filter(c=>/^Tracker(Snapshot|Issues|Labels|Connection)$/.test(c.operation)).length;
 const run=(cmd:string,args:string[])=>execFileSync(cmd,args,{cwd:area,encoding:"utf8",stdio:"pipe",timeout:120000}).trim();
 try {
@@ -23,6 +23,7 @@ try {
   const { getTracker }=await import("../../../lib/tracker.ts");
   const tracker=getTracker(cwd,{inflight:false}); assert(tracker.githubIssue);
   const snapshot=tracker.snapshot(), firstRefresh=snapshots();
+  assert.equal(firstRefresh,1);
   const {schedulingView}=await import("../../../lib/reconcile/scheduling.ts");
   for(let n=0;n<3;n++) {
     assert(schedulingView(tracker.snapshot(),{root:"gh-96",into:cwd,landed:{},attemptClaims:new Set(),withheld:new Set()}).get("gh-96")?.satisfied);

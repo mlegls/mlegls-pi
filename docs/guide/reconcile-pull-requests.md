@@ -48,13 +48,13 @@ For the native GitHub tracker (not the earlier separate-vault fixture), use the 
 
 ```sh
 bun docs/attachments/rehearse-github-tracked-reconcile/inspect.ts # read-only prepared native story
-bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run # fresh live seed, ~15 min; works on a repository of any size
+bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run # fresh live seed, ~15 min; inherited issues + 10 fixtures must fit 200
 # Inspect or clean only the directory printed by the live controller:
 bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts status OWNED_DIRECTORY
 bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts cleanup OWNED_DIRECTORY
 ```
 
-It requires existing `gh` authentication as mlegls and mutates only the explicitly authorized private scratch repository. It commits the canonical GitHub convention, seeds native issues/relations, waits for real setup/gates/Actions, and launches deterministic shell phases through the production thread path. It preserves artifact commits and the supplied repository; the manifest lists retained local state and any new labels. No credentials or new permissions are provisioned. The run includes two injected GitHub rate-limit holds (a recorded-reset-file cut, never the real account) in the middle of production `run()`: it observes the reconciler hold without owner mail, a worker's tracker CLI fail fast, and a pending report replayed once after the reset. Snapshot accounting is per logical refresh: one `TrackerSnapshot` plus `TrackerIssues` cursor pages, so a repository past 100 issues costs two requests per refresh, not one; `capture.ts OUTDIR AREA` writes the per-refresh evidence.
+It requires existing `gh` authentication as mlegls and mutates only the explicitly authorized private scratch repository. It commits the canonical GitHub convention, seeds native issues/relations, waits for real setup/gates/Actions, and launches deterministic shell phases through the production thread path. It preserves artifact commits and the supplied repository; the manifest lists retained local state and any new labels. No credentials or new permissions are provisioned. The run includes two injected GitHub rate-limit holds (a recorded-reset-file cut, never the real account) in the middle of production `run()`: it observes the reconciler hold without owner mail, a worker's tracker CLI fail fast, and a pending report replayed once after the reset. Each refresh makes one named `TrackerSnapshot` request, with first/last:100 aliases and ID-union/count/pageInfo completeness checks on every required connection (up to 200 nodes). An incomplete connection refuses dispatch with its locator/count; there is no cursor fallback. Warm reads share the minute-long cache across processes; own writes invalidate it. `capture.ts OUTDIR AREA` writes the per-refresh evidence.
 
 [Combined join evidence](../attachments/land-reconciled-trees-through-pull-requests/index.md) and [owned live rehearsal](../attachments/rehearse-reconciled-github-pr-landings/index.md):
 

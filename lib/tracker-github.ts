@@ -220,7 +220,7 @@ function logicalFields(node: GithubNode): Fields {
 	return structuredClone(fields);
 }
 
-/** Direct factory only until the activation child wires getTracker/CLI. */
+/** Canonical GitHub factory, shared by getTracker and the global CLI. */
 export function getGithubTracker(cwd: string, options: TrackerOptions = {}): Tracker | undefined {
 	const project = githubProject(cwd);
 	if (!project) return undefined;
