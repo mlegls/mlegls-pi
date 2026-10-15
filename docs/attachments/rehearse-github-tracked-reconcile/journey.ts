@@ -186,8 +186,9 @@ try {
     const ignores = readFileSync(join(m.cwd, ".gitignore"), "utf8");
     put(m.cwd, ".gitignore", ignores + "\nshell-pid\nsetup-ready\n");
     put(m.cwd, "mise.toml", '[tasks.setup]\nrun = "touch setup-ready"\n[tasks.pre-integrate]\nrun = "bash gate.sh"\n');
-    // Preserve supplied workflow/gate. Only fixture code is added by workers.
-    git(m.cwd, "add", "docs/agents", ".pi/reconcile.json", ".gitignore", "mise.toml");
+    // Keep the inherited gate's criteria, but receipts must never touch a prior run.
+    put(m.cwd, "gate.sh", "#!/bin/sh\nset -eu\ntest -s fixture/ci.txt\ntest -s fixture/conflict.txt\nif grep -q '<<<<<<<' fixture/conflict.txt; then exit 1; fi\nprintf '%s ' \"$PWD\" >> '" + join(area,"gates") + "'\ngit rev-parse HEAD >> '" + join(area,"gates") + "'\n");
+    git(m.cwd, "add", "docs/agents", ".pi/reconcile.json", ".gitignore", "mise.toml", "gate.sh");
     git(m.cwd, "commit", "-qm", "Select native GitHub tracker for owned rehearsal");
     execFileSync("mise", ["run", "setup"], {cwd:m.cwd,stdio:"pipe"});
     execFileSync("mise", ["run", "pre-integrate"], {cwd:m.cwd,stdio:"pipe"});
@@ -269,7 +270,7 @@ try {
     await stop(m.cwd,promotion);
 
     // Failed writer + create-after-publication/before-observation cut.
-    const failed = create("native-failed-refine",{});
+    const failed = create("native-failed-refine",{stage:"spec"});
     const baseline = create("native-baseline",{stage:"ticket","part-of":failed});
     cli(["close",baseline,"--summary","Owned completed baseline; preserved during failed refinement."]);
     boot(failed);
