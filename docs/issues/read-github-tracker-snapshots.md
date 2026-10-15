@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
-claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
 ---
 Implement the read side of the GitHub `Tracker` adapter. Story: a ready GitHub issue tree can enter the existing reconciler without a vault or branch-local issue files; workers receive the actual issue body and comments, and collector-local scheduling still distinguishes global open blockers.
@@ -43,3 +42,35 @@ First use calls the factory directly; active `getTracker` still selects only vau
 - Renamed table entries work; partial connections/errors refuse the entire projection; foreign/native assignments remain claims and cannot be made owned by matching the login.
 - Repeated snapshot/text/fields calls within a warm cache make zero additional TrackerSnapshot requests; one expiry refresh makes exactly one. Record counts, not an inference from source.
 - Existing `bun test lib/reconcile` and `bun test skills/enabled/all/mlegls/conventions/tracker/scripts` and `bunx tsc --noEmit` pass. No new retained tests are authorized; do not add a test inventory. Commit the nonvisual evidence index with setup/readiness and runnable entry point.
+
+## Result
+
+done
+
+The three stories hold on the final head. The existing checks pass: `bun test lib/reconcile` (14 pass), the tracker scripts tests (24 pass) and `bunx tsc --noEmit`. I re-ran the fixture reader after my repair and got the same results as before.
+
+One repair: I removed the `p1`–`p4` label to `priority` mapping from the read side (`lib/tracker-github.ts`). No contract or decision specifies it, and webapp has no such labels. Left in, a repository's own `p4` label would silently mark issues as deferred and drop them from the non-explicit frontier. Two such labels on one issue would also have failed the whole read. `no-drive` stays because the maintainer decided it. I didn't re-run the live webapp read, since the repair can't change its results. I appended the review to `drive.md`.
+
+I filed nothing and had no friction issues to settle: the driver reported none. There were no structural changes (this wasn't a join).
+
+```yaml
+commit: 29655e92
+stories:
+  - {story: Renamed conventions and fail-closed fixture reads, outcome: held}
+  - {story: Complete read-only webapp snapshot of 182 issues, outcome: held}
+  - {story: Cross-process cache reuse and expiry, outcome: held}
+evidence:
+  path: docs/attachments/read-github-tracker-snapshots/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+fixed:
+  - {what: "removed unspecified p1-p4 label to priority inference", commit: 29655e92}
+caveats:
+  - "The two-ended 100-item connections (first:100 plus last:100) cover at most 200 unique nodes per connection. webapp's 182 issues fit; anything larger fails closed with a diagnostic."
+  - "Each cache miss pays one large TrackerSnapshot query, and a live read takes a few seconds. Warm reads within 60 seconds make zero requests, and the cache is shared across processes."
+  - "proposed test: none."
+```
+
+Evidence: [docs/attachments/read-github-tracker-snapshots/index.md](docs/attachments/read-github-tracker-snapshots/index.md)

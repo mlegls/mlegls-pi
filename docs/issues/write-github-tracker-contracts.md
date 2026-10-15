@@ -5,8 +5,6 @@ author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
 claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
-blocked-by:
-  - "[[projects/mlegls-pi/issues/read-github-tracker-snapshots]]"
 ---
 Finish mutations in the GitHub Tracker built by `read-github-tracker-snapshots`. Story: refinement can publish native sub-issues safely during a live run, preserve exact ownership through interruption, and only target completion publishes the final result/closure. This is backend work; CLI/reconciler activation is the next ticket.
 
