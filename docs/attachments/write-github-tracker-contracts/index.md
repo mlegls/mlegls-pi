@@ -1,5 +1,7 @@
 # Direct GitHub tracker mutations
 
+Independent driver replay: [predictions, observations and checks](drive.md) (2026-10-15, exit 0; owned gh-56..68).
+
 Nonvisual first-use packet. Adapter implementation: a9e12a4e, 73f70908 and e5c92d38.
 The factory/CLI/reconciler remain unactivated here.
 
