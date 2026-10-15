@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:86d24b04-f507-431f-be52-5c33b3e2f361
 ---
@@ -35,3 +35,7 @@ Origin: [[projects/mlegls-pi/issues/rehearse-reconciled-github-pr-landings]], se
 Tried `process kill` for the finished `github-pr-merge-rehearsal` record: it answered `already exited`, although exact `ps -p 30627` still showed the reported nc. Workaround: confirm each notification-owned PID's command, then TERM that PID directly. Final exact ps checks showed neither nc nor either reconciler remaining. No pattern kill or shared proxy-server shutdown. [Selected evidence](../attachments/rehearse-reconciled-github-pr-landings/index.md).
 
 Unresolved tooling friction belongs to pi's managed-process tool / @mjakl/pi-processes: its finished-record kill did not retire a still-reported group member. The existing notification now exposes descendants correctly; this encounter asks about cleanup of those finished-record descendants, not changing reconciler stop or automatically killing deliberately detached services.
+
+## Result
+
+Last open item (2026-10-14 recurrence): process kill on a finished record now stops the members it left in its group, only while still in that group (no reused pid), and the completion notice names the command to use. mlegls/pi-processes kill-finished-leftovers 4272003, merged into local-integration (2c58870), loaded from ~/dev/pi-processes; upstream PR not opened.
