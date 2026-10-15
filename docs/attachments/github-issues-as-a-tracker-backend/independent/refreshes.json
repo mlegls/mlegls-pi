@@ -1,0 +1,668 @@
+[
+  {
+    "area": "/private/tmp/native-reconcile-MCop78",
+    "orphanPages": 0,
+    "rows": [
+      {
+        "at": "2026-10-15T10:19:21.400Z",
+        "ppid": 21790,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 129,
+          "total": 129,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:19:29.048Z",
+        "ppid": 21790,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 130,
+          "total": 130,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:19:38.460Z",
+        "ppid": 22715,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 130,
+          "total": 130,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:19:46.428Z",
+        "ppid": 22715,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 131,
+          "total": 131,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:19:54.225Z",
+        "ppid": 23611,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 131,
+          "total": 131,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:20:02.769Z",
+        "ppid": 23611,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 132,
+          "total": 132,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:20:13.053Z",
+        "ppid": 24750,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 132,
+          "total": 132,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:20:21.052Z",
+        "ppid": 24750,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:20:28.985Z",
+        "ppid": 19526,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:21:39.189Z",
+        "ppid": 19526,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:21:47.571Z",
+        "ppid": 19526,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:22:01.278Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:22:10.481Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:23:03.061Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:23:44.284Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:23:54.602Z",
+        "ppid": 19526,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:24:34.303Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:25:50.999Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:27:23.526Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:27:45.667Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:27:57.305Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:28:08.774Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:28:16.489Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:28:27.378Z",
+        "ppid": 32215,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:28:50.322Z",
+        "ppid": 19526,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 133,
+          "total": 133,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:28:59.528Z",
+        "ppid": 58565,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 134,
+          "total": 134,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:29:07.634Z",
+        "ppid": 19526,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 134,
+          "total": 134,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:29:20.899Z",
+        "ppid": 59916,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 134,
+          "total": 134,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:29:32.908Z",
+        "ppid": 19526,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 134,
+          "total": 134,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:30:03.008Z",
+        "ppid": 65981,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 135,
+          "total": 135,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:30:10.689Z",
+        "ppid": 67749,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 135,
+          "total": 135,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:30:20.329Z",
+        "ppid": 67749,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 136,
+          "total": 136,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:30:27.571Z",
+        "ppid": 68830,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 136,
+          "total": 136,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:30:39.481Z",
+        "ppid": 68830,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 136,
+          "total": 136,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:30:50.787Z",
+        "ppid": 70518,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 136,
+          "total": 136,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:31:00.458Z",
+        "ppid": 70518,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 136,
+          "total": 136,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:31:17.821Z",
+        "ppid": 72228,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 137,
+          "total": 137,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:31:26.219Z",
+        "ppid": 70518,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 137,
+          "total": 137,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:31:38.300Z",
+        "ppid": 73752,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 138,
+          "total": 138,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:31:49.155Z",
+        "ppid": 73752,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 139,
+          "total": 139,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:31:59.284Z",
+        "ppid": 75089,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 139,
+          "total": 139,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:32:10.553Z",
+        "ppid": 75089,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 139,
+          "total": 139,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:32:25.429Z",
+        "ppid": 75089,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 139,
+          "total": 139,
+          "complete": true
+        }
+      },
+      {
+        "at": "2026-10-15T10:32:39.472Z",
+        "ppid": 75089,
+        "requests": 2,
+        "operations": {
+          "TrackerSnapshot": 1,
+          "TrackerIssues": 1
+        },
+        "success": true,
+        "issues": {
+          "unique": 139,
+          "total": 139,
+          "complete": true
+        }
+      }
+    ]
+  }
+]

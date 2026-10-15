@@ -1,0 +1,1092 @@
+{
+  "tested": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+  "claimsBeforeLaunch": [
+    {
+      "at": "2026-10-15T10:22:20.497Z",
+      "beforeLaunch": true,
+      "issue": "gh-145",
+      "run": "gh-144",
+      "handle": "gh-145-implement-1",
+      "thread": "79231742-fc15-44df-a030-f1a35557a09e",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:22:39.506Z",
+      "beforeLaunch": true,
+      "issue": "gh-145",
+      "run": "gh-144",
+      "handle": "gh-145-drive-2",
+      "thread": "2f8bdbab-4c48-4f1f-882e-b027af271f8e",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:22:48.010Z",
+      "beforeLaunch": true,
+      "issue": "gh-145",
+      "run": "gh-144",
+      "handle": "gh-145-review-3",
+      "thread": "9e77ae1b-55c0-4a05-ab01-6a3cbb2e08df",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:23:10.597Z",
+      "beforeLaunch": true,
+      "issue": "gh-146",
+      "run": "gh-144",
+      "handle": "gh-146-implement-4",
+      "thread": "dc739af7-831e-47eb-8e6e-0e235e3eaacc",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:24:45.745Z",
+      "beforeLaunch": true,
+      "issue": "gh-146",
+      "run": "gh-144",
+      "handle": "gh-146-drive-5",
+      "thread": "36d47438-b22f-4909-baa3-f5934523f3a6",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:24:53.997Z",
+      "beforeLaunch": true,
+      "issue": "gh-146",
+      "run": "gh-144",
+      "handle": "gh-146-review-6",
+      "thread": "ceb9ff8d-eedb-4c5a-93ea-99fcad26b8ae",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:25:08.940Z",
+      "beforeLaunch": true,
+      "issue": "gh-144",
+      "run": "gh-144",
+      "handle": "gh-144-implement-7",
+      "thread": "d09af65b-2506-46a5-974e-4183899edfcd",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:25:16.691Z",
+      "beforeLaunch": true,
+      "issue": "gh-144",
+      "run": "gh-144",
+      "handle": "gh-144-drive-8",
+      "thread": "5d1e0437-17cd-4980-821a-a589367e6ba7",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:25:24.681Z",
+      "beforeLaunch": true,
+      "issue": "gh-144",
+      "run": "gh-144",
+      "handle": "gh-144-review-9",
+      "thread": "157f3b98-58ee-4f64-9686-c6ca58461f30",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-144",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:29:30.425Z",
+      "beforeLaunch": true,
+      "issue": "gh-149",
+      "run": "gh-149",
+      "handle": "gh-149-refine-1",
+      "thread": "8e609ce6-c224-499a-ab84-7d00d117e72f",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-149",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:29:49.510Z",
+      "beforeLaunch": true,
+      "issue": "gh-149",
+      "run": "gh-149",
+      "handle": "gh-149-implement-2",
+      "thread": "0577344a-260d-482b-b1a5-54f50e3dcab6",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-149",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    },
+    {
+      "at": "2026-10-15T10:31:13.957Z",
+      "beforeLaunch": true,
+      "issue": "gh-150",
+      "run": "gh-150",
+      "handle": "gh-150-refine-1",
+      "thread": "370f3f22-877e-42bd-b6c8-494ddfd67bd7",
+      "state": "open",
+      "pinnedCliInLaunchEnv": true,
+      "trackerCliRevision": "e9a0750b7c637fc95a89265d718eec45b6d394d5",
+      "assignees": [
+        "mlegls"
+      ],
+      "receipt": {
+        "claimedBy": "reconcile:gh-150",
+        "assigneeId": "MDQ6VXNlcjQ2MjI2ODQ2"
+      }
+    }
+  ],
+  "cache": {
+    "warmRequests": 0,
+    "warmReads": 24,
+    "realExpiryMs": 61000,
+    "expiryRefreshes": 1,
+    "expiryRequests": 2,
+    "externalCliWriteNextRefreshes": 1,
+    "externalCliWriteNextRequests": 2,
+    "issuesCovered": {
+      "unique": 133,
+      "total": 133,
+      "complete": true
+    }
+  },
+  "warmScheduler": {
+    "requests": 0,
+    "publicReads": 12,
+    "elapsedMs": 11000,
+    "tickMs": 5000,
+    "activeWorker": "gh-145-implement-1"
+  },
+  "collector": {
+    "a": {
+      "into": "gh-144",
+      "head": "7f8fad226e919fb6bae85fac3569e5553444e0ed",
+      "at": "2026-10-15T10:22:54.278Z"
+    },
+    "bStartingHead": "7f8fad226e919fb6bae85fac3569e5553444e0ed",
+    "aAncestor": true,
+    "issues": [
+      {
+        "number": 145,
+        "id": "I_kwDOVJGTm88AAAABXYpNXQ",
+        "state": "open",
+        "stateReason": null,
+        "closedAt": null,
+        "assignees": [
+          "mlegls"
+        ],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/145"
+      },
+      {
+        "number": 146,
+        "id": "I_kwDOVJGTm88AAAABXYpbQQ",
+        "state": "open",
+        "stateReason": null,
+        "closedAt": null,
+        "assignees": [
+          "mlegls"
+        ],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/146"
+      }
+    ],
+    "outside": {
+      "slug": "gh-147",
+      "blockedBy": [
+        "gh-145"
+      ],
+      "frontier": false
+    },
+    "results": {
+      "gh-145": {
+        "parent": "gh-144",
+        "summary": "gh-145 native rehearsal result",
+        "evidence": "docs/attachments/native-rehearsal/gh-145.md",
+        "handoff": {
+          "summary": "gh-145 native rehearsal result",
+          "setup": {
+            "kind": "owned-native-github",
+            "entry": "mise run pre-integrate"
+          },
+          "stories": [
+            {
+              "story": "gh-145 fixture code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/native-rehearsal/gh-145.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      }
+    },
+    "targetReceipts": 0
+  },
+  "rateLimit": {
+    "cliFailure": {
+      "worker": "gh-146-implement-4",
+      "thread": "dc739af7-831e-47eb-8e6e-0e235e3eaacc",
+      "injectedAt": "2026-10-15T10:23:12.888Z",
+      "resetAt": "2026-10-15T10:23:43.000Z",
+      "note": "tracker rate limit: holding every node until 2026-10-15T10:23:43.000Z",
+      "ghRequestsDuringHold": 0,
+      "ownerMailDuringHold": 0,
+      "exceptions": 0,
+      "holdNotes": 1,
+      "workerCli": {
+        "exit": 1,
+        "failedMs": 150,
+        "stderr": "GitHub tracker: API rate limit exhausted until 2026-10-15T10:23:43.000Z; this is a hold, not a blocker: wait until then and rerun the same command (partial mutations retain private replay intent)",
+        "gh": 0
+      },
+      "blockedReport": {
+        "id": "mv9e4sda-jzh8tt",
+        "ts": "2026-10-15T10:23:16.126Z"
+      },
+      "nudge": {
+        "id": "mv9e5kbw-3o7150",
+        "ts": "2026-10-15T10:23:52.364Z",
+        "afterReset": true,
+        "body": "The GitHub API rate limit is a hold, not a blocker. Rerun the same tracker command now; if it still names a reset time, wait until then and rerun it. Continue the assignment and report on its real outcome."
+      },
+      "forwardedAsBlockedToOwner": false,
+      "chainStillImplement": true,
+      "retryAfterResetSucceeded": true
+    },
+    "pendingReport": {
+      "worker": "gh-146-implement-4",
+      "thread": "dc739af7-831e-47eb-8e6e-0e235e3eaacc",
+      "injectedAt": "2026-10-15T10:24:02.635Z",
+      "resetAt": "2026-10-15T10:24:33.000Z",
+      "note": "tracker rate limit: holding every node until 2026-10-15T10:24:33.000Z",
+      "ghRequestsDuringHold": 0,
+      "ownerMailDuringHold": 0,
+      "exceptions": 0,
+      "holdNotes": 1,
+      "report": {
+        "id": "mv9e5vhq-0jll4o",
+        "ts": "2026-10-15T10:24:06.830Z",
+        "postedDuringHold": true
+      },
+      "unconsumedAtMidHold": {
+        "phase": "implement",
+        "handledTs": "2026-10-15T10:23:16.126Z",
+        "counter": 4
+      },
+      "resumedPhase": "drive",
+      "nextWorker": "gh-146-drive-5",
+      "nextLaunchedAfterReset": true,
+      "counterAfter": 5,
+      "sameReportReplayedOnce": true
+    }
+  },
+  "publication": {
+    "pr": {
+      "number": 148,
+      "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/pull/148",
+      "state": "OPEN",
+      "headBranch": "reconcile/pr/gh-144-e901dbce426d",
+      "head": "4b71896e1bb15dd98c83fedcf5df83a8daeba5ac",
+      "baseBranch": "main",
+      "base": "5e5b6310499556498e9f2bb3a7fe300efcfcfb50",
+      "mergeable": "MERGEABLE",
+      "reviews": [],
+      "threads": [],
+      "checks": [
+        {
+          "id": "116372670878",
+          "name": "located-fixture",
+          "state": "pending",
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/actions/runs/38720225454/job/116372670878",
+          "details": "in_progress/unknown"
+        },
+        {
+          "id": "116372605796",
+          "name": "located-fixture",
+          "state": "pending",
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/actions/runs/38720205905/job/116372605796",
+          "details": "in_progress/unknown"
+        }
+      ]
+    },
+    "closing": [
+      "Closes #145",
+      "Closes #146",
+      "Closes #144"
+    ],
+    "issues": [
+      {
+        "number": 145,
+        "id": "I_kwDOVJGTm88AAAABXYpNXQ",
+        "state": "open",
+        "stateReason": null,
+        "closedAt": null,
+        "assignees": [
+          "mlegls"
+        ],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/145"
+      },
+      {
+        "number": 146,
+        "id": "I_kwDOVJGTm88AAAABXYpbQQ",
+        "state": "open",
+        "stateReason": null,
+        "closedAt": null,
+        "assignees": [
+          "mlegls"
+        ],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/146"
+      },
+      {
+        "number": 144,
+        "id": "I_kwDOVJGTm88AAAABXYo-Hw",
+        "state": "open",
+        "stateReason": null,
+        "closedAt": null,
+        "assignees": [
+          "mlegls"
+        ],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/144"
+      }
+    ],
+    "results": {
+      "gh-145": {
+        "parent": "gh-144",
+        "summary": "gh-145 native rehearsal result",
+        "evidence": "docs/attachments/native-rehearsal/gh-145.md",
+        "handoff": {
+          "summary": "gh-145 native rehearsal result",
+          "setup": {
+            "kind": "owned-native-github",
+            "entry": "mise run pre-integrate"
+          },
+          "stories": [
+            {
+              "story": "gh-145 fixture code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/native-rehearsal/gh-145.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      },
+      "gh-146": {
+        "parent": "gh-144",
+        "summary": "gh-146 native rehearsal result",
+        "evidence": "docs/attachments/native-rehearsal/gh-146.md",
+        "handoff": {
+          "summary": "gh-146 native rehearsal result",
+          "setup": {
+            "kind": "owned-native-github",
+            "entry": "mise run pre-integrate"
+          },
+          "stories": [
+            {
+              "story": "gh-146 fixture code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/native-rehearsal/gh-146.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      },
+      "gh-144": {
+        "parent": null,
+        "summary": "gh-144 native rehearsal result",
+        "evidence": "docs/attachments/native-rehearsal/gh-144.md",
+        "handoff": {
+          "summary": "gh-144 native rehearsal result",
+          "setup": {
+            "kind": "owned-native-github",
+            "entry": "mise run pre-integrate"
+          },
+          "stories": [
+            {
+              "story": "gh-144 fixture code and joins",
+              "outcome": "held"
+            }
+          ],
+          "evidence": {
+            "path": "docs/attachments/native-rehearsal/gh-144.md",
+            "visual": false,
+            "shots": []
+          },
+          "tests": []
+        }
+      }
+    },
+    "workersRetired": true
+  },
+  "merged": {
+    "pr": {
+      "number": 148,
+      "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/pull/148",
+      "state": "MERGED",
+      "headBranch": "reconcile/pr/gh-144-e901dbce426d",
+      "head": "4b71896e1bb15dd98c83fedcf5df83a8daeba5ac",
+      "baseBranch": "main",
+      "base": "f3b9c8ce028bc99bfdbc926442bfc29710faa56d",
+      "mergeable": "UNKNOWN",
+      "mergedAt": "2026-10-15T10:27:17Z",
+      "mergeCommit": "f3b9c8ce028bc99bfdbc926442bfc29710faa56d",
+      "reviews": [],
+      "threads": [],
+      "checks": [
+        {
+          "id": "116372670878",
+          "name": "located-fixture",
+          "state": "pass",
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/actions/runs/38720225454/job/116372670878",
+          "details": "completed/success"
+        },
+        {
+          "id": "116372605796",
+          "name": "located-fixture",
+          "state": "pass",
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/actions/runs/38720205905/job/116372605796",
+          "details": "completed/success"
+        }
+      ]
+    },
+    "fetchedAncestry": true,
+    "results": [
+      {
+        "slug": "gh-145",
+        "closedAt": "2026-10-15T10:27:57.244Z",
+        "issue": {
+          "number": 145,
+          "id": "I_kwDOVJGTm88AAAABXYpNXQ",
+          "state": "closed",
+          "stateReason": "completed",
+          "closedAt": "2026-10-15T10:27:19Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/145"
+        },
+        "comments": [
+          {
+            "id": 6189943771,
+            "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/145#issuecomment-6189943771",
+            "at": "2026-10-15T10:27:43Z",
+            "body": "gh-145 native rehearsal result\n\nEvidence: [docs/attachments/native-rehearsal/gh-145.md](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/blob/4b71896e1bb15dd98c83fedcf5df83a8daeba5ac/docs/attachments/native-rehearsal/gh-145.md)\n\n<!-- mlegls-pi:result:aa3de989ca8a3f2e305db724efd904575dc82b3f81cc1163ef271c386e174117 -->"
+          }
+        ]
+      },
+      {
+        "slug": "gh-146",
+        "closedAt": "2026-10-15T10:28:16.412Z",
+        "issue": {
+          "number": 146,
+          "id": "I_kwDOVJGTm88AAAABXYpbQQ",
+          "state": "closed",
+          "stateReason": "completed",
+          "closedAt": "2026-10-15T10:27:19Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/146"
+        },
+        "comments": [
+          {
+            "id": 6189950031,
+            "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/146#issuecomment-6189950031",
+            "at": "2026-10-15T10:28:06Z",
+            "body": "gh-146 native rehearsal result\n\nEvidence: [docs/attachments/native-rehearsal/gh-146.md](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/blob/4b71896e1bb15dd98c83fedcf5df83a8daeba5ac/docs/attachments/native-rehearsal/gh-146.md)\n\n<!-- mlegls-pi:result:390df23c3a1ba5ac3cdee74129d67e40a8e79f1f3a362da8a09e038923e42222 -->"
+          }
+        ]
+      },
+      {
+        "slug": "gh-144",
+        "closedAt": "2026-10-15T10:28:33.799Z",
+        "issue": {
+          "number": 144,
+          "id": "I_kwDOVJGTm88AAAABXYo-Hw",
+          "state": "closed",
+          "stateReason": "completed",
+          "closedAt": "2026-10-15T10:27:18Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/144"
+        },
+        "comments": [
+          {
+            "id": 6189955358,
+            "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/144#issuecomment-6189955358",
+            "at": "2026-10-15T10:28:25Z",
+            "body": "gh-144 native rehearsal result\n\nEvidence: [docs/attachments/native-rehearsal/gh-144.md](https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/blob/4b71896e1bb15dd98c83fedcf5df83a8daeba5ac/docs/attachments/native-rehearsal/gh-144.md)\n\n<!-- mlegls-pi:result:6df22b0aaf42c7bc9874887ba93da459d86ed55fb79decc5a65f5fef21beac14 -->"
+          }
+        ]
+      }
+    ],
+    "outsideReady": true,
+    "target": "github:mlegls/reconcile-pr-transport-20261014-35767b2d:main",
+    "ownerSync": "updated",
+    "hostAutoCloseEvents": "native closed_at may precede child-first private closedAt; never reopened"
+  },
+  "promotion": {
+    "issue": {
+      "number": 149,
+      "id": "I_kwDOVJGTm88AAAABXYwvcQ",
+      "state": "open",
+      "stateReason": null,
+      "closedAt": null,
+      "assignees": [
+        "mlegls"
+      ],
+      "labels": [
+        "ready-for-agent"
+      ],
+      "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/149"
+    },
+    "inferred": "spec",
+    "promoted": "ticket",
+    "refinement": {
+      "node": "gh-149",
+      "handle": "gh-149-refine-1",
+      "claim": "reconcile:gh-149/gh-149-refine-1",
+      "baseline": [
+        "gh-149"
+      ],
+      "owned": [],
+      "phase": "accepted",
+      "acceptance": {
+        "reportTs": "2026-10-15T10:29:40.142Z",
+        "children": [],
+        "into": "gh-149",
+        "destination": "/private/tmp/native-reconcile-MCop78/repo__worktrees/gh-149--tree",
+        "preparedHead": "f3b9c8ce028bc99bfdbc926442bfc29710faa56d",
+        "landedHead": "f3b9c8ce028bc99bfdbc926442bfc29710faa56d"
+      },
+      "worker": {
+        "handle": "gh-149-refine-1",
+        "run": "gh-149",
+        "path": "/private/tmp/native-reconcile-MCop78/repo__worktrees/gh-149-refine-1",
+        "threadId": "8e609ce6-c224-499a-ab84-7d00d117e72f"
+      }
+    },
+    "sameImplement": "gh-149-implement-2",
+    "resumedPid": 63761,
+    "counter": 2,
+    "stageLabels": []
+  },
+  "promotionCut": {
+    "pid": 59916,
+    "counter": 2,
+    "chains": {
+      "gh-149": {
+        "phase": "implement",
+        "handle": "gh-149-implement-2"
+      }
+    }
+  },
+  "failedRefinement": {
+    "root": "gh-150",
+    "token": "reconcile:gh-150/gh-150-refine-1",
+    "exactWriter": 72183,
+    "writerStopped": true,
+    "attempt": {
+      "node": "gh-150",
+      "handle": "gh-150-refine-1",
+      "claim": "reconcile:gh-150/gh-150-refine-1",
+      "baseline": [
+        "gh-150",
+        "gh-151"
+      ],
+      "owned": [
+        "gh-152",
+        "gh-153"
+      ],
+      "phase": "removed",
+      "worker": {
+        "handle": "gh-150-refine-1",
+        "run": "gh-150",
+        "path": "/private/tmp/native-reconcile-MCop78/repo__worktrees/gh-150-refine-1",
+        "threadId": "370f3f22-877e-42bd-b6c8-494ddfd67bd7"
+      }
+    },
+    "lostResponse": {
+      "issue": "gh-153",
+      "absentFromSavedOwned": true,
+      "discovered": true
+    },
+    "removed": [
+      {
+        "number": 152,
+        "id": "I_kwDOVJGTm88AAAABXYymLQ",
+        "state": "closed",
+        "stateReason": "not_planned",
+        "closedAt": "2026-10-15T10:32:21Z",
+        "assignees": [],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/152"
+      },
+      {
+        "number": 153,
+        "id": "I_kwDOVJGTm88AAAABXYy2qw",
+        "state": "closed",
+        "stateReason": "not_planned",
+        "closedAt": "2026-10-15T10:32:33Z",
+        "assignees": [],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/153"
+      }
+    ],
+    "retained": [
+      {
+        "number": 151,
+        "id": "I_kwDOVJGTm88AAAABXYxy4A",
+        "state": "closed",
+        "stateReason": "completed",
+        "closedAt": "2026-10-15T10:30:38Z",
+        "assignees": [],
+        "labels": [
+          "ready-for-agent"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/151"
+      },
+      {
+        "number": 154,
+        "id": "I_kwDOVJGTm88AAAABXYzAwQ",
+        "state": "open",
+        "stateReason": null,
+        "closedAt": null,
+        "assignees": [],
+        "labels": [
+          "ready-for-human"
+        ],
+        "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/154"
+      }
+    ],
+    "provisionalImplementLaunches": 0
+  },
+  "failedCut": {
+    "pid": 70518,
+    "root": "gh-150",
+    "attempts": [
+      {
+        "node": "gh-150",
+        "handle": "gh-150-refine-1",
+        "claim": "reconcile:gh-150/gh-150-refine-1",
+        "baseline": [
+          "gh-150",
+          "gh-151"
+        ],
+        "owned": [
+          "gh-152"
+        ],
+        "phase": "writing",
+        "worker": {
+          "handle": "gh-150-refine-1",
+          "run": "gh-150",
+          "path": "/private/tmp/native-reconcile-MCop78/repo__worktrees/gh-150-refine-1",
+          "threadId": "370f3f22-877e-42bd-b6c8-494ddfd67bd7"
+        }
+      }
+    ]
+  },
+  "queries": [
+    {
+      "area": "/private/tmp/native-reconcile-MCop78",
+      "refreshes": 44,
+      "requestsPerRefresh": {
+        "2": 44
+      },
+      "totalRequests": 88,
+      "orphanPages": 0,
+      "allComplete": true,
+      "allMinimal": true,
+      "maxIssues": 139,
+      "counts": {
+        "REST": 120,
+        "TrackerSnapshot": 44,
+        "TrackerIssues": 44,
+        "TrackerCreate": 10,
+        "TrackerWrite": 20,
+        "PRGraphQL": 21,
+        "DeliberateLostCreateResponse": 1
+      }
+    }
+  ],
+  "protocolMutations": [
+    {
+      "at": "2026-10-15T10:27:42.165Z",
+      "pid": 54058,
+      "ppid": 32215,
+      "operation": "TrackerWrite",
+      "kind": "mutation",
+      "field": "addComment",
+      "status": 0,
+      "subject": "I_kwDOVJGTm88AAAABXYpNXQ"
+    },
+    {
+      "at": "2026-10-15T10:28:05.377Z",
+      "pid": 55468,
+      "ppid": 32215,
+      "operation": "TrackerWrite",
+      "kind": "mutation",
+      "field": "addComment",
+      "status": 0,
+      "subject": "I_kwDOVJGTm88AAAABXYpbQQ"
+    },
+    {
+      "at": "2026-10-15T10:28:24.402Z",
+      "pid": 56240,
+      "ppid": 32215,
+      "operation": "TrackerWrite",
+      "kind": "mutation",
+      "field": "addComment",
+      "status": 0,
+      "subject": "I_kwDOVJGTm88AAAABXYo-Hw"
+    },
+    {
+      "at": "2026-10-15T10:30:34.883Z",
+      "pid": 69385,
+      "ppid": 68830,
+      "operation": "TrackerWrite",
+      "kind": "mutation",
+      "field": "addComment",
+      "status": 0,
+      "subject": "I_kwDOVJGTm88AAAABXYxy4A"
+    },
+    {
+      "at": "2026-10-15T10:30:36.945Z",
+      "pid": 69527,
+      "ppid": 68830,
+      "operation": "TrackerWrite",
+      "kind": "mutation",
+      "field": "closeIssue",
+      "status": 0,
+      "subject": "I_kwDOVJGTm88AAAABXYxy4A",
+      "reason": "COMPLETED"
+    },
+    {
+      "at": "2026-10-15T10:32:19.507Z",
+      "pid": 76279,
+      "ppid": 75089,
+      "operation": "TrackerWrite",
+      "kind": "mutation",
+      "field": "closeIssue",
+      "status": 0,
+      "subject": "I_kwDOVJGTm88AAAABXYymLQ",
+      "reason": "NOT_PLANNED"
+    },
+    {
+      "at": "2026-10-15T10:32:32.326Z",
+      "pid": 77059,
+      "ppid": 75089,
+      "operation": "TrackerWrite",
+      "kind": "mutation",
+      "field": "closeIssue",
+      "status": 0,
+      "subject": "I_kwDOVJGTm88AAAABXYy2qw",
+      "reason": "NOT_PLANNED"
+    }
+  ],
+  "cleanup": [
+    {
+      "area": "/private/tmp/native-reconcile-MCop78",
+      "issues": [
+        {
+          "number": 144,
+          "id": "I_kwDOVJGTm88AAAABXYo-Hw",
+          "state": "closed",
+          "stateReason": "completed",
+          "closedAt": "2026-10-15T10:27:18Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/144"
+        },
+        {
+          "number": 145,
+          "id": "I_kwDOVJGTm88AAAABXYpNXQ",
+          "state": "closed",
+          "stateReason": "completed",
+          "closedAt": "2026-10-15T10:27:19Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/145"
+        },
+        {
+          "number": 146,
+          "id": "I_kwDOVJGTm88AAAABXYpbQQ",
+          "state": "closed",
+          "stateReason": "completed",
+          "closedAt": "2026-10-15T10:27:19Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/146"
+        },
+        {
+          "number": 147,
+          "id": "I_kwDOVJGTm88AAAABXYprZA",
+          "state": "closed",
+          "stateReason": "not_planned",
+          "closedAt": "2026-10-15T10:33:12Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/147"
+        },
+        {
+          "number": 149,
+          "id": "I_kwDOVJGTm88AAAABXYwvcQ",
+          "state": "closed",
+          "stateReason": "not_planned",
+          "closedAt": "2026-10-15T10:33:16Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/149"
+        },
+        {
+          "number": 150,
+          "id": "I_kwDOVJGTm88AAAABXYxkvg",
+          "state": "closed",
+          "stateReason": "not_planned",
+          "closedAt": "2026-10-15T10:33:19Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/150"
+        },
+        {
+          "number": 151,
+          "id": "I_kwDOVJGTm88AAAABXYxy4A",
+          "state": "closed",
+          "stateReason": "completed",
+          "closedAt": "2026-10-15T10:30:38Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/151"
+        },
+        {
+          "number": 152,
+          "id": "I_kwDOVJGTm88AAAABXYymLQ",
+          "state": "closed",
+          "stateReason": "not_planned",
+          "closedAt": "2026-10-15T10:32:21Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/152"
+        },
+        {
+          "number": 153,
+          "id": "I_kwDOVJGTm88AAAABXYy2qw",
+          "state": "closed",
+          "stateReason": "not_planned",
+          "closedAt": "2026-10-15T10:32:33Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-agent"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/153"
+        },
+        {
+          "number": 154,
+          "id": "I_kwDOVJGTm88AAAABXYzAwQ",
+          "state": "closed",
+          "stateReason": "not_planned",
+          "closedAt": "2026-10-15T10:33:28Z",
+          "assignees": [],
+          "labels": [
+            "ready-for-human"
+          ],
+          "url": "https://github.com/mlegls/reconcile-pr-transport-20261014-35767b2d/issues/154"
+        }
+      ],
+      "branches": [
+        "tree/gh-144",
+        "reconcile/pr/gh-144-e901dbce426d",
+        "gh-145-implement-1",
+        "gh-145-drive-2",
+        "gh-145-review-3",
+        "gh-146-implement-4",
+        "gh-146-drive-5",
+        "gh-146-review-6",
+        "gh-144-implement-7",
+        "gh-144-drive-8",
+        "gh-144-review-9",
+        "gh-149-refine-1",
+        "gh-149-implement-2",
+        "gh-150-refine-1",
+        "reconcile/pr/gh-149-ec8979cf219c",
+        "tree/gh-149",
+        "reconcile/pr/gh-150-8ce78144f698"
+      ],
+      "labels": [],
+      "processes": [
+        32215,
+        59916,
+        63761,
+        70518,
+        75089,
+        33800,
+        34888,
+        35220,
+        36189,
+        42162,
+        42787,
+        43861,
+        44561,
+        45200,
+        61264,
+        63683,
+        72183
+      ],
+      "rootsStopped": [
+        "gh-144",
+        "gh-149",
+        "gh-150"
+      ],
+      "remotePrBranchesDeleted": [
+        "reconcile/pr/gh-144-e901dbce426d"
+      ],
+      "retainedLocalBranches": [
+        "gh-144-drive-8",
+        "gh-144-implement-7",
+        "gh-145-drive-2",
+        "gh-145-implement-1",
+        "gh-146-drive-5",
+        "gh-146-implement-4",
+        "reconcile/pr/gh-144-e901dbce426d",
+        "reconcile/pr/gh-149-ec8979cf219c",
+        "reconcile/pr/gh-150-8ce78144f698",
+        "tree/gh-149"
+      ],
+      "ownedThreadCount": 12,
+      "localAreaRetained": "/private/tmp/native-reconcile-MCop78",
+      "labelsRetained": [],
+      "artifactCommitsRetained": true,
+      "liveWorkers": 0
+    }
+  ]
+}

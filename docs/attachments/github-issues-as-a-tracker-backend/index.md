@@ -1,5 +1,7 @@
 # GitHub tracker residual join
 
+Independent acceptance on e9a0750b: [predictions, encounter and checks](drive.md), [selected native extracts](independent/api-extracts.json), [complete refresh accounting](independent/refreshes.json). Full replay passed with PR #148; documented post-completion status inspection failed separately and is tracked in native-rehearsal-status-fails-after-completion.
+
 Tested production/setup revision: **9a6ea95693c18a8a2fb2a6ccfa21c0e0dd844fbb** (base **f802ab0c**). This packet follows the final cursor-paging replay, not the superseded alias experiment. Nonvisual: **visual: false; shots: []**. Parent integration and independent acceptance remain with the supervisor.
 
 ## Change and contract
