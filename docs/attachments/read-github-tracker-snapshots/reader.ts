@@ -23,7 +23,7 @@ writeFileSync(wrapper, [
 	"const input = readFileSync(0, 'utf8');",
 	"const op = JSON.parse(input).query.match(/(?:query|mutation)\\s+(\\w+)/)?.[1] ?? 'unnamed';",
 	"appendFileSync(" + JSON.stringify(log) + ", op + '\\n');",
-	mode === "fixture" ? "process.stdout.write(readFileSync(" + JSON.stringify(response) + ", 'utf8'));" :
+	mode === "fixture" ? "process.stdout.write((await import(" + JSON.stringify(join(import.meta.dir, "fake-gh.ts")) + ")).serve(JSON.parse(input), readFileSync(" + JSON.stringify(response) + ", 'utf8')));" :
 		"process.stdout.write(execFileSync(" + JSON.stringify(realGh) + ", process.argv.slice(2), {input, maxBuffer:64<<20, timeout:120000}));",
 ].join("\n"));
 chmodSync(wrapper, 0o700);
@@ -89,14 +89,8 @@ try {
 		const relation = (number: number, state = "OPEN", repo = repository) => ({
 			id: repo.id + "-I" + number, number, url: repo.url + "/issues/" + number, state, repository: repo,
 		});
-		const pages = (nodes: unknown[]) => ({
-			first: { totalCount: nodes.length, nodes: nodes.slice(0, 100) },
-			last: { totalCount: nodes.length, nodes: nodes.slice(-100) },
-		});
-		const paired = (name: string, nodes: unknown[]) => {
-			const connection = pages(nodes);
-			return { [name + "First"]: connection.first, [name + "Last"]: connection.last };
-		};
+		// Complete plain arrays; fake-gh.ts pages them by cursor like GitHub.
+		const plain = (name: string, nodes: unknown[]) => ({ [name]: nodes });
 		const comments = Array.from({ length: 110 }, (_, n) => ({
 			id: "C-" + n, body: "Synthetic comment " + n, createdAt: new Date(1_700_000_000_000 + n * 1000).toISOString(),
 			author: { login: "commenter-" + n }, url: repository.url + "/issues/2#comment-" + n,
@@ -104,17 +98,17 @@ try {
 		const issue = (number: number, role = "ready-for-agent", state = "OPEN") => ({
 			...relation(number, state), title: "Synthetic contract " + number, body: "Synthetic Markdown body.\n",
 			stateReason: state === "CLOSED" ? "COMPLETED" : null, author: { login: "author" }, parent: null as unknown,
-			...paired("children", []), ...paired("blockers", []), ...paired("labels", [label(role)]),
-			...paired("assignees", []), ...paired("comments", []),
+			...plain("subIssues", []), ...plain("blockedBy", []), ...plain("labels", [label(role)]),
+			...plain("assignees", []), ...plain("comments", []),
 		});
 		const issues = [issue(1), issue(2), issue(3, "ready-for-agent", "CLOSED"), issue(4, "ready-for-human"), issue(5), issue(6)];
-		Object.assign(issues[0]!, paired("children", [relation(2)]));
+		Object.assign(issues[0]!, plain("subIssues", [relation(2)]));
 		Object.assign(issues[1]!, { parent: relation(1), body: "Native contract body.\n\nCasual mention #4 is not an edge.\n\n<!-- mlegls-pi:tracker\n{\"risk\":\"fixture\",\"assignee\":\"agent:technical\"}\n-->\n" },
-			paired("comments", comments), paired("blockers", [relation(3, "CLOSED"), relation(4, "OPEN", foreign)]));
-		Object.assign(issues[4]!, paired("assignees", [{ id: "U-viewer", login: "reader" }]));
+			plain("comments", comments), plain("blockedBy", [relation(3, "CLOSED"), relation(4, "OPEN", foreign)]));
+		Object.assign(issues[4]!, plain("assignees", [{ id: "U-viewer", login: "reader" }]));
 		issues[5]!.body = "Part of #1\nBlocked by: #5\n\nFallback contract.\n";
 		const data = { viewer: { id: "U-viewer", login: "reader" }, repository: {
-			...repository, ...paired("labels", roles.filter(role => role !== "needs-triage").map(label)), ...paired("issues", issues),
+			...repository, ...plain("labels", roles.filter(role => role !== "needs-triage").map(label)), ...plain("issues", issues),
 		} };
 		const publish = (value: unknown = { data }) => { writeFileSync(response, JSON.stringify(value)); cold(cwd); };
 		publish();
@@ -156,23 +150,27 @@ try {
 			catch (error) { errors[name] = (error as Error).message; }
 		};
 		attempt("graphqlPartial", { data, errors: [{ message: "synthetic partial failure" }] });
-		const incomplete = structuredClone(data);
-		(incomplete.repository.issuesFirst as { totalCount: number }).totalCount = 201;
-		(incomplete.repository.issuesLast as { totalCount: number }).totalCount = 201;
-		attempt("repositoryIncomplete", { data: incomplete });
-		const nested = structuredClone(data);
-		for (const key of ["commentsFirst", "commentsLast"]) ((nested.repository.issuesFirst as { nodes: Record<string, { totalCount: number }>[] }).nodes[1]![key]!).totalCount = 201;
-		// Both aliases can include the same issue; the issue's own pages must certify coverage.
-		attempt("commentsIncomplete", { data: nested });
+		const rows = (value: typeof data) => value.repository.issues as Record<string, unknown>[];
+		// totals simulates GitHub declaring more nodes than its pages deliver.
+		attempt("repositoryIncomplete", { data, totals: { issues: 201 } });
+		attempt("commentsIncomplete", { data, totals: { "comments:2": 201 } });
 		const contradictory = structuredClone(data);
-		Object.assign((contradictory.repository.issuesFirst as { nodes: unknown[] }).nodes[0]!, paired("labels", [label("ready-for-agent"), label("ready-for-human")]));
+		Object.assign(rows(contradictory)[0]!, plain("labels", [label("ready-for-agent"), label("ready-for-human")]));
 		attempt("contradictoryTriage", { data: contradictory });
 		const cyclic = structuredClone(data);
-		Object.assign((cyclic.repository.issuesFirst as { nodes: unknown[] }).nodes[1]!, paired("blockers", [relation(2)]));
+		Object.assign(rows(cyclic)[1]!, plain("blockedBy", [relation(2)]));
 		attempt("dependencyCycle", { data: cyclic });
 		const missing = structuredClone(data);
-		(missing.repository.issuesFirst as { nodes: { parent: unknown }[] }).nodes[1]!.parent = relation(88);
+		rows(missing)[1]!.parent = relation(88);
 		attempt("missingParent", { data: missing });
+		// More than 200 issues: three repository pages plus gh-2's second comments page.
+		const large = structuredClone(data);
+		for (let number = 7; number <= 256; number++) rows(large).push(issue(number));
+		publish({ data: large });
+		const beforeLarge = requests().length;
+		const largeSnapshot = factory(cwd).snapshot();
+		const largeRequests = requests().slice(beforeLarge);
+		observed.above200 = { issues: largeSnapshot.size, comments: (factory(cwd).fields("gh-2")["github-comments"] as unknown[]).length, operations: largeRequests };
 		publish(); writeFileSync(response, "{broken");
 		try { factory(cwd).snapshot(); errors.invalidJson = "UNEXPECTED SUCCESS"; } catch (error) { errors.invalidJson = (error as Error).message; }
 		publish();

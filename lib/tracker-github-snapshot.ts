@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { isDeepStrictEqual } from "node:util";
 import { Database } from "bun:sqlite";
 import { checkout, git } from "./thread/git.ts";
 
@@ -107,57 +106,57 @@ export interface GithubSnapshot {
 	labels: GithubLabel[];
 	issues: GithubIssue[];
 }
-interface Connection<T> { totalCount: number; nodes: T[] }
-type Paged<T> = { first: Connection<T>; last: Connection<T> };
+interface Page<T> { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: T[] }
 type RawIssue = Omit<GithubIssue, "subIssues" | "blockedBy" | "labels" | "assignees" | "comments"> & {
-	childrenFirst: Connection<GithubRelation>; childrenLast: Connection<GithubRelation>;
-	blockersFirst: Connection<GithubRelation>; blockersLast: Connection<GithubRelation>;
-	labelsFirst: Connection<GithubLabel>; labelsLast: Connection<GithubLabel>;
-	assigneesFirst: Connection<GithubIdentity>; assigneesLast: Connection<GithubIdentity>;
-	commentsFirst: Connection<GithubComment>; commentsLast: Connection<GithubComment>;
+	subIssues: Page<GithubRelation>; blockedBy: Page<GithubRelation>; labels: Page<GithubLabel>;
+	assignees: Page<GithubIdentity>; comments: Page<GithubComment>;
 };
 
-/** Every connection has both end pages in the SAME operation. Total unique IDs,
- * not pageInfo or summed page lengths, certify complete coverage (up to 200). */
-export const trackerSnapshotQuery = [
+const relationSelection = "id databaseId number url state repository { id nameWithOwner url }";
+/** Per-issue connections; each is drained by node id after the repository page. */
+const issueConnections = {
+	subIssues: relationSelection, blockedBy: relationSelection, labels: "id name", assignees: "id login",
+	comments: "id body createdAt url author { login }",
+} as const;
+const connection = (field: string, selection: string, size: number, args = "") =>
+	field + "(first:" + size + args + ") { totalCount pageInfo { hasNextPage endCursor } nodes { " + selection + " } }";
+const issueOrder = ", orderBy:{field:CREATED_AT,direction:ASC}";
+const fragments = (size: number) => [
+	"fragment TrackerRelation on Issue { " + relationSelection + " }",
+	"fragment TrackerIssue on Issue { ...TrackerRelation title body stateReason author { login } parent { ...TrackerRelation } "
+		+ Object.entries(issueConnections).map(([field, selection]) => connection(field, selection, size)).join(" ") + " }",
+].join("\n");
+
+/** Page one of the single logical refresh; fetchSnapshot drains every connection by cursor. */
+export const trackerSnapshotQuery = (size = 100) => [
 	"query TrackerSnapshot($owner: String!, $name: String!) {",
 	" viewer { id login }",
 	" repository(owner: $owner, name: $name) { id nameWithOwner url",
-	"  labelsFirst: labels(first:100) { totalCount nodes { id name } }",
-	"  labelsLast: labels(last:100) { totalCount nodes { id name } }",
-	"  issuesFirst: issues(first:100, orderBy:{field:CREATED_AT,direction:ASC}) { totalCount nodes { ...TrackerIssue } }",
-	"  issuesLast: issues(last:100, orderBy:{field:CREATED_AT,direction:ASC}) { totalCount nodes { ...TrackerIssue } }",
+	"  " + connection("labels", "id name", size),
+	"  " + connection("issues", "...TrackerIssue", size, issueOrder),
 	" }",
 	"}",
-	"fragment TrackerRelation on Issue { id databaseId number url state repository { id nameWithOwner url } }",
-	"fragment TrackerIssue on Issue {",
-	" ...TrackerRelation title body stateReason author { login } parent { ...TrackerRelation }",
-	" childrenFirst: subIssues(first:100) { totalCount nodes { ...TrackerRelation } }",
-	" childrenLast: subIssues(last:100) { totalCount nodes { ...TrackerRelation } }",
-	" blockersFirst: blockedBy(first:100) { totalCount nodes { ...TrackerRelation } }",
-	" blockersLast: blockedBy(last:100) { totalCount nodes { ...TrackerRelation } }",
-	" labelsFirst: labels(first:100) { totalCount nodes { id name } }",
-	" labelsLast: labels(last:100) { totalCount nodes { id name } }",
-	" assigneesFirst: assignees(first:100) { totalCount nodes { id login } }",
-	" assigneesLast: assignees(last:100) { totalCount nodes { id login } }",
-	" commentsFirst: comments(first:100) { totalCount nodes { id body createdAt url author { login } } }",
-	" commentsLast: comments(last:100) { totalCount nodes { id body createdAt url author { login } } }",
-	"}",
+	fragments(size),
 ].join("\n");
 
-function coverage<T extends { id: string }>(pages: Paged<T>, locator: string): T[] {
-	const { first, last } = pages;
-	requireGithub(first && last && Number.isInteger(first.totalCount) && first.totalCount >= 0
-		&& first.totalCount === last.totalCount && Array.isArray(first.nodes) && Array.isArray(last.nodes),
-		locator + ": missing/inconsistent connection counts");
+/** Follows cursors to the end; the unique node count must then equal totalCount. */
+function drain<T extends { id: string }>(first: Page<T>, locator: string, more: (after: string) => Page<T>): T[] {
 	const nodes = new Map<string, T>();
-	for (const node of [...first.nodes, ...last.nodes]) {
-		requireGithub(node && typeof node.id === "string" && node.id, locator + ": null/malformed node");
-		requireGithub(!nodes.has(node.id) || isDeepStrictEqual(nodes.get(node.id), node), locator + ": inconsistent overlapping node " + node.id);
-		nodes.set(node.id, node);
+	let page = first, previous: string | null = null;
+	for (;;) {
+		requireGithub(page && Number.isInteger(page.totalCount) && page.totalCount === first.totalCount && Array.isArray(page.nodes)
+			&& page.pageInfo && typeof page.pageInfo.hasNextPage === "boolean", locator + ": missing/inconsistent connection page");
+		for (const node of page.nodes) {
+			requireGithub(node && typeof node.id === "string" && node.id, locator + ": null/malformed node");
+			requireGithub(!nodes.has(node.id), locator + ": node repeated across pages " + node.id);
+			nodes.set(node.id, node);
+		}
+		if (!page.pageInfo.hasNextPage) break;
+		const cursor = page.pageInfo.endCursor;
+		requireGithub(cursor && cursor !== previous && page.nodes.length > 0, locator + ": connection cursor did not advance");
+		previous = cursor; page = more(cursor);
 	}
-	requireGithub(nodes.size === first.totalCount, locator + ": incomplete connection: " + nodes.size + "/" + first.totalCount
-		+ " unique nodes; first/last:100 cannot cover this response. Reduce the connection or extend the single-operation query plan before retrying");
+	requireGithub(nodes.size === first.totalCount, locator + ": incomplete connection: " + nodes.size + "/" + first.totalCount + " unique nodes");
 	return [...nodes.values()];
 }
 
@@ -167,36 +166,45 @@ function relation(value: GithubRelation, locator: string): void {
 		&& typeof value.url === "string" && typeof value.repository.url === "string", locator + ": malformed native issue identity");
 }
 
-function fetchSnapshot(project: GithubProject): GithubSnapshot {
-	type RawRepository = GithubSnapshot["repository"] & {
-		issuesFirst: Connection<RawIssue>; issuesLast: Connection<RawIssue>;
-		labelsFirst: Connection<GithubLabel>; labelsLast: Connection<GithubLabel>;
-	};
+/** size is the page size (production 100; a smaller one exercises the cursors live). */
+export function fetchSnapshot(project: GithubProject, size = 100): GithubSnapshot {
+	type RawRepository = GithubSnapshot["repository"] & { labels: Page<GithubLabel>; issues: Page<RawIssue> };
 	const [owner, name] = project.repository.split("/");
-	const data = githubApi<{ viewer: GithubIdentity; repository: RawRepository }>(project, trackerSnapshotQuery, { owner, name });
+	const data = githubApi<{ viewer: GithubIdentity; repository: RawRepository }>(project, trackerSnapshotQuery(size), { owner, name });
 	const repo = data.repository;
 	requireGithub(repo?.id && repo.nameWithOwner?.toLowerCase() === project.repository.toLowerCase()
 		&& new URL(repo.url).hostname.toLowerCase() === project.host, "response repository differs from selected " + project.host + "/" + project.repository);
 	requireGithub(data.viewer?.id && data.viewer.login, "missing authenticated viewer identity");
-	const labels = coverage({ first: repo.labelsFirst, last: repo.labelsLast }, project.repository + ".labels");
-	const raw = coverage({ first: repo.issuesFirst, last: repo.issuesLast }, project.repository + ".issues");
-	const issues = raw.map(issue => {
+	const repositoryPage = <T>(field: "labels" | "issues", selection: string) => (after: string) => {
+		const result = githubApi<{ repository: ({ id: string } & Record<string, Page<T>>) | null }>(project,
+			"query " + (field === "labels" ? "TrackerLabels" : "TrackerIssues") + "($owner: String!, $name: String!, $after: String) { repository(owner: $owner, name: $name) { id "
+			+ connection(field, selection, size, ", after:$after" + (field === "issues" ? issueOrder : "")) + " } }" + (field === "issues" ? "\n" + fragments(size) : ""), { owner, name, after });
+		requireGithub(result.repository?.id === repo.id, "repository changed identity while paging " + field);
+		return result.repository[field]!;
+	};
+	const nodePage = <T>(id: string, field: keyof typeof issueConnections) => (after: string) => {
+		const result = githubApi<{ node: Record<string, Page<T>> | null }>(project,
+			"query TrackerConnection($id: ID!, $after: String) { node(id: $id) { ... on Issue { " + connection(field, issueConnections[field], size, ", after:$after") + " } } }", { id, after });
+		requireGithub(result.node?.[field], "issue " + id + " vanished while paging " + field);
+		return result.node[field]!;
+	};
+	const labels = drain(repo.labels, project.repository + ".labels", repositoryPage<GithubLabel>("labels", "id name"));
+	const issues = drain(repo.issues, project.repository + ".issues", repositoryPage<RawIssue>("issues", "...TrackerIssue")).map(issue => {
 		const locator = project.repository + "#" + issue.number;
 		relation(issue, locator);
 		requireGithub(issue.repository.id === repo.id && issue.repository.nameWithOwner.toLowerCase() === repo.nameWithOwner.toLowerCase()
 			&& issue.repository.url === repo.url && typeof issue.title === "string" && typeof issue.body === "string"
 			&& (issue.stateReason === null || typeof issue.stateReason === "string") && "parent" in issue, locator + ": incomplete issue");
-		const { childrenFirst, childrenLast, blockersFirst, blockersLast, labelsFirst, labelsLast,
-			assigneesFirst, assigneesLast, commentsFirst, commentsLast, ...base } = issue;
-		const subIssues = coverage({ first: childrenFirst, last: childrenLast }, locator + ".subIssues");
-		const blockedBy = coverage({ first: blockersFirst, last: blockersLast }, locator + ".blockedBy");
+		const { subIssues: children, blockedBy: blockers, labels: labelPage, assignees: assigneePage, comments: commentPage, ...base } = issue;
+		const subIssues = drain(children, locator + ".subIssues", nodePage<GithubRelation>(issue.id, "subIssues"));
+		const blockedBy = drain(blockers, locator + ".blockedBy", nodePage<GithubRelation>(issue.id, "blockedBy"));
 		for (const edge of [base.parent, ...subIssues, ...blockedBy]) if (edge) relation(edge, locator);
-		const comments = coverage({ first: commentsFirst, last: commentsLast }, locator + ".comments");
+		const comments = drain(commentPage, locator + ".comments", nodePage<GithubComment>(issue.id, "comments"));
 		for (const comment of comments) requireGithub(typeof comment.body === "string" && Number.isFinite(Date.parse(comment.createdAt))
 			&& typeof comment.url === "string" && (comment.author === null || typeof comment.author?.login === "string"), locator + ": malformed comment");
-		const assignees = coverage({ first: assigneesFirst, last: assigneesLast }, locator + ".assignees");
+		const assignees = drain(assigneePage, locator + ".assignees", nodePage<GithubIdentity>(issue.id, "assignees"));
 		for (const user of assignees) requireGithub(typeof user.login === "string" && user.login, locator + ": malformed assignee");
-		const issueLabels = coverage({ first: labelsFirst, last: labelsLast }, locator + ".labels");
+		const issueLabels = drain(labelPage, locator + ".labels", nodePage<GithubLabel>(issue.id, "labels"));
 		for (const label of issueLabels) requireGithub(typeof label.name === "string", locator + ": malformed label");
 		return { ...base, subIssues, blockedBy, labels: issueLabels, assignees,
 			comments: comments.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)) };
