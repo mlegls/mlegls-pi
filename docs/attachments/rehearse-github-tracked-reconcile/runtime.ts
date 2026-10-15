@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 if (process.argv[2] === "writer") {
   writeFileSync("shell-pid", String(process.pid));
+  appendFileSync(process.env.REHEARSAL_WRITERS!, JSON.stringify({at:new Date().toISOString(),started:process.pid,cwd:process.cwd()}) + "\n");
   await Bun.sleep(3_600_000);
 } else {
   const args = process.argv.slice(2);

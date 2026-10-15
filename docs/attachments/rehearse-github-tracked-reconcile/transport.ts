@@ -14,7 +14,10 @@ const result = spawnSync(process.env.REHEARSAL_GH!, args, { input, encoding: "ut
 let data: any;
 try { data = JSON.parse(result.stdout ?? "{}"); } catch {}
 appendFileSync(process.env.REHEARSAL_CALLS!, JSON.stringify({ at: started, pid: process.pid, ppid: process.ppid,
-  operation, ...(field ? { field } : {}), status: result.status,
+  operation, kind: query.trimStart().startsWith("mutation") ? "mutation" : query ? "query" : "rest",
+  ...(query ? {} : { method: args.includes("--method") ? args[args.indexOf("--method")+1] : "GET",
+    endpoint: args.find(a=>a.startsWith("repos/")) }),
+  ...(field ? { field } : {}), status: result.status,
   ...(operation === "TrackerSnapshot" ? { issueCount: data?.data?.repository?.issues?.nodes?.length,
     more: data?.data?.repository?.issues?.pageInfo?.hasNextPage } : {}),
   ...(field === "addComment" ? { subject: payload.variables?.input?.subjectId } : {}),

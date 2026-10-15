@@ -10,7 +10,7 @@ import type { State } from "../../../lib/reconcile/reconcile.ts";
 const repository = "mlegls/reconcile-pr-transport-20261014-35767b2d";
 const pkg = realpathSync(join(import.meta.dir, "../../.."));
 const action = process.argv[2] ?? "run";
-assert(["run", "resume", "status", "cleanup"].includes(action), "Use run|resume|status|cleanup [owned directory]");
+assert(["run", "resume", "finish-failed", "status", "cleanup"].includes(action), "Use run|resume|finish-failed|status|cleanup [owned directory]");
 const area = action === "run" ? realpathSync(mkdtempSync("/tmp/native-reconcile-")) : realpathSync(process.argv[3]);
 const manifestFile = join(area, "manifest.json");
 type Manifest = { repository: string; area: string; cwd: string; tested: string; issues: string[]; roots: string[];
@@ -152,15 +152,55 @@ async function cleanup() {
     gh(["api", "--method", "PATCH", "repos/" + repository + "/issues/" + slug.slice(3), "--input", "-"],
       { state: "closed", state_reason: "not_planned", assignees: [] });
   }
-  const live = (await allThreads()).filter(t => !t.archived && m.roots.includes(t.worker?.run ?? ""));
+  const ownedThreads = (await allThreads(true)).filter(t => m.roots.includes(t.worker?.run ?? ""));
+  const live = ownedThreads.filter(t => !t.archived);
+  m.branches = [...new Set([...m.branches, ...ownedThreads.flatMap(t => t.branch ? [t.branch] : []),
+    ...m.roots.flatMap(root => {const s=state(root); return [...(s?.pr ? [s.pr.branch] : []),...Object.values(s?.collectors ?? {}).map(c=>c.branch)];})])];
+  const writerEvents = existsSync(process.env.REHEARSAL_WRITERS!) ? readFileSync(process.env.REHEARSAL_WRITERS!,"utf8").trim().split("\n").filter(Boolean).map(l=>JSON.parse(l)) : [];
+  m.processes = [...new Set([...m.processes,...writerEvents.flatMap(e=>e.started ? [e.started] : e.stopped ? [e.stopped] : [])])];
+  const retainedLocalBranches = git(m.cwd,"for-each-ref","--format=%(refname:short)","refs/heads").split("\n").filter(b=>b!=="main");
   assert.equal(live.length, 0);
-  record("cleanup", { rootsStopped: m.roots, issues: m.issues.map(native), branchesDeleted: m.branches,
-    localAreaRetained: area, labelsRetained: m.labels, artifactCommitsRetained: true, liveWorkers: live.length });
+  record("cleanup", { rootsStopped: m.roots, issues: m.issues.map(native), remotePrBranchesDeleted: m.roots.flatMap(root=>state(root)?.pr?.number ? [state(root).pr!.branch] : []), retainedLocalBranches,
+    ownedThreadCount:ownedThreads.length, processes:m.processes, localAreaRetained: area, labelsRetained: m.labels, artifactCommitsRetained: true, liveWorkers: live.length });
 }
 persist();
 try {
   if (action === "status") { console.log(JSON.stringify(campaigns(m.cwd).map(summary), null, 2)); }
   else if (action === "cleanup") { await cleanup(); }
+  else if(action === "finish-failed") {
+    const cut=m.observations.failedRefinementCut, root=cut.root;
+    const attempt=Object.values(state(root).refinements)[0], writer=attempt.worker!;
+    if(state(root).pid && alive(state(root).pid!)) await crash(root,"failedCleanupRecoveryCut");
+    boot(root);
+    await until(()=>state(root).refinements[attempt.handle].phase==="removed","recovered production discard",root,true);
+    const owned=state(root).refinements[attempt.handle].owned, rows=getTracker(m.cwd,{run:root}).snapshot();
+    const project=githubProject(m.cwd)!;
+    const snapshot=JSON.parse(readFileSync(join(project.directory,"snapshot.json"),"utf8")).snapshot;
+    const removed=owned.map(native);
+    assert(owned.length===2 && owned.every(id=>!rows.has(id)));
+    assert(removed.every(i=>i.state==="closed" && i.stateReason==="not_planned" && !i.assignees.length));
+    assert(owned.every(id=>!snapshot.issues.find((i:any)=>"gh-"+i.number===id).parent));
+    assert(!alive(writerPid(writer)));
+    const baseline=attempt.baseline.find(id=>id!==root)!;
+    const foreign=m.issues.find(id=>id!==root && !owned.includes(id) && !attempt.baseline.includes(id) && Number(id.slice(3))>Number(root.slice(3)))!;
+    assert(rows.has(baseline) && rows.has(foreign));
+    assert(!(await allThreads(true)).some(t=>owned.some(id=>t.worker?.handle.startsWith(id+"-implement-"))));
+    const lost=calls().findLast(c=>c.operation==="DeliberateLostCreateResponse");
+    assert(!Object.values(cut.refinements as State["refinements"])[0].owned.includes("gh-"+lost.number));
+    record("failedRefinement",{root,token:attempt.claim,exactWriter:writerPid(writer),writerStopped:true,
+      attempt:state(root).refinements[attempt.handle],removed,retained:[native(baseline),native(foreign)],
+      lostResponse:{issue:"gh-"+lost.number,absentFromSavedOwned:true,discovered:owned.includes("gh-"+lost.number)},provisionalImplementLaunches:0,recoveredDiscard:true});
+    // Re-observe completed native target/result state using the repaired reader.
+    const primary=m.observations.seed.root, published=m.observations.published;
+    const originalResults=state(primary).results;
+    for(const id of [m.observations.seed.a,m.observations.seed.b,primary]) {
+      assert.equal(getTracker(m.cwd,{run:primary}).fields(id).stage,"done");
+      const {closedAt,...result}=originalResults[id]; assert(closedAt); assert.deepEqual(result,published.results[id]);
+      assert.equal(api("repos/"+repository+"/issues/"+id.slice(3)+"/comments").filter((c:any)=>c.body.includes("<!-- mlegls-pi:result:")).length,1);
+    }
+    record("finalRevision",{tested:head(pkg),nativeTargetAndSavedResultsReobserved:true});
+    m.progress="done"; persist(); await cleanup();
+  }
   else {
     if (action === "run") {
     const viewer = api("user"), repo = api("repos/" + repository);
@@ -328,18 +368,26 @@ try {
       removed, retained:[native(baseline),native(foreign)], provisionalImplementLaunches:0 });
     await stop(m.cwd,failed);
 
+    m.progress="done"; persist(); await cleanup();
     const operations=calls(), counts:Record<string,number>={};
     for(const c of operations) counts[c.operation]=(counts[c.operation]??0)+1;
     const refreshes=operations.filter(c=>/^Tracker(Snapshot|Issues|Labels|Connection)$/.test(c.operation));
     assert(refreshes.every(c=>c.operation==="TrackerSnapshot" && c.status===0 && !c.more));
     record("queries", { counts, completeRefreshes:refreshes.length, requestsPerRefresh:1,
       everyRefreshSinglePage:true, includesExternalCliWriters:true, maxIssueCount:Math.max(...refreshes.map(c=>c.issueCount)) });
-    m.progress="done"; persist(); await cleanup();
   }
 } catch(error) {
   record("failure",{message:String(error),states:m.roots.map(root=>({root,log:state(root)?.log.slice(-8),exceptions:state(root)?.exceptions}))});
   // Failed observation remains a failure; exact owned cleanup still runs.
   if(existsSync(join(m.cwd,".git"))) await cleanup();
   throw error;
+}
+if(action !== "status") {
+  const operations=calls(), counts:Record<string,number>={};
+  for(const c of operations) counts[c.operation]=(counts[c.operation]??0)+1;
+  const refreshes=operations.filter(c=>/^Tracker(Snapshot|Issues|Labels|Connection)$/.test(c.operation));
+  record("finalQueries",{counts,completeRefreshes:refreshes.filter(c=>c.operation==="TrackerSnapshot").length,
+    requestsPerRefresh:refreshes.every(c=>c.operation==="TrackerSnapshot" && c.status===0 && !c.more) ? 1 : "inspect pagination/failures",
+    maxIssueCount:Math.max(...refreshes.map(c=>c.issueCount)),includesExternalCliWriters:true,includesCleanup:true});
 }
 console.log("OWNED_DIRECTORY "+area);
