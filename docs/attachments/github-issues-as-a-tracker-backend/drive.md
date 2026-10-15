@@ -31,3 +31,9 @@ Checks for replay: run the two supplied entries; accept only same pin before eac
 ## Cleanup
 
 Controller stopped roots gh-144/149/150 and retired all 12 workers; captured liveWorkers=0. Independent exact-PID ps check of all 17 recorded reconciler/writer PIDs returned none. Post-status failure cleanup also completed. PR branch deleted; ten owned issues closed/unassigned. No browser/server/container/tunnel started. Authorized remote history/artifact commits and local /private/tmp/native-reconcile-MCop78 with ten phase/staging branches intentionally retained for inspection, inventoried in selected extracts. No inherited data deleted. Commands below are the supplied public first-use surface, not source inspection or test runners.
+
+## Review (2026-10-15)
+
+- Merged collector e31f36cf into the drive head. One conflict in `lib/reconcile/reconcile.ts` `view()`: kept both sides — the logical collector key (`logicalInto`, from the worker history) and the collector's `inherited` landings, computed against the logical key (c3838e65).
+- Supervisor constraint checked on the final head: a5d3b214's capped first/last snapshot is reverted by 9a6ea956 (net diff to f802ab0c touches only the CLI pin and a doc comment in `lib/tracker-github.ts`); cursor paging and the 256-issue/110-comment fixture (`lib/tracker-github.test.ts`) are present; the dated logical-refresh decision is in the spec.
+- `bunx tsc --noEmit` clean; `bun test lib/reconcile lib/tracker`: 30 pass, 1 skip (CLI snapshot parity against vault, pre-existing skip), 0 fail. The live replay was not re-run: the merge touches only scheduling inheritance for collector landings, which `scheduling.test.ts` and `landing.test.ts` cover.
