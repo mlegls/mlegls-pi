@@ -1,0 +1,668 @@
+[
+  {
+    "area": "/tmp/native-reconcile-OAorNn",
+    "queries": [
+      {
+        "at": "2026-10-15T08:04:53.388Z",
+        "pid": 27278,
+        "ppid": 27252,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 85,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:01.618Z",
+        "pid": 27772,
+        "ppid": 27252,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 86,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:06.144Z",
+        "pid": 28071,
+        "ppid": 28046,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 86,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:12.114Z",
+        "pid": 28682,
+        "ppid": 28046,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 87,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:16.746Z",
+        "pid": 28932,
+        "ppid": 28892,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 87,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:22.346Z",
+        "pid": 29308,
+        "ppid": 28892,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 88,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:28.181Z",
+        "pid": 30012,
+        "ppid": 29956,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 88,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:33.676Z",
+        "pid": 30422,
+        "ppid": 29956,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:05:39.658Z",
+        "pid": 30669,
+        "ppid": 23113,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:06:48.099Z",
+        "pid": 36243,
+        "ppid": 23113,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:06:55.817Z",
+        "pid": 36930,
+        "ppid": 23113,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:07:09.324Z",
+        "pid": 37941,
+        "ppid": 37650,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:07:18.840Z",
+        "pid": 38339,
+        "ppid": 37650,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:08:44.300Z",
+        "pid": 41915,
+        "ppid": 41891,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:08:50.359Z",
+        "pid": 42227,
+        "ppid": 40713,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:10:00.696Z",
+        "pid": 44738,
+        "ppid": 40713,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:10:07.439Z",
+        "pid": 45146,
+        "ppid": 40713,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:10:18.516Z",
+        "pid": 46109,
+        "ppid": 45675,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:10:27.839Z",
+        "pid": 46542,
+        "ppid": 45675,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:13:01.672Z",
+        "pid": 56213,
+        "ppid": 56180,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:13:06.759Z",
+        "pid": 56630,
+        "ppid": 56591,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:13:13.854Z",
+        "pid": 57099,
+        "ppid": 54421,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:14:24.988Z",
+        "pid": 62282,
+        "ppid": 54421,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:14:31.830Z",
+        "pid": 62715,
+        "ppid": 54421,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:14:42.650Z",
+        "pid": 63468,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:14:50.420Z",
+        "pid": 64018,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:15:58.463Z",
+        "pid": 69219,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:17:04.579Z",
+        "pid": 73229,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:18:40.326Z",
+        "pid": 78060,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:19:08.664Z",
+        "pid": 79196,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:19:15.865Z",
+        "pid": 79471,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:19:25.160Z",
+        "pid": 79845,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:19:29.114Z",
+        "pid": 79946,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:19:41.887Z",
+        "pid": 80499,
+        "ppid": 63062,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:20:10.288Z",
+        "pid": 82437,
+        "ppid": 54421,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 89,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:20:18.370Z",
+        "pid": 82989,
+        "ppid": 82873,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 90,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:20:23.141Z",
+        "pid": 83418,
+        "ppid": 54421,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 90,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:20:35.809Z",
+        "pid": 84899,
+        "ppid": 84290,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 90,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:20:47.188Z",
+        "pid": 85770,
+        "ppid": 54421,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 90,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:21:29.499Z",
+        "pid": 88167,
+        "ppid": 88049,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 91,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:21:35.790Z",
+        "pid": 88888,
+        "ppid": 88858,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 91,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:21:42.760Z",
+        "pid": 89497,
+        "ppid": 88858,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 92,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:21:47.566Z",
+        "pid": 89688,
+        "ppid": 89661,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 92,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:21:56.688Z",
+        "pid": 90676,
+        "ppid": 89661,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 92,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:22:08.791Z",
+        "pid": 91428,
+        "ppid": 91148,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 92,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:22:15.404Z",
+        "pid": 91952,
+        "ppid": 91148,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 92,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:22:26.124Z",
+        "pid": 93510,
+        "ppid": 93119,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 93,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:22:31.670Z",
+        "pid": 94145,
+        "ppid": 91148,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 93,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:22:43.091Z",
+        "pid": 95500,
+        "ppid": 95471,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 94,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:22:48.928Z",
+        "pid": 95922,
+        "ppid": 95471,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:22:54.119Z",
+        "pid": 96487,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:23:01.654Z",
+        "pid": 97244,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:23:11.618Z",
+        "pid": 98448,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:23:21.981Z",
+        "pid": 99600,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:24:27.239Z",
+        "pid": 6966,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:25:33.748Z",
+        "pid": 10121,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:26:41.381Z",
+        "pid": 13044,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:27:51.978Z",
+        "pid": 14395,
+        "ppid": 96407,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      }
+    ]
+  },
+  {
+    "area": "/tmp/native-reconcile-XDxk1n",
+    "queries": [
+      {
+        "at": "2026-10-15T08:00:49.049Z",
+        "pid": 6905,
+        "ppid": 6868,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 81,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:00:54.793Z",
+        "pid": 7401,
+        "ppid": 6868,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 82,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:00:59.048Z",
+        "pid": 7975,
+        "ppid": 7950,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 82,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:01:05.683Z",
+        "pid": 8669,
+        "ppid": 7950,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 83,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:01:10.060Z",
+        "pid": 9095,
+        "ppid": 9055,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 83,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:01:16.650Z",
+        "pid": 9559,
+        "ppid": 9055,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 84,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:01:22.084Z",
+        "pid": 9980,
+        "ppid": 9944,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 84,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:01:28.251Z",
+        "pid": 10259,
+        "ppid": 9944,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 85,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:01:34.302Z",
+        "pid": 10687,
+        "ppid": 1369,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 85,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:02:41.238Z",
+        "pid": 18043,
+        "ppid": 1369,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 85,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:02:48.742Z",
+        "pid": 18676,
+        "ppid": 1369,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 85,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:03:02.061Z",
+        "pid": 19355,
+        "ppid": 19188,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 85,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:03:15.729Z",
+        "pid": 20176,
+        "ppid": 20076,
+        "operation": "TrackerSnapshot",
+        "status": 0,
+        "issueCount": 85,
+        "more": false
+      },
+      {
+        "at": "2026-10-15T08:30:32.141Z",
+        "pid": 20931,
+        "ppid": 20896,
+        "operation": "TrackerSnapshot",
+        "kind": "query",
+        "status": 0,
+        "issueCount": 95,
+        "more": false
+      }
+    ]
+  }
+]

@@ -207,7 +207,8 @@ try {
     assert.equal(viewer.login, "mlegls"); assert.equal(repo.full_name, repository);
     assert(repo.private && repo.has_issues && repo.permissions.admin && repo.permissions.push); assert.equal(repo.default_branch, "main");
     assert(api("repos/" + repository + "/actions/permissions").enabled);
-    const initial = api("repos/" + repository + "/issues?state=all&per_page=100");
+    const initial = JSON.parse(gh(["api","repos/" + repository + "/issues?state=all&per_page=100","--paginate","--slurp"])).flat();
+    assert(initial.filter((i:any)=>!i.pull_request).length<=90,"Setup not ready for the single-query live fixture: ten new native issues would exceed one 100-issue page. Use inspect.ts for the prepared target; do not delete inherited issues.");
     record("preflight", { login: viewer.login, repository, private: repo.private, permissions: repo.permissions,
       issues: initial.filter((i:any) => !i.pull_request).map((i:any) => ({number:i.number,state:i.state})),
       prs: initial.filter((i:any) => i.pull_request).map((i:any) => ({number:i.number,state:i.state})), actions: true });

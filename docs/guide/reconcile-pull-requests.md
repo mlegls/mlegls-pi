@@ -47,8 +47,9 @@ Only observed `MERGED` metadata plus fetched Git ancestry closes carried nodes, 
 For the native GitHub tracker (not the earlier separate-vault fixture), use the [owned native-issue controller](../attachments/rehearse-github-tracked-reconcile/index.md):
 
 ```sh
-bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run
-# Inspect or clean only the directory printed by that command:
+bun docs/attachments/rehearse-github-tracked-reconcile/inspect.ts # read-only prepared native story
+bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run # fresh live seed (single-page setup required)
+# Inspect or clean only the directory printed by the live controller:
 bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts status OWNED_DIRECTORY
 bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts cleanup OWNED_DIRECTORY
 ```
