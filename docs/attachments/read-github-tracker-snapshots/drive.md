@@ -43,3 +43,9 @@ Live command measured firstRequests 1, warmAdditionalRequests 0, expiryRequests 
 ## Frictions and limits
 
 No unresolved in-scope product friction observed. The one-off reader lacks friendly --help output; this single failed invocation had no established journey impact and required no workaround beyond its printed/documented usage. Verification is through committed one-off reader summaries, not independent inspection of private payloads. Regression suites and TypeScript checks intentionally not rerun by driver; reviewer/integrator own those gates. No browser, server, remote mutation or new deployment. Both owned processes exited; only documented shared production cache remains. No resources need stopping.
+
+## Review — 2026-10-15
+
+Read the log with the diff. Existing checks on review head: `bun test lib/reconcile` 14 pass, tracker scripts 24 pass, `bunx tsc --noEmit` clean. Fixture reader re-run after the repair: same sanitized results (6 issues, 1 request, 0 warm, all eight malformed candidates refused). Live webapp not re-run: the repair cannot change it (webapp has no `p1`–`p4` labels) and its counts above stand.
+
+Repair: removed the adapter's `p1`–`p4` label to `priority` mapping. No contract or decision specifies it, and it would make a repo's unrelated label (a) set `deferred` and drop issues from the non-explicit frontier and (b) throw on two such labels, failing the whole read. `no-drive` stays (maintainer decision). Priority from labels, if wanted, belongs to the writes child with its inverse.

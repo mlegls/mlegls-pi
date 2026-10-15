@@ -92,9 +92,6 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		const claims: Issue["claims"] = native.assignees.map(user => ({
 			slug, claimedBy: receipt?.claim?.assigneeId === user.id ? receipt.claim.claimedBy : "github:" + user.login,
 		}));
-		const priorityLabels = [...labels].filter(label => /^p[1-4]$/.test(label));
-		requireGithub(priorityLabels.length <= 1, slug + ": contradictory priority labels");
-		if (priorityLabels.length) fields.priority = Number(priorityLabels[0]!.slice(1));
 		if (labels.has("no-drive")) fields.drive = "none";
 		const types = [...labels].filter(label => /^wayfinder:(map|research|prototype|grilling|task)$/.test(label));
 		if (types.length) fields["github-types"] = types.map(label => label.slice("wayfinder:".length));
