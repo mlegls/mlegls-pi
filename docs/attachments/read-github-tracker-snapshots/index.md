@@ -2,6 +2,8 @@
 
 Nonvisual first use, 2026-10-15. Adapter and runnable controller revision: `ae76cd94` (on base `ddf33da7`). This packet contains no private issue bodies or raw API dumps. Tracker selection and mutations remain intentionally inactive/unimplemented for the next serial children.
 
+Independent user-surface replay: [driver predictions, observations and checks](drive.md).
+
 ## Setup and entry point
 
 From this package checkout after `mise run setup`:
