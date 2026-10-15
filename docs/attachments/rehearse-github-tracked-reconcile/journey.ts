@@ -285,6 +285,7 @@ try {
     record("warmScheduler", {requests:0,publicReads:12,elapsedMs:11000,tickMs:5000,activeWorker:ah.handle});
     if (!state(root).landed[a]) await finish(root,a);
     const bh = await ready(root,b,"implement"), s = state(root);
+    if (!m.branches.includes(s.collectors[root].branch)) m.branches.push(s.collectors[root].branch);
     assert.equal(s.landed[a].into,root); assert(!s.results[a].closedAt);
     assert(existsSync(join(bh.path,"fixture/"+a+".txt")));
     const collectorNative = [native(a),native(b)];
