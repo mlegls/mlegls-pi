@@ -31,7 +31,7 @@ import { readLive } from "../session-meta/live";
 import { logBb } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
-import { heldByRed, mainRed, evidenceShapeError, git, storyShapeError, testCommands } from "./checks.ts";
+import { heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { getThread, workerThread } from "../thread/registry.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
@@ -288,7 +288,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	};
 	const view = (into: string): Map<string, Issue> => {
 		const attempts = Object.values(s.refinements).filter(a => a.phase !== "accepted" && a.phase !== "removed");
-		return schedulingView(snapshot(), { root: s.root, into, landed: s.landed,
+		// A landing into an enclosing collector counts here once this destination contains its head.
+		const inherited = new Set(Object.entries(s.landed)
+			.filter(([, entry]) => entry.into !== into && isAncestor(pathOf(into), entry.head))
+			.map(([slug]) => slug));
+		return schedulingView(snapshot(), { root: s.root, into, landed: s.landed, inherited,
 			attemptClaims: new Set(attempts.map(a => a.claim)),
 			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
 	};
