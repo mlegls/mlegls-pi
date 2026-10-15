@@ -45,7 +45,7 @@ export async function bbThreads(): Promise<Map<string, BbThread>> {
 
 // A bb thread gets its identity and, when the spawner set them, the
 // state locations that isolate a fixture (registry, board, agent and roster dirs).
-const IDENTITY = /^(?:AB_THREAD_ID|PI_BOARD_(?:TOPIC|NAME|FOLLOW|DIR)|PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME)$/;
+const IDENTITY = /^(?:AB_THREAD_ID|PI_BOARD_(?:TOPIC|NAME|FOLLOW|DIR)|PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
 /** The worker's identity env, for bin/bb-pi to source. */
 export function writeLaunchEnv(thread: ThreadRecord): void {
 	const env = launchEnv(thread);

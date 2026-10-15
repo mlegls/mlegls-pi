@@ -290,6 +290,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
+	// BB starts pi from its daemon environment, not ours. Export the same committed
+	// CLI into each worker's launch.env so native writes cannot fall back to an installed copy.
+	process.env.TRACKER_CLI ??= pinTracker();
 	const tracker = await untilReset(() => reconcilerTracker(controlCwd, s.root), { note, signal: o.signal });
 	if (tracker.githubIssue) {
 		s.githubRepository = (await untilReset(() => tracker.githubIssue!(s.root), { note, signal: o.signal })).repository;
