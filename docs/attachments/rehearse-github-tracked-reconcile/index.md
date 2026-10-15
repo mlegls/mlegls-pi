@@ -1,5 +1,7 @@
 # Native GitHub reconciler rehearsal
 
+Independent drive on bc32a67d: [encounter, predictions and blocking setup gap](drive.md). Prepared inspection passed; full replay failed setup capacity before launch. Required mid-run rate-limit/worker-report survival remains unobservable; historical held sections below do not waive this gate.
+
 Nonvisual: **visual: false; shots: []**. Live native issues, relations, assignments, Git history, Actions and PR merge; deterministic shell phase reports, not paid models. No local vault or mock githubIssue capability.
 
 ## Predictions (written before first live contact, 2026-10-15)
