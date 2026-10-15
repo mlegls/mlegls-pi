@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { shellBb } from "../land-reconciled-trees-through-pull-requests/shell-bb.ts";
 import type { Handle } from "../../../lib/dispatch.ts";
 import type { State } from "../../../lib/reconcile/reconcile.ts";
-import { refreshes, summarize, trackerRead } from "./refreshes.ts";
+import { minimumRequests, refreshes, summarize, trackerRead } from "./refreshes.ts";
 
 const repository = "mlegls/reconcile-pr-transport-20261014-35767b2d";
 const pkg = realpathSync(join(import.meta.dir, "../../.."));
@@ -28,14 +28,14 @@ const put = (cwd: string, file: string, content: string) => { mkdirSync(join(cwd
 const commit = (cwd: string, file: string, content: string) => {
   put(cwd, file, content); git(cwd, "add", "--", file); git(cwd, "commit", "-qm", "Native rehearsal: " + file); return head(cwd);
 };
-const cliPath = join(pkg, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts");
+let cliPath = join(pkg, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts");
 const nativeGh = Bun.which("gh")!;
 for (const key of Object.keys(process.env)) if (/^(?:PI_.*|BB_.*|AB_.*|ZMX_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*)$/.test(key)) delete process.env[key];
 const bin = join(area, "bin"), agents = join(area, "agents");
 mkdirSync(bin, { recursive: true });
 Object.assign(process.env, { XDG_STATE_HOME: join(area, "state"), XDG_CACHE_HOME: join(area, "cache"),
   PI_BOARD_DIR: join(area, "board"), PI_CODING_AGENT_DIR: join(area, "agent"), PI_AGENTS_DIR: agents,
-  MISE_TRUSTED_CONFIG_PATHS: area, TRACKER_CLI: cliPath, PARALLEL_HOME: join(area, "parallel"), WORKER_SLOTS: "2",
+  MISE_TRUSTED_CONFIG_PATHS: area, REHEARSAL_REVISION: m.tested, PARALLEL_HOME: join(area, "parallel"), WORKER_SLOTS: "2",
   WORKER_PRESSURE_PROBE: "printf '%s' '{\"freePercent\":80,\"swapMB\":0}'",
   REHEARSAL_GH: nativeGh, REHEARSAL_CALLS: join(area, "calls.jsonl"), REHEARSAL_LOSS: join(area, "lose-create"),
   REHEARSAL_WRITERS: join(area, "writers.jsonl"), PATH: bin + ":" + process.env.PATH });
@@ -56,7 +56,9 @@ const { getTracker } = await import("../../../lib/tracker.ts");
 const { githubProject, githubCacheLifetime } = await import("../../../lib/tracker-github-snapshot.ts");
 const { loadJournal } = await import("../../../lib/tracker-github-state.ts");
 const { start, stop, resolveException, campaigns, summary } = await import("../../../lib/reconcile/main.ts");
-const { load } = await import("../../../lib/reconcile/reconcile.ts");
+const { load, pinTracker } = await import("../../../lib/reconcile/reconcile.ts");
+// Controller CLI calls use the committed pin; run() selects and exports its own default.
+cliPath = pinTracker(cliPath);
 const { allThreads, getThread } = await import("../../../lib/thread/registry.ts");
 const { send, readFrom } = await import("../../../lib/board/store.ts");
 const { topic } = await import("../../../lib/dispatch.ts");
@@ -73,9 +75,10 @@ const native = (slug: string) => {
     assignees: r.assignees.map((u: any) => u.login), labels: r.labels.map((l: any) => l.name), url: r.html_url };
 };
 const calls = () => existsSync(process.env.REHEARSAL_CALLS!) ? readFileSync(process.env.REHEARSAL_CALLS!, "utf8").trim().split("\n").filter(Boolean).map(l => JSON.parse(l)) : [];
-// A complete refresh is exactly one named TrackerSnapshot, including nested end-page aliases.
+// A refresh is one TrackerSnapshot plus its cursor pages (TrackerIssues/Labels/Connection) from the same process.
 const snapshots = () => calls().filter(c => c.operation === "TrackerSnapshot").length;
 const requests = () => calls().filter(c => trackerRead.test(c.operation)).length;
+const pages = () => { const last = refreshes(calls()).rows.at(-1); return minimumRequests(last?.issues.total ?? 0); };
 const logs: Record<string, string> = {};
 async function until<T>(fn: () => T | false | undefined, label: string, root?: string, allowException = false): Promise<T> {
   for (let n = 0; n < 900; n++) {
@@ -280,8 +283,6 @@ try {
     record("preflight", { login: viewer.login, repository, private: repo.private, permissions: repo.permissions,
       issues: initial.filter((i:any) => !i.pull_request).map((i:any) => ({number:i.number,state:i.state})),
       prs: initial.filter((i:any) => i.pull_request).map((i:any) => ({number:i.number,state:i.state})), actions: true });
-    assert(initial.filter((i:any) => !i.pull_request).length + 10 <= 200,
-      "Setup not ready: inherited issues plus ten native fixtures exceed the single-operation first/last:100 coverage; preserve history and extend the query plan before retrying");
     git(area, "clone", "-q", "https://github.com/" + repository + ".git", m.cwd);
     git(m.cwd, "config", "user.name", "Owned native rehearsal"); git(m.cwd, "config", "user.email", "rehearsal@example.invalid");
     assert(!existsSync(join(m.cwd, "docs/issues")));
@@ -304,7 +305,6 @@ try {
     git(m.cwd, "commit", "-qm", "Select native GitHub tracker for owned rehearsal");
     execFileSync("mise", ["run", "setup"], {cwd:m.cwd,stdio:"pipe"});
     execFileSync("mise", ["run", "pre-integrate"], {cwd:m.cwd,stdio:"pipe"});
-    getTracker(m.cwd, { inflight: false }).snapshot(); // refuse incomplete inherited connections before remote setup/seed
     git(m.cwd, "push", "-q", "origin", "main");
     record("readiness", { head: head(m.cwd), setup: true, gate: true, checks: await green(head(m.cwd)), canonicalVaultAbsent: true });
     }
@@ -339,16 +339,16 @@ try {
     };
     tracker.snapshot(); record("seed", { root, a, b, outside, relations: nativeRelations() });
     // Real warm/expiry/write refreshes: no cache-file edits or synthetic clocks.
-    // Overlapping first/last aliases cover this preserved repository in one request.
+    // A refresh is one logical snapshot: its first TrackerSnapshot plus cursor pages when the repository exceeds one 100-issue page.
     const warmStart = requests();
     for (let n=0;n<4;n++) { tracker.snapshot(); tracker.snapshot(root); tracker.fields(a); tracker.text(root); cli(["fields",b]); cli(["text",a]); }
     assert.equal(requests()-warmStart,0);
     await Bun.sleep(githubCacheLifetime + 1000);
     const expired = snapshots(), expiredRequests = requests(); tracker.snapshot();
-    assert.equal(snapshots()-expired,1); const expiryPerRefresh = requests()-expiredRequests; assert.equal(expiryPerRefresh,1);
+    assert.equal(snapshots()-expired,1); const expiryPerRefresh = requests()-expiredRequests; assert.equal(expiryPerRefresh,pages());
     cli(["update", outside, "--fields", '{"measurement":"own-write-invalidation"}']);
     const invalidated = snapshots(), invalidatedRequests = requests(); tracker.snapshot();
-    assert.equal(snapshots()-invalidated,1); const writePerRefresh = requests()-invalidatedRequests; assert.equal(writePerRefresh,1);
+    assert.equal(snapshots()-invalidated,1); const writePerRefresh = requests()-invalidatedRequests; assert.equal(writePerRefresh,pages());
     record("cache", { warmRequests: 0, warmReads: 24, realExpiryMs: githubCacheLifetime+1000, expiryRefreshes:1, expiryRequests:expiryPerRefresh,
       externalCliWriteNextRefreshes:1, externalCliWriteNextRequests:writePerRefresh, issuesCovered:refreshes(calls()).rows.at(-1)!.issues });
     boot(root);
@@ -455,7 +455,7 @@ try {
 
     m.progress="done"; persist(); await cleanup();
     const queries=queryReport();
-    assert(queries.allComplete && queries.allSingleRequest && !queries.orphanPages, "a refresh was incomplete, made extra requests or was unattributed: " + JSON.stringify(queries));
+    assert(queries.allComplete && queries.allMinimal && !queries.orphanPages, "a refresh was incomplete, non-minimal or unattributed: " + JSON.stringify(queries));
     record("queries", queries);
   }
 } catch(error) {

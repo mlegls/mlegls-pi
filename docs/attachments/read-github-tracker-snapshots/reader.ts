@@ -163,16 +163,14 @@ try {
 		const missing = structuredClone(data);
 		rows(missing)[1]!.parent = relation(88);
 		attempt("missingParent", { data: missing });
-		// At 200, one aliased operation; beyond it, refuse rather than dispatch a partial graph.
+		// More than 200 issues: three repository pages plus gh-2's second comments page.
 		const large = structuredClone(data);
-		for (let number = 7; number <= 200; number++) rows(large).push(issue(number));
+		for (let number = 7; number <= 256; number++) rows(large).push(issue(number));
 		publish({ data: large });
 		const beforeLarge = requests().length;
 		const largeSnapshot = factory(cwd).snapshot();
 		const largeRequests = requests().slice(beforeLarge);
-		observed.atCoverageLimit = { issues: largeSnapshot.size, comments: (factory(cwd).fields("gh-2")["github-comments"] as unknown[]).length, operations: largeRequests };
-		rows(large).push(issue(201));
-		attempt("aboveCoverageLimit", { data: large });
+		observed.above200 = { issues: largeSnapshot.size, comments: (factory(cwd).fields("gh-2")["github-comments"] as unknown[]).length, operations: largeRequests };
 		publish(); writeFileSync(response, "{broken");
 		try { factory(cwd).snapshot(); errors.invalidJson = "UNEXPECTED SUCCESS"; } catch (error) { errors.invalidJson = (error as Error).message; }
 		publish();

@@ -50,22 +50,18 @@ afterEach(() => {
 	rmSync(dir, { recursive: true, force: true });
 });
 
-describe("snapshot coverage", () => {
-	test("covers overlapping end pages in one request and refuses graphs beyond the query plan", () => {
+describe("snapshot paging", () => {
+	test("reads every issue and connection node past GitHub's 100-node pages", () => {
 		const comments = Array.from({ length: 110 }, (_, n) => ({
 			id: "C-" + n, body: "comment " + n, createdAt: new Date(1_700_000_000_000 + n * 1000).toISOString(), author: { login: "c" }, url: "https://github.com/fixture/tracker/issues/2#c" + n,
 		}));
-		setup(Array.from({ length: 182 }, (_, n) => issue(n + 1, n === 1 ? { comments } : {})));
+		setup(Array.from({ length: 256 }, (_, n) => issue(n + 1, n === 1 ? { comments } : {})));
 		const rows = tracker().snapshot();
-		expect(rows.size).toBe(182);
+		expect(rows.size).toBe(256);
 		expect(fake.calls("TrackerSnapshot")).toHaveLength(1);
-		expect(fake.calls("TrackerIssues")).toHaveLength(0);
-		expect(fake.calls("TrackerConnection")).toHaveLength(0);
+		expect(fake.calls("TrackerIssues")).toHaveLength(2);
+		expect(fake.calls("TrackerConnection").length).toBeGreaterThanOrEqual(1);
 		expect((tracker().fields("gh-2")["github-comments"] as { body: string }[]).map(c => c.body)).toEqual(comments.map(c => c.body));
-		edit(state => { for (let n = 183; n <= 201; n++) state.issues.push(issue(n)); });
-		expect(() => tracker().snapshot()).toThrow("fixture/tracker.issues: incomplete connection: 200/201 unique nodes");
-		expect(fake.calls("TrackerSnapshot")).toHaveLength(2);
-		expect(fake.calls("TrackerIssues")).toHaveLength(0);
 	}, 60_000);
 
 });

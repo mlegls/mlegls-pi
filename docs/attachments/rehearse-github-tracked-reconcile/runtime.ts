@@ -15,6 +15,9 @@ if (process.argv[2] === "writer") {
     const { githubProject } = await import("../../../lib/tracker-github-snapshot.ts");
     const { loadJournal } = await import("../../../lib/tracker-github-state.ts");
     const thread = (await allThreads(true)).find(t => t.cwd === cwd)!;
+    const cli = process.env.TRACKER_CLI, launchEnv = readFileSync(join(cwd, ".wm/launch.env"), "utf8");
+    if (!cli?.includes("/tracker-pin/" + process.env.REHEARSAL_REVISION + "/") || !/^TRACKER_CLI=/m.test(launchEnv) || !launchEnv.includes(cli))
+      throw new Error("Committed tracker CLI pin missing from worker launch.env");
     const slug = /^(gh-\d+)-(?:implement|refine|drive|review)-/.exec(thread.worker!.handle)?.[1];
     if (slug) {
       const run = thread.worker!.run, project = githubProject(cwd)!;
@@ -24,7 +27,7 @@ if (process.argv[2] === "writer") {
       if (fields["claimed-by"] !== "reconcile:" + run || !native.assignees.some((u:any) => u.login === "mlegls") || receipt?.claim?.claimedBy !== "reconcile:" + run)
         throw new Error("Native/private claim missing before shell worker launch: " + slug);
       appendFileSync(process.env.REHEARSAL_WRITERS! + ".launches", JSON.stringify({at:new Date().toISOString(),beforeLaunch:true,
-        issue:slug,run,handle:thread.worker!.handle,thread:thread.id,state:native.state,assignees:native.assignees.map((u:any)=>u.login),receipt:receipt.claim}) + "\n");
+        issue:slug,run,handle:thread.worker!.handle,thread:thread.id,state:native.state,pinnedCliInLaunchEnv:true,trackerCliRevision:process.env.REHEARSAL_REVISION,assignees:native.assignees.map((u:any)=>u.login),receipt:receipt.claim}) + "\n");
     }
   }
   if (args[0] === "thread" && ["stop", "archive"].includes(args[1])) {

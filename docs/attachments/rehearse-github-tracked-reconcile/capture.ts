@@ -15,7 +15,7 @@ const calls = areas.map(area => lines(area, "calls.jsonl"));
 const publicAttempt = (a: any) => ({ node: a.node, handle: a.handle, claim: a.claim, baseline: a.baseline, owned: a.owned, phase: a.phase,
   acceptance: a.acceptance ? { reportTs: a.acceptance.reportTs, children: a.acceptance.children, into: a.acceptance.into, destination: a.acceptance.destination, preparedHead: a.acceptance.preparedHead, landedHead: a.acceptance.landedHead } : undefined, worker: a.worker });
 const queries = manifests.map((x, i) => ({ area: x.area, ...summarize(calls[i]), counts: x.observations.finalQueries?.counts }));
-assert(queries.every(q => q.allComplete && q.allSingleRequest && !q.orphanPages), "A refresh was incomplete, made extra requests or was unattributed");
+assert(queries.every(q => q.allComplete && q.allMinimal && !q.orphanPages), "A refresh was incomplete, non-minimal or unattributed");
 const evidence = {
   tested: m.tested,
   claimsBeforeLaunch: lines(areas[0], "writers.jsonl.launches"),
@@ -34,6 +34,6 @@ const evidence = {
 };
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, "api-extracts.json"), JSON.stringify(evidence, null, 2) + "\n");
-// Every refresh: one named TrackerSnapshot, unique issue coverage and all required nested connection counts.
+// Every logical refresh: its requests (one TrackerSnapshot plus cursor pages), unique issues covered and completeness.
 writeFileSync(join(out, "refreshes.json"), JSON.stringify(areas.map((area, i) => ({ area, ...refreshes(calls[i]) })), null, 2) + "\n");
 console.log("Selected native claims, chronology, rate-limit holds, per-refresh accounting and resource inventory captured.");
