@@ -3,7 +3,7 @@ stage: "ticket"
 assignee: "agent:fill"
 author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
-claimed-by: "reconcile:github-issues-as-a-tracker-backend/github-issues-as-a-tracker-backend-refine-1"
+claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
 blocked-by:
   - "[[projects/mlegls-pi/issues/write-github-tracker-contracts]]"
@@ -28,6 +28,15 @@ Read `getTracker`, the CLI main argument handling, `reconcilerTracker`, `run:tra
 
 ## First use and acceptance
 
-Exercise public CLI + getTracker from a linked checkout of an owned GitHub-config fixture with no canonical docs/issues; compare identity/fields/text/comments with the direct backend. Demonstrate canonical vault precedence from a sparse worktree, unsupported config refusal, and body-only/stdin update using the same existing verb surface. Do not start paid workers merely for a wiring probe. A deterministic shell-bb smoke using the existing packet fixture may establish the first claimed launch/move-out; full live tree/recovery acceptance is owned by `rehearse-github-tracked-reconcile`, which depends on this ticket.
+Exercise public CLI + getTracker from a linked checkout of an owned GitHub-config fixture with no canonical docs/issues; compare identity/fields/text/comments with the direct backend. Demonstrate canonical vault precedence from a sparse worktree, unsupported config refusal, and body-only/stdin update using the same existing verb surface. Do not start paid workers merely for a wiring probe. A deterministic shell-bb smoke using the existing packet fixture is optional supplementary evidence for first claimed launch/move-out, not a required third activation story. Full worker launch, collector scheduling, recovery and PR target landing acceptance is owned by [[projects/mlegls-pi/issues/rehearse-github-tracked-reconcile]], which depends on this ticket; activation does not certify those outcomes.
 
-Use only mlegls/reconcile-pr-transport-20261014-35767b2d for any remote mutation; preserve inherited resources, create no repository/account/token. Backend diagnostics/labels are repo-local. Commit a nonvisual packet under `docs/attachments/activate-github-tracker-in-reconcile/` with the runnable command, checkout/seed/readiness and exact claims you drove. Run `bun test lib/reconcile`, `bun test skills/enabled/all/mlegls/conventions/tracker/scripts`, and `bunx tsc --noEmit`. Follow current assertions when adapting kept fixtures; no new retained tests are authorized. The public methods/CLI operate on native issues, vault behavior stays intact, and no active caller reaches the parent's unimplemented factory stub.
+Use only mlegls/reconcile-pr-transport-20261014-35767b2d for any remote mutation; preserve inherited resources, create no repository/account/token. Backend diagnostics/labels are repo-local. Commit a nonvisual packet under `docs/attachments/activate-github-tracker-in-reconcile/` with the runnable command, checkout/seed/readiness and exact claims you drove. Run `bun test lib/reconcile`, `bun test skills/enabled/all/mlegls/conventions/tracker/scripts`, and `bunx tsc --noEmit`. Follow current assertions when adapting kept fixtures. The supervisor subsequently authorized and required retained fake-gh tests for paging beyond 200 nodes, metadata envelope round-trip including `-->`, ownership/provisional-cleanup replay, and tracker rate-limit backoff to reset with the node held. These constraints remain required; no other new retained tests are authorized. The public methods/CLI operate on native issues, vault behavior stays intact, and no active caller reaches the parent's unimplemented factory stub.
+
+## Stories / required handoff claims
+
+- Public GitHub CLI/library wiring and canonical selection: must hold on the reported final head, with the bounded public API/CLI and canonical selection evidence above.
+- Stable reservation, provisional receipt and native move-out: must hold on the reported final head for the bounded adapter/entry-point observations actually driven. Do not describe direct adapter calls as an observed production worker launch or supervised run-loop crossing.
+
+The activation handoff must list these two required stories with their observed outcomes, final commit and evidence packet. Full worker launch, recovery and target landing is not an activation story and must not appear as held here. Preserve any unexercised run-loop/catch-site wiring and final-head live-encounter limits as explicit evidence caveats; these are pending rehearsal observations, not failed product observations reclassified as held. Any actual failed in-scope product observation still requires repair or a blocker.
+
+Decision (2026-10-15, parent exception ruling): the drive-added third story exceeded this ticket’s bounded first-use acceptance. Remove it from this ticket’s required story list; do not add a shell-bb smoke solely to satisfy that misclassified story. The full live journey remains required in [[projects/mlegls-pi/issues/rehearse-github-tracked-reconcile]] and parent acceptance is unchanged. This ruling does not certify integration or target landing, waive the supervisor’s retained tests/rate-limit constraints, or close either issue.
