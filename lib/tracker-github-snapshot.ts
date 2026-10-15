@@ -87,7 +87,7 @@ export function githubApi<T>(project: GithubProject, query: string, variables: R
 
 export interface GithubIdentity { id: string; login: string }
 export interface GithubRelation {
-	id: string; number: number; url: string; state: "OPEN" | "CLOSED";
+	id: string; databaseId?: number; number: number; url: string; state: "OPEN" | "CLOSED";
 	repository: { id: string; nameWithOwner: string; url: string };
 }
 export interface GithubComment { id: string; body: string; createdAt: string; author: { login: string } | null; url: string }
@@ -129,7 +129,7 @@ export const trackerSnapshotQuery = [
 	"  issuesLast: issues(last:100, orderBy:{field:CREATED_AT,direction:ASC}) { totalCount nodes { ...TrackerIssue } }",
 	" }",
 	"}",
-	"fragment TrackerRelation on Issue { id number url state repository { id nameWithOwner url } }",
+	"fragment TrackerRelation on Issue { id databaseId number url state repository { id nameWithOwner url } }",
 	"fragment TrackerIssue on Issue {",
 	" ...TrackerRelation title body stateReason author { login } parent { ...TrackerRelation }",
 	" childrenFirst: subIssues(first:100) { totalCount nodes { ...TrackerRelation } }",
@@ -219,7 +219,11 @@ export const githubCacheLifetime = 60_000;
 /** No in-memory alias: every call observes atomic publication/invalidation by
  * other CLI processes. SQLite's process-owned lock is released even on a crash. */
 export function loadGithubSnapshot(project: GithubProject): GithubSnapshot {
-	return withGithubLock(project, () => {
+	return withGithubLock(project, () => loadGithubSnapshotLocked(project));
+}
+
+/** Caller already holds withGithubLock. */
+export function loadGithubSnapshotLocked(project: GithubProject): GithubSnapshot {
 		const file = join(project.directory, "snapshot.json");
 		if (existsSync(file)) {
 			let cache;
@@ -234,7 +238,6 @@ export function loadGithubSnapshot(project: GithubProject): GithubSnapshot {
 			renameSync(tmp, file);
 		} finally { if (existsSync(tmp)) unlinkSync(tmp); }
 		return snapshot;
-	});
 }
 
 /** Writers call inside their serialization lock after every remote mutation,

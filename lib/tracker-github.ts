@@ -1,3 +1,4 @@
+import { githubMutations } from "./tracker-github-write.ts";
 import { stringify } from "yaml";
 import type { Fields, Issue, Stage, Tracker, TrackerOptions } from "./tracker.ts";
 import {
@@ -5,35 +6,15 @@ import {
 	type GithubIssue, type GithubProject, type GithubRelation, type GithubSnapshot,
 } from "./tracker-github-snapshot.ts";
 
-/** Private serial handoff to the writes child. A missing property means infer;
- * stage:null means explicitly delegated residual, NOT an absent override.
- * Claims must be backed by an exact stable/attempt receipt and native user ID.
- * Never derive authority from viewer.login or a claim-token prefix. */
-export interface GithubReceipt {
-	stage?: Stage | null;
-	fields?: Fields;
-	claim?: { claimedBy: string; assigneeId: string };
-}
-export function readGithubReceipt(_project: GithubProject, _snapshot: GithubSnapshot, _issue: GithubIssue, _run?: string): GithubReceipt | undefined {
-	return undefined; // Filled by write-github-tracker-contracts, not by @me inference.
-}
-
-/** Adapter-authored metadata only; native prose/frontmatter is never interpreted
- * as authority. The writes child owns completing this private serialization. */
-export function decodeGithubBody(body: string): { fields: Fields; body: string } {
-	const match = body.match(/(?:^|\n)<!-- mlegls-pi:tracker\n([\s\S]*?)\n-->\s*$/);
-	if (!match) return { fields: {}, body };
-	let fields: unknown;
-	try { fields = JSON.parse(match[1]!); } catch { throw new Error("GitHub tracker: malformed adapter metadata"); }
-	requireGithub(fields && typeof fields === "object" && !Array.isArray(fields), "adapter metadata must be an object");
-	return { fields: fields as Fields, body: body.slice(0, match.index) };
-}
+import { decodeGithubBody, readGithubReceipt } from "./tracker-github-state.ts";
+export { decodeGithubBody, readGithubReceipt, type GithubReceipt } from "./tracker-github-state.ts";
+import type { GithubReceipt } from "./tracker-github-state.ts";
 
 const slugOf = (number: number) => "gh-" + number;
 const agentSelector = (value: unknown): value is string => typeof value === "string"
 	&& (value === "agent" || value.startsWith("agent:") || value.startsWith("model:"));
 
-interface Node {
+export interface GithubNode {
 	native: GithubIssue;
 	body: string;
 	fields: Fields;
@@ -65,8 +46,8 @@ function fallbackHeaders(body: string): { parent?: number; blockers: number[] } 
 	return { parent, blockers: [...new Set(blockers)] };
 }
 
-function graph(project: GithubProject, snapshot: GithubSnapshot, options: TrackerOptions): Map<string, Node> {
-	const all = new Map<string, Node>();
+function graph(project: GithubProject, snapshot: GithubSnapshot, options: TrackerOptions): Map<string, GithubNode> {
+	const all = new Map<string, GithubNode>();
 	const local = (edge: GithubRelation) => {
 		const sameId = edge.repository.id === snapshot.repository.id;
 		const sameName = edge.repository.nameWithOwner.toLowerCase() === project.repository.toLowerCase()
@@ -80,27 +61,30 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		const labels = new Set(native.labels.map(label => label.name));
 		const roles = triageRoles.filter(role => labels.has(project.roles[role]));
 		requireGithub(roles.length <= 1, slug + ": contradictory triage states: " + roles.join(", "));
-		const receipt = readGithubReceipt(project, snapshot, native, options.run ?? process.env.PI_WM_RUN);
-		const metadata = { ...decoded.fields, ...receipt?.fields };
+		const receipt = readGithubReceipt(project, snapshot, native);
+		const metadata = { ...decoded.fields };
 		const role = roles[0];
 		const assignee = role === "ready-for-agent" ? (agentSelector(metadata.assignee) ? metadata.assignee : "agent")
-			: role === "ready-for-human" ? "human" : null;
+			: role === "ready-for-human" ? (typeof metadata.assignee === "string" && metadata.assignee.startsWith("user:") ? metadata.assignee : "human") : null;
 		const fields: Fields = { ...metadata };
+		const guards = Array.isArray(fields.$guards) ? fields.$guards as string[] : [];
+		delete fields.$guards;
 		// Reserved logical keys come from native state and validated relations,
 		// never stale extra metadata.
-		for (const key of ["stage", "assignee", "part-of", "blocked-by", "claimed-by", "github", "github-comments", "title"]) delete fields[key];
+		for (const key of ["stage", "assignee", "part-of", "blocked-by", "claimed-by", "github", "github-comments", "title", "drive"]) delete fields[key];
 		const claims: Issue["claims"] = native.assignees.map(user => ({
 			slug, claimedBy: receipt?.claim?.assigneeId === user.id ? receipt.claim.claimedBy : "github:" + user.login,
 		}));
 		if (labels.has("no-drive")) fields.drive = "none";
 		const types = [...labels].filter(label => /^wayfinder:(map|research|prototype|grilling|task)$/.test(label));
 		if (types.length) fields["github-types"] = types.map(label => label.slice("wayfinder:".length));
+		if (receipt?.removed) continue;
 		all.set(slug, {
 			native, body: decoded.body, fields, stage: native.state === "CLOSED" ? "done" : "idea",
-			assignee, partOf: null, blockedBy: [], guards: [], claims, receipt,
+			assignee, partOf: null, blockedBy: [], guards: [...guards], claims, receipt,
 		});
 	}
-	const parent = (child: Node, parentSlug: string) => {
+	const parent = (child: GithubNode, parentSlug: string) => {
 		requireGithub(all.has(parentSlug), slugOf(child.native.number) + ": missing parent " + parentSlug + " in complete repository snapshot");
 		requireGithub(!child.partOf || child.partOf === parentSlug, slugOf(child.native.number) + ": contradictory native parents");
 		child.partOf = parentSlug;
@@ -117,6 +101,8 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 			} else node.guards.push("github-parent: " + edge.url);
 		}
 		for (const child of node.native.subIssues) {
+			const localChild = snapshot.issues.find(issue => issue.id === child.id);
+			if (localChild && readGithubReceipt(project, snapshot, localChild)?.removed) continue;
 			if (local(child)) {
 				const row = all.get(slugOf(child.number));
 				requireGithub(row && row.native.id === child.id, "missing native subIssue " + child.url);
@@ -146,7 +132,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		if (node.native.state === "OPEN" && node.assignee && agentSelector(node.assignee)) {
 			node.stage = kids.length ? null : node.partOf ? "ticket" : "spec";
 			if (receipt && Object.hasOwn(receipt, "stage")) {
-				requireGithub(receipt.stage === null || receipt.stage === "ticket" || receipt.stage === "spec", slug + ": invalid open-issue stage override");
+				requireGithub(receipt.stage === null || receipt.stage !== undefined && ["idea", "goal", "ticket", "spec"].includes(receipt.stage), slug + ": invalid open-issue stage override");
 				node.stage = receipt.stage;
 			}
 		}
@@ -172,7 +158,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 	return all;
 }
 
-function projection(all: Map<string, Node>, explicit: boolean): Map<string, Issue> {
+function projection(all: Map<string, GithubNode>, explicit: boolean): Map<string, Issue> {
 	const stages: Stage[] = ["idea", "goal", "spec", "ticket", "done"];
 	const kids = (slug: string) => [...all].filter(([, node]) => node.partOf === slug).map(([slug]) => slug);
 	const effective = new Map<string, Stage>();
@@ -211,7 +197,7 @@ function projection(all: Map<string, Node>, explicit: boolean): Map<string, Issu
 	}));
 }
 
-function logicalFields(node: Node): Fields {
+function logicalFields(node: GithubNode): Fields {
 	const fields: Fields = { ...node.fields, title: node.native.title };
 	if (node.stage !== null) fields.stage = node.stage;
 	if (node.assignee !== null) fields.assignee = node.assignee;
@@ -239,7 +225,7 @@ export function getGithubTracker(cwd: string, options: TrackerOptions = {}): Tra
 		requireGithub(node, "no issue " + slug + " in " + project.repository);
 		return node;
 	};
-	const unimplemented = () => { throw new Error("GitHub tracker mutations not implemented (write-github-tracker-contracts)"); };
+	const mutations = githubMutations(project, options, cwd, snapshot => graph(project, snapshot, options));
 	return {
 		snapshot(scope) {
 			const all = read();
@@ -260,6 +246,6 @@ export function getGithubTracker(cwd: string, options: TrackerOptions = {}): Tra
 			const native = issue(slug).native;
 			return { repository: native.repository.nameWithOwner, number: native.number, url: native.url };
 		},
-		create: unimplemented, update: unimplemented, close: unimplemented, remove: unimplemented, moveOut: unimplemented,
+		...mutations,
 	};
 }
