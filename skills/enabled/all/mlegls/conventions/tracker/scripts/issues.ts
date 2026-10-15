@@ -22,7 +22,6 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
 import { inflight } from "./inflight.ts";
-import { getGithubTracker } from "../../../../../../../lib/tracker-github.ts";
 // Derived claims from reconciler runs, dispatched workers and worktree branches (./inflight.ts); set once the issues load.
 let flight = new Map<string, string[]>();
 
@@ -112,10 +111,8 @@ export function findIssuesDir(from: string, required = true): string | undefined
       if (existsSync(cand) && statSync(cand).isDirectory()) return realpathSync(cand);
     }
     const up = dirname(dir);
-    if (up === dir) {
-      if (!required) return undefined;
-      throw new Error("no docs/issues/ found upward from " + from);
-    }
+    // Only a git project can select GitHub; outside one, upward discovery fails as before.
+    if (up === dir) throw new Error("no docs/issues/ found upward from " + from);
     dir = up;
   }
 }
@@ -746,7 +743,8 @@ function outline(note: string, all: Map<string, Issue>): string[] {
 async function main() {
 const rawArgs = process.argv.slice(2);
 const verb = rawArgs[0];
-const github = findIssuesDir(process.cwd(), false) ? undefined : getGithubTracker(process.cwd());
+// Loaded only when no canonical vault exists, so every vault invocation skips the GitHub backend's modules.
+const github = findIssuesDir(process.cwd(), false) ? undefined : (await import("../../../../../../../lib/tracker-github.ts")).getGithubTracker(process.cwd());
 if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   const slug = rawArgs[1];
   if (!slug || slug.startsWith("--")) throw new Error(verb + " requires an issue slug");
