@@ -5,8 +5,6 @@ author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
 claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
-blocked-by:
-  - "[[projects/mlegls-pi/issues/activate-github-tracker-in-reconcile]]"
 ---
 Drive the parent's live GitHub-issue acceptance on the combined backend + CLI/reconciler implementation. Deliver runnable first-use machinery and its evidence, not another backend or retained test suite. Story: a maintainer reconciles an ordinary GitHub spec tree through one PR; private collector progress unlocks its next ticket without pretending the globally open issues are done, and failed refinement leaves no executable provisional debris.
 

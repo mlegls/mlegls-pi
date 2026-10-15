@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:fill"
 author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
-claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
 ---
 Activate the completed GitHub adapter from `read-github-tracker-snapshots` + `write-github-tracker-contracts` through the existing public CLI and reconciler. Story: a maintainer starts `reconcile gh-<number> --land pr-merge` in a GitHub-tracked project, workers use the same global commands as on the vault, and no issue is claimed/closed merely by local code landing.
@@ -38,3 +37,37 @@ Use only mlegls/reconcile-pr-transport-20261014-35767b2d for any remote mutation
 The activation handoff must list these two required stories with their observed outcomes, final commit and evidence packet. Full worker launch, recovery and target landing is not an activation story and must not appear as held here. Preserve any unexercised run-loop/catch-site wiring and final-head live-encounter limits as explicit evidence caveats; these are pending rehearsal observations, not failed product observations reclassified as held. Any actual failed in-scope product observation still requires repair or a blocker.
 
 Decision (2026-10-15, parent exception ruling): the drive-added third story exceeded this ticket’s bounded first-use acceptance. Remove it from this ticket’s required story list; do not add a shell-bb smoke solely to satisfy that misclassified story. The full live journey remains required in [[projects/mlegls-pi/issues/rehearse-github-tracked-reconcile]] and parent acceptance is unchanged. This ruling does not certify integration or target landing, waive the supervisor’s retained tests/rate-limit constraints, or close either issue.
+
+## Result
+
+done
+
+Stories 1 and 2 hold on `16b8556b`. Story 3 (full worker launch, recovery and target landing) is dropped from this ticket and left to `rehearse-github-tracked-reconcile`. I did not build the shell-bb smoke.
+
+```yaml
+commit: 16b8556b
+stories:
+  - story: Public GitHub CLI/library wiring and canonical selection
+    outcome: held
+  - story: Stable reservation, provisional receipt and native move-out
+    outcome: held
+evidence:
+  path: docs/attachments/activate-github-tracker-in-reconcile/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/tracker-github.test.ts
+fixed:
+  - "a9fae1ad: non-git upward discovery regression; the CLI now loads the GitHub backend lazily"
+filed: []
+redrive: true
+caveats:
+  - "Not held, owned by rehearse-github-tracked-reconcile: full worker launch, recovery and target landing."
+  - "The rate-limit hold inside run() has no end-to-end test. The tick loop, launch and report catch sites, and chain drop are untested; only `untilReset` and the adapter have retained tests. The rehearsal should exercise it."
+  - "The live encounter.ts was not re-run after the review edits. The new tests use the fake gh only."
+  - "A recorded rate limit makes every process skip gh until the reset, workers' CLI calls included. Workers fail fast with the reset time in the message instead of wasting calls."
+  - "lib/tracker-github.test.ts costs about 18 s of wall time, because each fake-gh call spawns bun at about 50 ms. The 256-issue paging test is the slowest case."
+  - "The tracker scripts tests need `--timeout 120000` on this host, where load average is about 40. They spawn hundreds of CLI calls and otherwise hit their 5 s and 30 s limits. They pass with the longer timeout."
+```
+
+Evidence: [docs/attachments/activate-github-tracker-in-reconcile/index.md](docs/attachments/activate-github-tracker-in-reconcile/index.md)
