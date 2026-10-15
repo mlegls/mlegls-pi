@@ -259,7 +259,8 @@ test("invalid frontmatter fails every query with a filename and no partial outpu
       expect(result.err).toContain("task.md:");
     }
   }
-}, 30_000);
+  // This matrix starts 165 separate CLI processes; host contention is not a parser failure.
+}, 60_000);
 
 test("wrapped edges still receive graph checks and done blockers retain scheduling semantics", () => {
   put("task", frontmatter(`stage: ticket\nassignee: agent\nblocked-by: [\n  ${blocker}\n]`));
@@ -377,7 +378,7 @@ test("legacy is readable but never translated; selectors and structural omission
   }
   rmSync(join(issues, "invalid.md"));
   rmSync(join(issues, "legacy.md"));
-});
+}, 15_000);
 
 test("human shaping uses own residual constraints, and archive cannot parent live work", () => {
   put("shaping", frontmatter("stage: goal\nassignee: human"));

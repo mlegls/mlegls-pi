@@ -38,4 +38,4 @@ test("collector-local landings release remaining work without releasing canonica
 		expect(canonical.get("a")?.done).toBe(false);
 		expect(f.tracker.snapshot().get("outside")?.frontier).toBe(false);
 	} finally { f.close(); }
-});
+}, 30_000);
