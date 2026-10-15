@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a13dff-cc3c-7617-b1c8-119da0d1fa26"
 part-of: "[[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]"
-claimed-by: "reconcile:github-issues-as-a-tracker-backend"
 priority: 2
 ---
 Drive the parent's live GitHub-issue acceptance on the combined backend + CLI/reconciler implementation. Deliver runnable first-use machinery and its evidence, not another backend or retained test suite. Story: a maintainer reconciles an ordinary GitHub spec tree through one PR; private collector progress unlocks its next ticket without pretending the globally open issues are done, and failed refinement leaves no executable provisional debris.
@@ -57,3 +56,58 @@ Acceptance / Stories (in addition to all five required native journeys):
 - Handoff separately names each of those stories and its observations, the injection/reset/report identifiers and no-owner-exception evidence, retained test and final-head regression results. Keep this failed setup observation separate; no required unobservable story may be relabelled held or waived as a caveat.
 
 Retry the drive on its kept chain, repairing and committing these bounded seams while warm; do not discard the prior live evidence or unrelated fixes. This ruling changes no product decision and certifies neither integration nor target completion.
+
+## Result
+
+done: all six required stories hold on the same preserved scratch repo. The earlier handoff failed to parse because of an unquoted quote character in one caveat; this repost has valid yaml.
+
+```yaml
+commit: f802ab0c
+setup:
+  kind: owned private scratch repo mlegls/reconcile-pr-transport-20261014-35767b2d, existing mlegls gh auth
+  entry: bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run
+  tested_revision: 3b36ec18885bac85c8b0c18a53474daf658f073a
+  areas:
+    - /private/tmp/native-reconcile-PJlm0t
+    - /private/tmp/native-reconcile-keGcvP
+stories:
+  - story: Native claims before launch, collector unlock while issues stay OPEN, residual join
+    outcome: held
+  - story: One PR, real Actions green, production merge, child-first saved-result publication
+    outcome: held
+  - story: Inferred leaf promotion and exact-PID reconciler restart
+    outcome: held
+  - story: Failed refinement, lost-create discovery, exact-writer discard
+    outcome: held
+  - story: Per-refresh TrackerSnapshot accounting
+    outcome: held
+  - story: Rate-limit hold inside active run(), failing worker CLI, same pending report replayed, no owner mail or exception
+    outcome: held
+evidence:
+  path: docs/attachments/rehearse-github-tracked-reconcile/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/rate-limit.test.ts
+filed: []
+caveats:
+  - Drive was skipped. The post-landing gate is the live re-drive recorded in the index, owned by this review. The parent integrates and the reconciler closes the execution ticket.
+  - The single-page failure was the controller's own admission check (more than 90 issues refused), not a production reader limit. Real runs are unaffected because the reader pages by cursor. The check was removed and cursor paging kept, with no aliased single-query cap.
+  - Per-refresh cost is now 1 request for 100 or fewer issues and 2 (TrackerSnapshot plus one TrackerIssues cursor page) for 101-109. The primary area had 44 refreshes, 3 at one request and 41 at two. The interrupted area adds 17 refreshes at one request. All were complete (unique issue ids equal totalCount) and minimal. Warm reads and both hold windows made zero requests. Expiry and own-write each caused one refresh of two requests.
+  - Live holds used a recorded-reset-file cut, not a fake gh response. The real account was never exhausted. The retained test uses the fake gh.
+  - The same pending worker report is shown for a done report, replayed once after the reset. The blocked report that quoted the limit is nudged back to retry rather than replayed.
+  - GitHub auto-closed the Closes issues at merge (09:11:50Z), before the reconciler's child-first saved closedAt (09:12:23 to 09:12:56). Nothing was reopened.
+  - Cost - the retained test takes about 31-36 s because of two 12 s holds. The live journey takes about 15 min.
+  - The controller's first run failed on its own bug (it read a writer pid after the writer was retired). That attempt's issues 107-110 were closed NOT_PLANNED and are included in the accounting.
+  - Retained local areas and branches are listed in replay/api-extracts.json. Remote cleanup is done - PR 115's branch is deleted, no PR is open, and all fixture issues are closed.
+  - The earlier api-extracts.json, refreshes.json and index sections remain as the first-encounter record.
+changes: none (no join-level structural change)
+```
+
+**Seam repaired:** a worker that reported `blocked` or `needs-input` after a fast-failing tracker CLI call was forwarded to the owner as an exception. The reconciler now sends it back to retry, capped at ten (1ee48b03).
+
+**Retained regression:** `lib/reconcile/rate-limit.test.ts` exercises production `run()` through two holds and fails without the fix. Final-head checks: 48 pass, 0 fail, and `bunx tsc --noEmit` is clean.
+
+**Filed and closed:** I closed `native-rehearsal-single-page-capacity-prevents-replay` as fixed and filed nothing new.
+
+Evidence: [docs/attachments/rehearse-github-tracked-reconcile/index.md](docs/attachments/rehearse-github-tracked-reconcile/index.md)
