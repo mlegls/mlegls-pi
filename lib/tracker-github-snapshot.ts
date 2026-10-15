@@ -11,9 +11,10 @@ export function requireGithub(condition: unknown, message: string): asserts cond
 
 /** The account's shared GitHub API budget is exhausted until resetAt (epoch ms). Neither a failed observation nor
  * a node problem: callers hold their work until the reset (see reconcile/rate-limit.ts). */
+export const rateLimitMark = "API rate limit exhausted until";
 export class GithubRateLimited extends Error {
 	constructor(readonly resetAt: number) {
-		super("GitHub tracker: API rate limit exhausted until " + new Date(resetAt).toISOString() + "; retry after the reset (partial mutations retain private replay intent)");
+		super("GitHub tracker: " + rateLimitMark + " " + new Date(resetAt).toISOString() + "; this is a hold, not a blocker: wait until then and rerun the same command (partial mutations retain private replay intent)");
 	}
 }
 const limitFile = (project: { directory: string }) => join(project.directory, "rate-limit.json");

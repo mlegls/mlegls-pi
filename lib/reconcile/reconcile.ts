@@ -33,7 +33,7 @@ import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { heldByRed, mainRed, evidenceShapeError, git, storyShapeError, testCommands } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
-import { GithubRateLimited } from "../tracker-github-snapshot.ts";
+import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
 import { getThread, workerThread } from "../thread/registry.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
@@ -854,6 +854,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
 		if (r.status === "waiting") { c.waitingSince = waitedSince ?? m.ts; c.waitingCheckedAt = m.ts; note(c.phase + " " + slug + " waiting: " + text.split("\n").find(l => l.trim())?.slice(0, 200)); return save(); }
+		// The worker's tracker CLI failed fast on the rate-limit hold and it gave up on it. That is no blocker for the owner
+		// (and must not discard a refinement): send it back to rerun the command. Each hold is paced by its reset, so the
+		// repair budget (two) is too small; the cap only ends a worker that keeps quoting the limit.
+		if ((r.status === "blocked" || r.status === "needs-input") && text.includes(rateLimitMark)) {
+			c.retries["tracker-rate-limit"] = (c.retries["tracker-rate-limit"] ?? 0) + 1;
+			if (c.retries["tracker-rate-limit"] > 10) return raise(slug, "tracker rate limit (after 10 retries)", text, issues);
+			note(c.phase + " " + slug + " reported the tracker rate limit as " + r.status + "; sending it back to retry");
+			await sendChild(topic(h), "The GitHub API rate limit is a hold, not a blocker. Rerun the same tracker command now; if it still names a reset time, wait until then and rerun it. Continue the assignment and report on its real outcome.");
+			return save();
+		}
 		if (r.status === "blocked" || r.status === "needs-input") {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, c.phase + " " + r.status, text, issues);
