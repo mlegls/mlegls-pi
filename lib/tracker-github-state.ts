@@ -116,7 +116,15 @@ export function readGithubReceipt(project: GithubProject, snapshot: GithubSnapsh
 		}
 		for (const intent of Object.values(raw.creates)) if (marker && intent.marker === marker && !receipt?.removed) {
 			// A completed intent is not residual authority after release/transfer.
-			if (intent.published) continue;
+			if (intent.published || base?.removed) continue;
+			// Discard may discover a lost-response create before materialization. Its
+			// saved removal authority precedes detachment/release, which legitimately
+			// change the original creation parent and assignment during replay.
+			const removal = raw.removes[slug];
+			if (removal?.claim.claimedBy === intent.claim?.claimedBy && intent.claim) {
+				claim ??= removal.claim;
+				continue;
+			}
 			if (Object.hasOwn(intent.fields, "stage")) base = { ...base, stage: intent.fields.stage as GithubReceipt["stage"] };
 			if (!intent.claim) continue;
 			requireGithub(issue.parent?.id === intent.parentId && issue.assignees.some(user => user.id === intent.claim!.assigneeId),
