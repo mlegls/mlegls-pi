@@ -123,7 +123,7 @@ async function resolveConflict(error: ThreadMergeConflict): Promise<ThreadBlock 
 	}
 }
 
-async function cleanupTree(id: string, archive: boolean, keepBranch: boolean): Promise<ThreadCleanup> {
+async function cleanupTree(id: string, archive: boolean, keepBranch: boolean, discardIgnored: boolean): Promise<ThreadCleanup> {
 	const root = await threadRecord(id);
 	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
 	if (root.archived) return result;
@@ -153,11 +153,12 @@ async function cleanupTree(id: string, archive: boolean, keepBranch: boolean): P
 			}
 		}
 		if ((await threadRecord(node)).archived) continue;
-		const retired = await retireThread(await threadRecord(node), keepBranch);
+		const retired = await retireThread(await threadRecord(node), keepBranch, { discardIgnored });
 		result.closed.push(...retired.closed);
 		result.killed.push(...retired.killed);
 		result.branchesDeleted.push(...retired.branchesDeleted);
 		result.branchesKept.push(...retired.branchesKept);
+		if (retired.kept) result.kept = [...result.kept ?? [], ...retired.kept];
 	}
 	result.killed = [...new Set(result.killed)];
 	return result;
@@ -165,10 +166,11 @@ async function cleanupTree(id: string, archive: boolean, keepBranch: boolean): P
 
 /** Spawn subtree, post-order: integrate into each ab-parent, then retire. Conflict waits for that agent's fresh done/blocked. */
 export async function archiveThread(id: string): Promise<ThreadCleanup> {
-	return cleanupTree(id, true, false);
+	return cleanupTree(id, true, false, true);
 }
 
-/** Same retirement walk without merges. keepBranch preserves every owned branch in the walk. */
-export async function abandonThread(id: string, options: { keepBranch?: boolean } = {}): Promise<ThreadCleanup> {
-	return cleanupTree(id, false, options.keepBranch ?? false);
+/** Same retirement walk without merges. keepBranch preserves every owned branch in the walk. Ignored state setup
+ * can't regenerate is moved aside (ThreadCleanup.kept) unless discardIgnored says the work was taken. */
+export async function abandonThread(id: string, options: { keepBranch?: boolean; discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
+	return cleanupTree(id, false, options.keepBranch ?? false, options.discardIgnored ?? false);
 }

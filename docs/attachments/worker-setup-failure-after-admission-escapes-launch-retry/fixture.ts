@@ -58,10 +58,16 @@ export async function trial() {
 			bb.setStatus(first.path, "idle"); // pi ended its turn on the error
 			send({ from: {}, topic: slug + "/" + first.handle, tags: ["turn-end", "error"], body: slug === "auth" ? "error: authentication invalid_grant" : "Codex error: An error occurred while processing your request" });
 			if (slug === "generic") {
+				// The first error continues the same worker (its worktree may hold state nothing else has); a repeat gets a fresh one.
+				const told = () => readFrom(0).messages.some(m => m.topic === slug + "/" + first.handle && m.body.includes("Continue the assignment where you left off"));
+				await until(() => told() && load(repo, slug)?.chains[slug]?.retries.provider === 1);
+				assert.equal(load(repo, slug)?.chains[slug]?.handle?.handle, first.handle);
+				console.log(JSON.stringify({ story: "generic-first-error-continues", worker: first.handle }));
+				send({ from: {}, topic: slug + "/" + first.handle, tags: ["turn-end", "error"], body: "Codex error: An error occurred while processing your request" });
 				const second = await until(() => { const h = load(repo, slug)?.chains[slug]?.handle; return h && h.handle !== first.handle && started(h.path) && h; });
-				assert.equal(load(repo, slug)?.chains[slug]?.retries.provider, 1);
+				assert.equal(load(repo, slug)?.chains[slug]?.retries.provider, 2);
 				assert.equal(ownerMail(slug).length, 0);
-				console.log(JSON.stringify({ story: "generic-first-error", first: first.handle, retry: second.handle, ownerMail: 0 }));
+				console.log(JSON.stringify({ story: "generic-second-error", first: first.handle, retry: second.handle, ownerMail: 0 }));
 				bb.setStatus(second.path, "idle");
 				send({ from: {}, topic: slug + "/" + second.handle, tags: ["turn-end", "error"], body: "error: provider failed again" });
 			}

@@ -1,5 +1,5 @@
-import { realpathSync } from "node:fs";
-import { resolve } from "node:path";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { markRetired, readLive, type Live } from "../session-meta/live";
 import { getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
@@ -18,8 +18,66 @@ export async function stopThreadProcesses(thread: ThreadRecord): Promise<ThreadC
 	return cleanupThread(thread, true, true);
 }
 
-export async function retireThread(thread: ThreadRecord, keepBranch: boolean): Promise<ThreadCleanup> {
-	return cleanupThread(thread, keepBranch, false);
+/** discardIgnored: the worker finished and its work was taken (integrated, or handed to the next phase), so its
+ * ignored files are disposable. Otherwise ignored state that setup can't regenerate is moved aside, not deleted. */
+export async function retireThread(thread: ThreadRecord, keepBranch: boolean, options: { discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
+	return cleanupThread(thread, keepBranch, false, options.discardIgnored ?? false);
+}
+
+/** Ignored paths setup regenerates: dependency installs, tool caches, build output and wm's own files. Matched by
+ * path segment, so packages/x/node_modules counts too. A project adds its own with `git config --add wm.disposable
+ * <name or path>` (a value with a slash is a path from the worktree root, else a segment name). */
+const DISPOSABLE_NAMES = new Set(["node_modules", ".wm", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+	".turbo", ".parcel-cache", ".next", ".nuxt", ".svelte-kit", ".cache", "dist", "build", "target", "coverage", ".DS_Store"]);
+const DISPOSABLE_PATHS = [".husky/_"];
+
+/** Whether an ignored entry (a file, or a directory git collapsed) is disposable on retirement. A file identical to the
+ * same path in the main checkout (an .env copied in by setup) is too. */
+export function disposableIgnored(path: string, worktree: string, project: string, declared: string[] = []): boolean {
+	const p = path.replace(/\/+$/, "");
+	const segments = p.split("/");
+	const names = new Set([...DISPOSABLE_NAMES, ...declared.filter(d => !d.replace(/\/+$/, "").includes("/")).map(d => d.replace(/\/+$/, ""))]);
+	if (segments.some(s => names.has(s))) return true;
+	const paths = [...DISPOSABLE_PATHS, ...declared.map(d => d.replace(/^\/+|\/+$/g, "")).filter(d => d.includes("/"))];
+	if (paths.some(d => p === d || p.startsWith(d + "/"))) return true;
+	try {
+		const own = lstatSync(join(worktree, p)), main = lstatSync(join(project, p));
+		return own.isFile() && main.isFile() && own.size === main.size && own.size < 1 << 20 && readFileSync(join(worktree, p)).equals(readFileSync(join(project, p)));
+	} catch { return false; }
+}
+
+/** Move ignored state the worktree alone holds (a local database, an export, recordings) aside before the worktree is
+ * removed: a checkpointed rehearsal's authorized production export and imported database went with its worktree
+ * (2026-10-16). The WIP commit covers tracked and untracked files; this covers what git ignores. Throws when it can't,
+ * so the worktree stays. */
+async function keepIgnored(root: string, thread: ThreadRecord, wip: string | undefined): Promise<{ path: string; entries: string[] } | undefined> {
+	const listed = await gitChecked(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory");
+	const declared = (await gitAttempt(thread.project, "config", "--get-all", "wm.disposable")).out.split("\n").map(s => s.trim()).filter(Boolean);
+	const entries = listed.split("\0").filter(Boolean).filter(p => !disposableIgnored(p, root, thread.project, declared));
+	if (!entries.length) return undefined;
+	const base = resolve(thread.project + "__retired", basename(root));
+	const kept = existsSync(base) ? base + "-" + new Date().toISOString().replace(/[:.]/g, "-") : base;
+	for (const entry of entries) {
+		const from = join(root, entry.replace(/\/+$/, "")), to = join(kept, entry.replace(/\/+$/, ""));
+		mkdirSync(dirname(to), { recursive: true });
+		try { renameSync(from, to); }
+		catch (error) {
+			if ((error as { code?: string }).code !== "EXDEV") throw error;
+			cpSync(from, to, { recursive: true, verbatimSymlinks: true, preserveTimestamps: true });
+			rmSync(from, { recursive: true, force: true });
+		}
+	}
+	const head = await gitChecked(root, "rev-parse", "HEAD");
+	writeFileSync(join(kept, "RETIRED.md"), [
+		"# Ignored state kept from a retired worktree", "",
+		"worktree: " + root, "thread: " + thread.id + (thread.worker ? " (" + thread.worker.run + "/" + thread.worker.handle + ")" : ""),
+		"branch: " + (thread.branch ?? "(none)"), "head: " + head + (wip ? " (WIP commit of its uncommitted work)" : ""),
+		"retired: " + new Date().toISOString(), "",
+		"These paths were gitignored in the worktree and are kept here at the same relative paths. To resume, check out",
+		"the branch in a worktree and move them back. Delete this directory once nothing needs them.", "",
+		...entries.map(e => "- " + e), "",
+	].join("\n"));
+	return { path: kept, entries };
 }
 
 /** Commit everything uncommitted (ignored files aside) to the worktree's branch; its sha, or undefined when clean.
@@ -32,7 +90,7 @@ async function commitWip(root: string, thread: ThreadRecord): Promise<string | u
 	return gitChecked(root, "rev-parse", "--short", "HEAD");
 }
 
-async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processesOnly: boolean): Promise<ThreadCleanup> {
+async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processesOnly: boolean, discardIgnored = false): Promise<ThreadCleanup> {
 	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
 	const owned = thread.ownership === "owner";
 	let root: string | undefined;
@@ -90,9 +148,12 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 		// Uncommitted work outlives the worktree as a WIP commit on its branch, which is then kept: a replaced drive's
 		// evidence (recordings of paid live draws, write-ups) was untracked and went with its worktree (2026-10-12).
 		const wip = entry ? await commitWip(root, thread) : undefined;
+		const kept = entry && !discardIgnored ? await keepIgnored(root, thread, wip) : undefined;
+		if (kept) result.kept = [...result.kept ?? [], { worktree: root, ...kept }];
 		if (entry) await gitChecked(thread.project, "worktree", "remove", "--force", root);
 		if (thread.branch) {
 			if (wip) result.branchesKept.push({ branch: thread.branch, reason: "uncommitted work saved as WIP commit " + wip });
+			else if (kept) result.branchesKept.push({ branch: thread.branch, reason: "ignored state kept at " + kept.path });
 			else if (keepBranch) result.branchesKept.push({ branch: thread.branch, reason: "keepBranch requested" });
 			else {
 				const deleted = await gitAttempt(thread.project, "branch", "-D", thread.branch);

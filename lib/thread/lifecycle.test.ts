@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { send } from "../board/store";
-import { ThreadMergeConflict, archiveThread, integrateThread } from "./lifecycle";
+import { ThreadMergeConflict, abandonThread, archiveThread, integrateThread } from "./lifecycle";
 import { getThread, setCurrentSession } from "./registry";
 import { newThread } from "./runtime";
 import { fakeBb } from "./fake-bb";
@@ -93,6 +93,46 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 	expect(git(mid.cwd, "branch", "--contains", git(kid.cwd, "rev-parse", "HEAD"))).not.toContain(mid.branch!);
 	expect((await getThread(kid.id))!.archived).toBe(false);
 	expect(existsSync(kid.cwd)).toBe(true);
+});
+
+test("retiring an unfinished worker moves ignored state setup can't regenerate aside; a finished one discards it", async () => {
+	writeFileSync(join(repo, ".git", "info", "exclude"), "local-db/\nnode_modules/\n.env\n");
+	writeFileSync(join(repo, ".env"), "SECRET=1\n");
+	const seed = (cwd: string) => {
+		mkdirSync(join(cwd, "local-db"), { recursive: true });
+		writeFileSync(join(cwd, "local-db", "import.bin"), "irreplaceable");
+		mkdirSync(join(cwd, "node_modules", "dep"), { recursive: true });
+		writeFileSync(join(cwd, "node_modules", "dep", "index.js"), "");
+		writeFileSync(join(cwd, ".env"), "SECRET=1\n");
+		writeFileSync(join(cwd, "draft.txt"), "untracked");
+	};
+	const name = fresh();
+	const t = await newThread({ cwd: repo, worktree: name });
+	seed(t.cwd);
+	const result = await abandonThread(t.id);
+	const kept = join(repo + "__retired", name);
+	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: ["local-db/"] }]);
+	expect(readFileSync(join(kept, "local-db", "import.bin"), "utf8")).toBe("irreplaceable");
+	expect(readFileSync(join(kept, "RETIRED.md"), "utf8")).toContain("branch: " + t.branch);
+	expect(existsSync(join(kept, "node_modules"))).toBe(false);
+	expect(existsSync(join(kept, ".env"))).toBe(false);
+	expect(existsSync(t.cwd)).toBe(false);
+	// Untracked files still go to the WIP commit, which keeps the branch.
+	expect(git(repo, "show", t.branch + ":draft.txt")).toBe("untracked");
+
+	const done = fresh();
+	const u = await newThread({ cwd: repo, worktree: done });
+	seed(u.cwd);
+	git(repo, "config", "--add", "wm.disposable", "local-db");
+	try { expect((await abandonThread(u.id)).kept).toBeUndefined(); }
+	finally { git(repo, "config", "--unset-all", "wm.disposable"); }
+	const v = await newThread({ cwd: repo, worktree: fresh() });
+	seed(v.cwd);
+	expect((await abandonThread(v.id, { discardIgnored: true })).kept).toBeUndefined();
+	expect(existsSync(join(repo + "__retired", done))).toBe(false);
+	expect(existsSync(v.cwd)).toBe(false);
+	rmSync(join(repo, ".git", "info", "exclude"));
+	rmSync(join(repo, ".env"));
 });
 
 test("raw integrate names a missing or deleted ab-parent instead of choosing another target", async () => {

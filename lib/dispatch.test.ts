@@ -113,7 +113,8 @@ test("closes the worker only after Git integration; keep retains it", async () =
     expect(close).not.toHaveBeenCalled();
     await integrate(worker, { cwd: r.main });
     expect(close).toHaveBeenCalledTimes(1);
-    expect(close).toHaveBeenCalledWith(true);
+    // Integrated work was taken: its ignored files go with the worktree.
+    expect(close).toHaveBeenCalledWith(true, { discardIgnored: true });
   } finally { close.mockRestore(); }
 });
 

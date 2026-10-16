@@ -478,7 +478,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const sib = [...issues.values()].filter(i => i.partOf === parent && i.slug !== slug && !finished(i));
 		return sib.length ? "Sibling issues in flight beside yours (their decisions reach you on the board, tagged `decision`; post yours on your topic tagged `decision` plus `path:<file>` per file it touches):\n" + sib.map(i => "- " + i.slug).join("\n") : "";
 	};
-	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string) {
+	/** finished: the previous worker reported done and this phase takes its work, so its ignored files are disposable.
+	 * Any other replacement (relaunch, provider error, owner retry) moves ignored state aside on retirement. */
+	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false) {
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
 		const prev = c.handle;
@@ -505,7 +507,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const refreshed = refreshWorker(path, pathOf(c.into));
 			return [phasePrompt(), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve the collector's code and the previous worker's results, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
 		}, phase === "refine" ? { chain: c, adopt } : undefined);
-		if (prev && !await retireHandle(prev, pathOf(c.into))) c.workers.push(prev);
+		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
 		save();
@@ -723,7 +725,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					await locked(() => integrate(handler, { cwd: col.path, keep: true }));
 				}
 			} catch (e) { await applyResolution(ex, { action: "escalate", summary: "handler's docs/evidence change could not land: " + e }, issues); await retireHandle(handler, col.path); continue; }
-			await retireHandle(handler, col.path);
+			await retireHandle(handler, col.path, r.status === "done");
 			ex.handler = undefined;
 			await applyResolution(ex, r.status === "done" && res?.action ? res : { action: "escalate", summary: res?.summary ?? r.body.slice(-1500) }, issues);
 		}
@@ -745,9 +747,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		try { return await fn(); } finally { rmSync(lockDir, { recursive: true, force: true }); }
 	}
-	async function retireHandle(h: Handle, into: string): Promise<boolean> {
+	/** finished: the worker reported done and its work was taken; otherwise ignored state it alone holds is moved aside. */
+	async function retireHandle(h: Handle, into: string, finished = false): Promise<boolean> {
 		try {
-			const r = await retire(h, { cwd: into });
+			const r = await retire(h, { cwd: into, discardIgnored: finished });
+			for (const k of (r.removed as { kept?: { path: string; entries: string[] }[] } | undefined)?.kept ?? []) {
+				note("retired " + h.handle + " keeping its ignored state at " + k.path + ": " + k.entries.join(", "));
+				tellOwner("retired " + h.handle + " before it finished; its worktree held ignored state setup can't regenerate, moved to " + k.path + " (" + k.entries.join(", ") + "). See RETIRED.md there; delete it once nothing needs it. Declare regenerable paths with `git config --add wm.disposable <path>`.");
+			}
 			const wip = ((r.removed as { branchesKept?: { branch: string; reason: string }[] } | undefined)?.branchesKept ?? []).find(b => b.reason.startsWith("uncommitted work saved"));
 			if (wip) { note("retired " + h.handle + " with uncommitted work: branch " + wip.branch + ", " + wip.reason); tellOwner("retired " + h.handle + " with uncommitted work in its worktree; it is kept on branch " + wip.branch + " (" + wip.reason + ")."); }
 			return true;
@@ -763,10 +770,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		try { detail = (await logBb(row!.thread.bb!)).split("── Error").slice(1).at(-1)?.replace(/^[─\s]+/, "").trim() ?? ""; } catch (e) { detail = "(bb thread log failed: " + e + ")"; }
 		return "bb thread " + row?.thread.bb + " for " + h.handle + " is in error and its pi will not report:\n" + (detail || "(no error block in its log)");
 	};
-	async function retireChain(c: Chain) {
+	async function retireChain(c: Chain, finished = false) {
 		if (c.refinement && !["accepted", "removed"].includes(s.refinements[c.refinement].phase))
 			await discardRefinement(refinement, c.refinement);
-		for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into));
+		for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into), finished);
 	}
 	/** Receipts outlive chains. A partial retirement/deletion is retried next tick. */
 	async function cleanupLandings() {
@@ -774,7 +781,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
 			try {
 				for (const worker of operation.workers) {
-					const result = await retire(worker, { cwd: controlCwd });
+					const result = await retire(worker, { cwd: controlCwd, discardIgnored: true });
 					if (git(controlCwd, "branch", "--list", worker.handle) && result.branchKept)
 						throw new Error(result.branchKept);
 				}
@@ -839,9 +846,17 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (m.tags.includes("error")) {
 			const kind = errorClass(text);
-			if (kind !== "authentication" && kind !== "rate limit or quota" && !c.retries.provider) {
-				c.retries.provider = 1; save();
-				note("provider error on " + slug + "; retrying " + c.phase + " once: " + kind);
+			// An error turn-end is not the worker's end: the first one continues the same session and worktree (a fresh
+			// worker would retire them and what only they hold); a repeat, or a worker that is gone, gets a fresh worker once.
+			const tries = c.retries.provider ?? 0;
+			if (kind !== "authentication" && kind !== "rate limit or quota" && tries < 2) {
+				c.retries.provider = tries + 1; save();
+				if (!tries && alive(h) !== false) {
+					note("provider error on " + slug + "; continuing the same " + c.phase + " worker: " + kind);
+					await sendChild(topic(h), "Your last turn ended on a provider error (" + kind + "), after pi's own retries. Continue the assignment where you left off.");
+					return save();
+				}
+				note("provider error on " + slug + "; retrying " + c.phase + " with a fresh worker: " + kind);
 				return startPhase(slug, c, c.phase, issue, issues);
 			}
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
@@ -875,10 +890,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, c.phase + " " + r.status, text, issues);
 		}
-		if (r.status === "checkpoint") return checkpoint(c, runsProcess(h) ?? (waitedSince && alive(h) !== false ? true : undefined), BUDGET.checkpoint, {
-			repair: message => repair(slug, c, "checkpoint-process", message, issues, text),
+		if (r.status === "checkpoint") return checkpoint(c, alive(h), BUDGET.checkpoint, {
+			resume: async () => {
+				note(c.phase + " " + slug + " checkpointed; continuing the same worker");
+				await sendChild(topic(h), "Continue from your checkpoint. This is the same session and worktree: everything you kept there (services' data, exports, local databases, ignored files) is as you left it. Re-read what remains in the ticket and carry on with the assignment.");
+			},
 			raise: reason => raise(slug, reason, text, issues),
-			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint:\n\n" + text.slice(-6000), true),
+			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint. Its worker is gone; its commits are in your base. Ignored state its worktree held (local databases, exports) is not in your worktree: retirement moved any such state aside and told the owner where:\n\n" + text.slice(-6000), true),
 			save,
 		});
 		if (git(h.path, "status", "--porcelain")) return repair(slug, c, "dirty", "You reported done with uncommitted changes. Commit everything that belongs to the change, then report done again.", issues, text);
@@ -907,15 +925,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			c.setup = r.handoff?.setup ?? null;
 			c.note = undefined;
 			c.skipDrive ??= driveNone(issue);
-			if (c.skipDrive) { note("drive skipped for " + slug + ": " + c.skipDrive); return startPhase(slug, c, "review", issue, issues, skippedDrive(c.skipDrive)); }
-			return startPhase(slug, c, "drive", issue, issues);
+			if (c.skipDrive) { note("drive skipped for " + slug + ": " + c.skipDrive); return startPhase(slug, c, "review", issue, issues, skippedDrive(c.skipDrive), false, undefined, true); }
+			return startPhase(slug, c, "drive", issue, issues, "", false, undefined, true);
 		}
 		if (c.phase === "drive") {
 			const shape = storyShapeError(r.handoff, c.self) ?? (r.handoff?.evidence !== undefined ? evidenceShapeError(r.handoff) : null);
 			if (shape) return repair(slug, c, "drive-shape", "Your handoff is malformed: " + shape + ". Repost it.", issues, text);
 			c.drive = r.handoff!;
 			c.note = undefined;
-			return startPhase(slug, c, "review", issue, issues, "Driver's final message:\n\n" + text.slice(-4000));
+			return startPhase(slug, c, "review", issue, issues, "Driver's final message:\n\n" + text.slice(-4000), false, undefined, true);
 		}
 		// review
 		const shape = storyShapeError(r.handoff, c.self) ?? (c.self && r.handoff?.evidence === undefined ? null : evidenceShapeError(r.handoff));
@@ -998,7 +1016,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (intent.children.length) {
 			note("decomposed " + slug + " into " + intent.children.join(", "));
 			delete s.chains[slug]; save();
-			await retireChain(c);
+			await retireChain(c, true);
 		} else {
 			note("promoted " + slug);
 			c.note = undefined; c.self = false;
@@ -1145,7 +1163,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const prompt = [ticketText(issue), c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "", c.note ? "Note from the supervisor: " + c.note : ""].filter(Boolean).join("\n\n");
 		const launchedAt = Date.now();
 		c.handle = await launch(nextHandle(slug, "implement"), "implement", prompt, c.base, pathOf(c.into), issue, undefined, async () => [ticketText(issue), c.self ? "Its children are all satisfied in your base; implement its residual work and joins." : "", c.note ?? ""].filter(Boolean).join("\n\n"));
-		if (previous && !await retireHandle(previous, cwd)) c.workers.push(previous);
+		// Its only caller with a previous worker is a promoted refinement: the writer finished.
+		if (previous && !await retireHandle(previous, cwd, true)) c.workers.push(previous);
 		Object.assign(c, { into: saved, phase: "implement", launchedAt, handledTs: undefined });
 		save();
 	}
@@ -1203,7 +1222,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (c?.phase === "refine" && c.handle?.handle === attempt.handle) continue;
 			const thread = attempt.worker.threadId ? await getThread(attempt.worker.threadId)
 				: await workerThread(attempt.handle, controlCwd, s.root);
-			if (thread && !thread.archived) await retireHandle(attempt.worker, controlCwd);
+			if (thread && !thread.archived) await retireHandle(attempt.worker, controlCwd, attempt.phase === "accepted");
 		}
 		const top = view(destination());
 		if (s.pr && (s.landed[s.root] || s.pr.phase !== "preparing")) {
