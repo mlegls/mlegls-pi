@@ -1,9 +1,11 @@
 /**
  * Build an artboard canvas for review in Lavish.
  *
- *   bun <skill>/scripts/canvas.ts <layout.json>
+ *   bun <skill>/scripts/canvas.ts <layout.json> [--out dir]
  *
- * Writes canvas.html, canvas.css and assets/ beside the layout. Every frame is captured in
+ * Writes canvas.html, canvas.css and assets/ into --out (default: beside the layout); file
+ * frames resolve against the layout. "storybook" may name environment variables as
+ * ${NAME}, read from the environment or the nearest .env above the working directory. Every frame is captured in
  * a headless browser and copied in as static DOM under its own stylesheets, scoped to its
  * frame, so Lavish annotates real elements. A frame is a hand-written HTML file or a
  * Storybook story. Run from a directory whose node_modules has @playwright/test
@@ -38,10 +40,31 @@ type Taken = {
   base: string;
 };
 
-const layoutPath = resolve(process.argv[2] ?? "layout.json");
+const args = process.argv.slice(2);
+const outFlag = args.indexOf("--out");
+const outArg = outFlag >= 0 ? args.splice(outFlag, 2)[1] : undefined;
+const layoutPath = resolve(args[0] ?? "layout.json");
 const layout: Layout = JSON.parse(readFileSync(layoutPath, "utf8"));
-const outDir = dirname(layoutPath);
+const layoutDir = dirname(layoutPath);
+const outDir = resolve(outArg ?? layoutDir);
 const assetDir = resolve(outDir, "assets");
+
+function envValue(name: string): string | undefined {
+  if (process.env[name]) return process.env[name];
+  for (let dir = process.cwd(); ; dir = dirname(dir)) {
+    const file = resolve(dir, ".env");
+    if (existsSync(file)) {
+      const match = new RegExp("^" + name + "=(.*)$", "m").exec(readFileSync(file, "utf8"));
+      if (match) return match[1]?.trim().replace(/^["']|["']$/g, "");
+    }
+    if (dirname(dir) === dir) return undefined;
+  }
+}
+const storybook = (layout.storybook ?? "http://127.0.0.1:6006").replace(/\$\{(\w+)\}/g, (whole, name: string) => {
+  const value = envValue(name);
+  if (!value) throw new Error("storybook names " + whole + ", which is not set");
+  return value;
+});
 mkdirSync(assetDir, { recursive: true });
 
 const slug = (text: string) =>
@@ -120,14 +143,14 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
   const page = await browser.newPage({ viewport: { width: viewport[0], height: viewport[1] } });
   try {
     if (frame.story) {
-      const origin = layout.storybook ?? "http://127.0.0.1:6006";
+      const origin = storybook;
       const query = new URLSearchParams({ id: frame.story, viewMode: "story" });
       const globals = Object.entries(frame.globals ?? {}).map(([k, v]) => k + ":" + v);
       if (globals.length) query.set("globals", globals.join(";"));
       await page.goto(origin + "/iframe.html?" + query.toString());
       await page.waitForSelector("#storybook-root > *", { timeout: 30_000 });
     } else if (frame.file) {
-      await page.goto(pathToFileURL(resolve(outDir, frame.file)).href);
+      await page.goto(pathToFileURL(resolve(layoutDir, frame.file)).href);
     } else throw new Error(frame.name + " has neither file nor story");
     if (frame.style) await page.addStyleTag({ content: frame.style });
     await page.evaluate(() => document.fonts.ready);

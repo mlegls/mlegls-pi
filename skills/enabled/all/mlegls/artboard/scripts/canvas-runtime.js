@@ -65,10 +65,12 @@ function layoutPages() {
     const members = frames.filter((frame) => frame.dataset.page === page.dataset.page);
     if (!members.length) continue;
     const box = boundsOf(members);
+    // The title and notes wrap to the page's width, so measure them once it is set.
     page.style.left = box.left - 32 + "px";
-    page.style.top = box.top - 32 - page.querySelector(".canvas-page-head").offsetHeight + "px";
     page.style.width = box.right - box.left + 64 + "px";
-    page.style.height = box.bottom - box.top + 64 + page.querySelector(".canvas-page-head").offsetHeight + "px";
+    const head = page.querySelector(".canvas-page-head").offsetHeight;
+    page.style.top = box.top - 32 - head + "px";
+    page.style.height = box.bottom - box.top + 64 + head + "px";
   }
 }
 function fit(box, cap) {

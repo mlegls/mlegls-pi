@@ -14,7 +14,7 @@ A frame is either:
 
 1. Use the agreed direction, fidelity, content, and app or brand sources. Put the artboard in the project's design directory if it keeps one (concept: `docs/design/screens.md`), else under `.lavish/<name>/`.
 2. Write the frames and `layout.json` beside them.
-3. Build: `bun ~/.pi/agent/skills/artboard/scripts/canvas.ts <dir>/layout.json`, run from a directory whose `node_modules` has `@playwright/test` (or set `ARTBOARD_PLAYWRIGHT` to a `package.json` path there); Storybook must be running for story frames. It writes `canvas.html`, `canvas.css` and `assets/`, in a few seconds.
+3. Build: `bun ~/.pi/agent/skills/artboard/scripts/canvas.ts <dir>/layout.json [--out dir]`, run from a directory whose `node_modules` has `@playwright/test` (or set `ARTBOARD_PLAYWRIGHT` to a `package.json` path there); Storybook must be running for story frames. It writes `canvas.html`, `canvas.css` and `assets/`, in a few seconds.
 4. Open `lavish-axi <dir>/canvas.html`, then `lavish-axi poll <dir>/canvas.html` for feedback. Answer an annotation by changing the frame or component and rebuilding; Lavish reloads the canvas. "Save arrangement" arrives as feedback with each frame's position: write them into `layout.json` as `at`.
 
 ## Layout
@@ -34,7 +34,7 @@ A frame is either:
 }
 ```
 
-A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`.
+A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`. `storybook` may read a port from the environment or the nearest `.env`, as `http://127.0.0.1:${STORYBOOK_PORT}`.
 
 Each frame is copied as static DOM: scripts don't run, while scroll offsets, field values and viewport units are frozen as they were drawn, and each frame's CSS is scoped to it (`:root`/`html` become the frame, `body` its body wrapper). So a frame shows a state; show each state worth seeing as its own frame.
 
