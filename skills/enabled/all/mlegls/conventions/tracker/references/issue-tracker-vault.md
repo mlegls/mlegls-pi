@@ -96,7 +96,7 @@ printf '%s\n' 'Implement the recorded child contract.' | bun "$PI_SKILL_DIR/scri
 printf '%s\n' 'The sharpened parent contract, including its acceptance.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ticket","priority":null}' --body-file -
 ```
 
-Writes validate the resulting global tracker before publication and commit only touched canonical issue paths for persistence, never unrelated staged files. This is not permission to commit unrelated canonical files. `remove` is reserved for owned provisional children, not general triage. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.
+Writes validate the resulting global tracker before publication and commit only touched canonical issue paths for persistence, never unrelated staged files. The commit runs in a detached persister outside the caller's process group: a write whose command timed out or was killed after the working-tree write still commits, so check `git log` on the issue before retrying. Persistence waits out an index lock a live Git holds and removes one only when it is over 30s old with no live holder, naming it on stderr. This is not permission to commit unrelated canonical files. `remove` is reserved for owned provisional children, not general triage. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.
 
 ## procedure
 

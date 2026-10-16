@@ -11,13 +11,13 @@
 //
 // Git projects use the main worktree's canonical vault; non-git vaults discover upward.
 
-import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync, mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { createHash, randomUUID } from "node:crypto";
 import { checkout, git } from "../../../../../../../lib/thread/git.ts";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join, basename, dirname, resolve, relative, sep } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { isAlias, isMap, isScalar, isSeq, parseDocument, visit } from "yaml";
 
 import { cached, refresh, format } from "../../../../../../../lib/tracker-lint.ts";
@@ -211,21 +211,27 @@ function replaceContract(text: string, fields: Record<string, unknown>, body?: s
   return "---\n" + doc.toString({ lineWidth: 0, defaultKeyType: "PLAIN", defaultStringType: "QUOTE_DOUBLE" }) + "---\n" + (body ?? previous);
 }
 
-function withVaultLock<T>(dir: string, change: () => T): T {
+/** An exclusive SQLite lock in the git common dir (or the cache outside git), one per kind and path. */
+function withLock<T>(kind: string, dir: string, waitMs: number, change: () => T): T {
   const p = spawnSync("git", ["-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" });
   const lockDir = p.status === 0 ? p.stdout.trim() : join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "mlegls-pi", "tracker-locks");
   mkdirSync(lockDir, { recursive: true });
-  const file = join(lockDir, "vault-" + createHash("sha256").update(realpathSync(dir)).digest("hex") + ".lock.sqlite");
+  const file = join(lockDir, kind + "-" + createHash("sha256").update(realpathSync(dir)).digest("hex") + ".lock.sqlite");
   const lock = new Database(file, { create: true });
   try {
-    lock.exec("PRAGMA busy_timeout = 5000");
+    lock.exec("PRAGMA busy_timeout = " + waitMs);
     return lock.transaction(change).immediate();
   } finally { lock.close(); }
 }
 
+// Serializes validation and the working-tree write only; Git persistence runs after it is released.
+const withVaultLock = <T>(dir: string, change: () => T): T => withLock("vault", dir, 30_000, change);
+
+type Persistence = { root: string; paths: string[]; message: string };
+
 /** Validate an in-memory candidate before atomically publishing each touched file.
- * Persistence is path-limited; unrelated staged paths never enter this commit. */
-function publish(dir: string, changes: Map<string, string | null>, message: string): void {
+ * Returns the path-limited persistence for persist(); unrelated staged paths never enter it. */
+function publish(dir: string, changes: Map<string, string | null>, message: string): Persistence | undefined {
   const all = load(dir);
   for (const [file, text] of changes) {
     if (!file.endsWith(".md") || relative(dir, file).split(sep).includes("attachments")) continue;
@@ -247,22 +253,90 @@ function publish(dir: string, changes: Map<string, string | null>, message: stri
       }
       published++;
     }
-    const p = spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
-    if (p.status !== 0 || !changes.size) return;
-    const root = p.stdout.trim();
-    const paths = [...changes.keys()].map(file => relative(root, file));
-    // --only also captures the working tree for the named paths, not the rest of the index.
-    git(root, "add", "--", ...paths);
-    if (git(root, "diff", "--name-only", "HEAD", "--", ...paths))
-      git(root, "commit", "--only", "-m", message, "--", ...paths);
   } catch (error) {
-    throw new Error("Validated tracker working-tree write " + (published === changes.size ? "happened" : published ? "partially happened" : "did not happen") + "; publication/persistence failed: " + String(error));
+    throw new Error("Validated tracker working-tree write " + (published ? "partially happened" : "did not happen") + "; publication failed: " + String(error));
   }
+  const p = spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  if (p.status !== 0 || !changes.size) return;
+  const root = p.stdout.trim();
+  return { root, paths: [...changes.keys()].map(file => relative(root, file)), message };
 }
 
-function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body?: string, summary?: string, evidence?: string): void {
+/** Commit a published write in a detached persister of its own session and process group.
+ * A caller's timeout or abort kills this process's group with SIGKILL, which Git cannot clean up after;
+ * the persister is outside that group, so the commit it started still finishes and releases index.lock. */
+async function persist(plan: Persistence | undefined): Promise<void> {
+  if (!plan) return;
+  const scratch = mkdtempSync(join(tmpdir(), "tracker-persist-"));
+  const result = join(scratch, "result.json");
+  try {
+    const child = spawn(process.execPath, [import.meta.path, "__persist", result, plan.root, plan.message, ...plan.paths], { detached: true, stdio: "ignore" });
+    await new Promise<void>((done, fail) => { child.once("error", fail); child.once("exit", () => done()); });
+    const out = existsSync(result) ? JSON.parse(readFileSync(result, "utf8")) as { ok: boolean; error?: string; notes: string[] } : { ok: false, error: "persister exited without a result", notes: [] };
+    for (const note of out.notes) console.error(note);
+    if (!out.ok) throw new Error("Validated tracker working-tree write happened; persistence failed: " + out.error);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+}
+
+const STALE_LOCK_MS = Number(process.env.TRACKER_STALE_LOCK_MS ?? 30_000);
+const LIVE_LOCK_WAIT_MS = 10 * 60_000;
+
+/** Holders of the index lock that lsof can see: an open descriptor on it, or a git process working in
+ * the checkout (git keeps the lock across hooks with its descriptor closed). Unknown counts as held. */
+function lockHeld(root: string, lock: string): boolean {
+  const open = spawnSync("lsof", ["-t", "--", lock], { encoding: "utf8" });
+  if (open.error || (open.status !== 0 && open.status !== 1) || open.stdout.trim()) return true;
+  const cwd = spawnSync("lsof", ["-a", "-c", "git", "-d", "cwd", "-Fpn"], { encoding: "utf8" });
+  if (cwd.error || (cwd.status !== 0 && cwd.status !== 1)) return true;
+  let pid = "";
+  for (const line of cwd.stdout.split("\n")) {
+    if (line.startsWith("p")) pid = line.slice(1);
+    else if (line.startsWith("n") && (line.slice(1) === root || line.slice(1).startsWith(root + "/"))) {
+      const command = spawnSync("ps", ["-o", "command=", "-p", pid], { encoding: "utf8" }).stdout.trim();
+      if (command && !command.includes("fsmonitor--daemon")) return true;
+    }
+  }
+  return false;
+}
+
+/** Remove index.lock only when it is old and no live process can own it; returns a note when it did. */
+function recoverStaleIndexLock(root: string): string | undefined {
+  const lock = git(root, "rev-parse", "--path-format=absolute", "--git-path", "index.lock");
+  const before = existsSync(lock) ? statSync(lock) : undefined;
+  if (!before || Date.now() - before.mtimeMs < STALE_LOCK_MS || lockHeld(root, lock)) return;
+  const after = existsSync(lock) ? statSync(lock) : undefined;
+  // While the same file still exists no Git can take the lock, so this unlinks only the stale one.
+  if (!after || after.ino !== before.ino || after.mtimeMs !== before.mtimeMs) return;
+  unlinkSync(lock);
+  return "tracker: removed stale " + lock + " (" + before.size + " bytes, modified " + new Date(before.mtimeMs).toISOString() + ", no live holder)";
+}
+
+/** The persister's work: serialized against other tracker persisters, waiting out live index locks. */
+function persistNow(root: string, paths: string[], message: string, notes: string[]): void {
+  withLock("persist", root, LIVE_LOCK_WAIT_MS, () => {
+    const deadline = Date.now() + LIVE_LOCK_WAIT_MS;
+    for (;;) {
+      try {
+        const recovered = recoverStaleIndexLock(root);
+        if (recovered) notes.push(recovered);
+        // --only also captures the working tree for the named paths, not the rest of the index.
+        git(root, "add", "--", ...paths);
+        if (git(root, "diff", "--name-only", "HEAD", "--", ...paths))
+          git(root, "commit", "--only", "-m", message, "--", ...paths);
+        return;
+      } catch (error) {
+        // A concurrent writer of the same paths may already have committed these bytes.
+        if (!git(root, "diff", "--name-only", "HEAD", "--", ...paths)) return;
+        if (!/index\.lock.*File exists/s.test(String((error as { stderr?: unknown }).stderr ?? error)) || Date.now() > deadline) throw error;
+        Bun.sleepSync(500);
+      }
+    }
+  });
+}
+
+async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body?: string, summary?: string, evidence?: string): Promise<void> {
   validSlug(slug);
-  withVaultLock(dir, () => {
+  await persist(withVaultLock(dir, () => {
     const all = load(dir);
     validateGraph(all);
     const changes = new Map<string, string | null>();
@@ -303,8 +377,8 @@ function mutate(dir: string, cmd: string, slug: string, fields: Record<string, u
         }
       }
     }
-    publish(dir, changes, "tracker: " + cmd + " " + slug);
-  });
+    return publish(dir, changes, "tracker: " + cmd + " " + slug);
+  }));
 }
 
 const KINDS = ["grill", "research", "prototype", "measure", "simplify", "implement", "wait", "done"];
@@ -743,6 +817,18 @@ function outline(note: string, all: Map<string, Issue>): string[] {
 async function main() {
 const rawArgs = process.argv.slice(2);
 const verb = rawArgs[0];
+if (verb === "__persist") {
+  // Detached persister spawned by persist(); reports through its result file, never a pipe its caller may close.
+  const [result, root, message, ...paths] = rawArgs.slice(1);
+  const notes: string[] = [];
+  let out: { ok: boolean; error?: string; notes: string[] };
+  try { persistNow(root, paths, message, notes); out = { ok: true, notes }; }
+  catch (error) { out = { ok: false, error: String((error as { stderr?: unknown }).stderr || error).trim(), notes }; }
+  if (existsSync(dirname(result))) writeFileSync(result, JSON.stringify(out));
+  // Orphaned (the caller was killed): nobody will read or remove the result.
+  if (process.ppid === 1) rmSync(dirname(result), { recursive: true, force: true });
+  return;
+}
 // Loaded only when no canonical vault exists, so every vault invocation skips the GitHub backend's modules.
 const github = findIssuesDir(process.cwd(), false) ? undefined : (await import("../../../../../../../lib/tracker-github.ts")).getGithubTracker(process.cwd());
 if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
@@ -782,7 +868,7 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
     else if (verb === "close") github.close(slug, { summary: opts.get("--summary"), evidence: opts.get("--evidence") });
     else github.remove(slug);
   } else {
-    mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"));
+    await mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"));
     if (verb === "create") console.log(slug);
   }
   return;
@@ -842,7 +928,7 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   case "check": {
-    withVaultLock(dir, () => {
+    await persist(withVaultLock(dir, () => {
     const all = load(dir);
     validateGraph(all);
     const changes = new Map<string, string>();
@@ -889,7 +975,7 @@ if (cmd !== "lint") switch (cmd) {
     const codeDocs = p.status === 0 ? join(p.stdout.trim(), "docs") : dirname(dir);
     checkLinks(codeDocs, dir, say, repair, changes, fixed, fixTargets);
     const canonical = new Map([...changes].filter(([file]) => !relative(dir, file).startsWith(".." + sep)));
-    publish(dir, canonical, "tracker: check --fix");
+    const plan = publish(dir, canonical, "tracker: check --fix");
     // Non-tracker documentation repairs belong to the checked code tree, not a tracker commit.
     for (const [file, text] of changes) if (!canonical.has(file)) {
       const tmp = file + "." + randomUUID() + ".tmp";
@@ -899,7 +985,8 @@ if (cmd !== "lint") switch (cmd) {
     fixed.forEach(s => console.log(s));
     if (!bad) console.log("ok");
     else process.exitCode = 1;
-    });
+    return plan;
+    }));
     break;
   }
   case "outline": {
