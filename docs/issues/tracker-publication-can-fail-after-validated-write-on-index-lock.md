@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "done"
 assignee: "agent"
 author: "session:01a13266-16c3-75a9-a1b7-228c6e73b0a7"
 ---
@@ -19,3 +19,9 @@ Open question: should tracker publication coordinate with concurrent Git operati
 ## Further observation — 2026-10-15
 
 Concept worker `make-lessons-material-centered-implement-2`, session `01a13e70-9aeb-70e5-b79b-f6ac8ad07035`: two successive handoff updates validated and wrote the canonical ticket, then failed to publish because `/Users/mlegls/dev/mmon/concept/.git/index.lock` existed. Worker code/evidence head `ce88f8e` was already committed. `issues.ts text` read the new handoff. `lsof` found no open handle; a process listing subsequently showed another worker's `git worktree remove --force` on the same canonical repository. No stale-lock claim or manual lock removal. Workaround: retained the committed packet and reported pending canonical publication to the parent. Retry after the concurrent operation is the remaining recovery step.
+
+## Result
+
+Cause: a killed tracker (bash tool timeout SIGKILLs the process group) stranded index.lock mid-commit; fixed in 3707f3a2 by persisting in a detached persister outside the vault lock, waiting out live locks and recovering stale ones. See concept tracker-persistence-fails-on-canonical-index-lock.
+
+Evidence: [skills/enabled/all/mlegls/conventions/tracker/scripts/persistence.test.ts](skills/enabled/all/mlegls/conventions/tracker/scripts/persistence.test.ts)
