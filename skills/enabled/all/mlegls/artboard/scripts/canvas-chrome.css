@@ -1,0 +1,23 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #e6e5e1; font: 13px/1.4 system-ui, sans-serif; color: #333; }
+.canvas-viewport { position: fixed; inset: 0; overflow: hidden; touch-action: none; isolation: isolate; z-index: 0; }
+.canvas-ground { position: absolute; inset: 0; cursor: grab; }
+.canvas-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+.canvas-frame, .canvas-page-head { pointer-events: auto; }
+.canvas-page { position: absolute; border: 1px dashed rgba(0,0,0,.18); border-radius: 6px; background: rgba(255,255,255,.25); }
+.canvas-page-head { position: absolute; left: 0; bottom: 100%; padding: 0 0 12px; cursor: move; user-select: none; display: flex; gap: 16px; align-items: flex-end; }
+.canvas-page-head h2 { font: 600 40px/1 system-ui, sans-serif; margin: 0; white-space: nowrap; }
+.canvas-note { background: #fff7a8; padding: 10px 14px; margin: 0; max-width: 640px; font-size: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.canvas-page-head { position: relative; bottom: auto; padding: 16px 32px 0; }
+.canvas-frame { position: absolute; margin: 0; }
+.canvas-surface { position: relative; overflow: hidden; contain: paint; font: initial; color: initial; line-height: normal; text-align: initial; cursor: auto; }
+.canvas-caption { font: 500 14px/1.4 system-ui, sans-serif; color: #444; padding: 0 0 8px; cursor: move; user-select: none; white-space: nowrap; } .canvas-caption span { color: #888; }
+.canvas-surface { box-shadow: 0 1px 3px rgba(0,0,0,.18), 0 8px 24px rgba(0,0,0,.08); }
+.canvas-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; overflow: auto; background: #fafaf8; border-right: 1px solid #d6d4cf; padding: 12px 0; z-index: 2; }
+.canvas-nav ul { list-style: none; margin: 0; padding: 0; } .canvas-nav ul ul button { padding-left: 28px; color: #555; }
+.canvas-nav button { display: block; width: 100%; text-align: left; font: inherit; border: 0; background: none; padding: 4px 14px; color: inherit; cursor: pointer; } .canvas-nav button:hover { background: #ebe9e4; }
+.canvas-nav > ul > li > button { font-weight: 600; margin-top: 8px; }
+.canvas-tools { position: fixed; right: 12px; top: 12px; z-index: 2; display: flex; gap: 6px; align-items: center; background: rgba(250,250,248,.96); padding: 6px 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.canvas-tools button { font: inherit; padding: 3px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+[data-zoom] { min-width: 44px; text-align: center; color: #555; }
+body:not([data-moved]) [data-save] { display: none; }
+.canvas-help { position: fixed; right: 12px; bottom: 12px; z-index: 2; color: #777; font-size: 12px; background: rgba(250,250,248,.9); padding: 4px 8px; border-radius: 4px; }
