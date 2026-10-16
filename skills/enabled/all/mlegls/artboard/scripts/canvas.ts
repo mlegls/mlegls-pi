@@ -233,7 +233,8 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
 }
 
 const { chromium } = requirePlaywright();
-const browser = await chromium.launch();
+// File frames link sibling stylesheets; without this flag a file: sheet's rules are unreadable.
+const browser = await chromium.launch({ args: ["--allow-file-access-from-files"] });
 const frames = layout.pages.flatMap((page) => page.frames.map((frame) => ({ page, frame })));
 const taken = new Map<Frame, Taken>();
 try {
