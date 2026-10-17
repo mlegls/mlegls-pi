@@ -158,7 +158,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
-export interface Integration { branch: string; mode: "rebase" | "merge"; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string }
+export interface Integration { branch: string; mode: "rebase" | "merge"; output?: string; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string }
 /** Receipts resolve by registry identity/path, never by a guessed checkout layout. */
 async function recordOf(given: Handle | string, cwd: string): Promise<{ worker: Handle; thread: ThreadRecord }> {
   let thread: ThreadRecord | undefined;
@@ -180,12 +180,13 @@ export async function integrate(given: Handle | string,
   const cwd = resolve(options.cwd ?? process.cwd());
   const { worker, thread } = await recordOf(given, cwd);
   const mode = options.mode ?? "rebase";
-  let branch: string;
+  let branch: string, output: string | undefined;
   try {
     const integrated = await integrateThread(thread.id, { mode, prepare: options.prepare ? async () => options.prepare!(worker) : undefined });
     branch = integrated?.branch ?? thread.branch ?? worker.handle;
+    output = integrated?.output;
   } catch (error) { if (error instanceof ThreadMergeConflict) throw new MergeConflict(error.branch, error.files); throw error; }
-  const result: Integration = { branch, mode };
+  const result: Integration = { branch, mode, ...(output ? { output } : {}) };
   if (options.keep) return result;
   return Object.assign(result, await retire(worker, { cwd, discardIgnored: true }));
 }

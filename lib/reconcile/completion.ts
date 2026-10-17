@@ -24,7 +24,7 @@ export interface ReviewedLanding {
 	/** Union of the destination's retained files and this reviewer's tests. */
 	tests: string[];
 }
-export type LandingOutcome = { ok: true; head: string; replayed: boolean } | { ok: false; failure: string };
+export type LandingOutcome = { ok: true; head: string; replayed: boolean; output?: string } | { ok: false; failure: string };
 
 /** Keep the leaf's result even after its chain/worktree is removed. If no explicit
  * handoff summary exists, preserve the reviewed report as summary. */
@@ -107,7 +107,7 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 				...(input.collector ? { collector: structuredClone(input.collector) } : {}),
 			};
 			persist(context, { landingOps: { ...context.state.landingOps, [input.slug]: operation } });
-			await integrate(input.worker, { cwd: destination, keep: true, prepare: async worker => {
+			const integration = await integrate(input.worker, { cwd: destination, keep: true, prepare: async worker => {
 				prepareLandingDependencies(worker.path, workerHead);
 				const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), {
 					cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout,
@@ -129,7 +129,7 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 			merged = true;
 			const head = git(destination, "rev-parse", "HEAD");
 			recordLanding(context, context.state.landingOps[input.slug], head);
-			return { ok: true, head, replayed: false };
+			return { ok: true, head, replayed: false, output: integration.output };
 		} catch (error: any) {
 			// The prepared receipt survived the merge; propagate the persistence
 			// error so the runtime retries recovery before finishing or cleanup.

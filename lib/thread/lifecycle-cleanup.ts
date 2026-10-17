@@ -1,4 +1,4 @@
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { markRetired, readLive, type Live } from "../session-meta/live";
 import { getThread, saveThread } from "./registry";
@@ -27,9 +27,12 @@ export async function retireThread(thread: ThreadRecord, keepBranch: boolean, op
 /** Ignored paths setup regenerates: dependency installs, tool caches, build output and wm's own files. Matched by
  * path segment, so packages/x/node_modules counts too. A project adds its own with `git config --add wm.disposable
  * <name or path>` (a value with a slash is a path from the worktree root, else a segment name). */
-const DISPOSABLE_NAMES = new Set(["node_modules", ".wm", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+const DISPOSABLE_NAMES = new Set(["node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
 	".turbo", ".parcel-cache", ".next", ".nuxt", ".svelte-kit", ".cache", "dist", "build", "target", "coverage", ".DS_Store"]);
-const DISPOSABLE_PATHS = [".husky/_"];
+/** .wm/ is kept apart from wm's launch file: workers write their debug output and scratch under .wm/<handle>/, and
+ * retirement copies the session's managed-process logs to .wm/processes/ (a drive's diagnostics went with its worktree,
+ * 2026-10-16). */
+const DISPOSABLE_PATHS = [".husky/_", ".wm/launch.env"];
 
 /** Whether an ignored entry (a file, or a directory git collapsed) is disposable on retirement. A file identical to the
  * same path in the main checkout (an .env copied in by setup) is too. */
@@ -53,7 +56,11 @@ export function disposableIgnored(path: string, worktree: string, project: strin
 async function keepIgnored(root: string, thread: ThreadRecord, wip: string | undefined): Promise<{ path: string; entries: string[] } | undefined> {
 	const listed = await gitChecked(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory");
 	const declared = (await gitAttempt(thread.project, "config", "--get-all", "wm.disposable")).out.split("\n").map(s => s.trim()).filter(Boolean);
-	const entries = listed.split("\0").filter(Boolean).filter(p => !disposableIgnored(p, root, thread.project, declared));
+	// git collapses an ignored directory to one entry: open .wm/ so wm's launch file alone stays disposable.
+	const expanded = listed.split("\0").filter(Boolean).flatMap(p => p === ".wm/"
+		? readdirSync(join(root, ".wm"), { withFileTypes: true }).map(d => ".wm/" + d.name + (d.isDirectory() ? "/" : ""))
+		: [p]);
+	const entries = expanded.filter(p => !disposableIgnored(p, root, thread.project, declared));
 	if (!entries.length) return undefined;
 	const base = resolve(thread.project + "__retired", basename(root));
 	const kept = existsSync(base) ? base + "-" + new Date().toISOString().replace(/[:.]/g, "-") : base;
@@ -78,6 +85,30 @@ async function keepIgnored(root: string, thread: ThreadRecord, wip: string | und
 		...entries.map(e => "- " + e), "",
 	].join("\n"));
 	return { path: kept, entries };
+}
+
+/** The pi-processes log directories (one per pi, `<tmp>/pi-processes-*`, holding proc_N-{stdout,stderr,combined}.log)
+ * that these pis hold open, copied to <root>/.wm/processes/. A pi with no process running holds no log open, so its
+ * directory can't be found; best effort, never fails the retirement. */
+export async function keepProcessLogs(root: string, pids: number[]): Promise<string[]> {
+	if (!pids.length) return [];
+	let listing = "";
+	try { listing = await command("lsof", ["-a", "-p", pids.join(","), "-Fn"]); } catch (error) { listing = String((error as Error).message); }
+	const dirs = new Set<string>();
+	for (const line of listing.split("\n")) {
+		const m = /^n(.*\/pi-processes-[^/]+)\/proc_[^/]*\.log$/.exec(line);
+		if (m) dirs.add(m[1]);
+	}
+	const copied: string[] = [];
+	for (const dir of dirs) {
+		try {
+			const to = join(root, ".wm", "processes", basename(dir));
+			mkdirSync(dirname(to), { recursive: true });
+			cpSync(dir, to, { recursive: true, preserveTimestamps: true });
+			copied.push(to);
+		} catch {}
+	}
+	return copied;
 }
 
 /** Commit everything uncommitted (ignored files aside) to the worktree's branch; its sha, or undefined when clean.
@@ -125,6 +156,8 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 		}
 	}
 	for (const pid of protectedPids) selected.delete(pid);
+	// pi's process manager deletes its logs when pi ends: copy them into the worktree first, so they leave with its state.
+	if (owned && root && !discardIgnored && existsSync(root)) await keepProcessLogs(root, canonical.map(l => l.pid).filter(alive));
 	for (const record of live) if (selected.has(record.pid)) markRetired(record);
 	// Marked first, so the parent's child monitor reads bb's exit as retirement. bb would restart a pi killed under it:
 	// release its runtime, then sweep what's left.

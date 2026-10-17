@@ -76,14 +76,17 @@ export async function integrateThread(id: string, options: {
 	assertNoTrackerChanges(thread.cwd, base);
 	await clean(thread.cwd, "preparation left ");
 	// The destination may be dirty (a thread working in place there): git itself refuses only when the merge would overwrite those files.
+	let output: string;
 	if (mode === "merge") {
 		const merged = await gitAttempt(path, ...diff3, "merge", "--no-ff", "--no-edit", branch);
 		if (merged.code) await conflict(path, "merge");
+		output = [merged.out, merged.err].filter(Boolean).join("\n");
 	} else {
 		const ff = await gitAttempt(path, "merge", "--ff-only", branch);
 		if (ff.code) throw new Error("integrate: ff-only merge of " + branch + " into " + parentBranch + " failed: " + ff.err);
+		output = [ff.out, ff.err].filter(Boolean).join("\n");
 	}
-	return { branch, parentBranch, path, mode };
+	return { branch, parentBranch, path, mode, output };
 }
 
 async function blockThread(id: string, block: ThreadBlock): Promise<void> {

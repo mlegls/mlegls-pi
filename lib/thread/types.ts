@@ -76,6 +76,8 @@ export interface ThreadIntegration {
 	parentBranch: string;
 	path: string; // destination checkout used for integration
 	mode: "rebase" | "merge";
+	/** What the destination's merge printed, its hooks' output included: git ignores a failing post-merge hook. */
+	output?: string;
 }
 export interface ThreadCleanup {
 	closed: string[]; // post-order thread ids already retired

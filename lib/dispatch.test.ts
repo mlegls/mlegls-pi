@@ -46,7 +46,7 @@ test("rebases the worker branch onto the parent and fast-forwards", async () => 
   r.commit(r.work, "a", "worker");
   r.commit(r.main, "b", "parent");
   const result = await integrate(r.worker, { cwd: r.main, keep: true });
-  expect(result).toEqual({ branch: "unit-a", mode: "rebase" });
+  expect(result).toMatchObject({ branch: "unit-a", mode: "rebase" });
   expect(r.git(r.main, "log", "--format=%s")).toBe("a\nb\nroot");
 });
 

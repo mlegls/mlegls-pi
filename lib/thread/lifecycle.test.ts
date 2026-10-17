@@ -7,6 +7,7 @@ import { ThreadMergeConflict, abandonThread, archiveThread, integrateThread } fr
 import { getThread, setCurrentSession } from "./registry";
 import { newThread } from "./runtime";
 import { fakeBb } from "./fake-bb";
+import { keepProcessLogs } from "./lifecycle-cleanup";
 import type { ThreadRecord } from "./types";
 
 // Unit tests for the contract controls docs/attachments/thread-archive-and-abandon/drive.md leaves to review
@@ -86,7 +87,7 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 
 	const from = process.cwd(); // not any thread's checkout
 	expect(from).not.toBe(repo);
-	expect(await integrateThread(kid.id)).toEqual({ branch: kid.branch!, parentBranch: "main", path: repo, mode: "rebase" });
+	expect(await integrateThread(kid.id)).toMatchObject({ branch: kid.branch!, parentBranch: "main", path: repo, mode: "rebase" });
 	expect(readFileSync(join(repo, name + ".txt"), "utf8")).toBe("kid");
 	expect(readFileSync(join(repo, name + "-unrelated.txt"), "utf8")).toBe("in place");
 	rmSync(join(repo, name + "-unrelated.txt"));
@@ -96,7 +97,7 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 });
 
 test("retiring an unfinished worker moves ignored state setup can't regenerate aside; a finished one discards it", async () => {
-	writeFileSync(join(repo, ".git", "info", "exclude"), "local-db/\nnode_modules/\n.env\n");
+	writeFileSync(join(repo, ".git", "info", "exclude"), "local-db/\nnode_modules/\n.env\n.wm/\n");
 	writeFileSync(join(repo, ".env"), "SECRET=1\n");
 	const seed = (cwd: string) => {
 		mkdirSync(join(cwd, "local-db"), { recursive: true });
@@ -105,14 +106,20 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 		writeFileSync(join(cwd, "node_modules", "dep", "index.js"), "");
 		writeFileSync(join(cwd, ".env"), "SECRET=1\n");
 		writeFileSync(join(cwd, "draft.txt"), "untracked");
+		mkdirSync(join(cwd, ".wm", "drive"), { recursive: true });
+		writeFileSync(join(cwd, ".wm", "launch.env"), "PI_BOARD_TOPIC='run/drive'\n");
+		writeFileSync(join(cwd, ".wm", "drive", "debug.txt"), "scan");
 	};
 	const name = fresh();
 	const t = await newThread({ cwd: repo, worktree: name });
 	seed(t.cwd);
 	const result = await abandonThread(t.id);
 	const kept = join(repo + "__retired", name);
-	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: ["local-db/"] }]);
+	// A worker's .wm/ output is kept; wm's own launch file is not.
+	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: [".wm/drive/", "local-db/"] }]);
 	expect(readFileSync(join(kept, "local-db", "import.bin"), "utf8")).toBe("irreplaceable");
+	expect(readFileSync(join(kept, ".wm", "drive", "debug.txt"), "utf8")).toBe("scan");
+	expect(existsSync(join(kept, ".wm", "launch.env"))).toBe(false);
 	expect(readFileSync(join(kept, "RETIRED.md"), "utf8")).toContain("branch: " + t.branch);
 	expect(existsSync(join(kept, "node_modules"))).toBe(false);
 	expect(existsSync(join(kept, ".env"))).toBe(false);
@@ -124,6 +131,7 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 	const u = await newThread({ cwd: repo, worktree: done });
 	seed(u.cwd);
 	git(repo, "config", "--add", "wm.disposable", "local-db");
+	git(repo, "config", "--add", "wm.disposable", ".wm/drive");
 	try { expect((await abandonThread(u.id)).kept).toBeUndefined(); }
 	finally { git(repo, "config", "--unset-all", "wm.disposable"); }
 	const v = await newThread({ cwd: repo, worktree: fresh() });
@@ -133,6 +141,38 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 	expect(existsSync(v.cwd)).toBe(false);
 	rmSync(join(repo, ".git", "info", "exclude"));
 	rmSync(join(repo, ".env"));
+});
+
+test("retirement copies the managed-process logs a pi holds open into its worktree's .wm/processes/", async () => {
+	const logs = join(root, "tmp", "pi-processes-abc");
+	mkdirSync(logs, { recursive: true });
+	writeFileSync(join(logs, "proc_1-combined.log"), "server output\n");
+	writeFileSync(join(logs, "proc_2-combined.log"), "finished earlier\n");
+	const holder = Bun.spawn(["bash", "-c", "exec 3>>\"$1\"; sleep 30", "_", join(logs, "proc_1-combined.log")]);
+	const worktree = join(root, "wt-logs");
+	mkdirSync(worktree);
+	try {
+		await until(async () => execFileSync("lsof", ["-a", "-p", String(holder.pid), "-Fn"], { encoding: "utf8" }).includes("proc_1-combined.log"));
+		expect(await keepProcessLogs(worktree, [holder.pid])).toEqual([join(worktree, ".wm", "processes", "pi-processes-abc")]);
+		expect(readFileSync(join(worktree, ".wm", "processes", "pi-processes-abc", "proc_2-combined.log"), "utf8")).toBe("finished earlier\n");
+		expect(await keepProcessLogs(worktree, [])).toEqual([]);
+	} finally { holder.kill(); }
+});
+
+test("integrate returns what the destination's merge printed, a failing post-merge hook included", async () => {
+	const name = fresh();
+	const t = await newThread({ cwd: repo, worktree: name });
+	commit(t.cwd, name + ".txt", "hooked");
+	const hooks = join(root, "hooks-" + name);
+	mkdirSync(hooks);
+	writeFileSync(join(hooks, "post-merge"), "#!/bin/sh\necho 'not publishing' >&2\necho 'husky - post-merge script failed (code 1)'\nexit 1\n", { mode: 0o755 });
+	git(repo, "config", "core.hooksPath", hooks);
+	try {
+		const result = await integrateThread(t.id);
+		expect(result?.output).toContain("Fast-forward");
+		expect(result?.output).toContain("husky - post-merge script failed (code 1)");
+		expect(result?.output).toContain("not publishing");
+	} finally { git(repo, "config", "--unset", "core.hooksPath"); }
 });
 
 test("raw integrate names a missing or deleted ab-parent instead of choosing another target", async () => {
