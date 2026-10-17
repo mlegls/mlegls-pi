@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { send } from "../board/store";
-import { ThreadMergeConflict, abandonThread, archiveThread, integrateThread } from "./lifecycle";
+import { ThreadMergeConflict, abandonThread, alignIndex, archiveThread, integrateThread } from "./lifecycle";
 import { getThread, setCurrentSession } from "./registry";
 import { newThread } from "./runtime";
 import { fakeBb } from "./fake-bb";
@@ -165,14 +165,34 @@ test("integrate returns what the destination's merge printed, a failing post-mer
 	commit(t.cwd, name + ".txt", "hooked");
 	const hooks = join(root, "hooks-" + name);
 	mkdirSync(hooks);
-	writeFileSync(join(hooks, "post-merge"), "#!/bin/sh\necho 'not publishing' >&2\necho 'husky - post-merge script failed (code 1)'\nexit 1\n", { mode: 0o755 });
+	writeFileSync(join(hooks, "post-merge"), "#!/bin/sh\n[ \"$(git write-tree)\" = \"$(git rev-parse HEAD^{tree})\" ] && echo 'index at HEAD'\necho 'not publishing' >&2\necho 'husky - post-merge script failed (code 1)'\nexit 1\n", { mode: 0o755 });
 	git(repo, "config", "core.hooksPath", hooks);
 	try {
 		const result = await integrateThread(t.id);
 		expect(result?.output).toContain("Fast-forward");
 		expect(result?.output).toContain("husky - post-merge script failed (code 1)");
 		expect(result?.output).toContain("not publishing");
+		expect(result?.output).toContain("index at HEAD");
+		expect(result?.output).toContain("integrate: post-merge hook exited 1");
 	} finally { git(repo, "config", "--unset", "core.hooksPath"); }
+});
+
+test("after a landing, index entries left at the pre-landing version are reset to HEAD; other staged intent stays", async () => {
+	const dir = join(root, "align-" + fresh());
+	mkdirSync(dir);
+	git(dir, "init", "-q", "-b", "main"); git(dir, "config", "user.name", "t"); git(dir, "config", "user.email", "t@example.invalid");
+	for (const [f, t] of [["changed.txt", "old"], ["removed.txt", "gone"], ["intent.txt", "a"]]) writeFileSync(join(dir, f), t);
+	git(dir, "add", "."); git(dir, "commit", "-qm", "base");
+	const base = git(dir, "rev-parse", "HEAD");
+	writeFileSync(join(dir, "changed.txt"), "new"); writeFileSync(join(dir, "added.txt"), "added"); rmSync(join(dir, "removed.txt"));
+	git(dir, "add", "-A"); git(dir, "commit", "-qm", "landing");
+	// What the reconciler found in concept's main checkout: HEAD and the working tree landed, the index did not.
+	git(dir, "read-tree", base);
+	writeFileSync(join(dir, "intent.txt"), "staged by someone"); git(dir, "add", "intent.txt");
+	expect((await alignIndex(dir, base)).sort()).toEqual(["added.txt", "changed.txt", "removed.txt"]);
+	expect(git(dir, "diff", "--cached", "--name-only", "HEAD")).toBe("intent.txt");
+	expect(git(dir, "status", "--porcelain")).toBe("M  intent.txt");
+	expect(await alignIndex(dir, base)).toEqual([]);
 });
 
 test("raw integrate names a missing or deleted ab-parent instead of choosing another target", async () => {

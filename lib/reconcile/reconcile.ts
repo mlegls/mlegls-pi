@@ -169,7 +169,7 @@ export interface State extends GlobalRunState {
  * refuses an index that doesn't match HEAD; landings printed that and nobody saw it (2026-10-16). */
 export function hookFailure(output: string): string | undefined {
 	const lines = output.split("\n");
-	const at = lines.findIndex(l => /^husky - \S+ script failed|^error: .*\bhook\b|failed; not (publishing|verifying)/i.test(l));
+	const at = lines.findIndex(l => /^husky - \S+ script failed|^integrate: post-merge hook exited|^error: .*\bhook\b|failed; not (publishing|verifying)/i.test(l));
 	return at < 0 ? undefined : lines.slice(Math.max(0, at - 8), at + 4).join("\n").slice(-3000);
 }
 
