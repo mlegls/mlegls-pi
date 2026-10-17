@@ -252,6 +252,7 @@ try {
 const hoisted = new Set<string>();
 const groups = new Map<string, string>();
 const figures: string[] = [];
+const alone: [string, string][] = [];
 const heads: string[] = [];
 const outline: string[] = [];
 let pageTop = 0;
@@ -288,10 +289,19 @@ for (const page of layout.pages) {
       '<figure class="canvas-frame" id="' + key + '" data-page="' + pageKey + '" data-x="' + x + '" data-y="' + y +
         '" style="left:' + x + "px;top:" + y + 'px">' +
         '<figcaption class="canvas-caption" data-drag="screen" data-lavish-action title="Drag to move; double-click to enter">' +
-        escapeText(frame.name) + " <span>" + width + "×" + height + "</span></figcaption>" +
+        escapeText(frame.name) + " <span>" + width + "×" + height + "</span>" +
+        '<a class="canvas-open" href="frame-' + key + '.html" target="_blank" rel="noopener" data-lavish-action title="Open alone in a new tab">↗</a></figcaption>' +
         '<div class="canvas-surface" data-frame="' + key + '" data-css="' + group + '" style="width:' + width + "px;height:" + height + "px" +
         (got.background ? ";background:" + got.background : "") + '">' + inner + "</div></figure>",
     );
+    // The same frame alone, at full size, for opening in a tab of its own.
+    alone.push([
+      "frame-" + key + ".html",
+      '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' + escapeText(frame.name) + "</title>" +
+        '<link rel="stylesheet" href="canvas.css"><style>body{margin:0;background:#e8e8e8}</style></head><body>' +
+        '<div class="canvas-surface" data-css="' + group + '" style="position:relative;overflow:hidden;margin:0 auto;width:' + width + "px;height:" + height + "px" +
+        (got.background ? ";background:" + got.background : ";background:#fff") + '">' + inner + "</div></body></html>",
+    ]);
     items.push('<li><button type="button" data-go="' + key + '">' + escapeText(frame.name) + "</button></li>");
   }
   pageTop += tallest + 320;
@@ -313,6 +323,7 @@ const css = [
   ...[...groups].map(([group, text]) => '@scope ([data-css="' + group + '"]) {\n' + text + "\n}"),
 ].join("\n");
 writeFileSync(resolve(outDir, "canvas.css"), css);
+for (const [file, page] of alone) writeFileSync(resolve(outDir, file), page);
 const runtime = readFileSync(new URL("./canvas-runtime.js", import.meta.url), "utf8");
 const chrome = readFileSync(new URL("./canvas-chrome.css", import.meta.url), "utf8");
 const html = [

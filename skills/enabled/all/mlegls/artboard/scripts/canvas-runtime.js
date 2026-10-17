@@ -128,6 +128,8 @@ addEventListener("keydown", (event) => {
 
 const lastPress = { handle: null, time: 0 };
 viewport.addEventListener("pointerdown", (event) => {
+  // The caption's open link is a plain link: no drag, so its click reaches it.
+  if (event.target.closest(".canvas-open")) return;
   const handle = event.target.closest("[data-drag]");
   const background = event.target === ground;
   if (!handle && !background) return;

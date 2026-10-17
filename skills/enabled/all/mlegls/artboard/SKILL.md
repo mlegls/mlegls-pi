@@ -5,6 +5,11 @@ argument-hint: "[what to design]"
 disable-model-invocation: true
 ---
 
+<skill_context>
+  <skill_dir>/Users/mlegls/dev/mlegls-pi/skills/enabled/all/mlegls/artboard</skill_dir>
+  <workspace_dir>/Users/mlegls/dev/mmon/concept</workspace_dir>
+</skill_context>
+
 An artboard is a Lavish canvas of frames: pages of frames the user pans, zooms, rearranges and enters, annotating real elements inside them. Design happens here before implementation, so a non-trivial UI change is seen and corrected within the session.
 
 A frame is either:
@@ -42,4 +47,4 @@ Useful sizes: phone 390×844, desktop 1440×900. At 96 px/in: A4 794×1123, Lett
 
 ## In Lavish
 
-Lavish runs the canvas in a sandbox without its origin: storage throws (the canvas keeps arrangements in memory) and links annotate rather than navigate. Controls the user operates rather than annotates carry `data-lavish-action`. Clicking inside a frame annotates that element; scroll pans, pinch or ⌘-scroll zooms, dragging empty canvas pans, dragging a caption or page title moves it, double-clicking a caption enters the frame at 100% (Esc leaves), and the left rail jumps to pages and frames.
+Lavish runs the canvas in a sandbox without its origin: storage throws (the canvas keeps arrangements in memory) and links annotate rather than navigate. Controls the user operates rather than annotates carry `data-lavish-action`. Clicking inside a frame annotates that element; scroll pans, pinch or ⌘-scroll zooms, dragging empty canvas pans, dragging a caption or page title moves it, double-clicking a caption enters the frame at 100% (Esc leaves), the caption's ↗ opens the frame alone in a new tab (the build writes each as `frame-<page>--<frame>.html` beside `canvas.html`), and the left rail jumps to pages and frames.
