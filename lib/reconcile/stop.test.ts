@@ -34,6 +34,9 @@ test("stop retires live workers and handlers, keeps their unmerged branches and 
 		expect(existsSync(f.collector)).toBe(true);
 		expect(git(f.collector, "branch", "--show-current")).toBe("tree/fixture");
 		expect(load(f.cwd, "fixture")!.collectors).toEqual(collectors);
+		// A restart continues the node from its retired worker's kept branch, not its destination's tip.
+		const implement = f.workers.find(w => w.receipt.handle === "implement")!;
+		expect(load(f.cwd, "fixture")!.resume).toEqual({ fixture: expect.objectContaining({ phase: "implement", branch: implement.branch, head: git(f.cwd, "rev-parse", implement.branch) }) });
 		expect(summary(campaigns(f.cwd)[0])).toMatchObject({ running: false, finished: "stopped", stopping: false, chains: {}, exceptions: {} });
 		expect((await stop(f.cwd, "fixture")).finished).toBe("stopped");
 	} finally {

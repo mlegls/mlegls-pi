@@ -16,7 +16,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, writeF
 import { join, resolve } from "node:path";
 import { discardRefinement, replaceRefinement } from "./refinement";
 import { parseArgs } from "node:util";
-import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, run, saveState, stateDir, stopRefinementWriter, updateState, type State } from "./reconcile.ts";
+import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, stopRefinementWriter, updateState, type State } from "./reconcile.ts";
 
 export function start(o: StartOptions): { pid: number; log: string } {
 	const prior = prepareStart(o);
@@ -88,8 +88,11 @@ export async function stop(cwd: string, root: string) {
 		retired.push({ worker: topic(h), ...await retire(h, { cwd }) });
 	}
 	rmSync(resolutionsDir(cwd, root), { recursive: true, force: true });
+	// Retirement kept each unfinished worker's branch (with a WIP commit of what it left uncommitted): a restart
+	// continues each node from there.
+	const resume = resumeRecords(s);
 	const stopped = updateState(cwd, root, prior => ({
-		...prior!, chains: {}, exceptions: {}, pid: undefined, stopping: undefined, finished: "stopped",
+		...prior!, chains: {}, exceptions: {}, resume, pid: undefined, stopping: undefined, finished: "stopped",
 		log: [...prior!.log, new Date().toISOString().slice(0, 19) + " stopped; retired workers and handlers, kept collectors"].slice(-400),
 	}));
 	return { ...summary({ ...stopped, running: false }), retired };

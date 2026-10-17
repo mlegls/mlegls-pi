@@ -123,6 +123,14 @@ interface Chain {
 	skipDrive?: string;
 	workers: Handle[];
 	note?: string;
+	/** A commit to start the next phase from when no earlier worker of this chain holds it: a stopped run's work. */
+	resumeFrom?: string;
+}
+/** A chain's work when its run was stopped, so a restart continues it rather than starting over from its destination. */
+export interface Resume {
+	phase: Exclude<Phase, "refine" | "integrate">;
+	branch: string; head: string;
+	base?: string; setup?: unknown; drive?: Record<string, unknown>; skipDrive?: string; note?: string;
 }
 interface Exception {
 	id: string; node: string; reason: string; text: string; at: string;
@@ -152,6 +160,34 @@ export interface State extends GlobalRunState {
 	finished?: string;
 	/** Explicit stop owns cleanup until it succeeds; session startup must not resume this run. */
 	stopping?: boolean;
+	/** Work of the chains a stop retired, by node; a restart starts each node from it (see Resume). */
+	resume?: Record<string, Resume>;
+}
+
+/** A merge hook's failure in what the landing merge printed (git ignores a post-merge hook's exit status), else
+ * undefined. concept's post-merge stops before it pushes main or starts verify-main when its final-tree regeneration
+ * refuses an index that doesn't match HEAD; landings printed that and nobody saw it (2026-10-16). */
+export function hookFailure(output: string): string | undefined {
+	const lines = output.split("\n");
+	const at = lines.findIndex(l => /^husky - \S+ script failed|^error: .*\bhook\b|failed; not (publishing|verifying)/i.test(l));
+	return at < 0 ? undefined : lines.slice(Math.max(0, at - 8), at + 4).join("\n").slice(-3000);
+}
+
+/** For stop, after it retired the workers: each chain whose worker's branch survived with commits its destination
+ * lacks. Before this a restart launched such a node from its collector's tip, without the kept branch (2026-10-16:
+ * rehearse-scene-retirement-on-legacy-fixtures implement-1e → implement-1g). A refinement is discarded by stop, so it has none. */
+export function resumeRecords(s: State): Record<string, Resume> {
+	const out: Record<string, Resume> = { ...s.resume };
+	for (const [slug, c] of Object.entries(s.chains)) {
+		if (!c.handle || c.phase === "refine") continue;
+		const into = c.into === s.cwd ? s.cwd : s.collectors[c.into]?.path ?? c.into;
+		let head = "";
+		try { head = git(into, "rev-parse", "--verify", "-q", "refs/heads/" + c.handle.handle); } catch { continue; }
+		try { if (!head || isAncestor(into, head)) continue; } catch { continue; }
+		out[slug] = { phase: c.phase === "integrate" ? "review" : c.phase, branch: c.handle.handle, head,
+			base: c.base, setup: c.setup, drive: c.drive, skipDrive: c.skipDrive, note: c.note };
+	}
+	return out;
 }
 
 const repoRoot = (cwd: string) => resolve(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "..");
@@ -322,6 +358,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	// Latest terminal report per topic, read incrementally from the board log.
 	const reports = new Map<string, Message>();
 	let offset = 0;
+	const runStarted = Date.now();
 	const TERMINAL = ["done", "blocked", "needs-input", "checkpoint", "waiting", "turn-end"];
 	const pollBoard = () => {
 		const { messages, offset: next } = readFrom(offset);
@@ -332,7 +369,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			// identity until a5f4f80e) posted `checkpoint` for a drive that was waiting on its setup, and the reconciler
 			// replaced the drive mid-setup (2026-10-12). The registry follows the worker's current session, bb's included.
 			const row = host?.find(r => r.thread.worker && r.thread.worker.run + "/" + r.thread.worker.handle === m.topic);
-			if (row && m.from.session && m.from.session !== row.thread.sessionId) { note("ignored " + m.tags.join(",") + " on " + m.topic + " from session " + m.from.session + ", not the worker's " + row.thread.sessionId); continue; }
+			// Noted only when it arrives during this run: each restart rereads the board, and repeated a 2026-10-12 one per start.
+			if (row && m.from.session && m.from.session !== row.thread.sessionId) { if (Date.parse(m.ts) >= runStarted) note("ignored " + m.tags.join(",") + " on " + m.topic + " from session " + m.from.session + ", not the worker's " + row.thread.sessionId); continue; }
 			reports.set(m.topic, m);
 		}
 	};
@@ -478,16 +516,28 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const sib = [...issues.values()].filter(i => i.partOf === parent && i.slug !== slug && !finished(i));
 		return sib.length ? "Sibling issues in flight beside yours (their decisions reach you on the board, tagged `decision`; post yours on your topic tagged `decision` plus `path:<file>` per file it touches):\n" + sib.map(i => "- " + i.slug).join("\n") : "";
 	};
-	/** finished: the previous worker reported done and this phase takes its work, so its ignored files are disposable.
-	 * Any other replacement (relaunch, provider error, owner retry) moves ignored state aside on retirement. */
+	/** Commit what a replaced worker left uncommitted before its successor's base is read. Retirement saved it too, but
+	 * only after the successor launched, so the WIP commit missed it (2026-10-16: quiesce-scene-source-delivery-writers,
+	 * implement-s's 11081c1e not in implement-t). */
+	function saveWip(h: Handle) {
+		try {
+			if (!git(h.path, "status", "--porcelain")) return;
+			git(h.path, "add", "-A");
+			git(h.path, "-c", "commit.gpgsign=false", "commit", "--no-verify", "-q", "-m", "WIP: uncommitted work of " + h.run + "/" + h.handle + " when it was replaced\n\nSaved by the reconciler so its successor starts from it; not reviewed.");
+			note("saved " + h.handle + "'s uncommitted work as WIP commit " + git(h.path, "rev-parse", "--short", "HEAD") + " for its successor");
+		} catch (e) { note("saving " + h.handle + "'s uncommitted work failed (retirement retries it): " + e); }
+	}
+	/** finished: the previous worker reported done and this phase takes its work, so its ignored files are disposable,
+	 * except a driver's, which the reviewer may need. Any other replacement (relaunch, provider error, owner retry) moves
+	 * ignored state aside on retirement. */
 	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false) {
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
 		const prev = c.handle;
-		if (prev && existsSync(prev.path)) await stop(prev, { cwd: pathOf(c.into) });
+		if (prev && existsSync(prev.path)) { await stop(prev, { cwd: pathOf(c.into) }); saveWip(prev); }
 		// A retired worker (keepBranch) leaves no worktree but its branch still holds the chain's work so far.
 		const kept = (h: Handle) => { try { return git(pathOf(c.into), "rev-parse", "--verify", "-q", "refs/heads/" + h.handle); } catch { return ""; } };
-		const base = (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || git(pathOf(c.into), "rev-parse", "HEAD");
+		const base = (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || c.resumeFrom || git(pathOf(c.into), "rev-parse", "HEAD");
 		if (c.handle && !existsSync(c.handle.path) && phase !== "refine" && phase !== "implement" && base === git(pathOf(c.into), "rev-parse", "HEAD")) note("no worktree or branch for " + c.handle.handle + "; " + phase + " for " + slug + " starts from " + c.into + ", without the chain's earlier work");
 		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
 		const phasePrompt = () => {
@@ -507,8 +557,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const refreshed = refreshWorker(path, pathOf(c.into));
 			return [phasePrompt(), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve the collector's code and the previous worker's results, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
 		}, phase === "refine" ? { chain: c, adopt } : undefined);
-		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
-		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined });
+		// A finished drive's ignored state (its scanned local database, .wm/ output) is the reviewer's evidence: kept aside.
+		if (prev && !await retireHandle(prev, pathOf(c.into), finished && phase !== "review", finished)) c.workers.push(prev);
+		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined, resumeFrom: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
 		save();
 	}
@@ -653,6 +704,24 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return "The superseded attempt's " + ahead + " commit(s) are not in your base; they stay on branch " + h.handle + " at " + head + " (git log HEAD.." + head + "). Take what holds of them (merge or cherry-pick) or leave them, as the note above directs.";
 		} catch { return; }
 	}
+	/** Drop an exception whose worker carries on, retiring the handler that holds it. */
+	async function withdraw(ex: Exception, c: Chain, why: string) {
+		const handler = ex.handler;
+		if (handler) await retireHandle(handler, pathOf(s.collectors[ex.level] ? ex.level : c.into));
+		if (s.exceptions[ex.node] === ex) delete s.exceptions[ex.node];
+		dropResolution(ex.node); c.held = false; save();
+		note("withdrew exception " + ex.node + " (" + ex.reason + "): " + why.split(".")[0] + (handler ? "; retired its handler " + handler.handle : ""));
+		if (ex.mailed || ex.level === "owner" || handler) tellOwner("withdrew the exception for " + ex.node + " (" + ex.reason + "): " + why);
+	}
+	/** A report since the exception that shows the worker carrying on its assignment. A checkpoint doesn't: a worker held
+	 * for checkpointing too often (author-and-publish-the-language-learning-template, 2026-10-12) kept posting them. */
+	const resumedReport = (ex: Exception, c: Chain) => {
+		const m = c.handle && fresh(c.handle, ex.reportTs ?? c.handledTs, c.launchedAt);
+		return m && !m.tags.includes("error") && ["done", "blocked", "needs-input", "waiting"].includes(parse(m.body).status ?? "") ? m : undefined;
+	};
+	/** The exception's worker is working again, or reported since: someone (the owner, directly) set it going. */
+	const carriesOn = (ex: Exception, c: Chain | undefined) => !!c?.handle && c.phase !== "refine" && alive(c.handle) !== false
+		&& (observedWorking(c.handle) || !!resumedReport(ex, c));
 	async function handleExceptions(issues: Map<string, Issue>) {
 		// A resolution for a node with no exception is the owner steering a live chain (e.g. one stuck where no report
 		// reached us): apply it to the chain, or drop it with a reason when there is none.
@@ -667,6 +736,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			dropResolution(node);
 		}
 		for (const ex of Object.values(s.exceptions)) {
+			// The owner's resolution answers the exception wherever it is: no handler is launched for it, and one already
+			// working is retired, rather than each enclosing level's handler re-reading it and escalating (2026-10-16).
+			if (ex.level !== "owner" && existsSync(join(resolutionsDir(controlCwd, s.root), ex.node + ".json"))) {
+				if (ex.handler) await retireHandle(ex.handler, s.collectors[ex.level]?.path ?? cwd);
+				note("owner resolution for " + ex.node + " applies at " + ex.level + (ex.handler ? "; retired its handler " + ex.handler.handle : ""));
+				Object.assign(ex, { level: "owner", handler: undefined, handlerLaunchedAt: undefined, handlerHandledTs: undefined, mailed: true });
+				save();
+			}
 			if (ex.level === "owner") {
 				// One mail per class: later workers stopped by the same provider error join the first's exception.
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
@@ -727,6 +804,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			} catch (e) { await applyResolution(ex, { action: "escalate", summary: "handler's docs/evidence change could not land: " + e }, issues); await retireHandle(handler, col.path); continue; }
 			await retireHandle(handler, col.path, r.status === "done");
 			ex.handler = undefined;
+			// A worker set going again while its handler deliberated (the owner told it to continue) is not retried,
+			// redispatched or moved out from under that instruction: the 11:2x retry retired a drive told to continue (2026-10-16).
+			const chain = s.chains[ex.node];
+			if (chain && carriesOn(ex, chain)) {
+				await withdraw(ex, chain, "its worker is working or reported again since, so the handler's " + (r.status === "done" && res?.action ? res.action : "escalation") + " was not applied. The handler said:\n\n" + (res?.summary ?? res?.message ?? res?.note ?? r.body.slice(-1500)));
+				continue;
+			}
 			await applyResolution(ex, r.status === "done" && res?.action ? res : { action: "escalate", summary: res?.summary ?? r.body.slice(-1500) }, issues);
 		}
 	}
@@ -747,13 +831,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		try { return await fn(); } finally { rmSync(lockDir, { recursive: true, force: true }); }
 	}
-	/** finished: the worker reported done and its work was taken; otherwise ignored state it alone holds is moved aside. */
-	async function retireHandle(h: Handle, into: string, finished = false): Promise<boolean> {
+	/** finished: the worker reported done and its work was taken, so its ignored state is discarded; otherwise ignored state
+	 * it alone holds is moved aside. done words the owner's notice for a finished worker whose state is kept anyway. */
+	async function retireHandle(h: Handle, into: string, finished = false, done = finished): Promise<boolean> {
 		try {
 			const r = await retire(h, { cwd: into, discardIgnored: finished });
 			for (const k of (r.removed as { kept?: { path: string; entries: string[] }[] } | undefined)?.kept ?? []) {
 				note("retired " + h.handle + " keeping its ignored state at " + k.path + ": " + k.entries.join(", "));
-				tellOwner("retired " + h.handle + " before it finished; its worktree held ignored state setup can't regenerate, moved to " + k.path + " (" + k.entries.join(", ") + "). See RETIRED.md there; delete it once nothing needs it. Declare regenerable paths with `git config --add wm.disposable <path>`.");
+				tellOwner("retired " + h.handle + (done ? " after it finished" : " before it finished") + "; its worktree held ignored state setup can't regenerate, moved to " + k.path + " (" + k.entries.join(", ") + "). See RETIRED.md there; delete it once nothing needs it. Declare regenerable paths with `git config --add wm.disposable <path>`.");
 			}
 			const wip = ((r.removed as { branchesKept?: { branch: string; reason: string }[] } | undefined)?.branchesKept ?? []).find(b => b.reason.startsWith("uncommitted work saved"));
 			if (wip) { note("retired " + h.handle + " with uncommitted work: branch " + wip.branch + ", " + wip.reason); tellOwner("retired " + h.handle + " with uncommitted work in its worktree; it is kept on branch " + wip.branch + " (" + wip.reason + ")."); }
@@ -813,6 +898,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
 		const landed = git(into, "diff", "--name-only", before, outcome.head).split("\n").filter(Boolean);
 		note("landed " + slug + " in " + (c.into === cwd ? "the owner's checkout" : c.into));
+		const hook = outcome.output && hookFailure(outcome.output);
+		if (hook) { note("landing " + slug + ": a merge hook failed: " + hook.split("\n")[0]); tellOwner("landed " + slug + " at " + git(into, "rev-parse", "--short", "HEAD") + ", but a merge hook failed; what it does after landing (a push, a verify) did not happen:\n\n" + hook); }
 		if (slug === s.root && s.pr) { s.pr.preparedHead = outcome.head; s.pr.phase = "opening"; }
 		delete s.chains[slug];
 		save();
@@ -933,7 +1020,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (shape) return repair(slug, c, "drive-shape", "Your handoff is malformed: " + shape + ". Repost it.", issues, text);
 			c.drive = r.handoff!;
 			c.note = undefined;
-			return startPhase(slug, c, "review", issue, issues, "Driver's final message:\n\n" + text.slice(-4000), false, undefined, true);
+			return startPhase(slug, c, "review", issue, issues, "Driver's final message:\n\n" + text.slice(-4000) + "\n\nThe driver's worktree is retired as you start. Ignored state it held (local databases it scanned, its .wm/ output and process logs) is moved to " + resolve(repoRoot(controlCwd) + "__retired", basename(h.path)) + "/ (a timestamped sibling if that exists); RETIRED.md there lists it.", false, undefined, true);
 		}
 		// review
 		const shape = storyShapeError(r.handoff, c.self) ?? (c.self && r.handoff?.evidence === undefined ? null : evidenceShapeError(r.handoff));
@@ -1059,20 +1146,26 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			tellOwner("parked " + slug + " behind " + parkingBlockers.join(", ") + ": its workers are retired and it restarts once they land" + (s.exceptions[slug] ? "; its pending exception (" + s.exceptions[slug].reason + ") is dropped" : ""));
 			if (s.exceptions[slug]?.handler) await retireHandle(s.exceptions[slug].handler!, pathOf(parked.into));
 			delete s.exceptions[slug]; dropResolution(slug);
-			await retireChain(parked); delete s.chains[slug]; save();
+			// Its restart starts from the collector; tell it where the parked attempt's commits are, as redispatch does.
+			const parkedWork = parked.handle ? keptWork(parked) : undefined;
+			await retireChain(parked); delete s.chains[slug];
+			if (parkedWork) pendingNotes.set(slug, [pendingNotes.get(slug), parkedWork].filter(Boolean).join("\n\n"));
+			save();
 			holds.set(slug, "parked behind " + parkingBlockers.join(", "));
 			return "stuck";
 		}
-		// A worker stopped by a provider or bb error that then carries on by itself (pi retried, bb recovered) withdraws its
-		// exception with its next report: a drive held behind one finished its work and was replaced anyway (2026-10-12).
+		// A worker that carries on by itself withdraws its exception with its next report, and that report is handled as
+		// usual. A worker stopped by a provider or bb error recovers on its own (pi retried, bb recovered): a drive held
+		// behind one finished its work and was replaced anyway (2026-10-12). Any other worker carries on because someone
+		// told it to (the owner, directly): its handlers are retired, not left to escalate an answered question level by
+		// level (2026-10-16). A queued owner resolution is applied instead; a refinement's attempt was already discarded.
 		const ex = s.exceptions[slug], hc = s.chains[slug];
-		if (ex && !ex.handler && hc?.handle && /^provider error: | errored in bb$/.test(ex.reason)) {
-			const later = fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt);
-			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) {
-				delete s.exceptions[slug]; dropResolution(slug); hc.held = false; save();
-				note("withdrew exception " + slug + " (" + ex.reason + "): its worker reported again");
-				if (ex.mailed) tellOwner("withdrew the exception for " + slug + " (" + ex.reason + "): its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution.");
-			}
+		const recovers = !!ex && /^provider error: | errored in bb$/.test(ex.reason);
+		if (ex && hc?.handle && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
+			const later = recovers ? fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt) : resumedReport(ex, hc);
+			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
+				? "its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution."
+				: "its worker reported again (" + (parse(later.body).status ?? "no status") + "), so it carries on; its report is handled as usual. Don't resolve it.");
 		}
 		if (s.exceptions[slug]) return "active";
 		const c = s.chains[slug];
@@ -1083,13 +1176,26 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const chain: Chain = { into, self: !!s.collectors[slug], phase: "implement", retries: {}, workers: [], note: pendingNotes.get(slug) };
 			pendingNotes.delete(slug);
 			if (chain.self) chain.base = git(s.collectors[slug].path, "rev-parse", "HEAD");
+			// A stopped run's work for this node: continue its phase from its kept branch.
+			const resumed = s.resume?.[slug];
+			if (resumed) {
+				delete s.resume![slug];
+				let usable = false;
+				try { usable = !isAncestor(pathOf(into), resumed.head); } catch { usable = false; }
+				if (usable) Object.assign(chain, { phase: resumed.phase, base: resumed.base ?? chain.base, setup: resumed.setup, drive: resumed.drive, skipDrive: resumed.skipDrive, note: chain.note ?? resumed.note, resumeFrom: resumed.head });
+				else note("resume record for " + slug + " dropped: " + resumed.head + " is gone or already in " + into);
+			}
 			s.chains[slug] = chain;
 			try {
-				if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
+				if (chain.resumeFrom) {
+					note(slug + " resumes " + chain.phase + " from the stopped run's branch " + resumed!.branch + " at " + chain.resumeFrom);
+					await startPhase(slug, chain, chain.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
+				}
+				else if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
 				else await startPhase(slug, chain, issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
 			} catch (e) {
 				// Nothing launched: forget the chain so the post-reset tick starts it afresh.
-				if (e instanceof GithubRateLimited) { delete s.chains[slug]; save(); throw e; }
+				if (e instanceof GithubRateLimited) { delete s.chains[slug]; if (resumed && chain.resumeFrom) (s.resume ??= {})[slug] = resumed; save(); throw e; }
 				raise(slug, "launch failed", String(e), issues);
 			}
 			return "active";
