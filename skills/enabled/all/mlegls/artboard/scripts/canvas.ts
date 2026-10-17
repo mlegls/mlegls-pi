@@ -29,7 +29,8 @@ type Frame = {
 };
 type Page = { title: string; notes?: string[]; frames: Frame[] };
 type Layout = { storybook?: string; pages: Page[] };
-type Rule = { hoist: boolean; text: string };
+// base: the stylesheet's own URL, which its relative url()s resolve against.
+type Rule = { hoist: boolean; text: string; base: string };
 type Taken = {
   chain: { tag: string; attrs: [string, string][]; body: boolean }[];
   html: string;
@@ -200,7 +201,7 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
         text
           .replace(/(^|[\s,>+~(])(?::root|html)(?=$|[\s,>+~.:#[)])/g, "$1:scope")
           .replace(/(^|[\s,>+~(])body(?=$|[\s,>+~.:#[)])/g, "$1[data-body]");
-      const rules: { hoist: boolean; text: string }[] = [];
+      const rules: { hoist: boolean; text: string; base: string }[] = [];
       const walk = (list: CSSRuleList) => {
         for (const rule of list) {
           if (rule instanceof CSSStyleRule) rule.selectorText = mapSelector(rule.selectorText);
@@ -223,7 +224,7 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
             rule.constructor.name === "CSSPropertyRule" ||
             rule.constructor.name === "CSSLayerStatementRule" ||
             rule.constructor.name === "CSSNamespaceRule";
-          rules.push({ hoist, text: rule.cssText });
+          rules.push({ hoist, text: rule.cssText, base: sheet.href ?? location.href });
         }
       }
       return { chain, html: whole ? target.innerHTML : target.outerHTML, width, height, background, rules, base: location.href };
@@ -266,11 +267,12 @@ for (const page of layout.pages) {
     const got = taken.get(frame);
     if (!got) continue;
     const viewport = frame.viewport ?? [1440, 900];
-    for (const rule of got.rules) if (rule.hoist) hoisted.add(await localiseUrls(rule.text, got.base));
-    const scoped = await localiseUrls(
-      freezeViewport(got.rules.filter((rule) => !rule.hoist).map((rule) => rule.text).join("\n"), viewport),
-      got.base,
-    );
+    for (const rule of got.rules) if (rule.hoist) hoisted.add(await localiseUrls(rule.text, rule.base));
+    const scoped = (
+      await Promise.all(
+        got.rules.filter((rule) => !rule.hoist).map((rule) => localiseUrls(freezeViewport(rule.text, viewport), rule.base)),
+      )
+    ).join("\n");
     const group = hash(scoped);
     groups.set(group, scoped);
     const width = Math.round(got.width);
