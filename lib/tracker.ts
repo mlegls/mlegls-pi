@@ -71,6 +71,17 @@ export interface TrackerOptions {
 	cli?: string;
 }
 
+/** A tracker subprocess failure with what it said on stderr, or, when it said nothing, how it ended: a bare "Command
+ * failed" hid four snapshot failures under load (2026-10-16). */
+export function trackerFailure(error: unknown): string {
+	const e = error as Error & { stderr?: string | Buffer; status?: number | null; signal?: string | null; code?: string };
+	const stderr = String(e.stderr ?? "").trim();
+	if (stderr) return stderr;
+	const command = (e.message ?? String(error)).split("\n")[0];
+	const how = e.signal ? "killed by " + e.signal : typeof e.status === "number" ? "exit status " + e.status : e.code ?? "no exit status";
+	return command + " (" + how + ", nothing on stderr)";
+}
+
 /** Canonical vault wins; otherwise select the canonical project convention.
  * Vault subprocesses isolate inflight state and honor CLI overrides. GitHub keeps
  * one adapter (and its captured repository) for the lifetime of the caller. */
@@ -89,14 +100,25 @@ export function getTracker(cwd: string, options: TrackerOptions = {}): Tracker {
 				stdio: ["pipe", "pipe", "pipe"],
 			});
 		} catch (error) {
-			const e = error as Error & { stderr?: string };
-			throw new Error(e.stderr?.trim() || e.message);
+			throw new Error(trackerFailure(error));
+		}
+	};
+	// A read is safe to repeat: one that fails with no diagnostic (a killed or crashed subprocess under load) is
+	// retried once before it fails a reconciler tick. Both failures are reported when the retry fails too.
+	const read = (args: string[]) => {
+		try { return run(args); }
+		catch (first) {
+			try { return run(args); }
+			catch (second) {
+				const a = (first as Error).message, b = (second as Error).message;
+				throw new Error(a === b ? b + " (failed twice)" : b + " (first attempt: " + a + ")");
+			}
 		}
 	};
 	return {
-		snapshot: scope => new Map((JSON.parse(run(["snapshot", ...(scope ? [scope] : []), "--json"])).issues as Issue[]).map(i => [i.slug, i])),
-		text: slug => run(["text", slug]),
-		fields: slug => JSON.parse(run(["fields", slug, "--json"])),
+		snapshot: scope => new Map((JSON.parse(read(["snapshot", ...(scope ? [scope] : []), "--json"])).issues as Issue[]).map(i => [i.slug, i])),
+		text: slug => read(["text", slug]),
+		fields: slug => JSON.parse(read(["fields", slug, "--json"])),
 		create: issue => run(["create", issue.slug, "--fields", JSON.stringify(issue.fields), "--body-file", "-"], issue.body).trim(),
 		update: (slug, fields, body) => { run(["update", slug, "--fields", JSON.stringify(fields), ...(body === undefined ? [] : ["--body-file", "-"])], body); },
 		close: (slug, result) => { run(["close", slug, ...(result.summary === undefined ? [] : ["--summary", result.summary]), ...(result.evidence === undefined ? [] : ["--evidence", result.evidence])]); },
