@@ -95,16 +95,17 @@ const fetched = new Map<string, string>();
 async function localAsset(url: string): Promise<string> {
   const known = fetched.get(url);
   if (known) return known;
-  const file = hash(url) + (extname(new URL(url).pathname) || ".bin");
-  const target = resolve(assetDir, file);
-  if (!existsSync(target)) {
-    if (url.startsWith("file:")) writeFileSync(target, readFileSync(fileURLToPath(url)));
-    else {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Fetching " + url + ": " + response.status);
-      writeFileSync(target, Buffer.from(await response.arrayBuffer()));
-    }
+  // Named by content, not URL: a file edited in place under the same name must reach the canvas.
+  let bytes: Buffer;
+  if (url.startsWith("file:")) bytes = readFileSync(fileURLToPath(url));
+  else {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Fetching " + url + ": " + response.status);
+    bytes = Buffer.from(await response.arrayBuffer());
   }
+  const file = createHash("sha1").update(bytes).digest("hex").slice(0, 10) + (extname(new URL(url).pathname) || ".bin");
+  const target = resolve(assetDir, file);
+  if (!existsSync(target)) writeFileSync(target, bytes);
   fetched.set(url, "assets/" + file);
   return "assets/" + file;
 }
