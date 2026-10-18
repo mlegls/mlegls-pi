@@ -311,6 +311,19 @@ function recoverStaleIndexLock(root: string): string | undefined {
   return "tracker: removed stale " + lock + " (" + before.size + " bytes, modified " + new Date(before.mtimeMs).toISOString() + ", no live holder)";
 }
 
+/** A commit hook that rewrites what it commits (concept's formatter) works in a partial commit's own temporary index;
+ * git then writes the real index as staged before the hook ran. Each tracker commit in concept's checkout so left its
+ * paths staged with their pre-format bytes while HEAD and the working tree held the formatted ones, and its post-merge
+ * refused to publish (2026-10-17). Reset only those of this write's paths whose working tree matches HEAD. */
+function settleIndex(root: string, paths: string[]): void {
+  const split = (s: string) => s.split("\0").filter(Boolean);
+  const staged = split(git(root, "diff", "--cached", "--name-only", "--no-renames", "-z", "HEAD", "--", ...paths));
+  if (!staged.length) return;
+  const unsettled = new Set(split(git(root, "diff", "--name-only", "--no-renames", "-z", "HEAD", "--", ...staged)));
+  const stale = staged.filter(path => !unsettled.has(path));
+  if (stale.length) git(root, "reset", "-q", "HEAD", "--", ...stale);
+}
+
 /** The persister's work: serialized against other tracker persisters, waiting out live index locks. */
 function persistNow(root: string, paths: string[], message: string, notes: string[]): void {
   withLock("persist", root, LIVE_LOCK_WAIT_MS, () => {
@@ -323,10 +336,11 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
         git(root, "add", "--", ...paths);
         if (git(root, "diff", "--name-only", "HEAD", "--", ...paths))
           git(root, "commit", "--only", "-m", message, "--", ...paths);
+        settleIndex(root, paths);
         return;
       } catch (error) {
         // A concurrent writer of the same paths may already have committed these bytes.
-        if (!git(root, "diff", "--name-only", "HEAD", "--", ...paths)) return;
+        if (!git(root, "diff", "--name-only", "HEAD", "--", ...paths)) { settleIndex(root, paths); return; }
         if (!/index\.lock.*File exists/s.test(String((error as { stderr?: unknown }).stderr ?? error)) || Date.now() > deadline) throw error;
         Bun.sleepSync(500);
       }

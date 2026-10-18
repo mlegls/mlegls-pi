@@ -1009,6 +1009,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c.phase === "implement") {
 			if (!c.self && [...view(c.into).values()].some(i => i.partOf === slug && !finished(i)))
 				return repair(slug, c, "decompose", "Implementers don't decompose: drop the children you committed, and either implement the ticket whole or end `blocked` with `respec` in the handoff.", issues, text);
+			// Children landed earlier are satisfied in the collector, not at c.into: count only open ones there.
+			const filed = c.self && s.collectors[slug] ? [...view(slug).values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i)).map(i => i.slug) : [];
+			if (filed.length) return joinFiledChildren(slug, c, filed, issues, text);
 			c.setup = r.handoff?.setup ?? null;
 			c.note = undefined;
 			c.skipDrive ??= driveNone(issue);
@@ -1032,6 +1035,23 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		s.results[slug] = reviewedResult(issue.partOf, c.evidence, text);
 		c.phase = "integrate"; save();
 		return integrateReview(slug, c, issue, issues);
+	}
+	/** A join's implementer filed children for residual work its own stage can't hold (as an owner's answer may direct):
+	 * its commits land in the collector and its chain ends, so the walk runs the children, and the join starts again from
+	 * the collector once they have landed. 2026-10-17 (bring-the-application-to-the-main-pages-design-implement-16): such a
+	 * report went on to drive, the five children waited for a restart, and its commit 496d9830 never reached the collector. */
+	async function joinFiledChildren(slug: string, c: Chain, children: string[], issues: Map<string, Issue>, text: string) {
+		const h = c.handle!, col = s.collectors[slug];
+		try {
+			if (!isAncestor(col.path, git(h.path, "rev-parse", "HEAD"))) {
+				git(h.path, "config", "branch." + git(h.path, "branch", "--show-current") + ".ab-parent", col.branch);
+				await integrate(h, { cwd: controlCwd, keep: true });
+				if (!isAncestor(col.path, git(h.path, "rev-parse", "HEAD"))) throw new Error("integration did not reach " + col.branch);
+			}
+		} catch (e) { return raise(slug, "landing the join's commits in its collector failed", String(e) + "\n\n" + text, issues); }
+		note("join " + slug + " filed " + children.join(", ") + "; its commits landed in " + col.branch + ", and it starts again from there once they land");
+		delete s.chains[slug]; save();
+		await retireChain(c, true);
 	}
 	async function integrateReview(slug: string, c: Chain, issue: Issue, issues: Map<string, Issue>) {
 		const h = c.handle!;
@@ -1181,8 +1201,19 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (resumed) {
 				delete s.resume![slug];
 				let usable = false;
-				try { usable = !isAncestor(pathOf(into), resumed.head); } catch { usable = false; }
-				if (usable) Object.assign(chain, { phase: resumed.phase, base: resumed.base ?? chain.base, setup: resumed.setup, drive: resumed.drive, skipDrive: resumed.skipDrive, note: chain.note ?? resumed.note, resumeFrom: resumed.head });
+				// A node's children landed in its collector after the stop: a branch that lacks the collector's head would
+				// drop them (2026-10-17: the join resumed drive from drive-17, a base without every child landed since).
+				let stale = false;
+				try {
+					usable = !isAncestor(pathOf(into), resumed.head);
+					stale = usable && !!s.collectors[slug] && !isAncestor(s.collectors[slug].path, git(s.collectors[slug].path, "rev-parse", "HEAD"), resumed.head);
+				} catch { usable = false; }
+				if (stale) {
+					usable = false;
+					chain.note = [chain.note, "This node's stopped run left " + resumed.phase + " work on branch " + resumed.branch + " at " + resumed.head + ", from before children landed in your base. Take what still holds of it (git log HEAD.." + resumed.head + ") or leave it."].filter(Boolean).join("\n\n");
+					note("resume record for " + slug + " dropped: " + resumed.branch + " lacks " + s.collectors[slug].branch + "'s head; starting from the collector");
+				}
+				else if (usable) Object.assign(chain, { phase: resumed.phase, base: resumed.base ?? chain.base, setup: resumed.setup, drive: resumed.drive, skipDrive: resumed.skipDrive, note: chain.note ?? resumed.note, resumeFrom: resumed.head });
 				else note("resume record for " + slug + " dropped: " + resumed.head + " is gone or already in " + into);
 			}
 			s.chains[slug] = chain;
