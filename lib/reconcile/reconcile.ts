@@ -37,6 +37,7 @@ import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts"
 import { untilReset } from "./rate-limit.ts";
 import { getThread, workerThread } from "../thread/registry.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
+import { alignIndex } from "../thread/lifecycle.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
@@ -125,6 +126,8 @@ interface Chain {
 	note?: string;
 	/** A commit to start the next phase from when no earlier worker of this chain holds it: a stopped run's work. */
 	resumeFrom?: string;
+	/** The open children a join's drive or review was raised for, once: an answer or retry lets it carry on with them. */
+	reopened?: string;
 }
 /** A chain's work when its run was stopped, so a restart continues it rather than starting over from its destination. */
 export interface Resume {
@@ -581,7 +584,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(controlCwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string };
 	/** Bind an owner retry to its original attempt before any replacement writes.
 	 * Recovery can finish that replacement before replaying the resolution file. */
 	function readResolution(file: string, node: string): Resolution {
@@ -614,6 +617,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			Object.assign(ex, { handler: undefined, handlerLaunchedAt: undefined, handlerHandledTs: undefined, mailed: false });
 			note("escalated " + ex.node + " → " + ex.level);
 			return save();
+		}
+		if (r.action === "reopen") {
+			try { await reopenJoin(target, c, r.note ?? r.message); }
+			catch (e) {
+				// The exception stays for another resolution: a throw here would fail every tick on the same file.
+				dropResolution(ex.node);
+				note("reopen of " + target + " failed: " + String((e as Error)?.message ?? e).split("\n")[0]);
+				tellOwner("reopen of " + target + " failed; its exception stays pending, resolve it another way or fix and reopen again:\n\n" + String((e as Error)?.message ?? e).slice(0, 3000));
+				return save();
+			}
 		}
 		delete s.exceptions[ex.node];
 		if (ex.node !== target && s.chains[ex.node]) s.chains[ex.node].held = false;
@@ -749,7 +762,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
 				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
 				if (!ex.mailed) {
-					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out.");
+					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
@@ -1041,17 +1054,48 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	 * the collector once they have landed. 2026-10-17 (bring-the-application-to-the-main-pages-design-implement-16): such a
 	 * report went on to drive, the five children waited for a restart, and its commit 496d9830 never reached the collector. */
 	async function joinFiledChildren(slug: string, c: Chain, children: string[], issues: Map<string, Issue>, text: string) {
-		const h = c.handle!, col = s.collectors[slug];
-		try {
+		const col = s.collectors[slug];
+		try { await landJoinWork(slug, c); }
+		catch (e) { return raise(slug, "landing the join's commits in its collector failed", String(e) + "\n\n" + text, issues); }
+		note("join " + slug + " filed " + children.join(", ") + "; its commits landed in " + col.branch + ", and it starts again from there once they land");
+		delete s.chains[slug]; save();
+		await retireChain(c, true);
+	}
+	/** Land a join's commits in its own collector. Open descendants' collectors that those commits already contain move
+	 * up to it too, so their children start from the join's work: 2026-10-18 (concept, bring-the-application-to-the-main-pages-design),
+	 * the join merged its reopened child's collector and that child's retired attempt; its seven repair children needed that as their base. */
+	async function landJoinWork(slug: string, c: Chain): Promise<void> {
+		const h = c.handle, col = s.collectors[slug];
+		if (!h || !col) throw new Error(slug + "'s chain has no worker or no collector to land in");
+		await locked(async () => {
 			if (!isAncestor(col.path, git(h.path, "rev-parse", "HEAD"))) {
 				git(h.path, "config", "branch." + git(h.path, "branch", "--show-current") + ".ab-parent", col.branch);
 				await integrate(h, { cwd: controlCwd, keep: true });
 				if (!isAncestor(col.path, git(h.path, "rev-parse", "HEAD"))) throw new Error("integration did not reach " + col.branch);
 			}
-		} catch (e) { return raise(slug, "landing the join's commits in its collector failed", String(e) + "\n\n" + text, issues); }
-		note("join " + slug + " filed " + children.join(", ") + "; its commits landed in " + col.branch + ", and it starts again from there once they land");
+			const head = git(col.path, "rev-parse", "HEAD"), all = view(col.path);
+			for (const [kid, kc] of Object.entries(s.collectors)) {
+				const row = all.get(kid);
+				if (kid === slug || s.landed[kid] || !row || finished(row) || !descends(row, slug, all)) continue;
+				const before = git(kc.path, "rev-parse", "HEAD");
+				if (before === head || !isAncestor(kc.path, before, head)) continue;
+				git(kc.path, "-c", "core.hooksPath=/dev/null", "merge", "--ff-only", "-q", head);
+				await alignIndex(kc.path, before);
+				note(kc.branch + " moved up to " + col.branch + " at " + head.slice(0, 8) + ": " + slug + "'s commits contain it");
+			}
+		});
+	}
+	/** The reopen resolution: a join whose children reopened (filed again, or moved back in) under its running chain ends
+	 * as if it had filed them. Its commits land in its collector, and the walk runs the children and then a fresh join. */
+	async function reopenJoin(slug: string, c: Chain | undefined, why?: string) {
+		if (!c || !c.self || c.phase === "refine") throw new Error("reopen applies to a join's running chain (a node whose children land in its collector); " + slug + " has " + (c ? "a " + c.phase + " chain that is not a join" : "no chain"));
+		await landJoinWork(slug, c);
+		const open = [...view(s.collectors[slug].path).values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i)).map(i => i.slug);
+		note("reopened " + slug + (open.length ? " for " + open.join(", ") : "") + "; its commits landed in " + s.collectors[slug].branch + ", and it starts again from there once they land");
 		delete s.chains[slug]; save();
 		await retireChain(c, true);
+		if (why) pendingNotes.set(slug, why);
+		tellOwner("reopened " + slug + ": its " + c.phase + " commits are in " + s.collectors[slug].branch + (open.length ? "; the walk runs " + open.join(", ") + " next" : "; it has no open children, so the join starts again"));
 	}
 	async function integrateReview(slug: string, c: Chain, issue: Issue, issues: Map<string, Issue>) {
 		const h = c.handle!;
@@ -1189,6 +1233,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		if (s.exceptions[slug]) return "active";
 		const c = s.chains[slug];
+		// Children that reopen under a join past implement would land with it unrun: hold it once for the owner (reopen).
+		// An implementer reports instead: done lands its commits and runs them, blocked raises.
+		if (c?.self && kids.length && (c.phase === "drive" || c.phase === "review" || c.phase === "integrate") && !c.held) {
+			const open = kids.map(k => k.slug).sort().join(", ");
+			if (c.reopened !== open) {
+				c.reopened = open;
+				raise(slug, "children reopened under its " + c.phase, "Open children: " + open + ". Resolve with reopen to land this join's commits in its collector and run them, or answer/retry to carry on without them.", issues);
+				return "active";
+			}
+		}
 		if (!c) {
 			if (s.collectors[slug]) issue = own.get(slug)!;
 			if (!issue.frontier && slug !== s.root) { holds.set(slug, why(issue, issues)); return "stuck"; }

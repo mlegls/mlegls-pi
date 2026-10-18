@@ -1,20 +1,22 @@
 // Mechanical checks the reconciler applies to worker handoffs and integrations, carried over from the
 // prototype's supervise loop (lib/jobs/supervise.ts at the prototype tag): the integration gate, story and
 // evidence shapes. Global completion is owned by completion.ts.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 // Repository gardening can produce multi-MiB git output; the default 1 MiB limit aborts successful commands.
 export const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 }).trim();
 
-/** Exact commit ancestry: whether `ancestor` is reachable from `descendant` in cwd's repository. */
+/** Exact commit ancestry: whether `ancestor` is reachable from `descendant` in cwd's repository.
+ * Exit 1 is "not an ancestor", read from spawnSync's own status; anything else throws naming the exit and stderr.
+ * 2026-10-18 (concept, bring-the-application-to-the-main-pages-design): a tick threw from this call's execFileSync
+ * error, which logged only "Command failed" and so hid its status; the same check exits 1 when rerun. */
 export function isAncestor(cwd: string, ancestor: string, descendant = "HEAD"): boolean {
-	try { git(cwd, "merge-base", "--is-ancestor", ancestor, descendant); return true; }
-	catch (error) {
-		if ((error as { status?: number }).status === 1) return false;
-		throw error;
-	}
+	const run = spawnSync("git", ["-C", cwd, "merge-base", "--is-ancestor", ancestor, descendant], { encoding: "utf8", stdio: ["ignore", "ignore", "pipe"] });
+	if (run.status === 0) return true;
+	if (run.status === 1) return false;
+	throw new Error("git -C " + cwd + " merge-base --is-ancestor " + ancestor + " " + descendant + " failed (" + (run.error ? String(run.error) : run.signal ? "signal " + run.signal : "exit " + run.status) + "): " + String(run.stderr ?? "").trim());
 }
 
 /** The project's integration gate: a mise task it declares as a lifecycle point, like its worktree post_create hook.

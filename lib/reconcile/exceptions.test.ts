@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { protocolFixture } from "./protocol-fixture";
 import { getThread } from "../thread/registry";
 import { readFrom, send } from "../board/store";
+import { excludeTracker } from "../thread/tracker-worktree";
 
 // In-process reconciler on a local tracker, with no launches: budget 0 keeps it from starting handlers or workers, so
 // only what the owner and the worker did can resolve the exception.
@@ -77,5 +78,40 @@ test("a worker the owner told to continue withdraws its exception and retires th
 		expect((await getThread(handlerId))?.archived).toBe(true);
 		const owner = readFrom(0).messages.filter(m => m.topic === "mail/fixture-owner" || m.body.includes("[reconcile root]")).map(m => m.body);
 		expect(owner.some(b => b.includes("withdrew the exception for fixture") && b.includes("reported again (waiting)"))).toBe(true);
+	} finally { f.close(); }
+}, 30_000);
+
+
+// 2026-10-18 (concept): a child moved back in under a join with seven new children; the join's implementer had merged
+// that child's collector, its retired attempt and main, and reported blocked. Reopen lands the join's commits as the base.
+test("reopen lands a join's commits in its collector and moves the reopened child's collector up to them", async () => {
+	let kc = "", head = "", workerId = "";
+	const { f, state } = await reconcile(async (f, r) => {
+		f.create("leaf", { "part-of": "fixture" });
+		kc = join(f.root, "fixture-tree");
+		f.git(f.cwd, "worktree", "add", "--no-checkout", "-qb", "tree/fixture", kc, f.git(f.collector, "rev-parse", "HEAD"));
+		excludeTracker(kc);
+		f.commit(kc, "child.txt", "landed child\n");
+		const w = await f.worker("root-implement-1");
+		workerId = w.threadId;
+		f.git(w.path, "merge", "-q", "--no-edit", "tree/fixture");
+		f.git(w.path, "merge", "-q", "--no-edit", "main");
+		head = f.commit(w.path, "join.txt", "candidate\n");
+		r.saveState({ ...held(r, f), collectors: { root: { path: f.collector, branch: "collector", parentBranch: "main" },
+				fixture: { path: kc, branch: "tree/fixture", parentBranch: "collector" } },
+			chains: { root: { into: f.cwd, self: true, phase: "implement", retries: {}, workers: [], held: true, handledTs: reportTs,
+				launchedAt: Date.now() - 120_000, handle: w } },
+			exceptions: { root: { id: "root-1", node: "root", reason: "implement blocked", text: "blocked — child scheduling is required", at: reportTs,
+				level: "owner", reportTs, mailed: true } } });
+		mkdirSync(r.resolutionsDir(f.cwd, "root"), { recursive: true });
+		writeFileSync(join(r.resolutionsDir(f.cwd, "root"), "root.json"), JSON.stringify({ action: "reopen", note: "keep the candidate" }));
+	}, (r, cwd) => !r.load(cwd, "root")?.exceptions.root);
+	try {
+		expect(state.exceptions).toEqual({});
+		expect(state.chains.root).toBeUndefined();
+		expect(f.git(f.collector, "rev-parse", "HEAD")).toBe(head);
+		expect(f.git(kc, "rev-parse", "HEAD")).toBe(head);
+		expect(state.log.some(l => l.includes("reopened root for fixture"))).toBe(true);
+		expect((await getThread(workerId))?.archived).toBe(true);
 	} finally { f.close(); }
 }, 30_000);

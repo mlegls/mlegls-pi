@@ -100,6 +100,22 @@ test("refuses authored tracker changes before mutation and after preparation", a
   } finally { close.mockRestore(); }
 });
 
+// 2026-10-18 (concept): a join's implementer merged main into its collector-based branch; main's own tracker commits
+// came along and are canonical persistence, not the branch's changes.
+test("tracker paths carried in by merging main are not the branch's changes", async () => {
+  const r = await repo();
+  const issue = "docs/issues/x.md";
+  r.commit(r.work, "a", "worker");
+  mkdirSync(join(r.main, "docs/issues"), { recursive: true });
+  r.commit(r.main, issue, "---\nstage: idea\n---\n\nBody.\n");
+  const other = join(r.main, "..", "parent");
+  r.git(r.main, "worktree", "add", "-q", "-b", "parent", other, "main~1");
+  r.git(r.main, "config", "branch.unit-a.ab-parent", "parent");
+  r.git(r.work, "-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-edit", "main");
+  await integrate(r.worker, { cwd: r.main, keep: true });
+  expect(r.git(other, "rev-parse", "HEAD")).toBe(r.git(r.work, "rev-parse", "HEAD"));
+});
+
 test("closes the worker only after Git integration; keep retains it", async () => {
   const r = await repo();
   r.commit(r.work, "a", "worker");
