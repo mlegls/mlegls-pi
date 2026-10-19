@@ -1,6 +1,7 @@
 ---
 stage: "ticket"
 author: "session:thr_s276cmsmq4"
+claimed-by: "session:thr_4hiwx3qfis"
 ---
 condense-reflections-to-their-render-share (0e505b2d) shipped the reflection backstop with `PRESERVATION_FLOOR` in `extensions/context/om/session-ledger/render-summary.ts`: five regexes over reflection text (role, preferences/permissions, must/never/rules, blocked/pending, decided/decision). Any match is protected, and the rest go newest-first. The maintainer wants no ad hoc string matching here: Jev is at least as good, and the cost is negligible because omission only fires at compaction when reflections exceed their render share.
 
