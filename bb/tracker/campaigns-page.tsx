@@ -2,8 +2,9 @@
 // maintainer's perspectives; each ranks its campaigns, top-down views over the tracker with good-enough bars. The page
 // only reads; its actions start threads (discuss a department, campaign or promise; triage what no campaign tracks)
 // and jump to the issues and threads it shows.
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
+import { createPortal } from "react-dom";
 import { useBbNavigate, useRealtime, useRealtimeConnectionState, useRpc } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
 import { toast } from "sonner";
@@ -79,13 +80,14 @@ const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 function ActivityChart({ c, view, openIssue }: { c: CampaignView; view: Campaigns; openIssue: (slug: string) => void }) {
 	const [open, setOpen] = useState(false);
 	const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const anchor = useRef<HTMLDivElement>(null);
 	const weeks = Array.from({ length: WEEKS }, () => ({ done: 0, settled: 0, idea: 0 }));
 	for (const a of c.activity) { const w = weekIndex(a.date); if (w >= 0 && w < WEEKS) weeks[w][a.kind]++; }
 	const enter = () => { clearTimeout(timer.current); setOpen(true); };
 	const leave = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 200); };
 	useEffect(() => () => clearTimeout(timer.current), []);
 	return (
-		<div className="relative" onMouseEnter={enter} onMouseLeave={leave}>
+		<div ref={anchor} onMouseEnter={enter} onMouseLeave={leave}>
 			<div className="flex h-7 cursor-default items-end gap-px" aria-label="Stage changes per week">
 				{weeks.map((w, i) => (
 					<div key={i} className="flex w-1.5 flex-col-reverse overflow-hidden rounded-sm bg-muted" style={{ height: "28px" }}>
@@ -93,9 +95,35 @@ function ActivityChart({ c, view, openIssue }: { c: CampaignView; view: Campaign
 					</div>
 				))}
 			</div>
-			{open ? <DayGrid c={c} view={view} openIssue={openIssue} /> : null}
+			{open ? <Floating anchor={anchor} onMouseEnter={enter} onMouseLeave={leave}><DayGrid c={c} view={view} openIssue={openIssue} /></Floating> : null}
 		</div>
 	);
+}
+
+/**
+ * A popover fixed to the viewport beside its anchor, below it when it fits and above otherwise. Out of the page's
+ * flow, so opening it can't grow the page, add a scrollbar and move the anchor out from under the pointer.
+ */
+function Floating({ anchor, children, onMouseEnter, onMouseLeave }: { anchor: RefObject<HTMLDivElement | null>; children: ReactNode; onMouseEnter: () => void; onMouseLeave: () => void }) {
+	const box = useRef<HTMLDivElement>(null);
+	const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden", top: 0, left: 0 });
+	useLayoutEffect(() => {
+		const place = () => {
+			const a = anchor.current?.getBoundingClientRect();
+			const b = box.current;
+			if (!a || !b) return;
+			const h = b.offsetHeight, w = b.offsetWidth, gap = 4, edge = 8;
+			const below = window.innerHeight - a.bottom - gap >= h + edge || a.top < h + gap + edge;
+			const top = below ? Math.min(a.bottom + gap, window.innerHeight - h - edge) : a.top - gap - h;
+			const left = Math.max(edge, Math.min(a.right - w, window.innerWidth - w - edge));
+			setStyle({ top: Math.max(edge, top), left });
+		};
+		place();
+		window.addEventListener("resize", place);
+		window.addEventListener("scroll", place, true);
+		return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+	}, [anchor]);
+	return createPortal(<div ref={box} style={style} className="fixed z-50" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>{children}</div>, document.body);
 }
 
 /** GitHub-style grid of the last WEEKS weeks by day; a day lists its stage changes by commit. */
@@ -123,7 +151,7 @@ function DayGrid({ c, view, openIssue }: { c: CampaignView; view: Campaigns; ope
 		return d.getUTCDate() <= 7 ? d.toLocaleString(undefined, { month: "short", timeZone: "UTC" }) : "";
 	});
 	return (
-		<div className="absolute right-0 top-full z-30 mt-1 flex w-[26rem] flex-col gap-2 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
+		<div className="flex w-[26rem] flex-col gap-2 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
 			<div className="flex items-center gap-3 text-xs text-muted-foreground">
 				<span className="flex-1">Stage changes on main, last {WEEKS} weeks</span>
 				{KINDS.map((k) => <span key={k} className="flex items-center gap-1"><span className={cn("size-2 rounded-sm", KIND[k].dot)} />{KIND[k].label}</span>)}
@@ -147,11 +175,11 @@ function DayGrid({ c, view, openIssue }: { c: CampaignView; view: Campaigns; ope
 					</div>
 				</div>
 			</div>
-			<div className="border-t border-border pt-2 text-sm">
+			<div className="h-72 border-t border-border pt-2 text-sm">
 				{!day ? <div className="text-xs text-muted-foreground">No stage changes in {WEEKS} weeks.</div> : (
 					<>
 						<div className="mb-1 text-xs text-muted-foreground">{new Date(day + "T00:00:00Z").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })} · {items.length} change{items.length === 1 ? "" : "s"}{pinned === day ? " · pinned" : ""}</div>
-						<div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+						<div className="flex h-64 flex-col gap-2 overflow-y-auto">
 							{commits.map((h) => <CommitGroup key={h} hash={h} info={view.commits[h]} url={view.commitUrl} items={items.filter((a) => a.commit === h)} openIssue={openIssue} />)}
 						</div>
 					</>
