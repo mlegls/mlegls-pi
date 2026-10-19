@@ -9,13 +9,14 @@
 //
 // CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status|agents ...
 
-import { execFile, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { agent, AGENTS_DIR, roleBody, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { abandonThread, getThread, historyThread, integrateThread, newThread, sendThread, threadForBb, ThreadMergeConflict, type ThreadRecord } from "./thread";
 import { bbThreads, bbWorkerThread, bbWorking, type BbThread } from "./thread/bb";
+import { commonDir } from "./thread/git";
 import { lastTurn, type TurnReport } from "./thread/turn";
 
 export type Outcome =
@@ -523,9 +524,8 @@ if (import.meta.main) {
 			process.exit(0);
 		}
 		case "status": {
-			const common = (path: string) => { try { return execFileSync("git", ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return undefined; } };
-			const here = common(process.cwd());
-			print([...(await bbThreads()).values()].filter(t => !t.archivedAt && t.title?.includes("/") && t.environmentPath && common(t.environmentPath) === here)
+			const here = commonDir(process.cwd());
+			print([...(await bbThreads()).values()].filter(t => !t.archivedAt && t.title?.includes("/") && t.environmentPath && commonDir(t.environmentPath) === here)
 				.map(t => ({ bb: t.id, worker: t.title, status: t.status, path: t.environmentPath })));
 			process.exit(0);
 		}

@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { getThread, integrateThread, threadForBb, ThreadMergeConflict, type ThreadRecord } from "./thread";
 import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
+import { commonDir } from "./thread/git.ts";
 import { HANDOFF_KEYS } from "./report.ts";
 import { stopThreadProcesses } from "./thread/lifecycle-cleanup";
 
@@ -157,7 +158,6 @@ export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
 export interface Integration { branch: string; mode: "rebase" | "merge"; output?: string; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string }
-const commonDir = (path: string) => { try { return execFileSync("git", ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return undefined; } };
 
 /** A worker's bb thread: the receipt's own, else the live bb thread titled `<run>/<handle>` in cwd's repository, which finds
  * a worker spawned just before a crash that run state never recorded. A bare handle names the one such worker in any run. */
