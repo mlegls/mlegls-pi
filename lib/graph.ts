@@ -219,7 +219,8 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? bb?.title ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
 			parent, parentKind: kind, run, handle, thread: bb?.thread,
-			state, interactive: kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
+			// A header-only file nobody typed into (a worker's launch session before bb runs it) is not a user's session.
+			state, interactive: kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui" && (!!p.firstUser || !!l),
 			pid: l?.pid,
 			lastText: p.lastText, children: [],
 		});
