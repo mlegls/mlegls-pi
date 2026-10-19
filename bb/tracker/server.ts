@@ -138,7 +138,7 @@ export default async function plugin(bb: BbPluginApi) {
 				out.set(t.id, { threadId: t.id, title: t.title || t.titleFallback || t.id, status: t.runtime?.displayStatus ?? t.status, issues: Array.isArray(row.metadata.issues) ? row.metadata.issues.map(String) : [], role: false });
 			}
 		}
-		const id = await roleHolder(p.root);
+		const id = await roleHolder(p.root).catch((e) => { bb.log.warn("desk role: " + e); return undefined; });
 		const match = listed.find(t => t.id === id);
 		if (match) {
 			const prev = out.get(match.id);
