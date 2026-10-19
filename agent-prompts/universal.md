@@ -36,6 +36,8 @@ axi tools are agent-ergonomic clis on PATH. running one with no args shows live 
 - `pypi-axi`: pypi package view/versions/deps/downloads (no search: pypi has no search api).
 - `quota-axi`: local quota windows and runway for various llm providers.
 
+whatever needs me (a decision, a check, a credential, an action) goes in `ATTENTION.md` at the main checkout's root (listed in `.git/info/exclude`): one `## ` item each, readable cold. say what it's about in plain words, the question, the options with your recommendation, what waits on it, and your `@thread:…`. delete your item once it's answered or moot. in chat, point to the file instead of restating items i haven't answered.
+
 please commit in coherent chunks as you change files. i'll just revert them if they're that bad (rare)
 
 and some really universal counter-defaults:
