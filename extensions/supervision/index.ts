@@ -14,8 +14,8 @@ import { campaigns, constrain, resolveException, start, stop, summary } from "..
 
 const namespace = { name: "supervision", description: "Dispatch wm workers (bb threads: a worktree and a pi run by bb), integrate their branches, retire them" };
 
-const HandleSchema = Type.Object({ handle: Type.String(), run: Type.String(), path: Type.String(), threadId: Type.Optional(Type.String()), session: Type.Optional(Type.String()) });
-const Worker = Type.Union([HandleSchema, Type.String({ description: "Bare handle, looked up among registered workers in this checkout's project" })]);
+const HandleSchema = Type.Object({ handle: Type.String(), run: Type.String(), path: Type.String(), bb: Type.Optional(Type.String()), session: Type.Optional(Type.String()) });
+const Worker = Type.Union([HandleSchema, Type.String({ description: "Bare handle, looked up among live workers in this checkout's project" })]);
 
 export default function (pi: ExtensionAPI) {
 	dataTool(pi, {

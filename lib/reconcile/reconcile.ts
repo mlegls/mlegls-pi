@@ -32,7 +32,6 @@ import { heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeErro
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
-import { getThread } from "../thread/registry.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
 import { alignIndex } from "../thread/lifecycle.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
@@ -209,7 +208,7 @@ export async function stopRefinementWriter(state: GlobalRunState, attempt: Refin
 	}
 	if (attempt.worker && resolve(attempt.worker.path) !== found.path) throw new Error("Refinement writer receipt mismatch: " + attempt.handle);
 	const thread = (await bbThreads()).get(found.bb);
-	if (thread && !thread.archivedAt) await stop({ run: state.root, handle: attempt.handle, path: found.path, bb: found.bb, threadId: attempt.worker?.threadId }, { cwd: state.cwd });
+	if (thread && !thread.archivedAt) await stop({ run: state.root, handle: attempt.handle, path: found.path, bb: found.bb }, { cwd: state.cwd });
 }
 
 /** Every worker receipt a run holds. */
@@ -340,8 +339,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			await tellBb(to, "[reconcile " + s.root + "] " + body);
 		}).catch(e => note("telling the owner failed: " + e));
 	};
-	// A receipt from before run state held bb thread ids names only its registry record.
-	for (const h of workerHandles(s)) if (!h.bb && h.threadId) h.bb = (await getThread(h.threadId))?.bb;
 	save();
 
 	// --- observation -----------------------------------------------------------------------------------

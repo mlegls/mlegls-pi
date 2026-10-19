@@ -2,8 +2,7 @@ import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { getThread } from "../thread/registry";
-import { fakeBb } from "../thread/fake-bb";
+import { fakeBb, threads } from "../thread/fake-bb";
 import { merge, spawn, type Worker } from "../wm";
 import { getTracker } from "../tracker";
 import { refreshWorker } from "./refresh";
@@ -83,9 +82,9 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 		expect(git(successor.dir, "merge-base", "--is-ancestor", previousHead, "HEAD")).toBe("");
 		expect(readFileSync(join(successor.dir, "result.txt"), "utf8")).toBe("retained packet\n");
 		expect(readFileSync(join(successor.dir, "setup-contract"), "utf8")).toContain(ruling);
-		const record = await getThread(successor.threadId!);
-		expect(record?.launch?.prompt).toContain(ruling);
-		expect(record?.launch?.prompt).not.toContain("old contract");
+		const prompt = threads(join(root, "fake-bb")).find(t => t.id === successor.bb)?.prompt;
+		expect(prompt).toContain(ruling);
+		expect(prompt).not.toContain("old contract");
 		expect(git(repo, "config", "branch.successor.ab-parent")).toBe("main");
 	} finally {
 		try { await Promise.all(workers.map(worker => worker.close())); }

@@ -9,8 +9,5 @@ if [ "$1" = desk ]; then
 	shift
 	exec "$(dirname "$(readlink -f "$0")")/desk" "$@"
 fi
-if [ "$1" = thread ]; then
-	exec bun "$(dirname "$(readlink -f "$0")")/../lib/thread/cli.ts" "$@"
-fi
-echo "usage: ab thread ... | ab desk ..." >&2
+echo "usage: ab desk ..." >&2
 exit 2

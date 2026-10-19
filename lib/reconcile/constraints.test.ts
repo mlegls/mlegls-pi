@@ -4,7 +4,6 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { constrain, summary } from "./main";
 import { constrainedPrompt, load, saveState, type State } from "./reconcile";
-import { getThread } from "../thread/registry";
 import { spawn, type Worker } from "../wm";
 import { fakeBb } from "../thread/fake-bb";
 
@@ -31,7 +30,7 @@ test("a mid-implement constraint reaches drive and review first prompts, not an 
 		const implement = await fixture("implement", "live");
 		const state: State = { backend: "threads", root: "fixture", cwd: repo, owner: "thr_fixture", budget: 1, pid: process.pid,
 			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { live: { into: repo, self: false, phase: "implement", retries: {}, workers: [],
-				handle: { run: "fixture", handle: "implement", path: implement.dir, threadId: implement.threadId } } },
+				handle: { run: "fixture", handle: "implement", path: implement.dir, bb: implement.bb } } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] };
 		saveState(state);
 		const text = "The live vault is read-only; do not re-run prepare.";
@@ -42,11 +41,11 @@ test("a mid-implement constraint reaches drive and review first prompts, not an 
 		expect(summary({ ...load(repo, "fixture")!, running: true }).constraints.live).toEqual([text]);
 		for (const phase of ["drive", "review"]) {
 			const worker = await fixture(phase, "live");
-			expect((await getThread(worker.threadId!))?.launch?.prompt).toContain(text);
+			expect(fake.threads().find(t => t.id === worker.bb)?.prompt).toContain(text);
 		}
 		const other = await fixture("other-drive", "other");
-		expect((await getThread(other.threadId!))?.launch?.prompt).not.toContain(text);
-		expect((await getThread(implement.threadId!))?.launch?.prompt).not.toContain(text);
+		expect(fake.threads().find(t => t.id === other.bb)?.prompt).not.toContain(text);
+		expect(fake.threads().find(t => t.id === implement.bb)?.prompt).not.toContain(text);
 	} finally {
 		try { await Promise.all(workers.map(worker => worker.close())); }
 		finally { process.env = saved; rmSync(root, { recursive: true, force: true }); }

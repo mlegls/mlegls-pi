@@ -1,10 +1,9 @@
 // Local Git/global Tracker fixture for the approved protocol regression tests.
-// Registered receipts have no launched writer; no model or host service is used.
+// Receipts have no launched writer; no model or host service is used.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getTracker, type Fields } from "../tracker";
-import { saveThread } from "../thread/registry";
 import { fakeBb } from "../thread/fake-bb";
 import { excludeTracker } from "../thread/tracker-worktree";
 import type { GlobalRunState } from "./tracker-state";
@@ -46,26 +45,21 @@ export function protocolFixture() {
 	excludeTracker(collector);
 	return {
 		root, cwd, collector, tracker, state, git, commit, create, bb,
-		/** A registered worker with a bb thread but no worktree: its reports still arrive, as a retired worker's late ones do. */
-		async bare(run: string, handle: string, path = join(root, "gone")) {
-			const id = run + "-" + handle, bbId = "bbt-" + id;
+		/** A worker with a bb thread but no worktree: its reports still arrive, as a retired worker's late ones do. */
+		bare(run: string, handle: string, path = join(root, "gone")) {
+			const bbId = "bbt-" + run + "-" + handle;
 			bb.addThread(bbId, path, run + "/" + handle);
-			await saveThread({ id, sessionId: id, sessionFile: join(root, id + ".jsonl"), cwd: path, project: cwd, ownership: "guest", archived: false,
-				created: new Date().toISOString(), worker: { handle, run }, bb: bbId });
-			return { handle, run, path, bb: bbId, threadId: id };
+			return { handle, run, path, bb: bbId };
 		},
 		save: (value: GlobalRunState) => writeFileSync(stateFile, JSON.stringify(value)),
 		restore: (): GlobalRunState => JSON.parse(readFileSync(stateFile, "utf8")),
-		async worker(handle: string, from = collector, parentBranch = "collector") {
+		worker(handle: string, from = collector, parentBranch = "collector") {
 			const path = join(root, handle), id = "protocol-" + handle, run = "protocol";
 			git(cwd, "worktree", "add", "--no-checkout", "-qb", handle, path, git(from, "rev-parse", "HEAD"));
 			excludeTracker(path);
 			git(cwd, "config", "branch." + handle + ".ab-parent", parentBranch);
-			await saveThread({ id, sessionId: id, sessionFile: join(root, id + ".jsonl"), cwd: path, project: cwd,
-				worktree: path, ownership: "owner", branch: handle, archived: false, created: new Date().toISOString(),
-				worker: { handle, run }, bb: "bbt-" + id });
 			bb.addThread("bbt-" + id, path, run + "/" + handle);
-			return { handle, run, path, bb: "bbt-" + id, threadId: id };
+			return { handle, run, path, bb: "bbt-" + id };
 		},
 		close() { process.env = saved; rmSync(root, { recursive: true, force: true }); },
 	};

@@ -1,17 +1,15 @@
-// bb (get-bb/bb) as a thread runtime: bb runs pi (its Pi provider) and shows the thread in its desktop, web and mobile
-// apps, as the only thread runtime. The registry, worktree, setup and integration stay ours.
+// bb (get-bb/bb) as the thread runtime: bb runs pi (its Pi provider) and shows the thread in its desktop, web and mobile
+// apps. The worktree, setup and integration stay ours.
 // bb gives every thread the same environment, so a worker's identity reaches pi through .wm/launch.env in its
 // worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
 import { Database } from "bun:sqlite";
-import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { command, delay, quote } from "./process";
-import { threadDir } from "./registry";
 import { launchEnv } from "./launch";
 import { gitAttempt } from "./lifecycle-git";
-import type { ThreadRecord } from "./types";
+import type { WorkerCheckout } from "./types";
 
 const cli = () => process.env.BB_CLI || "bb";
 async function bb<T = unknown>(args: string[], cwd?: string): Promise<T> {
@@ -66,10 +64,10 @@ export function bbWorkerThread(threads: Map<string, BbThread>, handle: string, r
 }
 
 // A bb thread gets its identity and, when the spawner set them, the
-// state locations that isolate a fixture (registry, agent and roster dirs).
-const IDENTITY = /^(?:AB_THREAD_ID|PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
+// state locations that isolate a fixture (agent and roster dirs).
+const IDENTITY = /^(?:PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
 /** The worker's identity env, for bin/bb-pi to source. */
-export function writeLaunchEnv(thread: ThreadRecord): void {
+export function writeLaunchEnv(thread: WorkerCheckout): void {
 	const env = launchEnv(thread);
 	const keys = new Set([...Object.keys(env).filter(k => IDENTITY.test(k)), ...Object.keys(thread.launch?.env ?? {})]);
 	mkdirSync(join(thread.cwd, ".wm"), { recursive: true });
@@ -77,40 +75,36 @@ export function writeLaunchEnv(thread: ThreadRecord): void {
 }
 
 /** pi's --model and --thinking from the launch args; bb passes them as its model and reasoning level. */
-function modelOf(thread: ThreadRecord): { model?: string; effort?: string } {
+function modelOf(thread: WorkerCheckout): { model?: string; effort?: string } {
 	const args = thread.launch?.args ?? [];
 	const at = (flag: string) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
 	return { model: at("--model"), effort: at("--thinking") };
 }
 
 /** Start the thread's pi in bb under parent (a bb thread id), submitting its launch prompt. */
-export async function spawnBb(thread: ThreadRecord, parent: string | undefined, o: { model?: string; effort?: string; prompt?: string } = {}): Promise<string> {
-	// A worker owns its worktree; an interactive thread may share its checkout with other sessions, so it carries no
-	// identity file (its registry record is found by session id).
-	if (thread.worker) writeLaunchEnv(thread);
+export async function spawnBb(thread: WorkerCheckout, parent: string | undefined, o: { model?: string; effort?: string; prompt?: string } = {}): Promise<string> {
+	writeLaunchEnv(thread);
 	const { model, effort } = o.model ? o : modelOf(thread);
-	const prompt = join(threadDir(), thread.id + ".prompt.md");
+	const dir = mkdtempSync(join(tmpdir(), "bb-prompt-"));
+	const prompt = join(dir, "prompt.md");
 	writeFileSync(prompt, o.prompt ?? (thread.launch?.prompt?.trim() || "Continue."), { mode: 0o600 });
 	try {
-		const project = thread.project.split("/").at(-1)!;
-		const title = thread.worker ? thread.worker.run + "/" + thread.worker.handle : thread.worktree && thread.branch ? project + "/" + thread.branch : project;
+		const title = thread.worker.run + "/" + thread.worker.handle;
 		const created = await bb<{ id: string; environmentId: string | null }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
 			"--provider", "pi", ...(model ? ["--model", model] : []), ...(effort ? ["--reasoning-level", effort] : []),
 			"--title", title, "--prompt-file", prompt, ...(parent ? ["--parent-thread", parent] : [])]);
 		try {
-			if (thread.branch) {
-				const parentBranch = await gitAttempt(thread.project, "config", "--get", "branch." + thread.branch + ".ab-parent");
-				if (parentBranch.code !== 0 && parentBranch.code !== 1) throw new Error("Cannot read ab-parent: " + parentBranch.err);
-				if (parentBranch.out) await bb(["environment", "update", await bbEnvironment(created.id, created.environmentId), "--merge-base-branch", parentBranch.out]);
-			}
+			const parentBranch = await gitAttempt(thread.project, "config", "--get", "branch." + thread.branch + ".ab-parent");
+			if (parentBranch.code !== 0 && parentBranch.code !== 1) throw new Error("Cannot read ab-parent: " + parentBranch.err);
+			if (parentBranch.out) await bb(["environment", "update", await bbEnvironment(created.id, created.environmentId), "--merge-base-branch", parentBranch.out]);
 		} catch (error) {
 			await stopBb(created.id);
 			await archiveBb(created.id);
-			if (thread.ownership === "owner") await deleteBbEnvironment(created.id);
+			await deleteBbEnvironment(created.id);
 			throw error;
 		}
 		return created.id;
-	} finally { rmSync(prompt, { force: true }); }
+	} finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
 /** A fresh path's environment is created just after spawn returns, so spawn's environmentId is null until then. */
@@ -167,11 +161,11 @@ export function bbPrompts(): { thread: string; project: string; at: number; text
 }
 /** Message a bb thread. Queued, it follows the turn in progress (or starts one) rather than steering it; the text goes by file so a leading dash or backtick survives. */
 export async function tellBb(id: string, text: string, mode: "queue" | "steer" = "queue"): Promise<void> {
-	const file = join(threadDir(), "tell-" + randomUUID() + ".md");
-	mkdirSync(threadDir(), { recursive: true });
+	const dir = mkdtempSync(join(tmpdir(), "bb-tell-"));
+	const file = join(dir, "message.md");
 	writeFileSync(file, text, { mode: 0o600 });
 	try { await bb(["thread", "tell", id, "--mode", mode, "--message-file", file]); }
-	finally { rmSync(file, { force: true }); }
+	finally { rmSync(dir, { recursive: true, force: true }); }
 }
 /** Stop the turn and release bb's pi; the thread stays for a later message. */
 // A thread deleted in bb (or with its project) has nothing left to stop or archive.

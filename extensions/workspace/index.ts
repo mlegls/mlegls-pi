@@ -2,17 +2,13 @@ import { rm } from "node:fs/promises";
 import { Type } from "typebox";
 import { SessionManager, type ExtensionAPI, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { resolveWorkspacePath } from "./workspace";
-import { currentThread, registerThread } from "./thread";
-import { moveRefusal, moveThread } from "./move";
-import { registerSetup } from "./setup";
 import { insideBb, notice } from "../../lib/notice.ts";
 
 // bb records each thread's directory and restarts pi there with its own session file, so a pi-side session switch
 // would be undone; bb's own move keeps the conversation.
 const BB_MOVE = "Under bb, bb owns this thread's directory: ask the agent to move the thread with update_environment_directory.";
 
-/** Returns why a canonical thread could not move, without switching. */
-export async function switchWorkspace(target: string, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<string | undefined> {
+export async function switchWorkspace(target: string, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<void> {
 	const sourceSession = ctx.sessionManager.getSessionFile();
 	if (!sourceSession) throw new Error("Workspace switching requires a persisted session");
 	if (target === ctx.cwd) {
@@ -21,9 +17,6 @@ export async function switchWorkspace(target: string, ctx: ExtensionCommandConte
 	}
 
 	await ctx.waitForIdle();
-	const thread = await currentThread(ctx);
-	const refusal = thread && moveRefusal(thread, target);
-	if (refusal) return refusal;
 	const fork = SessionManager.forkFrom(sourceSession, target);
 	const targetSession = fork.getSessionFile();
 	if (!targetSession) throw new Error("Failed to create the replacement session");
@@ -32,9 +25,7 @@ export async function switchWorkspace(target: string, ctx: ExtensionCommandConte
 
 	const result = await ctx.switchSession(targetSession, {
 		withSession: async (replacementCtx) => {
-			// The thread moves with this pi and the system closes the merged worktree it left, which its own session could not.
-			const left = thread && await moveThread(thread.id, replacementCtx.cwd, { id: fork.getSessionId(), file: targetSession });
-			notice(replacementCtx, replacementCtx, `Switched workspace to ${replacementCtx.cwd}${left ? `; ${left}` : ""}`);
+			notice(replacementCtx, replacementCtx, `Switched workspace to ${replacementCtx.cwd}`);
 		},
 	});
 	if (result.cancelled) {
@@ -45,8 +36,6 @@ export async function switchWorkspace(target: string, ctx: ExtensionCommandConte
 }
 
 export default function (pi: ExtensionAPI) {
-	registerThread(pi);
-	registerSetup(pi);
 	let pendingWorkspace: string | undefined;
 
 	pi.registerTool({
@@ -73,14 +62,6 @@ export default function (pi: ExtensionAPI) {
 				return {
 					content: [{ type: "text" as const, text: `Already in workspace: ${target}` }],
 					details: { current: ctx.cwd },
-				};
-			}
-			const thread = await currentThread(ctx);
-			const refusal = thread && moveRefusal(thread, target);
-			if (refusal) {
-				return {
-					content: [{ type: "text" as const, text: `Workspace switch not requested.\n${refusal}` }],
-					details: { current: ctx.cwd, refused: target },
 				};
 			}
 			pendingWorkspace = target;
@@ -122,15 +103,12 @@ export default function (pi: ExtensionAPI) {
 				}
 				const target = pendingWorkspace;
 				pendingWorkspace = undefined;
-				const refusal = await switchWorkspace(target, ctx, pi);
-				// The request came from the model, so the work it must settle first goes back to it.
-				if (refusal) pi.sendMessage({ customType: "workspace", content: `Workspace switch to ${target} refused at accept.\n${refusal}`, display: true }, { triggerTurn: true });
+				await switchWorkspace(target, ctx, pi);
 				return;
 			}
 
 			const target = await resolveWorkspacePath(argument, ctx.cwd);
-			const refusal = await switchWorkspace(target, ctx, pi);
-			if (refusal) notice(pi, ctx, refusal, "error");
+			await switchWorkspace(target, ctx, pi);
 		},
 	});
 }

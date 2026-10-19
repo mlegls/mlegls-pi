@@ -3,9 +3,8 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { getThread, saveThread } from "../../../lib/thread/registry";
 import { fakeBb, threads } from "../../../lib/thread/fake-bb";
-import { pendingSetup, setupLog, writeSetup } from "../../../lib/thread/setup";
+import { runSetup, setupLog } from "../../../lib/thread/setup";
 import { start, stop } from "../../../lib/reconcile/main";
 import { load } from "../../../lib/reconcile/reconcile";
 
@@ -36,15 +35,12 @@ export async function trial() {
 		writeFileSync(join(setupBin, "mise"), "#!/bin/sh\nif [ \"$1\" = tasks ]; then echo '[{\"name\":\"setup\"}]'; exit 0; fi\nn=0; [ ! -f count ] || read n < count\nn=$((n+1)); echo \"$n\" > count\nif [ \"$n\" = 1 ]; then echo \"$FAILURE\" >&2; exit 1; fi\n", { mode: 0o755 });
 		for (const [id, failure, success] of [["network", "fetch failed", true], ["nonnetwork", "invalid configuration", false]] as const) {
 			const cwd = join(root, id); mkdirSync(cwd);
-			await saveThread({ id, sessionId: id, sessionFile: join(cwd, "session.jsonl"), cwd, project: cwd, ownership: "owner",
-				archived: false, created: new Date().toISOString(), worker: { run: "setup", handle: id } });
-			writeSetup(id, { state: "pending" });
 			const path = process.env.PATH, failureEnv = process.env.FAILURE;
 			process.env.PATH = setupBin + ":" + path; process.env.FAILURE = failure;
-			const code = await pendingSetup((await getThread(id))!).then(() => 0, () => 1).finally(() => { process.env.PATH = path; if (failureEnv === undefined) delete process.env.FAILURE; else process.env.FAILURE = failureEnv; });
+			const code = await runSetup({ cwd, project: cwd, worktree: cwd, branch: id, worker: { run: "setup", handle: id } }).then(() => 0, () => 1).finally(() => { process.env.PATH = path; if (failureEnv === undefined) delete process.env.FAILURE; else process.env.FAILURE = failureEnv; });
 			assert.equal(code === 0, success);
 			assert.equal(readFileSync(join(cwd, "count"), "utf8").trim(), success ? "2" : "1");
-			const log = readFileSync(setupLog(id), "utf8");
+			const log = readFileSync(setupLog(cwd), "utf8");
 			assert.equal((log.match(/retry 1\/2/g) ?? []).length, success ? 1 : 0);
 			console.log(JSON.stringify({ story: "setup-" + id, code, started: success, log }));
 		}

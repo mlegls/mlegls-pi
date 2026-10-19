@@ -1,26 +1,25 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { markRetired, readLive, type Live } from "../session-meta/live";
-import { getThread, saveThread } from "./registry";
+import { markRetired, readLive } from "../session-meta/live";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { command, delay } from "./process";
 import { archiveBb, deleteBbEnvironment, stopBb } from "./bb";
 import { cwdProcesses } from "./resources";
-import type { ThreadCleanup, ThreadRecord } from "./types";
+import type { ThreadCleanup, WorkerThread } from "./types";
 
 const alive = (pid: number) => {
 	try { process.kill(pid, 0); return true; }
 	catch (error) { if ((error as { code?: string }).code === "ESRCH") return false; throw error; }
 };
 
-/** Stop only this thread's owned processes; preserve its workspace and registry record for retry. */
-export async function stopThreadProcesses(thread: ThreadRecord): Promise<ThreadCleanup> {
+/** Stop only this thread's owned processes; preserve its workspace for retry. */
+export async function stopThreadProcesses(thread: WorkerThread): Promise<ThreadCleanup> {
 	return cleanupThread(thread, true, true);
 }
 
 /** discardIgnored: the worker finished and its work was taken (integrated, or handed to the next phase), so its
  * ignored files are disposable. Otherwise ignored state that setup can't regenerate is moved aside, not deleted. */
-export async function retireThread(thread: ThreadRecord, keepBranch: boolean, options: { discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
+export async function retireThread(thread: WorkerThread, keepBranch: boolean, options: { discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
 	return cleanupThread(thread, keepBranch, false, options.discardIgnored ?? false);
 }
 
@@ -32,7 +31,7 @@ const DISPOSABLE_NAMES = new Set(["node_modules", ".venv", "venv", "__pycache__"
 /** .wm/ is kept apart from wm's launch file: workers write their debug output and scratch under .wm/<handle>/, and
  * retirement copies the session's managed-process logs to .wm/processes/ (a drive's diagnostics went with its worktree,
  * 2026-10-16). */
-const DISPOSABLE_PATHS = [".husky/_", ".wm/launch.env"];
+const DISPOSABLE_PATHS = [".husky/_", ".wm/launch.env", ".wm/setup.json", ".wm/setup.log"];
 
 /** Whether an ignored entry (a file, or a directory git collapsed) is disposable on retirement. A file identical to the
  * same path in the main checkout (an .env copied in by setup) is too. */
@@ -53,7 +52,7 @@ export function disposableIgnored(path: string, worktree: string, project: strin
  * removed: a checkpointed rehearsal's authorized production export and imported database went with its worktree
  * (2026-10-16). The WIP commit covers tracked and untracked files; this covers what git ignores. Throws when it can't,
  * so the worktree stays. */
-async function keepIgnored(root: string, thread: ThreadRecord, wip: string | undefined): Promise<{ path: string; entries: string[] } | undefined> {
+async function keepIgnored(root: string, thread: WorkerThread, wip: string | undefined): Promise<{ path: string; entries: string[] } | undefined> {
 	const listed = await gitChecked(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory");
 	const declared = (await gitAttempt(thread.project, "config", "--get-all", "wm.disposable")).out.split("\n").map(s => s.trim()).filter(Boolean);
 	// git collapses an ignored directory to one entry: open .wm/ so wm's launch file alone stays disposable.
@@ -77,8 +76,8 @@ async function keepIgnored(root: string, thread: ThreadRecord, wip: string | und
 	const head = await gitChecked(root, "rev-parse", "HEAD");
 	writeFileSync(join(kept, "RETIRED.md"), [
 		"# Ignored state kept from a retired worktree", "",
-		"worktree: " + root, "thread: " + thread.id + (thread.worker ? " (" + thread.worker.run + "/" + thread.worker.handle + ")" : ""),
-		"branch: " + (thread.branch ?? "(none)"), "head: " + head + (wip ? " (WIP commit of its uncommitted work)" : ""),
+		"worktree: " + root, "thread: " + thread.id + " (" + thread.worker.run + "/" + thread.worker.handle + ")",
+		"branch: " + thread.branch, "head: " + head + (wip ? " (WIP commit of its uncommitted work)" : ""),
 		"retired: " + new Date().toISOString(), "",
 		"These paths were gitignored in the worktree and are kept here at the same relative paths. To resume, check out",
 		"the branch in a worktree and move them back. Delete this directory once nothing needs them.", "",
@@ -113,27 +112,22 @@ export async function keepProcessLogs(root: string, pids: number[]): Promise<str
 
 /** Commit everything uncommitted (ignored files aside) to the worktree's branch; its sha, or undefined when clean.
  * Throws when it can't, so the worktree stays rather than losing the work. */
-async function commitWip(root: string, thread: ThreadRecord): Promise<string | undefined> {
+async function commitWip(root: string, thread: WorkerThread): Promise<string | undefined> {
 	if (!await gitChecked(root, "status", "--porcelain")) return;
 	await gitChecked(root, "add", "-A");
 	await gitChecked(root, "-c", "commit.gpgsign=false", "commit", "--no-verify", "-q", "-m",
-		"WIP: uncommitted work of " + (thread.worker ? thread.worker.run + "/" + thread.worker.handle : thread.id) + " at retirement\n\nSaved by thread cleanup before removing " + root + "; not reviewed.");
+		"WIP: uncommitted work of " + thread.worker.run + "/" + thread.worker.handle + " at retirement\n\nSaved by thread cleanup before removing " + root + "; not reviewed.");
 	return gitChecked(root, "rev-parse", "--short", "HEAD");
 }
 
-async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processesOnly: boolean, discardIgnored = false): Promise<ThreadCleanup> {
+async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processesOnly: boolean, discardIgnored = false): Promise<ThreadCleanup> {
 	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
-	const owned = thread.ownership === "owner";
-	let root: string | undefined;
-	if (owned) {
-		if (!thread.worktree) throw new Error("Refusing to remove an owner without a linked worktree: " + thread.id);
-		root = resolve(thread.worktree);
-		if (root === "/" || root === resolve(thread.project)) throw new Error("Refusing to remove main checkout: " + root);
-		const entry = (await worktrees(thread.project)).find(t => t.path === root);
-		if (entry && entry.branch !== thread.branch) throw new Error("Owned worktree has a different branch: " + root);
-		// Resolve aliases before matching lsof cwd paths.
-		if (entry) root = realpathSync(root);
-	}
+	let root = resolve(thread.worktree);
+	if (root === "/" || root === resolve(thread.project)) throw new Error("Refusing to remove main checkout: " + root);
+	const entry = (await worktrees(thread.project)).find(t => t.path === root);
+	if (entry && entry.branch !== thread.branch) throw new Error("Worktree has a different branch: " + root);
+	// Resolve aliases before matching lsof cwd paths.
+	if (entry) root = realpathSync(root);
 	const parents = new Map<number, number>();
 	for (const row of (await command("ps", ["-axo", "pid=,ppid="])).trim().split("\n")) {
 		const [pid, parent] = row.trim().split(/\s+/).map(Number);
@@ -143,11 +137,11 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 	const protectedPids = new Set<number>();
 	for (let pid = process.pid; pid > 0 && !protectedPids.has(pid); pid = parents.get(pid) ?? 0) protectedPids.add(pid);
 	const live = readLive();
-	const canonical = live.filter(l => l.sessionId === thread.sessionId || (l as Live & { thread?: string }).thread === thread.id || (!!thread.bb && l.thread === thread.bb));
+	const canonical = live.filter(l => l.thread === thread.id);
 	if (canonical.some(l => protectedPids.has(l.pid)))
 		throw new Error("Cleanup controller is inside thread " + thread.id + "; run cleanup from another terminal");
-	const selected = new Set<number>([...canonical.map(l => l.pid), ...owned && root ? await cwdProcesses(root) : []]);
-	// Reach pi children outside the cwd too (e.g. MCP servers); guests never use the shared cwd sweep.
+	const selected = new Set<number>([...canonical.map(l => l.pid), ...await cwdProcesses(root)]);
+	// Reach pi children outside the cwd too (e.g. MCP servers).
 	let grew = true;
 	while (grew) {
 		grew = false;
@@ -157,11 +151,11 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 	}
 	for (const pid of protectedPids) selected.delete(pid);
 	// pi's process manager deletes its logs when pi ends: copy them into the worktree first, so they leave with its state.
-	if (owned && root && !discardIgnored && existsSync(root)) await keepProcessLogs(root, canonical.map(l => l.pid).filter(alive));
+	if (!discardIgnored && existsSync(root)) await keepProcessLogs(root, canonical.map(l => l.pid).filter(alive));
 	for (const record of live) if (selected.has(record.pid)) markRetired(record);
 	// Marked first, so the parent's child monitor reads bb's exit as retirement. bb would restart a pi killed under it:
 	// release its runtime, then sweep what's left.
-	if (thread.bb) await stopBb(thread.bb);
+	await stopBb(thread.id);
 	const retiring = [...selected].filter(alive);
 	for (const pid of retiring) {
 		try { process.kill(pid, "SIGTERM"); }
@@ -176,7 +170,7 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 	if (retiring.some(alive)) throw new Error("Retiring thread still has live processes: " + retiring.filter(alive).join(", "));
 	result.killed = retiring;
 	if (processesOnly) return result;
-	if (owned && root) {
+	{
 		const entry = (await worktrees(thread.project)).find(t => t.path === root);
 		// Uncommitted work outlives the worktree as a WIP commit on its branch, which is then kept: a replaced drive's
 		// evidence (recordings of paid live draws, write-ups) was untracked and went with its worktree (2026-10-12).
@@ -184,7 +178,7 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 		const kept = entry && !discardIgnored ? await keepIgnored(root, thread, wip) : undefined;
 		if (kept) result.kept = [...result.kept ?? [], { worktree: root, ...kept }];
 		if (entry) await gitChecked(thread.project, "worktree", "remove", "--force", root);
-		if (thread.branch) {
+		{
 			if (wip) result.branchesKept.push({ branch: thread.branch, reason: "uncommitted work saved as WIP commit " + wip });
 			else if (kept) result.branchesKept.push({ branch: thread.branch, reason: "ignored state kept at " + kept.path });
 			else if (keepBranch) result.branchesKept.push({ branch: thread.branch, reason: "keepBranch requested" });
@@ -195,14 +189,8 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 			}
 		}
 	}
-	if (thread.bb) {
-		await archiveBb(thread.bb);
-		if (owned && root && !existsSync(root)) await deleteBbEnvironment(thread.bb);
-	}
-	// Current session can change while cleanup waits; never overwrite it with the walk's snapshot.
-	const current = await getThread(thread.id);
-	if (!current) throw new Error("Thread disappeared during cleanup: " + thread.id);
-	await saveThread({ ...current, archived: true, blocked: undefined });
+	await archiveBb(thread.id);
+	if (!existsSync(root)) await deleteBbEnvironment(thread.id);
 	result.closed.push(thread.id);
 	return result;
 }

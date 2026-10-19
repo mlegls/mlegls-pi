@@ -5,14 +5,14 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { integrate, MergeConflict, retire } from "./dispatch.ts";
 import { Worker } from "./wm.ts";
-import { randomUUID } from "node:crypto";
-import { saveThread, type ThreadRecord } from "./thread";
+import { fakeBb } from "./thread/fake-bb";
 import type { Handle } from "./dispatch";
 
-let state: string, oldState: string | undefined;
+let state: string, oldState: string | undefined, saved: NodeJS.ProcessEnv;
 const roots: string[] = [];
-beforeEach(() => { oldState = process.env.XDG_STATE_HOME; state = mkdtempSync(join(tmpdir(), "dispatch-state-")); process.env.XDG_STATE_HOME = state; });
+beforeEach(() => { saved = { ...process.env }; oldState = process.env.XDG_STATE_HOME; state = mkdtempSync(join(tmpdir(), "dispatch-state-")); process.env.XDG_STATE_HOME = state; });
 afterEach(() => {
+  process.env = saved;
   if (oldState === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = oldState;
   for (const root of [...roots.splice(0), state]) rmSync(root, { recursive: true, force: true });
 });
@@ -24,6 +24,7 @@ async function repo() {
   const main = join(root, "main");
   git(root, "init", "-q", "-b", "main", main);
   git(main, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "root");
+  const bb = fakeBb(root);
   const work = join(root, "work");
   git(main, "worktree", "add", "-q", "-b", "unit-a", work);
   const commit = (dir: string, file: string, text: string) => {
@@ -32,11 +33,10 @@ async function repo() {
     git(dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", file);
   };
   const register = async (handle = "unit-a"): Promise<Handle> => {
-    const id = randomUUID();
+    const id = "bbt-" + handle;
     git(main, "config", "branch." + handle + ".ab-parent", "main");
-    const thread: ThreadRecord = { id, sessionId: id, sessionFile: join(root, id + ".jsonl"), cwd: work, project: main, worktree: work, ownership: "owner", branch: handle, worker: { run: "t", handle }, archived: false, created: new Date().toISOString() };
-    await saveThread(thread);
-    return { handle, run: "t", path: work, threadId: id };
+    bb.addThread(id, work, "t/" + handle);
+    return { handle, run: "t", path: work, bb: id };
   };
   return { main, work, git, commit, register, worker: await register() };
 }

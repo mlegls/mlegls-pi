@@ -1,24 +1,14 @@
-import { tellBb } from "./bb";
-import { lastTurn } from "./turn";
-import { parse } from "../report";
-import { allThreads, getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { retireThread } from "./lifecycle-cleanup";
 import { assertNoTrackerChanges } from "./tracker-worktree";
-import { delay } from "./process";
-import type { ThreadBlock, ThreadCleanup, ThreadIntegration, ThreadRecord } from "./types";
+import { workerOf } from "./runtime";
+import type { ThreadCleanup, ThreadIntegration } from "./types";
 
 export class ThreadMergeConflict extends Error {
 	constructor(readonly threadId: string, readonly branch: string, readonly parentBranch: string, readonly files: string[]) {
 		super("conflicts merging " + branch + " into " + parentBranch + ": " + files.join(", "));
 		this.name = "ThreadMergeConflict";
 	}
-}
-
-async function threadRecord(id: string): Promise<ThreadRecord> {
-	const thread = await getThread(id);
-	if (!thread) throw new Error("Unknown thread: " + id);
-	return thread;
 }
 
 async function clean(cwd: string, when: string): Promise<void> {
@@ -48,16 +38,15 @@ export async function alignIndex(path: string, base: string): Promise<string[]> 
 	return stale;
 }
 
-/** One thread's git integration into ab-parent; no cleanup or automatic conflict messaging. Guest returns undefined. */
+/** One worker thread's (bb thread id) git integration into the branch's ab-parent; no cleanup or conflict messaging. */
 export async function integrateThread(id: string, options: {
 	mode?: "rebase" | "merge";
-	prepare?: (thread: ThreadRecord) => Promise<void>;
-} = {}): Promise<ThreadIntegration | undefined> {
-	const thread = await threadRecord(id);
-	if (thread.ownership === "guest") return;
-	if (thread.archived) throw new Error("No active thread: " + id);
+	prepare?: () => Promise<void>;
+} = {}): Promise<ThreadIntegration> {
+	const thread = await workerOf(id);
+	if (!thread) throw new Error("No active worker thread: " + id);
 	const branch = thread.branch;
-	if (!branch || await gitChecked(thread.cwd, "branch", "--show-current") !== branch)
+	if (await gitChecked(thread.cwd, "branch", "--show-current") !== branch)
 		throw new Error("integrate: thread branch is not checked out in " + thread.cwd);
 	await clean(thread.cwd, "");
 	const config = await gitAttempt(thread.project, "config", "--get", "branch." + branch + ".ab-parent");
@@ -94,7 +83,7 @@ export async function integrateThread(id: string, options: {
 			if (update.code) await conflict(thread.cwd, merged ? "merge" : "rebase");
 		}
 	}
-	await options.prepare?.(thread);
+	await options.prepare?.();
 	assertNoTrackerChanges(thread.cwd, base);
 	await clean(thread.cwd, "preparation left ");
 	// The destination may be dirty (a thread working in place there): git itself refuses only when the merge would overwrite those files.
@@ -120,87 +109,11 @@ export async function integrateThread(id: string, options: {
 	return { branch, parentBranch, path, mode, output: printed.filter(Boolean).join("\n") };
 }
 
-async function blockThread(id: string, block: ThreadBlock): Promise<void> {
-	await saveThread({ ...await threadRecord(id), blocked: block });
-}
-
-async function resolveConflict(error: ThreadMergeConflict): Promise<ThreadBlock | undefined> {
-	const id = error.threadId;
-	let block: ThreadBlock = { action: "archive", parentBranch: error.parentBranch, files: error.files, reason: error.message };
-	await blockThread(id, block);
-	const thread = await threadRecord(id);
-	if (!thread.bb) return blockThread(id, block = { ...block, reason: "Archive conflict unresolved: thread " + id + " has no bb thread to ask" }).then(() => block);
-	// The cursor precedes the request, not the first poll: a quick response must not be missed.
-	let cursor = (await lastTurn(thread.bb))?.seq ?? 0;
-	await tellBb(thread.bb, "Archive conflict: rebase onto " + error.parentBranch + " and resolve.\nFiles: " +
-		error.files.join(", ") + "\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed.");
-	while (true) {
-		const current = await threadRecord(id);
-		if (current.archived) return;
-		const turn = await lastTurn(thread.bb, cursor);
-		if (turn) {
-			cursor = turn.seq;
-			const report = parse(turn.body);
-			if (report.status === "done") {
-				await saveThread({ ...await threadRecord(id), blocked: undefined });
-				return;
-			}
-			block = { ...block, reason: "Archive conflict unresolved: agent reported " + (report.status ?? "no status") + "\n" + turn.body };
-			await blockThread(id, block);
-			return block;
-		}
-		await delay(500);
-	}
-}
-
-async function cleanupTree(id: string, archive: boolean, keepBranch: boolean, discardIgnored: boolean): Promise<ThreadCleanup> {
-	const root = await threadRecord(id);
-	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
-	if (root.archived) return result;
-	const records = await allThreads();
-	const order: string[] = [], visiting = new Set<string>(), visited = new Set<string>();
-	const visit = (node: string) => {
-		if (visiting.has(node)) throw new Error("Cycle in thread spawn tree at " + node);
-		if (visited.has(node)) return;
-		visiting.add(node);
-		for (const child of records) if (child.parent === node) visit(child.id);
-		visiting.delete(node);
-		visited.add(node);
-		order.push(node);
-	};
-	visit(id);
-	for (const node of order) {
-		if ((await threadRecord(node)).archived) continue;
-		if (archive) {
-			while (true) {
-				try { await integrateThread(node); break; }
-				catch (error) {
-					if (!(error instanceof ThreadMergeConflict)) throw error;
-					const block = await resolveConflict(error);
-					if (block) { result.blocked = { threadId: node, block }; return result; }
-					if ((await threadRecord(node)).archived) break;
-				}
-			}
-		}
-		if ((await threadRecord(node)).archived) continue;
-		const retired = await retireThread(await threadRecord(node), keepBranch, { discardIgnored });
-		result.closed.push(...retired.closed);
-		result.killed.push(...retired.killed);
-		result.branchesDeleted.push(...retired.branchesDeleted);
-		result.branchesKept.push(...retired.branchesKept);
-		if (retired.kept) result.kept = [...result.kept ?? [], ...retired.kept];
-	}
-	result.killed = [...new Set(result.killed)];
-	return result;
-}
-
-/** Spawn subtree, post-order: integrate into each ab-parent, then retire. Conflict waits for that agent's fresh done/blocked. */
-export async function archiveThread(id: string): Promise<ThreadCleanup> {
-	return cleanupTree(id, true, false, true);
-}
-
-/** Same retirement walk without merges. keepBranch preserves every owned branch in the walk. Ignored state setup
- * can't regenerate is moved aside (ThreadCleanup.kept) unless discardIgnored says the work was taken. */
+/** Retire a worker: stop its pi and processes, remove its worktree and branch, archive its bb thread and delete its
+ * environment. Nothing is merged. keepBranch preserves the branch. Ignored state setup can't regenerate is moved aside
+ * (ThreadCleanup.kept) unless discardIgnored says the work was taken. Nothing to do once the thread is archived. */
 export async function abandonThread(id: string, options: { keepBranch?: boolean; discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
-	return cleanupTree(id, false, options.keepBranch ?? false, options.discardIgnored ?? false);
+	const thread = await workerOf(id);
+	if (!thread) return { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
+	return retireThread(thread, options.keepBranch ?? false, { discardIgnored: options.discardIgnored ?? false });
 }

@@ -2,13 +2,12 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { threadForSession } from "./registry";
-import { bbThreads, bbWorkerThread } from "./bb";
-import { historyThread, newThread, sendThread } from "./runtime";
+import { bbThreads, bbWorkerThread, tellBb } from "./bb";
+import { readSetup } from "./setup";
+import { historyThread, newThread, workerOf } from "./runtime";
 import { fakeBb } from "./fake-bb";
 
-// Replays docs/attachments/thread-registry-and-zmx-launch/driver-log.md checks C1, C2, C5, C6 and the
-// ambiguous bare worker handle of edge-observations.txt over threads on a fake bb CLI (no pi, no model).
+// Worker threads on a fake bb CLI (no pi, no model).
 const root = realpathSync(mkdtempSync("/tmp/ab-thread-test-"));
 const saved = { ...process.env };
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
@@ -34,22 +33,21 @@ afterAll(async () => {
 	rmSync(root, { recursive: true, force: true });
 });
 
-test("owning thread sets up once, guests do not own, send reaches the bb thread literally", async () => {
-	const owner = await newThread({ cwd: repo, worktree: "owner" });
-	expect(owner).toMatchObject({ ownership: "owner", branch: "owner", cwd: join(repo + "__worktrees", "owner") });
+test("a worker sets up once, send reaches the bb thread literally, and bb finds it again", async () => {
+	const owner = await newThread({ cwd: repo, worktree: "owner", worker: { run: "t", handle: "owner" } });
+	expect(owner).toMatchObject({ branch: "owner", cwd: join(repo + "__worktrees", "owner") });
 	expect(git(repo, "config", "branch.owner.ab-parent")).toBe("main");
 	expect(readFileSync(join(owner.cwd, "setup-marker"), "utf8")).toBe("setup\n");
-	const guest = await newThread({ cwd: repo, in: owner.cwd, parent: owner.id });
-	expect(guest).toMatchObject({ ownership: "guest", cwd: owner.cwd });
-	expect(readFileSync(join(owner.cwd, "setup-marker"), "utf8")).toBe("setup\n");
+	expect(readSetup(owner.cwd)).toMatchObject({ state: "done", code: 0 });
 
-	// Each thread is one bb thread in its own environment; the owner's pi starts in its worktree.
-	expect(bb.threads().map(t => t.environment).sort()).toEqual([owner.cwd, owner.cwd].sort());
-	await sendThread(owner.id, "literal $HOME ; 'q'");
-	expect(bb.threads().find(t => t.id === owner.bb)!.tells).toEqual(["literal $HOME ; 'q'"]);
+	// The worker is one bb thread in its own environment; its pi starts in its worktree.
+	expect(bb.threads().map(t => t.environment)).toEqual([owner.cwd]);
+	await tellBb(owner.id, "literal $HOME ; 'q'");
+	expect(bb.threads().find(t => t.id === owner.id)!.tells).toEqual(["literal $HOME ; 'q'"]);
 	expect(await historyThread(owner.id, 1)).toBe("literal $HOME ; 'q'\n");
 
-	expect(await threadForSession(owner.sessionId)).toMatchObject({ id: owner.id });
+	expect(await workerOf(owner.id)).toMatchObject({ id: owner.id, branch: "owner", worker: { run: "t", handle: "owner" } });
+	await expect(workerOf(owner.id, { run: "t", handle: "other" })).rejects.toThrow("is not t/other");
 });
 
 test("a bare worker handle shared by two runs is ambiguous until its run is given", async () => {
@@ -62,7 +60,7 @@ test("a bare worker handle shared by two runs is ambiguous until its run is give
 // Reviewer measurement of the core join's collector-SHA premise: a worker branched from a base SHA that is not
 // its spawning checkout's tip (as reconcile launches review/implement workers) integrates into that checkout's branch.
 test("a worker spawned from a collector's older base SHA records the collector branch as ab-parent", async () => {
-	const collector = await newThread({ cwd: repo, worktree: "collector" });
+	const collector = await newThread({ cwd: repo, worktree: "collector", worker: { run: "r", handle: "collector" } });
 	const comparison = git(collector.cwd, "rev-parse", "HEAD");
 	writeFileSync(join(collector.cwd, "landed.txt"), "landed\n");
 	git(collector.cwd, "add", "landed.txt");

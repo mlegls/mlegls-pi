@@ -2,15 +2,13 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ThreadMergeConflict, abandonThread, alignIndex, archiveThread, integrateThread } from "./lifecycle";
-import { getThread } from "./registry";
-import { newThread } from "./runtime";
+import { ThreadMergeConflict, abandonThread, alignIndex, integrateThread } from "./lifecycle";
+import { newThread, workerOf } from "./runtime";
 import { fakeBb } from "./fake-bb";
 import { keepProcessLogs } from "./lifecycle-cleanup";
-import type { ThreadRecord } from "./types";
+import type { NewThreadOptions, WorkerThread } from "./types";
 
-// Unit tests for the contract controls docs/attachments/thread-archive-and-abandon/drive.md leaves to review
-// (C2 report identity/freshness, C6 raw destination/edge controls). Threads on a fake bb CLI: no pi, no model.
+// Unit tests for integration and retirement of worker threads on a fake bb CLI: no pi, no model.
 const root = realpathSync(mkdtempSync("/tmp/ab-lifecycle-test-"));
 const saved = { ...process.env };
 const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
@@ -23,29 +21,26 @@ const commit = (cwd: string, file: string, text: string) => {
 let n = 0;
 const fresh = () => "t" + ++n;
 
+const spawn = (cwd: string, name: string, extra: Partial<NewThreadOptions> = {}) => newThread({ cwd, worktree: name, worker: { run: "t", handle: name }, ...extra });
 async function until<T>(read: () => Promise<T | undefined | false>): Promise<T> {
 	for (let i = 0; i < 200; i++) { const value = await read(); if (value) return value; await new Promise(r => setTimeout(r, 100)); }
 	throw new Error("timed out");
 }
-const pending = (promise: Promise<unknown>, ms = 1500) =>
-	Promise.race([promise.then(() => false), new Promise<boolean>(r => setTimeout(() => r(true), ms))]);
 
-/** parent (on main) with a child spawned from it; both then edit conflict.txt differently. */
-async function conflicting(): Promise<{ parent: ThreadRecord; child: ThreadRecord }> {
+/** parent (on main) with a child branched from it; both then edit conflict.txt differently. */
+async function conflicting(): Promise<{ parent: WorkerThread; child: WorkerThread }> {
 	const name = fresh();
-	const parent = await newThread({ cwd: repo, worktree: name + "p" });
-	const child = await newThread({ cwd: parent.cwd, parent: parent.id, worktree: name + "c" });
+	const parent = await spawn(repo, name + "p");
+	const child = await spawn(parent.cwd, name + "c");
 	commit(parent.cwd, "conflict.txt", "parent");
 	commit(child.cwd, "conflict.txt", "child");
 	return { parent, child };
 }
-let bb: ReturnType<typeof fakeBb>;
-const report = (t: ThreadRecord, body: string) => bb.completeTurn(t.cwd, body);
 
 beforeAll(() => {
 	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|TMUX.*)$/.test(key)) delete process.env[key];
 	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root });
-	bb = fakeBb(root);
+	fakeBb(root);
 	mkdirSync(repo);
 	git(repo, "init", "-b", "main");
 	git(repo, "config", "user.name", "t");
@@ -62,8 +57,8 @@ afterAll(async () => {
 
 test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lands beside unrelated destination edits, and leaves threads active", async () => {
 	const name = fresh();
-	const mid = await newThread({ cwd: repo, worktree: name + "m" });
-	const kid = await newThread({ cwd: mid.cwd, parent: mid.id, worktree: name + "k" });
+	const mid = await spawn(repo, name + "m");
+	const kid = await spawn(mid.cwd, name + "k");
 	commit(kid.cwd, name + ".txt", "kid");
 	// Merge lineage is separate from spawn lineage: kid was spawned by mid but now merges into main.
 	git(repo, "config", "branch." + kid.branch + ".ab-parent", "main");
@@ -73,7 +68,7 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 	await expect(integrateThread(kid.id)).rejects.toThrow("uncommitted changes");
 	rmSync(join(kid.cwd, "dirty.txt"));
 	await expect(integrateThread(kid.id, { prepare: async () => { throw new Error("prepare failed"); } })).rejects.toThrow("prepare failed");
-	await expect(integrateThread(kid.id, { prepare: async t => { writeFileSync(join(t.cwd, "left.txt"), "x"); } })).rejects.toThrow("preparation left");
+	await expect(integrateThread(kid.id, { prepare: async () => { writeFileSync(join(kid.cwd, "left.txt"), "x"); } })).rejects.toThrow("preparation left");
 	rmSync(join(kid.cwd, "left.txt"));
 	expect(git(repo, "rev-parse", "main")).toBe(mainBefore);
 
@@ -85,12 +80,12 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 
 	const from = process.cwd(); // not any thread's checkout
 	expect(from).not.toBe(repo);
-	expect(await integrateThread(kid.id)).toMatchObject({ branch: kid.branch!, parentBranch: "main", path: repo, mode: "rebase" });
+	expect(await integrateThread(kid.id)).toMatchObject({ branch: kid.branch, parentBranch: "main", path: repo, mode: "rebase" });
 	expect(readFileSync(join(repo, name + ".txt"), "utf8")).toBe("kid");
 	expect(readFileSync(join(repo, name + "-unrelated.txt"), "utf8")).toBe("in place");
 	rmSync(join(repo, name + "-unrelated.txt"));
 	expect(git(mid.cwd, "branch", "--contains", git(kid.cwd, "rev-parse", "HEAD"))).not.toContain(mid.branch!);
-	expect((await getThread(kid.id))!.archived).toBe(false);
+	expect(await workerOf(kid.id)).toBeDefined();
 	expect(existsSync(kid.cwd)).toBe(true);
 });
 
@@ -109,7 +104,7 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 		writeFileSync(join(cwd, ".wm", "drive", "debug.txt"), "scan");
 	};
 	const name = fresh();
-	const t = await newThread({ cwd: repo, worktree: name });
+	const t = await spawn(repo, name);
 	seed(t.cwd);
 	const result = await abandonThread(t.id);
 	const kept = join(repo + "__retired", name);
@@ -126,13 +121,13 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 	expect(git(repo, "show", t.branch + ":draft.txt")).toBe("untracked");
 
 	const done = fresh();
-	const u = await newThread({ cwd: repo, worktree: done });
+	const u = await spawn(repo, done);
 	seed(u.cwd);
 	git(repo, "config", "--add", "wm.disposable", "local-db");
 	git(repo, "config", "--add", "wm.disposable", ".wm/drive");
 	try { expect((await abandonThread(u.id)).kept).toBeUndefined(); }
 	finally { git(repo, "config", "--unset-all", "wm.disposable"); }
-	const v = await newThread({ cwd: repo, worktree: fresh() });
+	const v = await spawn(repo, fresh());
 	seed(v.cwd);
 	expect((await abandonThread(v.id, { discardIgnored: true })).kept).toBeUndefined();
 	expect(existsSync(join(repo + "__retired", done))).toBe(false);
@@ -159,7 +154,7 @@ test("retirement copies the managed-process logs a pi holds open into its worktr
 
 test("integrate returns what the destination's merge printed, a failing post-merge hook included", async () => {
 	const name = fresh();
-	const t = await newThread({ cwd: repo, worktree: name });
+	const t = await spawn(repo, name);
 	commit(t.cwd, name + ".txt", "hooked");
 	const hooks = join(root, "hooks-" + name);
 	mkdirSync(hooks);
@@ -195,7 +190,7 @@ test("after a landing, index entries left at the pre-landing version are reset t
 
 test("raw integrate names a missing or deleted ab-parent instead of choosing another target", async () => {
 	const name = fresh();
-	const t = await newThread({ cwd: repo, worktree: name });
+	const t = await spawn(repo, name);
 	commit(t.cwd, name + ".txt", "x");
 	git(repo, "config", "--unset", "branch." + t.branch + ".ab-parent");
 	await expect(integrateThread(t.id)).rejects.toThrow("missing ab-parent");
@@ -208,7 +203,7 @@ test("raw integrate names a missing or deleted ab-parent instead of choosing ano
 
 test("a merge-bearing child takes its base by merge, keeping its earlier resolution commits", async () => {
 	const name = fresh();
-	const t = await newThread({ cwd: repo, worktree: name });
+	const t = await spawn(repo, name);
 	commit(repo, name + "-a.txt", "a");
 	commit(t.cwd, name + "-0.txt", "0");
 	git(t.cwd, "merge", "--no-ff", "--no-edit", "main"); // child already carries a merge commit
@@ -229,42 +224,4 @@ test("raw conflict throws its files, leaves the child clean and unapplied, and s
 	expect(git(child.cwd, "status", "--porcelain")).toBe("");
 	expect(git(child.cwd, "rev-parse", "HEAD")).toBe(head);
 	expect(git(parent.cwd, "log", "--oneline", "-1", "--", "conflict.txt")).toContain("parent");
-	expect((await getThread(child.id))!.blocked).toBeUndefined();
-});
-
-test("archive conflict resumes only on the thread's fresh done", async () => {
-	const { parent, child } = await conflicting();
-	const archive = archiveThread(parent.id);
-	await until(async () => (await getThread(child.id))!.blocked);
-	expect((await getThread(child.id))!.blocked).toMatchObject({ action: "archive", parentBranch: parent.branch, files: ["conflict.txt"] });
-
-	expect(await pending(archive)).toBe(true);
-	expect((await getThread(child.id))!.archived).toBe(false);
-
-	await expect(async () => git(child.cwd, "merge", "--no-edit", "--no-verify", parent.branch!)).toThrow(); // conflicts; resolve below
-	writeFileSync(join(child.cwd, "conflict.txt"), "resolved");
-	git(child.cwd, "add", "conflict.txt");
-	git(child.cwd, "commit", "--no-edit");
-	expect(git(repo, "show", "main:conflict.txt")).toBe("seed");
-
-	report(child, "done resolved");
-	const result = await archive;
-	expect(result.closed).toEqual([child.id, parent.id]);
-	expect(result.branchesDeleted.sort()).toEqual([child.branch!, parent.branch!].sort());
-	expect(git(repo, "show", "main:conflict.txt")).toBe("resolved");
-	expect(existsSync(child.cwd) || existsSync(parent.cwd)).toBe(false);
-}, 30_000);
-
-for (const status of ["needs-input", "checkpoint", "turn-end"]) test("archive conflict answered " + status + " is not a resolution: node and ancestor stay active", async () => {
-	const { parent, child } = await conflicting();
-	const archive = archiveThread(parent.id);
-	await until(async () => (await getThread(child.id))!.blocked);
-	report(child, status + " unsure what to keep");
-	const result = await archive;
-	expect(result.closed).toEqual([]);
-	expect(result.blocked).toMatchObject({ threadId: child.id, block: { action: "archive", files: ["conflict.txt"] } });
-	expect(result.blocked!.block.reason).toContain("unresolved");
-	expect((await getThread(child.id))).toMatchObject({ archived: false, blocked: { files: ["conflict.txt"] } });
-	expect((await getThread(parent.id))!.archived).toBe(false);
-	expect(existsSync(child.cwd) && existsSync(parent.cwd)).toBe(true);
 });

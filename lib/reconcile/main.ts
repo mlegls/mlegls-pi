@@ -106,7 +106,7 @@ export function campaigns(cwd: string): (State & { running: boolean })[] {
 export function summary(s: State & { running: boolean }) {
 	return {
 		root: s.root, backend: s.backend, running: s.running, finished: s.finished ?? null, stopping: !!s.stopping, owner: s.owner, budget: s.budget,
-		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, threadId: c.handle?.threadId, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into === s.pr?.path ? "(PR staging)" : c.into }])),
+		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, bb: c.handle?.bb, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into === s.pr?.path ? "(PR staging)" : c.into }])),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null }])),
 		cwd: s.cwd, land: s.land ?? "local", target: s.target ?? (s.pr ? "github:" + s.pr.repository + ":" + s.pr.baseBranch : s.cwd),
 		pr: s.pr, landed: s.landed, results: s.results, landingOps: s.landingOps, refinements: s.refinements,

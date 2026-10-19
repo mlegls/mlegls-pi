@@ -1,46 +1,33 @@
 export interface WorkerIdentity { run: string; handle: string }
-export interface ThreadBlock {
-	action: "archive" | "merge";
-	parentBranch: string;
-	files: string[];
-	reason: string;
-}
 export interface AgentLaunch {
-	/** Additional pi arguments; the thread's pi gets --session from the current record. */
+	/** Additional pi arguments (--model, --thinking). */
 	args?: string[];
 	env?: Record<string, string>;
-	/** Submitted on first launch only, never replayed by the restart loop. */
+	/** Submitted on first launch only. */
 	prompt?: string;
 }
-export interface ThreadRecord {
-	id: string; // canonical pi session id at creation; never changes
-	sessionId: string;
-	sessionFile: string;
+/** The worktree wm made for a worker, before bb has a thread for it. Never persisted: a running worker is found again
+ * from its bb thread (workerOf in runtime.ts) and git. */
+export interface WorkerCheckout {
 	cwd: string;
 	project: string; // absolute main checkout
-	worktree?: string; // enclosing linked worktree, if any
-	ownership: "owner" | "guest"; // only owner may merge/remove worktree/kill cwd leftovers
-	branch?: string;
-	parent?: string; // spawn parent thread, independent of ab-parent
-	archived: boolean;
-	created: string;
-	worker?: WorkerIdentity;
+	worktree: string;
+	branch: string;
+	worker: WorkerIdentity;
 	launch?: AgentLaunch;
-	blocked?: ThreadBlock;
-	/** The bb thread running this thread's pi (lib/thread/bb.ts); absent on a record from the retired zmx runtime. */
-	bb?: string;
+}
+/** A worker's bb thread and its checkout. */
+export interface WorkerThread extends WorkerCheckout {
+	id: string; // the bb thread id
 }
 export interface NewThreadOptions {
 	cwd?: string; // spawning/integration checkout, default process.cwd()
-	in?: string; // guest destination cwd; mutually exclusive with worktree
-	worktree?: string; // requested branch/worktree name; default new thread id
+	worktree?: string; // requested branch/worktree name; default the worker's handle
 	base?: string; // initial git ref; does not change the merge parent
-	prepare?: (thread: ThreadRecord) => Promise<void>; // after checkout creation, before setup/launch
-	parent?: string;
-	parentSession?: string; // resolves default parent; free-session provenance remains separate
+	prepare?: (checkout: WorkerCheckout) => Promise<void>; // after checkout creation, before setup/launch
+	parent?: string; // the bb thread it sits under; default BB_THREAD_ID
 	launch?: AgentLaunch;
-	worker?: WorkerIdentity;
-	interactive?: boolean;
+	worker: WorkerIdentity;
 }
 export interface ThreadIntegration {
 	branch: string;
@@ -51,11 +38,10 @@ export interface ThreadIntegration {
 	output?: string;
 }
 export interface ThreadCleanup {
-	closed: string[]; // post-order thread ids already retired
+	closed: string[]; // retired bb thread ids
 	killed: number[];
 	branchesDeleted: string[];
 	branchesKept: { branch: string; reason: string }[];
 	/** Ignored state moved aside from removed worktrees, instead of deleted with them. */
 	kept?: { worktree: string; path: string; entries: string[] }[];
-	blocked?: { threadId: string; block: ThreadBlock };
 }

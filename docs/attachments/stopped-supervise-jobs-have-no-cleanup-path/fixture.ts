@@ -5,7 +5,6 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { campaigns, start, stop, summary } from "../../../lib/reconcile/main";
 import { load, saveState, type State } from "../../../lib/reconcile/reconcile";
-import { allThreads } from "../../../lib/thread/registry";
 import { abandonThread } from "../../../lib/thread/lifecycle";
 import { fakeBb, threads } from "../../../lib/thread/fake-bb";
 import { pidAlive, spawn } from "../../../lib/wm";
@@ -41,7 +40,7 @@ export async function prepare(): Promise<Fixture> {
 	try {
 		for (const handle of ["implement", "handler", "launch-race"]) {
 			const w = await spawn({ cwd: handle === "handler" ? collector : cwd, run: "fixture", handle, prompt: "Stop fixture", model: "fake/model", effort: "low" });
-			f.workers.push({ receipt: { run: w.run, handle: w.handle, path: w.dir, threadId: w.threadId }, branch: w.branch }); save();
+			f.workers.push({ receipt: { run: w.run, handle: w.handle, path: w.dir, bb: w.bb }, branch: w.branch }); save();
 			writeFileSync(join(w.dir, handle + ".txt"), "unmerged " + handle + "\n");
 			git(w.dir, "add", "."); git(w.dir, "commit", "-qm", handle);
 		}
@@ -68,7 +67,7 @@ export async function prepare(): Promise<Fixture> {
 export async function cleanup(f: Fixture) {
 	use(f.env);
 	if (load(f.cwd, "fixture")) await stop(f.cwd, "fixture");
-	for (const t of await allThreads()) await abandonThread(t.id, { keepBranch: true });
+	for (const t of threads(join(f.root, "fake-bb")).filter(t => t.environment && t.title.includes("/"))) await abandonThread(t.id, { keepBranch: true });
 	process.chdir(packagePath);
 	rmSync(f.root, { recursive: true, force: true });
 }
@@ -90,7 +89,7 @@ if (import.meta.main) {
 				{ cwd: packagePath, env: process.env, stdio: ["ignore", "inherit", "inherit"] });
 			process.exitCode = await child.exited;
 		} else if (action === "inspect") console.log(JSON.stringify({
-			state: campaigns(f.cwd).map(summary), threads: (await allThreads()).map(t => ({ id: t.id, worker: t.worker, cwd: t.cwd })), bbThreads: threads(join(f.root, "fake-bb")).map(t => ({ id: t.id, environment: t.environment, archived: t.archivedAt !== null })),
+			state: campaigns(f.cwd).map(summary), bbThreads: threads(join(f.root, "fake-bb")).map(t => ({ id: t.id, environment: t.environment, archived: t.archivedAt !== null })),
 			reconcilerAlive: pidAlive(f.pid), leftoverAlive: pidAlive(f.leftoverPid), collectorExists: existsSync(f.collector),
 			worktrees: git(f.cwd, "worktree", "list", "--porcelain"), branches: git(f.cwd, "branch", "--list"),
 		}, null, 2));

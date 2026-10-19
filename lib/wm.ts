@@ -1,6 +1,6 @@
 // wm: interactive worker threads, with turn reports from bb.
-// Handles/topics name work, thread ids name lifetimes, and session ids name canonical pi histories.
-// Worktree, terminal and Git lifecycle belong to lib/thread.
+// Handles/topics name work and bb thread ids name lifetimes.
+// Worktree and Git lifecycle belong to lib/thread.
 //   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt, model, effort });
 //   const o = await w.done;                        // resolves on done, rejects on exit
 //   for await (const o of w.events) { ... }        // every event, incl. blocked/idle
@@ -14,8 +14,8 @@ import { agent, AGENTS_DIR, roleBody, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { abandonThread, getThread, historyThread, integrateThread, newThread, sendThread, threadForBb, ThreadMergeConflict, type ThreadRecord } from "./thread";
-import { bbThreads, bbWorkerThread, bbWorking, type BbThread } from "./thread/bb";
+import { abandonThread, historyThread, integrateThread, newThread, workerOf, ThreadMergeConflict, type WorkerCheckout, type WorkerThread } from "./thread";
+import { bbThreads, bbWorkerThread, bbWorking, tellBb, type BbThread } from "./thread/bb";
 import { commonDir } from "./thread/git";
 import { lastTurn, type TurnReport } from "./thread/turn";
 
@@ -179,7 +179,6 @@ export class Worker {
 	/** The worker's bb thread: bound at spawn, or found from run state or by its title `<run>/<handle>`. */
 	bb?: string;
 	/** The lifecycle's record key, kept until lifecycle takes a bb thread id. */
-	threadId?: string;
 	private owningBranch?: string;
 	/** @internal Register before launch; host observation starts once the registry has launched. */
 	launching = false;
@@ -212,12 +211,10 @@ export class Worker {
 		readonly cwd: string,
 		readonly session = "", // legacy, not transport or canonical pi identity
 		dir = cwd,
-		threadId?: string,
 		bb?: string,
 	) {
 		this.topic = `${run}/${handle}`;
 		this.dir = dir;
-		this.threadId = threadId;
 		this.bb = bb;
 		poller.add(this);
 	}
@@ -230,29 +227,24 @@ export class Worker {
 	/** @internal The worker's bb thread, from what it was attached with or else bb by title; no worktree/window-name guesses. */
 	async bbId(): Promise<string | undefined> {
 		if (this.bb) return this.bb;
-		if (this.threadId) this.bb = (await getThread(this.threadId))?.bb; // attached with a receipt from before run state held it
 		return this.bb ??= bbWorkerThread(await bbThreads(), this.handle, this.run)?.id;
 	}
-	/** @internal The lifecycle's record of the worker; lifecycle code still takes one. */
-	async record(): Promise<ThreadRecord | undefined> {
+	/** @internal The worker's live thread (its bb thread and worktree), or undefined once it is archived. */
+	async record(): Promise<WorkerThread | undefined> {
 		const bb = await this.bbId();
-		const record = this.threadId ? await getThread(this.threadId) : bb ? await threadForBb(bb) : undefined;
-		if (record) {
-			if (record.worker?.run !== this.run || record.worker.handle !== this.handle) throw new Error("Worker identity does not match thread " + record.id);
-			this.bind(record);
-		}
-		return record;
+		const thread = bb ? await workerOf(bb, { run: this.run, handle: this.handle }) : undefined;
+		if (thread) this.bind(thread);
+		return thread;
 	}
 	/** @internal */
-	bind(record: ThreadRecord) {
-		this.bb = record.bb ?? this.bb;
-		this.threadId = record.id;
-		this.dir = record.cwd;
-		this.owningBranch = record.branch;
+	bind(thread: WorkerThread) {
+		this.bb = thread.id;
+		this.dir = thread.cwd;
+		this.owningBranch = thread.branch;
 	}
 	private async id(): Promise<string> {
 		const record = await this.record();
-		if (!record) throw new Error("No registered worker " + this.topic);
+		if (!record) throw new Error("No live worker " + this.topic);
 		return record.id;
 	}
 
@@ -341,7 +333,7 @@ export class Worker {
 	}
 
 	async send(text: string) {
-		await sendThread(await this.id(), text);
+		await tellBb(await this.id(), text);
 	}
 
 	async capture(lines = 50): Promise<string> {
@@ -368,7 +360,7 @@ export class Worker {
 	}
 
 	toJSON() {
-		return { run: this.run, handle: this.handle, topic: this.topic, dir: this.dir, cwd: this.cwd, session: this.session, bb: this.bb, threadId: this.threadId };
+		return { run: this.run, handle: this.handle, topic: this.topic, dir: this.dir, cwd: this.cwd, session: this.session, bb: this.bb };
 	}
 }
 
@@ -445,10 +437,10 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			throw new Error(`from must be "summary"; bb threads cannot fork a session`);
 		}
 		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
-		const options = { cwd, worktree: o.handle, base: o.base, prepare: o.prepare ? async (thread: ThreadRecord) => {
+		const options = { cwd, worktree: o.handle, base: o.base, prepare: o.prepare ? async (thread: WorkerCheckout) => {
 			const prepared = await o.prepare!(thread.cwd);
 			if (prepared !== undefined) thread.launch!.prompt = prompt({ ...o, prompt: prepared, agent: a });
-		} : undefined, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, worker: { run: o.run, handle: o.handle },
+		} : undefined, worker: { run: o.run, handle: o.handle },
 			launch: { args: ["--approve", "--model", o.model!, "--thinking", o.effort!], env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
 		w.bind(await newThread(options));
 		w.turnCursor = 0;
@@ -460,15 +452,15 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 	}
 }
 
-/** A Worker spawned elsewhere. Identity/path resolve from the registry on first use. */
-export function attach(run: string, handle: string, cwd = process.cwd(), session = "", threadId?: string, bb?: string): Worker {
-	return new Worker(run, handle, resolve(cwd), session, resolve(cwd), threadId, bb);
+/** A Worker spawned elsewhere. Its thread and path resolve from bb (the given thread id, else the title `<run>/<handle>`) on first use. */
+export function attach(run: string, handle: string, cwd = process.cwd(), session = "", bb?: string): Worker {
+	return new Worker(run, handle, resolve(cwd), session, resolve(cwd), bb);
 }
 
 /** Raw integration follows the branch's recorded ab-parent; never retires or sends mail. */
 export async function merge(w: Worker, opts: { into?: string; mode?: "merge" | "rebase" } = {}) {
 	const record = await w.record();
-	if (!record) throw new Error("No registered worker " + w.topic);
+	if (!record) throw new Error("No live worker " + w.topic);
 	if (opts.into) {
 		const parent = await sh("git", ["config", "--get", "branch." + record.branch + ".ab-parent"], record.project);
 		if (parent.stdout.trim() !== opts.into) throw new Error("merge destination is recorded ab-parent, not " + opts.into);

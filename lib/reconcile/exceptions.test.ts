@@ -2,7 +2,6 @@ import { expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { protocolFixture } from "./protocol-fixture";
-import { getThread } from "../thread/registry";
 import { excludeTracker } from "../thread/tracker-worktree";
 
 // In-process reconciler on a local tracker, with no launches: budget 0 keeps it from starting handlers or workers, so
@@ -26,7 +25,7 @@ async function reconcile(prepare: (f: ReturnType<typeof protocolFixture>, r: typ
 	} catch (e) { f.close(); throw e; }
 }
 const reportTs = new Date(Date.now() - 60_000).toISOString();
-const held = (r: typeof import("./reconcile"), f: ReturnType<typeof protocolFixture>, handler?: { run: string; handle: string; path: string; threadId: string }): import("./reconcile").State => ({
+const held = (r: typeof import("./reconcile"), f: ReturnType<typeof protocolFixture>, handler?: { run: string; handle: string; path: string; bb: string }): import("./reconcile").State => ({
 	backend: "threads", root: "root", cwd: f.cwd, owner: "thr_owner", budget: 0,
 	landed: {}, results: {}, landingOps: {}, refinements: {},
 	collectors: { root: { path: f.collector, branch: "collector", parentBranch: "main" } },
@@ -68,7 +67,7 @@ test("a worker the owner told to continue withdraws its exception and retires th
 	let handlerId = "";
 	const { f, state } = await reconcile(async (f, r) => {
 		const handler = await f.worker("root-handler-2");
-		handlerId = handler.threadId;
+		handlerId = handler.bb;
 		r.saveState(held(r, f, handler));
 		const late = await f.bare("root", "fixture-implement-1");
 		f.bb.completeTurn(late.path, "waiting\n\nContinuing as the owner said; the import runs.");
@@ -77,7 +76,7 @@ test("a worker the owner told to continue withdraws its exception and retires th
 		expect(state.exceptions).toEqual({});
 		expect(state.chains.fixture).toMatchObject({ held: false });
 		expect(state.chains.fixture.waitingSince).toBeDefined();
-		expect((await getThread(handlerId))?.archived).toBe(true);
+		expect(f.bb.threads().find(t => t.id === handlerId)?.archivedAt).not.toBeNull();
 		const owner = f.bb.threads().find(t => t.id === "thr_owner")!.tells;
 		expect(owner.some(b => b.includes("withdrew the exception for fixture") && b.includes("reported again (waiting)"))).toBe(true);
 	} finally { f.close(); }
@@ -95,7 +94,7 @@ test("reopen lands a join's commits in its collector and moves the reopened chil
 		excludeTracker(kc);
 		f.commit(kc, "child.txt", "landed child\n");
 		const w = await f.worker("root-implement-1");
-		workerId = w.threadId;
+		workerId = w.bb;
 		f.git(w.path, "merge", "-q", "--no-edit", "tree/fixture");
 		f.git(w.path, "merge", "-q", "--no-edit", "main");
 		head = f.commit(w.path, "join.txt", "candidate\n");
@@ -114,6 +113,6 @@ test("reopen lands a join's commits in its collector and moves the reopened chil
 		expect(f.git(f.collector, "rev-parse", "HEAD")).toBe(head);
 		expect(f.git(kc, "rev-parse", "HEAD")).toBe(head);
 		expect(state.log.some(l => l.includes("reopened root for fixture"))).toBe(true);
-		expect((await getThread(workerId))?.archived).toBe(true);
+		expect(f.bb.threads().find(t => t.id === workerId)?.archivedAt).not.toBeNull();
 	} finally { f.close(); }
 }, 30_000);
