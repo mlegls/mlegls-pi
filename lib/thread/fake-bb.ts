@@ -65,15 +65,17 @@ function main(argv: string[]) {
 		writeFileSync(file, JSON.stringify([...all, project]));
 		return out(project);
 	}
+	if (group === "environment" && (action === "update" || action === "delete")) return out({ ok: true });
 	if (group !== "thread") return fail("unsupported: " + args.join(" "));
 	switch (action) {
 		case "spawn": {
 			const created: FakeBbThread = { id: "bbt-" + crypto.randomUUID().slice(0, 8), status: "active", archivedAt: null, parentThreadId: flag("parent-thread") ?? null,
 				environment: flag("environment")!, title: flag("title") ?? "", prompt: readFileSync(flag("prompt-file")!, "utf8"), tells: [] };
 			save(created);
-			return out({ id: created.id });
+			return out({ id: created.id, environmentId: created.environment });
 		}
 		case "list": return out(threads(dir()));
+		case "show": { const t = load(); return out({ thread: { ...t, environmentId: t.environment } }); }
 		case "stop": { const t = load(); save({ ...t, status: "idle" }); return out({ ok: true }); }
 		case "archive": { const t = load(); save({ ...t, archivedAt: Date.now() }); return out({ ok: true }); }
 		case "tell": { const t = load(); const file = flag("message-file"); save({ ...t, tells: [...t.tells, file ? readFileSync(file, "utf8") : args[3]!], tellAt: [...(t.tellAt ?? []), Date.now()] }); return out({ ok: true }); }

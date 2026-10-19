@@ -10,6 +10,7 @@ import { homedir } from "node:os";
 import { command, quote } from "./process";
 import { threadDir } from "./registry";
 import { launchEnv } from "./launch";
+import { gitAttempt } from "./lifecycle-git";
 import type { ThreadRecord } from "./types";
 
 const cli = () => process.env.BB_CLI || "bb";
@@ -74,9 +75,21 @@ export async function spawnBb(thread: ThreadRecord, parent: string | undefined, 
 	try {
 		const project = thread.project.split("/").at(-1)!;
 		const title = thread.worker ? thread.worker.run + "/" + thread.worker.handle : thread.worktree && thread.branch ? project + "/" + thread.branch : project;
-		const created = await bb<{ id: string }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
+		const created = await bb<{ id: string; environmentId: string }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
 			"--provider", "pi", ...(model ? ["--model", model] : []), ...(effort ? ["--reasoning-level", effort] : []),
 			"--title", title, "--prompt-file", prompt, ...(parent ? ["--parent-thread", parent] : [])]);
+		try {
+			if (thread.branch) {
+				const parentBranch = await gitAttempt(thread.project, "config", "--get", "branch." + thread.branch + ".ab-parent");
+				if (parentBranch.code !== 0 && parentBranch.code !== 1) throw new Error("Cannot read ab-parent: " + parentBranch.err);
+				if (parentBranch.out) await bb(["environment", "update", created.environmentId, "--merge-base-branch", parentBranch.out]);
+			}
+		} catch (error) {
+			await stopBb(created.id);
+			await archiveBb(created.id);
+			if (thread.ownership === "owner") await bb(["environment", "delete", created.environmentId]);
+			throw error;
+		}
 		return created.id;
 	} finally { rmSync(prompt, { force: true }); }
 }
@@ -136,5 +149,12 @@ export async function tellBb(id: string, text: string, mode: "queue" | "steer" =
 const gone = (error: unknown) => /not found|404/i.test(String(error));
 export const stopBb = (id: string) => bb(["thread", "stop", id]).catch(error => { if (!gone(error) && !/not (?:running|active)|idle/i.test(String(error))) throw error; });
 export const archiveBb = (id: string) => bb(["thread", "archive", id]).catch(error => { if (!gone(error)) throw error; });
+/** The worktree is already gone and its thread archived; keep thread history, retire only its environment. */
+export async function deleteBbEnvironment(id: string): Promise<void> {
+	try {
+		const { thread } = await bb<{ thread: { environmentId: string } }>(["thread", "show", id]);
+		await bb(["environment", "delete", thread.environmentId]);
+	} catch (error) { if (!gone(error)) throw error; }
+}
 export const logBb = (id: string) => command(cli(), ["thread", "log", id, "--all"]);
 export const openBb = (id: string) => command(cli(), ["thread", "open", id]);

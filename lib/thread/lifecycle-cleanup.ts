@@ -4,7 +4,7 @@ import { markRetired, readLive, type Live } from "../session-meta/live";
 import { getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { command, delay } from "./process";
-import { archiveBb, stopBb } from "./bb";
+import { archiveBb, deleteBbEnvironment, stopBb } from "./bb";
 import { cwdProcesses } from "./resources";
 import type { ThreadCleanup, ThreadRecord } from "./types";
 
@@ -195,7 +195,10 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 			}
 		}
 	}
-	if (thread.bb) await archiveBb(thread.bb);
+	if (thread.bb) {
+		await archiveBb(thread.bb);
+		if (owned && root && !existsSync(root)) await deleteBbEnvironment(thread.bb);
+	}
 	// Current session can change while cleanup waits; never overwrite it with the walk's snapshot.
 	const current = await getThread(thread.id);
 	if (!current) throw new Error("Thread disappeared during cleanup: " + thread.id);
