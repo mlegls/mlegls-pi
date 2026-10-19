@@ -4,7 +4,9 @@
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export interface FakeBbThread { id: string; status: string; archivedAt: number | null; parentThreadId: string | null; environment: string; title: string; prompt: string; tells: string[]; tellAt?: number[]; events?: { seq: number; type: string; createdAt: number; data: object }[]; output?: string }
+export interface FakeBbThread { id: string; status: string; archivedAt: number | null; parentThreadId: string | null; environment: string; title: string; prompt: string; tells: string[]; tellAt?: number[];
+	/** While set, queued tells wait in `queue` as bb holds them behind a busy turn, instead of landing in `tells`. */
+	holding?: boolean; queue?: { id: string; text: string }[]; events?: { seq: number; type: string; createdAt: number; data: object }[]; output?: string }
 
 const dir = () => process.env.FAKE_BB_DIR!;
 const threadFile = (id: string) => join(dir(), "thread-" + id + ".json");
@@ -19,7 +21,8 @@ export function fakeBb(root: string) {
 	Object.assign(process.env, { BB_CLI: cli, FAKE_BB_DIR: state });
 	return { dir: state, calls: () => calls(state), threads: () => threads(state), setStatus: (environment: string, status: string) => setStatus(state, environment, status),
 		completeTurn: (environment: string, text: string, status = "completed") => completeTurn(state, environment, text, status),
-		addThread: (id: string, environment?: string, title?: string) => addThread(state, id, environment, title) };
+		addThread: (id: string, environment?: string, title?: string) => addThread(state, id, environment, title),
+		hold: (id: string, holding: boolean) => hold(state, id, holding) };
 }
 
 export const calls = (state: string): string[][] => existsSync(join(state, "calls.log"))
@@ -46,6 +49,13 @@ export function completeTurn(state: string, environment: string, text: string, s
 /** A bb thread that exists without a spawn, e.g. the thread that owns a reconciler. */
 export function addThread(state: string, id: string, environment = "", title = id): void {
 	writeFileSync(join(state, "thread-" + id + ".json"), JSON.stringify({ id, status: "idle", archivedAt: null, parentThreadId: null, environment, title, prompt: "", tells: [] } satisfies FakeBbThread));
+}
+
+/** Hold a thread's queued tells (a busy turn), or release them: each held row then lands as one tell, as bb runs a turn per row. */
+export function hold(state: string, id: string, holding: boolean): void {
+	const t = JSON.parse(readFileSync(join(state, "thread-" + id + ".json"), "utf8")) as FakeBbThread;
+	const released = holding ? [] : (t.queue ?? []).map(r => r.text);
+	writeFileSync(join(state, "thread-" + id + ".json"), JSON.stringify({ ...t, holding, queue: holding ? t.queue ?? [] : [], tells: [...t.tells, ...released] }));
 }
 
 function main(argv: string[]) {
@@ -78,7 +88,24 @@ function main(argv: string[]) {
 		case "list": return out(threads(dir()).map(t => ({ ...t, environmentPath: t.environment })));
 		case "stop": { const t = load(); save({ ...t, status: "idle" }); return out({ ok: true }); }
 		case "archive": { const t = load(); save({ ...t, archivedAt: Date.now() }); return out({ ok: true }); }
-		case "tell": { const t = load(); const file = flag("message-file"); save({ ...t, tells: [...t.tells, file ? readFileSync(file, "utf8") : args[3]!], tellAt: [...(t.tellAt ?? []), Date.now()] }); return out({ ok: true }); }
+		case "tell": {
+			const t = load(); const file = flag("message-file"); const text = file ? readFileSync(file, "utf8") : args[3]!;
+			if (t.holding && flag("mode") === "queue") { save({ ...t, queue: [...t.queue ?? [], { id: "qmsg-" + crypto.randomUUID().slice(0, 8), text }] }); return out({ ok: true, delivery: "queued" }); }
+			save({ ...t, tells: [...t.tells, text], tellAt: [...(t.tellAt ?? []), Date.now()] }); return out({ ok: true });
+		}
+		case "queue": {
+			const sub = id, thread = args[3]!;
+			const t: FakeBbThread = existsSync(threadFile(thread)) ? JSON.parse(readFileSync(threadFile(thread), "utf8")) : fail("thread not found: " + thread);
+			const row = (r: { id: string; text: string }) => ({ id: r.id, threadId: t.id, state: "queued", editable: true, sendAt: null, content: [{ type: "text", text: r.text, mentions: [] }] });
+			if (sub === "list") return out((t.queue ?? []).map(row));
+			if (sub === "update") {
+				const q = (t.queue ?? []).find(r => r.id === args[4]) ?? fail("queued message not found: " + args[4]);
+				q.text = readFileSync(flag("message-file")!, "utf8");
+				save(t);
+				return out(row(q));
+			}
+			return fail("unsupported: " + args.join(" "));
+		}
 		case "output": return out({ output: load().output ?? "" });
 		case "log": {
 			const t = load();

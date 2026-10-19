@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { bbThreads, bbWorkerThread, tellBb } from "./bb";
+import { bbThreads, bbWorkerThread, tellBb, tellBbFolded } from "./bb";
 import { readSetup } from "./setup";
 import { historyThread, newThread, workerOf } from "./runtime";
 import { fakeBb } from "./fake-bb";
@@ -48,6 +48,20 @@ test("a worker sets up once, send reaches the bb thread literally, and bb finds 
 
 	expect(await workerOf(owner.id)).toMatchObject({ id: owner.id, branch: "owner", worker: { run: "t", handle: "owner" } });
 	await expect(workerOf(owner.id, { run: "t", handle: "other" })).rejects.toThrow("is not t/other");
+});
+
+test("folded tells to a busy thread join its waiting message from the same sender and arrive as one turn", async () => {
+	bb.addThread("busy");
+	bb.hold("busy", true);
+	await tellBb("busy", "a user message");
+	await tellBbFolded("busy", "[reconcile r] ", "[reconcile r] started");
+	await tellBbFolded("busy", "[reconcile r] ", "[reconcile r] needs you: x");
+	await tellBbFolded("busy", "[reconcile other] ", "[reconcile other] started");
+	bb.hold("busy", false);
+	expect(bb.threads().find(t => t.id === "busy")!.tells).toEqual(["a user message", "[reconcile r] started\n\n[reconcile r] needs you: x", "[reconcile other] started"]);
+	// An idle thread takes each at once: nothing waits to fold into.
+	await tellBbFolded("busy", "[reconcile r] ", "[reconcile r] done");
+	expect(bb.threads().find(t => t.id === "busy")!.tells.at(-1)).toBe("[reconcile r] done");
 });
 
 test("a bare worker handle shared by two runs is ambiguous until its run is given", async () => {

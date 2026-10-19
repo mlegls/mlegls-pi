@@ -25,7 +25,7 @@ import { lastTurn, type TurnReport } from "../thread/turn.ts";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { readLive } from "../session-meta/live";
-import { bbThreads, bbWorking, logBb, tellBb, type BbThread } from "../thread/bb";
+import { bbThreads, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
@@ -329,14 +329,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	// To a worker as a queued bb message: it follows the turn in progress, or starts one on an idle thread.
 	const sendChild = (h: Handle, body: string) => tell(h, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { cwd: controlCwd });
 	// The owner is a bb thread. One that has closed hands over to whichever thread holds the supervisor role on the desk.
-	// Told in order, off the tick; the run waits for the last before it ends.
+	// Told in order, off the tick; the run waits for the last before it ends. Notices that pile up while the owner is
+	// busy fold into one queued message, so they cost it one turn rather than one each.
 	let told: Promise<void> = Promise.resolve();
 	const tellOwner = (body: string) => {
 		told = told.then(async () => {
 			const live = new Set([...await bbThreads()].filter(([, t]) => !t.archivedAt).map(([id]) => id));
 			const supervisor = roleThread("supervisor", controlCwd);
 			const to = live.has(s.owner) ? s.owner : supervisor && live.has(supervisor) ? supervisor : s.owner;
-			await tellBb(to, "[reconcile " + s.root + "] " + body);
+			const prefix = "[reconcile " + s.root + "] ";
+			await tellBbFolded(to, prefix, prefix + body);
 		}).catch(e => note("telling the owner failed: " + e));
 	};
 	save();
