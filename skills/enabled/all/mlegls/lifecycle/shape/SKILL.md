@@ -8,4 +8,4 @@ Carry this issue to executable contracts. Use `map` for the destination and `pla
 
 A subtree goes to supervision whole: refine every child to spec/ticket, or move it out of the tree, before handing it over.
 
-Record decisions, remaining holes, dependencies, delegated authority, and acceptance in the tracker. Mail changed contracts, newly ready work, and remaining blockers to `role/<repo>/supervisor` without asking first; when no session holds the role, its next holder reads them.
+Record decisions, remaining holes, dependencies, delegated authority, and acceptance in the tracker. Tell the supervisor named in `desk/ROLES.md` about changed contracts, newly ready work, and remaining blockers without asking first; with none, add them to `desk/ATTENTION.md`.
