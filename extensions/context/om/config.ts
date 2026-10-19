@@ -42,6 +42,8 @@ export interface Config {
 	compactAfterTokens: number;
 	compactAfterTokensMode: CompactAfterTokensMode;
 	compactAfterTokensRatio: number;
+	/** Estimated summary token budget; unset derives one eighth of the session context window. */
+	compactionSummaryMaxTokens?: number;
 	observationsPoolMaxTokens: number;
 	observationsPoolTargetTokens: number;
 	/** Reflection pool size (rendered tokens) past which the condenser merges and drops reflections. */
@@ -78,8 +80,8 @@ export const DEFAULTS: Config = {
 	compactAfterTokensRatio: 0.68,
 	observationsPoolMaxTokens: 20_000,
 	observationsPoolTargetTokens: 10_000,
-	reflectionsPoolMaxTokens: 12_000,
-	reflectionsPoolTargetTokens: 8_000,
+	reflectionsPoolMaxTokens: 60_000,
+	reflectionsPoolTargetTokens: 40_000,
 	agentMaxTurns: 16,
 	agentMaxTokens: 32_000,
 	showWorkerNotifications: true,
@@ -104,6 +106,23 @@ export function resolveCompactAfterTokens(config: Config, contextWindow: number 
 		return Math.max(1, Math.floor(contextWindow * config.compactAfterTokensRatio));
 	}
 	return config.compactAfterTokens;
+}
+
+/** Summary budget used when unset and the session model's context window is unknown. */
+export const COMPACTION_SUMMARY_FALLBACK_MAX_TOKENS = 8_000;
+
+/** Fraction of the session model's context window the rendered memory summary may occupy by default. */
+export const COMPACTION_SUMMARY_CONTEXT_RATIO = 0.125;
+
+/** Explicit summary budget, else one eighth of the session context window, else 8,000 tokens. */
+export function resolveCompactionSummaryMaxTokens(config: Config, contextWindow: number | undefined): number {
+	if (config.compactionSummaryMaxTokens !== undefined && config.compactionSummaryMaxTokens > 0) {
+		return config.compactionSummaryMaxTokens;
+	}
+	if (typeof contextWindow === "number" && Number.isFinite(contextWindow) && contextWindow > 0) {
+		return Math.max(1, Math.floor(contextWindow * COMPACTION_SUMMARY_CONTEXT_RATIO));
+	}
+	return COMPACTION_SUMMARY_FALLBACK_MAX_TOKENS;
 }
 
 export const THINKING_LEVEL_VALUES: readonly ModelThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
@@ -208,6 +227,7 @@ function normalizeSettingsConfig(value: Record<string, unknown>): Partial<Config
 		"reflectAfterTokens",
 		"observerChunkMaxTokens",
 		"compactAfterTokens",
+		"compactionSummaryMaxTokens",
 		"observationsPoolMaxTokens",
 		"observationsPoolTargetTokens",
 		"reflectionsPoolMaxTokens",
@@ -247,12 +267,13 @@ export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): Partial<Con
  *
  *   { model, observer: { afterTokens, chunkMaxTokens }, reflector: { afterTokens, maxTokens, targetTokens },
  *     dropper: { targetTokens }, agent: { maxTurns, maxTokens },
- *     compaction: { afterTokens, mode, ratio }, budget, observe, showWorkerNotifications, debugLog }
+ *     compaction: { afterTokens, mode, ratio, summaryMaxTokens }, budget, observe, showWorkerNotifications, debugLog }
  *
  * `observe: "never"` sets upstream's passive; upstream's own `passive` keys still apply underneath.
  *
- * `budget` is the compaction renderer's: upstream's observationsPoolMaxTokens. `reflector.maxTokens` and
- * `targetTokens` bound the reflection pool (this package's condenser; upstream has no reflection budget).
+ * `budget` is upstream's observationsPoolMaxTokens (the projection's fold threshold), not a render cap.
+ * `compaction.summaryMaxTokens` bounds the rendered summary; `reflector.maxTokens` and `targetTokens`
+ * are the condenser's storage safety bound, not the main context budget.
  */
 export function flattenSchemaSettings(om: Record<string, unknown>): Record<string, unknown> {
 	const sub = (k: string) => (isRecord(om[k]) ? om[k] : {}) as Record<string, unknown>;
@@ -273,6 +294,7 @@ export function flattenSchemaSettings(om: Record<string, unknown>): Record<strin
 		compactAfterTokens: compaction.afterTokens,
 		compactAfterTokensMode: compaction.mode,
 		compactAfterTokensRatio: compaction.ratio,
+		compactionSummaryMaxTokens: compaction.summaryMaxTokens,
 		showWorkerNotifications: om.showWorkerNotifications,
 		passive: om.observe === "never" ? true : om.observe === undefined ? undefined : false,
 		observe: om.observe,

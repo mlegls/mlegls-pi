@@ -34,7 +34,7 @@ for (const file of process.argv.slice(2)) {
 		const u = branch.slice(0, i);
 		const cfg = { observationsPoolMaxTokens: 20000 };
 		const pu = up.buildCompactionProjection(u, e.firstKeptEntryId, cfg);
-		const section = render(omRenderer, { session: sm, branch: u, firstKeptEntryId: e.firstKeptEntryId }, cfg.observationsPoolMaxTokens);
+		const section = render(omRenderer, { session: sm, branch: u, firstKeptEntryId: e.firstKeptEntryId }, Infinity); // Compare the unbounded upstream projection, not the new render cap.
 		const upText = up.renderSummary(pu.reflections, pu.observations);
 		diff("render@" + e.id, upText, section?.text ?? "");
 		if (upText) diff("details@" + e.id, pu.details, section?.details);

@@ -53,7 +53,7 @@ export interface Mechanism {
 	owns?: string[];
 	/** What it renders at compaction (with "compaction" owned). */
 	renderer?: Renderer<CompactionView, any>;
-	budget?(): number;
+	budget?(ctx: ExtensionContext): number;
 	/** Tools declared only while this system is active. */
 	tools?: string[];
 	/** A section appended to the system prompt while active. */
@@ -265,7 +265,7 @@ export function registerMechanisms(pi: ExtensionAPI, mechanisms: Mechanism[]): v
 				}
 				const keep = prepared?.firstKeptEntryId ?? firstKeptEntryId;
 				const view: CompactionView = { session: ctx.sessionManager as BranchSession, branch: event.branchEntries as { id: string }[], firstKeptEntryId: keep, prepared };
-				const s = render(m.renderer!, view, m.budget?.() ?? Infinity);
+				const s = render(m.renderer!, view, m.budget?.(ctx) ?? Infinity);
 				if (s) return { compaction: { summary: s.text, firstKeptEntryId: keep, tokensBefore, details: s.details } };
 			} finally {
 				m.end?.();

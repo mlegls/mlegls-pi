@@ -1,6 +1,6 @@
 // OM's compaction renderer: query = the branch with the om ledger spliced in, cut = the
-// compaction projection with budget = observationsPoolMaxTokens (at or past it, reflections
-// and drops are folded in; below, the stable prefix is kept), rendered as upstream's summary.
+// compaction projection folds reflections and drops at observationsPoolMaxTokens (below it,
+// the stable prefix is kept). The independent render budget limits context, not stored memory.
 // extensions/context/mechanism.ts composes it with other mechanisms' renderers.
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Renderer } from "../../../../lib/records/render.ts";
@@ -8,7 +8,8 @@ import type { Mechanism, CompactionView } from "../../mechanism.ts";
 import { ledgerBranch, type LedgerSession } from "../session-ledger/store.js";
 
 import type { Runtime } from "../runtime.js";
-import { buildCompactionProjection, renderSummary, type Entry } from "../session-ledger/index.js";
+import { resolveCompactionSummaryMaxTokens } from "../config.js";
+import { buildCompactionProjection, renderSummaryWithBudget, type Entry } from "../session-ledger/index.js";
 
 const DEFAULT_OBSERVATIONS_POOL_MAX_TOKENS = 20_000;
 
@@ -19,21 +20,27 @@ function observationsPoolMaxTokens(runtime: Runtime): number {
 		: DEFAULT_OBSERVATIONS_POOL_MAX_TOKENS;
 }
 
-export const omRenderer: Renderer<CompactionView, Entry[]> = {
-	name: "om",
-	role: "memory",
-	query: (view) => ledgerBranch(view.session as LedgerSession, view.branch as Entry[]),
-	cut(entries, budget, view) {
-		const projection = buildCompactionProjection(entries, view.firstKeptEntryId, { observationsPoolMaxTokens: budget });
-		const text = renderSummary(projection.reflections, projection.observations);
-		return text ? { text, details: projection.details } : undefined;
-	},
-};
+function createOmRenderer(poolMaxTokens: () => number): Renderer<CompactionView, Entry[]> {
+	return {
+		name: "om",
+		role: "memory",
+		query: (view) => ledgerBranch(view.session as LedgerSession, view.branch as Entry[]),
+		cut(entries, budget, view) {
+			const projection = buildCompactionProjection(entries, view.firstKeptEntryId, { observationsPoolMaxTokens: poolMaxTokens() });
+			const rendered = renderSummaryWithBudget(projection.reflections, projection.observations, { maxTokens: budget });
+			// Keep the complete projection in details: omitted lines remain recallable and can
+			// still recover the ledger's ancestry after a bb rewind/continuation.
+			return rendered.text ? { text: rendered.text, details: projection.details } : undefined;
+		},
+	};
+}
+
+export const omRenderer = createOmRenderer(() => DEFAULT_OBSERVATIONS_POOL_MAX_TOKENS);
 
 export function compactionMechanism(runtime: Runtime): Mechanism {
 	return {
-		renderer: omRenderer,
-		budget: () => observationsPoolMaxTokens(runtime),
+		renderer: createOmRenderer(() => observationsPoolMaxTokens(runtime)),
+		budget: (ctx) => resolveCompactionSummaryMaxTokens(runtime.config, ctx.model?.contextWindow),
 		enabled(ctx: ExtensionContext) {
 			runtime.ensureConfig(ctx.cwd);
 			return runtime.config.passive !== true;

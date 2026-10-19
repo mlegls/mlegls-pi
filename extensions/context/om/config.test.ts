@@ -16,7 +16,7 @@ test("memory.schemas.om maps onto upstream keys and overrides the legacy key", (
 			observer: { afterTokens: 111, chunkMaxTokens: 5000 },
 			dropper: { targetTokens: 300 },
 			agent: { maxTurns: 4, maxTokens: 900 },
-			compaction: { afterTokens: 50000, mode: "ratio", ratio: 0.4 },
+			compaction: { afterTokens: 50000, mode: "ratio", ratio: 0.4, summaryMaxTokens: 4000 },
 			budget: 600,
 		} } },
 	}));
@@ -27,5 +27,6 @@ test("memory.schemas.om maps onto upstream keys and overrides the legacy key", (
 		observationsPoolTargetTokens: 300, observationsPoolMaxTokens: 600,
 		agentMaxTurns: 4, agentMaxTokens: 900,
 		compactAfterTokens: 50000, compactAfterTokensMode: "ratio", compactAfterTokensRatio: 0.4,
+		compactionSummaryMaxTokens: 4000,
 	});
 });
