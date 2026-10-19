@@ -1,15 +1,21 @@
 ---
-stage: "idea"
-assignee: "human"
+stage: "spec"
+assignee: "agent"
 author: "session:01a15212-f5c4-72f9-98e1-e4e2ab51097c"
 ---
-Replace the board with bb's thread messages wherever bb covers it, and stop reconciler workers' lifecycle notices from waking the supervisor.
+Replace the board with bb's thread messages and a few convention files, so bb is the only coordination layer.
 
-Decided 2026-10-19 by the maintainer: "bb is working consistently now, so i think we can get rid of the fallback systems in mlegls-pi (zmx, board) where bb can cover it. i think in practice bb mail is used more than the custom board, since it's easy to copy thread references from the gui." zmx went with `delete-the-zmx-thread-runtime`. The ab sidebar tree isn't needed either ("i don't need it since i'm consistently in bb now").
+Decided 2026-10-19 with the maintainer. "bb is working consistently now, so i think we can get rid of the fallback systems in mlegls-pi (zmx, board) where bb can cover it. i think in practice bb mail is used more than the custom board, since it's easy to copy thread references from the gui." zmx already went (`delete-the-zmx-thread-runtime`).
 
-Measured in the concept supervisor @thread:thr_vetzcc74ex (bb thread, 10-12 to 10-19): reconciler workers are spawned with `--parent-thread` set to the supervisor (`bbParent` in `lib/thread/runtime.ts` falls back to `BB_THREAD_ID`), so bb sends the supervisor a "[bb system] @thread:… completed" turn for every phase of every worker. 1,234 such wakes cost $640 of Opus at ~190k context; 742 made no tool call and only restated status. The reconciler already consumes these completions and mails exceptions. The maintainer also saw the supervisor repeat what he was reading while he talked to a child directly.
+What the board carries today (log `~/.local/share/pi-board/log.jsonl`, since 10-05) and what replaces it:
+- Mail (`mail/xxxxxxxx`, ~1,700 messages: reconciler → owner, cross-project supervisors, child-monitor), wake subscriptions, the `thread/<session>` turn-end mirror (~3,200) and `lib/thread/bb-wake.ts`: `bb thread tell <id> --mode queue`, addressed by thread id.
+- Worker turn-end reports: workers keep ending with a status word (`agents/_common.md`); the reconciler reads it from bb's turn completion. How it reads completions (polling bb or a plugin event) is the implementer's choice.
+- Supervisor constraints (`reconcile_constrain`): bb messages to the worker.
+- `role/<repo>/supervisor`: `desk/ROLES.md`.
+- Sibling `decision` posts: dropped. 591 posted, 290 delivered to a running sibling across 120 sessions; in 8 sampled deliveries the recipient visibly used one. A conflicting branch is already sent back at rebase. Revisit (a decisions file in `desk/`) if integration-conflict send-backs become noticeably more frequent.
 
-Open for shaping:
-- Which board uses bb covers: worker reports, mailboxes, `role/<repo>/supervisor` (a session that wants the supervisor needs to find its thread), wake subscriptions, reconciler exceptions mailed up. About 40 files in `lib`/`extensions` touch the board.
-- Workers stay children of the supervisor: the maintainer folds the tree regularly (2026-10-19). Silence their notices with a bb plugin's `message.dispatch` hook (`bb.experimental_hooks.on`, Plugin SDK 0.6.54). Every child notice passes through it: in `bb.db` they're `turn/start` tells with `initiator: "system"`, `systemMessageKind: "child-completed"`, text `[bb system]\n\n@thread:<child> completed:`. The hook context doesn't expose `systemMessageKind`, so match `ctx.initiator === "system"` plus the text. Return `reject` to drop a notice, or `wait` with a `sendAt` to batch: queued rows dispatch together as one turn. Unverified: what core does with a rejected system tell, and how the plugin tells reconciler-owned children apart (title `<issue>/<issue>-<phase>-<n>`, plugin metadata set at spawn, or the reconciler's state).
-- Superseded alternative, how workers relate to the supervisor in bb: no parent or `--lifecycle-owner-thread` (archives with it, sends no notices), perhaps in a bb section; or keep `--parent-thread` and drop notices about reconciler-owned threads in an `input` handler (needs a check that bb accepts a prompt pi answers `handled` without a turn).
+Reconciler workers stay children of the supervisor, since the maintainer folds the tree regularly. Their bb child notices cost $640 in one week in the concept supervisor (@thread:thr_vetzcc74ex; 1,234 wakes, 742 with no tool call). A bb plugin drops them; the reconciler itself tells its owner about exceptions and when a run is fully done.
+
+`desk/`, untracked at the main checkout's root (in `.git/info/exclude`), holds convention files, already named in `agent-prompts/universal.md`: `ATTENTION.md` (what needs the maintainer), `STATUS.md` (reconciler progress, `reconciler-writes-status-md`), `ROLES.md` (standing roles such as `supervisor`, and one line per top-level session on what it's working on). Cleanup happens on write, in code, rather than readers treating old lines as stale.
+
+The board keeps running until the last ticket lands, so nothing in flight breaks; then it, its tools, extension hooks and `role/` scopes are deleted. What `recall` indexes in place of board messages is the implementer's choice.
