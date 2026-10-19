@@ -1,3 +1,4 @@
+docs/attachments/bb-environments-follow-our-worktrees/index.md (25 lines)
 # Worker environments: implementation first use
 
 Base: `0fd64560f3758365ae137ffc943557643eb52161`. Nonvisual CLI/library change; no screenshots. Independent story acceptance follows this implementation handoff.
@@ -23,3 +24,6 @@ Base: `0fd64560f3758365ae137ffc943557643eb52161`. Nonvisual CLI/library change; 
 - `bunx tsc --noEmit`: passed after the final affected-test run.
 
 No dev servers, browser pages, containers or tunnels were started.
+## Independent drive
+
+[Independent CLI encounter](drive.md): historical sweep count and preserved probe threads corroborated; the live supervisor's driver spawn and implementer retirement did not meet the metadata/cleanup expectations. Runtime provenance is unknown; checkout-local lifecycle acceptance remains outstanding.
