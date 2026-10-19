@@ -5,7 +5,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { git } from "./checks.ts";
-import { bbIndex } from "../thread/registry.ts";
+import { threadDir } from "../thread/registry.ts";
 import type { State } from "./reconcile.ts";
 
 const DONE_SHOWN = 10;
@@ -27,7 +27,7 @@ const short = (at: string | undefined) => at ? at.slice(5, 16).replace("T", " ")
 const oneLine = (s: string, n = 160) => { const l = s.split("\n")[0].trim(); return l.length > n ? l.slice(0, n - 1) + "…" : l; };
 
 export interface StatusOptions {
-	/** bb thread ids by registry thread id (bbIndex()). */
+	/** bb thread ids by registry thread id (bbIds()). */
 	bb?: Record<string, { bb: string }>;
 	/** Whether a run's process lives; unknown when omitted. */
 	alive?: (pid: number) => boolean;
@@ -106,6 +106,17 @@ function ensureExcluded(commonDir: string) {
 	excluded.add(commonDir);
 }
 
+/** Each worker's bb thread, from the registry record its handle's threadId names (ThreadRecord.bb). Synchronous: state writes are. */
+function bbIds(states: State[]): Record<string, { bb: string }> {
+	const out: Record<string, { bb: string }> = {};
+	const ids = states.filter(s => !s.finished).flatMap(s => [...Object.values(s.chains ?? {}).map(c => c.handle?.threadId), ...Object.values(s.exceptions ?? {}).map(x => x.handler?.threadId)]);
+	for (const id of new Set(ids)) {
+		if (!id || !/^[a-zA-Z0-9._-]+$/.test(id)) continue;
+		try { const bb = JSON.parse(readFileSync(join(threadDir(), id + ".json"), "utf8")).bb; if (typeof bb === "string") out[id] = { bb }; } catch {}
+	}
+	return out;
+}
+
 const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as { code?: string }).code === "EPERM"; } };
 
 /** Regenerate desk/STATUS.md in the main checkout of cwd's repository from every run there; writes only on change. */
@@ -115,7 +126,8 @@ export function writeStatus(cwd: string): void {
 	ensureExcluded(commonDir);
 	const desk = join(resolve(commonDir, ".."), "desk");
 	mkdirSync(desk, { recursive: true });
-	const text = renderStatus(states(commonDir), { bb: bbIndex(), alive: pidAlive });
+	const all = states(commonDir);
+	const text = renderStatus(all, { bb: bbIds(all), alive: pidAlive });
 	const file = join(desk, "STATUS.md");
 	if (existsSync(file) && readFileSync(file, "utf8") === text) return;
 	writeFileSync(file, text);

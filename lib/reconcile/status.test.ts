@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderStatus } from "./status";
 import { saveState, type State } from "./reconcile";
@@ -37,10 +37,17 @@ test("each state write regenerates one desk/STATUS.md from every run in the repo
 	const repo = realpathSync(mkdtempSync("/tmp/rc-status-"));
 	try {
 		execFileSync("git", ["-C", repo, "init", "-qb", "main"]);
-		saveState(state("first", repo, { chains: { x: { into: repo, self: false, phase: "implement", retries: {}, workers: [] } } }));
-		saveState(state("second", repo, { chains: { y: { into: repo, self: false, phase: "drive", retries: {}, workers: [] } } }));
+		const state0 = process.env.XDG_STATE_HOME;
+		process.env.XDG_STATE_HOME = join(repo, ".git/state");
+		mkdirSync(join(repo, ".git/state/ab-threads"), { recursive: true });
+		writeFileSync(join(repo, ".git/state/ab-threads/t1.json"), JSON.stringify({ id: "t1", bb: "thr_x" }));
+		try {
+			saveState(state("first", repo, { chains: { x: { into: repo, self: false, phase: "implement", retries: {}, workers: [], handle: { run: "first", handle: "x-implement-1", path: repo, threadId: "t1" } } } }));
+			saveState(state("second", repo, { chains: { y: { into: repo, self: false, phase: "drive", retries: {}, workers: [] } } }));
+		} finally { if (state0 === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = state0; }
 		const md = readFileSync(join(repo, "desk/STATUS.md"), "utf8");
 		expect(md).toContain("## first");
+		expect(md).toContain("**x** · implement · @thread:thr_x");
 		expect(md).toContain("## second");
 		expect(readFileSync(join(repo, ".git/info/exclude"), "utf8")).toMatch(/^desk\/$/m);
 		expect(execFileSync("git", ["-C", repo, "status", "--porcelain"], { encoding: "utf8" })).toBe("");
