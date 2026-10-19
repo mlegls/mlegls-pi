@@ -8,7 +8,7 @@ export const LOSS_QUESTION = "<merged> replaces <parts> in a coding agent's memo
 
 export async function lossOf(registry: any, parts: string[], merged: string, signal: AbortSignal, want?: { provider: string; id: string }): Promise<number> {
 	const model = pickClassifier(await registry.getAvailableOfType("classifier"), want);
-	if (!model) throw new Error("no Jev classifier with credentials");
+	if (!model) throw new Error(want ? `classifier ${want.provider}/${want.id} is not available` : "no Jev classifier with credentials");
 	const r = await registry.classify(model, {
 		state: { parts, merged },
 		questions: { loss: { type: "bool", instructions: LOSS_QUESTION, criteria: { true: "A needed detail is lost", false: "Nothing needed is lost" } } },

@@ -63,6 +63,19 @@ export function debugLog(event: string, data: Record<string, unknown> = {}): voi
 	}
 }
 
+/** An always-on log under the agent dir's observational-memory/, unlike debugLog. Never throws. */
+export function appendLog(file: string, event: string, data: Record<string, unknown> = {}): void {
+	const context = storage.getStore();
+	try {
+		const path = join(getAgentDir(), "observational-memory", file);
+		mkdirSync(dirname(path), { recursive: true });
+		rotateIfNeeded(path);
+		appendFileSync(path, `${JSON.stringify({ ts: new Date().toISOString(), event, sessionId: context?.sessionId, cwd: context?.cwd, data })}\n`, "utf-8");
+	} catch {
+		// Logging must never affect memory behavior.
+	}
+}
+
 function rotateIfNeeded(path: string): void {
 	if (!existsSync(path)) return;
 	if (statSync(path).size < DEBUG_LOG_MAX_BYTES) return;

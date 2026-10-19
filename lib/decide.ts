@@ -26,9 +26,10 @@ export interface Options { signal?: AbortSignal; model?: { provider: string; id:
 /** Preferred classifier: TypeSafe direct, then any provider's Jev with credentials. */
 const PREFERRED = [{ provider: "typesafe", id: "jev-latest" }, { provider: "openrouter", id: "~typesafe/jev-latest" }, { provider: "cloudflare-workers-ai", id: "typesafe/jev" }];
 
-/** The wanted classifier among those with credentials, else the preferred Jev, else any Jev. */
+/** Exactly the wanted classifier if it has credentials (never a substitute), else with no want the preferred Jev, else any Jev. */
 export function pickClassifier<M extends { provider: string; id: string }>(available: readonly M[], want?: { provider: string; id: string }): M | undefined {
-	for (const w of want ? [want] : PREFERRED) {
+	if (want) return available.find(m => m.provider === want.provider && m.id === want.id);
+	for (const w of PREFERRED) {
 		const model = available.find(m => m.provider === w.provider && m.id === w.id);
 		if (model) return model;
 	}
@@ -41,7 +42,9 @@ async function classifier(options: Options): Promise<{ rt: ModelRuntime; model: 
 	// Loaded lazily: the SDK costs seconds to import, and the tracker CLI only needs it when it judges.
 	const rt = await (runtime ??= import("@earendil-works/pi-coding-agent").then(m => m.ModelRuntime.create()));
 	const jev = pickClassifier(await rt.getAvailableOfType("classifier"), options.model);
-	if (!jev) throw new Error("decide: no Jev classifier with credentials (TYPESAFE_API_KEY, OpenRouter, or Cloudflare)");
+	if (!jev) throw new Error(options.model
+		? `decide: classifier ${options.model.provider}/${options.model.id} is not available (no credential, or not in pi's catalogue)`
+		: "decide: no Jev classifier with credentials (TYPESAFE_API_KEY, OpenRouter, or Cloudflare)");
 	return { rt, model: jev };
 }
 

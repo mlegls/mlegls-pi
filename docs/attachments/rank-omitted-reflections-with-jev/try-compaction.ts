@@ -34,11 +34,11 @@ Object.assign(runtime.config, { compactionSummaryMaxTokens: 600, observationsPoo
 const mechanism = compactionMechanism(runtime);
 const event = { branchEntries: branch, preparation: { firstKeptEntryId: "m2" }, signal: new AbortController().signal };
 let calls = 0;
-const model = { provider: "typesafe", id: "jev-latest" };
+const model = { provider: "openrouter", id: "~typesafe/jev-latest" };
 const registry = {
 	getAvailableOfType: async () => { calls++; return [model]; },
 	classify: async () => ({
-		api: "typesafe", provider: "typesafe", model: "jev-latest", stopReason: "stop", timestamp: Date.now(),
+		api: "typesafe-system-one", provider: "openrouter", model: "~typesafe/jev-latest", stopReason: "stop", timestamp: Date.now(),
 		answers: Object.fromEntries(reflections.flatMap((_, i) => [
 			[`preserve_${i}`, { type: "bool", probability: i < 2 ? 1 : 0 }],
 			[`relevance_${i}`, { type: "score", score: 1, confidence: 1 }],
