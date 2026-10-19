@@ -1,12 +1,13 @@
-// Search what the user wrote, across harnesses: pi sessions, Claude Code project transcripts and
-// Claude Code's prompt history (which outlives its transcripts). Skill bodies, dispatched worker
+// Search what the user wrote, across harnesses: pi sessions, bb threads (bb's prompt history), Claude Code
+// project transcripts and Claude Code's prompt history (which outlives its transcripts). Skill bodies, dispatched worker
 // assignments and other generated preambles are skipped, so matches are the user's own words.
 //   ab lib prompts search 'persona|shaft' '{"project":"mmon/design"}'
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { bbPrompts } from "./thread/bb";
 
-export interface Prompt { source: "pi" | "claude" | "history"; project: string; at: string; text: string; file?: string }
+export interface Prompt { source: "pi" | "claude" | "history" | "bb"; project: string; at: string; text: string; file?: string; thread?: string }
 export interface SearchOptions { project?: string; since?: string; limit?: number; max?: number }
 
 const H = homedir();
@@ -51,6 +52,7 @@ export function all(opts: SearchOptions = {}): Prompt[] {
 	for (const [dir, file] of files(CLAUDE, want)) for (const o of jsonl(file)) {
 		if (o.type === "user" && o.message?.role === "user" && !o.isMeta) push({ source: "claude", project: dir, at: String(o.timestamp ?? ""), text: textOf(o.message.content), file });
 	}
+	for (const p of bbPrompts()) if (want(p.project)) push({ source: "bb", project: p.project, at: new Date(p.at).toISOString(), text: p.text, thread: p.thread });
 	for (const o of jsonl(HISTORY)) {
 		if (typeof o.display !== "string" || o.display.startsWith("/") || !want(String(o.project ?? ""))) continue;
 		push({ source: "history", project: String(o.project), at: new Date(o.timestamp ?? 0).toISOString(), text: o.display });

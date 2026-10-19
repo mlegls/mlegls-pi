@@ -1,7 +1,7 @@
 // Profile pi sessions for wall time and cost: where a session (and the workers it spawned) spent
 // its clock and its money. Feeds the retro profile pass; see skills/enabled/profile.
 //   bun lib/profile.ts                      this session ($PI_SESSION_ID) and its descendants
-//   bun lib/profile.ts SESSION [--json] [--fast]  a session id (or unique fragment) and its descendants
+//   bun lib/profile.ts SESSION [--json] [--fast]  a session id (or unique fragment, or bb thr_ id) and its descendants
 //   bun lib/profile.ts --project P --last N one line per recent root session in a project
 //   bun lib/profile.ts SESSION --since T --until T   only entries in a time window (a wave of a long-lived supervisor)
 //   bun lib/profile.ts SESSION --run SLUG     one reconciler run: workers titled SLUG/…, and the supervisor over their span
@@ -19,7 +19,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { graph, type Node } from "./graph";
+import { findNode, graph, type Node } from "./graph";
 import { GENERATED } from "./prompts";
 
 export interface Profile {
@@ -161,6 +161,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		} else if (prev) { seg("other", prev, t); prev = t; }
 		p.end = Math.max(p.end, t);
 	}
+	p.end = Math.max(p.end, p.start); // a session with no messages (in the window) spans nothing
 	if (lastAssistant) { const k = gapKind(); p.ended = { k, note: k === "stall" ? "error: " + (lastAssistant.errorMessage ?? "") : snippet(lastAssistant), judge: judged(k) ? judge() : undefined }; }
 	return p;
 }
@@ -241,11 +242,9 @@ export async function judgeWaits(all: Profile[]): Promise<void> {
 
 export async function profileWithGraph(ref?: string, days = 30, options: ProfileOptions = {}): Promise<{ profile: Profile; nodes: Map<string, Node> }> {
 	const nodes = await graph({ days });
-	const ref2 = (ref ?? process.env.PI_SESSION_ID ?? "").replace(/^(session|mail)\//, "");
-	const hits = ref2 ? [...nodes.keys()].filter(k => k === ref2 || k.endsWith(ref2) || k.startsWith(ref2)) : [];
-	if (hits.length !== 1) throw new Error((hits.length ? "ambiguous: " : "no session matches ") + (ref ?? "$PI_SESSION_ID") + (days < 365 ? " (within --days " + days + ")" : ""));
-	const id = hits[0]!;
-	if (!id) throw new Error("no session matches " + (ref ?? "$PI_SESSION_ID"));
+	let id: string;
+	try { id = findNode(nodes, ref ?? process.env.PI_SESSION_ID ?? "").id; }
+	catch (e) { throw new Error((e as Error).message + (days < 365 ? " (within --days " + days + ")" : "")); }
 	const win: Window = { since: options.since, until: options.until };
 	let keep = (_: Node) => true;
 	if (options.run) {
@@ -326,10 +325,11 @@ export function render(root: Profile): string {
 
 export async function recent(project: string, last = 10, days = 14): Promise<Profile[]> {
 	const nodes = await graph({ days });
-	const roots = [...nodes.values()].filter(n => !n.parent && n.project.toLowerCase().includes(project.toLowerCase()))
-		.sort((a, b) => b.created.localeCompare(a.created)).slice(0, last);
+	const roots = [...nodes.values()].filter(n => (!n.parent || n.parentKind === "fork") && n.project.toLowerCase().includes(project.toLowerCase()))
+		.sort((a, b) => b.created.localeCompare(a.created));
 	const build = (n: Node): Profile => ({ ...profileFile(n.file, n), children: n.children.map(c => nodes.get(c)!).filter(Boolean).map(build) });
-	return roots.map(build);
+	// Sessions opened and left without a turn aren't baseline runs.
+	return roots.map(build).filter(p => flat(p).some(x => x.turns)).slice(0, last);
 }
 
 export function renderRecent(ps: Profile[]): string {

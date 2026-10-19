@@ -145,39 +145,44 @@ export function contextFile(file: string, id: string, elide?: Elide): Context & 
 	return { calls, compactions, cells: cells.map(({ eid, ...c }) => c) };
 }
 
-/** Class the bigger assistant-side cells with the decider; the rest keep their kind/name class. */
-export async function judgePurposes(ctxs: Context[]): Promise<void> {
+/** Class the bigger assistant-side cells with the decider; the rest keep their kind/name class.
+ * At most `max` new judgments per call, the most-held cells first (a long session has thousands, minutes of calls);
+ * judgments are cached as they land, so a rerun continues. Returns how many stay unjudged. */
+export async function judgePurposes(ctxs: Context[], max = 600): Promise<number> {
 	let cache: Record<string, { choice: string; p: number }> = {};
 	try { cache = JSON.parse(readFileSync(CACHE, "utf8")); } catch {}
 	const items = ctxs.flatMap(x => x.cells as Judged[]).filter(c => c.key && c.judgeText && c.tok >= JUDGE_MIN && c.purpose !== "noise");
-	const todo = items.filter(c => !cache[c.key!]);
+	const todo = items.filter(c => !cache[c.key!]).sort((a, b) => heldTok(b) - heldTok(a));
+	let left = todo.length;
 	if (todo.length) {
 		let decide: typeof import("./decide").decide;
-		try { decide = (await import("./decide")).decide; } catch { return; }
-		let failed = 0; const queue = [...todo];
+		try { decide = (await import("./decide")).decide; } catch { return left; }
+		const save = () => { mkdirSync(dirname(CACHE), { recursive: true }); writeFileSync(CACHE, JSON.stringify(cache)); };
+		let fresh = 0; const queue = todo.slice(0, max);
 		await Promise.all(Array.from({ length: 12 }, async () => {
 			for (let c = queue.shift(); c; c = queue.shift()) {
-				try { const { purpose } = await decide({ kind: c.k, item: c.judgeText! }, { purpose: PURPOSE }); cache[c.key!] = { choice: purpose.choice, p: purpose.p }; }
-				catch { failed++; }
+				try { const { purpose } = await decide({ kind: c.k, item: c.judgeText! }, { purpose: PURPOSE }); cache[c.key!] = { choice: purpose.choice, p: purpose.p }; left--; if (++fresh % 100 === 0) save(); }
+				catch {}
 			}
 		}));
-		if (failed < todo.length) { mkdirSync(dirname(CACHE), { recursive: true }); writeFileSync(CACHE, JSON.stringify(cache)); }
+		if (fresh) save();
 	}
 	for (const c of items) { const j = cache[c.key!]; if (j) { c.purpose = j.choice; c.p = j.p; } }
+	return left;
 }
 
 /** Drop the decider's inputs before embedding. */
 export const strip = (x: Context): Context => ({ ...x, cells: (x.cells as Judged[]).map(({ key, judgeText, out, tool, ...c }) => c) });
 
 if (import.meta.main) {
-	const { graph } = await import("./graph");
+	const { graph, findNode } = await import("./graph");
 	const args = process.argv.slice(2);
 	const fast = args.includes("--fast"), ref = args.find(a => !a.startsWith("--")) ?? process.env.PI_SESSION_ID ?? "";
 	const nodes = await graph({ days: 30 });
-	const hits = [...nodes.keys()].filter(k => k === ref || k.endsWith(ref) || k.startsWith(ref));
-	if (hits.length !== 1) throw new Error((hits.length ? "ambiguous: " : "no session matches ") + ref);
-	const x = contextFile(nodes.get(hits[0]!)!.file, hits[0]!, args.includes("--no-elide") ? undefined : await elideSettings());
-	if (!fast) await judgePurposes([x]);
+	const node = findNode(nodes, ref);
+	const x = contextFile(node.file, node.id, args.includes("--no-elide") ? undefined : await elideSettings());
+	const unjudged = fast ? 0 : await judgePurposes([x]);
+	if (unjudged) console.log(unjudged + " less-held cells keep their kind's class; rerun to judge more (judgments are cached)");
 	const last = x.calls.length - 1, now: Record<string, number> = {}, held: Record<string, number> = {};
 	for (const c of x.cells) { now[c.purpose] = (now[c.purpose] ?? 0) + sizeAt(c, last); held[c.purpose] = (held[c.purpose] ?? 0) + heldTok(c); }
 	const el = x.cells.filter(c => c.elided !== undefined);

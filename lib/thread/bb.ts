@@ -2,8 +2,9 @@
 // apps, as the only thread runtime. The registry, worktree, setup and integration stay ours.
 // bb gives every thread the same environment, so a worker's identity reaches pi through .wm/launch.env in its
 // worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
+import { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { command, quote } from "./process";
@@ -86,7 +87,41 @@ export async function bbSessionFile(id: string): Promise<string> {
 	const events = JSON.parse(await command(cli(), ["thread", "log", id, "--json", "--all"])) as { data?: { providerThreadId?: string } }[];
 	const provider = events.map(e => e.data?.providerThreadId).filter(Boolean).at(-1);
 	if (!provider) throw new Error("bb thread " + id + " has no pi session yet");
-	return join(process.env.BB_PI_BRIDGE_SESSION_DIR || join(homedir(), ".bb", "pi-bridge-sessions"), provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl");
+	return providerFile(provider);
+}
+export const bbSessionDir = () => process.env.BB_PI_BRIDGE_SESSION_DIR || join(homedir(), ".bb", "pi-bridge-sessions");
+const providerFile = (provider: string) => join(bbSessionDir(), provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl");
+
+/** Read bb's database directly (read-only): a few queries the CLI has no cheap answer for. undefined without bb. */
+function bbDb<T>(f: (db: Database) => T): T | undefined {
+	const file = join(process.env.BB_HOME || join(homedir(), ".bb"), "bb.db");
+	if (!existsSync(file)) return undefined;
+	let db: Database;
+	try { db = new Database(file, { readonly: true }); } catch { return undefined; }
+	try { return f(db); } catch { return undefined; } finally { db.close(); }
+}
+
+/** One pi session bb ran for a thread; a rewind starts a new one, so a thread can have several (latest: newest `at`). */
+export interface BbSession { thread: string; parent?: string; title?: string; provider: string; file: string; at: number }
+/** Every pi session bb has run, from its thread/identity events. */
+export function bbSessions(): BbSession[] {
+	return bbDb(db => db.query(`select e.thread_id thread, e.provider_thread_id provider, t.parent_thread_id parent, coalesce(t.title, t.title_fallback) title, max(e.created_at) at
+		from events e join threads t on t.id = e.thread_id
+		where e.type = 'thread/identity' and e.provider_thread_id is not null and t.deleted_at is null
+		group by e.thread_id, e.provider_thread_id`).all() as any[])
+		?.map(r => ({ thread: r.thread, parent: r.parent ?? undefined, title: r.title ?? undefined, provider: r.provider, file: providerFile(r.provider), at: r.at })) ?? [];
+}
+
+/** What the maintainer typed into bb threads (bb's prompt history), with the thread's project checkout. */
+export function bbPrompts(): { thread: string; project: string; at: number; text: string }[] {
+	return bbDb(db => db.query(`select p.thread_id thread, coalesce(s.path, pr.name) project, p.created_at at, p.input input
+		from prompt_history_entries p join projects pr on pr.id = p.project_id
+		left join project_sources s on s.project_id = p.project_id and s.is_default = 1`).all() as any[])
+		?.map(r => {
+			let text = String(r.input);
+			try { const parts = JSON.parse(text); if (Array.isArray(parts)) text = parts.filter((c: any) => c?.type === "text").map((c: any) => c.text).join("\n"); } catch {}
+			return { thread: r.thread, project: r.project, at: r.at, text };
+		}) ?? [];
 }
 /** Message a bb thread. Queued, it follows the turn in progress (or starts one) rather than steering it; the text goes by file so a leading dash or backtick survives. */
 export async function tellBb(id: string, text: string, mode: "queue" | "steer" = "queue"): Promise<void> {

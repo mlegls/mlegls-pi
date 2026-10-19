@@ -14,6 +14,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "./session-meta/live";
 import { allThreads } from "./thread/registry";
+import { bbSessionDir, bbSessions, type BbSession } from "./thread/bb";
 import { isInteractive } from "./thread/runtime";
 import { workerResources, type WorkspaceResources } from "./thread/resources";
 
@@ -31,6 +32,8 @@ export interface Node {
 	updated: string;
 	parent?: string;
 	parentKind?: "spawn" | "invoked" | "fork";
+	/** The bb thread that ran this session. */
+	thread?: string;
 	run?: string;
 	handle?: string;
 	state: State;
@@ -135,23 +138,6 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	// Files in the window, live ones, and (below) ancestors of either.
 	const byId = new Map<string, string>();
 	const files: string[] = [];
-	for (const dir of readdirSync(SESSIONS)) {
-		let names: string[];
-		try { names = readdirSync(join(SESSIONS, dir)); } catch { continue; }
-		for (const name of names) {
-			if (!name.endsWith(".jsonl")) continue;
-			const path = join(SESSIONS, dir, name);
-			const id = name.slice(name.indexOf("_") + 1, -6);
-			byId.set(id, path);
-			files.push(path);
-		}
-	}
-	for (const l of live) if (l.sessionFile) byId.set(l.sessionId, l.sessionFile);
-	for (const t of threads) {
-		byId.set(t.sessionId, t.sessionFile);
-		if (!files.includes(t.sessionFile)) files.push(t.sessionFile);
-	}
-
 	const parsed = new Map<string, Parsed>();
 	const read = (path: string): Parsed | undefined => {
 		const hit = parsed.get(path);
@@ -166,6 +152,43 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		if (p) parsed.set(path, p);
 		return p;
 	};
+	for (const dir of readdirSync(SESSIONS)) {
+		let names: string[];
+		try { names = readdirSync(join(SESSIONS, dir)); } catch { continue; }
+		for (const name of names) {
+			if (!name.endsWith(".jsonl")) continue;
+			const path = join(SESSIONS, dir, name);
+			const id = name.slice(name.indexOf("_") + 1, -6);
+			byId.set(id, path);
+			files.push(path);
+		}
+	}
+	// bb's pi sessions: named for bb's provider thread, so the session id comes from the header.
+	const bbByFile = new Map<string, BbSession>(), bbBySession = new Map<string, BbSession>(), bbLatest = new Map<string, BbSession>();
+	for (const s of bbSessions()) {
+		bbByFile.set(s.file, s);
+		bbBySession.set(s.provider, s); // an older bb named the provider thread for the pi session id
+		if ((bbLatest.get(s.thread)?.at ?? -1) < s.at) bbLatest.set(s.thread, s);
+	}
+	let bbNames: string[] = [];
+	try { bbNames = readdirSync(bbSessionDir()); } catch {}
+	for (const name of bbNames) {
+		if (!name.endsWith(".jsonl")) continue;
+		const path = join(bbSessionDir(), name);
+		const p = read(path);
+		if (!p) continue;
+		byId.set(p.id, path);
+		files.push(path);
+		const s = bbByFile.get(path);
+		if (s) bbBySession.set(p.id, s);
+	}
+	for (const l of live) if (l.sessionFile) byId.set(l.sessionId, l.sessionFile);
+	const fileSet = new Set(files);
+	for (const t of threads) {
+		byId.set(t.sessionId, t.sessionFile);
+		if (!fileSet.has(t.sessionFile)) { fileSet.add(t.sessionFile); files.push(t.sessionFile); }
+	}
+
 	const want = new Set<string>();
 	for (const path of files) {
 		let mtime = 0;
@@ -177,9 +200,13 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	const parentOf = (p: Parsed): { id?: string; kind?: Node["parentKind"] } => {
 		const parent = threadBySession.get(p.id)?.parent;
 		if (parent) return { id: threadById.get(parent)?.sessionId ?? parent, kind: "spawn" };
+		const bbParent = bbBySession.get(p.id)?.parent;
+		const bbParentFile = bbParent ? bbLatest.get(bbParent)?.file : undefined;
+		const bbParentId = bbParentFile ? read(bbParentFile)?.id : undefined;
+		if (bbParentId) return { id: bbParentId, kind: "spawn" };
 		if (p.meta?.parentSession) return { id: p.meta.parentSession.replace(/^session\//, ""), kind: "spawn" };
 		if (p.meta?.invokedBy && p.meta.invokedBy !== p.id) return { id: p.meta.invokedBy, kind: "invoked" };
-		if (p.forkOf) return { id: basename(p.forkOf).slice(basename(p.forkOf).indexOf("_") + 1, -6), kind: "fork" };
+		if (p.forkOf) return { id: read(p.forkOf)?.id ?? basename(p.forkOf).slice(basename(p.forkOf).indexOf("_") + 1, -6), kind: "fork" };
 		return {};
 	};
 	// Pull in ancestors so every shown node has its chain.
@@ -200,13 +227,14 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		const l = liveBySession.get(p.id);
 		const exists = existsSync(p.cwd);
 		const thread = threadBySession.get(p.id);
+		const bb = bbBySession.get(p.id);
 		const state: State = l ? l.state : !exists ? "gone" : "resumable";
 		const run = thread?.worker?.run ?? p.meta?.run, handle = thread?.worker?.handle ?? p.meta?.handle;
 		nodes.set(p.id, {
 			id: p.id, file: path, cwd: p.cwd, project: project(p.cwd, cache),
-			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? p.firstUser?.split("\n")[0] ?? "(empty)",
+			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? bb?.title ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
-			parent, parentKind: kind, run, handle,
+			parent, parentKind: kind, run, handle, thread: thread?.bb ?? bb?.thread,
 			state, workspace: thread ? resources.get(thread.id) : undefined, interactive: thread ? isInteractive(thread) : kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
 			pid: l?.pid,
 			lastText: p.lastText, children: [],
@@ -226,6 +254,17 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	mkdirSync(dirname(CACHE), { recursive: true });
 	writeFileSync(CACHE, JSON.stringify(cache));
 	return nodes;
+}
+
+/** The node a ref names: a session id or unique fragment of one, `session/…` or `mail/…`, or a bb thread id (its latest session). */
+export function findNode(nodes: Map<string, Node>, ref: string): Node {
+	const r = ref.replace(/^(session|mail)\//, "");
+	const byThread = [...nodes.values()].filter(n => n.thread === r).sort((a, b) => b.updated.localeCompare(a.updated));
+	if (byThread[0]) return byThread[0];
+	const hits = r ? [...nodes.keys()].filter(k => k === r || k.endsWith(r) || k.startsWith(r)) : [];
+	if (hits.length !== 1) throw new Error((hits.length ? "ambiguous: " : "no session matches ") + (ref || "$PI_SESSION_ID")
+		+ (hits.length ? " (" + hits.slice(0, 5).join(", ") + (hits.length > 5 ? ", …" : "") + ")" : ""));
+	return nodes.get(hits[0]!)!;
 }
 
 const worktrees = new Map<string, boolean>();
