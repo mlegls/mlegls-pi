@@ -44,6 +44,7 @@ import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.t
 import { prepareStaging, resolveLanding } from "./pr-config.ts";
 import { createPullRequestHost } from "./pr-host.ts";
 import { advancePullRequest } from "./pull-request.ts";
+import { writeStatus } from "./status.ts";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -240,15 +241,19 @@ export function updateState(cwd: string, root: string, change: (prior: State | u
 	mkdirSync(stateDir(cwd), { recursive: true });
 	// SQLite supplies a process-shared, crash-released write lock; the public state stays JSON.
 	const lock = new Database(file + ".lock.sqlite", { create: true });
+	let s: State;
 	try {
 		lock.exec("PRAGMA busy_timeout = 5000");
-		return lock.transaction(() => {
+		s = lock.transaction(() => {
 			const s = change(load(cwd, root));
 			writeFileSync(file + ".tmp", JSON.stringify(s, null, 1));
 			renameSync(file + ".tmp", file);
 			return s;
 		}).immediate();
 	} finally { lock.close(); }
+	// Every phase change, landing, failed integration and exception is saved through here.
+	try { writeStatus(s.cwd); } catch (e) { console.log("STATUS.md not written: " + e); }
+	return s;
 }
 
 export function saveState(s: State): void {
