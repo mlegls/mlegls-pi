@@ -20,7 +20,7 @@ export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged
 			TRACKER_CLI: join(import.meta.dir, "../../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(import.meta.dir, "../../../agents") });
 		const bb = fakeBb(root);
 		bb.addThread("thr_fixture-owner");
-		bb.addThread("bbt-child", child);
+		bb.addThread("bbt-child", child, "fixture/child");
 		const told = () => bb.threads().find(t => t.id === "bbt-child")!.tells.find(tell => tell.includes("Integration into"));
 		mkdirSync(join(cwd, "docs/issues"), { recursive: true });
 		git(cwd, "init", "-qb", "main");
@@ -46,7 +46,7 @@ export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged
 			created: new Date().toISOString(), worker: { run: "fixture", handle: "child" }, bb: "bbt-child" });
 		saveState({ backend: "threads", root: "fixture", cwd, owner: "thr_fixture-owner", budget: 1,
 			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { fixture: { into: cwd, self: true, phase: "review", retries: {}, workers: [],
-				handle: { run: "fixture", handle: "child", path: child, threadId: "fixture-child" } } },
+				handle: { run: "fixture", handle: "child", path: child, bb: "bbt-child", threadId: "fixture-child" } } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] });
 		bb.completeTurn(child, 'done\n\n' + "\x60\x60\x60json\n"
 			+ JSON.stringify({ stories: [{ story: "Landing fixture", outcome: "held" }] }) + "\n\x60\x60\x60");
