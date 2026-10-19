@@ -102,7 +102,8 @@ function ActivityChart({ c, view, openIssue }: { c: CampaignView; view: Campaign
 
 /**
  * A popover fixed to the viewport beside its anchor, below it when it fits and above otherwise. Out of the page's
- * flow, so opening it can't grow the page, add a scrollbar and move the anchor out from under the pointer.
+ * flow, so opening it can't grow the page, add a scrollbar and move the anchor out from under the pointer. Portalled out
+ * of the plugin root, it carries the plugin's data attribute itself: the plugin's CSS is scoped to it.
  */
 function Floating({ anchor, children, onMouseEnter, onMouseLeave }: { anchor: RefObject<HTMLDivElement | null>; children: ReactNode; onMouseEnter: () => void; onMouseLeave: () => void }) {
 	const box = useRef<HTMLDivElement>(null);
@@ -123,7 +124,7 @@ function Floating({ anchor, children, onMouseEnter, onMouseLeave }: { anchor: Re
 		window.addEventListener("scroll", place, true);
 		return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
 	}, [anchor]);
-	return createPortal(<div ref={box} style={style} className="fixed z-50" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>{children}</div>, document.body);
+	return createPortal(<div ref={box} data-bb-plugin="tracker" style={style} className="fixed z-50" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>{children}</div>, document.body);
 }
 
 /** GitHub-style grid of the last WEEKS weeks by day; a day lists its stage changes by commit. */
