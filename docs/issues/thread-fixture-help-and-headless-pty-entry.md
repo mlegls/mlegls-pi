@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0f71c-7077-753f-9e63-0ebda24a595d
 ---
@@ -11,3 +11,7 @@ Running that entry under macOS `script` with the harness's socket stdin failed b
 Lifecycle fixture first use (session `01a0f747-b7c7-7590-9c66-0c61dc503aca`) met `--help` and outside-zmx RPC pi setup without a PTY workaround. A separate scanning friction remains: `docs/attachments/thread-archive-and-abandon/fixture.ts` action/inspect output repeats full thread, session and spawn records; raw integration's structured conflict result exits 0. Saving stdout and extracting relevant fields worked, but exit status alone could not establish success. Consider compact readbacks and documented conflict exit semantics. [Encounter and exact commands](../attachments/thread-archive-and-abandon/drive.md).
 
 Core join independent drive (session `01a0f7cd-724d-7377-b655-fad378fe358d`) met the same exit-status scanning friction: join ROOT emitted done fixture-join-complete and exited 0 when its fresh pi's tools.integrate refused an uncommitted destination log. Embedded integrationResult correctly said blocked and workerRetired:false; the fixture subsequently retired the guest tree. Committing the log and regenerating the fixture made the retry integrate successfully. Consider making completion/readiness distinguish a refused integration from a successful round-trip. [First refusal and clean retry](../attachments/thread-core-and-workers-on-zmx/independent-drive.md).
+
+## Result
+
+Obsolete 2026-10-19: the fixture's zmx/PTY entry went with delete-the-zmx-thread-runtime; bb launches threads.

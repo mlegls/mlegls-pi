@@ -1,5 +1,5 @@
 ---
-stage: spec
+stage: done
 assignee: agent
 priority: 1
 author: session:01a0f549-cfd2-755e-886e-463dcd75e5f8
@@ -44,3 +44,7 @@ Workers rarely use the shared board on their own initiative. Of 1078 worker sess
 Ideas that apply to the reconciler: [[projects/mlegls-pi/issues/replay-a-daemon-restart-mid-integrate]], [[projects/mlegls-pi/issues/integrate-waits-for-a-clean-owner-checkout]], [[projects/mlegls-pi/issues/give-consolidators-a-join-specific-diff-base]], [[projects/mlegls-pi/issues/audit-node-residual-runs-in-supervise]].
 
 Supersedes [[projects/mlegls-pi/issues/archive/supervise-loop-reliability]] and [[projects/mlegls-pi/issues/archive/supervisor-hibernation]] (lazy handlers with persistent sessions are the hibernation design); their open children are moot with the daemon gone.
+
+## Result
+
+Delivered: the deterministic reconciler with lazily spawned exception handlers runs every subtree (lib/reconcile), and all its children are done.
