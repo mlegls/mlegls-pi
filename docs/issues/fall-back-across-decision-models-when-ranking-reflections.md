@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "user:mlegls"
 priority: 2
@@ -18,3 +18,32 @@ Done:
 - Tests: a fake model that fails moves ranking to the next one; all failing gives newest-first. One live run on the existing fixture pool forces the first model to fail and records which model ranked, with its latency and cost. `bun test extensions/context/om` and `bunx tsc --noEmit` pass.
 
 Out of scope: subq, until the maintainer gives its OpenRouter id; [[projects/mlegls-pi/issues/trial-openai-decisions-api-as-a-decide-backend]], which can now note that the model is on OpenRouter.
+
+## Result
+
+done
+
+Landed on main as ce54b3a0 (dev dependencies) and 8f304ec1 (the fallback).
+
+`rankReflections` now tries `RANKERS` on OpenRouter in this order: `~typesafe/jev-latest`, `cloudflare/clef`, `inception/mercury-decide`. All three share one 6 s deadline, and each attempt gets at most 3 s. It falls back to newest-first only when all three fail or no OpenRouter credential exists. On 2026-10-20 each candidate was asked two bool and two score questions, and all of them answered both types. Clef Flash's scores barely separated a constraint from an ordinary note and had low confidence, so Clef takes the second place. Mercury Decide, from a third family, is the third. Every attempt goes to `<agent dir>/observational-memory/reflection-rank.ndjson` with its model, its reason and the elapsed time. This log is always on; the OM debug log also gets the attempts when it is enabled.
+
+The availability gap was this repo's dev pin. pi 1.0.0's catalogue has no Clef, Mercury Decide (paid), Microsoft or Luna classifiers. The installed pi 1.2.0, which loads the extensions, lists all of them with only `OPENROUTER_API_KEY`. The dev dependencies are now pinned to 1.2.0. `pickClassifier` returns exactly the requested model or nothing, and `decide` and optmem's scorer now say which requested model is missing.
+
+```yaml
+commit: 8f304ec1
+evidence:
+  path: docs/attachments/fall-back-across-decision-models-when-ranking-reflections/index.md
+  visual: false
+  shots: []
+tests:
+  - extensions/context/om/hooks/rank-reflections.test.ts
+filed: []
+caveats:
+  - "live run: Jev forced to fail; openrouter/cloudflare/clef ranked the 14-reflection fixture in 1,462 ms for $0.000190 (4,529 input tokens), and role and rule were kept."
+  - "worst-case compaction delay grows from 4 s to 6 s, but only when every model hangs."
+  - "TypeSafe-direct Jev is no longer tried; ranking uses OpenRouter only."
+  - "checks: bun test extensions/context/om 10 pass; bunx tsc --noEmit clean; mise run test 220 pass, 2 skip, 0 fail."
+  - "no fresh verifier was dispatched; this is implementation evidence only."
+```
+
+Evidence: [docs/attachments/fall-back-across-decision-models-when-ranking-reflections/index.md](docs/attachments/fall-back-across-decision-models-when-ranking-reflections/index.md)
