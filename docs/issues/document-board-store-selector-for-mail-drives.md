@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0f0a6-087a-779d-aae2-51c259287f48
 ---
@@ -11,3 +11,7 @@ While driving [[projects/mlegls-pi/issues/archive/address-the-waiting-child-in-e
 Workaround: set `XDG_DATA_HOME=<temp>/data` for every Pi and CLI process, and confirm `ab mail --stats` starts empty before sending. This produced a separate `<temp>/data/pi-board/log.jsonl`; `XDG_STATE_HOME` and `AB_STATE` were isolated as well. Document the selector and a safe preflight in the CLI help or supervision setup handoff, so first-use smoke checks do not write into shared board history. The observation concerns documentation/setup discoverability, not an assertion that the board failed to honor its configured path.
 
 In the [joined CLI drive](../attachments/small-ab-cli-fixes/drive.md), `ab lib board topics` during CLI discovery exposed the shared store because AB_STATE is not the board selector. No synthetic mail was sent there. The existing XDG_DATA_HOME workaround made `mail --stats` empty before every actual send; all five posts remained in the isolated board.
+
+## Result
+
+Superseded 2026-10-19 by replace-the-board-with-bb-mail: the board store is deleted.
