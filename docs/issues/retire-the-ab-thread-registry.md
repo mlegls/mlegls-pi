@@ -2,8 +2,6 @@
 stage: "spec"
 assignee: "agent"
 author: "session:01a15212-f5c4-72f9-98e1-e4e2ab51097c"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/move-coordination-off-the-board]]"
 ---
 Retire the `ab thread` registry (`~/.local/state/ab-threads`, `lib/thread/registry.ts`): bb, git config and the reconciler's own state hold what it records. Worker worktrees stay ours.
 
