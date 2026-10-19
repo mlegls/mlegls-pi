@@ -38,3 +38,9 @@ No failed encounter or tooling friction. This supplied public-library encounter 
 5. Reviewer check not exercised by this fixture: use old preference, standing-permission and open-blocker reflections under omission; accept them before newer ordinary records. No driver claim that those categories were independently exercised.
 
 No rendered UI journey; no screenshots. Both owned processes finished; no server, tunnel or browser remains.
+
+## Review
+
+- The preservation recognizer was too broad: "should", "only", "requires", "allows", "because" matched most ordinary reflections, so the floor degenerated toward "everything". Narrowed to the ticket's categories (role/identity, preferences/permissions, constraints/rules, blockers, decisions/rationale). Wording coverage for preferences, permissions and blockers is now asserted in `session-ledger/render-summary.test.ts` (role and constraint) with the budget derivation and explicit-override cases.
+- Re-ran the entry point at 200k and 1M after the change: 200k still triggers the condenser (122 → 3 reflections, role and constraint rendered; backstop omits 47, keeps role/constraint/newest); 1M still fits with no condensation.
+- `bun test extensions/context/om` 6 pass; `bunx tsc --noEmit` clean. Jev skipped (needs separate classifier credentials, renderer is synchronous): accepted per the ticket's optional clause.

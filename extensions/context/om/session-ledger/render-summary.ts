@@ -47,10 +47,10 @@ function estimateTokens(text: string): number {
 // Prefer false positives to forgetting a role, permission, rule, or unresolved decision.
 const PRESERVATION_FLOOR = [
 	/\b(role|identity|supervisor|coordinator)\b|\b(?:session|user)\s+(?:is|acts as|serves as|owns|works|name)\b/i,
-	/\b(prefer\w*|wants?|permissions?|permitted|allows?|allowed|authoriz\w*)\b|\bwithout (?:asking|approval|confirmation)\b/i,
-	/\b(must|never|always|only|should|cannot|can't|constraints?|rules?|requires?|required|forbidden)\b|\bdo(?:es)? not\b|\bdon't\b|^(?:use|keep|avoid|ask)\b/i,
+	/\b(prefer\w*|wants?|permissions?|permitted|allowed|authoriz\w*)\b|\bwithout (?:asking|approval|confirmation)\b/i,
+	/\b(must|never|always|cannot|can't|constraints?|rules?|forbidden)\b|\bdo(?:es)? not\b|\bdon't\b|^(?:use|keep|avoid|ask)\b/i,
 	/\b(blocks?|blocked|blockers?|waiting|awaiting|pending|unresolved|undecided)\b/i,
-	/\b(decided|decision|chosen|chose|rationale|because|architecture|architectural)\b/i,
+	/\b(decided|decision|rationale|architectural)\b/i,
 ];
 
 function preserveReflection(reflection: Reflection): boolean {
