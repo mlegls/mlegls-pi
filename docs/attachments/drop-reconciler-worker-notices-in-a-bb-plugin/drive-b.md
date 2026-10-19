@@ -37,3 +37,8 @@ Frictions: no new unresolved product/tooling friction. The documented child-idle
 
 Cleanup: disposable project deletion returned ok; prepare process terminated via its owned process handle. No services or external resources left running. No product code, tests or fixtures inspected; no repository checks run.
 
+
+## Review (code)
+
+- Source requirements checked: no `bb/reconciler-notices` plugin on base or branch; stand-in comment names bb#3792 and the `handled` replacement; context filter drops only pairs certified by the `bb-local` assistant.
+- Repair: the input handler swapped the model even when the notice was queued into a running turn (`event.streamingBehavior` set), which would have hijacked that turn onto the stand-in. It now passes such notices through to the real model. Not re-driven live (the driven path, an idle supervisor, is unchanged: `streamingBehavior` is undefined when idle).
