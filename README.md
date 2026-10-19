@@ -39,6 +39,25 @@ prompts for pi, Claude Code and Codex.
 - `docs/issues/`: the tracker. `docs/guide/` and the other `docs/*.md`: how-tos and design notes.
 - `routing.md`, `allocation.json`: model catalog, stance definitions and delegated capacity.
 
+## Skills
+
+`skills/enabled/<harness>/` holds skills for every harness (`all`) or one (`claude`, `codex`, `pi`). Below that,
+directories group skills by source and purpose; every directory with a `SKILL.md` is one skill, named by its directory.
+
+- `all/mlegls/`: my own skills.
+  - `lifecycle/`: carrying work from idea to done: `introduce`, `orient`, `map`, `plan`, `shape`, `implement`,
+    `simplify`, `verify-story`, `garden`, `advance`.
+  - `orchestrations/`: running other agents: `multi-agent`, `dispatch`, `merge`, `supervise`, `tend`.
+  - `conventions/`: formats and rules other skills rely on: `tracker` (with its CLI in `scripts/`), `project-docs`,
+    `testing`, `writing-skills`, `attention`, `setup-project`.
+  - Standalone: `grill`, `devils-advocate`, `what-else`, `variety`, `leverage`, `profile`, `retro`, `artboard`.
+- `all/cua-driver/`: vendored from [Cua](https://github.com/trycua/cua) (see its `UPSTREAM.md`).
+- `all/humanlayer/`, `all/matt-pocock-edited/`: skills adapted from others' collections.
+- `pi/pi`, `pi/mlegls-pi`: the two package skills, loaded through `package.json`.
+
+Harnesses expect a flat skills directory, so link each skill directory itself, not the grouping directories above it.
+`.agents/skills/` and `.claude/skills/` are this repo's project skills, installed from `skills-lock.json`.
+
 ## Setup
 
 Install the pi package, from git or from a local checkout:
@@ -55,8 +74,8 @@ That loads the extensions, package skills, prompts and themes. After changing ex
 pi.
 
 The user-level skills, agents and prompts are not part of the package. To use them, symlink the directories you want
-into each harness's own skills and prompt locations (for example `skills/enabled/all/*` and `skills/enabled/pi/*` into
-`~/.pi/agent/skills/`). They assume this personal setup (bb, `wm` workers, the tracker), so expect to adapt them.
+into each harness's own skills and prompt locations (for example every skill under `skills/enabled/all/` and
+`skills/enabled/pi/` into `~/.pi/agent/skills/`; see [Skills](#skills)). They assume this personal setup (bb, `wm` workers, the tracker), so expect to adapt them.
 
 Keep `package.json` valid JSON: if pi cannot parse the manifest it falls back to scanning all of `skills/`.
 
