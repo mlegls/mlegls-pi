@@ -162,12 +162,12 @@ function DayGrid({ c, view, openIssue }: { c: CampaignView; view: Campaigns; ope
 }
 
 function CommitGroup({ hash, info, url, items, openIssue }: { hash: string; info?: CommitInfo; url: string | null; items: Activity[]; openIssue: (slug: string) => void }) {
-	const short = hash.slice(0, 8);
+	const short = (info?.base ? info.base.slice(0, 7) + ".." : "") + hash.slice(0, 7);
 	const label = <><code className="text-[11px]">{short}</code> <span className="truncate">{info?.subject || "commit"}</span></>;
 	return (
 		<div className="flex flex-col">
 			{url && info?.pushed
-				? <a href={url + hash} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1 rounded px-1 text-xs text-muted-foreground hover:bg-state-hover hover:text-foreground" title="Open on GitHub">{label}<Icon name="ExternalLink" className="size-3 shrink-0" /></a>
+				? <a href={url + (info.base ? "/compare/" + info.base + "..." + hash : "/commit/" + hash)} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1 rounded px-1 text-xs text-muted-foreground hover:bg-state-hover hover:text-foreground" title="Open on GitHub">{label}<Icon name="ExternalLink" className="size-3 shrink-0" /></a>
 				: <button type="button" className="flex min-w-0 items-center gap-1 rounded px-1 text-left text-xs text-muted-foreground hover:bg-state-hover hover:text-foreground" title={url ? "Not on GitHub yet; copy the hash" : "Copy the hash"} onClick={() => { void navigator.clipboard.writeText(hash); toast.success("Copied " + short); }}>{label}<Icon name="Copy" className="size-3 shrink-0" /></button>}
 			{items.map((a) => (
 				<button key={a.slug + a.kind} type="button" onClick={() => openIssue(a.slug)} className="flex min-w-0 items-center gap-1.5 rounded py-0.5 pl-4 pr-1 text-left hover:bg-state-hover">

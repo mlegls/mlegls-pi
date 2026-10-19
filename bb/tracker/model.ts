@@ -99,7 +99,7 @@ export interface Campaigns {
 	facts: { at: number | null; error: string | null; command: string | null };
 	/** The commits activity cites, by full hash. */
 	commits: Record<string, CommitInfo>;
-	/** Prefix a full hash to link a commit (GitHub origins), or null. */
+	/** The GitHub repository URL commits and ranges link under, or null. */
 	commitUrl: string | null;
 	/** Largest day and week totals of any campaign, so every chart shares one scale. */
 	scale: { day: number; week: number };
@@ -107,7 +107,8 @@ export interface Campaigns {
 /** A stage change of a tracked issue: reaching done, becoming a goal, spec or ticket, or being filed as an idea. */
 export type ActivityKind = "done" | "settled" | "idea";
 export interface Activity { date: string; slug: string; kind: ActivityKind; commit: string }
-export interface CommitInfo { subject: string; date: string; pushed: boolean }
+/** base: set when the commit landed a range (main fast-forwarded onto it from base). */
+export interface CommitInfo { subject: string; date: string; pushed: boolean; base: string | null }
 export const kindOf = (stage: string): ActivityKind | null =>
 	stage === "done" ? "done" : stage === "idea" ? "idea" : ["goal", "spec", "ticket"].includes(stage) ? "settled" : null;
 export const WEEKS = 12;

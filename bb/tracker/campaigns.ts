@@ -1,7 +1,7 @@
 // The Campaigns page's model, computed on the server: docs/departments.md parsed, rolled up over the tracker snapshot,
 // stage history from git, the reconcilers in flight, and the repository's own facts command (production, promises).
 // It reads only; departments.md is changed by agents in threads the page starts.
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -49,9 +49,10 @@ export function parseDepartments(text: string): Parsed {
 
 // ---- stage history from git, extended incrementally per HEAD
 
-interface Change { date: string; slug: string; stage: string; commit: string }
+/** base: the tip main moved from, when it moved onto commit without extending it (a fast-forward onto a branch). */
+interface Change { date: string; slug: string; stage: string; commit: string; base: string | null }
 /** last: each issue's latest stage seen, so a file restored, moved or requoted isn't read as a change. */
-interface History { head: string; since: string; changes: Change[]; last: Map<string, string>; subjects: Map<string, string> }
+interface History { head: string; upto: number; since: string; changes: Change[]; last: Map<string, string>; subjects: Map<string, string> }
 const histories = new Map<string, History>();
 const pending = new Map<string, Promise<History>>();
 
@@ -59,28 +60,103 @@ function git(root: string, ...args: string[]): string {
 	return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024 }).trim();
 }
 
-/** Stage lines each commit on the first-parent line wrote (a merge as its net change), oldest first: per issue, the
- * stage it removed (if any) and the one it added. Branch commits would replay a branch's own restores as regressions. */
-async function readStages(root: string, range: string[]): Promise<{ date: string; commit: string; subject: string; slug: string; from: string | null; to: string }[]> {
-	const { stdout } = await run("git", ["-C", root, "log", "--first-parent", "--diff-merges=first-parent", ...range, "--format=%x01%H%x1f%cs%x1f%s", "-p", "--unified=0", "-G^stage:", "--", "docs/issues"], { maxBuffer: 256 * 1024 * 1024, timeout: 120_000 });
-	const out: { date: string; commit: string; subject: string; slug: string; from: string | null; to: string }[] = [];
-	const stageOf = (line: string) => line.replace(/^[+-]stage:\s*"?([^"\s]*).*$/, "$1");
-	const slugOf = (line: string) => line.slice(4).replace(/^[ab]\//, "").split("/").pop()?.replace(/\.md$/, "") ?? "";
-	for (const commit of stdout.split("\x01").slice(1).reverse()) {
-		const [commitHash = "", date = "", subject = ""] = commit.slice(0, commit.indexOf("\n")).split("\x1f");
+type Stage = { date: string; commit: string; subject: string; slug: string; from: string | null; to: string; added: boolean; base: string | null };
+
+function gitIn(root: string, args: string[], input: string): Promise<string> {
+	return new Promise((done, fail) => {
+		const child = spawn("git", ["-C", root, ...args], { stdio: ["pipe", "pipe", "ignore"] });
+		const chunks: Buffer[] = [];
+		child.stdout.on("data", (c: Buffer) => chunks.push(c));
+		child.on("error", fail);
+		child.on("close", (code) => (code === 0 ? done(Buffer.concat(chunks).toString("utf8")) : fail(new Error("git " + args[0] + " exited " + code))));
+		child.stdin.end(input);
+	});
+}
+
+interface Step { hash: string; date: string; base: string | null; record: boolean; action: string }
+
+const localDay = (ms: number) => { const d = new Date(ms); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+
+/** Each time main's tip moved after the step at stopAt (or since the window opened), oldest first, dated when it
+ * moved: main's reflog records fast-forwards onto branches, merges and direct commits alike, so a change is dated
+ * when it reached main and diffed against the tip before it. Resets and rebases move the tip without landing work.
+ * Without a reflog, first parents stand in. */
+async function mainSteps(root: string, since: string, stopAt: number): Promise<{ steps: Step[]; upto: number }> {
+	let log = "";
+	try { log = (await run("git", ["-C", root, "reflog", "show", "--date=unix", "--format=%H%x1f%gd%x1f%gs", "main"], { maxBuffer: 64 * 1024 * 1024 })).stdout; } catch {}
+	const entries = log.split("\n").filter(Boolean).map((l) => {
+		const [hash = "", selector = "", action = ""] = l.split("\x1f");
+		return { hash, at: Number(/\{(\d+)\}/.exec(selector)?.[1] ?? 0) * 1000, action };
+	}).reverse();
+	if (entries.length > 1) {
+		const steps: Step[] = [];
+		for (let i = 1; i < entries.length; i++) {
+			const e = entries[i];
+			if (e.at <= stopAt || localDay(e.at) < since) continue;
+			steps.push({ hash: e.hash, date: localDay(e.at), base: entries[i - 1].hash, record: !/^(reset|rebase)/.test(e.action), action: e.action });
+		}
+		return { steps, upto: entries.at(-1)!.at };
+	}
+	const { stdout } = await run("git", ["-C", root, "log", "--first-parent", "--format=%H%x1f%P%x1f%ct", "HEAD"], { maxBuffer: 64 * 1024 * 1024 });
+	const steps: Step[] = [];
+	for (const l of stdout.split("\n").filter(Boolean)) {
+		const [hash = "", parents = "", ct = "0"] = l.split("\x1f");
+		const at = Number(ct) * 1000;
+		if (at <= stopAt || localDay(at) < since) break;
+		steps.push({ hash, date: localDay(at), base: parents.split(" ")[0] || null, record: true, action: "" });
+	}
+	return { steps: steps.reverse(), upto: Date.now() };
+}
+
+/** Stage lines each step wrote against the tip before it, oldest first: per issue, the stage it removed (if any), the
+ * one it added, and whether the file was new. A step whose tip extends the one before is read in one batched log. */
+async function readStages(root: string, since: string, stopAt: number): Promise<{ stages: Stage[]; upto: number }> {
+	const { steps, upto } = await mainSteps(root, since, stopAt);
+	const recorded = steps.filter((s) => s.record && s.base);
+	const format = "--format=%x01%H%x1f%s";
+	const patch = ["-p", "--unified=0", "-G^stage:", "--", "docs/issues"];
+	const parents = new Map<string, string>();
+	if (recorded.length) {
+		const text = await gitIn(root, ["log", "--stdin", "--no-walk=unsorted", "--format=%H %P"], recorded.map((s) => s.hash).join("\n") + "\n");
+		for (const l of text.split("\n")) { const [h, p] = l.split(" "); if (h && p) parents.set(h, p); }
+	}
+	const extends_ = (s: Step) => parents.get(s.hash) === s.base;
+	const blocks = new Map<string, string>();
+	const ordinary = [...new Set(recorded.filter(extends_).map((s) => s.hash))];
+	const text = ordinary.length ? await gitIn(root, ["log", "--stdin", "--no-walk=unsorted", "--diff-merges=first-parent", format, ...patch], ordinary.join("\n") + "\n") : "";
+	for (const block of text.split("\x01").slice(1)) blocks.set(block.slice(0, 40), block);
+	// A jump (main moved onto a commit that doesn't extend its tip, as a fast-forward onto a branch) is the landing of
+	// everything between: label it with the reflog's account of the move, not the tip's own subject.
+	const jumps = new Map<string, string>();
+	const pendingJumps = [...new Map(recorded.filter((x) => !extends_(x)).map((s) => [s.base + ".." + s.hash, s])).values()];
+	const diffJump = async (s: Step) => {
+		const { stdout: diff } = await run("git", ["-C", root, "diff", "--unified=0", "-G^stage:", s.base!, s.hash, "--", "docs/issues"], { maxBuffer: 64 * 1024 * 1024 });
+		jumps.set(s.base + ".." + s.hash, s.hash + "\x1f" + (s.action || "landed " + s.hash.slice(0, 8)) + "\n" + diff);
+	};
+	for (let i = 0; i < pendingJumps.length; i += 8) await Promise.all(pendingJumps.slice(i, i + 8).map(diffJump));
+	const stages: Stage[] = [];
+	const stageOf = (l: string) => l.replace(/^[+-]stage:\s*"?([^"\s]*).*$/, "$1");
+	const slugOf = (l: string) => l.slice(4).replace(/^[ab]\//, "").split("/").pop()?.replace(/\.md$/, "") ?? "";
+	for (const s of recorded) {
+		const jump = !extends_(s);
+		const block = jump ? jumps.get(s.base + ".." + s.hash) : blocks.get(s.hash);
+		if (!block) continue;
+		const [commit = "", subject = ""] = block.slice(0, block.indexOf("\n")).split("\x1f");
 		const from = new Map<string, string>();
 		const to = new Map<string, string>();
+		const added = new Set<string>();
 		let minus = "";
 		let plus = "";
-		for (const line of commit.split("\n")) {
-			if (line.startsWith("--- ")) minus = slugOf(line);
-			else if (line.startsWith("+++ ")) plus = slugOf(line);
-			else if (line.startsWith("-stage:") && minus) from.set(minus, stageOf(line));
-			else if (line.startsWith("+stage:") && plus) to.set(plus, stageOf(line));
+		let fresh = false;
+		for (const l of block.split("\n")) {
+			if (l.startsWith("--- ")) { minus = slugOf(l); fresh = l === "--- /dev/null"; }
+			else if (l.startsWith("+++ ")) { plus = slugOf(l); if (fresh) added.add(plus); }
+			else if (l.startsWith("-stage:") && minus) from.set(minus, stageOf(l));
+			else if (l.startsWith("+stage:") && plus) to.set(plus, stageOf(l));
 		}
-		for (const [slug, stage] of to) out.push({ date, commit: commitHash, subject, slug, from: from.get(slug) ?? null, to: stage });
+		for (const [slug, stage] of to) stages.push({ date: s.date, commit, subject, slug, from: from.get(slug) ?? null, to: stage, added: added.has(slug) && !from.has(slug), base: jump ? s.base : null });
 	}
-	return out;
+	return { stages, upto };
 }
 
 /** The stage changes of the last WEEKS weeks, oldest first, or null while the first read is still running. */
@@ -90,21 +166,23 @@ export function history(root: string): Change[] | null {
 	if (known?.head === head) return known.changes;
 	if (!pending.has(root)) {
 		const since = new Date(chartStart()).toISOString().slice(0, 10);
-		const incremental = known && known.since <= since && git(root, "merge-base", "--is-ancestor", known.head, head) === "" ? known : null;
-		const job = readStages(root, incremental ? [known!.head + ".." + head] : ["--since=" + since])
-			.then((stages) => {
+		const incremental = known && known.since === since ? known : null;
+		const job = readStages(root, since, incremental?.upto ?? 0)
+			.then(({ stages, upto }) => {
 				const last = new Map(incremental?.last ?? []);
 				const subjects = new Map(incremental?.subjects ?? []);
 				const fresh: Change[] = [];
 				for (const s of stages) {
-					if (s.to !== (last.get(s.slug) ?? s.from)) {
-						fresh.push({ date: s.date, slug: s.slug, stage: s.to, commit: s.commit });
+					// A stage line added to an existing file is a format migration, not a change of stage.
+					const migrated = s.from === null && !s.added && !last.has(s.slug);
+					if (!migrated && s.to !== (last.get(s.slug) ?? s.from)) {
+						fresh.push({ date: s.date, slug: s.slug, stage: s.to, commit: s.commit, base: s.base });
 						subjects.set(s.commit, s.subject);
 					}
 					last.set(s.slug, s.to);
 				}
 				const changes = [...(incremental?.changes ?? []), ...fresh].filter((c) => c.date >= since);
-				const h = { head, since: incremental?.since ?? since, changes, last, subjects };
+				const h = { head, upto, since, changes, last, subjects };
 				histories.set(root, h);
 				return h;
 			})
@@ -121,13 +199,16 @@ export function commitLinks(root: string, hashes: Iterable<string>): { commits: 
 	const subjects = histories.get(root)?.subjects ?? new Map<string, string>();
 	let unpushed = new Set<string>();
 	try { unpushed = new Set(git(root, "rev-list", "origin/main..HEAD").split("\n").filter(Boolean)); } catch {}
-	const dates = new Map((histories.get(root)?.changes ?? []).map((c) => [c.commit, c.date]));
+	const changes = new Map((histories.get(root)?.changes ?? []).map((c) => [c.commit, c]));
 	const commits: Campaigns["commits"] = {};
-	for (const h of hashes) commits[h] = { subject: subjects.get(h) ?? "", date: dates.get(h) ?? "", pushed: !unpushed.has(h) };
+	for (const h of hashes) {
+		const c = changes.get(h);
+		commits[h] = { subject: subjects.get(h) ?? "", date: c?.date ?? "", pushed: !unpushed.has(h), base: c?.base ?? null };
+	}
 	let commitUrl: string | null = null;
 	try {
 		const m = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/.exec(git(root, "remote", "get-url", "origin"));
-		if (m) commitUrl = "https://github.com/" + m[1] + "/" + m[2] + "/commit/";
+		if (m) commitUrl = "https://github.com/" + m[1] + "/" + m[2];
 	} catch {}
 	return { commits, commitUrl };
 }
