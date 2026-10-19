@@ -9,6 +9,8 @@ import { ledgerBranch, type LedgerSession } from "../session-ledger/store.js";
 
 import type { Runtime } from "../runtime.js";
 import { resolveCompactionSummaryMaxTokens } from "../config.js";
+import { withDebugLogContext } from "../debug-log.js";
+import { rankReflections } from "./rank-reflections.js";
 import { buildCompactionProjection, renderSummaryWithBudget, type Entry } from "../session-ledger/index.js";
 
 const DEFAULT_OBSERVATIONS_POOL_MAX_TOKENS = 20_000;
@@ -27,7 +29,8 @@ function createOmRenderer(poolMaxTokens: () => number): Renderer<CompactionView,
 		query: (view) => ledgerBranch(view.session as LedgerSession, view.branch as Entry[]),
 		cut(entries, budget, view) {
 			const projection = buildCompactionProjection(entries, view.firstKeptEntryId, { observationsPoolMaxTokens: poolMaxTokens() });
-			const rendered = renderSummaryWithBudget(projection.reflections, projection.observations, { maxTokens: budget });
+			const reflectionOrder = (view.prepared as { reflectionOrder?: string[] } | undefined)?.reflectionOrder;
+			const rendered = renderSummaryWithBudget(projection.reflections, projection.observations, { maxTokens: budget, reflectionOrder });
 			// Keep the complete projection in details: omitted lines remain recallable and can
 			// still recover the ledger's ancestry after a bb rewind/continuation.
 			return rendered.text ? { text: rendered.text, details: projection.details } : undefined;
@@ -41,6 +44,20 @@ export function compactionMechanism(runtime: Runtime): Mechanism {
 	return {
 		renderer: createOmRenderer(() => observationsPoolMaxTokens(runtime)),
 		budget: (ctx) => resolveCompactionSummaryMaxTokens(runtime.config, ctx.model?.contextWindow),
+		async prepare(event, ctx) {
+			const entries = ledgerBranch(ctx.sessionManager as LedgerSession, event.branchEntries as Entry[]);
+			const projection = buildCompactionProjection(entries, event.preparation.firstKeptEntryId, { observationsPoolMaxTokens: observationsPoolMaxTokens(runtime) });
+			const maxTokens = resolveCompactionSummaryMaxTokens(runtime.config, ctx.model?.contextWindow);
+			if (renderSummaryWithBudget(projection.reflections, projection.observations, { maxTokens }).omittedReflections === 0) return;
+			return withDebugLogContext({
+				enabled: runtime.config.debugLog === true,
+				cwd: ctx.cwd,
+				sessionId: ctx.sessionManager.getSessionId(),
+				sessionFile: ctx.sessionManager.getSessionFile(),
+			}, async () => ({
+				reflectionOrder: await rankReflections(ctx.modelRegistry, projection.reflections, projection.observations, event.signal),
+			}));
+		},
 		enabled(ctx: ExtensionContext) {
 			runtime.ensureConfig(ctx.cwd);
 			return runtime.config.passive !== true;

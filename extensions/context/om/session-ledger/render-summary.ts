@@ -21,11 +21,13 @@ export type RenderSummaryOptions = {
 	/**
 	 * Estimated token budget for the rendered summary. Observations are
 	 * guaranteed at least half of it (newest first); reflections take the rest
-	 * (preservation floor first, then newest first), and unused space is shared.
+	 * (supplied priority order, otherwise newest first), and unused space is shared.
 	 * Omitted records stay in the session ledger and remain visible through
 	 * `/om:view full`.
 	 */
 	maxTokens?: number;
+	/** Highest-priority reflection ids first. Unlisted ids follow newest-first. Display stays chronological. */
+	reflectionOrder?: readonly string[];
 };
 
 /** Share of the summary budget reserved for observations before reflections are allocated. */
@@ -43,25 +45,10 @@ function estimateTokens(text: string): number {
 	return Math.ceil(text.length / 4);
 }
 
-// Conservative, credential-free counterpart of the condenser prompt's preservation floor.
-// Prefer false positives to forgetting a role, permission, rule, or unresolved decision.
-const PRESERVATION_FLOOR = [
-	/\b(role|identity|supervisor|coordinator)\b|\b(?:session|user)\s+(?:is|acts as|serves as|owns|works|name)\b/i,
-	/\b(prefer\w*|wants?|permissions?|permitted|allowed|authoriz\w*)\b|\bwithout (?:asking|approval|confirmation)\b/i,
-	/\b(must|never|always|cannot|can't|constraints?|rules?|forbidden)\b|\bdo(?:es)? not\b|\bdon't\b|^(?:use|keep|avoid|ask)\b/i,
-	/\b(blocks?|blocked|blockers?|waiting|awaiting|pending|unresolved|undecided)\b/i,
-	/\b(decided|decision|rationale|architectural)\b/i,
-];
-
-function preserveReflection(reflection: Reflection): boolean {
-	return PRESERVATION_FLOOR.some((pattern) => pattern.test(reflection.content));
-}
-
-/** Priority first, newest-first within each priority; return records in original order. */
-function selectWithinBudget<T>(records: T[], line: (record: T) => string, budget: number, priority?: (record: T) => boolean): { kept: T[]; tokens: number } {
+/** Select in priority order (default newest-first); return records in original order. */
+function selectWithinBudget<T>(records: T[], line: (record: T) => string, budget: number, order?: number[]): { kept: T[]; tokens: number } {
 	const keptIndexes: number[] = [];
-	const indexes = Array.from(records.keys()).reverse();
-	if (priority) indexes.sort((a, b) => Number(priority(records[b])) - Number(priority(records[a])));
+	const indexes = order ?? Array.from(records.keys()).reverse();
 	let tokens = 0;
 	for (const i of indexes) {
 		const cost = estimateTokens(line(records[i])) + 1;
@@ -94,9 +81,10 @@ export function renderSummaryWithBudget(
 		// by verbose reflections: reserve them a share first, give reflections
 		// the remainder, then let observations reclaim whatever reflections left.
 		const reserved = selectWithinBudget(observations, observationToSummaryLine, Math.floor(budget * SUMMARY_OBSERVATIONS_MIN_SHARE));
-		// Jev needs separate classifier credentials, which a working compaction session need not
-		// have. Keep this synchronous backstop credential-free: preservation floor, then recency.
-		const pickedReflections = selectWithinBudget(reflections, reflectionToSummaryLine, budget - reserved.tokens, preserveReflection);
+		const rank = new Map(options.reflectionOrder?.map((id, i) => [id, i]));
+		const order = Array.from(reflections.keys()).reverse();
+		order.sort((a, b) => (rank.get(reflections[a].id) ?? rank.size) - (rank.get(reflections[b].id) ?? rank.size));
+		const pickedReflections = selectWithinBudget(reflections, reflectionToSummaryLine, budget - reserved.tokens, order);
 		keptReflections = pickedReflections.kept;
 		keptObservations = selectWithinBudget(observations, observationToSummaryLine, budget - pickedReflections.tokens).kept;
 	}
