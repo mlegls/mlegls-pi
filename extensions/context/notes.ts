@@ -306,7 +306,7 @@ export async function nap(env: NapEnv, cfg: Settings, logs: string[], session: s
 // ---------- extension ----------
 
 export default function notes(pi: ExtensionAPI): Mechanism {
-	const worker = !!process.env.PI_BOARD_TOPIC;
+	const worker = !!process.env.PI_WM_HANDLE;
 	let frozen: string | undefined;
 	let stop = new AbortController();
 	const session = (ctx: ExtensionContext) => ctx.sessionManager.getSessionId();

@@ -16,7 +16,7 @@ Each message has a kind:
 - agent: your replies
 - tool: your tool calls
 - echo: tool results
-- work: a message from outside the conversation (board mail, a worker's report)
+- work: a message from outside the conversation (a bb thread's message, a worker's report)
 
 The summaries form a tree: each message is compressed into a line (a short message is its own
 line), then {groups}, again and again. So recent lines cover one message each, and older lines

@@ -26,6 +26,13 @@ const threadId = (value: string) => {
 	return value;
 };
 
+/** The bb thread holding a role per desk/ROLES.md. The file is cleaned only on writes, so a caller checks the thread is still live. */
+export function roleThread(role: string, cwd = process.cwd()): string | undefined {
+	const prefix = "- role: " + line(role, "Role") + " — ";
+	const row = read(join(deskPath(cwd), "ROLES.md")).split("\n").find(r => r.startsWith(prefix));
+	return row ? owner(row) : undefined;
+}
+
 interface Files { roles: string[]; intro: string; items: string[] }
 async function writeDesk(cwd: string, change: (files: Files, live: Set<string>) => void): Promise<string> {
 	const common = git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir");

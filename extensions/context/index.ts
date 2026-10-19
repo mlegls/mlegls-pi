@@ -9,7 +9,7 @@
 // global and project logs that outlive sessions, as OptMem's log and merge tree. This extension
 // adds policy on top.
 //
-// Fence, for spawned workers (PI_BOARD_TOPIC set): when usage crosses the threshold, steer the
+// Fence, for spawned workers (PI_WM_HANDLE set): when usage crosses the threshold, steer the
 // agent once with AGENTS_DIR/_fence.md (finish if within reach, else checkpoint into the ticket
 // and report `checkpoint`), then compact when its loop ends, so a parent's follow-up lands in a
 // compacted context. Re-arms when usage drops back under, so a worker told to continue gets
@@ -37,20 +37,19 @@ function threshold(contextWindow: number): number {
 	return contextWindow >= 400_000 ? 0.3 : 0.6;
 }
 
-function fenceText(percent: number, topic: string): string {
+function fenceText(percent: number): string {
 	const file = join(AGENTS_DIR, "_fence.md");
 	const text = existsSync(file)
 		? readFileSync(file, "utf8")
-		: "checkpoint: this session is at {{percent}}% of its context. finish if within reach; otherwise update the ticket, commit, report `checkpoint` on `{{topic}}`, and wait.";
-	return text.replaceAll("{{percent}}", String(Math.round(percent))).replaceAll("{{topic}}", topic).trim();
+		: "checkpoint: this session is at {{percent}}% of its context. finish if within reach; otherwise update the ticket, commit, end your turn with `checkpoint`, and wait.";
+	return text.replaceAll("{{percent}}", String(Math.round(percent))).trim();
 }
 
 export default function (pi: ExtensionAPI) {
 	const elider = elide(pi); // before the journal's context hook, so its snapshot and checkpoints see elided bodies
 	registerMechanisms(pi, [journal(pi), observationalMemory(pi), optmem(pi), elider, notes(pi)]);
 	recall(pi);
-	const topic = process.env.PI_BOARD_TOPIC;
-	if (!topic) return;
+	if (!process.env.PI_WM_HANDLE) return;
 	let armed = true;
 	let fired = false;
 
@@ -66,7 +65,7 @@ export default function (pi: ExtensionAPI) {
 		if (ratio < t) return;
 		armed = false;
 		fired = true;
-		pi.sendUserMessage(fenceText(u.percent, topic), { deliverAs: "steer" });
+		pi.sendUserMessage(fenceText(u.percent), { deliverAs: "steer" });
 	});
 
 	pi.on("agent_end", async (_ev, ctx) => {

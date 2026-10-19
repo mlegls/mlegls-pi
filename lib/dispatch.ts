@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { allThreads, getThread, integrateThread, ThreadMergeConflict, workerThread, type ThreadRecord } from "./thread";
+import { tellBb } from "./thread/bb.ts";
 import { HANDOFF_KEYS } from "./report.ts";
 import { stopThreadProcesses } from "./thread/lifecycle-cleanup";
 
@@ -38,8 +39,6 @@ export interface Options {
   active: Handle[];
   /** Legacy receipt field; never selects a terminal transport. */
   session?: string;
-  /** A run whose `decision` messages (on <follow>/**) each worker sees on its next turn, without waking. */
-  follow?: string;
 }
 
 /** A tracker issue's `assignee` must admit the launch: `agent` admits any agent, `agent:<stance>` that
@@ -67,11 +66,8 @@ export interface Handle {
   threadId?: string;
   /** Legacy receipt field; never selects a terminal transport. */
   session?: string;
-  /** The topic's last report before launch: topics are reused (redispatch, a restarted run), so
-   * pass it as children.turnEnd's `after` cursor or an old report reads as this worker's. */
-  cursor?: string;
 }
-/** The worker's board topic, which is also its child ID for children.turnEnd/send. */
+/** The worker's run/handle label. */
 export const topic = (h: Handle) => h.run + "/" + h.handle;
 
 export interface Receipt {
@@ -137,10 +133,9 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     }
     try {
       const wm = await import("./wm.ts");
-      const cursor = (await (await import("./children.ts")).last(options.run + "/" + task.handle))?.cursor;
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, session: options.session, follow: options.follow });
-      receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, threadId: worker.threadId, ...(cursor && { cursor }) });
+        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, session: options.session });
+      receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, threadId: worker.threadId });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {
       receipt.failed = { assignment: task, error: error instanceof Error ? error.message : String(error) };
@@ -173,6 +168,13 @@ async function recordOf(given: Handle | string, cwd: string): Promise<{ worker: 
   if (typeof given !== "string" && (thread.worker.handle !== given.handle || thread.worker.run !== given.run || thread.cwd !== resolve(given.path)))
     throw new Error("Receipt does not match thread " + thread.id);
   return { thread, worker: { ...(typeof given === "string" ? {} : given), ...thread.worker, path: thread.cwd, threadId: thread.id } };
+}
+
+/** Message a worker's bb thread, queued behind its turn in progress. */
+export async function tell(given: Handle | string, text: string, options: { cwd?: string } = {}): Promise<void> {
+  const { thread } = await recordOf(given, resolve(options.cwd ?? process.cwd()));
+  if (!thread.bb) throw new Error("Worker " + topic(thread.worker as Handle) + " has no bb thread to tell");
+  await tellBb(thread.bb, text);
 }
 
 export async function integrate(given: Handle | string,

@@ -12,7 +12,7 @@ export async function checkpoint(
 	const count = (chain.retries.checkpoint ?? 0) + 1;
 	chain.retries.checkpoint = count;
 	if (count > budget) return steps.raise("checkpointed " + budget + " times");
-	// An unobserved worker (host listing failed) still has its mailbox; the dead-worker check relaunches one that is gone.
+	// An unobserved worker (host listing failed) still has its bb thread; the dead-worker check relaunches one that is gone.
 	if (alive === false) await steps.restart();
 	else await steps.resume();
 	// Starting a phase resets retries; keep the count across continuations.

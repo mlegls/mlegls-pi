@@ -1,4 +1,4 @@
-// wm: interactive worker threads, with turn reports over the board.
+// wm: interactive worker threads, with turn reports from bb.
 // Handles/topics name work, thread ids name lifetimes, and session ids name canonical pi histories.
 // Worktree, terminal and Git lifecycle belong to lib/thread.
 //   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt, model, effort });
@@ -15,16 +15,16 @@ export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { abandonThread, getThread, historyThread, integrateThread, listThreads, newThread, sendThread, threadSnapshot, ThreadMergeConflict, workerThread, type ThreadRecord, type ThreadSnapshot } from "./thread";
-import { boardDir, logSize, readFrom, type Message } from "./board/store";
+import { lastTurn, type TurnReport } from "./thread/turn";
 import { readLive } from "./session-meta/live";
 
 export type Outcome =
-	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: Message } // checkpoint: fenced on context; paused for a follow-up like needs-input
-	| { kind: "idle"; tail: string; message?: Message } // turn ended without a status: the pi's turn-end post (message)
+	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: TurnReport } // checkpoint: fenced on context; paused for a follow-up like needs-input
+	| { kind: "idle"; tail: string; message?: TurnReport } // turn ended without a status: its final message
 	| { kind: "exited"; tail: string }; // pi process gone
 
 export interface SpawnOptions {
-	run: string; // board topic prefix, e.g. compile/1726 or orch/rework-auth
+	run: string; // names the run the worker belongs to, e.g. compile/1726 or orch/rework-auth
 	handle: string;
 	prompt: string;
 	model?: string; // routed provider/model; required, with effort
@@ -37,7 +37,6 @@ export interface SpawnOptions {
 	session?: string; // legacy receipt field; never selects a transport
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
 	parentSessionFile?: string; // session jsonl that from: "summary" extracts from
-	follow?: string; // board topic glob whose decisions the worker sees without waking (siblings' coordination)
 	from?: "summary"; // prepend an extract of the parent session to the prompt
 }
 
@@ -91,10 +90,10 @@ function sh(cmd: string, args: string[], cwd?: string): Promise<Result> {
 	});
 }
 
-/** The board/reporting preamble every worker gets: `AGENTS_DIR/_common.md` with {{run}} {{handle}} {{topic}} filled. */
+/** The reporting preamble every worker gets: `AGENTS_DIR/_common.md` with {{run}} {{handle}} {{topic}} filled. */
 export function common(run: string, handle: string): string {
 	const file = join(AGENTS_DIR, "_common.md");
-	return fill(existsSync(file) ? readFileSync(file, "utf8") : "report on board topic {{topic}}: tag done, blocked, or needs-input.", run, handle);
+	return fill(existsSync(file) ? readFileSync(file, "utf8") : "report by ending your turn with done, blocked, or needs-input as its first word.", run, handle);
 }
 
 /** {{run}} {{handle}} {{topic}} in agent bodies and _common. */
@@ -108,28 +107,23 @@ export function prompt(o: { run: string; handle: string; prompt: string; agent?:
 	return [common(o.run, o.handle), role && fill(roleBody(role), o.run, o.handle), o.agent && fill(o.agent.body, o.run, o.handle), o.prompt].filter(Boolean).join("\n\n---\n\n");
 }
 
-/** Env exported into the worker's agent command: board identity, spawn provenance, and the fence's checkpoint ratio. */
-export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string; follow?: string }): string[] {
+/** Env exported into the worker's agent command: identity, spawn provenance, and the fence's checkpoint ratio. */
+export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string }): string[] {
 	return [
-		`PI_BOARD_NAME=${o.handle}`,
-		`PI_BOARD_TOPIC=${o.run}/${o.handle}`,
 		o.agent && `PI_WM_AGENT=${o.agent}`,
 		`PI_WM_RUN=${o.run}`,
 		`PI_WM_HANDLE=${o.handle}`,
 		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
 		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
-		o.follow && `PI_BOARD_FOLLOW=${o.follow}`,
 		process.env.PI_CODING_AGENT_DIR && `PI_CODING_AGENT_DIR=${process.env.PI_CODING_AGENT_DIR}`,
 	].filter((v): v is string => Boolean(v));
 }
 
 
 
-/** One poller per process: board cursor + batched thread observations. Ticks only while awaited. */
+/** One poller per process: bb turn completions + batched thread observations. Ticks only while awaited. */
 class Poller {
 	private workers = new Set<Worker>();
-	private cursor = 0;
-	private board?: string;
 	private timer?: ReturnType<typeof setTimeout>;
 	private running = false;
 	private errors = new Map<string, string>();
@@ -140,7 +134,6 @@ class Poller {
 	}
 
 	add(w: Worker) {
-		if (!this.workers.size || this.board !== boardDir()) { this.board = boardDir(); this.cursor = logSize(); }
 		this.workers.add(w);
 	}
 	remove(w: Worker) {
@@ -160,15 +153,11 @@ class Poller {
 		if (this.running) return;
 		this.running = true;
 		try {
-			const { messages, offset } = readFrom(this.cursor);
-			this.cursor = offset;
-			for (const m of messages) {
-				const tag = TERMINAL.find((t) => m.tags.includes(t));
-				// pi workers post every turn end (lib/board/host.ts); one without a status is idle, with its text.
-				const o: Outcome | undefined = tag ? { kind: tag, message: m } : m.tags.includes("turn-end") ? { kind: "idle", tail: m.body, message: m } : undefined;
-				if (o) for (const w of this.workers) if (w.topic === m.topic) w.emit(o);
-			}
 			if (![...this.workers].some(w => w.awaited)) return;
+			for (const w of this.workers) {
+				try { if (w.awaited && !w.launching) await w.turn(); }
+				catch (error) { this.defer(w.topic, error); }
+			}
 			readLive(true); // missing/stale records are normal; unreadable/malformed observations defer
 			const rows = await listThreads();
 			for (const w of this.workers) {
@@ -196,6 +185,20 @@ export class Worker {
 	private listeners = new Set<(o: Outcome) => void>();
 	private waiters: Array<(o: Outcome) => void> = [];
 	private unread: Outcome[] = []; // events that arrived while nobody was listening; the next `next()` takes them first
+	/** The bb log position after the last turn this worker reported; unset on a reattached worker until its first look. */
+	turnCursor?: number;
+	/** @internal Report a turn that completed since the last look: the worker's final message, its status the first word. */
+	async turn() {
+		if (this.ended) return;
+		const bb = (await this.record())?.bb;
+		if (!bb) return;
+		if (this.turnCursor === undefined) { this.turnCursor = (await lastTurn(bb))?.seq ?? 0; return; }
+		const report = await lastTurn(bb, this.turnCursor);
+		if (!report) return;
+		this.turnCursor = report.seq;
+		const tag = TERMINAL.find(t => report.tags.includes(t));
+		this.emit(tag ? { kind: tag, message: report } : { kind: "idle", tail: report.body, message: report });
+	}
 	/** @internal */
 	get awaited() {
 		return this.waiters.length > 0 || this.listeners.size > 0;
@@ -282,7 +285,6 @@ export class Worker {
 		if (entry.pid) this.observedPid = entry.pid;
 		if (entry.state === "exited" && !this.observedPid && Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS))
 			this.emit({ kind: "exited", tail: await this.capture(30) });
-		// pi turns come only from the board
 	}
 
 	/** Next event of any kind. After exit, always the exit outcome. Aborting the signal withdraws the wait without consuming anything. */
@@ -452,13 +454,14 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		} else if (o.from) {
 			throw new Error(`from must be "summary"; bb threads cannot fork a session`);
 		}
-		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint, follow: o.follow }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
+		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
 		const options = { cwd, worktree: o.handle, base: o.base, prepare: o.prepare ? async (thread: ThreadRecord) => {
 			const prepared = await o.prepare!(thread.cwd);
 			if (prepared !== undefined) thread.launch!.prompt = prompt({ ...o, prompt: prepared, agent: a });
 		} : undefined, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, worker: { run: o.run, handle: o.handle },
 			launch: { args: ["--approve", "--model", o.model!, "--thinking", o.effort!], env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
 		w.bind(await newThread(options));
+		w.turnCursor = 0;
 		w.launching = false;
 		return w;
 	} catch (err) {

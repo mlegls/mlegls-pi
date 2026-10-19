@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { join } from "node:path";
 import { run, saveState } from "../../../lib/reconcile/reconcile";
 import { saveThread } from "../../../lib/thread/registry";
-import { readFrom, send } from "../../../lib/board/store";
+import { fakeBb } from "../../../lib/thread/fake-bb";
 
 export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged") {
 	const root = realpathSync(mkdtempSync("/tmp/rc-landing-")), cwd = join(root, "repo"), child = join(root, "child");
@@ -15,9 +15,13 @@ export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged
 	let timer: ReturnType<typeof setInterval> | undefined;
 	try {
 		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|PI_THREAD_RUNTIME|ZMX_.*|TMUX.*)$/.test(key)) delete process.env[key];
-		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"),
 			PI_CODING_AGENT_DIR: join(root, "agent"), ZMX_DIR: join(root, "zmx"), MISE_TRUSTED_CONFIG_PATHS: root, PI_THREAD_RUNTIME: "zmx",
 			TRACKER_CLI: join(import.meta.dir, "../../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PI_AGENTS_DIR: join(import.meta.dir, "../../../agents") });
+		const bb = fakeBb(root);
+		bb.addThread("thr_fixture-owner");
+		bb.addThread("bbt-child", child);
+		const told = () => bb.threads().find(t => t.id === "bbt-child")!.tells.find(tell => tell.includes("Integration into"));
 		mkdirSync(join(cwd, "docs/issues"), { recursive: true });
 		git(cwd, "init", "-qb", "main");
 		git(cwd, "config", "user.name", "Fixture"); git(cwd, "config", "user.email", "fixture@example.invalid");
@@ -39,23 +43,21 @@ export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged
 		const targetBefore = git(cwd, "rev-parse", "HEAD");
 		await saveThread({ id: "fixture-child", sessionId: "fixture-child", sessionFile: join(root, "child.jsonl"),
 			cwd: child, project: cwd, worktree: child, ownership: "owner", branch: "child", archived: false,
-			created: new Date().toISOString(), worker: { run: "fixture", handle: "child" } });
-		saveState({ backend: "threads", root: "fixture", cwd, owner: "mail/fixture-owner", budget: 1,
+			created: new Date().toISOString(), worker: { run: "fixture", handle: "child" }, bb: "bbt-child" });
+		saveState({ backend: "threads", root: "fixture", cwd, owner: "thr_fixture-owner", budget: 1,
 			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { fixture: { into: cwd, self: true, phase: "review", retries: {}, workers: [],
 				handle: { run: "fixture", handle: "child", path: child, threadId: "fixture-child" } } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] });
-		send({ topic: "fixture/child", tags: ["done"], from: {}, body: 'done\n\n' + "\x60\x60\x60json\n"
-			+ JSON.stringify({ stories: [{ story: "Landing fixture", outcome: "held" }] }) + "\n\x60\x60\x60" });
+		bb.completeTurn(child, 'done\n\n' + "\x60\x60\x60json\n"
+			+ JSON.stringify({ stories: [{ story: "Landing fixture", outcome: "held" }] }) + "\n\x60\x60\x60");
 		const deadline = Date.now() + 20_000;
 		timer = setInterval(() => {
-			const messages = readFrom(0).messages;
-			if (messages.some(m => m.topic === "fixture/child" && m.body.includes("Integration into"))
+			if (told()
 				|| /^stage: done$/m.test(readFileSync(join(cwd, "docs/issues/fixture.md"), "utf8")) || Date.now() > deadline) controller.abort();
 		}, 50);
-		await run({ cwd, root: "fixture", owner: "mail/fixture-owner", budget: 1, signal: controller.signal });
-		const messages = readFrom(0).messages;
+		await run({ cwd, root: "fixture", owner: "thr_fixture-owner", budget: 1, signal: controller.signal });
 		return {
-			message: messages.find(m => m.topic === "fixture/child" && m.body.includes("Integration into"))?.body,
+			message: told(),
 			targetBefore, targetAfter: git(cwd, "rev-parse", "HEAD"), childBefore,
 			childAfter: (() => { try { return git(cwd, "rev-parse", "child"); } catch { return null; } })(),
 			order: (() => { try { return readFileSync(join(root, "order"), "utf8").trim().split("\n"); } catch { return []; } })(),

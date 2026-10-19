@@ -1,5 +1,5 @@
 // bin/bb-pi gives a worker's identity (.wm/launch.env) to the pi bb runs on the thread's session, and only to it: bb
-// also starts a sessionless pi in the same worktree, which with that identity took turns on the worker's board topic
+// also starts a sessionless pi in the same worktree, which with that identity took turns on the worker's handle
 // as a second writer (docs/issues/bb-move-leaves-source-pi-running.md).
 import { expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -13,11 +13,11 @@ test("only the session-carrying pi bb starts in a worktree gets the worker's ide
 	const dir = mkdtempSync(join(tmpdir(), "bb-pi-"));
 	const bin = join(dir, "bin");
 	mkdirSync(bin);
-	writeFileSync(join(bin, "pi"), "#!/bin/sh\necho \"$PI_BOARD_TOPIC\"\n");
+	writeFileSync(join(bin, "pi"), "#!/bin/sh\necho \"$PI_WM_HANDLE\"\n");
 	chmodSync(join(bin, "pi"), 0o755);
 	const cwd = join(dir, "worktree");
 	mkdirSync(join(cwd, ".wm"), { recursive: true });
-	writeFileSync(join(cwd, ".wm", "launch.env"), "PI_BOARD_TOPIC='run/worker-1'\n");
+	writeFileSync(join(cwd, ".wm", "launch.env"), "PI_WM_HANDLE='run/worker-1'\n");
 	const topic = (...args: string[]) => {
 		const { stdout } = Bun.spawnSync([bbPi, ...args], { cwd, env: { PATH: bin + ":/usr/bin:/bin" } });
 		return stdout.toString().trim();

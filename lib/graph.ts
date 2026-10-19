@@ -1,11 +1,11 @@
-// Session graph: every pi session as a node, joined to its parent, project, live process and
-// last board report. Sessions are files, so a resumable session (no process) is still a node and
+// Session graph: every pi session as a node, joined to its parent, project and live process.
+// Sessions are files, so a resumable session (no process) is still a node and
 // an orphan (live, but its parent has ended) is visible. Views (profile, context)
 // render this; nothing here depends on the multiplexer.
 //
 // Sources: session jsonl headers/meta (parent links: wm's session-meta.parentSession, the bash
 // tool's PI_SESSION_ID as invokedBy, pi's fork header), live records
-// from lib/session-meta/live.ts, the board log, and git for project names. Parsed files are cached
+// from lib/session-meta/live.ts, and git for project names. Parsed files are cached
 // by (mtime, size) in ~/.cache/ab-tree/index.json.
 
 import { execFileSync } from "node:child_process";
@@ -13,8 +13,6 @@ import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, rea
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "./session-meta/live";
-import { read } from "./board/store";
-import { resolveSession } from "./session-meta/identity";
 import { allThreads } from "./thread/registry";
 import { isInteractive } from "./thread/runtime";
 import { workerResources, type WorkspaceResources } from "./thread/resources";
@@ -40,7 +38,6 @@ export interface Node {
 	/** User-facing session: not agent-spawned, and not running headless. */
 	interactive: boolean;
 	pid?: number;
-	report?: { tag: string; ts: string; body: string };
 	/** Live or parked while its parent has ended, or its parent is unknown. */
 	orphan?: boolean;
 	lastText?: string;
@@ -123,18 +120,6 @@ function project(cwd: string, cache: Cache): string {
 	return name;
 }
 
-function reports(): Map<string, { tag: string; ts: string; body: string }> {
-	const out = new Map<string, { tag: string; ts: string; body: string }>();
-	const terminal = ["done", "blocked", "needs-input", "checkpoint"];
-	let messages;
-	try { messages = read({ tags: terminal.join(" | "), limit: Infinity }).messages; } catch { return out; }
-	for (const m of messages) {
-		const tag = m.tags.find(t => terminal.includes(t))!;
-		out.set(m.topic, { tag, ts: m.ts, body: m.body.slice(0, 200) });
-	}
-	return out;
-}
-
 export interface Options { days?: number }
 
 export async function graph(options: Options = {}): Promise<Map<string, Node>> {
@@ -192,7 +177,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	const parentOf = (p: Parsed): { id?: string; kind?: Node["parentKind"] } => {
 		const parent = threadBySession.get(p.id)?.parent;
 		if (parent) return { id: threadById.get(parent)?.sessionId ?? parent, kind: "spawn" };
-		if (p.meta?.parentSession) return { id: resolveSession(p.meta.parentSession, byId.keys()) ?? p.meta.parentSession, kind: "spawn" };
+		if (p.meta?.parentSession) return { id: p.meta.parentSession.replace(/^session\//, ""), kind: "spawn" };
 		if (p.meta?.invokedBy && p.meta.invokedBy !== p.id) return { id: p.meta.invokedBy, kind: "invoked" };
 		if (p.forkOf) return { id: basename(p.forkOf).slice(basename(p.forkOf).indexOf("_") + 1, -6), kind: "fork" };
 		return {};
@@ -207,7 +192,6 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		if (path && !want.has(path)) { want.add(path); queue.push(path); }
 	}
 
-	const board = reports();
 	const nodes = new Map<string, Node>();
 	for (const path of want) {
 		const p = read(path);
@@ -224,7 +208,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
 			parent, parentKind: kind, run, handle,
 			state, workspace: thread ? resources.get(thread.id) : undefined, interactive: thread ? isInteractive(thread) : kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
-			pid: l?.pid, report: run && handle ? board.get(run + "/" + handle) : undefined,
+			pid: l?.pid,
 			lastText: p.lastText, children: [],
 		});
 	}

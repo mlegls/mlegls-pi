@@ -1,5 +1,5 @@
-import { mail } from "../board/mailbox";
-import { logSize, readFrom } from "../board/store";
+import { tellBb } from "./bb";
+import { lastTurn } from "./turn";
 import { parse } from "../report";
 import { allThreads, getThread, saveThread } from "./registry";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
@@ -129,27 +129,23 @@ async function resolveConflict(error: ThreadMergeConflict): Promise<ThreadBlock 
 	let block: ThreadBlock = { action: "archive", parentBranch: error.parentBranch, files: error.files, reason: error.message };
 	await blockThread(id, block);
 	const thread = await threadRecord(id);
-	const topic = thread.worker ? thread.worker.run + "/" + thread.worker.handle : "thread/" + id;
+	if (!thread.bb) return blockThread(id, block = { ...block, reason: "Archive conflict unresolved: thread " + id + " has no bb thread to ask" }).then(() => block);
 	// The cursor precedes the request, not the first poll: a quick response must not be missed.
-	let cursor = logSize();
-	mail(thread.sessionId, "Archive conflict: rebase onto " + error.parentBranch + " and resolve.\nFiles: " +
+	let cursor = (await lastTurn(thread.bb))?.seq ?? 0;
+	await tellBb(thread.bb, "Archive conflict: rebase onto " + error.parentBranch + " and resolve.\nFiles: " +
 		error.files.join(", ") + "\nCommit the resolution; do not retire or archive any thread. Report done when resolved, or blocked if you cannot proceed.");
 	while (true) {
 		const current = await threadRecord(id);
 		if (current.archived) return;
-		const batch = readFrom(cursor);
-		cursor = batch.offset;
-		for (const message of batch.messages) {
-			if (message.topic !== topic || !message.tags.some(tag =>
-				["done", "blocked", "needs-input", "checkpoint", "turn-end"].includes(tag))) continue;
-			// /new or /resume may have moved the canonical session since the request or this poll.
-			if (message.from.session !== (await threadRecord(id)).sessionId) continue;
-			const report = parse(message.body);
-			if (message.tags.includes("done") && report.status === "done") {
+		const turn = await lastTurn(thread.bb, cursor);
+		if (turn) {
+			cursor = turn.seq;
+			const report = parse(turn.body);
+			if (report.status === "done") {
 				await saveThread({ ...await threadRecord(id), blocked: undefined });
 				return;
 			}
-			block = { ...block, reason: "Archive conflict unresolved: agent reported " + (report.status ?? "no status") + "\n" + message.body };
+			block = { ...block, reason: "Archive conflict unresolved: agent reported " + (report.status ?? "no status") + "\n" + turn.body };
 			await blockThread(id, block);
 			return block;
 		}

@@ -16,7 +16,7 @@ import { db as recordsDb, storeDir } from "./store.ts";
 const MODEL = "qwen/qwen3-embedding-8b", DIMS = 512;
 const QUERY = "Instruct: Given a question about earlier agent work, retrieve the memories, notes or messages that answer it\nQuery: ";
 /** Schemas worth searching; cursor records are bookkeeping. */
-export const EMBEDDED = ["om", "journal", "board", "elided"];
+export const EMBEDDED = ["om", "journal", "elided"];
 const MIN_CHARS = 20, MAX_CHARS = 6000, BATCH = 128, PARALLEL = 8;
 
 let cached: Database | undefined;

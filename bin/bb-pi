@@ -1,8 +1,8 @@
 #!/bin/sh
 # pi as bb's Pi provider runs it (BB_PI_BRIDGE_COMMAND). bb sets one environment for every thread, so a worker's
-# identity (board topic, stance, checkpoint ratio) comes from .wm/launch.env in its worktree, written at launch.
+# identity (run, handle, stance, checkpoint ratio) comes from .wm/launch.env in its worktree, written at launch.
 # bb also starts a sessionless pi (--no-session) in the same cwd beside each thread's own: it must not take the
-# worker's identity, or its board host subscribes to the worker topic and runs the assignment as a second writer.
+# worker's identity, or it runs as a second writer on the worker.
 case " $* " in
 *" --no-session "*) ;;
 *) if [ -f .wm/launch.env ]; then set -a; . ./.wm/launch.env; set +a; fi ;;

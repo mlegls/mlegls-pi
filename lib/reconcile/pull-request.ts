@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import type { Handle } from "../dispatch.ts";
 import { integrate } from "../dispatch.ts";
-import type { Message } from "../board/store.ts";
+import type { TurnReport } from "../thread/turn.ts";
 import { parse } from "../report.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
 import type { Tracker } from "../tracker.ts";
@@ -26,7 +26,7 @@ export interface PullRequestContext {
 	/** Owner exceptions pause actuation, not terminal PR observation. */
 	ownerHeld?: boolean;
 	launchRepair: (request: PrRepairRequest) => Promise<Handle>;
-	report: (worker: Handle, after?: string, launchedAt?: number) => Message | undefined;
+	report: (worker: Handle, after?: string, launchedAt?: number) => TurnReport | undefined;
 	retireRepair: (worker: Handle) => Promise<void>;
 	sendRepair: (worker: Handle, message: string) => Promise<void>;
 	repairAlive?: (worker: Handle) => boolean | undefined;

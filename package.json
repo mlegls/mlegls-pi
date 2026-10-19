@@ -17,7 +17,6 @@
       "./extensions/workspace/index.ts",
       "./extensions/bb/index.ts",
       "./extensions/context/index.ts",
-      "./lib/board/host.ts",
       "./lib/session-meta/host.ts",
       "./extensions/stances/index.ts",
       "./extensions/supervision/index.ts",

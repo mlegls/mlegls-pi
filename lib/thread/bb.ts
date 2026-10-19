@@ -2,6 +2,7 @@
 // apps, as the only thread runtime. The registry, worktree, setup and integration stay ours.
 // bb gives every thread the same environment, so a worker's identity reaches pi through .wm/launch.env in its
 // worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
+import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -44,8 +45,8 @@ export async function bbThreads(): Promise<Map<string, BbThread>> {
 }
 
 // A bb thread gets its identity and, when the spawner set them, the
-// state locations that isolate a fixture (registry, board, agent and roster dirs).
-const IDENTITY = /^(?:AB_THREAD_ID|PI_BOARD_(?:TOPIC|NAME|FOLLOW|DIR)|PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
+// state locations that isolate a fixture (registry, agent and roster dirs).
+const IDENTITY = /^(?:AB_THREAD_ID|PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
 /** The worker's identity env, for bin/bb-pi to source. */
 export function writeLaunchEnv(thread: ThreadRecord): void {
 	const env = launchEnv(thread);
@@ -87,7 +88,14 @@ export async function bbSessionFile(id: string): Promise<string> {
 	if (!provider) throw new Error("bb thread " + id + " has no pi session yet");
 	return join(process.env.BB_PI_BRIDGE_SESSION_DIR || join(homedir(), ".bb", "pi-bridge-sessions"), provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl");
 }
-export const tellBb = (id: string, text: string) => bb(["thread", "tell", id, text]);
+/** Message a bb thread. Queued, it follows the turn in progress (or starts one) rather than steering it; the text goes by file so a leading dash or backtick survives. */
+export async function tellBb(id: string, text: string, mode: "queue" | "steer" = "queue"): Promise<void> {
+	const file = join(threadDir(), "tell-" + randomUUID() + ".md");
+	mkdirSync(threadDir(), { recursive: true });
+	writeFileSync(file, text, { mode: 0o600 });
+	try { await bb(["thread", "tell", id, "--mode", mode, "--message-file", file]); }
+	finally { rmSync(file, { force: true }); }
+}
 /** Stop the turn and release bb's pi; the thread stays for a later message. */
 // A thread deleted in bb (or with its project) has nothing left to stop or archive.
 const gone = (error: unknown) => /not found|404/i.test(String(error));

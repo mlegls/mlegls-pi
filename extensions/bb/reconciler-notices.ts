@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { git } from "../../lib/thread/git.ts";
-import { bbIndex, getThread } from "../../lib/thread/registry.ts";
+import { allThreads, getThread } from "../../lib/thread/registry.ts";
 import type { State } from "../../lib/reconcile/reconcile.ts";
 
 /** Only suppress completion notices whose worker receipt belongs to a live run.
@@ -10,7 +10,7 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 	const child = /^\[bb system\]\n\n@thread:(thr_[a-z0-9]+) completed(?:, with \d+ workflows? still running)?:\n/.exec(text)?.[1];
 	if (!child) return false;
 	try {
-		const id = Object.entries(bbIndex()).find(([, entry]) => entry.bb === child)?.[0];
+		const id = (await allThreads()).find(thread => thread.bb === child)?.id;
 		if (!id) return false;
 		const worker = await getThread(id);
 		const run = worker?.worker?.run;

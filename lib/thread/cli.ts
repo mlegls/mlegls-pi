@@ -21,8 +21,7 @@ export function rowLine(row: ThreadRow): string {
 	const t = row.thread;
 	const blocked = t.blocked ? ` blocked=${t.blocked.action}:${summary(t.blocked.reason)}` : "";
 	const resources = row.workspace ? " processes=" + row.workspace.processes + " rssMB=" + row.workspace.rssMB : "";
-	const report = row.report ? ` report=${row.report.tag}:${summary(row.report.body)}` : "";
-	return `${"  ".repeat(row.depth)}${t.id} session=${t.sessionId} ${t.ownership} ${row.state} cwd=${t.cwd}${t.branch ? ` branch=${t.branch}` : ""}${resources}${report}${blocked}`;
+	return `${"  ".repeat(row.depth)}${t.id} session=${t.sessionId} ${t.ownership} ${row.state} cwd=${t.cwd}${t.branch ? ` branch=${t.branch}` : ""}${resources}${blocked}`;
 }
 function out(text: string) { process.stdout.write(text); }
 

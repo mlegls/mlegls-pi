@@ -5,7 +5,7 @@
 //
 //   user   the user's words           agent  the agent's replies (thinking is never logged)
 //   tool   one tool call (name, JSON)  echo   one tool result, clipped to its head and tail
-//   work   a message from outside the conversation (board mail, extension reports)
+//   work   a message from outside the conversation (a worker's report, extension reports)
 //
 // A tool result is clipped to ECHO_CHARS in all; any other long text is split over several
 // messages in a row, never cut.

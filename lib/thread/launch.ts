@@ -1,17 +1,15 @@
 import type { ThreadRecord, AgentLaunch } from "./types";
 
-const inheritedIdentity = /^(?:AB_THREAD_ID|PI_SESSION_(?:ID|FILE)|PI_BOARD_(?:TOPIC|NAME|FOLLOW)|PI_WM_.*|PI_CHECKPOINT|TMUX(?:_PANE)?)$/;
+const inheritedIdentity = /^(?:AB_THREAD_ID|PI_SESSION_(?:ID|FILE)|PI_WM_.*|PI_CHECKPOINT|TMUX(?:_PANE)?)$/;
 
 export function launchEnv(thread: ThreadRecord): NodeJS.ProcessEnv {
 	const env = { ...process.env };
 	for (const key of Object.keys(env)) if (inheritedIdentity.test(key)) delete env[key];
 	Object.assign(env, thread.launch?.env);
 	env.AB_THREAD_ID = thread.id;
-	env.PI_BOARD_TOPIC = thread.worker ? thread.worker.run + "/" + thread.worker.handle : "thread/" + thread.id;
 	if (thread.worker) {
 		env.PI_WM_RUN = thread.worker.run;
 		env.PI_WM_HANDLE = thread.worker.handle;
-		env.PI_BOARD_NAME ??= thread.worker.handle;
 	}
 	delete env.PI_SESSION_ID;
 	delete env.PI_SESSION_FILE;

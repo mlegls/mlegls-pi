@@ -40,7 +40,7 @@ export const PURPOSE = {
 		edit: "Making a change: writing or editing files, committing.",
 		verify: "Checking work that should be right: running tests or type checks, trying the thing, screenshots.",
 		debug: "Diagnosing something that went wrong: reading errors, investigating unexpected behavior, retrying a fix.",
-		coordinate: "Working with other agents or sessions: board messages, mail, dispatching or integrating workers.",
+		coordinate: "Working with other agents or sessions: dispatching or integrating workers, reconciling.",
 		noise: "Wasted: a failed or malformed call, a duplicate read, huge irrelevant output.",
 	},
 };
@@ -57,7 +57,7 @@ const byName = (name: string, error: boolean): string =>
 	error ? "noise"
 	: /^(read|grep|find|ls|recall)$/.test(name) ? "orient"
 	: /^(edit|write)$/.test(name) ? "edit"
-	: /^(board_|mail|dispatch|integrate|retire|reconcile|subagent)/.test(name) ? "coordinate"
+	: /^(dispatch|integrate|retire|reconcile|subagent)/.test(name) ? "coordinate"
 	: "other";
 
 /** What a tool call did, in a line: the bash command, the path, codemode's inner calls. */
@@ -103,7 +103,7 @@ export function contextFile(file: string, id: string, elide?: Elide): Context & 
 		}
 		if (eid) order.push(eid);
 		if (e.type === "branch_summary") push(eid, { k: "summary", label: "branch summary", tok: est(e.summary ?? ""), purpose: "summary", preview: one(e.summary ?? "", 300) });
-		if (e.type === "custom_message") { const t = textOf(e.content); push(eid, { k: "message", label: e.customType + ": " + one(t, 60), tok: est(t), purpose: e.customType === "board" ? "coordinate" : "message", preview: one(t, 300) }); }
+		if (e.type === "custom_message") { const t = textOf(e.content); push(eid, { k: "message", label: e.customType + ": " + one(t, 60), tok: est(t), purpose: "message", preview: one(t, 300) }); }
 		if (e.type !== "message") continue;
 		const m = e.message;
 		const mts = typeof m.timestamp === "number" ? m.timestamp : Date.parse(e.timestamp);

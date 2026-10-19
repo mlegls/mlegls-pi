@@ -1,14 +1,13 @@
 // Reconciler processes, one per dispatched subtree, detached from any session; state and log live under
 // <git-common-dir>/reconcile/.
-//   bun lib/reconcile/main.ts start <issue> --owner mail/xxxxxxxx [--budget N] [--land MODE] [--cwd DIR]   detached
-//   bun lib/reconcile/main.ts run <issue> --owner mail/xxxxxxxx [--budget N] [--land MODE]   foreground
+//   bun lib/reconcile/main.ts start <issue> --owner <bb thread id> [--budget N] [--land MODE] [--cwd DIR]   detached
+//   bun lib/reconcile/main.ts run <issue> --owner <bb thread id> [--budget N] [--land MODE]   foreground
 //   bun lib/reconcile/main.ts status [--cwd DIR]
 //   bun lib/reconcile/main.ts stop <issue> [--cwd DIR]
 //   bun lib/reconcile/main.ts resolve <issue> <node> <json> [--cwd DIR]
 //   bun lib/reconcile/main.ts constrain <issue> <node> TEXT [--cwd DIR]
 import { execFileSync } from "node:child_process";
-import { mail } from "../board/mailbox";
-import { retire, topic, type Handle } from "../dispatch";
+import { retire, tell, topic, type Handle } from "../dispatch";
 import { allThreads } from "../thread/registry";
 import { checkout } from "../thread/git";
 import { pidAlive as alive } from "../wm";
@@ -125,7 +124,7 @@ export function resolveException(cwd: string, root: string, node: string, resolu
 	writeFileSync(join(resolutionsDir(cwd, root), node + ".json"), JSON.stringify(resolution));
 }
 
-export function constrain(cwd: string, root: string, node: string, text: string) {
+export async function constrain(cwd: string, root: string, node: string, text: string) {
 	if (!text.trim()) throw new Error("constraint text must not be empty");
 	const s = updateState(cwd, root, prior => {
 		if (!prior || prior.finished || prior.stopping) throw new Error("no active reconciler for " + root);
@@ -136,8 +135,8 @@ export function constrain(cwd: string, root: string, node: string, text: string)
 		return prior;
 	});
 	const worker = s.chains[node]?.handle ?? (node === root ? s.pr?.repair?.worker : undefined);
-	if (worker) mail(topic(worker), "Constraint from the supervisor (applies throughout this node's work):\n\n" + text, { name: "reconcile/" + root });
-	return { recorded: true, mailed: !!worker };
+	if (worker) await tell(worker, "Constraint from the supervisor (applies throughout this node's work):\n\n" + text, { cwd });
+	return { recorded: true, told: !!worker };
 }
 
 if (import.meta.main) {
@@ -150,6 +149,6 @@ if (import.meta.main) {
 	else if (cmd === "stop" && root) console.log(JSON.stringify(await stop(cwd, root)));
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
 	else if (cmd === "resolve" && root && rest.length === 2) resolveException(cwd, root, rest[0], JSON.parse(rest[1]));
-	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(constrain(cwd, root, rest[0], rest[1])));
-	else { console.error("usage: main.ts start|run <issue> --owner mail/x [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT"); process.exit(2); }
+	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(await constrain(cwd, root, rest[0], rest[1])));
+	else { console.error("usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT"); process.exit(2); }
 }

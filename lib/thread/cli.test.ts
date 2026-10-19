@@ -12,13 +12,10 @@ test("row formatter keeps a multiline blocked reason on one line with bounded su
 			blocked: { action: "archive", parentBranch: "main", files: [], reason },
 		},
 		state: "exited", terminals: [], interactive: false, attention: "needs-you", depth: 1,
-		report: { tag: "blocked", ts: "2026-10-14T00:00:00Z", body: reason },
 	};
 	const line = rowLine(row);
 	expect(line).not.toMatch(/[\r\n]/);
 	const compact = reason.replace(/\s+/g, " ").slice(0, 159) + "…";
-	expect(line).toContain(" report=blocked:" + compact);
 	expect(line).toEndWith(" blocked=archive:" + compact);
 	expect(row.thread.blocked?.reason).toBe(reason);
-	expect(row.report?.body).toBe(reason);
 });

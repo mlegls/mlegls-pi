@@ -6,7 +6,7 @@ import { Worker, spawnEnv, wait, type Outcome } from "./wm";
 
 const done = (body: string): Outcome => ({
 	kind: "done",
-	message: { id: body, ts: "", topic: "", tags: ["done"], from: { name: "", session: "", cwd: "" }, body },
+	message: { seq: 1, id: body, ts: "", tags: ["done"], body },
 });
 
 function pair() {
@@ -61,37 +61,9 @@ describe("wait", () => {
 	});
 });
 
-// A coordinator must receive a report posted before it awaits the worker. The
-// poller owns a process-level cursor, so isolate the fixture's board as a process.
-test("poller delivers a report posted after the worker is registered", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "wm-race-"));
-	const code = [
-		"import { Worker } from " + JSON.stringify(join(import.meta.dir, "wm.ts")) + ";",
-		"import { send } from " + JSON.stringify(join(import.meta.dir, "./board/store.ts")) + ";",
-		"const w = new Worker('race', 'b', process.cwd(), 'race', process.cwd());",
-		"send({ topic: 'race/b', tags: ['done'], body: 'mid-spawn', from: {name: 'b'} });",
-		"const result = await w.next(); w.drop(); console.log(JSON.stringify(result));",
-	].join("\n");
-	const child = Bun.spawn([process.execPath, "-e", code], {
-		cwd: dir, env: { ...process.env, PI_BOARD_DIR: dir }, stdout: "pipe", stderr: "pipe",
-	});
-	const timeout = setTimeout(() => child.kill(), 4000);
-	try {
-		const [code, out, err] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
-		expect({code, err}).toEqual({code: 0, err: ""});
-		expect(JSON.parse(out)).toMatchObject({kind: "done", message: {body: "mid-spawn"}});
-	} finally {
-		clearTimeout(timeout);
-		child.kill();
-		rmSync(dir, { recursive: true, force: true });
-	}
-}, 5000);
-
 describe("spawnEnv", () => {
-	test("carries board identity, spawn provenance, and the fence ratio", () => {
+	test("carries identity, spawn provenance, and the fence ratio", () => {
 		expect(spawnEnv({ run: "reorg/0918", handle: "a", agent: "auto", parentSession: "s1", checkpoint: "0.6" })).toEqual([
-			"PI_BOARD_NAME=a",
-			"PI_BOARD_TOPIC=reorg/0918/a",
 			"PI_WM_AGENT=auto",
 			"PI_WM_RUN=reorg/0918",
 			"PI_WM_HANDLE=a",
@@ -101,6 +73,6 @@ describe("spawnEnv", () => {
 	});
 
 	test("drops absent optional values", () => {
-		expect(spawnEnv({ run: "r", handle: "h" })).toEqual(["PI_BOARD_NAME=h", "PI_BOARD_TOPIC=r/h", "PI_WM_RUN=r", "PI_WM_HANDLE=h"]);
+		expect(spawnEnv({ run: "r", handle: "h" })).toEqual(["PI_WM_RUN=r", "PI_WM_HANDLE=h"]);
 	});
 });

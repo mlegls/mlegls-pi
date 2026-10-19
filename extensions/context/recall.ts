@@ -17,21 +17,20 @@ import { recallElided } from "./elide.ts";
 import { zoomFor } from "./notes.ts";
 import { formatRecallRenderedResultForTui, recallObservationTool } from "./om/tools/recall-observation.ts";
 
-const DESCRIPTION = "Recall anything remembered: OM memories, journal notes, elided tool outputs, board messages, session entries. " +
+const DESCRIPTION = "Recall anything remembered: OM memories, journal notes, elided tool outputs, session entries. " +
 	"q is a function or a read-only SQL query; args are its arguments or the query's ? parameters.\n" +
 	"Functions:\n" +
-	"- id: q \"id\", args [id], or just q \"<id>\": a 12-hex memory id (OM observation/reflection, with its sources; an elided output, in full) or any record id (board message ids like muppbafa-6uviod), shown with tags and edges.\n" +
+	"- id: q \"id\", args [id], or just q \"<id>\": a 12-hex memory id (OM observation/reflection, with its sources; an elided output, in full) or any record id, shown with tags and edges.\n" +
 	"- entry: args [\"entry:<session>/<entry>\" or an entry id on this branch, ...]: the session entries' text.\n" +
 	"- search: args [text, schema?]: full-text search (all words, stemmed, bm25-ranked); falls back to substring match.\n" +
 	"- zoom: args [log, \"lo-hi\"]: open a block of a notes log (global | project; #lo-hi as the notes print it) into its two halves, down to the notes.\n" +
 	"- similar: args [question or description, schema?, k?, \"rerank\"?]: records nearest in meaning (embeddings fused with full-text rank, near-duplicates dropped), best first; for when you don't know the exact words. \"rerank\" has Jev reorder and drop weak matches (+~1s).\n" +
 	"SQL (SQLite, read-only; at most 100 rows, long cells cut):\n" +
-	"- records(seq, id, ts, schema, body): append-only; schema is om | journal | memo (notes) | optmem | elided | board | cursor.\n" +
-	"- tags(record → records.seq, key, value, ord): every record has session. om: om.kind (observation | reflection | drop), om.id (the 12-hex memory id), om.timestamp, om.relevance, om.tokenCount. journal: journal.via, journal.model. elided: tool, tokens. board: topic, name, cwd, free tags (decision, blocked, done, …) and board.<field> data.\n" +
+	"- records(seq, id, ts, schema, body): append-only; schema is om | journal | memo (notes) | optmem | elided | cursor (and board, from before the board was removed).\n" +
+	"- tags(record → records.seq, key, value, ord): every record has session. om: om.kind (observation | reflection | drop), om.id (the 12-hex memory id), om.timestamp, om.relevance, om.tokenCount. journal: journal.via, journal.model. elided: tool, tokens. Old board records: topic, name, cwd, free tags and board.<field> data.\n" +
 	"- edges(record, src, rel, dst): at → entry:<session>/<entry> (where it was written); cites, source → entries; om reflects, drops → om:<memory id>; journal corrects → records; optmem summarizes → entries (a message's line) or optmem:<key> (a merge's parts); optmem scores, obsoletes, duplicates → optmem:<key> (scored cut).\n" +
 	"- temp branch(pos, id, type, role, tool, text): this session's current branch, oldest first.\n" +
-	"Examples: SELECT r.ts, r.body FROM records r JOIN tags t ON t.record = r.seq AND t.key = 'topic' WHERE r.schema = 'board' AND t.value LIKE 'run/%' ORDER BY r.seq DESC LIMIT 10\n" +
-	"SELECT r.body FROM records r JOIN edges e ON e.record = r.seq AND e.rel = 'at' JOIN branch b ON e.dst LIKE '%/' || b.id WHERE r.schema = 'journal'\n" +
+	"Examples: SELECT r.body FROM records r JOIN edges e ON e.record = r.seq AND e.rel = 'at' JOIN branch b ON e.dst LIKE '%/' || b.id WHERE r.schema = 'journal'\n" +
 	"SELECT pos, tool, substr(text, 1, 200) FROM branch WHERE role = 'toolResult' AND text LIKE ?";
 
 const MEMORY_ID = /^[a-f0-9]{12}$/;
@@ -150,10 +149,10 @@ export default function (pi: ExtensionAPI) {
 		name: "recall",
 		label: "recall",
 		description: DESCRIPTION,
-		promptSnippet: "Recall memories, elided outputs, board messages and session entries by id, text or semantic search, or read-only SQL over the records store",
+		promptSnippet: "Recall memories, elided outputs and session entries by id, text or semantic search, or read-only SQL over the records store",
 		promptGuidelines: [
 			"Use recall <id> to resolve a memory id or elision pointer before acting on details it stands for.",
-			"Use recall with SQL to answer questions about earlier work across sessions (decisions, board history, what an output said).",
+			"Use recall with SQL to answer questions about earlier work across sessions (decisions, what an output said).",
 		],
 		parameters: Type.Object({
 			q: Type.String({ description: "id | entry | search | similar | zoom | a memory or record id | a SELECT/WITH query" }),

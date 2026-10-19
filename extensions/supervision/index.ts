@@ -1,26 +1,27 @@
 /**
  * Supervision: launch ready waves of wm workers, integrate and retire them, and /jump into a
- * worker's session. Dispatch subscribes this session to the run's topics with wake, so worker
- * reports (their last message, posted on run/handle) start the parent's next turn.
+ * worker's session. Workers are bb child threads of this one: bb tells it when they finish, and the
+ * reconciler tells this thread what needs it.
  */
+const thisThread = () => { const id = process.env.BB_THREAD_ID; if (!id) throw new Error("The reconciler's owner is a bb thread: run this session in bb"); return id; };
+
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { dispatch, integrate, retire, type Assignment, type Handle } from "../../lib/dispatch";
 import { childSession } from "../../lib/session/jump";
 import { dataTool } from "../../lib/tool";
-import { mailbox } from "../../lib/board/mailbox";
 import { campaigns, constrain, resolveException, start, stop, summary } from "../../lib/reconcile/main";
 
 const namespace = { name: "supervision", description: "Dispatch wm workers (bb threads: a worktree and a pi run by bb), integrate their branches, retire them" };
 
-const HandleSchema = Type.Object({ handle: Type.String(), run: Type.String(), path: Type.String(), threadId: Type.Optional(Type.String()), session: Type.Optional(Type.String()), cursor: Type.Optional(Type.String()) });
+const HandleSchema = Type.Object({ handle: Type.String(), run: Type.String(), path: Type.String(), threadId: Type.Optional(Type.String()), session: Type.Optional(Type.String()) });
 const Worker = Type.Union([HandleSchema, Type.String({ description: "Bare handle, looked up among registered workers in this checkout's project" })]);
 
 export default function (pi: ExtensionAPI) {
 	dataTool(pi, {
 		name: "dispatch", namespace,
 		description: "Launch a ready wave of workers; no waiting or retries. Each assignment is a self-contained prompt with an `agent` stance (agents/<agent>.md; its model list routes through stance/<agent>) or an exact model+effort. " +
-			"Workers report by ending their turn (done | blocked | needs-input | checkpoint first) on board topic run/handle; this session is subscribed to run/** with wake. " +
+			"Workers report by ending their turn (done | blocked | needs-input | checkpoint first); bb tells this thread when each finishes. " +
 			"`active` lists every outstanding handle from earlier waves for the maxConcurrent budget. Returns {submitted, pending, failed?}: submitted workers may queue for host slots or memory; retain their handles for integrate. Inspect a failure before retrying.",
 		parameters: Type.Object({
 			run: Type.String({ description: "Parent topic/branch prefix, e.g. compile/1726" }),
@@ -37,9 +38,8 @@ export default function (pi: ExtensionAPI) {
 		async run(p, ctx) {
 			const receipt = await dispatch(p.assignments as Assignment[], {
 				run: p.run, cwd: ctx.cwd, parent: ctx.sessionManager.getSessionId(),
-				maxConcurrent: p.maxConcurrent ?? 8, active: (p.active ?? []) as Handle[], follow: p.run,
+				maxConcurrent: p.maxConcurrent ?? 8, active: (p.active ?? []) as Handle[],
 			});
-			if (receipt.submitted.length) pi.events.emit("board:subscribe", { topic: p.run + "/**", wake: true });
 			return receipt;
 		},
 	});
@@ -62,12 +62,12 @@ export default function (pi: ExtensionAPI) {
 		run: (p, ctx) => retire(p.worker as Handle | string, { cwd: ctx.cwd }),
 	});
 
-	const reconcileNs = { name: "reconcile", description: "Execute a ready issue subtree autonomously: a reconciler process runs specs to tickets and tickets through implement → drive → review → integrate, handles mechanical failures itself, and mails this session only for exceptions no handler could resolve, and when it finishes" };
+	const reconcileNs = { name: "reconcile", description: "Execute a ready issue subtree autonomously: a reconciler process runs specs to tickets and tickets through implement → drive → review → integrate, handles mechanical failures itself, and tells this thread only for exceptions no handler could resolve, and when it finishes" };
 	dataTool(pi, {
 		name: "reconcile", namespace: reconcileNs,
-		description: "Start (or confirm running) the reconciler for a ready spec or ticket and its subtree. Local work lands in this checkout; PR modes stage independently until remote merge. Mode is captured from land, committed .pi/reconcile.json, or local. You (this session's mailbox) are its owner: you get root-level exceptions and the final report. `budget` caps its live workers (default 6).",
+		description: "Start (or confirm running) the reconciler for a ready spec or ticket and its subtree. Local work lands in this checkout; PR modes stage independently until remote merge. Mode is captured from land, committed .pi/reconcile.json, or local. You (this bb thread) are its owner: you get root-level exceptions and the final report. `budget` caps its live workers (default 6).",
 		parameters: Type.Object({ issue: Type.String(), budget: Type.Optional(Type.Number()), land: Type.Optional(Type.Union([Type.Literal("local"), Type.Literal("pr-merge"), Type.Literal("pr-review")])) }),
-		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: mailbox(ctx.sessionManager.getSessionId()), ownerSession: ctx.sessionManager.getSessionId(), budget: p.budget ?? 6, land: p.land }),
+		run: (p, ctx) => start({ cwd: ctx.cwd, root: p.issue, owner: thisThread(), ownerSession: ctx.sessionManager.getSessionId(), budget: p.budget ?? 6, land: p.land }),
 	});
 	dataTool(pi, {
 		name: "reconcile_stop", namespace: reconcileNs,
@@ -94,14 +94,15 @@ export default function (pi: ExtensionAPI) {
 	});
 	dataTool(pi, {
 		name: "reconcile_constrain", namespace: reconcileNs,
-		description: "Record a persistent constraint for a node, mail its current worker, and include all its constraints in every later phase's first prompt. Mail does not interrupt the running turn. Constraints survive retries, redispatch and restart.",
+		description: "Record a persistent constraint for a node, tell its current worker, and include all its constraints in every later phase's first prompt. The message is queued behind the running turn. Constraints survive retries, redispatch and restart.",
 		parameters: Type.Object({ issue: Type.String({ description: "The reconciler's root issue" }), node: Type.String(), text: Type.String() }),
 		run: (p, ctx) => constrain(ctx.cwd, p.issue, p.node, p.text),
 	});
 	// A missing process resumes with its owner; an explicit stop owns cleanup and never auto-resumes.
 	pi.on("session_start", (_event, ctx) => {
 		try {
-			const me = mailbox(ctx.sessionManager.getSessionId());
+			const me = process.env.BB_THREAD_ID;
+			if (!me) return;
 			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.stopping && !s.running) start({ cwd: ctx.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget, land: s.land ?? "local" });
 		} catch {}
 	});

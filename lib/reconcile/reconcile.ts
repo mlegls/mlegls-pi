@@ -1,7 +1,7 @@
 // Reconciler for one dispatched issue subtree (docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md).
 //
 // Each tick recomputes what every node needs from observed state (the global tracker and private landing ledger, the
-// workers' board reports and current thread/live observations) and takes the next step. Specs get to tickets through the refine
+// workers' bb turn reports and current thread/live observations) and takes the next step. Specs get to tickets through the refine
 // role (compile or manager), which promotes them or commits children; an implementer who finds its ticket
 // bigger than one session sends it back there (respec). Tickets run implement → drive → review → integrate, a leaf into its parent's branch, a node with children once they
 // have all landed in its own branch ("collector"), which its own chain then carries up. Mechanical failures
@@ -17,18 +17,16 @@ import { execFileSync } from "node:child_process";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dispatch, integrate, retire, stop, topic, type Handle } from "../dispatch.ts";
+import { dispatch, integrate, retire, stop, tell, topic, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
-import { mail } from "../board/mailbox.ts";
-import { subscriberStatus } from "../board/subscribers.ts";
-import { supervisorTopic } from "../board/scopes.ts";
-import { readFrom, type Message } from "../board/store.ts";
+import { roleThread } from "../desk.ts";
+import { lastTurn, type TurnReport } from "../thread/turn.ts";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
-import { logBb } from "../thread/bb";
+import { bbThreads, logBb, tellBb } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
@@ -96,7 +94,7 @@ const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
 
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
 interface Chain {
-	/** Exact provisional attempt, independent of the board report cursor. */
+	/** Exact provisional attempt, independent of the report cursor. */
 	refinement?: string;
 	/** Branch this chain lands in: the parent's collector, or the owner's checkout for the root. */
 	into: string;
@@ -316,14 +314,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const save = () => saveState(s);
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	// An owner that has closed hands over to whichever session holds the project's supervisor role.
-	// To a worker through its own board topic (it subscribes with wake), not typed into its terminal: a send-back
-	// typed into an idle worker's terminal never reached its session (2026-10-03, cause unknown); a post persists.
-	const sendChild = async (workerTopic: string, body: string) => { mail(workerTopic, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { name: "reconcile/" + s.root }); };
+	// To a worker as a queued bb message: it follows the turn in progress, or starts one on an idle thread.
+	const sendChild = (h: Handle, body: string) => tell(h, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { cwd: controlCwd });
+	// The owner is a bb thread. One that has closed hands over to whichever thread holds the supervisor role on the desk.
+	// Told in order, off the tick; the run waits for the last before it ends.
+	let told: Promise<void> = Promise.resolve();
 	const tellOwner = (body: string) => {
-		try {
-			const to = subscriberStatus(s.owner) === "none" ? supervisorTopic(controlCwd) ?? s.owner : s.owner;
-			mail(to, "[reconcile " + s.root + "] " + body, { name: "reconcile/" + s.root });
-		} catch (e) { note("mail owner failed: " + e); }
+		told = told.then(async () => {
+			const live = new Set([...await bbThreads()].filter(([, t]) => !t.archivedAt).map(([id]) => id));
+			const supervisor = roleThread("supervisor", controlCwd);
+			const to = live.has(s.owner) ? s.owner : supervisor && live.has(supervisor) ? supervisor : s.owner;
+			await tellBb(to, "[reconcile " + s.root + "] " + body);
+		}).catch(e => note("telling the owner failed: " + e));
 	};
 	save();
 
@@ -358,23 +360,17 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	};
 	const completion = { state: s, tracker, save, pathOf, locked };
 	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
-	// Latest terminal report per topic, read incrementally from the board log.
-	const reports = new Map<string, Message>();
-	let offset = 0;
-	const runStarted = Date.now();
-	const TERMINAL = ["done", "blocked", "needs-input", "checkpoint", "waiting", "turn-end"];
-	const pollBoard = () => {
-		const { messages, offset: next } = readFrom(offset);
-		offset = next;
-		for (const m of messages) {
-			if (!m.topic.startsWith(s.root + "/") || !TERMINAL.some(t => m.tags.includes(t))) continue;
-			// Only the worker's own session reports for it. A second pi on its topic (bb's sessionless pi took the worker's
-			// identity until a5f4f80e) posted `checkpoint` for a drive that was waiting on its setup, and the reconciler
-			// replaced the drive mid-setup (2026-10-12). The registry follows the worker's current session, bb's included.
-			const row = host?.find(r => r.thread.worker && r.thread.worker.run + "/" + r.thread.worker.handle === m.topic);
-			// Noted only when it arrives during this run: each restart rereads the board, and repeated a 2026-10-12 one per start.
-			if (row && m.from.session && m.from.session !== row.thread.sessionId) { if (Date.parse(m.ts) >= runStarted) note("ignored " + m.tags.join(",") + " on " + m.topic + " from session " + m.from.session + ", not the worker's " + row.thread.sessionId); continue; }
-			reports.set(m.topic, m);
+	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.
+	const reports = new Map<string, TurnReport>();
+	const seen = new Map<string, number>();
+	const pollTurns = async () => {
+		for (const row of host ?? []) {
+			const w = row.thread.worker, bb = row.thread.bb;
+			if (!w || !bb || row.thread.archived || w.run !== s.root) continue;
+			const report = await lastTurn(bb, seen.get(row.thread.id) ?? 0).catch(e => { note("reading " + w.handle + " failed: " + String(e).split("\n")[0]); return undefined; });
+			if (!report) continue;
+			seen.set(row.thread.id, report.seq);
+			reports.set(w.run + "/" + w.handle, report);
 		}
 	};
 	const fresh = (h: Handle | undefined, after?: string, launchedAt?: number) => {
@@ -503,7 +499,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// frontier when agent-assigned; an explicit human or session assignee still refuses.
 		if (!tracker.githubIssue && issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
 		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
-			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], follow: s.root, parent: s.ownerSession || undefined });
+			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], parent: s.ownerSession || undefined });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
@@ -514,11 +510,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** Current global metadata, not a worker branch copy. */
 	const driveNone = (i: Issue): string | undefined => tracker.fields(i.slug).drive === "none" ? "the ticket declares `drive: none`" : undefined;
 	const skippedDrive = (why: string) => "Drive was skipped (" + why + "): there is no driver's packet, and you are the only pass before integration. Review the change against the ticket directly, and check the implementer's own evidence (rehearsals, runs) rather than redoing it. Your handoff still needs `stories` and `evidence`; commit an index under docs/attachments/ that records what established each story. Say in `caveats` that drive was skipped, and which post-landing gate carries the acceptance and who owns it, as the ticket names them.";
-	const siblings = (slug: string, issues: Map<string, Issue>) => {
-		const parent = issues.get(slug)?.partOf;
-		const sib = [...issues.values()].filter(i => i.partOf === parent && i.slug !== slug && !finished(i));
-		return sib.length ? "Sibling issues in flight beside yours (their decisions reach you on the board, tagged `decision`; post yours on your topic tagged `decision` plus `path:<file>` per file it touches):\n" + sib.map(i => "- " + i.slug).join("\n") : "";
-	};
 	/** Commit what a replaced worker left uncommitted before its successor's base is read. Retirement saved it too, but
 	 * only after the successor launched, so the WIP commit missed it (2026-10-16: quiesce-scene-source-delivery-writers,
 	 * implement-s's 11081c1e not in implement-t). */
@@ -547,7 +538,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const contract = ticketText(issue);
 			if (phase === "refine" || phase === "implement") return [contract,
 				c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
-				siblings(slug, issues), phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
+				phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 			if (phase === "drive") return [contract, "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 			return [contract, "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 		};
@@ -632,7 +623,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (ex.node !== target && s.chains[ex.node]) s.chains[ex.node].held = false;
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
-		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(topic(c.handle), r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
+		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in the global tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "", r.action === "retry" && r.adopt === true); } }
 		else if (r.action === "redispatch") {
 			// A redispatch starts over from the parent's head; the superseded chain's commits stay on its kept branch,
@@ -660,7 +651,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + ": " + (r.note ?? r.message ?? ""));
 		const worker = pr.repair?.worker;
 		if (r.action === "answer" && worker && alive(worker) !== false)
-			await sendChild(topic(worker), r.message ?? r.note ?? "");
+			await sendChild(worker, r.message ?? r.note ?? "");
 		else if (pr.repair) {
 			if (worker && !await retireHandle(worker, pr.path)) throw new Error("PR repair retirement failed");
 			pr.repair.worker = undefined;
@@ -923,7 +914,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			try {
 				const touched = new Set([...git(oc.handle.path, "diff", "--name-only", oc.base).split("\n").filter(Boolean)]);
 				const overlap = landed.filter(f => touched.has(f));
-				if (overlap.length) await sendChild(topic(oc.handle), "Sibling " + slug + " just landed touching files you changed: " + overlap.join(", ") + ". Commit, then rebase onto " + git(into, "rev-parse", "--short", "HEAD") + " (git rebase " + git(into, "rev-parse", "HEAD") + ") now and continue.");
+				if (overlap.length) await sendChild(oc.handle, "Sibling " + slug + " just landed touching files you changed: " + overlap.join(", ") + ". Commit, then rebase onto " + git(into, "rev-parse", "--short", "HEAD") + " (git rebase " + git(into, "rev-parse", "HEAD") + ") now and continue.");
 			} catch (e) { note("overlap check " + other + ": " + e); }
 		}
 		return undefined;
@@ -933,10 +924,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function repair(slug: string, c: Chain, key: string, message: string, issues: Map<string, Issue>, text: string) {
 		c.retries[key] = (c.retries[key] ?? 0) + 1;
 		if (c.retries[key] > BUDGET.repair) return raise(slug, key + " (after " + BUDGET.repair + " repairs)", text, issues);
-		await sendChild(topic(c.handle!), message);
+		await sendChild(c.handle!, message);
 		save();
 	}
-	async function onReport(slug: string, c: Chain, m: Message, issues: Map<string, Issue>) {
+	async function onReport(slug: string, c: Chain, m: TurnReport, issues: Map<string, Issue>) {
 		const issue = issues.get(slug)!;
 		// Consecutive `waiting` reports are one wait: its stall clock runs from the first.
 		const waitedSince = c.waitingSince, previousCursor = c.handledTs;
@@ -953,7 +944,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				c.retries.provider = tries + 1; save();
 				if (!tries && alive(h) !== false) {
 					note("provider error on " + slug + "; continuing the same " + c.phase + " worker: " + kind);
-					await sendChild(topic(h), "Your last turn ended on a provider error (" + kind + "), after pi's own retries. Continue the assignment where you left off.");
+					await sendChild(h, "Your last turn ended on a provider error (" + kind + "), after pi's own retries. Continue the assignment where you left off.");
 					return save();
 				}
 				note("provider error on " + slug + "; retrying " + c.phase + " with a fresh worker: " + kind);
@@ -983,7 +974,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			c.retries["tracker-rate-limit"] = (c.retries["tracker-rate-limit"] ?? 0) + 1;
 			if (c.retries["tracker-rate-limit"] > 10) return raise(slug, "tracker rate limit (after 10 retries)", text, issues);
 			note(c.phase + " " + slug + " reported the tracker rate limit as " + r.status + "; sending it back to retry");
-			await sendChild(topic(h), "The GitHub API rate limit is a hold, not a blocker. Rerun the same tracker command now; if it still names a reset time, wait until then and rerun it. Continue the assignment and report on its real outcome.");
+			await sendChild(h, "The GitHub API rate limit is a hold, not a blocker. Rerun the same tracker command now; if it still names a reset time, wait until then and rerun it. Continue the assignment and report on its real outcome.");
 			return save();
 		}
 		if (r.status === "blocked" || r.status === "needs-input") {
@@ -993,7 +984,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (r.status === "checkpoint") return checkpoint(c, alive(h), BUDGET.checkpoint, {
 			resume: async () => {
 				note(c.phase + " " + slug + " checkpointed; continuing the same worker");
-				await sendChild(topic(h), "Continue from your checkpoint. This is the same session and worktree: everything you kept there (services' data, exports, local databases, ignored files) is as you left it. Re-read what remains in the ticket and carry on with the assignment.");
+				await sendChild(h, "Continue from your checkpoint. This is the same session and worktree: everything you kept there (services' data, exports, local databases, ignored files) is as you left it. Re-read what remains in the ticket and carry on with the assignment.");
 			},
 			raise: reason => raise(slug, reason, text, issues),
 			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint. Its worker is gone; its commits are in your base. Ignored state its worktree held (local databases, exports) is not in your worktree: retirement moved any such state aside and told the owner where:\n\n" + text.slice(-6000), true),
@@ -1104,7 +1095,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			c.phase = "review";
 			c.retries.integrate = (c.retries.integrate ?? 0) + 1;
 			if (c.retries.integrate > BUDGET.integrate) return raise(slug, "integration failed " + BUDGET.integrate + " times", failure, issues);
-			await sendChild(topic(h), "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + failure.slice(0, 5000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
+			await sendChild(h, "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + failure.slice(0, 5000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
 			note("integration of " + slug + " failed (" + c.retries.integrate + "), sent back: " + failure.split("\n")[0]);
 			save();
 		}
@@ -1158,7 +1149,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		return true;
 	}
-	/** Deliver a saved accepted transition, even when the board cursor consumed its report. */
+	/** Deliver a saved accepted transition, even when the report cursor consumed it. */
 	async function finishRefinement(slug: string, c: Chain) {
 		const attempt = s.refinements[c.refinement!];
 		if (attempt.phase !== "accepted" || !attempt.acceptance) throw new Error("Refinement not accepted: " + slug);
@@ -1318,14 +1309,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && runsProcess(c.handle) === false) {
 			c.waitingVoidNudged = true; c.waitingCheckedAt = new Date().toISOString(); save();
 			note(c.phase + " " + slug + " nudged: waiting with no running process");
-			await sendChild(topic(c.handle), "You reported `waiting`, but your session runs no managed process: the one you are waiting on has ended without its notice reaching you, or never started. Check it (process list, process output): take its result if it finished, start it again if it didn't run, and continue.");
+			await sendChild(c.handle, "You reported `waiting`, but your session runs no managed process: the one you are waiting on has ended without its notice reaching you, or never started. Check it (process list, process output): take its result if it finished, start it again if it didn't run, and continue.");
 			return "active";
 		}
 		// The completion notice never comes while a descendant the process left behind (an orphaned server or executor) holds its process group.
 		if (c.waitingSince && c.handle && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_NUDGE_MS && alive(c.handle) !== false) {
 			c.waitingCheckedAt = new Date().toISOString(); save();
 			note(c.phase + " " + slug + " nudged: waiting since " + c.waitingSince);
-			await sendChild(topic(c.handle), "You reported `waiting` and no completion notice has reached you in " + WAITING_NUDGE_MS / 60_000 + "m. Check the process you are waiting on (process list, process output). If its output shows the command finished but it still shows as running, a descendant it left behind (an orphaned server or executor) is holding its process group, so its notice will not come: take the result from its output, kill it with the process tool (and anything it left behind), and continue. If it is genuinely still running, end your turn `waiting` again.");
+			await sendChild(c.handle, "You reported `waiting` and no completion notice has reached you in " + WAITING_NUDGE_MS / 60_000 + "m. Check the process you are waiting on (process list, process output). If its output shows the command finished but it still shows as running, a descendant it left behind (an orphaned server or executor) is holding its process group, so its notice will not come: take the result from its output, kill it with the process tool (and anything it left behind), and continue. If it is genuinely still running, end your turn `waiting` again.");
 			return "active";
 		}
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
@@ -1374,7 +1365,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	let tickError = "";
 	for (;;) {
 		if (o.signal?.aborted) return;
-		try { if (await untilReset(tick, { note, signal: o.signal })) return; tickError = ""; }
+		try { if (await untilReset(tick, { note, signal: o.signal })) return await told; tickError = ""; }
 		catch (e) {
 			const msg = String((e as Error)?.stack ?? e);
 			if (msg.split("\n")[0] !== tickError) { tickError = msg.split("\n")[0]; note("tick failed: " + msg.slice(0, 2000)); tellOwner("tick failed, retrying every " + TICK_MS / 1000 + "s:\n\n" + msg.slice(0, 3000)); }
@@ -1384,7 +1375,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** One reconciliation pass; true when the run is over. */
 	async function tick(): Promise<boolean> {
 		await observeHost();
-		pollBoard();
+		await pollTurns();
 		for (const [slug, col] of Object.entries(s.collectors)) if (!sparseCollectors.has(slug)) ensureCollector(slug, col.parentBranch);
 		await locked(async () => recoverLandings(completion));
 		closeAtTarget(completion);
@@ -1425,7 +1416,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				state: s, tracker, host: o.prHost, save, locked, tests: s.tests[s.pr.path] ?? [],
 				ownerHeld: Object.keys(s.exceptions).length > 0,
 				launchRepair, report: fresh,
-				sendRepair: (worker, message) => sendChild(topic(worker), message),
+				sendRepair: (worker, message) => sendChild(worker, message),
 				repairAlive: worker => alive(worker),
 				retireRepair: async worker => {
 					if (!await retireHandle(worker, s.pr!.path)) throw new Error("PR repair retirement failed: " + worker.handle);

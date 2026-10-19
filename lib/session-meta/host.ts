@@ -9,8 +9,6 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { readLive, removeLive, takeRetired, writeLive, type Live } from "./live";
-import { mailbox } from "../board/mailbox";
-import { send } from "../board/store";
 import { getThread, saveThread, threadForSession } from "../thread/registry";
 import type { ThreadRecord } from "../thread/types";
 import { appendFileSync } from "node:fs";
@@ -114,7 +112,7 @@ export function install(pi: ExtensionAPI) {
 			const next = new Map(readLive().filter(child => child.parentSession === c.sessionManager.getSessionId()).map(child => [child.pid, child]));
 			// Print-mode children (pi -p) are one-shot runs whose caller reads their output; their exit is the expected end.
 			for (const [pid, child] of children) if (!next.has(pid) && !takeRetired(child) && child.mode !== "print" && child.mode !== "json") {
-				send({ topic: mailbox(c.sessionManager.getSessionId()), tags: ["child-exit"], from: { name: "child-monitor" }, body: `Child process exited: ${child.sessionId} (pid ${pid}, last state ${child.state}).\nWorkspace: ${child.cwd}\nInspect its report before resuming; process exit alone does not establish a crash.` });
+				pi.sendMessage({ customType: "child-exit", display: true, content: `Child process exited: ${child.sessionId} (pid ${pid}, last state ${child.state}).\nWorkspace: ${child.cwd}\nInspect its report before resuming; process exit alone does not establish a crash.` }, { triggerTurn: true });
 			}
 			children = next;
 		}, 5000);

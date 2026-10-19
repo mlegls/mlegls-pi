@@ -45,7 +45,6 @@ export interface ThreadSnapshot {
 	mergeParent?: string; // branch.<branch>.ab-parent
 	mergeParentThread?: string;
 	terminals: ThreadTerminal[];
-	report?: { tag: string; ts: string; body: string };
 	interactive: boolean;
 	/** needs-you > unread > read > running; workers' needs-you rolls up to their interactive ancestor in listThreads. */
 	attention: Attention;

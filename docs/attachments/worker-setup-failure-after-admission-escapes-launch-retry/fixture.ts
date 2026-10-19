@@ -8,7 +8,6 @@ import { fakeBb, threads } from "../../../lib/thread/fake-bb";
 import { pendingSetup, setupLog, writeSetup } from "../../../lib/thread/setup";
 import { start, stop } from "../../../lib/reconcile/main";
 import { load } from "../../../lib/reconcile/reconcile";
-import { send, readFrom } from "../../../lib/board/store";
 
 const packagePath = realpathSync(join(import.meta.dir, "../../.."));
 async function until<T>(read: () => T | undefined | false, ms = 40_000): Promise<T> {
@@ -22,7 +21,7 @@ export async function trial() {
 	const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
 	try {
 		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|FAKE_BB_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
-		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"),
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"),
 			PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: join(root, "agents"),
 			MISE_TRUSTED_CONFIG_PATHS: root, PI_NETWORK_RETRY_MS: "0", PI_RECONCILE_TICK_MS: "100", PI_RECONCILE_ERROR_SETTLE_MS: "0", TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"), PATH: bin + ":" + saved.PATH });
 		const bb = fakeBb(root);
@@ -50,26 +49,26 @@ export async function trial() {
 			console.log(JSON.stringify({ story: "setup-" + id, code, started: success, log }));
 		}
 		const started = (path: string) => threads(join(root, "fake-bb")).some(t => t.environment === path);
-		const ownerMail = (slug: string) => readFrom(0).messages.filter(m => (m.topic === "mail/" + slug || m.topic === "role/repo/supervisor") && m.body.includes("[reconcile " + slug + "]") && m.body.includes("provider error"));
+		const ownerMail = (slug: string) => threads(join(root, "fake-bb")).find(t => t.id === "thr_" + slug)!.tells.filter(tell => tell.includes("[reconcile " + slug + "]") && tell.includes("provider error"));
 		for (const slug of ["generic", "auth"]) {
 			runs.push(slug);
-			start({ cwd: repo, root: slug, owner: "mail/" + slug, budget: 1 });
+			bb.addThread("thr_" + slug);
+			start({ cwd: repo, root: slug, owner: "thr_" + slug, budget: 1 });
 			const first = await until(() => { const h = load(repo, slug)?.chains[slug]?.handle; return h && started(h.path) && h; });
-			bb.setStatus(first.path, "idle"); // pi ended its turn on the error
-			send({ from: {}, topic: slug + "/" + first.handle, tags: ["turn-end", "error"], body: slug === "auth" ? "error: authentication invalid_grant" : "Codex error: An error occurred while processing your request" });
+			// pi ended its turn on the error
+			bb.completeTurn(first.path, slug === "auth" ? "authentication invalid_grant" : "Codex error: An error occurred while processing your request", "failed");
 			if (slug === "generic") {
 				// The first error continues the same worker (its worktree may hold state nothing else has); a repeat gets a fresh one.
-				const told = () => readFrom(0).messages.some(m => m.topic === slug + "/" + first.handle && m.body.includes("Continue the assignment where you left off"));
+				const told = () => threads(join(root, "fake-bb")).find(t => t.environment === first.path)!.tells.some(tell => tell.includes("Continue the assignment where you left off"));
 				await until(() => told() && load(repo, slug)?.chains[slug]?.retries.provider === 1);
 				assert.equal(load(repo, slug)?.chains[slug]?.handle?.handle, first.handle);
 				console.log(JSON.stringify({ story: "generic-first-error-continues", worker: first.handle }));
-				send({ from: {}, topic: slug + "/" + first.handle, tags: ["turn-end", "error"], body: "Codex error: An error occurred while processing your request" });
+				bb.completeTurn(first.path, "Codex error: An error occurred while processing your request", "failed");
 				const second = await until(() => { const h = load(repo, slug)?.chains[slug]?.handle; return h && h.handle !== first.handle && started(h.path) && h; });
 				assert.equal(load(repo, slug)?.chains[slug]?.retries.provider, 2);
 				assert.equal(ownerMail(slug).length, 0);
 				console.log(JSON.stringify({ story: "generic-second-error", first: first.handle, retry: second.handle, ownerMail: 0 }));
-				bb.setStatus(second.path, "idle");
-				send({ from: {}, topic: slug + "/" + second.handle, tags: ["turn-end", "error"], body: "error: provider failed again" });
+				bb.completeTurn(second.path, "provider failed again", "failed");
 			}
 			await until(() => ownerMail(slug).length > 0);
 			const state = load(repo, slug)!;
@@ -79,7 +78,7 @@ export async function trial() {
 			await stop(repo, slug);
 		}
 	} catch (error) {
-		console.error(JSON.stringify({ states: runs.map(slug => load(repo, slug)), board: readFrom(0).messages }, null, 2));
+		console.error(JSON.stringify({ states: runs.map(slug => load(repo, slug)), bb: threads(join(root, "fake-bb")).map(t => ({ id: t.id, title: t.title, tells: t.tells })) }, null, 2));
 		throw error;
 	} finally {
 		for (const slug of runs) if (load(repo, slug) && !load(repo, slug)?.finished) await stop(repo, slug);

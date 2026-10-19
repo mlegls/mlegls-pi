@@ -6,7 +6,6 @@ import { excludeTracker } from "./tracker-worktree";
 import { declaresSetup, pendingSetup, writeSetup } from "./setup";
 import { workerResources } from "./resources";
 import { resolve } from "node:path";
-import { read } from "../board/store";
 import { readLive, type Live } from "../session-meta/live";
 import { allThreads, getThread, saveThread, threadForSession, workerThread } from "./registry";
 import { checkout, git } from "./git";
@@ -170,23 +169,18 @@ function snapshot(thread: ThreadRecord, records: ThreadRecord[], live: Live[], m
 	const pi = canonical[0];
 	const parent = mergeParent(thread);
 	const parentThread = parent ? records.find(t => t.project === thread.project && t.ownership === "owner" && t.branch === parent) : undefined;
-	const topic = thread.worker ? thread.worker.run + "/" + thread.worker.handle : "thread/" + thread.id;
-	const report = read({ topic, tags: "done | blocked | needs-input | checkpoint | waiting | turn-end", limit: Infinity }).messages
-		.filter(m => m.ts >= thread.created && (pi?.state !== "working" || m.ts >= pi.since) && (!m.from.session || m.from.session === thread.sessionId)).at(-1);
-	const tag = ["done", "blocked", "needs-input", "checkpoint", "waiting", "turn-end"].find(t => report?.tags.includes(t));
 	// A bb-run thread's state is bb's: bb may release an idle thread's pi, which doesn't end the thread.
 	const inBb = thread.bb ? bb.get(thread.bb) : undefined;
 	const bbState = !inBb || inBb.archivedAt ? "exited" : inBb.status === "idle" || inBb.status === "error" ? "idle" : "working";
 	const state = thread.bb ? bbState : pi?.state ?? "exited"; // no bb id: a thread registered under the retired zmx runtime, live only while its pi is
 	const idleSince = pi?.state === "idle" ? pi.since : undefined;
-	const attention: ThreadSnapshot["attention"] = thread.blocked || inBb?.status === "error" || (state !== "working" && (tag === "blocked" || tag === "needs-input")) ? "needs-you"
+	const attention: ThreadSnapshot["attention"] = thread.blocked || inBb?.status === "error" ? "needs-you"
 		: state === "working" ? "running"
 		: idleSince && thread.seenAt && idleSince > thread.seenAt ? "unread" : "read";
 	return {
 		thread, state, pid: pi?.pid, ...(inBb && { bbStatus: inBb.status }), interactive: isInteractive(thread), attention, idleSince,
 		mergeParent: parent, mergeParentThread: parentThread?.id, delta: delta(thread, deltaBase(thread.project, parent, mode)),
 		terminals: thread.bb && bbState !== "exited" ? [{ name: thread.id + ".agent", role: "agent" }] : [],
-		report: report && tag ? { tag, ts: report.ts, body: report.body } : undefined,
 	};
 }
 
@@ -247,7 +241,7 @@ async function bbOf(id: string, archived = false): Promise<string> {
 }
 
 export async function sendThread(id: string, text: string): Promise<void> {
-	await tellBb(await bbOf(id), text);
+	await tellBb(await bbOf(id), text, "queue");
 }
 
 export async function historyThread(id: string, lines?: number): Promise<string> {

@@ -13,7 +13,7 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 	const saved = { ...process.env }, here = process.cwd();
 	const root = realpathSync(mkdtempSync("/tmp/rc-rate-")), cwd = join(root, "repo"), pkg = join(import.meta.dir, "../..");
 	for (const key of Object.keys(process.env)) if (/^(?:PI_.*|BB_.*|AB_.*|TMUX.*|WORKER_.*|GIT_.*|TRACKER_.*|FAKE_BB_.*)$/.test(key)) delete process.env[key];
-	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"), PI_BOARD_DIR: join(root, "board"),
+	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"), 
 		PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: join(pkg, "agents"), MISE_TRUSTED_CONFIG_PATHS: root, PI_RECONCILE_TICK_MS: "200",
 		TRACKER_CLI: join(pkg, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts") });
 	const git = (path: string, ...args: string[]) => execFileSync("git", ["-C", path, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
@@ -22,7 +22,8 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 	const abort = new AbortController();
 	let fake: ReturnType<typeof installFakeGh> | undefined, running: Promise<unknown> | undefined;
 	try {
-		fakeBb(root);
+		const bb = fakeBb(root);
+		bb.addThread("thr_ratelimit");
 		mkdirSync(join(cwd, "docs/agents"), { recursive: true });
 		git(root, "init", "-qb", "main", cwd);
 		git(cwd, "config", "user.name", "Fixture"); git(cwd, "config", "user.email", "fixture@example.invalid");
@@ -35,8 +36,6 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 		const { getGithubTracker } = await import("../tracker-github.ts");
 		const { githubProject, rateLimitMark } = await import("../tracker-github-snapshot.ts");
 		const { run, load } = await import("./reconcile.ts");
-		const { readFrom, send } = await import("../board/store.ts");
-		const { topic } = await import("../dispatch.ts");
 		const tracker = getGithubTracker(cwd, {})!, project = githubProject(cwd)!;
 		const id = tracker.create({ slug: "leaf", fields: { title: "Leaf", stage: "ticket", assignee: "agent", author: "user:fixture" }, body: "Leaf contract.\n" });
 		const state = () => load(cwd, id)!;
@@ -53,13 +52,16 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 			const resetAt = await until(() => { try { const at = JSON.parse(readFileSync(limitFile, "utf8")).resetAt; return at > Date.now() && at; } catch { return false; } }, "the reconciler meets the limit");
 			return resetAt as number;
 		};
-		const owned = () => readFrom(0).messages.filter(m => m.body.startsWith("[reconcile " + id + "]")).map(m => m.body);
+		const owned = () => bb.threads().find(t => t.id === "thr_ratelimit")!.tells.filter(tell => tell.startsWith("[reconcile " + id + "]"));
 		const holds = () => notes.filter(line => line.startsWith("tracker rate limit: holding every node"));
-		const report = (h: { run: string; handle: string }, status: string, extra: unknown = {}) => send({ from: {}, topic: h.run + "/" + h.handle, tags: [status],
-			body: status + "\n\n" + "```json\n" + JSON.stringify(extra) + "\n```" });
+		const report = (h: { path: string }, status: string, extra: unknown = {}) => {
+			const ts = Date.now();
+			bb.completeTurn(h.path, status + "\n\n" + "```json\n" + JSON.stringify(extra) + "\n```");
+			return { ts };
+		};
 		const cli = (h: { path: string; run: string }, ...args: string[]) => spawnSync("bun", [process.env.TRACKER_CLI!, ...args], { cwd: h.path, encoding: "utf8", env: { ...process.env, PI_WM_RUN: h.run } });
 
-		running = run({ cwd, root: id, owner: "mail/ratelimit", budget: 1, land: "local", signal: abort.signal });
+		running = run({ cwd, root: id, owner: "thr_ratelimit", budget: 1, land: "local", signal: abort.signal });
 		running.catch(() => {});
 		let h = (await until(() => state().chains[id]?.phase === "implement" && state().chains[id].handle && existsSync(state().chains[id].handle!.path) && state().chains[id].handle, "implement worker launched"));
 
@@ -70,9 +72,9 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 		expect(failed.stderr).toContain(rateLimitMark);
 		expect(Date.now() - began).toBeLessThan(3_000);
 		const blocked = report(h, "blocked", { question: "tracker CLI failed: " + failed.stderr.trim() });
-		const nudge = await until(() => readFrom(0).messages.find(m => m.topic === topic(h) && m.body.includes("rate limit is a hold, not a blocker")), "worker sent back to retry");
-		expect(Date.parse(nudge.ts)).toBeGreaterThanOrEqual(reset);          // answered after the reset, not forwarded and not dropped
-		expect(Date.parse(nudge.ts)).toBeGreaterThan(Date.parse(blocked.ts));
+		const nudge = await until(() => { const t = bb.threads().find(t => t.environment === h.path); const at = t?.tells.findIndex(tell => tell.includes("rate limit is a hold, not a blocker")); return t && at !== undefined && at >= 0 && { ts: t.tellAt![at] }; }, "worker sent back to retry");
+		expect(nudge.ts).toBeGreaterThanOrEqual(reset);          // answered after the reset, not forwarded and not dropped
+		expect(nudge.ts).toBeGreaterThan(blocked.ts);
 		expect(state().exceptions).toEqual({});
 		expect(state().chains[id].phase).toBe("implement");
 		expect(state().chains[id].handle).toEqual(h);
@@ -88,7 +90,7 @@ test("run() holds on a tracker rate limit: no owner mail, a fast-failing worker 
 		const drive = await until(() => state().chains[id]?.phase === "drive" && state().chains[id].handle, "report replayed after the reset");
 		expect(state().chains[id].launchedAt).toBeGreaterThanOrEqual(second);   // consumed after the reset, not during it
 		expect(drive.handle).toContain("drive");
-		expect(Date.parse(done.ts)).toBeLessThan(second);
+		expect(done.ts).toBeLessThan(second);
 
 		// Neither hold reached the owner or became an exception; each was noted once.
 		expect(owned()).toEqual(["[reconcile " + id + "] started (budget 1)"]);

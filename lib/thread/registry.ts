@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { checkout } from "./git";
@@ -73,24 +72,6 @@ export async function setCurrentSession(id: string, session: { id: string; file:
 	await saveThread({ ...thread, sessionId: session.id, sessionFile: file });
 }
 
-export interface BbEntry { bb: string; sessionId: string; topic?: string }
-// Not *.json: every listing of the registry directory, including older running copies of this code, reads those as records.
-const bbIndexPath = () => join(threadDir(), "bb.index");
-/** Active bb-run threads by id, kept by saveThread, so a board send finds them without reading every record. */
-export function bbIndex(): Record<string, BbEntry> {
-	try { return JSON.parse(readFileSync(bbIndexPath(), "utf8")); } catch { return {}; }
-}
-function indexBb(thread: ThreadRecord): void {
-	const index = bbIndex();
-	const had = thread.id in index;
-	if (thread.bb && !thread.archived) index[thread.id] = { bb: thread.bb, sessionId: thread.sessionId, ...(thread.worker && { topic: thread.worker.run + "/" + thread.worker.handle }) };
-	else if (had) delete index[thread.id];
-	else return;
-	const temp = bbIndexPath() + "." + randomUUID() + ".tmp";
-	writeFileSync(temp, JSON.stringify(index));
-	renameSync(temp, bbIndexPath());
-}
-
 /** Atomic record replacement; lifecycle uses this for archived/blocked state. */
 export async function saveThread(thread: ThreadRecord): Promise<void> {
 	validate(thread);
@@ -100,7 +81,6 @@ export async function saveThread(thread: ThreadRecord): Promise<void> {
 	try {
 		await writeFile(temp, JSON.stringify(thread, null, 2) + "\n", { flag: "wx", mode: 0o600 });
 		await rename(temp, join(dir, thread.id + ".json"));
-		indexBb(thread);
 	} finally {
 		await unlink(temp).catch(error => { if (!missing(error)) throw error; });
 	}

@@ -54,7 +54,7 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 	};
 	try {
 		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
-		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root, TRACKER_CLI: cli, PI_AGENTS_DIR: realpathSync(join(import.meta.dir, "../../agents")) });
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root, TRACKER_CLI: cli, PI_AGENTS_DIR: realpathSync(join(import.meta.dir, "../../agents")) });
 		fakeBb(root);
 		mkdirSync(repo); git(repo, "init", "-qb", "main");
 		git(repo, "config", "user.name", "Fixture"); git(repo, "config", "user.email", "fixture@example.invalid");

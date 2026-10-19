@@ -2,9 +2,8 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { send } from "../board/store";
 import { ThreadMergeConflict, abandonThread, alignIndex, archiveThread, integrateThread } from "./lifecycle";
-import { getThread, setCurrentSession } from "./registry";
+import { getThread } from "./registry";
 import { newThread } from "./runtime";
 import { fakeBb } from "./fake-bb";
 import { keepProcessLogs } from "./lifecycle-cleanup";
@@ -40,14 +39,13 @@ async function conflicting(): Promise<{ parent: ThreadRecord; child: ThreadRecor
 	commit(child.cwd, "conflict.txt", "child");
 	return { parent, child };
 }
-const topic = (t: ThreadRecord) => "thread/" + t.id;
-const report = (t: ThreadRecord, session: string, tag: string, body: string) =>
-	send({ topic: topic(t), tags: [tag], from: { session, name: "test" }, body });
+let bb: ReturnType<typeof fakeBb>;
+const report = (t: ThreadRecord, body: string) => bb.completeTurn(t.cwd, body);
 
 beforeAll(() => {
 	for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|TMUX.*)$/.test(key)) delete process.env[key];
-	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_BOARD_DIR: join(root, "board"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root });
-	fakeBb(root);
+	Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"), PI_CODING_AGENT_DIR: join(root, "agent"), MISE_TRUSTED_CONFIG_PATHS: root });
+	bb = fakeBb(root);
 	mkdirSync(repo);
 	git(repo, "init", "-b", "main");
 	git(repo, "config", "user.name", "t");
@@ -107,7 +105,7 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 		writeFileSync(join(cwd, ".env"), "SECRET=1\n");
 		writeFileSync(join(cwd, "draft.txt"), "untracked");
 		mkdirSync(join(cwd, ".wm", "drive"), { recursive: true });
-		writeFileSync(join(cwd, ".wm", "launch.env"), "PI_BOARD_TOPIC='run/drive'\n");
+		writeFileSync(join(cwd, ".wm", "launch.env"), "PI_WM_HANDLE='drive'\n");
 		writeFileSync(join(cwd, ".wm", "drive", "debug.txt"), "scan");
 	};
 	const name = fresh();
@@ -234,29 +232,22 @@ test("raw conflict throws its files, leaves the child clean and unapplied, and s
 	expect((await getThread(child.id))!.blocked).toBeUndefined();
 });
 
-test("archive conflict resumes only on the current canonical session's fresh done", async () => {
+test("archive conflict resumes only on the thread's fresh done", async () => {
 	const { parent, child } = await conflicting();
 	const archive = archiveThread(parent.id);
 	await until(async () => (await getThread(child.id))!.blocked);
 	expect((await getThread(child.id))!.blocked).toMatchObject({ action: "archive", parentBranch: parent.branch, files: ["conflict.txt"] });
 
-	report(child, parent.sessionId, "done", "done not the child"); // another agent
-	send({ topic: topic(child), tags: [], from: { session: child.sessionId }, body: "done" }); // untagged chatter is not a report
 	expect(await pending(archive)).toBe(true);
 	expect((await getThread(child.id))!.archived).toBe(false);
 
-	const oldSession = child.sessionId;
-	const next = "00000000-0000-7000-8000-" + String(Date.now()).padStart(12, "0");
-	await setCurrentSession(child.id, { id: next, file: join(root, "next.jsonl") });
 	await expect(async () => git(child.cwd, "merge", "--no-edit", "--no-verify", parent.branch!)).toThrow(); // conflicts; resolve below
 	writeFileSync(join(child.cwd, "conflict.txt"), "resolved");
 	git(child.cwd, "add", "conflict.txt");
 	git(child.cwd, "commit", "--no-edit");
-	report(child, oldSession, "done", "done stale session");
-	expect(await pending(archive)).toBe(true);
 	expect(git(repo, "show", "main:conflict.txt")).toBe("seed");
 
-	report(child, next, "done", "done resolved");
+	report(child, "done resolved");
 	const result = await archive;
 	expect(result.closed).toEqual([child.id, parent.id]);
 	expect(result.branchesDeleted.sort()).toEqual([child.branch!, parent.branch!].sort());
@@ -268,7 +259,7 @@ for (const status of ["needs-input", "checkpoint", "turn-end"]) test("archive co
 	const { parent, child } = await conflicting();
 	const archive = archiveThread(parent.id);
 	await until(async () => (await getThread(child.id))!.blocked);
-	report(child, child.sessionId, status, status + " unsure what to keep");
+	report(child, status + " unsure what to keep");
 	const result = await archive;
 	expect(result.closed).toEqual([]);
 	expect(result.blocked).toMatchObject({ threadId: child.id, block: { action: "archive", files: ["conflict.txt"] } });

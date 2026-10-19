@@ -1,5 +1,5 @@
 // Shared records store: an append-only SQLite log of records, their tags and edges.
-// Schema is what a record means (board, om, ...); tags and edges are relational and
+// Schema is what a record means (om, journal, ...); tags and edges are relational and
 // written in the same transaction as their record. Nothing is updated or deleted:
 // a later judgment about a record is a new record (often just an edge).
 //
@@ -46,7 +46,7 @@ export interface StoredRecord {
 	tags: Tag[];
 }
 
-/** Directory of the shared store (and the board's audit files). PI_BOARD_DIR overrides. */
+/** Directory of the shared store. PI_BOARD_DIR overrides (named for the board that once shared it). */
 export function storeDir(): string {
 	return process.env.PI_BOARD_DIR
 		?? join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "pi-board");
