@@ -4,7 +4,7 @@ A bb plugin over the vault tracker (`docs/issues/`, the `tracker` skill): an **I
 
 It never writes issues. Its actions start agents:
 
-- **Supervise** (frontier only, one or many trees): a new pi thread running `/skill:supervise`, or a message to an existing supervisor (threads it started, and whichever session holds `role/<repo>/supervisor` on the board).
+- **Supervise** (frontier only, one or many trees): a new pi thread running `/skill:supervise`, or a message to an existing supervisor (threads it started, and the live thread holding `supervisor` in the main checkout's `desk/ROLES.md`).
 - **Refine** (anything not on the frontier): a pi thread running `/skill:shape` on the trees, told why each isn't ready.
 - **Discuss**: a new thread from bb's composer with the selected issues mentioned. `#` in any composer mentions an issue too; the agent receives its path, state, subtree and contract.
 

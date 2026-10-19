@@ -2,9 +2,9 @@
 // matter: send a ready issue tree to a new or existing supervisor, start a shaping session on one that isn't, and
 // discuss selected issues in a new thread with them mentioned. Issues are only written by agents, through the tracker.
 import { execFile } from "node:child_process";
-import { watch, readdirSync, readFileSync, type FSWatcher } from "node:fs";
+import { watch, type FSWatcher } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
@@ -19,7 +19,7 @@ const supervisorSchema = z.object({
 	status: z.string(),
 	/** Issues this plugin sent it; empty for a role holder it didn't start. */
 	issues: z.array(z.string()),
-	/** Holds role/<repo>/supervisor on the board. */
+	/** Holds the supervisor role in desk/ROLES.md. */
 	role: z.boolean(),
 });
 export type Supervisor = z.infer<typeof supervisorSchema>;
@@ -118,35 +118,17 @@ export default async function plugin(bb: BbPluginApi) {
 		return s;
 	}
 
-	// Supervisors: threads this plugin started as supervisors, plus whichever session holds the project's
-	// supervisor role on the board (lib/board/scopes supervisorTopic), found through its live pi record.
-	/** The bb thread a pi process runs for: bb starts each thread's pi with BB_THREAD_ID in its environment. */
-	async function bbThreadOf(pid: number): Promise<string | undefined> {
-		try {
-			const { stdout } = await run("ps", ["eww", "-p", String(pid), "-o", "command="], { timeout: 5_000 });
-			return / BB_THREAD_ID=(thr_[A-Za-z0-9]+)/.exec(stdout)?.[1];
-		} catch { return undefined; }
-	}
-	function roleHolders(repo: string): { pid: number; sessionId: string }[] {
-		const dir = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state"), "pi-live");
-		const topic = "role/" + repo + "/supervisor";
-		const out: { pid: number; sessionId: string }[] = [];
-		let names: string[] = [];
-		try { names = readdirSync(dir); } catch { return out; }
-		for (const name of names) {
-			if (!name.endsWith(".json")) continue;
-			try {
-				const r = JSON.parse(readFileSync(join(dir, name), "utf8")) as { pid: number; sessionId: string; subscriptions?: { topic: string; wake?: boolean }[] };
-				if (!r.subscriptions?.some((s) => s.topic === topic && s.wake)) continue;
-				process.kill(r.pid, 0);
-				out.push(r);
-			} catch {}
-		}
-		return out;
+	// Supervisors: threads this plugin started, plus the standing role in the main checkout's desk/ROLES.md.
+	async function roleHolder(root: string): Promise<string | undefined> {
+		const c = await cli();
+		const top = pinnedTop(c.script, String((await settings.get()).trackerScript || "~/.pi/agent/skills/tracker/scripts/issues.ts"));
+		const code = "const { roleThread } = await import(process.argv[1]); console.log(roleThread('supervisor', process.argv[2]) ?? '');";
+		const { stdout } = await run(c.bun, ["-e", code, join(top, "lib/desk.ts"), root], { timeout: 15_000 });
+		return stdout.trim() || undefined;
 	}
 	async function supervisors(projectId: string): Promise<Supervisor[]> {
 		const p = await project(projectId);
-		const listed = (await bb.sdk.threads.list({ projectId, archived: false })) as unknown as { id: string; title: string | null; titleFallback?: string | null; status: string; providerId?: string; runtime?: { displayStatus?: string } }[];
+		const listed = (await bb.sdk.threads.list({ projectId, archived: false, includeHidden: true })) as unknown as { id: string; title: string | null; titleFallback?: string | null; status: string; providerId?: string; runtime?: { displayStatus?: string } }[];
 		const out = new Map<string, Supervisor>();
 		for (let at = 0; at < listed.length; at += 200) {
 			const { threads } = await bb.sdk.threads.experimental_listPluginMetadata({ threadIds: listed.slice(at, at + 200).map((t) => t.id) });
@@ -156,22 +138,13 @@ export default async function plugin(bb: BbPluginApi) {
 				out.set(t.id, { threadId: t.id, title: t.title || t.titleFallback || t.id, status: t.runtime?.displayStatus ?? t.status, issues: Array.isArray(row.metadata.issues) ? row.metadata.issues.map(String) : [], role: false });
 			}
 		}
-		for (const holder of roleHolders(basename(p.root))) {
-			const id = await bbThreadOf(holder.pid);
-			const match = id ? listed.find((t) => t.id === id) : undefined;
-			if (match) {
-				const prev = out.get(match.id);
-				out.set(match.id, { threadId: match.id, title: match.title || match.titleFallback || match.id, status: match.runtime?.displayStatus ?? match.status, issues: prev?.issues ?? [], role: true });
-			} else out.set("role:" + holder.sessionId, { threadId: null, title: "Session " + holder.sessionId.slice(-8) + " (outside bb)", status: "live", issues: [], role: true });
+		const id = await roleHolder(p.root);
+		const match = listed.find(t => t.id === id);
+		if (match) {
+			const prev = out.get(match.id);
+			out.set(match.id, { threadId: match.id, title: match.title || match.titleFallback || match.id, status: match.runtime?.displayStatus ?? match.status, issues: prev?.issues ?? [], role: true });
 		}
 		return [...out.values()].sort((a, b) => Number(b.role) - Number(a.role));
-	}
-
-	async function mailRole(repo: string, body: string) {
-		const c = await cli();
-		const top = pinnedTop(c.script, String((await settings.get()).trackerScript || "~/.pi/agent/skills/tracker/scripts/issues.ts"));
-		const code = "const { send } = await import(process.argv[1]); send({ topic: process.argv[2], tags: ['supervise'], from: { name: 'bb-tracker' }, body: process.argv[3] });";
-		await run(c.bun, ["-e", code, join(top, "lib/board/store.ts"), "role/" + repo + "/supervisor", body], { timeout: 15_000 });
 	}
 
 	async function spawn(projectId: string, prompt: string, title: string, metadata: Record<string, string | string[]>): Promise<string> {
@@ -198,17 +171,17 @@ export default async function plugin(bb: BbPluginApi) {
 				return { threadId, note: "started a supervisor" };
 			}
 			const body = "Also supervise " + links + " (sent from the bb tracker; the tracker lists " + (slugs.length > 1 ? "them" : "it") + " as ready).";
-			if (target.kind === "role") {
-				await mailRole(s.repo, body);
-				return { threadId: null, note: "mailed role/" + s.repo + "/supervisor" };
-			}
-			await bb.sdk.threads.send({ threadId: target.threadId, mode: "auto", input: [{ type: "text", text: body, mentions: [] }] });
+			const threadId = target.kind === "role"
+				? (await supervisors(projectId)).find(s => s.role)?.threadId
+				: target.threadId;
+			if (!threadId) throw new Error("No live supervisor in desk/ROLES.md");
+			await bb.sdk.threads.send({ threadId, mode: "queue-if-active", input: [{ type: "text", text: body, mentions: [] }] });
 			try {
-				const meta = await bb.sdk.threads.getPluginMetadata({ threadId: target.threadId });
+				const meta = await bb.sdk.threads.getPluginMetadata({ threadId });
 				const prior = Array.isArray(meta.issues) ? meta.issues.map(String) : [];
-				await bb.sdk.threads.updatePluginMetadata({ threadId: target.threadId, set: { role: "supervisor", repo: s.repo, issues: [...new Set([...prior, ...slugs])] } });
+				await bb.sdk.threads.updatePluginMetadata({ threadId, set: { role: "supervisor", repo: s.repo, issues: [...new Set([...prior, ...slugs])] } });
 			} catch (e) { bb.log.warn("tag supervisor: " + e); }
-			return { threadId: target.threadId, note: "sent to the supervisor" };
+			return { threadId, note: "queued to the supervisor" };
 		},
 		refine: async ({ projectId, slugs }) => {
 			const p = await project(projectId);

@@ -55,7 +55,7 @@ export function pinTracker(live: string): string {
 	return pinned;
 }
 
-/** The pinned copy's checkout: lib/board lives beside the tracker scripts there. */
+/** The pinned copy's checkout: shared helpers live beside the tracker scripts there. */
 export const pinnedTop = (pinned: string, live: string) => {
 	const scripts = realpathSync(dirname(expand(live)));
 	return join(dirname(pinned), relative(scripts, git(scripts, "rev-parse", "--show-toplevel")));

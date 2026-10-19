@@ -13,7 +13,7 @@ Commit `.pi/reconcile.json`:
 The choices are `local` (default when absent), `pr-merge` and `pr-review`. The reconcile tool accepts `land`; CLI equivalent:
 
 ```sh
-bun lib/reconcile/main.ts start ROOT --owner mail/OWNER --budget 1 --land pr-merge --cwd /absolute/owner-checkout
+bun lib/reconcile/main.ts start ROOT --owner thr_OWNER --budget 1 --land pr-merge --cwd /absolute/owner-checkout
 bun lib/reconcile/main.ts status --cwd /absolute/owner-checkout
 ```
 
@@ -63,4 +63,4 @@ bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-merge
 bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-review
 ```
 
-These commands mutate **only the explicitly supplied disposable scratch repo**, with isolated local tracker/board/registry state and deterministic shell workers. They are not a production-project launcher. The first command was driven through real Actions repair, merge, target closure and owner ff. The second pauses after live COMMENTED repair; resume it and merge from a separate operator shell to complete. In this 2026-10-14 scratch rehearsal the maintainer authorized same-account external merge and accepted approval/changes-requested policy on explicitly seeded evidence. Live target closure and zero reconciler merge requests were observed.
+These commands mutate **only the explicitly supplied disposable scratch repo**, with isolated local tracker/registry state and deterministic shell workers. They are not a production-project launcher. The first command was driven through real Actions repair, merge, target closure and owner ff. The second pauses after live COMMENTED repair; resume it and merge from a separate operator shell to complete. In this 2026-10-14 scratch rehearsal the maintainer authorized same-account external merge and accepted approval/changes-requested policy on explicitly seeded evidence. Live target closure and zero reconciler merge requests were observed.
