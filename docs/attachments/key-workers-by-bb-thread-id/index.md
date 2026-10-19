@@ -73,3 +73,33 @@ Direct `spawnMeta()` in the scratch worker cwd with explicit `PI_WM_RUN=identity
 ## Cleanup
 
 Stopped `identity-restart` via checkout CLI after recovery/report observation (its next drive worker had started), and stopped `identity-first` after observing finished done and the final owner notice. CLI reported both not running. All five scratch child threads were already archived by retirement; explicitly stopped each to release runtimes. Verified scratch worktree directory empty and Git listed only the scratch main checkout. Deleted the scratch repo and empty worktree directory. Removed only the six synthetic scratch-run notices from this driver's queue after recording them. All managed monitors finished. No shared reconciler, deployment or data touched; no owned resource remains running.
+
+---
+
+# Review (final head) — live observations
+
+Reviewer re-drove the five ticket stories on this branch's code (head before the review commits: `00bcfeba`; repairs below). Disposable scratch repo `/tmp/bb-review7-*` (own Git common dir, local vault tracker, `--land local`, owner = the review thread). Entry points: `bun <branch>/lib/reconcile/main.ts start|status|stop <ticket> --cwd <scratch>`; graph/metadata/notice through direct imports of `lib/graph.ts`, `lib/dispatch.ts findWorker`, `extensions/bb/reconciler-notices.ts`, plus a branch-pinned `pi --mode rpc --no-extensions -e <branch>/extensions/bb/index.ts -e <branch>/lib/session-meta/host.ts`. All workers below are **live bb threads**; the only seeded step is the explicit state edit named in each story. The driver's graph "failed" finding is resolved below (ticket permits `Node.interactive`).
+
+## Worker identity lookup — held (live)
+Ticket `id-one` started (pid 67584). Run state `chains.id-one.handle` = `{handle: id-one-implement-1, run: id-one, bb: thr_g53rgwyq9f, threadId}`; `bb thread show thr_g53rgwyq9f` title `id-one/id-one-implement-1`. `findWorker("id-one-implement-1", scratch)` and `findWorker({run, handle, path}, scratch)` (no bb, no threadId) both returned `{bb: thr_g53rgwyq9f, path: <worktree>}`. Later phases got their own ids (drive `thr_8uh2y2d8ru`, refine `thr_szwgytybya`).
+
+## Recovery by bb title — held (live thread, seeded state loss)
+Two crash-cut seeds, each: kill only the reconciler pid, edit scratch state, restart through the CLI.
+- `ref-one` (spec, refinement writer `thr_szwgytybya` live): removed `chains.ref-one.handle` and `refinements.*.worker` (no `thr_…` string left in the state file) and the dispatch ledger. Restarted (pid 86770): both receipts were rewritten with `bb: thr_szwgytybya` (same original thread, path from the bb environment), one thread titled `ref-one/ref-one-refine-1`, no new launch in the log. This goes through the reconciler loop, not a direct `wm.attach`.
+- `id-one` drive worker `thr_8uh2y2d8ru`: removed the chain handle entirely and `workers`; `main.ts stop id-one` retired `id-one/id-one-drive-2` (thread archived, worktree removed, process leftovers killed) found only by title.
+Not covered by title recovery (by design of the change, same as before it): a chain's own implement/drive/review handle absent from state is relaunched under a new handle — filed [[projects/mlegls-pi/issues/reconciler-orphans-chain-worker-spawned-before-receipt-save]].
+
+## Mid-run restart reattachment — held (live)
+Killed reconciler 67584 (SIGKILL by pid) while drive worker `thr_8uh2y2d8ru` was live; restart (pid 80072) kept the same chain handle, `bb thread list` showed exactly one `id-one/*` thread. Killed again, deleted `bb` from the receipt (threadId kept: legacy receipt, resolves through the record), restarted (pid 82833): `bb: thr_8uh2y2d8ru` restored, still one thread. The driver's earlier packet shows the same across implement→drive→review→landing.
+
+## Notice ownership filtering — held (live run state, branch-pinned pi)
+`reconcilerCompletion("[bb system]\n\n@thread:<worker> completed:…", scratch)`: **true** for the live worker's bb id (state file lists it, pid alive), **false** for an unrelated `thr_zzzzzzzzzz` and **false** for the same worker id asked from a different repository cwd. Branch-pinned `pi --mode rpc` (cwd scratch) given that notice answered with provider `bb-local` / `worker-completion` ("Worker completion noted.", zero cost): the filter fired on the reconciler-owned worker via run state, with an isolated empty registry (`XDG_STATE_HOME`). The driver's "routine notices reached the owner" was the same mechanism on the older global extension: a filtered notice is still delivered, then answered locally; it is not dropped. Final owner notice delivery was observed by the driver.
+
+## Metadata and graph descriptions — held after one repair
+`graph()` on live scratch workers: bb node titled `<run>/<handle>`, `run`, `handle`, `thread: thr_…`, `state: working`, `interactive: false`; fields `seenAt/attention/terminals/delta/workspace` absent from every node. Defect found: the registry's header-only launch session in the worker's cwd appeared as a second node, `(empty)`, `interactive: true` (before this change graph merged it into the worker's record). Repaired in `lib/graph.ts` (a session nobody typed into and no live pi is not user-facing); re-driven on `ref-one`: the ghost reports `interactive: false`. `Node.interactive` itself stays (ticket decision). Session metadata: branch-pinned pi with `PI_WM_RUN/PI_WM_HANDLE/BB_THREAD_ID` persisted `{"run":"ref-one","handle":"ref-one-refine-1","agent":"reviewer","thread":"thr_szwgytybya","mode":"rpc"}` as a `session-meta` entry with an empty registry dir.
+
+## Suite gate
+`bun test` on `00bcfeba`: 222 pass, 2 skip, 2 fail — both `lib/thread/lifecycle.test.ts` "archive conflict answered needs-input / turn-end" hit the 5000 ms timeout under the full-suite load; the file alone passes 12/12 (those cases ~0.8 s). Load flake, not a defect. After the review commits, affected set (`wm-reattach`, `dispatch`, `thread/*`, `session*`, `reconcile/{status,stop,resume}`) passes 40/40.
+
+## Cleanup
+Both reconcilers stopped (`stop`), threads `thr_g53rgwyq9f`, `thr_8uh2y2d8ru`, `thr_szwgytybya` stopped and archived, scratch repo/worktrees/retired dirs, temp pi state and probe removed; no process of the scratch left. The shared reconciler was not touched.
