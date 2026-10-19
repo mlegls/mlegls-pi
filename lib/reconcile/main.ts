@@ -141,7 +141,9 @@ export async function constrain(cwd: string, root: string, node: string, text: s
 
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
-		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, cwd: { type: "string", default: process.cwd() } } });
+		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
+	const usage = "usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT";
+	if (values.help) { console.log(usage); process.exit(0); }
 	const [cmd, root, ...rest] = positionals;
 	const cwd = resolve(values.cwd!);
 	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"] }); }
@@ -150,5 +152,5 @@ if (import.meta.main) {
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
 	else if (cmd === "resolve" && root && rest.length === 2) resolveException(cwd, root, rest[0], JSON.parse(rest[1]));
 	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(await constrain(cwd, root, rest[0], rest[1])));
-	else { console.error("usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT"); process.exit(2); }
+	else { console.error(usage); process.exit(2); }
 }
