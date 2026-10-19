@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: human
 author: session:01a0f6e1-7eed-75bc-ba02-2800f2354d23
 priority: 3
@@ -15,3 +15,7 @@ Keep these sessions resident until something outside pi owns wake delivery. Prop
 - One activator outside pi, the reconciler's loop generalized: `lib/reconcile/main.ts` already tails the board with `readFrom(offset)` and launches sessions on reports, but only for its subtree and until it finishes. The activator reads new messages from a saved offset, matches them against deactivated threads' saved subscriptions (with wake), and resumes each match in its zmx session with `pi --session <file>`.
 - Run it as a LaunchAgent with `WatchPaths` on the board log: nothing resident, and launchd's `ThrottleInterval` batches bursts, fine beside a ~1.5 s resume. A `KeepAlive` bun process doing the same tail is the fallback.
 - Rejected: a per-thread waiter alternating with pi inside its zmx session. No central process, but one waiter per thread (~30 MB for bun) and matching duplicated everywhere.
+
+## Result
+
+Superseded 2026-10-19: bb resumes a thread on a queued tell, and replace-the-board-with-bb-mail deletes board wakes.
