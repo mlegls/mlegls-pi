@@ -1,5 +1,7 @@
 # Local completion turns
 
+Independent first-use verification: [drive-b encounter packet](drive-b.md).
+
 Tested code: `a5dbd301` (base `2f19b88a`). Nonvisual CLI/API first use under installed BB **0.46.1**, Pi **1.2.0**. [Selected final events and request observations](events.json). No permanent tests added.
 
 ## Reproduce
