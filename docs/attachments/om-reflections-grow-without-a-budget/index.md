@@ -1,5 +1,7 @@
 # OM compaction render budget — implementation first use
 
+Independent drive: [predictions, encounter, checks and limits](drive.md). The isolated budget/recall journeys held; live post-reload compaction remains unobserved.
+
 Code revision: `052e1bb3` (base `9debeafc`). Nonvisual API journey; no screenshots. This is the implementer's first-use record, not independent acceptance.
 
 ## Prepared setup and entry point
