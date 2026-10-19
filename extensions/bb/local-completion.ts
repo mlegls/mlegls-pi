@@ -65,7 +65,8 @@ export function localCompletions(pi: ExtensionAPI) {
 
 	let previous: Selection | undefined;
 	pi.on("input", async (event, ctx) => {
-		if (!ctx.model || !await reconcilerCompletion(event.text, ctx.cwd)) return;
+		// A notice queued into a running turn must not swap that turn's model: let it through.
+		if (event.streamingBehavior || !ctx.model || !await reconcilerCompletion(event.text, ctx.cwd)) return;
 		const model = ctx.modelRegistry.find(PROVIDER, MODEL);
 		if (!model) return;
 		previous = { provider: ctx.model.provider, id: ctx.model.id, thinking: pi.getThinkingLevel() };
