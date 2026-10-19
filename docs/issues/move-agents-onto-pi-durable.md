@@ -1,5 +1,5 @@
 ---
-stage: goal
+stage: done
 assignee: human
 author: session:e780584f-b8ad-4f4f-9b9d-6de74973d067
 priority: 3
@@ -82,3 +82,7 @@ Commit to moving interactive sessions when upstream shows:
 - 2026-10-02: one Harness per supervision tree (the supervisor's Session), not one per worker or one machine daemon.
 - 2026-10-02: adopt upstream's server and clients rather than building our own; interim viewing through zmx and the experimental durable TUI.
 - 2026-10-02: the board stays the single messaging surface; within a harness it routes onto the durable inbox, and tree control flow uses ownership.
+
+## Result
+
+Dropped 2026-10-19: running agents on pi-durable is for bb to support as a provider, not for mlegls-pi. Upstream: get-bb/bb#5093 proposes bundling it (open, no maintainer reply); the community plugin provider-pi-durable is installable. Revisit if bb adopts it.
