@@ -5,7 +5,6 @@ author: "session:01a15212-f5c4-72f9-98e1-e4e2ab51097c"
 part-of: "[[projects/mlegls-pi/issues/retire-the-ab-thread-registry]]"
 blocked-by:
   - "[[projects/mlegls-pi/issues/key-workers-by-bb-thread-id]]"
-  - "[[projects/mlegls-pi/issues/bb-environments-follow-our-worktrees]]"
 ---
 Delete the `ab thread` CLI and the registry once nothing reads records.
 
