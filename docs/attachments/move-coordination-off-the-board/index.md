@@ -31,3 +31,11 @@ Initial live-run seed expectation not met by null setup handoff; resolved by aut
 ## Cleanup
 
 Stopped authorized scratch run after completion. All three child bb threads archived automatically; verified idle/archive timestamps, no remaining worker worktrees, and deleted exact scratch repository and empty worktrees directory. No servers, pages, deployments or processes remain.
+
+## Review (reviewer, head after fad39b76)
+
+- **Worker-instruction story: held on the branch.** The failure was environmental: workers read their preamble from AGENTS_DIR (default `~/.pi/agent/agents`, a symlink to the canonical checkout's `agents/`), which is the unmerged copy while the branch is in review. The branch's `agents/_common.md` and `agents/roles/handle.md` carry no board_send/board_read/decision text (`grep -rn board agents` empty). Takes effect on landing. Friction issue `scratch-reconcile-worker-retains-board-instructions` closed with that disposition.
+- **Desk fallback: held.** In a throwaway repo (`/tmp/rv-desk.*`, deleted), `setRole('supervisor', <live thread>)` wrote `desk/ROLES.md`; `roleThread('supervisor')` returned it, a nonexistent owner is not live in `bbThreads()`, so the `tellOwner` rule in `lib/reconcile/reconcile.ts` (owner if live, else live supervisor, else owner) selects the supervisor; an unset role gives `undefined`. Shared desk untouched. The send itself (`tellBb`) is the path the live run already exercised.
+- **Board-free recall: held by inspection.** `extensions/context/recall.ts` no longer mentions board; old `board` records stay readable in the shared store (documented). No board tools/hooks remain: `bunx tsc --noEmit` clean, `grep` finds board only in the records-store dir name (`PI_BOARD_DIR`, kept deliberately) and historical profile kinds.
+- **CLI help:** fixed (fad39b76); `bun lib/reconcile/main.ts --help` prints usage, exit 0. Friction issue closed.
+- Tests: `bun test lib extensions/supervision extensions/context extensions/bb`: 176 pass, 1 timed out under host load (`archive conflict answered checkpoint…`, 5 s) and passed on rerun of `lib/thread/lifecycle.test.ts` (12/12, 1.3 s). Project declares no `test:affected`.
