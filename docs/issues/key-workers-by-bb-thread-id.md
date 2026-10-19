@@ -23,3 +23,7 @@ Preparation is authorized to create and clean up a disposable repository/run and
 The graph's independently meaningful `Node.interactive` classification is not prohibited by dropping the old registry-only view fields. Verify metadata/graph identity and provenance through their public surfaces, rather than asserting that every field sharing an old view-field name disappears everywhere.
 
 Setup-handoff friction remains owned by [[projects/mlegls-pi/issues/supervised-study-drive-lacks-setup-handoff]]. This ruling changes no integration status; the migration and its required observations still await review and landing.
+
+## Verification evidence
+
+Driver encounter: [worker identity packet](../attachments/key-workers-by-bb-thread-id/index.md). Initial setup gap followed by supervisor-authorized scratch-repo live restart/adoption checks. Final story outcomes are in the packet; this link is not acceptance or closure.
