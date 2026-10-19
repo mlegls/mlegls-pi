@@ -5,9 +5,9 @@ description: "Use when dispatching or coordinating other agents: workers in work
 
 Prepared waves: `tools.dispatch` ([contract](../../../../../../docs/dispatch.md)). Parent owns decomposition, dependencies and concurrency; retain receipts.
 
-Workers are `wm` workers (bb threads: a worktree and a pi run by bb). They report by ending their turn: the last message starts with `done`, `blocked`, `needs-input` or `checkpoint`, posted on board topic `<run>/<handle>`; for a question, end with `needs-input` and the answer arrives as the next message. Dispatch subscribes you to `<run>/**` with wake, so reports start your next turn; `tools.mail({to: "<run>/<handle>", body})` answers or steers. Use the shared handoff schema in `agents/_common.md` when structured details help. A completed turn is not assignment completion. `/jump <handle>` opens a worker's session.
+Workers are `wm` workers (bb threads: a worktree and a pi run by bb). They report by ending their turn: the last message starts with `done`, `blocked`, `needs-input` or `checkpoint`; for a question, end with `needs-input` and the answer arrives as the next message. Workers are your child bb threads, so bb tells you when each finishes; `bb thread tell <thread> --mode queue` answers or steers. Use the shared handoff schema in `agents/_common.md` when structured details help. A completed turn is not assignment completion. `/jump <handle>` opens a worker's session.
 
-Use the board for peer coordination, not terminal reports, and `tools.board_ack` handled peer messages. Read `tools.board_read({topic: "<run>/**"})` without a report tag filter before touching shared seams: it includes base-topic decisions and all descendants (including nested runs), whereas `<run>/*` misses the base topic.
+Peers coordinate through the tracker and `desk/` (`ROLES.md` names who holds a role); to ask one a question, `bb thread tell <thread> --mode queue` and don't wait on the answer.
 
 Choose each fresh assignment's stance from `~/dev/mlegls-pi/routing.md`; `models.classify` can judge it when the call is close. Size assignments to their context. Integrate and retire settled workers with `merge`.
 

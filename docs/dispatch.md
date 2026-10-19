@@ -1,6 +1,6 @@
 # Prepared dispatch
 
-The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker, a bb thread (a worktree and a pi run by bb), reporting on board topic `<run>/<handle>`.
+The parent owns decomposition, dependencies, stance choice, concurrency and acceptance. `tools.dispatch` only launches prepared assignments, each as a `wm` worker, a bb thread (a worktree and a pi run by bb), reporting by ending its turn.
 
 ```js
 const wave = await tools.dispatch({ run: "feature-x", maxConcurrent: 2, active: [], assignments: [
@@ -16,23 +16,21 @@ Assignments require `handle`, a self-contained `prompt`, and either `agent` (a r
 
 The receipt contains:
 
-- `submitted`: `{handle, run, path}` per launch, plain data you can persist; `<run>/<handle>` is its board topic.
+- `submitted`: `{handle, run, path}` per launch, plain data you can persist; `<run>/<handle>` names the worker.
 - `failed`: first failed assignment and error text. Earlier launches survive. Inspect the worktree the thread may have created before deciding what to do.
 - `pending`: assignments never attempted, because of capacity or the earlier failure.
 
 ## bb runtime
 
-Every worker and thread is a bb thread: [bb](https://github.com/get-bb/bb) runs its pi and shows it in its desktop, web and mobile apps, nested under the spawning session's bb thread when there is one (a spawn from a plain terminal makes a top-level bb thread; board reports and integration don't depend on the nesting). The bb daemon must be running: the bb CLI reaches it from inside a bb thread or a plain terminal alike, and when it doesn't answer, spawning fails before creating a worktree, saying to start bb. The registry, worktree, setup, board reports and integration are ours (`lib/thread/bb.ts`). Setup (the project's `mise run setup`) runs before bb starts pi, and a failing worker setup fails the spawn with its log under the thread state directory. There is no host admission: the parent's `maxConcurrent` and the reconciler's budget are the only limits. A thread's state is bb's (`idle`, `working`, `exited` once archived), since bb may release an idle thread's pi; retiring stops and archives it in bb. Thread JSON also reports `workspace: {processes, rssMB}`: a census of processes whose cwd is in the owned worker worktree, including services left behind after pi exits. RSS is a rough sum; guest/shared-cwd processes are not attributed to a worker.
+Every worker and thread is a bb thread: [bb](https://github.com/get-bb/bb) runs its pi and shows it in its desktop, web and mobile apps, nested under the spawning session's bb thread when there is one (a spawn from a plain terminal makes a top-level bb thread; reports and integration don't depend on the nesting). The bb daemon must be running: the bb CLI reaches it from inside a bb thread or a plain terminal alike, and when it doesn't answer, spawning fails before creating a worktree, saying to start bb. The registry, worktree, setup and integration are ours; a worker's report is its bb thread's last message (`lib/thread/turn.ts`) (`lib/thread/bb.ts`). Setup (the project's `mise run setup`) runs before bb starts pi, and a failing worker setup fails the spawn with its log under the thread state directory. There is no host admission: the parent's `maxConcurrent` and the reconciler's budget are the only limits. A thread's state is bb's (`idle`, `working`, `exited` once archived), since bb may release an idle thread's pi; retiring stops and archives it in bb. Thread JSON also reports `workspace: {processes, rssMB}`: a census of processes whose cwd is in the owned worker worktree, including services left behind after pi exits. RSS is a rough sum; guest/shared-cwd processes are not attributed to a worker.
 
 A worker's command is always pi: `wm.spawn` has no `command` option and `from: "fork"` is gone (bb threads can't fork a session); `from: "summary"` remains. Threads registered under the retired zmx runtime still list in `ab thread ls` (state `exited` unless their pi is still live); abandon them with `ab thread abandon <id>`.
 
-bb gives every thread the same environment, so a worker's identity (board topic, stance, checkpoint ratio) is written to `.wm/launch.env` in its worktree, and bb runs pi through `bin/bb-pi`, which sources it: set it once with `bb-app env set BB_PI_BRIDGE_COMMAND <this checkout>/bin/bb-pi`. Start bb from the Dock or with a clean environment: a bb started from a pi session's shell passes that session's `PI_BOARD_TOPIC` to every thread.
+bb gives every thread the same environment, so a worker's identity (run, handle, stance, checkpoint ratio) is written to `.wm/launch.env` in its worktree, and bb runs pi through `bin/bb-pi`, which sources it: set it once with `bb-app env set BB_PI_BRIDGE_COMMAND <this checkout>/bin/bb-pi`. Start bb from the Dock or with a clean environment: a bb started from a pi session's shell passes that session's `PI_WM_*` identity to every thread.
 
 ## Supervision
 
-Workers report by ending their turn: the last message starts with `done`, `blocked`, `needs-input` or `checkpoint` (`lib/report.ts`), posted on `<run>/<handle>`. Dispatch subscribes the parent to `<run>/**` with wake, so reports start its next turn. `tools.mail({to: "<run>/<handle>", body})` answers a question or steers a worker. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
-
-For peer coordination, read `tools.board_read({ topic: "<run>/**" })` without a tag filter so decisions aren't excluded. `<run>/**` includes the base topic and all descendants (including nested runs); `<run>/*` misses decisions posted on the base topic.
+Workers report by ending their turn: the last message starts with `done`, `blocked`, `needs-input` or `checkpoint` (`lib/report.ts`). The workers are bb child threads of the parent, so bb tells the parent when each finishes. `bb thread tell <thread> --mode queue` answers a question or steers a worker; the reconciler does the same for its workers. A completed turn is not assignment completion: read the report, answer questions, and check the assignment criterion.
 
 ## Integration
 
@@ -44,7 +42,7 @@ After the worker is settled and completion is accepted, `tools.integrate({worker
 
 Reconcile/start captures an optional `land` (`local`, `pr-merge`, `pr-review`),
 otherwise the owner's committed `.pi/reconcile.json`, otherwise local. CLI:
-`bun lib/reconcile/main.ts start <issue> --owner mail/x --land pr-review`.
+`bun lib/reconcile/main.ts start <issue> --owner <bb thread id> --land pr-review`. The owner is the bb thread told about exceptions and the final result; when it has closed, the thread holding `supervisor` in `desk/ROLES.md` is.
 A resume keeps its saved mode; an explicit conflicting override refuses. Old
 states without a mode remain local despite configuration changes.
 
