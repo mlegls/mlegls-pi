@@ -2,8 +2,10 @@
 // the rest) do nothing, and ctx.ui.notify never reaches the user. See lib/notice.ts.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { insideBb, notice, withoutNotices } from "../../lib/notice.ts";
+import { localCompletions } from "./local-completion.ts";
 
 export default function (pi: ExtensionAPI) {
+	localCompletions(pi);
 	pi.on("context", (event) => {
 		const messages = withoutNotices(event.messages);
 		return messages ? { messages } : undefined;
