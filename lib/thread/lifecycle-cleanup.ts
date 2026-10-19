@@ -143,7 +143,7 @@ async function cleanupThread(thread: ThreadRecord, keepBranch: boolean, processe
 	const protectedPids = new Set<number>();
 	for (let pid = process.pid; pid > 0 && !protectedPids.has(pid); pid = parents.get(pid) ?? 0) protectedPids.add(pid);
 	const live = readLive();
-	const canonical = live.filter(l => l.sessionId === thread.sessionId || (l as Live & { thread?: string }).thread === thread.id);
+	const canonical = live.filter(l => l.sessionId === thread.sessionId || (l as Live & { thread?: string }).thread === thread.id || (!!thread.bb && l.thread === thread.bb));
 	if (canonical.some(l => protectedPids.has(l.pid)))
 		throw new Error("Cleanup controller is inside thread " + thread.id + "; run cleanup from another terminal");
 	const selected = new Set<number>([...canonical.map(l => l.pid), ...owned && root ? await cwdProcesses(root) : []]);

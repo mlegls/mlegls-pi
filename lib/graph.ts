@@ -13,10 +13,7 @@ import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, rea
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "./session-meta/live";
-import { allThreads } from "./thread/registry";
 import { bbSessionDir, bbSessions, type BbSession } from "./thread/bb";
-import { isInteractive } from "./thread/runtime";
-import { workerResources, type WorkspaceResources } from "./thread/resources";
 
 /** working/idle: a pi with a live record;
  * resumable: no process, reopen with pi --session; gone: its directory was deleted. */
@@ -37,7 +34,6 @@ export interface Node {
 	run?: string;
 	handle?: string;
 	state: State;
-	workspace?: WorkspaceResources;
 	/** User-facing session: not agent-spawned, and not running headless. */
 	interactive: boolean;
 	pid?: number;
@@ -130,10 +126,6 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	const since = Date.now() - (options.days ?? 3) * 86_400_000;
 	const live = readLive();
 	const liveBySession = new Map<string, Live>(live.map(l => [l.sessionId, l]));
-	const threads = await allThreads();
-	const threadBySession = new Map(threads.map(t => [t.sessionId, t]));
-	const threadById = new Map(threads.map(t => [t.id, t]));
-	const resources = await workerResources(threads);
 
 	// Files in the window, live ones, and (below) ancestors of either.
 	const byId = new Map<string, string>();
@@ -183,11 +175,6 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		if (s) bbBySession.set(p.id, s);
 	}
 	for (const l of live) if (l.sessionFile) byId.set(l.sessionId, l.sessionFile);
-	const fileSet = new Set(files);
-	for (const t of threads) {
-		byId.set(t.sessionId, t.sessionFile);
-		if (!fileSet.has(t.sessionFile)) { fileSet.add(t.sessionFile); files.push(t.sessionFile); }
-	}
 
 	const want = new Set<string>();
 	for (const path of files) {
@@ -198,8 +185,6 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 	for (const l of live) if (l.sessionFile) want.add(l.sessionFile);
 
 	const parentOf = (p: Parsed): { id?: string; kind?: Node["parentKind"] } => {
-		const parent = threadBySession.get(p.id)?.parent;
-		if (parent) return { id: threadById.get(parent)?.sessionId ?? parent, kind: "spawn" };
 		const bbParent = bbBySession.get(p.id)?.parent;
 		const bbParentFile = bbParent ? bbLatest.get(bbParent)?.file : undefined;
 		const bbParentId = bbParentFile ? read(bbParentFile)?.id : undefined;
@@ -226,16 +211,15 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		const { id: parent, kind } = parentOf(p);
 		const l = liveBySession.get(p.id);
 		const exists = existsSync(p.cwd);
-		const thread = threadBySession.get(p.id);
 		const bb = bbBySession.get(p.id);
 		const state: State = l ? l.state : !exists ? "gone" : "resumable";
-		const run = thread?.worker?.run ?? p.meta?.run, handle = thread?.worker?.handle ?? p.meta?.handle;
+		const run = p.meta?.run, handle = p.meta?.handle;
 		nodes.set(p.id, {
 			id: p.id, file: path, cwd: p.cwd, project: project(p.cwd, cache),
 			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? bb?.title ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
-			parent, parentKind: kind, run, handle, thread: thread?.bb ?? bb?.thread,
-			state, workspace: thread ? resources.get(thread.id) : undefined, interactive: thread ? isInteractive(thread) : kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
+			parent, parentKind: kind, run, handle, thread: bb?.thread,
+			state, interactive: kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui",
 			pid: l?.pid,
 			lastText: p.lastText, children: [],
 		});

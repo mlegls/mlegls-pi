@@ -9,8 +9,6 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { readLive, removeLive, takeRetired, writeLive, type Live } from "./live";
-import { getThread, saveThread, threadForSession } from "../thread/registry";
-import type { ThreadRecord } from "../thread/types";
 import { appendFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
@@ -66,18 +64,6 @@ export function spawnMeta(env: Record<string, string | undefined> = process.env)
 	return { ...wm, ...(invokedBy && { invokedBy }) };
 }
 
-/** Membership is current id + file, not inherited env, directory name or historical metadata. */
-export async function canonicalThread(sessionId: string, sessionFile?: string): Promise<ThreadRecord | undefined> {
-	let record = await threadForSession(sessionId);
-	if (!record && process.env.AB_THREAD_ID) record = await getThread(process.env.AB_THREAD_ID);
-	// bb runs a bb-run thread's pi on bb's own session file: that session becomes the thread's current one.
-	if (record && !record.archived && record.bb && record.bb === process.env.BB_THREAD_ID && sessionFile && (record.sessionId !== sessionId || record.sessionFile !== sessionFile)) {
-		record = { ...record, sessionId, sessionFile };
-		await saveThread(record);
-	}
-	return record && !record.archived && record.sessionId === sessionId && record.sessionFile === sessionFile ? record : undefined;
-}
-
 export function install(pi: ExtensionAPI) {
 	const meta = spawnMeta();
 	let parentSession = meta?.parentSession ?? meta?.invokedBy;
@@ -100,10 +86,9 @@ export function install(pi: ExtensionAPI) {
 		watchEpipe();
 		const saved = c.sessionManager.getBranch().filter((entry) => entry.type === "custom" && entry.customType === SPAWN_META).at(-1);
 		const provenance = saved?.type === "custom" ? saved.data as SpawnMeta : undefined;
-		const member = await canonicalThread(c.sessionManager.getSessionId(), c.sessionManager.getSessionFile());
-		thread = member?.id;
-		const worker = member?.worker ? { ...member.worker, agent: member.launch?.env?.PI_WM_AGENT, parentSession: member.launch?.env?.PI_WM_PARENT_SESSION } : undefined;
-		const metadata = { ...provenance, ...meta, ...worker, thread, mode: c.mode };
+		// The bb thread running this pi names it; a worker's run and handle arrive in its launch env (spawnMeta).
+		thread = process.env.BB_THREAD_ID || undefined;
+		const metadata = { ...provenance, ...meta, thread, mode: c.mode };
 		if (!thread) delete metadata.thread;
 		parentSession = metadata.parentSession ?? metadata.invokedBy;
 		clearInterval(monitor);
@@ -118,7 +103,7 @@ export function install(pi: ExtensionAPI) {
 		}, 5000);
 		monitor.unref();
 		live("idle");
-		if (!saved || provenance?.thread !== thread || (worker && (provenance?.run !== worker.run || provenance?.handle !== worker.handle)))
+		if (!saved || provenance?.thread !== thread || (meta?.run && (provenance?.run !== meta.run || provenance?.handle !== meta.handle)))
 			pi.appendEntry(SPAWN_META, metadata);
 	});
 	pi.on("agent_start", () => live("working"));
