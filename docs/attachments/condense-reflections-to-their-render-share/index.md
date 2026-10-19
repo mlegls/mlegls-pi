@@ -1,3 +1,4 @@
+docs/attachments/condense-reflections-to-their-render-share/index.md (32 lines)
 # Reflection render share — implementation first use
 
 Base: `0320f59694747bbfe71681ed019767cead0a03ea`. This packet accompanies the implementation commit; independent driver/reviewer acceptance follows it.
@@ -30,3 +31,6 @@ Observed ready: this command completed successfully. Pass `1000000` as the posit
 Used the ticket's permitted fallback: preservation-floor matching, then newest-first, without any Jev call. The live [API reference](https://docs.typesafe.ai/api.md) requires a separate API key. This repository's `lib/decide.ts` likewise requires a credentialed Jev classifier (TypeSafe, OpenRouter, or Cloudflare); working compaction/memory-worker authentication does not imply any of those credentials. The renderer is synchronous (`lib/records/render.ts`). Compaction therefore must not depend on classifier authentication, SDK initialization, or an added network round trip. No inference latency is claimed or measured.
 
 The preservation recognizer is deliberately conservative lexical matching of roles/identity, preferences/permissions, rules/constraints, blockers/waiting decisions, and architectural decisions/rationale, mirroring the condenser prompt. It is not a semantic classifier. As with any hard budget, protected records too large to fit can still be omitted; ordinary records are considered only after the protected set.
+## Independent drive
+
+See [first-use predictions, observations and replayable checks](drive.md). Both small- and large-window entry points completed successfully on `c1bced1e4e28a57d7e57d4c4cd45154e24792cb9`; offline library evidence, no rendered UI. Role/constraint preservation held; broader preservation wording remains for reviewer coverage.
