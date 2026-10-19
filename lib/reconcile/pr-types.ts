@@ -67,7 +67,7 @@ export interface PrRepairRequest {
 export interface PrRepairReceipt {
 	request: PrRepairRequest;
 	worker?: Handle;
-	/** Written before dispatch; registry recovery adopts this exact identity. */
+	/** Written before dispatch; recovery adopts the bb thread titled with this exact identity. */
 	launchHandle?: string;
 	launchedAt?: number;
 	handledTs?: string;

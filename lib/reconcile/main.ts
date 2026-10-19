@@ -9,7 +9,7 @@
 import { execFileSync } from "node:child_process";
 import { retire, tell, topic, type Handle } from "../dispatch";
 import { bbThreads } from "../thread/bb";
-import { git } from "../thread/git";
+import { commonDir } from "../thread/git";
 import { pidAlive as alive } from "../wm";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -70,13 +70,13 @@ export async function stop(cwd: string, root: string) {
 		await replaceRefinement(refinement, attempt.handle, attempt.successor, true);
 	for (const attempt of Object.values(s.refinements))
 		if (attempt.phase !== "accepted" && attempt.phase !== "removed") await discardRefinement(refinement, attempt.handle);
-	const threads = await bbThreads(), repo = git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir");
+	const threads = await bbThreads(), repo = commonDir(cwd);
 	const handles = new Map<string, Handle>();
 	const add = (h: Handle) => handles.set(topic(h) + ":" + resolve(h.path), h);
 	for (const h of workerHandles(s)) add(h);
 	// A worker whose receipt was never saved is still a bb thread titled <run>/<handle>.
 	for (const t of threads.values()) if (!t.archivedAt && t.environmentPath && t.title?.startsWith(root + "/") && !t.title.slice(root.length + 1).includes("/")) {
-		try { if (git(t.environmentPath, "rev-parse", "--path-format=absolute", "--git-common-dir") !== repo) continue; } catch { continue; }
+		if (!repo || commonDir(t.environmentPath) !== repo) continue;
 		add({ run: root, handle: t.title.slice(root.length + 1), path: t.environmentPath, bb: t.id });
 	}
 	const retired = [];

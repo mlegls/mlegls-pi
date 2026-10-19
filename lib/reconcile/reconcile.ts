@@ -697,7 +697,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const registered = await findWorker({ run: s.root, handle: receipt.launchHandle }, controlCwd);
 		if (registered) return { run: s.root, handle: receipt.launchHandle, path: registered.path, bb: registered.bb };
 		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
-		// a partial failure. Retry adopts its exact registry entry or raises to owner.
+		// a partial failure. Retry adopts its exact bb thread or raises to owner.
 		return launchNow(receipt.launchHandle, "review", prompt,
 			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"]);
 	}
@@ -1383,7 +1383,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		await locked(async () => recoverLandings(completion));
 		closeAtTarget(completion);
 		await recoverRefinements(refinement);
-		// A registry save can precede the receipt save. Adopt only exact run/handle.
+		// A bb spawn can precede the receipt save. Adopt only exact run/handle.
 		for (const [slug, c] of Object.entries(s.chains)) {
 			if (s.landed[slug]) {
 				s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];

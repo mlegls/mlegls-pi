@@ -117,7 +117,6 @@ async function bbEnvironment(id: string, known: string | null): Promise<string> 
 	return known;
 }
 
-export const waitBb = (id: string, seconds: number) => command(cli(), ["thread", "wait", id, "--status", "idle", "--timeout", String(seconds), "--json"]);
 /** The pi session bb keeps for a thread: ~/.bb/pi-bridge-sessions/<providerThreadId>.jsonl. */
 export async function bbSessionFile(id: string): Promise<string> {
 	const events = JSON.parse(await command(cli(), ["thread", "log", id, "--json", "--all"])) as { data?: { providerThreadId?: string } }[];
@@ -180,4 +179,3 @@ export async function deleteBbEnvironment(id: string): Promise<void> {
 	} catch (error) { if (!gone(error)) throw error; }
 }
 export const logBb = (id: string) => command(cli(), ["thread", "log", id, "--all"]);
-export const openBb = (id: string) => command(cli(), ["thread", "open", id]);

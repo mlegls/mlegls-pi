@@ -179,7 +179,7 @@ export class Worker {
 	/** The worker's bb thread: bound at spawn, or found from run state or by its title `<run>/<handle>`. */
 	bb?: string;
 	private owningBranch?: string;
-	/** @internal Register before launch; host observation starts once the registry has launched. */
+	/** @internal Register before launch; host observation starts once bb has launched it. */
 	launching = false;
 	private listeners = new Set<(o: Outcome) => void>();
 	private waiters: Array<(o: Outcome) => void> = [];
