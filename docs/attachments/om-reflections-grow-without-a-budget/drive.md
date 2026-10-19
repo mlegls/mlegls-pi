@@ -38,3 +38,7 @@ Continuation action: entry plus `--session "$HOME/.bb/pi-bridge-sessions/thr_vet
 - Unit tests and type checking were not run: they are not this user's surface. Implementer evidence remains in index.md.
 
 No product failure observed. Friction: the provided entry reaches a simulated compaction and read-only replay, not the required live post-reload event. This is an acceptance/setup limit already explicitly owned by om-reflections-grow-without-a-budget, not a new tooling defect.
+
+## Review (reviewer pass)
+
+Diff read against the ticket amendment: budget resolution (explicit, else window/8, else 8,000), observation reservation (half, newest first), reflections get the remainder, omission line, condenser defaults 60k/40k all match. `bun test extensions/context/om extensions/context/mechanism.test.ts` (7 pass) and `bunx tsc --noEmit` pass. The allocation check the driver found unobservable was run directly on `renderSummaryWithBudget` (100 reflections and 100 observations of 200 chars, 2,000-token budget): 16 reflections (newest, r84..r99) and 14 observations (newest, o86..o99) kept, 1,914 tokens, 84/86 omitted; with 2 observations, reflections reclaim the space (30 reflections, 1,932 tokens). Newest-first and reservation hold. No repairs needed; no tracker friction was filed by the workers. The live next-compaction criterion remains outstanding after integration and reload.
