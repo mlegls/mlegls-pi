@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:4b3f3835-f151-428e-979d-1025b1a2785e
 ---
@@ -31,3 +31,7 @@ After the fix (61e3b15, 2026-10-06 17:15 UTC), epipe.jsonl went from 59 entries 
 - 15:07:15, `list-outside-references-in-a-references-playground-implement-1`: `end → _destroy`, a second after managed `mise run test:affected` started.
 
 In this repo the only stdin writers, outline-read's `runPi` and `extensions/context/om/clipboard.ts`, both have error listeners. The remaining writer is something else that spawns a short-lived child per tool call and writes to it: another extension, pi core or a dependency. The stacks are `internal:fs/streams`, a Bun fs-backed Writable; whether that is how Bun backs node:child_process stdin is not checked.
+
+## Result
+
+Superseded 2026-10-19: the crashes were in workers whose stdio was a zmx terminal; zmx was deleted (delete-the-zmx-thread-runtime) and workers run under bb. Reopen as a new issue if bb workers die of EPIPE.
