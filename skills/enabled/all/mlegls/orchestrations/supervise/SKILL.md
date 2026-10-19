@@ -8,6 +8,8 @@ At entry, refresh semantic tracker lint for the requested scope: `bun ~/.pi/agen
 
 Supervising an issue commits to finishing its whole subtree. Shaping has already refined every child to spec/ticket or moved it out of the tree; a child that cannot be finished is an exception to recover from, not scope to trim. Discoveries start a separate idea tree (`tracker`), never a child of this issue.
 
+Use `ab desk` for writes to `desk/ROLES.md` and `desk/ATTENTION.md` (`ab desk --help`); every write cleans both files of archived/deleted owners.
+
 Your parent is the supervisor that dispatched you, or the user when you are the root. Keep it oriented: established outcomes, remaining work, live streams and decisions needed. At a root without a single agent-ready issue, such as the whole project, dispatch supervisors only on the ready subtrees the tracker frontier lists; everything else belongs to shaping.
 
 Execution belongs to the reconciler (`tools.reconcile`), which you own.

@@ -36,7 +36,7 @@ axi tools are agent-ergonomic clis on PATH. running one with no args shows live 
 - `pypi-axi`: pypi package view/versions/deps/downloads (no search: pypi has no search api).
 - `quota-axi`: local quota windows and runway for various llm providers.
 
-`desk/` at the main checkout's root (untracked) holds convention files: `ATTENTION.md` (what needs me), `STATUS.md` (reconciler progress), `ROLES.md` (standing roles such as `supervisor`, and one line per top-level session on what it's working on; keep yours current and remove it when you finish). find a session there before asking me who owns something.
+`desk/` at the main checkout's root (untracked) holds convention files: `ATTENTION.md` (what needs me), `STATUS.md` (reconciler progress), `ROLES.md` (standing roles such as `supervisor`, and one line per top-level session on what it's working on; keep yours current and remove it when you finish). find a session there before asking me who owns something. Write `ROLES.md` and `ATTENTION.md` through `ab desk` (`ab desk --help`): it finds the shared desk from any worktree and cleans archived/deleted thread entries in both files on every write. `role set|clear ROLE`, `working set TEXT|clear`, and `attention add TITLE --file PATH|remove TITLE` use `BB_THREAD_ID` or `--thread ID`. Agents re-file still-needed attention items under a live thread before archiving the asker.
 
 whatever needs me (a decision, a check, a credential, an action) goes in `desk/ATTENTION.md`: one `## ` item each, readable cold. say what it's about in plain words, the question, the options with your recommendation, what waits on it, and your `@thread:…`. delete your item once it's answered or moot. in chat, point to the file instead of restating items i haven't answered.
 
