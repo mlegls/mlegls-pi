@@ -60,9 +60,9 @@ export interface Anchored {
 	at?: string;
 }
 
-/** Records of `schema` written from this session's chain (extra SQL narrowing optional), with their edges, in seq order. */
-export function chainRecords(sm: BranchSession, schema: string, options: { where?: string; params?: (string | number)[] } = {}): Anchored[] {
-	const chain = sessionChain(sm);
+/** Records of `schema` written from this session's chain (or `sessions`; extra SQL narrowing optional), with their edges, in seq order. */
+export function chainRecords(sm: BranchSession, schema: string, options: { where?: string; params?: (string | number)[]; sessions?: string[] } = {}): Anchored[] {
+	const chain = options.sessions ?? sessionChain(sm);
 	const where = `r.seq IN (SELECT record FROM tags WHERE key = 'session' AND value IN (${chain.map(() => "?").join(",")}))`;
 	const records = select(schema, {
 		where: options.where ? `${where} AND (${options.where})` : where,

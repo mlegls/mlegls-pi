@@ -16,6 +16,7 @@
 import { anchor, chainRecords, entryOf, entryRef, sessionChain, splice, type Anchored, type BranchSession } from "../../../../lib/records/branch.ts";
 import { db, fieldsOf, write } from "../../../../lib/records/store.ts";
 import {
+	isMemoryDetails,
 	OM_OBSERVATIONS_DROPPED,
 	OM_OBSERVATIONS_RECORDED,
 	OM_REFLECTIONS_RECORDED,
@@ -97,6 +98,43 @@ function toEntry({ record: rec, edges }: Anchored): Entry | undefined {
 	return undefined;
 }
 
+// session id → sessions recovered for it (see recoveredSessions); fixed once the session exists
+const recovered = new Map<string, string[]>();
+
+/**
+ * Sessions that wrote memories this branch's compactions show but the header chain cannot reach.
+ * A bb rewind or continuation starts a new session file whose `parentSession` can name a file
+ * that is gone, and a running pi can keep writing under an older session id than its file's
+ * header; either way the records are in the store under a session the chain does not list.
+ * Compaction details (copied into the new file with every other entry) name the memory ids, so
+ * the sessions holding those ids' records are the lost ancestors. Their records still splice
+ * only after entries in this branch.
+ */
+function recoveredSessions(branch: Entry[], chain: string[], all: Anchored[]): string[] {
+	const hit = recovered.get(chain[0]!);
+	if (hit) return hit;
+	const have = new Set<string>();
+	for (const r of all) for (const g of r.record.tags) if (g.key === "om.id") have.add(g.value as string);
+	const missing = new Set<string>();
+	for (const e of branch) {
+		if (e.type !== "compaction" || !isMemoryDetails(e.details)) continue;
+		for (const m of [...e.details.reflections, ...e.details.observations]) if (!have.has(m.id)) missing.add(m.id);
+	}
+	const found = new Set<string>();
+	const ids = [...missing];
+	for (let i = 0; i < ids.length; i += 500) {
+		const chunk = ids.slice(i, i + 500);
+		const rows = db().query(
+			// om.id is this schema's tag; INDEXED BY: the planner otherwise scans every session tag per hit
+			"SELECT DISTINCT s.value AS session FROM tags t CROSS JOIN tags s INDEXED BY tags_record ON s.record = t.record AND s.key = 'session' WHERE t.key = 'om.id' AND t.value IN (" + chunk.map(() => "?").join(",") + ")",
+		).all(...chunk) as { session: string }[];
+		for (const { session } of rows) if (!chain.includes(session)) found.add(session);
+	}
+	const out = [...found];
+	recovered.set(chain[0]!, out);
+	return out;
+}
+
 const OM_TYPES = new Set<string>([OM_OBSERVATIONS_RECORDED, OM_REFLECTIONS_RECORDED, OM_OBSERVATIONS_DROPPED]);
 
 /**
@@ -106,9 +144,12 @@ const OM_TYPES = new Set<string>([OM_OBSERVATIONS_RECORDED, OM_REFLECTIONS_RECOR
  * its parent's entries, so one entry can be migrated under both sessions; the nearest wins.
  */
 export function ledgerBranch(sm: LedgerSession, branch: Entry[] = sm.getBranch() as Entry[]): Entry[] {
-	const chain = sessionChain(sm);
+	const headerChain = sessionChain(sm);
 	const tag = (r: Anchored, key: string) => r.record.tags.find((g) => g.key === key)?.value as string | undefined;
-	const all = chainRecords(sm, SCHEMA);
+	let all = chainRecords(sm, SCHEMA);
+	const lost = recoveredSessions(branch, headerChain, all);
+	const chain = lost.length ? [...headerChain, ...lost] : headerChain;
+	if (lost.length) all = chainRecords(sm, SCHEMA, { sessions: chain });
 	// migrated entry id → the nearest session in the chain that migrated it
 	const owner = new Map<string, string>();
 	for (const r of all) {
