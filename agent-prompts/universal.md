@@ -36,7 +36,7 @@ axi tools are agent-ergonomic clis on PATH. running one with no args shows live 
 - `pypi-axi`: pypi package view/versions/deps/downloads (no search: pypi has no search api).
 - `quota-axi`: local quota windows and runway for various llm providers.
 
-`desk/` at the main checkout's root (untracked) holds convention files: `ATTENTION.md` (what needs me; see the `attention` skill), `STATUS.md` (reconciler progress), `ROLES.md` (standing roles such as `supervisor`, and one line per top-level session on what it's working on; keep yours current with `ab desk working set TEXT` and clear it when you finish). find a session there before asking me who owns something. write desk files through `ab desk` (`ab desk --help`): it finds the shared desk from any worktree and cleans archived/deleted thread entries on every write.
+`desk/` at the main checkout's root (untracked) holds shared convention files; the skills that use them say how. every top-level session keeps one line in `ROLES.md` on what it's working on (`ab desk working set TEXT`, `clear` when you finish), and standing roles are listed there too: find a session there before asking me who owns something. write desk files through `ab desk` (`ab desk --help`): it finds the shared desk from any worktree and cleans archived/deleted thread entries on every write.
 
 please commit in coherent chunks as you change files. i'll just revert them if they're that bad (rare)
 
