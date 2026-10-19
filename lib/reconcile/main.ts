@@ -8,14 +8,14 @@
 //   bun lib/reconcile/main.ts constrain <issue> <node> TEXT [--cwd DIR]
 import { execFileSync } from "node:child_process";
 import { retire, tell, topic, type Handle } from "../dispatch";
-import { allThreads } from "../thread/registry";
-import { checkout } from "../thread/git";
+import { bbThreads } from "../thread/bb";
+import { git } from "../thread/git";
 import { pidAlive as alive } from "../wm";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { discardRefinement, replaceRefinement } from "./refinement";
 import { parseArgs } from "node:util";
-import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, stopRefinementWriter, updateState, type State } from "./reconcile.ts";
+import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, stopRefinementWriter, updateState, workerHandles, type State } from "./reconcile.ts";
 
 export function start(o: StartOptions): { pid: number; log: string } {
 	const prior = prepareStart(o);
@@ -70,20 +70,19 @@ export async function stop(cwd: string, root: string) {
 		await replaceRefinement(refinement, attempt.handle, attempt.successor, true);
 	for (const attempt of Object.values(s.refinements))
 		if (attempt.phase !== "accepted" && attempt.phase !== "removed") await discardRefinement(refinement, attempt.handle);
-	const threads = await allThreads(true), project = checkout(cwd).project;
+	const threads = await bbThreads(), repo = git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir");
 	const handles = new Map<string, Handle>();
-	const add = (h: Handle) => handles.set(h.threadId ?? topic(h) + ":" + h.path, h);
-	for (const c of Object.values(s.chains)) for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) add(h);
-	for (const e of Object.values(s.exceptions)) if (e.handler) add(e.handler);
-	for (const op of Object.values(s.landingOps)) for (const h of op.workers) add(h);
-	for (const a of Object.values(s.refinements)) if (a.worker) add(a.worker);
-	if (s.pr?.repair?.worker) add(s.pr.repair.worker);
-	for (const t of threads) if (!t.archived && t.project === project && t.worker?.run === root)
-		add({ ...t.worker, path: t.cwd, threadId: t.id });
+	const add = (h: Handle) => handles.set(topic(h) + ":" + resolve(h.path), h);
+	for (const h of workerHandles(s)) add(h);
+	// A worker whose receipt was never saved is still a bb thread titled <run>/<handle>.
+	for (const t of threads.values()) if (!t.archivedAt && t.environmentPath && t.title?.startsWith(root + "/") && !t.title.slice(root.length + 1).includes("/")) {
+		try { if (git(t.environmentPath, "rev-parse", "--path-format=absolute", "--git-common-dir") !== repo) continue; } catch { continue; }
+		add({ run: root, handle: t.title.slice(root.length + 1), path: t.environmentPath, bb: t.id });
+	}
 	const retired = [];
-	for (const h of handles.values()) {
-		const t = threads.find(t => h.threadId ? t.id === h.threadId : t.worker?.run === h.run && t.worker.handle === h.handle && t.cwd === h.path);
-		if (t?.archived || (!t && !existsSync(h.path))) continue;
+	for (const h of [...handles.values()].filter((h, i, all) => !all.some((o, j) => j < i && o.bb && o.bb === h.bb))) {
+		const t = h.bb ? threads.get(h.bb) : undefined;
+		if ((!t || t.archivedAt) && !existsSync(h.path)) continue;
 		retired.push({ worker: topic(h), ...await retire(h, { cwd }) });
 	}
 	rmSync(resolutionsDir(cwd, root), { recursive: true, force: true });

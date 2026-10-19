@@ -40,10 +40,29 @@ export async function bbProject(main: string): Promise<string> {
 	return id;
 }
 
-export interface BbThread { id: string; status: "pending" | "idle" | "starting" | "active" | "stopping" | "error"; archivedAt: number | null; parentThreadId: string | null }
+export interface BbThread {
+	id: string; status: "pending" | "idle" | "starting" | "active" | "stopping" | "error"; archivedAt: number | null; parentThreadId: string | null;
+	/** A worker's is `<run>/<handle>` (spawnBb). */
+	title?: string | null;
+	/** The thread's environment checkout. */
+	environmentPath?: string | null;
+	createdAt?: number;
+}
 /** Unarchived bb threads by id, across projects; hidden ones included. */
 export async function bbThreads(): Promise<Map<string, BbThread>> {
 	return new Map((await bb<BbThread[]>(["thread", "list", "--include-hidden"])).map(t => [t.id, t]));
+}
+
+/** Whether bb is running a turn for the thread: an idle or errored thread is not, and bb may release an idle thread's pi without ending it. */
+export const bbWorking = (t: BbThread | undefined): boolean => !!t && !t.archivedAt && t.status !== "idle" && t.status !== "error";
+
+/** The live bb thread titled `<run>/<handle>`, or for a bare handle the one in any run. Dispatch recovers a worker spawned
+ * just before a crash from this when run state has no receipt for it. `within` narrows to one repository by environment path. */
+export function bbWorkerThread(threads: Map<string, BbThread>, handle: string, run?: string, within?: (path: string) => boolean): BbThread | undefined {
+	const matches = [...threads.values()].filter(t => !t.archivedAt && t.environmentPath && (run === undefined ? t.title?.endsWith("/" + handle) : t.title === run + "/" + handle)
+		&& (!within || within(t.environmentPath)));
+	if (matches.length > 1) throw new Error("Ambiguous worker " + handle + (run === undefined ? "; supply its run" : " in run " + run) + ": " + matches.map(t => t.id).join(", "));
+	return matches[0];
 }
 
 // A bb thread gets its identity and, when the spawner set them, the

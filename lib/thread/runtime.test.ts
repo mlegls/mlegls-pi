@@ -2,8 +2,9 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { allThreads, saveThread, threadForSession, workerThread } from "./registry";
-import { historyThread, listThreads, newThread, sendThread } from "./runtime";
+import { threadForSession } from "./registry";
+import { bbThreads, bbWorkerThread } from "./bb";
+import { historyThread, newThread, sendThread } from "./runtime";
 import { fakeBb } from "./fake-bb";
 
 // Replays docs/attachments/thread-registry-and-zmx-launch/driver-log.md checks C1, C2, C5, C6 and the
@@ -48,17 +49,14 @@ test("owning thread sets up once, guests do not own, send reaches the bb thread 
 	expect(bb.threads().find(t => t.id === owner.bb)!.tells).toEqual(["literal $HOME ; 'q'"]);
 	expect(await historyThread(owner.id, 1)).toBe("literal $HOME ; 'q'\n");
 
-	const spawn = await listThreads({ cwd: repo });
-	expect(spawn.map(r => [r.thread.id, r.depth])).toEqual([[owner.id, 0], [guest.id, 1]]);
-	expect(spawn[0]!.terminals.map(t => t.name)).toEqual([owner.id + ".agent"]);
 	expect(await threadForSession(owner.sessionId)).toMatchObject({ id: owner.id });
 });
 
 test("a bare worker handle shared by two runs is ambiguous until its run is given", async () => {
-	const base = (await allThreads())[0]!;
-	for (const run of ["a", "b"]) await saveThread({ ...base, id: "w-" + run, sessionId: "w-" + run, worker: { run, handle: "same" } });
-	await expect(workerThread("same", repo)).rejects.toThrow("Ambiguous worker same");
-	expect((await workerThread("same", repo, "b"))?.id).toBe("w-b");
+	for (const run of ["a", "b"]) bb.addThread("w-" + run, repo, run + "/same");
+	const threads = await bbThreads();
+	expect(() => bbWorkerThread(threads, "same")).toThrow("Ambiguous worker same");
+	expect(bbWorkerThread(threads, "same", "b")?.id).toBe("w-b");
 });
 
 // Reviewer measurement of the core join's collector-SHA premise: a worker branched from a base SHA that is not

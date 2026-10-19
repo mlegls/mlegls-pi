@@ -12,15 +12,15 @@ test("renders in-flight nodes newest first with their bb thread, what last happe
 	const s = state("tree", "/repo", {
 		landed: { leaf: { into: "tree", head: "abc", at: "2026-10-19T08:00:00.000Z" } },
 		chains: {
-			a: { into: "tree", self: false, phase: "review", retries: {}, workers: [], handle: { run: "tree", handle: "a-review-3", path: "/w", threadId: "t1" } },
-			b: { into: "tree", self: false, phase: "implement", retries: {}, workers: [], held: true, handle: { run: "tree", handle: "b-implement-4", path: "/w2", threadId: "t2" } },
+			a: { into: "tree", self: false, phase: "review", retries: {}, workers: [], handle: { run: "tree", handle: "a-review-3", path: "/w", bb: "thr_one" } },
+			b: { into: "tree", self: false, phase: "implement", retries: {}, workers: [], held: true, handle: { run: "tree", handle: "b-implement-4", path: "/w2", bb: "thr_two" } },
 		},
 		exceptions: { b: { id: "1", node: "b", reason: "blocked", text: "", at: "2026-10-19T10:00:00.000Z", level: "owner" } },
 		log: ["2026-10-19T08:00:00 landed leaf in tree", "2026-10-19T09:00:00 integration of a failed (1), sent back: conflict in x.ts", "2026-10-19T09:30:00 launched a-review-3 (review, tidy)"],
 	});
 	const done = state("old", "/repo", { finished: "done", landed: { old: { into: "/repo", head: "def", at: "2026-10-18T12:00:00.000Z" } } });
 	const stale = state("older", "/repo", { finished: "stopped", log: ["2026-10-18T09:00:00 stopped; retired workers and handlers, kept collectors"] });
-	const md = renderStatus([s, done, stale], { bb: { t1: { bb: "thr_one" } }, now: Date.parse("2026-10-19T11:00:00Z") });
+	const md = renderStatus([s, done, stale], { now: Date.parse("2026-10-19T11:00:00Z") });
 	const lines = md.split("\n");
 	const at = (needle: string) => lines.findIndex(l => l.includes(needle));
 	expect(lines[at("**b**")]).toContain("waiting on the supervisor: blocked");
@@ -39,10 +39,8 @@ test("each state write regenerates one desk/STATUS.md from every run in the repo
 		execFileSync("git", ["-C", repo, "init", "-qb", "main"]);
 		const state0 = process.env.XDG_STATE_HOME;
 		process.env.XDG_STATE_HOME = join(repo, ".git/state");
-		mkdirSync(join(repo, ".git/state/ab-threads"), { recursive: true });
-		writeFileSync(join(repo, ".git/state/ab-threads/t1.json"), JSON.stringify({ id: "t1", bb: "thr_x" }));
 		try {
-			saveState(state("first", repo, { chains: { x: { into: repo, self: false, phase: "implement", retries: {}, workers: [], handle: { run: "first", handle: "x-implement-1", path: repo, threadId: "t1" } } } }));
+			saveState(state("first", repo, { chains: { x: { into: repo, self: false, phase: "implement", retries: {}, workers: [], handle: { run: "first", handle: "x-implement-1", path: repo, bb: "thr_x" } } } }));
 			saveState(state("second", repo, { chains: { y: { into: repo, self: false, phase: "drive", retries: {}, workers: [] } } }));
 		} finally { if (state0 === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = state0; }
 		const md = readFileSync(join(repo, "desk/STATUS.md"), "utf8");

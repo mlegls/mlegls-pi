@@ -19,7 +19,7 @@ export function fakeBb(root: string) {
 	Object.assign(process.env, { BB_CLI: cli, FAKE_BB_DIR: state });
 	return { dir: state, calls: () => calls(state), threads: () => threads(state), setStatus: (environment: string, status: string) => setStatus(state, environment, status),
 		completeTurn: (environment: string, text: string, status = "completed") => completeTurn(state, environment, text, status),
-		addThread: (id: string, environment?: string) => addThread(state, id, environment) };
+		addThread: (id: string, environment?: string, title?: string) => addThread(state, id, environment, title) };
 }
 
 export const calls = (state: string): string[][] => existsSync(join(state, "calls.log"))
@@ -44,8 +44,8 @@ export function completeTurn(state: string, environment: string, text: string, s
 }
 
 /** A bb thread that exists without a spawn, e.g. the thread that owns a reconciler. */
-export function addThread(state: string, id: string, environment = ""): void {
-	writeFileSync(join(state, "thread-" + id + ".json"), JSON.stringify({ id, status: "idle", archivedAt: null, parentThreadId: null, environment, title: id, prompt: "", tells: [] } satisfies FakeBbThread));
+export function addThread(state: string, id: string, environment = "", title = id): void {
+	writeFileSync(join(state, "thread-" + id + ".json"), JSON.stringify({ id, status: "idle", archivedAt: null, parentThreadId: null, environment, title, prompt: "", tells: [] } satisfies FakeBbThread));
 }
 
 function main(argv: string[]) {
@@ -74,8 +74,8 @@ function main(argv: string[]) {
 			save(created);
 			return out({ id: created.id, environmentId: created.environment });
 		}
-		case "list": return out(threads(dir()));
 		case "show": { const t = load(); return out({ thread: { ...t, environmentId: t.environment } }); }
+		case "list": return out(threads(dir()).map(t => ({ ...t, environmentPath: t.environment })));
 		case "stop": { const t = load(); save({ ...t, status: "idle" }); return out({ ok: true }); }
 		case "archive": { const t = load(); save({ ...t, archivedAt: Date.now() }); return out({ ok: true }); }
 		case "tell": { const t = load(); const file = flag("message-file"); save({ ...t, tells: [...t.tells, file ? readFileSync(file, "utf8") : args[3]!], tellAt: [...(t.tellAt ?? []), Date.now()] }); return out({ ok: true }); }

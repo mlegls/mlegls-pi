@@ -1,8 +1,9 @@
-// Resolve a worker's current canonical pi history; free sessions in the cwd never compete.
-import { workerThread } from "../thread";
+// Resolve a worker's current pi session file from its bb thread; free sessions in the cwd never compete.
+import { findWorker } from "../dispatch";
+import { bbSessionFile } from "../thread/bb";
 
 export async function childSession(handle: string, cwd: string, _parentFile?: string): Promise<string> {
-	const thread = await workerThread(handle, cwd);
-	if (!thread) throw new Error("no registered worker " + handle);
-	return thread.sessionFile;
+	const worker = await findWorker(handle, cwd);
+	if (!worker) throw new Error("no registered worker " + handle);
+	return bbSessionFile(worker.bb);
 }

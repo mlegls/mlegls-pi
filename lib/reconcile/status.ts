@@ -5,7 +5,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { git } from "./checks.ts";
-import { threadDir } from "../thread/registry.ts";
 import type { State } from "./reconcile.ts";
 
 const DONE_SHOWN = 10;
@@ -27,8 +26,6 @@ const short = (at: string | undefined) => at ? at.slice(5, 16).replace("T", " ")
 const oneLine = (s: string, n = 160) => { const l = s.split("\n")[0].trim(); return l.length > n ? l.slice(0, n - 1) + "…" : l; };
 
 export interface StatusOptions {
-	/** bb thread ids by registry thread id (bbIds()). */
-	bb?: Record<string, { bb: string }>;
 	/** Whether a run's process lives; unknown when omitted. */
 	alive?: (pid: number) => boolean;
 	now?: number;
@@ -36,8 +33,7 @@ export interface StatusOptions {
 
 /** Markdown for every reconciler run into one checkout. Times are UTC, as the log records them. */
 export function renderStatus(states: State[], o: StatusOptions = {}): string {
-	const bb = o.bb ?? {};
-	const worker = (threadId?: string) => threadId && bb[threadId] ? "@thread:" + bb[threadId].bb : undefined;
+	const worker = (h?: { bb?: string }) => h?.bb ? "@thread:" + h.bb : undefined;
 	const running = states.filter(s => !s.finished).sort((a, b) => (b.log?.at(-1) ?? "").localeCompare(a.log?.at(-1) ?? ""));
 	// Finished when its last log line or root landing was written (stop and done both leave one).
 	const cutoff = new Date((o.now ?? Date.now()) - DONE_KEPT_MS).toISOString().slice(0, 19);
@@ -54,10 +50,10 @@ export function renderStatus(states: State[], o: StatusOptions = {}): string {
 			const c = s.chains[slug], ex = s.exceptions[slug];
 			const ev = lastEvent(slug, s.log ?? []);
 			const parts = ["**" + slug + "**", c ? c.phase : "exception"];
-			const w = worker(c?.handle?.threadId);
+			const w = worker(c?.handle);
 			if (w) parts.push(w);
 			else if (c?.handle) parts.push(c.handle.handle);
-			if (ex) parts.push(ex.level === "owner" ? "waiting on the supervisor: " + oneLine(ex.reason) : "exception (" + oneLine(ex.reason) + ") with the handler for " + ex.level + (worker(ex.handler?.threadId) ? " " + worker(ex.handler?.threadId) : ""));
+			if (ex) parts.push(ex.level === "owner" ? "waiting on the supervisor: " + oneLine(ex.reason) : "exception (" + oneLine(ex.reason) + ") with the handler for " + ex.level + (worker(ex.handler) ? " " + worker(ex.handler) : ""));
 			else if (c?.waitingSince) parts.push("waiting on its process since " + short(c.waitingSince));
 			if (ev) parts.push(short(ev.at) + " " + oneLine(ev.text));
 			const at = [ev?.at ?? "", ex?.at?.slice(0, 19) ?? "", c?.launchedAt ? new Date(c.launchedAt).toISOString().slice(0, 19) : ""].sort().at(-1)!;
@@ -106,17 +102,6 @@ function ensureExcluded(commonDir: string) {
 	excluded.add(commonDir);
 }
 
-/** Each worker's bb thread, from the registry record its handle's threadId names (ThreadRecord.bb). Synchronous: state writes are. */
-function bbIds(states: State[]): Record<string, { bb: string }> {
-	const out: Record<string, { bb: string }> = {};
-	const ids = states.filter(s => !s.finished).flatMap(s => [...Object.values(s.chains ?? {}).map(c => c.handle?.threadId), ...Object.values(s.exceptions ?? {}).map(x => x.handler?.threadId)]);
-	for (const id of new Set(ids)) {
-		if (!id || !/^[a-zA-Z0-9._-]+$/.test(id)) continue;
-		try { const bb = JSON.parse(readFileSync(join(threadDir(), id + ".json"), "utf8")).bb; if (typeof bb === "string") out[id] = { bb }; } catch {}
-	}
-	return out;
-}
-
 const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as { code?: string }).code === "EPERM"; } };
 
 /** Regenerate desk/STATUS.md in the main checkout of cwd's repository from every run there; writes only on change. */
@@ -127,7 +112,7 @@ export function writeStatus(cwd: string): void {
 	const desk = join(resolve(commonDir, ".."), "desk");
 	mkdirSync(desk, { recursive: true });
 	const all = states(commonDir);
-	const text = renderStatus(all, { bb: bbIds(all), alive: pidAlive });
+	const text = renderStatus(all, { alive: pidAlive });
 	const file = join(desk, "STATUS.md");
 	if (existsSync(file) && readFileSync(file, "utf8") === text) return;
 	writeFileSync(file, text);

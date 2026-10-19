@@ -1,9 +1,8 @@
 import { parseArgs, type ParseArgsOptionsConfig } from "node:util";
 import { archiveThread, abandonThread, integrateThread } from "./lifecycle";
-import { attachThread, historyThread, listThreads, newThread, seeThread, sendThread } from "./runtime";
-import type { ThreadRow } from "./types";
+import { attachThread, historyThread, newThread, sendThread } from "./runtime";
 
-const usage = "usage: ab thread ls [--tree spawn|merge] [--delta origin|local] [--json] | new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] | attach <id> | send|history|seen <id> | archive|abandon|merge <id> | merge <id> --continue";
+const usage = "usage: ab thread new [--in <cwd>|--worktree <name> [--base <ref>]] [--parent <thread>] [--prompt …] | attach <id> | send|history <id> | archive|abandon|merge <id> | merge <id> --continue";
 
 function options(args: string[], schema: ParseArgsOptionsConfig) {
 	return parseArgs({ args, allowPositionals: true, strict: true, options: schema });
@@ -12,32 +11,12 @@ function stringOption(values: Record<string, unknown>, key: string): string | un
 	const value = values[key];
 	return typeof value === "string" ? value : undefined;
 }
-// Human-readable summaries stay bounded and on one physical line; JSON retains the source text.
-function summary(text: string): string {
-	const line = text.replace(/\s+/g, " ").trim();
-	return line.length > 160 ? line.slice(0, 159) + "…" : line;
-}
-export function rowLine(row: ThreadRow): string {
-	const t = row.thread;
-	const blocked = t.blocked ? ` blocked=${t.blocked.action}:${summary(t.blocked.reason)}` : "";
-	const resources = row.workspace ? " processes=" + row.workspace.processes + " rssMB=" + row.workspace.rssMB : "";
-	return `${"  ".repeat(row.depth)}${t.id} session=${t.sessionId} ${t.ownership} ${row.state} cwd=${t.cwd}${t.branch ? ` branch=${t.branch}` : ""}${resources}${blocked}`;
-}
 function out(text: string) { process.stdout.write(text); }
 
 export async function thread(args: string[]): Promise<void> {
 	const [command, ...rest] = args;
 	try {
 		switch (command) {
-		case "ls": {
-			const { values, positionals } = options(rest, { tree: { type: "string" }, delta: { type: "string" }, json: { type: "boolean" } });
-			if (positionals.length || (values.tree !== undefined && values.tree !== "spawn" && values.tree !== "merge")
-				|| (values.delta !== undefined && values.delta !== "origin" && values.delta !== "local")) throw new Error(usage);
-			const rows = await listThreads({ tree: values.tree as "spawn" | "merge" | undefined, delta: values.delta as "origin" | "local" | undefined });
-			if (values.json) out(JSON.stringify(rows) + "\n");
-			else for (const row of rows) out(rowLine(row) + "\n");
-			return;
-		}
 		case "new": {
 			const { values, positionals } = options(rest, { in: { type: "string" }, worktree: { type: "string" }, base: { type: "string" }, parent: { type: "string" }, prompt: { type: "string" } });
 			if (positionals.length) throw new Error(usage);
@@ -64,11 +43,6 @@ export async function thread(args: string[]): Promise<void> {
 		case "history": {
 			if (rest.length !== 1) throw new Error(usage);
 			out(await historyThread(rest[0]!));
-			return;
-		}
-		case "seen": {
-			if (rest.length !== 1) throw new Error(usage);
-			await seeThread(rest[0]!);
 			return;
 		}
 		case "archive": case "merge": case "abandon": {

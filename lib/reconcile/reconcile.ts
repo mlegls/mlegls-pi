@@ -17,23 +17,22 @@ import { execFileSync } from "node:child_process";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dispatch, integrate, retire, stop, tell, topic, type Handle } from "../dispatch.ts";
+import { dispatch, findWorker, integrate, retire, stop, tell, topic, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
 import { roleThread } from "../desk.ts";
 import { lastTurn, type TurnReport } from "../thread/turn.ts";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
-import { listThreads, type ThreadSnapshot } from "../thread";
 import { readLive } from "../session-meta/live";
-import { bbThreads, logBb, tellBb } from "../thread/bb";
+import { bbThreads, bbWorking, logBb, tellBb, type BbThread } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
-import { getThread, workerThread } from "../thread/registry.ts";
+import { getThread } from "../thread/registry.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
 import { alignIndex } from "../thread/lifecycle.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
@@ -203,16 +202,26 @@ export function assertThreadState(state?: State): void {
 /** Recover only the exact registered run/handle; absence of a receipt is not
  * authority to guess a worktree or stop another worker. Stop failure propagates. */
 export async function stopRefinementWriter(state: GlobalRunState, attempt: RefinementAttempt): Promise<void> {
-	const thread = attempt.worker?.threadId ? await getThread(attempt.worker.threadId)
-		: await workerThread(attempt.handle, state.cwd, state.root);
-	if (!thread) {
+	const found = await findWorker(attempt.worker ?? { run: state.root, handle: attempt.handle }, state.cwd);
+	if (!found) {
 		if (attempt.worker) throw new Error("Missing registered refinement writer: " + attempt.handle);
 		return;
 	}
-	if (thread.worker?.run !== state.root || thread.worker.handle !== attempt.handle
-		|| (attempt.worker && resolve(attempt.worker.path) !== thread.cwd))
-		throw new Error("Refinement writer receipt mismatch: " + attempt.handle);
-	if (!thread.archived) await stop({ run: state.root, handle: attempt.handle, path: thread.cwd, threadId: thread.id }, { cwd: state.cwd });
+	if (attempt.worker && resolve(attempt.worker.path) !== found.path) throw new Error("Refinement writer receipt mismatch: " + attempt.handle);
+	const thread = (await bbThreads()).get(found.bb);
+	if (thread && !thread.archivedAt) await stop({ run: state.root, handle: attempt.handle, path: found.path, bb: found.bb, threadId: attempt.worker?.threadId }, { cwd: state.cwd });
+}
+
+/** Every worker receipt a run holds. */
+export function workerHandles(s: State): Handle[] {
+	return [
+		...Object.values(s.chains ?? {}).flatMap(c => [...(c.workers ?? []), ...(c.handle ? [c.handle] : [])]),
+		...Object.values(s.exceptions ?? {}).flatMap(e => e.handler ? [e.handler] : []),
+		...Object.values(s.landingOps ?? {}).flatMap(op => op.workers ?? []),
+		...Object.values(s.refinements ?? {}).flatMap(a => a.worker ? [a.worker] : []),
+		...(s.pr?.repair?.worker ? [s.pr.repair.worker] : []),
+		...(s.pr?.repairHistory ?? []).flatMap(r => r.worker ? [r.worker] : []),
+	];
 }
 
 export const resolutionsDir = (cwd: string, root: string) => join(stateDir(cwd), root + ".resolutions");
@@ -331,6 +340,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			await tellBb(to, "[reconcile " + s.root + "] " + body);
 		}).catch(e => note("telling the owner failed: " + e));
 	};
+	// A receipt from before run state held bb thread ids names only its registry record.
+	for (const h of workerHandles(s)) if (!h.bb && h.threadId) h.bb = (await getThread(h.threadId))?.bb;
 	save();
 
 	// --- observation -----------------------------------------------------------------------------------
@@ -367,14 +378,22 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.
 	const reports = new Map<string, TurnReport>();
 	const seen = new Map<string, number>();
+	const repoDir = git(controlCwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), repoOf = new Map<string, boolean>();
+	const inRepo = (path: string) => {
+		if (!existsSync(path)) return true; // a retired worker's checkout is gone: its run-titled thread still counts
+		let hit = repoOf.get(path);
+		if (hit === undefined) { try { hit = git(path, "rev-parse", "--path-format=absolute", "--git-common-dir") === repoDir; } catch { return false; } repoOf.set(path, hit); }
+		return hit;
+	};
 	const pollTurns = async () => {
-		for (const row of host ?? []) {
-			const w = row.thread.worker, bb = row.thread.bb;
-			if (!w || !bb || row.thread.archived || w.run !== s.root) continue;
-			const report = await lastTurn(bb, seen.get(row.thread.id) ?? 0).catch(e => { note("reading " + w.handle + " failed: " + String(e).split("\n")[0]); return undefined; });
+		// Every live bb thread titled <run>/<handle> in this repository, receipted or not: a retired worker's late report still arrives.
+		for (const [bb, thread] of host ?? []) {
+			if (thread.archivedAt || !thread.environmentPath || !thread.title?.startsWith(s.root + "/") || !inRepo(thread.environmentPath)) continue;
+			const handle = thread.title.slice(s.root.length + 1);
+			const report = await lastTurn(bb, seen.get(bb) ?? 0).catch(e => { note("reading " + handle + " failed: " + String(e).split("\n")[0]); return undefined; });
 			if (!report) continue;
-			seen.set(row.thread.id, report.seq);
-			reports.set(w.run + "/" + w.handle, report);
+			seen.set(bb, report.seq);
+			reports.set(s.root + "/" + handle, report);
 		}
 	};
 	const fresh = (h: Handle | undefined, after?: string, launchedAt?: number) => {
@@ -386,40 +405,27 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (after && m.ts <= after) return undefined;
 		return m;
 	};
-	let host: ThreadSnapshot[] | undefined;
-	const observedPids = new Map<string, { session: string; pid: number }>();
-	const exitedPids = new Set<string>();
+	/** bb's threads as of the last tick; a worker is found in them by the bb thread id its receipt holds. */
+	let host: Map<string, BbThread> | undefined;
 	const observeHost = async () => {
-		try {
-			readLive(true);
-			host = await listThreads({ cwd: controlCwd });
-			for (const row of host) {
-				const previous = observedPids.get(row.thread.id);
-				if (previous?.session === row.thread.sessionId && !pidAlive(previous.pid)) exitedPids.add(row.thread.id);
-				if (previous?.session !== row.thread.sessionId) exitedPids.delete(row.thread.id);
-				if (row.pid) observedPids.set(row.thread.id, { session: row.thread.sessionId, pid: row.pid });
-			}
-		}
+		try { host = await bbThreads(); }
 		catch (e) { host = undefined; note("thread observation deferred: " + e); }
 	};
-	const rowOf = (h: Handle) => host?.find(r => h.threadId ? r.thread.id === h.threadId : r.thread.worker?.handle === h.handle && r.thread.worker.run === h.run && r.thread.cwd === h.path);
+	const bbThread = (h: Handle) => h.bb ? host?.get(h.bb) : undefined;
 	const alive = (h: Handle): boolean | undefined => {
 		if (!host) return undefined; // backend failure never establishes exit
-		const row = rowOf(h);
-		if (!row || !row.terminals.some(t => t.role === "agent")) return false;
 		// bb may release an idle worker's pi without ending it: only bb's state counts.
-		if (row.thread.bb) return row.state !== "exited";
-		const previous = observedPids.get(row.thread.id);
-		return !exitedPids.has(row.thread.id) && (row.state !== "exited" || (previous?.session === row.thread.sessionId && pidAlive(previous.pid)));
+		const thread = bbThread(h);
+		return !!thread && !thread.archivedAt;
 	};
 	/** Whether an idle worker's pi still runs a managed process. The process tool starts each as a process-group leader
 	 * under pi with stdin closed (/dev/null); pi's MCP servers lead groups too but read a pipe, and an idle worker runs
 	 * no bash tool. Undefined when that can't be observed: only a definite false counts. */
 	const runsProcess = (h: Handle): boolean | undefined => {
-		const row = rowOf(h);
-		if (!row?.pid || row.state !== "idle") return undefined;
+		const thread = bbThread(h), pi = h.bb ? readLive().find(l => l.thread === h.bb)?.pid : undefined;
+		if (!pi || !thread || thread.archivedAt || bbWorking(thread)) return undefined;
 		try {
-			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === row.pid && pid === pgid).map(([pid]) => pid);
+			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === pi && pid === pgid).map(([pid]) => pid);
 			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8" })); } catch { return true; } });
 		} catch { return undefined; }
 	};
@@ -484,8 +490,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				catch (e) {
 					if (refining) {
 						await discardRefinement(refinement, actual);
-						const record = await workerThread(actual, controlCwd, s.root);
-						if (record) await retire({ run: s.root, handle: actual, path: record.cwd, threadId: record.id }, { cwd: controlCwd });
+						const found = await findWorker({ run: s.root, handle: actual }, controlCwd);
+						if (found) await retire({ run: s.root, handle: actual, path: found.path, bb: found.bb }, { cwd: controlCwd });
 					}
 					const lock = /could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e));
 					if (!lock || attempt >= 3) throw e;
@@ -691,11 +697,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		].join("\n\n");
 		const receipt = pr.repair!;
 		if (!receipt.launchHandle) { receipt.launchHandle = nextHandle(s.root, "pr-repair"); save(); }
-		const registered = await workerThread(receipt.launchHandle, controlCwd, s.root);
-		if (registered) {
-			if (registered.archived) throw new Error("Recorded PR repair is retired: " + receipt.launchHandle);
-			return { run: s.root, handle: receipt.launchHandle, path: registered.cwd, threadId: registered.id };
-		}
+		const registered = await findWorker({ run: s.root, handle: receipt.launchHandle }, controlCwd);
+		if (registered) return { run: s.root, handle: receipt.launchHandle, path: registered.path, bb: registered.bb };
 		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
 		// a partial failure. Retry adopts its exact registry entry or raises to owner.
 		return launchNow(receipt.launchHandle, "review", prompt,
@@ -854,14 +857,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		} catch (e) { note("retire " + h.handle + ": " + e); return false; }
 	}
 	/** Working by an observation of its pi (bb's status, or a live pi's own state), not inferred from admission. */
-	const observedWorking = (h: Handle) => { const row = rowOf(h); return row?.state === "working" && !!(row.thread.bb || row.pid); };
+	const observedWorking = (h: Handle) => bbWorking(bbThread(h));
 	/** bb's own failure for a worker (a thread.start or turn.submit that failed): pi never runs or reports, so nothing else notices. */
-	const bbErrored = (h: Handle) => rowOf(h)?.bbStatus === "error";
+	const bbErrored = (h: Handle) => bbThread(h)?.status === "error";
 	const bbError = async (h: Handle) => {
-		const row = rowOf(h);
 		let detail = "";
-		try { detail = (await logBb(row!.thread.bb!)).split("── Error").slice(1).at(-1)?.replace(/^[─\s]+/, "").trim() ?? ""; } catch (e) { detail = "(bb thread log failed: " + e + ")"; }
-		return "bb thread " + row?.thread.bb + " for " + h.handle + " is in error and its pi will not report:\n" + (detail || "(no error block in its log)");
+		try { detail = (await logBb(h.bb!)).split("── Error").slice(1).at(-1)?.replace(/^[─\s]+/, "").trim() ?? ""; } catch (e) { detail = "(bb thread log failed: " + e + ")"; }
+		return "bb thread " + h.bb + " for " + h.handle + " is in error and its pi will not report:\n" + (detail || "(no error block in its log)");
 	};
 	async function retireChain(c: Chain, finished = false) {
 		if (c.refinement && !["accepted", "removed"].includes(s.refinements[c.refinement].phase))
@@ -1394,8 +1396,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			let attempt = s.refinements[c.refinement];
 			if (attempt.successor) { c.refinement = attempt.successor; attempt = s.refinements[c.refinement]; }
 			if (attempt.phase === "writing" && !attempt.worker) {
-				const record = await workerThread(attempt.handle, controlCwd, s.root);
-				if (record) { attempt.worker = { run: s.root, handle: attempt.handle, path: record.cwd, threadId: record.id }; save(); }
+				const found = await findWorker({ run: s.root, handle: attempt.handle }, controlCwd);
+				if (found) { attempt.worker = { run: s.root, handle: attempt.handle, path: found.path, bb: found.bb }; save(); }
 			}
 			if (attempt.worker && c.handle?.handle !== attempt.handle) { c.handle = attempt.worker; c.launchedAt = Date.now(); c.handledTs = undefined; save(); }
 		}
@@ -1406,9 +1408,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (!["accepted", "removed"].includes(attempt.phase) || !attempt.worker) continue;
 			const c = s.chains[attempt.node];
 			if (c?.phase === "refine" && c.handle?.handle === attempt.handle) continue;
-			const thread = attempt.worker.threadId ? await getThread(attempt.worker.threadId)
-				: await workerThread(attempt.handle, controlCwd, s.root);
-			if (thread && !thread.archived) await retireHandle(attempt.worker, controlCwd, attempt.phase === "accepted");
+			const found = await findWorker(attempt.worker, controlCwd);
+			const thread = found && (await bbThreads()).get(found.bb);
+			if (thread && !thread.archivedAt) await retireHandle(attempt.worker, controlCwd, attempt.phase === "accepted");
 		}
 		const top = view(destination());
 		if (s.pr && (s.landed[s.root] || s.pr.phase !== "preparing")) {

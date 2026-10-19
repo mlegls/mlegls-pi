@@ -49,10 +49,10 @@ export function protocolFixture() {
 		/** A registered worker with a bb thread but no worktree: its reports still arrive, as a retired worker's late ones do. */
 		async bare(run: string, handle: string, path = join(root, "gone")) {
 			const id = run + "-" + handle, bbId = "bbt-" + id;
-			bb.addThread(bbId, path);
+			bb.addThread(bbId, path, run + "/" + handle);
 			await saveThread({ id, sessionId: id, sessionFile: join(root, id + ".jsonl"), cwd: path, project: cwd, ownership: "guest", archived: false,
 				created: new Date().toISOString(), worker: { handle, run }, bb: bbId });
-			return { handle, run, path, threadId: id };
+			return { handle, run, path, bb: bbId, threadId: id };
 		},
 		save: (value: GlobalRunState) => writeFileSync(stateFile, JSON.stringify(value)),
 		restore: (): GlobalRunState => JSON.parse(readFileSync(stateFile, "utf8")),
@@ -64,8 +64,8 @@ export function protocolFixture() {
 			await saveThread({ id, sessionId: id, sessionFile: join(root, id + ".jsonl"), cwd: path, project: cwd,
 				worktree: path, ownership: "owner", branch: handle, archived: false, created: new Date().toISOString(),
 				worker: { handle, run }, bb: "bbt-" + id });
-			bb.addThread("bbt-" + id, path);
-			return { handle, run, path, threadId: id };
+			bb.addThread("bbt-" + id, path, run + "/" + handle);
+			return { handle, run, path, bb: "bbt-" + id, threadId: id };
 		},
 		close() { process.env = saved; rmSync(root, { recursive: true, force: true }); },
 	};

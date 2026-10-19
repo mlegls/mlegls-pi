@@ -9,14 +9,14 @@
 //
 // CLI: bun wm.ts spawn|next|done|send|capture|merge|close|status|agents ...
 
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { agent, AGENTS_DIR, roleBody, type Agent } from "./agents.ts";
 export { agent, AGENTS_DIR, type Agent } from "./agents.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { abandonThread, getThread, historyThread, integrateThread, listThreads, newThread, sendThread, threadSnapshot, ThreadMergeConflict, workerThread, type ThreadRecord, type ThreadSnapshot } from "./thread";
+import { abandonThread, getThread, historyThread, integrateThread, newThread, sendThread, threadForBb, ThreadMergeConflict, type ThreadRecord } from "./thread";
+import { bbThreads, bbWorkerThread, bbWorking, type BbThread } from "./thread/bb";
 import { lastTurn, type TurnReport } from "./thread/turn";
-import { readLive } from "./session-meta/live";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: TurnReport } // checkpoint: fenced on context; paused for a follow-up like needs-input
@@ -66,8 +66,6 @@ export function parentSummary(file: string, max = 12_000): string {
 
 const TERMINAL = ["done", "blocked", "needs-input", "checkpoint"] as const;
 const POLL_MS = 1_000;
-const START_GRACE_MS = 120_000;
-const REATTACH_GRACE_MS = 8_000;
 
 export function pidAlive(pid: number): boolean {
 	try { process.kill(pid, 0); return true; }
@@ -158,11 +156,10 @@ class Poller {
 				try { if (w.awaited && !w.launching) await w.turn(); }
 				catch (error) { this.defer(w.topic, error); }
 			}
-			readLive(true); // missing/stale records are normal; unreadable/malformed observations defer
-			const rows = await listThreads();
+			const threads = await bbThreads();
 			for (const w of this.workers) {
 				try {
-					if (w.awaited && !w.launching) await w.observe(rows);
+					if (w.awaited && !w.launching) await w.observe(threads);
 					this.errors.delete(w.topic);
 				} catch (error) { this.defer(w.topic, error); }
 			}
@@ -178,6 +175,9 @@ const poller = new Poller();
 export class Worker {
 	readonly topic: string;
 	dir: string;
+	/** The worker's bb thread: bound at spawn, or found from run state or by its title `<run>/<handle>`. */
+	bb?: string;
+	/** The lifecycle's record key, kept until lifecycle takes a bb thread id. */
 	threadId?: string;
 	private owningBranch?: string;
 	/** @internal Register before launch; host observation starts once the registry has launched. */
@@ -190,7 +190,7 @@ export class Worker {
 	/** @internal Report a turn that completed since the last look: the worker's final message, its status the first word. */
 	async turn() {
 		if (this.ended) return;
-		const bb = (await this.record())?.bb;
+		const bb = await this.bbId();
 		if (!bb) return;
 		if (this.turnCursor === undefined) { this.turnCursor = (await lastTurn(bb))?.seq ?? 0; return; }
 		const report = await lastTurn(bb, this.turnCursor);
@@ -204,11 +204,6 @@ export class Worker {
 		return this.waiters.length > 0 || this.listeners.size > 0;
 	}
 	private ended?: Outcome;
-	private observedPid?: number;
-	private observedSession?: string;
-	private observingSince = Date.now();
-	/** Reattachment gets bounded current-state observation, not a fresh launch grace. */
-	reattached = false;
 
 	constructor(
 		readonly run: string,
@@ -217,10 +212,12 @@ export class Worker {
 		readonly session = "", // legacy, not transport or canonical pi identity
 		dir = cwd,
 		threadId?: string,
+		bb?: string,
 	) {
 		this.topic = `${run}/${handle}`;
 		this.dir = dir;
 		this.threadId = threadId;
+		this.bb = bb;
 		poller.add(this);
 	}
 
@@ -229,9 +226,16 @@ export class Worker {
 		poller.remove(this);
 	}
 
-	/** @internal Resolve lazily: no worktree/window-name guesses, including after retirement. */
+	/** @internal The worker's bb thread, from what it was attached with or else bb by title; no worktree/window-name guesses. */
+	async bbId(): Promise<string | undefined> {
+		if (this.bb) return this.bb;
+		if (this.threadId) this.bb = (await getThread(this.threadId))?.bb; // attached with a receipt from before run state held it
+		return this.bb ??= bbWorkerThread(await bbThreads(), this.handle, this.run)?.id;
+	}
+	/** @internal The lifecycle's record of the worker; lifecycle code still takes one. */
 	async record(): Promise<ThreadRecord | undefined> {
-		const record = this.threadId ? await getThread(this.threadId) : await workerThread(this.handle, this.cwd, this.run);
+		const bb = await this.bbId();
+		const record = this.threadId ? await getThread(this.threadId) : bb ? await threadForBb(bb) : undefined;
 		if (record) {
 			if (record.worker?.run !== this.run || record.worker.handle !== this.handle) throw new Error("Worker identity does not match thread " + record.id);
 			this.bind(record);
@@ -240,6 +244,7 @@ export class Worker {
 	}
 	/** @internal */
 	bind(record: ThreadRecord) {
+		this.bb = record.bb ?? this.bb;
 		this.threadId = record.id;
 		this.dir = record.cwd;
 		this.owningBranch = record.branch;
@@ -267,24 +272,12 @@ export class Worker {
 	}
 
 	/** @internal */
-	async observe(rows: ThreadSnapshot[]) {
+	async observe(threads: Map<string, BbThread>) {
 		if (this.ended || this.launching) return;
-		const record = await this.record();
-		const entry = record && rows.find(row => row.thread.id === record.id);
-		if (!record || record.archived || !entry?.terminals.some(t => t.role === "agent")) {
-			this.emit({ kind: "exited", tail: "Thread agent is gone: " + (record?.id ?? this.topic) });
-			return;
-		}
-		// /new changes canonical identity. A restart of the same session is still a process exit,
-		// not cleanup: a fresh attachment may await its following turn.
-		if (this.observedSession !== record.sessionId) { this.observedPid = undefined; this.observedSession = record.sessionId; }
-		if (this.observedPid && !pidAlive(this.observedPid)) {
-			this.emit({ kind: "exited", tail: await this.capture(30) });
-			return;
-		}
-		if (entry.pid) this.observedPid = entry.pid;
-		if (entry.state === "exited" && !this.observedPid && Date.now() - this.observingSince >= (this.reattached ? REATTACH_GRACE_MS : START_GRACE_MS))
-			this.emit({ kind: "exited", tail: await this.capture(30) });
+		const bb = await this.bbId();
+		const entry = bb ? threads.get(bb) : undefined;
+		// Only bb's state counts: it may release an idle worker's pi without ending the thread.
+		if (!entry || entry.archivedAt) this.emit({ kind: "exited", tail: "Thread agent is gone: " + (bb ?? this.topic) });
 	}
 
 	/** Next event of any kind. After exit, always the exit outcome. Aborting the signal withdraws the wait without consuming anything. */
@@ -360,13 +353,9 @@ export class Worker {
 	}
 
 	async status(): Promise<string | undefined> {
-		const record = await this.record();
-		if (!record || record.archived) return undefined;
-		readLive(true);
-		const snap = await threadSnapshot(record.id);
-		if (snap.state === "exited" && this.observedSession === record.sessionId && this.observedPid && pidAlive(this.observedPid))
-			throw new Error("Canonical pi is alive without a current live state: " + record.id);
-		return snap.terminals.some(t => t.role === "agent") && snap.state !== "exited" ? snap.state : undefined;
+		const bb = await this.bbId();
+		const entry = bb ? (await bbThreads()).get(bb) : undefined;
+		return !entry || entry.archivedAt ? undefined : bbWorking(entry) ? "working" : "idle";
 	}
 
 	/** Abandon the registered subtree; polling detaches only after successful cleanup. */
@@ -378,7 +367,7 @@ export class Worker {
 	}
 
 	toJSON() {
-		return { run: this.run, handle: this.handle, topic: this.topic, dir: this.dir, cwd: this.cwd, session: this.session, threadId: this.threadId };
+		return { run: this.run, handle: this.handle, topic: this.topic, dir: this.dir, cwd: this.cwd, session: this.session, bb: this.bb, threadId: this.threadId };
 	}
 }
 
@@ -471,10 +460,8 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 }
 
 /** A Worker spawned elsewhere. Identity/path resolve from the registry on first use. */
-export function attach(run: string, handle: string, cwd = process.cwd(), session = "", threadId?: string): Worker {
-	const worker = new Worker(run, handle, resolve(cwd), session, resolve(cwd), threadId);
-	worker.reattached = true;
-	return worker;
+export function attach(run: string, handle: string, cwd = process.cwd(), session = "", threadId?: string, bb?: string): Worker {
+	return new Worker(run, handle, resolve(cwd), session, resolve(cwd), threadId, bb);
 }
 
 /** Raw integration follows the branch's recorded ab-parent; never retires or sends mail. */
@@ -536,7 +523,10 @@ if (import.meta.main) {
 			process.exit(0);
 		}
 		case "status": {
-			print(await listThreads({ cwd: process.cwd() }));
+			const common = (path: string) => { try { return execFileSync("git", ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return undefined; } };
+			const here = common(process.cwd());
+			print([...(await bbThreads()).values()].filter(t => !t.archivedAt && t.title?.includes("/") && t.environmentPath && common(t.environmentPath) === here)
+				.map(t => ({ bb: t.id, worker: t.title, status: t.status, path: t.environmentPath })));
 			process.exit(0);
 		}
 		case "agents": {

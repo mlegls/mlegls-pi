@@ -1,8 +1,9 @@
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { isAbsolute } from "node:path";
-import { integrate, type Handle } from "../dispatch.ts";
+import { findWorker, integrate, type Handle } from "../dispatch.ts";
 import type { Issue, Tracker } from "../tracker.ts";
-import { getThread, workerThread } from "../thread/registry.ts";
+import { bbThreads } from "../thread/bb.ts";
+import { checkout } from "../thread/git.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
 import { git, isAncestor } from "./checks.ts";
 import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
@@ -278,16 +279,18 @@ async function accept(context: RefinementContext, handle: string): Promise<Refin
 			persist(context, () => { attemptOf(context, handle).acceptance!.landedHead = git(destination, "rev-parse", "HEAD"); });
 		} else {
 			const worker = attempt.worker;
-			const thread = worker.threadId ? await getThread(worker.threadId) : await workerThread(worker.handle, context.state.cwd, worker.run);
-			if (!thread?.worker || thread.worker.handle !== handle || thread.worker.run !== worker.run
-				|| realpathSync(thread.cwd) !== realpathSync(worker.path) || thread.ownership !== "owner" || thread.archived || !thread.branch)
+			// The run spawned this worker and its worktree, so it is ours to merge: its receipt, bb thread and checkout name it.
+			const found = await findWorker(worker, context.state.cwd);
+			const live = found && (await bbThreads()).get(found.bb);
+			const writer = found && existsSync(found.path) ? checkout(found.path) : undefined;
+			if (!found || handle !== worker.handle || !live || live.archivedAt || !writer?.branch || realpathSync(found.path) !== realpathSync(worker.path))
 				throw new Error("No exact registered refinement worker: " + handle);
 			const branch = git(destination, "branch", "--show-current");
-			if (!branch || branch === thread.branch || git(destination, "rev-parse", "--path-format=absolute", "--git-common-dir")
-				!== git(thread.cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+			if (!branch || branch === writer.branch || git(destination, "rev-parse", "--path-format=absolute", "--git-common-dir")
+				!== git(writer.cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"))
 				throw new Error("Invalid refinement collector destination");
-			assertNoTrackerChanges(thread.cwd, git(destination, "rev-parse", "HEAD"));
-			git(thread.project, "config", "branch." + thread.branch + ".ab-parent", branch);
+			assertNoTrackerChanges(writer.cwd, git(destination, "rev-parse", "HEAD"));
+			git(writer.project, "config", "branch." + writer.branch + ".ab-parent", branch);
 			await integrate(worker, { cwd: context.state.cwd, keep: true, prepare: async receipt => {
 				assertNoTrackerChanges(receipt.path, git(destination, "rev-parse", "HEAD"));
 				const head = git(receipt.path, "rev-parse", "HEAD");

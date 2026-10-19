@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { checkout } from "./git";
 import type { ThreadRecord } from "./types";
 
 export function threadDir(): string {
@@ -51,12 +50,9 @@ export async function threadForSession(session: string): Promise<ThreadRecord | 
 	return matches[0];
 }
 
-/** Unique active worker in cwd's git repository; run omitted only for a bare-handle lookup. */
-export async function workerThread(handle: string, cwd: string, run?: string): Promise<ThreadRecord | undefined> {
-	const project = checkout(cwd).project;
-	const matches = (await allThreads()).filter(t => t.project === project && t.worker?.handle === handle && (run === undefined || t.worker.run === run));
-	if (matches.length > 1) throw new Error("Ambiguous worker " + handle + " in " + project + "; supply its run");
-	return matches[0];
+/** The record of a bb thread, for lifecycle code that still takes one (archived included). Nothing that finds or describes a worker goes through it. */
+export async function threadForBb(bb: string): Promise<ThreadRecord | undefined> {
+	return (await allThreads(true)).find(t => t.bb === bb);
 }
 
 /** Updates current identity, not thread id, parent or ownership. */
