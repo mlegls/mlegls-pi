@@ -14,7 +14,6 @@ Before a browser test run, check that its deployment is ready (the project's rea
 
 Browser and desktop control are MCP tools in codemode: `mcp__chrome__*` drives a headless browser private to this session (isolated profile), `mcp__cua__*` drives native apps. Call them directly (`tools.mcp__chrome__new_page(...)`): a script that names a server waits for it to connect. `ALL_TOOLS` holds objects, so filter on `.name`. Close pages and apps you opened when finished. Only when the user has to see or act in the browser, use a visible one: `CHROME_DEVTOOLS_AXI_HEADED=1 CHROME_DEVTOOLS_AXI_SESSION=<handle> chrome-devtools-axi open <url>`, and `chrome-devtools-axi stop` (same session) when done, which closes the window too.
 
-
 Activate a skill by reading its SKILL.md in full. Read instruction references and project rules exactly; do not follow a token-deleted rule.
 
 Commit as you go; the parent alone merges your branch. Do not merge or push the canonical checkout. Idle is not disposable: the parent retires resources after recorded integration or explicit recovery.

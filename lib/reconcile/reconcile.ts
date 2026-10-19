@@ -313,7 +313,6 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
 	const save = () => saveState(s);
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
-	// An owner that has closed hands over to whichever session holds the project's supervisor role.
 	// To a worker as a queued bb message: it follows the turn in progress, or starts one on an idle thread.
 	const sendChild = (h: Handle, body: string) => tell(h, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { cwd: controlCwd });
 	// The owner is a bb thread. One that has closed hands over to whichever thread holds the supervisor role on the desk.
