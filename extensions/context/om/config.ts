@@ -44,6 +44,10 @@ export interface Config {
 	compactAfterTokensRatio: number;
 	observationsPoolMaxTokens: number;
 	observationsPoolTargetTokens: number;
+	/** Reflection pool size (rendered tokens) past which the condenser merges and drops reflections. */
+	reflectionsPoolMaxTokens: number;
+	/** What the condenser brings the reflection pool toward; below reflectionsPoolMaxTokens. */
+	reflectionsPoolTargetTokens: number;
 	agentMaxTurns: number;
 	/**
 	 * Maximum output tokens requested for background memory-agent loops
@@ -74,6 +78,8 @@ export const DEFAULTS: Config = {
 	compactAfterTokensRatio: 0.68,
 	observationsPoolMaxTokens: 20_000,
 	observationsPoolTargetTokens: 10_000,
+	reflectionsPoolMaxTokens: 12_000,
+	reflectionsPoolTargetTokens: 8_000,
 	agentMaxTurns: 16,
 	agentMaxTokens: 32_000,
 	showWorkerNotifications: true,
@@ -204,6 +210,8 @@ function normalizeSettingsConfig(value: Record<string, unknown>): Partial<Config
 		"compactAfterTokens",
 		"observationsPoolMaxTokens",
 		"observationsPoolTargetTokens",
+		"reflectionsPoolMaxTokens",
+		"reflectionsPoolTargetTokens",
 		"agentMaxTurns",
 		"agentMaxTokens",
 	] as const;
@@ -237,13 +245,14 @@ export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): Partial<Con
 /**
  * `memory.schemas.om` in this package's layout, flattened to upstream's keys:
  *
- *   { model, observer: { afterTokens, chunkMaxTokens }, reflector: { afterTokens },
+ *   { model, observer: { afterTokens, chunkMaxTokens }, reflector: { afterTokens, maxTokens, targetTokens },
  *     dropper: { targetTokens }, agent: { maxTurns, maxTokens },
  *     compaction: { afterTokens, mode, ratio }, budget, observe, showWorkerNotifications, debugLog }
  *
  * `observe: "never"` sets upstream's passive; upstream's own `passive` keys still apply underneath.
  *
- * `budget` is the compaction renderer's: upstream's observationsPoolMaxTokens.
+ * `budget` is the compaction renderer's: upstream's observationsPoolMaxTokens. `reflector.maxTokens` and
+ * `targetTokens` bound the reflection pool (this package's condenser; upstream has no reflection budget).
  */
 export function flattenSchemaSettings(om: Record<string, unknown>): Record<string, unknown> {
 	const sub = (k: string) => (isRecord(om[k]) ? om[k] : {}) as Record<string, unknown>;
@@ -255,6 +264,8 @@ export function flattenSchemaSettings(om: Record<string, unknown>): Record<strin
 		observeAfterTokens: observer.afterTokens,
 		observerChunkMaxTokens: observer.chunkMaxTokens,
 		reflectAfterTokens: reflector.afterTokens,
+		reflectionsPoolMaxTokens: reflector.maxTokens,
+		reflectionsPoolTargetTokens: reflector.targetTokens,
 		observationsPoolTargetTokens: dropper.targetTokens,
 		observationsPoolMaxTokens: om.budget,
 		agentMaxTurns: agent.maxTurns,
@@ -304,8 +315,12 @@ export function loadConfig(cwd: string, env: NodeJS.ProcessEnv = process.env): C
 		merged.observationsPoolMaxTokens,
 	) ?? derivedObservationPoolTarget(merged.observationsPoolMaxTokens);
 
+	const reflectionsTarget = validTargetOrUndefined(merged.reflectionsPoolTargetTokens, merged.reflectionsPoolMaxTokens)
+		?? Math.floor(merged.reflectionsPoolMaxTokens * 2 / 3);
+
 	return {
 		...merged,
 		observationsPoolTargetTokens: target,
+		reflectionsPoolTargetTokens: reflectionsTarget,
 	};
 }

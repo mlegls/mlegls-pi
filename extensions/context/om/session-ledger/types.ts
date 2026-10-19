@@ -48,6 +48,7 @@ export type ReflectionsRecordedEntryData = {
 	coversUpToId: string;
 };
 
+/** Tombstones by memory id: observations the dropper removed, and reflections the condenser merged or dropped. */
 export type ObservationsDroppedEntryData = {
 	observationIds: string[];
 	coversUpToId: string;

@@ -20,10 +20,12 @@ export type FoldedLedger = {
 	observations: Observation[];
 	/** Observation records not tombstoned by a folded drop entry. */
 	activeObservations: Observation[];
-	/** Tombstoned observation ids, including ids that may not have a corresponding folded observation. */
+	/** Tombstoned memory ids (observations, and reflections the condenser merged or dropped), including ids that may not have a corresponding folded record. */
 	droppedObservationIds: Set<string>;
 	/** All first-valid reflection records encountered through the fold boundary. */
 	reflections: Reflection[];
+	/** Reflection records not tombstoned by a folded drop entry. */
+	activeReflections: Reflection[];
 	/** All first-valid observation records by id, including dropped observations. */
 	observationsById: Map<string, Observation>;
 	/** All first-valid reflection records by id. */
@@ -88,12 +90,14 @@ export function foldLedger(entries: Entry[], options: FoldLedgerOptions = {}): F
 	const observations = Array.from(observationsById.values());
 	const activeObservations = observations.filter((observation) => !droppedObservationIds.has(observation.id));
 	const reflections = Array.from(reflectionsById.values());
+	const activeReflections = reflections.filter((reflection) => !droppedObservationIds.has(reflection.id));
 
 	return {
 		observations,
 		activeObservations,
 		droppedObservationIds,
 		reflections,
+		activeReflections,
 		observationsById,
 		reflectionsById,
 	};

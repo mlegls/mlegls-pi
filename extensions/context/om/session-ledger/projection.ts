@@ -118,7 +118,7 @@ function foldProjection(entries: Entry[], options: ProjectionFoldOptions): Proje
 
 	return {
 		observations: observations.filter((observation) => !droppedObservationIds.has(observation.id)),
-		reflections,
+		reflections: reflections.filter((reflection) => !droppedObservationIds.has(reflection.id)),
 	};
 }
 

@@ -4,6 +4,7 @@ import { runDropper } from "../agents/dropper/agent.js";
 import { observationPoolMetrics } from "../agents/dropper/pool.js";
 import { ObserverStreamError, runObserver } from "../agents/observer/agent.js";
 import { runReflector } from "../agents/reflector/agent.js";
+import { condenseToTarget, reflectionPoolTokens } from "../agents/condenser/agent.js";
 import { debugLog, withDebugLogContext } from "../debug-log.js";
 import { resolveObserverChunkMaxTokens } from "../config.js";
 import type { ResolveResult, Runtime } from "../runtime.js";
@@ -53,6 +54,8 @@ type StageOutcome = "continue" | "abort";
 
 type ReflectorStageResult = {
 	outcome: StageOutcome;
+	/** The reflector was due and ran, whatever it produced. */
+	ran?: boolean;
 	sameRunReflections: Reflection[];
 	effectiveReflectionCoverageId?: string;
 };
@@ -115,7 +118,7 @@ function shouldNotifyWorker(runtime: Runtime, ctx: ConsolidationCtx): boolean {
 	return runtime.config.showWorkerNotifications && ctx.hasUI;
 }
 
-function makeModelResolver(runtime: Runtime, ctx: ConsolidationCtx): (stage: "observer" | "reflector" | "dropper") => Promise<ResolvedModel | undefined> {
+function makeModelResolver(runtime: Runtime, ctx: ConsolidationCtx): (stage: "observer" | "reflector" | "dropper" | "condenser") => Promise<ResolvedModel | undefined> {
 	let cached: ResolveResult | undefined;
 	return async (stage) => {
 		cached ??= await runtime.resolveModel({
@@ -234,6 +237,14 @@ export async function runConsolidationPipeline(
 		await runDropperStage(pi, runtime, ctx, resolveModel, reflectorResult.sameRunReflections, reflectorResult.effectiveReflectionCoverageId);
 	} catch (error) {
 		debugLog("dropper.error", { errorMessage: runtime.recordConsolidationStageError(ctx, "dropper", error) });
+	}
+
+	if (!reflectorResult.ran) return;
+	runtime.consolidationPhase = "condenser";
+	try {
+		await runCondenserStage(runtime, ctx, resolveModel);
+	} catch (error) {
+		debugLog("condenser.error", { errorMessage: runtime.recordConsolidationStageError(ctx, "condenser", error) });
 	}
 }
 
@@ -406,23 +417,69 @@ async function runReflectorStage(
 		apiKey: resolved.apiKey,
 		headers: resolved.headers,
 		env: resolved.env,
-		reflections: folded.reflections,
+		reflections: folded.activeReflections,
 		observations: folded.activeObservations,
 		maxTurns: runtime.config.agentMaxTurns,
 		maxOutputTokens: runtime.config.agentMaxTokens,
 		thinkingLevel: runtime.config.model?.thinking ?? "low",
 		modelRegistry: ctx.modelRegistry,
 	});
-	if (!reflections) return { outcome: "continue", sameRunReflections: [] };
+	if (!reflections) return { outcome: "continue", ran: true, sameRunReflections: [] };
 
 	const data = buildReflectionsRecordedData(reflections, observationCoverageId);
-	if (!data) return { outcome: "continue", sameRunReflections: [] };
+	if (!data) return { outcome: "continue", ran: true, sameRunReflections: [] };
 	appendEntry(ctx, OM_REFLECTIONS_RECORDED, data);
 	return {
 		outcome: "continue",
+		ran: true,
 		sameRunReflections: reflections,
 		effectiveReflectionCoverageId: data.coversUpToId,
 	};
+}
+
+/**
+ * Hold the reflection pool to its budget: past reflectionsPoolMaxTokens, the condenser merges and
+ * drops reflections toward reflectionsPoolTargetTokens. Runs only in a pipeline whose reflector
+ * ran, so a condenser that cannot shrink the pool retries on the reflector's cadence, not every turn.
+ * Merged reflections and the tombstones for what they replace share the reflection coverage
+ * marker, so the compaction projection folds them in together.
+ */
+async function runCondenserStage(
+	runtime: Runtime,
+	ctx: ConsolidationCtx,
+	resolveModel: (stage: "condenser") => Promise<ResolvedModel | undefined>,
+): Promise<StageOutcome> {
+	const entries = ledgerBranch(ctx.sessionManager as LedgerSession);
+	const coverageId = latestCoverageMarkerId(entries, OM_REFLECTIONS_RECORDED);
+	if (!coverageId) return "continue";
+	const reflections = foldLedger(entries).activeReflections;
+	const poolTokens = reflectionPoolTokens(reflections);
+	if (poolTokens <= runtime.config.reflectionsPoolMaxTokens) return "continue";
+
+	if (shouldNotifyWorker(runtime, ctx)) ctx.ui?.notify(
+		`Observational memory: condensing reflections — ~${poolTokens.toLocaleString()} / ${runtime.config.reflectionsPoolMaxTokens.toLocaleString()} max tokens`,
+		"info",
+	);
+	const resolved = await resolveModel("condenser");
+	if (!resolved) return "abort";
+	const result = await condenseToTarget({
+		model: resolved.model as any,
+		apiKey: resolved.apiKey,
+		headers: resolved.headers,
+		env: resolved.env,
+		reflections,
+		targetTokens: runtime.config.reflectionsPoolTargetTokens,
+		maxTurns: runtime.config.agentMaxTurns,
+		maxOutputTokens: runtime.config.agentMaxTokens,
+		thinkingLevel: runtime.config.model?.thinking ?? "low",
+		modelRegistry: ctx.modelRegistry,
+	});
+	if (!result) return "continue";
+	const added = buildReflectionsRecordedData(result.reflections, coverageId);
+	if (added) appendEntry(ctx, OM_REFLECTIONS_RECORDED, added);
+	const dropped = buildObservationsDroppedData(result.droppedIds, coverageId);
+	if (dropped) appendEntry(ctx, OM_OBSERVATIONS_DROPPED, dropped);
+	return "continue";
 }
 
 async function runDropperStage(
@@ -475,7 +532,7 @@ async function runDropperStage(
 	const resolved = await resolveModel("dropper");
 	if (!resolved) return "abort";
 
-	const reflectionsForDropper = mergeReflections(folded.reflections, sameRunReflections);
+	const reflectionsForDropper = mergeReflections(folded.activeReflections, sameRunReflections);
 	const droppedIds = await runDropper({
 		model: resolved.model as any,
 		apiKey: resolved.apiKey,
