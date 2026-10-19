@@ -17,3 +17,9 @@ Done:
 - Delete `bb/reconciler-notices` from the branch; preserve [[projects/mlegls-pi/issues/installed-bb-bypasses-dispatch-hook-for-parent-system-notices]] as the upstream hook-coverage request.
 
 Stories and required handoff claims: report owned-worker suppression, ordinary-child pass-through, reconciler-tell pass-through, retained parent/status, and idle/error-free lifecycle separately, with live thread/event identifiers and model-invocation evidence. Update the evidence packet for the pi implementation. The earlier plugin probe's live suppression failed on bb 0.46.1; its passing hook-boundary checks are not held product stories and do not replace these checks.
+
+## Implementation blocked (2026-10-19)
+
+Pi interception is committed on the worker branch (commit replacing the plugin, with `extensions/bb/reconciler-notices.ts` and `docs/attachments/drop-reconciler-worker-notices-in-a-bb-plugin/index.md`). The owned-child notice is consumed before any model invocation, but installed BB leaves its pending submission active indefinitely because Pi's `handled` disposition produces no run/settlement event. The 15-second idle wait timed out. Ordinary-child notices and the direct tell transport still reach the model, and child status/parentage stays intact. Manual stop was used only to recover the disposable fixture; it is not acceptance of the no-stuck-turn contract.
+
+Blocked by the observed interoperability gap recorded outside this execution tree: [[projects/mlegls-pi/issues/bb-pi-handled-input-leaves-thread-active]]. The original hook-coverage issue remains open. Requires BB provider handling of Pi's handled disposition, or re-specifying an authorized alternative; no shared runtime was upgraded/restarted, and no fake lifecycle events were emitted. Fixture project/threads/processes were stopped or removed. Existing affected tests (3 total) and typecheck passed. Do not close or land this as a completed workaround on the current runtime.
