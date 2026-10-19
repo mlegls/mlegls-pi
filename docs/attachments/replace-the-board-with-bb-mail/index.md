@@ -1,5 +1,7 @@
 # Residual bb coordination join
 
+Independent drive at `28aaa64c6cd744785cf9591e5a4cdea0dbdf2051`: [predictions, encounter and replayable checks](drive.md). Supplied isolated SDK encounter completed successfully; both joined claims held. Nonvisual evidence; no screenshots.
+
 Implementation starts at `7d516b08`; production changes are `a9d3f508`. Children already supplied live notice settlement, desk cleanup and end-to-end bb reconcile evidence; this encounter exercises the missed tracker-plugin consumer without repeating that live run.
 
 ## Prepared first use
