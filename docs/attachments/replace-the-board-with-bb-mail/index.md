@@ -32,3 +32,7 @@ Observed ready and successful on `a9d3f508`, with bb SDK 0.6.49. No servers, pag
 - `bunx tsc --noEmit`: passed.
 
 No new permanent regression tests were added. Fresh driving/review owns independent acceptance of this residual seam.
+
+## Review
+
+Reviewed `138b27d1..9104e463`. One repair (`9104e463`): a failing `desk/ROLES.md` lookup in the tracker plugin now logs a warning and yields no role holder, instead of failing the whole supervisors list (the removed `roleHolders` tolerated errors). Re-ran the encounter on the repaired head: same outputs, exit 0. Re-ran `bun test lib/reconcile lib/thread extensions/bb extensions/supervision` (42 pass), tracker `tsc` and `bb plugin types --check`. No remaining board/role-topic references in `bb/tracker`. Structural pass: nothing worth consolidating; the tracker's role lookup reuses `lib/desk.ts` `roleThread`.
