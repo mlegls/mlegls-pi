@@ -83,7 +83,7 @@ test("an integrated handler ruling reaches a successor before setup and launch, 
 		expect(readFileSync(join(successor.dir, "result.txt"), "utf8")).toBe("retained packet\n");
 		expect(readFileSync(join(successor.dir, "setup-contract"), "utf8")).toContain(ruling);
 		const prompt = threads(join(root, "fake-bb")).find(t => t.id === successor.bb)?.prompt;
-		expect(prompt).toContain(ruling);
+		expect(prompt).toContain(ruling.trim()); // bb gets the prompt trimmed
 		expect(prompt).not.toContain("old contract");
 		expect(git(repo, "config", "branch.successor.ab-parent")).toBe("main");
 	} finally {

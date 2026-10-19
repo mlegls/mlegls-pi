@@ -3,7 +3,6 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { run, saveState } from "../../../lib/reconcile/reconcile";
-import { saveThread } from "../../../lib/thread/registry";
 import { fakeBb } from "../../../lib/thread/fake-bb";
 
 export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged") {
@@ -41,12 +40,9 @@ export async function rehearsal(mode: "conflict" | "deps" | "setup" | "unchanged
 		writeFileSync(join(cwd, mode === "conflict" ? "conflict.txt" : mode === "unchanged" ? "target.txt" : "bun.lock"), "target\n");
 		commit(cwd, mode === "conflict" ? "Target conflict subject" : "Target dependency update");
 		const targetBefore = git(cwd, "rev-parse", "HEAD");
-		await saveThread({ id: "fixture-child", sessionId: "fixture-child", sessionFile: join(root, "child.jsonl"),
-			cwd: child, project: cwd, worktree: child, ownership: "owner", branch: "child", archived: false,
-			created: new Date().toISOString(), worker: { run: "fixture", handle: "child" }, bb: "bbt-child" });
 		saveState({ backend: "threads", root: "fixture", cwd, owner: "thr_fixture-owner", budget: 1,
 			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: { fixture: { into: cwd, self: true, phase: "review", retries: {}, workers: [],
-				handle: { run: "fixture", handle: "child", path: child, bb: "bbt-child", threadId: "fixture-child" } } },
+				handle: { run: "fixture", handle: "child", path: child, bb: "bbt-child" } } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] });
 		bb.completeTurn(child, 'done\n\n' + "\x60\x60\x60json\n"
 			+ JSON.stringify({ stories: [{ story: "Landing fixture", outcome: "held" }] }) + "\n\x60\x60\x60");

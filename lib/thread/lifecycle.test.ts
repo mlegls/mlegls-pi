@@ -46,6 +46,7 @@ beforeAll(() => {
 	git(repo, "config", "user.name", "t");
 	git(repo, "config", "user.email", "t@example.invalid");
 	writeFileSync(join(repo, "conflict.txt"), "seed");
+	writeFileSync(join(repo, ".gitignore"), ".wm/\n"); // wm.spawn excludes it from every worktree
 	git(repo, "add", ".");
 	git(repo, "commit", "-m", "seed");
 });

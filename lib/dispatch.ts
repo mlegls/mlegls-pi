@@ -1,6 +1,6 @@
 // Launch a parent-planned ready wave as wm workers. No reading, routing, dependency graph, or retries.
 import { execFile, execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { integrateThread, workerOf, ThreadMergeConflict, type WorkerThread } from "./thread";
@@ -177,7 +177,7 @@ async function recordOf(given: Handle | string, cwd: string): Promise<{ worker: 
   const found = await findWorker(given, cwd);
   const thread = found ? await workerOf(found.bb, typeof given === "string" ? undefined : { run: given.run, handle: given.handle }) : undefined;
   if (!thread) throw new Error("No live worker " + label);
-  if (typeof given !== "string" && thread.cwd !== resolve(given.path)) throw new Error("Receipt does not match thread " + thread.id);
+  if (typeof given !== "string" && thread.cwd !== realpathSync(given.path)) throw new Error("Receipt does not match thread " + thread.id);
   return { thread, worker: { ...(typeof given === "string" ? {} : given), ...thread.worker, path: thread.cwd, bb: thread.id } };
 }
 
