@@ -48,3 +48,15 @@ Paginated `bb environment list --host host_w74xscm3fz --status destroyed --limit
 4. Reproduce the paginated destroyed-row count with the timestamp above: accept 1,101 across the five project counts, accounting separately for any subsequent cleanup. Re-run read-only sweep and name any new missing-path row, rather than silently deleting it.
 
 No browser/native UI used; visual false, no screenshots. No processes or external resources left running. No product repairs. Acceptance remains incomplete until the changed checkout-local lifecycle is actually driven.
+
+## Review drive (checkout-local lifecycle)
+
+Drove the checkout's own `bin/ab thread new --worktree <name> --prompt 'Reply ok. No tools.'` and `bin/ab thread abandon <id>` against the live local BB.
+
+**Defect found (spawn failed on every fresh path).** `bb thread spawn --environment <new path>` returns `environmentId: null` (the environment is created just after; `bb thread show` shows it within a moment). `spawnBb` passed `undefined` to `bb environment update`, got HTTP 404, and its cleanup then 404'd on `environment delete` too, masking the cause: five of five fresh-path spawns failed with `Environment not found`. A re-spawn onto an existing path happened to return the id, hiding it from the earlier manual probe.
+
+**Repair** (lib/thread/bb.ts): resolve the environment id from `bb thread show` (polled up to ~10 s) before `environment update`; failure cleanup and retirement both use `deleteBbEnvironment`, which skips a thread with no environment.
+
+**After repair** (fresh path, probe `probe-envsync6`, thread thr_4nfm469nqt): spawned; `mergeBaseBranch` = the branch's ab-parent (`bb-environments-follow-our-worktrees-review-4`) with no manual update. `ab thread abandon`: worktree and branch gone; environment `env_38ksweurhf` destroyed, path null; thread archived, `deletedAt: null`. Spawn-time and retirement stories hold on this checkout.
+
+**Sweep.** The read-only sweep then listed 12 stale ready rows: 7 from my failed probes (leaked before the repair), the ticket's retired implement-2 and drive-3 workers (retired by the older supervisor runtime, explaining the driver's observation), and three other projects' workers retired earlier. Applied the authorized sweep: 12 requested, 0 failed; re-run shows 20 ready, 0 stale. Total environments destroyed by this ticket: 1,101 + 12 = 1,113 (of which 7 were review-probe leftovers, so 1,106 real stale rows).

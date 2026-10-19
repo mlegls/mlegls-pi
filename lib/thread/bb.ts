@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { command, quote } from "./process";
+import { command, delay, quote } from "./process";
 import { threadDir } from "./registry";
 import { launchEnv } from "./launch";
 import { gitAttempt } from "./lifecycle-git";
@@ -75,23 +75,33 @@ export async function spawnBb(thread: ThreadRecord, parent: string | undefined, 
 	try {
 		const project = thread.project.split("/").at(-1)!;
 		const title = thread.worker ? thread.worker.run + "/" + thread.worker.handle : thread.worktree && thread.branch ? project + "/" + thread.branch : project;
-		const created = await bb<{ id: string; environmentId: string }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
+		const created = await bb<{ id: string; environmentId: string | null }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
 			"--provider", "pi", ...(model ? ["--model", model] : []), ...(effort ? ["--reasoning-level", effort] : []),
 			"--title", title, "--prompt-file", prompt, ...(parent ? ["--parent-thread", parent] : [])]);
 		try {
 			if (thread.branch) {
 				const parentBranch = await gitAttempt(thread.project, "config", "--get", "branch." + thread.branch + ".ab-parent");
 				if (parentBranch.code !== 0 && parentBranch.code !== 1) throw new Error("Cannot read ab-parent: " + parentBranch.err);
-				if (parentBranch.out) await bb(["environment", "update", created.environmentId, "--merge-base-branch", parentBranch.out]);
+				if (parentBranch.out) await bb(["environment", "update", await bbEnvironment(created.id, created.environmentId), "--merge-base-branch", parentBranch.out]);
 			}
 		} catch (error) {
 			await stopBb(created.id);
 			await archiveBb(created.id);
-			if (thread.ownership === "owner") await bb(["environment", "delete", created.environmentId]);
+			if (thread.ownership === "owner") await deleteBbEnvironment(created.id);
 			throw error;
 		}
 		return created.id;
 	} finally { rmSync(prompt, { force: true }); }
+}
+
+/** A fresh path's environment is created just after spawn returns, so spawn's environmentId is null until then. */
+async function bbEnvironment(id: string, known: string | null): Promise<string> {
+	for (let i = 0; !known && i < 100; i++) {
+		if (i) await delay(100);
+		known = (await bb<{ thread: { environmentId: string | null } }>(["thread", "show", id])).thread.environmentId;
+	}
+	if (!known) throw new Error("bb thread " + id + " has no environment");
+	return known;
 }
 
 export const waitBb = (id: string, seconds: number) => command(cli(), ["thread", "wait", id, "--status", "idle", "--timeout", String(seconds), "--json"]);
@@ -152,8 +162,8 @@ export const archiveBb = (id: string) => bb(["thread", "archive", id]).catch(err
 /** The worktree is already gone and its thread archived; keep thread history, retire only its environment. */
 export async function deleteBbEnvironment(id: string): Promise<void> {
 	try {
-		const { thread } = await bb<{ thread: { environmentId: string } }>(["thread", "show", id]);
-		await bb(["environment", "delete", thread.environmentId]);
+		const { thread } = await bb<{ thread: { environmentId: string | null } }>(["thread", "show", id]);
+		if (thread.environmentId) await bb(["environment", "delete", thread.environmentId]);
 	} catch (error) { if (!gone(error)) throw error; }
 }
 export const logBb = (id: string) => command(cli(), ["thread", "log", id, "--all"]);
