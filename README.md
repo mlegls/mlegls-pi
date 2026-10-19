@@ -1,7 +1,7 @@
 # mlegls-pi
 
-A personal [pi](https://github.com/earendil-works/pi) package, plus the user-level skills, worker agents and harness
-prompts that `~/.config/system-config` links into each harness (pi, Claude Code, Codex).
+A personal [pi](https://github.com/earendil-works/pi) package, plus user-level skills, worker agents and harness
+prompts for pi, Claude Code and Codex.
 
 ## Layout
 
@@ -25,7 +25,7 @@ prompts that `~/.config/system-config` links into each harness (pi, Claude Code,
 - `reconcile/`: the execution-tree reconciler behind the `reconcile` tools.
 - `tracker*.ts`, `records/`, `outline-read/`, `allocation.ts`, `decide.ts` (Jev decisions outside pi), `desk.ts` and the rest.
 
-**Linked into harnesses**:
+**User-level, linked into each harness**:
 
 - `skills/enabled/{all,claude,codex,pi}`: user skills, by harness.
 - `agents/`: worker agent definitions (`agents/roles/` for reconciler phases).
@@ -41,12 +41,22 @@ prompts that `~/.config/system-config` links into each harness (pi, Claude Code,
 
 ## Setup
 
+Install the pi package, from git or from a local checkout:
+
 ```sh
+pi install git:github.com/mlegls/mlegls-pi
+# or
+git clone https://github.com/mlegls/mlegls-pi && cd mlegls-pi
 bun run setup        # or: mise run setup
+pi install ./
 ```
 
-Install the package into pi from this checkout, and let `~/.config/system-config` link the skills, agents and
-prompts. After changing extension code, `/reload` or restart pi.
+That loads the extensions, package skills, prompts and themes. After changing extension code, `/reload` or restart
+pi.
+
+The user-level skills, agents and prompts are not part of the package. To use them, symlink the directories you want
+into each harness's own skills and prompt locations (for example `skills/enabled/all/*` and `skills/enabled/pi/*` into
+`~/.pi/agent/skills/`). They assume this personal setup (bb, `wm` workers, the tracker), so expect to adapt them.
 
 Keep `package.json` valid JSON: if pi cannot parse the manifest it falls back to scanning all of `skills/`.
 
