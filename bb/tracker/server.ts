@@ -2,14 +2,15 @@
 // matter: send a ready issue tree to a new or existing supervisor, start a shaping session on one that isn't, and
 // discuss selected issues in a new thread with them mentioned. Issues are only written by agents, through the tracker.
 import { execFile } from "node:child_process";
-import { watch, type FSWatcher } from "node:fs";
+import { existsSync, readFileSync, watch, type FSWatcher } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { bun, pinTracker, pinnedTop, readIssue, snapshot, tracker, trackerRoot, type Cli } from "./tracker";
-import { CHANGED, MENTION_PROVIDER, notReady, stageLabel, type Snapshot } from "./model";
+import { CAMPAIGN_MENTION, CHANGED, MENTION_PROVIDER, notReady, stageLabel, type Campaigns, type Snapshot } from "./model";
+import { DEPARTMENTS, history, historyReady, mentionContext, parseDepartments, readFacts, reconcilers, rollup } from "./campaigns";
 
 const projectSchema = z.object({ id: z.string(), name: z.string(), root: z.string() });
 export type TrackerProject = z.infer<typeof projectSchema>;
@@ -38,6 +39,7 @@ export const rpcContract = defineRpcContract({
 	supervisors: { input: z.object({ projectId: z.string() }), output: z.object({ supervisors: z.array(supervisorSchema) }) },
 	supervise: { input: z.object({ projectId: z.string(), slugs, target }), output: z.object({ threadId: z.string().nullable(), note: z.string() }) },
 	refine: { input: z.object({ projectId: z.string(), slugs }), output: z.object({ threadId: z.string() }) },
+	campaigns: { input: z.object({ projectId: z.string(), refresh: z.boolean().optional() }), output: z.custom<Campaigns>() },
 });
 
 const run = promisify(execFile);
@@ -103,6 +105,29 @@ export default async function plugin(bb: BbPluginApi) {
 		return hit;
 	}
 	bb.onDispose(() => { for (const w of watchers.values()) w.close(); for (const t of timers.values()) clearTimeout(t); });
+
+	// Campaigns: docs/departments.md over the snapshot, git history, reconcilers and the repository's facts command.
+	const ping = (root: string) => bb.realtime.publish(CHANGED, { root });
+	function watchDepartments(root: string) {
+		const key = root + "#departments";
+		if (watchers.has(key)) return;
+		try {
+			const w = watch(join(root, "docs"), (_event, file) => { if (String(file) === "departments.md") ping(root); });
+			w.on("error", () => watchers.delete(key));
+			watchers.set(key, w);
+		} catch (e) { bb.log.warn("watch departments " + root + ": " + e); }
+	}
+	async function campaigns(projectId: string, refresh = false): Promise<{ view: Campaigns; snap: Snapshot }> {
+		const p = await project(projectId);
+		watchDepartments(p.root);
+		const s = await snap(p.root);
+		const file = join(p.root, DEPARTMENTS);
+		const parsed = existsSync(file) ? parseDepartments(readFileSync(file, "utf8")) : null;
+		const changes = history(p.root);
+		if (!changes) historyReady(p.root)?.then(() => ping(p.root), (e) => bb.log.warn("history " + p.root + ": " + e));
+		const facts = readFacts(p.root, parsed?.facts ?? null, refresh, () => ping(p.root));
+		return { view: rollup(s, parsed, changes, reconcilers(p.root), facts, parsed?.facts ?? null), snap: s };
+	}
 
 	/** Whether each slug can go to a supervisor now: the tracker's frontier (ready subtree, unblocked, unclaimed). */
 	async function requireReady(root: string, wanted: string[]): Promise<Snapshot> {
@@ -193,6 +218,36 @@ export default async function plugin(bb: BbPluginApi) {
 			});
 			const prompt = "/skill:shape " + slugs.map((slug) => wikilink(s.repo, slug)).join(" ") + "\n\nOpened from the bb tracker to bring " + (slugs.length > 1 ? "these trees" : "this tree") + " to agent-ready specs or tickets for supervision. Where it stands now:\n" + lines.join("\n");
 			return { threadId: await spawn(projectId, prompt, "shape " + slugs.join(", "), { role: "refine", issues: slugs, repo: s.repo }) };
+		},
+		campaigns: async ({ projectId, refresh }) => (await campaigns(projectId, refresh)).view,
+	});
+
+	// Mentions of a department, campaign or promise: the Campaigns page's Discuss, or ! in any composer.
+	bb.ui.registerMentionProvider({
+		id: CAMPAIGN_MENTION,
+		label: "Campaigns",
+		triggers: ["!"],
+		async search({ query, projectId }) {
+			const scope = projectId && roots.has(projectId) ? [roots.get(projectId)!] : [...roots.values()];
+			const q = query.toLowerCase();
+			const items: { id: string; title: string; subtitle: string }[] = [];
+			for (const p of scope) {
+				if (!existsSync(join(p.root, DEPARTMENTS))) continue;
+				const { view } = await campaigns(p.id).catch(() => ({ view: null }));
+				for (const d of view?.departments ?? []) {
+					const add = (kind: string, key: string, title: string, subtitle: string) => { if (title.toLowerCase().includes(q)) items.push({ id: p.id + "/" + kind + ":" + key, title, subtitle }); };
+					add("department", d.key, d.name, "department");
+					for (const c of d.campaigns) add("campaign", c.key, c.title, d.name + " · " + c.state);
+					for (const pr of d.promises) add("promise", pr.key, pr.text, d.name + " promise · " + pr.level);
+				}
+			}
+			return items.slice(0, 30);
+		},
+		async resolve(itemId) {
+			const at = itemId.indexOf("/");
+			const [kind, key] = [itemId.slice(at + 1, itemId.indexOf(":", at)), itemId.slice(itemId.indexOf(":", at) + 1)];
+			const { view, snap: s } = await campaigns(itemId.slice(0, at));
+			return { context: mentionContext(view, s, kind, key) };
 		},
 	});
 

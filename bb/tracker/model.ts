@@ -26,6 +26,8 @@ export interface Issue {
 export interface Snapshot { root: string; repo: string; issues: Issue[]; at: number }
 
 export const MENTION_PROVIDER = "issue";
+/** Mentions of a department, campaign or promise on the Campaigns page: \`<projectId>/<kind>:<key>\`. */
+export const CAMPAIGN_MENTION = "campaign";
 /** Realtime channel: an issue file changed under \`{ root }\`. */
 export const CHANGED = "issues-changed";
 
@@ -51,3 +53,50 @@ export function notReady(i: Issue): string {
 
 /** A slug read as a title: the filename is the issue's title. */
 export const title = (slug: string) => slug.charAt(0).toUpperCase() + slug.slice(1).replaceAll("-", " ");
+
+// Campaigns: docs/departments.md (the maintainer's perspectives and each one's ranked campaigns) rendered over the
+// tracker, git, the reconcilers and the repository's own facts command. Nothing here is stored; every count is computed.
+
+export type Level = "ok" | "risk" | "broken" | "unknown";
+export interface Bar { text: string; met: boolean }
+export interface InFlight { slug: string; phase: string; threadId: string | null }
+export interface CampaignView {
+	/** department-slug/campaign-slug */
+	key: string;
+	rank: number;
+	title: string;
+	outcome: string;
+	bars: Bar[];
+	/** "ongoing" without bars, "done" with all met, else "n of m bars met". */
+	state: string;
+	/** The issues it tracks by name or pattern, and their subtrees. */
+	roots: string[];
+	members: string[];
+	missing: string[];
+	counts: { done: number; settled: number; idea: number };
+	landedThisWeek: number;
+	/** Last date a member's stage changed, within the history window. */
+	moved: string | null;
+	/** Members that reached done in each of the last WEEKS weeks, oldest first. */
+	weekly: number[];
+	inFlight: InFlight[];
+}
+export interface PromiseView { key: string; text: string; level: Level; note: string }
+export interface DepartmentView { key: string; name: string; attention: string; promises: PromiseView[]; campaigns: CampaignView[]; notes: string[] }
+export interface ReconcilerException { root: string; node: string; ownerThread: string | null }
+export interface Campaigns {
+	root: string;
+	repo: string;
+	/** docs/departments.md relative to root, or null when the project has none. */
+	file: string | null;
+	at: number;
+	departments: DepartmentView[];
+	/** Open issues no campaign tracks whose parent isn't open either. */
+	loose: string[];
+	exceptions: ReconcilerException[];
+	/** Whether history (weekly, moved, landed) is computed yet; the first read of a long log runs in the background. */
+	history: boolean;
+	facts: { at: number | null; error: string | null; command: string | null };
+}
+export const WEEKS = 12;
+export const slugify = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

@@ -17,6 +17,8 @@ import {
 import { toast } from "sonner";
 import type { rpcContract, Supervisor, SuperviseTarget, TrackerProject } from "./server";
 import { CHANGED, MENTION_PROVIDER, notReady, stageLabel, title, type Issue, type Snapshot } from "./model";
+import { CampaignsPage } from "./campaigns-page";
+import { DiscussDialog, Empty, issueTarget, useProject } from "./shared";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -265,67 +267,6 @@ function Detail({ projectId, snap, slug, open, actions, onClose }: { projectId: 
 	);
 }
 
-function DiscussDialog({ projectId, slugs, onOpenChange, onRemove }: { projectId: string; slugs: string[]; onOpenChange: (open: boolean) => void; onRemove: (slug: string) => void }) {
-	const sdk = useSdk();
-	const navigate = useBbNavigate();
-	const pluginId = experimental_usePluginId();
-	const [focus, setFocus] = useState(1);
-	useEffect(() => { const t = setTimeout(() => setFocus((n) => n + 1), 50); return () => clearTimeout(t); }, []);
-	return (
-		<Dialog open onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-2xl">
-				<DialogHeader>
-					<DialogTitle>Discuss {slugs.length === 1 ? title(slugs[0]) : slugs.length + " issues"}</DialogTitle>
-					<DialogDescription>A new thread with {slugs.length === 1 ? "this issue" : "these issues"} mentioned; the agent receives each one's contract, state and subtree.</DialogDescription>
-				</DialogHeader>
-				<div className="flex flex-wrap gap-1.5">
-					{slugs.map((s) => (
-						<span key={s} className="inline-flex h-6 items-center gap-1 rounded-md bg-muted px-2 text-xs">
-							#{s}
-							{slugs.length > 1 ? <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => onRemove(s)} aria-label={"Remove " + s}><Icon name="X" className="size-3" /></button> : null}
-						</span>
-					))}
-				</div>
-				<div>
-					<NewThreadComposer
-						layout="document"
-						defaultProjectId={projectId}
-						focusRequest={focus}
-						draftKey={"discuss:" + projectId}
-						placeholder="What do you want to work out?"
-						onSubmit={async (request) => {
-							const input = withMentions(request.input, slugs, projectId, pluginId);
-							const created = await sdk.threads.spawn({ ...request, input, pluginMetadata: { role: "discuss", issues: slugs } });
-							onOpenChange(false);
-							navigate.toThread(created.id);
-						}}
-					/>
-				</div>
-			</DialogContent>
-		</Dialog>
-	);
-}
-
-type PromptInput = { type: string; text?: string; mentions?: { start: number; end: number; resource: unknown }[] };
-/** Prefix the first text input with one plugin mention pill per issue, serialized as the composer serializes them. */
-function withMentions<T>(input: T[], slugs: string[], projectId: string, pluginId: string): T[] {
-	let text = "";
-	const mentions: { start: number; end: number; resource: unknown }[] = [];
-	for (const slug of slugs) {
-		const start = text.length;
-		text += "@" + slug;
-		mentions.push({ start, end: text.length, resource: { kind: "plugin", pluginId, icon: null, itemId: MENTION_PROVIDER + ":" + projectId + "/" + slug, label: slug } });
-		text += " ";
-	}
-	text += "\n\n";
-	const items = input as unknown as PromptInput[];
-	const at = items.findIndex((i) => i.type === "text");
-	if (at < 0) return [{ type: "text", text: text.trimEnd(), mentions } as unknown as T, ...input];
-	const first = items[at];
-	const shifted = { ...first, text: text + (first.text ?? ""), mentions: [...mentions, ...(first.mentions ?? []).map((m) => ({ ...m, start: m.start + text.length, end: m.end + text.length }))] };
-	return items.map((x, n) => (n === at ? shifted : x)) as unknown as T[];
-}
-
 function SuperviseDialog({ projectId, slugs, onOpenChange }: { projectId: string; slugs: string[]; onOpenChange: (open: boolean) => void }) {
 	const rpc = useRpc<typeof rpcContract>();
 	const navigate = useBbNavigate();
@@ -374,13 +315,8 @@ function SuperviseDialog({ projectId, slugs, onOpenChange }: { projectId: string
 function TrackerPage({ subPath }: { subPath: string }) {
 	const rpc = useRpc<typeof rpcContract>();
 	const navigate = useBbNavigate();
-	const pluginId = experimental_usePluginId();
 	const route = parseSub(subPath);
-	const [projects, setProjects] = useState<TrackerProject[] | null>(null);
-	const lastKey = pluginId + ":last-project";
-	useEffect(() => { rpc.call("projects").then((r) => setProjects(r.projects), () => setProjects([])); }, [rpc]);
-	const projectId = route.projectId ?? (projects ? (projects.find((p) => p.id === localStorage.getItem(lastKey)) ?? projects[0])?.id ?? null : null);
-	useEffect(() => { if (projectId) localStorage.setItem(lastKey, projectId); }, [projectId, lastKey]);
+	const { projects, projectId } = useProject(route.projectId);
 	const go = useCallback((pid: string, slug: string | null, replace = false) => navigate.toPluginPanel("issues", { subPath: pid + (slug ? "/" + slug : ""), replace }), [navigate]);
 
 	const { snap, error } = useSnapshot(projectId);
@@ -490,16 +426,13 @@ function TrackerPage({ subPath }: { subPath: string }) {
 					<Button size="sm" variant="ghost" className="ml-auto" onClick={() => setChecked(new Set())}>Clear</Button>
 				</div>
 			) : null}
-			{discuss && projectId ? <DiscussDialog projectId={projectId} slugs={discuss} onOpenChange={(o) => { if (!o) setDiscuss(null); }} onRemove={(s) => setDiscuss((d) => d && d.filter((x) => x !== s))} /> : null}
+			{discuss && projectId ? <DiscussDialog projectId={projectId} targets={discuss.map(issueTarget)} onOpenChange={(o) => { if (!o) setDiscuss(null); }} onRemove={(s) => setDiscuss((d) => d && d.filter((x) => x !== s))} /> : null}
 			{supervise && projectId ? <SuperviseDialog projectId={projectId} slugs={supervise} onOpenChange={(o) => { if (!o) setSupervise(null); }} /> : null}
 		</div>
 	);
 }
 
-function Empty({ children }: { children: ReactNode }) {
-	return <div role="status" className="m-4 rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">{children}</div>;
-}
-
 export default definePluginApp((app) => {
 	app.slots.navPanel({ id: "issues", title: "Issues", icon: "ListView", path: "issues", component: TrackerPage });
+	app.slots.navPanel({ id: "campaigns", title: "Campaigns", icon: "Target", path: "campaigns", component: CampaignsPage });
 });

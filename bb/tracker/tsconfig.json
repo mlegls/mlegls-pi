@@ -23,6 +23,11 @@
   "include": [
     "server.ts",
     "app.tsx",
+    "campaigns-page.tsx",
+    "shared.tsx",
+    "campaigns.ts",
+    "model.ts",
+    "tracker.ts",
     "components",
     "lib",
     "hooks"
