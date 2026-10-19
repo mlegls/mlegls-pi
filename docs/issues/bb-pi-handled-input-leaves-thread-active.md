@@ -14,3 +14,5 @@ Pi's installed docs/rpc.md explicitly says a successful prompt response with dis
 Tried: load changed extensions/bb through a trusted project .pi/extensions shim; isolate XDG_STATE_HOME; seed ownership before releasing a scheduled child prompt; wait for child idle; inspect parent BB events, state and Pi session, then wait for parent idle. Manually stopping the disposable parent is cleanup only, not a functional workaround for a supervisor that may be doing real work.
 
 Request: handle Pi's handled prompt disposition in the BB Pi provider and settle the pending BB submission without model work. The original system-hook coverage request remains [[projects/mlegls-pi/issues/installed-bb-bypasses-dispatch-hook-for-parent-system-notices]].
+
+Upstream: get-bb/bb#3792 ("Pi provider leaves a BB turn active after a handled extension slash command", open, confirmed-repro since 2026-10-11) is this defect.
