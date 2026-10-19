@@ -34,3 +34,14 @@ Null handoff required discovering bb identity and the lifecycle entry point. Set
 4. Use the explicitly checkout-owned CLI/package entry point to confirm `ab thread` is absent; do not use ambient PATH `ab` as evidence for this revision. Not driven here.
 
 No servers, pages, containers, child workers or background processes were started. Acceptance remains incomplete; reviewer must obtain the live lifecycle/setup observations rather than treating this packet as approval.
+
+## Review (fresh head; appended after the driver's first-use record)
+
+Live lifecycle driven in a disposable scratch repo (`/tmp/scratch-reg-live`, a `setup` mise task, no `.gitignore`, one ticket `add-hello`), `reconcile start add-hello --owner <reviewer bb thread> --budget 1 --land local`; scratch repo, bb project and worktrees removed afterwards, the reconciler had finished (`finished: done`).
+
+- **Held, live reconcile spawns, integrates, retires:** the reconciler launched implement-1, drive-2 and review-3 as bb threads, landed `add-hello` in the owner's checkout (HELLO.md on main, tree clean), left no worktree, archived all three bb threads and deleted their environments.
+- **Held, setup status beside the worktree:** in drive-2's worktree before retirement, `.wm/setup.json` was `{"state":"done","code":0,...}` and `.wm/setup.log` held the setup output, with `.wm/` auto-excluded via `info/exclude` (status clean for integrate).
+- **Held, legacy CLI and records removed:** `bin/ab` offers only `desk`; no source references `ab thread`, `lib/thread/registry`/`cli`, `ThreadRecord`, `getThread`/`threadForBb` (grep; tsc clean); skills and docs outside historical attachments name no `ab thread`.
+- Full `bun test` on the reviewed head: 214 pass, 2 skip, 0 fail; `bunx tsc --noEmit` clean.
+- Repairs: removed a stale doc comment on `Worker` (wm.ts) and flattened leftover bare blocks in `cleanupThread` and `retire` (behavior-preserving; affected tests pass).
+- Observation: landed chain branches (`add-hello-implement-1`, `-drive-2`) remain in the scratch repo after retirement, as they do in this repo for earlier runs; not introduced here.

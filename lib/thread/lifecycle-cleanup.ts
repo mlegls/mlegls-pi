@@ -170,24 +170,20 @@ async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processe
 	if (retiring.some(alive)) throw new Error("Retiring thread still has live processes: " + retiring.filter(alive).join(", "));
 	result.killed = retiring;
 	if (processesOnly) return result;
-	{
-		const entry = (await worktrees(thread.project)).find(t => t.path === root);
-		// Uncommitted work outlives the worktree as a WIP commit on its branch, which is then kept: a replaced drive's
-		// evidence (recordings of paid live draws, write-ups) was untracked and went with its worktree (2026-10-12).
-		const wip = entry ? await commitWip(root, thread) : undefined;
-		const kept = entry && !discardIgnored ? await keepIgnored(root, thread, wip) : undefined;
-		if (kept) result.kept = [...result.kept ?? [], { worktree: root, ...kept }];
-		if (entry) await gitChecked(thread.project, "worktree", "remove", "--force", root);
-		{
-			if (wip) result.branchesKept.push({ branch: thread.branch, reason: "uncommitted work saved as WIP commit " + wip });
-			else if (kept) result.branchesKept.push({ branch: thread.branch, reason: "ignored state kept at " + kept.path });
-			else if (keepBranch) result.branchesKept.push({ branch: thread.branch, reason: "keepBranch requested" });
-			else {
-				const deleted = await gitAttempt(thread.project, "branch", "-D", thread.branch);
-				if (deleted.code) result.branchesKept.push({ branch: thread.branch, reason: deleted.err || deleted.out });
-				else result.branchesDeleted.push(thread.branch);
-			}
-		}
+	const listed = (await worktrees(thread.project)).find(t => t.path === root);
+	// Uncommitted work outlives the worktree as a WIP commit on its branch, which is then kept: a replaced drive's
+	// evidence (recordings of paid live draws, write-ups) was untracked and went with its worktree (2026-10-12).
+	const wip = listed ? await commitWip(root, thread) : undefined;
+	const kept = listed && !discardIgnored ? await keepIgnored(root, thread, wip) : undefined;
+	if (kept) result.kept = [...result.kept ?? [], { worktree: root, ...kept }];
+	if (listed) await gitChecked(thread.project, "worktree", "remove", "--force", root);
+	if (wip) result.branchesKept.push({ branch: thread.branch, reason: "uncommitted work saved as WIP commit " + wip });
+	else if (kept) result.branchesKept.push({ branch: thread.branch, reason: "ignored state kept at " + kept.path });
+	else if (keepBranch) result.branchesKept.push({ branch: thread.branch, reason: "keepBranch requested" });
+	else {
+		const deleted = await gitAttempt(thread.project, "branch", "-D", thread.branch);
+		if (deleted.code) result.branchesKept.push({ branch: thread.branch, reason: deleted.err || deleted.out });
+		else result.branchesDeleted.push(thread.branch);
 	}
 	await archiveBb(thread.id);
 	if (!existsSync(root)) await deleteBbEnvironment(thread.id);

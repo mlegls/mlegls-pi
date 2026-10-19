@@ -222,13 +222,11 @@ export async function retire(given: Handle | string, options: { cwd?: string; di
   const host = wm.attach(worker.run, worker.handle, cwd, worker.session, thread.id);
   try { result.removed = await host.close(true, { discardIgnored: options.discardIgnored }); } finally { host.drop(); }
   result.killed = (result.removed as { killed?: number[] } | undefined)?.killed ?? [];
-  {
-    const branch = thread.branch;
-    const parent = await git("config", "--get", "branch." + branch + ".ab-parent");
-    const cherry = parent.code || !parent.out ? { code: 1, out: "", err: "missing ab-parent" } : await git("cherry", parent.out, branch);
-    const merged = !cherry.code && !cherry.out.split("\n").some(line => line.startsWith("+"));
-    const deleted = merged ? await git("branch", "-D", branch) : { code: 1, out: "", err: cherry.err || "not merged into " + parent.out };
-    if (deleted.code) result.branchKept = branch + ": " + (deleted.err || deleted.out); else result.branchDeleted = branch;
-  }
+  const branch = thread.branch;
+  const parent = await git("config", "--get", "branch." + branch + ".ab-parent");
+  const cherry = parent.code || !parent.out ? { code: 1, out: "", err: "missing ab-parent" } : await git("cherry", parent.out, branch);
+  const merged = !cherry.code && !cherry.out.split("\n").some(line => line.startsWith("+"));
+  const deleted = merged ? await git("branch", "-D", branch) : { code: 1, out: "", err: cherry.err || "not merged into " + parent.out };
+  if (deleted.code) result.branchKept = branch + ": " + (deleted.err || deleted.out); else result.branchDeleted = branch;
   return result;
 }

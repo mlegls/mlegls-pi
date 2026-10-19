@@ -178,7 +178,6 @@ export class Worker {
 	dir: string;
 	/** The worker's bb thread: bound at spawn, or found from run state or by its title `<run>/<handle>`. */
 	bb?: string;
-	/** The lifecycle's record key, kept until lifecycle takes a bb thread id. */
 	private owningBranch?: string;
 	/** @internal Register before launch; host observation starts once the registry has launched. */
 	launching = false;
