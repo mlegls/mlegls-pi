@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { observationPoolMetrics } from "../agents/dropper/pool.js";
 import { reflectionPoolTokens } from "../agents/condenser/agent.js";
-import { resolveCompactAfterTokens } from "../config.js";
+import { resolveCompactAfterTokens, resolveReflectionPoolBudget } from "../config.js";
 import type { Runtime } from "../runtime.js";
 import {
 	diffProjection,
@@ -66,6 +66,7 @@ export function registerStatusCommand(pi: ExtensionAPI, runtime: Runtime): void 
 			const compactionProgress = rawTokensSinceLastCompaction(entries);
 			const contextWindow = typeof ctx.model?.contextWindow === "number" ? ctx.model.contextWindow : undefined;
 			const compactThreshold = resolveCompactAfterTokens(runtime.config, contextWindow);
+			const reflectionBudget = resolveReflectionPoolBudget(runtime.config, contextWindow);
 
 			const passiveLines = runtime.config.passive === true
 				? [
@@ -87,7 +88,7 @@ export function registerStatusCommand(pi: ExtensionAPI, runtime: Runtime): void 
 				`Next compaction:  ~${compactionProgress.toLocaleString()} / ${compactThreshold.toLocaleString()} estimated source tokens (${pct(compactionProgress, compactThreshold)}%)`,
 				`Visible observation pool: ~${visibleObservationTokens.toLocaleString()} / ${runtime.config.observationsPoolMaxTokens.toLocaleString()} tokens (${pct(visibleObservationTokens, runtime.config.observationsPoolMaxTokens)}%)`,
 				`Active observation pool: ~${activeObservationPool.observationTokens.toLocaleString()} / ${runtime.config.observationsPoolTargetTokens.toLocaleString()} target tokens (${pct(activeObservationPool.observationTokens, runtime.config.observationsPoolTargetTokens)}%)`,
-				`Reflection pool:         ~${visibleReflectionTokens.toLocaleString()} visible; ~${reflectionPoolTokens(folded.activeReflections).toLocaleString()} active / ${runtime.config.reflectionsPoolMaxTokens.toLocaleString()} max tokens (condenser target ${runtime.config.reflectionsPoolTargetTokens.toLocaleString()})`,
+				`Reflection pool:         ~${visibleReflectionTokens.toLocaleString()} visible; ~${reflectionPoolTokens(folded.activeReflections).toLocaleString()} active / ${reflectionBudget.maxTokens.toLocaleString()} max tokens (condenser target ${reflectionBudget.targetTokens.toLocaleString()})`,
 			];
 
 			if (runtime.consolidationInFlight || runtime.compactInFlight || runtime.compactHookInFlight) {

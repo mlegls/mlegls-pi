@@ -6,7 +6,7 @@ import { ObserverStreamError, runObserver } from "../agents/observer/agent.js";
 import { runReflector } from "../agents/reflector/agent.js";
 import { condenseToTarget, reflectionPoolTokens } from "../agents/condenser/agent.js";
 import { debugLog, withDebugLogContext } from "../debug-log.js";
-import { resolveObserverChunkMaxTokens } from "../config.js";
+import { resolveObserverChunkMaxTokens, resolveReflectionPoolBudget } from "../config.js";
 import type { ResolveResult, Runtime } from "../runtime.js";
 import { serializeSourceAddressedBranchEntries } from "../serialize.js";
 import {
@@ -40,7 +40,7 @@ type ConsolidationCtx = {
 	cwd: string;
 	hasUI: boolean;
 	ui?: { notify: (message: string, type?: "warning" | "info" | "error") => void };
-	model: unknown;
+	model?: { contextWindow?: number };
 	modelRegistry: any;
 	getContextUsage?: () => { tokens?: number | null; contextWindow?: number } | undefined;
 	sessionManager: {
@@ -454,10 +454,11 @@ async function runCondenserStage(
 	if (!coverageId) return "continue";
 	const reflections = foldLedger(entries).activeReflections;
 	const poolTokens = reflectionPoolTokens(reflections);
-	if (poolTokens <= runtime.config.reflectionsPoolMaxTokens) return "continue";
+	const { maxTokens, targetTokens } = resolveReflectionPoolBudget(runtime.config, ctx.model?.contextWindow);
+	if (poolTokens <= maxTokens) return "continue";
 
 	if (shouldNotifyWorker(runtime, ctx)) ctx.ui?.notify(
-		`Observational memory: condensing reflections — ~${poolTokens.toLocaleString()} / ${runtime.config.reflectionsPoolMaxTokens.toLocaleString()} max tokens`,
+		`Observational memory: condensing reflections — ~${poolTokens.toLocaleString()} / ${maxTokens.toLocaleString()} max tokens`,
 		"info",
 	);
 	const resolved = await resolveModel("condenser");
@@ -468,7 +469,7 @@ async function runCondenserStage(
 		headers: resolved.headers,
 		env: resolved.env,
 		reflections,
-		targetTokens: runtime.config.reflectionsPoolTargetTokens,
+		targetTokens,
 		maxTurns: runtime.config.agentMaxTurns,
 		maxOutputTokens: runtime.config.agentMaxTokens,
 		thinkingLevel: runtime.config.model?.thinking ?? "low",

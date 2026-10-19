@@ -46,10 +46,10 @@ export interface Config {
 	compactionSummaryMaxTokens?: number;
 	observationsPoolMaxTokens: number;
 	observationsPoolTargetTokens: number;
-	/** Reflection pool size (rendered tokens) past which the condenser merges and drops reflections. */
-	reflectionsPoolMaxTokens: number;
-	/** What the condenser brings the reflection pool toward; below reflectionsPoolMaxTokens. */
-	reflectionsPoolTargetTokens: number;
+	/** Condenser trigger; unset derives half the session's resolved summary budget. */
+	reflectionsPoolMaxTokens?: number;
+	/** Condenser target; unset derives 75% of the resolved reflection maximum. */
+	reflectionsPoolTargetTokens?: number;
 	agentMaxTurns: number;
 	/**
 	 * Maximum output tokens requested for background memory-agent loops
@@ -80,8 +80,6 @@ export const DEFAULTS: Config = {
 	compactAfterTokensRatio: 0.68,
 	observationsPoolMaxTokens: 20_000,
 	observationsPoolTargetTokens: 10_000,
-	reflectionsPoolMaxTokens: 60_000,
-	reflectionsPoolTargetTokens: 40_000,
 	agentMaxTurns: 16,
 	agentMaxTokens: 32_000,
 	showWorkerNotifications: true,
@@ -123,6 +121,13 @@ export function resolveCompactionSummaryMaxTokens(config: Config, contextWindow:
 		return Math.max(1, Math.floor(contextWindow * COMPACTION_SUMMARY_CONTEXT_RATIO));
 	}
 	return COMPACTION_SUMMARY_FALLBACK_MAX_TOKENS;
+}
+
+/** Resolve at use time: the session model (not the memory worker model) owns the render budget. */
+export function resolveReflectionPoolBudget(config: Config, contextWindow: number | undefined): { maxTokens: number; targetTokens: number } {
+	const maxTokens = config.reflectionsPoolMaxTokens ?? Math.max(1, Math.floor(resolveCompactionSummaryMaxTokens(config, contextWindow) / 2));
+	const targetTokens = config.reflectionsPoolTargetTokens ?? Math.max(1, Math.floor(maxTokens * 0.75));
+	return { maxTokens, targetTokens };
 }
 
 export const THINKING_LEVEL_VALUES: readonly ModelThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
@@ -273,7 +278,7 @@ export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): Partial<Con
  *
  * `budget` is upstream's observationsPoolMaxTokens (the projection's fold threshold), not a render cap.
  * `compaction.summaryMaxTokens` bounds the rendered summary; `reflector.maxTokens` and `targetTokens`
- * are the condenser's storage safety bound, not the main context budget.
+ * override the condenser's storage bound (by default half the summary, with a 75% target).
  */
 export function flattenSchemaSettings(om: Record<string, unknown>): Record<string, unknown> {
 	const sub = (k: string) => (isRecord(om[k]) ? om[k] : {}) as Record<string, unknown>;
@@ -337,12 +342,8 @@ export function loadConfig(cwd: string, env: NodeJS.ProcessEnv = process.env): C
 		merged.observationsPoolMaxTokens,
 	) ?? derivedObservationPoolTarget(merged.observationsPoolMaxTokens);
 
-	const reflectionsTarget = validTargetOrUndefined(merged.reflectionsPoolTargetTokens, merged.reflectionsPoolMaxTokens)
-		?? Math.floor(merged.reflectionsPoolMaxTokens * 2 / 3);
-
 	return {
 		...merged,
 		observationsPoolTargetTokens: target,
-		reflectionsPoolTargetTokens: reflectionsTarget,
 	};
 }

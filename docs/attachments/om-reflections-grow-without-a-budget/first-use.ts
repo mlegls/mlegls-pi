@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { registerMechanisms } from "../../../extensions/context/mechanism.ts";
-import { DEFAULTS } from "../../../extensions/context/om/config.ts";
+import { DEFAULTS, resolveReflectionPoolBudget } from "../../../extensions/context/om/config.ts";
 import { compactionMechanism } from "../../../extensions/context/om/hooks/compaction-hook.ts";
 import { Runtime } from "../../../extensions/context/om/runtime.ts";
 import { ledgerBranch, recordLedger, type LedgerSession } from "../../../extensions/context/om/session-ledger/store.ts";
@@ -97,7 +97,7 @@ try {
 		omissionLine: summary.split("\n").find((l) => l.includes("omitted to fit")) ?? null,
 		omitted: omitted.length, recalledOmissions: omitted.filter((r) => recallMemorySources(ledger, r.id).status === "found").length,
 		roleReflection: role?.id ?? null, roleRendered: role ? summary.includes("[" + role.id + "]") : null,
-		storageMaxTokens: DEFAULTS.reflectionsPoolMaxTokens, storageTargetTokens: DEFAULTS.reflectionsPoolTargetTokens,
+		reflectionBudget: resolveReflectionPoolBudget({ ...DEFAULTS, compactionSummaryMaxTokens: values.budget ? Number(values.budget) : undefined }, Number(values.window) || undefined),
 	}, null, 2));
 } finally {
 	db().close();
