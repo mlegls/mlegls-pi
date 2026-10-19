@@ -1,5 +1,7 @@
 # Jev reflection ranking — implementation evidence
 
+Independent first-use packet: [driver predictions, encounter and replayable checks](drive.md).
+
 Source revision: `2ec90000` (base `3344c0c3`). Nonvisual library/compaction journey; no browser or server required.
 
 ## First-use setup
