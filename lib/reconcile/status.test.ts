@@ -19,7 +19,8 @@ test("renders in-flight nodes newest first with their bb thread, what last happe
 		log: ["2026-10-19T08:00:00 landed leaf in tree", "2026-10-19T09:00:00 integration of a failed (1), sent back: conflict in x.ts", "2026-10-19T09:30:00 launched a-review-3 (review, tidy)"],
 	});
 	const done = state("old", "/repo", { finished: "done", landed: { old: { into: "/repo", head: "def", at: "2026-10-18T12:00:00.000Z" } } });
-	const md = renderStatus([s, done], { bb: { t1: { bb: "thr_one" } } });
+	const stale = state("older", "/repo", { finished: "stopped", log: ["2026-10-18T09:00:00 stopped; retired workers and handlers, kept collectors"] });
+	const md = renderStatus([s, done, stale], { bb: { t1: { bb: "thr_one" } }, now: Date.parse("2026-10-19T11:00:00Z") });
 	const lines = md.split("\n");
 	const at = (needle: string) => lines.findIndex(l => l.includes(needle));
 	expect(lines[at("**b**")]).toContain("waiting on the supervisor: blocked");
@@ -29,18 +30,19 @@ test("renders in-flight nodes newest first with their bb thread, what last happe
 	expect(at("**a**")).toBeLessThan(at("**leaf**"));
 	expect(at("## Done")).toBeGreaterThan(at("**leaf**"));
 	expect(md).toContain("- old · landed 10-18 12:00");
+	expect(md).not.toContain("older");
 });
 
-test("each state write regenerates one STATUS.md from every run into the checkout, excluded from git", () => {
+test("each state write regenerates one desk/STATUS.md from every run in the repository, excluded from git", () => {
 	const repo = realpathSync(mkdtempSync("/tmp/rc-status-"));
 	try {
 		execFileSync("git", ["-C", repo, "init", "-qb", "main"]);
 		saveState(state("first", repo, { chains: { x: { into: repo, self: false, phase: "implement", retries: {}, workers: [] } } }));
 		saveState(state("second", repo, { chains: { y: { into: repo, self: false, phase: "drive", retries: {}, workers: [] } } }));
-		const md = readFileSync(join(repo, "STATUS.md"), "utf8");
+		const md = readFileSync(join(repo, "desk/STATUS.md"), "utf8");
 		expect(md).toContain("## first");
 		expect(md).toContain("## second");
-		expect(readFileSync(join(repo, ".git/info/exclude"), "utf8")).toMatch(/^STATUS\.md$/m);
+		expect(readFileSync(join(repo, ".git/info/exclude"), "utf8")).toMatch(/^desk\/$/m);
 		expect(execFileSync("git", ["-C", repo, "status", "--porcelain"], { encoding: "utf8" })).toBe("");
 	} finally { rmSync(repo, { recursive: true, force: true }); }
 });

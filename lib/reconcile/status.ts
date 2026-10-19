@@ -1,6 +1,7 @@
-// STATUS.md at the root of a reconciler's target checkout (docs/issues/reconciler-writes-status-md.md): progress the
-// maintainer reads in bb without a supervisor turn. Regenerated whole from every run's state into that checkout on each
-// state write, so reconcilers sharing a checkout never clobber each other.
+// desk/STATUS.md at the root of a reconciler's main checkout (docs/issues/reconciler-writes-status-md.md): progress the
+// maintainer reads in bb without a supervisor turn. Regenerated whole from every run's state in that repository on each
+// state write, so reconcilers sharing a checkout never clobber each other. desk/ holds ATTENTION.md and ROLES.md too;
+// only STATUS.md is written here.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { git } from "./checks.ts";
@@ -8,6 +9,8 @@ import { bbIndex } from "../thread/registry.ts";
 import type { State } from "./reconcile.ts";
 
 const DONE_SHOWN = 10;
+/** A finished run drops out this long after it finished. */
+const DONE_KEPT_MS = 24 * 60 * 60_000;
 
 /** The log line's timestamp and text, for its newest line naming slug as itself or one of its worker handles. */
 function lastEvent(slug: string, log: string[]): { at: string; text: string } | undefined {
@@ -28,6 +31,7 @@ export interface StatusOptions {
 	bb?: Record<string, { bb: string }>;
 	/** Whether a run's process lives; unknown when omitted. */
 	alive?: (pid: number) => boolean;
+	now?: number;
 }
 
 /** Markdown for every reconciler run into one checkout. Times are UTC, as the log records them. */
@@ -35,9 +39,11 @@ export function renderStatus(states: State[], o: StatusOptions = {}): string {
 	const bb = o.bb ?? {};
 	const worker = (threadId?: string) => threadId && bb[threadId] ? "@thread:" + bb[threadId].bb : undefined;
 	const running = states.filter(s => !s.finished).sort((a, b) => (b.log?.at(-1) ?? "").localeCompare(a.log?.at(-1) ?? ""));
-	const done = states.filter(s => s.finished).map(s => ({ s, at: s.landed?.[s.root]?.at?.slice(0, 19) ?? s.log?.at(-1)?.slice(0, 19) ?? "" }))
-		.sort((a, b) => b.at.localeCompare(a.at));
-	const out: string[] = ["# Reconciler status", "", "Written by the reconcilers into this checkout; what needs the maintainer is in ATTENTION.md. Times UTC.", ""];
+	// Finished when its last log line or root landing was written (stop and done both leave one).
+	const cutoff = new Date((o.now ?? Date.now()) - DONE_KEPT_MS).toISOString().slice(0, 19);
+	const done = states.filter(s => s.finished).map(s => ({ s, at: [s.landed?.[s.root]?.at?.slice(0, 19) ?? "", s.log?.at(-1)?.slice(0, 19) ?? ""].sort().at(-1)! }))
+		.filter(d => d.at >= cutoff).sort((a, b) => b.at.localeCompare(a.at));
+	const out: string[] = ["# Reconciler status", "", "Written by the reconcilers in this repository; what needs the maintainer is in ATTENTION.md. Times UTC.", ""];
 	if (!running.length) out.push("No reconciler is running.", "");
 	for (const s of running) {
 		const stale = s.pid && o.alive && !o.alive(s.pid) ? " (reconciler not running; its state resumes on start)" : s.stopping ? " (stopping)" : "";
@@ -74,9 +80,9 @@ export function renderStatus(states: State[], o: StatusOptions = {}): string {
 const cache = new Map<string, { mtimeMs: number; state: State }>();
 const excluded = new Set<string>();
 
-/** Every run's state into cwd, from the repository's shared reconcile state directory. */
-function statesInto(cwd: string): State[] {
-	const dir = join(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "reconcile");
+/** Every run's state in the repository's shared reconcile state directory. */
+function states(commonDir: string): State[] {
+	const dir = join(commonDir, "reconcile");
 	if (!existsSync(dir)) return [];
 	const out: State[] = [];
 	for (const f of readdirSync(dir)) {
@@ -86,29 +92,31 @@ function statesInto(cwd: string): State[] {
 			const mtimeMs = statSync(file).mtimeMs;
 			let hit = cache.get(file);
 			if (!hit || hit.mtimeMs !== mtimeMs) { hit = { mtimeMs, state: JSON.parse(readFileSync(file, "utf8")) }; cache.set(file, hit); }
-			if (resolve(hit.state.cwd) === cwd) out.push(hit.state);
+			out.push(hit.state);
 		} catch {}
 	}
 	return out;
 }
 
-function ensureExcluded(cwd: string) {
-	if (excluded.has(cwd)) return;
-	const file = resolve(cwd, git(cwd, "rev-parse", "--git-path", "info/exclude"));
+function ensureExcluded(commonDir: string) {
+	if (excluded.has(commonDir)) return;
+	const file = join(commonDir, "info/exclude");
 	const text = existsSync(file) ? readFileSync(file, "utf8") : "";
-	if (!/^\/?STATUS\.md$/m.test(text)) { mkdirSync(dirname(file), { recursive: true }); appendFileSync(file, (text && !text.endsWith("\n") ? "\n" : "") + "STATUS.md\n"); }
-	excluded.add(cwd);
+	if (!/^\/?desk\/?$/m.test(text)) { mkdirSync(dirname(file), { recursive: true }); appendFileSync(file, (text && !text.endsWith("\n") ? "\n" : "") + "desk/\n"); }
+	excluded.add(commonDir);
 }
 
 const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as { code?: string }).code === "EPERM"; } };
 
-/** Regenerate cwd's STATUS.md from every run into it; writes only on change. */
+/** Regenerate desk/STATUS.md in the main checkout of cwd's repository from every run there; writes only on change. */
 export function writeStatus(cwd: string): void {
-	cwd = resolve(cwd);
 	if (!existsSync(cwd)) return;
-	ensureExcluded(cwd);
-	const text = renderStatus(statesInto(cwd), { bb: bbIndex(), alive: pidAlive });
-	const file = join(cwd, "STATUS.md");
+	const commonDir = git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir");
+	ensureExcluded(commonDir);
+	const desk = join(resolve(commonDir, ".."), "desk");
+	mkdirSync(desk, { recursive: true });
+	const text = renderStatus(states(commonDir), { bb: bbIndex(), alive: pidAlive });
+	const file = join(desk, "STATUS.md");
 	if (existsSync(file) && readFileSync(file, "utf8") === text) return;
 	writeFileSync(file, text);
 }
