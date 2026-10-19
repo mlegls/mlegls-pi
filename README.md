@@ -1,38 +1,64 @@
 # mlegls-pi
 
-Personal pi package, plus the user-level skills, worker agents and harness prompts that
-`~/.config/system-config` links into each harness.
+A personal [pi](https://github.com/earendil-works/pi) package, plus the user-level skills, worker agents and harness
+prompts that `~/.config/system-config` links into each harness (pi, Claude Code, Codex).
 
-The model's outer loop is pi's built-in `codemode`: scripts call every tool through `tools.*`,
-including the hashline `read`/`grep`/`edit` this package registers over the built-ins.
-Computer use is MCP (`cua-driver mcp`, `chrome-devtools-mcp`) reached the same way; Jev
-decisions are codemode's built-in `models.classify` (`lib/decide.ts` for code outside pi).
+## Layout
+
+**pi package** (entrypoints listed explicitly in `package.json` under `pi`):
 
 - `extensions/system-prompt`: the short system prompt.
-- `extensions/workspace`: switch a session's workspace.
-- `extensions/context`: observational memory (`om/`, vendored from pi-observational-memory, its ledger in the records store as schema `om`) and context policy on top of it (the worker fence).
-- `extensions/stances`: `stance/<agent>` virtual models routing by each agent's model list and `allocation.json`.
-- `extensions/supervision`: `dispatch`, `integrate`, `retire` tools and `/jump`.
-- `extensions/hashline`: anchored `read`/`grep`/`edit` over the built-ins (`lib/outline-read`).
-- `lib/dispatch.ts`, `lib/wm.ts`: launch ready waves of `wm` workers (bb threads: a worktree and a pi run by bb).
-- `lib/reconcile`: the execution-tree reconciler behind the `reconcile` tools (`docs/issues/reconcile-the-execution-tree-with-lazy-exception-handlers.md`).
-- `extensions/obsidian-tracker`: the Obsidian tracker view; `dist/` is symlinked into the vault's plugins.
+- `extensions/fragment`: `read`/`grep`/`edit` over pi's built-ins, with outlines for large files and edits addressed by quoting. `extensions/hashline` is the anchor-addressed alternative; enable one of the two.
+- `extensions/workspace`: move a session to another workspace.
+- `extensions/bb`: pi's session commands and notices when bb runs pi in RPC mode.
+- `extensions/context`: observational memory (`om/`, vendored from pi-observational-memory), journal, recall and context policy.
+- `extensions/stances`: `stance/<agent>` virtual models, routed by each agent's model list and `allocation.json`.
+- `extensions/supervision`: the `dispatch`, `integrate`, `retire` tools and `/jump`.
+- `extensions/guard`: refuses host-wide pattern kills and git-hook bypasses.
+- `extensions/error-images`: strips images from errored tool results.
+- `lib/session-meta/host.ts`: session metadata host extension.
+- `skills/enabled/pi/{pi,mlegls-pi}`, `prompts/`, `themes/`: package skills, prompts and themes.
 
-The prototype this replaces (exec cells, the bash outer loop, the `ab` program, supervise
-loop, memory log) is tagged `prototype`.
+**Libraries** (`lib/`):
+
+- `dispatch.ts`, `wm.ts`, `thread/`: launch and track `wm` workers (bb threads: a worktree and a pi run by bb).
+- `reconcile/`: the execution-tree reconciler behind the `reconcile` tools.
+- `tracker*.ts`, `records/`, `outline-read/`, `allocation.ts`, `decide.ts` (Jev decisions outside pi), `desk.ts` and the rest.
+
+**Linked into harnesses**:
+
+- `skills/enabled/{all,claude,codex,pi}`: user skills, by harness.
+- `agents/`: worker agent definitions (`agents/roles/` for reconciler phases).
+- `agent-prompts/`: shared harness prompts.
+
+**Other**:
+
+- `bin/`: `bb-pi` (pi as bb's Pi provider), `heavy` (host-wide queue for heavy work), `ab desk` / `desk`.
+- `bb/tracker`: a bb plugin with Issues and Campaigns pages over the tracker.
+- `extensions/obsidian-tracker`: the Obsidian tracker view; its `dist/` is symlinked into the vault's plugins.
+- `docs/issues/`: the tracker. `docs/guide/` and the other `docs/*.md`: how-tos and design notes.
+- `routing.md`, `allocation.json`: model catalog, stance definitions and delegated capacity.
+
+## Setup
+
+```sh
+bun run setup        # or: mise run setup
+```
+
+Install the package into pi from this checkout, and let `~/.config/system-config` link the skills, agents and
+prompts. After changing extension code, `/reload` or restart pi.
+
+Keep `package.json` valid JSON: if pi cannot parse the manifest it falls back to scanning all of `skills/`.
 
 ## Development
 
-`bun run setup`, then `mise run test` (queued behind the host-wide heavy slots; `bun test <file>` for one file). Tracker CLI tests run in their own package:
-`bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts`.
-
-User skills live under `skills/enabled/{all,claude,codex,pi}`, worker agents under `agents/`, and
-shared harness prompts under `agent-prompts/`. Package skills are only `skills/enabled/pi/pi`
-and `skills/enabled/pi/mlegls-pi`. Keep `package.json` valid JSON: pi falls back to scanning
-all of `skills/` if it cannot parse the manifest.
+- `mise run test`: the full suite, queued behind the host's heavy slots (needs `bin/heavy` on `PATH`).
+- `bun test <file>`: one file.
+- `bun run typecheck`: `tsc --noEmit`.
+- Tracker CLI tests: `bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts`.
 
 ## Agent model lists
 
-Each agent file's `model:` is a list of `provider/model:effort`, most preferred first. Routing
-takes the first entry whose provider has delegated capacity left (`allocation.json`,
-`lib/allocation.ts`). The catalog and stance definitions are in `routing.md`.
+Each agent file's `model:` is a list of `provider/model:effort`, most preferred first. Routing takes the first entry
+whose provider has delegated capacity left (`allocation.json`, `lib/allocation.ts`). The catalog and stance
+definitions are in `routing.md`.
