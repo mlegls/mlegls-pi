@@ -44,23 +44,6 @@ Only observed `MERGED` metadata plus fetched Git ancestry closes carried nodes, 
 
 ## Rehearsal and evidence
 
-For the native GitHub tracker (not the earlier separate-vault fixture), use the [owned native-issue controller](../attachments/rehearse-github-tracked-reconcile/index.md):
+[Native GitHub tracker evidence](../attachments/rehearse-github-tracked-reconcile/index.md), [combined join evidence](../attachments/land-reconciled-trees-through-pull-requests/index.md) and [owned live PR rehearsal](../attachments/rehearse-reconciled-github-pr-landings/index.md) record the 2026-10-14 scratch runs. Their one-off controllers use the retired board runtime; replay them at their recorded revisions, not current HEAD.
 
-```sh
-bun docs/attachments/rehearse-github-tracked-reconcile/inspect.ts # read-only prepared native story
-bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts run # fresh live seed, ~15 min; works on a repository of any size
-# Inspect or clean only the directory printed by the live controller:
-bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts status OWNED_DIRECTORY
-bun docs/attachments/rehearse-github-tracked-reconcile/journey.ts cleanup OWNED_DIRECTORY
-```
-
-It requires existing `gh` authentication as mlegls and mutates only the explicitly authorized private scratch repository. It commits the canonical GitHub convention, seeds native issues/relations, waits for real setup/gates/Actions, and launches deterministic shell phases through the production thread path. The controller and each worker use the committed tracker CLI pin, carried across BB's daemon environment in `.wm/launch.env`. It preserves artifact commits and the supplied repository; the manifest lists retained local state and any new labels. No credentials or new permissions are provisioned. The run includes two injected GitHub rate-limit holds (a recorded-reset-file cut, never the real account) in the middle of production `run()`: it observes the reconciler hold without owner mail, a worker's tracker CLI fail fast, and a pending report replayed once after the reset. Snapshot accounting is per logical refresh: one `TrackerSnapshot` plus `TrackerIssues` cursor pages, so a repository past 100 issues costs two requests per refresh, not one; `capture.ts OUTDIR AREA` writes the per-refresh evidence.
-
-[Combined join evidence](../attachments/land-reconciled-trees-through-pull-requests/index.md) and [owned live rehearsal](../attachments/rehearse-reconciled-github-pr-landings/index.md):
-
-```sh
-bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-merge
-bun docs/attachments/rehearse-reconciled-github-pr-landings/journey.ts pr-review
-```
-
-These commands mutate **only the explicitly supplied disposable scratch repo**, with isolated local tracker/registry state and deterministic shell workers. They are not a production-project launcher. The first command was driven through real Actions repair, merge, target closure and owner ff. The second pauses after live COMMENTED repair; resume it and merge from a separate operator shell to complete. In this 2026-10-14 scratch rehearsal the maintainer authorized same-account external merge and accepted approval/changes-requested policy on explicitly seeded evidence. Live target closure and zero reconciler merge requests were observed.
+For current bb coordination, see the [live local reconcile encounter](../attachments/move-coordination-off-the-board/index.md). New PR rehearsals need an owned scratch repository, existing `gh` authentication and bb thread IDs, using the current CLI above.
