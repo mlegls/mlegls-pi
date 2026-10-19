@@ -3,8 +3,6 @@ stage: "ticket"
 assignee: "agent"
 author: "session:01a15212-f5c4-72f9-98e1-e4e2ab51097c"
 part-of: "[[projects/mlegls-pi/issues/replace-the-board-with-bb-mail]]"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/drop-reconciler-worker-notices-in-a-bb-plugin]]"
 ---
 The reconciler, wm, dispatch and session tools coordinate through bb and `desk/` instead of the board, then the board is deleted.
 

@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:01a15212-f5c4-72f9-98e1-e4e2ab51097c"
 part-of: "[[projects/mlegls-pi/issues/replace-the-board-with-bb-mail]]"
@@ -17,3 +17,36 @@ Done:
 - Live: an ordinary child's notice and the reconciler's own tell still reach the real model.
 - The next real model request after a dropped notice carries no trace of it.
 - `bb/reconciler-notices` is gone from the branch. When bb#3792 is fixed, the stand-in can give way to returning `handled`; note that in the code.
+
+## Result
+
+done
+
+```yaml
+commit: fb93fc5d
+stories:
+  - story: Owned completion settles idle without provider call or error
+    outcome: held
+  - story: Child status and parent link remain intact
+    outcome: held
+  - story: Ordinary completion and reconciler-style tell reach real model
+    outcome: held
+  - story: Next real request excludes owned notice and local reply
+    outcome: held
+  - story: Plugin removal and future-handled code comment
+    outcome: held
+evidence:
+  path: docs/attachments/drop-reconciler-worker-notices-in-a-bb-plugin/drive-b.md
+  visual: false
+  shots: []
+tests: []
+fixed:
+  - b71ea770 stops the input handler swapping the model when a notice is queued into a running turn
+caveats:
+  - The mid-turn guard (`event.streamingBehavior`) was not re-driven live. The driven path, an idle supervisor, is unchanged because `streamingBehavior` is undefined when idle. It was checked against pi's `agent-session.js` source, where the input hook also fires for steer and follow-up messages while streaming. Without the guard such a notice would have moved the running turn onto the stand-in model. With it, that notice goes to the real model.
+  - Stand-in cost is zero. The local turn makes no provider call and no tool call, and it records zero usage. It does add one `bb-notice-model` session entry and two model changes per owned notice.
+  - The `bb/reconciler-notices` plugin is not on the base or the branch. I checked this in git, and the only remaining match is the file name `extensions/bb/reconciler-notices.ts`. The stand-in's code comment names bb#3792 and says to switch to `handled` once it is fixed.
+  - The driver filed no frictions, so nothing in the tracker needed settling.
+```
+
+Evidence: [docs/attachments/drop-reconciler-worker-notices-in-a-bb-plugin/drive-b.md](docs/attachments/drop-reconciler-worker-notices-in-a-bb-plugin/drive-b.md)
