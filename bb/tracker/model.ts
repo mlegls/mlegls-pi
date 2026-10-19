@@ -77,8 +77,8 @@ export interface CampaignView {
 	landedThisWeek: number;
 	/** Last date a member's stage changed, within the history window. */
 	moved: string | null;
-	/** Members that reached done in each of the last WEEKS weeks, oldest first. */
-	weekly: number[];
+	/** Members' stage changes on main in the last WEEKS weeks, oldest first. */
+	activity: Activity[];
 	inFlight: InFlight[];
 }
 export interface PromiseView { key: string; text: string; level: Level; note: string }
@@ -94,9 +94,30 @@ export interface Campaigns {
 	/** Open issues no campaign tracks whose parent isn't open either. */
 	loose: string[];
 	exceptions: ReconcilerException[];
-	/** Whether history (weekly, moved, landed) is computed yet; the first read of a long log runs in the background. */
+	/** Whether history (activity, moved, landed) is computed yet; the first read of a long log runs in the background. */
 	history: boolean;
 	facts: { at: number | null; error: string | null; command: string | null };
+	/** The commits activity cites, by full hash. */
+	commits: Record<string, CommitInfo>;
+	/** Prefix a full hash to link a commit (GitHub origins), or null. */
+	commitUrl: string | null;
+	/** Largest day and week totals of any campaign, so every chart shares one scale. */
+	scale: { day: number; week: number };
 }
+/** A stage change of a tracked issue: reaching done, becoming a goal, spec or ticket, or being filed as an idea. */
+export type ActivityKind = "done" | "settled" | "idea";
+export interface Activity { date: string; slug: string; kind: ActivityKind; commit: string }
+export interface CommitInfo { subject: string; date: string; pushed: boolean }
+export const kindOf = (stage: string): ActivityKind | null =>
+	stage === "done" ? "done" : stage === "idea" ? "idea" : ["goal", "spec", "ticket"].includes(stage) ? "settled" : null;
 export const WEEKS = 12;
+const DAY_MS = 86_400_000;
+/** Midnight UTC of the Monday starting the chart's first week: WEEKS weeks ending with the current one. */
+export function chartStart(now = Date.now()): number {
+	const today = Math.floor(now / DAY_MS) * DAY_MS;
+	const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY_MS;
+	return monday - (WEEKS - 1) * 7 * DAY_MS;
+}
+/** Week column (0 = oldest) of a YYYY-MM-DD date; negative before the chart. */
+export const weekIndex = (date: string, now = Date.now()) => Math.floor((Date.parse(date) - chartStart(now)) / (7 * DAY_MS));
 export const slugify = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

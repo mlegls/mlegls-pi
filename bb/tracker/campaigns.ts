@@ -5,7 +5,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { slugify, WEEKS, type Bar, type CampaignView, type Campaigns, type DepartmentView, type InFlight, type Issue, type Level, type PromiseView, type ReconcilerException, type Snapshot } from "./model";
+import { chartStart, kindOf, slugify, weekIndex, WEEKS, type Activity, type Bar, type CampaignView, type Campaigns, type DepartmentView, type InFlight, type Issue, type Level, type PromiseView, type ReconcilerException, type Snapshot } from "./model";
 
 const run = promisify(execFile);
 const DAY = 86_400_000;
@@ -49,9 +49,9 @@ export function parseDepartments(text: string): Parsed {
 
 // ---- stage history from git, extended incrementally per HEAD
 
-interface Change { date: string; slug: string; stage: string }
+interface Change { date: string; slug: string; stage: string; commit: string }
 /** last: each issue's latest stage seen, so a file restored, moved or requoted isn't read as a change. */
-interface History { head: string; since: string; changes: Change[]; last: Map<string, string> }
+interface History { head: string; since: string; changes: Change[]; last: Map<string, string>; subjects: Map<string, string> }
 const histories = new Map<string, History>();
 const pending = new Map<string, Promise<History>>();
 
@@ -61,13 +61,13 @@ function git(root: string, ...args: string[]): string {
 
 /** Stage lines each commit on the first-parent line wrote (a merge as its net change), oldest first: per issue, the
  * stage it removed (if any) and the one it added. Branch commits would replay a branch's own restores as regressions. */
-async function readStages(root: string, range: string[]): Promise<{ date: string; slug: string; from: string | null; to: string }[]> {
-	const { stdout } = await run("git", ["-C", root, "log", "--first-parent", "--diff-merges=first-parent", ...range, "--format=%x01%cs", "-p", "--unified=0", "-G^stage:", "--", "docs/issues"], { maxBuffer: 256 * 1024 * 1024, timeout: 120_000 });
-	const out: { date: string; slug: string; from: string | null; to: string }[] = [];
+async function readStages(root: string, range: string[]): Promise<{ date: string; commit: string; subject: string; slug: string; from: string | null; to: string }[]> {
+	const { stdout } = await run("git", ["-C", root, "log", "--first-parent", "--diff-merges=first-parent", ...range, "--format=%x01%H%x1f%cs%x1f%s", "-p", "--unified=0", "-G^stage:", "--", "docs/issues"], { maxBuffer: 256 * 1024 * 1024, timeout: 120_000 });
+	const out: { date: string; commit: string; subject: string; slug: string; from: string | null; to: string }[] = [];
 	const stageOf = (line: string) => line.replace(/^[+-]stage:\s*"?([^"\s]*).*$/, "$1");
 	const slugOf = (line: string) => line.slice(4).replace(/^[ab]\//, "").split("/").pop()?.replace(/\.md$/, "") ?? "";
 	for (const commit of stdout.split("\x01").slice(1).reverse()) {
-		const date = commit.slice(0, 10);
+		const [commitHash = "", date = "", subject = ""] = commit.slice(0, commit.indexOf("\n")).split("\x1f");
 		const from = new Map<string, string>();
 		const to = new Map<string, string>();
 		let minus = "";
@@ -78,7 +78,7 @@ async function readStages(root: string, range: string[]): Promise<{ date: string
 			else if (line.startsWith("-stage:") && minus) from.set(minus, stageOf(line));
 			else if (line.startsWith("+stage:") && plus) to.set(plus, stageOf(line));
 		}
-		for (const [slug, stage] of to) out.push({ date, slug, from: from.get(slug) ?? null, to: stage });
+		for (const [slug, stage] of to) out.push({ date, commit: commitHash, subject, slug, from: from.get(slug) ?? null, to: stage });
 	}
 	return out;
 }
@@ -89,18 +89,22 @@ export function history(root: string): Change[] | null {
 	const known = histories.get(root);
 	if (known?.head === head) return known.changes;
 	if (!pending.has(root)) {
-		const since = new Date(Date.now() - WEEKS * 7 * DAY).toISOString().slice(0, 10);
+		const since = new Date(chartStart()).toISOString().slice(0, 10);
 		const incremental = known && known.since <= since && git(root, "merge-base", "--is-ancestor", known.head, head) === "" ? known : null;
 		const job = readStages(root, incremental ? [known!.head + ".." + head] : ["--since=" + since])
 			.then((stages) => {
 				const last = new Map(incremental?.last ?? []);
+				const subjects = new Map(incremental?.subjects ?? []);
 				const fresh: Change[] = [];
 				for (const s of stages) {
-					if (s.to !== (last.get(s.slug) ?? s.from)) fresh.push({ date: s.date, slug: s.slug, stage: s.to });
+					if (s.to !== (last.get(s.slug) ?? s.from)) {
+						fresh.push({ date: s.date, slug: s.slug, stage: s.to, commit: s.commit });
+						subjects.set(s.commit, s.subject);
+					}
 					last.set(s.slug, s.to);
 				}
 				const changes = [...(incremental?.changes ?? []), ...fresh].filter((c) => c.date >= since);
-				const h = { head, since: incremental?.since ?? since, changes, last };
+				const h = { head, since: incremental?.since ?? since, changes, last, subjects };
 				histories.set(root, h);
 				return h;
 			})
@@ -111,6 +115,22 @@ export function history(root: string): Change[] | null {
 	return known?.changes ?? null;
 }
 export const historyReady = (root: string) => pending.get(root);
+
+/** Commit subjects, whether each is on origin/main yet, and a web link prefix for GitHub origins. */
+export function commitLinks(root: string, hashes: Iterable<string>): { commits: Campaigns["commits"]; commitUrl: string | null } {
+	const subjects = histories.get(root)?.subjects ?? new Map<string, string>();
+	let unpushed = new Set<string>();
+	try { unpushed = new Set(git(root, "rev-list", "origin/main..HEAD").split("\n").filter(Boolean)); } catch {}
+	const dates = new Map((histories.get(root)?.changes ?? []).map((c) => [c.commit, c.date]));
+	const commits: Campaigns["commits"] = {};
+	for (const h of hashes) commits[h] = { subject: subjects.get(h) ?? "", date: dates.get(h) ?? "", pushed: !unpushed.has(h) };
+	let commitUrl: string | null = null;
+	try {
+		const m = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/.exec(git(root, "remote", "get-url", "origin"));
+		if (m) commitUrl = "https://github.com/" + m[1] + "/" + m[2] + "/commit/";
+	} catch {}
+	return { commits, commitUrl };
+}
 
 // ---- reconcilers in flight
 
@@ -191,6 +211,8 @@ export function rollup(snap: Snapshot, parsed: Parsed | null, changes: Change[] 
 		if (c.stage === "done") doneOn.set(c.slug, c.date);
 	}
 	const covered = new Set<string>();
+	const cited = new Set<string>();
+	const scale = { day: 1, week: 1 };
 
 	const departments: DepartmentView[] = (parsed?.departments ?? []).map((d) => {
 		const dkey = slugify(d.name);
@@ -209,7 +231,6 @@ export function rollup(snap: Snapshot, parsed: Parsed | null, changes: Change[] 
 			for (const r of roots) subtree(r, members);
 			for (const m of members) covered.add(m);
 			const counts = { done: 0, settled: 0, idea: 0 };
-			const weekly = Array.from({ length: WEEKS }, () => 0);
 			let moved: string | null = null;
 			let landedThisWeek = 0;
 			for (const slug of members) {
@@ -220,18 +241,28 @@ export function rollup(snap: Snapshot, parsed: Parsed | null, changes: Change[] 
 				const last = lastChange.get(slug);
 				if (last && (!moved || last > moved)) moved = last;
 				const done = isDone(i) ? doneOn.get(slug) : undefined;
-				if (done) {
-					const week = Math.floor((now - Date.parse(done)) / (7 * DAY));
-					if (week < WEEKS) weekly[WEEKS - 1 - week]++;
-					if (done >= weekAgo) landedThisWeek++;
-				}
+				if (done && done >= weekAgo) landedThisWeek++;
 			}
+			const activity: Activity[] = (changes ?? []).flatMap((ch) => {
+				const kind = members.has(ch.slug) ? kindOf(ch.stage) : null;
+				return kind ? [{ date: ch.date, slug: ch.slug, kind, commit: ch.commit }] : [];
+			});
+			const perDay = new Map<string, number>();
+			const perWeek = new Map<number, number>();
+			for (const a of activity) {
+				perDay.set(a.date, (perDay.get(a.date) ?? 0) + 1);
+				const week = weekIndex(a.date);
+				perWeek.set(week, (perWeek.get(week) ?? 0) + 1);
+				cited.add(a.commit);
+			}
+			scale.day = Math.max(scale.day, ...perDay.values());
+			scale.week = Math.max(scale.week, ...perWeek.values());
 			const met = c.bars.filter((b) => b.met).length;
 			return {
 				key: dkey + "/" + slugify(c.title), rank: n + 1, title: c.title, outcome: c.outcome, bars: c.bars,
 				state: !c.bars.length ? "ongoing" : met === c.bars.length ? "done" : met + " of " + c.bars.length + " bars met",
 				roots, members: [...members].sort(), missing: c.tracks.filter((s) => !bySlug.has(s)),
-				counts, landedThisWeek, moved, weekly,
+				counts, landedThisWeek, moved, activity,
 				inFlight: [...members].flatMap((s) => (flight.inFlight.has(s) ? [flight.inFlight.get(s)!] : [])),
 			};
 		});
@@ -244,6 +275,7 @@ export function rollup(snap: Snapshot, parsed: Parsed | null, changes: Change[] 
 		root: snap.root, repo: snap.repo, file: parsed ? DEPARTMENTS : null, at: now, departments, loose,
 		exceptions: flight.exceptions, history: changes !== null,
 		facts: { at: f.at, error: f.error, command },
+		...commitLinks(snap.root, cited), scale,
 	};
 }
 

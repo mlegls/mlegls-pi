@@ -6,7 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useBbNavigate, useRealtime, useRealtimeConnectionState, useRpc } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
-import { CAMPAIGN_MENTION, CHANGED, WEEKS, title, type CampaignView, type Campaigns, type DepartmentView, type Level } from "./model";
+import { toast } from "sonner";
+import { CAMPAIGN_MENTION, CHANGED, chartStart, weekIndex, WEEKS, title, type Activity, type ActivityKind, type CampaignView, type Campaigns, type CommitInfo, type DepartmentView, type Level } from "./model";
 import { DiscussDialog, Empty, useProject, type Target } from "./shared";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -65,17 +66,119 @@ function Split({ counts }: { counts: CampaignView["counts"] }) {
 	);
 }
 
-/** Issues that reached done each week, oldest first. */
-function Weekly({ weekly }: { weekly: number[] }) {
-	const max = Math.max(1, ...weekly);
+const KIND: Record<ActivityKind, { bar: string; dot: string; label: string }> = {
+	done: { bar: "bg-emerald-500", dot: "bg-emerald-500", label: "done" },
+	settled: { bar: "bg-sky-500", dot: "bg-sky-500", label: "goal, spec or ticket" },
+	idea: { bar: "bg-zinc-400", dot: "bg-zinc-400", label: "new idea" },
+};
+const KINDS: ActivityKind[] = ["done", "settled", "idea"];
+const DAY_MS = 86_400_000;
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/** Stage changes per week as stacked bars on the page's shared scale; hovering opens the day grid. */
+function ActivityChart({ c, view, openIssue }: { c: CampaignView; view: Campaigns; openIssue: (slug: string) => void }) {
+	const [open, setOpen] = useState(false);
+	const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const weeks = Array.from({ length: WEEKS }, () => ({ done: 0, settled: 0, idea: 0 }));
+	for (const a of c.activity) { const w = weekIndex(a.date); if (w >= 0 && w < WEEKS) weeks[w][a.kind]++; }
+	const enter = () => { clearTimeout(timer.current); setOpen(true); };
+	const leave = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 200); };
+	useEffect(() => () => clearTimeout(timer.current), []);
 	return (
-		<div className="flex h-6 items-end gap-px" title={"Done per week, last " + WEEKS + " weeks: " + weekly.join(", ")}>
-			{weekly.map((n, i) => <div key={i} className={cn("w-1.5 rounded-sm", n ? "bg-emerald-500/80" : "bg-muted")} style={{ height: Math.max(2, (n / max) * 24) + "px" }} />)}
+		<div className="relative" onMouseEnter={enter} onMouseLeave={leave}>
+			<div className="flex h-7 cursor-default items-end gap-px" aria-label="Stage changes per week">
+				{weeks.map((w, i) => (
+					<div key={i} className="flex w-1.5 flex-col-reverse overflow-hidden rounded-sm bg-muted" style={{ height: "28px" }}>
+						{KINDS.map((k) => w[k] ? <div key={k} className={KIND[k].bar} style={{ height: (w[k] / view.scale.week) * 28 + "px" }} /> : null)}
+					</div>
+				))}
+			</div>
+			{open ? <DayGrid c={c} view={view} openIssue={openIssue} /> : null}
 		</div>
 	);
 }
 
-function CampaignCard({ c, history, onDiscuss, openIssue, openThread }: { c: CampaignView; history: boolean; onDiscuss: () => void; openIssue: (slug: string) => void; openThread: (id: string) => void }) {
+/** GitHub-style grid of the last WEEKS weeks by day; a day lists its stage changes by commit. */
+function DayGrid({ c, view, openIssue }: { c: CampaignView; view: Campaigns; openIssue: (slug: string) => void }) {
+	const start = chartStart();
+	const today = isoDay(Date.now());
+	const byDay = new Map<string, Activity[]>();
+	for (const a of c.activity) byDay.set(a.date, [...(byDay.get(a.date) ?? []), a]);
+	const latest = [...byDay.keys()].sort().at(-1) ?? null;
+	const [pinned, setPinned] = useState<string | null>(null);
+	const [hover, setHover] = useState<string | null>(null);
+	const day = hover ?? pinned ?? latest;
+	const cell = (date: string) => {
+		const list = byDay.get(date) ?? [];
+		if (date > today) return "bg-transparent";
+		if (!list.length) return "bg-muted";
+		const kind = KINDS.find((k) => list.some((a) => a.kind === k)) ?? "idea";
+		const level = Math.min(4, Math.ceil((list.length / view.scale.day) * 4));
+		return cn(KIND[kind].bar, ["", "opacity-40", "opacity-60", "opacity-80", "opacity-100"][level]);
+	};
+	const items = day ? byDay.get(day) ?? [] : [];
+	const commits = [...new Set(items.map((a) => a.commit))];
+	const months = Array.from({ length: WEEKS }, (_, w) => {
+		const d = new Date(start + w * 7 * DAY_MS);
+		return d.getUTCDate() <= 7 ? d.toLocaleString(undefined, { month: "short", timeZone: "UTC" }) : "";
+	});
+	return (
+		<div className="absolute right-0 top-full z-30 mt-1 flex w-[26rem] flex-col gap-2 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
+			<div className="flex items-center gap-3 text-xs text-muted-foreground">
+				<span className="flex-1">Stage changes on main, last {WEEKS} weeks</span>
+				{KINDS.map((k) => <span key={k} className="flex items-center gap-1"><span className={cn("size-2 rounded-sm", KIND[k].dot)} />{KIND[k].label}</span>)}
+			</div>
+			<div className="flex gap-1">
+				<div className="mt-4 grid grid-rows-7 gap-[3px] pr-1 text-[9px] leading-[13px] text-muted-foreground">
+					{["Mon", "", "Wed", "", "Fri", "", ""].map((d, i) => <span key={i}>{d}</span>)}
+				</div>
+				<div className="flex flex-col gap-1">
+					<div className="flex gap-[3px] text-[9px] leading-3 text-muted-foreground">{months.map((m, i) => <span key={i} className="w-[13px] overflow-visible whitespace-nowrap">{m}</span>)}</div>
+					<div className="grid grid-flow-col grid-rows-7 gap-[3px]" onMouseLeave={() => setHover(null)}>
+						{Array.from({ length: WEEKS * 7 }, (_, i) => {
+							const date = isoDay(start + i * DAY_MS);
+							const n = byDay.get(date)?.length ?? 0;
+							return (
+								<button key={date} type="button" disabled={date > today} title={date + ": " + n + " stage change" + (n === 1 ? "" : "s")}
+									onMouseEnter={() => setHover(date)} onClick={() => setPinned((p) => (p === date ? null : date))}
+									className={cn("size-[13px] rounded-[3px]", cell(date), date === day && "ring-2 ring-foreground/60")} />
+							);
+						})}
+					</div>
+				</div>
+			</div>
+			<div className="border-t border-border pt-2 text-sm">
+				{!day ? <div className="text-xs text-muted-foreground">No stage changes in {WEEKS} weeks.</div> : (
+					<>
+						<div className="mb-1 text-xs text-muted-foreground">{new Date(day + "T00:00:00Z").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })} · {items.length} change{items.length === 1 ? "" : "s"}{pinned === day ? " · pinned" : ""}</div>
+						<div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+							{commits.map((h) => <CommitGroup key={h} hash={h} info={view.commits[h]} url={view.commitUrl} items={items.filter((a) => a.commit === h)} openIssue={openIssue} />)}
+						</div>
+					</>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function CommitGroup({ hash, info, url, items, openIssue }: { hash: string; info?: CommitInfo; url: string | null; items: Activity[]; openIssue: (slug: string) => void }) {
+	const short = hash.slice(0, 8);
+	const label = <><code className="text-[11px]">{short}</code> <span className="truncate">{info?.subject || "commit"}</span></>;
+	return (
+		<div className="flex flex-col">
+			{url && info?.pushed
+				? <a href={url + hash} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1 rounded px-1 text-xs text-muted-foreground hover:bg-state-hover hover:text-foreground" title="Open on GitHub">{label}<Icon name="ExternalLink" className="size-3 shrink-0" /></a>
+				: <button type="button" className="flex min-w-0 items-center gap-1 rounded px-1 text-left text-xs text-muted-foreground hover:bg-state-hover hover:text-foreground" title={url ? "Not on GitHub yet; copy the hash" : "Copy the hash"} onClick={() => { void navigator.clipboard.writeText(hash); toast.success("Copied " + short); }}>{label}<Icon name="Copy" className="size-3 shrink-0" /></button>}
+			{items.map((a) => (
+				<button key={a.slug + a.kind} type="button" onClick={() => openIssue(a.slug)} className="flex min-w-0 items-center gap-1.5 rounded py-0.5 pl-4 pr-1 text-left hover:bg-state-hover">
+					<span className={cn("size-2 shrink-0 rounded-full", KIND[a.kind].dot)} /><span className="truncate">{title(a.slug)}</span>
+				</button>
+			))}
+		</div>
+	);
+}
+
+function CampaignCard({ c, view, history, onDiscuss, openIssue, openThread }: { c: CampaignView; view: Campaigns; history: boolean; onDiscuss: () => void; openIssue: (slug: string) => void; openThread: (id: string) => void }) {
 	const [open, setOpen] = useState(false);
 	const met = c.bars.filter((b) => b.met).length;
 	const done = c.state === "done";
@@ -106,7 +209,7 @@ function CampaignCard({ c, history, onDiscuss, openIssue, openThread }: { c: Cam
 						{c.landedThisWeek ? <span className="font-medium text-foreground">· {c.landedThisWeek} landed this week</span> : null}
 					</div>
 				</div>
-				{history ? <Weekly weekly={c.weekly} /> : null}
+				{history ? <ActivityChart c={c} view={view} openIssue={openIssue} /> : null}
 			</div>
 			{c.inFlight.length ? (
 				<div className="ml-7 flex flex-wrap gap-1.5">
@@ -138,7 +241,7 @@ function Members({ c, openIssue }: { c: CampaignView; openIssue: (slug: string) 
 	);
 }
 
-function Department({ d, history, discuss, openIssue, openThread }: { d: DepartmentView; history: boolean; discuss: (t: Target, heading: string) => void; openIssue: (slug: string) => void; openThread: (id: string) => void }) {
+function Department({ d, view, history, discuss, openIssue, openThread }: { d: DepartmentView; view: Campaigns; history: boolean; discuss: (t: Target, heading: string) => void; openIssue: (slug: string) => void; openThread: (id: string) => void }) {
 	const target = (kind: string, key: string, label: string): Target => ({ provider: CAMPAIGN_MENTION, id: kind + ":" + key, label });
 	return (
 		<section className="flex flex-col gap-3">
@@ -167,7 +270,7 @@ function Department({ d, history, discuss, openIssue, openThread }: { d: Departm
 			{d.notes.length ? <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">{d.notes.map((n, i) => <div key={i}>{n}</div>)}</div> : null}
 			<div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(22rem,1fr))]">
 				{d.campaigns.map((c) => (
-					<CampaignCard key={c.key} c={c} history={history} openIssue={openIssue} openThread={openThread} onDiscuss={() => discuss(target("campaign", c.key, c.title), "Discuss " + c.title)} />
+					<CampaignCard key={c.key} c={c} view={view} history={history} openIssue={openIssue} openThread={openThread} onDiscuss={() => discuss(target("campaign", c.key, c.title), "Discuss " + c.title)} />
 				))}
 			</div>
 		</section>
@@ -202,7 +305,7 @@ export function CampaignsPage({ subPath }: { subPath: string }) {
 					))}
 				</div>
 			) : null}
-			{view.departments.map((d) => <Department key={d.key} d={d} history={view.history} discuss={about} openIssue={openIssue} openThread={openThread} />)}
+			{view.departments.map((d) => <Department key={d.key} d={d} view={view} history={view.history} discuss={about} openIssue={openIssue} openThread={openThread} />)}
 			<section className="flex flex-col gap-2">
 				<div className="flex items-center gap-2 border-b border-border pb-1.5">
 					<h2 className="flex-1 text-base font-semibold">Not in any campaign <span className="text-sm font-normal text-muted-foreground tabular-nums">{view.loose.length}</span></h2>
