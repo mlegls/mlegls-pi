@@ -22,3 +22,7 @@ Ownership: no current mlegls-pi source sets this. The bad state lives in a long-
 Open follow-ups, unowned: (a) the daemon also carries API keys and proxy variables from that old shell, and launch_app hands them to every app it starts. Asking upstream for launch_app to use a clean environment would cover both. (b) Native-setup guidance could say that apps started by launch_app inherit the daemon's environment. Neither is filed.
 
 Retained evidence: /Users/mlegls/dev/games/alchemy-rogue__retired/knowledge-minds-and-forms-drive-c/.wm/friction.md (its content is summarised above, so it can go). The packet on alchemy-rogue branch knowledge-minds-and-forms-drive-c is at docs/attachments/knowledge-minds-and-forms/index.md.
+
+## Recurrence 2026-10-20 (session:01a15988-4155-717a-bb1d-bc016bba964e)
+
+While preparing alchemy-rogue knowledge-notebook-substances first use, `cua-driver launch_app` with `/tmp/knowledge-notebook-substances.command` again hit zsh-newuser-install and consumed the leading slash; Terminal reported `no such file or directory: tmp/knowledge-notebook-substances.command`. No daemon restart or shell configuration mutation attempted because the daemon is shared. The owned failed Terminal window was closed via its exact AX close button. A checkout-owned foreground tmux server running the ordinary binary provided the terminal interaction route instead; native screenshot acceptance remains for the supervised driver. Originating story: projects/alchemy-rogue/stories/learn-what-an-unknown-lot-is.
