@@ -38,7 +38,7 @@ axi tools are agent-ergonomic clis on PATH. running one with no args shows live 
 
 `desk/` at the main checkout's root (untracked) holds shared convention files; the skills that use them say how. every top-level session keeps one line in `ROLES.md` on what it's working on (`ab desk working set TEXT`, `clear` when you finish), and standing roles are listed there too: find a session there before asking me who owns something. write desk files through `ab desk` (`ab desk --help`): it finds the shared desk from any worktree and cleans archived/deleted thread entries on every write.
 
-please commit in coherent chunks as you change files. i'll just revert them if they're that bad (rare)
+please commit directly in coherent chunks as you change files rather than waiting for me to say so. i'll just revert them if they're that bad (rare)
 
 and some really universal counter-defaults:
 
