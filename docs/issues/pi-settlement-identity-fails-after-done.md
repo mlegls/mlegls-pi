@@ -2,6 +2,7 @@
 stage: "idea"
 assignee: "agent"
 author: "session:01a1590b-c4de-770e-92a3-7451f7f0155e"
+claimed-by: "session:01a1595d-3077-73bf-a6ff-1379103911af"
 ---
 A completed implementation streamed a valid done handoff, then bb marked the turn failed: `Pi extension settlement identity is missing or invalid`. A reconciler automatically requested the missing status, but that continuation was rejected with `No active Pi session`.
 
