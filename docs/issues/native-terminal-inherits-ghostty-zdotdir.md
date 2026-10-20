@@ -2,6 +2,7 @@
 stage: "idea"
 assignee: "agent"
 author: "session:01a1590b-c4de-770e-92a3-7451f7f0155e"
+claimed-by: "session:01a15939-7ce0-704f-bb90-8ad0f5d0f3ff"
 ---
 During alchemy-rogue native Terminal first-use verification, Terminal inherited ZDOTDIR pointing at bb Ghostty shell integration. Opening a .command or .terminal CommandString triggered zsh-newuser-install, consumed the first slash, then failed with `no such file or directory: Users/...` or `bin/sh`. Observed twice on 2026-10-20; manually entering the command after aborting startup worked. No shell configuration was changed.
 
