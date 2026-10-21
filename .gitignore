@@ -4,3 +4,6 @@ __pycache__/
 agent-prompts/generated/
 analysis/decision-broadcasts-read/events.json
 analysis/decision-broadcasts-read/text_occ.json
+
+# zsh history/sessions leaked into a deleted app's Ghostty ZDOTDIR (docs/issues/native-terminal-inherits-ghostty-zdotdir.md)
+apps/threads/.build/
