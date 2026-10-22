@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_nt35tbjva9"
 priority: 2
-claimed-by: "session:01a1635a-e76b-76b5-b6b3-e42652911177"
 ---
 As the maintainer running parallel BB conversations, I want changes to stay attributable to their task without commit approvals, mixed commits or another thread's dirty files blocking progress. Discussion and audit should remain cheap until they edit.
 
@@ -36,3 +35,13 @@ Out of scope: wm/reconciler worker lifecycle and [[projects/mlegls-pi/issues/han
 In a disposable repository, begin a small edit from an ordinary bb conversation while another task has unrelated dirty/staged files in its checkout. Observe the refusal before editing, the same-thread switch (bb environment and pi cwd agree), a scoped commit, `finish` integration and cleanup with the other task's files and index unchanged, and committed evidence openable after cleanup. Story: [[projects/mlegls-pi/stories/edit-in-a-task-worktree]].
 
 Related: [[projects/mlegls-pi/issues/pick-up-ready-work-from-the-tracker]]. Other efficiency-audit proposals are outside this session.
+
+## Result
+
+Done, landed on main (a06b6628, da9922a1, d1daa0f1). `extensions/task/` refuses an interactive bb session's edit or write to a trackable path in a main worktree and tells it the route to take. Ignored paths, linked worktrees and workers are exempt. To edit in place, the user runs `/edit-here` (one session) or sets `git config pi.taskWorktrees false` (one repository). `ab task start` creates the worktree and branch with the target recorded as ab-parent. It excludes the tracker, runs the project's `mise run setup` and queues a continuation to the thread. The thread then moves itself with bb's `update_environment_directory`. While the thread is in the task, a system-prompt line and bb's merge base both name the target. `ab task finish` reuses worker integration, refactored as `integrateCheckout`, under a per-repository lock. It then starts a reaper that removes the worktree, the merged branch and the bb environment once nothing runs inside. `finish --into` also lands bb-managed worktree threads; this session landed itself that way. The implement and mlegls-pi skills now say this, and the story edit-in-a-task-worktree was added.
+
+First use, in live bb on a disposable bb project: an ordinary edit request went through start, same-thread switch, automatic continuation, commit, finish (fast-forward) and move back. The reaper cleaned up after the thread's next turn. Another task's unstaged and staged files were unchanged throughout. A separate probe received the refusal verbatim. Concept declares `mise run setup`, so it needs no bb setup hook or follow-up.
+
+Remaining: the guard is on by default in every git repository under bb. Edits made from the shell aren't caught. Cleanup waits for bb to move the thread's idle pi out of the worktree.
+
+Evidence: [docs/attachments/isolate-interactive-edits-in-task-worktrees/index.md](docs/attachments/isolate-interactive-edits-in-task-worktrees/index.md)
