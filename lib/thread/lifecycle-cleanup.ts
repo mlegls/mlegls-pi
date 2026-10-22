@@ -52,7 +52,7 @@ export function disposableIgnored(path: string, worktree: string, project: strin
  * removed: a checkpointed rehearsal's authorized production export and imported database went with its worktree
  * (2026-10-16). The WIP commit covers tracked and untracked files; this covers what git ignores. Throws when it can't,
  * so the worktree stays. */
-async function keepIgnored(root: string, thread: WorkerThread, wip: string | undefined): Promise<{ path: string; entries: string[] } | undefined> {
+export async function keepIgnored(root: string, thread: WorkerThread, wip: string | undefined): Promise<{ path: string; entries: string[] } | undefined> {
 	const listed = await gitChecked(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory");
 	const declared = (await gitAttempt(thread.project, "config", "--get-all", "wm.disposable")).out.split("\n").map(s => s.trim()).filter(Boolean);
 	// git collapses an ignored directory to one entry: open .wm/ so wm's launch file alone stays disposable.

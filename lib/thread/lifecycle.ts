@@ -45,6 +45,17 @@ export async function integrateThread(id: string, options: {
 } = {}): Promise<ThreadIntegration> {
 	const thread = await workerOf(id);
 	if (!thread) throw new Error("No active worker thread: " + id);
+	return integrateCheckout(thread, id, options);
+}
+
+/** A linked worktree's branch into its recorded ab-parent's checkout: rebase onto that HEAD and fast-forward (or merge),
+ * align the destination's index and run its post-merge hook. Shared by worker integration and interactive tasks
+ * (lib/task.ts); `label` names the source in a conflict. */
+export async function integrateCheckout(thread: { cwd: string; project: string; branch: string }, label: string, options: {
+	mode?: "rebase" | "merge";
+	prepare?: () => Promise<void>;
+} = {}): Promise<ThreadIntegration> {
+	const id = label;
 	const branch = thread.branch;
 	if (await gitChecked(thread.cwd, "branch", "--show-current") !== branch)
 		throw new Error("integrate: thread branch is not checked out in " + thread.cwd);
