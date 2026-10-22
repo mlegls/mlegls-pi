@@ -147,7 +147,7 @@ export async function main(argv: string[]) {
 		const into = flag("into"), mode = flag("mode") as "rebase" | "merge" | undefined;
 		const r = await finishTask(cwd, { into, mode });
 		console.log(JSON.stringify(r, null, 1));
-		console.log("Integrated " + r.branch + " into " + r.parentBranch + " at " + r.path + ". Move back with update_environment_directory " + r.path + " and end your turn.");
+		console.log("Integrated " + r.branch + " into " + r.parentBranch + " at " + r.path + "." + (r.cleanup.startsWith("reaper") ? " Move back with update_environment_directory " + r.path + " and end your turn; the worktree is removed once this thread's pi has left it (its next turn)." : ""));
 	} else if (cmd === "status") {
 		console.log(JSON.stringify(taskOf(cwd) ?? null, null, 1));
 	} else if (cmd === "reap" && rest[0]) {
