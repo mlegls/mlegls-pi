@@ -3,6 +3,7 @@ stage: "goal"
 assignee: "agent"
 author: "session:thr_nt35tbjva9"
 priority: 2
+claimed-by: "session:01a1635a-e76b-76b5-b6b3-e42652911177"
 ---
 # Pick up ready work from the tracker without shaping-thread relays
 
