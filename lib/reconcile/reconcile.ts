@@ -285,6 +285,8 @@ const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + 
 export interface StartOptions {
 	cwd: string; root: string; owner: string; ownerSession?: string; budget: number;
 	land?: LandingMode;
+	/** Started by pickup (lib/reconcile/pickup.ts): no "started" mail; the owner hears exceptions and the finish. */
+	quiet?: boolean;
 	/** Scratch observation uses the same lifecycle, with no live GitHub calls. */
 	prHost?: PullRequestHost;
 }
@@ -1365,7 +1367,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 
 	// --- main loop -------------------------------------------------------------------------------------
-	tellOwner("started (budget " + s.budget + ")");
+	if (!o.quiet) tellOwner("started (budget " + s.budget + ")");
+	else note("started by pickup (budget " + s.budget + ")");
 	// A tick that throws is told to the owner once per distinct error and retried, never a silent exit.
 	let tickError = "";
 	for (;;) {

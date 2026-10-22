@@ -26,7 +26,7 @@ export function start(o: StartOptions): { pid: number; log: string } {
 	mkdirSync(stateDir(controlCwd), { recursive: true });
 	const log = join(stateDir(controlCwd), o.root + ".log");
 	const fd = openSync(log, "a");
-	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", controlCwd, "--land", prior.land ?? "local", ...(o.ownerSession ? ["--owner-session", o.ownerSession] : [])],
+	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", controlCwd, "--land", prior.land ?? "local", ...(o.ownerSession ? ["--owner-session", o.ownerSession] : []), ...(o.quiet ? ["--quiet"] : [])],
 		{ cwd: controlCwd, stdio: ["ignore", fd, fd], env: { ...process.env, PI_SESSION_ID: "" } });
 	child.unref();
 	closeSync(fd);
@@ -140,12 +140,12 @@ export async function constrain(cwd: string, root: string, node: string, text: s
 
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
-		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
+		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, quiet: { type: "boolean" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
 	const usage = "usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT";
 	if (values.help) { console.log(usage); process.exit(0); }
 	const [cmd, root, ...rest] = positionals;
 	const cwd = resolve(values.cwd!);
-	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"] }); }
+	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"], quiet: values.quiet }); }
 	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, budget: Number(values.budget), land: values.land as StartOptions["land"] })));
 	else if (cmd === "stop" && root) console.log(JSON.stringify(await stop(cwd, root)));
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));

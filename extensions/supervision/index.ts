@@ -11,6 +11,7 @@ import { dispatch, integrate, retire, type Assignment, type Handle } from "../..
 import { childSession } from "../../lib/session/jump";
 import { dataTool } from "../../lib/tool";
 import { campaigns, constrain, resolveException, start, stop, summary } from "../../lib/reconcile/main";
+import { configure, ensureWatcher, loadPickup, status as pickupStatus, stopPickup } from "../../lib/reconcile/pickup";
 
 const namespace = { name: "supervision", description: "Dispatch wm workers (bb threads: a worktree and a pi run by bb), integrate their branches, retire them" };
 
@@ -98,6 +99,29 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({ issue: Type.String({ description: "The reconciler's root issue" }), node: Type.String(), text: Type.String() }),
 		run: (p, ctx) => constrain(ctx.cwd, p.issue, p.node, p.text),
 	});
+	dataTool(pi, {
+		name: "pickup", namespace: reconcileNs,
+		description: "Enable or change this repository's pickup, owned by you (this bb thread): a watcher process starts a reconciler (owner: you, quiet start) on each frontier root inside `scope` once its subtree's issue files have been unchanged for `settleSeconds` (default 60), so shaping threads need not tell you. Skips: anything not on the frontier (unready, human-assigned, blocked, claimed, inflight, deferred), a child of a claimed/inflight/frontier ancestor, and a root with any reconciler state (a stopped run is restarted by hand). `scope`: root slugs (each covers its subtree) or \"project\"; required to enable, never implicit. `budget` is each run's worker cap (default 6); bb's thread limits are the only overall cap. `paused: true` stops new starts; running reconcilers continue. Another live thread's pickup is refused.",
+		parameters: Type.Object({
+			scope: Type.Optional(Type.Union([Type.Array(Type.String()), Type.Literal("project")])),
+			budget: Type.Optional(Type.Number()), settleSeconds: Type.Optional(Type.Number()), paused: Type.Optional(Type.Boolean()),
+			land: Type.Optional(Type.Union([Type.Literal("local"), Type.Literal("pr-merge"), Type.Literal("pr-review")])),
+		}),
+		run: (p, ctx) => configure({ cwd: ctx.cwd, owner: thisThread(), ownerSession: ctx.sessionManager.getSessionId(), scope: p.scope as string[] | "project" | undefined,
+			budget: p.budget, land: p.land, paused: p.paused, settle: p.settleSeconds === undefined ? undefined : p.settleSeconds * 1000 }),
+	});
+	dataTool(pi, {
+		name: "pickup_status", namespace: reconcileNs, readOnly: true,
+		description: "This repository's pickup: owner, scope, budget, paused, watcher pid, runs it started, and the last scan's skip reasons per frontier row.",
+		parameters: Type.Object({}),
+		run: (_p, ctx) => pickupStatus(ctx.cwd),
+	});
+	dataTool(pi, {
+		name: "pickup_stop", namespace: reconcileNs,
+		description: "Disable this repository's pickup and end its watcher. Reconcilers it started keep running; end one with reconcile_stop.",
+		parameters: Type.Object({}),
+		run: (_p, ctx) => stopPickup(ctx.cwd),
+	});
 	// A missing process resumes with its owner; an explicit stop owns cleanup and never auto-resumes.
 	pi.on("session_start", (_event, ctx) => {
 		try {
@@ -105,6 +129,7 @@ export default function (pi: ExtensionAPI) {
 			if (!me) return;
 			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.stopping && !s.running) start({ cwd: ctx.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget, land: s.land ?? "local" });
 		} catch {}
+		try { if (loadPickup(ctx.cwd)?.owner === process.env.BB_THREAD_ID) ensureWatcher(ctx.cwd); } catch {}
 	});
 	pi.registerCommand("jump", {
 		description: "Switch this session to a worker's session file: /jump <handle>",
