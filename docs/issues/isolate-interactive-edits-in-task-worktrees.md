@@ -1,14 +1,10 @@
 ---
-stage: "goal"
+stage: "ticket"
 assignee: "agent"
 author: "session:thr_nt35tbjva9"
 priority: 2
 claimed-by: "session:01a1635a-e76b-76b5-b6b3-e42652911177"
 ---
-# Isolate interactive edits in task worktrees and integrate when finished
-
-## Want and source
-
 As the maintainer running parallel BB conversations, I want changes to stay attributable to their task without commit approvals, mixed commits or another thread's dirty files blocking progress. Discussion and audit should remain cheap until they edit.
 
 2026-10-22, @thread:thr_nt35tbjva9: "how ergonomic is it to switch worktree from bb? the proper fix could be to do changes on worktrees and merge at the end". After discussing the approach: "ok, let's file and start a session on the fixes in mlegls-pi then".
@@ -23,12 +19,20 @@ Audit evidence: @thread:thr_2pr733sy63#msg=228 (commit permission/index races), 
 - Reuse existing setup and integration machinery. Setup should provision only what the task needs, and browser/backend work must retain checkout-owned runtime isolation. Canonical tracker writes remain global through the tracker backend.
 - Retained review artifacts/evidence must survive disposable worktree retirement.
 
-## Intended first use
+## Contract
 
-Begin a small edit from an ordinary BB conversation while another task has unrelated dirty/staged files in the source checkout. Observe isolation before editing, correct BB/cwd identity, a scoped commit, verified integration and cleanup without altering the other task's files/index. Exercise a same-thread switch or record why a supported fork is the chosen route. Confirm retained evidence remains openable after cleanup. Create or extend a maintainer story on the implementation branch with this source.
+Route: same-thread switch. The thread keeps its conversation; bb's own `update_environment_directory` moves its environment, effective next turn. (A `bb thread fork --new-environment worktree` would move the user to another thread and needs a per-repo `.bb-env-setup.sh` this machinery doesn't use.)
 
-## Scope and next work
+- **Guard** (pi extension `extensions/task/`, bb sessions that aren't wm workers): an `edit`/`write` whose target is a non-ignored path inside a git repository's main worktree is refused with the route below. Ignored paths (desk/, .wm/), linked worktrees, non-git paths and tracker writes through the backend CLI pass. Opt-outs: `git config pi.taskWorktrees false` for a repository, `/edit-here` (user command) for one session. Shell-made edits are not detected (retained limit).
+- **Start**: `ab task start <name>` from the canonical checkout makes `<project>__worktrees/<name>` on branch `<name>` from the checkout's branch HEAD, records `branch.<name>.ab-parent` (the target) and `branch.<name>.ab-task`, sparse-excludes docs/issues/ and runs the project's `mise run setup` exactly as worker worktrees do; `--join <name>` prints an existing task's path for a deliberate collaborator. The agent then calls `update_environment_directory` and ends its turn; `start` queues one message to its own bb thread so the next turn begins in the worktree without the user. Nothing uncommitted transfers.
+- **In the task**: a system-prompt line names the task, target and finish command; bb's environment merge base is set to the target. Commit coherent owned changes as you go.
+- **Finish**: `ab task finish` from the task worktree refuses uncommitted changes, then integrates through the same code path as worker integration (rebase onto the target's HEAD, fast-forward the target checkout, align its index, run its post-merge hook) under a per-repository integration lock, so concurrent finishes serialize. It never touches the target checkout's other dirty or staged files beyond what git's merge itself refuses. Then the agent moves back with `update_environment_directory`; a detached reaper waits until no process runs in the worktree, moves aside ignored state setup can't regenerate (as worker retirement does), removes the worktree, deletes the merged branch and deletes the worktree's bb environment. `ab task finish --into <branch>` also integrates a bb-managed worktree thread (records its ab-parent; bb retires its worktree on archive).
+- **Evidence** belongs in committed `docs/attachments/`, so it lands with the integration and survives retirement.
 
-Goal: inspect interactive edit entry points, setup costs, merge ownership and cleanup; refine the enforceable workflow before implementation. This is NOT permission to revive [[projects/mlegls-pi/issues/hand-worker-worktrees-to-bb]], which is human-assigned and explicitly deferred. It concerns interactive sessions, not replacing wm's reconciler-worker lifecycle. A missing Concept BB setup hook may require a separately owned Concept follow-up; do not alter Concept's canonical checkout from this work.
+Out of scope: wm/reconciler worker lifecycle and [[projects/mlegls-pi/issues/hand-worker-worktrees-to-bb]] (human-assigned, deferred). Concept's canonical checkout is not changed here.
+
+## First use
+
+In a disposable repository, begin a small edit from an ordinary bb conversation while another task has unrelated dirty/staged files in its checkout. Observe the refusal before editing, the same-thread switch (bb environment and pi cwd agree), a scoped commit, `finish` integration and cleanup with the other task's files and index unchanged, and committed evidence openable after cleanup. Story: [[projects/mlegls-pi/stories/edit-in-a-task-worktree]].
 
 Related: [[projects/mlegls-pi/issues/pick-up-ready-work-from-the-tracker]]. Other efficiency-audit proposals are outside this session.
