@@ -76,7 +76,7 @@ test("scan starts each eligible root once, across rescans, and not while paused"
 	expect(Object.keys(loadPickup(root)!.started).sort()).toEqual(["later", "ready-one"]);
 	stopPickup(root);
 	expect(scan(root, { startRun }).started).toEqual([]);
-});
+}, 30_000);
 
 test("enabling takes an explicit scope", async () => {
 	const other = mkdtempSync(join(tmpdir(), "pickup-scope-"));

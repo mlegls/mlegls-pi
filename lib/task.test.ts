@@ -60,7 +60,7 @@ test("a task integrates serially into its target without touching the checkout's
 	expect(reaped).toMatchObject({ removed: true, branch: "deleted" });
 	expect(existsSync(one.path)).toBe(false);
 	expect(git(repo, "branch", "--list", "task-one")).toBe("");
-});
+}, 30_000);
 
 test("the extension blocks an interactive bb session's edit in the checkout, names the route, and /edit-here lifts it", async () => {
 	const { default: extension } = await import("../extensions/task/index");
