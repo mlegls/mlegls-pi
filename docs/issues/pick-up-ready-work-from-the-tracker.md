@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_nt35tbjva9"
 priority: 2
-claimed-by: "session:01a1635a-e76b-76b5-b6b3-e42652911177"
 ---
 As the maintainer, I want a general project supervisor to discover newly ready work without my reminding shaping threads to tell it. Story: [[projects/mlegls-pi/stories/steer-issues-from-bb]].
 
@@ -36,3 +35,13 @@ Status shows config, watcher liveness, the last scan, recorded starts and per-ca
 Enable pickup for an isolated scratch scope in a disposable repository, make a previously unready tree ready through a tracker write, and observe exactly one reconciler start without any shaping-thread mail. Blocked, human-assigned, claimed and incomplete subtrees remain untouched. Restart the watcher and repeat the write notification without duplicate starts. Capture evidence and retained limitations under `docs/attachments/pick-up-ready-work-from-the-tracker/`. No existing project backlog is enabled by this work.
 
 Related: [[projects/mlegls-pi/issues/isolate-interactive-edits-in-task-worktrees]]. Preserve manual Supervise and exception-only ownership.
+
+## Result
+
+Done, landed on main (99b95bf5, 23addc09, 92790212). `lib/reconcile/pickup.ts`, plus the `pickup`, `pickup_status` and `pickup_stop` tools in the reconcile namespace, runs one pickup per repository, owned by the bb thread that enables it. The scope must be named explicitly (root slugs or "project"). A watcher process re-reads the tracker when the issue files change and also scans every 5 min. When a maximal frontier root has been quiet for the settle period, the watcher starts the existing reconciler on it once, with no "started" mail. It skips claimed, inflight or frontier ancestors, and roots that already have reconciler state, so a stopped run stays stopped. Each run gets its own worker budget; bb's thread limits are the only overall cap. Pausing holds new starts. The owner's session start relaunches a missing watcher. The shape skill no longer messages the supervisor about readiness. It holds a claim while shaping. The supervise skill documents pickup, and the story steer-issues-from-bb is updated.
+
+First use: a branch-pinned watcher ran against the live bb on a disposable scratch vault. A tracker write made one goal ready, and a run started 7 s later (after the settle period) with no message. Restarting the watcher and repeating the write started nothing new. When that run closed its root, the dependent blocked ticket was picked up once. Claimed, human-assigned, incomplete and out-of-scope trees were never started. Tests: pickup.test.ts and lib/reconcile, 30 pass.
+
+Remaining: no live project is enabled; the maintainer picks the scope and owner. After a host restart the watcher returns only when the owner thread starts a session, the same as reconcilers. The reconcilers' done mails were not observed in-turn.
+
+Evidence: [docs/attachments/pick-up-ready-work-from-the-tracker/index.md](docs/attachments/pick-up-ready-work-from-the-tracker/index.md)
