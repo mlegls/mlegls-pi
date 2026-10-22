@@ -13,4 +13,4 @@ Workers run as `wm` workers (bb threads) and report by ending their turn, read f
 
 Worker handoffs separate observations from hypotheses. For data claims, include the identifiers actually joined (for example Session → thread → messages), not just a row count. “53 messages exist on thread X; its Session ownership is unchecked” is evidence; “Session Y lost its messages” is not established by that count.
 
-Use a dedicated worktree for source edits. Before committing shared tracker changes in the canonical checkout, inspect the staged paths; other sessions may be staging there concurrently. Do not include their changes in your commit.
+Source edits go in a task worktree (`ab task start <name>`, then `update_environment_directory`; `ab task finish` integrates into the canonical checkout and cleans up); the task extension refuses interactive edits in the canonical checkout. Tracker writes go through the tracker CLI, which commits only its own paths.
