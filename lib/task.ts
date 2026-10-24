@@ -14,7 +14,7 @@ import { keepIgnored } from "./thread/lifecycle-cleanup";
 import { gitAttempt } from "./thread/lifecycle-git";
 import { cwdProcesses } from "./thread/resources";
 import { command, delay } from "./thread/process";
-import { tellBb } from "./thread/bb";
+import { dropBbQueued, tellBb } from "./thread/bb";
 import { pidAlive } from "./wm";
 
 const bbCli = () => process.env.BB_CLI || "bb";
@@ -123,6 +123,8 @@ export async function reapTask(path: string, o: { wait?: number; poll?: number }
 	return { removed: true, branch: merged ? "deleted" : "kept (not in " + parent + ")", kept: kept?.path ?? null, environment };
 }
 
+const continueNotice = (path: string) => "[task] Continue the task in its worktree " + path;
+
 const USAGE = "usage: ab task start <name> | join <name> | finish [--into <branch>] [--mode rebase|merge] | status";
 
 export async function main(argv: string[]) {
@@ -133,7 +135,7 @@ export async function main(argv: string[]) {
 		const t = await startTask(cwd, rest[0]);
 		// Queued behind this turn: the next turn starts in the worktree without the user having to ask.
 		const thread = process.env.BB_THREAD_ID;
-		if (thread) await tellBb(thread, "[task] Continue the task in its worktree " + t.path + " (branch " + t.branch + ", target " + t.parent + "). Commit coherent changes as you go; finish with ab task finish.");
+		if (thread) await tellBb(thread, continueNotice(t.path) + " (branch " + t.branch + ", target " + t.parent + "). Commit coherent changes as you go; finish with ab task finish.");
 		console.log([
 			"task worktree: " + t.path, "branch: " + t.branch + " (target " + t.parent + ")", "setup: " + t.setup,
 			"Now call update_environment_directory with " + t.path + " and end your turn" + (thread ? "; a queued message resumes you there." : "."),
@@ -145,7 +147,11 @@ export async function main(argv: string[]) {
 		console.log(path + "\nJoining shares its files and index with the task's owner: call update_environment_directory with this path only for deliberate collaboration.");
 	} else if (cmd === "finish") {
 		const into = flag("into"), mode = flag("mode") as "rebase" | "merge" | undefined;
+		const worktree = checkout(cwd).worktree;
 		const r = await finishTask(cwd, { into, mode });
+		// A task finished in the turn that started it would otherwise be resumed by start's notice, now stale.
+		const thread = process.env.BB_THREAD_ID;
+		if (thread && worktree) await dropBbQueued(thread, continueNotice(worktree) + " ").catch(() => 0);
 		console.log(JSON.stringify(r, null, 1));
 		console.log("Integrated " + r.branch + " into " + r.parentBranch + " at " + r.path + "." + (r.cleanup.startsWith("reaper") ? " Move back with update_environment_directory " + r.path + " and end your turn; the worktree is removed once this thread's pi has left it (its next turn)." : ""));
 	} else if (cmd === "status") {

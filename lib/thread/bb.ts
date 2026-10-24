@@ -184,6 +184,17 @@ export async function tellBbFolded(id: string, prefix: string, text: string): Pr
 	}
 	await tellBb(id, text);
 }
+/** Delete the thread's still-queued messages that start with `prefix`: a notice that went stale before bb delivered it. */
+export async function dropBbQueued(id: string, prefix: string): Promise<number> {
+	const rows = await bb<BbQueued[]>(["thread", "queue", "list", id]).catch(() => []);
+	const body = (r: BbQueued) => r.content.filter(c => c.type === "text").map(c => c.text ?? "").join("\n");
+	let dropped = 0;
+	for (const r of rows) {
+		if ((r.state !== "queued" && r.state !== "waiting") || !r.editable || !body(r).startsWith(prefix)) continue;
+		try { await bb(["thread", "queue", "delete", id, r.id]); dropped++; } catch {}
+	}
+	return dropped;
+}
 /** Stop the turn and release bb's pi; the thread stays for a later message. */
 // A thread deleted in bb (or with its project) has nothing left to stop or archive.
 const gone = (error: unknown) => /not found|404/i.test(String(error));
