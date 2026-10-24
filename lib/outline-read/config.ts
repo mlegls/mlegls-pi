@@ -30,7 +30,7 @@ export const DEFAULT_CONFIG: OutlineReadConfig = {
 	minBodyLines: 3,
 	budgetTokens: 10_000,
 	grepAnchorFiles: 30,
-	fallback: { enabled: true, model: "openai-codex/gpt-5.6-luna", thinking: "medium" },
+	fallback: { enabled: true, model: "openai/gpt-5.6-luna", thinking: "medium" },
 	maxLines: 2000,
 	maxBytes: 50 * 1024,
 };

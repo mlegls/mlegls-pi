@@ -129,7 +129,7 @@ merged one level deeper. All keys are optional.
   "grepAnchorFiles": 30,
   "fallback": {
     "enabled": true,
-    "model": "openai-codex/gpt-5.6-luna",
+    "model": "openai/gpt-5.6-luna",
     "thinking": "medium"
   }
 }
@@ -143,7 +143,7 @@ merged one level deeper. All keys are optional.
 | `maxLines`, `maxBytes` | `2000`, `51200` | Caps per response for full and ranged reads; the response says how to continue. |
 | `grepAnchorFiles` | `30` | Files per grep call that are read, anchored, and outlined; the rest are listed as `path:line:`. |
 | `fallback.enabled` | `true` | Ask a model for an outline when no structural source supports the file. When `false`, such files are returned in full (subject to the caps). |
-| `fallback.model` | `openai-codex/gpt-5.6-luna` | Passed to `pi --model`. |
+| `fallback.model` | `openai/gpt-5.6-luna` | Passed to `pi --model`. |
 | `fallback.thinking` | `medium` | Passed to `pi --thinking`: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. |
 
 The fallback runs `pi -p` with no extensions, skills, or context files, and

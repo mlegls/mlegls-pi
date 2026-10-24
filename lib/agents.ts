@@ -15,7 +15,7 @@ export function executions(line: string): Execution[] {
 
 export interface Agent {
 	name: string;
-	/** `model:` list, most preferred first, e.g. "openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high"; routing takes the first with delegated capacity left. */
+	/** `model:` list, most preferred first, e.g. "openai/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high"; routing takes the first with delegated capacity left. */
 	routing?: string;
 	/** The list's first entry. */
 	model?: string;

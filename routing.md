@@ -1,6 +1,6 @@
 ## Agent model lists
 
-Each agent file's `model:` is a list of `provider/model:effort`, most preferred first (e.g. `openai-codex/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high`). Routing takes the first entry whose provider has delegated capacity left (`allocation.json`, `lib/allocation.ts`); it doesn't choose models from this file. An `agent:<stance>` assignment keeps the stance's list, fallbacks included; `model:<provider>/<model>:<effort>` is exact and refuses unavailable execution. The reasoning behind the lists is in `docs/models.md`.
+Each agent file's `model:` is a list of `provider/model:effort`, most preferred first (e.g. `openai/gpt-6.1-sol:high, anthropic/claude-sonnet-5-5:high`). Routing takes the first entry whose provider has delegated capacity left (`allocation.json`, `lib/allocation.ts`); it doesn't choose models from this file. An `agent:<stance>` assignment keeps the stance's list, fallbacks included; `model:<provider>/<model>:<effort>` is exact and refuses unavailable execution. The reasoning behind the lists is in `docs/models.md`.
 
 ## Assignment stances
 
@@ -41,10 +41,10 @@ The supervisor is evaluated interactively; it follows recorded dependencies, own
 
 ## Active catalog (list prices, $/MTok in/out; cache-read in parens)
 - fable 5.1 (`anthropic/claude-fable-5-1`; efforts low/medium/high): 10/50 (0.25).
-- gpt astra 6 (`openai-codex/gpt-6-astra`; efforts low/medium/high): 10/50 (1).
+- gpt astra 6 (`openai/gpt-6-astra`; efforts low/medium/high): 10/50 (1).
 - sonnet 5.5 (`anthropic/claude-sonnet-5-5`; efforts low/medium/high/xhigh): 2/10 (0.2).
 - opus 5.5 (`anthropic/claude-opus-5-5`; efforts low/medium/high/xhigh/max): 4/20 (0.2).
-- gpt 6.1 sol (`openai-codex/gpt-6.1-sol`), luna (`openai-codex/gpt-6-luna`); efforts low/medium/high/xhigh/max. sol: 2/10 (0.1); luna: 0.1/0.5 (0.01). Prompts above 272K input tokens have higher API rates; subscription capacity is not list-price spending.
+- gpt 6.1 sol (`openai/gpt-6.1-sol`), luna (`openai/gpt-6-luna`); efforts low/medium/high/xhigh/max. sol: 2/10 (0.1); luna: 0.1/0.5 (0.01). Prompts above 272K input tokens have higher API rates; subscription capacity is not list-price spending.
 - deepseek 4.1 flash (`deepseek/deepseek-flash`; efforts low/high): 0.15/0.6 off-peak, 0.3/1.2 peak (0.003).
 - grok 4.6 (`xai/grok-4.6`; efforts low/high): 2/6 (0.5).
 

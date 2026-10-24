@@ -1,7 +1,7 @@
 ---
 name: visual-reviewer
 description: Review of work whose outcome is something a user sees, judged by looking at it.
-model: anthropic/claude-opus-5-5:medium, openai-codex/gpt-6.1-sol:high
+model: anthropic/claude-opus-5-5:medium, openai/gpt-6.1-sol:high
 role: review
 ---
 

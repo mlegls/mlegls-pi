@@ -1,7 +1,7 @@
 ---
 name: manager
 description: Specs that leave design open on purpose, best split by outcome so each child decides its own approach.
-model: openai-codex/gpt-6.1-sol:high, anthropic/claude-opus-5-5:medium
+model: openai/gpt-6.1-sol:high, anthropic/claude-opus-5-5:medium
 role: refine
 ---
 

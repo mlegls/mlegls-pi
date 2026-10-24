@@ -1,7 +1,7 @@
 ---
 name: ui
 description: Work whose quality rests on unsettled interaction or visual design. Not building to an existing design, nor adjustments with settled intent.
-model: anthropic/claude-sonnet-5-5:high, openai-codex/gpt-6.1-sol:high
+model: anthropic/claude-sonnet-5-5:high, openai/gpt-6.1-sol:high
 role: implement
 ---
 

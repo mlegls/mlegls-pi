@@ -1,5 +1,5 @@
 {
-  "openai-codex": {
+  "openai": {
     "quota": "codex",
     "noninteractive": 0.8,
     "resets": [

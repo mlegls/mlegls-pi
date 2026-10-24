@@ -6,11 +6,11 @@ Reasoning behind the `model:` lists in `agents/`. The router doesn't read this; 
 
 Subscription use is not the same as list-price spending. Prefer using available subscription capacity according to these goals, then minimize metered costs:
 
-- Bias delegated work toward `openai-codex`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
-- Split by lab strength. Anthropic models hold a clear advantage on long-context work and on carrying a goal through to completion; OpenAI models excel on well-scoped tasks but more often stop abruptly or drift. Route judgment over a whole picture to Anthropic (triage, review, consolidation at a join) and bounded execution to `openai-codex` (implement, drive). Supervision compacts once its cache goes stale, so it is closer to a sequence of bounded decisions and goes to `openai-codex`.
+- Bias delegated work toward `openai`; abundant resets make it the main worker pool, while allowing for interactive OpenAI use.
+- Split by lab strength. Anthropic models hold a clear advantage on long-context work and on carrying a goal through to completion; OpenAI models excel on well-scoped tasks but more often stop abruptly or drift. Route judgment over a whole picture to Anthropic (triage, review, consolidation at a join) and bounded execution to `openai` (implement, drive). Supervision compacts once its cache goes stale, so it is closer to a sequence of bounded decisions and goes to `openai`.
 - Use Z.ai Coding Plan and Grok allowances where task fit and accepted-completion economics justify them.
 - Metered providers are overflow when appropriate.
-- OpenAI models use only the `openai-codex` subscription provider; metered OpenAI is not in the routing catalog.
+- OpenAI models use only the `openai` provider signed in with ChatGPT (`/login`, Sign in with ChatGPT), which bills the subscription; `openai` with an API key is metered and not in the routing catalog. The legacy `openai-codex` provider is superseded.
 
 ## Models
 

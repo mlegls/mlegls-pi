@@ -1,7 +1,7 @@
 ---
 name: compile
 description: Specs whose design is closed but too big for one session, so shared interfaces can be fixed up front and the rest split into fully specified tickets.
-model: openai-codex/gpt-6.1-sol:xhigh, anthropic/claude-opus-5-5:medium
+model: openai/gpt-6.1-sol:xhigh, anthropic/claude-opus-5-5:medium
 role: refine
 ---
 
