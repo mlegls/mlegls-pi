@@ -1,5 +1,7 @@
 # Tracker file-link implementation trial
 
+Independent second drive: [predictions, setup blocker and replay checks](drive-2.md). It again reached only the authentication gate; no rendered product claim was observed.
+
 Tested revision: `3588187e` (base `7c2a34585db21c7d82825f299a0428af1b78854d`). This is an implementation setup/API trial, **not rendered acceptance**.
 
 ## Setup
