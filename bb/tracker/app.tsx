@@ -196,30 +196,81 @@ function IssueRow({ row, selected, checked, anyChecked, onOpen, onCheck, onToggl
 	);
 }
 
-/** Wikilinks to this vault's issues become in-page links; other wikilinks read as plain text. */
+/** Keep issue navigation in-page; file wikilinks are resolved by the server after Markdown renders. */
 function linkify(body: string, repo: string): string {
 	return body.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, alias?: string) => {
-		const issue = new RegExp("^projects/" + repo.replace(/[.*+?^$()|[\]\\]/g, "\\$&") + "/issues/(?:archive/)?([^/#]+)$").exec(target);
+		const issue = new RegExp("^projects/" + repo.replace(/[.*+?^$()|[\]\\]/g, "\\$&") + "/issues/(?:archive/)?([^/#]+?)(?:\\.md)?(?:#.*)?$").exec(target);
 		if (issue) return "[" + (alias ?? issue[1]) + "](#tracker-issue=" + issue[1] + ")";
-		return alias ?? target.split("/").pop()!;
+		return "[" + (alias ?? target.split("/").pop()!) + "](#tracker-file=" + encodeURIComponent(target) + ")";
 	});
 }
 
 function Detail({ projectId, snap, slug, open, actions, onClose }: { projectId: string; snap: Snapshot; slug: string; open: (slug: string) => void; actions: Actions; onClose: () => void }) {
 	const rpc = useRpc<typeof rpcContract>();
+	const navigate = useBbNavigate();
+	const bodyRef = useRef<HTMLDivElement>(null);
+	const files = useRef(new Map<string, { kind: "host"; hostId: string; path: string }>());
 	const [doc, setDoc] = useState<{ body: string; path: string } | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const issue = snap.issues.find((i) => i.slug === slug);
 	useEffect(() => {
-		setDoc(null); setError(null);
-		rpc.call("issue", { projectId, slug }).then(setDoc, (e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+		let active = true;
+		setDoc(null); setError(null); files.current.clear();
+		rpc.call("issue", { projectId, slug }).then(d => { if (active) setDoc(d); }, (e: unknown) => { if (active) setError(e instanceof Error ? e.message : String(e)); });
+		return () => { active = false; };
 	}, [rpc, projectId, slug, snap.at]);
+	useEffect(() => {
+		const root = bodyRef.current;
+		if (!doc || !root) return;
+		let active = true;
+		const seen = new WeakSet<HTMLAnchorElement>();
+		const resolve = () => {
+			const links = Array.from(root.querySelectorAll<HTMLAnchorElement>("a[href]")).filter(a => {
+				const href = a.getAttribute("href")!;
+				return !seen.has(a) && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href) && (!href.startsWith("#") || href.startsWith("#tracker-file=") || href.startsWith("#tracker-issue="));
+			});
+			const missing = (a: HTMLAnchorElement, reason: string) => {
+				a.removeAttribute("href");
+				a.title = reason;
+				a.className = "text-inherit no-underline";
+				a.removeAttribute("target");
+			};
+			const local = links.filter(a => {
+				seen.add(a);
+				const href = a.getAttribute("href")!;
+				if (!href.startsWith("#tracker-issue=")) return true;
+				const slug = decodeURIComponent(href.slice("#tracker-issue=".length));
+				if (!snap.issues.some(i => i.slug === slug)) missing(a, "Issue does not exist: " + slug);
+				return false;
+			});
+			for (let at = 0; at < local.length; at += 200) {
+				const batch = local.slice(at, at + 200);
+				rpc.call("resolveLinks", { projectId, slug, hrefs: batch.map(a => a.getAttribute("href")!) }).then(results => {
+					if (!active) return;
+					for (const [i, result] of results.entries()) {
+						if (result.target) files.current.set(result.href, result.target);
+						else missing(batch[i], result.reason ?? "File does not exist");
+					}
+				}, e => { if (active) toast.error("Could not resolve issue links: " + String(e)); });
+			}
+		};
+		resolve();
+		// Markdown may finish rendering after its host commits.
+		const observer = new MutationObserver(resolve);
+		observer.observe(root, { childList: true, subtree: true });
+		return () => { active = false; observer.disconnect(); };
+	}, [rpc, projectId, slug, doc, snap.issues]);
 	const children = snap.issues.filter((i) => i.partOf === slug);
 	if (!issue) return <div className="p-4 text-sm text-muted-foreground">No issue {slug}.</div>;
 	const onClick = (e: ReactMouseEvent) => {
 		const a = (e.target as HTMLElement).closest("a");
 		const m = a && /#tracker-issue=([^&]+)$/.exec(a.getAttribute("href") ?? "");
-		if (m) { e.preventDefault(); e.stopPropagation(); open(decodeURIComponent(m[1])); }
+		if (m) { e.preventDefault(); e.stopPropagation(); open(decodeURIComponent(m[1])); return; }
+		const href = a?.getAttribute("href");
+		if (!href || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href) || (href.startsWith("#") && !href.startsWith("#tracker-file="))) return;
+		e.preventDefault(); e.stopPropagation();
+		const target = files.current.get(href);
+		if (target && !navigate.experimental_openFilePreview({ target, location: null })) toast.error("No file preview is available for " + target.path);
 	};
 	const Link = ({ to }: { to: string }) => {
 		const t = snap.issues.find((i) => i.slug === to);
@@ -259,7 +310,7 @@ function Detail({ projectId, snap, slug, open, actions, onClose }: { projectId: 
 					{issue.blockedBy.length || issue.guards.length ? field("Blocked by", <div className="flex flex-col">{issue.blockedBy.map((b) => <Link key={b} to={b} />)}{issue.guards.map((g) => <span key={g} className="px-1">{g}</span>)}</div>) : null}
 					{issue.claims.length ? field("Claimed by", issue.claims.join(", ")) : null}
 				</dl>
-				<div className="mt-4 border-t border-border pt-3 text-sm" onClickCapture={onClick}>
+				<div ref={bodyRef} className="mt-4 border-t border-border pt-3 text-sm" onClickCapture={onClick}>
 					{error ? <p className="text-destructive">{error}</p> : doc ? <Markdown content={linkify(doc.body, snap.repo)} /> : <p className="text-muted-foreground">Loading…</p>}
 				</div>
 			</div>
