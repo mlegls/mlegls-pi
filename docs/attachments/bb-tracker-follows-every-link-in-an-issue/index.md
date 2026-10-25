@@ -1,8 +1,6 @@
 # Tracker file-link implementation trial
 
-Independent authenticated replay: [drive-2 predictions, outcomes and screenshots](../remote-bb-pane-drive-needs-authenticated-browser/drive-2.md). All three requested previews held through the signed-in desktop surface.
-
-**Rendered first use now held:** [signed-in desktop encounter, setup and replay](desktop-first-use.md), 2026-10-25. Mission, the attachment and `prepare-cases-first.ts` each opened in a file preview. This supersedes the authentication gap below for these three requested clicks; the earlier trials remain historical evidence.
+**Rendered first use now held:** [signed-in desktop encounter, setup and replay](desktop-first-use.md), 2026-10-25. Mission, the attachment and `prepare-cases-first.ts` each opened in a file preview. This supersedes the authentication gap below for these three requested clicks; the earlier trials remain historical evidence. An independent driver replayed it: [predictions, outcomes and screenshots](../remote-bb-pane-drive-needs-authenticated-browser/drive-2.md); all three previews held.
 
 Independent second drive: [predictions, setup blocker and replay checks](drive-2.md). It again reached only the authentication gate; no rendered product claim was observed.
 
