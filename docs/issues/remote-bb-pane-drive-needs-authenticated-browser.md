@@ -4,6 +4,11 @@ assignee: "agent:auto-routine"
 author: "session:thr_p7a53zfivb"
 ---
 ---
+stage: "ticket"
+assignee: "agent:auto-routine"
+author: "session:thr_p7a53zfivb"
+---
+---
 stage: "idea"
 assignee: "human"
 author: "session:thr_p7a53zfivb"
@@ -12,7 +17,7 @@ While implementing [[projects/mlegls-pi/issues/bb-tracker-follows-every-link-in-
 
 Independent drive-2 reproduced the same account gate at the supplied entry URL before any product surface was reachable. No deployment was created, and the opened browser page was closed. Predictions, replayable setup check and a selected gate screenshot: [[projects/mlegls-pi/attachments/bb-tracker-follows-every-link-in-an-issue/drive-2]].
 
-The fix (2026-10-25, @thread:thr_97xxb6d8ii): drive bb's own UI through the bb desktop browser, not a session-private Chrome. `bb browser create --host host_w74xscm3fz --instance … --generation … --thread … --url https://mlegls.getbb.app/plugins/tracker/issues/proj_fgz6kudzrk/replay-cases-first-by-default` opened the tracker pane signed in, past bb Connect, and `bb browser capture` screenshotted it; `acquire` and `connection` give a CDP endpoint for clicking ([bb guide browser](https://getbb.app), `bb guide browser`). The desktop browser's profile carries the owner's session, so no credentials move. The local server URL (`$BB_SERVER_URL`) also answers 401, so it's no shortcut.
+The fix (2026-10-25, @thread:thr_97xxb6d8ii): drive bb's own UI through the bb desktop browser, not a session-private Chrome. `bb browser create --host host_w74xscm3fz --instance … --generation … --thread … --url https://mlegls.getbb.app/plugins/tracker/issues/proj_fgz6kudzrk/replay-cases-first-by-default` opened the tracker pane signed in, past bb Connect, and `bb browser capture` screenshotted it; `acquire` and `connection` give a CDP endpoint for clicking (`bb guide browser`). The desktop browser's profile carries the owner's session, so no credentials move. The local server URL (`$BB_SERVER_URL`) also answers 401, so it's no shortcut.
 
 The maintainer's stance: bb Connect is trusted infrastructure unless it visibly breaks, so a drive that reaches the app through the desktop browser counts; a drive needn't prove Connect itself.
 
