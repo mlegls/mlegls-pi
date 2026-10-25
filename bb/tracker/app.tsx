@@ -199,7 +199,7 @@ function IssueRow({ row, selected, checked, anyChecked, onOpen, onCheck, onToggl
 /** Keep issue navigation in-page; file wikilinks are resolved by the server after Markdown renders. */
 function linkify(body: string, repo: string): string {
 	return body.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, alias?: string) => {
-		const issue = new RegExp("^projects/" + repo.replace(/[.*+?^$()|[\]\\]/g, "\\$&") + "/issues/(?:archive/)?([^/#]+)$").exec(target);
+		const issue = new RegExp("^projects/" + repo.replace(/[.*+?^$()|[\]\\]/g, "\\$&") + "/issues/(?:archive/)?([^/#]+?)(?:\\.md)?(?:#.*)?$").exec(target);
 		if (issue) return "[" + (alias ?? issue[1]) + "](#tracker-issue=" + issue[1] + ")";
 		return "[" + (alias ?? target.split("/").pop()!) + "](#tracker-file=" + encodeURIComponent(target) + ")";
 	});
