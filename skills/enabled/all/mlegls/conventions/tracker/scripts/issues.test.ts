@@ -7,7 +7,8 @@ import { join } from "node:path";
 // and must see invalid metadata rather than a plausible partial frontier.
 const cwd = mkdtempSync(join(tmpdir(), "tracker-"));
 const issues = join(cwd, "docs/issues");
-const cli = process.env.TRACKER_CLI ?? join(import.meta.dir, "issues.ts");
+// The script beside this file, never a pinned TRACKER_CLI: workers inherit a pin of their base, which would test the old CLI.
+const cli = join(import.meta.dir, "issues.ts");
 const commands = ["tree", "frontier", "mine", "check", "outline"];
 const blocker = '"[[projects/fixture/issues/blocker]]"';
 const frontmatter = (body: string) => `---\n${body}\n---\n`;
