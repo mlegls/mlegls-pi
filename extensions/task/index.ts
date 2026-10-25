@@ -2,7 +2,8 @@
 // Under bb, an interactive session's edit/write into a git repository's main worktree is refused with the route: ab task start,
 // update_environment_directory, continue there. Discussion costs nothing until it edits. Workers (PI_WM_HANDLE) have their own
 // worktrees. Ignored paths (desk/, .wm/) pass, as do linked worktrees and non-git paths. Opt out per repository with
-// `git config pi.taskWorktrees false`, or per session with /edit-here. Shell-made edits are not seen here.
+// `git config pi.taskWorktrees false`, or per session with /edit-here (kept in the session, so it survives a restart).
+// Shell-made edits are not seen here.
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
@@ -45,6 +46,8 @@ export const refusal = (top: string) => "Independent edits go in a task worktree
 	"a queued message resumes you there. Commit coherent changes as you go; finish with `ab task finish`. " +
 	"Nothing you haven't committed moves; don't take other sessions' changes. (The user can allow edits here with /edit-here.)";
 
+const EDIT_HERE = "edit-here";
+
 export default function (pi: ExtensionAPI) {
 	if (process.env.PI_WM_HANDLE) return;
 	let here = false;
@@ -57,7 +60,15 @@ export default function (pi: ExtensionAPI) {
 	});
 	pi.registerCommand("edit-here", {
 		description: "Allow this session to edit the shared checkout directly (task worktrees are the default)",
-		handler: async (_args, ctx) => { here = true; notice(pi, ctx, "Edits in the shared checkout allowed for this session."); },
+		handler: async (_args, ctx) => {
+			here = true;
+			pi.appendEntry(EDIT_HERE, {});
+			if (!insideBb()) { notice(pi, ctx, "Edits in the shared checkout allowed for this session."); return; }
+			// bb waits for a turn after every message it sends, so a command that starts none hangs the thread. Start one:
+			// the agent resumes the edit it was refused.
+			pi.sendMessage({ customType: EDIT_HERE, display: true, content: "The user allowed edits in the shared checkout for this session (/edit-here). Continue: retry any edit that was refused, or stop if there is none." },
+				{ triggerTurn: true, deliverAs: "followUp" });
+		},
 	});
 	pi.on("before_agent_start", (event, ctx) => {
 		const task = taskOf(ctx.cwd);
@@ -65,8 +76,9 @@ export default function (pi: ExtensionAPI) {
 		return { systemPrompt: event.systemPrompt + "\n\nThis thread works in task worktree " + task.path + " (branch " + task.branch + ", target " + task.parent +
 			" in " + task.project + "). Commit coherent changes as you go. When the task is done and verified, run `ab task finish` here, then move back with update_environment_directory " + task.project + "." };
 	});
-	// bb's diff for the task compares against its target.
 	pi.on("session_start", (_event, ctx) => {
+		here ||= ctx.sessionManager?.getBranch().some(e => e.type === "custom" && e.customType === EDIT_HERE) ?? false;
+		// bb's diff for the task compares against its target.
 		const task = taskOf(ctx.cwd), thread = process.env.BB_THREAD_ID;
 		if (!task?.parent || !thread) return;
 		const bb = process.env.BB_CLI || "bb";

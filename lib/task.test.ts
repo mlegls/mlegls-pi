@@ -62,10 +62,12 @@ test("a task integrates serially into its target without touching the checkout's
 	expect(git(repo, "branch", "--list", "task-one")).toBe("");
 }, 30_000);
 
-test("the extension blocks an interactive bb session's edit in the checkout, names the route, and /edit-here lifts it", async () => {
+test("the extension blocks an interactive bb session's edit in the checkout, names the route, and /edit-here lifts it for the session", async () => {
 	const { default: extension } = await import("../extensions/task/index");
 	const handlers: Record<string, Function> = {}, commands: Record<string, { handler: Function }> = {};
-	const pi = { on: (e: string, h: Function) => { handlers[e] = h; }, registerCommand: (n: string, c: { handler: Function }) => { commands[n] = c; }, sendMessage: () => {} };
+	const entries: { type: string; customType: string }[] = [], sent: { options?: { triggerTurn?: boolean } }[] = [];
+	const pi = { on: (e: string, h: Function) => { handlers[e] = h; }, registerCommand: (n: string, c: { handler: Function }) => { commands[n] = c; },
+		sendMessage: (_m: unknown, options?: { triggerTurn?: boolean }) => { sent.push({ options }); }, appendEntry: (customType: string) => { entries.push({ type: "custom", customType }); } };
 	const env = { BB_THREAD_ID: process.env.BB_THREAD_ID, PI_WM_HANDLE: process.env.PI_WM_HANDLE };
 	process.env.BB_THREAD_ID = "thr_test"; delete process.env.PI_WM_HANDLE;
 	try {
@@ -78,6 +80,13 @@ test("the extension blocks an interactive bb session's edit in the checkout, nam
 		expect(call("bash", { command: "echo hi > a.txt" })).toBeUndefined();
 		expect(handlers.before_agent_start({ systemPrompt: "base" }, { cwd: repo })).toBeUndefined();
 		await commands["edit-here"].handler("", { ui: { notify() {} } });
+		expect(call("write", { path: "a.txt", content: "" })).toBeUndefined();
+		// Under bb the command starts a turn, or bb waits for one forever.
+		expect(sent.at(-1)?.options?.triggerTurn).toBe(true);
+		// A restarted session restores it from its entries.
+		extension(pi as never);
+		expect(call("edit", { edits: [{ path: "a.txt", old: "a", new: "b" }] }).block).toBe(true);
+		handlers.session_start({ reason: "resume" }, { cwd: repo, sessionManager: { getBranch: () => entries } });
 		expect(call("write", { path: "a.txt", content: "" })).toBeUndefined();
 	} finally { Object.assign(process.env, env); for (const [k, v] of Object.entries(env)) if (v === undefined) delete process.env[k]; }
 });
