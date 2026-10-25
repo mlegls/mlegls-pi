@@ -3,7 +3,7 @@
 // bb gives every thread the same environment, so a worker's identity reaches pi through .wm/launch.env in its
 // worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
 import { Database } from "bun:sqlite";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { command, delay, quote } from "./process";
@@ -169,8 +169,24 @@ export async function tellBb(id: string, text: string, mode: "queue" | "steer" =
 interface BbQueued { id: string; state: string; editable: boolean; sendAt: number | null; content: { type: string; text?: string }[] }
 /** Queue text for a bb thread, appending it to a message still waiting there that starts with `prefix` (text should too):
  * each queued row is its own turn, so notices sent while the thread is busy then arrive as one. A row bb has already
- * claimed can't be edited; that, or no such row, sends the text as a new message. */
+ * claimed can't be edited; that, or no such row, sends the text as a new message. Senders in other processes (several
+ * reconcilers started together) take turns per thread, so none queues a new row beside one another is still writing. */
 export async function tellBbFolded(id: string, prefix: string, text: string): Promise<void> {
+	const lock = join(tmpdir(), "bb-tell-fold-" + id.replace(/[^\w-]/g, "_") + ".lock");
+	for (const until = Date.now() + 30_000; ;) {
+		try { mkdirSync(lock); break; }
+		catch (e) {
+			if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+			// A holder that died leaves its lock; one older than a fold takes is stale.
+			try { if (Date.now() - statSync(lock).mtimeMs > 30_000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+			if (Date.now() > until) break;
+			await delay(50 + Math.random() * 100);
+		}
+	}
+	try { await foldInto(id, prefix, text); }
+	finally { rmSync(lock, { recursive: true, force: true }); }
+}
+async function foldInto(id: string, prefix: string, text: string): Promise<void> {
 	const rows = await bb<BbQueued[]>(["thread", "queue", "list", id]).catch(() => []);
 	const body = (r: BbQueued) => r.content.filter(c => c.type === "text").map(c => c.text ?? "").join("\n");
 	const row = rows.findLast(r => (r.state === "queued" || r.state === "waiting") && r.editable && r.sendAt == null && body(r).startsWith(prefix));

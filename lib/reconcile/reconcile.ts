@@ -332,7 +332,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const sendChild = (h: Handle, body: string) => tell(h, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { cwd: controlCwd });
 	// The owner is a bb thread. One that has closed hands over to whichever thread holds the supervisor role on the desk.
 	// Told in order, off the tick; the run waits for the last before it ends. Notices that pile up while the owner is
-	// busy fold into one queued message, so they cost it one turn rather than one each.
+	// busy fold into one queued message, so they cost it one turn rather than one each: every reconciler's, so runs
+	// started together (each saying "started") are one turn too.
 	let told: Promise<void> = Promise.resolve();
 	const tellOwner = (body: string) => {
 		told = told.then(async () => {
@@ -340,7 +341,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const supervisor = roleThread("supervisor", controlCwd);
 			const to = live.has(s.owner) ? s.owner : supervisor && live.has(supervisor) ? supervisor : s.owner;
 			const prefix = "[reconcile " + s.root + "] ";
-			await tellBbFolded(to, prefix, prefix + body);
+			await tellBbFolded(to, "[reconcile ", prefix + body);
 		}).catch(e => note("telling the owner failed: " + e));
 	};
 	save();

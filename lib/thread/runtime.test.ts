@@ -50,15 +50,20 @@ test("a worker sets up once, send reaches the bb thread literally, and bb finds 
 	await expect(workerOf(owner.id, { run: "t", handle: "other" })).rejects.toThrow("is not t/other");
 });
 
-test("folded tells to a busy thread join its waiting message from the same sender and arrive as one turn", async () => {
+test("folded tells to a busy thread join its waiting message with their prefix and arrive as one turn", async () => {
 	bb.addThread("busy");
 	bb.hold("busy", true);
 	await tellBb("busy", "a user message");
-	await tellBbFolded("busy", "[reconcile r] ", "[reconcile r] started");
-	await tellBbFolded("busy", "[reconcile r] ", "[reconcile r] needs you: x");
-	await tellBbFolded("busy", "[reconcile other] ", "[reconcile other] started");
+	// Several reconcilers started at once all say "started" concurrently.
+	await Promise.all(["a", "b", "c"].map(r => tellBbFolded("busy", "[reconcile ", "[reconcile " + r + "] started")));
+	await tellBbFolded("busy", "[reconcile ", "[reconcile a] needs you: x");
+	await tellBbFolded("busy", "[other] ", "[other] note");
 	bb.hold("busy", false);
-	expect(bb.threads().find(t => t.id === "busy")!.tells).toEqual(["a user message", "[reconcile r] started\n\n[reconcile r] needs you: x", "[reconcile other] started"]);
+	const tells = bb.threads().find(t => t.id === "busy")!.tells;
+	expect(tells).toHaveLength(3);
+	expect(tells[0]).toBe("a user message");
+	expect(tells[1].split("\n\n").sort()).toEqual(["[reconcile a] needs you: x", "[reconcile a] started", "[reconcile b] started", "[reconcile c] started"]);
+	expect(tells[2]).toBe("[other] note");
 	// An idle thread takes each at once: nothing waits to fold into.
 	await tellBbFolded("busy", "[reconcile r] ", "[reconcile r] done");
 	expect(bb.threads().find(t => t.id === "busy")!.tells.at(-1)).toBe("[reconcile r] done");
