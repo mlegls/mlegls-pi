@@ -3,22 +3,11 @@ stage: "ticket"
 assignee: "agent:auto-routine"
 author: "session:thr_p7a53zfivb"
 ---
----
-stage: "ticket"
-assignee: "agent:auto-routine"
-author: "session:thr_p7a53zfivb"
----
----
-stage: "idea"
-assignee: "human"
-author: "session:thr_p7a53zfivb"
----
-While implementing [[projects/mlegls-pi/issues/bb-tracker-follows-every-link-in-an-issue]] from an enrolled Linux worker, a separate tracker-link-preview plugin was installed and rebuilt with bb plugin dev on the Mac server host. Its projects and resolveLinks RPCs were reachable through bb plugin rpc call. The session-private MCP Chrome browser opened https://mlegls.getbb.app/plugins/tracker-link-preview/issues/proj_fgz6kudzrk/replay-cases-first-by-default but only reached the bb Connect page: "Sign in with the account that owns this server to open it." The browser has no authenticated account session; it could not reach the pane to click Mission, an attachment and a repository script. No browser cookies, account credentials or access controls were changed. The temporary plugin was stopped and removed. Owner: bb remote supervised verification setup. No workaround was established; an authenticated browser or an approved local server-browser connection is needed for the rendered check.
+Drives of bb's own UI (a bb plugin pane such as the tracker) kept stopping at bb Connect's sign-in page, "Sign in with the account that owns this server to open it.", because workers drove a session-private Chrome with an empty profile. It stopped implement, drive and review of [[projects/mlegls-pi/issues/bb-tracker-follows-every-link-in-an-issue]] in turn. `$BB_SERVER_URL` answers 401 too, so the local server is no way around it.
 
-Independent drive-2 reproduced the same account gate at the supplied entry URL before any product surface was reachable. No deployment was created, and the opened browser page was closed. Predictions, replayable setup check and a selected gate screenshot: [[projects/mlegls-pi/attachments/bb-tracker-follows-every-link-in-an-issue/drive-2]].
+The bb desktop browser carries the owner's signed-in session. On 2026-10-25 (@thread:thr_97xxb6d8ii) `bb browser create --host host_w74xscm3fz --instance … --generation … --thread … --url https://mlegls.getbb.app/plugins/tracker/issues/proj_fgz6kudzrk/replay-cases-first-by-default` opened the tracker pane signed in, and `bb browser capture` screenshotted it. `acquire` gives a lease and `connection` a CDP endpoint for clicking (`bb guide browser`); no credentials move. The maintainer: "it's generally ok as long as the underlying thing works, and bb connect can be "trusted" unless i notice it broken". So a drive through the desktop browser counts, and needn't prove Connect itself.
 
-The fix (2026-10-25, @thread:thr_97xxb6d8ii): drive bb's own UI through the bb desktop browser, not a session-private Chrome. `bb browser create --host host_w74xscm3fz --instance … --generation … --thread … --url https://mlegls.getbb.app/plugins/tracker/issues/proj_fgz6kudzrk/replay-cases-first-by-default` opened the tracker pane signed in, past bb Connect, and `bb browser capture` screenshotted it; `acquire` and `connection` give a CDP endpoint for clicking (`bb guide browser`). The desktop browser's profile carries the owner's session, so no credentials move. The local server URL (`$BB_SERVER_URL`) also answers 401, so it's no shortcut.
+## tasks
 
-The maintainer's stance: bb Connect is trusted infrastructure unless it visibly breaks, so a drive that reaches the app through the desktop browser counts; a drive needn't prove Connect itself.
-
-So: the verify-story skill (and the drive role) say that a bb plugin or bb UI is driven through `bb browser` on the host with a bb window (`bb browser instances --host <id>` lists them), releasing the lease and closing the tab afterwards; the bundled `browser-automation` plugin (currently disabled) is the alternative if raw CDP is awkward.
+1. Say in the [verify-story skill](../../skills/enabled/all/mlegls/lifecycle/verify-story/SKILL.md) and the [drive role](../../agents/roles/drive.md) (wherever browser choice is described) that bb's own UI is driven through `bb browser` on a host with a bb window (`bb browser instances --host <id>`), with the lease released and the tab closed afterwards, and that bb Connect is trusted. Check whether the bundled `browser-automation` plugin (disabled; `bb guide browser`) makes clicking easier than raw CDP, and point at whichever is simpler.
+2. Do the check the links ticket couldn't: the tracker plugin runs from the Mac's checkout (`/Users/mlegls/dev/mlegls-pi/bb/tracker`, host `host_w74xscm3fz`). If that checkout is on `main` and clean, fast-forward it to include `2b6d8577` and reload the plugin (`bb plugin reload tracker`); otherwise report its state and stop there. Then, in the desktop browser, open the pane for concept's `replay-cases-first-by-default` and click Mission (a concept), an attachment and `prepare-cases-first.ts` (a repository file); each should open a file preview. Record it as that ticket's first use in [its attachment](../attachments/bb-tracker-follows-every-link-in-an-issue/index.md); a link that doesn't open reopens it.
