@@ -25,7 +25,7 @@ export default function (pi: ExtensionAPI) {
 			"Workers report by ending their turn (done | blocked | needs-input | checkpoint first); bb tells this thread when each finishes. " +
 			"`active` lists every outstanding handle from earlier waves for the maxConcurrent budget. Returns {submitted, pending, failed?}: submitted workers may queue for host slots or memory; retain their handles for integrate. Inspect a failure before retrying.",
 		parameters: Type.Object({
-			run: Type.String({ description: "Parent topic/branch prefix, e.g. compile/1726" }),
+			run: Type.String({ description: "Parent topic/branch prefix, e.g. orch/1726" }),
 			assignments: Type.Array(Type.Object({
 				handle: Type.String(), prompt: Type.String(),
 				agent: Type.Optional(Type.String()), role: Type.Optional(Type.String()),

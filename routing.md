@@ -6,13 +6,11 @@ Each agent file's `model:` is a list of `provider/model:effort`, most preferred 
 
 Choose the stance whose deliverable fits, for the lowest wall time to accepted completion at similar total cost and sufficient quality, including verification, retries and escalation. Consider openness, subjectivity, scope, novelty and technical difficulty together, not as an ordered decision tree. Interpret supplied evidence; do not invent missing context or closure. Prefer a specialist when its deliverable fits. Missing design outside delegated authority goes back to shaping; deliberately delegated design can go to auto. Difficulty is independent of closure. Keep small known diffs local when handoff costs more than doing them; campaign supervisors delegate substantial work.
 
-- `fill`: Closed, straightforward implementation: necessary context and a precise edit contract or fixed interface are supplied. No discovery or design is needed; a stub is optional.
-- `auto-routine`: Specified outcome and boundaries; routine implementation still requires repository discovery.
+- `auto-routine`: Decided outcome; routine implementation, whether or not it needs repository discovery.
 - `technical`: Clear acceptance criterion but difficult technical fulfillment, including novel algorithms, complex systems, or exacting UI implementation.
-- `ui`: Work where design taste must actually be exercised: choosing interaction, hierarchy, affordances, state legibility, or visual design. Not implementation from an existing design or simple UI adjustments with settled intent; use `fill`, `auto-routine`, or `auto` with luna or sol when sufficient, and `technical` for hard technical fulfillment. Keep rendered acceptance with `visual-reviewer` on Opus.
+- `ui`: Work where design taste must actually be exercised: choosing interaction, hierarchy, affordances, state legibility, or visual design. Not implementation from an existing design or simple UI adjustments with settled intent; use `auto-routine` or `auto` with luna or sol when sufficient, and `technical` for hard technical fulfillment. Keep rendered acceptance with `visual-reviewer` on Opus.
 - `auto`: The assignment deliberately delegates design or decomposition within stated authority; the worker owns the how.
-- `compile`: Refines a spec whose design is closed but which is too big for one session: close interfaces as committed stubs, partition the rest into `fill` tickets.
-- `manager`: Refines a spec that delegates design: partition it into outcomes with boundaries, children `auto`/`auto-routine` or further specs.
+- `manager`: Refines a spec: promotes it, or partitions it into outcomes, children `auto`/`auto-routine`/`technical` or further specs.
 - `prune`: Subtractive refactoring or simplifying replacement against surviving requirements and interfaces.
 - `tidy`: Review at a join: repair crossing stories at their seams, then behavior-preserving tidying across the changes that landed together.
 - `research`: Find and compress evidence for an upstream decision; research is the deliverable.

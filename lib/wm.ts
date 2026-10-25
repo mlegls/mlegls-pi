@@ -1,7 +1,7 @@
 // wm: interactive worker threads, with turn reports from bb.
 // Handles/topics name work and bb thread ids name lifetimes.
 // Worktree and Git lifecycle belong to lib/thread.
-//   const w = await spawn({ run: "compile/1726", handle: "unit-a", prompt, model, effort });
+//   const w = await spawn({ run: "orch/1726", handle: "unit-a", prompt, model, effort });
 //   const o = await w.done;                        // resolves on done, rejects on exit
 //   for await (const o of w.events) { ... }        // every event, incl. blocked/idle
 //   const got = await wait([a, b], { mode: "all" }); // Map<Worker, Outcome> across several
@@ -25,7 +25,7 @@ export type Outcome =
 	| { kind: "exited"; tail: string }; // pi process gone
 
 export interface SpawnOptions {
-	run: string; // names the run the worker belongs to, e.g. compile/1726 or orch/rework-auth
+	run: string; // names the run the worker belongs to, e.g. orch/1726 or orch/rework-auth
 	handle: string;
 	prompt: string;
 	model?: string; // routed provider/model; required, with effort

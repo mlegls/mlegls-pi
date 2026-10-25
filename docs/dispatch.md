@@ -89,7 +89,7 @@ and [PR lifecycle first use](attachments/reconcile-pr-checks-and-branch-updates/
 Carry each issue's own `issue` and `assignee` into its assignment, even when the assignee is absent: an issue without one refuses automatic dispatch. Re-read child assignments during recursive decomposition: a parent's selector is not inherited permission.
 
 - `agent`: any agent.
-- `agent:fill`: that stance.
+- `agent:technical`: that stance.
 - `model:zai/glm-5.3-flash:high`: that exact model and effort.
-- `agent:fill, model:zai/glm-5.3-flash:high`: both; component order is immaterial.
+- `agent:technical, model:zai/glm-5.3-flash:high`: both; component order is immaterial.
 - `human`, `user:<name>`, `session:<id>`: never dispatched automatically. Hand to the human or resume the exact assigned session.

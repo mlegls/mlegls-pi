@@ -52,24 +52,34 @@ Issues retaining `next: grill | research | prototype | measure | simplify | impl
 
 ## body
 
+each stage adds to the body; nothing before it is thrown away, so an issue reads why → what → how.
+
 ```markdown
-what done looks like, and where this came from (what was noticed, what was decided under).
+idea: what was noticed or wanted, with its source quoted verbatim (@thread:…, the story, the evidence).
+rough is fine (`universal.md`'s tip on prose applies).
 
-substeps: links to child issues in order, what runs in parallel. omit when `tree` says it.
+goal: the same prose, edited until it's decided: what we're doing, for which story, what it leaves out.
+holes: bullets, each linking its resolution once it has one.
 
-holes: bullets, each linking its resolution once it has one. a hole is its own issue when it's a session on its own or matters to more than one parent.
+## shape                       (spec)
+Shape Up's level: the elements and where each lives, sketched as `show-me` does (call tree,
+file tree, diff, types, mermaid); rabbit holes already patched; what's out. enough that a
+capable agent builds it without coming back, short of being the code.
 
-decisions: one dated line each, linking the question when it had one.
+## tasks                       (ticket, only when the shape doesn't already say what to do)
+1. …
 
-shape: structures, flows, where each new thing lives; a fat-marker sketch, types, or an exact interface where one was settled.
-result: written at done, per `pr`.
+decisions:
+- 2026-10-25: one line each, linking where it was made.
+
+## result                      (done, per `pr`)
 ```
 
-preserve the distinction between what we chose and what we used to explore the choice.
+a spec's children are goal prose for their part, plus the shape that's theirs or a link to the parent's. a hole is its own issue when it's a session on its own or matters to more than one parent. a question is the same file with the question up top and `## answer` when it has one. preserve the distinction between what we chose and what we used to explore the choice.
 
-sections as the resolution earns them. a question is the same file with the question up top and `## answer` when it has one.
+a later finding or ruling edits the goal, shape or tasks in place and adds a decisions line; it doesn't append a dated section. state the current state; git is the history, `docs/attachments/` the evidence.
 
-the reader is me later, or an agent who has to be me. state the current state; git is the history. name things as `concepts/`, paths and test names do, so the first grep lands. an issue is as long as its context differs from what the code and docs already say.
+the reader is me later, or an agent who has to be me (`writing-skills`): say what to do and why, once. scope is what the goal says and done is the goal holding in its story, so there's nothing to fence: no permissions, prohibitions, when/then, or restated standing rules (testing, verification, the two-minute rule). name things as `concepts/`, paths and test names do, so the first grep lands. an issue is as long as its context differs from what the code and docs already say.
 
 > No: "Acknowledge only persisted submissions; show a submission failure visibly. Reject empty symptoms. Reporting is signed-in only, not an anonymous sign-in-failure endpoint. No automatic conversation/page/screenshot capture. No report list, triage controls, `processed` editor, or GitHub integration. […] Run relevant Application tests, `bun test`, `bun run check` and the Application build. Record any unavailable external-service checks honestly."
 > Yes: "a report button in the app shell, signed-in, symptom + optional detail, route and Profile attached. capture only; triage is [[…/capture-learner-and-tutor-friction-reports…]]."
@@ -92,8 +102,8 @@ Fields use logical slugs for `part-of` and issue entries in `blocked-by`; guards
 Copyable create/update for an existing `example-parent` (`PI_SKILL_DIR` names this tracker skill; `PI_SESSION_ID` is your session; the supplied `CLAIM_TOKEN` is `reconcile:<root>/<refine-handle>` during refinement):
 
 ```sh
-printf '%s\n' 'Implement the recorded child contract.' | bun "$PI_SKILL_DIR/scripts/issues.ts" create example-child --fields "{\"stage\":\"ticket\",\"assignee\":\"agent:fill\",\"author\":\"session:$PI_SESSION_ID\",\"part-of\":\"example-parent\",\"claimed-by\":\"$CLAIM_TOKEN\"}" --body-file -
-printf '%s\n' 'The sharpened parent contract, including its acceptance.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ticket","priority":null}' --body-file -
+printf '%s\n' 'The child'\''s goal and shape.' | bun "$PI_SKILL_DIR/scripts/issues.ts" create example-child --fields "{\"stage\":\"ticket\",\"assignee\":\"agent:auto-routine\",\"author\":\"session:$PI_SESSION_ID\",\"part-of\":\"example-parent\",\"claimed-by\":\"$CLAIM_TOKEN\"}" --body-file -
+printf '%s\n' 'The parent'\''s goal and shape, with its tasks.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ticket","priority":null}' --body-file -
 ```
 
 Writes validate the resulting global tracker before publication and commit only touched canonical issue paths for persistence, never unrelated staged files. The commit runs in a detached persister outside the caller's process group: a write whose command timed out or was killed after the working-tree write still commits, so check `git log` on the issue before retrying. Persistence waits out an index lock a live Git holds and removes one only when it is over 30s old with no live holder, naming it on stderr. This is not permission to commit unrelated canonical files. `remove` is reserved for owned provisional children, not general triage. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.

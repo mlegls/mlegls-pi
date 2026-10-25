@@ -2,7 +2,7 @@
 //
 // Each tick recomputes what every node needs from observed state (the global tracker and private landing ledger, the
 // workers' bb turn reports and current thread/live observations) and takes the next step. Specs get to tickets through the refine
-// role (compile or manager), which promotes them or commits children; an implementer who finds its ticket
+// role (manager), which promotes them or commits children; an implementer who finds its ticket
 // bigger than one session sends it back there (respec). Tickets run implement → drive → review → integrate, a leaf into its parent's branch, a node with children once they
 // have all landed in its own branch ("collector"), which its own chain then carries up. Mechanical failures
 // are retried here within budgets; anything else is an exception for a handler worker spawned for the nearest
