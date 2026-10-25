@@ -128,7 +128,8 @@ export function ensureWatcher(cwd: string): number | undefined {
 	if (live) return live;
 	const log = join(pickupDir(cwd), "watcher.log");
 	const fd = openSync(log, "a");
-	const child = Bun.spawn(["bun", import.meta.path, "watch", "--cwd", s.cwd], { cwd: s.cwd, stdio: ["ignore", fd, fd], env: { ...process.env, PI_SESSION_ID: "" } });
+	// Its own session, as main.ts start's reconcilers: bb stops a provider process by its process group.
+	const child = Bun.spawn(["bun", import.meta.path, "watch", "--cwd", s.cwd], { cwd: s.cwd, stdio: ["ignore", fd, fd], detached: true, env: { ...process.env, PI_SESSION_ID: "" } });
 	child.unref();
 	closeSync(fd);
 	update(cwd, p => ({ ...p!, watcher: child.pid }));

@@ -27,7 +27,10 @@ export function start(o: StartOptions): { pid: number; log: string } {
 	const log = join(stateDir(controlCwd), o.root + ".log");
 	const fd = openSync(log, "a");
 	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", controlCwd, "--land", prior.land ?? "local", ...(o.ownerSession ? ["--owner-session", o.ownerSession] : []), ...(o.quiet ? ["--quiet"] : [])],
-		{ cwd: controlCwd, stdio: ["ignore", fd, fd], env: { ...process.env, PI_SESSION_ID: "" } });
+		// Its own session (setsid): bb runs an environment's pis under one provider process and stops it, reaping its idle
+		// sessions, by killing its process group, which killed every reconciler a pi there had started; each owner's next
+		// session start resumed them all at once (2026-10-25). A host-daemon restart still kills its whole cgroup.
+		{ cwd: controlCwd, stdio: ["ignore", fd, fd], detached: true, env: { ...process.env, PI_SESSION_ID: "" } });
 	child.unref();
 	closeSync(fd);
 	// Publish before returning, including on the first start: an immediate stop must know its PID.
