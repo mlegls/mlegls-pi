@@ -1,38 +1,62 @@
-# Relative Markdown file-link checking
+# Independent CLI encounter
 
-Read-only first use on 2026-10-25, using this branch's `skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts check`. Both repositories were readable and the command completed with exit 1 (findings), not a setup failure. No `check --fix` was run against either repository.
+Tested revision: `d934b4b5672294273a9db8f439ff790bc61983f1`.
 
-| Checkout | Findings | Markdown repairs available | Unrepairable Markdown findings outside archive | Other findings |
-| --- | ---: | ---: | ---: | ---: |
-| `/home/mlegls/dev/mmon/concept` | 1,119 | 897 | 87 | 135 |
-| `/home/mlegls/dev/mlegls-pi` | 435 | 223 | 22 | 190 |
+## Setup and predictions (recorded before first use)
 
-Counts are emitted diagnostics, not total link occurrences: repeated identical repairs in one file are deduplicated. The concept output also has 3 wikilink repairs, included in Other findings; this repository has none. Unrepairable archived Markdown links are deliberately omitted by the checker. These are current checkout observations, not a reproduction of the ticket's older 862-link census. Revisions observed immediately after the run: concept `60282c9c74c6df5e600934b45b32e8b0878914c1`, mlegls-pi `fec6c30071f1520a153c9af8ed8c7a71762f5865`; canonical issue data is live and can change independently.
+CLI-only, no authentication, server or browser. Entry point: this checkout's `skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts check`. No inherited deployment selectors used. Real repository scans are read-only; repairs use an owned temporary non-git vault, `/tmp/tracker-drive-hiej7eh8`. Setup finished before invocation. The local CLI responded with usage, establishing its readiness.
 
-Full output: [concept](mmon-concept-check.txt), [mlegls-pi](mlegls-pi-check.txt).
+Predictions:
 
-## What's left without a mechanical repair
+1. A missing relative Markdown target in a live issue will be reported, while a valid URI-encoded path and unchecked heading will not. **Met.**
+2. A repository-root-relative target will offer a file-relative repair; `check` alone will not apply it. **Met:** the subsequent scoped fix still offered that repair.
+3. Archived outgoing and incoming links will offer repairs. Scoped fix changes only links involving the named archived file. **Met.**
+4. Fenced/inline code, URLs, absolute targets and anchor-only links will be ignored; unrepairable archive links will not be reported. **Met.**
+5. Read-only scans of both repositories report findings and representative unresolved targets without applying repairs. **Met.** No `--fix` was used on either repository.
 
-- concept `docs/design/markdown/content/lesson.md`: `media/zhuangzi.jpg` does not exist.
-- concept `docs/attachments/fold-the-overhaul-into-the-design-recipes/index.md`: `ranked.webp`, `alternatives.webp`, and other image destinations do not exist.
-- concept `docs/attachments/draw-session-map-and-graph-diff-node-marks/index.md`: `~/dev/mlegls-pi/docs/issues/bound-artboard-frame-capture-concurrency.md` is not a file-relative link and does not resolve.
-- mlegls-pi `docs/guide/cua-background.md`: `../../extensions/exec/cua-runtime.test.ts`, `../../extensions/exec/fixtures/cua-direct-textedit.json`, and `../computer.md` do not resolve.
-- mlegls-pi `docs/attachments/rehearse-github-tracked-reconcile/drive.md`: `../../../issues/native-rehearsal-single-page-capacity-prevents-replay.md` does not resolve through any of the three repairs.
+## Driven claims and replayable checks
 
-## First-use setup for a fresh driver
+Set `CLI` to the absolute path of the entry point above. In a fresh temporary directory create `docs/issues/archive/` and `docs/attachments/`. Create `docs/attachments/hello world.md` containing `hello`. Create live issue `docs/issues/live.md` with frontmatter `stage: idea` and the following body:
 
-CLI-only; no deployment, authentication, secrets, seed, or resident process. Use a checkout containing this commit. The tracker reads canonical issues, while code documentation comes from the current checkout. The original scan deliberately ran with each canonical checkout as cwd. From the implementing checkout, this directly opens the check surface:
-
-```sh
-bun skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts check
+```markdown
+[root](docs/attachments/hello%20world.md#not-a-heading)
+[incoming](old.md)
+[missing](missing.md)
+[valid](../attachments/hello%20world.md#unchecked)
+[web](https://example.com/no)
+[absolute](/no)
+[anchor](#no)
 ```
 
-To repeat the exact read-only repository scans, set `CLI` to the absolute path of this checkout's script and run `(cd /home/mlegls/dev/mmon/concept && bun "$CLI" check)` and `(cd /home/mlegls/dev/mlegls-pi && bun "$CLI" check)`. Do not add `--fix` to those scans before landing.
+Also include an inline-code Markdown link to `no-inline.md` and a fenced-code Markdown link to `no-fenced.md`. Create `docs/issues/archive/old.md` with frontmatter `stage: done`, `[outgoing](../attachments/hello%20world.md#keep)` and `[ignored missing](absent.md)`.
 
-The four authorized regression scenarios prepare isolated temporary projects and exercise root-relative repair, archived-source repair, archived-target repair, scoped fixing, read-only behavior, and unrepaired dangling links. They are runnable without external state from this checkout:
+From that directory:
 
-```sh
-TRACKER_CLI="$PWD/skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts" bun test skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts
-```
+- `bun "$CLI" check`: one dangling-link finding (`issues/live.md: [missing](missing.md) does not exist`) and three repair offers. No ignored target appeared. **Held.**
+- `bun "$CLI" check --fix docs/issues/archive/old.md`: incoming target became `archive/old.md`; outgoing became `../../attachments/hello%20world.md#keep`. The root-relative target stayed unchanged and was reported as needing a matching moved path. **Held.**
+- `bun "$CLI" check --fix`: root-relative target became `../attachments/hello%20world.md#not-a-heading`. **Held.**
+- `bun "$CLI" check`: only the deliberately missing live target remained. **Held.** All four invocations returned 1 because that finding remained. Reading both final Markdown files confirmed the rewrites, URI encoding and anchors survived, and ignored text remained unchanged.
 
-Observed: 29 pass, 0 fail, 699 assertions. Explicit `TRACKER_CLI` overrides the reconciler's inherited base-version pin; otherwise the test harness intentionally runs the pinned tracker rather than branch code. Temporary fixture directories are removed by the tests. No browser or server was started.
+Acceptable replay result is precisely these three rewrites and the one remaining live dangling-link finding; no missing-heading diagnostic, code-link diagnostic or unrepairable archive diagnostic.
+
+## Repository scans
+
+Commands: from this checkout and then `/home/mlegls/dev/mmon/concept`, run `bun "$CLI" check` with the same absolute checkout-owned CLI. Both completed with exit 1. Counts are diagnostic lines, not unique targets, and include the canonical global issue vault plus the scanned docs. These are pre-fix findings, not claims that every proposed repair was applied.
+
+| Scan | All findings/repair lines | Markdown repair offers | Markdown missing targets without repair | Other repair offers | Other findings |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| this repository | 435 | 223 | 22 | 0 | 190 |
+| mmon/concept | 1119 | 897 | 87 | 3 | 132 |
+
+Markdown missing targets were counted by `](` plus `does not exist`; Markdown repair offers exclude wikilink (`[[`) offers. The remaining counts include wikilink and lifecycle diagnostics, so these are not directly comparable with the ticket's earlier raw-link inventory.
+
+Representative unrepaired Markdown findings:
+
+- This repo: `guide/cua-background.md` links `../../extensions/exec/cua-runtime.test.ts`, `../../extensions/exec/fixtures/cua-direct-textedit.json`, and `../computer.md`; all are reported missing.
+- This repo: `attachments/rehearse-github-tracked-reconcile/drive.md` links `../../../issues/native-rehearsal-single-page-capacity-prevents-replay.md`, reported missing.
+- Concept: `design/markdown/content/lesson.md` links image `media/zhuangzi.jpg`, reported missing.
+- Concept: `attachments/fold-the-overhaul-into-the-design-recipes/index.md` links `ranked.webp`, `alternatives.webp`, `compound.webp`, `keys.webp`, and `list.webp`, all reported missing.
+
+## Frictions and limits
+
+No new unresolved tooling friction encountered. Expected dangling links in real repositories are the inventory requested by this ticket, not newly discovered runtime defects. Diagnostic output distinguishes repairable links and still-unresolved links clearly. This was a nonvisual CLI journey; no screenshots. No source, diffs, tests or existing fixtures were inspected, and no test runner was used. Temporary vault removed after final inspection; no services were started.
