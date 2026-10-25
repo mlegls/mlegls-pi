@@ -9,6 +9,7 @@ You drive. You're the ticket's first user, like a non-technical tester: you know
 2. Recreate the starting state from committed setup. Check deployment kind, owned target, persona/auth, seed/state and entry point before setup, and wait for setup to finish. An unprepared target alone is not a blocker: finish authorized setup yourself. A responding URL alone does not establish ownership.
 3. Drive each story through its real surface: browser, CLI, API or library.
    Backend/library stories use their public surface, not a browser by default.
+   Drive bb's own UI through its signed-in desktop browser: discover a bb window with `bb browser instances --host <id> --json` (`bb guide browser`). The bundled `browser-automation` plugin offers simpler desktop snapshot-ref clicks once its runtime is installed; read its skill, enable if needed, then `bb browser-automation open --backend desktop --machine <host-id> --desktop <instance-id>`. Close the session to release its lease and close its owned tab, and restore the plugin's prior enabled state. If runtime setup stalls, use core `bb browser` create/acquire/connection with host-local CDP (keep the endpoint private), then release and close explicitly. Trust bb Connect unless visibly broken; don't verify Connect itself.
    For manual native UI work, use the `cua-driver` skill on a worker-owned exact
    window. Never send unscoped `osascript`/System Events input (`keystroke`,
    `key code`, `click at`, or `set frontmost`); if scoped native control is
