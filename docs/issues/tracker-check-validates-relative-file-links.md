@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 priority: 2
 author: "session:thr_97xxb6d8ii"
@@ -29,3 +29,36 @@ Repairs follow the existing `check --fix [moved issue paths...]` rules: with pat
 ## Verification evidence
 
 [Independent CLI encounter](../attachments/tracker-check-validates-relative-file-links/index.md): all driven claims held; includes isolated repair replay and read-only inventories of both repositories.
+
+## Result
+
+done — the integration failure is fixed in `38fa0b6f`. The branch already contained `d7e090e8` through the earlier merge, so no further rebase was needed.
+
+The cause was in the tests, not the feature. `issues.test.ts` and `persistence.test.ts` ran `process.env.TRACKER_CLI ?? <script beside the test>`. Under the gate, `TRACKER_CLI` is pinned to the base `7c2a3458`. The four new Markdown tests were therefore running the old CLI, which printed "ok". Both files now always run the `issues.ts` beside them. With the pin still set, the full tracker suite passes (33 pass, 0 fail).
+
+```yaml
+commit: 38fa0b6f
+stories:
+  - story: Report dangling relative Markdown links while ignoring code, URLs, absolute paths and anchors
+    outcome: held
+  - story: Repair repository-root-relative targets without losing encoding or anchors
+    outcome: held
+  - story: Repair archived outgoing and incoming links with scoped fix behavior
+    outcome: held
+  - story: Inventory this repository and mmon/concept without applying repairs
+    outcome: held
+evidence:
+  path: docs/attachments/tracker-check-validates-relative-file-links/index.md
+  visual: false
+  shots: []
+tests:
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/persistence.test.ts
+fixed:
+  - "tracker tests ran an inherited TRACKER_CLI pin instead of the script under test (38fa0b6f)"
+caveats:
+  - Only the `cli` constant changed in the two test files; no assertions changed. Anything that relied on `TRACKER_CLI` to point these tests at another CLI no longer can.
+  - The repository counts in the packet are diagnostic lines, not unique targets.
+```
+
+Evidence: [docs/attachments/tracker-check-validates-relative-file-links/index.md](../attachments/tracker-check-validates-relative-file-links/index.md)
