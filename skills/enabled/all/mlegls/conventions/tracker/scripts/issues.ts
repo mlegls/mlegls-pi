@@ -373,7 +373,10 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
           throw new Error("evidence must be a repository-relative code artifact locator");
         const raw = readFileSync(i.file, "utf8");
         let nextBody = contract(raw).body;
-        const additions = [summary, evidence === undefined ? undefined : "Evidence: [" + evidence + "](" + evidence + ")"].filter((s): s is string => s !== undefined && s !== "");
+        // The link resolves from the issue file, as Markdown links do; the label stays repository-relative.
+        const repo = basename(dir) === "issues" && basename(dirname(dir)) === "docs" ? dirname(dirname(dir)) : dirname(dir);
+        const href = evidence === undefined ? "" : relative(dirname(i.file), join(repo, evidence)).replaceAll(sep, "/");
+        const additions = [summary, evidence === undefined ? undefined : "Evidence: [" + evidence + "](" + href + ")"].filter((s): s is string => s !== undefined && s !== "");
         // Exact replay preserves the body; each result item is appended at most once.
         const result = nextBody.split("## Result\n").slice(1).join("## Result\n").trim();
         const missing = additions.filter(s => !("\n\n" + result + "\n\n").includes("\n\n" + s + "\n\n"));

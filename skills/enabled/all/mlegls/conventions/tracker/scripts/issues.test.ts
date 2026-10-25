@@ -365,6 +365,13 @@ test("subtree readiness, assignment, dependencies, scheduling and review remain 
   for (const slug of ["scope", "child", "early"]) rmSync(join(issues, slug + ".md"));
 });
 
+test("close links its evidence from the issue file, so the link resolves where the issue is read", () => {
+  put("evidenced", frontmatter("stage: ticket\nassignee: agent") + "Goal.\n");
+  expect(run("close evidenced --evidence lib/x.ts").code).toBe(0);
+  expect(readFileSync(join(issues, "evidenced.md"), "utf8")).toContain("Evidence: [lib/x.ts](../../lib/x.ts)");
+  rmSync(join(issues, "evidenced.md"));
+});
+
 test("legacy is readable but never translated; selectors and structural omissions fail closed", () => {
   put("legacy", frontmatter("next: implement"));
   const snap = JSON.parse(run("frontier --json").out);
