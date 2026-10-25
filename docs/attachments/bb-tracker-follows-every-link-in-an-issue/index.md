@@ -40,4 +40,12 @@ Direct entry point attempted: <https://mlegls.getbb.app/plugins/tracker-link-pre
 
 The session-private MCP browser reached only bb Connect's account gate: “Sign in with the account that owns this server to open it.” It could not reach the pane. Thus concept/attachment/repository preview opening, missing-file plain-text presentation, and preserved in-page issue navigation are **unobservable**, not passed. No screenshot is offered as product evidence. The requested three clicks still need an authenticated browser.
 
+The supervisor subsequently authorized review and landing with this rendered check remaining **unobservable**: neither the worker nor the owner's available browser reaches an authenticated bb Connect session. The maintainer will click the three links on first use after landing; the linked browser-setup issue retains the gap. This is an explicit acceptance boundary, not a claim that the rendered journey passed.
+
+## Click-path code trace for review
+
+In `bb/tracker/app.tsx`, `linkify` converts the Mission wikilink to `#tracker-file=<encoded target>`. Relative attachment and repository links retain their Markdown destinations. `Detail` scans the rendered anchors and sends all three destinations to `resolveLinks`. Successful results are stored in `files.current` keyed by the returned original `href`, without altering the returned `{kind, hostId, path}` target.
+
+The pane's `onClickCapture` handles each file anchor before the Markdown link's own activation: it prevents default navigation and propagation, looks up that same `href`, and calls `navigate.experimental_openFilePreview({ target, location: null })` with the stored RPC target. Thus the concept, attachment and repository paths listed above share the same preview dispatch, with no target reconstruction in the click handler. Issue destinations take the earlier `#tracker-issue` branch and call `open`; external schemes bypass interception. Null-target results lose their `href` and receive the missing-file explanation as their title. This trace is static code evidence only; a fresh reviewer should inspect it alongside the RPC observations.
+
 Tooling observations: [[projects/mlegls-pi/issues/bb-plugin-build-cannot-find-mise-npm-on-enrolled-host]] records the local build's npm lookup failure and successful NODE_PATH workaround. [[projects/mlegls-pi/issues/remote-bb-pane-drive-needs-authenticated-browser]] records the remaining browser setup gap.
