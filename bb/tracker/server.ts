@@ -200,7 +200,9 @@ export default async function plugin(bb: BbPluginApi) {
 						const wiki = decodeURIComponent(href.slice("#tracker-file=".length)).split("#")[0];
 						const match = /^projects\/([^/]+)\/(.+)$/.exec(wiki);
 						if (match) {
-							const source = known.flatMap(project => project.sources ?? []).find(s => basename(trackerRoot(s.path) ?? s.path) === match[1]);
+							const sources = known.flatMap(project => project.sources ?? []).filter(s => basename(trackerRoot(s.path) ?? s.path) === match[1]);
+							// A project can have checkouts on several machines; this resolver reads on the server.
+							const source = sources.find(s => s.hostId === p.hostId) ?? sources.find(s => existsSync(s.path));
 							const root = match[1] === basename(p.root) ? p.root : source && (trackerRoot(source.path) ?? source.path);
 							hostId = match[1] === basename(p.root) ? p.hostId : source?.hostId ?? "";
 							if (root) path = resolve(root, "docs", match[2] + (extname(match[2]) ? "" : ".md"));
