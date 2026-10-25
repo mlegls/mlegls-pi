@@ -75,7 +75,7 @@ decisions:
 ## result                      (done, per `pr`)
 ```
 
-a spec's children are goal prose for their part, plus the shape that's theirs or a link to the parent's. a hole is its own issue when it's a session on its own or matters to more than one parent. a question is the same file with the question up top and `## answer` when it has one. preserve the distinction between what we chose and what we used to explore the choice.
+a spec's children are goal prose for their part, plus the shape that's theirs or a link to the parent's. when parallel children meet at a shared interface (one schema, many implementations), whoever splits the issue writes that interface as code and commits it first, so each child starts from it. a hole is its own issue when it's a session on its own or matters to more than one parent. a question is the same file with the question up top and `## answer` when it has one. preserve the distinction between what we chose and what we used to explore the choice.
 
 a later finding or ruling edits the goal, shape or tasks in place and adds a decisions line; it doesn't append a dated section. state the current state; git is the history, `docs/attachments/` the evidence.
 
