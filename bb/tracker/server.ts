@@ -192,7 +192,7 @@ export default async function plugin(bb: BbPluginApi) {
 			const issue = (await snap(p.root)).issues.find(i => i.slug === slug);
 			if (!issue) throw new Error("no issue " + slug);
 			const known = await bb.sdk.projects.list();
-			return hrefs.map(href => {
+			return Promise.all(hrefs.map(async href => {
 				let path: string | undefined;
 				let hostId = p.hostId;
 				try {
@@ -201,8 +201,8 @@ export default async function plugin(bb: BbPluginApi) {
 						const match = /^projects\/([^/]+)\/(.+)$/.exec(wiki);
 						if (match) {
 							const sources = known.flatMap(project => project.sources ?? []).filter(s => basename(trackerRoot(s.path) ?? s.path) === match[1]);
-							// A project can have checkouts on several machines; this resolver reads on the server.
-							const source = sources.find(s => s.hostId === p.hostId) ?? sources.find(s => existsSync(s.path));
+							// Prefer the issue host when a project has checkouts on several machines.
+							const source = sources.find(s => s.hostId === p.hostId) ?? sources[0];
 							const root = match[1] === basename(p.root) ? p.root : source && (trackerRoot(source.path) ?? source.path);
 							hostId = match[1] === basename(p.root) ? p.hostId : source?.hostId ?? "";
 							if (root) path = resolve(root, "docs", match[2] + (extname(match[2]) ? "" : ".md"));
@@ -210,10 +210,11 @@ export default async function plugin(bb: BbPluginApi) {
 					} else if (!/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(href)) {
 						path = resolve(dirname(join(p.root, issue.path)), decodeURIComponent(href.split(/[?#]/)[0]));
 					}
-					if (path && statSync(path).isFile()) return { href, target: { kind: "host" as const, hostId, path }, reason: null };
+					const exists = path && (hostId === p.hostId ? statSync(path).isFile() : (await bb.sdk.hosts.pathsExist({ hostId, paths: [path] })).existence[path]);
+					if (exists) return { href, target: { kind: "host" as const, hostId, path: path! }, reason: null };
 				} catch { /* Malformed or missing paths are inert, not broken navigation. */ }
 				return { href, target: null, reason: path ? "File does not exist: " + path : "Unresolved file: " + href };
-			});
+			}));
 		},
 		supervisors: async ({ projectId }) => ({ supervisors: await supervisors(projectId) }),
 		supervise: async ({ projectId, slugs, target }) => {
