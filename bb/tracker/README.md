@@ -1,6 +1,6 @@
 # bb tracker
 
-A bb plugin over the vault tracker (`docs/issues/`, the `tracker` skill): an **Issues** page listing a project's issues as a tree (by `part-of`) or as Ready (the frontier), Mine, Done and Archived. Rows show stage (own → effective), readiness, blockers, claims, sub-issue progress, assignee and priority; the detail pane renders the contract with issue wikilinks as in-page links.
+A bb plugin over the vault tracker (`docs/issues/`, the `tracker` skill): an **Issues** page listing a project's issues as a tree (by `part-of`) or as Ready (the frontier), Mine, Done and Archived. Rows show stage (own → effective), readiness, blockers, claims, sub-issue progress, assignee and priority; the detail pane renders the issue's Markdown. Same-project issue wikilinks stay in-page; other vault notes, attachments and relative repository-file links open in bb's file preview (including Obsidian at Home for Markdown). Vault paths resolve under the named project's `docs/`; relative paths resolve from the issue's own directory, including archived issues. Known bb projects can be linked across vaults. Missing files are plain text with an explanatory tooltip; web links are unchanged. Heading anchors are dropped because the file-preview SDK accepts line locations, not headings.
 
 It never writes issues. Its actions start agents:
 

@@ -2,9 +2,9 @@
 // matter: send a ready issue tree to a new or existing supervisor, start a shaping session on one that isn't, and
 // discuss selected issues in a new thread with them mentioned. Issues are only written by agents, through the tracker.
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, watch, type FSWatcher } from "node:fs";
+import { existsSync, readFileSync, statSync, watch, type FSWatcher } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
@@ -12,7 +12,7 @@ import { bun, pinTracker, pinnedTop, readIssue, snapshot, tracker, trackerRoot, 
 import { CAMPAIGN_MENTION, CHANGED, MENTION_PROVIDER, notReady, stageLabel, type Campaigns, type Snapshot } from "./model";
 import { DEPARTMENTS, history, historyReady, mentionContext, parseDepartments, readFacts, reconcilers, rollup } from "./campaigns";
 
-const projectSchema = z.object({ id: z.string(), name: z.string(), root: z.string() });
+const projectSchema = z.object({ id: z.string(), name: z.string(), root: z.string(), hostId: z.string() });
 export type TrackerProject = z.infer<typeof projectSchema>;
 const supervisorSchema = z.object({
 	threadId: z.string().nullable(),
@@ -36,6 +36,7 @@ export const rpcContract = defineRpcContract({
 	projects: { input: z.null(), output: z.object({ projects: z.array(projectSchema) }) },
 	snapshot: { input: z.object({ projectId: z.string() }), output: z.custom<Snapshot>() },
 	issue: { input: z.object({ projectId: z.string(), slug: z.string() }), output: z.object({ frontmatter: z.string(), body: z.string(), path: z.string() }) },
+	resolveLinks: { input: z.object({ projectId: z.string(), slug: z.string(), hrefs: z.array(z.string().max(8192)).max(200) }), output: z.array(z.object({ href: z.string(), target: z.object({ kind: z.literal("host"), hostId: z.string(), path: z.string() }).nullable(), reason: z.string().nullable() })) },
 	supervisors: { input: z.object({ projectId: z.string() }), output: z.object({ supervisors: z.array(supervisorSchema) }) },
 	supervise: { input: z.object({ projectId: z.string(), slugs, target }), output: z.object({ threadId: z.string().nullable(), note: z.string() }) },
 	refine: { input: z.object({ projectId: z.string(), slugs }), output: z.object({ threadId: z.string() }) },
@@ -62,10 +63,10 @@ export default async function plugin(bb: BbPluginApi) {
 	async function projects(): Promise<TrackerProject[]> {
 		const list = await bb.sdk.projects.list();
 		const out: TrackerProject[] = [];
-		for (const p of list as unknown as { id: string; name: string; sources?: { path?: string | null }[] }[]) {
+		for (const p of list as unknown as { id: string; name: string; sources?: { path?: string | null; hostId: string }[] }[]) {
 			for (const s of p.sources ?? []) {
 				const root = s.path ? trackerRoot(s.path) : undefined;
-				if (root) { const t = { id: p.id, name: p.name, root }; roots.set(p.id, t); out.push(t); break; }
+				if (root) { const t = { id: p.id, name: p.name, root, hostId: s.hostId }; roots.set(p.id, t); out.push(t); break; }
 			}
 		}
 		return out;
@@ -185,6 +186,32 @@ export default async function plugin(bb: BbPluginApi) {
 			const i = (await snap(p.root)).issues.find((x) => x.slug === slug);
 			if (!i) throw new Error("no issue " + slug);
 			return { ...readIssue(p.root, i.path), path: join(p.root, i.path) };
+		},
+		resolveLinks: async ({ projectId, slug, hrefs }) => {
+			const p = await project(projectId);
+			const issue = (await snap(p.root)).issues.find(i => i.slug === slug);
+			if (!issue) throw new Error("no issue " + slug);
+			const known = await bb.sdk.projects.list();
+			return hrefs.map(href => {
+				let path: string | undefined;
+				let hostId = p.hostId;
+				try {
+					if (href.startsWith("#tracker-file=")) {
+						const wiki = decodeURIComponent(href.slice("#tracker-file=".length)).split("#")[0];
+						const match = /^projects\/([^/]+)\/(.+)$/.exec(wiki);
+						if (match) {
+							const source = known.flatMap(project => project.sources ?? []).find(s => basename(trackerRoot(s.path) ?? s.path) === match[1]);
+							const root = match[1] === basename(p.root) ? p.root : source && (trackerRoot(source.path) ?? source.path);
+							hostId = match[1] === basename(p.root) ? p.hostId : source?.hostId ?? "";
+							if (root) path = resolve(root, "docs", match[2] + (extname(match[2]) ? "" : ".md"));
+						}
+					} else if (!/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(href)) {
+						path = resolve(dirname(join(p.root, issue.path)), decodeURIComponent(href.split(/[?#]/)[0]));
+					}
+					if (path && statSync(path).isFile()) return { href, target: { kind: "host" as const, hostId, path }, reason: null };
+				} catch { /* Malformed or missing paths are inert, not broken navigation. */ }
+				return { href, target: null, reason: path ? "File does not exist: " + path : "Unresolved file: " + href };
+			});
 		},
 		supervisors: async ({ projectId }) => ({ supervisors: await supervisors(projectId) }),
 		supervise: async ({ projectId, slugs, target }) => {
