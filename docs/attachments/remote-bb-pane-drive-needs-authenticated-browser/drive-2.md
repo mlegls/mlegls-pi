@@ -23,3 +23,7 @@ Browser Automation command is unavailable while disabled, as documented; used th
 ## Cleanup and limits
 
 Closed all three previews using their exact Close labels (all returned found/closed), released lease and closed owned browser tab. Removed all four Mac scratch files and closed owned terminals. No dev server, tunnel or plugin state change. No source, tests or implementation diff inspected; task 1's documentation edits are not assessed by this product drive. Only the three requested links and authenticated setup are claimed; no missing-file or navigation regression claim.
+
+## Review (2026-10-25)
+
+Read the diff (verify-story step 2, the drive role's step 3, the first-use record and the filed Browser Automation friction) against this log, and opened all three shots above: each shows the named preview loaded (Mission.md body, index.md "Cases-first first use" with Change, prepare-cases-first.ts with numbered lines and its concept path) beside the signed-in Issues pane, supporting every outcome. Both browser routes are documented with lease release and tab close, and Connect is stated as trusted. Repair: the first-use index listed this replay above the encounter it replays; reordered so the first use leads. No behavior changed, so no re-drive.
