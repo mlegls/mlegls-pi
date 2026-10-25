@@ -7,7 +7,8 @@ import { join } from "node:path";
 // Tracker writes reach a canonical checkout whose commit hooks take seconds, from callers whose
 // tool timeouts SIGKILL their whole process group. A killed caller must not strand .git/index.lock,
 // a stale lock nobody holds must not block every later write, and a live one must never be taken.
-const cli = process.env.TRACKER_CLI ?? join(import.meta.dir, "issues.ts");
+// The script beside this file, never a pinned TRACKER_CLI: workers inherit a pin of their base, which would test the old CLI.
+const cli = join(import.meta.dir, "issues.ts");
 
 function repo(hookSeconds = 0) {
   const root = mkdtempSync(join(tmpdir(), "tracker-persist-"));

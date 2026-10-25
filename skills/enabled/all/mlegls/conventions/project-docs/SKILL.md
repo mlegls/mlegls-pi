@@ -30,6 +30,8 @@ docs
     stories/
     guide/
 
+`ops` is the context for everything outside the architectural theories: how the project is developed, run and checked (local deployment, scripts, test and story harnesses, recordings, evidence, release), and what an architectural theory treats as implementation detail. Its terms get concept notes like any other, so an issue about tooling links its vocabulary too. Not "harness": that word is usually taken by the product.
+
 Formats:
 
 - [Theory](references/theory.md)

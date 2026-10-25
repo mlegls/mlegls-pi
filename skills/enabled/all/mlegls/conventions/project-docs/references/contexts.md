@@ -8,6 +8,7 @@ context. It maps each context to its responsibility, code, and docs.
 |---|---|---|---|
 | core | the portable engine | `packages/core/` | `docs/core/` |
 | web | hosting and interface | `packages/web/` | `docs/web/` |
+| ops | developing, running and checking the others | `scripts/`, `packages/web/scripts/` | `docs/ops/` |
 
 Web depends on Core through its public operations; Core never imports Web.
 ```
