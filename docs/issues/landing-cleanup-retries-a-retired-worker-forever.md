@@ -1,9 +1,8 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:01a1742b-6754-75c7-be9d-f5c1ba794776"
-claimed-by: "session:01a1742b-6754-75c7-be9d-f5c1ba794776"
 ---
 A landing whose worker is already gone keeps its reconciler alive forever. Found supervising Concept (~/dev/mmon/concept) on 2026-10-25 (owner @thread:thr_a35xhciju2).
 
@@ -28,3 +27,11 @@ In `cleanupLandings` ([reconcile.ts](../../lib/reconcile/reconcile.ts)), `retire
 Not code reloads. Every burst of "started (budget 6)" notices (2026-10-25 07:25, 13:24, 13:27, 14:12, 19:28, 19:42, 19:53, 20:00 and 2026-10-26 01:29 CST) came within seconds of a `thread/identity` event on the owner's thread, meaning a new pi had started there. The `session_start` handler in [supervision/index.ts](../../extensions/supervision/index.ts) then resumed every unfinished reconciler the owner had that wasn't running, without `quiet`, and each one mailed "started".
 
 They weren't running because they had died. bb runs an environment's pis under one provider process, spawned in its own process group, and stops it with `kill(-pgid)`. That happens when bb reaps idle sessions ("Reaped idle provider sessions" in `~/.bb-machines/mlegls.getbb.app/logs/host-daemon.*.log`). A host-daemon restart kills them too: systemd uses `KillMode=control-group`, and the journal shows restarts at 13:24, 13:57 and 14:08 CST. Reconcilers and the pickup watcher were spawned without `detached`, so they were in that group and died with it. I watched it happen on 2026-10-26: bb reaped the owner's session at 02:33:08 CST, and provider process 2640606, its pi 2709620, the let-tags-add-skills-and-tools reconciler 2710097 and the pickup watcher 2710138 all exited together.
+
+## Result
+
+- [reconcile.ts](lib/reconcile/reconcile.ts) `cleanupLandings` treats a worker whose bb thread is gone or archived as already retired. It retires the rest with `retireTelling`, which keeps ignored state in `__retired` (with RETIRED.md, honouring `wm.disposable`) and tells the owner. When cleanup fails 3 times in a row, it raises one owner exception, `landing cleanup failed`, and logs one note. A `retry` resolution tries again; any other action finishes the cleanup and leaves what's left in place.
+- `receiptWorkers` adds a landed chain's workers and handle to the landing receipt before the chain is deleted, both in `land` and where the tick drops chains whose landing `recoverLandings` recorded.
+- [main.ts](lib/reconcile/main.ts) and [pickup.ts](lib/reconcile/pickup.ts) now spawn with `detached: true` (setsid), so a provider-process stop no longer kills them; a host-daemon restart still does. Owner-session resumes are `quiet`.
+- Tests: [landing-cleanup.test.ts](lib/reconcile/landing-cleanup.test.ts) covers a missing worker, a stale receipt and ignored state being kept, plus the single exception. Both tests fail on the old code. `lib/reconcile` and dispatch tests pass, and tsc is clean. Commits fc4fcd85, 53aeba26, 4983bb76.
+- In Concept, the 01:44 reconcile_stop calls already retired the final reviewers' worktrees. The five states still have their cleanups unfinished, and a restart would now finish them.
