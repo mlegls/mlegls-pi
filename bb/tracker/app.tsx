@@ -209,7 +209,7 @@ function Detail({ projectId, snap, slug, open, actions, onClose }: { projectId: 
 	const rpc = useRpc<typeof rpcContract>();
 	const navigate = useBbNavigate();
 	const bodyRef = useRef<HTMLDivElement>(null);
-	const files = useRef(new Map<string, { kind: "host"; hostId: string; path: string }>());
+	const files = useRef(new Map<string, { kind: "host"; hostId: string; path: string } | { kind: "workspace"; environmentId: string; path: string }>());
 	const [doc, setDoc] = useState<{ body: string; path: string } | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const issue = snap.issues.find((i) => i.slug === slug);
