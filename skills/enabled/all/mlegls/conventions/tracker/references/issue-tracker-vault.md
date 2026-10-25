@@ -79,7 +79,10 @@ decisions:
 
 a spec's children are goal prose for their part, plus the shape that's theirs or a link to the parent's. when parallel children meet at a shared interface (one schema, many implementations), whoever splits the issue writes that interface as code and commits it first, so each child starts from it. a hole is its own issue when it's a session on its own or matters to more than one parent. a question is the same file with the question up top and `## answer` when it has one. preserve the distinction between what we chose and what we used to explore the choice.
 
-a later finding or ruling edits the goal, shape or tasks in place and adds a decisions line; it doesn't append a dated section. state the current state; git is the history, `docs/attachments/` the evidence.
+a later finding or ruling edits the goal, shape or tasks in place and adds a decisions line; it doesn't append a dated section. a decisions line is a choice someone made, and it replaces the line it supersedes. an escalation, a recommendation or where a step stands isn't a decision: it goes to whoever decides, or into the tasks. state the current state; git is the history, `docs/attachments/` the evidence.
+
+> No (decisions): "2026-10-25, enclosing contract handler: answer the stale-base exception as already resolved: implementation branch `cfed812bf` contains reviewed prerequisite `a40b051c4` and retained evidence `bcb48a66b`. Continue existing no-paid replay/evidence work from that branch, not a fresh launch. This answer grants no draw or retry; record the supervisor's fresh-capture disposition before any further paid requests. Historical failed observations and complete keyless/rendered acceptance remain unchanged."
+> Yes (tasks): "1. continue from `cfed812bf`, which has the proposal-tool repair and the reshaped evidence."
 
 the reader is me later, or an agent who has to be me (`writing-skills`): say what to do and why, once. scope is what the goal says and done is the goal holding in its story, so there's nothing to fence: no permissions, prohibitions, when/then, or restated standing rules (testing, verification, the two-minute rule). name things as `concepts/`, paths and test names do, so the first grep lands.
 

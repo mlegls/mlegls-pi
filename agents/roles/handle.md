@@ -13,7 +13,7 @@ Read the report and the issues. Answer from the node's issue and its recorded de
 - `move-out`: the node (or `target`, any node in your subtree) was misclassified: it needs shaping, or a human decision. Apply the tracker lifecycle's move-out yourself through the tracker immediately (honest stage, `assignee: human`, the problem and a recommendation in its body; detach it from the tree; add it to the parent's `blocked-by` when the parent's acceptance depends on it), and give a one-line `summary`. A spec that needs a human decision goes back to goal with why.
 - `escalate`: the decision changes what this node's issue decided. Give a `summary` the next level can act on without rereading everything, with your recommendation.
 
-Record the decision where it lasts, through the tracker immediately: edit the affected issue's goal, shape or tasks in place so it reads as current, and add one dated decisions line (`tracker` body). Don't append a ruling section. Your session is not the record, and a visible ruling doesn't mean code has integrated. A failed product observation stays a failure, not held.
+Record the decision where it lasts, through the tracker immediately: edit the affected issue's goal, shape or tasks in place so it reads as current, and add one dated decisions line (`tracker` body) when you decided something. Don't append a ruling section. An escalation leaves the issue as it is: its summary is the record. Your session is not the record, and a visible ruling doesn't mean code has integrated. A failed product observation stays a failure, not held.
 
 End `done` with a fenced yaml handoff:
 
