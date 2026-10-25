@@ -88,7 +88,9 @@ const WAITING_NUDGE_MS = 30 * 60_000;
 /** A waiting worker whose session runs no managed process this long after its report is told so (its notice raced, or nothing started). */
 const WAITING_VOID_MS = 2 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
-const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3 } as const;
+const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3 } as const;
+/** The exception reason of a landing whose cleanup keeps failing. */
+const CLEANUP_FAILED = "landing cleanup failed";
 
 
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
@@ -285,7 +287,8 @@ const yaml = (v: unknown) => "```json\n" + JSON.stringify(v ?? null, null, 1) + 
 export interface StartOptions {
 	cwd: string; root: string; owner: string; ownerSession?: string; budget: number;
 	land?: LandingMode;
-	/** Started by pickup (lib/reconcile/pickup.ts): no "started" mail; the owner hears exceptions and the finish. */
+	/** Started by pickup (lib/reconcile/pickup.ts) or resumed with its owner's session: no "started" mail; the owner hears
+	 * exceptions and the finish. */
 	quiet?: boolean;
 	/** Scratch observation uses the same lifecycle, with no live GitHub calls. */
 	prHost?: PullRequestHost;
@@ -601,6 +604,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		return r;
 	}
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
+		if (ex.reason === CLEANUP_FAILED) {
+			(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + (r.message || r.note || r.summary ? ": " + (r.message ?? r.note ?? r.summary) : ""));
+			delete s.exceptions[ex.node];
+			if (r.action !== "retry") { finishLandingCleanup(completion, ex.node); note("landing cleanup " + ex.node + " finished by the owner (" + r.action + "), leaving what was left"); }
+			else note("landing cleanup " + ex.node + " retried by the owner");
+			return save();
+		}
 		if (s.pr && s.landed[s.root] && ex.node === s.root) return resolvePr(ex, r);
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
@@ -847,7 +857,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** finished: the worker reported done and its work was taken, so its ignored state is discarded; otherwise ignored state
 	 * it alone holds is moved aside. done words the owner's notice for a finished worker whose state is kept anyway. */
 	async function retireHandle(h: Handle, into: string, finished = false, done = finished): Promise<boolean> {
-		try {
+		try { await retireTelling(h, into, finished, done); return true; }
+		catch (e) { note("retire " + h.handle + ": " + e); return false; }
+	}
+	/** retireHandle that throws, and returns what retirement did. */
+	async function retireTelling(h: Handle, into: string, finished = false, done = finished) {
 			const r = await retire(h, { cwd: into, discardIgnored: finished });
 			for (const k of (r.removed as { kept?: { path: string; entries: string[] }[] } | undefined)?.kept ?? []) {
 				note("retired " + h.handle + " keeping its ignored state at " + k.path + ": " + k.entries.join(", "));
@@ -855,8 +869,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 			const wip = ((r.removed as { branchesKept?: { branch: string; reason: string }[] } | undefined)?.branchesKept ?? []).find(b => b.reason.startsWith("uncommitted work saved"));
 			if (wip) { note("retired " + h.handle + " with uncommitted work: branch " + wip.branch + ", " + wip.reason); tellOwner("retired " + h.handle + " with uncommitted work in its worktree; it is kept on branch " + wip.branch + " (" + wip.reason + ")."); }
-			return true;
-		} catch (e) { note("retire " + h.handle + ": " + e); return false; }
+			return r;
 	}
 	/** Working by an observation of its pi (bb's status, or a live pi's own state), not inferred from admission. */
 	const observedWorking = (h: Handle) => bbWorking(bbThread(h));
@@ -872,13 +885,32 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			await discardRefinement(refinement, c.refinement);
 		for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into), finished);
 	}
-	/** Receipts outlive chains. A partial retirement/deletion is retried next tick. */
+	/** A landed node's workers join its landing receipt, which outlives the chain: the receipt alone may predate them, when
+	 * the landing was recorded from an earlier integration attempt's receipt (2026-10-25, Concept: a receipt naming
+	 * review-3 and review-4 while review-5 reviewed last). */
+	function receiptWorkers(slug: string, c: Chain) {
+		const operation = s.landingOps[slug];
+		if (!operation) return;
+		const workers = [...operation.workers, ...c.workers, ...(c.handle ? [c.handle] : [])]
+			.filter((w, i, all) => all.findIndex(o => o.run === w.run && o.handle === w.handle) === i);
+		if (workers.length !== operation.workers.length) { s.landingOps[slug] = { ...operation, workers }; save(); }
+	}
+	/** Consecutive failed cleanups per landing, this process; the limit raises one owner exception. */
+	const cleanupFailures = new Map<string, number>();
+	/** Receipts outlive chains. A partial retirement/deletion is retried next tick, and raised to the owner once it keeps
+	 * failing. A worker whose bb thread is gone or archived is already retired. Ignored state is kept as by every other
+	 * retirement: a landed worker's worktree can still hold state setup can't regenerate. */
 	async function cleanupLandings() {
 		for (const operation of Object.values(s.landingOps)) {
 			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
+			if (s.exceptions[operation.slug]?.reason === CLEANUP_FAILED) continue;
 			try {
+				const threads = await bbThreads();
 				for (const worker of operation.workers) {
-					const result = await retire(worker, { cwd: controlCwd, discardIgnored: true });
+					const found = await findWorker(worker, controlCwd);
+					const thread = found && threads.get(found.bb);
+					if (!thread || thread.archivedAt) continue;
+					const result = await retireTelling(worker, controlCwd, false, true);
 					if (git(controlCwd, "branch", "--list", worker.handle) && result.branchKept)
 						throw new Error(result.branchKept);
 				}
@@ -889,7 +921,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					if (s.collectors[operation.slug]?.path === col.path) delete s.collectors[operation.slug];
 				}
 				finishLandingCleanup(completion, operation.slug);
-			} catch (e) { note("landing cleanup " + operation.slug + " deferred: " + e); }
+				cleanupFailures.delete(operation.slug);
+			} catch (e) {
+				const failures = (cleanupFailures.get(operation.slug) ?? 0) + 1;
+				cleanupFailures.set(operation.slug, failures);
+				if (failures === 1) note("landing cleanup " + operation.slug + " deferred: " + e);
+				if (failures < BUDGET.cleanup) continue;
+				cleanupFailures.delete(operation.slug);
+				raise(operation.slug, CLEANUP_FAILED, operation.slug + " landed at " + operation.landedHead + ", but cleaning up after it failed "
+					+ failures + " times in a row:\n\n" + String((e as Error)?.message ?? e).slice(0, 3000) + "\n\nWorkers it retires: "
+					+ operation.workers.map(w => w.handle).join(", ") + (operation.collector ? "; collector " + operation.collector.path : "")
+					+ ".\n\nretry tries again (fix the cause first); answer finishes the cleanup, leaving what's left as it is.", new Map(), "owner");
+			}
 		}
 	}
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
@@ -913,6 +956,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const hook = outcome.output && hookFailure(outcome.output);
 		if (hook) { note("landing " + slug + ": a merge hook failed: " + hook.split("\n")[0]); tellOwner("landed " + slug + " at " + git(into, "rev-parse", "--short", "HEAD") + ", but a merge hook failed; what it does after landing (a push, a verify) did not happen:\n\n" + hook); }
 		if (slug === s.root && s.pr) { s.pr.preparedHead = outcome.head; s.pr.phase = "opening"; }
+		receiptWorkers(slug, c);
 		delete s.chains[slug];
 		save();
 		await cleanupLandings();
@@ -1369,7 +1413,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 
 	// --- main loop -------------------------------------------------------------------------------------
 	if (!o.quiet) tellOwner("started (budget " + s.budget + ")");
-	else note("started by pickup (budget " + s.budget + ")");
+	else note("started quietly (budget " + s.budget + ")");
 	// A tick that throws is told to the owner once per distinct error and retried, never a silent exit.
 	let tickError = "";
 	for (;;) {
@@ -1393,6 +1437,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		for (const [slug, c] of Object.entries(s.chains)) {
 			if (s.landed[slug]) {
 				s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
+				receiptWorkers(slug, c);
 				delete s.chains[slug]; save(); continue;
 			}
 			if (!c.refinement || c.phase !== "refine") continue;
@@ -1465,7 +1510,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		await handleExceptions(top);
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
-		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug)) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
+		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
 		if (result !== "active" && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			closeAtTarget(completion);
 			if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;

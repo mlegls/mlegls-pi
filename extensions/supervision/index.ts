@@ -122,12 +122,14 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({}),
 		run: (_p, ctx) => stopPickup(ctx.cwd),
 	});
-	// A missing process resumes with its owner; an explicit stop owns cleanup and never auto-resumes.
+	// A missing process resumes with its owner, quietly: every pi start (bb reaping an idle owner, a host restart) resumes
+	// them all, and each "started" mail cost the owner a turn for nothing it asked for (2026-10-25). An explicit stop owns
+	// cleanup and never auto-resumes.
 	pi.on("session_start", (_event, ctx) => {
 		try {
 			const me = process.env.BB_THREAD_ID;
 			if (!me) return;
-			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.stopping && !s.running) start({ cwd: ctx.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget, land: s.land ?? "local" });
+			for (const s of campaigns(ctx.cwd)) if (s.owner === me && !s.finished && !s.stopping && !s.running) start({ cwd: ctx.cwd, root: s.root, owner: me, ownerSession: ctx.sessionManager.getSessionId(), budget: s.budget, land: s.land ?? "local", quiet: true });
 		} catch {}
 		try { if (loadPickup(ctx.cwd)?.owner === process.env.BB_THREAD_ID) ensureWatcher(ctx.cwd); } catch {}
 	});
