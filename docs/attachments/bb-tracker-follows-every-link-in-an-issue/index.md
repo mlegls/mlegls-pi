@@ -1,5 +1,7 @@
 # Tracker file-link implementation trial
 
+**Rendered first use now held:** [signed-in desktop encounter, setup and replay](desktop-first-use.md), 2026-10-25. Mission, the attachment and `prepare-cases-first.ts` each opened in a file preview. This supersedes the authentication gap below for these three requested clicks; the earlier trials remain historical evidence.
+
 Independent second drive: [predictions, setup blocker and replay checks](drive-2.md). It again reached only the authentication gate; no rendered product claim was observed.
 
 Tested revision: `3588187e` (base `7c2a34585db21c7d82825f299a0428af1b78854d`). This is an implementation setup/API trial, **not rendered acceptance**.
