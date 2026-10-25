@@ -22,3 +22,9 @@ In `cleanupLandings` ([reconcile.ts](../../lib/reconcile/reconcile.ts)), `retire
 - A deferred cleanup that keeps failing is reported to the owner once, as an exception, not as an endless note and repeated "started" notices.
 - Find and record what restarted every running reconciler at once several times on 2026-10-25, when no commit to this repository explains it.
 - Tests cover a missing worker, a stale worker list, and ignored state being kept.
+
+## what restarted them
+
+Not code reloads. Every burst of "started (budget 6)" notices (2026-10-25 07:25, 13:24, 13:27, 14:12, 19:28, 19:42, 19:53, 20:00 and 2026-10-26 01:29 CST) came within seconds of a `thread/identity` event on the owner's thread, meaning a new pi had started there. The `session_start` handler in [supervision/index.ts](../../extensions/supervision/index.ts) then resumed every unfinished reconciler the owner had that wasn't running, without `quiet`, and each one mailed "started".
+
+They weren't running because they had died. bb runs an environment's pis under one provider process, spawned in its own process group, and stops it with `kill(-pgid)`. That happens when bb reaps idle sessions ("Reaped idle provider sessions" in `~/.bb-machines/mlegls.getbb.app/logs/host-daemon.*.log`). A host-daemon restart kills them too: systemd uses `KillMode=control-group`, and the journal shows restarts at 13:24, 13:57 and 14:08 CST. Reconcilers and the pickup watcher were spawned without `detached`, so they were in that group and died with it. I watched it happen on 2026-10-26: bb reaped the owner's session at 02:33:08 CST, and provider process 2640606, its pi 2709620, the let-tags-add-skills-and-tools reconciler 2710097 and the pickup watcher 2710138 all exited together.
