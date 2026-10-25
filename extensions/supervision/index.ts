@@ -122,9 +122,9 @@ export default function (pi: ExtensionAPI) {
 		parameters: Type.Object({}),
 		run: (_p, ctx) => stopPickup(ctx.cwd),
 	});
-	// A missing process resumes with its owner, quietly: every pi start (bb reaping an idle owner, a host restart) resumes
-	// them all, and each "started" mail cost the owner a turn for nothing it asked for (2026-10-25). An explicit stop owns
-	// cleanup and never auto-resumes.
+	// A missing process resumes with its owner, quietly: a host-daemon restart kills them all and the owner's next session
+	// start resumes them together, and each "started" mail cost the owner a turn for nothing it asked for (2026-10-25).
+	// An explicit stop owns cleanup and never auto-resumes.
 	pi.on("session_start", (_event, ctx) => {
 		try {
 			const me = process.env.BB_THREAD_ID;
