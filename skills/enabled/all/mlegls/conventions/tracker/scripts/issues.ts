@@ -753,6 +753,61 @@ function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, r
         else if (first) say(`${rel}: [[${target}#${m[2]}]] has no such heading`);
       }
     }
+    // Markdown destinations are file-relative, not vault-relative. Keep anchors
+    // verbatim; only the filesystem part participates in checking and repair.
+    const markdown = /!?\[[^\]\r\n]*\]\(\s*(<[^>\r\n]*>|(?:[^\s()\\]|\\.|(?:\([^()\r\n]*\)))+)(?:\s+["'][^\r\n]*?["'])?\s*\)/g;
+    const archived = relative(issuesDir, f).startsWith("archive" + sep);
+    const localPath = (path: string) => {
+      const tail = relative(join(docs, "issues"), path);
+      return tail !== ".." && !tail.startsWith(".." + sep) && !tail.startsWith(sep) ? join(issuesDir, tail) : path;
+    };
+    const archivedTarget = (path: string) => {
+      const tail = relative(issuesDir, path);
+      if (tail.startsWith(".." + sep) || tail.includes(sep) || !tail.endsWith(".md")) return undefined;
+      const alt = join(issuesDir, "archive", tail);
+      return existsSync(alt) ? alt : undefined;
+    };
+    for (const m of text.matchAll(markdown)) {
+      const wrapped = m[1].startsWith("<");
+      const destination = wrapped ? m[1].slice(1, -1) : m[1];
+      if (/^(?:[a-z][a-z\d+.-]*:|#|\/|\\)/i.test(destination)) continue;
+      const hash = destination.indexOf("#");
+      const pathname = hash < 0 ? destination : destination.slice(0, hash);
+      const anchor = hash < 0 ? "" : destination.slice(hash);
+      let decoded: string;
+      try { decoded = decodeURIComponent(pathname.replace(/\\([\\()[\] ])/g, "$1")); }
+      catch { decoded = pathname; }
+      const to = localPath(resolve(dirname(f), decoded));
+      if (existsSync(to)) continue;
+      const inIssues = !relative(issuesDir, f).startsWith(".." + sep);
+      const root = inIssues ? dirname(dirname(issuesDir)) : dirname(docs);
+      const fromRoot = localPath(resolve(root, decoded));
+      const fromBeforeArchive = archived ? localPath(resolve(dirname(dirname(f)), decoded)) : undefined;
+      const into = [fromRoot, fromBeforeArchive, archivedTarget(to), archivedTarget(fromRoot),
+        ...(fromBeforeArchive ? [archivedTarget(fromBeforeArchive)] : [])].find((p): p is string => !!p && existsSync(p));
+      const key = rel + m[0];
+      const first = !seen.has(key);
+      seen.add(key);
+      if (!into) {
+        if (first && !archived) say(`${rel}: ${m[0]} does not exist`);
+        continue;
+      }
+      // Outgoing links of a newly archived issue involve that moved file too.
+      const issueTail = relative(issuesDir, into);
+      const destinationPath = !inIssues && issueTail !== ".." && !issueTail.startsWith(".." + sep)
+        ? join(docs, "issues", issueTail) : into;
+      const target = encodeURI(relative(dirname(f), destinationPath)).replace(/#/g, "%23").replace(/\?/g, "%3F") + anchor;
+      const message = `${rel}: ${destination} -> ${target}`;
+      if (repair && !canFixTarget(into) && !(archived && canFixTarget(f))) {
+        if (first) say(`${rel}: repair available with a matching moved issue path (check --fix <moved issue paths>): ${destination} -> ${target}`);
+        continue;
+      }
+      const afterLabel = m[0].indexOf("](") + 2;
+      const start = afterLabel + m[0].slice(afterLabel).match(/^\s*/)![0].length;
+      const original = raw.slice(m.index!, m.index! + m[0].length);
+      const replacement = original.slice(0, start) + (wrapped ? "<" + target + ">" : target) + original.slice(start + m[1].length);
+      edits.set(m.index!, { end: m.index! + m[0].length, replacement, message });
+    }
     if (!edits.size) continue;
     const messages = new Set<string>();
     let out = raw;

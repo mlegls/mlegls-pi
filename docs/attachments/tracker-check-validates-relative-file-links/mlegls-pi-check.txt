@@ -1,0 +1,435 @@
+github-issues-as-a-tracker-backend: blocked-by reconcile-against-a-global-tracker is done; remove it (check --fix)
+activate-global-reconcile-runtime: blocked-by project-collector-local-tracker-lifecycle is done; remove it (check --fix)
+activate-global-reconcile-runtime: blocked-by persist-reconciler-landings-and-target-results is done; remove it (check --fix)
+activate-global-reconcile-runtime: blocked-by own-provisional-refinement-through-global-tracker is done; remove it (check --fix)
+reconcile-with-global-tracker-and-landing-ledger: blocked-by global-vault-tracker-backend is done; remove it (check --fix)
+move-agents-onto-pi-durable: stage done with open children landed-children-stay-open-on-the-canonical-tracker; omit stage on a parent whose work lives in its children
+write-tracker-through-global-api-in-agent-instructions: blocked-by global-vault-tracker-backend is done; remove it (check --fix)
+rehearse-failed-and-adopted-global-refinement: blocked-by activate-global-reconcile-runtime is done; remove it (check --fix)
+rehearse-collector-ledger-and-owner-restart: blocked-by activate-global-reconcile-runtime is done; remove it (check --fix)
+stopped-supervise-jobs-have-no-cleanup-path: blocked-by supervisor-constraints-reach-workers-a-turn-late is done; remove it (check --fix)
+probe-conflicts-and-prepare-deps-around-integrate: blocked-by stopped-supervise-jobs-have-no-cleanup-path is done; remove it (check --fix)
+admit-workers-against-a-host-wide-budget: blocked-by probe-conflicts-and-prepare-deps-around-integrate is done; remove it (check --fix)
+guide/cua-background.md: [extensions/exec/cua-runtime.test.ts](../../extensions/exec/cua-runtime.test.ts) does not exist
+guide/cua-background.md: [native/JeV recording](../../extensions/exec/fixtures/cua-direct-textedit.json) does not exist
+guide/cua-background.md: [computer](../computer.md) does not exist
+repair available (check --fix): attachments/tracker-obsidian-rollout/index.md: ../../issues/tracker-check-flags-inline-fixture-wikilinks.md -> ../../issues/archive/tracker-check-flags-inline-fixture-wikilinks.md
+repair available (check --fix): attachments/tracker-obsidian-rollout/index.md: ../../issues/computer-obsidian-vault-chooser-native-drive.md -> ../../issues/archive/computer-obsidian-vault-chooser-native-drive.md
+repair available (check --fix): attachments/tracker-obsidian-rollout/index.md: ../../issues/root-bun-test-selects-unprepared-optional-dsh.md -> ../../issues/archive/root-bun-test-selects-unprepared-optional-dsh.md
+attachments/rehearse-github-tracked-reconcile/drive.md: [Filed setup friction](../../../issues/native-rehearsal-single-page-capacity-prevents-replay.md) does not exist
+repair available (check --fix): attachments/thread-core-and-workers-on-zmx/source-contract.md: ../../issues/thread-core-and-workers-on-zmx.md -> ../../issues/archive/thread-core-and-workers-on-zmx.md
+attachments/land-reconciled-trees-through-pull-requests/index.md: [Global friction](../../../issues/scratch-pr-rehearsal-shell-model-unavailable.md) does not exist
+attachments/land-reconciled-trees-through-pull-requests/independent-drive.md: [scratch-pr-rehearsal-shell-model-unavailable](../../../issues/scratch-pr-rehearsal-shell-model-unavailable.md) does not exist
+repair available (check --fix): attachments/address-the-waiting-child-in-exception-mail/index.md: ../../issues/address-the-waiting-child-in-exception-mail.md -> ../../issues/archive/address-the-waiting-child-in-exception-mail.md
+repair available (check --fix): attachments/dsh-port-root-review/index.md: ../../issues/board-acks-are-a-host-runtime-event.md -> ../../issues/archive/board-acks-are-a-host-runtime-event.md
+repair available (check --fix): attachments/dsh-port-root-review/index.md: ../../issues/dsh-unsupported-socks-proxy-falls-back-to-direct.md -> ../../issues/archive/dsh-unsupported-socks-proxy-falls-back-to-direct.md
+repair available (check --fix): attachments/dsh-port-root-review/index.md: ../../issues/dsh-web-default-workspace-outside-home.md -> ../../issues/archive/dsh-web-default-workspace-outside-home.md
+repair available (check --fix): attachments/dsh-port-root-review/index.md: ../../issues/dsh-web-deepseek-extension-preparation-fails.md -> ../../issues/archive/dsh-web-deepseek-extension-preparation-fails.md
+repair available (check --fix): attachments/dsh-port-root-review/index.md: ../../issues/dsh-headless-json-clips-tool-results.md -> ../../issues/archive/dsh-headless-json-clips-tool-results.md
+repair available (check --fix): attachments/dsh-port-root-review/index.md: ../../issues/dsh-dispatch-unexercised-admission-and-resume.md -> ../../issues/archive/dsh-dispatch-unexercised-admission-and-resume.md
+repair available (check --fix): attachments/dsh-port-root-review/index.md: ../../issues/dsh-web-shutdown-inbox-projection-order.md -> ../../issues/archive/dsh-web-shutdown-inbox-projection-order.md
+repair available (check --fix): attachments/ab-check-loses-waiter-after-daemon-timeout/implementation.md: ../../issues/disabled-watch-pr-tests-missing-commander.md -> ../../issues/archive/disabled-watch-pr-tests-missing-commander.md
+repair available (check --fix): attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md: ../../issues/bash-lifecycle-oversized-output-test-flaky-under-load.md -> ../../issues/archive/bash-lifecycle-oversized-output-test-flaky-under-load.md
+repair available (check --fix): attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md: ../../issues/orchestration-audits-test-reads-prearchive-report-path.md -> ../../issues/archive/orchestration-audits-test-reads-prearchive-report-path.md
+repair available (check --fix): attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md: ../../issues/root-bun-test-selects-unprepared-optional-dsh.md -> ../../issues/archive/root-bun-test-selects-unprepared-optional-dsh.md
+repair available (check --fix): attachments/dsh-memory-compaction-provider/index.md: ../../issues/dsh-web-default-workspace-outside-home.md -> ../../issues/archive/dsh-web-default-workspace-outside-home.md
+repair available (check --fix): attachments/dsh-memory-compaction-provider/index.md: ../../issues/board-acks-are-a-host-runtime-event.md -> ../../issues/archive/board-acks-are-a-host-runtime-event.md
+repair available (check --fix): attachments/dsh-memory-compaction-provider/index.md: ../../issues/dsh-session-append-ignorable.md -> ../../issues/archive/dsh-session-append-ignorable.md
+repair available (check --fix): attachments/dsh-memory-compaction-provider/index.md: ../../issues/memory-checkpoint-cites-retained-tail.md -> ../../issues/archive/memory-checkpoint-cites-retained-tail.md
+repair available (check --fix): attachments/dsh-memory-compaction-provider/index.md: ../../issues/root-typecheck-obsidian-environment.md -> ../../issues/archive/root-typecheck-obsidian-environment.md
+repair available (check --fix): attachments/dsh-memory-compaction-provider/index.md: ../../issues/dsh-diagnostic-tools-need-agent-turn-lifecycle.md -> ../../issues/archive/dsh-diagnostic-tools-need-agent-turn-lifecycle.md
+repair available (check --fix): attachments/dsh-memory-compaction-provider/index.md: ../../issues/dsh-web-deepseek-extension-preparation-fails.md -> ../../issues/archive/dsh-web-deepseek-extension-preparation-fails.md
+repair available (check --fix): attachments/thread-cli-over-registry/index.md: ../../issues/ab-tree-help-runs-option-validation.md -> ../../issues/archive/ab-tree-help-runs-option-validation.md
+repair available (check --fix): attachments/tree-sidebar-bridge-fixes/index.md: ../../issues/cua-hidden-ghostty-has-no-addressable-window.md -> ../../issues/archive/cua-hidden-ghostty-has-no-addressable-window.md
+repair available (check --fix): attachments/tree-sidebar-bridge-fixes/index.md: ../../issues/sidebar-ghostty-helpers-target-the-front-window.md -> ../../issues/archive/sidebar-ghostty-helpers-target-the-front-window.md
+repair available (check --fix): attachments/supervise-status-shows-each-jobs-running-services/index.md: ../../issues/supervise-status-empty-output-hides-checkout-scope.md -> ../../issues/archive/supervise-status-empty-output-hides-checkout-scope.md
+repair available (check --fix): attachments/supervise-status-shows-each-jobs-running-services/index.md: ../../issues/supervise-status-shows-each-jobs-running-services.md -> ../../issues/archive/supervise-status-shows-each-jobs-running-services.md
+repair available (check --fix): attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md: ../../issues/session-terminal-regressions-fail-with-extra-shell-sessions.md -> ../../issues/archive/session-terminal-regressions-fail-with-extra-shell-sessions.md
+attachments/rename-threads/index.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): attachments/dsh-templated-spawn-and-dispatch/index.md: ../../issues/board-acks-are-a-host-runtime-event.md -> ../../issues/archive/board-acks-are-a-host-runtime-event.md
+repair available (check --fix): attachments/dsh-templated-spawn-and-dispatch/index.md: ../../issues/dsh-web-default-workspace-outside-home.md -> ../../issues/archive/dsh-web-default-workspace-outside-home.md
+repair available (check --fix): attachments/dsh-templated-spawn-and-dispatch/index.md: ../../issues/dsh-unsupported-socks-proxy-falls-back-to-direct.md -> ../../issues/archive/dsh-unsupported-socks-proxy-falls-back-to-direct.md
+attachments/trial-collected-evidence-and-visual-acceptance/index.md: [[projects/concept/issues/name-things-by-their-names-not-ids]] does not exist
+attachments/trial-collected-evidence-and-visual-acceptance/index.md: [[projects/concept/issues/fix-small-application-state-and-error-defects]] does not exist
+repair available (check --fix): attachments/tracker-obsidian-views/index.md: ../../issues/computer-obsidian-base-semantic-drive.md -> ../../issues/archive/computer-obsidian-base-semantic-drive.md
+repair available (check --fix): attachments/dsh-scratch-state/index.md: ../../issues/dsh-scratch-state.md -> ../../issues/archive/dsh-scratch-state.md
+attachments/jev-lint-skill-link-points-to-removed-lib-lint/index.md: [[projects/concept/issues/jev-lint-command-points-at-an-absent-skill-file]] does not exist
+attachments/jev-lint-skill-link-points-to-removed-lib-lint/index.md: [[projects/concept/issues/advisory-meaning-lint-entry-point-is-missing]] does not exist
+repair available (check --fix): attachments/terminal-tests-leak-tmux-sockets/index.md: ../../issues/terminal-output-cursor-wait-can-report-unchanged.md -> ../../issues/archive/terminal-output-cursor-wait-can-report-unchanged.md
+repair available (check --fix): attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md: ../../issues/bash-lifecycle-oversized-output-test-flaky-under-load.md -> ../../issues/archive/bash-lifecycle-oversized-output-test-flaky-under-load.md
+repair available (check --fix): attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md: ../../issues/orchestration-audits-test-reads-prearchive-report-path.md -> ../../issues/archive/orchestration-audits-test-reads-prearchive-report-path.md
+repair available (check --fix): attachments/root-bun-test-selects-unprepared-optional-dsh/index.md: ../../issues/orchestration-audits-test-reads-prearchive-report-path.md -> ../../issues/archive/orchestration-audits-test-reads-prearchive-report-path.md
+attachments/orchestrate-rework-effect/index.md: [research report](../../research/orchestrate-rework-effect.md) does not exist
+attachments/orchestrate-rework-effect/index.md: [metrics.tsv](../../analysis/orchestrate-rework-effect/metrics.tsv) does not exist
+repair available (check --fix): attachments/dsh-hashline-tools-spike/index.md: ../../issues/supervise-as-exception-handler.md -> ../../issues/archive/supervise-as-exception-handler.md
+repair available (check --fix): attachments/dsh-hashline-tools-spike/index.md: ../../issues/supervision-phase-loop.md -> ../../issues/archive/supervision-phase-loop.md
+repair available (check --fix): attachments/dsh-hashline-tools-spike/index.md: ../../issues/dsh-preset-relative-plugin-loading.md -> ../../issues/archive/dsh-preset-relative-plugin-loading.md
+repair available (check --fix): attachments/dsh-hashline-tools-spike/index.md: ../../issues/root-typecheck-obsidian-environment.md -> ../../issues/archive/root-typecheck-obsidian-environment.md
+repair available (check --fix): attachments/dsh-hashline-tools-spike/index.md: ../../issues/dsh-web-deepseek-extension-preparation-fails.md -> ../../issues/archive/dsh-web-deepseek-extension-preparation-fails.md
+attachments/orchestration-audits/index.md: [child report](../../../analysis/decision-broadcasts-read/report.md) does not exist
+attachments/orchestration-audits/index.md: [reviewed report](../../../analysis/cache-read-fence-knee/report.md) does not exist
+repair available (check --fix): attachments/orchestration-audits/index.md: ../../issues/orchestration-audits.md -> ../../issues/archive/orchestration-audits.md
+repair available (check --fix): attachments/parent-waits-on-worker-that-died-without-a-report/index.md: ../../issues/backend-supervisor-test-entry-does-not-expose-handoff-routing.md -> ../../issues/archive/backend-supervisor-test-entry-does-not-expose-handoff-routing.md
+attachments/decision-broadcasts-read/index.md: [report](../../../analysis/decision-broadcasts-read/report.md) does not exist
+attachments/small-ab-cli-fixes/drive.md: [[projects/system-config/issues/pi-launcher-resolves-installed-cli-against-temporary-home]] does not exist
+repair available (check --fix): attachments/turn-end-sentinel-parser-rejects-preambles/index.md: ../../issues/worker-turn-end-report.md -> ../../issues/archive/worker-turn-end-report.md
+repair available (check --fix): attachments/test-suite-hygiene/driver.md: ../../issues/bash-lifecycle-oversized-output-test-flaky-under-load.md -> ../../issues/archive/bash-lifecycle-oversized-output-test-flaky-under-load.md
+repair available (check --fix): attachments/test-suite-hygiene/index.md: ../../issues/bash-lifecycle-oversized-output-test-flaky-under-load.md -> ../../issues/archive/bash-lifecycle-oversized-output-test-flaky-under-load.md
+repair available (check --fix): attachments/test-suite-hygiene/index.md: ../../issues/orchestration-audits-test-reads-prearchive-report-path.md -> ../../issues/archive/orchestration-audits-test-reads-prearchive-report-path.md
+repair available (check --fix): attachments/test-suite-hygiene/index.md: ../../issues/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses.md -> ../../issues/archive/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses.md
+repair available (check --fix): attachments/test-suite-hygiene/index.md: ../../issues/worktree-tests-read-canonical-agent-roster.md -> ../../issues/archive/worktree-tests-read-canonical-agent-roster.md
+repair available (check --fix): attachments/test-suite-hygiene/index.md: ../../issues/root-bun-test-selects-unprepared-optional-dsh.md -> ../../issues/archive/root-bun-test-selects-unprepared-optional-dsh.md
+repair available (check --fix): attachments/test-suite-hygiene/index.md: ../../issues/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander.md -> ../../issues/archive/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander.md
+attachments/supervise-as-exception-handler/index.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+repair available (check --fix): attachments/check-zmx-reattach-with-pi/README.md: ../../issues/check-zmx-reattach-with-pi.md -> ../../issues/archive/check-zmx-reattach-with-pi.md
+attachments/rehearse-reconciled-github-pr-landings/independent-drive.md: [Filed friction](../../../issues/scratch-pr-rehearsal-transport-interruption.md) does not exist
+attachments/cache-read-fence-knee/index.md: [report](../../../analysis/cache-read-fence-knee/report.md) does not exist
+attachments/cache-read-fence-knee/index.md: [sessions](../../../analysis/cache-read-fence-knee/sessions.json) does not exist
+attachments/cache-read-fence-knee/index.md: [curves](../../../analysis/cache-read-fence-knee/curves.json) does not exist
+attachments/cache-read-fence-knee/index.md: [board correlation](../../../analysis/cache-read-fence-knee/board_corr.json) does not exist
+attachments/cache-read-fence-knee/index.md: [Full curves](../../../analysis/cache-read-fence-knee/curves.json) does not exist
+attachments/cache-read-fence-knee/index.md: [Timestamp links](../../../analysis/cache-read-fence-knee/board_corr.json) does not exist
+attachments/cache-read-fence-knee/index.md: [All 40 actual/counterfactual rows, worst actual reads first](../../../analysis/cache-read-fence-knee/results.md) does not exist
+attachments/cache-read-fence-knee/index.md: [Report](../../../analysis/cache-read-fence-knee/report.md) does not exist
+attachments/cache-read-fence-knee/index.md: [CLI/artifact replay](../../../analysis/cache-read-fence-knee/cache-read-fence-knee.test.ts) does not exist
+repair available (check --fix): attachments/cache-read-fence-knee/index.md: ../../issues/cache-read-fence-knee-rerun-dirties-checkout.md -> ../../issues/archive/cache-read-fence-knee-rerun-dirties-checkout.md
+attachments/native-computer-lacks-a-manual-llm-path/index.md: [                                ](../../../lib/native-manual-path.test.ts) does not exist
+repair available (check --fix): issues/om-reflections-grow-without-a-budget.md: docs/attachments/om-reflections-grow-without-a-budget/index.md -> ../attachments/om-reflections-grow-without-a-budget/index.md
+repair available (check --fix): issues/reconcile-github-pr-transport.md: docs/attachments/reconcile-github-pr-transport/index.md -> ../attachments/reconcile-github-pr-transport/index.md
+repair available (check --fix): issues/successor-launch-overflows-git-merge-output.md: docs/attachments/successor-launch-overflows-git-merge-output/index.md -> ../attachments/successor-launch-overflows-git-merge-output/index.md
+repair available (check --fix): issues/delete-the-zmx-thread-runtime.md: docs/attachments/delete-the-zmx-thread-runtime/index.md -> ../attachments/delete-the-zmx-thread-runtime/index.md
+repair available (check --fix): issues/land-reconciled-trees-through-pull-requests.md: docs/attachments/land-reconciled-trees-through-pull-requests/index.md -> ../attachments/land-reconciled-trees-through-pull-requests/index.md
+repair available (check --fix): issues/github-issues-as-a-tracker-backend.md: docs/attachments/github-issues-as-a-tracker-backend/drive.md -> ../attachments/github-issues-as-a-tracker-backend/drive.md
+repair available (check --fix): issues/delete-the-threads-gui-and-tree-sidebar.md: docs/attachments/delete-the-threads-gui-and-tree-sidebar/index.md -> ../attachments/delete-the-threads-gui-and-tree-sidebar/index.md
+repair available (check --fix): issues/jev-lint-skill-link-points-to-removed-lib-lint.md: docs/attachments/jev-lint-skill-link-points-to-removed-lib-lint/index.md -> ../attachments/jev-lint-skill-link-points-to-removed-lib-lint/index.md
+repair available (check --fix): issues/scc-delta-counts-installed-dependencies.md: docs/attachments/scc-delta-counts-installed-dependencies/index.md -> ../attachments/scc-delta-counts-installed-dependencies/index.md
+repair available (check --fix): issues/condense-reflections-to-their-render-share.md: docs/attachments/condense-reflections-to-their-render-share/index.md -> ../attachments/condense-reflections-to-their-render-share/index.md
+issues/trim-validation-runs-that-inform-no-role-decision.md: [[projects/concept/attachments/streamline-validation-by-value-and-wall-time/index]] does not exist
+issues/trim-validation-runs-that-inform-no-role-decision.md: [[projects/concept/issues/streamline-validation-by-value-and-wall-time]] does not exist
+issues/storybook-navigation-invalidates-fresh-browser-refs.md: [[projects/concept/attachments/story-tests-log-react-key-and-act-warnings/drive]] does not exist
+repair available (check --fix): issues/key-workers-by-bb-thread-id.md: docs/attachments/key-workers-by-bb-thread-id/index.md -> ../attachments/key-workers-by-bb-thread-id/index.md
+repair available (check --fix): issues/codemode-read-does-not-honor-quoted-space-containing-paths.md: docs/attachments/codemode-read-does-not-honor-quoted-space-containing-paths/index.md -> ../attachments/codemode-read-does-not-honor-quoted-space-containing-paths/index.md
+repair available (check --fix): issues/thread-list-blocked-reason-spills-rows.md: docs/attachments/thread-list-blocked-reason-spills-rows/index.md -> ../attachments/thread-list-blocked-reason-spills-rows/index.md
+issues/chrome-devtools-axi-css-submit-click-did-not-advance-a-quiz.md: [[projects/concept/attachments/fold-study-quiz-and-review-browser-fixtures/index]] does not exist
+repair available (check --fix): issues/codemode-image-read-returns-only-the-caption.md: docs/attachments/codemode-image-read-returns-only-the-caption/index.md -> ../attachments/codemode-image-read-returns-only-the-caption/index.md
+repair available (check --fix): issues/stage-reconciled-root-for-pr-landing.md: docs/attachments/stage-reconciled-root-for-pr-landing/index.md -> ../attachments/stage-reconciled-root-for-pr-landing/index.md
+repair available (check --fix): issues/board-cli-help-runs-required-argument-validation.md: docs/attachments/board-cli-help-runs-required-argument-validation/index.md -> ../attachments/board-cli-help-runs-required-argument-validation/index.md
+repair available (check --fix): issues/retry-tests-wait-for-real-backoff.md: docs/attachments/retry-tests-wait-for-real-backoff/index.md -> ../attachments/retry-tests-wait-for-real-backoff/index.md
+issues/supervised-drive-checkout-missing-implementation-head.md: [[projects/concept/attachments/decision-model-picker-is-an-unstyled-native-select/index]] does not exist
+repair available (check --fix): issues/rehearse-github-tracked-reconcile.md: docs/attachments/rehearse-github-tracked-reconcile/index.md -> ../attachments/rehearse-github-tracked-reconcile/index.md
+issues/chrome-devtools-axi-omits-model-picker-options-from-snapshot.md: [[projects/concept/issues/show-recoverable-failures-as-fault-cards]] does not exist
+issues/chrome-devtools-axi-omits-model-picker-options-from-snapshot.md: [[projects/concept/attachments/peek-links-from-the-transcript-without-leaving-the-session/index]] does not exist
+issues/chrome-devtools-axi-omits-model-picker-options-from-snapshot.md: [[projects/concept/attachments/name-things-by-their-names-not-ids/index]] does not exist
+repair available (check --fix): issues/reconcile-submitted-pr-reviews.md: docs/attachments/reconcile-submitted-pr-reviews/index.md -> ../attachments/reconcile-submitted-pr-reviews/index.md
+issues/reconciler-drive-continuation-loses-managed-process-ownership.md: [[projects/concept/issues/fold-welcome-browser-journey-onto-fresh-accounts]] does not exist
+issues/reconciler-drive-continuation-loses-managed-process-ownership.md: [[projects/concept/issues/reconcile-folded-browser-scenarios-on-the-common-seed]] does not exist
+issues/reconciler-drive-continuation-loses-managed-process-ownership.md: [[projects/concept/issues/run-the-kept-browser-batch-on-a-fresh-seed-with-one-command]] does not exist
+issues/reconciler-drive-continuation-loses-managed-process-ownership.md: [[projects/concept/issues/attachments/browser-replay-rulings/combined]] does not exist
+repair available (check --fix): issues/tracker-check-masks-no-indented-code-blocks.md: docs/attachments/tracker-check-masks-no-indented-code-blocks/index.md -> ../attachments/tracker-check-masks-no-indented-code-blocks/index.md
+repair available (check --fix): issues/isolate-interactive-edits-in-task-worktrees.md: docs/attachments/isolate-interactive-edits-in-task-worktrees/index.md -> ../attachments/isolate-interactive-edits-in-task-worktrees/index.md
+issues/replacement-drive-misses-recorded-offline-audit-scope.md: [[projects/concept/issues/measure-live-classical-chinese-first-turns]] does not exist
+issues/replacement-drive-misses-recorded-offline-audit-scope.md: [[projects/concept/stories/plan]] does not exist
+issues/replacement-drive-misses-recorded-offline-audit-scope.md: [[projects/concept/stories/session]] does not exist
+issues/replacement-drive-misses-recorded-offline-audit-scope.md: [[projects/concept/stories/meter-managed-usage]] does not exist
+issues/replacement-drive-misses-recorded-offline-audit-scope.md: [[projects/concept/issues/measure-live-classical-chinese-first-turns]] does not exist
+issues/replacement-drive-misses-recorded-offline-audit-scope.md: [[projects/concept/issues/measure-live-classical-chinese-first-turns]] does not exist
+issues/codemode-worker-enoent-recurred-before-evidence-commit.md: [[projects/concept/issues/pi-codemode-worker-missing-during-a-live-drive]] does not exist
+issues/managed-process-completion-notice-did-not-reach-a-waiting-worker.md: [[projects/concept/issues/gate-supervised-integration-on-the-kept-browser-batch]] does not exist
+issues/managed-process-completion-notice-did-not-reach-a-waiting-worker.md: [[projects/concept/attachments/gate-supervised-integration-on-the-kept-browser-batch/index]] does not exist
+issues/managed-process-completion-notice-did-not-reach-a-waiting-worker.md: [[projects/concept/issues/local-convex-backends-leak-executors-and-temp-bundles]] does not exist
+repair available (check --fix): issues/retire-the-ab-thread-registry.md: docs/attachments/retire-the-ab-thread-registry/index.md -> ../attachments/retire-the-ab-thread-registry/index.md
+repair available (check --fix): issues/tracker-publication-can-fail-after-validated-write-on-index-lock.md: skills/enabled/all/mlegls/conventions/tracker/scripts/persistence.test.ts -> ../../skills/enabled/all/mlegls/conventions/tracker/scripts/persistence.test.ts
+repair available (check --fix): issues/pick-up-ready-work-from-the-tracker.md: docs/attachments/pick-up-ready-work-from-the-tracker/index.md -> ../attachments/pick-up-ready-work-from-the-tracker/index.md
+issues/reconciler-integration-gate-has-a-shorter-timeout-than-the-kept-browser-batch.md: [[projects/concept/issues/gate-supervised-integration-on-the-kept-browser-batch]] does not exist
+issues/reconciler-integration-gate-has-a-shorter-timeout-than-the-kept-browser-batch.md: [[projects/concept/attachments/run-the-kept-browser-batch-on-a-fresh-seed-with-one-command/index]] does not exist
+issues/hold-workers-for-supervisor-owned-prerequisites.md: [[projects/concept/issues/author-and-publish-the-language-learning-template]] does not exist
+issues/supervised-study-drive-lacks-setup-handoff.md: [[projects/concept/issues/seed-the-states-drives-keep-finding-empty]] does not exist
+repair available (check --fix): issues/write-github-tracker-contracts.md: docs/attachments/write-github-tracker-contracts/index.md -> ../attachments/write-github-tracker-contracts/index.md
+repair available (check --fix): issues/rehearse-reconciled-github-pr-landings.md: docs/attachments/rehearse-reconciled-github-pr-landings/index.md -> ../attachments/rehearse-reconciled-github-pr-landings/index.md
+repair available (check --fix): issues/host-load-times-out-existing-regressions.md: docs/attachments/host-load-times-out-existing-regressions/drive-2.md -> ../attachments/host-load-times-out-existing-regressions/drive-2.md
+issues/checkpoint-continuation-discards-private-local-migration-state.md: [[projects/concept/issues/rehearse-scene-retirement-on-legacy-fixtures]] does not exist
+repair available (check --fix): issues/read-github-tracker-snapshots.md: docs/attachments/read-github-tracker-snapshots/index.md -> ../attachments/read-github-tracker-snapshots/index.md
+issues/admit-heavy-checks-against-the-host-budget.md: [[projects/concept/issues/streamline-validation-by-value-and-wall-time]] does not exist
+issues/admit-heavy-checks-against-the-host-budget.md: [[projects/concept/issues/declare-a-main-verification-task-and-drop-pre-integrate-owner]] does not exist
+repair available (check --fix): issues/desk-helper-for-convention-files.md: docs/attachments/desk-helper-for-convention-files/index.md -> ../attachments/desk-helper-for-convention-files/index.md
+issues/retained-tests-rerun-what-the-gate-already-covers.md: [[projects/concept/issues/streamline-validation-by-value-and-wall-time]] does not exist
+repair available (check --fix): issues/rank-omitted-reflections-with-jev.md: docs/attachments/rank-omitted-reflections-with-jev/index.md -> ../attachments/rank-omitted-reflections-with-jev/index.md
+issues/per-thread-idle-mcp-client-cost.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/native-rehearsal-single-page-capacity-prevents-replay.md: docs/attachments/rehearse-github-tracked-reconcile/index.md -> ../attachments/rehearse-github-tracked-reconcile/index.md
+repair available (check --fix): issues/replace-the-board-with-bb-mail.md: docs/attachments/replace-the-board-with-bb-mail/index.md -> ../attachments/replace-the-board-with-bb-mail/index.md
+repair available (check --fix): issues/reconcile-pr-checks-and-branch-updates.md: docs/attachments/reconcile-pr-checks-and-branch-updates/index.md -> ../attachments/reconcile-pr-checks-and-branch-updates/index.md
+repair available (check --fix): issues/move-coordination-off-the-board.md: docs/attachments/move-coordination-off-the-board/index.md -> ../attachments/move-coordination-off-the-board/index.md
+issues/chrome-devtools-axi-radio-click-does-not-select-the-radio.md: [[projects/concept/attachments/drive-plan-language-in-simplified-chinese-and-english/independent-truncation-redrive]] does not exist
+repair available (check --fix): issues/fall-back-across-decision-models-when-ranking-reflections.md: docs/attachments/fall-back-across-decision-models-when-ranking-reflections/index.md -> ../attachments/fall-back-across-decision-models-when-ranking-reflections/index.md
+issues/tracker-check-mixes-global-issues-with-worker-docs.md: [[projects/concept/issues/tracker-check-mixes-canonical-issues-with-worker-evidence]] does not exist
+issues/tracker-check-mixes-global-issues-with-worker-docs.md: [[projects/concept/issues/compare-charts-against-lecturebank-prerequisites]] does not exist
+issues/tracker-check-mixes-global-issues-with-worker-docs.md: [[projects/concept/issues/replay-feature-recommendation-in-the-browser-by-default]] does not exist
+issues/tracker-publication-refuses-an-in-progress-canonical-merge.md: [[projects/concept/issues/replay-review-quiz-by-default]] does not exist
+issues/run-affected-tests-in-roles-and-the-full-suite-at-the-gate.md: [[projects/concept/issues/run-bun-test-in-parallel-and-declare-affected-tests]] does not exist
+repair available (check --fix): issues/drop-reconciler-worker-notices-in-a-bb-plugin.md: docs/attachments/drop-reconciler-worker-notices-in-a-bb-plugin/drive-b.md -> ../attachments/drop-reconciler-worker-notices-in-a-bb-plugin/drive-b.md
+repair available (check --fix): issues/bb-environments-follow-our-worktrees.md: docs/attachments/bb-environments-follow-our-worktrees/index.md -> ../attachments/bb-environments-follow-our-worktrees/index.md
+repair available (check --fix): issues/activate-github-tracker-in-reconcile.md: docs/attachments/activate-github-tracker-in-reconcile/index.md -> ../attachments/activate-github-tracker-in-reconcile/index.md
+repair available (check --fix): issues/archive/sidebar-ghostty-helpers-target-the-front-window.md: ../attachments/tree-sidebar-bridge-fixes/first-use.sh -> ../../attachments/tree-sidebar-bridge-fixes/first-use.sh
+issues/archive/computer-model-picker-alternates-provider-and-model-filters.md: [[projects/concept/issues/record-goal-change-and-new-evidence-map-history]] does not exist
+issues/archive/computer-model-picker-alternates-provider-and-model-filters.md: [[projects/concept/attachments/record-goal-change-and-new-evidence-map-history/index]] does not exist
+issues/archive/computer-model-picker-alternates-provider-and-model-filters.md: [[projects/concept/attachments/name-things-by-their-names-not-ids/index]] does not exist
+repair available (check --fix): issues/archive/root-typecheck-memory-diagnostics.md: ../attachments/root-board-store-fixture-typecheck/index.md -> ../../attachments/root-board-store-fixture-typecheck/index.md
+issues/archive/route.md: [[routing]] does not exist
+issues/archive/route.md: [[model opinions]] does not exist
+repair available (check --fix): issues/archive/worktree-tests-read-canonical-agent-roster.md: ../attachments/worktree-tests-read-canonical-agent-roster/index.md -> ../../attachments/worktree-tests-read-canonical-agent-roster/index.md
+issues/archive/mlegls-pi-ab-edit-resolves-issue-path-against-canonical-checkout.md: [[projects/concept/issues/fix-zh-cn-font-stacks-missing-simplified-glyphs]] does not exist
+issues/archive/board-acks-are-a-host-runtime-event.md: [[projects/concept/issues/archive/charge-managed-turns-through-the-convex-ai-gateway]] does not exist
+issues/archive/tmux-server-loss-interrupts-an-in-flight-verification-command.md: [[projects/concept/attachments/repair-checks-left-red-on-main/index]] does not exist
+repair available (check --fix): issues/archive/idle-cost-benchmark-console-and-readiness-evidence.md: ../attachments/measure-idle-pi-cost/drive-resume-console.txt -> ../../attachments/measure-idle-pi-cost/drive-resume-console.txt
+repair available (check --fix): issues/archive/idle-cost-benchmark-console-and-readiness-evidence.md: ../attachments/measure-idle-pi-cost/drive-warm-console.txt -> ../../attachments/measure-idle-pi-cost/drive-warm-console.txt
+repair available (check --fix): issues/archive/idle-cost-benchmark-console-and-readiness-evidence.md: ../attachments/measure-idle-pi-cost/drive.md -> ../../attachments/measure-idle-pi-cost/drive.md
+repair available (check --fix): issues/archive/dsh-templated-spawn-and-dispatch.md: ../attachments/dsh-templated-spawn-and-dispatch/index.md -> ../../attachments/dsh-templated-spawn-and-dispatch/index.md
+issues/archive/computer-crosses-explicit-proposal-boundaries.md: [[projects/concept/attachments/drive-mission-map-history-in-browser/independent-drive/index]] does not exist
+issues/archive/computer-crosses-explicit-proposal-boundaries.md: [[projects/concept/attachments/fold-study-quiz-and-review-browser-fixtures/index]] does not exist
+repair available (check --fix): issues/archive/ab-tree-help-runs-option-validation.md: ../attachments/delete-workmux-and-tmux-paths/index.md -> ../../attachments/delete-workmux-and-tmux-paths/index.md
+repair available (check --fix): issues/archive/ab-tree-help-runs-option-validation.md: ../attachments/thread-cli-over-registry/index.md -> ../../attachments/thread-cli-over-registry/index.md
+repair available (check --fix): issues/archive/make-undeliverable-mail-status-visible-to-scripts.md: ../attachments/make-undeliverable-mail-status-visible-to-scripts/index.md -> ../../attachments/make-undeliverable-mail-status-visible-to-scripts/index.md
+repair available (check --fix): issues/archive/make-undeliverable-mail-status-visible-to-scripts.md: ../attachments/address-the-waiting-child-in-exception-mail/second-drive.md#frictions -> ../../attachments/address-the-waiting-child-in-exception-mail/second-drive.md#frictions
+issues/archive/tree-sidebar-over-threads.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/tree-sidebar-over-threads.md: ../attachments/tree-sidebar-over-threads/independent-drive.md -> ../../attachments/tree-sidebar-over-threads/independent-drive.md
+repair available (check --fix): issues/archive/tree-sidebar-over-threads.md: ../attachments/tree-sidebar-over-threads/index.md -> ../../attachments/tree-sidebar-over-threads/index.md
+issues/archive/augment-comment.md: [[control plane]] does not exist
+issues/archive/cua-ghostty-pixel-click-lands-on-another-row.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/cua-ghostty-pixel-click-lands-on-another-row.md: ../attachments/tree-sidebar-over-threads/independent-drive.md -> ../../attachments/tree-sidebar-over-threads/independent-drive.md
+repair available (check --fix): issues/archive/cua-ghostty-pixel-click-lands-on-another-row.md: ../attachments/tree-sidebar-over-threads/index.md -> ../../attachments/tree-sidebar-over-threads/index.md
+issues/archive/thread-core-and-workers-on-zmx.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/thread-core-and-workers-on-zmx.md: ../attachments/thread-core-and-workers-on-zmx/independent-drive.md -> ../../attachments/thread-core-and-workers-on-zmx/independent-drive.md
+repair available (check --fix): issues/archive/thread-core-and-workers-on-zmx.md: ../attachments/thread-core-and-workers-on-zmx/index.md -> ../../attachments/thread-core-and-workers-on-zmx/index.md
+repair available (check --fix): issues/archive/thread-core-and-workers-on-zmx.md: ../attachments/thread-core-and-workers-on-zmx/source-contract.md -> ../../attachments/thread-core-and-workers-on-zmx/source-contract.md
+repair available (check --fix): issues/archive/supervise-status-shows-each-jobs-running-services.md: ../attachments/supervise-status-shows-each-jobs-running-services/index.md -> ../../attachments/supervise-status-shows-each-jobs-running-services/index.md
+repair available (check --fix): issues/archive/reconcile.md: ../attachments/reconcile/index.md -> ../../attachments/reconcile/index.md
+repair available (check --fix): issues/archive/terminal-output-cursor-wait-can-report-unchanged.md: ../attachments/terminal-tests-leak-tmux-sockets/index.md -> ../../attachments/terminal-tests-leak-tmux-sockets/index.md
+issues/archive/ab-jg-can-stall-without-output-during-semantic-discovery.md: [[projects/concept/issues/distinguish-retained-applet-openings-in-session-materials]] does not exist
+repair available (check --fix): issues/archive/ab-jg-can-stall-without-output-during-semantic-discovery.md: ../attachments/ab-jg-can-stall-without-output-during-semantic-discovery/index.md -> ../../attachments/ab-jg-can-stall-without-output-during-semantic-discovery/index.md
+repair available (check --fix): issues/archive/dsh-hashline-tools-spike.md: ../attachments/dsh-hashline-tools-spike/index.md -> ../../attachments/dsh-hashline-tools-spike/index.md
+repair available (check --fix): issues/archive/tracker-obsidian-rollout.md: ../attachments/tracker-obsidian-rollout/drive/index.md -> ../../attachments/tracker-obsidian-rollout/drive/index.md
+repair available (check --fix): issues/archive/tracker-obsidian-rollout.md: ../../extensions/obsidian-tracker/LIVE.md -> ../../../extensions/obsidian-tracker/LIVE.md
+repair available (check --fix): issues/archive/tracker-obsidian-rollout.md: ../attachments/tracker-obsidian-rollout/index.md -> ../../attachments/tracker-obsidian-rollout/index.md
+issues/archive/thread-cli-over-registry.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/thread-cli-over-registry.md: ../attachments/thread-cli-over-registry/index.md -> ../../attachments/thread-cli-over-registry/index.md
+repair available (check --fix): issues/archive/thread-cli-over-registry.md: ../attachments/thread-core-and-workers-on-zmx/index.md -> ../../attachments/thread-core-and-workers-on-zmx/index.md
+repair available (check --fix): issues/archive/thread-cli-over-registry.md: ../attachments/thread-core-and-workers-on-zmx/source-contract.md -> ../../attachments/thread-core-and-workers-on-zmx/source-contract.md
+repair available (check --fix): issues/archive/tracker-check-fix-rewrites-other-sessions-dirty-files.md: ../attachments/tracker-check-fix-rewrites-other-sessions-dirty-files/index.md -> ../../attachments/tracker-check-fix-rewrites-other-sessions-dirty-files/index.md
+repair available (check --fix): issues/archive/trial-collected-evidence-and-visual-acceptance.md: ../attachments/trial-collected-evidence-and-visual-acceptance/drive.md -> ../../attachments/trial-collected-evidence-and-visual-acceptance/drive.md
+repair available (check --fix): issues/archive/trial-collected-evidence-and-visual-acceptance.md: ../attachments/trial-collected-evidence-and-visual-acceptance/index.md -> ../../attachments/trial-collected-evidence-and-visual-acceptance/index.md
+repair available (check --fix): issues/archive/trial-collected-evidence-and-visual-acceptance.md: ../attachments/trial-collected-evidence-and-visual-acceptance/index.md#preparation -> ../../attachments/trial-collected-evidence-and-visual-acceptance/index.md#preparation
+repair available (check --fix): issues/archive/dsh-skim-run-code-results.md: ../attachments/dsh-port-root-review/index.md -> ../../attachments/dsh-port-root-review/index.md
+repair available (check --fix): issues/archive/dsh-skim-run-code-results.md: ../attachments/dsh-skim-run-code-results/index.md -> ../../attachments/dsh-skim-run-code-results/index.md
+issues/archive/skim-and-triage.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+issues/archive/campaign-coordinator.md: [[control plane]] does not exist
+issues/archive/campaign-coordinator.md: [[routing]] does not exist
+issues/archive/campaign-coordinator.md: [[mlegls-pi]] does not exist
+issues/archive/campaign-coordinator.md: [[a return to cyborg augmentation]] does not exist
+issues/archive/lint-code-against-its-concepts.md: [[projects/concept/issues/archive/make-proposal-acceptance-visible-to-the-tutor]] does not exist
+issues/archive/chrome-devtools-axi-screenshot-saves-file-but-reports-browser-error.md: [[projects/concept/issues/zh-landing-pages-and-the-gong-lockups]] does not exist
+issues/archive/chrome-devtools-axi-screenshot-saves-file-but-reports-browser-error.md: [[projects/concept/attachments/zh-landing-pages-and-the-gong-lockups/index]] does not exist
+repair available (check --fix): issues/archive/session-preparation-latency.md: ../session-preparation.md -> ../../session-preparation.md
+repair available (check --fix): issues/archive/native-computer-lacks-a-manual-llm-path.md: ../attachments/native-computer-lacks-a-manual-llm-path/index.md -> ../../attachments/native-computer-lacks-a-manual-llm-path/index.md
+repair available (check --fix): issues/archive/cache-read-fence-knee-rerun-dirties-checkout.md: ../attachments/cache-read-fence-knee/index.md#review-and-redrive -> ../../attachments/cache-read-fence-knee/index.md#review-and-redrive
+issues/archive/compaction-register-variants.md: [[projects/mlegls-pi/issues/hibernate-native-fallback-loses-provenance]] does not exist
+repair available (check --fix): issues/archive/compaction-register-variants.md: ../attachments/memory-checkpoint-cites-retained-tail/index.md -> ../../attachments/memory-checkpoint-cites-retained-tail/index.md
+issues/archive/computer-reports-tab-press-without-opening-the-tab.md: [[projects/concept/issues/implement-paid-use-billing-and-subscription-states]] does not exist
+issues/archive/computer-reports-tab-press-without-opening-the-tab.md: [[projects/concept/attachments/implement-paid-use-billing-and-subscription-states/drive-3]] does not exist
+issues/archive/computer-reports-tab-press-without-opening-the-tab.md: [[projects/concept/attachments/implement-paid-use-billing-and-subscription-states/drive-5]] does not exist
+issues/archive/computer-reports-tab-press-without-opening-the-tab.md: [[projects/concept/attachments/implement-credit-exhaustion-checkout-return/drive/index]] does not exist
+issues/archive/chrome-devtools-axi-loses-selected-page-after-newpage.md: [[projects/concept/issues/archive/landing-hue-shows-a-different-hue-in-the-application]] does not exist
+issues/archive/chrome-devtools-axi-loses-selected-page-after-newpage.md: [[projects/concept/issues/route-edition-edges-and-shadows-through-soft-tokens]] does not exist
+issues/archive/chrome-devtools-axi-loses-selected-page-after-newpage.md: [[projects/concept/issues/keep-the-server-rolled-edition-for-a-visit]] does not exist
+issues/archive/thread-registry-on-zmx.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+issues/archive/dispatch-ready-waves.md: [[directing multi-agent work]] does not exist
+issues/archive/verify-main-after-landing-instead-of-gating-the-owner-landing.md: [[projects/concept/issues/streamline-validation-by-value-and-wall-time]] does not exist
+issues/archive/verify-main-after-landing-instead-of-gating-the-owner-landing.md: [[projects/concept/issues/declare-a-main-verification-task-and-drop-pre-integrate-owner]] does not exist
+repair available (check --fix): issues/archive/bounce-handoff-shape-errors-to-the-child.md: ../attachments/bounce-handoff-shape-errors-to-the-child/index.md -> ../../attachments/bounce-handoff-shape-errors-to-the-child/index.md
+issues/archive/coattached-browser-clients-dismiss-native-edit-confirm.md: [[projects/concept/attachments/keep-implicit-learning-feedback-readable/index]] does not exist
+repair available (check --fix): issues/archive/dsh-ptc-shell-and-transform-edits.md: ../attachments/dsh-ptc-shell-and-transform-edits/index.md -> ../../attachments/dsh-ptc-shell-and-transform-edits/index.md
+repair available (check --fix): issues/archive/session-meta-tests-ignore-inherited-wm-parent-session.md: ../attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md -> ../../attachments/session-meta-tests-ignore-inherited-wm-parent-session/index.md
+repair available (check --fix): issues/archive/orchestration-audits-test-reads-prearchive-report-path.md: ../attachments/test-suite-hygiene/index.md -> ../../attachments/test-suite-hygiene/index.md
+repair available (check --fix): issues/archive/orchestration-audits-test-reads-prearchive-report-path.md: ../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/failures-rerun.log -> ../../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/failures-rerun.log
+repair available (check --fix): issues/archive/orchestration-audits-test-reads-prearchive-report-path.md: ../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/bun-test-all.log -> ../../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/bun-test-all.log
+repair available (check --fix): issues/archive/orchestration-audits-test-reads-prearchive-report-path.md: ../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md -> ../../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md
+issues/archive/orchestrate-rework-effect.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+repair available (check --fix): issues/archive/orchestrate-rework-effect.md: ../attachments/orchestrate-rework-effect/index.md -> ../../attachments/orchestrate-rework-effect/index.md
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/issues/return-to-the-entry-address-after-sign-in]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/return-to-the-entry-address-after-sign-in/index]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/implement-paid-use-billing-and-subscription-states/drive-5]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/implement-starter-credit-and-effective-own-key-cues/drive/index]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/expose-current-mission-revision-to-propose-mission/index]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/fix-small-application-state-and-error-defects/index]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/explicit-lesson-start-refused-right-after-closing-sessions/drive-2026-10-01/index]] does not exist
+issues/archive/browser-driver-declines-completed-source-release-navigation.md: [[projects/concept/attachments/fold-study-quiz-and-review-browser-fixtures/index]] does not exist
+repair available (check --fix): issues/archive/ab-mail-show-omits-reply-address.md: ../attachments/mail-reply-hint-placeholder-sent-as-body/cli-session.txt -> ../../attachments/mail-reply-hint-placeholder-sent-as-body/cli-session.txt
+issues/archive/vault-invoker.md: [[directing multi-agent work]] does not exist
+issues/archive/vault-invoker.md: [[workflows]] does not exist
+issues/archive/role-model-spikiness.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+issues/archive/role-model-spikiness.md: [[docs/research/role-model-spikiness-2026-09-30]] does not exist
+repair available (check --fix): issues/archive/role-model-spikiness.md: ../attachments/role-model-spikiness/index.md -> ../../attachments/role-model-spikiness/index.md
+repair available (check --fix): issues/archive/cua-hidden-ghostty-has-no-addressable-window.md: ../attachments/tree-sidebar-bridge-fixes/index.md -> ../../attachments/tree-sidebar-bridge-fixes/index.md
+issues/archive/browser-cli-cannot-select-native-reading-variant.md: [[projects/concept/issues/choose-a-confirmed-variant-on-read]] does not exist
+issues/archive/browser-cli-cannot-select-native-reading-variant.md: [[projects/concept/attachments/choose-a-confirmed-variant-on-read/index]] does not exist
+issues/archive/private-pty-sidebar-driver-hangs-at-exit.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/private-pty-sidebar-driver-hangs-at-exit.md: ../attachments/tree-sidebar-over-threads/index.md -> ../../attachments/tree-sidebar-over-threads/index.md
+repair available (check --fix): issues/archive/test-suite-hygiene.md: ../attachments/test-suite-hygiene/driver.md -> ../../attachments/test-suite-hygiene/driver.md
+repair available (check --fix): issues/archive/test-suite-hygiene.md: ../attachments/test-suite-hygiene/index.md -> ../../attachments/test-suite-hygiene/index.md
+repair available (check --fix): issues/archive/computer-use-images-poison-worker-context.md: ../attachments/computer-use-images-poison-worker-context/index.md -> ../../attachments/computer-use-images-poison-worker-context/index.md
+repair available (check --fix): issues/archive/dsh-port.md: ../attachments/dsh-port-root-review/index.md -> ../../attachments/dsh-port-root-review/index.md
+repair available (check --fix): issues/archive/memory-short-session-compaction-gate.md: ../attachments/memory-checkpoint-cites-retained-tail/index.md -> ../../attachments/memory-checkpoint-cites-retained-tail/index.md
+repair available (check --fix): issues/archive/ab-check-list-truncates-machine-readable-json.md: ../attachments/ab-check-list-truncates-machine-readable-json/index.md -> ../../attachments/ab-check-list-truncates-machine-readable-json/index.md
+issues/archive/zmx-switch-without-a-leader-kills-the-source.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/zmx-switch-without-a-leader-kills-the-source.md: ../attachments/tree-sidebar-over-threads/index.md -> ../../attachments/tree-sidebar-over-threads/index.md
+issues/archive/chrome-devtools-axi-meta-r-does-not-reload-isolated-page.md: [[projects/concept/issues/warm-only-the-next-editions-needed-assets]] does not exist
+issues/archive/chrome-devtools-axi-meta-r-does-not-reload-isolated-page.md: [[projects/concept/attachments/warm-only-the-next-editions-needed-assets/drive]] does not exist
+issues/archive/planning-input-drive-computer-friction.md: [[projects/concept/attachments/capture-replayable-planning-inputs/index]] does not exist
+repair available (check --fix): issues/archive/root-bun-test-selects-unprepared-optional-dsh.md: ../attachments/root-bun-test-selects-unprepared-optional-dsh/index.md -> ../../attachments/root-bun-test-selects-unprepared-optional-dsh/index.md
+repair available (check --fix): issues/archive/root-bun-test-selects-unprepared-optional-dsh.md: ../attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md -> ../../attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md
+issues/archive/tracker-check-masks-inline-code-in-live-heading-links.md: [[projects/concept/issues/share-a-hub-patch-release]] does not exist
+issues/archive/tracker-check-masks-inline-code-in-live-heading-links.md: [[projects/concept/issues/archived-issue-links-fail-tracker-validation]] does not exist
+issues/archive/pool-aware-routing.md: [[routing]] does not exist
+issues/archive/wm-workers-over-threads.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/wm-workers-over-threads.md: ../attachments/wm-workers-over-threads/drive.md -> ../../attachments/wm-workers-over-threads/drive.md
+repair available (check --fix): issues/archive/wm-workers-over-threads.md: ../attachments/wm-workers-over-threads/index.md -> ../../attachments/wm-workers-over-threads/index.md
+repair available (check --fix): issues/archive/wm-workers-over-threads.md: ../attachments/thread-core-and-workers-on-zmx/source-contract.md -> ../../attachments/thread-core-and-workers-on-zmx/source-contract.md
+issues/archive/chrome-devtools-axi-bridge-loses-page-and-fill-misses-composer.md: [[projects/concept/issues/use-the-mission-name-in-session-chrome]] does not exist
+issues/archive/chrome-devtools-axi-bridge-loses-page-and-fill-misses-composer.md: [[projects/concept/attachments/use-the-mission-name-in-session-chrome/index]] does not exist
+issues/archive/chrome-devtools-axi-bridge-loses-page-and-fill-misses-composer.md: [[projects/concept/issues/place-pricing-and-payment-in-the-landing-and-application-flow]] does not exist
+repair available (check --fix): issues/archive/cua-background-compatibility.md: ../guide/cua-background.md -> ../../guide/cua-background.md
+repair available (check --fix): issues/archive/backend-supervisor-test-entry-does-not-expose-handoff-routing.md: ../attachments/parent-waits-on-worker-that-died-without-a-report/index.md -> ../../attachments/parent-waits-on-worker-that-died-without-a-report/index.md
+issues/archive/computer-fills-button-role-combobox.md: [[projects/concept/issues/archive/scope-the-materials-pane-to-the-session]] does not exist
+issues/archive/computer-fills-button-role-combobox.md: [[projects/concept/attachments/scope-the-materials-pane-to-the-session/index]] does not exist
+issues/archive/computer-driver-mistakes-material-inspect-evidence-for-tool-inspect.md: [[projects/concept/attachments/name-things-by-their-names-not-ids/index]] does not exist
+issues/archive/computer-browser-crosses-stop-before-naming-instruction.md: [[projects/concept/issues/gather-the-patch-owners-tools-into-one-workbench]] does not exist
+issues/archive/computer-browser-crosses-stop-before-naming-instruction.md: [[projects/concept/attachments/gather-the-patch-owners-tools-into-one-workbench/drive]] does not exist
+issues/archive/computer-resends-a-message-while-the-tutor-is-working.md: [[projects/concept/issues/implement-paid-use-billing-and-subscription-states]] does not exist
+issues/archive/computer-resends-a-message-while-the-tutor-is-working.md: [[projects/concept/attachments/implement-paid-use-billing-and-subscription-states/drive-5]] does not exist
+issues/archive/computer-resends-a-message-while-the-tutor-is-working.md: [[projects/concept/attachments/drive-a-published-applet-through-a-lesson-and-outcome-replay/independent-drive]] does not exist
+issues/archive/computer-resends-a-message-while-the-tutor-is-working.md: [[projects/concept/attachments/retain-verbatim-mission-goals-and-map-revision-causes/index]] does not exist
+issues/archive/computer-resends-a-message-while-the-tutor-is-working.md: [[projects/concept/attachments/record-goal-change-and-new-evidence-map-history/index]] does not exist
+issues/archive/thread-archive-and-abandon.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/thread-archive-and-abandon.md: ../attachments/thread-archive-and-abandon/index.md -> ../../attachments/thread-archive-and-abandon/index.md
+repair available (check --fix): issues/archive/thread-archive-and-abandon.md: ../attachments/thread-core-and-workers-on-zmx/source-contract.md -> ../../attachments/thread-core-and-workers-on-zmx/source-contract.md
+issues/archive/mlegls-pi-computer-native-safari-repeats-completed-actions.md: [[projects/concept/issues/archive/check-zh-cn-font-stacks-in-safari]] does not exist
+issues/archive/obsidian-implement-sink.md: [[directing multi-agent work]] does not exist
+issues/archive/decision-broadcasts-read.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+repair available (check --fix): issues/archive/decision-broadcasts-read.md: ../attachments/decision-broadcasts-read/index.md -> ../../attachments/decision-broadcasts-read/index.md
+repair available (check --fix): issues/archive/run-glob-misses-base-topic-decisions.md: ../attachments/run-glob-misses-base-topic-decisions/index.md -> ../../attachments/run-glob-misses-base-topic-decisions/index.md
+repair available (check --fix): issues/archive/run-glob-misses-base-topic-decisions.md: ../attachments/run-glob-misses-base-topic-decisions/drive.md -> ../../attachments/run-glob-misses-base-topic-decisions/drive.md
+issues/archive/computer-browser-judgment-confuses-node-chips-with-selected-card.md: [[projects/concept/attachments/put-the-release-graph-band-and-a-read-only-node-card-on-every-patch-document/index]] does not exist
+issues/archive/cua-sheet-capture-shows-parent-window.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/cua-sheet-capture-shows-parent-window.md: ../attachments/tree-sidebar-over-threads/index.md -> ../../attachments/tree-sidebar-over-threads/index.md
+issues/archive/scripted-supervision-loop.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+repair available (check --fix): issues/archive/dsh-scratch-state.md: ../attachments/dsh-scratch-state/index.md -> ../../attachments/dsh-scratch-state/index.md
+issues/archive/cua-cannot-address-threads-worktree-chooser.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/cua-cannot-address-threads-worktree-chooser.md: ../attachments/add-existing-worktree/index.md -> ../../attachments/add-existing-worktree/index.md
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/issues/drive-a-published-applet-through-playgrounds-and-failure-states]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/drive-a-published-applet-through-playgrounds-and-failure-states/independent-drive]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/issues/gather-the-patch-owners-tools-into-one-workbench]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/gather-the-patch-owners-tools-into-one-workbench/drive]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/implement-starter-credit-and-effective-own-key-cues/drive/index]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/record-goal-change-and-new-evidence-map-history/index]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/establish-isolated-browser-story-fixture-inputs/independent-drive]] does not exist
+issues/archive/computer-driver-omits-materials-navigation-candidates.md: [[projects/concept/attachments/redrive-browser-interface-and-account-isolation-regressions/independent-drive]] does not exist
+repair available (check --fix): issues/archive/supervise-job-dies-on-a-decision-api-503-at-child-launch.md: ../attachments/supervise-job-dies-on-a-decision-api-503-at-child-launch/index.md -> ../../attachments/supervise-job-dies-on-a-decision-api-503-at-child-launch/index.md
+repair available (check --fix): issues/archive/thread-commands-in-pi.md: ../attachments/thread-commands-in-pi/index.md -> ../../attachments/thread-commands-in-pi/index.md
+repair available (check --fix): issues/archive/thread-commands-in-pi.md: ../attachments/thread-commands-in-pi/drive.md -> ../../attachments/thread-commands-in-pi/drive.md
+issues/archive/session-instrumentation.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+repair available (check --fix): issues/archive/memory-cancelled-checkpoint-capture-discovery.md: ../attachments/memory-checkpoint-cites-retained-tail/index.md -> ../../attachments/memory-checkpoint-cites-retained-tail/index.md
+repair available (check --fix): issues/archive/memory-checkpoint-cites-retained-tail.md: ../attachments/memory-checkpoint-cites-retained-tail/index.md -> ../../attachments/memory-checkpoint-cites-retained-tail/index.md
+issues/archive/orchestration-audits.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+repair available (check --fix): issues/archive/orchestration-audits.md: ../attachments/role-model-spikiness/index.md -> ../../attachments/role-model-spikiness/index.md
+repair available (check --fix): issues/archive/orchestration-audits.md: ../attachments/orchestrate-rework-effect/index.md -> ../../attachments/orchestrate-rework-effect/index.md
+repair available (check --fix): issues/archive/orchestration-audits.md: ../attachments/cache-read-fence-knee/index.md -> ../../attachments/cache-read-fence-knee/index.md
+repair available (check --fix): issues/archive/orchestration-audits.md: ../attachments/decision-broadcasts-read/index.md -> ../../attachments/decision-broadcasts-read/index.md
+repair available (check --fix): issues/archive/orchestration-audits.md: ../attachments/review-output-acted-on/index.md -> ../../attachments/review-output-acted-on/index.md
+repair available (check --fix): issues/archive/orchestration-audits.md: ../attachments/orchestration-audits/index.md -> ../../attachments/orchestration-audits/index.md
+issues/archive/computer-drive-refused-by-typesafe-credit-exhaustion.md: [[projects/concept/issues/contrast-as-a-stark-to-soft-slider]] does not exist
+issues/archive/chrome-devtools-axi-bridge-lost-isolated-page-during-drive.md: [[projects/concept/attachments/bring-the-scripted-provider-up-to-the-current-backend/index]] does not exist
+issues/archive/agentic-setup-reorg.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-18]] does not exist
+issues/archive/buy-a-computer-use-driver.md: [[projects/concept/attachments/repair-checks-left-red-on-main/index]] does not exist
+repair available (check --fix): issues/archive/ab-edit-block-replace-rejects-sigil-second-anchor.md: ../attachments/ab-edit-block-replace-rejects-sigil-second-anchor/index.md -> ../../attachments/ab-edit-block-replace-rejects-sigil-second-anchor/index.md
+repair available (check --fix): issues/archive/mail-reply-hint-placeholder-sent-as-body.md: ../attachments/mail-reply-hint-placeholder-sent-as-body/index.md -> ../../attachments/mail-reply-hint-placeholder-sent-as-body/index.md
+repair available (check --fix): issues/archive/check-zmx-reattach-with-pi.md: ../attachments/check-zmx-reattach-with-pi/README.md -> ../../attachments/check-zmx-reattach-with-pi/README.md
+issues/archive/chrome-devtools-axi-fill-does-not-activate-the-chat-composer.md: [[projects/concept/attachments/adopt-the-mmon-co-patch-and-mission-on-first-sign-in/index]] does not exist
+issues/archive/computer-rejects-formatted-card-input-after-successful-fill.md: [[projects/concept/issues/implement-credit-exhaustion-checkout-return]] does not exist
+issues/archive/computer-rejects-formatted-card-input-after-successful-fill.md: [[projects/concept/attachments/implement-credit-exhaustion-checkout-return/drive/index]] does not exist
+repair available (check --fix): issues/archive/tracker-obsidian-views.md: ../attachments/tracker-obsidian-views/index.md -> ../../attachments/tracker-obsidian-views/index.md
+issues/archive/bash-podman-machine-start-delayed-completion.md: [[projects/arkhai-payments/issues/ledger-on-formance]] does not exist
+issues/archive/skims-drop-the-conditions-in-instructions.md: [[projects/mlegls-pi/ingress]] does not exist
+issues/archive/computer-safari-decision-api-max-tokens.md: [[projects/concept/issues/archive/check-zh-cn-font-stacks-in-safari]] does not exist
+issues/archive/computer-safari-decision-api-max-tokens.md: [[projects/concept/attachments/record-goal-change-and-new-evidence-map-history/index]] does not exist
+issues/archive/computer-safari-decision-api-max-tokens.md: [[projects/concept/attachments/name-things-by-their-names-not-ids/index]] does not exist
+repair available (check --fix): issues/archive/parent-waits-on-worker-that-died-without-a-report.md: ../attachments/parent-waits-on-worker-that-died-without-a-report/index.md -> ../../attachments/parent-waits-on-worker-that-died-without-a-report/index.md
+repair available (check --fix): issues/archive/parent-waits-on-worker-that-died-without-a-report.md: ../attachments/role-model-spikiness/acceptance.json -> ../../attachments/role-model-spikiness/acceptance.json
+repair available (check --fix): issues/archive/dsh-web-default-workspace-outside-home.md: ../attachments/dsh-templated-spawn-and-dispatch/index.md -> ../../attachments/dsh-templated-spawn-and-dispatch/index.md
+issues/archive/skim-friction-vs-savings.md: [[projects/mlegls-pi/ingress]] does not exist
+repair available (check --fix): issues/archive/small-ab-cli-fixes.md: ../attachments/small-ab-cli-fixes/index.md -> ../../attachments/small-ab-cli-fixes/index.md
+repair available (check --fix): issues/archive/small-ab-cli-fixes.md: ../attachments/small-ab-cli-fixes/drive.md -> ../../attachments/small-ab-cli-fixes/drive.md
+repair available (check --fix): issues/archive/cua-coordinate-clicks.md: ../guide/cua-coordinate-clicks.md -> ../../guide/cua-coordinate-clicks.md
+issues/archive/vault-lifecycle.md: [[workflows]] does not exist
+repair available (check --fix): issues/archive/empty-journal-drive-cancels-before-c-selector.md: ../attachments/supervisor-hibernation-empty-journal/driver.md#review-pass-repair-and-re-drive -> ../../attachments/supervisor-hibernation-empty-journal/driver.md#review-pass-repair-and-re-drive
+repair available (check --fix): issues/archive/empty-journal-drive-cancels-before-c-selector.md: ../attachments/supervisor-hibernation-empty-journal/driver.md -> ../../attachments/supervisor-hibernation-empty-journal/driver.md
+repair available (check --fix): issues/archive/supervise-status-empty-output-hides-checkout-scope.md: ../attachments/supervise-status-shows-each-jobs-running-services/index.md -> ../../attachments/supervise-status-shows-each-jobs-running-services/index.md
+repair available (check --fix): issues/archive/memory-agent-settled-uses-stale-ctx.md: ../attachments/memory-agent-settled-uses-stale-ctx/index.md -> ../../attachments/memory-agent-settled-uses-stale-ctx/index.md
+issues/archive/chrome-devtools-axi-resize-and-screenshot-report-disagree-with-browser.md: [[projects/concept/issues/one-row-mobile-app-bar]] does not exist
+issues/archive/reranker-eval.md: [[projects/mlegls-pi/ingress]] does not exist
+issues/archive/computer-cannot-target-stripe-payment-iframe.md: [[projects/concept/issues/implement-paid-use-billing-and-subscription-states]] does not exist
+issues/archive/computer-cannot-target-stripe-payment-iframe.md: [[projects/concept/attachments/implement-paid-use-billing-and-subscription-states/drive-3]] does not exist
+issues/archive/computer-cannot-target-stripe-payment-iframe.md: [[projects/concept/attachments/implement-paid-use-billing-and-subscription-states/drive-5]] does not exist
+issues/archive/computer-cannot-target-stripe-payment-iframe.md: [[projects/concept/attachments/drive-a-published-applet-through-a-lesson-and-outcome-replay/independent-drive]] does not exist
+repair available (check --fix): issues/archive/bash-lifecycle-oversized-output-test-flaky-under-load.md: ../attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md -> ../../attachments/root-bun-test-selects-unprepared-optional-dsh/driver.md
+issues/archive/intent-driver-misses-an-awaiting-map-confirmation.md: [[projects/concept/attachments/keep-confirmation-cards-to-their-own-state/index]] does not exist
+repair available (check --fix): issues/archive/root-board-store-fixture-typecheck.md: ../attachments/root-board-store-fixture-typecheck/index.md -> ../../attachments/root-board-store-fixture-typecheck/index.md
+repair available (check --fix): issues/archive/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander.md: ../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md -> ../../attachments/bun-test-ab-selects-disabled-tool-tests-with-uninstalled-commander/index.md
+issues/archive/home-ui.md: [[control plane]] does not exist
+issues/archive/browser-driver-skips-hover-only-fork-before-sending.md: [[projects/concept/attachments/keep-implicit-learning-feedback-readable/index]] does not exist
+issues/archive/chrome-devtools-axi-fill-can-submit-stale-controlled-composer.md: [[projects/concept/attachments/let-local-convex-reach-providers-through-the-host-proxy/index]] does not exist
+issues/archive/chrome-devtools-axi-fill-can-submit-stale-controlled-composer.md: [[projects/concept/attachments/seed-usable-sessions-completed-mission-and-review/index]] does not exist
+repair available (check --fix): issues/archive/dsh-memory-compaction-provider.md: ../attachments/dsh-memory-compaction-provider/index.md -> ../../attachments/dsh-memory-compaction-provider/index.md
+repair available (check --fix): issues/archive/dsh-memory-compaction-provider.md: ../attachments/dsh-memory-compaction-provider/index.md#current-revision-verifier-rerun-2026-09-27 -> ../../attachments/dsh-memory-compaction-provider/index.md#current-revision-verifier-rerun-2026-09-27
+issues/archive/ab-service-list-exposes-peer-command-details.md: [[projects/concept/attachments/welcome-a-new-account-with-getting-started-on-me/index]] does not exist
+issues/archive/ab-service-list-exposes-peer-command-details.md: [[projects/concept/issues/advance-getting-starteds-counter-from-feature-use-receipts]] does not exist
+repair available (check --fix): issues/archive/measure-idle-pi-cost.md: ../attachments/measure-idle-pi-cost/drive.md -> ../../attachments/measure-idle-pi-cost/drive.md
+repair available (check --fix): issues/archive/measure-idle-pi-cost.md: ../attachments/measure-idle-pi-cost/index.md -> ../../attachments/measure-idle-pi-cost/index.md
+repair available (check --fix): issues/archive/address-the-waiting-child-in-exception-mail.md: ../attachments/address-the-waiting-child-in-exception-mail/index.md -> ../../attachments/address-the-waiting-child-in-exception-mail/index.md
+repair available (check --fix): issues/archive/address-the-waiting-child-in-exception-mail.md: ../attachments/address-the-waiting-child-in-exception-mail/second-drive.md -> ../../attachments/address-the-waiting-child-in-exception-mail/second-drive.md
+repair available (check --fix): issues/archive/address-the-waiting-child-in-exception-mail.md: ../attachments/address-the-waiting-child-in-exception-mail/index.md#review--2026-09-30 -> ../../attachments/address-the-waiting-child-in-exception-mail/index.md#review--2026-09-30
+repair available (check --fix): issues/archive/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses.md: ../attachments/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses/index.md -> ../../attachments/dispatch-rejection-tests-launch-real-workers-when-a-guard-regresses/index.md
+repair available (check --fix): issues/archive/surface-stale-waits-after-owner-replies.md: ../attachments/surface-stale-waits-after-owner-replies/index.md -> ../../attachments/surface-stale-waits-after-owner-replies/index.md
+repair available (check --fix): issues/archive/tree-sidebar-bridge-fixes.md: ../attachments/tree-sidebar-bridge-fixes/index.md -> ../../attachments/tree-sidebar-bridge-fixes/index.md
+issues/archive/thread-registry-and-zmx-launch.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/thread-registry-and-zmx-launch.md: ../attachments/thread-registry-and-zmx-launch/index.md -> ../../attachments/thread-registry-and-zmx-launch/index.md
+repair available (check --fix): issues/archive/thread-registry-and-zmx-launch.md: thread-fixture-help-and-headless-pty-entry.md -> ../thread-fixture-help-and-headless-pty-entry.md
+repair available (check --fix): issues/archive/thread-registry-and-zmx-launch.md: forked-thread-retains-parent-board-subscriptions.md -> ../forked-thread-retains-parent-board-subscriptions.md
+repair available (check --fix): issues/archive/thread-registry-and-zmx-launch.md: ../attachments/thread-core-and-workers-on-zmx/source-contract.md -> ../../attachments/thread-core-and-workers-on-zmx/source-contract.md
+repair available (check --fix): issues/archive/review-output-acted-on.md: ../attachments/review-output-acted-on/index.md -> ../../attachments/review-output-acted-on/index.md
+repair available (check --fix): issues/archive/review-output-acted-on.md: ../attachments/review-output-acted-on/observations.md -> ../../attachments/review-output-acted-on/observations.md
+repair available (check --fix): issues/archive/delete-workmux-and-tmux-paths.md: ../attachments/delete-workmux-and-tmux-paths/index.md -> ../../attachments/delete-workmux-and-tmux-paths/index.md
+repair available (check --fix): issues/archive/terminal-tests-leak-tmux-sockets.md: ../attachments/terminal-tests-leak-tmux-sockets/index.md -> ../../attachments/terminal-tests-leak-tmux-sockets/index.md
+issues/archive/cua-foreground-drag-affects-another-window.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+repair available (check --fix): issues/archive/ab-check-loses-waiter-after-daemon-timeout.md: ../attachments/ab-check-loses-waiter-after-daemon-timeout/index.md -> ../../attachments/ab-check-loses-waiter-after-daemon-timeout/index.md
+issues/archive/ab-jg-repository-wide-search-resource-limit.md: [[projects/concept/issues/cancel-pending-applet-wakes-when-the-learner-stops-a-turn]] does not exist
+issues/archive/supervise-as-exception-handler.md: [[projects/mlegls-pi/research/orchestration-audit-2026-09-23]] does not exist
+repair available (check --fix): issues/archive/supervise-as-exception-handler.md: ../attachments/supervise-as-exception-handler/drive/index.md -> ../../attachments/supervise-as-exception-handler/drive/index.md
+repair available (check --fix): issues/archive/supervise-as-exception-handler.md: ../attachments/supervise-as-exception-handler/index.md -> ../../attachments/supervise-as-exception-handler/index.md
+repair available (check --fix): issues/archive/turn-end-sentinel-parser-rejects-preambles.md: ../attachments/turn-end-sentinel-parser-rejects-preambles/index.md -> ../../attachments/turn-end-sentinel-parser-rejects-preambles/index.md
+repair available (check --fix): issues/archive/dsh-board-host.md: ../attachments/dsh-port-root-review/index.md -> ../../attachments/dsh-port-root-review/index.md
+repair available (check --fix): issues/archive/dsh-board-host.md: ../attachments/dsh-board-host/index.md -> ../../attachments/dsh-board-host/index.md
+repair available (check --fix): issues/archive/supervisor-hibernation-empty-journal.md: ../attachments/supervisor-hibernation-empty-journal/index.md -> ../../attachments/supervisor-hibernation-empty-journal/index.md
+repair available (check --fix): issues/archive/tracker-check-flags-inline-fixture-wikilinks.md: ../attachments/tracker-check-flags-inline-fixture-wikilinks/index.md -> ../../attachments/tracker-check-flags-inline-fixture-wikilinks/index.md
+repair available (check --fix): issues/archive/tracker-check-flags-inline-fixture-wikilinks.md: mail-drive-handoff-names-only-a-test-runner.md -> ../mail-drive-handoff-names-only-a-test-runner.md
+repair available (check --fix): issues/archive/cache-read-fence-knee.md: ../attachments/cache-read-fence-knee/index.md -> ../../attachments/cache-read-fence-knee/index.md
+issues/review-marks-unwitnessed-map-discard-held-from-code-reading.md: [[projects/concept/issues/map-feature-use-logs-an-error-after-navigation]] does not exist
+issues/review-marks-unwitnessed-map-discard-held-from-code-reading.md: [[projects/concept/issues/first-send-after-load-is-refused-as-a-changed-authentication-session]] does not exist
+issues/tracker-tree-rescans-every-issue-per-child-lookup.md: [[projects/concept/issues/tracker-tree-hangs-while-snapshot-completes]] does not exist
+issues/idle-thread-reaping-needs-external-board-wakes.md: [[projects/mlegls-pi/stories/work-in-threads]] does not exist
+issues/computer-driver-can-open-a-material-instead-of-sending-the-requested-command.md: [[projects/concept/attachments/capture-accepted-teaching-occurrences/independent-drive/index]] does not exist
+issues/computer-driver-can-open-a-material-instead-of-sending-the-requested-command.md: [[projects/concept/issues/computer-driver-can-open-a-material-instead-of-sending-the-requested-command]] does not exist
+repair available (check --fix): issues/delete-ab-thread-and-the-registry.md: docs/attachments/delete-ab-thread-and-the-registry/index.md -> ../attachments/delete-ab-thread-and-the-registry/index.md
+issues/supervised-driver-browser-mcp-tools-not-exposed.md: [[projects/concept/attachments/hub-yours-empty-heading-says-published-on-working-revisions/index]] does not exist
+issues/supervised-driver-browser-mcp-tools-not-exposed.md: [[projects/concept/attachments/unlisted-hub-patches/independent-drive]] does not exist
+issues/supervised-driver-browser-mcp-tools-not-exposed.md: [[projects/concept/issues/supervised-driver-browser-mcp-tools-not-exposed]] does not exist
+issues/supervised-driver-browser-mcp-tools-not-exposed.md: [[projects/concept/attachments/match-missions-map-and-phone-composition-to-the-approved-frames/drive]] does not exist
+issues/supervised-driver-browser-mcp-tools-not-exposed.md: [[projects/concept/attachments/drive-plan-language-in-simplified-chinese-and-english/truncation-redrive]] does not exist

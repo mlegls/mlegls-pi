@@ -424,9 +424,69 @@ function project(files: Record<string, string>, git = false) {
   const write = (fs: Record<string, string>) => { for (const [f, t] of Object.entries(fs)) writeFileSync(join(root, "docs", f), t); };
   write(files);
   if (git) { sh("init", "-q"); sh("add", "."); sh("commit", "-qm", "committed"); }
-  const check = () => Bun.spawnSync([process.execPath, cli, "check"], { cwd: root, env: { ...process.env, TRACKER_VAULT: vault } }).stdout.toString();
+  const check = (...args: string[]) => Bun.spawnSync([process.execPath, cli, "check", ...args], { cwd: root, env: { ...process.env, TRACKER_VAULT: vault } }).stdout.toString();
   return { root, write, check, done: () => rmSync(root, { recursive: true, force: true }) };
 }
+
+test("Markdown repository-root links become file-relative without changing labels or anchors", () => {
+  const original = frontmatter("stage: idea") + '[docs/proof%20note.md#unchecked](docs/proof%20note.md#unchecked "title")\n';
+  const p = project({ "issues/linker.md": original, "proof note.md": "# Proof\n" });
+  try {
+    expect(p.check()).toContain("docs/proof%20note.md#unchecked -> ../proof%20note.md#unchecked");
+    expect(readFileSync(join(p.root, "docs/issues/linker.md"), "utf8")).toBe(original);
+    p.check("--fix");
+    expect(readFileSync(join(p.root, "docs/issues/linker.md"), "utf8")).toBe(original.replace("](docs/proof", "](../proof"));
+    expect(p.check()).toBe("ok\n");
+  } finally { p.done(); }
+});
+
+test("Markdown outgoing links from archived issues follow scoped moved-file repairs", () => {
+  const p = project({ "proof.md": "# Proof\n" });
+  mkdirSync(join(p.root, "docs/issues/archive"));
+  p.write({
+    "issues/archive/moved.md": frontmatter("stage: done") + "[proof](../proof.md#keep)\n[old](missing.md)\n",
+    "issues/other.md": frontmatter("stage: idea") + "[proof](docs/proof.md)\n",
+  });
+  try {
+    expect(p.check()).toContain("../proof.md#keep -> ../../proof.md#keep");
+    expect(p.check()).not.toContain("missing.md");
+    const out = p.check("--fix", "docs/issues/archive/moved.md");
+    expect(out).toContain("fixed issues/archive/moved.md");
+    expect(out).toContain("matching moved issue path");
+    expect(readFileSync(join(p.root, "docs/issues/archive/moved.md"), "utf8")).toContain("[proof](../../proof.md#keep)");
+    expect(readFileSync(join(p.root, "docs/issues/other.md"), "utf8")).toContain("[proof](docs/proof.md)");
+  } finally { p.done(); }
+});
+
+test("Markdown incoming links follow an issue into archive, only for the selected target", () => {
+  const p = project({ "guide.md": "[moved](issues/moved.md#result)\n[other](issues/other.md)\n" });
+  mkdirSync(join(p.root, "docs/issues/archive"));
+  p.write({ "issues/archive/moved.md": frontmatter("stage: done"), "issues/archive/other.md": frontmatter("stage: done") });
+  try {
+    expect(p.check()).toContain("issues/moved.md#result -> issues/archive/moved.md#result");
+    p.check("--fix", "docs/issues/archive/moved.md");
+    expect(readFileSync(join(p.root, "docs/guide.md"), "utf8")).toBe("[moved](issues/archive/moved.md#result)\n[other](issues/other.md)\n");
+    p.check("--fix");
+    expect(p.check()).toBe("ok\n");
+  } finally { p.done(); }
+});
+
+test("Markdown dangling files are reported outside archives, excluding code and non-file links", () => {
+  const p = project({ "guide.md": [
+    "[missing](missing.md#heading)",
+    "`[inline](inline.md)`",
+    "```md", "[fenced](fenced.md)", "```",
+    "[web](https://example.test/path) [mail](mailto:test@example.test)",
+    "[heading](#anything) [absolute](/not-a-repository-file)",
+    "[valid](<proof note.md#unused>)",
+  ].join("\n"), "proof note.md": "# Proof\n" });
+  try {
+    const out = p.check();
+    expect(out).toContain("guide.md: [missing](missing.md#heading) does not exist");
+    expect(out.split("\n").filter(Boolean)).toHaveLength(1);
+    expect(p.check("--fix")).toContain("[missing](missing.md#heading) does not exist");
+  } finally { p.done(); }
+});
 
 test("check names the child that lowers a spec, and a side friction log", () => {
   const p = project({
