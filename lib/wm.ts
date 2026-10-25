@@ -407,7 +407,7 @@ export class MergeConflict extends Error {
 }
 
 /** Workers write scratch under `.wm/<handle>/`; keep it out of every worktree's status without touching .gitignore. */
-async function excludeWm(cwd: string) {
+export async function excludeWm(cwd: string) {
 	const r = await sh("git", ["rev-parse", "--git-common-dir"], cwd);
 	if (r.exitCode !== 0) return;
 	const file = resolve(cwd, r.stdout.trim(), "info", "exclude");

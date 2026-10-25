@@ -15,7 +15,7 @@ import { gitAttempt } from "./thread/lifecycle-git";
 import { cwdProcesses } from "./thread/resources";
 import { command, delay } from "./thread/process";
 import { dropBbQueued, tellBb } from "./thread/bb";
-import { pidAlive } from "./wm";
+import { excludeWm, pidAlive } from "./wm";
 
 const bbCli = () => process.env.BB_CLI || "bb";
 const config = (cwd: string, key: string) => { try { return git(cwd, "config", "--get", key); } catch { return ""; } };
@@ -44,6 +44,8 @@ export async function startTask(cwd: string, name: string): Promise<{ path: stri
 	try {
 		// The tracker stays global: no docs/issues/ in the task, as in worker worktrees.
 		excludeTracker(path);
+		// Setup writes .wm/setup.log; untracked, it would block ab task finish's clean check.
+		await excludeWm(path);
 		git(c.project, "config", "branch." + name + ".ab-parent", parent);
 		git(c.project, "config", "branch." + name + ".ab-task", "true");
 		await runSetup({ cwd: path, project: c.project, worktree: path, branch: name, worker: { run: "task", handle: name } });
