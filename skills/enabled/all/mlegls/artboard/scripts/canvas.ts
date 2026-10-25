@@ -244,10 +244,14 @@ const browser = await chromium.launch({ args: ["--allow-file-access-from-files"]
 const frames = layout.pages.flatMap((page) => page.frames.map((frame) => ({ page, frame })));
 const taken = new Map<Frame, Taken>();
 try {
+  // A few pages at a time: a dev Storybook serving dozens at once times out.
+  const queue = [...frames];
   await Promise.all(
-    frames.map(async ({ frame }) => {
-      taken.set(frame, await capture(browser, frame));
-      console.error("captured " + frame.name);
+    Array.from({ length: 6 }, async () => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        taken.set(next.frame, await capture(browser, next.frame));
+        console.error("captured " + next.frame.name);
+      }
     }),
   );
 } finally {
