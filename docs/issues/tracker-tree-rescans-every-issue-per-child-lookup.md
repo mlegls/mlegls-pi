@@ -26,3 +26,5 @@ function children(i: Issue, all: Map<string, Issue>): Issue[] {
 The cache is keyed by the map object, so a map that is mutated after its first `children` call would read stale children. `close` builds `candidate = new Map(all)` and calls `set` before using it, so it is safe today. Either keep that invariant visible in a comment, or build the index once per command from the loaded issues. A regression test should time or count `children` calls on a synthetic vault of a few thousand issues, not on Concept's.
 
 Not changed in place: the sweep that found this (Concept daily sweep 2026-10-24, worker sweep-localdev-b) is not authorized to integrate into this checkout.
+
+2026-10-25 corroboration from Concept joined Application Patch translation worker @thread:thr_t3ejtyd4wb: unscoped `issues.ts tree | grep -i -E 'hook|bypass|worker.*guard|guard.*worker' | head -35` produced no output before the 30-second command timeout. A scoped subtree read had completed normally. Workaround: use `snapshot --json` and filter its issue slugs instead; that completed promptly. This is another observed lookup cost, not a changed cause or a product-journey failure.
