@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 priority: 2
 author: "session:thr_97xxb6d8ii"
@@ -29,3 +29,9 @@ Obsidian at Home builds targets as `{kind: "workspace", environmentId, path}` or
 1. Resolve and open the link kinds above from the detail pane, in [app.tsx](../../bb/tracker/app.tsx) and, for anything the browser can't resolve, an rpc in [server.ts](../../bb/tracker/server.ts).
 2. Update the pane's description in [README.md](../../bb/tracker/README.md), which still says it "renders the contract".
 3. Rebuild with `bb plugin dev` and open, from the pane, a concept note, an attachment and a repository file linked from `docs/issues/replay-cases-first-by-default.md` in mmon/concept, which uses every kind.
+
+## Result
+
+The detail pane resolves wikilinks to any vault note and relative links to repository files from the issue file, and opens them in bb's file preview (Obsidian at Home renders Markdown); issue links stay in-page, unknown projects and missing files render as plain text. The resolver was checked live through its rpc; rendered clicks in the pane went unobserved because no worker browser can sign in to bb Connect (remote-bb-pane-drive-needs-authenticated-browser), so the maintainer checks them on first use. Merged by the supervisor at 2b6d8577 after review found no defect.
+
+Evidence: [docs/attachments/bb-tracker-follows-every-link-in-an-issue/index.md](../attachments/bb-tracker-follows-every-link-in-an-issue/index.md)
