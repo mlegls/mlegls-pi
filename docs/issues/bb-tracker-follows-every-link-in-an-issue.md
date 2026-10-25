@@ -32,6 +32,6 @@ Obsidian at Home builds targets as `{kind: "workspace", environmentId, path}` or
 
 ## Result
 
-The detail pane resolves wikilinks to any vault note and relative links to repository files from the issue file, and opens them in bb's file preview (Obsidian at Home renders Markdown); issue links stay in-page, unknown projects and missing files render as plain text. The resolver was checked live through its rpc; rendered clicks in the pane went unobserved because no worker browser can sign in to bb Connect (remote-bb-pane-drive-needs-authenticated-browser), so the maintainer checks them on first use. Merged by the supervisor at 2b6d8577 after review found no defect.
+The detail pane resolves wikilinks to any vault note and relative links to repository files from the issue file, and opens them in bb's file preview (Obsidian at Home renders Markdown); issue links stay in-page, unknown projects and missing files render as plain text. The resolver was checked live through its rpc. First use on 2026-10-25 through the owner's signed-in bb desktop browser opened Mission, the cases-first attachment and prepare-cases-first.ts in file previews; the three-click authentication gap is resolved. The Mac tracker was rebuilt/reloaded from clean main at 7dbc39e5, containing 2b6d8577. Merged by the supervisor at 2b6d8577 after review found no defect.
 
 Evidence: [docs/attachments/bb-tracker-follows-every-link-in-an-issue/index.md](../attachments/bb-tracker-follows-every-link-in-an-issue/index.md)
