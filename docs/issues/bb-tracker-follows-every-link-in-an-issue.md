@@ -6,7 +6,7 @@ author: "session:thr_97xxb6d8ii"
 ---
 "an "outsider" (which every fresh context is, and which i am for issues i wasn't deeply involved in) should be able to thoroughly understand what an issue is about just by recursively following its links. this is part of the point of having it obsidian-format. so file links should be real links" (maintainer, 2026-10-25, @thread:thr_97xxb6d8ii)
 
-The bb tracker's issue pane is where I read issues remotely, and it follows only some links: `linkify` in [app.tsx](../../bb/tracker/app.tsx) turns wikilinks to this project's issues into in-page links and renders every other wikilink (concepts, stories, attachments, guides, other projects) as plain text. Relative Markdown links to files, `[turn_clock.ts](../../packages/web/convex/lib/turn_clock.ts)`, the form the [tracker's body format](../../skills/enabled/all/mlegls/conventions/tracker/references/issue-tracker-vault.md#body) asks for, point at the plugin frame's own URL.
+The bb tracker's issue pane is where I read issues remotely, and it follows only some links: `linkify` in [app.tsx](../../../bb-plugins/tracker/app.tsx) turns wikilinks to this project's issues into in-page links and renders every other wikilink (concepts, stories, attachments, guides, other projects) as plain text. Relative Markdown links to files, `[turn_clock.ts](../../packages/web/convex/lib/turn_clock.ts)`, the form the [tracker's body format](../../skills/enabled/all/mlegls/conventions/tracker/references/issue-tracker-vault.md#body) asks for, point at the plugin frame's own URL.
 
 bb now has [Obsidian at Home](https://github.com/classicrob/obsidian-at-home) installed (plugin id `wikilinks`): a Markdown file opener with wikilinks, hover previews and backlinks. So the pane doesn't need its own note viewer; it opens the linked file in bb, and Obsidian at Home (or bb's viewer for other files) takes it from there.
 
@@ -22,12 +22,12 @@ Detail pane Markdown (app.tsx)
   open: useBbNavigate().experimental_openFilePreview({ target, location: null })
 ```
 
-Obsidian at Home builds targets as `{kind: "workspace", environmentId, path}` or `{kind: "host", hostId, path}` (its `app.tsx`); the pane is project-scoped, so it likely needs the host form with the project root's absolute path, or the project's main checkout environment. The server already knows each project's root (`p.root` in [server.ts](../../bb/tracker/server.ts)). A link whose file doesn't exist renders as plain text with a title saying so, like an unresolved wikilink. `#heading` anchors pass through as `location` if the SDK takes one, else are dropped.
+Obsidian at Home builds targets as `{kind: "workspace", environmentId, path}` or `{kind: "host", hostId, path}` (its `app.tsx`); the pane is project-scoped, so it likely needs the host form with the project root's absolute path, or the project's main checkout environment. The server already knows each project's root (`p.root` in [server.ts](../../../bb-plugins/tracker/server.ts)). A link whose file doesn't exist renders as plain text with a title saying so, like an unresolved wikilink. `#heading` anchors pass through as `location` if the SDK takes one, else are dropped.
 
 ## tasks
 
-1. Resolve and open the link kinds above from the detail pane, in [app.tsx](../../bb/tracker/app.tsx) and, for anything the browser can't resolve, an rpc in [server.ts](../../bb/tracker/server.ts).
-2. Update the pane's description in [README.md](../../bb/tracker/README.md), which still says it "renders the contract".
+1. Resolve and open the link kinds above from the detail pane, in [app.tsx](../../../bb-plugins/tracker/app.tsx) and, for anything the browser can't resolve, an rpc in [server.ts](../../../bb-plugins/tracker/server.ts).
+2. Update the pane's description in [README.md](../../../bb-plugins/tracker/README.md), which still says it "renders the contract".
 3. Rebuild with `bb plugin dev` and open, from the pane, a concept note, an attachment and a repository file linked from `docs/issues/replay-cases-first-by-default.md` in mmon/concept, which uses every kind.
 
 ## Result

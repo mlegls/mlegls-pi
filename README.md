@@ -34,7 +34,7 @@ prompts for pi, Claude Code and Codex.
 **Other**:
 
 - `bin/`: `bb-pi` (pi as bb's Pi provider), `heavy` (host-wide queue for heavy work), `ab desk` / `desk`.
-- `bb/tracker`: a bb plugin with Issues and Campaigns pages over the tracker.
+- The bb plugins this repo once held (tracker: Issues and Campaigns pages over the tracker; thread-share) now live in [mlegls/bb-plugins](https://github.com/mlegls/bb-plugins), cloned at `~/dev/bb-plugins`.
 - `extensions/obsidian-tracker`: the Obsidian tracker view; its `dist/` is symlinked into the vault's plugins.
 - `docs/issues/`: the tracker. `docs/guide/` and the other `docs/*.md`: how-tos and design notes.
 - `routing.md`, `allocation.json`: model catalog, stance definitions and delegated capacity.
