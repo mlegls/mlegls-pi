@@ -25,3 +25,7 @@ Repairs follow the existing `check --fix [moved issue paths...]` rules: with pat
 1. Add Markdown-link checking and the three repairs to `checkLinks`, with a test per repair and one for a reported dangling link, in [issues.test.ts](../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts).
 2. Document it beside the wikilink checks in [issue-tracker-vault.md](../../skills/enabled/all/mlegls/conventions/tracker/references/issue-tracker-vault.md).
 3. Report what `check` finds in mmon/concept and this repository (counts, and a sample of what's left unrepaired); running `check --fix` there is for after this lands.
+
+## Verification evidence
+
+[Independent CLI encounter](../attachments/tracker-check-validates-relative-file-links/index.md): all driven claims held; includes isolated repair replay and read-only inventories of both repositories.
