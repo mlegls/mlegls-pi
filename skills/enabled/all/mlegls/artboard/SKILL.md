@@ -39,9 +39,9 @@ A frame is either:
 }
 ```
 
-A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`. `storybook` may read a port from the environment or the nearest `.env`, as `http://127.0.0.1:${STORYBOOK_PORT}`.
+A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`. A frame may name its own `storybook` (to set two builds side by side) and a `wait` in ms before copying (default 1500 for a story). `storybook` may read a port from the environment or the nearest `.env`, as `http://127.0.0.1:${STORYBOOK_PORT}`.
 
-Each frame is copied as static DOM: scripts don't run, while scroll offsets, field values and viewport units are frozen as they were drawn, and each frame's CSS is scoped to it (`:root`/`html` become the frame, `body` its body wrapper). So a frame shows a state; show each state worth seeing as its own frame.
+Each frame is copied as static DOM: scripts don't run, while scroll offsets, field values, viewport units and media queries are frozen as they were drawn, and each frame's CSS is scoped to it (`:root`/`html` become the frame, `body` its body wrapper). So a frame shows a state; show each state worth seeing as its own frame.
 
 Useful sizes: phone 390×844, desktop 1440×900. At 96 px/in: A4 794×1123, Letter 816×1056, Tabloid 1056×1632, A5 559×794. A trifold's outer face runs inside flap, back cover, front cover from left to right; its inner face is one spread. Print layout answers to reading distance and folding, not web-page conventions.
 

@@ -21,6 +21,8 @@ type Frame = {
   name: string;
   file?: string;
   story?: string;
+  storybook?: string;
+  wait?: number;
   globals?: Record<string, string>;
   selector?: string;
   style?: string;
@@ -145,7 +147,7 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
   const page = await browser.newPage({ viewport: { width: viewport[0], height: viewport[1] } });
   try {
     if (frame.story) {
-      const origin = storybook;
+      const origin = frame.storybook ?? storybook;
       const query = new URLSearchParams({ id: frame.story, viewMode: "story" });
       const globals = Object.entries(frame.globals ?? {}).map(([k, v]) => k + ":" + v);
       if (globals.length) query.set("globals", globals.join(";"));
@@ -157,7 +159,7 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
     if (frame.style) await page.addStyleTag({ content: frame.style });
     await page.evaluate(() => document.fonts.ready);
     // Let entrance timers, fonts and scroll-to-latest settle.
-    await page.waitForTimeout(frame.story ? 1500 : 300);
+    await page.waitForTimeout(frame.wait ?? (frame.story ? 1500 : 300));
     return await page.evaluate((selector) => {
       const target = selector ? document.querySelector(selector) : document.body;
       if (!(target instanceof HTMLElement)) throw new Error("No element matches " + selector);
@@ -205,6 +207,8 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
       const walk = (list: CSSRuleList) => {
         for (const rule of list) {
           if (rule instanceof CSSStyleRule) rule.selectorText = mapSelector(rule.selectorText);
+          // The canvas window isn't the frame's viewport: settle media queries as they were drawn.
+          if (rule instanceof CSSMediaRule) rule.media.mediaText = matchMedia(rule.conditionText).matches ? "all" : "not all";
           if ("cssRules" in rule && !(rule instanceof CSSKeyframesRule)) walk((rule as CSSGroupingRule).cssRules);
         }
       };
