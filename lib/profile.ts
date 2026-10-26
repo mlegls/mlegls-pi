@@ -333,11 +333,6 @@ export function render(root: Profile): string {
 	return out.join("\n");
 }
 
-export async function recent(project: string, last = 10, days = 14, win: Window = {}): Promise<Profile[]> {
-	const { collectProject, projectRoots } = await import("./profile-project");
-	return projectRoots(await collectProject({ project, days, ...win })).slice(0, last);
-}
-
 export function renderRecent(ps: Profile[]): string {
 	return ps.map(r => {
 		const all = flat(r), cost = all.reduce((s, p) => s + p.cost, 0), span = Math.max(...all.map(p => p.end)) - r.start;
