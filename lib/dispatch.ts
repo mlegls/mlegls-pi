@@ -201,7 +201,7 @@ export async function integrate(given: Handle | string,
   } catch (error) { if (error instanceof ThreadMergeConflict) throw new MergeConflict(error.branch, error.files); throw error; }
   const result: Integration = { branch, mode, ...(output ? { output } : {}) };
   if (options.keep) return result;
-  return Object.assign(result, await retire(worker, { cwd, discardIgnored: true }));
+  return Object.assign(result, await retire(worker, { cwd }));
 }
 
 /** Stop a superseded worker's services without deleting partial work needed by its replacement. */
@@ -211,8 +211,8 @@ export async function stop(given: Handle | string, options: { cwd?: string } = {
 }
 
 /** Retire through lifecycle, then delete only patches already in the recorded ab-parent. Ignored state setup can't
- * regenerate is moved aside (removed.kept), unless discardIgnored: the worker finished and its work was taken. */
-export async function retire(given: Handle | string, options: { cwd?: string; discardIgnored?: boolean } = {}): Promise<Omit<Integration, "branch" | "mode">> {
+ * regenerate is moved aside (removed.kept), even when the worker's code was integrated. */
+export async function retire(given: Handle | string, options: { cwd?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const { worker, thread } = await recordOf(given, cwd);
   const git = (...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
@@ -220,7 +220,7 @@ export async function retire(given: Handle | string, options: { cwd?: string; di
   const result: Awaited<ReturnType<typeof retire>> = {};
   const wm = await import("./wm.ts");
   const host = wm.attach(worker.run, worker.handle, cwd, worker.session, thread.id);
-  try { result.removed = await host.close(true, { discardIgnored: options.discardIgnored }); } finally { host.drop(); }
+  try { result.removed = await host.close(true); } finally { host.drop(); }
   result.killed = (result.removed as { killed?: number[] } | undefined)?.killed ?? [];
   const branch = thread.branch;
   const parent = await git("config", "--get", "branch." + branch + ".ab-parent");
