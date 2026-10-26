@@ -2,6 +2,7 @@
 stage: "ticket"
 assignee: "agent"
 priority: 2
+blocked-by: ["[[projects/mlegls-pi/issues/finished-worker-retirement-discards-retained-ignored-state]]"]
 author: "session:thr_zgjve7mckq"
 ---
 idea: the efficiency audit of 2026-10-26 (@thread:thr_zgjve7mckq; auditor @thread:thr_ztepcfseav) counted 181 supervisor turns in 10-22→10-26, about $31, spent on "retired … kept ignored state" notices. Supervisors answered them with 625 `rm -rf` cleanups and restored kept state 3 times. 78 `~/dev/mmon/concept__retired` directories hold 7.1 GB. The maintainer agreed to quieter notices and pruning, provided retirement keeps what a worker declared: [[projects/mlegls-pi/issues/finished-worker-retirement-discards-retained-ignored-state]] records a paid run's `.convex` deployment lost by discarding, so marking `.convex` disposable is not the fix.
