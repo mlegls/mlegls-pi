@@ -36,3 +36,7 @@ These outcomes are acceptance-runner evidence, not independent inspection of the
 ### Frictions and cleanup
 
 No execution friction observed: supplied entry point was immediately runnable and completed successfully. No live external resources were started; the managed runner exited normally. No raw runner logs are committed. The isolated temporary target was created by the acceptance runner, not a shared checkout or deployment.
+
+## Review
+
+Reviewed 7b8471d8 against the ticket. `bun test lib/reconcile/retirement.test.ts lib/thread/lifecycle.test.ts`: 9 pass, 0 fail. The retirement test asserts exactly one owner notice, naming `.captures/x` and not `.wm/` or `node_modules`. After the branch merges, `pruneRetired` removes the routine-only directory and keeps the one holding `.captures/x`. No repairs needed.
