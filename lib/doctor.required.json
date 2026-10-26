@@ -1,0 +1,34 @@
+{
+  "clis": [
+    "bun",
+    "mise",
+    "gh",
+    "sentry-cli",
+    "lavish-axi",
+    "tmux"
+  ],
+  "credentials": [
+    {
+      "name": "SENTRY_AUTH_TOKEN",
+      "keys": [
+        "SENTRY_AUTH_TOKEN"
+      ],
+      "command": [
+        "sentry-cli",
+        "info"
+      ],
+      "authenticatedUser": true
+    },
+    {
+      "name": "GitHub",
+      "keys": [
+        "GH_TOKEN"
+      ],
+      "command": [
+        "gh",
+        "auth",
+        "status"
+      ]
+    }
+  ]
+}
