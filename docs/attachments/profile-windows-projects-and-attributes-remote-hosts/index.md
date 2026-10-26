@@ -1,5 +1,7 @@
 # Project profiling: implementation first use
 
+Independent acceptance: [fresh CLI drive at dd7fdb06](drive-2.md), including predictions, observed historical query, replayable checks and cleanup.
+
 Implementation trial at code revision 91970414 plus the following evidence commit, whose final changes were re-driven on the live Mac→Beelink query: the session-count label is spelled out and the last in-window reply is preserved for wait classification. This is CLI/API evidence, not a fresh verifier's acceptance report. No screenshots or permanent tests were added.
 
 ## Required and prepared environment
