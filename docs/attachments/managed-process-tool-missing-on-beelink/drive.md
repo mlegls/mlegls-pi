@@ -42,3 +42,13 @@ A preliminary discovery invocation `bun lib/doctor.ts --help` preceded these pre
 6. Observe an enrolled host without sessions for more than 24h; a literal daily guarantee requires an attention item without starting a session. Current guide promises only a check at the next session.
 
 No source, diffs, tests or fixtures were inspected; no product repair or repository test suite was run.
+
+## Review (appended)
+
+Read `lib/doctor.ts`, `lib/doctor-start.ts`, the bb session hook and the guide against the ticket. No defects found in the diff; no repairs made.
+
+- Replayed check 4 with a disposable tracker (`getTracker(tmpdir)`, host `hostA`): reporting two duplicate package gaps plus one CLI gap, twice, produced exactly two tickets (one per gap). Fresh-report creation and dedupe: **held**. Live `bun lib/doctor.ts` on this head: exit 1, `missing credential: SENTRY_AUTH_TOKEN` (real gap; its open human ticket already exists).
+- Daily trigger is session start, rate-limited per host to 24 h. bb automations run scripts on the bb server host only, so a per-host timer is not available through them; the Beelink acceptance (daily run files at most one item per gap) is met. A host with no sessions runs no workers, so no tool gap bites there. Accepted limitation, stated in the guide.
+- Machine-move: the host-setup path is `scripts/agents-apply.sh` in the separate `~/.config/system-config` repo, which this change does not touch. Not invoked on a machine move; unresolved, see the report.
+- `mise run test:affected` does not exist in this repo; the change adds no tests.
+
