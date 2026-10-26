@@ -101,11 +101,18 @@ export function mergeProjects(packets: ProjectPacket[]): ProjectPacket {
 	};
 }
 
-export function threadRows(packet: ProjectPacket): ThreadRow[] {
+export function threadRows(packet: ProjectPacket, trees = false): ThreadRow[] {
 	const rows = new Map<string, ThreadRow>();
+	const owners = new Map(packet.sessions.map(s => [s.profile.id, s]));
+	if (trees) {
+		// Project mode is a baseline of root trees. Collapse those roots by BB thread, without
+		// charging a fork both here and under its parent. The evidence also retains exclusive rows.
+		const assign = (p: Profile, owner: Session) => { owners.set(p.id, owner); p.children.forEach(c => assign(c, owner)); };
+		for (const root of projectRoots(packet)) assign(root, packet.sessions.find(s => s.profile.id === root.id)!);
+	}
 	for (const s of packet.sessions) {
-		const p = s.profile, id = s.thread ?? p.id;
-		const r = rows.get(id) ?? { id, thread: s.thread, title: p.title, hosts: [], sessions: [], start: p.start, end: p.end, cost: 0, activeMs: 0, turns: 0, costByModel: {} };
+		const p = s.profile, owner = owners.get(p.id)!, id = owner.thread ?? owner.profile.id;
+		const r = rows.get(id) ?? { id, thread: owner.thread, title: owner.profile.title, hosts: [], sessions: [], start: p.start, end: p.end, cost: 0, activeMs: 0, turns: 0, costByModel: {} };
 		r.start = Math.min(r.start, p.start); r.end = Math.max(r.end, p.end);
 		r.cost += p.cost; r.activeMs += active(p); r.turns += p.turns;
 		for (const [m, c] of Object.entries(p.costByModel)) r.costByModel[m] = (r.costByModel[m] ?? 0) + c;
@@ -145,6 +152,7 @@ export function writeEvidence(dir: string, q: ProjectQuery, packet: ProjectPacke
 	json("query.json", { ...q, hosts: packet.hosts, generatedAt: new Date().toISOString() });
 	json("sessions.json", packet.sessions);
 	json("threads.json", threadRows(packet));
+	json("roots.json", threadRows(packet, true));
 	json("prompts.json", packet.prompts);
 	json("tools.json", { tools: totals("tools"), inner: totals("inner"), waits: totals("waits") });
 	writeFileSync(join(dir, "prompts.md"), "# User prompts\n\n" + packet.prompts.map(p =>
@@ -154,16 +162,17 @@ export function writeEvidence(dir: string, q: ProjectQuery, packet: ProjectPacke
 		(q.until === undefined ? "unbounded" : new Date(q.until).toISOString()) + ".\n\n" +
 		"Costs/counts belong to entries completed in the inclusive window; model/tool intervals are clipped to it. " +
 		"Nested tool durations crossing a boundary are prorated (their logs carry durations, not start times). " +
-		"Thread costs are exclusive, not descendant-tree costs. Sessions are deduplicated across hosts by pi id, preferring the most complete window. " +
+		"threads.json contains exclusive per-thread costs; roots.json and --by-thread group root-session trees by BB thread, including descendants once. " +
+		"Sessions are deduplicated across hosts by pi id, preferring the most complete window. " +
 		"Non-bb sessions retain session ids and file anchors, not invented thread/message links.\n\n" +
-		"[Threads](threads.json) · [Sessions and source files](sessions.json) · [User prompts](prompts.md) · [Prompt data](prompts.json) · [Tool-time totals](tools.json) · [Query and host databases](query.json)\n");
+		"[Root trees grouped by thread](roots.json) · [Exclusive threads](threads.json) · [Sessions and source files](sessions.json) · [User prompts](prompts.md) · [Prompt data](prompts.json) · [Tool-time totals](tools.json) · [Query and host databases](query.json)\n");
 }
 
 export async function projectReport(q: ProjectQuery, options: { hosts: string[]; byThread: boolean; last: number; json: boolean; evidence?: string }): Promise<string> {
 	const packets = await Promise.all([collectProject(q), ...options.hosts.map(h => remoteProject(h, q))]);
 	const packet = mergeProjects(packets);
 	if (options.evidence) writeEvidence(options.evidence, q, packet);
-	const rows = options.byThread ? threadRows(packet).slice(0, options.last) : projectRoots(packet).slice(0, options.last);
+	const rows = options.byThread ? threadRows(packet, true).slice(0, options.last) : projectRoots(packet).slice(0, options.last);
 	return options.json ? JSON.stringify(rows) : options.byThread ? renderThreads(rows as ThreadRow[]) : renderRecent(rows as Profile[]);
 }
 
