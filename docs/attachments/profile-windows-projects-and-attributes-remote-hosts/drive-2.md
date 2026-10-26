@@ -38,3 +38,7 @@ No unresolved product friction encountered in the assigned journey. Historical o
 ## Cleanup
 
 Closed all three owned Mac terminals (query and two generated-artifact summary reads). Removed the owned Mac temporary directory with the setup's printed cleanup command; removal succeeded. No servers, remote directories or terminals left running. Original user data untouched.
+
+## Review (review-3)
+
+Read the diff with this log. The driver's outcomes stand: nothing in the change contradicts them, and the repair below does not touch behavior the drive exercised. Repair: removed `recent()` from lib/profile.ts, a dead export with no caller once `--project` went through `projectReport`. After it, `bun run typecheck` passes; the Mac→Beelink acceptance query was not re-driven. A local project-mode run on the review host (windowed, `--by-thread --evidence`) wrote the pack, and the bb/runtime/session-meta tests pass (16/16). No new frictions or tracker issues to settle.
