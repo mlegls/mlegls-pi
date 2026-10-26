@@ -351,8 +351,8 @@ export class Worker {
 	}
 
 	/** Abandon the registered subtree; polling detaches only after successful cleanup. */
-	async close(keepBranch = false, options: { discardIgnored?: boolean } = {}) {
-		const result = await abandonThread(await this.id(), { keepBranch, discardIgnored: options.discardIgnored });
+	async close(keepBranch = false) {
+		const result = await abandonThread(await this.id(), { keepBranch });
 		this.emit({ kind: "exited", tail: "" });
 		poller.remove(this);
 		return result;

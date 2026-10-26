@@ -1,5 +1,6 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { lastTurn } from "./turn";
 import { markRetired, readLive } from "../session-meta/live";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { command, delay } from "./process";
@@ -17,10 +18,10 @@ export async function stopThreadProcesses(thread: WorkerThread): Promise<ThreadC
 	return cleanupThread(thread, true, true);
 }
 
-/** discardIgnored: the worker finished and its work was taken (integrated, or handed to the next phase), so its
- * ignored files are disposable. Otherwise ignored state that setup can't regenerate is moved aside, not deleted. */
-export async function retireThread(thread: WorkerThread, keepBranch: boolean, options: { discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
-	return cleanupThread(thread, keepBranch, false, options.discardIgnored ?? false);
+/** Ignored state setup can't regenerate is moved aside, even after the worker's code was taken: its local databases
+ * and captures can be the deliverable the next phase needs to open. Handoff declarations override disposability. */
+export async function retireThread(thread: WorkerThread, keepBranch: boolean): Promise<ThreadCleanup> {
+	return cleanupThread(thread, keepBranch, false);
 }
 
 /** Ignored paths setup regenerates: dependency installs, tool caches, build output and wm's own files. Matched by
@@ -52,14 +53,24 @@ export function disposableIgnored(path: string, worktree: string, project: strin
  * removed: a checkpointed rehearsal's authorized production export and imported database went with its worktree
  * (2026-10-16). The WIP commit covers tracked and untracked files; this covers what git ignores. Throws when it can't,
  * so the worktree stays. */
-export async function keepIgnored(root: string, thread: WorkerThread, wip: string | undefined): Promise<{ path: string; entries: string[] } | undefined> {
-	const listed = await gitChecked(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory");
+export async function keepIgnored(root: string, thread: WorkerThread, wip: string | undefined, handoff = ""): Promise<{ path: string; entries: string[]; attention: string[] } | undefined> {
+	const listed = await gitChecked(root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory", "--no-empty-directory");
 	const declared = (await gitAttempt(thread.project, "config", "--get-all", "wm.disposable")).out.split("\n").map(s => s.trim()).filter(Boolean);
 	// git collapses an ignored directory to one entry: open .wm/ so wm's launch file alone stays disposable.
 	const expanded = listed.split("\0").filter(Boolean).flatMap(p => p === ".wm/"
 		? readdirSync(join(root, ".wm"), { withFileTypes: true }).map(d => ".wm/" + d.name + (d.isDirectory() ? "/" : ""))
 		: [p]);
-	const entries = expanded.filter(p => !disposableIgnored(p, root, thread.project, declared));
+	// A named ignored path wins over disposability, even inside a collapsed ignored directory.
+	const quoted = [...handoff.matchAll(/[\x60"']([^\x60"'\n]+)[\x60"']/g)].map(m => m[1]);
+	const named = [...new Set([...quoted, ...handoff.split(/[\s\x60"'<>()[\]{},;:]+/)].map(p => p.replace(/[.!]+$/, ""))
+		.filter(Boolean).map(p => relative(root, resolve(root, p)).replace(/\\/g, "/"))
+		.filter(p => p && p !== ".." && !p.startsWith("../") && existsSync(join(root, p))))];
+	const overlaps = (a: string, b: string) => a === b || a.startsWith(b + "/") || b.startsWith(a + "/");
+	const retained = named.filter(p => expanded.some(e => overlaps(p, e.replace(/\/+$/, ""))));
+	const entries = expanded.filter(p => retained.some(n => overlaps(n, p.replace(/\/+$/, "")))
+		|| !disposableIgnored(p, root, thread.project, declared));
+	const attention = [...new Set([...retained, ...entries.filter(p => !routineIgnored(p)
+		&& !retained.some(n => overlaps(n, p.replace(/\/+$/, ""))))])];
 	if (!entries.length) return undefined;
 	const base = resolve(thread.project + "__retired", basename(root));
 	const kept = existsSync(base) ? base + "-" + new Date().toISOString().replace(/[:.]/g, "-") : base;
@@ -79,11 +90,46 @@ export async function keepIgnored(root: string, thread: WorkerThread, wip: strin
 		"worktree: " + root, "thread: " + thread.id + " (" + thread.worker.run + "/" + thread.worker.handle + ")",
 		"branch: " + thread.branch, "head: " + head + (wip ? " (WIP commit of its uncommitted work)" : ""),
 		"retired: " + new Date().toISOString(), "",
+		"Declared in handoff: " + (retained.join(", ") || "(none)"),
+		"Needs owner attention: " + (attention.join(", ") || "(none; routine setup/diagnostic output)"), "",
 		"These paths were gitignored in the worktree and are kept here at the same relative paths. To resume, check out",
 		"the branch in a worktree and move them back. Delete this directory once nothing needs them.", "",
 		...entries.map(e => "- " + e), "",
 	].join("\n"));
-	return { path: kept, entries };
+	const target = (await gitAttempt(thread.project, "config", "--get", "branch." + thread.branch + ".ab-parent")).out;
+	writeFileSync(join(kept, "retirement.json"), JSON.stringify({ version: 1, head, target, declared: retained, entries }, null, 2) + "\n");
+	return { path: kept, entries, attention };
+}
+
+/** wm scratch and copied process logs are routine diagnostics, not a deployment or evidence.
+ * Unknown output (notably .convex and .captures) remains non-routine. */
+function routineIgnored(path: string): boolean {
+	return path.replace(/\/+$/, "") === ".wm" || path.startsWith(".wm/");
+}
+
+/** Only new receipts prove nothing was declared. Old RETIRED.md-only directories predate recorded
+ * handoff intent and are left alone. Rebased patches count as merged, as in dispatch.retire. */
+export async function pruneRetired(project: string): Promise<string[]> {
+	const base = project + "__retired", pruned: string[] = [];
+	if (!existsSync(base)) return pruned;
+	for (const entry of readdirSync(base, { withFileTypes: true })) {
+		if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+		const path = join(base, entry.name);
+		try {
+			const receipt = JSON.parse(readFileSync(join(path, "retirement.json"), "utf8"));
+			if (receipt.version !== 1 || !Array.isArray(receipt.declared) || receipt.declared.length
+				|| !Array.isArray(receipt.entries) || !receipt.entries.length || !receipt.entries.every((p: unknown) => typeof p === "string" && routineIgnored(p))
+				|| typeof receipt.head !== "string" || !/^[a-f0-9]{40,64}$/.test(receipt.head)
+				|| typeof receipt.target !== "string" || !receipt.target) continue;
+			// Don't erase unrelated files added after retirement.
+			if (readdirSync(path).some(p => !["RETIRED.md", "retirement.json", ".wm"].includes(p))) continue;
+			const cherry = await gitAttempt(project, "cherry", receipt.target, receipt.head);
+			if (cherry.code || cherry.out.split("\n").some(line => line.startsWith("+"))) continue;
+			rmSync(path, { recursive: true });
+			pruned.push(path);
+		} catch { /* An old/invalid receipt or busy directory is not permission to delete it. */ }
+	}
+	return pruned;
 }
 
 /** The pi-processes log directories (one per pi, `<tmp>/pi-processes-*`, holding proc_N-{stdout,stderr,combined}.log)
@@ -120,7 +166,7 @@ async function commitWip(root: string, thread: WorkerThread): Promise<string | u
 	return gitChecked(root, "rev-parse", "--short", "HEAD");
 }
 
-async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processesOnly: boolean, discardIgnored = false): Promise<ThreadCleanup> {
+async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processesOnly: boolean): Promise<ThreadCleanup> {
 	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
 	let root = resolve(thread.worktree);
 	if (root === "/" || root === resolve(thread.project)) throw new Error("Refusing to remove main checkout: " + root);
@@ -136,6 +182,8 @@ async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processe
 	// A CLI controller may share the cwd, but must not kill itself or the processes holding it open.
 	const protectedPids = new Set<number>();
 	for (let pid = process.pid; pid > 0 && !protectedPids.has(pid); pid = parents.get(pid) ?? 0) protectedPids.add(pid);
+	// Read before stopping bb: an unreadable handoff must not silently lose declared disposable state.
+	const handoff = processesOnly ? "" : (await lastTurn(thread.id))?.body ?? "";
 	const live = readLive();
 	const canonical = live.filter(l => l.thread === thread.id);
 	if (canonical.some(l => protectedPids.has(l.pid)))
@@ -151,7 +199,7 @@ async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processe
 	}
 	for (const pid of protectedPids) selected.delete(pid);
 	// pi's process manager deletes its logs when pi ends: copy them into the worktree first, so they leave with its state.
-	if (!discardIgnored && existsSync(root)) await keepProcessLogs(root, canonical.map(l => l.pid).filter(alive));
+	if (existsSync(root)) await keepProcessLogs(root, canonical.map(l => l.pid).filter(alive));
 	for (const record of live) if (selected.has(record.pid)) markRetired(record);
 	// Marked first, so the parent's child monitor reads bb's exit as retirement. bb would restart a pi killed under it:
 	// release its runtime, then sweep what's left.
@@ -174,7 +222,7 @@ async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processe
 	// Uncommitted work outlives the worktree as a WIP commit on its branch, which is then kept: a replaced drive's
 	// evidence (recordings of paid live draws, write-ups) was untracked and went with its worktree (2026-10-12).
 	const wip = listed ? await commitWip(root, thread) : undefined;
-	const kept = listed && !discardIgnored ? await keepIgnored(root, thread, wip) : undefined;
+	const kept = listed ? await keepIgnored(root, thread, wip, handoff) : undefined;
 	if (kept) result.kept = [...result.kept ?? [], { worktree: root, ...kept }];
 	if (listed) await gitChecked(thread.project, "worktree", "remove", "--force", root);
 	if (wip) result.branchesKept.push({ branch: thread.branch, reason: "uncommitted work saved as WIP commit " + wip });

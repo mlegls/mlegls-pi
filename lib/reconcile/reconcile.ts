@@ -22,6 +22,7 @@ import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
 import { roleThread } from "../desk.ts";
 import { lastTurn, type TurnReport } from "../thread/turn.ts";
+import { pruneRetired } from "../thread/lifecycle-cleanup";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { readLive } from "../session-meta/live";
@@ -536,9 +537,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			note("saved " + h.handle + "'s uncommitted work as WIP commit " + git(h.path, "rev-parse", "--short", "HEAD") + " for its successor");
 		} catch (e) { note("saving " + h.handle + "'s uncommitted work failed (retirement retries it): " + e); }
 	}
-	/** finished: the previous worker reported done and this phase takes its work, so its ignored files are disposable,
-	 * except a driver's, which the reviewer may need. Any other replacement (relaunch, provider error, owner retry) moves
-	 * ignored state aside on retirement. */
+	/** finished words the retirement notice; ignored state is kept for every phase, including successful handoffs. */
 	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false) {
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
@@ -566,8 +565,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const refreshed = refreshWorker(path, pathOf(c.into));
 			return [phasePrompt(), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve the collector's code and the previous worker's results, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
 		}, phase === "refine" ? { chain: c, adopt } : undefined);
-		// A finished drive's ignored state (its scanned local database, .wm/ output) is the reviewer's evidence: kept aside.
-		if (prev && !await retireHandle(prev, pathOf(c.into), finished && phase !== "review", finished)) c.workers.push(prev);
+		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined, resumeFrom: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
 		save();
@@ -854,18 +852,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		try { return await fn(); } finally { rmSync(lockDir, { recursive: true, force: true }); }
 	}
-	/** finished: the worker reported done and its work was taken, so its ignored state is discarded; otherwise ignored state
-	 * it alone holds is moved aside. done words the owner's notice for a finished worker whose state is kept anyway. */
-	async function retireHandle(h: Handle, into: string, finished = false, done = finished): Promise<boolean> {
-		try { await retireTelling(h, into, finished, done); return true; }
+	/** done only words the owner's notice: finishing never makes ignored state disposable. */
+	async function retireHandle(h: Handle, into: string, done = false): Promise<boolean> {
+		try { await retireTelling(h, into, done); return true; }
 		catch (e) { note("retire " + h.handle + ": " + e); return false; }
 	}
 	/** retireHandle that throws, and returns what retirement did. */
-	async function retireTelling(h: Handle, into: string, finished = false, done = finished) {
-			const r = await retire(h, { cwd: into, discardIgnored: finished });
-			for (const k of (r.removed as { kept?: { path: string; entries: string[] }[] } | undefined)?.kept ?? []) {
+	async function retireTelling(h: Handle, into: string, done = false) {
+			const r = await retire(h, { cwd: into });
+			for (const k of (r.removed as { kept?: { path: string; entries: string[]; attention?: string[] }[] } | undefined)?.kept ?? []) {
 				note("retired " + h.handle + " keeping its ignored state at " + k.path + ": " + k.entries.join(", "));
-				tellOwner("retired " + h.handle + (done ? " after it finished" : " before it finished") + "; its worktree held ignored state setup can't regenerate, moved to " + k.path + " (" + k.entries.join(", ") + "). See RETIRED.md there; delete it once nothing needs it. Declare regenerable paths with `git config --add wm.disposable <path>`.");
+				const attention = k.attention ?? k.entries;
+				if (attention.length) tellOwner("retired " + h.handle + (done ? " after it finished" : " before it finished") + "; its worktree held ignored state setup can't regenerate, moved to " + k.path + " (" + attention.join(", ") + "). See RETIRED.md there; delete it once nothing needs it. Declare regenerable paths with `git config --add wm.disposable <path>`.");
 			}
 			const wip = ((r.removed as { branchesKept?: { branch: string; reason: string }[] } | undefined)?.branchesKept ?? []).find(b => b.reason.startsWith("uncommitted work saved"));
 			if (wip) { note("retired " + h.handle + " with uncommitted work: branch " + wip.branch + ", " + wip.reason); tellOwner("retired " + h.handle + " with uncommitted work in its worktree; it is kept on branch " + wip.branch + " (" + wip.reason + ")."); }
@@ -910,7 +908,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					const found = await findWorker(worker, controlCwd);
 					const thread = found && threads.get(found.bb);
 					if (!thread || thread.archivedAt) continue;
-					const result = await retireTelling(worker, controlCwd, false, true);
+					const result = await retireTelling(worker, controlCwd, true);
 					if (git(controlCwd, "branch", "--list", worker.handle) && result.branchKept)
 						throw new Error(result.branchKept);
 				}
@@ -934,6 +932,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					+ ".\n\nretry tries again (fix the cause first); answer finishes the cleanup, leaving what's left as it is.", new Map(), "owner");
 			}
 		}
+		for (const path of await pruneRetired(repoRoot(controlCwd))) note("pruned merged routine retired state at " + path);
 	}
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
 		const into = pathOf(c.into), h = c.handle!;

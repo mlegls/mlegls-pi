@@ -90,7 +90,7 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 	expect(existsSync(kid.cwd)).toBe(true);
 });
 
-test("retiring an unfinished worker moves ignored state setup can't regenerate aside; a finished one discards it", async () => {
+test("retirement moves ignored state setup can't regenerate aside; declared disposable state is discarded", async () => {
 	writeFileSync(join(repo, ".git", "info", "exclude"), "local-db/\nnode_modules/\n.env\n.wm/\n");
 	writeFileSync(join(repo, ".env"), "SECRET=1\n");
 	const seed = (cwd: string) => {
@@ -110,7 +110,7 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 	const result = await abandonThread(t.id);
 	const kept = join(repo + "__retired", name);
 	// A worker's .wm/ output is kept; wm's own launch file is not.
-	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: [".wm/drive/", "local-db/"] }]);
+	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: [".wm/drive/", "local-db/"], attention: ["local-db/"] }]);
 	expect(readFileSync(join(kept, "local-db", "import.bin"), "utf8")).toBe("irreplaceable");
 	expect(readFileSync(join(kept, ".wm", "drive", "debug.txt"), "utf8")).toBe("scan");
 	expect(existsSync(join(kept, ".wm", "launch.env"))).toBe(false);
@@ -128,11 +128,8 @@ test("retiring an unfinished worker moves ignored state setup can't regenerate a
 	git(repo, "config", "--add", "wm.disposable", ".wm/drive");
 	try { expect((await abandonThread(u.id)).kept).toBeUndefined(); }
 	finally { git(repo, "config", "--unset-all", "wm.disposable"); }
-	const v = await spawn(repo, fresh());
-	seed(v.cwd);
-	expect((await abandonThread(v.id, { discardIgnored: true })).kept).toBeUndefined();
 	expect(existsSync(join(repo + "__retired", done))).toBe(false);
-	expect(existsSync(v.cwd)).toBe(false);
+	expect(existsSync(u.cwd)).toBe(false);
 	rmSync(join(repo, ".git", "info", "exclude"));
 	rmSync(join(repo, ".env"));
 });

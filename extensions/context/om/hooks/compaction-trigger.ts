@@ -4,6 +4,7 @@ import { rawTokensSinceLastCompaction, type Entry } from "../session-ledger/inde
 import type { Runtime } from "../runtime.js";
 import { ledgerBranch, recordLedger, type LedgerSession } from "../session-ledger/store.js";
 import { isActive } from "../../mechanism.ts";
+import { sessionCompactAt } from "../commands/compact-at.js";
 
 export function registerCompactionTrigger(pi: ExtensionAPI, runtime: Runtime): void {
 	// Pi emits agent_settled only after retries, automatic compaction, and queued
@@ -18,7 +19,7 @@ export function registerCompactionTrigger(pi: ExtensionAPI, runtime: Runtime): v
 		if (!entries) return;
 		const progress = rawTokensSinceLastCompaction(entries);
 		const contextWindow = typeof ctx.model?.contextWindow === "number" ? ctx.model.contextWindow : undefined;
-		const threshold = resolveCompactAfterTokens(runtime.config, contextWindow);
+		const threshold = resolveCompactAfterTokens(runtime.config, contextWindow, sessionCompactAt(ctx));
 		if (progress < threshold) return;
 
 		// Capture ctx properties synchronously — the setTimeout + async work below

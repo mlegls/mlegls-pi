@@ -122,9 +122,9 @@ export async function integrateCheckout(thread: { cwd: string; project: string; 
 
 /** Retire a worker: stop its pi and processes, remove its worktree and branch, archive its bb thread and delete its
  * environment. Nothing is merged. keepBranch preserves the branch. Ignored state setup can't regenerate is moved aside
- * (ThreadCleanup.kept) unless discardIgnored says the work was taken. Nothing to do once the thread is archived. */
-export async function abandonThread(id: string, options: { keepBranch?: boolean; discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
+ * (ThreadCleanup.kept), whether or not the worker finished. Nothing to do once the thread is archived. */
+export async function abandonThread(id: string, options: { keepBranch?: boolean } = {}): Promise<ThreadCleanup> {
 	const thread = await workerOf(id);
 	if (!thread) return { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
-	return retireThread(thread, options.keepBranch ?? false, { discardIgnored: options.discardIgnored ?? false });
+	return retireThread(thread, options.keepBranch ?? false);
 }

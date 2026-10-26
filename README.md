@@ -79,6 +79,13 @@ into each harness's own skills and prompt locations (for example every skill und
 
 Keep `package.json` valid JSON: if pi cannot parse the manifest it falls back to scanning all of `skills/`.
 
+## Host health
+
+Run `bun lib/doctor.ts` to find missing host packages, settings paths, tools and
+credentials. The bb extension also checks in the background on first use and
+once per 24 hours per active host, filing deduplicated tracker tickets for gaps.
+See [Host doctor](docs/guide/host-doctor.md).
+
 ## Development
 
 - `mise run test`: the full suite, queued behind the host's heavy slots (needs `bin/heavy` on `PATH`).

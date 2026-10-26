@@ -3,6 +3,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { insideBb, notice, withoutNotices } from "../../lib/notice.ts";
 import { localCompletions } from "./local-completion.ts";
+import { startDoctor } from "../../lib/doctor-start.ts";
 
 export default function (pi: ExtensionAPI) {
 	localCompletions(pi);
@@ -21,6 +22,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 	pi.on("session_start", (event, ctx) => {
+		startDoctor();
 		if (event.reason === "reload" && insideBb()) notice(pi, ctx, "Reloaded extensions, skills, prompts, themes and context files");
 	});
 }
