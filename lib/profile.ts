@@ -156,7 +156,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			const u = m.usage ?? {};
 			if (inside) p.contextPeak = Math.max(p.contextPeak, (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0));
 			for (const c of Array.isArray(m.content) ? m.content : []) if (c?.type === "toolCall") toolCalls.set(c.id, c.name);
-			lastAssistant = m; lastAssistantId = String(e.id ?? t); prev = t;
+			if (t <= (win.until ?? Infinity)) { lastAssistant = m; lastAssistantId = String(e.id ?? t); } prev = t;
 		} else if (m.role === "toolResult") {
 			const name = m.toolName ?? toolCalls.get(m.toolCallId) ?? "?";
 			const fullMs = prev ? Math.max(0, t - prev) : 0;

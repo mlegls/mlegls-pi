@@ -134,7 +134,7 @@ export function projectRoots(packet: ProjectPacket): Profile[] {
 
 export function renderThreads(rows: ThreadRow[]): string {
 	return rows.map(r => new Date(r.start).toISOString().slice(0, 16) + " " + r.id + " $" + r.cost.toFixed(2) +
-		" active " + (r.activeMs / 3600e3).toFixed(2) + "h " + r.sessions.length + "s " + r.hosts.join(",") + " " + r.title.replace(/\n/g, " ").slice(0, 70)).join("\n");
+		" active " + (r.activeMs / 3600e3).toFixed(2) + "h " + r.sessions.length + " sessions " + r.hosts.join(",") + " " + r.title.replace(/\n/g, " ").slice(0, 70)).join("\n");
 }
 
 export function writeEvidence(dir: string, q: ProjectQuery, packet: ProjectPacket): void {
