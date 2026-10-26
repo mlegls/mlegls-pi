@@ -52,3 +52,7 @@ Read `lib/doctor.ts`, `lib/doctor-start.ts`, the bb session hook and the guide a
 - Machine-move: the host-setup path is `scripts/agents-apply.sh` in the separate `~/.config/system-config` repo, which this change does not touch. Not invoked on a machine move; unresolved, see the report.
 - `mise run test:affected` does not exist in this repo; the change adds no tests.
 
+
+### Review follow-up (maintainer decision)
+
+Machine move means the first pi session on an unstamped host; the stamp lives under `$HOME/.pi/agent/doctor/<hash of hostname>/last-run` (or `PI_CODING_AGENT_DIR`). Checked with a temp HOME: `doctorDirectory()` resolves inside it and has no `last-run`, whereas the live HOME's stamp exists, so a fresh home or host triggers `startDoctor`'s child at its first session. Story "Machine-move host setup invokes the doctor": **held (first session on an unstamped host)**. The session-triggered daily limitation is accepted. Ticket and guide text updated to say so. system-config is untouched.
