@@ -5,6 +5,7 @@
 // and the compaction hook is a renderer composed by extensions/context/mechanism.ts, and the recall tool is
 // extensions/context/recall.ts (ids, entries, search, SQL), which uses OM's for memory ids.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { registerCompactAtCommand } from "./commands/compact-at.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerViewCommand } from "./commands/view.js";
 import { compactionMechanism } from "./hooks/compaction-hook.js";
@@ -22,6 +23,7 @@ export default function observationalMemory(pi: ExtensionAPI): Mechanism {
 
 	registerStatusCommand(pi, runtime);
 	registerViewCommand(pi, runtime);
+	registerCompactAtCommand(pi, runtime);
 	// recall is registered by extensions/context/recall.ts, which delegates OM memory ids to recallObservationTool.
 	return compactionMechanism(runtime);
 }

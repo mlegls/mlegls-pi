@@ -3,6 +3,7 @@ import { observationPoolMetrics } from "../agents/dropper/pool.js";
 import { reflectionPoolTokens } from "../agents/condenser/agent.js";
 import { resolveCompactAfterTokens, resolveReflectionPoolBudget } from "../config.js";
 import type { Runtime } from "../runtime.js";
+import { sessionCompactAt } from "./compact-at.js";
 import {
 	diffProjection,
 	foldLedger,
@@ -65,7 +66,7 @@ export function registerStatusCommand(pi: ExtensionAPI, runtime: Runtime): void 
 			const reflectionProgress = rawTokensSinceReflectionCoverage(entries);
 			const compactionProgress = rawTokensSinceLastCompaction(entries);
 			const contextWindow = typeof ctx.model?.contextWindow === "number" ? ctx.model.contextWindow : undefined;
-			const compactThreshold = resolveCompactAfterTokens(runtime.config, contextWindow);
+			const compactThreshold = resolveCompactAfterTokens(runtime.config, contextWindow, sessionCompactAt(ctx));
 			const reflectionBudget = resolveReflectionPoolBudget(runtime.config, contextWindow);
 
 			const passiveLines = runtime.config.passive === true

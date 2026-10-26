@@ -89,6 +89,9 @@ export const DEFAULTS: Config = {
 
 export const COMPACT_AFTER_TOKENS_MODE_VALUES: readonly CompactAfterTokensMode[] = ["calibrated", "ratio"] as const;
 
+/** A session's own threshold (/om:compact-at): absolute tokens, or a fraction of the context window. */
+export type CompactAt = { tokens: number } | { ratio: number };
+
 /**
  * Resolve the effective proactive-compaction token threshold for the given
  * config and active model context window.
@@ -97,12 +100,13 @@ export const COMPACT_AFTER_TOKENS_MODE_VALUES: readonly CompactAfterTokensMode[]
  *
  * In `"ratio"` mode this is `floor(contextWindow * compactAfterTokensRatio)`
  * (clamped to a minimum of 1) when `contextWindow` is a positive number, and
- * falls back to `config.compactAfterTokens` otherwise.
+ * falls back to `config.compactAfterTokens` otherwise. A session's `at` (/om:compact-at)
+ * overrides both: its tokens directly, or its ratio applied the same way.
  */
-export function resolveCompactAfterTokens(config: Config, contextWindow: number | undefined): number {
-	if (config.compactAfterTokensMode === "ratio" && typeof contextWindow === "number" && contextWindow > 0) {
-		return Math.max(1, Math.floor(contextWindow * config.compactAfterTokensRatio));
-	}
+export function resolveCompactAfterTokens(config: Config, contextWindow: number | undefined, at?: CompactAt): number {
+	if (at && "tokens" in at) return at.tokens;
+	const ratio = at?.ratio ?? (config.compactAfterTokensMode === "ratio" ? config.compactAfterTokensRatio : undefined);
+	if (ratio !== undefined && typeof contextWindow === "number" && contextWindow > 0) return Math.max(1, Math.floor(contextWindow * ratio));
 	return config.compactAfterTokens;
 }
 
