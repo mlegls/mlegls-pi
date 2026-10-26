@@ -16,7 +16,9 @@ Sentry and GitHub also accept the authenticated CLI alternatives in the list.
 Credential values and authentication command output are never printed.
 
 The bb extension's session-start hook starts a detached, nonblocking doctor
-child on the first session on a host, then at most once per 24 hours.
+child on the first session on a host, then at most once per 24 hours. A machine
+move (a new or moved host or home directory) means exactly this: it has no
+stamp, so its first pi session runs the doctor.
 Each host has a separate stamp under `~/.pi/agent/doctor/`
 (or the configured agent directory). There is no timer: an inactive host is
 checked when its next session starts. Reload pi after installing this change.
