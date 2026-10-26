@@ -47,7 +47,7 @@ interface Parsed {
 	mtimeMs: number; size: number;
 	id: string; cwd: string; created: string; forkOf?: string; name?: string; firstUser?: string;
 	model?: string; lastText?: string;
-	meta?: { run?: string; handle?: string; parentSession?: string; invokedBy?: string; mode?: Live["mode"] };
+	meta?: { thread?: string; run?: string; handle?: string; parentSession?: string; invokedBy?: string; mode?: Live["mode"] };
 }
 interface Cache { files: Record<string, Parsed>; projects: Record<string, string> }
 
@@ -218,7 +218,7 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 			id: p.id, file: path, cwd: p.cwd, project: project(p.cwd, cache),
 			title: p.name ?? (run && handle ? run + "/" + handle : undefined) ?? bb?.title ?? p.firstUser?.split("\n")[0] ?? "(empty)",
 			model: p.model, created: p.created, updated: new Date(p.mtimeMs).toISOString(),
-			parent, parentKind: kind, run, handle, thread: bb?.thread,
+			parent, parentKind: kind, run, handle, thread: bb?.thread ?? p.meta?.thread ?? l?.thread,
 			// A header-only file nobody typed into (a worker's launch session before bb runs it) is not a user's session.
 			state, interactive: kind !== "spawn" && kind !== "invoked" && !p.meta?.run && (l?.mode ?? p.meta?.mode ?? "tui") === "tui" && (!!p.firstUser || !!l),
 			pid: l?.pid,

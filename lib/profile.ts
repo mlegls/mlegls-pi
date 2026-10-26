@@ -78,11 +78,16 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	let born = 0; // the session header's time: a fork copies its parent's earlier entries, which aren't this session's
 	let lastAssistant: any, lastAssistantId = "";
 	const seg = (k: Kind, a: number, b: number, note?: string) => {
+		a = Math.max(a, win.since ?? 0); b = Math.min(b, win.until ?? Infinity);
 		if (!a || b <= a) return;
+		if (!p.start) p.start = a;
+		p.end = Math.max(p.end, b);
 		p.time[k] += b - a;
 		const last = p.segments.at(-1);
 		if (last && last.k === k && a - last.e < 1000 && !note) last.e = b; else p.segments.push({ k, s: a, e: b, note });
 	};
+	const overlap = (a: number, b: number) => Math.max(0, Math.min(b, win.until ?? Infinity) - Math.max(a, win.since ?? 0));
+	const wait = (what: string, a: number, b: number) => { const ms = overlap(a, b); if (ms) add(p.waits, what, ms); };
 	const snippet = (m: any) => textOf(m?.content).trim().slice(-240);
 	const gapKind = (): Kind => spawned ? "parent" : lastAssistant?.stopReason === "error" ? "stall" : ASKS.test(snippet(lastAssistant)) ? "blocked" : "idle";
 	const judged = (k: Kind) => k === "blocked" || k === "offered" || k === "idle";
@@ -94,9 +99,10 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	// pi-processes (@mjakl/pi-processes): process ids and names → their command, to say what a wait was for.
 	const procs = new Map<string, string>();
 	const procOf = (id: unknown) => procs.get(String(id ?? "").toLowerCase()) ?? String(id ?? "?");
-	const call = (c: any, ms: number) => {
+	const call = (c: any, ms: number, inside: boolean) => {
 		const a = c.arguments ?? {};
 		if (c.name === "process" && a.action === "start") procs.set(String(a.name ?? "").toLowerCase(), String(a.command ?? "").slice(0, 80));
+		if (!inside && !ms) return;
 		if (c.name === "process" && a.action === "wait") add(p.waits, "process: " + procOf(a.id) + (a.until === "output" ? " until " + a.pattern : ""), ms);
 		if (c.name === "bash") {
 			const cmd = String(a.command ?? "");
@@ -112,21 +118,23 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 		const t = ts(e.timestamp);
 		if (!Number.isFinite(t)) continue;
 		if (e.type === "session") born = t;
-		if (t < born || t < (win.since ?? 0) || t > (win.until ?? Infinity)) continue;
-		if (!p.start) p.start = t;
+		if (t < born) continue;
+		const inside = t >= (win.since ?? 0) && t <= (win.until ?? Infinity);
+		if (inside && !p.start) p.start = t;
 		if (e.type === "custom" && e.customType === "session-meta" && e.data?.agent) p.agent = e.data.agent;
-		if (e.type === "compaction") p.compactions++;
+		if (inside && e.type === "compaction") p.compactions++;
 		const cost = (u: any, model: string) => {
+			if (!inside) return;
 			const c = u?.cost?.total ?? 0; p.cost += c; p.costByModel[model] = (p.costByModel[model] ?? 0) + c;
 			for (const k of ["input", "output", "cacheRead", "cacheWrite"] as const) p.tokens[k] += u?.[k] ?? 0;
 		};
 		if (e.type === "usage") cost(e.usage, (e.kind ?? "usage") + ":" + e.model);
-		if (e.type === "custom_message" && e.customType === "board" && prev) { seg("board", prev, t, textOf(e.content).slice(0, 160)); add(p.waits, "board", t - prev); prev = t; }
+		if (e.type === "custom_message" && e.customType === "board" && prev) { seg("board", prev, t, textOf(e.content).slice(0, 160)); wait("board", prev, t); prev = t; }
 		if (e.type === "custom_message" && String(e.customType).startsWith("pi-processes:") && prev) {
 			const d = e.details ?? {};
 			if (d.processId && d.command) procs.set(String(d.processId).toLowerCase(), String(d.command).slice(0, 80));
 			const what = "process: " + (d.command ? String(d.command).slice(0, 80) : procOf(d.processName ?? d.processId)) + (d.pattern ? " until " + d.pattern : "");
-			seg("process", prev, t, what); add(p.waits, what, t - prev); prev = t;
+			seg("process", prev, t, what); wait(what, prev, t); prev = t;
 		}
 		if (e.type !== "message") continue;
 		const m = e.message;
@@ -136,30 +144,31 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			if (prev) seg(kind, prev, t, (kind === "stall" ? "error: " + (lastAssistant?.errorMessage ?? "") : snippet(lastAssistant)) + "\n→ " + text.slice(0, 160));
 			const last = p.segments.at(-1);
 			if (prev && last?.e === t && judged(kind)) last.judge = judge();
-			if (spawned || !text || GENERATED.test(text)) p.user.generated++; else { p.user.turns++; p.user.words += text.split(/\s+/).filter(Boolean).length; }
+			if (inside) { if (spawned || !text || GENERATED.test(text)) p.user.generated++; else { p.user.turns++; p.user.words += text.split(/\s+/).filter(Boolean).length; } }
 			prev = t;
 		} else if (m.role === "assistant") {
 			const start = ts(m.timestamp);
 			if (prev && Number.isFinite(start)) seg("other", prev, Math.min(start, t));
 			seg("model", Number.isFinite(start) ? Math.max(start, prev) : prev, t);
-			p.turns++;
+			if (inside) p.turns++;
 			cost(m.usage, m.model ?? "?");
 			const u = m.usage ?? {};
-			p.contextPeak = Math.max(p.contextPeak, (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0));
+			if (inside) p.contextPeak = Math.max(p.contextPeak, (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0));
 			for (const c of Array.isArray(m.content) ? m.content : []) if (c?.type === "toolCall") toolCalls.set(c.id, c.name);
 			lastAssistant = m; lastAssistantId = String(e.id ?? t); prev = t;
 		} else if (m.role === "toolResult") {
 			const name = m.toolName ?? toolCalls.get(m.toolCallId) ?? "?";
-			const ms = prev ? Math.max(0, t - prev) : 0;
+			const fullMs = prev ? Math.max(0, t - prev) : 0;
+			const ms = prev ? overlap(prev, t) : 0;
 			const r = (p.tools[name] ??= { n: 0, ms: 0, errors: 0 });
-			r.n++; r.ms += ms; if (m.isError) r.errors++;
+			if (inside) { r.n++; if (m.isError) r.errors++; } r.ms += ms;
 			seg("tool", prev, t);
 			const nested = m.nestedCalls?.calls ?? m.details?.calls;
-			if (Array.isArray(nested)) for (const c of nested) call({ ...c, arguments: c.arguments ?? safe(c.args) }, c.durationMs ?? 0);
-			else call({ name, arguments: findArgs(lastAssistant, m.toolCallId) ?? {} }, ms);
+			if (Array.isArray(nested)) for (const c of nested) call({ ...c, arguments: c.arguments ?? safe(c.args) }, (c.durationMs ?? 0) * (fullMs ? ms / fullMs : inside ? 1 : 0), inside);
+			else call({ name, arguments: findArgs(lastAssistant, m.toolCallId) ?? {} }, ms, inside);
 			prev = t;
 		} else if (prev) { seg("other", prev, t); prev = t; }
-		p.end = Math.max(p.end, t);
+		if (inside) p.end = Math.max(p.end, t);
 	}
 	p.end = Math.max(p.end, p.start); // a session with no messages (in the window) spans nothing
 	if (lastAssistant) { const k = gapKind(); p.ended = { k, note: k === "stall" ? "error: " + (lastAssistant.errorMessage ?? "") : snippet(lastAssistant), judge: judged(k) ? judge() : undefined }; }
@@ -266,7 +275,7 @@ export async function profileWithGraph(ref?: string, days = 30, options: Profile
 	for (const p of all) { for (const s of p.segments) delete s.judge; if (p.ended) delete p.ended.judge; }
 	const open = all.filter(p => p.ended && nodes.get(p.id)?.interactive);
 	if (open.length) {
-		const turns = humanTurns(nodes, root.start, Date.now());
+		const turns = humanTurns(nodes, root.start, options.until ?? Date.now());
 		for (const p of open) {
 			const next = turns.find(h => h.t > p.end + 1000);
 			if (!next || next.session === p.id) continue;
@@ -323,13 +332,9 @@ export function render(root: Profile): string {
 	return out.join("\n");
 }
 
-export async function recent(project: string, last = 10, days = 14): Promise<Profile[]> {
-	const nodes = await graph({ days });
-	const roots = [...nodes.values()].filter(n => (!n.parent || n.parentKind === "fork") && n.project.toLowerCase().includes(project.toLowerCase()))
-		.sort((a, b) => b.created.localeCompare(a.created));
-	const build = (n: Node): Profile => ({ ...profileFile(n.file, n), children: n.children.map(c => nodes.get(c)!).filter(Boolean).map(build) });
-	// Sessions opened and left without a turn aren't baseline runs.
-	return roots.map(build).filter(p => flat(p).some(x => x.turns)).slice(0, last);
+export async function recent(project: string, last = 10, days = 14, win: Window = {}): Promise<Profile[]> {
+	const { collectProject, projectRoots } = await import("./profile-project");
+	return projectRoots(await collectProject({ project, days, ...win })).slice(0, last);
 }
 
 export function renderRecent(ps: Profile[]): string {
@@ -346,13 +351,20 @@ if (import.meta.main) {
 	const flag = (f: string) => { const i = args.indexOf(f); return i < 0 ? undefined : args.splice(i, 2)[1]; };
 	const json = args.includes("--json"); if (json) args.splice(args.indexOf("--json"), 1);
 	const fast = args.includes("--fast"); if (fast) args.splice(args.indexOf("--fast"), 1);
+	const byThread = args.includes("--by-thread"); if (byThread) args.splice(args.indexOf("--by-thread"), 1);
+	const hosts: string[] = []; while (args.includes("--host")) { const h = flag("--host"); if (!h || h.startsWith("-")) throw new Error("--host requires an SSH alias"); hosts.push(h); }
+	const evidence = flag("--evidence");
 	const project = flag("--project"), last = flag("--last"), days = flag("--days");
 	const at = (s?: string) => s === undefined ? undefined : Number.isFinite(Date.parse(s)) ? Date.parse(s) : (() => { throw new Error("not a time: " + s); })();
 	const since = at(flag("--since")), until = at(flag("--until")), run = flag("--run");
+	if (since !== undefined && until !== undefined && since > until) throw new Error("--since must be before --until");
 	if (project) {
-		const ps = await recent(project, Number(last ?? 10), Number(days ?? 14));
-		console.log(json ? JSON.stringify(ps) : renderRecent(ps));
+		if (run) throw new Error("--run is for a session tree, not --project");
+		const { projectReport } = await import("./profile-project");
+		console.log(await projectReport({ project, days: Number(days ?? 14), since, until, evidence: !!evidence },
+			{ hosts, byThread, last: Number(last ?? (since !== undefined || until !== undefined ? Infinity : 10)), json, evidence }));
 	} else {
+		if (byThread || hosts.length || evidence) throw new Error("--by-thread, --host and --evidence require --project");
 		const p = await profile(args[0], Number(days ?? 30), { judge: !fast, since, until, run });
 		console.log(json ? JSON.stringify(p) : render(p));
 	}

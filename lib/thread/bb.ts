@@ -3,8 +3,9 @@
 // bb gives every thread the same environment, so a worker's identity reaches pi through .wm/launch.env in its
 // worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
 import { Database } from "bun:sqlite";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { command, delay, quote } from "./process";
 import { launchEnv } from "./launch";
@@ -127,9 +128,26 @@ export async function bbSessionFile(id: string): Promise<string> {
 export const bbSessionDir = () => process.env.BB_PI_BRIDGE_SESSION_DIR || join(homedir(), ".bb", "pi-bridge-sessions");
 const providerFile = (provider: string) => join(bbSessionDir(), provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl");
 
+/** Ask the installed bb for its runtime selection, including enrolled hosts, rather than guessing ~/.bb.
+ * BB_DATA_DIR is bb's explicit override; BB_HOME remains supported for older callers/fixtures. */
+export function bbDataDir(): string {
+	const configured = process.env.BB_DATA_DIR ?? process.env.BB_HOME;
+	if (configured !== undefined) {
+		if (!configured.trim()) throw new Error("BB_DATA_DIR must not be empty");
+		return resolve(configured.trim().replace(/^~(?=\/|$)/, homedir()));
+	}
+	try {
+		const status = JSON.parse(execFileSync(cli(), ["status", "--json"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }));
+		if (status.dataDir) return status.dataDir;
+	} catch {}
+	// A stopped enrolled runtime still tells us where it lives through its launcher.
+	const runtime = process.env.BB_CLI?.match(/^(.*\/\.bb-machines\/[^/]+)\//)?.[1];
+	return runtime ?? join(homedir(), ".bb");
+}
+
 /** Read bb's database directly (read-only): a few queries the CLI has no cheap answer for. undefined without bb. */
 function bbDb<T>(f: (db: Database) => T): T | undefined {
-	const file = join(process.env.BB_HOME || join(homedir(), ".bb"), "bb.db");
+	const file = join(bbDataDir(), "bb.db");
 	if (!existsSync(file)) return undefined;
 	let db: Database;
 	try { db = new Database(file, { readonly: true }); } catch { return undefined; }
@@ -148,14 +166,16 @@ export function bbSessions(): BbSession[] {
 }
 
 /** What the maintainer typed into bb threads (bb's prompt history), with the thread's project checkout. */
-export function bbPrompts(): { thread: string; project: string; at: number; text: string }[] {
-	return bbDb(db => db.query(`select p.thread_id thread, coalesce(s.path, pr.name) project, p.created_at at, p.input input
+export function bbPrompts(): { thread: string; project: string; at: number; text: string; msg: number; sender?: string }[] {
+	return bbDb(db => db.query(`select p.thread_id thread, coalesce(s.path, pr.name) project, p.created_at at, p.input input, p.request_sequence msg,
+		json_extract(e.data, '$.senderThreadId') sender
 		from prompt_history_entries p join projects pr on pr.id = p.project_id
+		left join events e on e.thread_id = p.thread_id and e.sequence = p.request_sequence
 		left join project_sources s on s.project_id = p.project_id and s.is_default = 1`).all() as any[])
 		?.map(r => {
 			let text = String(r.input);
 			try { const parts = JSON.parse(text); if (Array.isArray(parts)) text = parts.filter((c: any) => c?.type === "text").map((c: any) => c.text).join("\n"); } catch {}
-			return { thread: r.thread, project: r.project, at: r.at, text };
+			return { thread: r.thread, project: r.project, at: r.at, text, msg: r.msg, sender: r.sender ?? undefined };
 		}) ?? [];
 }
 /** Message a bb thread. Queued, it follows the turn in progress (or starts one) rather than steering it; the text goes by file so a leading dash or backtick survives. */
