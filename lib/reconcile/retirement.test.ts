@@ -2,10 +2,11 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { protocolFixture } from "./protocol-fixture";
+import { keepIgnored, pruneRetired } from "../thread/lifecycle-cleanup";
 
-// Ticket-approved regression: a done implementer's captures and local deployment survive the handoff to drive.
+// Ticket-approved regression: declared captures survive; routine retained output is quiet and pruned after merge.
 // Real Git/retirement and owner messaging on fake bb; no model, daemon, service or paid API.
-test("a worker reporting done keeps undeclared captures and Convex state on retirement and tells its owner", async () => {
+test("finished retirement reports declared captures, keeps Convex state, and quietly prunes merged routine state", async () => {
 	const f = protocolFixture(), from = process.cwd();
 	const controller = new AbortController();
 	let timer: ReturnType<typeof setInterval> | undefined, deadline: ReturnType<typeof setTimeout> | undefined;
@@ -17,12 +18,12 @@ test("a worker reporting done keeps undeclared captures and Convex state on reti
 		const r = await import("./reconcile");
 		f.tracker.update("root", { stage: "ticket" });
 		f.bb.addThread("thr_owner");
-		f.commit(f.cwd, ".gitignore", ".captures/\npackages/web/.convex/\nnode_modules/\n");
+		f.commit(f.cwd, ".gitignore", ".captures/\npackages/web/.convex/\nnode_modules/\n.wm/\n");
 		const worker = { ...f.worker("root-implement-1", f.cwd, "main"), run: "root" };
 		f.bb.addThread(worker.bb, worker.path, worker.run + "/" + worker.handle);
 		for (const [path, content] of [
 			[".captures/x", "paid export\n"], ["packages/web/.convex/local/state", "local deployment\n"],
-			["node_modules/dep/index.js", "regenerable\n"],
+			["node_modules/dep/index.js", "regenerable\n"], [".wm/processes/output.log", "routine diagnostics\n"],
 		]) {
 			mkdirSync(join(worker.path, path, ".."), { recursive: true });
 			writeFileSync(join(worker.path, path), content);
@@ -32,7 +33,7 @@ test("a worker reporting done keeps undeclared captures and Convex state on reti
 			chains: { root: { into: f.cwd, self: false, phase: "implement", retries: {}, workers: [], handle: worker,
 				base: f.git(f.cwd, "rev-parse", "HEAD"), launchedAt: Date.now() - 1000 } },
 			exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 1, log: [] });
-		f.bb.completeTurn(worker.path, "done\n\n\x60\x60\x60yaml\nsetup:\n  entry: fixture\n\x60\x60\x60");
+		f.bb.completeTurn(worker.path, "done\n\n\x60\x60\x60yaml\nsetup:\n  entry: fixture\n  retained: .captures/x\n\x60\x60\x60");
 		timer = setInterval(() => {
 			if (r.load(f.cwd, "root")?.chains.root?.phase === "drive") controller.abort();
 		}, 50);
@@ -55,9 +56,31 @@ test("a worker reporting done keeps undeclared captures and Convex state on reti
 		const owner = f.bb.threads().find(t => t.id === "thr_owner")!.tells.join("\n");
 		expect(owner).toContain(worker.handle + " after it finished; its worktree held ignored state");
 		expect(owner).toContain(kept);
-		expect(owner).toContain(".captures/");
+		expect(owner).toContain(".captures/x");
+		expect(owner).not.toContain(".wm/");
+		expect(owner).not.toContain("node_modules");
+		expect(f.bb.threads().find(t => t.id === "thr_owner")!.tells.filter(t => t.includes("its worktree held ignored state"))).toHaveLength(1);
 		expect(owner).toContain("packages/");
 		expect(owner).toContain("RETIRED.md");
+
+		// The first retained directory names a declared capture; even a merged branch must not prune it.
+		expect(await pruneRetired(f.cwd)).not.toContain(kept);
+		expect(existsSync(join(kept, ".captures/x"))).toBe(true);
+		const routine = f.worker("routine", f.cwd, "main");
+		f.git(routine.path, "reset", "--hard", "HEAD");
+		const head = f.commit(routine.path, "routine.txt", "worker change\n");
+		mkdirSync(join(routine.path, ".wm/processes"), { recursive: true });
+		writeFileSync(join(routine.path, ".wm/processes/output.log"), "routine\n");
+		const saved = await keepIgnored(routine.path, {
+			id: routine.bb, cwd: routine.path, project: f.cwd, worktree: routine.path,
+			branch: routine.handle, worker: routine,
+		}, undefined);
+		expect(saved?.attention).toEqual([]);
+		expect(await pruneRetired(f.cwd)).not.toContain(saved!.path);
+		f.git(f.cwd, "merge", "--ff-only", head);
+		expect(await pruneRetired(f.cwd)).toContain(saved!.path);
+		expect(existsSync(saved!.path)).toBe(false);
+		expect(existsSync(join(kept, ".captures/x"))).toBe(true);
 	} finally {
 		clearInterval(timer); clearTimeout(deadline);
 		process.chdir(from);

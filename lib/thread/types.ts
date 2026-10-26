@@ -43,5 +43,5 @@ export interface ThreadCleanup {
 	branchesDeleted: string[];
 	branchesKept: { branch: string; reason: string }[];
 	/** Ignored state moved aside from removed worktrees, instead of deleted with them. */
-	kept?: { worktree: string; path: string; entries: string[] }[];
+	kept?: { worktree: string; path: string; entries: string[]; attention?: string[] }[];
 }

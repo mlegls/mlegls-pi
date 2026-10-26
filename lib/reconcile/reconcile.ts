@@ -22,6 +22,7 @@ import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
 import { roleThread } from "../desk.ts";
 import { lastTurn, type TurnReport } from "../thread/turn.ts";
+import { pruneRetired } from "../thread/lifecycle-cleanup";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { readLive } from "../session-meta/live";
@@ -859,9 +860,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** retireHandle that throws, and returns what retirement did. */
 	async function retireTelling(h: Handle, into: string, done = false) {
 			const r = await retire(h, { cwd: into });
-			for (const k of (r.removed as { kept?: { path: string; entries: string[] }[] } | undefined)?.kept ?? []) {
+			for (const k of (r.removed as { kept?: { path: string; entries: string[]; attention?: string[] }[] } | undefined)?.kept ?? []) {
 				note("retired " + h.handle + " keeping its ignored state at " + k.path + ": " + k.entries.join(", "));
-				tellOwner("retired " + h.handle + (done ? " after it finished" : " before it finished") + "; its worktree held ignored state setup can't regenerate, moved to " + k.path + " (" + k.entries.join(", ") + "). See RETIRED.md there; delete it once nothing needs it. Declare regenerable paths with `git config --add wm.disposable <path>`.");
+				const attention = k.attention ?? k.entries;
+				if (attention.length) tellOwner("retired " + h.handle + (done ? " after it finished" : " before it finished") + "; its worktree held ignored state setup can't regenerate, moved to " + k.path + " (" + attention.join(", ") + "). See RETIRED.md there; delete it once nothing needs it. Declare regenerable paths with `git config --add wm.disposable <path>`.");
 			}
 			const wip = ((r.removed as { branchesKept?: { branch: string; reason: string }[] } | undefined)?.branchesKept ?? []).find(b => b.reason.startsWith("uncommitted work saved"));
 			if (wip) { note("retired " + h.handle + " with uncommitted work: branch " + wip.branch + ", " + wip.reason); tellOwner("retired " + h.handle + " with uncommitted work in its worktree; it is kept on branch " + wip.branch + " (" + wip.reason + ")."); }
@@ -930,6 +932,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					+ ".\n\nretry tries again (fix the cause first); answer finishes the cleanup, leaving what's left as it is.", new Map(), "owner");
 			}
 		}
+		for (const path of await pruneRetired(repoRoot(controlCwd))) note("pruned merged routine retired state at " + path);
 	}
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
 		const into = pathOf(c.into), h = c.handle!;

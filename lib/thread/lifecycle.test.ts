@@ -110,7 +110,7 @@ test("retirement moves ignored state setup can't regenerate aside; declared disp
 	const result = await abandonThread(t.id);
 	const kept = join(repo + "__retired", name);
 	// A worker's .wm/ output is kept; wm's own launch file is not.
-	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: [".wm/drive/", "local-db/"] }]);
+	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: [".wm/drive/", "local-db/"], attention: ["local-db/"] }]);
 	expect(readFileSync(join(kept, "local-db", "import.bin"), "utf8")).toBe("irreplaceable");
 	expect(readFileSync(join(kept, ".wm", "drive", "debug.txt"), "utf8")).toBe("scan");
 	expect(existsSync(join(kept, ".wm", "launch.env"))).toBe(false);
