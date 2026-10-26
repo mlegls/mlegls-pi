@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_zgjve7mckq"
@@ -11,3 +11,36 @@ ticket: retirement keeps every path a worker's handoff names, finished or not (t
 Acceptance: a test retires a finished worker holding a declared `.captures/x` and undeclared `node_modules`-style setup output. The owner gets one notice naming `.captures/x` and none for the setup output. After the branch merges, the prune removes a `__retired` directory holding only routine state and keeps the one holding `.captures/x`.
 
 Verification packet: [acceptance encounter](../../docs/attachments/retirement-notices-and-retired-checkouts-pile-up/index.md).
+
+## Result
+
+done — no repairs needed. `bun test lib/reconcile/retirement.test.ts lib/thread/lifecycle.test.ts` passes: 9 pass, 0 fail.
+
+- **Notice:** the retirement test asserts exactly one owner notice, naming `.captures/x`. It asserts none for `node_modules` or `.wm/`.
+- **Prune:** after the branch merges, the prune removes the routine-only `__retired` directory and keeps the one holding `.captures/x`. `.convex` stays in the owner notice as non-routine kept state.
+
+```yaml
+commit: 68e1d2e7
+stories:
+  - story: Finished retirement preserves declared captures and notifies without routine-output notices
+    outcome: held
+  - story: Merged routine-only retired state is pruned while declared captures remain
+    outcome: held
+  - story: Routine retained state is logged without supervisor intervention
+    outcome: held
+evidence:
+  path: docs/attachments/retirement-notices-and-retired-checkouts-pile-up/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/retirement.test.ts
+  - lib/thread/lifecycle.test.ts
+caveats:
+  - "Only retirements made after this change get a prune receipt (`retirement.json`). The 78 existing `__retired` directories (7.1 GB) have none and are never auto-pruned; they need a one-off manual clean."
+  - "Only directories whose kept entries are all under `.wm/` are pruned. Any other non-disposable kept path, such as `local-db/`, stays and is announced to the owner."
+  - "Declared paths come from a loose scan of the handoff text (backtick-quoted or whitespace-separated tokens that exist in the worktree and match an ignored entry). A prose mention of an ignored path also counts as declared. That errs towards keeping it."
+  - "Cleanup now reads the worker's last turn via bb before stopping the thread. If bb can't be read, retirement throws and leaves the worktree in place instead of discarding a declared path. This costs one `bb thread log` and one `bb thread output` call per retirement, not timed."
+  - "`lib/thread/lifecycle.test.ts` changed an assertion on the existing kept-state test, which now expects the new `attention` field."
+```
+
+Evidence: [docs/attachments/retirement-notices-and-retired-checkouts-pile-up/index.md](../attachments/retirement-notices-and-retired-checkouts-pile-up/index.md)
