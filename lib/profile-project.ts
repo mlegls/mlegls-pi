@@ -71,7 +71,7 @@ export async function remoteProject(alias: string, q: ProjectQuery): Promise<Pro
 	const build = await Bun.build({ entrypoints: [fileURLToPath(import.meta.url)], target: "bun", minify: true });
 	if (!build.success) throw new Error("profile collector bundle: " + build.logs.join("\n"));
 	const script = 'f=$(mktemp /tmp/mlegls-profile-XXXXXX.ts) || exit; trap \'rm -f "$f"\' EXIT HUP INT TERM; ' +
-		'tee "$f" >/dev/null; bun "$f" ' + quote(JSON.stringify(q));
+		'tee "$f" >/dev/null; export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.local/share/mise/shims:$PATH"; bun "$f" ' + quote(JSON.stringify(q));
 	const proc = Bun.spawn(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "--", alias, 'exec "$SHELL" -lc ' + quote(script)], {
 		stdin: build.outputs[0], stdout: "pipe", stderr: "pipe",
 	});

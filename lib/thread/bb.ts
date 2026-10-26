@@ -128,7 +128,7 @@ export async function bbSessionFile(id: string): Promise<string> {
 export const bbSessionDir = () => process.env.BB_PI_BRIDGE_SESSION_DIR || join(homedir(), ".bb", "pi-bridge-sessions");
 const providerFile = (provider: string) => join(bbSessionDir(), provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl");
 
-/** Ask the installed bb for its runtime selection, including enrolled hosts, rather than guessing ~/.bb.
+/** Resolve the installed bb runtime, including enrolled hosts, rather than assuming ~/.bb.
  * BB_DATA_DIR is bb's explicit override; BB_HOME remains supported for older callers/fixtures. */
 export function bbDataDir(): string {
 	const configured = process.env.BB_DATA_DIR ?? process.env.BB_HOME;
@@ -138,7 +138,8 @@ export function bbDataDir(): string {
 	}
 	try {
 		const status = JSON.parse(execFileSync(cli(), ["status", "--json"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }));
-		if (status.dataDir) return status.dataDir;
+		// status comes from the server; after a server move its path may belong to another host.
+		if (typeof status.dataDir === "string" && existsSync(join(status.dataDir, "bb.db"))) return status.dataDir;
 	} catch {}
 	// A stopped enrolled runtime still tells us where it lives through its launcher.
 	const runtime = process.env.BB_CLI?.match(/^(.*\/\.bb-machines\/[^/]+)\//)?.[1];

@@ -3,6 +3,7 @@
 //   bun lib/profile.ts                      this session ($PI_SESSION_ID) and its descendants
 //   bun lib/profile.ts SESSION [--json] [--fast]  a session id (or unique fragment, or bb thr_ id) and its descendants
 //   bun lib/profile.ts --project P --last N one line per recent root session in a project
+//   bun lib/profile.ts --project P --since T --until T --by-thread --host beelink --evidence DIR
 //   bun lib/profile.ts SESSION --since T --until T   only entries in a time window (a wave of a long-lived supervisor)
 //   bun lib/profile.ts SESSION --run SLUG     one reconciler run: workers titled SLUG/…, and the supervisor over their span
 //
@@ -80,7 +81,7 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 	const seg = (k: Kind, a: number, b: number, note?: string) => {
 		a = Math.max(a, win.since ?? 0); b = Math.min(b, win.until ?? Infinity);
 		if (!a || b <= a) return;
-		if (!p.start) p.start = a;
+		p.start = p.start ? Math.min(p.start, a) : a;
 		p.end = Math.max(p.end, b);
 		p.time[k] += b - a;
 		const last = p.segments.at(-1);
