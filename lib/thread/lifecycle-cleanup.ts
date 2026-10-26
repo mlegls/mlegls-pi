@@ -17,10 +17,10 @@ export async function stopThreadProcesses(thread: WorkerThread): Promise<ThreadC
 	return cleanupThread(thread, true, true);
 }
 
-/** discardIgnored: the worker finished and its work was taken (integrated, or handed to the next phase), so its
- * ignored files are disposable. Otherwise ignored state that setup can't regenerate is moved aside, not deleted. */
-export async function retireThread(thread: WorkerThread, keepBranch: boolean, options: { discardIgnored?: boolean } = {}): Promise<ThreadCleanup> {
-	return cleanupThread(thread, keepBranch, false, options.discardIgnored ?? false);
+/** Ignored state setup can't regenerate is moved aside, even after the worker's code was taken: its local databases
+ * and captures can be the deliverable the next phase needs to open. Only disposableIgnored decides what can go. */
+export async function retireThread(thread: WorkerThread, keepBranch: boolean): Promise<ThreadCleanup> {
+	return cleanupThread(thread, keepBranch, false);
 }
 
 /** Ignored paths setup regenerates: dependency installs, tool caches, build output and wm's own files. Matched by
@@ -120,7 +120,7 @@ async function commitWip(root: string, thread: WorkerThread): Promise<string | u
 	return gitChecked(root, "rev-parse", "--short", "HEAD");
 }
 
-async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processesOnly: boolean, discardIgnored = false): Promise<ThreadCleanup> {
+async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processesOnly: boolean): Promise<ThreadCleanup> {
 	const result: ThreadCleanup = { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
 	let root = resolve(thread.worktree);
 	if (root === "/" || root === resolve(thread.project)) throw new Error("Refusing to remove main checkout: " + root);
@@ -151,7 +151,7 @@ async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processe
 	}
 	for (const pid of protectedPids) selected.delete(pid);
 	// pi's process manager deletes its logs when pi ends: copy them into the worktree first, so they leave with its state.
-	if (!discardIgnored && existsSync(root)) await keepProcessLogs(root, canonical.map(l => l.pid).filter(alive));
+	if (existsSync(root)) await keepProcessLogs(root, canonical.map(l => l.pid).filter(alive));
 	for (const record of live) if (selected.has(record.pid)) markRetired(record);
 	// Marked first, so the parent's child monitor reads bb's exit as retirement. bb would restart a pi killed under it:
 	// release its runtime, then sweep what's left.
@@ -174,7 +174,7 @@ async function cleanupThread(thread: WorkerThread, keepBranch: boolean, processe
 	// Uncommitted work outlives the worktree as a WIP commit on its branch, which is then kept: a replaced drive's
 	// evidence (recordings of paid live draws, write-ups) was untracked and went with its worktree (2026-10-12).
 	const wip = listed ? await commitWip(root, thread) : undefined;
-	const kept = listed && !discardIgnored ? await keepIgnored(root, thread, wip) : undefined;
+	const kept = listed ? await keepIgnored(root, thread, wip) : undefined;
 	if (kept) result.kept = [...result.kept ?? [], { worktree: root, ...kept }];
 	if (listed) await gitChecked(thread.project, "worktree", "remove", "--force", root);
 	if (wip) result.branchesKept.push({ branch: thread.branch, reason: "uncommitted work saved as WIP commit " + wip });
