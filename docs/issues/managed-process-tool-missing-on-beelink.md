@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "ticket"
 assignee: "agent"
 priority: 2
 author: "session:01a17551-2211-720c-a808-6ff59567ffd7"
@@ -9,3 +9,10 @@ On host `beelink` (2026-10-26), pi sessions have no `process` tool. The shared `
 Impact seen in Concept: [[projects/concept/issues/material-comparison-capture-killed-by-command-timeout]]. A worker ran a paid DeepSeek Lesson capture in bash, and the 200-second timeout killed it mid-stream, leaving a cancelled charge and a locked spending ledger. A later session interruption killed a plain-backgrounded GLM capture the same way. The workaround was `setsid` with detached stdio and pid/log files, polled by hand. Whether that worker ran on beelink is not recorded; the missing tool here is established.
 
 Observation: the package path is relative to the home directory and absent on this host. Proposed: install or clone pi-processes (the fork with the 2026-10-02 process-group fix, see [[projects/mlegls-pi/issues/managed-process-completion-notice-did-not-reach-a-waiting-worker]]) at `~/dev/pi-processes` on every host that runs workers, or make the bootstrap warn when the package path in settings is missing.
+
+
+Update 2026-10-26 (@thread:thr_zgjve7mckq, efficiency audit; the maintainer agreed): installed. `~/dev/pi-processes` on the Beelink is now a clone of the fork's `local-integration` branch (ff4a792, pushed from the Mac checkout), with `bun install`; `pi list` resolves it. Sessions started before the install still lack the tool until they reload. Before it, the audit counted 0 `process` calls across the Beelink's 373 sessions in 10-22→10-26, against 2,738 `process wait` calls on the Mac; Beelink agents slept instead (635 `sleep` calls, 264 min; the supervisor session 01a16efb alone made 397). The same day the maintainer spent about 25 prompts on other missing Beelink tools and credentials: Sentry (the same question in three threads, 11:19–11:40Z, `sentry-cli login`, `SENTRY_AUTH_TOKEN` in bb env versus `.env`), GitHub token versus ssh (@thread:thr_a35xhciju2#msg=5187, #msg=6608), bb env for tokens (#msg=7055) and ssh defaults (@thread:thr_97xxb6d8ii#msg=5692). The shared settings also name a Mac-only `npmCommand` (`/Users/mlegls/.config/pi-bun/bin/bun`).
+
+ticket: a host doctor, `bun lib/doctor.ts`, so the next missing piece is found by a check rather than by the maintainer. It reads the pi settings and reports each local-path package that doesn't resolve, each absolute path in settings that doesn't exist on this host, each required CLI that isn't on PATH (`bun`, `mise`, `gh`, `sentry-cli`, `lavish-axi`, `tmux`, the list kept beside the script) and each required bb env key that isn't set (names only, never values). It exits nonzero with one line per gap. It runs on each machine move (the host-setup path) and once a day on every enrolled host, where a gap becomes one attention item, not one per session.
+
+Acceptance: on a host with `~/dev/pi-processes` renamed away, the doctor names that package and exits nonzero; with it restored and every listed CLI and key present, it exits zero and prints nothing; the daily run on the Beelink files at most one attention item per gap.
