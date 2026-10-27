@@ -58,3 +58,6 @@ Concept worker `drive-and-review-planning-goal-corpus-refine-2`, base `a98942d73
 
 Workaround tried: the canonical read-only rerun still fails, while tracker `text`/`fields`/`tree` validate the new ticket stages, dependency chain and exact provisional claims. No peer citations or acceptance were changed to make the check pass; no source/stub changes or live calls were made. Origin session: `01a1716f-b333-76a5-9327-05c606a2ed4b`.
 
+## Practice feedback refinement, Linux, 2026-10-27
+
+At Concept worker base `3356bbe7c`, `issues.ts check` exits 1 twice in the worker and once in canonical `/home/mlegls/dev/mmon/concept`, each with 201 diagnostic lines (missing document/media and cross-project links plus archive repairs). None names [[projects/concept/issues/reconsider-holding-set-results-to-the-end-for-lesson-items]] or its three new children. This is reproducible whole-vault hygiene failure, not a demonstrated new checkout-resolution defect or flake. Workaround: the changed subtree's `tree` and scoped `snapshot --json` succeed and confirm all three ticket stages, exact provisional claims and dependencies; the canonical rerun does not make the global check green. No peer links or acceptance were changed. Origin session: `01a17bc8-25fc-75de-b0e4-f422d9490847`.
