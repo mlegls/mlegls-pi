@@ -12,6 +12,8 @@ export interface DoctorOptions {
 	home?: string;
 	which?: (name: string) => boolean;
 	run?: (command: string[]) => Promise<{ ok: boolean; stdout: string }>;
+	/** Names of non-empty secrets at env+path in the shared Infisical project; empty when this host has no access. */
+	infisical?: (env: string, path: string) => Promise<Set<string>>;
 }
 
 async function command(command: string[]) {
@@ -23,11 +25,44 @@ async function command(command: string[]) {
 	} catch { return { ok: false, stdout: "" }; }
 }
 
+const parseEnvFile = (text: string) => new Map(text.split(/\r?\n/).flatMap(line => {
+	const [, key, value] = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/) ?? [];
+	return key === undefined || value === undefined ? [] : [[key, value.trim().replace(/^(['"])(.*)\1$/, "$2")] as [string, string]];
+}));
+
+/** Lists secret names only; values arrive in the response and are dropped here. Any failure means no access. */
+function infisicalNames(home: string) {
+	let token: Promise<string | undefined> | undefined;
+	const login = async () => {
+		if (process.env.INFISICAL_TOKEN) return process.env.INFISICAL_TOKEN;
+		const file = required.infisical.identity.replace(/^~(?=\/)/, home);
+		if (!existsSync(file)) return undefined;
+		const agent = parseEnvFile(readFileSync(file, "utf8"));
+		const res = await fetch(required.infisical.api + "/v1/auth/universal-auth/login", {
+			method: "POST", headers: { "Content-Type": "application/json" }, signal: AbortSignal.timeout(15_000),
+			body: JSON.stringify({ clientId: agent.get("INFISICAL_CLIENT_ID"), clientSecret: agent.get("INFISICAL_CLIENT_SECRET") }),
+		});
+		return res.ok ? ((await res.json()) as { accessToken?: string }).accessToken : undefined;
+	};
+	return async (env: string, path: string) => {
+		try {
+			const bearer = await (token ??= login());
+			if (!bearer) return new Set<string>();
+			const query = new URLSearchParams({ workspaceId: required.infisical.project, environment: env, secretPath: path });
+			const res = await fetch(required.infisical.api + "/v3/secrets/raw?" + query, { headers: { Authorization: "Bearer " + bearer }, signal: AbortSignal.timeout(15_000) });
+			if (!res.ok) return new Set<string>();
+			const body = (await res.json()) as { secrets?: { secretKey: string; secretValue: string }[] };
+			return new Set((body.secrets ?? []).filter(s => s.secretValue).map(s => s.secretKey));
+		} catch { return new Set<string>(); }
+	};
+}
+
 export async function diagnose(options: DoctorOptions = {}): Promise<Gap[]> {
 	const home = options.home ?? homedir();
 	const settings = options.settings ?? join(process.env.PI_CODING_AGENT_DIR ?? join(home, ".pi/agent"), "settings.json");
 	const which = options.which ?? (name => Boolean(Bun.which(name)));
 	const run = options.run ?? command;
+	const infisical = options.infisical ?? infisicalNames(home);
 	const gaps: Gap[] = [];
 	const add = (kind: string, name: string, message: string, remedy: string) =>
 		gaps.push({ kind, name, message, remedy });
@@ -75,11 +110,18 @@ export async function diagnose(options: DoctorOptions = {}): Promise<Gap[]> {
 	}
 	for (const credential of required.credentials) {
 		if (credential.keys.some(key => keys.has(key))) continue;
+		const shared = "infisical" in credential ? credential.infisical : undefined;
+		if (shared) {
+			const names = await infisical(shared.env, shared.path);
+			if (credential.keys.some(key => names.has(key))) continue;
+		}
 		const result = await run(credential.command);
 		const authenticated = result.ok && (!("authenticatedUser" in credential) ||
 			/^\s*(?:[-*]\s*)?User:\s*\S+/im.test(result.stdout) && !/^\s*(?:[-*]\s*)?User:\s*(?:none|null|not authenticated)\s*$/im.test(result.stdout));
 		if (!authenticated) add("credential", credential.name, "missing credential: " + credential.name,
-			"Set " + credential.keys.join(" or ") + " in bb env, or authenticate with " + credential.command[0] + ". Values must not be included in this issue.");
+			"Set " + credential.keys.join(" or ") + " in bb env" + (shared ? ", or in Infisical (secret-management " + shared.env + shared.path +
+				") with this host's machine identity at " + required.infisical.identity : "") +
+			", or authenticate with " + credential.command[0] + ". Values must not be included in this issue.");
 	}
 	return gaps;
 }

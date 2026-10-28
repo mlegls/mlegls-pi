@@ -17,7 +17,11 @@
         "sentry-cli",
         "info"
       ],
-      "authenticatedUser": true
+      "authenticatedUser": true,
+      "infisical": {
+        "env": "prod",
+        "path": "/concept"
+      }
     },
     {
       "name": "GitHub",
@@ -30,5 +34,10 @@
         "status"
       ]
     }
-  ]
+  ],
+  "infisical": {
+    "api": "https://beelink.tail9d5828.ts.net:8443/api",
+    "project": "74575b72-d3bf-44b4-a060-46d08a0e7a5d",
+    "identity": "~/.config/infisical/agent.env"
+  }
 }

@@ -13,6 +13,10 @@ settings paths, and the CLI and credential requirements in
 `PI_CODING_AGENT_DIR/settings.json` when set, otherwise
 `~/.pi/agent/settings.json`. Credential checks read bb env key metadata;
 Sentry and GitHub also accept the authenticated CLI alternatives in the list.
+A credential with an `infisical` entry is also satisfied when the shared
+Infisical project (`secret-management`) holds it at that environment and path,
+read with `INFISICAL_TOKEN` or the host's machine identity in
+`~/.config/infisical/agent.env`; a host with neither skips that alternative.
 Credential values and authentication command output are never printed.
 
 The bb extension's session-start hook starts a detached, nonblocking doctor
