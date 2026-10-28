@@ -1,0 +1,12 @@
+---
+stage: "idea"
+assignee: "agent"
+author: "session:01a18299-b1f8-708a-974d-55c75ed3ef87"
+---
+In payments run `dispute-authority`, refiner `mediation-case-notices-refine-o` reported `needs-input` after its initial human setup child made the decomposition non-executable. The reconciler correctly cleaned its provisional children and persisted attempt phase `removed`. The owner approved moving live setup outside the execution subtree and told the same existing worker to recreate the three agent children and report done. Those tracker writes succeeded and the parent plus three children now show `ready: true`, `eligible: true`, with the exact original provisional token, but acceptance reports `Refinement is not the reported writer: mediation-case-notices-refine-o` and instructs the worker to repair contracts and repost. Reposting cannot fix the removed protocol attempt.
+
+Owning tool/repository: mlegls-pi reconciler. Located boundaries: `lib/reconcile/reconcile.ts` discards a refinement on terminal `blocked`/`needs-input` before raising the owner exception (around lines 1031–1033); `lib/reconcile/refinement.ts` accepts a new report only in `writing` (lines 324–326), correctly rejecting resurrection of removed attempts. Payments' saved `.git/reconcile/dispute-authority.json` has `refinements[mediation-case-notices-refine-o].phase = removed`, while its chain still points at the same handle. The dispatch receipt's handle also matches, ruling out the other side of the writer guard. No run state was edited by the worker.
+
+Origin: @thread:thr_tzxapvde3t in arkhai-payments, parent @thread:thr_b8zcwpysi2. Committed interface/evidence heads are `0fdbd2d` and `0cbb860` on the existing worker; both pass `bun run check` (40 tests). The guide/story retain the external live readiness gate. This is not a remaining non-executable global contract.
+
+No verified worker-side workaround: changing tracker claims/contracts does not restore protocol ownership. The owner must use fresh-attempt recovery that accounts for the three provisional children recreated after cleanup and preserves the committed stubs; a worker must not edit `.git/reconcile` state or relabel human work as agent work. Keep removed-attempt safety, but make owner continuation/fresh-attempt handling and its diagnostic explicit rather than sending a contract-repair loop to a removed writer. No protocol fix or new retained tests are authorized by this observation.
