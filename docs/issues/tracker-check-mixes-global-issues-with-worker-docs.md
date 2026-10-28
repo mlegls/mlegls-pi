@@ -61,3 +61,9 @@ Workaround tried: the canonical read-only rerun still fails, while tracker `text
 ## Practice feedback refinement, Linux, 2026-10-27
 
 At Concept worker base `3356bbe7c`, `issues.ts check` exits 1 twice in the worker and once in canonical `/home/mlegls/dev/mmon/concept`, each with 201 diagnostic lines (missing document/media and cross-project links plus archive repairs). None names [[projects/concept/issues/reconsider-holding-set-results-to-the-end-for-lesson-items]] or its three new children. This is reproducible whole-vault hygiene failure, not a demonstrated new checkout-resolution defect or flake. Workaround: the changed subtree's `tree` and scoped `snapshot --json` succeed and confirm all three ticket stages, exact provisional claims and dependencies; the canonical rerun does not make the global check green. No peer links or acceptance were changed. Origin session: `01a17bc8-25fc-75de-b0e4-f422d9490847`.
+
+## Performance storage shaping, Linux, 2026-10-28
+
+Concept worker shape-churn at a57be0e84a9282f0efaa76681b4dd4aec33f74ab ran issues.ts check after publishing the canonical event/delivery split spec and three serial tickets. It exits 1 in the worker and in canonical /home/mlegls/dev/mmon/concept; the canonical result has 193 diagnostic lines, including missing document/media and cross-project citations. Neither result names the changed subtree [[projects/concept/issues/surface-close-classification-reads-outcome-rows-that-theory-delivery-writes]]. This is reproducible whole-vault hygiene failure, not evidence of a new checkout-resolution mismatch or flake.
+
+Workaround tried: canonical read-only rerun, then global text/fields/tree and scoped snapshot for the changed spec/tickets and dependency chain. No peer citations were changed to force green. No product/tooling code, Cloud target or live call was involved. Origin session: 01a18019-bdb0-77a1-b1b9-733dda4d8d16 (@thread:thr_vf9yc52dts in Concept).
