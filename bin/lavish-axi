@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Wraps lavish-axi so session links work in browsers that refuse plain HTTP.
+# When `tailscale serve` proxies an HTTPS port to the Lavish port, rewrites
+# http://<host>:<lavish port> in lavish-axi's stdout to https://<host>:<https port>.
+# Without such a serve (other machines, no Tailscale) output passes through unchanged.
+self=$(readlink -f "$0")
+real=
+IFS=: read -ra dirs <<<"$PATH"
+for d in "${dirs[@]}"; do
+	c="$d/lavish-axi"
+	[ -x "$c" ] || continue
+	[ "$(readlink -f "$c")" = "$self" ] && continue
+	# skip shims that only exec this wrapper
+	grep -q 'mlegls-pi/bin/lavish-axi' "$c" 2>/dev/null && continue
+	real=$c
+	break
+done
+[ -n "$real" ] || { echo "lavish-axi wrapper: no real lavish-axi on PATH" >&2; exit 127; }
+
+port=${LAVISH_AXI_PORT:-4387}
+expr=
+if command -v tailscale >/dev/null && command -v jq >/dev/null; then
+	expr=$(tailscale serve status --json 2>/dev/null | jq -r --arg p "$port" '
+		(.Web // {}) | to_entries[]
+		| select(any(.value.Handlers[]?; (.Proxy // "") | test("^http://(127\\.0\\.0\\.1|localhost):" + $p + "/?$")))
+		| .key | capture("^(?<h>[^:]+):(?<hp>[0-9]+)$")
+		| "s#http://\(.h | gsub("\\."; "\\.")):\($p)\\b#https://\(.h):\(.hp)#g"' 2>/dev/null | head -1)
+fi
+[ -n "$expr" ] || exec "$real" "$@"
+
+"$real" "$@" | sed -u -e "$expr"
+exit "${PIPESTATUS[0]}"
