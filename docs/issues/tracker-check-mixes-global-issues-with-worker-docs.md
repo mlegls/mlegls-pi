@@ -71,3 +71,10 @@ At Concept worker base `3356bbe7c`, `issues.ts check` exits 1 twice in the worke
 Concept worker shape-churn at a57be0e84a9282f0efaa76681b4dd4aec33f74ab ran issues.ts check after publishing the canonical event/delivery split spec and three serial tickets. It exits 1 in the worker and in canonical /home/mlegls/dev/mmon/concept; the canonical result has 193 diagnostic lines, including missing document/media and cross-project citations. Neither result names the changed subtree [[projects/concept/issues/surface-close-classification-reads-outcome-rows-that-theory-delivery-writes]]. This is reproducible whole-vault hygiene failure, not evidence of a new checkout-resolution mismatch or flake.
 
 Workaround tried: canonical read-only rerun, then global text/fields/tree and scoped snapshot for the changed spec/tickets and dependency chain. No peer citations were changed to force green. No product/tooling code, Cloud target or live call was involved. Origin session: 01a18019-bdb0-77a1-b1b9-733dda4d8d16 (@thread:thr_vf9yc52dts in Concept).
+
+## Default-writer refinement, Linux, 2026-10-30
+
+Concept worker run-the-scheduled-tutor-writer-in-the-default-runtime-refine-e at 337c73b8f ran issues.ts check after publishing two bounded-read children. It exits 1 in the worker and canonical /home/mlegls/dev/mmon/concept; canonical emits 216 diagnostic lines (missing document/media and cross-project links, plus archive repairs). The changed subtree is named for its retained encounter packet and encounter-default-writer.ts: these belong to retained implement-d through b91a7701e, not yet integrated into this worker or canonical. That is an explicit pending evidence/source landing, not proof of a resolver mismatch or lost evidence. Other global diagnostics remain non-green.
+
+Workaround: tree/fields validate both ticket stages, parent edges, assignments and exact provisional claims. The parent tasks explicitly require landing the retained port before child execution. No evidence link, input limit or acceptance was weakened, and no tracker implementation changed. Origin session: 01a188ae-d3e9-766b-a727-0767e91ad5fc.
+
