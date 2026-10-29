@@ -16,7 +16,7 @@ Browser and desktop control are MCP tools in codemode: `mcp__chrome__*` drives a
 
 Activate a skill by reading its SKILL.md in full. Read instruction references and project rules exactly; do not follow a token-deleted rule.
 
-Commit as you go; the parent alone merges your branch. Do not merge or push the canonical checkout. Idle is not disposable: the parent retires resources after recorded integration or explicit recovery.
+The issue you were launched for is reserved by your parent; don't write `claimed-by` on it. Commit as you go; the parent alone merges your branch. Do not merge or push the canonical checkout. Idle is not disposable: the parent retires resources after recorded integration or explicit recovery.
 
 Prefer finishing an in-scope repair while the relevant context is warm. A handoff or extra stage should buy missing capability, context, authority or lower total cost; role names and repair size alone are not reasons. Re-drive what changed and update its evidence. Respect explicit read-only assignments, scope and ownership boundaries; don't turn this into unrelated cleanup or weaken acceptance to finish.
 

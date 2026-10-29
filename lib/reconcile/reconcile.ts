@@ -165,6 +165,10 @@ export interface State extends GlobalRunState {
 	stopping?: boolean;
 	/** Work of the chains a stop retired, by node; a restart starts each node from it (see Resume). */
 	resume?: Record<string, Resume>;
+	/** This run's workers' pi sessions (session id → bb thread), seen while they ran. A `session:<id>` claim one of them
+	 * wrote is this run's own, and is released once its thread is retired: 2026-10-28 (arkhai-payments), the
+	 * scheduled-stops implementer claimed its ticket, landed and was retired, and its claim stopped the run. */
+	workerSessions?: Record<string, string>;
 }
 
 /** A merge hook's failure in what the landing merge printed (git ignores a post-merge hook's exit status), else
@@ -376,7 +380,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			.filter(([, entry]) => entry.into !== logicalInto && isAncestor(pathOf(logicalInto), entry.head))
 			.map(([slug]) => slug));
 		return schedulingView(snapshot(), { root: s.root, into: logicalInto, landed: s.landed, inherited,
-			attemptClaims: new Set(attempts.map(a => a.claim)),
+			attemptClaims: new Set([...attempts.map(a => a.claim), ...Object.keys(s.workerSessions ?? {}).map(id => "session:" + id)]),
 			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
 	};
 	const completion = { state: s, tracker, save, pathOf, locked };
@@ -417,6 +421,35 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		try { host = await bbThreads(); }
 		catch (e) { host = undefined; note("thread observation deferred: " + e); }
 	};
+	/** Remember the pi session of each live worker of this run (State.workerSessions). */
+	const noteWorkerSessions = () => {
+		if (!host) return;
+		let changed = false;
+		for (const l of readLive()) {
+			const t = l.thread ? host.get(l.thread) : undefined;
+			if (!t || !t.title?.startsWith(s.root + "/") || !t.environmentPath || !inRepo(t.environmentPath) || s.workerSessions?.[l.sessionId]) continue;
+			(s.workerSessions ??= {})[l.sessionId] = l.thread!; changed = true;
+		}
+		if (changed) save();
+	};
+	/** Clear the claims this run's retired workers left: an issue whose every stored claim is theirs. */
+	const releaseWorkerClaims = () => {
+		const own = s.workerSessions ?? {};
+		if (!host || !Object.keys(own).length) return;
+		const retired = (claim: string) => {
+			const bb = claim.startsWith("session:") ? own[claim.slice("session:".length)] : undefined;
+			if (!bb) return false;
+			const t = host!.get(bb);
+			return !t || !!t.archivedAt;
+		};
+		for (const row of snapshot().values()) {
+			const stored = row.claims.filter(c => c.slug === row.slug && !c.derived);
+			if (!stored.length || !stored.every(c => retired(c.claimedBy))) continue;
+			try { tracker.update(row.slug, { "claimed-by": null }); }
+			catch (e) { note("releasing " + row.slug + "'s claim failed: " + String(e).split("\n")[0]); continue; }
+			note("released " + row.slug + "'s claim by retired worker " + stored.map(c => c.claimedBy).join(", "));
+		}
+	};
 	const bbThread = (h: Handle) => h.bb ? host?.get(h.bb) : undefined;
 	const alive = (h: Handle): boolean | undefined => {
 		if (!host) return undefined; // backend failure never establishes exit
@@ -432,7 +465,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (!pi || !thread || thread.archivedAt || bbWorking(thread)) return undefined;
 		try {
 			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === pi && pid === pgid).map(([pid]) => pid);
-			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8" })); } catch { return true; } });
+			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-w", "-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch { return true; } });
 		} catch { return undefined; }
 	};
 
@@ -1287,7 +1320,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		if (!c) {
 			if (s.collectors[slug]) issue = own.get(slug)!;
-			if (!issue.frontier && slug !== s.root) { holds.set(slug, why(issue, issues)); return "stuck"; }
+			// Satisfied in its own collector but not landed: only the join remains, whatever its derived stage (a refinement
+			// that omitted the parent's stage, its last open child moved out). 2026-10-28 (arkhai-payments, mediation-cases):
+			// held as "effective stage done" with 12 commits unlanded in its collector. Blockers and claims are read where it lands.
+			const outer = view(into).get(slug);
+			const joinOnly = !!s.collectors[slug] && issue.satisfied && !s.landed[slug] && !!outer && !outer.blockers.length && !outer.claims.length;
+			if (!issue.frontier && slug !== s.root && !joinOnly) { holds.set(slug, why(issue, issues)); return "stuck"; }
 			if (live() >= s.budget) return "active";
 			const chain: Chain = { into, self: !!s.collectors[slug], phase: "implement", retries: {}, workers: [], note: pendingNotes.get(slug) };
 			pendingNotes.delete(slug);
@@ -1427,7 +1465,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** One reconciliation pass; true when the run is over. */
 	async function tick(): Promise<boolean> {
 		await observeHost();
+		noteWorkerSessions();
 		await pollTurns();
+		releaseWorkerClaims();
 		for (const [slug, col] of Object.entries(s.collectors)) if (!sparseCollectors.has(slug)) ensureCollector(slug, col.parentBranch);
 		await locked(async () => recoverLandings(completion));
 		closeAtTarget(completion);
