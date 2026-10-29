@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { ThreadMergeConflict, abandonThread, alignIndex, integrateThread } from "./lifecycle";
 import { newThread, workerOf } from "./runtime";
 import { fakeBb } from "./fake-bb";
-import { keepProcessLogs } from "./lifecycle-cleanup";
 import type { NewThreadOptions, WorkerThread } from "./types";
 
 // Unit tests for integration and retirement of worker threads on a fake bb CLI: no pi, no model.
@@ -22,11 +21,6 @@ let n = 0;
 const fresh = () => "t" + ++n;
 
 const spawn = (cwd: string, name: string, extra: Partial<NewThreadOptions> = {}) => newThread({ cwd, worktree: name, worker: { run: "t", handle: name }, ...extra });
-async function until<T>(read: () => Promise<T | undefined | false>): Promise<T> {
-	for (let i = 0; i < 200; i++) { const value = await read(); if (value) return value; await new Promise(r => setTimeout(r, 100)); }
-	throw new Error("timed out");
-}
-
 /** parent (on main) with a child branched from it; both then edit conflict.txt differently. */
 async function conflicting(): Promise<{ parent: WorkerThread; child: WorkerThread }> {
 	const name = fresh();
@@ -90,64 +84,21 @@ test("raw integrate follows ab-parent, refuses a dirty or unprepared source, lan
 	expect(existsSync(kid.cwd)).toBe(true);
 });
 
-test("retirement moves ignored state setup can't regenerate aside; declared disposable state is discarded", async () => {
-	writeFileSync(join(repo, ".git", "info", "exclude"), "local-db/\nnode_modules/\n.env\n.wm/\n");
-	writeFileSync(join(repo, ".env"), "SECRET=1\n");
-	const seed = (cwd: string) => {
-		mkdirSync(join(cwd, "local-db"), { recursive: true });
-		writeFileSync(join(cwd, "local-db", "import.bin"), "irreplaceable");
-		mkdirSync(join(cwd, "node_modules", "dep"), { recursive: true });
-		writeFileSync(join(cwd, "node_modules", "dep", "index.js"), "");
-		writeFileSync(join(cwd, ".env"), "SECRET=1\n");
-		writeFileSync(join(cwd, "draft.txt"), "untracked");
-		mkdirSync(join(cwd, ".wm", "drive"), { recursive: true });
-		writeFileSync(join(cwd, ".wm", "launch.env"), "PI_WM_HANDLE='drive'\n");
-		writeFileSync(join(cwd, ".wm", "drive", "debug.txt"), "scan");
-	};
+test("retirement discards ignored state; uncommitted work goes to a WIP commit on the kept branch", async () => {
+	writeFileSync(join(repo, ".git", "info", "exclude"), "local-db/\n.wm/\n");
 	const name = fresh();
 	const t = await spawn(repo, name);
-	seed(t.cwd);
+	mkdirSync(join(t.cwd, "local-db"), { recursive: true });
+	writeFileSync(join(t.cwd, "local-db", "import.bin"), "ignored");
+	mkdirSync(join(t.cwd, ".wm", "drive"), { recursive: true });
+	writeFileSync(join(t.cwd, ".wm", "drive", "debug.txt"), "scan");
+	writeFileSync(join(t.cwd, "draft.txt"), "untracked");
 	const result = await abandonThread(t.id);
-	const kept = join(repo + "__retired", name);
-	// A worker's .wm/ output is kept; wm's own launch file is not.
-	expect(result.kept).toEqual([{ worktree: t.cwd, path: kept, entries: [".wm/drive/", "local-db/"], attention: ["local-db/"] }]);
-	expect(readFileSync(join(kept, "local-db", "import.bin"), "utf8")).toBe("irreplaceable");
-	expect(readFileSync(join(kept, ".wm", "drive", "debug.txt"), "utf8")).toBe("scan");
-	expect(existsSync(join(kept, ".wm", "launch.env"))).toBe(false);
-	expect(readFileSync(join(kept, "RETIRED.md"), "utf8")).toContain("branch: " + t.branch);
-	expect(existsSync(join(kept, "node_modules"))).toBe(false);
-	expect(existsSync(join(kept, ".env"))).toBe(false);
 	expect(existsSync(t.cwd)).toBe(false);
-	// Untracked files still go to the WIP commit, which keeps the branch.
+	expect(existsSync(repo + "__retired")).toBe(false);
+	expect(result.branchesKept.map(b => b.branch)).toEqual([t.branch]);
 	expect(git(repo, "show", t.branch + ":draft.txt")).toBe("untracked");
-
-	const done = fresh();
-	const u = await spawn(repo, done);
-	seed(u.cwd);
-	git(repo, "config", "--add", "wm.disposable", "local-db");
-	git(repo, "config", "--add", "wm.disposable", ".wm/drive");
-	try { expect((await abandonThread(u.id)).kept).toBeUndefined(); }
-	finally { git(repo, "config", "--unset-all", "wm.disposable"); }
-	expect(existsSync(join(repo + "__retired", done))).toBe(false);
-	expect(existsSync(u.cwd)).toBe(false);
 	rmSync(join(repo, ".git", "info", "exclude"));
-	rmSync(join(repo, ".env"));
-});
-
-test("retirement copies the managed-process logs a pi holds open into its worktree's .wm/processes/", async () => {
-	const logs = join(root, "tmp", "pi-processes-abc");
-	mkdirSync(logs, { recursive: true });
-	writeFileSync(join(logs, "proc_1-combined.log"), "server output\n");
-	writeFileSync(join(logs, "proc_2-combined.log"), "finished earlier\n");
-	const holder = Bun.spawn(["bash", "-c", "exec 3>>\"$1\"; sleep 30", "_", join(logs, "proc_1-combined.log")]);
-	const worktree = join(root, "wt-logs");
-	mkdirSync(worktree);
-	try {
-		await until(async () => execFileSync("lsof", ["-a", "-p", String(holder.pid), "-Fn"], { encoding: "utf8" }).includes("proc_1-combined.log"));
-		expect(await keepProcessLogs(worktree, [holder.pid])).toEqual([join(worktree, ".wm", "processes", "pi-processes-abc")]);
-		expect(readFileSync(join(worktree, ".wm", "processes", "pi-processes-abc", "proc_2-combined.log"), "utf8")).toBe("finished earlier\n");
-		expect(await keepProcessLogs(worktree, [])).toEqual([]);
-	} finally { holder.kill(); }
 });
 
 test("integrate returns what the destination's merge printed, a failing post-merge hook included", async () => {

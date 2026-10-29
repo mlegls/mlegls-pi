@@ -210,8 +210,7 @@ export async function stop(given: Handle | string, options: { cwd?: string } = {
   return stopThreadProcesses(thread);
 }
 
-/** Retire through lifecycle, then delete only patches already in the recorded ab-parent. Ignored state setup can't
- * regenerate is moved aside (removed.kept), even when the worker's code was integrated. */
+/** Retire through lifecycle, then delete only patches already in the recorded ab-parent. */
 export async function retire(given: Handle | string, options: { cwd?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const { worker, thread } = await recordOf(given, cwd);

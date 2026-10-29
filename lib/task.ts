@@ -10,7 +10,6 @@ import { checkout, git } from "./thread/git";
 import { excludeTracker } from "./thread/tracker-worktree";
 import { runSetup } from "./thread/setup";
 import { integrateCheckout } from "./thread/lifecycle";
-import { keepIgnored } from "./thread/lifecycle-cleanup";
 import { gitAttempt } from "./thread/lifecycle-git";
 import { cwdProcesses } from "./thread/resources";
 import { command, delay } from "./thread/process";
@@ -96,7 +95,7 @@ export async function finishTask(cwd: string, o: { into?: string; mode?: "rebase
 	return { ...result, cleanup: task ? (reaper ? "reaper pid " + reaper + " removes " + c.worktree + " once no process runs in it" : "skipped") : "bb retires its own worktree when the thread is archived" };
 }
 
-/** Once no process runs inside a finished task's worktree: keep ignored state setup can't regenerate, remove it, delete
+/** Once no process runs inside a finished task's worktree: remove it (ignored state with it), delete
  * the branch if its work is in the target, and delete bb's environment for the path. Leaves anything uncommitted alone. */
 export async function reapTask(path: string, o: { wait?: number; poll?: number } = {}) {
 	path = resolve(path);
@@ -112,7 +111,6 @@ export async function reapTask(path: string, o: { wait?: number; poll?: number }
 		await delay(o.poll ?? 5_000);
 	}
 	if (git(path, "status", "--porcelain")) return { removed: false, reason: "uncommitted changes appeared after finish; left in place" };
-	const kept = await keepIgnored(path, { id: "", cwd: path, project, worktree: path, branch, worker: { run: "task", handle: branch } }, undefined);
 	git(project, "worktree", "remove", "--force", path);
 	const merged = !!parent && (await gitAttempt(project, "merge-base", "--is-ancestor", branch, parent)).code === 0;
 	if (merged) { git(project, "branch", "-D", branch); for (const k of ["ab-parent", "ab-task"]) await gitAttempt(project, "config", "--unset", "branch." + branch + "." + k); }
@@ -122,7 +120,7 @@ export async function reapTask(path: string, o: { wait?: number; poll?: number }
 		const env = rows.find(r => r.path && resolve(r.path) === path);
 		if (env) { await command(bbCli(), ["environment", "delete", env.id, "--json"]); environment = env.id; }
 	} catch (error) { environment = "not deleted: " + String(error).split("\n")[0]; }
-	return { removed: true, branch: merged ? "deleted" : "kept (not in " + parent + ")", kept: kept?.path ?? null, environment };
+	return { removed: true, branch: merged ? "deleted" : "kept (not in " + parent + ")", environment };
 }
 
 const continueNotice = (path: string) => "[task] Continue the task in its worktree " + path;

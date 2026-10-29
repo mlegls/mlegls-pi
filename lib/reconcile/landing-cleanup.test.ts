@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { protocolFixture } from "./protocol-fixture";
 
@@ -33,7 +33,7 @@ async function landed(prepare: (f: ReturnType<typeof protocolFixture>, r: typeof
 	} catch (e) { f.close(); throw e; }
 }
 
-test("a landing cleanup skips a retired worker, retires the final reviewer the receipt lacked keeping its ignored state, and finishes", async () => {
+test("a landing cleanup skips a retired worker, retires the final reviewer the receipt lacked, discarding its ignored state, and finishes", async () => {
 	let review = { run: "", handle: "", path: "", bb: "" };
 	const { f, state } = await landed(async (f, r) => {
 		review = f.worker("root-review-5", f.cwd, "main");
@@ -49,12 +49,8 @@ test("a landing cleanup skips a retired worker, retires the final reviewer the r
 		expect(state.landingOps.root.workers.map(w => w.handle)).toEqual(["root-review-3", "root-review-5"]);
 		expect(f.bb.threads().find(t => t.id === review.bb)?.archivedAt).not.toBeNull();
 		expect(existsSync(review.path)).toBe(false);
-		const kept = join(f.cwd + "__retired", "root-review-5");
-		expect(readFileSync(join(kept, ".env"), "utf8")).toBe("SECRET=only-here\n");
-		expect(readFileSync(join(kept, "RETIRED.md"), "utf8")).toContain("- .env");
+		expect(existsSync(f.cwd + "__retired")).toBe(false);
 		expect(state.log.some(l => l.includes("deferred"))).toBe(false);
-		const owner = f.bb.threads().find(t => t.id === "thr_owner")!.tells.join("\n");
-		expect(owner).toContain("root-review-5 after it finished; its worktree held ignored state");
 	} finally { f.close(); }
 }, 30_000);
 
