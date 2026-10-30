@@ -10,7 +10,7 @@ import { createPullRequestHost } from "./pr-host.ts";
 import { publication } from "./pr-body.ts";
 import { failedCheckDiagnostics } from "./pr-diagnostics.ts";
 import * as reviewSelector from "./pr-reviews.ts";
-import { declaredGates, evidencePacket, evidenceShapeError, git, heldByRed, isAncestor,
+import { commandFailure, declaredGates, evidencePacket, evidenceShapeError, git, heldByRed, isAncestor,
 	storyShapeError, testCommands, testRun, unheld } from "./checks.ts";
 import { landingConflict, prepareLandingDependencies } from "./landing.ts";
 import type { PrRepairRequest, PullRequestHost, PullRequestLanding, PullRequestSnapshot, ReportedCheck } from "./pr-types.ts";
@@ -43,10 +43,8 @@ function persist(c: PullRequestContext, change: (pr: PullRequestLanding) => void
 	try { c.save(); }
 	catch (error) { c.state.pr = before; throw new SaveFailure(String(error)); }
 }
-function diagnostics(error: unknown): string {
-	const e = error as { message?: string; stdout?: unknown; stderr?: unknown };
-	return (e.message ?? String(error)) + "\n" + String(e.stdout ?? "").slice(-5000) + String(e.stderr ?? "").slice(-5000);
-}
+/** A failed command's first line, exit and stream tails: its message repeats all of stderr, failures come last. */
+const diagnostics = (error: unknown): string => commandFailure(error, 10_000).summary;
 function checksMessage(checks: ReportedCheck[]): string {
 	return checks.map(check => check.name + " [" + check.id + "]: " + check.state + "\n" +
 		(check.url ?? "") + "\n" + (check.details ?? "").slice(-8000)).join("\n\n");

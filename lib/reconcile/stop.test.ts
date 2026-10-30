@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { campaigns, stop, summary } from "./main";
 import { load } from "./reconcile";
@@ -36,6 +36,28 @@ test("stop retires live workers and handlers, keeps their unmerged branches and 
 		expect(load(f.cwd, "fixture")!.resume).toEqual({ fixture: expect.objectContaining({ phase: "implement", branch: implement.branch, head: git(f.cwd, "rev-parse", implement.branch) }) });
 		expect(summary(campaigns(f.cwd)[0])).toMatchObject({ running: false, finished: "stopped", stopping: false, chains: {}, exceptions: {} });
 		expect((await stop(f.cwd, "fixture")).finished).toBe("stopped");
+	} finally {
+		try { if (f) await cleanup(f); }
+		finally { process.env = saved; }
+	}
+}, 60_000);
+
+// 2026-10-30 (concept, link-charted-missions-to-the-copy-they-chart): a review worker's bb thread disappeared; stop failed
+// on "No live worker" for it, and its worktree held state its setup can't regenerate.
+test("stop finishes past a worker whose bb thread is gone, leaving its worktree and untracked state", async () => {
+	const saved = { ...process.env };
+	let f: Fixture | undefined;
+	try {
+		f = await prepare();
+		const implement = f.workers.find(w => w.receipt.handle === "implement")!.receipt;
+		const file = join(f.root, "fake-bb", "thread-" + implement.bb + ".json");
+		writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), archivedAt: Date.now() }));
+		writeFileSync(join(implement.path, "local-deployment.db"), "state");
+		const result = await stop(f.cwd, "fixture");
+		expect(result.finished).toBe("stopped");
+		expect(result.retired.find(r => r.worker === "fixture/implement")).toMatchObject({ gone: { worktree: implement.path } });
+		expect(readFileSync(join(implement.path, "local-deployment.db"), "utf8")).toBe("state");
+		expect(git(implement.path, "log", "-1", "--format=%s")).toBe("implement");
 	} finally {
 		try { if (f) await cleanup(f); }
 		finally { process.env = saved; }

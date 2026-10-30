@@ -47,6 +47,27 @@ export function heldByRed(red: string, changed: string[]): boolean {
   const failing = [...red.matchAll(/\] › ([\w./-]+):\d+/g)].map(m => m[1]);
   return !code.some(f => failing.some(p => f === p || f.endsWith("/" + p)));
 }
+/** Long command output shortened from the middle: a failing test, its exit and the summary are at the end. 2026-10-29
+ * (concept, exclude-milestones-and-first-days-from-review-lapses) a reviewer was sent the head of a gate's output, which
+ * stopped mid-test among passing cases. */
+export function clip(text: string, max: number): string {
+ if (text.length <= max) return text;
+ const head = Math.floor(max / 5), tail = max - head;
+ return text.slice(0, head) + "\n[… " + (text.length - head - tail) + " characters omitted …]\n" + text.slice(-tail);
+}
+/** What a failed integration gate (execFileSync) said: the command and how it ended, then the tail of each stream.
+ * Its message repeats all of stderr, where bun test writes, so only its first line is kept. */
+export function commandFailure(error: any, max = 8_000): { summary: string; log: string } {
+ const message = String(error?.message ?? error);
+ const first = message.split("\n")[0];
+ const end = error?.signal ? "killed by " + error.signal + (error?.code === "ETIMEDOUT" ? " (timed out)" : "") : typeof error?.status === "number" ? "exit " + error.status : "";
+ const out = String(error?.stdout ?? ""), err = String(error?.stderr ?? "");
+ if (!out && !err) return { summary: message, log: message };
+ const log = [first + (end ? " (" + end + ")" : ""), out && "--- stdout ---\n" + out, err && "--- stderr ---\n" + err].filter(Boolean).join("\n");
+ const half = Math.floor(max / 2);
+ const summary = [first + (end ? " (" + end + ")" : ""), out && "--- stdout (tail) ---\n" + clip(out, err ? half : max), err && "--- stderr (tail) ---\n" + clip(err, out ? half : max)].filter(Boolean).join("\n");
+ return { summary, log };
+}
 // Tests encoding the driver's checks (written by the reviewer; older drivers wrote their own): the integration gate runs them on the reviewer's final head.
 // Handoff `tests` name committed test files (repository-relative); anything else (prose, commands) is not run.
 export const testCommands = (h: Record<string, unknown> | null | undefined): string[] => Array.isArray(h?.tests) ? h.tests.filter((t): t is string => typeof t === "string" && /^[\w./-]+$/.test(t.trim()) && !t.includes("..")).map(t => t.trim()) : [];

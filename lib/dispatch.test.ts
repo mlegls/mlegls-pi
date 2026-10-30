@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { integrate, MergeConflict, retire } from "./dispatch.ts";
+import { integrate, MergeConflict, retire, stop } from "./dispatch.ts";
 import { Worker } from "./wm.ts";
 import { fakeBb } from "./thread/fake-bb";
 import type { Handle } from "./dispatch";
@@ -148,4 +148,37 @@ test("retiring deletes a merged worker branch once its worktree is gone; an unme
     expect(dropped.branchKept).toStartWith("unit-b");
     expect(r.git(r.main, "branch", "--list", "unit-b")).toContain("unit-b");
   } finally { close.mockRestore(); }
+});
+
+// 2026-10-30 (concept, link-charted-missions-to-the-copy-they-chart): a review worker's bb thread disappeared, and every
+// relaunch and reconcile_stop failed on "No live worker".
+test("stopping or retiring a worker whose bb thread is gone is a no-op that leaves its worktree and ignored state", async () => {
+  const r = await repo();
+  r.commit(r.work, "a", "reviewed");
+  writeFileSync(join(r.work, ".local-deployment"), "local state");
+  const gone = { ...r.worker, bb: "bbt-archived" };
+  expect(await stop(gone, { cwd: r.main })).toEqual({ closed: [], killed: [], branchesDeleted: [], branchesKept: [] });
+  expect(await retire(gone, { cwd: r.main })).toEqual({ killed: [], gone: { worktree: r.work } });
+  expect(readFileSync(join(r.work, ".local-deployment"), "utf8")).toBe("local state");
+  expect(r.git(r.work, "log", "-1", "--format=%s")).toBe("a");
+  await expect(integrate(gone, { cwd: r.main })).rejects.toThrow("No live worker");
+});
+
+test("a tracker-only commit landing on the parent during preparation is merged in, and the fast-forward lands", async () => {
+  const r = await repo();
+  r.commit(r.work, "a", "worker");
+  mkdirSync(join(r.main, "docs/issues"), { recursive: true });
+  const result = await integrate(r.worker, { cwd: r.main, keep: true, prepare: async () => { r.commit(r.main, "docs/issues/x.md", "tracker"); } });
+  expect(result.output).toContain("merged tracker-only commits");
+  expect(r.git(r.main, "show", "HEAD:a")).toBe("worker");
+  expect(r.git(r.main, "show", "HEAD:docs/issues/x.md")).toBe("tracker");
+});
+
+test("a code commit landing on the parent during preparation still refuses the fast-forward", async () => {
+  const r = await repo();
+  r.commit(r.work, "a", "worker");
+  const before = r.git(r.work, "rev-parse", "HEAD");
+  await expect(integrate(r.worker, { cwd: r.main, keep: true, prepare: async () => { r.commit(r.main, "b", "code"); } }))
+    .rejects.toThrow("beyond docs/issues/");
+  expect(r.git(r.work, "rev-parse", "HEAD")).toBe(before);
 });

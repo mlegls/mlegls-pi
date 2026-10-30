@@ -11,6 +11,12 @@ export class ThreadMergeConflict extends Error {
 	}
 }
 
+/** Whether from..to changes only the tracker's paths. */
+async function trackerOnly(cwd: string, from: string, to: string): Promise<boolean> {
+	const files = (await gitChecked(cwd, "diff", "--no-renames", "--name-only", "-z", from, to)).split("\0").filter(Boolean);
+	return files.every(file => file.startsWith("docs/issues/"));
+}
+
 async function clean(cwd: string, when: string): Promise<void> {
 	const dirty = await gitChecked(cwd, "status", "--porcelain");
 	if (dirty) throw new Error("integrate: " + when + "uncommitted changes in " + cwd + "\n" + dirty);
@@ -108,10 +114,26 @@ export async function integrateCheckout(thread: { cwd: string; project: string; 
 	} else {
 		// post-merge runs once the index is known to match HEAD for what landed: concept's refuses an index that doesn't
 		// (2026-10-17, after 2eb22adf and da7a071a landed, the index held their pre-landing entries).
-		const ff = await gitAttempt(path, "-c", "core.hooksPath=/dev/null", "merge", "--ff-only", branch);
-		if (ff.code) throw new Error("integrate: ff-only merge of " + branch + " into " + parentBranch + " failed: " + ff.err);
-		printed.push(ff.out, ff.err);
-		const aligned = await alignIndex(path, base);
+		let target = base;
+		for (let caughtUp = 0; ; caughtUp++) {
+			const ff = await gitAttempt(path, "-c", "core.hooksPath=/dev/null", "merge", "--ff-only", branch);
+			if (!ff.code) { printed.push(ff.out, ff.err); break; }
+			const now = await gitChecked(path, "rev-parse", "HEAD");
+			const behind = (await gitAttempt(thread.cwd, "merge-base", "--is-ancestor", now, "HEAD")).code === 1;
+			if (caughtUp >= 3 || now === target || !behind || !await trackerOnly(path, target, now))
+				throw new Error("integrate: ff-only merge of " + branch + " into " + parentBranch + " failed: " + ff.err
+					+ (behind && now !== target ? "\n" + parentBranch + " moved from " + target + " to " + now + " after preparation, beyond docs/issues/" : ""));
+			// The tracker commits on its own paths (docs/issues/, which no branch may change) without the integrate lock, so the
+			// destination gains them while the gates run: merge them, which keeps the prepared head an ancestor of what lands.
+			// 2026-10-29/30 (concept): the supervisor merged main into a review branch by hand four times.
+			const merged = await gitAttempt(thread.cwd, "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "merge", "--no-edit", "--no-verify",
+				"-m", "Merge tracker-only commits from " + parentBranch, now);
+			if (merged.code) { await gitAttempt(thread.cwd, "merge", "--abort"); throw new Error("integrate: merging tracker-only commits " + target + ".." + now + " into " + branch + " failed: " + merged.err); }
+			assertNoTrackerChanges(thread.cwd, now);
+			printed.push("integrate: merged tracker-only commits " + target.slice(0, 12) + ".." + now.slice(0, 12) + " from " + parentBranch + " into " + branch);
+			target = now;
+		}
+		const aligned = await alignIndex(path, target);
 		if (aligned.length) printed.push("integrate: reset the index to HEAD for " + aligned.join(", "));
 		const hook = await gitAttempt(path, "hook", "run", "--ignore-missing", "post-merge", "--", "0");
 		printed.push(hook.out, hook.err);

@@ -14,7 +14,7 @@
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { basename, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dispatch, findWorker, integrate, retire, stop, tell, topic, type Handle } from "../dispatch.ts";
@@ -28,7 +28,7 @@ import { readLive } from "../session-meta/live";
 import { bbThreads, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
-import { heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
+import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
@@ -127,6 +127,8 @@ interface Chain {
 	resumeFrom?: string;
 	/** The open children a join's drive or review was raised for, once: an answer or retry lets it carry on with them. */
 	reopened?: string;
+	/** The owner's `accept`: why this node's review may report stories `unobservable` (by design) and still land. */
+	acceptUnobservable?: string;
 }
 /** A chain's work when its run was stopped, so a restart continues it rather than starting over from its destination. */
 export interface Resume {
@@ -620,7 +622,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(controlCwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string };
 	/** Bind an owner retry to its original attempt before any replacement writes.
 	 * Recovery can finish that replacement before replaying the resolution file. */
 	function readResolution(file: string, node: string): Resolution {
@@ -671,8 +673,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				return save();
 			}
 		}
+		if (r.action === "accept" && (!c || c.phase !== "review")) {
+			// The exception stays for another resolution: a throw here would fail every tick on the same file.
+			dropResolution(ex.node);
+			note("accept for " + target + " ignored: it has " + (c ? "a " + c.phase + " chain" : "no chain") + ", not a review");
+			tellOwner("accept for " + target + " was not applied: accept lands a review whose stories are unobservable by design, and " + target + " has " + (c ? "a " + c.phase + " chain" : "no chain") + ". Its exception stays pending; resolve it another way.");
+			return save();
+		}
 		delete s.exceptions[ex.node];
 		if (ex.node !== target && s.chains[ex.node]) s.chains[ex.node].held = false;
+		// A repair budget the owner answered starts again: else the worker's next report re-raises it at once (2026-10-30, concept).
+		const spent = /^(.+) \(after \d+ repairs\)$/.exec(ex.reason)?.[1];
+		if (c && spent) delete c.retries[spent];
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
 		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
@@ -684,6 +696,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (c) { await retireChain(c); delete s.chains[target]; }
 			s.resolved[target] ??= [];
 			pendingNotes.set(target, [r.note ?? r.message, kept].filter(Boolean).join("\n\n") || undefined);
+		}
+		else if (r.action === "accept") {
+			// A review that reported done is handled again, now with its unobservable stories accepted; one that asked
+			// (needs-input, blocked) is told, and its next done lands with them.
+			const why = c!.acceptUnobservable = r.note ?? r.message ?? r.summary ?? "accepted by the owner";
+			c!.held = false;
+			const last = c!.handle && fresh(c!.handle, undefined, c!.launchedAt);
+			if (last && parse(last.body).status === "done") c!.handledTs = undefined;
+			else if (c!.handle && alive(c!.handle) !== false) { await sendChild(c!.handle, "The owner accepts stories that can't be observed by design as `unobservable`: " + why + "\n\nReport `done` with them as `unobservable`; every other story still needs `held`."); c!.handledTs = ex.reportTs ?? c!.handledTs; }
+			else await startPhase(target, c!, "review", issue!, issues, "The owner accepts stories that can't be observed by design as `unobservable`: " + why);
 		}
 		else if (r.action === "skip-drive") {
 			if (c) {
@@ -802,7 +824,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
 				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
 				if (!ex.mailed) {
-					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
+					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
@@ -892,6 +914,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** retireHandle that throws, and returns what retirement did. */
 	async function retireTelling(h: Handle, into: string, done = false) {
 			const r = await retire(h, { cwd: into });
+			if (r.gone) {
+				note("retire " + h.handle + ": its bb thread is gone, so it was already stopped" + (r.gone.worktree ? "; its worktree " + r.gone.worktree + " is left as it is, ignored state and all" : ""));
+				if (r.gone.worktree) tellOwner(h.handle + "'s bb thread is gone; its worktree " + r.gone.worktree + " (branch " + h.handle + ") is left as it is, with its ignored state. Remove it (git worktree remove) once nothing there is needed.");
+			}
 			const wip = ((r.removed as { branchesKept?: { branch: string; reason: string }[] } | undefined)?.branchesKept ?? []).find(b => b.reason.startsWith("uncommitted work saved"));
 			if (wip) { note("retired " + h.handle + " with uncommitted work: branch " + wip.branch + ", " + wip.reason); tellOwner("retired " + h.handle + " with uncommitted work in its worktree; it is kept on branch " + wip.branch + " (" + wip.reason + ")."); }
 			return r;
@@ -974,7 +1000,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const outcome = await landReviewed(completion, { slug, into: c.into, worker: h,
 			workers: c.workers, collector: s.collectors[slug], result,
 			tests: [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])] });
-		if (!outcome.ok) return outcome.failure;
+		if (!outcome.ok) {
+			if (!outcome.log) return outcome.failure;
+			// The whole output stays on this host for the worker, whose message shows its tail.
+			const file = join(stateDir(controlCwd), s.root + ".integrate", slug + "-" + new Date().toISOString().replace(/[:.]/g, "-") + ".log");
+			try { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, outcome.log); }
+			catch (e) { return outcome.failure + "\n\n(saving the full output failed: " + e + ")"; }
+			return outcome.failure + "\n\nFull output: " + file;
+		}
 		s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
 		const landed = git(into, "diff", "--name-only", before, outcome.head).split("\n").filter(Boolean);
 		note("landed " + slug + " in " + (c.into === cwd ? "the owner's checkout" : c.into));
@@ -1110,9 +1143,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const shape = storyShapeError(r.handoff, c.self) ?? (c.self && r.handoff?.evidence === undefined ? null : evidenceShapeError(r.handoff));
 		if (shape) return repair(slug, c, "review-shape", "Your handoff is malformed: " + shape + ". Repost it.", issues, text);
 		const stories = (r.handoff!.stories as { outcome: string }[]);
-		const notHeld = stories.findIndex(x => x.outcome !== "held");
-		if (notHeld >= 0) return repair(slug, c, "unheld", "You reported done, but stories[" + notHeld + "] is not held. `done` needs every story held on your final head: repair it, or report `blocked`/`needs-input`.", issues, text);
-		c.evidence = { ...r.handoff!, tests: [...new Set([...testCommands(c.drive), ...testCommands(r.handoff)])] };
+		const notHeld = stories.findIndex(x => x.outcome !== "held" && !(c.acceptUnobservable && x.outcome === "unobservable"));
+		if (notHeld >= 0) return repair(slug, c, "unheld", "You reported done, but stories[" + notHeld + "] is not held. `done` needs every story held on your final head: repair it, or report `blocked`/`needs-input`. A story that can't be observed by design (not just in your environment) is `needs-input` naming it and why: the owner can accept it as unobservable.", issues, text);
+		const accepted = c.acceptUnobservable && stories.some(x => x.outcome === "unobservable") ? { accepted: "unobservable stories accepted by the owner: " + c.acceptUnobservable } : {};
+		if (accepted.accepted) note(slug + " lands with unobservable stories the owner accepted");
+		c.evidence = { ...r.handoff!, ...accepted, tests: [...new Set([...testCommands(c.drive), ...testCommands(r.handoff)])] };
 		s.results[slug] = reviewedResult(issue.partOf, c.evidence, text);
 		c.phase = "integrate"; save();
 		return integrateReview(slug, c, issue, issues);
@@ -1172,7 +1207,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			c.phase = "review";
 			c.retries.integrate = (c.retries.integrate ?? 0) + 1;
 			if (c.retries.integrate > BUDGET.integrate) return raise(slug, "integration failed " + BUDGET.integrate + " times", failure, issues);
-			await sendChild(h, "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + failure.slice(0, 5000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
+			await sendChild(h, "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + clip(failure, 9000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
 			note("integration of " + slug + " failed (" + c.retries.integrate + "), sent back: " + failure.split("\n")[0]);
 			save();
 		}

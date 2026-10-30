@@ -9,6 +9,7 @@ Read the report and the issues. Answer from the node's issue and its recorded de
 
 - `answer`: the waiting worker gets your `message` and continues. Use for questions the issue already answers or leaves to you.
 - `retry`: relaunch the phase that failed, with a `note`, when its environment or setup was the problem and is now fixed or explained.
+- `accept`: a review reported stories `unobservable` that can't be observed by design (the issue says so, or no environment can show them), not just in its environment: it lands with them, with a `note` saying why. Never for a `failed` story.
 - `redispatch`: restart the node's implementation from its parent branch, with a `note`, when the approach went wrong.
 - `move-out`: the node (or `target`, any node in your subtree) was misclassified: it needs shaping, or a human decision. Apply the tracker lifecycle's move-out yourself through the tracker immediately (honest stage, `assignee: human`, the problem and a recommendation in its body; detach it from the tree; add it to the parent's `blocked-by` when the parent's acceptance depends on it), and give a one-line `summary`. A spec that needs a human decision goes back to goal with why.
 - `escalate`: the decision changes what this node's issue decided. Give a `summary` the next level can act on without rereading everything, with your recommendation.
@@ -19,9 +20,9 @@ End `done` with a fenced yaml handoff:
 
 ```yaml
 resolution:
-  action: answer | retry | redispatch | move-out | escalate
+  action: answer | retry | redispatch | accept | move-out | escalate
   target: <slug, default the exception's node>
   message: <for answer>
-  note: <for retry/redispatch>
+  note: <for retry/redispatch/accept>
   summary: <for move-out/escalate>
 ```

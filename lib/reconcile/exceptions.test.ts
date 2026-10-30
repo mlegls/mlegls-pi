@@ -116,3 +116,26 @@ test("reopen lands a join's commits in its collector and moves the reopened chil
 		expect(f.bb.threads().find(t => t.id === workerId)?.archivedAt).not.toBeNull();
 	} finally { f.close(); }
 }, 30_000);
+
+// 2026-10-30 (concept): a story unobservable by design kept re-raising "unheld (after 2 repairs)" after the owner answered.
+test("accept lands a review that reports a story unobservable by design", async () => {
+	const { f, state } = await reconcile(async (f, r) => {
+		const path = join(f.root, "fixture-review-1");
+		f.git(f.cwd, "worktree", "add", "-qb", "fixture-review-1", path, f.git(f.collector, "rev-parse", "HEAD"));
+		f.git(f.cwd, "config", "branch.fixture-review-1.ab-parent", "collector");
+		const handle = f.bare("root", "fixture-review-1", path);
+		const handoff = { stories: [{ story: "seen", outcome: "held" }, { story: "only in production", outcome: "unobservable" }], evidence: { path: "docs/attachments/x.md", visual: false, shots: [] }, tests: [] };
+		f.bb.completeTurn(path, "done\n\n```json\n" + JSON.stringify(handoff) + "\n```");
+		const s = held(r, f);
+		s.chains.fixture = { ...s.chains.fixture, phase: "review", handle, retries: { unheld: 3 }, handledTs: new Date().toISOString(), drive: {} };
+		s.exceptions.fixture = { ...s.exceptions.fixture, reason: "unheld (after 2 repairs)", level: "owner", mailed: true, reportTs: s.chains.fixture.handledTs };
+		r.saveState(s);
+		mkdirSync(r.resolutionsDir(f.cwd, "root"), { recursive: true });
+		writeFileSync(join(r.resolutionsDir(f.cwd, "root"), "fixture.json"), JSON.stringify({ action: "accept", note: "observable only after the production deploy" }));
+	}, (r, cwd) => !!r.load(cwd, "root")?.log.some(l => l.includes("lands with unobservable stories")));
+	try {
+		expect(state.exceptions.fixture?.reason).not.toBe("unheld (after 2 repairs)");
+		expect(state.log.some(l => l.includes("fixture lands with unobservable stories the owner accepted"))).toBe(true);
+		expect(state.results.fixture?.handoff).toMatchObject({ accepted: "unobservable stories accepted by the owner: observable only after the production deploy" });
+	} finally { f.close(); }
+}, 30_000);

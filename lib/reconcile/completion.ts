@@ -3,7 +3,7 @@ import { isAbsolute } from "node:path";
 import { integrate, MergeConflict, type Handle } from "../dispatch.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
 import type { Tracker } from "../tracker.ts";
-import { declaredGates, evidencePacket, git, isAncestor, testCommands, testRun } from "./checks.ts";
+import { commandFailure, declaredGates, evidencePacket, git, isAncestor, testCommands, testRun } from "./checks.ts";
 import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
 import type { CollectorRecord, GlobalRunState, LandingOperation, ReviewedResult } from "./tracker-state.ts";
 
@@ -24,7 +24,8 @@ export interface ReviewedLanding {
 	/** Union of the destination's retained files and this reviewer's tests. */
 	tests: string[];
 }
-export type LandingOutcome = { ok: true; head: string; replayed: boolean; output?: string } | { ok: false; failure: string };
+/** A failure's `log` is a failed gate's whole output, when it is longer than the failure shows. */
+export type LandingOutcome = { ok: true; head: string; replayed: boolean; output?: string } | { ok: false; failure: string; log?: string };
 
 /** Keep the leaf's result even after its chain/worktree is removed. If no explicit
  * handoff summary exists, preserve the reviewed report as summary. */
@@ -134,9 +135,10 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 			// The prepared receipt survived the merge; propagate the persistence
 			// error so the runtime retries recovery before finishing or cleanup.
 			if (merged) throw error;
-			return { ok: false, failure: error instanceof MergeConflict
-				? conflictDetails(input.worker.path, before, git(input.worker.path, "merge-base", before, workerHead), error.files)
-				: String(error?.message ?? error) + "\n" + String(error?.stdout ?? "").slice(-3000) + String(error?.stderr ?? "").slice(-3000) };
+			if (error instanceof MergeConflict)
+				return { ok: false, failure: conflictDetails(input.worker.path, before, git(input.worker.path, "merge-base", before, workerHead), error.files) };
+			const { summary, log } = commandFailure(error);
+			return { ok: false, failure: summary, ...(log !== summary ? { log } : {}) };
 		}
 	});
 }

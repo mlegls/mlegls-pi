@@ -1,9 +1,9 @@
 // Launch a parent-planned ready wave as wm workers. No reading, routing, dependency graph, or retries.
 import { execFile, execFileSync } from "node:child_process";
-import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
-import { integrateThread, workerOf, ThreadMergeConflict, type WorkerThread } from "./thread";
+import { integrateThread, workerOf, ThreadMergeConflict, type ThreadCleanup, type WorkerThread } from "./thread";
 import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
 import { commonDir } from "./thread/git.ts";
 import { HANDOFF_KEYS } from "./report.ts";
@@ -155,7 +155,10 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 export class MergeConflict extends Error {
   constructor(readonly branch: string, readonly files: string[]) { super("conflicts merging " + branch + ": " + files.join(", ")); this.name = "MergeConflict"; }
 }
-export interface Integration { branch: string; mode: "rebase" | "merge"; output?: string; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string }
+export interface Integration { branch: string; mode: "rebase" | "merge"; output?: string; removed?: unknown; killed?: number[]; branchDeleted?: string; branchKept?: string;
+  /** Retirement found no live worker (its bb thread archived or gone): nothing was stopped or removed, and this worktree, if
+   * it still exists, is left as it is, ignored state and all. */
+  gone?: { worktree?: string } }
 
 /** A worker's bb thread: the receipt's own, else the live bb thread titled `<run>/<handle>` in cwd's repository, which finds
  * a worker spawned just before a crash that run state never recorded. A bare handle names the one such worker in any run. */
@@ -171,14 +174,18 @@ export async function findWorker(given: (Pick<Handle, "run" | "handle"> & Partia
   return { bb: found.id, path: resolve(found.environmentPath!) };
 }
 
-/** The worker's live thread, found through run state or bb. */
-async function recordOf(given: Handle | string, cwd: string): Promise<{ worker: Handle; thread: WorkerThread }> {
-  const label = typeof given === "string" ? given : topic(given);
+/** The worker's live thread, found through run state or bb; undefined once its bb thread is archived or gone. */
+async function liveRecord(given: Handle | string, cwd: string): Promise<{ worker: Handle; thread: WorkerThread } | undefined> {
   const found = await findWorker(given, cwd);
   const thread = found ? await workerOf(found.bb, typeof given === "string" ? undefined : { run: given.run, handle: given.handle }) : undefined;
-  if (!thread) throw new Error("No live worker " + label);
+  if (!thread) return undefined;
   if (typeof given !== "string" && thread.cwd !== realpathSync(given.path)) throw new Error("Receipt does not match thread " + thread.id);
   return { thread, worker: { ...(typeof given === "string" ? {} : given), ...thread.worker, path: thread.cwd, bb: thread.id } };
+}
+async function recordOf(given: Handle | string, cwd: string): Promise<{ worker: Handle; thread: WorkerThread }> {
+  const record = await liveRecord(given, cwd);
+  if (!record) throw new Error("No live worker " + (typeof given === "string" ? given : topic(given)));
+  return record;
 }
 
 /** Message a worker's bb thread, queued behind its turn in progress. */
@@ -204,16 +211,25 @@ export async function integrate(given: Handle | string,
   return Object.assign(result, await retire(worker, { cwd }));
 }
 
-/** Stop a superseded worker's services without deleting partial work needed by its replacement. */
-export async function stop(given: Handle | string, options: { cwd?: string } = {}) {
-  const { thread } = await recordOf(given, resolve(options.cwd ?? process.cwd()));
-  return stopThreadProcesses(thread);
+/** Stop a superseded worker's services without deleting partial work needed by its replacement. A worker whose bb thread
+ * is archived or gone is already stopped: 2026-10-30 (concept, link-charted-missions-to-the-copy-they-chart) a review
+ * worker's thread disappeared, and every relaunch, and reconcile_stop, failed here with "No live worker". */
+export async function stop(given: Handle | string, options: { cwd?: string } = {}): Promise<ThreadCleanup> {
+  const record = await liveRecord(given, resolve(options.cwd ?? process.cwd()));
+  if (!record) return { closed: [], killed: [], branchesDeleted: [], branchesKept: [] };
+  return stopThreadProcesses(record.thread);
 }
 
-/** Retire through lifecycle, then delete only patches already in the recorded ab-parent. */
+/** Retire through lifecycle, then delete only patches already in the recorded ab-parent. A worker with no live bb thread
+ * was retired already, or lost its thread: its worktree (with its ignored state) and branch are left for the owner. */
 export async function retire(given: Handle | string, options: { cwd?: string } = {}): Promise<Omit<Integration, "branch" | "mode">> {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const { worker, thread } = await recordOf(given, cwd);
+  const record = await liveRecord(given, cwd);
+  if (!record) {
+    const path = typeof given === "string" ? undefined : given.path && resolve(given.path);
+    return { killed: [], gone: path && existsSync(path) ? { worktree: path } : {} };
+  }
+  const { worker, thread } = record;
   const git = (...args: string[]) => new Promise<{ code: number; out: string; err: string }>(done =>
     execFile("git", ["-C", thread.project, ...args], (error, out, err) => done({ code: typeof (error as any)?.code === "number" ? (error as any).code : error ? 1 : 0, out: out.trim(), err: err.trim() })));
   const result: Awaited<ReturnType<typeof retire>> = {};
