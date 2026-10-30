@@ -65,7 +65,9 @@ export async function stop(cwd: string, root: string) {
 	}
 	// A launch may have registered its thread just before termination, without saving its receipt.
 	const s = load(cwd, root)!;
-	cwd = s.pr && existsSync(s.pr.path) ? s.pr.path : s.cwd;
+	// The run's checkout may be gone (its owner's worktree, removed with the owner's thread): its state is in the
+	// repository's common dir, which the caller's checkout reaches as well.
+	cwd = s.pr && existsSync(s.pr.path) ? s.pr.path : existsSync(s.cwd) ? s.cwd : cwd;
 	const refinement = { state: s, tracker: reconcilerTracker(cwd, root), save: () => saveState(s),
 		locked: async <T>(work: () => Promise<T>) => work(),
 		stopWriter: (attempt: State["refinements"][string]) => stopRefinementWriter(s, attempt) };

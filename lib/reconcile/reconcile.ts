@@ -305,6 +305,7 @@ export function prepareStart(o: StartOptions): State {
 	const prior = load(resolve(o.cwd), o.root);
 	assertThreadState(prior);
 	const cwd = prior?.cwd ?? resolve(o.cwd);
+	if (prior && !existsSync(cwd)) throw new Error(o.root + "'s reconciler lands in " + cwd + ", which is gone; its state (" + stateFile(resolve(o.cwd), o.root) + ") names that checkout as cwd");
 	if (prior?.stopping) throw new Error("cleanup in progress for " + o.root + ": retry stop to finish it");
 	const land = resolveLanding(cwd, o.land, prior);
 	if (prior && !prior.finished && prior.pid && prior.pid !== process.pid && pidAlive(prior.pid)) return prior;
