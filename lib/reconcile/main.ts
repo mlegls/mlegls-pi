@@ -93,7 +93,7 @@ export async function stop(cwd: string, root: string) {
 	rmSync(resolutionsDir(cwd, root), { recursive: true, force: true });
 	// Retirement kept each unfinished worker's branch (with a WIP commit of what it left uncommitted): a restart
 	// continues each node from there.
-	const resume = resumeRecords(s);
+	const resume = resumeRecords(s, cwd);
 	const stopped = updateState(cwd, root, prior => ({
 		...prior!, chains: {}, exceptions: {}, resume, pid: undefined, stopping: undefined, finished: "stopped",
 		log: [...prior!.log, new Date().toISOString().slice(0, 19) + " stopped; retired workers and handlers, kept collectors"].slice(-400),

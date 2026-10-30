@@ -184,14 +184,17 @@ export function hookFailure(output: string): string | undefined {
 /** For stop, after it retired the workers: each chain whose worker's branch survived with commits its destination
  * lacks. Before this a restart launched such a node from its collector's tip, without the kept branch (2026-10-16:
  * rehearse-scene-retirement-on-legacy-fixtures implement-1e → implement-1g). A refinement is discarded by stop, so it has none. */
-export function resumeRecords(s: State): Record<string, Resume> {
+export function resumeRecords(s: State, fallback = s.cwd): Record<string, Resume> {
 	const out: Record<string, Resume> = { ...s.resume };
 	for (const [slug, c] of Object.entries(s.chains)) {
 		if (!c.handle || c.phase === "refine") continue;
 		const into = c.into === s.cwd ? s.cwd : s.collectors[c.into]?.path ?? c.into;
+		// A destination checkout that is gone can't say what it lacks: the kept branch is recorded, and a restart's
+		// own ancestry check decides (2026-10-30, concept: the owner's worktree went with its archived thread).
+		const there = existsSync(into);
 		let head = "";
-		try { head = git(into, "rev-parse", "--verify", "-q", "refs/heads/" + c.handle.handle); } catch { continue; }
-		try { if (!head || isAncestor(into, head)) continue; } catch { continue; }
+		try { head = git(there ? into : fallback, "rev-parse", "--verify", "-q", "refs/heads/" + c.handle.handle); } catch { continue; }
+		try { if (!head || there && isAncestor(into, head)) continue; } catch { continue; }
 		out[slug] = { phase: c.phase === "integrate" ? "review" : c.phase, branch: c.handle.handle, head,
 			base: c.base, setup: c.setup, drive: c.drive, skipDrive: c.skipDrive, note: c.note };
 	}

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { join } from "node:path";
 import { fakeBb } from "../thread/fake-bb";
 import { start, stop } from "./main";
-import { load, saveState } from "./reconcile";
+import { load, resumeRecords, saveState } from "./reconcile";
 
 // Real reconciler process and worker setup on a fake bb CLI: no model, daemon or credentials.
 const packagePath = realpathSync(join(import.meta.dir, "../.."));
@@ -68,3 +68,17 @@ test("a restarted node continues from its stopped worker's kept branch, and a re
 		rmSync(root, { recursive: true, force: true });
 	}
 }, 90_000);
+
+// 2026-10-30 (concept): the run's checkout went with its owner's archived thread, and stop recorded no resume for the review.
+test("a stopped chain whose destination checkout is gone still records its kept branch", () => {
+	const repo = realpathSync(mkdtempSync("/tmp/rc-resume-gone-"));
+	try {
+		const git = (...args: string[]) => execFileSync("git", ["-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
+		git("init", "-qb", "main"); git("commit", "-q", "--allow-empty", "-m", "base");
+		git("branch", "n-review-3"); git("checkout", "-q", "n-review-3"); git("commit", "-q", "--allow-empty", "-m", "reviewed"); git("checkout", "-q", "main");
+		const gone = join(repo, "gone");
+		const s = { cwd: gone, collectors: {}, chains: { n: { into: gone, self: false, phase: "review", retries: {}, workers: [], base: "b",
+			handle: { run: "n", handle: "n-review-3", path: join(repo, "wt") } } } } as unknown as import("./reconcile").State;
+		expect(resumeRecords(s, repo)).toEqual({ n: expect.objectContaining({ phase: "review", branch: "n-review-3", head: git("rev-parse", "n-review-3") }) });
+	} finally { rmSync(repo, { recursive: true, force: true }); }
+});
