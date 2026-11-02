@@ -90,7 +90,12 @@ function foldProjection(entries: Entry[], options: ProjectionFoldOptions): Proje
 	const reflections: Reflection[] = [];
 	const observationsById = new Set<string>();
 	const reflectionsById = new Set<string>();
-	const droppedObservationIds = new Set<string>();
+	// User corrections must not wait for the next observation-pool full fold. Carry each
+	// in-boundary supersession and its replacement together, even during a maintenance fold.
+	const supersessions = entries.filter(isObservationsDroppedEntry)
+		.filter((e) => e.data.supersededBy && isCoveredAtOrBefore(e, indexes, observationsBoundary));
+	const replacements = new Set(supersessions.map((e) => e.data.supersededBy!));
+	const droppedObservationIds = new Set(supersessions.flatMap((e) => e.data.observationIds));
 
 	for (const entry of entries) {
 		if (isObservationsRecordedEntry(entry) && isCoveredAtOrBefore(entry, indexes, observationsBoundary)) {
@@ -102,8 +107,11 @@ function foldProjection(entries: Entry[], options: ProjectionFoldOptions): Proje
 			continue;
 		}
 
-		if (isReflectionsRecordedEntry(entry) && isCoveredAtOrBefore(entry, indexes, reflectionsBoundary)) {
+		if (isReflectionsRecordedEntry(entry)) {
+			const ordinary = isCoveredAtOrBefore(entry, indexes, reflectionsBoundary);
+			const current = isCoveredAtOrBefore(entry, indexes, observationsBoundary);
 			for (const reflection of entry.data.reflections) {
+				if (!ordinary && !(current && replacements.has(reflection.id))) continue;
 				if (reflectionsById.has(reflection.id)) continue;
 				reflectionsById.add(reflection.id);
 				reflections.push(reflection);
