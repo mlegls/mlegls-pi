@@ -40,3 +40,7 @@ The runnable entry point above writes `.wm/artboard-first-use/canvas.html`. Unse
 - Fixture server stopped after use. No resident services or browser pages left open.
 
 These CLI/DOM observations do not reproduce the historical shared-host load spike or establish a visual-layout claim; the independent driver can use these fixtures or an available real Storybook. No screenshots were taken.
+
+## Review (2026-11-02)
+
+Read the canvas.ts diff (5d70b196) against the ticket shape: pool size from ARTBOARD_CONCURRENCY (validated, default 6, capped at frame count), story frames wait for frame.selector, capture rethrows as `<name> (<story or file>): <message>`. Matches the driver log; no behavior repaired. Added the env var and named errors to SKILL.md (11afc861). No tracker frictions were linked by the workers. The `at` placement changes in the same diff come from a sibling merge (fb81fc95), not this ticket.
