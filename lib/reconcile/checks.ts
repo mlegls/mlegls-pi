@@ -52,11 +52,15 @@ export function mainRed(cwd: string): string | undefined {
 /** Whether red main holds a landing changing `changed` (repository-relative). Docs-only landings pass: they
  * change no code, and verify-main inherits main's result for them. So does a landing that touches a failing
  * case's file (red lists cases as `[project] › <path>:<line> › title`, path relative to the test runner's
- * directory): it is probably the repair, and holding it would wait on itself. */
+ * directory), or a lint/typecheck error's file (`<path>:<line>:<col>: error` or tsc's
+ * `<path>(<line>,<col>): error`): it is probably the repair, and holding it would wait on itself. */
 export function heldByRed(red: string, changed: string[]): boolean {
   const code = changed.filter(f => !f.startsWith("docs/"));
   if (!code.length) return false;
-  const failing = [...red.matchAll(/\] › ([\w./-]+):\d+/g)].map(m => m[1]);
+  const failing = [
+    ...red.matchAll(/\] › ([\w./-]+):\d+/g),
+    ...red.matchAll(/([\w./-]+)(?::\d+:\d+|\(\d+,\d+\)): error\b/g),
+  ].map(m => m[1]);
   return !code.some(f => failing.some(p => f === p || f.endsWith("/" + p)));
 }
 /** Long command output shortened from the middle: a failing test, its exit and the summary are at the end. 2026-10-29
