@@ -262,6 +262,14 @@ const hoisted = new Set<string>();
 const groups = new Map<string, string>();
 const figures: string[] = [];
 const alone: [string, string][] = [];
+// Standalone frames have no canvas navigation, but still need their captured scroll state.
+const standaloneRuntime = `document.fonts.ready.then(() => {
+  for (const element of document.querySelectorAll("[data-scroll]")) {
+    const [top, left] = element.dataset.scroll.split(",").map(Number);
+    element.scrollTop = top;
+    element.scrollLeft = left;
+  }
+});`;
 const heads: string[] = [];
 const outline: string[] = [];
 let pageTop = 0;
@@ -309,8 +317,9 @@ for (const page of layout.pages) {
       "frame-" + key + ".html",
       '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' + escapeText(frame.name) + "</title>" +
         '<link rel="stylesheet" href="canvas.css"><style>body{margin:0;background:#e8e8e8}</style></head><body>' +
-        '<div class="canvas-surface" data-css="' + group + '" style="position:relative;overflow:hidden;margin:0 auto;width:' + width + "px;height:" + height + "px" +
-        (got.background ? ";background:" + got.background : ";background:#fff") + '">' + inner + "</div></body></html>",
+        '<div class="canvas-surface" data-css="' + group + '" style="position:relative;overflow:hidden;contain:paint;margin:0 auto;width:' + width + "px;height:" + height + "px" +
+        (got.background ? ";background:" + got.background : ";background:#fff") + '">' + inner + "</div>" +
+        "<script>" + standaloneRuntime + "</script></body></html>",
     ]);
     items.push('<li><button type="button" data-go="' + key + '">' + escapeText(frame.name) + "</button></li>");
   }
