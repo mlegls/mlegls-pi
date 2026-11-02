@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "ticket"
 assignee: "agent"
 priority: 2
 author: "session:thr_ae8q9yrxnv"
@@ -27,7 +27,11 @@ Investigated for the maintainer's "this seems like a defect of OM" (efficiency a
 
 **So the defect is contradiction, not loss.** The observer writes its own judgments as facts, the reflector promotes them to rules, and no stage resolves a conflict in favour of the latest user statement. A large-window session never condenses at all, so every call carries about 50k tokens of partly contradictory memory. The agent sees the user's permission once and the opposite rule twenty times.
 
-## Proposed fix (not yet agreed)
+## Ticket
+
+decisions:
+- 2026-11-02: maintainer approved this fix and asked for it to be started (@thread:thr_ae8q9yrxnv). The same day the OM worker model moved from openai/gpt-6-luna to openai/gpt-6.1-terra (system-config settings.json); run the acceptance replay on that model.
+
 - **Observer** (`agents/observer/prompts.ts`): record what the user said, permissions and framing included, close to verbatim and attributed. Don't judge the assistant's actions against a rule unless a user statement sets that rule, and cite that statement when it does. The assistant's own framing isn't the user's.
 - **Reflector** (`agents/reflector`): a new constraint, permission or role reflection supersedes earlier ones that conflict with it, and the latest user statement wins. The reflector can drop by id what it supersedes, as the condenser does, and the supersession is recorded so it stays recallable.
 - **Pool limit:** cap the reflection pool's trigger at an absolute ceiling (about 20k tokens) as well as the window-derived share, so large-window sessions condense too. The condenser also merges near-duplicates whenever it runs.
