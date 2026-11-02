@@ -207,7 +207,10 @@ document.querySelector("[data-reset]").addEventListener("click", () => {
 });
 document.querySelector("[data-save]").addEventListener("click", (event) => {
   const layout = {};
-  for (const frame of frames) layout[frame.id] = [Number(frame.dataset.x), Number(frame.dataset.y)];
+  // `at` is relative to the frame's page, whose top the build records as data-top.
+  for (const frame of frames) {
+    layout[frame.id] = [Number(frame.dataset.x), Number(frame.dataset.y) - Number(frame.dataset.top || 0)];
+  }
   if (window.lavish?.queuePrompt) {
     window.lavish.queuePrompt("Save this arrangement into the canvas's layout JSON (each frame's at).", {
       tag: "arrangement", text: "Save the frame arrangement", element: event.currentTarget, data: { layout },

@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -500,6 +500,28 @@ test("check names the child that lowers a spec, and a side friction log", () => 
   expect(out).toContain("docs/frictions.md: frictions in a vault project are stage: idea issues");
   p.done();
 }, 30_000);
+
+test("create rejects empty provenance identities before writing an issue", () => {
+  const p = project({}, true);
+  try {
+    for (const [author, session] of [
+      ["session:", "valid-session"],
+      ["session:   ", "valid-session"],
+      ["user:", "valid-session"],
+      ["user:   ", "valid-session"],
+      [undefined, ""],
+      [undefined, "   "],
+    ]) {
+      const created = Bun.spawnSync([process.execPath, cli, "create", "invalid", "--fields", JSON.stringify({ stage: "idea", author }), "--body-file", "-"], {
+        cwd: p.root, env: { ...process.env, PI_SESSION_ID: session }, stdin: Buffer.from("An issue.\n"),
+      });
+      expect(created.exitCode, JSON.stringify({ author, session })).not.toBe(0);
+      expect(created.stderr.toString()).toContain(author === undefined && session === "" ? "create requires author or PI_SESSION_ID provenance" : "author must be a nonempty provenance string");
+      expect(created.stdout.toString()).toBe("");
+      expect(readdirSync(join(p.root, "docs/issues"))).toEqual([]);
+    }
+  } finally { p.done(); }
+});
 
 test("a new uncommitted issue needs author provenance; committed history is left alone", () => {
   const p = project({ "issues/old.md": frontmatter("stage: idea") }, true);

@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "done"
 assignee: "agent"
 author: "session:thr_ic9szhbyh9"
 priority: 2
@@ -13,3 +13,7 @@ Related owner/history: [[projects/mlegls-pi/issues/tracker-publication-can-fail-
 Workaround: retain the worker's committed evidence packet at `docs/attachments/replay-recordings-by-default-in-live-story-scripts/review-quiz.md`, preserve the validated canonical tracker write and report that publication is pending parent integration. Retry only after inspecting whether the concurrent merge already included it; do not blindly append or commit unrelated canonical paths.
 
 Open question: how should global tracker persistence publish or safely defer an isolated issue mutation while its canonical checkout has an in-progress merge? A transactional merge-aware publication mechanism is not implemented here. No active Concept execution subtree contains this tooling idea.
+
+## Result
+
+Duplicate: merged into tracker-publication-fails-during-canonical-merge, which now carries this observation.

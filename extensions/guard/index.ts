@@ -13,8 +13,10 @@ export function hookBypass(command: string): string | undefined {
 	for (const segment of command.split(/&&|\|\||[;|\n]/)) {
 		if (/(?:^|\s)-c\s*core\.hookspath=/i.test(segment) || /\bconfig\b.*\bcore\.hookspath\s+(?!-)\S/i.test(segment) && !/--(?:get|unset)/.test(segment)) return "core.hooksPath";
 		if (/\bgit\b.*\s--no-verify\b/.test(segment)) return "--no-verify";
-		// commit's -n is --no-verify, alone or among short flags (-an); -m's argument is not a flag.
-		if (/\bgit\b.*\bcommit\b/.test(segment) && /\s-(?!-)[a-zA-Z]*n[a-zA-Z]*(?=\s|$)/.test(segment.replace(/(-[a-zA-Z]*[mF])\s+("[^"]*"|'[^']*'|\S+)/g, "$1"))) return "commit -n";
+		// commit's -n is --no-verify, alone or among short flags (-an); -m/-F arguments are not flags.
+		// Only inspect commit's suffix: an outer command (e.g. tmux -n) has its own flags.
+		const commitArgs = segment.match(/\bgit\b.*?\bcommit\b(.*)/)?.[1];
+		if (commitArgs && /\s-(?!-)[a-zA-Z]*n[a-zA-Z]*(?=\s|$)/.test(commitArgs.replace(/(-[a-zA-Z]*[mF])\s+("[^"]*"|'[^']*'|\S+)/g, "$1"))) return "commit -n";
 		if (/\bHUSKY=0\b|\bHUSKY_SKIP_HOOKS=(?:1|true)\b/.test(segment)) return "HUSKY";
 	}
 }

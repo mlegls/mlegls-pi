@@ -9,7 +9,8 @@
  * a headless browser and copied in as static DOM under its own stylesheets, scoped to its
  * frame, so Lavish annotates real elements. A frame is a hand-written HTML file or a
  * Storybook story. Run from a directory whose node_modules has @playwright/test
- * (or set ARTBOARD_PLAYWRIGHT to its path).
+ * (or set ARTBOARD_PLAYWRIGHT to its path). ARTBOARD_CONCURRENCY sets the number
+ * of simultaneous captures (positive integer, default 6).
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -48,6 +49,10 @@ const outFlag = args.indexOf("--out");
 const outArg = outFlag >= 0 ? args.splice(outFlag, 2)[1] : undefined;
 const layoutPath = resolve(args[0] ?? "layout.json");
 const layout: Layout = JSON.parse(readFileSync(layoutPath, "utf8"));
+const concurrency = Number(process.env.ARTBOARD_CONCURRENCY ?? 6);
+if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+  throw new Error("ARTBOARD_CONCURRENCY must be a positive integer");
+}
 const layoutDir = dirname(layoutPath);
 const outDir = resolve(outArg ?? layoutDir);
 const assetDir = resolve(outDir, "assets");
@@ -143,6 +148,15 @@ function requirePlaywright() {
 }
 
 async function capture(browser: import("@playwright/test").Browser, frame: Frame): Promise<Taken> {
+  try {
+    return await captureFrame(browser, frame);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(frame.name + " (" + (frame.story ?? frame.file ?? "no story or file") + "): " + message, { cause });
+  }
+}
+
+async function captureFrame(browser: import("@playwright/test").Browser, frame: Frame): Promise<Taken> {
   const viewport = frame.viewport ?? [1440, 900];
   const page = await browser.newPage({ viewport: { width: viewport[0], height: viewport[1] } });
   try {
@@ -153,6 +167,7 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
       if (globals.length) query.set("globals", globals.join(";"));
       await page.goto(origin + "/iframe.html?" + query.toString());
       await page.waitForSelector("#storybook-root > *", { timeout: 30_000 });
+      if (frame.selector) await page.waitForSelector(frame.selector, { timeout: 30_000 });
     } else if (frame.file) {
       await page.goto(pathToFileURL(resolve(layoutDir, frame.file)).href);
     } else throw new Error(frame.name + " has neither file nor story");
@@ -247,7 +262,7 @@ try {
   // A few pages at a time: a dev Storybook serving dozens at once times out.
   const queue = [...frames];
   await Promise.all(
-    Array.from({ length: 6 }, async () => {
+    Array.from({ length: Math.min(concurrency, frames.length) }, async () => {
       for (let next = queue.shift(); next; next = queue.shift()) {
         taken.set(next.frame, await capture(browser, next.frame));
         console.error("captured " + next.frame.name);
@@ -292,11 +307,12 @@ for (const page of layout.pages) {
       extra.style = wrapper.body && whole ? "width:100%;height:100%;margin:0;overflow:hidden" : "display:contents";
       inner = "<" + wrapper.tag + attrs(wrapper.attrs, extra) + ">" + inner + "</" + wrapper.tag + ">";
     }
-    const [x, y] = frame.at ?? [left, pageTop];
+    // `at` places a frame within its own page: x from the canvas's left edge, y from the page's top.
+    const [x, y] = frame.at ? [frame.at[0], pageTop + frame.at[1]] : [left, pageTop];
     left += width + 96;
-    tallest = Math.max(tallest, height);
+    tallest = Math.max(tallest, y - pageTop + height);
     figures.push(
-      '<figure class="canvas-frame" id="' + key + '" data-page="' + pageKey + '" data-x="' + x + '" data-y="' + y +
+      '<figure class="canvas-frame" id="' + key + '" data-page="' + pageKey + '" data-top="' + pageTop + '" data-x="' + x + '" data-y="' + y +
         '" style="left:' + x + "px;top:" + y + 'px">' +
         '<figcaption class="canvas-caption" data-drag="screen" data-lavish-action title="Drag to move; double-click to enter">' +
         escapeText(frame.name) + " <span>" + width + "×" + height + "</span>" +

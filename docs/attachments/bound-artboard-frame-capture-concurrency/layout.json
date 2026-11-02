@@ -1,0 +1,58 @@
+{
+  "storybook": "http://127.0.0.1:${ARTBOARD_FIXTURE_PORT}",
+  "pages": [
+    {
+      "title": "Delayed panels",
+      "frames": [
+        {
+          "name": "Delayed panel 1",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        },
+        {
+          "name": "Delayed panel 2",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        },
+        {
+          "name": "Delayed panel 3",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        },
+        {
+          "name": "Delayed panel 4",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        },
+        {
+          "name": "Delayed panel 5",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        },
+        {
+          "name": "Delayed panel 6",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        },
+        {
+          "name": "Delayed panel 7",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        },
+        {
+          "name": "Delayed panel 8",
+          "story": "delayed-panel",
+          "selector": ".panel",
+          "wait": 0
+        }
+      ]
+    }
+  ]
+}

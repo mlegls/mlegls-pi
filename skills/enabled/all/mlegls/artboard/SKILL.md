@@ -19,8 +19,8 @@ A frame is either:
 
 1. Use the agreed direction, fidelity, content, and app or brand sources. Put the artboard in the project's design directory if it keeps one (concept: `docs/design/screens.md`), else under `.lavish/<name>/`.
 2. Write the frames and `layout.json` beside them.
-3. Build: `bun ~/.pi/agent/skills/artboard/scripts/canvas.ts <dir>/layout.json [--out dir]`, run from a directory whose `node_modules` has `@playwright/test` (or set `ARTBOARD_PLAYWRIGHT` to a `package.json` path there); Storybook must be running for story frames. It writes `canvas.html`, `canvas.css` and `assets/`, in a few seconds.
-4. Open `lavish-axi <dir>/canvas.html`, then `lavish-axi poll <dir>/canvas.html` for feedback. Answer an annotation by changing the frame or component and rebuilding; Lavish reloads the canvas. "Save arrangement" arrives as feedback with each frame's position: write them into `layout.json` as `at`.
+3. Build: `bun ~/.pi/agent/skills/artboard/scripts/canvas.ts <dir>/layout.json [--out dir]`, run from a directory whose `node_modules` has `@playwright/test` (or set `ARTBOARD_PLAYWRIGHT` to a `package.json` path there); Storybook must be running for story frames; captures run 6 at a time, set `ARTBOARD_CONCURRENCY` (positive integer) to change that, e.g. 3 on a loaded host. A failed capture names its frame. It writes `canvas.html`, `canvas.css` and `assets/`, in a few seconds.
+4. Open `lavish-axi <dir>/canvas.html`, then publish its server with `host-for-human <lavish-port> --name <name>` (Lavish defaults to 4387); share the Lavish session path on that HTTPS origin. Anything the maintainer opens in a browser is served with `host-for-human` over Tailscale HTTPS, not `bb connect expose`. If the maintainer says the link is down, re-run it without asking. Run `lavish-axi poll <dir>/canvas.html` for feedback. Answer an annotation by changing the frame or component and rebuilding; Lavish reloads the canvas. "Save arrangement" arrives as feedback with each frame's position: write them into `layout.json` as `at`.
 
 ## Layout
 
@@ -39,7 +39,7 @@ A frame is either:
 }
 ```
 
-A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`. A frame may name its own `storybook` (to set two builds side by side) and a `wait` in ms before copying (default 1500 for a story). `storybook` may read a port from the environment or the nearest `.env`, as `http://127.0.0.1:${STORYBOOK_PORT}`.
+A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`: a position within the frame's own page, `[x, y]` from the canvas's left edge and the page's top; a page is as tall as its lowest frame. A frame may name its own `storybook` (to set two builds side by side) and a `wait` in ms before copying (default 1500 for a story). `storybook` may read a port from the environment or the nearest `.env`, as `http://127.0.0.1:${STORYBOOK_PORT}`.
 
 Each frame is copied as static DOM: scripts don't run, while scroll offsets, field values, viewport units and media queries are frozen as they were drawn, and each frame's CSS is scoped to it (`:root`/`html` become the frame, `body` its body wrapper). So a frame shows a state; show each state worth seeing as its own frame.
 

@@ -1,0 +1,15 @@
+{
+  "storybook": "http://127.0.0.1:${ARTBOARD_FIXTURE_PORT}",
+  "pages": [
+    {
+      "title": "Failure",
+      "frames": [
+        {
+          "name": "Missing story panel",
+          "story": "missing-panel",
+          "selector": ".absent"
+        }
+      ]
+    }
+  ]
+}

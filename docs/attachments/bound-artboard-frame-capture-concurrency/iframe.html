@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Delayed capture fixture</title>
+<style>.panel { width: 320px; height: 180px; background: #e6f2ff; color: #123; padding: 16px; }</style>
+<div id="storybook-root"><div>Loading panel…</div></div>
+<script>
+// A Storybook-shaped fixture, not an actual Storybook deployment.
+if (new URLSearchParams(location.search).get('id') !== 'missing-panel') {
+  setTimeout(() => {
+    document.querySelector('#storybook-root').innerHTML = '<section class="panel">Panel ready after 2200ms</section>';
+  }, 2200);
+}
+</script></html>
