@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""Publish a review page on Tailscale HTTPS; directory servers live in user systemd."""
+import argparse
+import fcntl
+import hashlib
+from html.parser import HTMLParser
+import json
+import os
+from pathlib import Path
+import shutil
+import socket
+import subprocess
+import sys
+import time
+from urllib.parse import urljoin
+from urllib.request import ProxyHandler, build_opener
+
+STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "host-for-human"
+PORTS = range(10000, 10004)
+
+
+def run(*args):
+    result = subprocess.run(args, text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError(f"{' '.join(args)}: {result.stderr.strip() or result.stdout.strip()}")
+    return result.stdout
+
+
+def config():
+    return json.loads(run("tailscale", "serve", "status", "--json"))
+
+
+def proxy_at(cfg, https_port):
+    for host, web in cfg.get("Web", {}).items():
+        if host.endswith(f":{https_port}"):
+            return web.get("Handlers", {}).get("/", {}).get("Proxy")
+    return None
+
+
+class Assets(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.urls = []
+        self.base = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "base" and attrs.get("href"):
+            self.base = attrs["href"]
+        if tag == "script" and attrs.get("src"):
+            self.urls.append(attrs["src"])
+        if tag == "link" and "stylesheet" in attrs.get("rel", "").split() and attrs.get("href"):
+            self.urls.append(attrs["href"])
+
+
+# Tailnet requests must not go through an ambient HTTP proxy.
+HTTP = build_opener(ProxyHandler({}))
+
+
+def fetch(url):
+    with HTTP.open(url, timeout=10) as response:
+        if response.status != 200:
+            raise RuntimeError(f"{url}: expected HTTP 200, got {response.status}")
+        return response.read().decode("utf-8", errors="replace")
+
+
+def check(url):
+    assets = Assets()
+    assets.feed(fetch(url))
+    if assets.urls:
+        asset = urljoin(urljoin(url, assets.base or ""), assets.urls[0])
+        fetch(asset)
+        print(f"checked page and asset: {asset}", file=sys.stderr)
+    else:
+        print("checked page (no external stylesheet or script referenced)", file=sys.stderr)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("target", help="directory, or an already-running localhost port")
+    parser.add_argument("--name", help="stable review identity (default: absolute directory or port)")
+    parser.add_argument("--stop", action="store_true", help="stop this review's owned server and HTTPS mapping")
+    args = parser.parse_args()
+    directory = None if args.target.isdecimal() else str(Path(args.target).resolve())
+    identity = args.name or directory or f"port-{args.target}"
+    key = hashlib.sha256(identity.encode()).hexdigest()[:20]
+    unit = f"host-for-human-{key}"
+    STATE.mkdir(parents=True, exist_ok=True)
+    state_file = STATE / f"{key}.json"
+    with (STATE / "publish.lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        saved = json.loads(state_file.read_text()) if state_file.exists() else None
+        cfg = config()
+        if args.stop:
+            if not saved:
+                raise RuntimeError(f"no review named {identity!r}")
+            current = proxy_at(cfg, saved["https_port"])
+            if current and current != saved["proxy"]:
+                raise RuntimeError("HTTPS mapping changed owner; refusing to remove it")
+            if current:
+                run("tailscale", "serve", f"--https={saved['https_port']}", "off")
+            if saved["directory"]:
+                subprocess.run(["systemctl", "--user", "stop", saved["unit"]], capture_output=True)
+            state_file.unlink()
+            return
+
+        if directory and not Path(directory).is_dir():
+            raise RuntimeError(f"not a directory: {directory}")
+        if not directory and not 1 <= int(args.target) <= 65535:
+            raise RuntimeError("port must be between 1 and 65535")
+        if saved and (saved["directory"] != directory or
+                      (not directory and saved["port"] != int(args.target))):
+            raise RuntimeError("name already belongs to a different target; use its original target or --stop first")
+
+        if saved:
+            https_port = saved["https_port"]
+            current = proxy_at(cfg, https_port)
+            if current and current != saved["proxy"]:
+                raise RuntimeError("HTTPS mapping changed owner; refusing to overwrite it")
+        else:
+            occupied = {int(port) for port in cfg.get("TCP", {})}
+            occupied.update(int(host.rsplit(":", 1)[1]) for host in cfg.get("Web", {}))
+            occupied.update(json.loads(p.read_text())["https_port"] for p in STATE.glob("*.json"))
+            https_port = next((p for p in PORTS if p not in occupied), None)
+            if https_port is None:
+                raise RuntimeError("no free Tailscale HTTPS port in 10000–10003; existing mappings were left untouched")
+
+        if directory:
+            run("systemctl", "--user", "show-environment")
+            if saved:
+                port = saved["port"]
+            else:
+                with socket.socket() as sock:
+                    sock.bind(("127.0.0.1", 0))
+                    port = sock.getsockname()[1]
+        else:
+            port = int(args.target)
+        proxy = f"http://127.0.0.1:{port}"
+        host = json.loads(run("tailscale", "status", "--json"))["Self"]["DNSName"].rstrip(".")
+        page = "/canvas.html" if directory and not (Path(directory) / "index.html").exists() and (Path(directory) / "canvas.html").exists() else "/"
+        record = {
+            "name": identity, "purpose": "maintainer review page",
+            "owner_thread": (saved or {}).get("owner_thread") or os.environ.get("BB_THREAD_ID"),
+            "last_publisher_thread": os.environ.get("BB_THREAD_ID"),
+            "directory": directory, "port": port, "https_port": https_port,
+            "proxy": proxy, "unit": unit if directory else None,
+            "url": f"https://{host}:{https_port}{page}",
+        }
+        # Reserve before launching so a failed publish can be repaired with the same name.
+        temp = state_file.with_suffix(".tmp")
+        temp.write_text(json.dumps(record, indent=2) + "\n")
+        temp.replace(state_file)
+        if directory and subprocess.run(
+            ["systemctl", "--user", "is-active", "--quiet", unit], capture_output=True
+        ).returncode:
+            # Collect a stopped/failed (or auto-restarting) unit before recreating it.
+            subprocess.run(["systemctl", "--user", "stop", unit], capture_output=True)
+            subprocess.run(["systemctl", "--user", "reset-failed", unit], capture_output=True)
+            run("systemd-run", "--user", "--collect", f"--unit={unit}",
+                f"--description=Review page {identity} (owner {record['owner_thread'] or 'manual'})",
+                "--property=Restart=on-failure", "--property=RestartSec=2",
+                "--", shutil.which("python3"), "-m", "http.server", str(port),
+                "--bind", "127.0.0.1", "--directory", directory)
+        # The localhost probe is a readiness check, not the published-page check.
+        for attempt in range(20):
+            try:
+                fetch(proxy + page)
+                break
+            except Exception:
+                if attempt == 19:
+                    raise RuntimeError(f"server not ready at {proxy}; restart its owner if using port mode")
+                time.sleep(0.25)
+        run("tailscale", "serve", "--bg", f"--https={https_port}", proxy)
+        check(record["url"])
+        print(record["url"])
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, OSError, ValueError, KeyError) as error:
+        print(f"host-for-human: {error}", file=sys.stderr)
+        sys.exit(1)
