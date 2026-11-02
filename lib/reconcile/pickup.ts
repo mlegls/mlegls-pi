@@ -6,7 +6,7 @@
 // Configure through the supervision extension's `pickup` tool, which records the owning bb thread.
 import { Database } from "bun:sqlite";
 import { execFileSync } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, watch as watchDir, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, watch as watchDir, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { getTracker, type Issue } from "../tracker";
@@ -16,6 +16,8 @@ import { git } from "../thread/git";
 import { pidAlive } from "../wm";
 import type { LandingMode } from "./pr-types";
 import { campaigns, start } from "./main";
+import { CODE_CHECK_MS, CodeMonitor, codeStatus, loadedCode, type CodeVersion } from "./code-version";
+import { spawnDetached, waitForPredecessor } from "./process";
 
 export interface Pickup {
 	enabled: boolean;
@@ -33,6 +35,7 @@ export interface Pickup {
 	/** Quiet period (ms) a subtree's issue files must hold before it is taken. */
 	settle: number;
 	watcher?: number;
+	codeVersion?: CodeVersion;
 	started: Record<string, { at: string; pid: number }>;
 	lastScan?: { at: string; started: string[]; skipped: Record<string, string> };
 	log: string[];
@@ -122,24 +125,26 @@ export function stopPickup(cwd: string) {
 
 /** Start the watcher unless one is live. Idempotent; the owner's session start calls it after a host restart. */
 export function ensureWatcher(cwd: string): number | undefined {
-	const s = loadPickup(cwd);
-	if (!s?.enabled) return;
-	const live = watcherAlive(s);
-	if (live) return live;
-	const log = join(pickupDir(cwd), "watcher.log");
-	const fd = openSync(log, "a");
-	// Its own session, as main.ts start's reconcilers: bb stops a provider process by its process group.
-	const child = Bun.spawn(["bun", import.meta.path, "watch", "--cwd", s.cwd], { cwd: s.cwd, stdio: ["ignore", fd, fd], detached: true, env: { ...process.env, PI_SESSION_ID: "" } });
-	child.unref();
-	closeSync(fd);
-	update(cwd, p => ({ ...p!, watcher: child.pid }));
-	return child.pid;
+	return locked(cwd, () => {
+		const s = loadPickup(cwd);
+		if (!s?.enabled) return;
+		const live = watcherAlive(s);
+		if (live) return live;
+		s.watcher = spawnWatcher(s);
+		save(cwd, s);
+		return s.watcher;
+	});
+}
+
+function spawnWatcher(s: Pickup, predecessor?: number): number {
+	return spawnDetached(["bun", import.meta.path, "watch", "--cwd", s.cwd,
+		...(predecessor ? ["--predecessor", String(predecessor)] : [])], s.cwd, join(pickupDir(s.cwd), "watcher.log"));
 }
 
 export function status(cwd: string) {
 	const s = loadPickup(cwd);
 	if (!s) return { configured: false };
-	return { configured: true, enabled: s.enabled, paused: s.paused, owner: s.owner, scope: s.scope, budget: s.budget, land: s.land ?? null,
+	return { configured: true, ...codeStatus(s.codeVersion), enabled: s.enabled, paused: s.paused, owner: s.owner, scope: s.scope, budget: s.budget, land: s.land ?? null,
 		settleSeconds: s.settle / 1000, watcher: watcherAlive(s) ?? null, started: s.started, lastScan: s.lastScan ?? null, log: s.log.slice(-15) };
 }
 
@@ -220,8 +225,9 @@ async function watch(cwd: string) {
 		if (!p?.enabled) throw new Error("pickup is not enabled");
 		const live = watcherAlive(p);
 		if (live && live !== process.pid) throw new Error("watcher already running as pid " + live);
-		return { ...p, watcher: process.pid, log: [...p.log, stamp() + " watcher " + process.pid + " started"] };
+		return { ...p, watcher: process.pid, codeVersion: loadedCode, log: [...p.log, stamp() + " watcher " + process.pid + " started"] };
 	});
+	const code = new CodeMonitor();
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const kick = (ms: number) => { clearTimeout(timer); timer = setTimeout(tick, ms); };
 	const tick = () => {
@@ -233,19 +239,33 @@ async function watch(cwd: string) {
 			if (r.retryIn !== undefined) kick(r.retryIn + 1000);
 		} catch (e) { console.log(stamp() + " scan failed: " + String((e as Error)?.stack ?? e)); }
 	};
+	// Its own interval, not part of tick: it must also run while paused, and must not rescan the tracker each minute.
+	const refresh = () => {
+		try {
+			if (!code.changed()) return;
+			update(cwd, current => {
+				if (!current?.enabled || current.watcher !== process.pid) return current!;
+				console.log(stamp() + " code changed on disk; restarting");
+				return { ...current, watcher: spawnWatcher(current, process.pid),
+					log: [...current.log, stamp() + " code changed on disk; restarting"] };
+			});
+			process.exit(0);
+		} catch (e) { console.log(stamp() + " refresh failed: " + String((e as Error)?.stack ?? e)); }
+	};
 	const dir = findIssuesDir(me.cwd, false);
 	if (dir) watchDir(dir, { recursive: true }, () => kick(1000));
 	setInterval(() => kick(0), RECOVERY_MS);
+	setInterval(refresh, CODE_CHECK_MS / 4);
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
 	tick();
 	await new Promise(() => {});
 }
 
 if (import.meta.main) {
-	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: { cwd: { type: "string", default: process.cwd() } } });
+	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: { cwd: { type: "string", default: process.cwd() }, predecessor: { type: "string" } } });
 	const cwd = resolve(values.cwd!);
 	const [cmd] = positionals;
-	if (cmd === "watch") await watch(cwd);
+	if (cmd === "watch") { await waitForPredecessor(Number(values.predecessor)); await watch(cwd); }
 	else if (cmd === "status") console.log(JSON.stringify(status(cwd), null, 1));
 	else if (cmd === "scan") console.log(JSON.stringify(scan(cwd), null, 1));
 	else if (cmd === "stop") console.log(JSON.stringify(stopPickup(cwd), null, 1));

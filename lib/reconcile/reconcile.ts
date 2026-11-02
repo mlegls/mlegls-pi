@@ -43,6 +43,8 @@ import { prepareStaging, resolveLanding } from "./pr-config.ts";
 import { createPullRequestHost } from "./pr-host.ts";
 import { advancePullRequest } from "./pull-request.ts";
 import { writeStatus } from "./status.ts";
+import { CodeMonitor, loadedCode, type CodeVersion } from "./code-version";
+import { spawnRun } from "./process";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -154,6 +156,7 @@ export interface State extends GlobalRunState {
 	/** Native tracker identity survives convention/remote edits and restart. */
 	githubRepository?: string;
 	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
+	codeVersion?: CodeVersion;
 	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
 	chains: Record<string, Chain>;
 	/** Owner restrictions survive chain replacement and reconciler restarts. */
@@ -342,7 +345,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	writeFileSync(join(lock, "pid"), String(process.pid));
 	process.on("exit", () => { try { if (readFileSync(join(lock, "pid"), "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true }); } catch {} });
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
-	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, finished: undefined });
+	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, codeVersion: loadedCode, finished: undefined });
 	const save = () => saveState(s);
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	// To a worker as a queued bb message: it follows the turn in progress, or starts one on an idle thread.
@@ -367,6 +370,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
 	// BB starts pi from its daemon environment, not ours. Export the same committed
 	// CLI into each worker's launch.env so native writes cannot fall back to an installed copy.
+	const inheritedTrackerCli = process.env.TRACKER_CLI;
 	process.env.TRACKER_CLI ??= pinTracker();
 	const tracker = await untilReset(() => reconcilerTracker(controlCwd, s.root), { note, signal: o.signal });
 	if (tracker.githubIssue) {
@@ -1498,9 +1502,30 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	else note("started quietly (budget " + s.budget + ")");
 	// A tick that throws is told to the owner once per distinct error and retried, never a silent exit.
 	let tickError = "";
+	const code = new CodeMonitor();
 	for (;;) {
 		if (o.signal?.aborted) return;
-		try { if (await untilReset(tick, { note, signal: o.signal })) return await told; tickError = ""; }
+		try {
+			if (await untilReset(tick, { note, signal: o.signal })) return await told;
+			tickError = "";
+			// Integrate/rebase are awaited by tick, so none runs here. A landed node whose cleanup is still
+			// being retried waits. Other receipts stay in the ledger: a failed landing's (its exception may be what the new
+			// code fixes), a finished one's, or a cleanup already raised to the owner must not prevent refresh; a merge that
+			// reached its target is recovered on start.
+			if (code.changed() && !Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone && s.exceptions[op.slug]?.reason !== CLEANUP_FAILED)) {
+				await told;
+				note("code changed on disk; restarting");
+				save();
+				updateState(controlCwd, s.root, prior => {
+					if (prior!.stopping || prior!.pid !== process.pid) return prior!;
+					const child = spawnRun({ cwd: controlCwd, root: s.root, owner: s.owner, ownerSession: s.ownerSession,
+						budget: s.budget, land: s.land, quiet: true }, stateDir(controlCwd), process.pid,
+						{ ...process.env, TRACKER_CLI: inheritedTrackerCli });
+					return { ...prior!, pid: child.pid };
+				});
+				return;
+			}
+		}
 		catch (e) {
 			const msg = String((e as Error)?.stack ?? e);
 			if (msg.split("\n")[0] !== tickError) { tickError = msg.split("\n")[0]; note("tick failed: " + msg.slice(0, 2000)); tellOwner("tick failed, retrying every " + TICK_MS / 1000 + "s:\n\n" + msg.slice(0, 3000)); }
