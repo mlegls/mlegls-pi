@@ -7,4 +7,6 @@ The installed tracker skill's CLI rejected a GitHub-tracked project's linked wor
 
 Origin: @thread:thr_djgyzyy3yz, filing a test-environment friction discovered during library implementation. The project's `docs/agents/issue-tracker.md` explicitly names GitHub; the canonical checkout has no `docs/issues/`. Native `gh issue list` and `gh issue create` work, and the project's own conventions permit that workaround.
 
+Reproduced during integration qualification in @thread:thr_n6fh693ypc: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts text gh-325` returned the same unsupported-tracker error. Reading the same issue through `gh issue view 325` succeeded; the installed CLI also read this owning vault successfully. This blocks the instructed global CLI read, not the project's native GitHub access.
+
 The capability owner is [[projects/mlegls-pi/issues/github-issues-as-a-tracker-backend]]. Determine whether the installed skill code is stale, the wrong CLI path is documented, or canonical selection differs from the supported backend; do not assume a missing implementation from this one invocation. Make the first-use instructions resolve to the working installed backend.
