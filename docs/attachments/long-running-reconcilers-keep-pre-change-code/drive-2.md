@@ -38,3 +38,13 @@ Read the diff with this log. Two repairs:
 Re-drove on this head with the committed setup: fixture `/tmp/code-refresh-a1Hia1`; added `lib/review-marker.ts`; the status showed `stale: true`, and after a minute both processes restarted (run log "code changed on disk; restarting" then "started quietly"; watcher likewise), same chain `solo`/`solo-implement-1`/`bbt-f21ac845`, `stale: false` with the new fingerprint. Stopped and removed through `setup.ts stop`.
 
 Not observed: the deferral itself. With integrate awaited in-tick, a landed-but-uncleaned receipt is cleaned on the same or next tick, so it is a window of seconds that this fixture can't hold open; the check is one predicate. Not done here: the `concept__retired` audit and removal, and bootstrapping the pre-change processes (the ticket sequences both after landing).
+
+## Review: landing deferral observed (2026-11-02)
+
+The first review pass left this story unobserved. Observed now, with state seeded by `seed-landing.ts` (committed beside the setup; reviewer-only state injection, since the public workflow can't hold a landing open): a fresh `setup.ts` fixture whose run is stopped, then given a landed node `ghost` whose receipt has `landedHead` and no `cleanupDone` and a collector path that is not a worktree, so `git worktree remove` fails each tick; restarted with `PI_RECONCILE_TICK_MS=60000` so the three-failure window spans the one-minute code check.
+
+1. Run logged "landing cleanup ghost deferred: … is not a working tree". Added `lib/defer-probe.ts` to the copied package.
+2. After tick 2 (~66 s): run status `stale: true`, same PID (1514252), no "restarting" in its log. The pickup watcher, with no landing, had already restarted (`stale: false`).
+3. Removed the blocking directory. At tick 3 cleanup finished (`cleanupDone` set), and in the same iteration the log read "code changed on disk; restarting" then "started quietly (budget 1)": new PID 1548155, `stale: false`, chain `solo` unchanged, the landing receipt kept with `cleanupDone`.
+
+Third repair from this: a cleanup already raised to the owner as an exception (`landing cleanup failed`) no longer defers the restart. That exception persists until the owner answers and the cleanup loop skips it, so deferring on it would have blocked refresh indefinitely. Stopped and removed the fixture through `setup.ts stop`.
