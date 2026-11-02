@@ -83,7 +83,9 @@ export async function runCondenser(args: RunCondenserArgs): Promise<CondenserRes
 				const sources = take(m.ids);
 				const content = truncateRecordContent(m.content.trim());
 				if (!sources || !content || /\r|\n/.test(content)) { bad++; continue; }
-				const id = hashId(content);
+				const id = [...byId.values()].find((r) => r.content === content && !consumed.has(r.id))?.id
+					?? [...added.values()].find((r) => r.content === content)?.id
+					?? hashId(JSON.stringify([content, sources.map((r) => r.id).sort()]));
 				const supportingObservationIds = [...new Set(sources.flatMap((s) => s.supportingObservationIds))];
 				for (const s of sources) {
 					consumed.add(s.id);

@@ -10,11 +10,11 @@ You receive:
 - Coverage tiers are review context: none means no current reflection supports the observation id, partial means exactly one current reflection supports it, and strong means two or more current reflections support it. Coverage is not a quota, target, priority score, or instruction to emit reflections.
 
 What to emit:
-- Emit only new durable reflections not already present in current reflections, or supersede conflicting reflections.
+- Emit only new durable reflections not already present in current reflections, or replace conflicting, duplicate or refined reflections.
 - A good reflection captures meaning that should survive after individual observations are dropped from active compacted memory.
 - High and critical observations deserve careful review, not automatic reflection. Many high observations are still active working evidence and should remain observations until completed, superseded, or generalized into a durable decision, invariant, or rationale.
 - Ignore low observations unless a repeated pattern across many low observations is itself significant.
-- Do not lightly reword existing reflections. Rewording creates a separate reflection, so only use different wording when the durable meaning is materially different, more specific, or corrects/refines an existing reflection.
+- Do not lightly reword existing reflections. When a more specific fact or completed outcome corrects/refines an existing reflection, replace it with supersedesReflectionIds rather than leaving both versions active.
 - Do not emit update-style records or provenance metadata. Reflections are plain durable facts, not patches.
 - It is fine to emit zero reflections when nothing new is stable enough; in that case do not call the tool and reply briefly.
 
@@ -41,7 +41,7 @@ Focus on:
 - Durable blockers, invariants, and open decisions that should survive compaction.
 
 Support ids and coverage stewardship:
-- Every reflection must include supportingObservationIds from the current observations list.
+- Every reflection must include supportingObservationIds from current observations, or inherited from the current reflections it explicitly supersedes. When merging duplicates whose observations have left active memory, preserve their supporting ids; those records remain recallable.
 - First decide whether the reflection content passes the durable-value bar. Then audit support ids for that already-worthy reflection.
 - supportingObservationIds are a coverage/provenance set and downstream dropper coverage evidence: include all current observation ids whose durable meaning is preserved by the reflection with equivalent fidelity and can later be treated as redundant active-memory detail.
 - supportingObservationIds are not a checklist to cover every observation. Do not add ids merely to improve coverage counts, maximize support ids, maximize strong coverage, or unlock the dropper.
@@ -53,6 +53,8 @@ Support ids and coverage stewardship:
 - Never invent observation ids. Proposals with missing, empty, or invalid supportingObservationIds are rejected.
 
 Ground a user constraint in an observation that explicitly reports the user setting it. An observer saying the assistant acted "improperly", "contrary to an established constraint" or "despite a known requirement" is not evidence that the user set that rule. Do not crystallize that judgment, even as one clause beside a valid permission. Retire such an inferred rule when the user's explicit framing or permission contradicts it; do not preserve it by inventing a qualification the user never gave (such as requiring a separate or isolated filming profile).
+
+On every run, even below the pool budget, consolidate duplicate and near-duplicate current reflections with supersedesReflectionIds: one reflection per durable fact, including one completed outcome instead of its earlier implementation status. Keep genuinely distinct facts separate.
 
 Reconcile constraints, permissions and roles on every run, even below the pool budget. The latest explicit user statement wins over earlier statements, assistant framing and observer judgments, regardless of which observation was recorded later. Do not promote an inferred rule or accusation into a user constraint. When recording a replacement, include every conflicting current reflection id in supersedesReflectionIds; the old records remain recallable but leave active memory. If the correct reflection already exists, submit its exact content with the superseded ids instead of creating a near-duplicate. Do not cite a contradictory observation as equivalent support. For example, the user's "this profile is just for filming; you don't have to think of it like mine" supersedes an inferred rule that the assistant must never accept proposals on that profile; a separate rule about real learner profiles need not apply to the filming profile.
 

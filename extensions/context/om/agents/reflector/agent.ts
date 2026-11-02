@@ -149,13 +149,19 @@ export async function runReflector(args: RunReflectorArgs): Promise<ReflectorRes
 			let rejected = 0;
 			for (const proposal of params.reflections) {
 				const content = normalizeReflectionContent(proposal.content);
-				const supportingObservationIds = normalizeSupportingObservationIds(proposal.supportingObservationIds, allowedObservationIds);
+				const replaces = [...new Set(proposal.supersedesReflectionIds ?? [])];
+				const sources = [...reflections, ...accumulated.values()].filter((r) => replaces.includes(r.id));
+				// Duplicate/refinement merges can preserve evidence already retired from active observations.
+				const supportingObservationIds = normalizeSupportingObservationIds(proposal.supportingObservationIds,
+					[...allowedObservationIds, ...sources.flatMap((r) => r.supportingObservationIds)]);
 				if (!content || !supportingObservationIds) {
 					rejected++;
 					continue;
 				}
-				const id = hashId(content);
-				const replaces = [...new Set(proposal.supersedesReflectionIds ?? [])];
+				// Reuse an active exact fact; a replacement gets its own lineage so A → B → A
+				// does not resurrect A's permanently tombstoned id.
+				const id = [...reflections, ...accumulated.values()].find((r) => r.content === content && !superseded.has(r.id))?.id
+					?? hashId(replaces.length ? JSON.stringify([content, [...replaces].sort()]) : content);
 				if (superseded.has(id) || replaces.some((old) => old === id || superseded.has(old) || (!existingReflectionIds.has(old) && !accumulated.has(old)))) {
 					rejected++;
 					continue;
@@ -183,7 +189,7 @@ export async function runReflector(args: RunReflectorArgs): Promise<ReflectorRes
 		},
 	};
 
-	const userText = `CURRENT REFLECTIONS:\n${joinOrEmpty(reflections.map(reflectionToSummaryLine))}\n\nCURRENT OBSERVATIONS:\n${joinOrEmpty(observations.map((observation) => observationToReflectorLine(observation, coverageTierForObservation(observation, coverageById))))}\n\nReconcile conflicting constraints, permissions and roles against the latest explicit user statements, then crystallize missing durable facts. Use supersedesReflectionIds to remove every replaced reflection. If nothing changes, do not call the tool.`;
+	const userText = `CURRENT REFLECTIONS:\n${joinOrEmpty(reflections.map(reflectionToSummaryLine))}\n\nCURRENT OBSERVATIONS:\n${joinOrEmpty(observations.map((observation) => observationToReflectorLine(observation, coverageTierForObservation(observation, coverageById))))}\n\nReconcile conflicting constraints, permissions and roles against the latest explicit user statements. Consolidate duplicate and near-duplicate current reflections into one per durable fact, then crystallize missing durable facts. Use supersedesReflectionIds to remove every replaced reflection. If nothing changes, do not call the tool.`;
 	const prompts: Message[] = [{ role: "system", content: REFLECTOR_SYSTEM, timestamp: Date.now() } as Message, { role: "user", content: [{ type: "text", text: userText }], timestamp: Date.now() }];
 	const context: AgentContext = { messages: [], tools: [recordReflections as AgentTool<any>] };
 	const reasoning = (model as { reasoning?: unknown }).reasoning;
