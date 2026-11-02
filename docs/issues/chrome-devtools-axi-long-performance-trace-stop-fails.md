@@ -1,0 +1,13 @@
+---
+stage: "idea"
+assignee: "agent"
+author: "session:thr_eu5iv5xmnd"
+---
+
+During the Common Concept client performance drive (@thread:thr_eu5iv5xmnd), Chrome MCP performance_stop_trace failed with `Protocol error (IO.read): Read failed` after an idle trace started successfully. No output file was saved. The seven-second hard-load trace had saved successfully (7.1 MB compressed). The failed idle trace ran approximately a minute while other code was inspected. Workaround: retain the short hard-load trace and use an in-page PerformanceObserver for bounded idle long-task measurements; a five-second idle sample completed with zero long tasks and 300 animation frames. Raw captures contain private learner data and remain outside git. Owning tool: chrome-devtools-axi / Chrome MCP performance trace transport. This interrupted longer idle profiling, not product operation.
+
+The incremental-state Cloud measurement encounter reproduced a transport failure on a bounded hard load: start_trace(reload:false, autoStop:false), one cache-bypassing Me reload, wait for two reading workers, then stop_trace(filePath) timed out after 60 seconds. The gzip file was saved and parses successfully (40,945,781 compressed bytes / 2,353,833 events), but the browser context and both owned pages disappeared; list_pages returned only about:blank. The first hard-load metric packet survived. Recovery: reopen/sign in and capture the paired samples without Chrome tracing, using explicit worker performance timestamps, main-thread send/delivery/two-frame envelopes and PerformanceObserver long tasks; server CPU profiling remains independent. Raw file remains private under the measurement packet. No inference about the crash cause (transport, analyzer or Chrome) is established.
+
+The remaining-section-stalls shaping encounter (@thread:thr_nwiwjwvxks) reproduced `Protocol error (IO.read): Read failed` after a roughly two-minute navigation trace; no file was saved. Two shorter transition traces (about 6 s and 14 s) then saved successfully. PerformanceObserver metrics survived the failure. Evidence and workaround: [[projects/concept/attachments/shape-remaining-section-stalls/index|focused packet]]; raw traces and observer data remain private in its named target directory. Product navigation continued normally; no cause beyond the transport symptom is established.
+
+Moved from concept's tracker (chrome-performance-trace-read-can-fail-after-recording, author session:thr_eu5iv5xmnd). Pattern so far: traces of a minute or longer fail on stop (`IO.read` or a 60 s timeout, once losing the browser context); traces of a few seconds save. Concept's workaround is in [[projects/concept/attachments/application-development#Chrome DevTools MCP quirks]].
