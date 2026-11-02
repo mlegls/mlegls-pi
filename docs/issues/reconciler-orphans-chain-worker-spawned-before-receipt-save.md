@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:review7"
 priority: 3
@@ -20,3 +20,31 @@ Adopt, following the PR-repair launch in [reconcile.ts](../../lib/reconcile/reco
 
 decisions:
 - 2026-11-02: adopt the titled thread rather than retire and relaunch: the name is known before launch, and adoption keeps the work already started (@thread:thr_dwre28wvm6).
+
+## Result
+
+done
+
+```yaml
+commit: 2bc9be3b
+stories:
+  - story: Adopt the existing titled worker after an interrupted chain launch
+    outcome: held
+  - story: Launch exactly once under the saved name when no worker exists
+    outcome: held
+evidence:
+  path: docs/attachments/reconciler-orphans-chain-worker-spawned-before-receipt-save/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/launch-recovery.test.ts
+fixed:
+  - "b70c8fc0 lib/reconcile/reconcile.ts: the change set c.phase to the successor's phase before launching. lib/reconcile/rate-limit.test.ts then saw phase=drive with the implement handle and an old launchedAt, and failed; it passes at the base. The target phase is now saved in a new field, launchPhase, and c.phase stays on the running worker until the successor's handle is saved. The chain loop recovers with launchPhase ?? c.phase."
+caveats:
+  - "Evidence is the fake-bb fixture, not a live crash."
+  - "The launchPhase repair has no dedicated test. rate-limit.test.ts catches the regression, and launch-recovery.test.ts still passes unchanged."
+  - "bun test lib/reconcile: 40 pass, 0 fail after the repair."
+  - "No kept test assertions changed. No services left running."
+```
+
+Evidence: [docs/attachments/reconciler-orphans-chain-worker-spawned-before-receipt-save/index.md](../attachments/reconciler-orphans-chain-worker-spawned-before-receipt-save/index.md)
