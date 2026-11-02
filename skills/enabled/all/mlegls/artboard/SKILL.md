@@ -39,7 +39,7 @@ A frame is either:
 }
 ```
 
-A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`. A frame may name its own `storybook` (to set two builds side by side) and a `wait` in ms before copying (default 1500 for a story). `storybook` may read a port from the environment or the nearest `.env`, as `http://127.0.0.1:${STORYBOOK_PORT}`.
+A file frame is `viewport` in size (default 1440×900); a story frame is the size of the element it copies, measured in that viewport. Pages stack down the canvas, each a row of its frames, unless frames have `at`: a position within the frame's own page, `[x, y]` from the canvas's left edge and the page's top; a page is as tall as its lowest frame. A frame may name its own `storybook` (to set two builds side by side) and a `wait` in ms before copying (default 1500 for a story). `storybook` may read a port from the environment or the nearest `.env`, as `http://127.0.0.1:${STORYBOOK_PORT}`.
 
 Each frame is copied as static DOM: scripts don't run, while scroll offsets, field values, viewport units and media queries are frozen as they were drawn, and each frame's CSS is scoped to it (`:root`/`html` become the frame, `body` its body wrapper). So a frame shows a state; show each state worth seeing as its own frame.
 
