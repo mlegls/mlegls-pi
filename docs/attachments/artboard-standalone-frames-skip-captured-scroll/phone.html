@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Captured phone map</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #203048; background: #f7f4ec; }
+  header { height: 100px; padding: 24px; background: #203048; color: white; }
+  h1 { margin: 0; font-size: 22px; }
+  .map { width: 350px; height: 600px; margin: 20px; overflow: auto; border: 2px solid #203048; }
+  .nodes { position: relative; width: 700px; height: 1000px; background: repeating-linear-gradient(#e8ede8 0 49px, #becabc 49px 50px); }
+  .node { position: absolute; padding: 16px; background: #fff; border: 2px solid #203048; border-radius: 10px; }
+  .start { left: 12px; top: 12px; }
+  .visible { left: 170px; top: 220px; background: #f9d978; }
+  .later { left: 460px; top: 520px; }
+  .controls { position: fixed; left: 20px; bottom: 20px; display: flex; gap: 8px; padding: 12px; background: #fff; border: 2px solid #203048; }
+</style>
+<header><h1>Captured phone map</h1>Scroll: top 180, left 142</header>
+<div class="map"><div class="nodes">
+  <div class="node start">Start (offscreen)</div>
+  <div class="node visible">Captured node</div>
+  <div class="node later">Later node</div>
+</div></div>
+<div class="controls"><button>Fit</button><button>+</button><button>−</button></div>
+<script>
+  const map = document.querySelector(".map");
+  map.scrollTop = 180;
+  map.scrollLeft = 142;
+</script>
+</html>

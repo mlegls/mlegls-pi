@@ -277,6 +277,9 @@ const hoisted = new Set<string>();
 const groups = new Map<string, string>();
 const figures: string[] = [];
 const alone: [string, string][] = [];
+// Standalone frames have no canvas navigation, but still need their captured scroll state.
+const restoreScroll = readFileSync(new URL("./canvas-scroll.js", import.meta.url), "utf8");
+const standaloneRuntime = restoreScroll + "document.fonts.ready.then(restoreScroll);";
 const heads: string[] = [];
 const outline: string[] = [];
 let pageTop = 0;
@@ -325,8 +328,9 @@ for (const page of layout.pages) {
       "frame-" + key + ".html",
       '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' + escapeText(frame.name) + "</title>" +
         '<link rel="stylesheet" href="canvas.css"><style>body{margin:0;background:#e8e8e8}</style></head><body>' +
-        '<div class="canvas-surface" data-css="' + group + '" style="position:relative;overflow:hidden;margin:0 auto;width:' + width + "px;height:" + height + "px" +
-        (got.background ? ";background:" + got.background : ";background:#fff") + '">' + inner + "</div></body></html>",
+        '<div class="canvas-surface" data-css="' + group + '" style="position:relative;overflow:hidden;contain:paint;margin:0 auto;width:' + width + "px;height:" + height + "px" +
+        (got.background ? ";background:" + got.background : ";background:#fff") + '">' + inner + "</div>" +
+        "<script>" + standaloneRuntime + "</script></body></html>",
     ]);
     items.push('<li><button type="button" data-go="' + key + '">' + escapeText(frame.name) + "</button></li>");
   }
@@ -365,7 +369,7 @@ const html = [
   '<nav class="canvas-nav"><ul><li><button type="button" data-go="all">All frames</button></li>' + outline.join("") + "</ul></nav>",
   '<div class="canvas-tools"><button type="button" data-back hidden>← Back</button><button type="button" data-zoom-out>−</button><span data-zoom></span><button type="button" data-zoom-in>+</button><button type="button" data-reset title="Return frames to the layout">Reset</button><button type="button" data-save>Save arrangement</button></div>',
   '<div class="canvas-help">Scroll to pan · pinch or ⌘-scroll to zoom · drag empty canvas to pan · drag a caption to move · double-click a caption to enter · Esc to leave</div>',
-  "<script>" + runtime + "</script>",
+  "<script>" + restoreScroll + runtime + "</script>",
   "</body></html>",
 ].join("\n");
 writeFileSync(resolve(outDir, "canvas.html"), html);
