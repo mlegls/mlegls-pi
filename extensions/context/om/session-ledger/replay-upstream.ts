@@ -8,14 +8,15 @@
 //   bun extensions/context/om/session-ledger/replay-upstream.ts <session.jsonl>...
 // Live worker replay (no upstream install; reads the session's shared ledger, writes only output-dir):
 //   bun extensions/context/om/session-ledger/replay-upstream.ts --workers <session.jsonl> <output-dir> [provider/model]
+// Use --condenser instead of --workers to condense the source's last-compaction pool directly.
 // Defaults to openai/gpt-6.1-terra; fails closed if that exact model is unavailable. Output includes
 // a frozen input snapshot and resumable per-boundary results. A snapshot may replace session.jsonl.
 import { readFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-if (process.argv[2] === "--workers") {
+if (process.argv[2] === "--workers" || process.argv[2] === "--condenser") {
 	const { replayWorkers } = await import("./replay-workers.ts");
-	await replayWorkers(process.argv.slice(3));
+	await replayWorkers(process.argv.slice(3), process.argv[2] === "--condenser");
 	process.exit(0);
 }
 process.env.PI_BOARD_DIR = mkdtempSync(join(tmpdir(), "om-accept-"));

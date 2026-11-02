@@ -63,7 +63,7 @@ const checkedLoop: typeof agentLoop = (...args) => {
 	return stream;
 };
 
-export async function replayWorkers(args: string[]): Promise<void> {
+export async function replayWorkers(args: string[], condenserOnly = false): Promise<void> {
 	const [file, output, selector = "openai/gpt-6.1-terra"] = args;
 	if (!file || !output) throw new Error("Usage: --workers <session.jsonl|input.json> <output-dir> [provider/model]");
 	mkdirSync(output, { recursive: true });
@@ -72,6 +72,7 @@ export async function replayWorkers(args: string[]): Promise<void> {
 	const contextWindow = 1_000_000; // Recorded session's foreground model, not the OM worker.
 	const budget = resolveReflectionPoolBudget(DEFAULTS, contextWindow);
 	const manifest = { version: 1, session: frozen.session, inputHash, model: selector, contextWindow, budget,
+		...(condenserOnly ? { mode: "condenser" } : {}),
 		promptsHash: hash(REFLECTOR_SYSTEM + CONDENSER_SYSTEM) };
 	const manifestFile = join(output, "manifest.json");
 	if (existsSync(manifestFile) && JSON.stringify(JSON.parse(readFileSync(manifestFile, "utf8"))) !== JSON.stringify(manifest)) {
@@ -98,6 +99,20 @@ export async function replayWorkers(args: string[]): Promise<void> {
 	console.log(JSON.stringify({ ready: selector, agentDir, workerContextWindow: model.contextWindow }));
 	const worker = { model, modelRegistry: { streamSimple: registry.streamSimple.bind(registry) }, agentLoop: checkedLoop,
 		maxTurns: DEFAULTS.agentMaxTurns, maxOutputTokens: DEFAULTS.agentMaxTokens, thinkingLevel: "low" as const };
+	if (condenserOnly) {
+		const lastCompaction = frozen.entries.findLastIndex((e) => e.type === "compaction");
+		if (lastCompaction < 0) throw new Error("Source has no compaction pool");
+		const before = foldLedger(frozen.entries.slice(0, lastCompaction)).activeReflections;
+		const result = await condenseToTarget({ ...worker, reflections: before, targetTokens: budget.targetTokens });
+		const gone = new Set(result?.droppedIds);
+		const after = [...before.filter((r) => !gone.has(r.id)), ...(result?.reflections ?? [])];
+		save(join(output, "condensed-pool.json"), after);
+		save(join(output, "metrics.json"), { ...manifest, compaction: frozen.entries[lastCompaction]!.id,
+			beforeReflections: before.length, beforeTokens: reflectionPoolTokens(before),
+			afterReflections: after.length, afterTokens: reflectionPoolTokens(after),
+			underCeiling: reflectionPoolTokens(after) <= budget.maxTokens });
+		return;
+	}
 	const stepFile = join(output, "steps.jsonl");
 	const steps: Step[] = existsSync(stepFile) ? readFileSync(stepFile, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
 	const completed = new Map(steps.map((s) => [s.at, s.entries]));
