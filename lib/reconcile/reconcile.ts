@@ -103,6 +103,8 @@ interface Chain {
 	self: boolean;
 	phase: Phase;
 	handle?: Handle;
+	/** Intended worker title, saved before spawn so restart can adopt an unreceipted thread. */
+	launching?: string;
 	launchedAt?: number;
 	/** ts of the last report acted on. */
 	handledTs?: string;
@@ -492,7 +494,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }): Promise<Handle> {
+	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain): Promise<Handle> {
 		launching++;
 		try {
 			if (tracker.githubIssue && issue && (role === "refine" || role === "implement")) {
@@ -510,6 +512,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			// its worktree behind, so a retry takes a fresh handle.
 			for (let attempt = 0; ; attempt++) {
 				const actual = attempt ? handle.slice(0, 86) + "-r" + attempt : handle;
+				if (chain) { chain.launching = actual; save(); }
 				if (refining) {
 					refining.chain.phase = "refine";
 					const old = refining.chain.refinement;
@@ -579,7 +582,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false) {
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
-		const prev = c.handle;
+		const prev = c.handle?.handle === c.launching ? undefined : c.handle;
 		if (prev && existsSync(prev.path)) { await stop(prev, { cwd: pathOf(c.into) }); saveWip(prev); }
 		// A retired worker (keepBranch) leaves no worktree but its branch still holds the chain's work so far.
 		const kept = (h: Handle) => { try { return git(pathOf(c.into), "rev-parse", "--verify", "-q", "refs/heads/" + h.handle); } catch { return ""; } };
@@ -597,14 +600,19 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
-		const handle = await launch(resumeAttempt ?? nextHandle(slug, phase), phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
+		c.launching ??= resumeAttempt ?? nextHandle(slug, phase);
+		c.phase = phase;
+		save();
+		const registered = await findWorker({ run: s.root, handle: c.launching }, controlCwd);
+		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
 			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
 			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
 			const refreshed = refreshWorker(path, pathOf(c.into));
 			return [phasePrompt(), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve the collector's code and the previous worker's results, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
-		}, phase === "refine" ? { chain: c, adopt } : undefined);
+		}, phase === "refine" ? { chain: c, adopt } : undefined, c);
+		if (phase === "refine" && c.refinement && registered) s.refinements[c.refinement].worker = handle;
 		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
-		Object.assign(c, { phase, handle, launchedAt, handledTs: undefined, resumeFrom: undefined });
+		Object.assign(c, { phase, handle, launching: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
 		save();
 	}
@@ -1408,7 +1416,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c.phase === "integrate") {
 			await integrateReview(slug, c, issue, issues); return "active";
 		}
-		if (!c.handle) {
+		if (!c.handle || c.launching) {
 			await startPhase(slug, c, c.phase, issue, issues);
 			return "active";
 		}
@@ -1465,10 +1473,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.base = git(from, "rev-parse", "HEAD");
 		const prompt = [ticketText(issue), c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "", c.note ? "Note from the supervisor: " + c.note : ""].filter(Boolean).join("\n\n");
 		const launchedAt = Date.now();
-		c.handle = await launch(nextHandle(slug, "implement"), "implement", prompt, c.base, pathOf(c.into), issue, undefined, async () => [ticketText(issue), c.self ? "Its children are all satisfied in your base; implement its residual work and joins." : "", c.note ?? ""].filter(Boolean).join("\n\n"));
+		c.launching = nextHandle(slug, "implement");
+		c.phase = "implement";
+		save();
+		c.handle = await launch(c.launching, "implement", prompt, c.base, pathOf(c.into), issue, undefined, async () => [ticketText(issue), c.self ? "Its children are all satisfied in your base; implement its residual work and joins." : "", c.note ?? ""].filter(Boolean).join("\n\n"), undefined, c);
 		// Its only caller with a previous worker is a promoted refinement: the writer finished.
 		if (previous && !await retireHandle(previous, cwd, true)) c.workers.push(previous);
-		Object.assign(c, { into: saved, phase: "implement", launchedAt, handledTs: undefined });
+		Object.assign(c, { into: saved, phase: "implement", launching: undefined, launchedAt, handledTs: undefined });
 		save();
 	}
 	const visited = new Set<string>();
