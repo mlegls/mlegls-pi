@@ -32,3 +32,9 @@ Both pre-use predictions were met at the runner's pass/fail surface. The CLI rep
 - A failure in either branch should make that case fail rather than leave an apparently green runner. Sensitivity was not modified or independently challenged during this read-only drive.
 
 The assigned setup deliberately uses fake bb, so this packet makes no additional claim about real-process crash timing, actual bb thread adoption or browser behavior.
+
+## Review
+
+Review found one regression the driver's runner did not cover: `startPhase` and `startPhaseFrom` set `c.phase` to the successor's phase before launching, so `lib/reconcile/rate-limit.test.ts` saw `phase: drive` with the implement worker's handle and old `launchedAt` (failed at the change head, passes at its base). Repaired by saving the target in `launchPhase` and keeping `c.phase` on the running worker until the successor's handle is saved; recovery uses `c.launchPhase ?? c.phase`.
+
+After the repair: `bun test lib/reconcile` exits 0 (40 pass, 0 fail), including `launch-recovery.test.ts` (both stories still held) and `rate-limit.test.ts`. Evidence remains fake-bb fixture evidence, not a live crash.
