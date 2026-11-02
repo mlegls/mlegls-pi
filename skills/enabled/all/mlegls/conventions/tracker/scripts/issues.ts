@@ -415,8 +415,22 @@ function uncommitted(dir: string): string[] {
   return p.stdout.split("\n").filter((l) => /^(\?\?|A.)/.test(l) && l.endsWith(".md")).map((l) => basename(l.slice(3), ".md"));
 }
 
+// Treat each map and its Issue records as immutable after the first children lookup.
+// Candidate edits use a fresh map (as close does), so they get their own index.
+const childIndex = new WeakMap<Map<string, Issue>, Map<string, Issue[]>>();
 function children(i: Issue, all: Map<string, Issue>): Issue[] {
-  return [...all.values()].filter(c => c.partOf === i.slug);
+  let index = childIndex.get(all);
+  if (!index) {
+    index = new Map();
+    for (const child of all.values()) {
+      if (!child.partOf) continue;
+      const siblings = index.get(child.partOf) ?? [];
+      siblings.push(child);
+      index.set(child.partOf, siblings);
+    }
+    childIndex.set(all, index);
+  }
+  return index.get(i.slug) ?? [];
 }
 function effectiveStage(i: Issue, all: Map<string, Issue>, seen = new Set<string>()): string | null {
   if (i.archived) return "done";
