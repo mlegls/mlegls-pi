@@ -1,5 +1,7 @@
 # Artboard capture first use
 
+Independent acceptance: [CLI drive predictions, observations and replayable checks](drive.md).
+
 ## Scope and prepared target
 
 Implementation first use, not independent acceptance. Base: `8580fd5e45313dc80d5f906dcfbd65c96ec4319f`.
