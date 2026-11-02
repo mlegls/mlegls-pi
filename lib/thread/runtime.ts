@@ -1,9 +1,9 @@
-import { existsSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { excludeTracker } from "./tracker-worktree";
-import { runSetup } from "./setup";
-import { checkout, git } from "./git";
+import { runSetup, setupLog } from "./setup";
+import { checkout, commonDir, git } from "./git";
 import { validateLaunch } from "./launch";
 import { assertBb, bbThreads, bbWorkerThread, logBb, spawnBb } from "./bb";
 import type { NewThreadOptions, WorkerCheckout, WorkerIdentity, WorkerThread } from "./types";
@@ -50,6 +50,21 @@ export async function newThread(options: NewThreadOptions): Promise<WorkerThread
 		return { ...pending, id: await spawnBb(pending, options.parent ?? process.env.BB_THREAD_ID) };
 	} catch (error) {
 		const cleanup: string[] = [];
+		let failure = String(error);
+		// Preserve diagnostics before teardown, including across retries of the same worker.
+		// If retention fails, leave the original worktree/log available instead of deleting the only copy.
+		try {
+			const log = setupLog(path);
+			if (existsSync(log)) {
+				const directory = join(commonDir(spawning.cwd)!, "reconcile", "setup-failures");
+				mkdirSync(directory, { recursive: true });
+				const retained = join(mkdtempSync(join(directory, name.replace(/[^a-zA-Z0-9._-]/g, "-") + "-")), "setup.log");
+				copyFileSync(log, retained);
+				failure = failure.replaceAll(log, retained) + "\nSetup log retained: " + retained;
+			}
+		} catch (e) {
+			throw new Error("Worker " + options.worker.run + "/" + options.worker.handle + " at " + path + " failed: " + failure + "\nPartial resources remain: could not retain setup log: " + String(e));
+		}
 		// Failed setup/launch owns its partial path until cleanup succeeds.
 		try {
 			const registered = git(spawning.cwd, "worktree", "list", "--porcelain", "-z").split("\0").includes("worktree " + path);
@@ -57,7 +72,7 @@ export async function newThread(options: NewThreadOptions): Promise<WorkerThread
 			else await rm(path, { recursive: true, force: true });
 			if (git(spawning.cwd, "branch", "--list", name)) git(spawning.cwd, "branch", "-D", name);
 		} catch (e) { cleanup.push(String(e)); }
-		throw new Error("Worker " + options.worker.run + "/" + options.worker.handle + " at " + path + " failed: " + String(error) + (cleanup.length ? "\nPartial resources remain: " + cleanup.join("\n") : "\nPartial resources cleaned"));
+		throw new Error("Worker " + options.worker.run + "/" + options.worker.handle + " at " + path + " failed: " + failure + (cleanup.length ? "\nPartial resources remain: " + cleanup.join("\n") : "\nPartial resources cleaned"));
 	}
 }
 

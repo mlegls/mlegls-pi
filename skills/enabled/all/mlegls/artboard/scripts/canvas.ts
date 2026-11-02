@@ -292,11 +292,12 @@ for (const page of layout.pages) {
       extra.style = wrapper.body && whole ? "width:100%;height:100%;margin:0;overflow:hidden" : "display:contents";
       inner = "<" + wrapper.tag + attrs(wrapper.attrs, extra) + ">" + inner + "</" + wrapper.tag + ">";
     }
-    const [x, y] = frame.at ?? [left, pageTop];
+    // `at` places a frame within its own page: x from the canvas's left edge, y from the page's top.
+    const [x, y] = frame.at ? [frame.at[0], pageTop + frame.at[1]] : [left, pageTop];
     left += width + 96;
-    tallest = Math.max(tallest, height);
+    tallest = Math.max(tallest, y - pageTop + height);
     figures.push(
-      '<figure class="canvas-frame" id="' + key + '" data-page="' + pageKey + '" data-x="' + x + '" data-y="' + y +
+      '<figure class="canvas-frame" id="' + key + '" data-page="' + pageKey + '" data-top="' + pageTop + '" data-x="' + x + '" data-y="' + y +
         '" style="left:' + x + "px;top:" + y + 'px">' +
         '<figcaption class="canvas-caption" data-drag="screen" data-lavish-action title="Drag to move; double-click to enter">' +
         escapeText(frame.name) + " <span>" + width + "×" + height + "</span>" +
