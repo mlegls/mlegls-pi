@@ -41,6 +41,7 @@ const RecordReflectionsSchema = Type.Object({
 		Type.Object({
 			content: Type.String({ minLength: 1 }),
 			supportingObservationIds: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
+			supersedesReflectionIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
 		}),
 		{ minItems: 1 },
 	),
@@ -109,7 +110,12 @@ function normalizeReflectionContent(content: string): string | undefined {
 	return normalized;
 }
 
-export async function runReflector(args: RunReflectorArgs): Promise<Reflection[] | undefined> {
+export type ReflectorResult = {
+	reflections: Reflection[];
+	supersessions: { reflectionIds: string[]; supersededBy: string }[];
+};
+
+export async function runReflector(args: RunReflectorArgs): Promise<ReflectorResult | undefined> {
 	const { model, apiKey, headers, env, reflections, observations, signal } = args;
 	if (observations.length === 0) return undefined;
 
@@ -123,6 +129,7 @@ export async function runReflector(args: RunReflectorArgs): Promise<Reflection[]
 	const allowedObservationIds = observations.map((observation) => observation.id);
 	const existingReflectionIds = new Set(reflections.map((reflection) => reflection.id));
 	const accumulated = new Map<string, Reflection>();
+	const superseded = new Map<string, string>();
 	let toolCallCount = 0;
 	let rawProposedReflectionCount = 0;
 	let acceptedReflectionCount = 0;
@@ -132,7 +139,7 @@ export async function runReflector(args: RunReflectorArgs): Promise<Reflection[]
 	const recordReflections: AgentTool<typeof RecordReflectionsSchema> = {
 		name: "record_reflections",
 		label: "Record reflections",
-		description: "Record new durable reflections with supporting observation ids.",
+		description: "Record durable reflections with supporting observation ids, optionally superseding conflicting current reflection ids. Exact existing content may be submitted to supersede conflicts without adding a duplicate.",
 		parameters: RecordReflectionsSchema,
 		execute: async (_id, params: RecordReflectionsArgs) => {
 			toolCallCount++;
@@ -148,6 +155,12 @@ export async function runReflector(args: RunReflectorArgs): Promise<Reflection[]
 					continue;
 				}
 				const id = hashId(content);
+				const replaces = [...new Set(proposal.supersedesReflectionIds ?? [])];
+				if (superseded.has(id) || replaces.some((old) => old === id || superseded.has(old) || (!existingReflectionIds.has(old) && !accumulated.has(old)))) {
+					rejected++;
+					continue;
+				}
+				for (const old of replaces) superseded.set(old, id);
 				if (existingReflectionIds.has(id) || accumulated.has(id)) {
 					duplicates++;
 					continue;
@@ -164,13 +177,13 @@ export async function runReflector(args: RunReflectorArgs): Promise<Reflection[]
 			duplicateReflectionCount += duplicates;
 			rejectedReflectionCount += rejected;
 			return {
-				content: [{ type: "text", text: `Recorded ${added} reflection${added === 1 ? "" : "s"}; ${duplicates} duplicate${duplicates === 1 ? "" : "s"}; ${rejected} rejected. Total this run: ${accumulated.size}.` }],
+				content: [{ type: "text", text: `Recorded ${added} reflection${added === 1 ? "" : "s"}; ${duplicates} duplicate${duplicates === 1 ? "" : "s"}; ${rejected} rejected. Total this run: ${accumulated.size}; superseded: ${superseded.size}.` }],
 				details: { added, duplicates, rejected, total: accumulated.size },
 			};
 		},
 	};
 
-	const userText = `CURRENT REFLECTIONS:\n${joinOrEmpty(reflections.map(reflectionToSummaryLine))}\n\nCURRENT OBSERVATIONS:\n${joinOrEmpty(observations.map((observation) => observationToReflectorLine(observation, coverageTierForObservation(observation, coverageById))))}\n\nCrystallize any missing durable facts or patterns into new reflections. If nothing is stable enough, do not call the tool.`;
+	const userText = `CURRENT REFLECTIONS:\n${joinOrEmpty(reflections.map(reflectionToSummaryLine))}\n\nCURRENT OBSERVATIONS:\n${joinOrEmpty(observations.map((observation) => observationToReflectorLine(observation, coverageTierForObservation(observation, coverageById))))}\n\nReconcile conflicting constraints, permissions and roles against the latest explicit user statements, then crystallize missing durable facts. Use supersedesReflectionIds to remove every replaced reflection. If nothing changes, do not call the tool.`;
 	const prompts: Message[] = [{ role: "system", content: REFLECTOR_SYSTEM, timestamp: Date.now() } as Message, { role: "user", content: [{ type: "text", text: userText }], timestamp: Date.now() }];
 	const context: AgentContext = { messages: [], tools: [recordReflections as AgentTool<any>] };
 	const reasoning = (model as { reasoning?: unknown }).reasoning;
@@ -203,7 +216,7 @@ export async function runReflector(args: RunReflectorArgs): Promise<Reflection[]
 	}
 	await stream.result();
 	const acceptedReflections = Array.from(accumulated.values());
-	const afterCoverageById = reflectionCoverageMap(observations, [...reflections, ...acceptedReflections]);
+	const afterCoverageById = reflectionCoverageMap(observations, [...reflections, ...acceptedReflections].filter((r) => !superseded.has(r.id)));
 	debugLog("reflector.result", {
 		reason: acceptedReflections.length > 0 ? "accepted_nonempty" : toolCallCount === 0 ? "no_tool_call" : "all_filtered",
 		toolCallCount,
@@ -214,5 +227,6 @@ export async function runReflector(args: RunReflectorArgs): Promise<Reflection[]
 		acceptedSupportIdCounts: summarizeSupportIdCounts(acceptedReflections),
 		coverageTransitionsByRelevance: summarizeCoverageTransitionsByRelevance(observations, coverageById, afterCoverageById),
 	});
-	return acceptedReflections.length > 0 ? acceptedReflections : undefined;
+	const supersessions = [...superseded].map(([id, replacement]) => ({ reflectionIds: [id], supersededBy: replacement }));
+	return acceptedReflections.length > 0 || supersessions.length > 0 ? { reflections: acceptedReflections, supersessions } : undefined;
 }

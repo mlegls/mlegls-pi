@@ -76,7 +76,8 @@ export function recordLedger(sm: LedgerSession, customType: V3MemoryCustomType, 
 				schema: SCHEMA,
 				ts,
 				tags: base("drop"),
-				edges: [at, ...(data as ObservationsDroppedEntryData).observationIds.map((id) => ({ rel: "drops", dst: `om:${id}` }))],
+				edges: [at, ...(data as ObservationsDroppedEntryData).observationIds.map((id) => ({ rel: "drops", dst: `om:${id}` })),
+					...((data as ObservationsDroppedEntryData).supersededBy ? [{ rel: "superseded-by", dst: `om:${(data as ObservationsDroppedEntryData).supersededBy}` }] : [])],
 			}, d);
 		}
 	})();
@@ -94,7 +95,8 @@ function toEntry({ record: rec, edges }: Anchored): Entry | undefined {
 		reflections: [{ id: f.id, content: rec.body, supportingObservationIds: rel("reflects").map(memoryOf), tokenCount: f.tokenCount }],
 		coversUpToId: f.coversUpToId,
 	});
-	if (f.kind === "drop") return entry(OM_OBSERVATIONS_DROPPED, { observationIds: rel("drops").map(memoryOf), coversUpToId: f.coversUpToId });
+	if (f.kind === "drop") return entry(OM_OBSERVATIONS_DROPPED, { observationIds: rel("drops").map(memoryOf), coversUpToId: f.coversUpToId,
+		...(rel("superseded-by").length ? { supersededBy: memoryOf(rel("superseded-by")[0]!) } : {}) });
 	return undefined;
 }
 

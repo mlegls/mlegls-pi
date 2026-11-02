@@ -34,6 +34,7 @@ Format.
 - No structured fields embedded in the text (no "key: value" lines, no JSON).
 
 Preserve user assertions exactly.
+Record permissions, constraints, role and profile framing close to verbatim and explicitly attributed to the user. The assistant's framing is not the user's statement. Do not judge an assistant action against a rule unless a user statement establishes that rule; quote that statement and include its source entry id among the observation's sources. A later explicit user correction or permission takes precedence over earlier framing or inferred rules.
 When the user TELLS you something about themselves, their project, or their environment, capture it as an assertion. When the user ASKS something, capture it as a question. Assertions are authoritative — a later question on the same topic does not invalidate them.
   BAD:  User wondered if they have two kids.
   GOOD: User stated they have two kids.

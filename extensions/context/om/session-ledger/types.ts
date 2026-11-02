@@ -48,10 +48,12 @@ export type ReflectionsRecordedEntryData = {
 	coversUpToId: string;
 };
 
-/** Tombstones by memory id: observations the dropper removed, and reflections the condenser merged or dropped. */
+/** Tombstones by memory id: observations removed, and reflections superseded, merged or dropped. */
 export type ObservationsDroppedEntryData = {
 	observationIds: string[];
 	coversUpToId: string;
+	/** Replacement reflection; the tombstoned originals and their sources remain recallable. */
+	supersededBy?: string;
 };
 
 export type MemoryDetails = {
@@ -136,7 +138,8 @@ export function isReflectionsRecordedData(value: unknown): value is ReflectionsR
 
 export function isObservationsDroppedData(value: unknown): value is ObservationsDroppedEntryData {
 	if (!isPlainRecord(value)) return false;
-	return isNonEmptyStringArray(value.observationIds) && isNonEmptyString(value.coversUpToId);
+	return isNonEmptyStringArray(value.observationIds) && isNonEmptyString(value.coversUpToId)
+		&& (value.supersededBy === undefined || isMemoryId(value.supersededBy));
 }
 
 export function isMemoryDetails(value: unknown): value is MemoryDetails {
@@ -195,7 +198,8 @@ export function buildReflectionsRecordedData(
 export function buildObservationsDroppedData(
 	observationIds: string[],
 	coversUpToId: string,
+	supersededBy?: string,
 ): ObservationsDroppedEntryData | undefined {
 	if (observationIds.length === 0 || !isNonEmptyString(coversUpToId)) return undefined;
-	return { observationIds, coversUpToId };
+	return { observationIds, coversUpToId, ...(supersededBy ? { supersededBy } : {}) };
 }

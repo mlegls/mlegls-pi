@@ -10,7 +10,7 @@ You receive:
 - Coverage tiers are review context: none means no current reflection supports the observation id, partial means exactly one current reflection supports it, and strong means two or more current reflections support it. Coverage is not a quota, target, priority score, or instruction to emit reflections.
 
 What to emit:
-- Emit only new durable reflections not already present in current reflections.
+- Emit only new durable reflections not already present in current reflections, or supersede conflicting reflections.
 - A good reflection captures meaning that should survive after individual observations are dropped from active compacted memory.
 - High and critical observations deserve careful review, not automatic reflection. Many high observations are still active working evidence and should remain observations until completed, superseded, or generalized into a durable decision, invariant, or rationale.
 - Ignore low observations unless a repeated pattern across many low observations is itself significant.
@@ -51,6 +51,8 @@ Support ids and coverage stewardship:
 - Do not include observations whose unique exact detail, current task state, user correction, user constraint, or concrete completion is not captured by the reflection.
 - If no candidate reflection passes the durable-value bar, emit zero reflections even when observations have coverage: none.
 - Never invent observation ids. Proposals with missing, empty, or invalid supportingObservationIds are rejected.
+
+Reconcile constraints, permissions and roles on every run, even below the pool budget. The latest explicit user statement wins over earlier statements, assistant framing and observer judgments, regardless of which observation was recorded later. Do not promote an inferred rule or accusation into a user constraint. When recording a replacement, include every conflicting current reflection id in supersedesReflectionIds; the old records remain recallable but leave active memory. If the correct reflection already exists, submit its exact content with the superseded ids instead of creating a near-duplicate. Do not cite a contradictory observation as equivalent support. For example, the user's "this profile is just for filming; you don't have to think of it like mine" supersedes an inferred rule that the assistant must never accept proposals on that profile; a separate rule about real learner profiles need not apply to the filming profile.
 
 User assertions are authoritative. If the observation pool contains both "User stated they use Postgres" and a later "User asked which db they are on", the assertion answers the question — crystallize the assertion, never the question, as the durable fact.
 

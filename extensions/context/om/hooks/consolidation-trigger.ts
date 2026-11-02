@@ -412,7 +412,7 @@ async function runReflectorStage(
 	if (!resolved) return { outcome: "abort", sameRunReflections: [] };
 
 	const folded = foldLedger(entries);
-	const reflections = await runReflector({
+	const result = await runReflector({
 		model: resolved.model as any,
 		apiKey: resolved.apiKey,
 		headers: resolved.headers,
@@ -424,16 +424,21 @@ async function runReflectorStage(
 		thinkingLevel: runtime.config.model?.thinking ?? "low",
 		modelRegistry: ctx.modelRegistry,
 	});
-	if (!reflections) return { outcome: "continue", ran: true, sameRunReflections: [] };
+	if (!result) return { outcome: "continue", ran: true, sameRunReflections: [] };
 
-	const data = buildReflectionsRecordedData(reflections, observationCoverageId);
-	if (!data) return { outcome: "continue", ran: true, sameRunReflections: [] };
-	appendEntry(ctx, OM_REFLECTIONS_RECORDED, data);
+	const data = buildReflectionsRecordedData(result.reflections, observationCoverageId);
+	if (data) appendEntry(ctx, OM_REFLECTIONS_RECORDED, data);
+	const superseded = new Set<string>();
+	for (const { reflectionIds, supersededBy } of result.supersessions) {
+		const dropped = buildObservationsDroppedData(reflectionIds, observationCoverageId, supersededBy);
+		if (dropped) appendEntry(ctx, OM_OBSERVATIONS_DROPPED, dropped);
+		for (const id of reflectionIds) superseded.add(id);
+	}
 	return {
 		outcome: "continue",
 		ran: true,
-		sameRunReflections: reflections,
-		effectiveReflectionCoverageId: data.coversUpToId,
+		sameRunReflections: result.reflections.filter((r) => !superseded.has(r.id)),
+		effectiveReflectionCoverageId: data?.coversUpToId,
 	};
 }
 

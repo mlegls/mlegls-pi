@@ -38,6 +38,8 @@ export type RecalledReflection = {
 	reflection: Reflection;
 	reflectionEntryId: string;
 	reflectionRecordIndex: number;
+	/** Direct replacements, if this reflection was superseded; recall those ids for the current fact. */
+	supersededBy?: string[];
 };
 
 export type RecallResult =
@@ -210,6 +212,12 @@ export function recallMemorySources(entries: Entry[], memoryId: string): RecallR
 		reflection,
 		reflectionEntryId: entryId,
 		reflectionRecordIndex: recordIndex,
+		...(() => {
+			const replacements = uniqueStrings(entries.filter(isObservationsDroppedEntry)
+				.filter((e) => e.data.observationIds.includes(reflection.id) && e.data.supersededBy)
+				.map((e) => e.data.supersededBy!));
+			return replacements.length ? { supersededBy: replacements } : {};
+		})(),
 	}));
 	const sourceEntries = uniqueById(recalledObservations.flatMap((match) => match.sourceEntries));
 	const missingSourceEntryIds = uniqueStrings(recalledObservations.flatMap((match) => match.missingSourceEntryIds));

@@ -46,7 +46,7 @@ export interface Config {
 	compactionSummaryMaxTokens?: number;
 	observationsPoolMaxTokens: number;
 	observationsPoolTargetTokens: number;
-	/** Condenser trigger; unset derives half the session's resolved summary budget. */
+	/** Condenser trigger; half the session's summary budget by default, capped at 20,000 tokens. */
 	reflectionsPoolMaxTokens?: number;
 	/** Condenser target; unset derives 75% of the resolved reflection maximum. */
 	reflectionsPoolTargetTokens?: number;
@@ -127,10 +127,13 @@ export function resolveCompactionSummaryMaxTokens(config: Config, contextWindow:
 	return COMPACTION_SUMMARY_FALLBACK_MAX_TOKENS;
 }
 
+/** Absolute storage trigger even when a large session window could render a much bigger pool. */
+export const REFLECTION_POOL_MAX_TOKENS = 20_000;
+
 /** Resolve at use time: the session model (not the memory worker model) owns the render budget. */
 export function resolveReflectionPoolBudget(config: Config, contextWindow: number | undefined): { maxTokens: number; targetTokens: number } {
-	const maxTokens = config.reflectionsPoolMaxTokens ?? Math.max(1, Math.floor(resolveCompactionSummaryMaxTokens(config, contextWindow) / 2));
-	const targetTokens = config.reflectionsPoolTargetTokens ?? Math.max(1, Math.floor(maxTokens * 0.75));
+	const maxTokens = Math.min(REFLECTION_POOL_MAX_TOKENS, config.reflectionsPoolMaxTokens ?? Math.max(1, Math.floor(resolveCompactionSummaryMaxTokens(config, contextWindow) / 2)));
+	const targetTokens = Math.min(config.reflectionsPoolTargetTokens ?? Math.max(1, Math.floor(maxTokens * 0.75)), Math.max(1, maxTokens - 1));
 	return { maxTokens, targetTokens };
 }
 
@@ -282,7 +285,7 @@ export function readEnvConfig(env: NodeJS.ProcessEnv = process.env): Partial<Con
  *
  * `budget` is upstream's observationsPoolMaxTokens (the projection's fold threshold), not a render cap.
  * `compaction.summaryMaxTokens` bounds the rendered summary; `reflector.maxTokens` and `targetTokens`
- * override the condenser's storage bound (by default half the summary, with a 75% target).
+ * set the condenser's storage bound (by default half the summary, capped at 20,000, with a 75% target).
  */
 export function flattenSchemaSettings(om: Record<string, unknown>): Record<string, unknown> {
 	const sub = (k: string) => (isRecord(om[k]) ? om[k] : {}) as Record<string, unknown>;
