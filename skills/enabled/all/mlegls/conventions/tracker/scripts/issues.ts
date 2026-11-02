@@ -395,6 +395,9 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
   });
 }
 
+/** A provenance whose `<kind>:` prefix names no identity (`session:`). `check` names existing ones and queries still load them; writing a new one is refused. */
+const emptyIdentity = (author: unknown): boolean => typeof author === "string" && /^[^:]+:\s*$/.test(author);
+
 async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body?: string, summary?: string, evidence?: string): Promise<void> {
   validSlug(slug);
   await persist(withVaultLock(dir, () => {
@@ -405,6 +408,7 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
       if (all.has(slug)) throw new Error("duplicate issue slug " + slug);
       const author = fields.author ?? (process.env.PI_SESSION_ID ? "session:" + process.env.PI_SESSION_ID : undefined);
       if (!author) throw new Error("create requires author or PI_SESSION_ID provenance");
+      if (emptyIdentity(author)) throw new Error("author must be a nonempty provenance string");
       const text = replaceContract("---\n{}\n---\n", storageFields({ ...fields, author }, dir, all), body);
       changes.set(join(dir, slug + ".md"), text);
     } else {
@@ -413,6 +417,7 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
       else if (cmd === "update") {
         const existing = fieldsOf(i);
         if ("author" in fields && existing.author !== undefined && fields.author !== existing.author) throw new Error("author provenance is immutable");
+        if (fields.author !== existing.author && emptyIdentity(fields.author)) throw new Error("author must be a nonempty provenance string");
         changes.set(i.file, replaceContract(readFileSync(i.file, "utf8"), storageFields(fields, dir, all), body));
       } else if (cmd === "close") {
         if (i.archived) throw new Error("close requires a live issue");
@@ -1077,6 +1082,7 @@ if (cmd !== "lint") switch (cmd) {
       for (const b of unselected) say(`${i.slug}: blocked-by ${b} is done; remove it (check --fix without moved issue paths)`);
       if (done.size && repair) { changes.set(i.file, dropBlockers(i.file, done)); fixed.push(`fixed ${i.slug}: removed done blocked-by ${[...done].join(", ")}`); }
       else for (const b of done) say(`${i.slug}: blocked-by ${b} is done; remove it (check --fix)`);
+      if (emptyIdentity(i.author)) say(`${i.slug}: author ${i.author} names no identity`);
       if (i.next === "done" && !i.archived) say(`${i.slug}: done but not in archive/`);
       if (i.next && i.next !== "done" && i.archived) say(`${i.slug}: in archive/ but ${i.next}`);
       if (i.next && !KINDS.includes(i.next)) say(`${i.slug}: next is ${i.next}; one of ${KINDS.join(" ")}`);
