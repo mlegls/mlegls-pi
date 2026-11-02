@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:01a1661a-bb76-7763-9c9f-43f21e4a4b41"
 priority: 3
@@ -23,3 +23,44 @@ Out: a way to correct malformed provenance, and why managed processes see an emp
 
 decisions:
 - 2026-11-02: split: rejecting the empty suffix needs no decision; a correction path does (@thread:thr_dwre28wvm6).
+
+## Result
+
+done
+
+The change holds the ticket's acceptance on head `144b0788`. I repaired one defect and ran the tracker test file (30 pass).
+
+The defect: the implementer put the empty-suffix rule in `parseFrontmatter`, which `load` runs on every file. In a scratch repo, one existing `author: session:` record made every query fail, including `check`. That would lock Concept's tracker, which holds such a record, and there is no correction path.
+
+The rule now lives in an `emptyIdentity` helper in `issues.ts`:
+- `create` refuses it, whether the author is explicit or comes from `PI_SESSION_ID`.
+- `update` refuses it when setting a new author.
+- `check` reports `<slug>: author session: names no identity` and exits 1.
+- Other queries still load the record.
+
+The ticket's `create` test still passes unchanged. In the scratch repo I confirmed that `check` names the bad record, `fields` still works on the good one, and `create` with `user:` or an empty `PI_SESSION_ID` fails.
+
+I did not touch the other work merged into this branch (guard, checks, runtime, artboard, other tickets' attachments).
+
+```yaml
+commit: 144b0788 (on branch tracker-accepts-empty-session-provenance-and-refuses-correction-review-2)
+stories:
+  - story: create with an empty-suffix author fails and writes nothing
+    outcome: held
+  - story: create with empty or blank PI_SESSION_ID fails and writes nothing
+    outcome: held
+  - story: check names existing empty-suffix records while queries keep working
+    outcome: held
+evidence:
+  path: docs/attachments/tracker-accepts-empty-session-provenance-and-refuses-correction/index.md
+  visual: false
+  shots: []
+tests:
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts
+caveats:
+  - Drive was skipped (drive: none). The ticket's issues.test.ts is the acceptance, run by the integration gate.
+  - The check-names-existing-records behavior has no automated test; I verified it by hand in a scratch repo. proposed test: check reports an existing empty-suffix author while queries still load it (tracker validation, a behavior the ticket states).
+  - No wall-time or cost trade-offs introduced.
+```
+
+Evidence: [docs/attachments/tracker-accepts-empty-session-provenance-and-refuses-correction/index.md](../attachments/tracker-accepts-empty-session-provenance-and-refuses-correction/index.md)
