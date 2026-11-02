@@ -1,0 +1,6 @@
+{
+  "pages": [{
+    "title": "Scroll comparison",
+    "frames": [{ "name": "Phone map", "file": "phone.html", "viewport": [390, 844] }]
+  }]
+}

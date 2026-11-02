@@ -9,7 +9,8 @@
  * a headless browser and copied in as static DOM under its own stylesheets, scoped to its
  * frame, so Lavish annotates real elements. A frame is a hand-written HTML file or a
  * Storybook story. Run from a directory whose node_modules has @playwright/test
- * (or set ARTBOARD_PLAYWRIGHT to its path).
+ * (or set ARTBOARD_PLAYWRIGHT to its path). ARTBOARD_CONCURRENCY sets the number
+ * of simultaneous captures (positive integer, default 6).
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -48,6 +49,10 @@ const outFlag = args.indexOf("--out");
 const outArg = outFlag >= 0 ? args.splice(outFlag, 2)[1] : undefined;
 const layoutPath = resolve(args[0] ?? "layout.json");
 const layout: Layout = JSON.parse(readFileSync(layoutPath, "utf8"));
+const concurrency = Number(process.env.ARTBOARD_CONCURRENCY ?? 6);
+if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+  throw new Error("ARTBOARD_CONCURRENCY must be a positive integer");
+}
 const layoutDir = dirname(layoutPath);
 const outDir = resolve(outArg ?? layoutDir);
 const assetDir = resolve(outDir, "assets");
@@ -143,6 +148,15 @@ function requirePlaywright() {
 }
 
 async function capture(browser: import("@playwright/test").Browser, frame: Frame): Promise<Taken> {
+  try {
+    return await captureFrame(browser, frame);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(frame.name + " (" + (frame.story ?? frame.file ?? "no story or file") + "): " + message, { cause });
+  }
+}
+
+async function captureFrame(browser: import("@playwright/test").Browser, frame: Frame): Promise<Taken> {
   const viewport = frame.viewport ?? [1440, 900];
   const page = await browser.newPage({ viewport: { width: viewport[0], height: viewport[1] } });
   try {
@@ -153,6 +167,7 @@ async function capture(browser: import("@playwright/test").Browser, frame: Frame
       if (globals.length) query.set("globals", globals.join(";"));
       await page.goto(origin + "/iframe.html?" + query.toString());
       await page.waitForSelector("#storybook-root > *", { timeout: 30_000 });
+      if (frame.selector) await page.waitForSelector(frame.selector, { timeout: 30_000 });
     } else if (frame.file) {
       await page.goto(pathToFileURL(resolve(layoutDir, frame.file)).href);
     } else throw new Error(frame.name + " has neither file nor story");
@@ -247,7 +262,7 @@ try {
   // A few pages at a time: a dev Storybook serving dozens at once times out.
   const queue = [...frames];
   await Promise.all(
-    Array.from({ length: 6 }, async () => {
+    Array.from({ length: Math.min(concurrency, frames.length) }, async () => {
       for (let next = queue.shift(); next; next = queue.shift()) {
         taken.set(next.frame, await capture(browser, next.frame));
         console.error("captured " + next.frame.name);
@@ -262,6 +277,9 @@ const hoisted = new Set<string>();
 const groups = new Map<string, string>();
 const figures: string[] = [];
 const alone: [string, string][] = [];
+// Standalone frames have no canvas navigation, but still need their captured scroll state.
+const restoreScroll = readFileSync(new URL("./canvas-scroll.js", import.meta.url), "utf8");
+const standaloneRuntime = restoreScroll + "document.fonts.ready.then(restoreScroll);";
 const heads: string[] = [];
 const outline: string[] = [];
 let pageTop = 0;
@@ -310,8 +328,9 @@ for (const page of layout.pages) {
       "frame-" + key + ".html",
       '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' + escapeText(frame.name) + "</title>" +
         '<link rel="stylesheet" href="canvas.css"><style>body{margin:0;background:#e8e8e8}</style></head><body>' +
-        '<div class="canvas-surface" data-css="' + group + '" style="position:relative;overflow:hidden;margin:0 auto;width:' + width + "px;height:" + height + "px" +
-        (got.background ? ";background:" + got.background : ";background:#fff") + '">' + inner + "</div></body></html>",
+        '<div class="canvas-surface" data-css="' + group + '" style="position:relative;overflow:hidden;contain:paint;margin:0 auto;width:' + width + "px;height:" + height + "px" +
+        (got.background ? ";background:" + got.background : ";background:#fff") + '">' + inner + "</div>" +
+        "<script>" + standaloneRuntime + "</script></body></html>",
     ]);
     items.push('<li><button type="button" data-go="' + key + '">' + escapeText(frame.name) + "</button></li>");
   }
@@ -350,7 +369,7 @@ const html = [
   '<nav class="canvas-nav"><ul><li><button type="button" data-go="all">All frames</button></li>' + outline.join("") + "</ul></nav>",
   '<div class="canvas-tools"><button type="button" data-back hidden>← Back</button><button type="button" data-zoom-out>−</button><span data-zoom></span><button type="button" data-zoom-in>+</button><button type="button" data-reset title="Return frames to the layout">Reset</button><button type="button" data-save>Save arrangement</button></div>',
   '<div class="canvas-help">Scroll to pan · pinch or ⌘-scroll to zoom · drag empty canvas to pan · drag a caption to move · double-click a caption to enter · Esc to leave</div>',
-  "<script>" + runtime + "</script>",
+  "<script>" + restoreScroll + runtime + "</script>",
   "</body></html>",
 ].join("\n");
 writeFileSync(resolve(outDir, "canvas.html"), html);

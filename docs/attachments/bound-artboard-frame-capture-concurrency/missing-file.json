@@ -1,0 +1,15 @@
+{
+  "pages": [
+    {
+      "title": "Failure",
+      "frames": [
+        {
+          "name": "Missing file panel",
+          "file": "iframe.html",
+          "selector": ".absent",
+          "wait": 0
+        }
+      ]
+    }
+  ]
+}

@@ -33,6 +33,20 @@ function repo(hookSeconds = 0) {
   return { root, env, git, update, updateAsync, committed, lock, done: () => { rmSync(root, { recursive: true, force: true }); rmSync(vault, { recursive: true, force: true }); } };
 }
 
+function conflictedMerge(r: ReturnType<typeof repo>) {
+  writeFileSync(join(r.root, "unrelated"), "base\n");
+  r.git("add", "unrelated"); r.git("commit", "-qm", "base");
+  const main = r.git("branch", "--show-current");
+  r.git("checkout", "-qb", "other");
+  writeFileSync(join(r.root, "unrelated"), "other\n");
+  r.git("commit", "-qam", "other");
+  r.git("checkout", main);
+  writeFileSync(join(r.root, "unrelated"), "main\n");
+  r.git("commit", "-qam", "main");
+  r.git("merge", "other");
+  expect(existsSync(join(r.root, ".git/MERGE_HEAD"))).toBe(true);
+}
+
 const until = async (ok: () => boolean, ms: number) => {
   for (const end = Date.now() + ms; Date.now() < end; await Bun.sleep(100)) if (ok()) return true;
   return ok();
@@ -81,6 +95,43 @@ test("an index lock a live process holds is waited out, never removed", async ()
     expect(existsSync(marker)).toBe(true);
     expect(r.committed("a")).toContain("priority: 4");
   } finally { r.done(); }
+}, 30_000);
+
+for (const includeIssue of [false, true]) test("a canonical merge defers persistence; merge includes issue: " + includeIssue, async () => {
+  const r = repo();
+  let diagnostics: string | undefined;
+  try {
+    conflictedMerge(r);
+    const before = r.git("rev-parse", "HEAD");
+    const p = await r.updateAsync("a", { priority: 3 });
+    expect(p.code).toBe(0);
+    expect(p.err).toContain("persistence deferred: merge in progress in " + r.root);
+    diagnostics = p.err.trim().split("; diagnostics: ")[1];
+    expect(diagnostics).toBeDefined();
+    expect(readFileSync(join(r.root, "docs/issues/a.md"), "utf8")).toContain("priority: 3");
+    await Bun.sleep(700);
+    expect(r.git("rev-parse", "HEAD")).toBe(before);
+    expect(r.git("diff", "--name-only", "--diff-filter=U")).toBe("unrelated");
+    expect(r.git("diff", "--cached", "--name-only", "--", "docs/issues/a.md")).toBe("");
+    writeFileSync(join(r.root, "unrelated"), "resolved\n");
+    r.git("add", "unrelated");
+    if (includeIssue) r.git("add", "docs/issues/a.md");
+    r.git("commit", "-qm", "conclude merge");
+    const merge = r.git("rev-parse", "HEAD");
+    const result = join(diagnostics!, "..", "result.json");
+    expect(await until(() => existsSync(result), 10_000)).toBe(true);
+    expect(JSON.parse(readFileSync(result, "utf8")).ok).toBe(true);
+    expect(r.committed("a")).toContain("priority: 3");
+    if (includeIssue) expect(r.git("rev-parse", "HEAD")).toBe(merge);
+    else {
+      expect(r.git("rev-parse", "HEAD^")).toBe(merge);
+      expect(r.git("diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")).toBe("docs/issues/a.md");
+    }
+    expect(r.git("status", "--porcelain")).toBe("");
+  } finally {
+    r.done();
+    if (diagnostics) rmSync(join(diagnostics, ".."), { recursive: true, force: true });
+  }
 }, 30_000);
 
 test("concurrent writers behind a slow commit hook all write and persist without lock timeouts", async () => {
