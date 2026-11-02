@@ -30,3 +30,9 @@ Seed: committed fixture supplied by implementer. Runtime state confirmed the dir
 
 ## Frictions and limits
 No encountered friction. This is a CLI publishing journey; no browser was opened and no rendered appearance or annotation behavior is claimed. Port-target forwarding was not part of the supplied fixture/recovery acceptance encounter. No unit tests or source/fixture implementation were read or run. No product repairs.
+
+## Review (review-4), same entry point on the final head
+
+Re-drove the fixture under name `review-4-check`: published (HTML and `review.css` checked, 200 both, URL `https://beelink.tail9d5828.ts.net:10002/`); SIGKILL plus stop of the owned unit gave 502; re-run restored the identical URL with 200s; `--stop` removed the mapping, unit and state file. Bad input (missing directory, port 99999) fails with exit 1 and a one-line reason. With 10000/10001/10003 held by foreign mappings, a second concurrent name fails loudly ("no free Tailscale HTTPS port") without touching them. All four stories hold; no repairs made. Not covered by a permanent test (the ticket's "test" is this live fixture check; adding a test needs the maintainer's approval).
+
+Filed: [[projects/mlegls-pi/issues/host-for-human-port-range-leaks-abandoned-and-foreign-mappings]] (the four-port range runs out; reclaim policy is a maintainer decision). Settled [[projects/mlegls-pi/issues/tailscale-review-https-range-is-full]]: already done with result.
