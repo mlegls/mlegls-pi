@@ -1,5 +1,7 @@
 # Tracker tree child-index implementation trial
 
+Independent user-surface verification: [CLI drive predictions, encounter and replay checks](drive.md).
+
 `children`: scan the entire issue map on every lookup → build one child index per map, then look up by parent slug. The cache preserves map insertion order and includes archived children. Candidate edits use a fresh map; the immutability requirement is documented beside the cache.
 
 ## Setup and entry point
