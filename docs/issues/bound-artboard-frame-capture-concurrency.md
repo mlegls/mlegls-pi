@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 3
 author: "session:draw-session-map-and-graph-diff-node-marks-implement-1"
@@ -28,3 +28,36 @@ All in [canvas.ts](../../skills/enabled/all/mlegls/artboard/scripts/canvas.ts). 
 
 decisions:
 - 2026-11-02: merge the selector race into this ticket and take it off deferral; both are capture's wait/concurrency (@thread:thr_dwre28wvm6).
+
+## Result
+
+done
+
+I rebased onto `63a3f8b8` and the branch head is now `73941c20`. The only conflict was `skills/enabled/all/mlegls/artboard/SKILL.md`. I kept the new `host-for-human` step 4 from the base and my step 3 with the `ARTBOARD_CONCURRENCY` and named-capture-error wording.
+
+The one-line SKILL.md conflict was the only change I made. After the rebase `canvas.ts` still parses (`bun build --no-bundle`), and I did not re-run any fixture builds. The `at` placement changes are already on the base, so the `canvas.ts` diff against it is now just the concurrency, selector and error changes.
+
+```yaml
+commit: 73941c20
+stories:
+  - story: Capture concurrency is configurable, with default 6
+    outcome: held
+  - story: Story captures wait for their configured selector
+    outcome: held
+  - story: Capture errors identify the frame and story or file
+    outcome: held
+  - story: Invalid concurrency is rejected
+    outcome: held
+evidence:
+  path: docs/attachments/bound-artboard-frame-capture-concurrency/index.md
+  visual: false
+  shots: []
+fixed:
+  - "artboard SKILL.md now documents ARTBOARD_CONCURRENCY and named capture errors, commit e9159a5b"
+caveats:
+  - "The driver used a mocked Storybook fixture, not the historical shared-host overload."
+  - "Batch timing supports bounded scheduling, but simultaneous page counts were not instrumented."
+  - "The default pool of 6 trades some speed on idle hosts for stability on loaded ones. The driver measured 5.4 s unset against 7.7 s at 3 for 8 delayed frames on the fixture."
+```
+
+Evidence: [docs/attachments/bound-artboard-frame-capture-concurrency/index.md](../attachments/bound-artboard-frame-capture-concurrency/index.md)
