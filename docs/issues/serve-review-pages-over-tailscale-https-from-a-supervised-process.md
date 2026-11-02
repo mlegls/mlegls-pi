@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_ae8q9yrxnv"
@@ -18,3 +18,46 @@ ticket: one way to put a page in front of the maintainer.
 - Skill line in `skills/enabled/all/mlegls/artboard/SKILL.md` at the publish step, and in the conventions bb threads read: "Anything the maintainer opens in a browser is served with `host-for-human` over Tailscale HTTPS, not `bb connect expose`. If the maintainer says the link is down, re-run it without asking."
 
 Acceptance: a test serves a fixture directory and gets a checked HTTPS URL; killing the server and re-running restores the same URL; the artboard skill names the script at its publish step.
+
+## Result
+
+done — all four stories hold on the final head. I made no code repairs. I appended my review to the driver's log and committed it.
+
+I re-ran the fixture entry point (`bin/host-for-human` on the committed fixture directory, name `review-4-check`):
+- **Publish:** it checked the HTML and `review.css` over HTTPS, both 200, and printed `https://beelink.tail9d5828.ts.net:10002/`.
+- **Recovery:** after I killed and stopped the owned unit, the page returned 502. Re-running restored the identical URL with 200s.
+- **Cleanup:** `--stop` removed the mapping, the unit and the state file. Nothing of mine is left running.
+- **Bad input:** a missing directory or port 99999 exits 1 with a one-line reason.
+- **Full range:** when the range is full, it fails loudly and leaves existing mappings untouched.
+
+The artboard publish step and `agent-prompts/universal.md` both name `host-for-human` and the re-run-without-asking line.
+
+I also settled the friction the change's workers filed. `tailscale-review-https-range-is-full` was already done with a result, so I left it as is.
+
+```yaml
+commit: HEAD of branch serve-review-pages-over-tailscale-https-from-a-supervised-process-review-4 (review log commit on top of ba8b10dd)
+stories:
+  - story: Publish a fixture directory with checked Tailscale HTTPS
+    outcome: held
+  - story: Restore a dead server at the same URL
+    outcome: held
+  - story: Record review purpose and owner in a supervised service
+    outcome: held
+  - story: Artboard and thread conventions name host-for-human
+    outcome: held
+evidence:
+  path: docs/attachments/serve-review-pages-over-tailscale-https-from-a-supervised-process/drive-3.md
+  visual: false
+  shots: []
+tests: []
+filed:
+  - host-for-human-port-range-leaks-abandoned-and-foreign-mappings
+caveats:
+  - "No permanent test encodes the ticket's 'a test serves a fixture directory' acceptance. The live fixture entry point (docs/guide/host-for-human.md, First-use fixture) is the check, because adding a test needs the maintainer's approval."
+  - "proposed test: none; the script is thin glue over systemd and tailscale."
+  - "Only HTTPS ports 10000–10003 are available. Three are held by foreign mappings on Beelink, so only one concurrent review page fits. Reclaiming stale reservations or dead foreign mappings is a maintainer decision, filed in the issue above."
+  - "Unit lifetime: the transient user-systemd units do not survive a host reboot, so re-run the command after one (documented). Reboot persistence was not tested."
+  - "CLI-level only; rendered appearance and Lavish annotation over this origin were not assessed."
+```
+
+Evidence: [docs/attachments/serve-review-pages-over-tailscale-https-from-a-supervised-process/drive-3.md](../attachments/serve-review-pages-over-tailscale-https-from-a-supervised-process/drive-3.md)
