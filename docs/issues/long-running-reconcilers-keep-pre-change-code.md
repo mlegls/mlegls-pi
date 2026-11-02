@@ -1,4 +1,10 @@
 ---
+stage: "ticket"
+assignee: "agent"
+author: "session:thr_wqjd4uttrr"
+priority: 2
+---
+---
 stage: "idea"
 assignee: "agent"
 author: "session:thr_wqjd4uttrr"
@@ -10,3 +16,20 @@ Cause (from `ps`): reconcilers started before the commit keep running the code t
 Expected: a running reconciler or watcher notices that the package code it loaded has changed on main. It then either restarts itself at a safe point between ticks or reports that it's stale through `reconcile_status` and `pickup_status`. The existing `concept__retired` directories are then removed once each is checked for files that exist nowhere else.
 
 Efficiency audit 2026-11-02 (@thread:thr_ae8q9yrxnv; auditor @thread:thr_jzyk5zr226): the retirement-notice fix ([[projects/mlegls-pi/issues/retirement-notices-and-retired-checkouts-pile-up]]) landed 10-26, yet the concept supervisor still answered about 86 old-style "retired … kept" notices until 10-29 15:16Z, because reconcilers started before it kept the old code: about three days and roughly $15 of supervisor turns. Five "integration failed 3 times (ff-only)" exceptions on 10-28 and 10-29 likewise stopped only once runs picked up 9f27fe3e.
+
+decisions:
+- 2026-11-02: maintainer approved moving this to ready ("ok", @thread:thr_ae8q9yrxnv, on the efficiency audit's proposal). Expected behaviour: restart itself at a safe point.
+
+## shape
+
+A run and the pickup watcher fingerprint the package code they loaded at start, check it between ticks, and re-exec themselves when it changed on disk. State already resumes from `<stateDir>/<root>.json` (session start resumes dead runs the same way), so the replacement picks up chains, exceptions and workers without retiring anything.
+
+- **Fingerprint** (new `lib/reconcile/code-version.ts`): hash of the package's `lib/` and `extensions/supervision/` source files (content, not mtime; `git hash-object` or Bun's hasher over the sorted file list), taken once at process start. `changed()` recomputes it, at most once a minute.
+- **Reconciler** (`reconcile.ts` main loop, after a tick that returned false, before `Bun.sleep(TICK_MS)`): if `changed()` and no landing operation is mid-flight (`landingOps` empty, no integrate or rebase running), `note("code changed on disk; restarting")`, save state, spawn the same command line the way `main.ts start` does (detached setsid, same log fd, `--quiet` so the owner gets no new "started" message), publish the child pid in state, and exit. Factor `start()`'s spawn into a helper both use.
+- **Pickup watcher** (`pickup.ts` `watch` tick): same check; on change, spawn `pickup.ts watch` detached, record the new watcher pid, and exit.
+- **Status**: `reconcile_status` and `pickup_status` show each process's loaded fingerprint and `stale: true` when it differs from disk (the case where the restart is deferred by an in-flight landing).
+- **Leftovers**: once this lands, check each existing `~/dev/mmon/concept__retired` directory for files that exist nowhere else (report them), then remove the directories.
+
+Out: hot-reloading modules in-process; restarting mid-landing.
+
+Acceptance: a test starts a run on a fixture package, edits a file under `lib/`, and sees the run log "restarting" and a new pid that resumes the same chains with no worker retired and no owner message; the same for the pickup watcher; status shows `stale` while a landing defers the restart.
