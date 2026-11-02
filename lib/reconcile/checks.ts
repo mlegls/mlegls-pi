@@ -25,9 +25,21 @@ export function isAncestor(cwd: string, ancestor: string, descendant = "HEAD"): 
  * Reviewer-listed tests run beside the gate, never instead.
  * The gates are the one place a ticket runs the full suite: workers run the project's `test:affected` task against their base. */
 export const declaredGates = (cwd: string): { cmd: string; timeout: number }[] => {
+  // No configuration means no project gate; discovery errors must never mean the same thing.
+  if (!["mise.toml", ".mise.toml"].some(file => existsSync(join(cwd, file)))) return [];
+  const run = spawnSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   let names: Set<string>;
-  try { names = new Set((JSON.parse(execFileSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })) as { name: string }[]).map(t => t.name)); }
-  catch { return []; }
+  try {
+    if (run.error) throw run.error;
+    if (run.status !== 0) throw new Error(run.signal ? "signal " + run.signal : "exit " + run.status);
+    const tasks: unknown = JSON.parse(run.stdout);
+    if (!Array.isArray(tasks) || tasks.some(t => !t || typeof t.name !== "string")) throw new Error("invalid task list");
+    names = new Set(tasks.map(t => t.name));
+  } catch (error) {
+    throw Object.assign(new Error("mise tasks ls --json failed: " + String(error)), {
+      stdout: run.stdout, stderr: run.stderr, status: run.status, signal: run.signal,
+    });
+  }
   return names.has("pre-integrate") ? [{ cmd: "mise run pre-integrate", timeout: 30 * 60_000 }] : [];
 };
 /** A project that verifies main after landing (concept: .husky/post-merge → scripts/verify-main.sh) keeps
@@ -40,11 +52,15 @@ export function mainRed(cwd: string): string | undefined {
 /** Whether red main holds a landing changing `changed` (repository-relative). Docs-only landings pass: they
  * change no code, and verify-main inherits main's result for them. So does a landing that touches a failing
  * case's file (red lists cases as `[project] › <path>:<line> › title`, path relative to the test runner's
- * directory): it is probably the repair, and holding it would wait on itself. */
+ * directory), or a lint/typecheck error's file (`<path>:<line>:<col>: error` or tsc's
+ * `<path>(<line>,<col>): error`): it is probably the repair, and holding it would wait on itself. */
 export function heldByRed(red: string, changed: string[]): boolean {
   const code = changed.filter(f => !f.startsWith("docs/"));
   if (!code.length) return false;
-  const failing = [...red.matchAll(/\] › ([\w./-]+):\d+/g)].map(m => m[1]);
+  const failing = [
+    ...red.matchAll(/\] › ([\w./-]+):\d+/g),
+    ...red.matchAll(/([\w./-]+)(?::\d+:\d+|\(\d+,\d+\)): error\b/g),
+  ].map(m => m[1]);
   return !code.some(f => failing.some(p => f === p || f.endsWith("/" + p)));
 }
 /** Long command output shortened from the middle: a failing test, its exit and the summary are at the end. 2026-10-29

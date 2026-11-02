@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: session:01a0f6bc-8c6b-7179-b390-af3b53e964e3
 ---
@@ -15,3 +15,7 @@ During [[projects/mlegls-pi/issues/replacement-drive-misses-recorded-offline-aud
 The same failure recurred during [[projects/mlegls-pi/issues/reconciler-drive-continuation-loses-managed-process-ownership]] on base `5508756` (session:b367f06f-e5a5-4015-a245-ee4da4cc1a9b): the checkpoint test passed, but root `bun run typecheck` failed with Obsidian DOM/plugin diagnostics. `bun install --frozen-lockfile --cwd extensions/obsidian-tracker` followed by unchanged root typecheck and the checkpoint test exited 0. No root setup boundary was changed.
 
 During [[projects/mlegls-pi/issues/stopped-supervise-jobs-have-no-cleanup-path]] on base `ddcef078` (session:cb3c28b5-31a2-4981-ba1e-2492d075b278), root `bun run typecheck` again reported missing Obsidian types and cascading plugin/DOM diagnostics. The frozen nested install added 11 packages, then the unchanged check passed. [Reproduction and final checks](../attachments/stopped-supervise-jobs-have-no-cleanup-path/index.md). The root setup boundary remains unchanged.
+
+## Result
+
+Fixed by d48641b3 (2026-10-08): package.json setup installs extensions/obsidian-tracker dependencies, and worker setup (lib/thread/setup.ts) runs mise run setup, which runs it. The recorded failures are on bases before that commit (c4312ef, 70540b6) or not in this repository history.
