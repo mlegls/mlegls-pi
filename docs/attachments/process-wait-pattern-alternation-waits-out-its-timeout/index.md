@@ -60,3 +60,11 @@ await call({action:'start',name:'drive-invalid',command:'sleep 30',readyPattern:
 await call({action:'start',name:'drive-invalid-dot',command:'sleep 30',readyPattern:'.*'});
 }finally{await call({action:'kill',id:'drive-marker'});for(const fn of events.get('session_shutdown')??[])await fn({},ctx);}
 ```
+
+## Review (2026-11-02)
+
+Reviewed pi-processes branch `process-wait-pattern-alternation-implement` (4f6c5d4, base ff4a792; the change lives in `~/dev/pi-processes`, not this repo). Validation runs in `validateParams` before process lookup, so the tool-level test (`ready|rror`, 1800 s timeout, no process) fails without waiting; literal `server ready` still matches `SERVER READY`. Escaped `\\|` passes validation and then matches the backslash literally, as the code comment states. No driver frictions to triage.
+
+Repair: README described the pattern only as "case-insensitive substring" — updated to literal + rejection (pi-processes 5653225).
+
+Checks: full vitest in the implement worktree, 3 runs 278/278 pass; one earlier run had a single failure in a fake-timer `process_ended` test (src/manager test near line 1278) while another vitest ran concurrently; it did not reproduce in 3 reruns and is unrelated to patterns.
