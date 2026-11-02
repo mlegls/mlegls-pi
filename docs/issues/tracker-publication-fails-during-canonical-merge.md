@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:01a16368-2fc8-718f-8be5-3cde6a9272ab"
 priority: 3
@@ -29,3 +29,34 @@ Tests in `persistence.test.ts`: a write during a conflicted merge of an unrelate
 
 decisions:
 - 2026-11-02: merge the duplicate; defer persistence across an in-progress canonical operation, as for a live index lock, instead of failing or touching the operation (@thread:thr_dwre28wvm6).
+
+## Result
+
+done
+
+The change defers tracker persistence while a merge, rebase, cherry-pick or revert is in progress in the checkout. I made no code repairs. I ran `bun test persistence.test.ts` (6 pass, 0 fail) but not `mise run test:affected`.
+
+`persistNow` in `issues.ts` waits for the operation to end, bounded by `LIVE_LOCK_WAIT_MS` (10 minutes), the same bound as the live index lock wait. It never touches the operation's own files. The foreground command prints "persistence deferred: <operation> in progress in <checkout>" on stderr and exits 0. If the merge's own commit already included the issue file, the persister has nothing to commit and exits 0.
+
+```yaml
+commit: "3c7e0e9b (branch tracker-publication-fails-during-canonical-merge-review-2; implementation f7b21f64)"
+stories:
+  - story: "A write during a conflicted merge of an unrelated path exits 0, commits nothing until the merge concludes, then commits only the issue path"
+    outcome: held
+  - story: "A merge that itself commits the issue file leaves the persister nothing to do"
+    outcome: held
+  - story: "The wait is bounded like the live index lock wait"
+    outcome: held
+evidence:
+  path: docs/attachments/tracker-publication-fails-during-canonical-merge/index.md
+  visual: false
+  shots: []
+tests:
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/persistence.test.ts
+caveats:
+  - "Drive was skipped because the ticket declares drive: none. The acceptance is persistence.test.ts, which the ticket's shape names. I reviewed the diff against the ticket and re-ran that file; the post-landing full-suite integration gate remains."
+  - "Each deferral leaves a small tracker-persist-* scratch directory in the temp dir, because the persister keeps its result and diagnostics for the foreground that has returned. I did not change this: removing it would race the test that reads result.json after the merge concludes."
+  - "Wall-time trade-off: the foreground polls every 50 ms and runs git rev-parse each time while the persister is running. The deferred persister holds the persist lock for up to 10 minutes, so other persisters queue behind it."
+```
+
+Evidence: [docs/attachments/tracker-publication-fails-during-canonical-merge/index.md](../attachments/tracker-publication-fails-during-canonical-merge/index.md)

@@ -11,7 +11,7 @@
 //
 // Git projects use the main worktree's canonical vault; non-git vaults discover upward.
 
-import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync, mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, realpathSync, mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, openSync, closeSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { createHash, randomUUID } from "node:crypto";
 import { checkout, git } from "../../../../../../../lib/thread/git.ts";
@@ -229,6 +229,13 @@ const withVaultLock = <T>(dir: string, change: () => T): T => withLock("vault", 
 
 type Persistence = { root: string; paths: string[]; message: string };
 
+// The foreground polls these files while the detached persister is writing them.
+function persistenceSignal(file: string, text: string): void {
+  const tmp = file + "." + randomUUID() + ".tmp";
+  writeFileSync(tmp, text);
+  renameSync(tmp, file);
+}
+
 /** Validate an in-memory candidate before atomically publishing each touched file.
  * Returns the path-limited persistence for persist(); unrelated staged paths never enter it. */
 function publish(dir: string, changes: Map<string, string | null>, message: string): Persistence | undefined {
@@ -269,13 +276,36 @@ async function persist(plan: Persistence | undefined): Promise<void> {
   if (!plan) return;
   const scratch = mkdtempSync(join(tmpdir(), "tracker-persist-"));
   const result = join(scratch, "result.json");
+  let deferred = false;
+  const log = join(scratch, "persistence.log");
+  const fd = openSync(log, "a");
   try {
-    const child = spawn(process.execPath, [import.meta.path, "__persist", result, plan.root, plan.message, ...plan.paths], { detached: true, stdio: "ignore" });
-    await new Promise<void>((done, fail) => { child.once("error", fail); child.once("exit", () => done()); });
+    const child = spawn(process.execPath, [import.meta.path, "__persist", result, plan.root, plan.message, ...plan.paths], { detached: true, stdio: ["ignore", "ignore", fd] });
+    let exited = false;
+    let failure: Error | undefined;
+    child.once("error", error => { failure = error; exited = true; });
+    child.once("exit", () => { exited = true; });
+    while (!exited && !existsSync(result)) {
+      const notice = result + ".deferred";
+      // Also detect here: this child may be queued behind another persister waiting on the operation.
+      const operation = operationInProgress(plan.root);
+      if (operation && !existsSync(notice)) persistenceSignal(notice, "tracker: persistence deferred: " + operation + " in progress in " + plan.root);
+      if (existsSync(notice)) {
+        deferred = true;
+        console.error(readFileSync(notice, "utf8") + "; diagnostics: " + log);
+        child.unref();
+        return;
+      }
+      await Bun.sleep(50);
+    }
+    if (failure) throw failure;
     const out = existsSync(result) ? JSON.parse(readFileSync(result, "utf8")) as { ok: boolean; error?: string; notes: string[] } : { ok: false, error: "persister exited without a result", notes: [] };
     for (const note of out.notes) console.error(note);
     if (!out.ok) throw new Error("Validated tracker working-tree write happened; persistence failed: " + out.error);
-  } finally { rmSync(scratch, { recursive: true, force: true }); }
+  } finally {
+    closeSync(fd);
+    if (!deferred) rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 const STALE_LOCK_MS = Number(process.env.TRACKER_STALE_LOCK_MS ?? 30_000);
@@ -324,11 +354,26 @@ function settleIndex(root: string, paths: string[]): void {
   if (stale.length) git(root, "reset", "-q", "HEAD", "--", ...stale);
 }
 
-/** The persister's work: serialized against other tracker persisters, waiting out live index locks. */
-function persistNow(root: string, paths: string[], message: string, notes: string[]): void {
+/** Operation state belongs to this checkout, not the shared Git directory of its worktrees. */
+function operationInProgress(root: string): string | undefined {
+  const dir = git(root, "rev-parse", "--absolute-git-dir");
+  for (const [marker, operation] of [["rebase-merge", "rebase"], ["rebase-apply", "rebase"], ["MERGE_HEAD", "merge"], ["CHERRY_PICK_HEAD", "cherry-pick"], ["REVERT_HEAD", "revert"]]) {
+    if (existsSync(join(dir, marker))) return operation;
+  }
+}
+
+/** Serialized against tracker persisters; never touch an in-progress operation's index. */
+function persistNow(root: string, paths: string[], message: string, notes: string[], defer: (operation: string) => void): void {
   withLock("persist", root, LIVE_LOCK_WAIT_MS, () => {
     const deadline = Date.now() + LIVE_LOCK_WAIT_MS;
     for (;;) {
+      const operation = operationInProgress(root);
+      if (operation) {
+        defer(operation);
+        if (Date.now() > deadline) throw new Error("persistence wait expired: " + operation + " in progress in " + root + "; uncommitted paths: " + paths.join(", "));
+        Bun.sleepSync(500);
+        continue;
+      }
       try {
         const recovered = recoverStaleIndexLock(root);
         if (recovered) notes.push(recovered);
@@ -339,6 +384,8 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
         settleIndex(root, paths);
         return;
       } catch (error) {
+        // An operation may have started between our check and Git taking its index lock.
+        if (operationInProgress(root)) continue;
         // A concurrent writer of the same paths may already have committed these bytes.
         if (!git(root, "diff", "--name-only", "HEAD", "--", ...paths)) { settleIndex(root, paths); return; }
         if (!/index\.lock.*File exists/s.test(String((error as { stderr?: unknown }).stderr ?? error)) || Date.now() > deadline) throw error;
@@ -899,11 +946,20 @@ if (verb === "__persist") {
   const [result, root, message, ...paths] = rawArgs.slice(1);
   const notes: string[] = [];
   let out: { ok: boolean; error?: string; notes: string[] };
-  try { persistNow(root, paths, message, notes); out = { ok: true, notes }; }
-  catch (error) { out = { ok: false, error: String((error as { stderr?: unknown }).stderr || error).trim(), notes }; }
-  if (existsSync(dirname(result))) writeFileSync(result, JSON.stringify(out));
-  // Orphaned (the caller was killed): nobody will read or remove the result.
-  if (process.ppid === 1) rmSync(dirname(result), { recursive: true, force: true });
+  try {
+    persistNow(root, paths, message, notes, operation => {
+      const notice = result + ".deferred";
+      if (!existsSync(notice) && existsSync(dirname(result))) persistenceSignal(notice, "tracker: persistence deferred: " + operation + " in progress in " + root);
+    });
+    out = { ok: true, notes };
+  } catch (error) {
+    out = { ok: false, error: String((error as { stderr?: unknown }).stderr || error).trim(), notes };
+    console.error(out.error + "; pending tracker paths: " + paths.join(", "));
+  }
+  if (existsSync(dirname(result))) persistenceSignal(result, JSON.stringify(out));
+  // Keep deferred diagnostics (including bounded-wait failures) at the path reported to the caller.
+  // Otherwise an orphaned caller will never read or remove its result.
+  if (process.ppid === 1 && !existsSync(result + ".deferred")) rmSync(dirname(result), { recursive: true, force: true });
   return;
 }
 // Loaded only when no canonical vault exists, so every vault invocation skips the GitHub backend's modules.
