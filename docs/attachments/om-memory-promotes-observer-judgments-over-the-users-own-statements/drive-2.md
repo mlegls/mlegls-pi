@@ -48,3 +48,7 @@ First managed run stopped after boundary 25 with OpenAI 503 `subscription_sharin
 - Run direct condenser command above: compare `metrics.json` before/after, then read every `content` in `condensed-pool.json` rather than treating token reduction as evidence of semantic correction.
 - Inspect supersession entries in generated `ledger.json`; accept only if replaced records identify replacements and remain recallable (replacement metadata observed; recall surface not supplied by this replay CLI).
 
+
+## Review (review-3)
+
+Read the diff with the log. No repairs needed. `bun run typecheck` passes; `bun test extensions/context/om` 12 pass, 0 fail (config, store, render-summary, rank-reflections, compact-at). The project has no `test:affected` task, so the OM test directory was run in full. Not re-run: the 21-minute live replay; the driver's outcomes stand on its committed packet. Triage: the legacy-condenser friction stays an idea in [[projects/mlegls-pi/issues/condenser-retains-unsupported-rules-when-only-legacy-reflections-are-available]] with the decision it waits on now named. The recall surface and the changed observer remain unobserved by a driver (observer and recall were only self-checked by the implementer).
