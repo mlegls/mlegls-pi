@@ -3,6 +3,7 @@ stage: "ticket"
 assignee: "agent"
 author: "session:01a1661a-bb76-7763-9c9f-43f21e4a4b41"
 priority: 3
+drive: "none"
 ---
 While refining Concept's `check-in-drive-setup-lacks-conversation-and-retry-scenarios` on 2026-10-23, a tracker create command launched through the managed `process` tool expanded `$PI_SESSION_ID` to empty. The same variable printed `01a1661a-bb76-7763-9c9f-43f21e4a4b41` in the `bash` tool earlier in this session. The environment difference's cause is not established; this observation alone does not establish that it shares the PATH issue in [[projects/mlegls-pi/issues/managed-process-nested-shell-loses-mise-python-path]].
 
