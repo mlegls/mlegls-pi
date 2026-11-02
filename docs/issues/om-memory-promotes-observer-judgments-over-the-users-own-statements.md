@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_ae8q9yrxnv"
@@ -37,3 +37,35 @@ decisions:
 - **Pool limit:** cap the reflection pool's trigger at an absolute ceiling (about 20k tokens) as well as the window-derived share, so large-window sessions condense too. The condenser also merges near-duplicates whenever it runs.
 - **Acceptance:** replay this session's ledger through the changed reflector and condenser (`session-ledger/replay-upstream.ts`). The 10-30 15:53 summary should then carry the filming-profile permission, with no reflection saying the assistant must never accept on the filming profile. The final pool should be under the ceiling, with one reflection per durable fact.
 
+
+## Result
+
+done — the three required stories hold on the driver's committed evidence. I found no defects and made no behavior changes. I did not re-run the 21-minute live replay, so those outcomes rest on the driver's packet.
+
+I read the diff against the ticket and the driver's log. `bun run typecheck` passes and `bun test extensions/context/om` gives 12 pass, 0 fail. The repo has no `test:affected` task, so I ran the whole OM test directory.
+
+On the legacy-condenser friction, `condenser-retains-unsupported-rules-when-only-legacy-reflections-are-available` stays an `idea`. The driver reproduced it, and only legacy pools recorded before the reflector change are exposed. I added the replay evidence to that issue and named the decision it waits on: migrate legacy pools or accept the limit. I left `reconciler-join-launch-can-start-from-enclosing-collector` alone: it came from another run and is unrelated to this change.
+
+```yaml
+commit: 895b7023
+stories:
+  - story: October 30 15:53 summary preserves filming-profile permission without a conflicting acceptance ban
+    outcome: held
+  - story: Latest user framing supersedes earlier conflicting profile framing
+    outcome: held
+  - story: Final reflection pool stays below the ceiling and consolidates durable facts
+    outcome: held
+evidence:
+  path: docs/attachments/om-memory-promotes-observer-judgments-over-the-users-own-statements/drive-2.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+caveats:
+  - "Not required by the acceptance and not observed by a driver: recall of superseded reflections and the changed observer's attribution. The implementer self-checked both. The driver saw `supersededBy` links in the generated ledger but did not run recall, and the replay reuses the historical observations."
+  - "Legacy-pool condensation limit is tracked, with its decision named, in condenser-retains-unsupported-rules-when-only-legacy-reflections-are-available."
+  - "Cost choices: the final duplicate sweep adds one condenser pass per run that reaches its target, and the reflector now reconciles and dedupes on every run. No per-run measure was recorded. The driver's whole-ledger replay took 20m47s for 223 reflector boundaries, and the direct condenser run took 2m56s."
+  - "The branch also carries unrelated reconcile commits (lib/reconcile/*) from the base; I did not review them."
+```
+
+Evidence: [docs/attachments/om-memory-promotes-observer-judgments-over-the-users-own-statements/drive-2.md](../attachments/om-memory-promotes-observer-judgments-over-the-users-own-statements/drive-2.md)
