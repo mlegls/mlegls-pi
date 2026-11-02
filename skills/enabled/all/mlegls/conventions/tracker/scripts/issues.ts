@@ -74,7 +74,7 @@ function parseFrontmatter(text: string, file: string): Omit<Issue, "slug" | "fil
     }
     if ("stage" in fm && !STAGES.includes(fm.stage)) throw new Error("stage must be one of " + STAGES.join(" "));
     if ("assignee" in fm && (typeof fm.assignee !== "string" || !validAssignee(fm.assignee))) throw new Error("invalid assignee selector");
-    if ("author" in fm && (typeof fm.author !== "string" || !fm.author.trim())) throw new Error("author must be a nonempty provenance string");
+    if ("author" in fm && (typeof fm.author !== "string" || !fm.author.trim() || /^[^:]+:\s*$/.test(fm.author))) throw new Error("author must be a nonempty provenance string");
     if ("blocked-by" in fm && !Array.isArray(fm["blocked-by"])) throw new Error("blocked-by must be a list of issue wikilinks and guards");
     const isLink = (value: unknown) => typeof value === "string" && value.startsWith("[[");
     const guards = (fm["blocked-by"] ?? []).filter((value: unknown) => !isLink(value));
