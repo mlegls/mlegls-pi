@@ -219,11 +219,7 @@ document.querySelector("[data-save]").addEventListener("click", (event) => {
 });
 
 document.fonts.ready.then(() => {
-  for (const element of document.querySelectorAll("[data-scroll]")) {
-    const [top, left] = element.dataset.scroll.split(",").map(Number);
-    element.scrollTop = top;
-    element.scrollLeft = left;
-  }
+  restoreScroll();
   layoutPages();
   const deep = location.hash ? document.getElementById(location.hash.slice(1)) : null;
   if (deep?.classList.contains("canvas-frame")) enter(deep);

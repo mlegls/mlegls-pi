@@ -278,13 +278,8 @@ const groups = new Map<string, string>();
 const figures: string[] = [];
 const alone: [string, string][] = [];
 // Standalone frames have no canvas navigation, but still need their captured scroll state.
-const standaloneRuntime = `document.fonts.ready.then(() => {
-  for (const element of document.querySelectorAll("[data-scroll]")) {
-    const [top, left] = element.dataset.scroll.split(",").map(Number);
-    element.scrollTop = top;
-    element.scrollLeft = left;
-  }
-});`;
+const restoreScroll = readFileSync(new URL("./canvas-scroll.js", import.meta.url), "utf8");
+const standaloneRuntime = restoreScroll + "document.fonts.ready.then(restoreScroll);";
 const heads: string[] = [];
 const outline: string[] = [];
 let pageTop = 0;
@@ -374,7 +369,7 @@ const html = [
   '<nav class="canvas-nav"><ul><li><button type="button" data-go="all">All frames</button></li>' + outline.join("") + "</ul></nav>",
   '<div class="canvas-tools"><button type="button" data-back hidden>← Back</button><button type="button" data-zoom-out>−</button><span data-zoom></span><button type="button" data-zoom-in>+</button><button type="button" data-reset title="Return frames to the layout">Reset</button><button type="button" data-save>Save arrangement</button></div>',
   '<div class="canvas-help">Scroll to pan · pinch or ⌘-scroll to zoom · drag empty canvas to pan · drag a caption to move · double-click a caption to enter · Esc to leave</div>',
-  "<script>" + runtime + "</script>",
+  "<script>" + restoreScroll + runtime + "</script>",
   "</body></html>",
 ].join("\n");
 writeFileSync(resolve(outDir, "canvas.html"), html);

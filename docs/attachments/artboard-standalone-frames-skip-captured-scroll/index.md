@@ -40,3 +40,7 @@ The historical Concept React Flow zoom-panel encounter is not reproduced here: C
 ## Independent drive
 
 Fresh driver at `8cf684df5a792bea815ee1cb64e2f0e1c6f4c64a`: [predictions, setup, encounter and replayable checks](drive.md). Captured vertical/horizontal scroll, reload restoration and supplied fixed-panel placement all held. No scoped friction. [Canvas](drive-canvas.webp) / [standalone](drive-alone.webp), Chromium 1905×2053, seeded synthetic frame. Historical Concept scene was not reproduced.
+
+## Review
+
+Reviewed the scroll/containment diff: it matches the ticket (restore after fonts.ready; standalone surface now has the canvas surface's `contain: paint`). One structural repair: the restore loop was duplicated in canvas.ts and canvas-runtime.js, so it now lives once in `canvas-scroll.js`, which the build prepends to both the canvas and each standalone page. Re-driven after the refactor on the committed fixture: the rebuilt canvas and the standalone page both report `data-scroll=180,142` with scrollTop 180 and scrollLeft 142. The driver's screenshots and geometry are unchanged by this behavior-preserving move. Historical Concept React Flow panel: not reproduced; the `contain: paint` difference is the located cause for fixed-position panels escaping the standalone surface.
