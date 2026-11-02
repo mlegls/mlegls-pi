@@ -24,6 +24,8 @@ interface RunCondenserArgs {
 	env?: Record<string, string>;
 	reflections: Reflection[];
 	targetTokens: number;
+	/** A final duplicate sweep is useful even after the pool reaches its size target. */
+	deduplicate?: boolean;
 	signal?: AbortSignal;
 	agentLoop?: typeof agentLoop;
 	maxTurns?: number;
@@ -55,7 +57,7 @@ export async function runCondenser(args: RunCondenserArgs): Promise<CondenserRes
 	const { model, apiKey, headers, env, reflections, targetTokens, signal } = args;
 	if (reflections.length === 0) return undefined;
 	const poolTokens = reflectionPoolTokens(reflections);
-	if (poolTokens <= targetTokens) return undefined;
+	if (poolTokens <= targetTokens && !args.deduplicate) return undefined;
 
 	const byId = new Map(reflections.map((reflection) => [reflection.id, reflection]));
 	const consumed = new Set<string>();
@@ -114,7 +116,7 @@ export async function runCondenser(args: RunCondenserArgs): Promise<CondenserRes
 		},
 	};
 
-	const userText = `CURRENT REFLECTIONS (oldest first):\n${reflections.map(reflectionToSummaryLine).join("\n")}\n\nReflection pool: ~${poolTokens.toLocaleString()} tokens across ${reflections.length} reflections; target: ~${targetTokens.toLocaleString()} tokens; over by ~${(poolTokens - targetTokens).toLocaleString()}.`;
+	const userText = `CURRENT REFLECTIONS (oldest first):\n${reflections.map(reflectionToSummaryLine).join("\n")}\n\nReflection pool: ~${poolTokens.toLocaleString()} tokens across ${reflections.length} reflections; target: ~${targetTokens.toLocaleString()} tokens; over by ~${Math.max(0, poolTokens - targetTokens).toLocaleString()}.${args.deduplicate ? " The size target is met. Now sweep the whole remaining pool for duplicate and near-duplicate facts; merge them even though no size reduction is required. In particular, do not leave multiple wordings of the same permission or constraint beside each other." : ""}`;
 	const prompts: Message[] = [{ role: "system", content: CONDENSER_SYSTEM, timestamp: Date.now() } as Message, { role: "user", content: [{ type: "text", text: userText }], timestamp: Date.now() }];
 	const context: AgentContext = { messages: [], tools: [merge as AgentTool<any>, drop as AgentTool<any>] };
 	const reasoning = (model as { reasoning?: unknown }).reasoning;
@@ -143,7 +145,7 @@ export async function runCondenser(args: RunCondenserArgs): Promise<CondenserRes
 
 /**
  * Run condenser passes, each over the previous pass's result, until the pool is at target, a pass
- * changes nothing, or maxPasses. One pass shrinks a large pool only partly (58k → 51k tokens on
+ * changes nothing, or maxPasses, including a final duplicate sweep below target. One pass shrinks a large pool only partly (58k → 51k tokens on
  * the evidence session). Returns the net change: reflections to record and ids to tombstone; a
  * reflection added by one pass and replaced by a later one is neither.
  */
@@ -153,7 +155,8 @@ export async function condenseToTarget(args: RunCondenserArgs & { maxPasses?: nu
 	const added = new Map<string, Reflection>();
 	const dropped = new Set<string>();
 	for (let pass = 0; pass < (args.maxPasses ?? 4); pass++) {
-		const result = await runCondenser({ ...args, reflections: pool });
+		const deduplicate = reflectionPoolTokens(pool) <= args.targetTokens;
+		const result = await runCondenser({ ...args, reflections: pool, deduplicate });
 		if (!result) break;
 		for (const id of result.droppedIds) {
 			if (original.has(id)) dropped.add(id);
@@ -163,7 +166,7 @@ export async function condenseToTarget(args: RunCondenserArgs & { maxPasses?: nu
 		const gone = new Set(result.droppedIds);
 		pool = [...pool.filter((r) => !gone.has(r.id)), ...result.reflections];
 		debugLog("condenser.pass", { pass, poolTokens: reflectionPoolTokens(pool), targetTokens: args.targetTokens });
-		if (reflectionPoolTokens(pool) <= args.targetTokens) break;
+		if (deduplicate) break; // One final full-pool duplicate sweep after reaching the size target.
 	}
 	if (dropped.size === 0 && added.size === 0) return undefined;
 	return { reflections: [...added.values()], droppedIds: [...dropped] };
