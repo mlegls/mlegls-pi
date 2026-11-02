@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "ticket"
 assignee: "agent"
 author: "session:01a17065-a748-7495-8ce8-f2c491c4b2d7"
 priority: 3
@@ -11,3 +11,7 @@ Seen on Concept's screens canvas (2026-10-24, [concept's drawing packet](../../.
 Likely fix: give the standalone page the same `[data-scroll]` restore (a few lines, or the relevant part of the runtime), then check whether the zoom-panel placement still differs.
 
 Transferred from concept's `artboard-node-marks-phone-frame-controls-cover-tokens` (author session:01a17065-a748-7495-8ce8-f2c491c4b2d7).
+
+## shape
+
+In [canvas.ts](../../skills/enabled/all/mlegls/artboard/scripts/canvas.ts), the standalone page pushed into `alone` gets an inline script that restores `[data-scroll]` after `document.fonts.ready`, the same loop as [canvas-runtime.js](../../skills/enabled/all/mlegls/artboard/scripts/canvas-runtime.js) (factor the snippet into one string both use, or inline the few lines). Then rebuild a canvas with a scrolled frame and compare the standalone page with its canvas frame; if a panel's placement still differs (the graph-diff zoom panel case), find whether the standalone surface's `overflow:hidden` sizing differs from the canvas surface and match it, or record what remains in the result.
