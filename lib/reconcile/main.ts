@@ -11,11 +11,14 @@ import { retire, tell, topic, type Handle } from "../dispatch";
 import { bbThreads } from "../thread/bb";
 import { commonDir } from "../thread/git";
 import { pidAlive as alive } from "../wm";
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { discardRefinement, replaceRefinement } from "./refinement";
 import { parseArgs } from "node:util";
 import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, stopRefinementWriter, updateState, workerHandles, type State } from "./reconcile.ts";
+
+import { codeStatus } from "./code-version";
+import { spawnRun, waitForPredecessor } from "./process";
 
 export function start(o: StartOptions): { pid: number; log: string } {
 	const prior = prepareStart(o);
@@ -23,23 +26,18 @@ export function start(o: StartOptions): { pid: number; log: string } {
 	const controlCwd = prior.pr?.path ?? o.cwd;
 	if (prior?.stopping) throw new Error("cleanup in progress for " + o.root + ": retry stop to finish it");
 	if (prior && !prior.finished && prior.pid && alive(prior.pid)) return { pid: prior.pid!, log: join(stateDir(controlCwd), o.root + ".log") };
-	mkdirSync(stateDir(controlCwd), { recursive: true });
-	const log = join(stateDir(controlCwd), o.root + ".log");
-	const fd = openSync(log, "a");
-	const child = Bun.spawn(["bun", import.meta.path, "run", o.root, "--owner", o.owner, "--budget", String(o.budget), "--cwd", controlCwd, "--land", prior.land ?? "local", ...(o.ownerSession ? ["--owner-session", o.ownerSession] : []), ...(o.quiet ? ["--quiet"] : [])],
-		// Its own session (setsid): bb runs an environment's pis under one provider process and stops it, reaping its idle
-		// sessions, by killing its process group, which killed every reconciler a pi there had started; each owner's next
-		// session start resumed them all at once (2026-10-25). A host-daemon restart still kills its whole cgroup.
-		{ cwd: controlCwd, stdio: ["ignore", fd, fd], detached: true, env: { ...process.env, PI_SESSION_ID: "" } });
-	child.unref();
-	closeSync(fd);
-	// Publish before returning, including on the first start: an immediate stop must know its PID.
-	updateState(controlCwd, o.root, prior => ({
-		...(prior ?? { backend: "threads", root: o.root, cwd: o.cwd, owner: o.owner, budget: o.budget,
-			landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [] }),
-		pid: child.pid,
-	}));
-	return { pid: child.pid, log };
+	let spawned!: { pid: number; log: string };
+	updateState(controlCwd, o.root, current => {
+		if (current?.stopping) throw new Error("cleanup in progress for " + o.root);
+		if (current && !current.finished && current.pid && alive(current.pid)) {
+			spawned = { pid: current.pid, log: join(stateDir(controlCwd), o.root + ".log") };
+			return current;
+		}
+		const s = current ?? prior;
+		spawned = spawnRun({ ...o, cwd: controlCwd, land: s.land, ownerSession: o.ownerSession ?? s.ownerSession }, stateDir(controlCwd));
+		return { ...s, pid: spawned.pid };
+	});
+	return spawned;
 }
 
 /** Stop before observing workers, so no new launch can race retirement. Collectors are not workers. */
@@ -110,7 +108,7 @@ export function campaigns(cwd: string): (State & { running: boolean })[] {
 
 export function summary(s: State & { running: boolean }) {
 	return {
-		root: s.root, backend: s.backend, running: s.running, finished: s.finished ?? null, stopping: !!s.stopping, owner: s.owner, budget: s.budget,
+		root: s.root, backend: s.backend, running: s.running, ...codeStatus(s.codeVersion), finished: s.finished ?? null, stopping: !!s.stopping, owner: s.owner, budget: s.budget,
 		chains: Object.fromEntries(Object.entries(s.chains).map(([k, c]) => [k, { phase: c.phase, worker: c.handle?.handle, bb: c.handle?.bb, held: !!c.held, into: c.into === s.cwd ? "(owner)" : c.into === s.pr?.path ? "(PR staging)" : c.into }])),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).map(([k, e]) => [k, { reason: e.reason, level: e.level, handler: e.handler?.handle ?? null }])),
 		cwd: s.cwd, land: s.land ?? "local", target: s.target ?? (s.pr ? "github:" + s.pr.repository + ":" + s.pr.baseBranch : s.cwd),
@@ -145,12 +143,12 @@ export async function constrain(cwd: string, root: string, node: string, text: s
 
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
-		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, quiet: { type: "boolean" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
+		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, quiet: { type: "boolean" }, predecessor: { type: "string" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
 	const usage = "usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT";
 	if (values.help) { console.log(usage); process.exit(0); }
 	const [cmd, root, ...rest] = positionals;
 	const cwd = resolve(values.cwd!);
-	if (cmd === "run" && root && values.owner) { process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"], quiet: values.quiet }); }
+	if (cmd === "run" && root && values.owner) { await waitForPredecessor(Number(values.predecessor)); process.chdir(cwd); await run({ cwd, root, owner: values.owner, ownerSession: values["owner-session"], budget: Number(values.budget), land: values.land as StartOptions["land"], quiet: values.quiet }); }
 	else if (cmd === "start" && root && values.owner) console.log(JSON.stringify(start({ cwd, root, owner: values.owner, budget: Number(values.budget), land: values.land as StartOptions["land"] })));
 	else if (cmd === "stop" && root) console.log(JSON.stringify(await stop(cwd, root)));
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
