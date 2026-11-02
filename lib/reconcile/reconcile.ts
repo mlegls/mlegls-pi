@@ -105,6 +105,8 @@ interface Chain {
 	handle?: Handle;
 	/** Intended worker title, saved before spawn so restart can adopt an unreceipted thread. */
 	launching?: string;
+	/** Phase the saved launch starts; c.phase stays the running worker's until its successor's handle is saved. */
+	launchPhase?: Phase;
 	launchedAt?: number;
 	/** ts of the last report acted on. */
 	handledTs?: string;
@@ -601,7 +603,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
 		c.launching ??= resumeAttempt ?? nextHandle(slug, phase);
-		c.phase = phase;
+		c.launchPhase = phase;
 		save();
 		const registered = await findWorker({ run: s.root, handle: c.launching }, controlCwd);
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
@@ -612,7 +614,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}, phase === "refine" ? { chain: c, adopt } : undefined, c);
 		if (phase === "refine" && c.refinement && registered) s.refinements[c.refinement].worker = handle;
 		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
-		Object.assign(c, { phase, handle, launching: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
+		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
 		save();
 	}
@@ -1417,7 +1419,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			await integrateReview(slug, c, issue, issues); return "active";
 		}
 		if (!c.handle || c.launching) {
-			await startPhase(slug, c, c.phase, issue, issues);
+			await startPhase(slug, c, c.launchPhase ?? c.phase, issue, issues);
 			return "active";
 		}
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
@@ -1474,12 +1476,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const prompt = [ticketText(issue), c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "", c.note ? "Note from the supervisor: " + c.note : ""].filter(Boolean).join("\n\n");
 		const launchedAt = Date.now();
 		c.launching = nextHandle(slug, "implement");
-		c.phase = "implement";
+		c.launchPhase = "implement";
 		save();
 		c.handle = await launch(c.launching, "implement", prompt, c.base, pathOf(c.into), issue, undefined, async () => [ticketText(issue), c.self ? "Its children are all satisfied in your base; implement its residual work and joins." : "", c.note ?? ""].filter(Boolean).join("\n\n"), undefined, c);
 		// Its only caller with a previous worker is a promoted refinement: the writer finished.
 		if (previous && !await retireHandle(previous, cwd, true)) c.workers.push(previous);
-		Object.assign(c, { into: saved, phase: "implement", launching: undefined, launchedAt, handledTs: undefined });
+		Object.assign(c, { into: saved, phase: "implement", launching: undefined, launchPhase: undefined, launchedAt, handledTs: undefined });
 		save();
 	}
 	const visited = new Set<string>();
