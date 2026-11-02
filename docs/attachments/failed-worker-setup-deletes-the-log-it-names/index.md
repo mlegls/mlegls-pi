@@ -1,5 +1,7 @@
 # Failed worker setup: implementation trial
 
+Independent acceptance: [operator drive, predictions and replayable checks](drive.md).
+
 Nonvisual library/CLI change, based on 31026c8ce8feb059b0bfbfef8af1a4f99100c4d5.
 
 ## Prepared setup and entry point
