@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: "session:thr_vetzcc74ex"
 ---
@@ -9,3 +9,7 @@ Reconciler landings into a checkout's main no longer run that checkout's `post-m
 Likely cause: the bb-backed integration advances main without `git merge` (e.g. `update-ref`) or with hooks disabled.
 
 Done when a reconciler landing into a branch whose checkout has a `post-merge` hook runs it once, as a fast-forward merge would, or explicitly invokes the checkout's landing hook; and a concept landing starts `verify-main.sh` and pushes main without supervisor action.
+
+## Result
+
+Fixed by 464ba409 (2026-10-17), after the observations: integrateCheckout (lib/thread/lifecycle.ts) fast-forwards with hooks off, aligns the index, then runs the destination checkout post-merge hook explicitly (git hook run post-merge -- 0) and reports a failing exit; merge mode runs it through git merge. Test: lib/thread/lifecycle.test.ts "integrate returns what the destination merge printed, a failing post-merge hook included".
