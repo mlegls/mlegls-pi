@@ -1,3 +1,4 @@
+docs/attachments/artboard-standalone-frames-skip-captured-scroll/index.md (38 lines)
 # Standalone artboard scroll: implementation first use
 
 Tested code/setup revision: `6d12b32e` (base `8580fd5e`). This is an implementer's first-use comparison, not independent acceptance.
@@ -36,3 +37,6 @@ The historical Concept React Flow zoom-panel encounter is not reproduced here: C
 - `bunx tsc --noEmit`: passed.
 - `git diff --check`: passed.
 - No existing artboard/canvas regression tests were found. No permanent tests were added; independent driving/review follows this handoff.
+## Independent drive
+
+Fresh driver at `8cf684df5a792bea815ee1cb64e2f0e1c6f4c64a`: [predictions, setup, encounter and replayable checks](drive.md). Captured vertical/horizontal scroll, reload restoration and supplied fixed-panel placement all held. No scoped friction. [Canvas](drive-canvas.webp) / [standalone](drive-alone.webp), Chromium 1905×2053, seeded synthetic frame. Historical Concept scene was not reproduced.
