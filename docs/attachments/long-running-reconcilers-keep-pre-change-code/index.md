@@ -28,7 +28,9 @@ On the implementation source, fixture `/tmp/code-refresh-6yzOKS` was ready. Adde
 
 These are implementer diagnostics, not independent acceptance. The driver/reviewer should also exercise restart deferral during a pending landing, recovery once safe, and completed landing receipts not preventing refresh. Landing receipts are retained indefinitely: only unfinished receipts block restart, not the mere presence of historical `landingOps`.
 
-Existing affected regressions: 11 passed across `pickup`, `resume`, `stop`, `status`, `campaigns`, and `launch-recovery` test files; typecheck passed. No new permanent test added by the implementer.
+Existing affected regressions: 11 passed across `pickup`, `resume`, `stop`, `status`, `campaigns`, and `launch-recovery` test files; typecheck passed. No new permanent test added by the implementer. The fixture was stopped and removed through its committed stop command after the trial; neither replacement process remains running.
+
+Two-minute repair: the existing stop fixture leaked its `sleep 600` process in the intentionally already-archived worker scenario. Cleanup now terminates its exact recorded PID as well; both stop tests passed again, with no leftover process reported.
 
 ## Deployment and retired state
 
