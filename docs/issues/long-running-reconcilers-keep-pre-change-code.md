@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_wqjd4uttrr"
 priority: 2
@@ -28,3 +28,37 @@ A run and the pickup watcher fingerprint the package code they loaded at start, 
 Out: hot-reloading modules in-process; restarting mid-landing.
 
 Acceptance: a test starts a run on a fixture package, edits a file under `lib/`, and sees the run log "restarting" and a new pid that resumes the same chains with no worker retired and no owner message; the same for the pickup watcher; status shows `stale` while a landing defers the restart.
+
+## Result
+
+done — stories 1–4 held; story 5 is unobservable by design and accepted by the owner. It is post-landing work for the owner thread (thr_ae8q9yrxnv).
+
+```yaml
+commit: review head on branch long-running-reconcilers-keep-pre-change-code-review-3
+stories:
+  - story: Reconciler notices changed package code and restarts quietly preserving its worker
+    outcome: held
+  - story: Pickup watcher notices changed package code and restarts preserving configuration
+    outcome: held
+  - story: Status exposes loaded fingerprint and stale state
+    outcome: held
+  - story: In-flight landing defers restart and subsequently resumes safely
+    outcome: held
+  - story: Existing retired directories are audited and removed after landing
+    outcome: unobservable
+evidence:
+  path: docs/attachments/long-running-reconcilers-keep-pre-change-code/drive-2.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/landing-cleanup.test.ts
+  - lib/reconcile/resume.test.ts
+  - lib/reconcile/stop.test.ts
+redrive: false
+caveats:
+  - Story 5 is accepted by the owner as unobservable. After landing, in this order, the owner thread bootstraps the pre-change processes (terminate each exact PID, not `reconcile_stop`, then resume quietly), audits `~/dev/mmon/concept__retired` for files that exist nowhere else, and removes the directories.
+  - The deferral drive used state seeded by `seed-landing.ts` (reviewer-only), because the public workflow can't hold a landing open.
+  - Cost of the code check — one source hash per minute per process, a 15 s interval for the watcher's rate-limited check.
+```
+
+Evidence: [docs/attachments/long-running-reconcilers-keep-pre-change-code/drive-2.md](../attachments/long-running-reconcilers-keep-pre-change-code/drive-2.md)
