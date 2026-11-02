@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { agentLoop } from "@earendil-works/pi-agent-core";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, ModelRegistry, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { runReflector } from "../agents/reflector/agent.js";
 import { condenseToTarget, reflectionPoolTokens } from "../agents/condenser/agent.js";
 import { REFLECTOR_SYSTEM } from "../agents/reflector/prompts.js";
@@ -81,12 +81,22 @@ export async function replayWorkers(args: string[]): Promise<void> {
 	save(manifestFile, manifest);
 	console.log(JSON.stringify({ setup: manifest, reflectorBoundaries: new Set(frozen.entries.filter(isReflectionsRecordedEntry).map((e) => e.data.coversUpToId)).size }));
 
-	const runtime = await ModelRuntime.create({ refreshOnCreate: false });
+	// Like a live session: restore the host's dynamic catalog before synchronous registry reads.
+	// refreshOnCreate:false skips that disk restoration too, not merely network refresh.
+	const agentDir = getAgentDir();
+	const runtime = await ModelRuntime.create({
+		authPath: join(agentDir, "auth.json"),
+		modelsPath: join(agentDir, "models.json"),
+		modelsStorePath: join(agentDir, "models-store.json"),
+		allowModelNetwork: false,
+	});
+	const registry = new ModelRegistry(runtime);
 	const slash = selector.indexOf("/");
-	const model = runtime.getModel(selector.slice(0, slash), selector.slice(slash + 1));
+	const model = registry.find(selector.slice(0, slash), selector.slice(slash + 1));
 	if (!model) throw new Error("Required exact replay model is not in Pi's catalog: " + selector);
 	if (!await runtime.checkAuth(model.provider)) throw new Error("No configured authentication for " + model.provider);
-	const worker = { model, modelRegistry: { streamSimple: runtime.streamSimple.bind(runtime) }, agentLoop: checkedLoop,
+	console.log(JSON.stringify({ ready: selector, agentDir, workerContextWindow: model.contextWindow }));
+	const worker = { model, modelRegistry: { streamSimple: registry.streamSimple.bind(registry) }, agentLoop: checkedLoop,
 		maxTurns: DEFAULTS.agentMaxTurns, maxOutputTokens: DEFAULTS.agentMaxTokens, thinkingLevel: "low" as const };
 	const stepFile = join(output, "steps.jsonl");
 	const steps: Step[] = existsSync(stepFile) ? readFileSync(stepFile, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
