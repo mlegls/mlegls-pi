@@ -32,3 +32,9 @@ Replayable checks:
 - C4: With an independently trusted reachable SSH target, provoke an actual remote profile command failure. Accept nonzero overall exit and no classification as unreachable. Current target stopped before command execution, so this check has not been satisfied.
 
 Nonvisual CLI encounter; no screenshots. All three owned processes exited; no servers, tunnels, remote deployments or browser pages were started. No source, diffs, tests or fixtures read; no repository checks run. No repairs made.
+
+## Review (reviewer, head after 85152a2d)
+
+- C4 satisfied without a trusted remote: an `ssh` stand-in on PATH (outside the process) runs the sent command locally under a `bun` that prints `collector-broke` and exits 255. `bun lib/profile.ts --project zz-none --since 2026-11-02 --host fake` printed `error: --host fake failed (255): collector-broke`, exit 1, no unaudited warning. A collector that started and failed stays fatal even at 255 (the start marker distinguishes it). Story 3 held.
+- Acceptance's test added: `lib/profile-project.test.ts` (ticket acceptance specifies it): an `.invalid` alias through `projectReport` returns a first line `host … unreachable: … (unaudited)`; passes.
+- Not a test: the started-and-failed case, since Bun.spawn resolves `ssh` from the launch PATH and can't be shimmed in-process.
