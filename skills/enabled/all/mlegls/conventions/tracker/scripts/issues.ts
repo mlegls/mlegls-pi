@@ -524,7 +524,7 @@ function effectivePriority(i: Issue, _all: Map<string, Issue>): number { return 
 
 function dependents(slug: string, all: Map<string, Issue>): number {
   let n = 0;
-  for (const i of all.values()) if (!complete(i, all) && i.blockedBy.includes(slug)) n++;
+  for (const i of all.values()) if (i.blockedBy.includes(slug) && !complete(i, all)) n++;
   return n;
 }
 

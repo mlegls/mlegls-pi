@@ -45,3 +45,12 @@ No permanent acceptance tests were added by the implementer. Candidate reviewer 
 **Door:** two-way; no persisted data or format changes.
 
 **Blast radius:** tracker. Any caller that mutates an issue map after its first child lookup could observe a stale index; existing candidate-edit paths populate fresh maps before querying them.
+
+## Review
+
+Reviewed the child-index change; its map-immutability invariant holds (`publish` mutates its map before the first `validateGraph` lookup; `close` uses a fresh `candidate` map).
+
+Repair: `dependents()` ran `complete()` (a recursive `effectiveStage`) on every issue before checking `blockedBy`, so `tree` stayed quadratic after the index (7.96 s on the synthetic vault; `snapshot --json` 0.44 s). The two conditions now run in the cheaper-first order; behavior is unchanged.
+
+Re-drive after the repair: `bun docs/attachments/tracker-tree-rescans-every-issue-per-child-lookup/synthetic-vault.ts | sha256sum` gives the same digest (`7a4d925e…94ac`) in 0.41 s including fixture setup. Tracker tests: 36 pass, 0 fail.
+
