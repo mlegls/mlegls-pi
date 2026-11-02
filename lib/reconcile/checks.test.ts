@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clip, commandFailure, declaredGates, isAncestor } from "./checks.ts";
+import { clip, commandFailure, declaredGates, heldByRed, isAncestor } from "./checks.ts";
 
 test("declared gate discovery failures hold the gate with command diagnostics", () => {
 	const dir = mkdtempSync(join(tmpdir(), "declared-gates-"));
@@ -70,4 +70,15 @@ test("a failed gate's report keeps the failing tail and exit, not the head its m
 	expect(summary.length).toBeLessThan(2400);
 	expect(log).toContain("(pass) case 1\n");
 	expect(clip("abcdefghij", 20)).toBe("abcdefghij");
+});
+
+// 2026-10-25 (concept): main went red on a lint error and the ticket repairing that file was held behind the red it fixes.
+test("red main admits a landing that touches a file its diagnostics name, and holds other code", () => {
+	const file = "packages/web/src/ui/materials/quiz/run.tsx";
+	for (const red of [file + ":429:47: error lint:design", file + "(429,47): error TS2322: bad", "[chromium] › " + file + ":429:47 › title"]) {
+		expect(heldByRed(red, [file])).toBe(false);
+		expect(heldByRed(red, ["lib/unrelated.ts"])).toBe(true);
+		expect(heldByRed(red, ["lib/unrelated.ts", "docs/issues/x.md"])).toBe(true);
+	}
+	expect(heldByRed("lint error", ["docs/issues/x.md"])).toBe(false);
 });
