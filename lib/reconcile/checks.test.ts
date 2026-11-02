@@ -1,9 +1,44 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clip, commandFailure, isAncestor } from "./checks.ts";
+import { clip, commandFailure, declaredGates, isAncestor } from "./checks.ts";
+
+test("declared gate discovery failures hold the gate with command diagnostics", () => {
+	const dir = mkdtempSync(join(tmpdir(), "declared-gates-"));
+	const path = process.env.PATH;
+	try {
+		process.env.PATH = dir;
+		writeFileSync(join(dir, ".mise.toml"), "");
+		const mise = join(dir, "mise");
+		for (const script of ["echo untrusted-checkout >&2; exit 1", "echo untrusted-checkout >&2; echo not-json"]) {
+			writeFileSync(mise, "#!/bin/sh\n" + script + "\n");
+			chmodSync(mise, 0o755);
+			let error: unknown;
+			try { declaredGates(dir); } catch (e) { error = e; }
+			expect(error).toBeInstanceOf(Error);
+			const { summary } = commandFailure(error);
+			expect(summary).toContain("mise tasks ls --json");
+			expect(summary).toContain("untrusted-checkout");
+		}
+	} finally {
+		process.env.PATH = path;
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("a checkout without mise configuration has no declared gates", () => {
+	const dir = mkdtempSync(join(tmpdir(), "no-declared-gates-"));
+	const path = process.env.PATH;
+	try {
+		process.env.PATH = dir; // mise is unavailable, but discovery is not needed.
+		expect(declaredGates(dir)).toEqual([]);
+	} finally {
+		process.env.PATH = path;
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
 
 test("isAncestor reads exit 1 as not an ancestor and reports other failures", () => {
 	const dir = mkdtempSync(join(tmpdir(), "is-ancestor-"));
