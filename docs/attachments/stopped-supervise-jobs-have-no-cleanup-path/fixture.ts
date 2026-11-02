@@ -68,6 +68,8 @@ export async function cleanup(f: Fixture) {
 	use(f.env);
 	if (load(f.cwd, "fixture")) await stop(f.cwd, "fixture");
 	for (const t of threads(join(f.root, "fake-bb")).filter(t => t.environment && t.title.includes("/"))) await abandonThread(t.id, { keepBranch: true });
+	// An already-archived worker intentionally keeps its checkout; retirement does not own its process cleanup.
+	if (f.leftoverPid && pidAlive(f.leftoverPid)) process.kill(f.leftoverPid, "SIGTERM");
 	process.chdir(packagePath);
 	rmSync(f.root, { recursive: true, force: true });
 }
