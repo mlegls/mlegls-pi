@@ -3,6 +3,7 @@ stage: "ticket"
 assignee: "agent"
 author: "session:thr_t3ejtyd4wb"
 priority: 3
+drive: "none"
 ---
 Observed during the Concept joined Application Patch translation first-use worker @thread:thr_t3ejtyd4wb, 2026-10-25. Owning tool/repository: mlegls-pi supervised-worker hook-bypass command guard.
 
