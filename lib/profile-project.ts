@@ -13,7 +13,9 @@ import { quote } from "./thread/process";
 export interface ProjectQuery extends Window { project: string; days?: number; evidence?: boolean }
 interface Session { host: string; thread?: string; parent?: string; parentKind?: Node["parentKind"]; file: string; profile: Profile }
 interface Prompt { host: string; thread?: string; session?: string; at: number; text: string; link: string; msg?: number }
-export interface ProjectPacket { hosts: { host: string; dataDir: string }[]; sessions: Session[]; prompts: Prompt[] }
+interface UnauditedHost { host: string; reason: string }
+export interface ProjectPacket { hosts: { host: string; dataDir: string }[]; unauditedHosts?: UnauditedHost[]; sessions: Session[]; prompts: Prompt[] }
+const unauditedLine = (h: UnauditedHost) => "host " + h.host + " unreachable: " + h.reason + " (unaudited)";
 export interface ThreadRow {
 	id: string; thread?: string; title: string; hosts: string[]; sessions: string[];
 	start: number; end: number; cost: number; activeMs: number; turns: number;
@@ -70,12 +72,21 @@ export async function collectProject(q: ProjectQuery): Promise<ProjectPacket> {
 export async function remoteProject(alias: string, q: ProjectQuery): Promise<ProjectPacket> {
 	const build = await Bun.build({ entrypoints: [fileURLToPath(import.meta.url)], target: "bun", minify: true });
 	if (!build.success) throw new Error("profile collector bundle: " + build.logs.join("\n"));
-	const script = 'f=$(mktemp /tmp/mlegls-profile-XXXXXX.ts) || exit; trap \'rm -f "$f"\' EXIT HUP INT TERM; ' +
+	const started = "mlegls-profile-collector-started\n";
+	const script = 'printf ' + quote(started) + ' >&2; f=$(mktemp /tmp/mlegls-profile-XXXXXX.ts) || exit; trap \'rm -f "$f"\' EXIT HUP INT TERM; ' +
 		'tee "$f" >/dev/null; export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.local/share/mise/shims:$PATH"; bun "$f" ' + quote(JSON.stringify(q));
 	const proc = Bun.spawn(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "--", alias, 'exec "$SHELL" -lc ' + quote(script)], {
 		stdin: build.outputs[0], stdout: "pipe", stderr: "pipe",
 	});
-	const [output, error, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+	const [output, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+	const remoteStarted = stderr.includes(started), error = stderr.replace(started, "");
+	// SSH uses 255 for transport failures, but a running remote can also exit 255.
+	// Only an unreachable collector is safe to skip; remote execution failures still error.
+	if (code === 255 && !remoteStarted) {
+		const missing = { host: alias, reason: error.trim().replace(/\s+/g, " ") || "ssh exited 255" };
+		console.warn("Warning: " + unauditedLine(missing));
+		return { hosts: [], unauditedHosts: [missing], sessions: [], prompts: [] };
+	}
 	if (code) throw new Error("--host " + alias + " failed (" + code + "): " + error.trim());
 	try { return JSON.parse(output); } catch { throw new Error("--host " + alias + " returned invalid profile JSON: " + output.slice(0, 300)); }
 }
@@ -97,6 +108,7 @@ export function mergeProjects(packets: ProjectPacket[]): ProjectPacket {
 	}
 	return {
 		hosts: [...new Map(packets.flatMap(p => p.hosts).map(h => [h.host, h])).values()],
+		unauditedHosts: packets.flatMap(p => p.unauditedHosts ?? []),
 		sessions: [...sessions.values()], prompts: [...prompts.values()].sort((a, b) => a.at - b.at),
 	};
 }
@@ -149,7 +161,7 @@ export function writeEvidence(dir: string, q: ProjectQuery, packet: ProjectPacke
 		}
 		return Object.fromEntries(Object.entries(out).sort((a, b) => b[1].ms - a[1].ms));
 	};
-	json("query.json", { ...q, hosts: packet.hosts, generatedAt: new Date().toISOString() });
+	json("query.json", { ...q, hosts: packet.hosts, unauditedHosts: packet.unauditedHosts ?? [], generatedAt: new Date().toISOString() });
 	json("sessions.json", packet.sessions);
 	json("threads.json", threadRows(packet));
 	json("roots.json", threadRows(packet, true));
@@ -160,6 +172,7 @@ export function writeEvidence(dir: string, q: ProjectQuery, packet: ProjectPacke
 	writeFileSync(join(dir, "index.md"), "# Project profile: " + q.project + "\n\n" +
 		"Window: " + (q.since === undefined ? "unbounded" : new Date(q.since).toISOString()) + " → " +
 		(q.until === undefined ? "unbounded" : new Date(q.until).toISOString()) + ".\n\n" +
+		(packet.unauditedHosts?.length ? packet.unauditedHosts.map(unauditedLine).join("\n\n") + "\n\n" : "") +
 		"Costs/counts belong to entries completed in the inclusive window; model/tool intervals are clipped to it. " +
 		"Nested tool durations crossing a boundary are prorated (their logs carry durations, not start times). " +
 		"threads.json contains exclusive per-thread costs; roots.json and --by-thread group root-session trees by BB thread, including descendants once. " +
@@ -173,7 +186,10 @@ export async function projectReport(q: ProjectQuery, options: { hosts: string[];
 	const packet = mergeProjects(packets);
 	if (options.evidence) writeEvidence(options.evidence, q, packet);
 	const rows = options.byThread ? threadRows(packet, true).slice(0, options.last) : projectRoots(packet).slice(0, options.last);
-	return options.json ? JSON.stringify(rows) : options.byThread ? renderThreads(rows as ThreadRow[]) : renderRecent(rows as Profile[]);
+	// Keep --json's row-array contract; warnings remain on stderr and in the evidence query.
+	if (options.json) return JSON.stringify(rows);
+	const header = (packet.unauditedHosts ?? []).map(unauditedLine);
+	return [...header, options.byThread ? renderThreads(rows as ThreadRow[]) : renderRecent(rows as Profile[])].join("\n");
 }
 
 if (import.meta.main) console.log(JSON.stringify(await collectProject(JSON.parse(process.argv[2]!))));
