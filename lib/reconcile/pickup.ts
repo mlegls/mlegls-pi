@@ -237,22 +237,25 @@ async function watch(cwd: string) {
 			const r = scan(cwd);
 			if (r.started.length) console.log(stamp() + " started " + r.started.join(", "));
 			if (r.retryIn !== undefined) kick(r.retryIn + 1000);
-			if (code.changed()) {
-				update(cwd, current => {
-					if (!current?.enabled || current.watcher !== process.pid) return current!;
-					console.log(stamp() + " code changed on disk; restarting");
-					return { ...current, watcher: spawnWatcher(current, process.pid),
-						log: [...current.log, stamp() + " code changed on disk; restarting"] };
-				});
-				process.exit(0);
-			}
 		} catch (e) { console.log(stamp() + " scan failed: " + String((e as Error)?.stack ?? e)); }
+	};
+	// Its own interval, not part of tick: it must also run while paused, and must not rescan the tracker each minute.
+	const refresh = () => {
+		try {
+			if (!code.changed()) return;
+			update(cwd, current => {
+				if (!current?.enabled || current.watcher !== process.pid) return current!;
+				console.log(stamp() + " code changed on disk; restarting");
+				return { ...current, watcher: spawnWatcher(current, process.pid),
+					log: [...current.log, stamp() + " code changed on disk; restarting"] };
+			});
+			process.exit(0);
+		} catch (e) { console.log(stamp() + " refresh failed: " + String((e as Error)?.stack ?? e)); }
 	};
 	const dir = findIssuesDir(me.cwd, false);
 	if (dir) watchDir(dir, { recursive: true }, () => kick(1000));
 	setInterval(() => kick(0), RECOVERY_MS);
-	// Code refresh must also run while paused or while no issue files change.
-	setInterval(tick, CODE_CHECK_MS);
+	setInterval(refresh, CODE_CHECK_MS / 4);
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
 	tick();
 	await new Promise(() => {});

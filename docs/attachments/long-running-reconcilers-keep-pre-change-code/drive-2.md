@@ -27,3 +27,14 @@ Ran `bun docs/attachments/long-running-reconcilers-keep-pre-change-code/setup.ts
 
 ## Frictions
 No product friction observed in exercised CLI journey. Setup's implement-only starting state does not provide the landing required for the remaining acceptance check. This is an evidence/setup gap, not a product failure. Reviewer must supply that state before acceptance.
+
+## Review (2026-11-02)
+
+Read the diff with this log. Two repairs:
+
+1. **Restart deferral was too broad.** The run deferred its restart for any landing receipt without `cleanupDone`. `landReviewed` writes the receipt before integrating and leaves it when a gate or ff-only merge fails, so a run holding an "integration failed" exception could not refresh onto the code that fixes it, the case the ticket was filed for. Integrate and rebase are awaited inside `tick`, so none runs at the check. The check now defers only for a landed node whose cleanup is unfinished (the idiom at `reconcile.ts` 1594/1623). A merge that reached its target but wasn't recorded is recovered by `recoverLandings` at the next start.
+2. **Watcher rescanned every minute.** The refresh check rode on a `setInterval(tick, 60 s)` that ran the whole tracker scan. It is now its own `refresh` interval (15 s, rate-limited to a disk hash per minute by `CodeMonitor`), also independent of scan failures.
+
+Re-drove on this head with the committed setup: fixture `/tmp/code-refresh-a1Hia1`; added `lib/review-marker.ts`; the status showed `stale: true`, and after a minute both processes restarted (run log "code changed on disk; restarting" then "started quietly"; watcher likewise), same chain `solo`/`solo-implement-1`/`bbt-f21ac845`, `stale: false` with the new fingerprint. Stopped and removed through `setup.ts stop`.
+
+Not observed: the deferral itself. With integrate awaited in-tick, a landed-but-uncleaned receipt is cleaned on the same or next tick, so it is a window of seconds that this fixture can't hold open; the check is one predicate. Not done here: the `concept__retired` audit and removal, and bootstrapping the pre-change processes (the ticket sequences both after landing).

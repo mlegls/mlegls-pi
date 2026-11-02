@@ -1508,9 +1508,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		try {
 			if (await untilReset(tick, { note, signal: o.signal })) return await told;
 			tickError = "";
-			// Integrate/rebase promises are awaited by tick. Keep unfinished write-ahead landing receipts in
-			// this process too; completed receipts remain in the ledger forever and must not prevent refresh.
-			if (code.changed() && !Object.values(s.landingOps).some(op => !op.cleanupDone)) {
+			// Integrate/rebase are awaited by tick, so none runs here. A landed node whose cleanup is unfinished
+			// waits. Other receipts stay in the ledger: a failed landing's (its exception may be what the new code
+			// fixes) or a finished one's must not prevent refresh; a merge that reached its target is recovered on start.
+			if (code.changed() && !Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) {
 				await told;
 				note("code changed on disk; restarting");
 				save();
