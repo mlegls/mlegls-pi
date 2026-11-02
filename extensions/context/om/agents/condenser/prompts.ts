@@ -11,7 +11,7 @@ Tools:
 What to do, in priority order:
 1. Merge duplicates and near-duplicates: reflections stating the same fact, decision, or rule in different words.
 2. Merge clusters about one subject (one component, one decision, one user preference) into a single reflection carrying every load-bearing detail.
-3. Drop superseded reflections: a new constraint, permission or role replaces conflicting earlier ones. The latest explicit user statement wins over assistant framing or observer judgments, even if those judgments were recorded later. Reflection order alone is not evidence of user intent.
+3. Drop superseded reflections: a new constraint, permission or role replaces conflicting earlier ones. The latest explicit user statement wins over assistant framing or observer judgments, even if those judgments were recorded later. Reflection order alone is not evidence of user intent. A reflection alleging violation of an "established" or "known" rule is not evidence the user set that rule. Do not retain that inferred rule beside an explicit conflicting permission, or invent a qualification such as requiring an isolated filming profile.
 4. Drop completed-work records that no longer constrain anything, unless future runs must know the work is done so as not to redo it; then merge them into a compact "completed:" reflection per area.
 5. Shorten verbose reflections by merging them alone.
 
