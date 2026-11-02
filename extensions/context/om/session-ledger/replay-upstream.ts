@@ -6,9 +6,18 @@
 // clocks, fold and recall for every memory id must match upstream's reading of the original.
 // Needs upstream installed (its npm dir) for the comparison.
 //   bun extensions/context/om/session-ledger/replay-upstream.ts <session.jsonl>...
+// Live worker replay (no upstream install; reads the session's shared ledger, writes only output-dir):
+//   bun extensions/context/om/session-ledger/replay-upstream.ts --workers <session.jsonl> <output-dir> [provider/model]
+// Defaults to openai/gpt-6.1-terra; fails closed if that exact model is unavailable. Output includes
+// a frozen input snapshot and resumable per-boundary results. A snapshot may replace session.jsonl.
 import { readFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+if (process.argv[2] === "--workers") {
+	const { replayWorkers } = await import("./replay-workers.ts");
+	await replayWorkers(process.argv.slice(3));
+	process.exit(0);
+}
 process.env.PI_BOARD_DIR = mkdtempSync(join(tmpdir(), "om-accept-"));
 const up = await import(process.env.HOME + "/.pi/agent/npm/node_modules/pi-observational-memory/src/session-ledger/index.ts");
 const port = await import("./index.ts");
