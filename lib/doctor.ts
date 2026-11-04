@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir, hostname } from "node:os";
 import { dirname, isAbsolute, join, resolve, win32 } from "node:path";
@@ -14,6 +14,8 @@ export interface DoctorOptions {
 	run?: (command: string[]) => Promise<{ ok: boolean; stdout: string }>;
 	/** Names of non-empty secrets at env+path in the shared Infisical project; empty when this host has no access. */
 	infisical?: (env: string, path: string) => Promise<Set<string>>;
+	/** agent-prompts directory whose generated/ renders are checked; defaults to this checkout's when home is not overridden. */
+	prompts?: string;
 }
 
 async function command(command: string[]) {
@@ -94,6 +96,18 @@ export async function diagnose(options: DoctorOptions = {}): Promise<Gap[]> {
 			for (const [k, v] of Object.entries(value)) walk(v, key ? key + "." + k : k);
 	};
 	walk(data, "");
+	// agents-apply.sh renders universal.md + <agent>.md into generated/; harness prompts link there, so an unrendered edit never reaches agents.
+	const prompts = options.prompts ?? (options.home ? undefined : resolve(import.meta.dir, "../agent-prompts"));
+	if (prompts && existsSync(join(prompts, "universal.md")) && existsSync(join(prompts, "generated"))) {
+		const universal = readFileSync(join(prompts, "universal.md"), "utf8");
+		for (const agent of readdirSync(join(prompts, "generated"))) {
+			const addendum = join(prompts, agent + ".md");
+			const expected = universal + (existsSync(addendum) ? "\n" + readFileSync(addendum, "utf8") : "");
+			for (const file of readdirSync(join(prompts, "generated", agent)))
+				if (readFileSync(join(prompts, "generated", agent, file), "utf8") !== expected)
+					add("prompt", agent + "/" + file, "stale rendered agent prompt: " + agent + "/" + file, "Run ~/.config/system-config/scripts/agents-apply.sh --link.");
+		}
+	}
 	for (const cli of required.clis)
 		if (!which(cli)) add("cli", cli, "missing CLI: " + cli, "Install " + cli + " and expose it on the pi host's PATH.");
 
