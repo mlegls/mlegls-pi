@@ -4,7 +4,7 @@ description: "Use to make a bounded, agreed change."
 argument-hint: "a ticket or clear bounded change"
 ---
 
-1. Read the ticket, motivating stories, theory and the concepts it links. Capture the starting ref. Return consequential gaps to `plan`.
+1. Read the ticket, motivating stories, theory and the concepts it links. Capture the starting ref. Return consequential gaps, including UI the linked prototype doesn't show, to `plan`.
 2. Make the direct, obvious change and try it. Treat code as a cost. Write no new permanent acceptance tests as the implementer; temporary diagnostic experiments can inform the change. Prepare the starting state and surface needed for first use; keep intended interaction in the story/spec until it can be tried.
 3. Run the existing regression tests your change affects, and the project's checks its commit hook doesn't already run. Report unavailable checks honestly.
 4. Hand off the changed behavior, runnable setup and affected stories to `verify-story`. Under a supervisor, leave acceptance to its fresh verifier; otherwise self-check first use, and dispatch a fresh verifier when independent acceptance is required. The verifier owns guide and replay updates (`testing`).
