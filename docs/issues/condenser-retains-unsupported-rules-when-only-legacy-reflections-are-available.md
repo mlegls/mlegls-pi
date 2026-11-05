@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "done"
 assignee: "agent"
 author: "session:thr_jwt5e5vaq2"
 ---
@@ -14,3 +14,7 @@ Review 2026-11-02 (om-memory-promotes… review-3): the independent drive (exact
 Waits on a decision: whether to migrate legacy pools (a one-off reflector pass over observations with the current prompt, or give the condenser the supporting observation text) or accept the limit because few sessions are affected.
 
 Efficiency audit 2026-11-05 (@thread:thr_pqt8kgvd8h): the "accept the limit" option assumed each new compaction corrects old rules as it goes; on the live lineage it doesn't. The launch-video thread's continuing Session file `~/.bb/pi-bridge-sessions/pi_d4c760a4-23a9-4bf1-8ee2-77ce2a3e1df2.jsonl` compacted at 2026-11-03T08:28Z, after the fix landed (`02d3802a`, 11-02 ~08:00Z), with the same 465 reflections, a 244,855-character summary and 9 "never accept" mentions (at 11-02T02:50Z: 465, 219,348 and 9). Whether that compaction ran pre-fix code (no `/reload`) or the legacy-pool path is not established. Separately, the 11-03 Adversarial review told the user the session held only 32 reflections, none containing the false rule (@thread:thr_nb7a3u9d6a#msg=1499); it counted records tagged with one Session id, not the lineage's latest compaction. An impact check should read the latest compaction on the lineage the live thread continues.
+
+## Result
+
+Accepted the limit: the maintainer has no active sessions started before 02d3802a (2026-11-05, thr_pqt8kgvd8h), so no migration of legacy reflections.
