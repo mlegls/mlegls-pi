@@ -17,7 +17,7 @@ import { join, resolve } from "node:path";
 import { abandonThread, historyThread, integrateThread, newThread, workerOf, ThreadMergeConflict, type WorkerCheckout, type WorkerThread } from "./thread";
 import { bbThreads, bbWorkerThread, bbWorking, tellBb, type BbThread } from "./thread/bb";
 import { commonDir } from "./thread/git";
-import { lastTurn, type TurnReport } from "./thread/turn";
+import { readTurn, type TurnReport } from "./thread/turn";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: TurnReport } // checkpoint: fenced on context; paused for a follow-up like needs-input
@@ -191,10 +191,10 @@ export class Worker {
 		if (this.ended) return;
 		const bb = await this.bbId();
 		if (!bb) return;
-		if (this.turnCursor === undefined) { this.turnCursor = (await lastTurn(bb))?.seq ?? 0; return; }
-		const report = await lastTurn(bb, this.turnCursor);
+		if (this.turnCursor === undefined) { this.turnCursor = (await readTurn(bb)).seq; return; }
+		const { report, seq } = await readTurn(bb, this.turnCursor);
+		this.turnCursor = seq;
 		if (!report) return;
-		this.turnCursor = report.seq;
 		const tag = TERMINAL.find(t => report.tags.includes(t));
 		this.emit(tag ? { kind: tag, message: report } : { kind: "idle", tail: report.body, message: report });
 	}

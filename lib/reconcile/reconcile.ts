@@ -21,7 +21,7 @@ import { dispatch, findWorker, integrate, retire, stop, tell, topic, type Handle
 import { agent as stance, byRole } from "../agents.ts";
 import { parse } from "../report.ts";
 import { roleThread } from "../desk.ts";
-import { lastTurn, type TurnReport } from "../thread/turn.ts";
+import { readTurn, type TurnRead, type TurnReport } from "../thread/turn.ts";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { readLive } from "../session-meta/live";
@@ -84,6 +84,8 @@ const TICK_MS = Number.isFinite(tickMs) && tickMs >= 0 ? tickMs : 5_000;
  * provider) and carries on. Act on one only once it has stood this long and the worker is no longer working. */
 const ERROR_SETTLE_MS = Number(process.env.PI_RECONCILE_ERROR_SETTLE_MS ?? 90_000);
 const START_GRACE_MS = 120_000;
+/** A worker whose bb log has failed every read this long is raised to the owner: its reports can't arrive. */
+const UNREADABLE_MS = Number(process.env.PI_RECONCILE_UNREADABLE_MS ?? 10 * 60_000);
 const WAITING_MS = 3 * 60 * 60_000;
 /** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
 const WAITING_NUDGE_MS = 30 * 60_000;
@@ -401,6 +403,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.
 	const reports = new Map<string, TurnReport>();
 	const seen = new Map<string, number>();
+	/** Worker topics whose log the last poll couldn't read: since when, and why. */
+	const unreadable = new Map<string, { since: number; error: string }>();
 	const repoDir = git(controlCwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), repoOf = new Map<string, boolean>();
 	const inRepo = (path: string) => {
 		if (!existsSync(path)) return true; // a retired worker's checkout is gone: its run-titled thread still counts
@@ -413,10 +417,19 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		for (const [bb, thread] of host ?? []) {
 			if (thread.archivedAt || !thread.environmentPath || !thread.title?.startsWith(s.root + "/") || !inRepo(thread.environmentPath)) continue;
 			const handle = thread.title.slice(s.root.length + 1);
-			const report = await lastTurn(bb, seen.get(bb) ?? 0).catch(e => { note("reading " + handle + " failed: " + String(e).split("\n")[0]); return undefined; });
-			if (!report) continue;
-			seen.set(bb, report.seq);
-			reports.set(s.root + "/" + handle, report);
+			const key = s.root + "/" + handle;
+			let read: TurnRead;
+			try { read = await readTurn(bb, seen.get(bb) ?? 0, { onSkip: after => note("skipped an event of " + handle + "'s log after seq " + after + ": too large for bb to return alone") }); }
+			catch (e) {
+				// Noted once; a chain whose worker stays unreadable past UNREADABLE_MS is raised to the owner (visit).
+				const error = String(e).split("\n")[0];
+				if (!unreadable.has(key)) note("reading " + handle + " failed: " + error);
+				unreadable.set(key, { since: unreadable.get(key)?.since ?? Date.now(), error });
+				continue;
+			}
+			if (unreadable.delete(key)) note("reading " + handle + " recovered");
+			seen.set(bb, read.seq);
+			if (read.report) reports.set(key, read.report);
 		}
 	};
 	const fresh = (h: Handle | undefined, after?: string, launchedAt?: number) => {
@@ -1345,7 +1358,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// told it to (the owner, directly): its handlers are retired, not left to escalate an answered question level by
 		// level (2026-10-16). A queued owner resolution is applied instead; a refinement's attempt was already discarded.
 		const ex = s.exceptions[slug], hc = s.chains[slug];
-		const recovers = !!ex && /^provider error: | errored in bb$/.test(ex.reason);
+		const recovers = !!ex && /^provider error: | errored in bb$| log unreadable$/.test(ex.reason);
 		if (ex && hc?.handle && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
 			const later = recovers ? fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt) : resumedReport(ex, hc);
 			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
@@ -1429,6 +1442,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
 		if (m && m.tags.includes("error") && c.handle && (Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS || observedWorking(c.handle))) return "active";
 		if (!m && c.handle && bbErrored(c.handle)) { raise(slug, c.phase + " worker errored in bb", await bbError(c.handle), issues, "owner"); return "active"; }
+		// A log that can't be read hides the worker's reports: the chain would wait on it silently (14h, 2026-11-06, concept).
+		const unread = !m && c.handle ? unreadable.get(topic(c.handle)) : undefined;
+		if (unread && Date.now() - unread.since > UNREADABLE_MS) {
+			raise(slug, c.phase + " worker log unreadable", "Reading " + c.handle!.handle + "'s bb thread log" + (c.handle!.bb ? " (" + c.handle!.bb + ")" : "") + " has failed since " + new Date(unread.since).toISOString() + ", so its reports can't reach the reconciler:\n\n" + unread.error + "\n\nThe exception withdraws itself once the log reads again and the worker has reported.", issues, "owner");
+			return "active";
+		}
 		if (m) {
 			const prior = c.handledTs;
 			try { await onReport(slug, c, m, issues); }

@@ -6,7 +6,11 @@ import { join } from "node:path";
 
 export interface FakeBbThread { id: string; status: string; archivedAt: number | null; parentThreadId: string | null; environment: string; title: string; prompt: string; tells: string[]; tellAt?: number[];
 	/** While set, queued tells wait in `queue` as bb holds them behind a busy turn, instead of landing in `tells`. */
-	holding?: boolean; queue?: { id: string; text: string }[]; events?: { seq: number; type: string; createdAt: number; data: object }[]; output?: string }
+	holding?: boolean; queue?: { id: string; text: string }[]; events?: { seq: number; type: string; createdAt: number; data: object }[]; output?: string;
+	/** bb's event-response limit (8 MiB) scaled down: a `thread log --json` response larger than this many bytes is refused with a 413. */
+	logLimit?: number;
+	/** While set, every `thread log --json` fails with this message. */
+	logError?: string }
 
 const dir = () => process.env.FAKE_BB_DIR!;
 const threadFile = (id: string) => join(dir(), "thread-" + id + ".json");
@@ -22,7 +26,10 @@ export function fakeBb(root: string) {
 	return { dir: state, calls: () => calls(state), threads: () => threads(state), setStatus: (environment: string, status: string) => setStatus(state, environment, status),
 		completeTurn: (environment: string, text: string, status = "completed") => completeTurn(state, environment, text, status),
 		addThread: (id: string, environment?: string, title?: string) => addThread(state, id, environment, title),
-		hold: (id: string, holding: boolean) => hold(state, id, holding) };
+		hold: (id: string, holding: boolean) => hold(state, id, holding),
+		limitLog: (environment: string, bytes: number | undefined) => patch(state, environment, { logLimit: bytes }),
+		failLog: (environment: string, message: string | undefined) => patch(state, environment, { logError: message }),
+		padLog: (environment: string, sizes: number[]) => padLog(state, environment, sizes) };
 }
 
 export const calls = (state: string): string[][] => existsSync(join(state, "calls.log"))
@@ -43,6 +50,21 @@ export function completeTurn(state: string, environment: string, text: string, s
 		const added = [...(status === "failed" ? [{ seq, type: "provider/error", createdAt: Date.now(), data: { message: "Provider error", detail: text } }] : []),
 			{ seq: seq + (status === "failed" ? 1 : 0), type: "turn/completed", createdAt: Date.now(), data: { status } }];
 		writeFileSync(join(state, "thread-" + t.id + ".json"), JSON.stringify({ ...t, status: "idle", ...(status === "failed" ? {} : { output: text }), events: [...events, ...added] }));
+	}
+}
+
+function patch(state: string, environment: string, fields: Partial<FakeBbThread>): void {
+	for (const t of threads(state)) if (t.environment === environment) writeFileSync(join(state, "thread-" + t.id + ".json"), JSON.stringify({ ...t, ...fields }));
+}
+
+/** Work a turn logs before it completes (tool output): one event per size, its data about that many bytes. */
+export function padLog(state: string, environment: string, sizes: number[]): void {
+	for (const t of threads(state)) if (t.environment === environment) {
+		const events = t.events ?? [];
+		let seq = events.at(-1)?.seq ?? 0;
+		// Sequences skip numbers, as bb's do.
+		const added = sizes.map(size => ({ seq: seq += 2, type: "item/completed", createdAt: Date.now(), data: { output: "x".repeat(size) } }));
+		writeFileSync(join(state, "thread-" + t.id + ".json"), JSON.stringify({ ...t, events: [...events, ...added] }));
 	}
 }
 
@@ -110,8 +132,15 @@ function main(argv: string[]) {
 		case "log": {
 			const t = load();
 			if (!argv.includes("--json")) return void console.log([t.prompt, ...t.tells].join("\n"));
-			const after = Number(flag("after-seq") ?? 0);
-			return out((t.events ?? []).filter(e => e.seq > after));
+			if (t.logError) return fail(t.logError);
+			// --all pages bb-side but answers in one response; otherwise the oldest --limit (default 100) after --after-seq.
+			const after = Number(flag("after-seq") ?? 0), rest = (t.events ?? []).filter(e => e.seq > after);
+			const page = args.includes("--all") ? rest : rest.slice(0, Number(flag("limit") ?? 100));
+			if (t.logLimit !== undefined && JSON.stringify(page).length > t.logLimit) {
+				out({ ok: false, error: { code: "event_data_too_large", message: "HTTP 413: Event response exceeds the 8 MiB limit" } });
+				process.exit(1);
+			}
+			return out(page);
 		}
 		case "wait": case "open": return out({ ok: true });
 		default: return fail("unsupported: " + args.join(" "));

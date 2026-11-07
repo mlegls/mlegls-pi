@@ -10,6 +10,7 @@ import { homedir, tmpdir } from "node:os";
 import { command, delay, quote } from "./process";
 import { launchEnv } from "./launch";
 import { gitAttempt } from "./lifecycle-git";
+import { readLog } from "./turn";
 import type { WorkerCheckout } from "./types";
 
 const cli = () => process.env.BB_CLI || "bb";
@@ -120,8 +121,9 @@ async function bbEnvironment(id: string, known: string | null): Promise<string> 
 
 /** The pi session bb keeps for a thread: ~/.bb/pi-bridge-sessions/<providerThreadId>.jsonl. */
 export async function bbSessionFile(id: string): Promise<string> {
-	const events = JSON.parse(await command(cli(), ["thread", "log", id, "--json", "--all"])) as { data?: { providerThreadId?: string } }[];
-	const provider = events.map(e => e.data?.providerThreadId).filter(Boolean).at(-1);
+	// Paged: a long thread's whole log is more than bb returns at once.
+	const { events } = await readLog(id, 0, { keep: e => !!e.data?.providerThreadId });
+	const provider = events.at(-1)?.data?.providerThreadId;
 	if (!provider) throw new Error("bb thread " + id + " has no pi session yet");
 	return providerFile(provider);
 }
