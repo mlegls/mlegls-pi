@@ -1243,6 +1243,47 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			save();
 		}
 	}
+	/** The destinations above a collector: its enclosing collectors, found by parent branch, up to the owner's checkout. */
+	function enclosing(slug: string): Set<string> {
+		const up = new Set<string>();
+		for (let branch = s.collectors[slug]?.parentBranch; branch;) {
+			const parent = Object.entries(s.collectors).find(([key, col]) => col.branch === branch && !up.has(key));
+			if (!parent) { up.add(cwd); if (s.pr) up.add(s.pr.path); break; }
+			up.add(parent[0]); branch = parent[1].parentBranch;
+		}
+		return up;
+	}
+	/** A collector is cut from its parent once. A blocker that lands in an enclosing collector afterwards is recorded
+	 * into that collector, so it satisfies nothing here until this branch contains its head (view's inherited set).
+	 * When one holds open work under this collector and the parent branch contains it, merge the parent in; a conflict
+	 * goes to the owner. 2026-11-07 (concept, release-the-open-local-product): five dependents in two sub-collectors
+	 * waited on landings in the root collector until it was merged into them by hand. */
+	async function catchUp(slug: string, into: string, own: Map<string, Issue>): Promise<boolean> {
+		const col = s.collectors[slug], up = enclosing(slug), parent = pathOf(into), landed = new Set<string>();
+		for (const k of own.values()) {
+			if (finished(k) || k.frontier || !descends(k, slug, own)) continue;
+			for (const b of k.blockers) {
+				const entry = s.landed[b];
+				if (entry && up.has(entry.into) && isAncestor(parent, entry.head) && !isAncestor(col.path, entry.head)) landed.add(b);
+			}
+		}
+		if (!landed.size) return false;
+		const head = git(parent, "rev-parse", "HEAD"), what = [...landed].join(", ");
+		return locked(async () => {
+			// Someone (the owner resolving a conflict) is mid-merge here: leave it alone, and never abort their merge.
+			if (existsSync(join(git(col.path, "rev-parse", "--absolute-git-dir"), "MERGE_HEAD"))) { note("collector " + slug + " is mid-merge; catch-up waits"); return false; }
+			// Projects' diff-shape hooks refuse large commits without a `[big: <why>]` trailer; a catch-up merge is large by nature.
+			try { git(col.path, "merge", "--no-edit", "-m", "Merge " + col.parentBranch + " into " + col.branch + ": " + what + " landed there\n\n[big: merge of " + col.parentBranch + " into the tree branch]", head); }
+			catch (e: any) {
+				const files = (() => { try { return git(col.path, "diff", "--name-only", "--diff-filter=U"); } catch { return ""; } })();
+				try { git(col.path, "merge", "--abort"); } catch {}
+				raise(slug, "collector cannot take its parent's landing of " + what, what + " landed in " + col.parentBranch + " after " + col.branch + " was cut, and open work under " + slug + " is blocked by it. Merging " + col.parentBranch + " (" + head.slice(0, 10) + ") into " + col.branch + " failed" + (files ? " with conflicts in:\n" + files : ": " + String(e?.stderr ?? e?.message ?? e).slice(0, 2000)) + "\n\nMerge it by hand in " + col.path + ", commit, then resolve with retry.", own, "owner");
+				return false;
+			}
+			note("merged " + col.parentBranch + " into " + col.branch + ": " + what + " landed there");
+			return true;
+		});
+	}
 	const sparseCollectors = new Set<string>();
 	const collectorPath = (slug: string) => resolve(repoRoot(controlCwd) + "__worktrees", slug + "--tree");
 	function ensureCollector(slug: string, into: string) {
@@ -1318,6 +1359,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// a kid can be frontier only there (its blockers landed in the collector, not the owner).
 		if (!s.collectors[slug] && existsSync(collectorPath(slug))) ensureCollector(slug, into);
 		let own = view(s.collectors[slug] ? slug : into);
+		if (s.collectors[slug] && !s.exceptions[slug] && await catchUp(slug, into, own)) own = view(slug);
 		if ((s.collectors[slug] || slug === s.root) && await setAsideIdeas(slug, own)) {
 			own = view(s.collectors[slug] ? slug : into);
 			issue = view(into).get(slug)!;
@@ -1635,11 +1677,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		visited.clear();
 		const result = await visit(s.root, destination(), top);
 		if (s.pr && s.landed[s.root]) return false;
+		const pending = Object.keys(s.exceptions).length;
 		await handleExceptions(top);
+		// A resolution applied after a walk that found work held (a retry after a hand merge into a collector) may release
+		// it: walk again before stopping.
+		const resolvedNow = result === "stuck" && Object.keys(s.exceptions).length < pending;
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
 		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
-		if (result !== "active" && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
+		if (result !== "active" && !resolvedNow && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			closeAtTarget(completion);
 			if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
 			const all = view(destination());
