@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:thr_ihbpyrp6s2"
 priority: 2
@@ -25,3 +25,7 @@ Where: `lib/thread/turn.ts` `lastTurn` reads `bb thread log <id> --all --after-s
 
 - With the fake bb returning 413 for whole-log reads, the reconciler sees a worker's turn completion and advances the chain.
 - A worker log that cannot be read at all produces an owner exception within the bound.
+
+## Result
+
+Landed at 6239c6dd (@thread:thr_xteguh4m64): paged incremental worker-log reads, halving on 413 and stepping past single oversized events, and an owner exception after 10 minutes of unreadable chain-worker logs (`PI_RECONCILE_UNREADABLE_MS`). Shown by lib/reconcile/unreadable-log.test.ts on the fake bb and on real bb against thr_v7y3783ttt. Exception handlers and PR-repair workers page too, but a persistent failure for them is still only a log line.
