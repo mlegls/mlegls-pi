@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 1
 author: "session:thr_fwxsihtum4"
@@ -19,3 +19,7 @@ goal: the reconciler reads a worker's report however long the worker's bb log is
 - Page the log: `--after-seq` without `--all` returns a bounded page, so walk forward from `seen`, keep only the newest `turn/completed` (and the `provider/error` before it), and advance `seen` past pages already read even when they hold no report.
 - If a worker still can't be read after a few consecutive polls, raise an exception through the existing escalation path.
 - Test: a fake `bb` whose unbounded log call fails with 413 and whose paged calls succeed returns the last turn.
+
+## Result
+
+Duplicate of reconciler-misses-worker-finish-when-thread-log-exceeds-8-mib, fixed at 6239c6dd (reconciler reads worker logs in pages).
