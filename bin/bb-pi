@@ -7,4 +7,11 @@ case " $* " in
 *" --no-session "*) ;;
 *) if [ -f .wm/launch.env ]; then set -a; . ./.wm/launch.env; set +a; fi ;;
 esac
+# bb passes its own --append-system-prompt, and pi then skips discovering the personal APPEND_SYSTEM.md, so add it
+# after bb's: its conventions (host-for-human, not bb connect expose) override bb's generic guidance.
+case " $* " in
+*" --append-system-prompt "*)
+	f="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/APPEND_SYSTEM.md"
+	if [ -f "$f" ]; then set -- "$@" --append-system-prompt "$f"; fi ;;
+esac
 exec pi "$@"
