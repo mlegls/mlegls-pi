@@ -6,7 +6,7 @@ author: "session:thr_chd6gnjgbs"
 ---
 goal: the reconciler doesn't close an issue whose cited evidence isn't on the target. Maintainer, 2026-11-08 (@thread:thr_chd6gnjgbs).
 
-Observed in concept: done issues cited packets that existed only on worker branches (drive, recovery or earlier implement branches), never landed: session-closing-summary, seed-mission-quiet, staging-session-final-frame-left-text-under-rail, make-staged-decline-send-requirements-explicit, check-that-a-first-map-appears-within-minutes and others, restored by hand on concept main (55065ebf4, 97f493426, c317fe590). `evidencePacket` in [checks.ts](../../lib/reconcile/checks.ts) checks the handoff's index and shots at the worker's HEAD, but nothing checks the tracker body's attachment links, and nothing checks again at the target.
+Observed in concept: done issues cited packets that existed only on worker branches (drive, recovery or earlier implement branches), never landed: session-closing-summary, seed-mission-quiet, staging-session-final-frame-left-text-under-rail, make-staged-decline-send-requirements-explicit, check-that-a-first-map-appears-within-minutes and others, restored by hand on concept main (55065ebf4, c3d9503d4, e31cbce4d). `evidencePacket` in [checks.ts](../../lib/reconcile/checks.ts) checks the handoff's index and shots at the worker's HEAD, but nothing checks the tracker body's attachment links, and nothing checks again at the target.
 
 ## shape
 
