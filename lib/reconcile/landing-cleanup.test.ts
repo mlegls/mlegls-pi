@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { protocolFixture } from "./protocol-fixture";
 
@@ -54,11 +54,46 @@ test("a landing cleanup skips a retired worker, retires the final reviewer the r
 	} finally { f.close(); }
 }, 30_000);
 
+for (const missing of ["directory", "registration"] as const) {
+	test("landing cleanup removes a settled collector with hook state and skips a worker missing its " + missing, async () => {
+		let workerPath = "";
+		const { f, state } = await landed(async (f, r) => {
+			mkdirSync(join(f.collector, ".husky/_"), { recursive: true });
+			writeFileSync(join(f.collector, ".husky/_/hook"), "generated hook state\n");
+			appendFileSync(join(f.git(f.cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "info/exclude"), ".local-state\n");
+			writeFileSync(join(f.collector, ".local-state"), "ignored state\n");
+			const worker = f.worker("root-implement-3", f.cwd, "main");
+			workerPath = worker.path;
+			if (missing === "directory") rmSync(worker.path, { recursive: true });
+			else {
+				f.git(f.cwd, "worktree", "remove", "--force", worker.path);
+				mkdirSync(worker.path);
+				writeFileSync(join(worker.path, "leftover"), "already deregistered\n");
+			}
+			const s = r.load(f.cwd, "root")!;
+			const collector = { path: f.collector, branch: "collector", parentBranch: "main" };
+			r.saveState({ ...s, collectors: { root: collector },
+				landingOps: { root: { ...s.landingOps.root, workers: [worker], collector } } });
+		}, (r, f) => !!r.load(f.cwd, "root")?.finished);
+		try {
+			expect(state.finished).toBe("done");
+			expect(state.landingOps.root.cleanupDone).toBeTruthy();
+			expect(state.exceptions).toEqual({});
+			expect(state.log.some(l => l.includes("deferred"))).toBe(false);
+			expect(state.collectors.root).toBeUndefined();
+			expect(existsSync(f.collector)).toBe(false);
+			expect(f.git(f.cwd, "branch", "--list", "collector")).toBe("");
+			expect(f.git(f.cwd, "worktree", "list", "--porcelain")).not.toContain(workerPath);
+			if (missing === "registration") expect(existsSync(join(workerPath, "leftover"))).toBe(true);
+		} finally { f.close(); }
+	}, 30_000);
+}
+
 test("a landing cleanup that keeps failing is one owner exception, and an answer finishes it", async () => {
 	let answered = false;
 	const { f, state } = await landed(async (f, r) => {
-		// git refuses to remove a collector holding an untracked file, every tick.
-		writeFileSync(join(f.collector, "stray.txt"), "not committed\n");
+		// Even a clean collector must remain when it holds a commit absent from the target.
+		f.commit(f.collector, "stray.txt", "not landed\n");
 		const s = r.load(f.cwd, "root")!;
 		const collector = { path: f.collector, branch: "collector", parentBranch: "main" };
 		r.saveState({ ...s, landingOps: { root: { ...s.landingOps.root, collector } } });
