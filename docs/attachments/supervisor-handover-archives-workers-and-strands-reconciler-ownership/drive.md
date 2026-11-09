@@ -37,3 +37,7 @@ All commands below use the setup-printed `/tmp/supervisor-handover-rJZdqt/use` h
 No behavioral friction encountered through the provided CLI. The scratch `bb show` result wraps fields in `thread`; an initial local output projection produced `{}`, then inspecting the documented command's complete result and correcting the projection established the worker state.
 
 The supplied environment substitutes a fake BB CLI for the daemon, including child permissions, parent mutation and cascading archive. These outcomes establish the provided scratch acceptance, not live BB desktop behavior. No source, tests or fixtures were read, no tests were run, and no product changes were made. Cleanup used the setup-owned cleanup command; no shared services were touched.
+
+## Review
+
+Reviewed the handover commits (a77b28b2, 784f1370) against the driver's packet. Read lib/handover.ts, the desk/pickup/ownership-lock/reconciler owner-refresh changes and the bb CLI wrappers; confirmed on this host's real bb that `bb thread show` returns `canSpawnChild` and `bb thread update` takes `--parent-thread`/`--clear-parent-thread`, matching the wrappers. Ran `bun test` over lib/reconcile, dispatch, wm, wm.local and wm-reattach: 66 pass, 1 skip (pre-existing), 0 fail. Typecheck failed on one unrelated test (OM notify spy signature); fixed in a separate commit and now clean. No defects in the handover change; all six stories hold on the final head. The scratch drive was not repeated: the changed head differs from the driven revision only by the test-file typing fix.
