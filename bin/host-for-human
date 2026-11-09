@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish a review page on Tailscale HTTPS; directory servers live in user systemd."""
+"""Publish a review page on Tailscale HTTPS, optionally owning its upstream in user systemd."""
 import argparse
 import fcntl
 import hashlib
@@ -13,11 +13,12 @@ import subprocess
 import sys
 import time
 from urllib.error import URLError
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from urllib.request import ProxyHandler, build_opener
 
 STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "host-for-human"
 PORTS = range(10000, 10004)
+UNITS = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "systemd/user"
 
 
 def run(*args):
@@ -36,6 +37,137 @@ def proxy_at(cfg, https_port):
         if host.endswith(f":{https_port}"):
             return web.get("Handlers", {}).get("/", {}).get("Proxy")
     return None
+
+
+def occupied_ports(cfg):
+    return {int(p) for p in cfg.get("TCP", {})} | {
+        int(host.rsplit(":", 1)[1]) for host in cfg.get("Web", {})
+    }
+
+
+def refused(proxy):
+    try:
+        upstream = urlsplit(proxy.replace("https+insecure://", "https://", 1))
+        if upstream.scheme not in ("http", "https") or not upstream.hostname:
+            return False
+        with socket.create_connection(
+            (upstream.hostname, upstream.port or (443 if upstream.scheme == "https" else 80)),
+            timeout=1,
+        ):
+            return False
+    except ConnectionRefusedError:
+        return True
+    except (OSError, ValueError):
+        # A timeout, DNS failure or unknown target does not establish refusal.
+        return False
+
+
+def unmap(https_port, proxy):
+    if proxy_at(config(), https_port) == proxy:
+        run("tailscale", "serve", f"--https={https_port}", "off")
+
+
+def map_review(https_port, proxy):
+    cfg = config()
+    current = proxy_at(cfg, https_port)
+    if https_port in occupied_ports(cfg) and current != proxy:
+        raise RuntimeError("HTTPS mapping changed owner; refusing to overwrite it")
+    run("tailscale", "serve", "--bg", f"--https={https_port}", proxy)
+
+
+def stop_server(record):
+    if record.get("unit_file"):
+        run("systemctl", "--user", "disable", record["unit"])
+        stopped = subprocess.run(["systemctl", "--user", "stop", record["unit"]], capture_output=True)
+        if stopped.returncode and run(
+            "systemctl", "--user", "show", "--property=ActiveState", "--value", record["unit"]
+        ).strip() not in ("inactive", "failed"):
+            raise RuntimeError(f"could not stop {record['unit']}")
+        Path(record["unit_file"]).unlink(missing_ok=True)
+        run("systemctl", "--user", "daemon-reload")
+    elif record.get("unit"):
+        subprocess.run(["systemctl", "--user", "stop", record["unit"]], capture_output=True)
+
+
+def reclaim(keep):
+    for path in STATE.glob("*.json"):
+        if path == keep:
+            continue
+        record = json.loads(path.read_text())
+        missing = record["directory"] and not Path(record["directory"]).is_dir()
+        inactive = record.get("unit") and run(
+            "systemctl", "--user", "show", "--property=ActiveState", "--value", record["unit"]
+        ).strip() in ("inactive", "failed")
+        if missing or inactive or (not record.get("unit") and refused(record["proxy"])):
+            stop_server(record)
+            unmap(record["https_port"], record["proxy"])
+            path.unlink()
+            print(f"reclaimed review {record['name']!r}: {record['proxy']} "
+                  f"(HTTPS {record['https_port']})", file=sys.stderr)
+
+    cfg = config()
+    for port in PORTS:
+        handlers = [
+            handler for host, web in cfg.get("Web", {}).items()
+            if host.endswith(f":{port}") for handler in web.get("Handlers", {}).values()
+        ]
+        # Removing the port also removes its other paths: all must be refused proxies.
+        if handlers and all(h.get("Proxy") and refused(h["Proxy"]) for h in handlers):
+            proxies = ", ".join(h["Proxy"] for h in handlers)
+            run("tailscale", "serve", f"--https={port}", "off")
+            print(f"removed refused mapping HTTPS {port} -> {proxies}", file=sys.stderr)
+            for path in STATE.glob("*.json"):
+                if path == keep:
+                    continue
+                record = json.loads(path.read_text())
+                if record["https_port"] == port:
+                    stop_server(record)
+                    path.unlink()
+    return config()
+
+
+def unit_quote(value):
+    return json.dumps(value, ensure_ascii=False).replace("%", "%%")
+
+
+def unit_command(*args):
+    return " ".join(unit_quote(str(arg)).replace("$", "$$") for arg in args)
+
+
+def persistent_server(record):
+    # The stop/start helper must survive retirement of the publishing worktree.
+    helper = STATE / "service-helper.py"
+    temp = helper.with_suffix(".tmp")
+    temp.write_text(Path(__file__).read_text())
+    temp.replace(helper)
+    unit_file = Path(record["unit_file"])
+    unit_file.parent.mkdir(parents=True, exist_ok=True)
+    helper_args = (sys.executable, helper)
+    text = "\n".join([
+        "[Unit]",
+        f"Description=Review page {record['unit']}",
+        "StartLimitIntervalSec=0",
+        "[Service]",
+        "Type=exec",
+        # CLIs such as Lavish fork their server and return; own the whole cgroup.
+        "ExitType=cgroup",
+        "WorkingDirectory=" + record["cwd"].replace("%", "%%").replace("\n", "\\n"),
+        f"Environment={unit_quote('PATH=' + record['path'])}",
+        f"ExecStart={unit_command('/bin/sh', '-c', record['command'])}",
+        f"ExecStartPost={unit_command(*helper_args, '--map', record['https_port'], record['proxy'])}",
+        f"ExecStopPost={unit_command(*helper_args, '--unmap', record['https_port'], record['proxy'])}",
+        "Restart=always",
+        "RestartSec=2",
+        "[Install]",
+        "WantedBy=default.target",
+        "",
+    ])
+    changed = not unit_file.exists() or unit_file.read_text() != text
+    unit_file.write_text(text)
+    run("systemctl", "--user", "daemon-reload")
+    subprocess.run(["systemctl", "--user", "reset-failed", record["unit"]], capture_output=True)
+    run("systemctl", "--user", "enable", record["unit"])
+    run("systemctl", "--user", "restart" if changed else "start", record["unit"])
 
 
 class Assets(HTMLParser):
@@ -85,9 +217,10 @@ def check(url):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("target", help="directory, or an already-running localhost port")
+    parser.add_argument("target", help="directory, or localhost port (already running unless --run is given)")
     parser.add_argument("--name", help="stable review identity (default: absolute directory or port)")
     parser.add_argument("--stop", action="store_true", help="stop this review's owned server and HTTPS mapping")
+    parser.add_argument("--run", dest="command", help="own this upstream shell command in a reboot-persistent user service (port target only)")
     args = parser.parse_args()
     directory = None if args.target.isdecimal() else str(Path(args.target).resolve())
     identity = args.name or directory or f"port-{args.target}"
@@ -107,11 +240,12 @@ def main():
                 raise RuntimeError("HTTPS mapping changed owner; refusing to remove it")
             if current:
                 run("tailscale", "serve", f"--https={saved['https_port']}", "off")
-            if saved["directory"]:
-                subprocess.run(["systemctl", "--user", "stop", saved["unit"]], capture_output=True)
+            stop_server(saved)
             state_file.unlink()
             return
 
+        if args.command and directory:
+            raise RuntimeError("--run requires a port target")
         if directory and not Path(directory).is_dir():
             raise RuntimeError(f"not a directory: {directory}")
         if not directory and not 1 <= int(args.target) <= 65535:
@@ -120,18 +254,30 @@ def main():
                       (not directory and saved["port"] != int(args.target))):
             raise RuntimeError("name already belongs to a different target; use its original target or --stop first")
 
+        command = args.command or (saved or {}).get("command")
+        if saved and args.command and args.command != saved.get("command"):
+            raise RuntimeError("name already belongs to a different command; --stop first")
+        if command:
+            run("systemctl", "--user", "show-environment")
+            active = saved and subprocess.run(
+                ["systemctl", "--user", "is-active", "--quiet", unit], capture_output=True
+            ).returncode == 0
+            if not active and not refused(f"http://127.0.0.1:{args.target}"):
+                raise RuntimeError("upstream port is already in use; --run needs its own unused port")
+            run("loginctl", "enable-linger", str(os.getuid()))
+
         if saved:
             https_port = saved["https_port"]
             current = proxy_at(cfg, https_port)
             if current and current != saved["proxy"]:
                 raise RuntimeError("HTTPS mapping changed owner; refusing to overwrite it")
         else:
-            occupied = {int(port) for port in cfg.get("TCP", {})}
-            occupied.update(int(host.rsplit(":", 1)[1]) for host in cfg.get("Web", {}))
+            cfg = reclaim(state_file)
+            occupied = occupied_ports(cfg)
             occupied.update(json.loads(p.read_text())["https_port"] for p in STATE.glob("*.json"))
             https_port = next((p for p in PORTS if p not in occupied), None)
             if https_port is None:
-                raise RuntimeError("no free Tailscale HTTPS port in 10000–10003; existing mappings were left untouched")
+                raise RuntimeError("no free Tailscale HTTPS port in 10000–10003; no refused upstreams or stale reservations to reclaim")
 
         if directory:
             run("systemctl", "--user", "show-environment")
@@ -151,13 +297,19 @@ def main():
             "owner_thread": (saved or {}).get("owner_thread") or os.environ.get("BB_THREAD_ID"),
             "last_publisher_thread": os.environ.get("BB_THREAD_ID"),
             "directory": directory, "port": port, "https_port": https_port,
-            "proxy": proxy, "unit": unit if directory else None,
+            "proxy": proxy, "unit": unit if directory or command else None,
+            "command": command,
+            "cwd": (saved or {}).get("cwd") or str(Path.cwd()),
+            "path": (saved or {}).get("path") or os.environ.get("PATH", os.defpath),
+            "unit_file": str(UNITS / f"{unit}.service") if command else None,
             "url": f"https://{host}:{https_port}{page}",
         }
         # Reserve before launching so a failed publish can be repaired with the same name.
         temp = state_file.with_suffix(".tmp")
         temp.write_text(json.dumps(record, indent=2) + "\n")
         temp.replace(state_file)
+        if command:
+            persistent_server(record)
         if directory and subprocess.run(
             ["systemctl", "--user", "is-active", "--quiet", unit], capture_output=True
         ).returncode:
@@ -178,14 +330,19 @@ def main():
                 if attempt == 19:
                     raise RuntimeError(f"server not ready at {proxy}; restart its owner if using port mode")
                 time.sleep(0.25)
-        run("tailscale", "serve", "--bg", f"--https={https_port}", proxy)
+        map_review(https_port, proxy)
         check(record["url"])
         print(record["url"])
 
 
 if __name__ == "__main__":
     try:
-        main()
+        if sys.argv[1:2] == ["--map"]:
+            map_review(int(sys.argv[2]), sys.argv[3])
+        elif sys.argv[1:2] == ["--unmap"]:
+            unmap(int(sys.argv[2]), sys.argv[3])
+        else:
+            main()
     except (RuntimeError, OSError, ValueError, KeyError) as error:
         print(f"host-for-human: {error}", file=sys.stderr)
         sys.exit(1)

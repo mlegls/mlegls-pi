@@ -172,7 +172,7 @@ function fieldsOf(i: Issue): Record<string, unknown> {
   return fields;
 }
 
-function projectName(dir: string): string {
+export function projectName(dir: string): string {
   const docs = realpathSync(dirname(dir));
   const projects = join(process.env.TRACKER_VAULT ?? join(homedir(), "obsidian"), "projects");
   if (existsSync(projects)) for (const name of readdirSync(projects).sort()) {
@@ -620,9 +620,10 @@ function movedIssuePaths(paths: string[]): Set<string> {
   }
   return moved;
 }
-const WIKILINK = /\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g;
+export const MARKDOWN_LINK = /!?\[[^\]\r\n]*\]\(\s*(<[^>\r\n]*>|(?:[^\s()\\]|\\.|(?:\([^()\r\n]*\)))+)(?:\s+["'][^\r\n]*?["'])?\s*\)/g;
+export const WIKILINK = /\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]*)?\]\]/g;
 
-function maskMarkdownCode(source: string): string {
+export function maskMarkdownCode(source: string): string {
   const chars = source.split("");
   const blank = (start: number, end: number) => {
     for (let i = start; i < end; i++) if (chars[i] !== "\r" && chars[i] !== "\n") chars[i] = " ";
@@ -821,7 +822,7 @@ function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, r
     }
     // Markdown destinations are file-relative, not vault-relative. Keep anchors
     // verbatim; only the filesystem part participates in checking and repair.
-    const markdown = /!?\[[^\]\r\n]*\]\(\s*(<[^>\r\n]*>|(?:[^\s()\\]|\\.|(?:\([^()\r\n]*\)))+)(?:\s+["'][^\r\n]*?["'])?\s*\)/g;
+    const markdown = MARKDOWN_LINK;
     const archived = relative(issuesDir, f).startsWith("archive" + sep);
     const localPath = (path: string) => {
       const tail = relative(join(docs, "issues"), path);
