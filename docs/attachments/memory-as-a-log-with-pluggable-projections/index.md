@@ -1,5 +1,7 @@
 # Memory log parent join
 
+Independent verification at `22a49740043b0ea72b858337e44f687d4a8dd17d`: [first-use predictions, observed results and replayable checks](drive-3.md). The supplied backend journey exited 0; main compaction/recall and sibling/fork visibility held.
+
 Tested code revision: `a40d31338c0861f138c56e619cd85dcaea4fee16` (2026-11-09). This packet adds a reproducible first-use setup; no product repair was needed.
 
 The surviving path is records store → `ledgerBranch` → OM projection → budgeted renderer → registered `session_before_compact` result → public `recall` → original source entries. The board retirement (`44cb45f9`), exclusive memory-system ownership (`361bef2a`) and finite OM render budget (`aef5c9cc`) are preserved.
