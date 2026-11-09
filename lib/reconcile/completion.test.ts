@@ -21,6 +21,7 @@ test("landings carry leaf results to the owner, replay merged code and incomplet
 		};
 		const leaf = await f.worker("leaf-worker");
 		f.commit(leaf.path, "leaf.txt", "leaf code\n");
+		f.commit(leaf.path, "docs/attachments/leaf.md", "Leaf evidence.\n");
 		const leafResult = reviewedResult("root", { summary: "leaf summary", evidence: { path: "docs/attachments/leaf.md" } }, "leaf report");
 		// Omit a packet here: these transitions, not packet/gate validation, are the test's boundary.
 		delete leafResult.handoff.evidence;
