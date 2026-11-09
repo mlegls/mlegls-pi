@@ -259,6 +259,11 @@ def main():
             raise RuntimeError("name already belongs to a different command; --stop first")
         if command:
             run("systemctl", "--user", "show-environment")
+            active = saved and subprocess.run(
+                ["systemctl", "--user", "is-active", "--quiet", unit], capture_output=True
+            ).returncode == 0
+            if not active and not refused(f"http://127.0.0.1:{args.target}"):
+                raise RuntimeError("upstream port is already in use; --run needs its own unused port")
             run("loginctl", "enable-linger", str(os.getuid()))
 
         if saved:
