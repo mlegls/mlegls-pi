@@ -36,3 +36,9 @@ No unresolved product friction. Cleanup initially tried removing already-reclaim
 ## Cleanup
 
 All scratch reviews stopped or reclaimed, all scratch mappings removed. Final Tailscale status exactly retained the initial ports 443, 4443, 8443, 10005; no 10000–10003 mappings. No loaded host-for-human units remained; state directory contained only `publish.lock` and `service-helper.py`. No processes or external resources left running by this driver.
+
+## Review
+
+Read `bin/host-for-human` against the ticket; no repairs needed. Checked: `py_compile` passes; reclamation runs under the publish lock; a foreign port is removed only when every handler is a refused proxy; owned unmapping is guarded by `proxy_at == proxy`; `--stop` unmaps before stopping the unit, and `ExecStopPost` is then a no-op. The diff range also carries other tickets' merged work, not reviewed here. Probed the documented forking-command claim with `systemd-run --user -p Type=exec -p ExitType=cgroup sh -c '(sleep 20 &); exit 0'`: the unit stayed active after the shell returned and stopped on `systemctl stop` (probe unit removed). Driver outcomes stand on the committed packet; all four stories held.
+
+Observation left open: `agent-prompts/universal.md` and the artboard skill still tell agents to publish an already-running Lavish port; neither mentions `--run`, so agents don't yet use the lifetime feature. Untested with Lavish itself (its server must start on a port that is free beforehand).
