@@ -35,3 +35,12 @@ PI_PROCESS_TEST_PI=$(mise which pi) node test/restart-probe.mjs
 ## Frictions and expectations
 
 No user-facing friction in this bounded encounter. All three pre-use predictions were met. The retained paths are intentionally removed by the disposable probe's cleanup, so they document paths shown at recovery rather than permanent packet artifacts. The durable evidence is this encounter summary. No rendered UI; screenshots do not apply.
+
+## Review
+
+Reviewed pi-processes `876e860` (diff against `da27921`) with the driver's packet. Diff read against the ticket: receipts and logs persist in `<session-file>.processes/`, restore on `session_start` by name/ID without adopting old PIDs, interrupted records explain the shutdown and name retained logs; ephemeral sessions keep the temp-dir behavior. No defects found in the implementation.
+
+- Re-ran `PI_PROCESS_TEST_PI=$(mise which pi) node test/restart-probe.mjs` on the implementation: exit 0, same output as the drive (killed/interrupted, `retained-before-release`, log paths, "Restart recovery passed").
+- `tsc --noEmit` clean; `restart.integration`, `manager`, `index` tests pass.
+- Flake found: `manager.test.ts > cancels readiness when the process exits first` failed ~3 of 8 runs on baseline `da27921` when run with the other files (the end event follows real log I/O that fake timers don't await). Fixed in pi-processes `04a1ca0` by wrapping the assertion in `vi.waitFor`; 12 of 12 passes after.
+- Boundary unchanged: BB's real idle eviction is not exercised; the process is stopped on release (allowed outcome), not kept running.
