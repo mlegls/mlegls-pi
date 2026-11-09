@@ -37,3 +37,13 @@ None blocking. The aggregate test name makes the evidence-close scenarios hard t
 ## Cleanup and limits
 
 The managed runner exited; no server, browser, container, tunnel or remote deployment was started. Evidence is nonvisual. This is the ticket's prescribed test-runner surface, not a full production reconciler trial.
+## Review
+
+The driver's replayable check 2 and 3 could not hold: the aggregate case it ran (`landings carry leaf results…`) had no scenario for a drive-only packet, and the change carried no test for the ticket's done-when. The driver's "held" outcomes rested on the existing case passing, so they were unsupported until this review.
+
+Added `a close holds on a cited packet that exists only on a drive branch…` to `lib/reconcile/completion.test.ts` (the ticket names this test as its acceptance). It covers, with a real git/tracker fixture:
+- body links `docs/attachments/held/index.md`, committed only on a never-landed drive branch (listed in the node's evidence scope); `closeAtTarget` calls `holdEvidence` with text naming that path and the drive commit, the issue stays `ticket`, no `closedAt`;
+- a second node whose body links a missing packet that predates its scope and that none of its branches add closes normally (stale-link exemption);
+- after the drive branch merges to the target, the held node closes.
+
+Mutation check: bypassing `targetEvidenceFailure` in `closeAtTarget` fails the new test. `bun test lib/reconcile`: 48 pass, 0 fail (162 s). Outcomes: both stories held. Nonvisual.
