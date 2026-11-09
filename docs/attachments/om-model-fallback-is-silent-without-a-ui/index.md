@@ -37,3 +37,9 @@ bun docs/attachments/om-model-fallback-is-silent-without-a-ui/first-use.ts conde
 Existing regressions: `bun test extensions/context/om extensions/context/notes.test.ts extensions/context/optmem/build.test.ts` — 18 passed, 0 failed. `bun run typecheck` passed. No commit hook is installed in this checkout.
 
 The independent driver/reviewer still owns acceptance and the ticket-authorized headless regression test. This first-use launcher is outside the test suite.
+
+## Review
+
+- The driver's "A regression test covers the headless case" story was unobservable to it; the diff had no test. Added `extensions/context/om/runtime.test.ts` (headless stderr warning naming configured and used models; UI notify once with no stderr; available configured model, no warning). It fails on the base `runtime.ts` (headless case) and passes at head: `bun test extensions/context/om/runtime.test.ts`, 3 pass. Story now held.
+- Replays already fail closed on an absent exact model (`replay-workers.ts` "Required exact replay model is not in Pi's catalog"); driver exit-1 observations stand, no change needed.
+- The unrelated `memory-as-a-log-with-pluggable-projections.md` tracker edit in the range comes from the merged base, not this change.
