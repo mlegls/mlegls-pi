@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 priority: 2
 author: "session:01a19a74-4995-71d6-a961-c51d59747b8e"
 assignee: "agent"
@@ -20,3 +20,38 @@ Ticket:
 3. `host-for-human --run '<command>' <port>` runs the upstream command as the same supervised user service as the mapping, so a Lavish page survives the worker's turn and a reboot, and `--stop` ends both.
 
 Acceptance: with a scratch mapping to a closed port occupying the range, a new `host-for-human` call succeeds on that port and reports the removal; a mapping to a listening port is left in place; a page started with `--run` still answers over its Tailscale URL after the launching shell exits, and `--stop` removes the mapping and stops the command.
+
+## Result
+
+done
+
+I made no repairs to `bin/host-for-human`. I read it against the ticket and ran two checks. `py_compile` passes. The forking-command claim holds: a `systemd-run` probe with `Type=exec` and `ExitType=cgroup` stayed active after its shell returned and stopped on `systemctl stop`. I did not re-drive the four stories. They rest on the driver's packet, and I ran no test task, since no tests cover this CLI.
+
+- **Reclaim logic:** it runs under the publish lock. A foreign mapping is removed only when every handler on its port is a refused proxy. Owned unmapping is guarded by a check that the mapping still points at the recorded proxy. `--stop` unmaps before it stops the unit.
+- **Other tickets' work:** the diff range also carries merged work from other tickets (OM fallback, landing cleanup, the memory log). I did not review it.
+- **Review note:** I appended a review section to the packet and committed it as `ec890753`.
+
+```yaml
+commit: ec890753
+stories:
+  - story: Reclaim refused foreign mappings and report their removal
+    outcome: held
+  - story: Preserve foreign mappings with listening upstreams
+    outcome: held
+  - story: Reclaim owned reservations with inactive services or missing directories
+    outcome: held
+  - story: Keep --run upstream alive after launching shell exits; --stop removes mapping and upstream
+    outcome: held
+evidence:
+  path: docs/attachments/host-for-human-port-range-leaks-abandoned-and-foreign-mappings/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+caveats:
+  - Nobody rebooted the shared host; reboot persistence rests on the enabled systemd unit and lingering.
+  - "`agent-prompts/universal.md` and the artboard skill still tell agents to publish an already-running Lavish port and don't mention `--run`. Agents won't use the new lifetime feature until the prompts do. I left it because I haven't run Lavish itself under `--run`; its server needs a port that is free beforehand."
+  - "Cost: `--run` runs `loginctl enable-linger` and a systemd daemon-reload, and each allocation probes every mapping in 10000–10003 over TCP with a 1 s timeout. I didn't measure the total."
+```
+
+Evidence: [docs/attachments/host-for-human-port-range-leaks-abandoned-and-foreign-mappings/index.md](../attachments/host-for-human-port-range-leaks-abandoned-and-foreign-mappings/index.md)
