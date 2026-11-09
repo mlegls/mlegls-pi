@@ -26,7 +26,7 @@ To exercise a subsequent launch by the existing reconciler, resolve with `{"acti
 
 ## Implementer encounter
 
-Initial implementation: `a77b28b2` (the scratch encounter preceded that commit on the same code). Backend-only, no screenshots. This is implementation first use; fresh verification follows it.
+Tested code: `784f1370` for the final re-drive; `a77b28b2` for the initial encounter. Each encounter preceded its commit on the same executable code. Backend-only, no screenshots. This is implementation first use; fresh verification follows it.
 
 - Handover reported two role/working rows, one attention item, one reconciler, the pickup owner and one child moved.
 - Reconciler PID 827195 and watcher PID 827268 were unchanged. Status showed owner `thr_new`, the original implement worker held and the same `implement needs-input` exception pending.
