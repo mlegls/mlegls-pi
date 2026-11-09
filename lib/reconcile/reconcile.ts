@@ -34,6 +34,7 @@ import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts"
 import { untilReset } from "./rate-limit.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
 import { alignIndex } from "../thread/lifecycle.ts";
+import { worktrees } from "../thread/lifecycle-git.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
 import { beginEvidenceScope, EVIDENCE_MISSING } from "./evidence.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
@@ -998,8 +999,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** Consecutive failed cleanups per landing, this process; the limit raises one owner exception. */
 	const cleanupFailures = new Map<string, number>();
 	/** Receipts outlive chains. A partial retirement/deletion is retried next tick, and raised to the owner once it keeps
-	 * failing. A worker whose bb thread is gone or archived is already retired. Ignored state is kept as by every other
-	 * retirement: a landed worker's worktree can still hold state setup can't regenerate. */
+	 * failing. A worker whose worktree or bb thread is gone is already retired. Settled collectors discard untracked
+	 * and ignored state, as worker retirement does; tracked changes and unlanded commits still need the owner. */
 	async function cleanupLandings() {
 		for (const operation of Object.values(s.landingOps)) {
 			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
@@ -1007,6 +1008,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			try {
 				const threads = await bbThreads();
 				for (const worker of operation.workers) {
+					// Do not ask retirement to discover a repository through a stale worker directory.
+					if (!existsSync(worker.path) || !(await worktrees(controlCwd)).some(t => t.path === resolve(worker.path))) {
+						git(controlCwd, "worktree", "prune", "--expire", "now");
+						continue;
+					}
 					const found = await findWorker(worker, controlCwd);
 					const thread = found && threads.get(found.bb);
 					if (!thread || thread.archivedAt) continue;
@@ -1016,7 +1022,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				}
 				const col = operation.collector;
 				if (col) {
-					if (existsSync(col.path)) git(controlCwd, "worktree", "remove", col.path);
+					if (git(controlCwd, "branch", "--list", col.branch)
+						&& git(controlCwd, "cherry", git(operation.destination, "rev-parse", "HEAD"), col.branch).split("\n").some(l => l.startsWith("+")))
+						throw new Error("Collector has unlanded commits: " + col.branch);
+					if (existsSync(col.path)) {
+						if (git(col.path, "status", "--porcelain", "--untracked-files=no"))
+							throw new Error("Collector has tracked modifications: " + col.path);
+						git(controlCwd, "worktree", "remove", "--force", col.path);
+					}
 					if (git(controlCwd, "branch", "--list", col.branch)) git(controlCwd, "branch", "-D", col.branch);
 					if (s.collectors[operation.slug]?.path === col.path) delete s.collectors[operation.slug];
 				}
