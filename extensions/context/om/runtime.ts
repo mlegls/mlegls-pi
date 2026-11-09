@@ -129,11 +129,14 @@ export class Runtime {
 			const configured = ctx.modelRegistry.find(this.config.model.provider, this.config.model.id);
 			if (configured) {
 				model = configured;
-			} else if (ctx.hasUI && ctx.ui) {
-				ctx.ui.notify(
-					`Observational memory: configured model ${this.config.model.provider}/${this.config.model.id} not found, using session model`,
-					"warning",
-				);
+			} else {
+				const session = model as { provider?: string; id?: string } | undefined;
+				const fallback = session
+					? `using session model ${session.provider ?? "unknown"}/${session.id ?? "unknown"}`
+					: "no session model available";
+				const warning = `Observational memory: configured model ${this.config.model.provider}/${this.config.model.id} not found, ${fallback}`;
+				if (ctx.hasUI && ctx.ui) ctx.ui.notify(warning, "warning");
+				else console.warn(warning);
 			}
 		}
 		if (!model) return { ok: false, reason: "no model available (session has no model and no observational-memory model configured)" };
