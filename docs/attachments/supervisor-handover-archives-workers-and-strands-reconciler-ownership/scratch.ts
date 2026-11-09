@@ -25,12 +25,15 @@ if (!mode || mode === "start") {
 	cleanIdentity();
 	const env: Record<string, string> = {
 		XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
-		PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: join(source, "agents"),
+		PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: join(root, "agents"),
 		TRACKER_CLI: join(source, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts"),
 		MISE_TRUSTED_CONFIG_PATHS: root, PI_RECONCILE_TICK_MS: "100",
 		BB_THREAD_ID: "thr_old",
 	};
 	Object.assign(process.env, env);
+	mkdirSync(join(root, "agents/roles"), { recursive: true });
+	writeFileSync(join(root, "agents/scratch.md"), "---\nname: scratch\nmodel: fake/model:low\nrole: implement\n---\nScratch worker.\n");
+	writeFileSync(join(root, "agents/roles/implement.md"), "Scratch implement role; no model is run by the fake CLI.\n");
 	const bb = fakeBb(root);
 	Object.assign(env, { BB_CLI: process.env.BB_CLI!, FAKE_BB_DIR: bb.dir });
 	mkdirSync(join(cwd, "docs/issues"), { recursive: true });
@@ -79,11 +82,14 @@ if (!mode || mode === "start") {
 	const [cmd, ...rest] = args;
 	if (cmd === "desk") await run("lib/desk.ts", rest);
 	else if (cmd === "status") await run("lib/reconcile/main.ts", ["status"]);
-	else if (cmd === "pickup") await run("lib/reconcile/pickup.ts", ["status"]);
+	else if (cmd === "pickup") await run("lib/reconcile/pickup.ts", rest.length ? rest : ["status"]);
 	else if (cmd === "bb") console.log(await command(process.env.BB_CLI!, ["thread", ...rest, "--json"]));
 	else if (cmd === "resolve") await run("lib/reconcile/main.ts", ["resolve", rootSlug, rootSlug, rest[0]!]);
-	else if (cmd === "dispatch") console.log(JSON.stringify(await dispatch([{ handle: rest[0]!, prompt: "Later scratch worker.", model: "fake/model", effort: "low" }],
-		{ cwd, run: rootSlug, active: [], maxConcurrent: 1 }), null, 2));
+	else if (cmd === "dispatch") {
+		const active = Object.values(load(cwd, rootSlug)!.chains).flatMap(c => c.handle ? [c.handle] : []);
+		console.log(JSON.stringify(await dispatch([{ handle: rest[0]!, prompt: "Later scratch worker.", model: "fake/model", effort: "low" }],
+			{ cwd, run: rootSlug, active, maxConcurrent: active.length + 1 }), null, 2));
+	}
 	else if (cmd === "cleanup") {
 		stopPickup(cwd);
 		await stop(cwd, rootSlug);

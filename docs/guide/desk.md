@@ -14,9 +14,23 @@ ab desk role clear supervisor
 
 Use `--thread thr_…` to override `BB_THREAD_ID`. An attention body can come from stdin with `--file -`; it contains the question, options/recommendation and what waits on it. The helper supplies the item's `##` heading and owner. Repeating an owner's title replaces that item. Roles have one holder; working lines and attention items belong to individual threads.
 
-Every write cleans **both** files using bb's live threads, including hidden threads. An archived or deleted owner loses its lines and attention items. Re-file still-needed items under a live asker before archiving. A failed bb lookup leaves the files unchanged. `ab desk clean` just cleans; `STATUS.md` belongs to the reconciler.
+Every write cleans **both** files using bb's live threads, including hidden threads. An archived or deleted owner loses its lines and attention items. Hand over still-needed work before archiving. A failed bb lookup leaves the files unchanged. `ab desk clean` just cleans; `STATUS.md` belongs to the reconciler.
 
 The CLI ships in `bin/desk` and `ab desk`. Before integration, run `./bin/desk --help` or `./bin/ab desk --help` from the worker checkout; neither depends on installing a PATH link.
+
+## Supervisor handover
+
+From any checkout of the supervised repository:
+
+```sh
+ab desk handover thr_old thr_new
+```
+
+This moves the old owner's role and working lines, attention items, pickup ownership and unfinished reconciler ownership. It reparents live children, checks bb's current `canSpawnChild` capability and archives the old thread last. Workers and pending exceptions stay in place; the JSON result lists the moved resources. Repeating the command is safe after completion or a partial failure.
+
+Reconciler launches and notifications share the handover lock and read the saved owner. The watcher keeps its PID and reads its owner at each scan. Existing landing checkouts remain the targets. Running reconcilers must have loaded handover-aware code; let their automatic code refresh finish before retrying a refusal. Immutable lifecycle dependents, hidden source forks and landing targets in an old managed worktree require separate disposition before that owner can be archived.
+
+A disposable setup with a held needs-input exception, a worker and a live watcher is in [the first-use packet](../attachments/supervisor-handover-archives-workers-and-strands-reconciler-ownership/index.md).
 
 ## Module
 

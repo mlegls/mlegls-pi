@@ -351,11 +351,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	writeFileSync(join(lock, "pid"), String(process.pid));
 	process.on("exit", () => { try { if (readFileSync(join(lock, "pid"), "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true }); } catch {} });
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
-	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, codeVersion: loadedCode, ownerHandover: true, finished: undefined });
+	// A spawned run already has its owner published; a foreground invocation chooses it here.
+	if (s.pid !== process.pid) updateState(controlCwd, s.root, current => ({ ...current!, owner: o.owner,
+		ownerSession: o.ownerSession ?? (current!.owner === o.owner ? current!.ownerSession : undefined) }));
+	Object.assign(s, { budget: o.budget, pid: process.pid, codeVersion: loadedCode, ownerHandover: true, finished: undefined });
 	const save = () => saveState(s);
 	const refreshOwner = () => {
 		const current = load(controlCwd, s.root);
 		if (current) { s.owner = current.owner; s.ownerSession = current.ownerSession; }
+		process.env.BB_THREAD_ID = s.owner;
 	};
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	// To a worker as a queued bb message: it follows the turn in progress, or starts one on an idle thread.
@@ -366,16 +370,17 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	// started together (each saying "started") are one turn too.
 	let told: Promise<void> = Promise.resolve();
 	const tellOwner = (body: string) => {
-		told = told.then(async () => {
-			const live = new Set([...await bbThreads()].filter(([, t]) => !t.archivedAt).map(([id]) => id));
+		told = told.then(() => ownershipLock(controlCwd, async () => {
 			refreshOwner();
+			const live = new Set([...await bbThreads()].filter(([, t]) => !t.archivedAt).map(([id]) => id));
 			const supervisor = roleThread("supervisor", controlCwd);
 			const to = live.has(s.owner) ? s.owner : supervisor && live.has(supervisor) ? supervisor : s.owner;
 			const prefix = "[reconcile " + s.root + "] ";
 			await tellBbFolded(to, "[reconcile ", prefix + body);
-		}).catch(e => note("telling the owner failed: " + e));
+		})).catch(e => note("telling the owner failed: " + e));
 	};
 	save();
+	refreshOwner();
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;

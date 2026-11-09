@@ -26,6 +26,6 @@ export function spawnRun(o: StartOptions, dir: string, predecessor?: number, env
 	const pid = spawnDetached(["bun", join(import.meta.dir, "main.ts"), "run", o.root,
 		"--owner", o.owner, "--budget", String(o.budget), "--cwd", o.cwd, "--land", o.land ?? "local",
 		...(o.ownerSession ? ["--owner-session", o.ownerSession] : []), ...(o.quiet ? ["--quiet"] : []),
-		...(predecessor ? ["--predecessor", String(predecessor)] : [])], o.cwd, log, env);
+		...(predecessor ? ["--predecessor", String(predecessor)] : [])], o.cwd, log, { ...env, BB_THREAD_ID: o.owner });
 	return { pid, log };
 }
