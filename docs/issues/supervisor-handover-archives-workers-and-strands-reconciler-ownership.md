@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_pqt8kgvd8h"
@@ -19,3 +19,44 @@ Ticket: one idempotent operation, e.g. `ab desk handover <old> <new>` (or a `rec
 5. prints what it moved.
 
 Acceptance: on a scratch supervisor with one reconciler holding a needs-input exception and one live worker, handover leaves the worker unarchived and parented to the new thread, `reconcile_status` shows the new owner, the exception is still pending and resolvable from the new thread, a later dispatch succeeds, and the old thread is archived.
+
+## Result
+
+done: I found no defects in the handover change, and all six stories hold on the final head. The scratch drive wasn't repeated, because my commits touch only a test file and the packet.
+
+- **Code read:** I read `lib/handover.ts`, `lib/desk.ts`, `lib/reconcile/ownership.ts`, `lib/reconcile/pickup.ts` and the reconciler owner-refresh changes. I also checked the `bb` wrappers against the real CLI on this host. `bb thread show` returns `canSpawnChild`, and `bb thread update` takes `--parent-thread` and `--clear-parent-thread`, as the code expects.
+- **Tests:** I ran `bun test` over `lib/reconcile`, `dispatch`, `wm`, `wm.local` and `wm-reattach`: 66 pass, 1 skip (the skip was already there), 0 fail. The repo has no `test:affected` task, so I ran those directories directly.
+- **Fix:** the typecheck failed on one test, `extensions/context/om/runtime.test.ts`, which came in with the OM-fallback ticket merged into this base. I widened its `notify` spy signature in `cfcb0657`. Typecheck is clean and that test file's 3 tests pass.
+- **Review notes:** I appended them to the driver's `drive.md` in `6a9a7db7`.
+- **Friction:** the driver reported none and the handoff links no filed issues, so there was nothing to settle.
+
+```yaml
+commit: 6a9a7db7
+stories:
+  - story: Desk roles, attention and pickup transfer with a printed summary
+    outcome: held
+  - story: Running reconciler changes owner while preserving its pending exception
+    outcome: held
+  - story: New owner resolves the exception and the existing reconciler launches another worker
+    outcome: held
+  - story: Live worker survives handover and is reparented to the new supervisor
+    outcome: held
+  - story: Later dispatch succeeds under the new supervisor
+    outcome: held
+  - story: Old supervisor is archived and repeated handover is harmless
+    outcome: held
+evidence:
+  path: docs/attachments/supervisor-handover-archives-workers-and-strands-reconciler-ownership/drive.md
+  visual: false
+  shots: []
+tests: []
+fixed:
+  - "extensions/context/om/runtime.test.ts notify spy type error (typecheck) — cfcb0657"
+filed: []
+caveats:
+  - "Scratch drive used a fake BB CLI, so live daemon archive and parenting behavior wasn't exercised. Real `canSpawnChild` and `thread update` flags were checked by command only."
+  - "Notification delivery wasn't independently measured by the driver. The implementer's re-drive saw a notice reach thr_new and none reach the archived thr_old."
+  - "handover refuses, by design, while a running reconciler hasn't loaded handover-aware code, or while a landing target sits in the old supervisor's managed worktree. Retry after the reconciler's code refresh."
+```
+
+Evidence: [docs/attachments/supervisor-handover-archives-workers-and-strands-reconciler-ownership/drive.md](../attachments/supervisor-handover-archives-workers-and-strands-reconciler-ownership/drive.md)
