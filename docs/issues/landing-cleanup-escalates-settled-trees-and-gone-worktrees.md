@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 3
 author: "thread:thr_5aa27tkct7"
@@ -18,3 +18,37 @@ In `cleanupLandings` ([reconcile.ts](../../lib/reconcile/reconcile.ts)):
 - Keep escalating anything else (tracked modifications, unmerged commits).
 
 Done when a test covers both cases, each finishing cleanup without an exception, and a tree with an unmerged commit still escalates.
+
+## Result
+
+done — I made one repair, and all three stories hold on the final head. `bun test lib/reconcile/landing-cleanup.test.ts` passes (4 tests, 31 assertions).
+
+**Repair:** the unlanded-commit guard in `lib/reconcile/reconcile.ts` treated any `git cherry` output as unlanded. `git cherry` also prints `-` lines for commits that are patch-equivalent to the target, which is what a rebase landing leaves. Those would have escalated a settled collector forever. Only `+` lines hold a collector now.
+
+**Tracked-modification guard:** I read it and it looks right. No test covers it, and I proposed none. I didn't run it by hand.
+
+I appended a Review section to the driver's packet at `docs/attachments/landing-cleanup-escalates-settled-trees-and-gone-worktrees/index.md`. The repair is commit `4add47f0`.
+
+```yaml
+commit: 4add47f0
+stories:
+  - story: Settled collectors containing hook state finish cleanup
+    outcome: held
+  - story: Workers missing their directory or registration finish cleanup
+    outcome: held
+  - story: Collectors with unmerged commits still escalate
+    outcome: held
+evidence:
+  path: docs/attachments/landing-cleanup-escalates-settled-trees-and-gone-worktrees/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/landing-cleanup.test.ts
+fixed:
+  - "only '+' git cherry lines count as unlanded (4add47f0)"
+filed: []
+caveats:
+  - "The driver's changes to lib/reconcile/landing-cleanup.test.ts rewrote the existing 'keeps failing' case. Its trigger changed from an untracked file to an unmerged commit, because an untracked file no longer fails cleanup."
+```
+
+Evidence: [docs/attachments/landing-cleanup-escalates-settled-trees-and-gone-worktrees/index.md](../attachments/landing-cleanup-escalates-settled-trees-and-gone-worktrees/index.md)

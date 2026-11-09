@@ -34,7 +34,9 @@ import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts"
 import { untilReset } from "./rate-limit.ts";
 import { excludeTracker } from "../thread/tracker-worktree.ts";
 import { alignIndex } from "../thread/lifecycle.ts";
+import { worktrees } from "../thread/lifecycle-git.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
+import { beginEvidenceScope, EVIDENCE_MISSING } from "./evidence.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
 import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
@@ -412,7 +414,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			attemptClaims: new Set([...attempts.map(a => a.claim), ...Object.keys(s.workerSessions ?? {}).map(id => "session:" + id)]),
 			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
 	};
-	const completion = { state: s, tracker, save, pathOf, locked };
+	const completion = { state: s, tracker, save, pathOf, locked,
+		holdEvidence: (slug: string, text: string) => raise(slug, EVIDENCE_MISSING, text, view(destination())),
+	};
 	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
 	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.
 	const reports = new Map<string, TurnReport>();
@@ -545,7 +549,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			// its worktree behind, so a retry takes a fresh handle.
 			for (let attempt = 0; ; attempt++) {
 				const actual = attempt ? handle.slice(0, 86) + "-r" + attempt : handle;
-				if (chain) { chain.launching = actual; save(); }
+				if (chain) {
+					if (issue) beginEvidenceScope(s, tracker, issue.slug, controlCwd, base, actual);
+					chain.launching = actual; save();
+				}
 				if (refining) {
 					refining.chain.phase = "refine";
 					const old = refining.chain.refinement;
@@ -664,7 +671,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		dropResolution(slug);
 		const parent = issues.get(slug)?.partOf;
 		const level = at ?? (slug === s.root || !parent ? "owner" : parent);
-		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
+		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: reason === EVIDENCE_MISSING ? text : text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
 		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
 	}
@@ -691,7 +698,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			else note("landing cleanup " + ex.node + " retried by the owner");
 			return save();
 		}
-		if (s.pr && s.landed[s.root] && ex.node === s.root) return resolvePr(ex, r);
+		if (ex.reason === EVIDENCE_MISSING && r.action !== "escalate") {
+			// Repairs edit the global body or land the missing files; no new code
+			// chain and no acceptance override can waive the target-tree check.
+			(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action);
+			delete s.exceptions[ex.node];
+			return save();
+		}
+		if (s.pr && s.landed[s.root] && ex.node === s.root && ex.reason !== EVIDENCE_MISSING) return resolvePr(ex, r);
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
 		if (r.action === "retry" && r.refinement && s.refinements[r.refinement]?.successor) {
@@ -859,6 +873,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			dropResolution(node);
 		}
 		for (const ex of Object.values(s.exceptions)) {
+			if (ex.reason === EVIDENCE_MISSING && s.results[ex.node]?.closedAt) {
+				if (ex.handler) await retireHandle(ex.handler, controlCwd);
+				delete s.exceptions[ex.node]; dropResolution(ex.node); save();
+				continue;
+			}
 			// The owner's resolution answers the exception wherever it is: no handler is launched for it, and one already
 			// working is retired, rather than each enclosing level's handler re-reading it and escalating (2026-10-16).
 			if (ex.level !== "owner" && existsSync(join(resolutionsDir(controlCwd, s.root), ex.node + ".json"))) {
@@ -997,8 +1016,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** Consecutive failed cleanups per landing, this process; the limit raises one owner exception. */
 	const cleanupFailures = new Map<string, number>();
 	/** Receipts outlive chains. A partial retirement/deletion is retried next tick, and raised to the owner once it keeps
-	 * failing. A worker whose bb thread is gone or archived is already retired. Ignored state is kept as by every other
-	 * retirement: a landed worker's worktree can still hold state setup can't regenerate. */
+	 * failing. A worker whose worktree or bb thread is gone is already retired. Settled collectors discard untracked
+	 * and ignored state, as worker retirement does; tracked changes and unlanded commits still need the owner. */
 	async function cleanupLandings() {
 		for (const operation of Object.values(s.landingOps)) {
 			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
@@ -1006,6 +1025,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			try {
 				const threads = await bbThreads();
 				for (const worker of operation.workers) {
+					// Do not ask retirement to discover a repository through a stale worker directory.
+					if (!existsSync(worker.path) || !(await worktrees(controlCwd)).some(t => t.path === resolve(worker.path))) {
+						git(controlCwd, "worktree", "prune", "--expire", "now");
+						continue;
+					}
 					const found = await findWorker(worker, controlCwd);
 					const thread = found && threads.get(found.bb);
 					if (!thread || thread.archivedAt) continue;
@@ -1015,7 +1039,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				}
 				const col = operation.collector;
 				if (col) {
-					if (existsSync(col.path)) git(controlCwd, "worktree", "remove", col.path);
+					if (git(controlCwd, "branch", "--list", col.branch)
+						&& git(controlCwd, "cherry", git(operation.destination, "rev-parse", "HEAD"), col.branch).split("\n").some(l => l.startsWith("+")))
+						throw new Error("Collector has unlanded commits: " + col.branch);
+					if (existsSync(col.path)) {
+						if (git(col.path, "status", "--porcelain", "--untracked-files=no"))
+							throw new Error("Collector has tracked modifications: " + col.path);
+						git(controlCwd, "worktree", "remove", "--force", col.path);
+					}
 					if (git(controlCwd, "branch", "--list", col.branch)) git(controlCwd, "branch", "-D", col.branch);
 					if (s.collectors[operation.slug]?.path === col.path) delete s.collectors[operation.slug];
 				}
@@ -1668,7 +1699,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				if (s.pr.repair?.worker && !s.pr.repair.retiredAt) return false;
 				// Terminal remote landing supersedes a held owner exception without
 				// requiring the owner's session to be present.
-				if (s.exceptions[s.root]) { delete s.exceptions[s.root]; save(); }
+				if (s.exceptions[s.root] && s.exceptions[s.root].reason !== EVIDENCE_MISSING) { delete s.exceptions[s.root]; save(); }
 				closeAtTarget(completion);
 				if (!s.target || Object.values(s.results).some(result => !result.closedAt)) return false;
 				if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
@@ -1701,9 +1732,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const resolvedNow = result === "stuck" && Object.keys(s.exceptions).length < pending;
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
-		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
+		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
 		if (result !== "active" && !resolvedNow && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			closeAtTarget(completion);
+			if (Object.entries(s.results).some(([slug, result]) => s.landed[slug]?.into === s.cwd && !result.closedAt)) return false;
 			if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
 			const all = view(destination());
 			for (const attempt of Object.values(s.refinements)) {

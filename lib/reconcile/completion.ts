@@ -4,6 +4,7 @@ import { integrate, MergeConflict, type Handle } from "../dispatch.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
 import type { Tracker } from "../tracker.ts";
 import { commandFailure, declaredGates, evidencePacket, git, isAncestor, testCommands, testRun } from "./checks.ts";
+import { targetEvidenceFailure } from "./evidence.ts";
 import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
 import type { CollectorRecord, GlobalRunState, LandingOperation, ReviewedResult } from "./tracker-state.ts";
 
@@ -13,6 +14,8 @@ export interface CompletionContext {
 	save: () => void;
 	pathOf: (into: string) => string;
 	locked: <T>(work: () => Promise<T>) => Promise<T>;
+	/** Runtime turns a held close into a node exception; protocol callers may let it throw. */
+	holdEvidence?: (slug: string, text: string) => void;
 }
 export interface ReviewedLanding {
 	slug: string;
@@ -222,8 +225,20 @@ export function closeAtTarget(context: CompletionContext): void {
 	// The target-reaching ledger must be durable before the first tracker write.
 	context.save();
 	const snapshot = context.tracker.snapshot();
+	const held = new Set<string>();
 	for (const slug of order) {
 		const result = context.state.results[slug];
+		if ([...held].some(child => context.state.results[child].parent === slug || context.state.landingOps[slug]?.carried.includes(child))) {
+			held.add(slug);
+			continue;
+		}
+		const failure = targetEvidenceFailure(context.state, context.tracker, slug, snapshot.get(slug));
+		if (failure) {
+			if (!context.holdEvidence) throw new Error(failure);
+			context.holdEvidence(slug, failure);
+			held.add(slug);
+			continue;
+		}
 		// Done is deliberately not a shortcut: a previous close may have written
 		// successfully and then thrown, or its receipt save may have failed.
 		if (!snapshot.get(slug)?.archived) context.tracker.close(slug, { summary: result.summary, evidence: result.evidence });
