@@ -1,5 +1,7 @@
 # Supervisor handover: first use
 
+Independent verification: [CLI drive packet](drive.md) records predictions, scratch acceptance outcomes, replayable checks and environment limits.
+
 ## Setup
 
 From the package checkout:
