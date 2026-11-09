@@ -1005,7 +1005,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const col = operation.collector;
 				if (col) {
 					if (git(controlCwd, "branch", "--list", col.branch)
-						&& git(controlCwd, "cherry", git(operation.destination, "rev-parse", "HEAD"), col.branch))
+						&& git(controlCwd, "cherry", git(operation.destination, "rev-parse", "HEAD"), col.branch).split("\n").some(l => l.startsWith("+")))
 						throw new Error("Collector has unlanded commits: " + col.branch);
 					if (existsSync(col.path)) {
 						if (git(col.path, "status", "--porcelain", "--untracked-files=no"))

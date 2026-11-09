@@ -39,3 +39,7 @@ From the tested revision, run `bun test lib/reconcile/landing-cleanup.test.ts`:
 - Accept the unmerged-commit guard when the runner emits the unlanded-commit error and owner exception, and the owner-answer case passes.
 - Accept existing retirement compatibility when the retired-worker/final-reviewer case passes.
 - For tracked modifications, additionally exercise a landed collector containing a tracked edit and require escalation while retaining that edit. This check was predicted but is not observable from the supplied runner's output.
+
+## Review
+
+Read the diff against the ticket. Repair: the unlanded-commit guard treated any `git cherry` output as unlanded, but `git cherry` also prints `-` lines for commits patch-equivalent to the target (landed by rebase); only `+` lines are unlanded now. Tracked-modification guard (`status --porcelain --untracked-files=no`) read and found sound; no test covers it, and none is proposed. Replayed `bun test lib/reconcile/landing-cleanup.test.ts`: 4 pass, 31 assertions. Stories hold on the final head.
