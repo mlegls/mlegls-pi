@@ -9,12 +9,12 @@ export const EVIDENCE_MISSING = "cited evidence missing on target";
 
 /** Use the tracker's Markdown rules and canonical issue location, even from a
  * worker checkout. Only this project's committed attachments belong to this gate. */
-export function attachmentLinks(cwd: string, tracker: Tracker, slug: string, issue?: Issue): string[] {
+export function attachmentLinks(cwd: string, tracker: Tracker, slug: string, issue?: Issue, text = tracker.text(slug)): string[] {
 	const dir = findIssuesDir(cwd, false);
 	const root = dir ? dirname(dirname(dir)) : resolve(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "..");
 	const project = dir ? projectName(dir) : basename(root);
 	const file = issue?.file ? relative(root, issue.file) : "docs/issues/" + slug + ".md";
-	const body = maskMarkdownCode(tracker.text(slug).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""));
+	const body = maskMarkdownCode(text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""));
 	const paths = new Set<string>();
 	const add = (path: string) => {
 		const normalized = posix.normalize(path);
@@ -64,6 +64,8 @@ export function targetEvidenceFailure(state: GlobalRunState, tracker: Tracker, s
 	const result = state.results[slug], operation = state.landingOps[slug], scope = state.evidenceScopes?.[slug];
 	const packet = result.handoff.evidence as { path?: string; shots?: string[] } | undefined;
 	const required = new Set([result.evidence, packet?.path, ...(packet?.shots ?? [])].filter((p): p is string => typeof p === "string"));
+	// The summary becomes part of the tracker body in this very close.
+	for (const path of attachmentLinks(cwd, tracker, slug, issue, result.summary)) required.add(path);
 	const links = attachmentLinks(cwd, tracker, slug, issue);
 	// Older receipts lack the initial body snapshot: only provable branch additions
 	// are attributed to them; the handoff's own packet is always required.
@@ -75,11 +77,14 @@ export function targetEvidenceFailure(state: GlobalRunState, tracker: Tracker, s
 			if (run.error || (run.status !== 0 && run.status !== 1)) throw run.error ?? new Error("Cannot resolve evidence branch " + branch);
 			return run.status === 0;
 		});
+	// Cleanup may already have deleted the final worker's branch. Its exact
+	// prepared receipt still proves what that node added and later removed.
+	const heads = [...branches, ...(operation?.preparedHead ? [operation.preparedHead] : [])];
 	for (const path of links) {
 		if (present(cwd, ref, path)) continue;
 		const exclusions = [...new Set([scope?.base, operation?.before].filter((p): p is string => !!p))];
-		const added = branches.length && exclusions.length && git(cwd, "log", "--diff-filter=A", "-1", "--format=%H",
-			...branches, "--not", ...exclusions, "--", path);
+		const added = heads.length && exclusions.length && git(cwd, "log", "--diff-filter=A", "-1", "--format=%H",
+			...heads, "--not", ...exclusions, "--", path);
 		if (!baseline.has(path) || added) required.add(path);
 	}
 	const missing = [...required].filter(path => !present(cwd, ref, path)).sort();

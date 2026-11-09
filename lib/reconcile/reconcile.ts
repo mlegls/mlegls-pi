@@ -653,7 +653,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		dropResolution(slug);
 		const parent = issues.get(slug)?.partOf;
 		const level = at ?? (slug === s.root || !parent ? "owner" : parent);
-		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
+		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: reason === EVIDENCE_MISSING ? text : text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
 		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
 	}
