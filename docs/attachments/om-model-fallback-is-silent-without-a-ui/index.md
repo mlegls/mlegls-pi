@@ -1,5 +1,7 @@
 # OM model fallback: implementation first use
 
+Independent acceptance encounter: [driver log](drive.md).
+
 Runtime change: `955f4dbb`.
 
 A missing configured OM model now produces a warning naming the configured model and the selected session model. Interactive contexts receive the existing UI warning; contexts without a usable UI write the warning to stderr. No model-selection policy changed. Worker and condenser replay entry points already require their exact selected model and reject a catalog miss.
