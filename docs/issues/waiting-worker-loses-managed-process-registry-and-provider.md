@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "ticket"
 assignee: "agent"
 author: "session:seed-completed-mission-intermittently-refuses-session-moved-on-implement-1"
 priority: 2
@@ -25,3 +25,9 @@ Five more Concept workers met the same empty registry on the turn after a long i
 Counter-observation, 22:14 +08:00 (@thread:thr_35dufwsp46): the parent's recovery message said no managed process was running, yet `process wait` on proc_9/PID 2890815 returned running twice with advancing output; nothing was lost.
 
 Every loss follows a turn boundary after a long idle wait (about 30 minutes) or a compaction/resume, and the losses look like a pi restart: the in-memory registry is empty, the session's temp log directory is deleted and group members are killed, while detached descendants survive. Untested hypothesis: bb's Pi provider replaces the idle pi process between turns and pi-processes' shutdown cleanup runs. Workaround in all cases: durable checkout-owned output and resumable recipes; the impact is lost long-run evidence and repeated multi-minute encounters.
+
+## Ticket (2026-11-09)
+
+Recurred on 2026-11-07 for 5 Concept workers (efficiency audit @thread:thr_5aa27tkct7; one is @thread:thr_ghta4zwncx, whose managed process was "not found" after a 30-minute wait). Likely cause, to confirm first: bb may release an idle thread's pi ([dispatch.md](../dispatch.md)), and pi-processes keeps its registry in the pi process and its logs in a per-process `/tmp/pi-processes-*` directory, so a worker that yields `waiting` wakes in a fresh pi that knows none of its processes, while their children survive under parent 1 or die with the old pi.
+
+Done when a worker that starts a managed process, yields `waiting`, and has its pi released and restarted by bb still finds that process (`process output`/`wait` by name) and its logs on wake, or, if the process died with the old pi, is told so with the retained log path rather than "No processes have been started in this session". A test reproduces the restart.
