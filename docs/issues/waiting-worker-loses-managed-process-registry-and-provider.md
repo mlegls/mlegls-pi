@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:seed-completed-mission-intermittently-refuses-session-moved-on-implement-1"
 priority: 2
@@ -31,3 +31,39 @@ Every loss follows a turn boundary after a long idle wait (about 30 minutes) or 
 Recurred on 2026-11-07 for 5 Concept workers (efficiency audit @thread:thr_5aa27tkct7; one is @thread:thr_ghta4zwncx, whose managed process was "not found" after a 30-minute wait). Likely cause, to confirm first: bb may release an idle thread's pi ([dispatch.md](../dispatch.md)), and pi-processes keeps its registry in the pi process and its logs in a per-process `/tmp/pi-processes-*` directory, so a worker that yields `waiting` wakes in a fresh pi that knows none of its processes, while their children survive under parent 1 or die with the old pi.
 
 Done when a worker that starts a managed process, yields `waiting`, and has its pi released and restarted by bb still finds that process (`process output`/`wait` by name) and its logs on wake, or, if the process died with the old pi, is told so with the retained log path rather than "No processes have been started in this session". A test reproduces the restart.
+
+## Result
+
+done — the fix is in pi-processes, not this repo, and the integration needs the pi-processes branch. The restart probe passes on my re-run. I read the pi-processes diff against the ticket and found no defects in it.
+
+The pi-processes branch is `waiting-worker-process-recovery-implement`, now at `04a1ca0`. The checkout is `/home/mlegls/dev/pi-processes__worktrees/waiting-worker-process-recovery-implement`. My mlegls-pi commit `1fcea971` only appends the review to the driver's packet.
+
+One repair: `cancels readiness when the process exits first` in `src/manager.test.ts` flaked on the baseline `da27921`, failing 3 of 8 runs. The end event follows real log I/O that fake timers don't await. I wrapped the assertion in `vi.waitFor` (pi-processes `04a1ca0`) and it then passed 12 of 12 runs. I filed no issues.
+
+```yaml
+commit: 1fcea971   # mlegls-pi review record; pi-processes fix at 876e860 + 04a1ca0 (branch waiting-worker-process-recovery-implement)
+stories:
+  - story: Recover a managed process after Pi restart, or explain its death with retained logs
+    outcome: held
+  - story: A regression probe reproduces the restart
+    outcome: held
+evidence:
+  path: docs/attachments/waiting-worker-loses-managed-process-registry-and-provider/drive-2/index.md
+  visual: false
+  shots: []
+tests:
+  - src/restart.integration.test.ts   # pi-processes
+  - src/manager.test.ts               # pi-processes; assertion wrapped in vi.waitFor
+fixed:
+  - "pi-processes 04a1ca0: flaky readiness-cancel test (~3/8 failures on baseline, 0/12 after)"
+filed: []
+caveats:
+  - "Changed a kept test's assertion: manager.test.ts 'cancels readiness when the process exits first' now awaits the event with vi.waitFor. Same expectations, only the timing differs."
+  - "The fix lands in pi-processes. The parent must integrate that branch; landing this mlegls-pi branch does not land it."
+  - "Managed processes are stopped when Pi shuts down. After a restart, `output` and `wait` report 'interrupted' and name the retained logs. A live child is not kept running."
+  - "BB's real half-hour idle eviction was not exercised, only the local RPC release/restart probe."
+  - "Each state change writes a small registry.json beside the session file (atomic rename, synchronous). I didn't measure the cost."
+  - "A corrupt registry.json would throw in restoreSession during session_start. Writes are atomic, so this is unlikely."
+```
+
+Evidence: [docs/attachments/waiting-worker-loses-managed-process-registry-and-provider/drive-2/index.md](../attachments/waiting-worker-loses-managed-process-registry-and-provider/drive-2/index.md)
