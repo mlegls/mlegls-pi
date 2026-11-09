@@ -34,7 +34,7 @@ export function roleThread(role: string, cwd = process.cwd()): string | undefine
 }
 
 interface Files { roles: string[]; intro: string; items: string[] }
-async function writeDesk(cwd: string, change: (files: Files, live: Set<string>) => void): Promise<string> {
+async function writeDesk(cwd: string, change: (files: Files, live: Set<string>) => void, keepOwner?: string): Promise<string> {
 	const common = git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir");
 	const dir = deskPath(cwd);
 	const lock = join(common, "desk.lock");
@@ -50,7 +50,7 @@ async function writeDesk(cwd: string, change: (files: Files, live: Set<string>) 
 	try {
 		// A failed bb lookup aborts the write rather than treating every owner as deleted.
 		const live = new Set([...await bbThreads()].filter(([, t]) => !t.archivedAt).map(([id]) => id));
-		const alive = (text: string) => { const id = owner(text); return !id || live.has(id); };
+		const alive = (text: string) => { const id = owner(text); return !id || id === keepOwner || live.has(id); };
 		const attention = read(join(dir, "ATTENTION.md")).split(/(?=^## )/m);
 		const intro = attention[0]?.startsWith("## ") ? "" : attention.shift() ?? "";
 		const files: Files = {
@@ -130,10 +130,34 @@ export function removeAttention(thread: string, title: string, cwd = process.cwd
 		files.items = files.items.filter(item => !(owner(item) === thread && itemTitle(item) === title));
 	});
 }
+/** Move desk ownership before the source thread is archived. Retain its rows on a retry too. */
+export async function handoverDesk(from: string, to: string, cwd = process.cwd()) {
+	let roles = 0, attention = 0;
+	await writeDesk(cwd, (files, live) => {
+		requireLive(live, to);
+		files.roles = [...new Set(files.roles.map(row => {
+			if (owner(row) !== from) return row;
+			roles++;
+			return row.replace("@thread:" + from, "@thread:" + to);
+		}))];
+		const working = files.roles.filter(row => row.startsWith("- working: ") && owner(row) === to);
+		if (working.length > 1) {
+			files.roles = files.roles.filter(row => !working.includes(row));
+			files.roles.push("- working: @thread:" + to + " — " + working.map(row => row.split(" — ").slice(1).join(" — ")).join("; "));
+		}
+		files.items = files.items.map(item => {
+			if (owner(item) !== from) return item;
+			attention++;
+			return item.replace("@thread:" + from, "@thread:" + to);
+		});
+	}, from);
+	return { roles, attention };
+}
 export const cleanDesk = (cwd = process.cwd()) => writeDesk(cwd, () => {});
 
 const usage = [
 	"desk path | clean",
+	"desk handover OLD NEW",
 	"desk role set|clear ROLE [--thread ID]",
 	"desk working set TEXT|clear [--thread ID]",
 	"desk attention add TITLE --file PATH|- [--thread ID]",
@@ -155,6 +179,10 @@ async function main(argv: string[]) {
 	if (group === "--help" || group === "-h" || !group) return console.log(usage);
 	if (group === "path" && !action) return console.log(deskPath());
 	if (group === "clean" && !action) return console.log(await cleanDesk());
+	if (group === "handover" && action && value) {
+		const { handover } = await import("./handover");
+		return console.log(JSON.stringify(await handover(threadId(action), threadId(value)), null, 2));
+	}
 	if (!thread) throw new Error("Supply --thread ID or BB_THREAD_ID");
 	let result: string;
 	if (group === "role" && value && action === "set") result = await setRole(value, thread);

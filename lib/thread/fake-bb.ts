@@ -106,10 +106,19 @@ function main(argv: string[]) {
 			save(created);
 			return out({ id: created.id, environmentId: created.environment });
 		}
-		case "show": { const t = load(); return out({ thread: { ...t, environmentId: t.environment } }); }
+		case "show": { const t = load(); return out({ thread: { ...t, environmentId: t.environment, canSpawnChild: !t.archivedAt } }); }
+		case "update": { const t = load(); save({ ...t, parentThreadId: flag("parent-thread") ?? (args.includes("--clear-parent-thread") ? null : t.parentThreadId) }); return out({ ok: true }); }
 		case "list": return out(threads(dir()).map(t => ({ ...t, environmentPath: t.environment })));
 		case "stop": { const t = load(); save({ ...t, status: "idle" }); return out({ ok: true }); }
-		case "archive": { const t = load(); save({ ...t, archivedAt: Date.now() }); return out({ ok: true }); }
+		case "archive": {
+			const archive = (id: string) => {
+				const t = threads(dir()).find(t => t.id === id)!;
+				save({ ...t, archivedAt: Date.now() });
+				for (const child of threads(dir()).filter(c => c.parentThreadId === id && !c.archivedAt)) archive(child.id);
+			};
+			archive(load().id);
+			return out({ ok: true });
+		}
 		case "tell": {
 			const t = load(); const file = flag("message-file"); const text = file ? readFileSync(file, "utf8") : args[3]!;
 			if (t.holding && flag("mode") === "queue") { save({ ...t, queue: [...t.queue ?? [], { id: "qmsg-" + crypto.randomUUID().slice(0, 8), text }] }); return out({ ok: true, delivery: "queued" }); }

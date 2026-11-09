@@ -37,6 +37,7 @@ export interface SpawnOptions {
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // legacy receipt field; never selects a transport
 	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
+	parentThread?: string; // explicit bb parent; default BB_THREAD_ID
 	parentSessionFile?: string; // session jsonl that from: "summary" extracts from
 	from?: "summary"; // prepend an extract of the parent session to the prompt
 }
@@ -436,7 +437,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			throw new Error(`from must be "summary"; bb threads cannot fork a session`);
 		}
 		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
-		const options = { cwd, worktree: o.handle, base: o.base, prepare: o.prepare ? async (thread: WorkerCheckout) => {
+		const options = { cwd, parent: o.parentThread, worktree: o.handle, base: o.base, prepare: o.prepare ? async (thread: WorkerCheckout) => {
 			const prepared = await o.prepare!(thread.cwd);
 			if (prepared !== undefined) thread.launch!.prompt = prompt({ ...o, prompt: prepared, agent: a });
 		} : undefined, worker: { run: o.run, handle: o.handle },

@@ -47,11 +47,18 @@ export interface BbThread {
 	/** The thread's environment checkout. */
 	environmentPath?: string | null;
 	createdAt?: number;
+	lifecycleOwnerThreadId?: string | null;
+	sourceThreadId?: string | null;
+	visibility?: string;
 }
 /** Unarchived bb threads by id, across projects; hidden ones included. */
 export async function bbThreads(): Promise<Map<string, BbThread>> {
 	return new Map((await bb<BbThread[]>(["thread", "list", "--include-hidden"])).map(t => [t.id, t]));
 }
+
+/** Includes archived threads and bb's current launch capability. */
+export const showBb = (id: string) => bb<{ thread: BbThread & { canSpawnChild: boolean }; environment?: { path: string; managed?: boolean; isWorktree?: boolean } }>(["thread", "show", id]);
+export const reparentBb = (id: string, parent: string | null) => bb(["thread", "update", id, ...(parent ? ["--parent-thread", parent] : ["--clear-parent-thread"])]);
 
 /** Whether bb is running a turn for the thread: an idle or errored thread is not, and bb may release an idle thread's pi without ending it. */
 export const bbWorking = (t: BbThread | undefined): boolean => !!t && !t.archivedAt && t.status !== "idle" && t.status !== "error";

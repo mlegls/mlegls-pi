@@ -34,6 +34,8 @@ export interface Options {
   cwd?: string;
   /** Owning pi session (spawn provenance and the ledger); default PI_SESSION_ID. */
   parent?: string;
+  /** Explicit bb parent, independent of the process that happens to launch the worker. */
+  parentThread?: string;
   /** Parent-scoped budget, including active handles. */
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
@@ -136,7 +138,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     try {
       const wm = await import("./wm.ts");
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, session: options.session });
+        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, parentThread: options.parentThread, session: options.session });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, bb: worker.bb });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {

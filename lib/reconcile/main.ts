@@ -35,7 +35,7 @@ export function start(o: StartOptions): { pid: number; log: string } {
 		}
 		const s = current ?? prior;
 		spawned = spawnRun({ ...o, cwd: controlCwd, land: s.land, ownerSession: o.ownerSession ?? s.ownerSession }, stateDir(controlCwd));
-		return { ...s, pid: spawned.pid };
+		return { ...s, owner: o.owner, ownerSession: o.ownerSession ?? (o.owner === s.owner ? s.ownerSession : undefined), pid: spawned.pid };
 	});
 	return spawned;
 }

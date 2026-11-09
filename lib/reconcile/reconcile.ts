@@ -45,6 +45,7 @@ import { advancePullRequest } from "./pull-request.ts";
 import { writeStatus } from "./status.ts";
 import { CodeMonitor, loadedCode, type CodeVersion } from "./code-version";
 import { spawnRun } from "./process";
+import { ownershipLock } from "./ownership";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -159,6 +160,8 @@ export interface State extends GlobalRunState {
 	githubRepository?: string;
 	root: string; cwd: string; owner: string; ownerSession?: string; budget: number; pid?: number;
 	codeVersion?: CodeVersion;
+	/** Running code supports owner changes without replacing workers or exceptions. */
+	ownerHandover?: true;
 	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
 	chains: Record<string, Chain>;
 	/** Owner restrictions survive chain replacement and reconciler restarts. */
@@ -286,6 +289,7 @@ export function updateState(cwd: string, root: string, change: (prior: State | u
 
 export function saveState(s: State): void {
 	updateState(s.pr && existsSync(s.pr.path) ? s.pr.path : s.cwd, s.root, prior => {
+		if (prior) { s.owner = prior.owner; s.ownerSession = prior.ownerSession; }
 		s.constraints = prior?.constraints ?? s.constraints;
 		s.stopping = prior?.stopping ?? s.stopping;
 		return s;
@@ -347,8 +351,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	writeFileSync(join(lock, "pid"), String(process.pid));
 	process.on("exit", () => { try { if (readFileSync(join(lock, "pid"), "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true }); } catch {} });
 	for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
-	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, codeVersion: loadedCode, finished: undefined });
+	Object.assign(s, { owner: o.owner, ownerSession: o.ownerSession ?? s.ownerSession, budget: o.budget, pid: process.pid, codeVersion: loadedCode, ownerHandover: true, finished: undefined });
 	const save = () => saveState(s);
+	const refreshOwner = () => {
+		const current = load(controlCwd, s.root);
+		if (current) { s.owner = current.owner; s.ownerSession = current.ownerSession; }
+	};
 	const note = (line: string) => { s.log.push(new Date().toISOString().slice(0, 19) + " " + line); if (s.log.length > 400) s.log.splice(0, s.log.length - 400); console.log(line); };
 	// To a worker as a queued bb message: it follows the turn in progress, or starts one on an idle thread.
 	const sendChild = (h: Handle, body: string) => tell(h, body.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ""), { cwd: controlCwd });
@@ -360,6 +368,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const tellOwner = (body: string) => {
 		told = told.then(async () => {
 			const live = new Set([...await bbThreads()].filter(([, t]) => !t.archivedAt).map(([id]) => id));
+			refreshOwner();
 			const supervisor = roleThread("supervisor", controlCwd);
 			const to = live.has(s.owner) ? s.owner : supervisor && live.has(supervisor) ? supervisor : s.owner;
 			const prefix = "[reconcile " + s.root + "] ";
@@ -574,8 +583,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
 		// frontier when agent-assigned; an explicit human or session assignee still refuses.
 		if (!tracker.githubIssue && issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
-		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
-			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], parent: s.ownerSession || undefined });
+		const r = await ownershipLock(controlCwd, async () => {
+			refreshOwner();
+			return await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
+			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], parent: s.ownerSession || undefined, parentThread: s.owner });
+		});
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
@@ -1579,7 +1591,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				save();
 				updateState(controlCwd, s.root, prior => {
 					if (prior!.stopping || prior!.pid !== process.pid) return prior!;
-					const child = spawnRun({ cwd: controlCwd, root: s.root, owner: s.owner, ownerSession: s.ownerSession,
+					const child = spawnRun({ cwd: controlCwd, root: s.root, owner: prior!.owner, ownerSession: prior!.ownerSession,
 						budget: s.budget, land: s.land, quiet: true }, stateDir(controlCwd), process.pid,
 						{ ...process.env, TRACKER_CLI: inheritedTrackerCli });
 					return { ...prior!, pid: child.pid };

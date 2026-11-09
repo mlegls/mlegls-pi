@@ -112,6 +112,18 @@ export async function configure(o: Configure): Promise<ReturnType<typeof status>
 	return status(o.cwd);
 }
 
+/** Transfer under the scan lock; the existing watcher reads its owner again on every scan. */
+export function handoverPickup(cwd: string, from: string, to: string, ownerSession?: string) {
+	return locked(cwd, () => {
+		const s = loadPickup(cwd);
+		if (!s || s.owner !== from) return;
+		s.owner = to; s.ownerSession = ownerSession;
+		s.log.push(stamp() + " handed over from @thread:" + from + " to @thread:" + to);
+		save(cwd, s);
+		return { owner: s.owner, watcher: watcherAlive(s) ?? null };
+	});
+}
+
 /** Disable: the watcher exits and nothing more starts. Running reconcilers continue (reconcile_stop ends one). */
 export function stopPickup(cwd: string) {
 	const s = update(cwd, p => {
