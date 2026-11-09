@@ -1,6 +1,6 @@
 ---
-stage: spec
-assignee: agent
+stage: done
+assignee: agent:auto-routine
 author: session:01a0f549-cfd2-755e-886e-463dcd75e5f8
 ---
 Looking at connectome, pi-observational-memory, the autobiographical memory log and [OptMem](https://github.com/VictorTaelin/OptMem), a memory system they could all be expressed in:
@@ -68,3 +68,55 @@ edges(record, src, rel, dst)               -- record → records.id; dst is a re
 3. [[projects/mlegls-pi/issues/renderers-over-the-records-store]], after 2.
 
 Later, once both exist: tag views (a segment tree per tag, nodes keyed by member hash since edge-tags arrive in tagging order), role strategies for non-interactive agents, and a reconciler handler reading `node:<slug>`.
+
+## tasks
+
+The three children are done; this ticket is their remaining join, not another implementation of them. Confirm the surviving records-store → OM ledger → renderer → recall path at the current head, repair any seam that prevents that path from working, and record the parent result with the children's delivery commits and current evidence.
+
+Current entry points are [store.ts](../../lib/records/store.ts), [branch.ts](../../lib/records/branch.ts), [cursor.ts](../../lib/records/cursor.ts), [render.ts](../../lib/records/render.ts), [mechanism.ts](../../extensions/context/mechanism.ts), the [OM ledger adapter](../../extensions/context/om/session-ledger/store.ts), and [recall.ts](../../extensions/context/recall.ts).
+
+Subsequent work is already authoritative: [[projects/mlegls-pi/issues/replace-the-board-with-bb-mail]] retired the board (44cb45f9); 361bef2a replaced the original compaction composition with memory systems checked for overlapping surfaces; aef5c9cc bounded OM rendering. The historical board delivery and upstream-equivalence results remain in the completed children. The current join preserves those later changes.
+
+Use the existing [ledger tests](../../extensions/context/om/session-ledger/store.test.ts), [cursor tests](../../lib/records/cursor.test.ts), [mechanism tests](../../extensions/context/mechanism.test.ts), and [upstream replay](../../extensions/context/om/session-ledger/replay-upstream.ts) for the corresponding surviving contracts. The replay's unbounded upstream comparison is distinct from the current finite render budget. Drive one OM compaction through the registered mechanism and resolve a rendered memory id through recall to its source entry; include branch/fork visibility in the evidence. Existing child evidence can establish historical migration and retired board acceptance.
+
+
+## Result
+
+done — the join holds at the current head and I changed no product code.
+
+I re-ran `drive.ts` and got exit 0 with the same output as the driver:
+- **Main:** the registered OM compaction rendered 263 estimated tokens under the 512 budget. Recalling `bbbbbbbbbbb1` reached source entries a1 and a2.
+- **Sibling:** nothing rendered.
+- **Fork:** it inherited memory through its fork point and excluded the later observation.
+- **Store:** four OM records in the isolated store, and no OM entries in the transcript.
+
+The ledger, cursor and mechanism tests pass (8 pass, 0 fail).
+
+On the sibling branch, recall of the reflection returns the raw global record (tags and edges) and doesn't expand to source turns. The packet documents this global lookup as the current recall contract, so I left it.
+
+The diff since the base also contains two other tickets' merged work (OM headless model fallback and landing cleanup). I didn't re-review those here. I appended a review section to the evidence index and committed it. I found no friction to file or settle.
+
+```yaml
+stories:
+  - story: Registered OM compaction renders stored memory within its budget
+    outcome: held
+  - story: Recall resolves a rendered memory id to source transcript entries
+    outcome: held
+  - story: Sibling rendering hides nonancestor memory
+    outcome: held
+  - story: Fork inherits memory only through its fork point
+    outcome: held
+evidence:
+  path: docs/attachments/memory-as-a-log-with-pluggable-projections/index.md
+  visual: false
+  shots: []
+tests:
+  - extensions/context/om/session-ledger/store.test.ts
+  - lib/records/cursor.test.ts
+  - extensions/context/mechanism.test.ts
+caveats:
+  - Model outputs are seeded; live generation and pi's outer event dispatch are outside the packet.
+  - Upstream replay (the unbounded comparison) wasn't re-run, since it needs the upstream package installed. The child results carry the zero-difference evidence.
+```
+
+Evidence: [docs/attachments/memory-as-a-log-with-pluggable-projections/index.md](../attachments/memory-as-a-log-with-pluggable-projections/index.md)
