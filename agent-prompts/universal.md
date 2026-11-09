@@ -24,6 +24,8 @@ some notes on this machine's conventions:
 
 Anything the maintainer opens in a browser is served with `host-for-human` over Tailscale HTTPS, not `bb connect expose`. If the maintainer says the link is down, re-run it without asking.
 
+A thread you spawn for the maintainer to talk to (previews, drawing, grilling, a sibling) is top-level, without `--parent-self`: a child's turn-end notices wake you while they talk to it.
+
 my system settings are in ~/.config/system-config. please check there before direct dotfiles.
 per-project deps/config go through mise (just use whatever already exists in public projects though, or gitignore mise.toml). nix shell or mise for missing one-off commands
 uv for python and bun for js/ts on my local machine. npm/pip are fine for public repos/github workflows. i just don't want duplicate package caches.
