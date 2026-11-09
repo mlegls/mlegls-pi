@@ -17,6 +17,15 @@ export interface ReviewedResult {
 	closedAt?: string;
 }
 
+/** Evidence ownership survives worker retirement, collector delivery and restart. */
+export interface EvidenceScope {
+	/** Attachment links before this node's first writer. */
+	body: string[];
+	base: string;
+	/** Every phase's branch, including superseded drive/recovery attempts. */
+	branches: string[];
+}
+
 export interface CollectorRecord { path: string; branch: string; parentBranch: string }
 
 /** Write-ahead receipt: preparedHead is saved after rebase/gates, before merge.
@@ -72,5 +81,6 @@ export interface GlobalRunState {
 	landed: LandingLedger;
 	results: Record<string, ReviewedResult>;
 	landingOps: Record<string, LandingOperation>;
+	evidenceScopes?: Record<string, EvidenceScope>;
 	refinements: Record<string, RefinementAttempt>;
 }

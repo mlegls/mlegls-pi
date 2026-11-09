@@ -21,6 +21,7 @@ test("landings carry leaf results to the owner, replay merged code and incomplet
 		};
 		const leaf = await f.worker("leaf-worker");
 		f.commit(leaf.path, "leaf.txt", "leaf code\n");
+		f.commit(leaf.path, "docs/attachments/leaf.md", "Leaf evidence.\n");
 		const leafResult = reviewedResult("root", { summary: "leaf summary", evidence: { path: "docs/attachments/leaf.md" } }, "leaf report");
 		// Omit a packet here: these transitions, not packet/gate validation, are the test's boundary.
 		delete leafResult.handoff.evidence;
@@ -77,5 +78,47 @@ test("landings carry leaf results to the owner, replay merged code and incomplet
 		expect(calls).toHaveLength(3);
 		finishLandingCleanup(context, "root");
 		expect(f.restore().landingOps.root.cleanupDone).toBeTruthy();
+	} finally { f.close(); }
+}, 30_000);
+test("a close holds on a cited packet that exists only on a drive branch, names it, and closes once the target has it; unrelated stale links never block", async () => {
+	const f = protocolFixture();
+	try {
+		const body = (name: string) => name + " contract\n\nPacket: [index](../attachments/" + name + "/index.md)\n";
+		f.tracker.create({ slug: "held", fields: { stage: "ticket", assignee: "agent", author: "user:fixture" }, body: body("held") });
+		f.tracker.create({ slug: "stale", fields: { stage: "ticket", assignee: "agent", author: "user:fixture" }, body: body("stale") });
+		const base = f.git(f.cwd, "rev-parse", "HEAD");
+		const context: CompletionContext = {
+			state: f.state, tracker: f.tracker, pathOf: into => into === "root" ? f.collector : into,
+			locked: async work => work(), save: () => f.save(context.state),
+		};
+		// The packet was committed on a drive branch that never lands; the implement branch lands.
+		const drive = await f.worker("held-drive", f.cwd, "main");
+		const packetCommit = f.commit(drive.path, "docs/attachments/held/index.md", "Held evidence.\n");
+		context.state.evidenceScopes = {
+			held: { body: [], base, branches: [drive.handle] },
+			// Stale link predates the node's run and no branch of the node adds it.
+			stale: { body: ["docs/attachments/stale/index.md"], base, branches: [] },
+		};
+		for (const slug of ["held", "stale"]) {
+			const worker = await f.worker(slug + "-impl", f.cwd, "main");
+			f.commit(worker.path, slug + ".txt", slug + " code\n");
+			expect((await landReviewed(context, { slug, into: f.cwd, worker, workers: [worker],
+				result: reviewedResult(null, { summary: slug + " summary" }, slug + " report"), tests: [] })).ok).toBe(true);
+		}
+		const held: string[] = [];
+		context.holdEvidence = (slug, text) => { held.push(slug); expect(text).toContain("docs/attachments/held/index.md"); expect(text).toContain(packetCommit); };
+		closeAtTarget(context);
+		expect(held).toEqual(["held"]);
+		expect(f.tracker.fields("held").stage).toBe("ticket");
+		expect(context.state.results.held.closedAt).toBeUndefined();
+		expect(f.tracker.fields("stale").stage).toBe("done");
+		expect(context.state.results.stale.closedAt).toBeTruthy();
+
+		f.git(f.cwd, "merge", "-q", "--no-edit", drive.handle);
+		held.length = 0;
+		closeAtTarget(context);
+		expect(held).toEqual([]);
+		expect(f.tracker.fields("held").stage).toBe("done");
+		expect(context.state.results.held.closedAt).toBeTruthy();
 	} finally { f.close(); }
 }, 30_000);
