@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:auto-routine
 author: session:01a0f549-cfd2-755e-886e-463dcd75e5f8
 ---
@@ -79,3 +79,44 @@ Subsequent work is already authoritative: [[projects/mlegls-pi/issues/replace-th
 
 Use the existing [ledger tests](../../extensions/context/om/session-ledger/store.test.ts), [cursor tests](../../lib/records/cursor.test.ts), [mechanism tests](../../extensions/context/mechanism.test.ts), and [upstream replay](../../extensions/context/om/session-ledger/replay-upstream.ts) for the corresponding surviving contracts. The replay's unbounded upstream comparison is distinct from the current finite render budget. Drive one OM compaction through the registered mechanism and resolve a rendered memory id through recall to its source entry; include branch/fork visibility in the evidence. Existing child evidence can establish historical migration and retired board acceptance.
 
+
+## Result
+
+done — the join holds at the current head and I changed no product code.
+
+I re-ran `drive.ts` and got exit 0 with the same output as the driver:
+- **Main:** the registered OM compaction rendered 263 estimated tokens under the 512 budget. Recalling `bbbbbbbbbbb1` reached source entries a1 and a2.
+- **Sibling:** nothing rendered.
+- **Fork:** it inherited memory through its fork point and excluded the later observation.
+- **Store:** four OM records in the isolated store, and no OM entries in the transcript.
+
+The ledger, cursor and mechanism tests pass (8 pass, 0 fail).
+
+On the sibling branch, recall of the reflection returns the raw global record (tags and edges) and doesn't expand to source turns. The packet documents this global lookup as the current recall contract, so I left it.
+
+The diff since the base also contains two other tickets' merged work (OM headless model fallback and landing cleanup). I didn't re-review those here. I appended a review section to the evidence index and committed it. I found no friction to file or settle.
+
+```yaml
+stories:
+  - story: Registered OM compaction renders stored memory within its budget
+    outcome: held
+  - story: Recall resolves a rendered memory id to source transcript entries
+    outcome: held
+  - story: Sibling rendering hides nonancestor memory
+    outcome: held
+  - story: Fork inherits memory only through its fork point
+    outcome: held
+evidence:
+  path: docs/attachments/memory-as-a-log-with-pluggable-projections/index.md
+  visual: false
+  shots: []
+tests:
+  - extensions/context/om/session-ledger/store.test.ts
+  - lib/records/cursor.test.ts
+  - extensions/context/mechanism.test.ts
+caveats:
+  - Model outputs are seeded; live generation and pi's outer event dispatch are outside the packet.
+  - Upstream replay (the unbounded comparison) wasn't re-run, since it needs the upstream package installed. The child results carry the zero-difference evidence.
+```
+
+Evidence: [docs/attachments/memory-as-a-log-with-pluggable-projections/index.md](../attachments/memory-as-a-log-with-pluggable-projections/index.md)
