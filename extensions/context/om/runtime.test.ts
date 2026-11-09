@@ -28,7 +28,7 @@ test("headless fallback to the session model names configured and used models on
 
 test("UI fallback notifies once and does not write to stderr", async () => {
 	warn = spyOn(console, "warn").mockImplementation(() => {});
-	const notify = spyOn({ notify: (_m: string, _l: string) => {} }, "notify");
+	const notify = spyOn({ notify: (_m: string, _l?: "warning" | "info" | "error") => {} }, "notify");
 	await runtimeWithConfigured().resolveModel({ model: session, modelRegistry: registry(undefined), hasUI: true, ui: { notify } });
 	expect(notify).toHaveBeenCalledTimes(1);
 	expect(String(notify.mock.calls[0]![0])).toContain("p-om/missing");
