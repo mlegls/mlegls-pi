@@ -4,12 +4,6 @@ assignee: "agent"
 author: "session:thr_sv764kn5dz"
 priority: 2
 ---
----
-stage: "idea"
-assignee: "agent"
-author: "session:thr_sv764kn5dz"
-priority: 2
----
 Owner: mlegls-pi reconciler. During [[projects/concept/issues/restore-the-5000-card-fixture-from-a-snapshot]], implementation worker @thread:thr_k7tww2jhsm (`implement-23`) reported `waiting — prepare-current-5000-card-fixture` on its managed cold import, commit `54e6f952c`, target `http://127.0.0.1:3232`. Successive implementations through `implement-2l` were nevertheless launched on the same base `493b2c819`.
 
 At 2026-11-09 16:31 +08, `implement-2d` found the original fixture process still alive (PID 1894457, cwd ending `restore-the-5000-card-fixture-from-a-snapshot-implement-23`), its import receipt still progressing and the shared cache lock for `f1af2f9621d1a16f28dc0246ae8ea176d9bb26dd52199f6cb3bc8fe3dae91672` still held. `bb thread log` retains the original plain `waiting` report; `bb thread list` shows the later same-parent implementations. No failure of that cold preparation was observed. This resembles [[projects/mlegls-pi/issues/reconciler-drive-continuation-loses-managed-process-ownership]], whose result says plain waiting is supported.
@@ -25,3 +19,5 @@ Implement-2g (@thread:thr_g8bnh8dhkn) recovered the recipe onto the same assigne
 Implement-2k (@thread:thr_rpef8mu4yi) was again launched on `493b2c819`. At 16:46 +08 both original preparations remained alive with their exact worktree cwd and both key locks present: PID 1894457 had run for 29m26s and PID 1966152 for 8m04s. The latter's import receipt included completed ordinary turns and an unpassed final gate while preparation was still running. The complete unchanged implementation/evidence was already recovered on implement-2j at `9a529ac62`; implement-2f at `97326622b` additionally fingerprints the accepted-effect writer. Implement-2k did not create another deployment, cherry-pick another duplicate branch, start another preparation or publication wait, or modify either lock. Resume the existing current-key preparation owner and its later restore rather than launch another implementer.
 
 Implement-2l (@thread:thr_9phgkii36a) recovered the effect-writer-fingerprinted recipe and historical packet on the same base at `f948b236c`. At 16:47 +08 setup completed on its owned port 3276. It confirmed the matching current-key owner PID 1966152 still importing on port 3264, left that process and lock untouched, and started managed `current-key-restore-after-publication`: wait for the `470b533154c8ce1cf94353e44f636904f9c1956ba5e25b37efee050ab33394b9` archive and lock release, then restore into its distinct owned checkout using `local:exclusive`. No backend runs during its publication wait. The committed Concept packet `docs/attachments/restore-the-5000-card-fixture-from-a-snapshot/current-key-restore.md` records this continuation; no additional cold import is started. Resume the existing preparation and restore owners rather than redispatching implementation.
+
+Implement-2m (@thread:thr_vrfhyt3j9v) was also launched on `493b2c819`; `git worktree list` already includes implement-2n. At 16:49 +08, current-key cold owner PID 1966152 remained alive (683 seconds elapsed), while implement-2l already owned the queued restore at `f948b236c`. Both cache locks still existed; no current-key archive was published. Implement-2m did not create a deployment, duplicate the recovered commits, or queue another preparation/restore. Existing cold owner @thread:thr_3krhu59c3v and restore owner @thread:thr_9phgkii36a retain the executable continuation. No current-key verdict or scheduler repair is claimed; do not redispatch implementation while those owners run.
