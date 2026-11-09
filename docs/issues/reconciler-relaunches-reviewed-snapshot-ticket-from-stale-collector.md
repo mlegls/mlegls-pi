@@ -4,12 +4,6 @@ assignee: "agent:technical"
 author: "session:thr_we6983izn2"
 priority: 2
 ---
----
-stage: "idea"
-assignee: "agent:technical"
-author: "session:thr_we6983izn2"
-priority: 2
----
 Concept's [[projects/concept/issues/restore-the-5000-card-fixture-from-a-snapshot]] was implemented, independently driven and reviewed under run `make-large-card-imports-scale-in-one-tutor-script`, owner @thread:thr_ihbpyrp6s2. Its reviewed head is `b2bc82c357a030fb87d61d319de5dba4787b8b18` (`tree/make-large-card-imports-scale-in-one-tutor-script`); the ticket already records passing cold/import and independent restore timings. The owner's log retains the implementation, drive and review handoffs (@thread:thr_gwjc333wjb, @thread:thr_bp7eh8d5px, @thread:thr_uhw67345ek).
 
 On 2026-11-09 the same owner launched `restore-the-5000-card-fixture-from-a-snapshot-implement-22` (@thread:thr_we6983izn2) from `493b2c81957f1b071fdef6d2c1b57d712ec5319f`, the `tree/bound-card-backed-session-resource-reads` tip. That base lacks `packages/web/scripts/prepare-cached-session-deck.ts` and the retained snapshot evidence. While this worker was inspecting the existing implementation, `bb thread list --project proj_fgz6kudzrk --json` showed two more active workers for the same ticket and owner: implement-23 (@thread:thr_k7tww2jhsm) and implement-24 (@thread:thr_j3t2if7tf7). No code or long-running fixture work had begun in implement-22. Two further duplicates, implement-25 (@thread:thr_g48dfxbkyk) and implement-26 (@thread:thr_4hkqsz737y), were then launched from the same base. The tracker snapshot reports all five dispatched claims for this ticket alongside its existing collector landing.
@@ -25,3 +19,5 @@ At 16:20 +08:00, implement-27 (@thread:thr_rmtd4q7gf9) observed two further same
 Implement-28 (@thread:thr_28akjazsdv) was also launched from `493b2c819` and recovered the existing six implementation/evidence commits at `4f6a5cf6d`. Its `mise run setup` completed in 29 seconds for its own anonymous-local port 3248. The committed preparation was attempted through `mise run local:exclusive`; functions reached readiness at 16:23:45 +08:00, then the recipe refused with `EEXIST` on the same current-key lock before any import or restore. The exclusive runner stopped its backend; `mise run local:stop` found zero checkout-owned processes. Affected-test selection passed with zero affected test files. This worker leaves implement-23's preparation and shared lock untouched and returns the recovered commits; current-key acceptance remains with that running owner. No recipe changes were needed.
 
 Implement-29 (@thread:thr_xu7uf9buqb) and implement-2a (@thread:thr_k8i6tys4qp) were also launched from the same stale base. Implement-29 confirmed implement-23's latest explicit handoff remains `waiting` for `prepare-current-5000-card-fixture`, and the current-key lock still exists. It started no deployment, copied no commits and left its branch unchanged; recovery remains with the existing implementation/preparation owner.
+
+Implement-2b (@thread:thr_mvfwjf3wa5) was launched from the same base at 16:27 +08:00. Git also lists a same-base implement-2c worktree. Implement-2b confirmed the snapshot recipe is absent from its base, while implement-23 still holds the current-key cache lock and its durable preparation receipt remains at revision `54e6f952c`, started `2026-11-09T08:15:49.971Z`, `passed: false`, with no settled verdict on owned port 3232. It left its checkout unchanged and started no services or preparation; recovery remains with the existing implement-23 owner rather than another commit copy/import.
