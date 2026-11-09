@@ -63,3 +63,7 @@ No surviving seam required a product change. The parent can join its completed c
 
 **Door:** two-way; this delivery adds only the evidence/setup packet.
 **Blast radius:** documentation; the script writes only to its owned temporary directory. No servers or external targets remain running.
+
+## Review
+
+Re-ran `drive.ts` at the review head: exit 0, MAIN/SIBLING/FORK/STORE output identical to the driver's (263 tokens under 512, `bbbbbbbbbbb1` → a1,a2, sibling renders nothing, fork inherits through its fork point). `bun test` over the ledger, cursor and mechanism files: 8 pass, 0 fail. The diff since the base also carries two unrelated merged tickets (OM headless model fallback, landing cleanup) that have their own reviews; the join path needed no repair and no structural change. No frictions to settle.
