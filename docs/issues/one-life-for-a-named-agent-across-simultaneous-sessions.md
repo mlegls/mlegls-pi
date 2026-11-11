@@ -9,7 +9,9 @@ goal: [optmem](../../extensions/context/optmem/index.ts)'s successor is a named 
 
 The situation it's for: mlegls is in a bb thread with Concept Engineering about one issue while a second thread of it shapes another and a scheduled run of it fires. Each knows the others are running and what they hold. What one finished, the others remember from their next run on, marked with where it happened. A message to Concept Engineering reaches it while it is busy. Today each of those is a gap in Hermes, where the four Concept agents live: a busy bot can't be messaged, a second session on a profile shares none of the first's history, and two writers on one profile's memory are warned against.
 
-Out: the agent's soul and agent-scoped skills ("agent-scoped skills could also be implemented as a pi extension or bb plugin"), which are files and separable. [notes](../../extensions/context/notes.ts) stays as it is, facts shared by every agent in a project.
+It runs beside [notes](../../extensions/context/notes.ts), which stays as it is: "the mechanic is a way to track 'experiential' history with the capacity for simultaneous manifestation. And you could use life and notes at the same time." The life is what one agent lived; notes are what any agent in the project wrote down.
+
+Out: the agent's soul and agent-scoped skills ("agent-scoped skills could also be implemented as a pi extension or bb plugin"), which are files and separable.
 
 ## proposed shape
 
@@ -17,7 +19,8 @@ Proposed by concept-strategy in that session. The maintainer asked for a realiza
 
 - **log.** A life's messages are numbered in one append-only sequence in the [records store](../../lib/records/store.ts), each citing its session entry (`entry:<session>/<entry>`, [branch.ts](../../lib/records/branch.ts)). A manifestation appends its run when the run ends, and the run's older part when its boundary moves (the long-run case in `index.ts`). Positions are assigned inside the write, as upstream OptMem assigns ids inside its lock. So a run stays contiguous and manifestations interleave by run, not by message. Nodes are keyed by life, level and index, and are shared.
 - **view.** One saved view per life, advanced at a run's start by whichever manifestation starts one and fixed for the run as now. Manifestations starting from the same view share its cache entry. A line shows which manifestation its messages came from.
-- **present.** After the view, at run start: the other manifestations with a run in progress, where each is (its bb thread), since when, and what it says it holds. That last is one line a manifestation sets. Nothing enforces it; a second manifestation reads it before committing to the same thing.
+- **present.** After the view, at run start: the threads where the agent is working now (a run in progress), since when, and what it says it holds in each; then the threads that are open and idle, as places it can be reached. What it holds is one line a manifestation sets. Nothing enforces it; a second manifestation reads it before committing to the same thing.
+- **looking.** `zoom` reaches messages appended since the run's view was fixed, and a sibling's run in progress can be read from its session file, so "what did you say there just now" has an answer without rebuilding the view.
 - **kinds.** One for what a manifestation tells another, apart from `work`: no context given, no reply owed.
 - **prompt.** "its latest word on a thing is the truth" ([prompt.md](../../extensions/context/optmem/prompt.md)) holds within a manifestation. Between runs that overlapped in time, order is only append order, and a conflict is reported, not resolved.
 - **compactor.** On the life's own model with the turn's system prompt, since its lines are what the agent is at depth; [[projects/mlegls-pi/issues/om-memory-promotes-observer-judgments-over-the-users-own-statements]] is what another model writes there.
@@ -26,21 +29,29 @@ Proposed by concept-strategy in that session. The maintainer asked for a realiza
 
 A life with one manifestation is today's optmem session, and no manifestation is the main one.
 
+### speaking of it
+
+Checked against anticipated sentences in the session above; proposed, not ruled.
+
+- One subject, located by place and time: "you, in the import thread", "elsewhere", "yesterday in the pricing thread". The same grammar covers simultaneous and past, and the part gets no noun of its own in speech. "Thread" is the place (bb's word, the thing with a title); "session" stays pi's word in code; "manifestation" is for the one sentence that says a session is the agent itself and not a worker.
+- "working in" a thread against "open" there; "holding" for what a manifestation has; "catch up" for reading what was appended elsewhere.
+- Three verbs, three stores: it remembers (the life, no act needed), it notes (notes, shared with other agents), and "from now on" changes a skill or the soul. "Remember this" from the maintainer means don't let it fade, so the agent picks a note or a rule.
+- Not used: "live" (the tracker's word for an unarchived issue), "main", "instance", "copy", "head", and "subagent" for anything but a worker.
+
+Its own issue, before the trial: a Concept agent's Hermes sessions (`~/.hermes/profiles/<name>/state.db`) become its life's first messages. Recommended: every session on the profile in time order, interleaved by run as the life would have recorded them, not the Bot Chat alone.
+
 Later, each its own issue once this runs: a message addressed to the life lands in the manifestation holding its subject or opens one; a manifestation opens another of itself, and ending one says what the rest needs.
 
 ## holes
 
 For the maintainer:
 
-- **name.** `hydra` (maintainer) or `life` (concept-strategy: the unit is already called that, most of the time there is one manifestation, and the mythic hydra is the thing that can't be stopped). Either way a session isn't a "head", beside git's HEAD and the branch tips this code is full of.
 - **does a life follow its name across models?** The port kept one life per model under a name. Recommended: one life per name, each node recording the model that wrote it, so a Concept agent keeps its life when its model changes.
-- **per-session optmem.** Recommended: remove it. A session attaches to a name or uses OM, and an existing optmem session can be adopted by a name.
-- **two machines.** The records store is local and bb runs threads on the MacBook and the Beelink, so a life lives on one machine until the store syncs. Recommended: Beelink only for the trial.
-- **a Concept agent's past.** Whether its Hermes Bot Chat transcripts (`~/.hermes/profiles/<name>/state.db`) become the life's first messages, or it starts empty with its soul and skills.
+- **the way of speaking** above.
 
 For the trial to answer (Concept Engineering as a life on the Beelink):
 
-- what counts as present: a run in progress, or any open bb thread.
+- whether working-now and open-and-idle are the right two states of being present.
 - how much of a manifestation's own recent past stays whole when siblings' runs crowd the fine end of the view.
 - what self-written lines cost. The Connectome trial measured memory writes at 126% of foreground spend on Opus (`docs/research/connectome-vs-om-2026-09-26.md` at `b40cdecd^`); optmem's compactor shares the turn's cache entry, so it may differ.
 
@@ -48,3 +59,7 @@ decisions:
 - 2026-11-11: named lives replace per-session optmem, and each Concept agent is one (maintainer, quoted above).
 - 2026-11-11: "the source session should be tracked at the 'raw' level as opposed to erased" (maintainer). Whether sessions are summarized together he called a matter of what feels natural to the agent as a self; concept-strategy's answer was together, with the source shown in the view.
 - 2026-11-11: being in several places at once is a capability of the one creature, designed for and not tolerated (maintainer, quoted above).
+- 2026-11-11: it is called `life`: "Life works well alongside notes, to explain what the writer is" (maintainer).
+- 2026-11-11: per-session optmem is removed, nothing migrated: "agreed. i wasn't really using it" (maintainer). A session attaches to a name or uses OM.
+- 2026-11-11: the trial is on the Beelink only (maintainer).
+- 2026-11-11: a Concept agent's Hermes past is imported (maintainer).
