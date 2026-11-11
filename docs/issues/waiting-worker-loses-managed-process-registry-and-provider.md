@@ -66,4 +66,6 @@ caveats:
   - "A corrupt registry.json would throw in restoreSession during session_start. Writes are atomic, so this is unlikely."
 ```
 
+Installed 2026-11-12 by the efficiency audit (@thread:thr_879y94y97m): the ticket closed with `876e860` and `04a1ca0` still only on pi-processes branch `waiting-worker-process-recovery-implement`, so the configured `~/dev/pi-processes` (`local-integration` at `da27921`) never ran them. Merged there at `ad8a5e3`; its 279 tests and typecheck pass. Pis pick it up on restart.
+
 Evidence: [docs/attachments/waiting-worker-loses-managed-process-registry-and-provider/drive-2/index.md](../attachments/waiting-worker-loses-managed-process-registry-and-provider/drive-2/index.md)
