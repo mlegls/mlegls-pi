@@ -1,0 +1,71 @@
+{
+  "agents": [
+    "~/dev/mmon/concept/agents"
+  ],
+  "memory": {
+    "default": "om",
+    "schemas": {
+      "om": {
+        "observe": "active",
+        "model": {
+          "provider": "openai",
+          "id": "gpt-6.1-terra",
+          "thinking": "medium"
+        },
+        "compaction": {
+          "afterTokens": 150000,
+          "mode": "ratio",
+          "ratio": 0.5
+        }
+      }
+    }
+  },
+  "hermes": {
+    "id": "06c0f323b60e",
+    "enabled": false,
+    "state": "paused",
+    "paused_at": "2026-11-12T13:13:02.491446+08:00",
+    "paused_reason": null,
+    "timezone": "Asia/Shanghai",
+    "schedule": {
+      "kind": "cron",
+      "expr": "0 9 * * 0",
+      "display": "0 9 * * 0"
+    },
+    "next_run_at": "2026-11-15T09:00:00+08:00"
+  },
+  "automation": {
+    "id": "auto_1yjcfelkko8",
+    "projectId": "proj_fgz6kudzrk",
+    "name": "Reconcile docs/principles with mlegls's answers",
+    "enabled": true,
+    "trigger": {
+      "triggerType": "schedule",
+      "cron": "0 9 * * 0",
+      "timezone": "Asia/Shanghai"
+    },
+    "execution": {
+      "mode": "agent",
+      "prompt": "Weekly reconcile of the principles record in ~/dev/mmon/concept/docs/principles/ (README.md says what it is and how it is used) against mlegls's answers from the past 7 days.\n\n1. Collect his answers: for each automation in `bb automation list --project proj_fgz6kudzrk`, list runs with `bb automation runs <id> --project proj_fgz6kudzrk`, and read each period thread with `bb thread log <thr> --all`. The first User turn is the automation prompt; later User turns are his, except `[bb system]`, `[task]` and `[bb message \u2026]` notices and messages prefixed \"From Concept Engineering\". Also grep `git log --since='7 days ago' -p -- docs/issues docs/principles AGENTS.md` for `maintainer` decisions recorded elsewhere.\n2. For each answer that rules on a class of cases rather than one item: if a principle already covers it, add the item as an instance link; if it contradicts or refines one, edit the principle and keep his quote; if it's new, add it with his words, the date and an @thread link. Merge two principles that are one rule, and note where a principle is really a mechanism to build (then it belongs in an issue, not here). A principle an agent proposed (marked _Proposed_) becomes confirmed only where he agreed with it in a thread; quote that.\n3. Check each confirmed principle still holds against his answers: where he overruled an agent that cited one, the principle needs editing or narrowing.\n4. Commit only docs/principles/ (and AGENTS.md if its Principles section changes) on main with `git commit -m \u2026 -- <paths>`, after `eval \"$(mise env -s bash)\"` so the hooks find bun. Other threads leave uncommitted edits in this checkout; never stage or commit them.\n\nKeep it terse: one line per principle plus his words; no narration. Final response: the commit hash, what was added, edited, merged or confirmed (a line each), and any principle his answers now contradict that you couldn't resolve without him, phrased as a numbered question with options and a recommendation. If nothing changed, say so in one line.",
+      "providerId": "pi",
+      "model": "agent/concept-engineering",
+      "reasoningLevel": "medium",
+      "permissionMode": "full",
+      "environment": {
+        "type": "reuse",
+        "environmentId": "env_mzbcgghp7n"
+      }
+    },
+    "origin": "agent",
+    "createdByThreadId": "thr_zxpey3ezmg",
+    "nextRunAt": 1794704400000,
+    "lastRunAt": null,
+    "runCount": 0,
+    "lastRunStatus": null,
+    "lastRunThreadId": null,
+    "lastError": null,
+    "createdAt": 1794460381746,
+    "updatedAt": 1794460381746
+  },
+  "promptIdentical": true
+}

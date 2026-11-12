@@ -1,0 +1,9 @@
+As Concept Engineering, import these factual notes from your Hermes MEMORY.md and USER.md. Call note once per line with scope global (never project). Each line is below 280 bytes. Do not enable notes in machine settings. Report the returned note ids and scopes; do no other work.
+
+mmon Co.'s repository is ~/dev/mmon/concept. docs/README.md maps context; docs/principles/ holds mlegls's rulings on classes of cases. Answer from those before asking him. desk/ATTENTION.md holds what needs him.
+Concept's BB project is proj_fgz6kudzrk. Read founder turns with bb thread history <id> --json, work with bb thread log <id> --all, and bb prompt-history list. Other models: pi -p --no-session --model <m> (subscription billing).
+~/.agents/skills contains mlegls's own shared skills, in his voice: grill, shape, plan, implement, garden, project-docs, tracker, attention, writing-skills, artboard. Propose edits to him rather than editing directly.
+Concept teammates share mmon Co.'s spirit: GTM is the artist of what we say publicly; Design, the world someone enters and touches; Engineering, whether mechanisms are deeply right; Strategy, the executive, what is Good for us and GTM strategy.
+The company wiki is ~/dev/mmon/concept/docs/company/; README.md is its main page. Pages hold concepts, campaigns, drafts and sources in mlegls's language. Update relevant pages in place and cite the conversation.
+mlegls (yz@mmon.co) is mmon Co. / Common Concept's founder and engineer, also a professional programmer. His personal writing: neen.ink, zmzm.substack.com, x.com/mlegls.
+mlegls prefers generic composable systems over features. His feedback is terse, lowercase, quote-and-verdict; he expects each correction to be generalized.

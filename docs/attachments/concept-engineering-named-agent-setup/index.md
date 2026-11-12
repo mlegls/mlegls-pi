@@ -1,22 +1,42 @@
-# Concept Engineering setup readiness
+# Concept Engineering: real named-agent setup
 
-Setup stopped before changing agent files, registry, notes, the life or schedules.
+Installed runtime: `0b11e6c3b4e67b7060901f0368e238f8dcd98433` in `/home/mlegls/dev/mlegls-pi`. Setup branch merged installed main as `58e7ebc1`. This is first-use setup on the Beelink, not the week-long trial or its acceptance by the founder.
 
-## Required target
+## Owned files and landing
 
-The real Beelink installation: Concept BB project `proj_fgz6kudzrk`, source `src_rf47pt6w54` on `host_a22uydxjy2`, checkout `/home/mlegls/dev/mmon/concept`. Agent files belong in that checkout; registration belongs in `/home/mlegls/.config/system-config/home/.pi/agent/settings.json`. The actual installed pi package resolves to `/home/mlegls/dev/mlegls-pi` through the global settings.
+- Concept main: `76a71eb1ea50cd92618673b857676c9a810be2e1`, also observed at `origin/main`. Adds `agents/concept-engineering/SOUL.md`, `skills/engineering-taste/SKILL.md` and `references/research.md`. Soul has the profile description and exactly `anthropic/claude-fable-5-2:medium`; its body drops `(profile concept-engineering)`. The skill drops the Hermes-shell sentence. The Concept commit hook formatted Markdown and passed typecheck and lint. Other profile files and skills are unchanged.
+- system-config master: `e35f76e`, committed locally. Only its three registry lines were staged; pre-existing device/changelog, MCP and mise edits were left alone. Registry is `~/dev/mmon/concept/agents`, so any repository uses the Concept main checkout. Machine notes settings remain off.
+- Hermes source files remain intact. Only job `06c0f323b60e` was paused, using `hermes -p concept-engineering cron pause 06c0f323b60e`.
 
-## Observed readiness
+## Runnable target
 
-- Worker starting revision: `6aac13aac119bd39a52e2a7c676cd61bdbd79356` (named-agent runtime and fixture are present).
-- Installed main checkout observed revision: `072ae6b7` (tracker update). `extensions/agents/` does not exist there. The worker base is not an ancestor of installed main (`git merge-base --is-ancestor` exits 1).
-- `bb provider models pi` lists no `agent/concept-engineering`; the global registry currently has no `agents` entry.
-- The delivered Hermes importer exists in installed main, but not in the worker base: `bun extensions/context/life/import-hermes.ts concept-engineering --dry-run` from this worker reports `Module not found`. The ticket's completed import prerequisite records `cc3345fc`.
-- Concept starting revision: `d6fbcfa33604f3b5711f4025132192fb904ed9de`. Its pre-existing untracked support-email draft was untouched.
-- System-config starting revision: `a62e04bafffd0a5cbf6bf994e98c26f7f7cd4f0a`. It already has local changes in `.config/mise/config.toml`, `home/.pi/agent/mcp.json` and `home/.pi/agent/settings.json`; all were left untouched. The settings diff is pi-generated version/device/extension-version state.
+Required and prepared: real machine-wide `/concept-engineering` on the Beelink, Concept BB project `proj_fgz6kudzrk`, main checkout environment `env_mzbcgghp7n`, host `host_a22uydxjy2`, `/home/mlegls/dev/mmon/concept`. Authentication is the installed Pi Anthropic subscription credential. No web deployment or application seed is involved.
 
-## Next step
+Terminal entry point (from any checkout):
 
-The parent owns integration. Land the named-agent prerequisite in the installed main package and supply a setup-worker revision containing both that runtime and the delivered importer. Then resume setup against the actual installation. A temporary fixture override would leave the ordinary named-agent and automation entry points unprepared.
+```sh
+pi --model agent/concept-engineering
+```
 
-No real Concept Engineering manifestation was started, so imported-message summarization, retrieval, notes and automation claims are unobserved. No server, browser, background process or external deployment was started.
+BB entry point, used for the first session:
+
+```sh
+bb thread spawn --project proj_fgz6kudzrk --environment env_mzbcgghp7n --provider pi --model agent/concept-engineering --reasoning-level medium --title 'Concept Engineering' --prompt 'What are you holding?'
+```
+
+First real thread: @thread:thr_9hjpcsjipp. Second fresh continuity encounter: @thread:thr_renzt5tzne. They are top-level threads, not children. Setup stops their runtimes after its checks; the owner can resume either or start a fresh named-agent thread.
+
+## Observed first use
+
+1. Imported Hermes history before the first live session, using `bun extensions/context/life/import-hermes.ts concept-engineering`. Nine sessions, fourteen runs, 277 copied messages; no surviving compaction wrappers. The importer reads the real Hermes SQLite database read-only.
+2. BB selected `agent/concept-engineering`; the persisted session records medium thinking and assistant messages identify `anthropic/claude-fable-5-2`. The agent identified the real soul path, saw the private skill's exact description and read it; `note` was available. See [session receipts](session-receipts.json).
+3. The attached agent saved all four MEMORY entries and USER facts as seven global notes, ids #0–#6, each at most 280 bytes. No project notes or settings changes. The exact import request is [import-notes.txt](import-notes.txt); the note tool results are in the session receipts.
+4. BB automation `auto_1yjcfelkko8` is enabled in the Concept project, on `agent/concept-engineering`, medium, environment `env_mzbcgghp7n`, cron `0 9 * * 0`, timezone `Asia/Shanghai`. Its prompt equals the retained Hermes job prompt byte-for-byte. Hermes job remains defined, disabled and paused. See [settings and automation](settings-and-automation.json). Reversal: pause this BB automation and resume the retained Hermes job; ordinary trial use is through the life only.
+5. Asked why the founder declined a dedicated Simplified Chinese review pass, the agent answered that his girlfriend already uses the Chinese interface and reports issues. `zoom({id:49,n:1})` returned the copied Bot Chat message and source `hermes:concept-engineering/20261108_221538_44a911/da525f825cbf49199660200dddc898ff#0`, dated 2026-11-09T05:51:46.864Z. No Hermes files or repository documents were read for the answer. The retained tool result is in the session receipts.
+6. At 05:23:18Z all 152 longer imported messages had leaf summaries and none was missing (the review's 161 was an earlier count; this is the current import measured with the runtime's `source` and `NODE_BYTES`). The final read-only Chat snapshot at 05:24:35Z reports all 295 current messages summarized and no unbuilt node at any complete tree level; see [final state](progress-and-recall.txt). Eight initial summaries waited for abandoned startup leases to expire, then completed; the reproduction is recorded in tracker issue `life-compactor-lease-outlives-its-builder`. No `life: compaction failed: empty reply` warning was observed.
+
+7. Fresh BB thread `thr_renzt5tzne`, started with the same named model after the compactor finished, independently listed global notes #0–#6, the exact private skill description, and the Chinese-review answer without tools. It reported every imported-history line summarized. The read-only readiness snapshot and its response are retained in the final state receipt.
+
+The week of ordinary use, the owner's own BB recall question and the founder's judgment belong to the trial owner, Concept Strategy.
+
+Visual: false. No browser, screenshots, dev server or containers were needed.

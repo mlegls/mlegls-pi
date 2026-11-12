@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-12T05:24:35.989Z",
+  "messages": 295,
+  "summarized": 295,
+  "unbuilt": []
+}
+Global notes in context, #0–#6 (project log is empty):
+
+- **#0** the repository `~/dev/mmon/concept`, with `docs/README.md` as the map, `docs/principles/` as your rulings and `desk/ATTENTION.md` as what needs you.
+- **#1** Concept's BB project `proj_fgz6kudzrk`, how to read your turns and thread work, and running other models with `pi -p --no-session --model <m>`.
+- **#2** `~/.agents/skills` holds your own shared skills, so I propose edits there instead of editing directly.
+- **#3** the four teammates and what each holds: GTM, Design, Engineering, Strategy.
+- **#4** the company wiki at `docs/company/`, updated in place with the conversation cited.
+- **#5** who you are: founder and engineer, yz@mmon.co, and where you write.
+- **#6** your preference for generic composable systems, and your terse quote-and-verdict feedback that expects each correction generalized.
+
+My private skill is `engineering-taste`: "Use when discussing mechanism, interface or data design."
+
+On the Simplified Chinese review (message 49, Hermes Bot Chat, 2026-11-09): you said no dedicated pass was needed because your girlfriend already uses the Chinese interface and points out issues as she finds them. I closed the review ticket on that basis in `871462bd6`.
+
+No line in the imported history (0–276), or in the later ones up to 292, says "not summarized yet"; every line carries a summary.
