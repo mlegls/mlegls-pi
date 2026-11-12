@@ -44,9 +44,9 @@ export function lifeLog(id: string): LifeLog {
 			return immediate((d) => {
 				const sources = new Set<string>();
 				const remembered = d.query(
-					"SELECT 1 FROM records r " +
-					"JOIN tags i ON i.record = r.seq AND i.key = 'life.id' AND i.value = ? " +
-					"JOIN tags s ON s.record = r.seq AND s.key = 'life.source' AND s.value = ? WHERE r.schema = ? LIMIT 1",
+					// Start from the source tag: it is nearly unique, while every message of the life has the id tag.
+					"SELECT 1 FROM tags s CROSS JOIN tags i ON i.record = s.record AND i.key = 'life.id' AND i.value = ? " +
+					"JOIN records r ON r.seq = s.record WHERE s.key = 'life.source' AND s.value = ? AND r.schema = ? LIMIT 1",
 				);
 				let pos = (d.query(
 					"SELECT coalesce(max(p.value), -1) AS pos FROM records r " +
