@@ -57,9 +57,11 @@ test("the view goes in 4-line blocks; the Anthropic mark sits on the last whole 
 
 test("scored: a reply's overlays are cut out of its line, named lines before it only", () => {
 	const c: any = new Chat(2, { ...settings(tmpdir()), cut: "scored" });
-	c.msgs = Array.from({ length: 10 }, (_, k) => ({ kind: "user", text: "m" + k, pos: k, place: "thread-one", source: "entry:s1/e" + k + "#0", model: "test/model", date: "" }));
-	const got = c.parse("user: did X. obsoletes: 0+1 2+2\nduplicates: 4+1, 9+1", 6);
-	expect(got.text).toBe("user: did X.");
+	const log = lifeLog("/scored-overlays");
+	log.append(Array.from({ length: 10 }, (_, k) => ({ kind: "user" as const, text: "m" + k, place: "thread-one", source: "entry:s1/e" + k + "#0", model: "test/model", date: "" })));
+	c.sync(log, { session: "s1", model: undefined, modelRegistry: {}, signal: off(), turn: () => ({ systemPrompt: "", tools: [] }) });
+	const got = c.parse("user@thread-one: did X. obsoletes: 0+1 2+2\nduplicates: 4+1, 9+1", 6);
+	expect(got.text).toBe("user@thread-one: did X.");
 	expect(got.overlays).toEqual([[c.key([0, 0]), "obsoletes"], [c.key([1, 1]), "obsoletes"], [c.key([0, 4]), "duplicates"]]);
 	const due: any = new Chat(2, { ...settings(tmpdir()), cut: "due" });
 	expect(due.parse("a. obsoletes: 0+1", 6).text).toBe("a. obsoletes: 0+1");

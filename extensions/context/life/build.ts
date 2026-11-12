@@ -419,12 +419,12 @@ export class Chat {
 		const [s, n] = span(this.b, p);
 		if (p[0] === 0) {
 			const m = this.msgs[s]!;
-			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\n<input>\n" + source(m) + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE("this message") : "");
+			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\nKeep each item's kind@place attribution.\n<input>\n" + source(m) + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE("this message") : "");
 		}
 		const kids = children(this.b, p);
 		const names = kids.map((c) => { const [cs, cn] = span(this.b, c); return cs + "+" + cn; });
 		return "Compaction: merge lines " + oxford(names) + ", adjacent, into one line of at most\n" + NODE_BYTES + " bytes (about 70 words), the length of this ruler:\n" + RULER +
-			"\n<chat> may hold their messages, " + s + " to " + (s + n - 1) + ", in more detail: take details\nof them from there too.\n<input>\n" +
+			"\n<chat> may hold their messages, " + s + " to " + (s + n - 1) + ", in more detail: take details\nof them from there too.\nKeep each item's kind@place attribution.\n<input>\n" +
 			kids.map((c) => line(this.b, c, this.resolve(c)!)).join("\n") + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE("what these lines say") : "");
 	}
 
