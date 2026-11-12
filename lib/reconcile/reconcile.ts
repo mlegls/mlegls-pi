@@ -90,6 +90,7 @@ const START_GRACE_MS = 120_000;
 /** A worker whose bb log has failed every read this long is raised to the owner: its reports can't arrive. */
 const UNREADABLE_MS = Number(process.env.PI_RECONCILE_UNREADABLE_MS ?? 10 * 60_000);
 const WAITING_MS = 3 * 60 * 60_000;
+const TOOL_CALL_MS = 45 * 60_000;
 /** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
 const WAITING_NUDGE_MS = 30 * 60_000;
 /** A waiting worker whose session runs no managed process this long after its report is told so (its notice raced, or nothing started). */
@@ -419,6 +420,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	};
 	const completion = { state: s, tracker, save, pathOf, locked,
 		holdEvidence: (slug: string, text: string) => raise(slug, EVIDENCE_MISSING, text, view(destination())),
+		holdForeignCommit: (slug: string, text: string) => raise(slug, "foreign implementation not installed", text, view(destination())),
 	};
 	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
 	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.
@@ -514,6 +516,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === pi && pid === pgid).map(([pid]) => pid);
 			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-w", "-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch { return true; } });
 		} catch { return undefined; }
+	};
+
+	/** pi-processes' versioned session receipts distinguish managed work from an active bash child.
+	 * The idle-only OS probe above cannot do that: both launch process-group leaders with stdin closed. */
+	const managedProcess = (sessionFile: string): boolean | undefined => {
+		try {
+			const registry = JSON.parse(readFileSync(join(sessionFile + ".processes", "registry.json"), "utf8"));
+			if (registry.version !== 1 || !Array.isArray(registry.records)) return undefined;
+			return registry.records.some((r: { info: { status: string } }) => ["running", "terminating", "terminate_timeout"].includes(r.info.status));
+		} catch (e) { return (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
 	};
 
 	// --- launching -------------------------------------------------------------------------------------
@@ -1584,6 +1596,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return "active";
 		}
 		if (c.waitingSince && Date.now() - Date.parse(c.waitingSince) > WAITING_MS) { raise(slug, c.phase + " waiting stalled", "No report other than `waiting` in " + WAITING_MS / 3_600_000 + "h after the worker first reported waiting at " + c.waitingSince + ".", issues); return "active"; }
+		const active = observedWorking(c.handle) ? readLive().find(l => l.thread === c.handle!.bb && l.state === "working") : undefined;
+		// Prefer a nested call to its enclosing codemode script, so the notice names the actual command.
+		const stalled = active?.tools?.filter(t => Date.now() - Date.parse(t.since) > TOOL_CALL_MS)
+			.findLast(t => !active.tools!.some(child => child.parent === t.id));
+		if (stalled && active?.sessionFile && managedProcess(active.sessionFile) === false) {
+			raise(slug, c.phase + " tool call stalled", "Tool " + stalled.name + " has been running since " + stalled.since + " (over 45m) with no running managed process.\n\nCommand: " + (stalled.command ?? "(no command argument)") + "\n\nWorker: " + c.handle.handle + " (" + c.handle.bb + ")", issues, "owner");
+			return "active";
+		}
 		// A worker idle on a wait whose process has already gone (it never started, or ended without waking it) would idle until the nudge below.
 		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && runsProcess(c.handle) === false) {
 			c.waitingVoidNudged = true; c.waitingCheckedAt = new Date().toISOString(); save();
