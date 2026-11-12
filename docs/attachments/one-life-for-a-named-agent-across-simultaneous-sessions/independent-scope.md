@@ -20,3 +20,13 @@ No source, diff, test or fixture was read. The public setup launcher's help was 
 Stories: none beyond the delegated children. Frictions: none newly encountered. Expectations: no new product expectations exercised. Checks: none newly commissioned. This scope result does not upgrade the children's recorded observations or waive their remaining gates.
 
 Nonvisual scope review; no screenshots or running resources.
+
+## Join review
+
+Reviewed the combined life change (`99f57444^..HEAD`, life files only) at `7afffc3c`; the driver's scope note stands (no stories beyond the children).
+
+Seam repair, [append-scaling.ts](append-scaling.ts) replays it: `life.log.append` checked each message's `life.source` with a join the planner drove from the life's `life.id` tags, so every turn end (which re-offers the session's whole branch) cost O(branch × life) under SQLite's write lock. Before: 2000 messages 756 ms, 8000 messages 12.7 s per turn end (first append 15 s). After starting from the source tag: 3 ms and 15 ms (first append 0.4 s). Fixed in `6aedc896`.
+
+Structural: the `life.id` record filter was written four times (log, presence, compactor, view); now `ofLife` in log.ts. `Settings.enabled` was written and never read (optmem's `enabled()` read it; life's is the attachment) and is gone. Both in `44dc580a`; `bun test extensions/context lib/records` passes before and after (37).
+
+Not changed, measured: presence reads every `life.run`/`end`/`hold`/`detach` record of the life at each run start and `threads()` at each turn end; 3000 runs cost 20 ms for `threads()`. It grows with the life's age and is worth a look at thousands of runs.
