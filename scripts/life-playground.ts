@@ -46,6 +46,26 @@ export function prepare(startupLife = false, namedAgent = false) {
 	return { root, name };
 }
 
+/** Seed only a playground-owned life, leaving longer leaves for attachment startup to build. */
+export async function seedLong(root: string, count = 17) {
+	const { name } = JSON.parse(readFileSync(join(root, marker), "utf8"));
+	if (!Number.isSafeInteger(count) || count < 1) throw new Error("Use a positive leaf count");
+	const previous = process.env.PI_BOARD_DIR;
+	process.env.PI_BOARD_DIR = join(root, "store");
+	try {
+		const { lifeLog } = await import("../extensions/context/life/log.ts");
+		const added = lifeLog(name).append(Array.from({ length: count }, (_, i) => ({
+			kind: "user" as const, text: "Playground observation " + i + ". " + "The copper telescope recorded a violet lantern in the northern sky. ".repeat(40),
+			place: "playground-import", source: "entry:playground-import/long-" + i + "#0",
+			model: "fixture/import", date: new Date().toISOString(),
+		})));
+		return { root, name, added: added.length, total: lifeLog(name).read().length };
+	} finally {
+		if (previous === undefined) delete process.env.PI_BOARD_DIR;
+		else process.env.PI_BOARD_DIR = previous;
+	}
+}
+
 export function launch(root: string, slot: string, args: string[] = [], pipe = false) {
 	const { name, namedAgent } = JSON.parse(readFileSync(join(root, marker), "utf8"));
 	if (!/^[a-z0-9-]+$/.test(slot)) throw new Error("Use a simple session slot, e.g. one or two");
@@ -73,6 +93,8 @@ if (import.meta.main) {
 		const setup = prepare(command === "prepare-bb", command.startsWith("prepare-agent"));
 		if (command.endsWith("-bb")) new ProjectTrustStore(getAgentDir()).set(setup.root, true);
 		console.log(JSON.stringify(setup, null, 2));
+	} else if (command === "seed-long" && target) {
+		console.log(JSON.stringify(await seedLong(resolve(target), slot === undefined ? 17 : Number(slot)), null, 2));
 	} else if (command === "untrust" && target) {
 		readFileSync(join(resolve(target), marker));
 		new ProjectTrustStore(getAgentDir()).set(resolve(target), null);
@@ -81,7 +103,7 @@ if (import.meta.main) {
 		const child = launch(resolve(target), slot, args);
 		child.on("exit", (code) => process.exit(code ?? 1));
 	} else {
-		console.error("bun scripts/life-playground.ts prepare[-agent][-bb]\nbun scripts/life-playground.ts start <root> <one|two> [--no-life-env] [pi options]");
+		console.error("bun scripts/life-playground.ts prepare[-agent][-bb]\nbun scripts/life-playground.ts seed-long <root> [count]\nbun scripts/life-playground.ts start <root> <one|two> [--no-life-env] [pi options]");
 		process.exitCode = 1;
 	}
 }

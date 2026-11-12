@@ -1,6 +1,7 @@
 // A life's shared compactor: permanent positions key nodes by life, fanout, level and index.
 // life.node records keep the writing model; the first committed record for a key wins.
-// life.lease records elect one builder for ten minutes, and polling picks up sibling builds.
+// life.lease records elect one builder; life.lease.end releases it. Dead pids are skipped,
+// and older leases without a pid still expire after ten minutes. Polling picks up sibling builds.
 //
 // A source that fits in NODE_BYTES is its own node with no call and no record (a short message
 // word for word, or short lines joined by newlines). Otherwise a call compresses one message, or
@@ -36,7 +37,15 @@ import { advance, bytes, children, emptyView, line, NODE_BYTES, nodeAt, nodesAt,
 
 export const SCHEMA = "life.node";
 const LEASE = "life.lease";
+const LEASE_END = "life.lease.end";
 const LEASE_MS = 10 * 60_000;
+const LIVENESS_MS = 1000;
+
+function alive(pid: number): boolean {
+	if (!Number.isInteger(pid) || pid <= 0) return false;
+	try { process.kill(pid, 0); return true; }
+	catch (error) { return (error as NodeJS.ErrnoException).code === "EPERM"; }
+}
 const POLL_MS = 250;
 
 export interface Settings {
@@ -180,8 +189,7 @@ export class Chat {
 	/** Read the permanent log and start watching for other writers, even before idle(). */
 	sync(log: LifeLog, env: Env) {
 		if (this.log?.id !== log.id) {
-			this.stopPolling();
-			this.gen++;
+			this.dispose();
 			this.msgs = []; this.loaded = 0; this.revision = "";
 			this.stored.clear(); this.resolved.clear(); this.queue = []; this.queued.clear(); this.frontier = 0; this.cview = emptyView(this.b);
 			this.losses.clear(); this.overlays.clear(); this.scoreQueue = []; this.scoreQueued.clear();
@@ -189,7 +197,7 @@ export class Chat {
 		}
 		if (this.env?.signal !== env.signal || !this.unlisten) {
 			this.stopPolling();
-			const stop = () => this.stopPolling();
+			const stop = () => this.dispose();
 			env.signal.addEventListener("abort", stop, { once: true });
 			this.unlisten = () => env.signal.removeEventListener("abort", stop);
 		}
@@ -218,6 +226,7 @@ export class Chat {
 	/** Stop watching a discarded chat. The caller's signal cancels its model requests. */
 	dispose() {
 		this.gen++; this.stopPolling(); this.env = undefined;
+		for (const k of this.leases.keys()) this.release(k);
 		this.queue = []; this.queued.clear(); this.waiting.clear(); this.scoreQueue = [];
 	}
 
@@ -232,7 +241,8 @@ export class Chat {
 	private refresh(force = false) {
 		if (!this.log) return;
 		const revision = version();
-		if (force || revision !== this.revision) {
+		const changed = revision !== this.revision;
+		if (force || changed) {
 			this.revision = revision;
 			const old = this.T;
 			this.msgs = [...this.msgs, ...this.log.read(old)];
@@ -258,7 +268,7 @@ export class Chat {
 			for (let j = old; j < this.T; j++) this.settle([0, j]);
 			for (const p of arrived) if (span(this.b, p).reduce((a, n) => a + n) <= this.T) this.settle(p);
 		}
-		for (const [k, w] of this.waiting) if (Date.now() >= w.until) {
+		for (const [k, w] of this.waiting) if (changed || Date.now() >= w.until) {
 			this.waiting.delete(k);
 			this.enqueue(w.p);
 		}
@@ -270,21 +280,35 @@ export class Chat {
 		return { id: this.log!.id, key: this.key(p), b: this.b, l: p[0], i: p[1] };
 	}
 
-	/** SQLite orders leases. Keep our losing lease so it can succeed when an older one expires. */
+	private release(k: string) {
+		const lease = this.leases.get(k)?.id;
+		if (!lease) return;
+		write({ schema: LEASE_END, tags: fieldTags("life", { id: this.log!.id, lease }) });
+		this.leases.delete(k);
+	}
+
+	/** SQLite orders live, unreleased leases. Losing claims keep their place in that order. */
 	private claim(p: Pair): boolean {
 		const k = this.key(p), now = Date.now();
 		return immediate(() => {
 			let ours = this.leases.get(k);
 			if (!ours || Date.parse(ours.ts) + LEASE_MS <= now) {
-				ours = write({ schema: LEASE, tags: fieldTags("life", this.tags(p)) });
+				ours = write({ schema: LEASE, tags: fieldTags("life", { ...this.tags(p), pid: process.pid }) });
 				this.leases.set(k, ours);
 			}
 			const first = select(LEASE, {
-				where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.key' AND value = ?) AND r.ts > ?",
-				params: [k, new Date(now - LEASE_MS).toISOString()],
-			})[0]!;
+				where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.key' AND value = ?) AND r.ts > ? " +
+					"AND NOT EXISTS (SELECT 1 FROM records e JOIN tags t ON t.record = e.seq " +
+					"WHERE e.schema = ? AND t.key = 'life.lease' AND t.value = r.id)",
+				params: [k, new Date(now - LEASE_MS).toISOString(), LEASE_END],
+			}).find((r) => {
+				const pid = fieldsOf("life", r.tags).pid;
+				return typeof pid !== "number" || alive(pid);
+			})!;
 			if (first.id === ours.id) return true;
-			this.waiting.set(k, { p, until: Date.parse(first.ts) + LEASE_MS });
+			const pid = fieldsOf("life", first.tags).pid;
+			this.waiting.set(k, { p, until: Math.min(Date.parse(first.ts) + LEASE_MS,
+				typeof pid === "number" ? now + LIVENESS_MS : Infinity) });
 			return false;
 		});
 	}
@@ -388,7 +412,7 @@ export class Chat {
 				this.failedRetry.push(p);
 				env.notify?.("life: compaction failed: " + (e instanceof Error ? e.message : String(e)), "warning");
 			}).finally(() => {
-				if (gen === this.gen) this.queued.delete(k);
+				if (gen === this.gen) { this.release(k); this.queued.delete(k); }
 				this.running--;
 				this.pump();
 			});
