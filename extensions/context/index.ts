@@ -27,7 +27,7 @@ import journal from "./journal.ts";
 import elide from "./elide.ts";
 import recall from "./recall.ts";
 import notes from "./notes.ts";
-import optmem from "./optmem/index.ts";
+import optmem from "./life/index.ts";
 
 const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
 
