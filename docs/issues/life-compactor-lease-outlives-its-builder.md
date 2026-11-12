@@ -24,3 +24,5 @@ done-when:
 - a holder that is killed outright doesn't hold the lines for ten minutes either: another session of the life builds them within about a minute.
 - a run's first request doesn't wait `waitSeconds` on a lease whose holder is gone.
 - the real setup's reproduction (attach to a life with unbuilt longer lines) leaves no line unbuilt once the first session's compactor has drained, with the session free to end.
+
+Independent CLI verification: [predictions, encounter and replayable checks](../attachments/life-compactor-lease-outlives-its-builder/drive-2.md), tested at ce349347. Startup discard, orderly shutdown, SIGKILL recovery and failed-build release/retry held on disposable playgrounds. The empty-reply warning remains owned by [[projects/mlegls-pi/issues/life-first-use-compaction-empty-reply-warning]].
