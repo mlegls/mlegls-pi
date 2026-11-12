@@ -56,3 +56,7 @@ Replay acceptance: oversized calls must produce that refusal without printing th
 The test-runner-only setup handoff required finding the actual Pi launcher and explicitly loading the checkout's extension. Added this encounter to existing owner [mail-drive-handoff-names-only-a-test-runner](../../issues/mail-drive-handoff-names-only-a-test-runner.md). The inherited running session accepting the oversized argument illustrates why fresh checkout-owned activation matters.
 
 All four managed Pi processes exited. No servers, pages, tunnels or other external resources remain. No repository tests were run and no product repairs were made.
+
+## Review
+
+Diff read against the ticket: guard blocks bash timeout above 1800 s with unit and conversion reason; same tool_call hook sees codemode-nested calls (test covers parentToolCallId). bun test extensions/guard passes (2 tests). No repairs needed; no new frictions to settle (the one the driver added went to mail-drive-handoff-names-only-a-test-runner).
