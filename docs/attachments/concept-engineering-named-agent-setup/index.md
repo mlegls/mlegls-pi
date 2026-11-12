@@ -42,3 +42,13 @@ First real thread: @thread:thr_9hjpcsjipp. Second fresh continuity encounter: @t
 The week of ordinary use, the owner's own BB recall question and the founder's judgment belong to the trial owner, Concept Strategy.
 
 Visual: false. No browser, screenshots, dev server or containers were needed.
+
+## Review — 2026-11-12
+
+Rechecked against live state, no repairs needed:
+
+- Concept main `76a71eb1e` holds `agents/concept-engineering/SOUL.md` (model line `anthropic/claude-fable-5-2:medium`) and the `engineering-taste` skill with its reference, clean in the working tree; `origin/main` contains it. system-config `e35f76e` is a three-line registry commit (`agents: ["~/dev/mmon/concept/agents"]`), local and unpushed; `~/.pi/agent/settings.json` links to that file and contains no notes setting.
+- The seven import lines in [import-notes.txt](import-notes.txt) are 155–244 bytes each.
+- `bb automation show auto_1yjcfelkko8 --project proj_fgz6kudzrk`: enabled, `pi` `agent/concept-engineering` medium, environment `env_mzbcgghp7n`, `0 9 * * 0` Asia/Shanghai, prompt as in [settings-and-automation.json](settings-and-automation.json). `hermes -p concept-engineering cron list`: `06c0f323b60e` [paused], same schedule and workdir, definition retained.
+- Frictions: `life-compactor-lease-outlives-its-builder` stays an idea (waits on the release/heartbeat/pid-takeover choice named in it); `life-first-use-compaction-empty-reply-warning` stays an idea (no warning in this setup, so no stopReason to capture). Neither blocks handover.
+- Choice that buys something with wall time: the eight lease-stalled initial summaries cost ~10 minutes of keeping the first session alive before the compactor drained (see the lease issue).
