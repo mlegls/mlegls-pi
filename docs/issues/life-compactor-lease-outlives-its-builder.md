@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:life-session-attachment-and-run-context-review-d"
 priority: 2
@@ -26,3 +26,53 @@ done-when:
 - the real setup's reproduction (attach to a life with unbuilt longer lines) leaves no line unbuilt once the first session's compactor has drained, with the session free to end.
 
 Independent CLI verification: [predictions, encounter and replayable checks](../attachments/life-compactor-lease-outlives-its-builder/drive-2.md), tested at ce349347. Startup discard, orderly shutdown, SIGKILL recovery and failed-build release/retry held on disposable playgrounds. The empty-reply warning remains owned by [[projects/mlegls-pi/issues/life-first-use-compaction-empty-reply-warning]].
+
+## Result
+
+done
+
+I reviewed the change since 4cced27f against the ticket and the driver's packet. I found no defects and made no repairs or new commits. `bun test extensions/context/life` passes 14 of 14. The repo declares no `test:affected` task, so I ran that directory directly.
+
+**What I checked**
+- **Lease end records (`extensions/context/life/build.ts`):**
+  - A `life.lease.end` record is written when a build finishes or fails, and when a Chat is disposed. Disposal covers the startup discard and session shutdown.
+  - The `dispose()` loop deletes from the `leases` map while iterating it. That is safe.
+  - A lease still waiting at disposal is also released.
+- **Election query:** it skips ended leases and leases whose pid is gone, via `process.kill(pid, 0)`.
+  - A lease with no pid still expires after ten minutes, so leases already in the real store keep working.
+  - The `tags_kv` index covers the lookup, so the query is cheap.
+- **Waiting:** a waiter on a lease that has a pid re-checks every second, and re-queues immediately when the store revision changes. This removes the `waitSeconds` stall behind a dead holder.
+- **Driver's packet:**
+  - Startup discard, orderly shutdown, SIGKILL recovery and failed-build retry are all backed by record timestamps in `drive-2.md`. The SIGKILL sibling reclaimed the keys within 1 s, and a failed key was rebuilt before its original expiry.
+  - SIGTERM exits without releasing, but the pid check recovers it.
+- **Tracker friction:** the only friction is the empty-reply warning. It stays with the existing issue `life-first-use-compaction-empty-reply-warning` (idea, p3), where the driver already added evidence. Nothing new to file or close.
+
+```yaml
+commit: abe7529a
+stories:
+  - story: Startup-discarded Chat returns its leases and imported lines drain
+    outcome: held
+  - story: Orderly session shutdown returns held leases
+    outcome: held
+  - story: SIGKILL holder permits sibling rebuilding within about one minute
+    outcome: held
+  - story: Gone holders do not impose the first-request waitSeconds stall
+    outcome: held
+  - story: Failed build releases its lease and later sessions rebuild before expiry
+    outcome: held
+evidence:
+  path: docs/attachments/life-compactor-lease-outlives-its-builder/drive-2.md
+  visual: false
+  shots: []
+tests:
+  - extensions/context/life/build.test.ts
+filed: []
+caveats:
+  - "Liveness is a local pid check, so it assumes every session of a life shares one host and pid namespace. A reused pid makes a dead holder look alive until the ten-minute expiry."
+  - "Cost of the pid check: a waiter on a lease with a pid re-queues once a second, plus on any store change. This is a cheap indexed query; no wall-time measure was taken."
+  - "A SIGTERMed holder leaves its claims unended and is recovered only by the pid check. A very short run can end before higher-level summaries drain; the key stays available and a later session builds it."
+  - "The empty-reply warning can still add roughly 30 s to a run independently of dead-holder recovery. It is owned by life-first-use-compaction-empty-reply-warning."
+  - "proposed test: none."
+```
+
+Evidence: [docs/attachments/life-compactor-lease-outlives-its-builder/drive-2.md](../attachments/life-compactor-lease-outlives-its-builder/drive-2.md)
