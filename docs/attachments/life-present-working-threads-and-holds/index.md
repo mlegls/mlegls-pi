@@ -1,5 +1,7 @@
 # Life presence: implementation first use
 
+Independent acceptance: [first-use drive, predictions and replayable checks](drive.md). All four required library journeys held on `7af0a2297777ea72ff6367b28259c5c815cc4dd7`; nonvisual, with seeded sibling transcript and real read-only bb metadata.
+
 Entry point: [try.ts](try.ts). From the repository root:
 
 ```sh
