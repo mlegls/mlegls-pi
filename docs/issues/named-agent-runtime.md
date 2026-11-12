@@ -4,7 +4,7 @@ assignee: "agent:auto-routine"
 priority: 2
 author: "session:01a1ce05-15a3-7191-b6d9-27abd097297f"
 part-of: "[[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life]]"
-claimed-by: "reconcile:a-name-is-an-agent-with-its-soul-skills-and-life/a-name-is-an-agent-with-its-soul-skills-and-life-refine-1"
+claimed-by: "reconcile:a-name-is-an-agent-with-its-soul-skills-and-life"
 ---
 goal: a session attached to a registered machine-wide life is the named agent, with its soul, private skills, default virtual model and notes, through every pi launcher. Implement the runtime shape in [[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life#shape]].
 
