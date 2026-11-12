@@ -35,8 +35,8 @@ export type LifeMessages = (branch: readonly SessionEntry[], context: AppendCont
 
 export interface LifeLog {
 	readonly id: string;
-	/** The entire committed log in position order. */
-	read(): LifeMessage[];
+	/** The committed log in position order, from position `from` (default: all). */
+	read(from?: number): LifeMessage[];
 	/** One immediate transaction; skip sources already in this life. Returns the new messages. */
 	append(messages: readonly LifeInput[]): LifeMessage[];
 }

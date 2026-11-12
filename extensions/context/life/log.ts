@@ -23,10 +23,11 @@ export function lifeId(name: string, cwd: string): string | undefined {
 export function lifeLog(id: string): LifeLog {
 	return {
 		id,
-		read() {
+		read(from = 0) {
 			return select(SCHEMA, {
-				where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)",
-				params: [id],
+				where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)" +
+					(from > 0 ? " AND r.seq IN (SELECT record FROM tags WHERE key = 'life.pos' AND value >= ?)" : ""),
+				params: from > 0 ? [id, from] : [id],
 			}).map((r) => {
 				const { id: _id, ...message } = fieldsOf("life", r.tags);
 				return { ...message, text: r.body } as unknown as LifeMessage;

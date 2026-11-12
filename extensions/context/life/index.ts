@@ -64,6 +64,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 	let run: Run | undefined;
 	let previousBranch: string[] = [];
 	let branchId = "";
+	let entryOf: number[] = [];
 	let stop = new AbortController();
 	const sm = (ctx: ExtensionContext) => ctx.sessionManager as unknown as BranchSession;
 	const branchOf = (ctx: ExtensionContext) => ctx.sessionManager.getBranch() as SessionEntry[];
@@ -94,7 +95,8 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 		const messages = messagesOf(branch, { model, selfThreads: [] }).map((m, pos) => ({
 			...m, pos, place: ctx.sessionManager.getSessionId(), source: entryRef(ctx.sessionManager.getSessionId(), m.entry) + "#" + m.k,
 		}));
-		const log: LifeLog = { id: branchId, read: () => messages, append: () => { throw new Error("branch adapter is read-only"); } };
+		entryOf = messages.map((m) => m.at);
+		const log: LifeLog = { id: branchId, read: (from = 0) => messages.slice(from), append: () => { throw new Error("branch adapter is read-only"); } };
 		chat.sync(log, env(ctx));
 		return chat;
 	};
@@ -111,7 +113,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 
 	const viewMessage = (ls: string[]): AgentMessage => ({ role: "user", content: chatParts(ls), timestamp: 0 } as AgentMessage);
 	/** How many messages come from branch entries before index k. */
-	const before = (branch: SessionEntry[], k: number) => messagesOf(branch).filter((m) => m.at < k).length;
+	const before = (k: number) => { let lo = 0, hi = entryOf.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (entryOf[mid]! < k) lo = mid + 1; else hi = mid; } return lo; };
 	const at = (ctx: ExtensionContext, c: Chat, cfg: Settings, T: number) => { const ls = viewAt(ctx, c, cfg, T); return { T, lines: ls, view: viewMessage(ls) }; };
 
 	pi.on("session_start", (_e, ctx) => {
@@ -180,7 +182,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 			const branch = branchOf(ctx);
 			const start = runStart(branch);
 			if (!run || run.startId !== branch[start]?.id || run.start !== start) {
-				const T = before(branch, start);
+				const T = before(start);
 				await c.idle(T, cfg.waitSeconds * 1000);
 				run = { start, startId: branch[start]?.id ?? "", boundary: start, ...at(ctx, c, cfg, T) };
 			}
@@ -190,9 +192,9 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 				// the newest boundary with every message before it summarized, and no tool result right after it
 				const F = c.summarized();
 				let k = branch.length - 1;
-				for (; k > run.boundary; k--) if (!isResult(branch[k]) && before(branch, k) <= F) break;
-				if (k > run.boundary && before(branch, k) > run.T) {
-					run = { ...run, boundary: k, ...at(ctx, c, cfg, before(branch, k)) };
+				for (; k > run.boundary; k--) if (!isResult(branch[k]) && before(k) <= F) break;
+				if (k > run.boundary && before(k) > run.T) {
+					run = { ...run, boundary: k, ...at(ctx, c, cfg, before(k)) };
 					tail = raw(k);
 				}
 			}

@@ -235,7 +235,7 @@ export class Chat {
 		if (force || revision !== this.revision) {
 			this.revision = revision;
 			const old = this.T;
-			this.msgs = this.log.read();
+			this.msgs = [...this.msgs, ...this.log.read(old)];
 			const records = this.records(SCHEMA, this.loaded);
 			const edges = edgesOf(records.map((r) => r.seq));
 			const arrived: Pair[] = [];
