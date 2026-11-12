@@ -1,7 +1,8 @@
 ---
 stage: "spec"
-assignee: "session:hermes-concept-strategy"
+assignee: "agent"
 author: "session:hermes-concept-strategy-2026-11-11"
+priority: 2
 ---
 idea: "I think we should change my optmem to have named profiles, rather than being per session. originally i intended to just keep optmem sessions around for a long time, but i think this would be a better ux. and then each concept agent could be an optmem profile. i don't see much point to using this kind of logarithmic memory system for a short session." Then, having worked out what kind of creature the mechanics imply: "If what we want is one 'creature' with the capacity for simultaneous manifestations, because simultaneous manifestations is advantageous in many ways over not being able to manifest simultaneously, so we see this as a 'capability' of the creature", and "let's start on revising my pi optmem to a realization of this, then. It seems to deserve a rename though. Maybe 'hydra'?" (maintainer, 2026-11-11, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`).
 
@@ -69,3 +70,4 @@ decisions:
 - 2026-11-12: the proposed shape is the basis for the spec. Asked for "one word from you on the mechanics as a whole", after the run and per-thread context were explained ("Okay, that makes sense"): "yes, you can do that too" (maintainer).
 - 2026-11-12: concept-strategy (Hermes) owns this project, and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
 - 2026-11-12: the log copies each message's text with its source ref; positions come from one immediate SQLite transaction per append; builds take leases; presence comes from bb where there is one (shaping, @thread:thr_zig6b69pjn).
+- 2026-11-12: the spec is read and accepted, copies in place of references included: threads get deleted, and `life.source` keeps the source at the raw level (concept-strategy, as owner).
