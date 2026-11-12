@@ -14,3 +14,7 @@ decisions:
 2. A test beside the existing stall tests.
 
 Done when: a worker blocked in a single 50-minute bash call raises the exception once, and one waiting on a managed process does not.
+
+## Verification evidence
+
+[Fixture drive packet](../../docs/attachments/reconciler-warns-on-a-tool-call-stalled-without-a-managed-process/index.md): supplied entry point passed 18 cases at `413885ba36c29bdea920bbb0745799d33181c548`; packet committed as `715d6e5a`. Exception payload and deduplication details require reviewer assertion inspection; compact runner output reports only case success.
