@@ -43,3 +43,32 @@ From the tested checkout, create `STORE=$(mktemp -d /tmp/hermes-drive-XXXXXX)` a
 5. Using an isolated manifestation recipe (missing), invoke zoom/date/recall on an imported position and observe the original message, then observe initial background summarization. Accept only with actual returned content and completion evidence. This remains required evidence, not waived by this packet.
 
 No browser/UI was rendered, source/diffs/tests/fixtures read, checks/tests run, model requests made, or actual lives changed. Temporary destination removed after observations; no servers or other processes were started.
+# Review (appended after the driver's log)
+
+Revision reviewed: `43f52bda` (importer unchanged from `6ddf7eae`; no repairs needed). Real read-only Hermes profiles, destination a throwaway `PI_BOARD_DIR` store, removed afterwards. Nonvisual.
+
+## Independent check of the conversion contract (the driver's "unobservable" rows)
+
+- Wrote a separate computation straight from each `state.db`: first row (lowest id) per `message_uid`, minus `_compressed_summary`, minus subagent / `_delegate_from` sessions; per row, one source per non-empty assistant text, each tool call, tool echo, user text, with 30k paging for text and calls. Compared its source set with the stored life for all four profiles: Engineering 277/277, Strategy 1030/1030, Design 559/559, GTM 535/535, zero missing, zero extra. Re-import of Strategy appended 0.
+- No `[PRIOR CONTEXT` / `[CONTEXT COMPACTION` text in any stored message; longest message 30030 characters (clip marker over 30000). No uid is shared across sessions in any profile; no row lacks a uid.
+- Model switch rows: `<provider>/<id>` from the "changed to X via provider Y" text, as recorded from the switch row on; sessions without one keep their raw `sessions.model` (so some messages carry `claude-fable-5-2[1m]` and others `claude-subscription-directsdk-experimental/claude-fable-5-2[1m]`; `gpt-6.1-sol` has no provider in the data).
+- Occupied life with pi-origin records: appended two `lifeMessages` (pi source) then imported Engineering into the same life: the pi prefix JSON stayed identical, 279 total, positions contiguous.
+- Retrieval/manifestation: the life's own `Chat` over that mixed log (no model; the `build.test.ts` recipe) resolves pi position 0 and the imported short messages to their own nodes, 161 longer ones queue for the compactor. Build, `zoom`, `date` read only `pos/kind/place/date/model/source/text`; the `summarizes` edge takes `source` as an opaque string, so Hermes sources need nothing further. Real-model summarization of the imported history was not run (costs model calls; the same builder serves pi messages). The documented real-pi recipe is `extensions/context/life/README.md` "First use".
+- `bun test extensions/context/life` 14 pass; `bun run typecheck` clean. The project declares no `test:affected` task.
+
+## Story outcomes on the final head
+
+| Story | Outcome |
+|---|---|
+| Engineering imports, fourteen quiz messages | held |
+| Repeat import appends zero | held |
+| Occupied life (Hermes and pi records) keeps positions; `--life` | held |
+| Strategy, Design, GTM through the same command | held |
+| Imported messages reachable; builder consumes them | held (builder in-process; real summarization model call not run) |
+| Row selection, models, clipping, paging match source | held |
+
+## Frictions settled
+
+- hermes-import-drive-needs-life-retrieval-entry-point: closed as caller error; README documents the recipe.
+- tracker-outline-has-no-project-vault-note: closed as accepted limitation; reproduces from the main checkout (no vault note with this directory on the host), error names the cause, snapshot/tree work.
+
