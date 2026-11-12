@@ -1,3 +1,4 @@
+/home/mlegls/dev/mlegls-pi__worktrees/named-agent-runtime-review-4/docs/attachments/named-agent-runtime/index.md (90 lines)
 # Named agent runtime encounter
 
 Tested revision: `c87250f3fd993ad63d96f938608564290950f627`, 2026-11-12. Public CLI and JSONL RPC encounter; no source, diffs, tests or implementation fixtures inspected. No rendered UI was used.
@@ -88,3 +89,14 @@ Successful response routed to `anthropic/claude-haiku-4-5`, identifies as pi-lif
 ## Result
 
 Runtime CLI/RPC claims above held. No product repairs or tests were made by the driver. The startup shorthand has a reproduced fixture friction with a successful explicit-provider workaround. No live processes remain.
+
+## Review
+
+Reviewed at head after `2f086b74`, 2026-11-12, with a fresh fixture (`bun scripts/life-playground.ts prepare-agent`; the driver's fixture imported its retired worktree).
+
+- **Serialized prompt ordering — held.** pi sends a `before_agent_start` `systemPrompt` as the request's head (forced prompt projection in `agent-session`), so the text `system-prompt`'s `buildPrompt` returns is what the model sees. Calling that handler with `sections.agent` set yields: soul and lesson, then `You are working in pi, a coding agent harness. Show file paths clearly when working with files.`, then the file-tools rule, skills, date, cwd. One identity claim, soul first. Without a soul the old two-sentence opening is unchanged.
+- **Startup by virtual provider — held after repairs.** `--provider agent --model <name> --no-session`, no `PI_LIFE`: answers `copper telescope`, says note is available. Default `one` launch of the fixture also answers the soul's signal.
+- **Unattached — held.** `two --no-life-env --no-session`: system message `toolsAdded` is read, bash, edit, write, journal, recall; no `note`. (The model answered "Yes." to "is note available?"; the tool list is the evidence.)
+- **Friction fixed:** the playground's shorthand `--model agent/<name>` now reaches the agent (a caller's `--model`/`--provider` replaces the default pair). Re-driven: `two --no-life-env --model agent/<name> --no-session` answers `copper telescope`.
+- Repairs: a malformed SOUL `model:` skipped by `namedAgents` instead of failing extension load for every pi launch (checked with a bad and a good agent in one registry: only the good one registers); `listed` tests the cheap `includes` before reading the branch and soul; removed a `PI_LIFE` check in the agents extension that cannot fire because life deletes it at load (a `PI_LIFE` launch is ignored by `startupName` in the life listener).
+- Tests: `bun test extensions/context lib/agents extensions/stances extensions/system-prompt scripts` 78 pass, 0 fail (no `test:affected` task in this checkout).

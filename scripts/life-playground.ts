@@ -59,7 +59,8 @@ export function launch(root: string, slot: string, args: string[] = [], pipe = f
 	if (!detached && !namedAgent) env.PI_LIFE = name;
 	return spawn("pi", [
 		"--approve", "--no-extensions", "-e", namedAgent ? join(root, ".pi", "extensions", "life-playground.ts") : extension, "--no-skills", "--no-prompt-templates", "--no-themes",
-		"--provider", namedAgent && !detached ? "agent" : "anthropic", "--model", namedAgent && !detached ? name.slice(1) : "claude-haiku-4-5", "--thinking", "off",
+		// A caller's model, with or without its provider, replaces the default one.
+		...(args.includes("--model") || args.includes("--provider") ? [] : ["--provider", namedAgent && !detached ? "agent" : "anthropic", "--model", namedAgent && !detached ? name.slice(1) : "claude-haiku-4-5"]), "--thinking", "off",
 		"--session-dir", join(root, "sessions", slot),
 		...(["--fork", "--session", "--session-id", "--resume", "--no-session"].some((flag) => args.includes(flag)) ? [] : ["--continue"]), ...args,
 	], { cwd: root, env, stdio: pipe ? ["pipe", "pipe", "pipe"] : "inherit" });

@@ -66,7 +66,8 @@ export function namedAgents(cwd: string): NamedAgent[] {
 	for (const root of registry(cwd)) {
 		try { for (const d of readdirSync(root, { withFileTypes: true })) if (d.isDirectory() || d.isSymbolicLink()) names.add(d.name); } catch {}
 	}
-	return [...names].flatMap((name) => named(name, cwd) ?? []);
+	// A malformed soul skips its model; it must not stop every pi launch that loads the registry.
+	return [...names].flatMap((name) => { try { return named(name, cwd) ?? []; } catch (e) { console.error(`Agent ${name}: ${(e as Error).message}`); return []; } });
 }
 
 /** Agents that can fill a role: the candidate set a role's router chooses among. */

@@ -122,7 +122,7 @@ function listed(ctx: ExtensionContext): string[] | undefined {
 	if (session !== undefined) return session;
 	const list = readSettings(ctx.cwd).memory?.systems;
 	if (!Array.isArray(list)) return undefined;
-	return attachedAgent(ctx) && !list.includes("notes") ? [...list, "notes"] : list;
+	return !list.includes("notes") && attachedAgent(ctx) ? [...list, "notes"] : list;
 }
 
 function state(ctx: ExtensionContext) {

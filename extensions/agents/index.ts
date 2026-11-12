@@ -10,7 +10,7 @@ import { attachedAgent } from "./identity.ts";
 export default function agents(pi: ExtensionAPI) {
 	register(pi, "agent", namedAgents(process.cwd()).flatMap((a) => a.routing ? [{ name: a.name, list: executions(a.routing) }] : []));
 	const start = (model: ExtensionContext["model"], ctx: ExtensionContext) => {
-		if (model?.provider !== "agent" || attachment(ctx) || process.env.PI_LIFE !== undefined) return;
+		if (model?.provider !== "agent" || attachment(ctx)) return;
 		if (!named(model.id, ctx.cwd)) return;
 		const name = "/" + model.id;
 		const history = ctx.sessionManager.getBranch().some((e) => e.type === "message" && (e.message.role === "user" || e.message.role === "assistant"));
