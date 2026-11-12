@@ -1,18 +1,72 @@
-// optmem's log: the session's own transcript read as UniiChat messages (gist §1). pi's session file
-// is already append-only and single-writer, so nothing is copied: message i is the i-th message
-// on the branch path, and on a tree path an entry's ancestors never change, so i is permanent
-// there and forks share the prefix. Each message has a kind:
-//
-//   user   the user's words           agent  the agent's replies (thinking is never logged)
-//   tool   one tool call (name, JSON)  echo   one tool result, clipped to its head and tail
-//   work   a message from outside the conversation (a worker's report, extension reports)
-//
-// A tool result is clipped to ECHO_CHARS in all; any other long text is split over several
-// messages in a row, never cut.
+// A life's copied messages, independent of their source session files. Each append holds
+// SQLite's write lock while deduplicating sources and assigning contiguous permanent positions.
+// The branch parser also serves the moved compactor until it consumes the shared life log.
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
+import { entryRef } from "../../../lib/records/branch.ts";
+import { db, fieldsOf, fieldTags, immediate, select, write } from "../../../lib/records/store.ts";
+import { commonDir } from "../../../lib/thread/git.ts";
+import type { AppendContext, Kind, LifeInput, LifeLog, LifeMessage, LifeMessages } from "./contracts.ts";
 
-export type Kind = "user" | "agent" | "tool" | "echo" | "work";
+export type { Kind } from "./contracts.ts";
 
+export const SCHEMA = "life";
+
+/** /name is machine-wide; a bare name belongs to this repository, shared by its worktrees. */
+export function lifeId(name: string, cwd: string): string | undefined {
+	name = name.trim();
+	if (!name || name === "/") return;
+	if (name.startsWith("/")) return name;
+	const project = commonDir(cwd);
+	return project && project + ":" + name;
+}
+
+export function lifeLog(id: string): LifeLog {
+	return {
+		id,
+		read() {
+			return select(SCHEMA, {
+				where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)",
+				params: [id],
+			}).map((r) => {
+				const { id: _id, ...message } = fieldsOf("life", r.tags);
+				return { ...message, text: r.body } as unknown as LifeMessage;
+			}).sort((a, b) => a.pos - b.pos);
+		},
+		append(messages) {
+			if (!messages.length) return [];
+			return immediate((d) => {
+				const sources = new Set<string>();
+				const remembered = d.query(
+					"SELECT 1 FROM records r " +
+					"JOIN tags i ON i.record = r.seq AND i.key = 'life.id' AND i.value = ? " +
+					"JOIN tags s ON s.record = r.seq AND s.key = 'life.source' AND s.value = ? WHERE r.schema = ? LIMIT 1",
+				);
+				let pos = (d.query(
+					"SELECT coalesce(max(p.value), -1) AS pos FROM records r " +
+					"JOIN tags i ON i.record = r.seq AND i.key = 'life.id' AND i.value = ? " +
+					"JOIN tags p ON p.record = r.seq AND p.key = 'life.pos' WHERE r.schema = ?",
+				).get(id, SCHEMA) as { pos: number }).pos + 1;
+				const added: LifeMessage[] = [];
+				for (const m of messages) {
+					if (sources.has(m.source) || remembered.get(id, m.source, SCHEMA)) continue;
+					const message = { ...m, pos: pos++ };
+					write({
+						schema: SCHEMA, body: m.text,
+						tags: fieldTags("life", {
+							id, pos: message.pos, kind: m.kind, place: m.place,
+							date: m.date, model: m.model, source: m.source,
+						}),
+					}, d);
+					sources.add(m.source);
+					added.push(message);
+				}
+				return added;
+			});
+		},
+	};
+}
+
+/** Compatibility surface for the branch-facing build and index. */
 export interface Msg {
 	kind: Kind;
 	text: string;
@@ -44,22 +98,37 @@ function textOf(content: unknown): string {
 	return content.map((c: any) => c?.type === "text" ? c.text : c?.type === "image" ? "[image]" : "").filter(Boolean).join("\n");
 }
 
+function incoming(text: string, fallback: Kind, selfThreads: readonly string[]): Kind {
+	const thread = /^\[bb message from thread:([^\]]+)\]/.exec(text)?.[1];
+	return thread ? selfThreads.includes(thread) ? "self" : "work" : fallback;
+}
+
 /** A message's key: its entry and position there. Stable on any branch through that entry. */
 export const msgKey = (m: Msg) => m.entry + "." + m.k;
 
-/** The branch's messages, oldest first, each with the index of the branch entry it came from. */
-export function messagesOf(branch: readonly SessionEntry[]): (Msg & { at: number })[] {
-	const out: (Msg & { at: number })[] = [];
+/** The branch's messages, oldest first, each with its entry index and historical model. */
+export function messagesOf(branch: readonly SessionEntry[], context?: Pick<AppendContext, "model" | "selfThreads">): (Msg & { at: number; model: string })[] {
+	const out: (Msg & { at: number; model: string })[] = [];
+	let model = context?.model ?? "";
+	const selfThreads = context?.selfThreads ?? [];
 	branch.forEach((e, at) => {
+		if (e.type === "model_change") model = e.provider + "/" + e.modelId;
+		if (e.type === "message" && e.message.role === "assistant") {
+			if (e.message.provider && e.message.model) model = e.message.provider + "/" + e.message.model;
+		}
 		const date = e.timestamp;
 		let k = 0;
-		const push = (kind: Kind, text: string) => { if (text.trim()) out.push({ kind, text, entry: e.id, k: k++, date, at }); };
+		const push = (kind: Kind, text: string) => { if (text.trim()) out.push({ kind, text, entry: e.id, k: k++, date, at, model }); };
 		const many = (kind: Kind, text: string) => { for (const p of pages(text)) push(kind, p); };
-		if (e.type === "custom_message") many("work", textOf(e.content));
+		const received = (fallback: Kind, content: unknown) => {
+			const text = textOf(content);
+			many(incoming(text, fallback, selfThreads), text);
+		};
+		if (e.type === "custom_message") received("work", e.content);
 		if (e.type !== "message") return;
 		const m: any = e.message;
 		switch (m.role) {
-			case "user": many("user", textOf(m.content)); break;
+			case "user": received("user", m.content); break;
 			case "assistant":
 				for (const c of m.content ?? []) {
 					if (c.type === "text") many("agent", c.text);
@@ -68,11 +137,35 @@ export function messagesOf(branch: readonly SessionEntry[]): (Msg & { at: number
 				break;
 			case "toolResult": push("echo", clip((m.isError ? "[error] " : "") + textOf(m.content))); break;
 			case "bashExecution": push("echo", clip("!" + m.command + "\n" + (m.output ?? ""))); break;
-			case "custom": many("work", textOf(m.content)); break;
+			case "custom": received("work", m.content); break;
 		}
 	});
 	return out;
 }
 
-/** The text a leaf compresses: "kind: text". */
-export const source = (m: Msg) => m.kind + ": " + m.text;
+/** Previously remembered inherited entries keep their original refs after a session fork. */
+function inheritedSources(sessions: readonly string[]): Map<string, string> {
+	const sources = new Map<string, string>();
+	if (!sessions.length) return sources;
+	const prefixes = sessions.map((s) => entryRef(s, ""));
+	const rows = db().query(
+		"SELECT s.value AS source FROM records r JOIN tags s ON s.record = r.seq AND s.key = 'life.source' " +
+		"WHERE r.schema = ? AND (" + prefixes.map(() => "substr(s.value, 1, ?) = ?").join(" OR ") + ") ORDER BY r.seq",
+	).all(SCHEMA, ...prefixes.flatMap((p) => [p.length, p])) as { source: string }[];
+	for (const { source } of rows) {
+		const key = source.slice(source.indexOf("/") + 1);
+		if (!sources.has(key)) sources.set(key, source);
+	}
+	return sources;
+}
+
+export const lifeMessages: LifeMessages = (branch, context) => {
+	const inherited = inheritedSources((context.sessions ?? []).filter((s) => s !== context.session));
+	return messagesOf(branch, context).map((m) => ({
+		kind: m.kind, text: m.text, date: m.date, model: m.model, place: context.place,
+		source: inherited.get(m.entry + "#" + m.k) ?? entryRef(context.session, m.entry) + "#" + m.k,
+	}));
+};
+
+/** The text a leaf compresses; the old branch log has no place yet. */
+export const source = (m: Msg | LifeInput) => m.kind + ("place" in m ? "@" + m.place : "") + ": " + m.text;

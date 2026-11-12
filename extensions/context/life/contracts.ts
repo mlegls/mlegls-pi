@@ -23,6 +23,8 @@ export interface LifeMessage extends LifeInput {
 /** Metadata for converting a session branch to copied messages. */
 export interface AppendContext {
 	session: string;
+	/** sessionChain(sm): current session, then its fork ancestors. */
+	sessions?: readonly string[];
 	place: string;
 	/** The session's model, used until a model entry or assistant message supplies it. */
 	model: string;

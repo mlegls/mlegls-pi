@@ -158,6 +158,11 @@ export function fieldsOf(prefix: string, tags: readonly Tag[]): Record<string, u
 	return out;
 }
 
+/** Read and append under SQLite's write lock. The synchronous operation may call write() on this connection. */
+export function immediate<T>(operation: (d: Database) => T, d: Database = db()): T {
+	return d.transaction(() => operation(d)).immediate();
+}
+
 /** Append a record with its tags and edges in one transaction. Returns the stored record. */
 export function write(input: RecordInput, d: Database = db()): StoredRecord {
 	const fresh = stamp();
