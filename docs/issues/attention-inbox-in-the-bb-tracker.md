@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 author: "session:01a1cdb9-2d1f-77a1-9159-fc3a2fecd605"
 priority: 2
@@ -37,3 +37,9 @@ Implementation is partitioned into [[projects/mlegls-pi/issues/desk-attention-it
 After both children reach their target checkouts, carry out the combined first use above in a disposable bb project using the changed desk helper and built tracker plugin. Record the rendered panel, the single grouped owner message without the credential value, the dotenv assignment, answered badge changes and item removal. Update the [desk guide](../guide/desk.md) and [tracker README](../../../bb-plugins/tracker/README.md) with the verified entry points. The plugin child's handoff supplies its deployment and restore steps.
 
 The plugin child works in its own `bb-plugins` worktree from `main` and declares its foreign checkout and commits in the handoff. Supervisor @thread:thr_dfgkcug6jp owns merging those commits into `/home/mlegls/dev/bb-plugins` main when completion holds, then removing the foreign worktree; the unrelated modified `obsidian-at-home` submodule remains untouched (approved by that supervisor, 2026-11-12).
+
+## Result
+
+All four stories held, including the link amendment (issue links open in the Issues panel, file links in bb file preview). mlegls-pi side 3aeaaff5; bb-plugins attention-panel (602606f) and attention-inbox-join-docs merged into bb-plugins main at 5c89fe1 by the supervisor. Closed by hand: the review handoff named 602606f without its checkout, so the foreign-commit check could not verify it.
+
+Evidence: [docs/attachments/attention-inbox-in-the-bb-tracker/drive-9.md](../attachments/attention-inbox-in-the-bb-tracker/drive-9.md)
