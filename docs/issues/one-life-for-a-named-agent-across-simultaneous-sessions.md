@@ -15,9 +15,9 @@ Out: the agent's soul and agent-scoped skills ("agent-scoped skills could also b
 
 ## proposed shape
 
-Proposed by concept-strategy in that session. The maintainer asked for a realization of the creature and has not ruled on these mechanics.
+Proposed by concept-strategy in that session. What the maintainer ruled is under decisions; the rest of these mechanics he has not ruled on.
 
-- **log.** A life's messages are numbered in one append-only sequence in the [records store](../../lib/records/store.ts), each citing its session entry (`entry:<session>/<entry>`, [branch.ts](../../lib/records/branch.ts)). A manifestation appends its run when the run ends, and the run's older part when its boundary moves (the long-run case in `index.ts`). Positions are assigned inside the write, as upstream OptMem assigns ids inside its lock. So a run stays contiguous and manifestations interleave by run, not by message. Nodes are keyed by life, level and index, and are shared.
+- **log.** A life's messages are numbered in one append-only sequence in the [records store](../../lib/records/store.ts), each citing its session entry (`entry:<session>/<entry>`, [branch.ts](../../lib/records/branch.ts)) and recording the model its session was on. A node records the model that wrote it. A manifestation appends its run when the run ends, and the run's older part when its boundary moves (the long-run case in `index.ts`). Positions are assigned inside the write, as upstream OptMem assigns ids inside its lock. So a run stays contiguous and manifestations interleave by run, not by message. Nodes are keyed by life, level and index, and are shared.
 - **view.** One saved view per life, advanced at a run's start by whichever manifestation starts one and fixed for the run as now. Manifestations starting from the same view share its cache entry. A line shows which manifestation its messages came from.
 - **present.** After the view, at run start: the threads where the agent is working now (a run in progress), since when, and what it says it holds in each; then the threads that are open and idle, as places it can be reached. What it holds is one line a manifestation sets. Nothing enforces it; a second manifestation reads it before committing to the same thing.
 - **looking.** `zoom` reaches messages appended since the run's view was fixed, and a sibling's run in progress can be read from its session file, so "what did you say there just now" has an answer without rebuilding the view.
@@ -25,13 +25,13 @@ Proposed by concept-strategy in that session. The maintainer asked for a realiza
 - **prompt.** "its latest word on a thing is the truth" ([prompt.md](../../extensions/context/optmem/prompt.md)) holds within a manifestation. Between runs that overlapped in time, order is only append order, and a conflict is reported, not resolved.
 - **compactor.** On the life's own model with the turn's system prompt, since its lines are what the agent is at depth; [[projects/mlegls-pi/issues/om-memory-promotes-observer-judgments-over-the-users-own-statements]] is what another model writes there.
 - **delegates.** A dispatched worker is a manifestation only when its task names the life, as the Connectome port did with `PI_CONNECTOME`.
-- **names.** Project-scoped by default and `/name` for machine-wide, as the port did. The Concept agents work across repositories (this was filed from one working here), so theirs are machine-wide.
+- **names.** Project-scoped by default and `/name` for machine-wide, as the port did. The Concept agents work across repositories (this was filed from one working here), so theirs are machine-wide. A life is attached to its name alone: changing model keeps the life.
 
 A life with one manifestation is today's optmem session, and no manifestation is the main one.
 
 ### speaking of it
 
-Checked against anticipated sentences in the session above; proposed, not ruled.
+Checked against anticipated sentences in the session above, and agreed by the maintainer.
 
 - One subject, located by place and time: "you, in the import thread", "elsewhere", "yesterday in the pricing thread". The same grammar covers simultaneous and past, and the part gets no noun of its own in speech. "Thread" is the place (bb's word, the thing with a title); "session" stays pi's word in code; "manifestation" is for the one sentence that says a session is the agent itself and not a worker.
 - "working in" a thread against "open" there; "holding" for what a manifestation has; "catch up" for reading what was appended elsewhere.
@@ -43,11 +43,6 @@ Its own issue, before the trial: a Concept agent's Hermes sessions (`~/.hermes/p
 Later, each its own issue once this runs: a message addressed to the life lands in the manifestation holding its subject or opens one; a manifestation opens another of itself, and ending one says what the rest needs.
 
 ## holes
-
-For the maintainer:
-
-- **does a life follow its name across models?** The port kept one life per model under a name. Recommended: one life per name, each node recording the model that wrote it, so a Concept agent keeps its life when its model changes.
-- **the way of speaking** above.
 
 For the trial to answer (Concept Engineering as a life on the Beelink):
 
@@ -63,3 +58,5 @@ decisions:
 - 2026-11-11: per-session optmem is removed, nothing migrated: "agreed. i wasn't really using it" (maintainer). A session attaches to a name or uses OM.
 - 2026-11-11: the trial is on the Beelink only (maintainer).
 - 2026-11-11: a Concept agent's Hermes past is imported (maintainer).
+- 2026-11-11: a life is attached to its name only, and the model is recorded on each message: "I'd usually keep profiles on the same model, but agreed that mechanically they should only be attached to the name. The model should also be recorded at the base level though, so it's easy to tell later." (maintainer).
+- 2026-11-11: the way of speaking under "speaking of it": "Yes, this makes sense." (maintainer).
