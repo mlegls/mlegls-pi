@@ -124,7 +124,7 @@ Fresh playground stores, real pi RPC, Haiku 4.5, tailBytes 800, prior run of six
 | `/tmp/pi-life-XKmWxG` | leaf 0 held by a live-looking lease (stuck frontier) | all four say 250, `PRESERVE-612` | one (15), boundary never advanced; run ~39 s |
 | `/tmp/pi-life-Bmfklq` | none | all four say 250, `PRESERVE-612` | 15,16,19,22,25: increasing, one per prefix advance |
 
-Story "Long-run summaries remain semantically coherent": held. Replay: `bun /tmp`-style driver in the repro described above is not committed; to replay, seed a life with a long first message and a `life.lease` for key `[name,2,0,0]` via `scripts/life-playground.ts prepare`, then run the four-call task.
+Story "Long-run summaries remain semantically coherent": held. Replay: after `bun scripts/life-playground.ts prepare`, append to the life (`lifeLog(name).append`) a 1 KB+ first message and the prior six-call run; for the stuck case also write a `life.lease` record tagged `life.key` = `[name,2,0,0]`. Start an RPC slot and send the four-call task.
 
 Still unobserved: interrupted-history recovery, concurrent-builder waiting beyond the above, and append-before-boundary transaction order as a whole (code read only: `context()` appends `branch.slice(0, k)` before moving `current.boundary`; `viewAt` reads and writes `life.view` under one immediate transaction and writes only when `T > saved.upTo`).
 
