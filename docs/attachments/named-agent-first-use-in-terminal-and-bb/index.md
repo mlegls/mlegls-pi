@@ -1,5 +1,7 @@
 # Named-agent first use: terminal and BB
 
+Independent acceptance: [drive 6, including signed-in BB screenshots](drive-6.md).
+
 Tested code: `00f0e7a498919d98e3d622307ce84137fbfa5eab` (base `d99a49990b76bf34eaa90c1a09ab008dfb5b0d0f`), 2026-11-12. Local pi 1.5.0, real credentialed models. Nonvisual CLI/RPC and BB CLI encounter; no browser or terminal-UI screenshots. This is first use, without new tests or an audit matrix.
 
 ## Setup and replay
