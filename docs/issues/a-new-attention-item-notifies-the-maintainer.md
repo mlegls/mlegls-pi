@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:01a1cdb9-2d1f-77a1-9159-fc3a2fecd605"
 priority: 2
@@ -16,3 +16,32 @@ A new item in `desk/ATTENTION.md` sends a system notification, so the maintainer
 - [desk guide](../guide/desk.md) says an add notifies, and that web and desktop banners need an open bb tab or window while mobile doesn't.
 
 First use: in the guide's disposable fixture, `desk attention add` twice with the same body and once with a changed one; two notifications arrive on the maintainer's devices. This pings the maintainer, so do it once, with a title that says it's a test.
+
+## Result
+
+done — delivery, dedupe and the guide held; click-through is `unobservable` per your ruling. I made no code changes. I recorded the ruling in the packet and added the maintainer's answer to the filed issue.
+
+```yaml
+commit: 58f66c6c
+stories:
+  - story: New and changed attention items notify; identical repeat sends nothing
+    outcome: held
+  - story: Clicking a notification opens the owning thread
+    outcome: unobservable
+  - story: Guide explains notifications and open-window requirements
+    outcome: held
+evidence:
+  path: docs/attachments/a-new-attention-item-notifies-the-maintainer/index.md
+  visual: false
+  shots: []
+tests: []
+filed:
+  - "[[projects/mlegls-pi/issues/bb-notification-click-in-macos-notification-center-does-not-open-its-thread]]"
+fixed: []
+caveats:
+  - Device observations are the maintainer's, relayed by the supervisor; no screenshots.
+  - The click-through story can't be observed on macOS because bb itself has the limitation, owned by the filed issue. The change correctly passes `--thread <owner>`.
+  - No servers or browsers started, and no further notifications sent.
+```
+
+Evidence: [docs/attachments/a-new-attention-item-notifies-the-maintainer/index.md](../attachments/a-new-attention-item-notifies-the-maintainer/index.md)
