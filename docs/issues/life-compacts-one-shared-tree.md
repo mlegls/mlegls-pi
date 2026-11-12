@@ -5,8 +5,6 @@ author: "session:01a1cd90-31ee-71eb-b6b4-d3031eb4ea79"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
 claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/life-log-copies-and-orders-runs]]"
 ---
 goal: Every session of a life builds and reads one shared summary tree, with the place of each message carried into its lines. Simultaneous compactors reuse one another's work instead of each paying to build the same node. This owns nodes and compactor in [[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]; run views and their saved `life.view` are the session ticket.
 
