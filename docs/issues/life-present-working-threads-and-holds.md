@@ -4,7 +4,7 @@ assignee: "agent:auto-routine"
 author: "session:01a1cd90-31ee-71eb-b6b4-d3031eb4ea79"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
-claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions/one-life-for-a-named-agent-across-simultaneous-sessions-refine-1"
+claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions"
 ---
 goal: Before working in one thread, the agent can see where else it is working, what it holds there, and where it is open to messages. It can read what it just said in another thread even before that run finishes. This owns the present and sibling-in-progress reading in [[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]; bb already delivers messages to busy threads.
 

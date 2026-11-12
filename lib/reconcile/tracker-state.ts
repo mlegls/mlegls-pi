@@ -12,6 +12,8 @@ export type LandingLedger = Record<string, Landing>;
 export interface ReviewedResult {
 	parent: string | null;
 	summary: string;
+	/** Raw commit declarations retain YAML comments even when summary replaces the report. */
+	commitNotes?: string[];
 	evidence?: string;
 	handoff: Record<string, unknown>;
 	closedAt?: string;

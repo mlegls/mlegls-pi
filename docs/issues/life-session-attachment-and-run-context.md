@@ -4,7 +4,7 @@ assignee: "agent:technical"
 author: "session:01a1cd90-31ee-71eb-b6b4-d3031eb4ea79"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
-claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions/one-life-for-a-named-agent-across-simultaneous-sessions-refine-1"
+claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions"
 blocked-by:
   - "[[projects/mlegls-pi/issues/life-compacts-one-shared-tree]]"
   - "[[projects/mlegls-pi/issues/life-present-working-threads-and-holds]]"
@@ -24,3 +24,7 @@ Expose `hold`, `catch_up`, `zoom` and `date` only while attached. `catch_up()` r
 First use is two actual pi sessions on one temporary store and named life, with notes available beside it. Prepare a reproducible entry point and short usage guide for `/life`, the machine-wide name form, `PI_LIFE` and the tools. The drive should attach history, hold work, overlap runs, finish one and catch it up from the other, inspect an unfinished sibling, resume/fork, switch model, and detach. Force a long run with a small configured `tailBytes` to observe append-before-boundary and complete tool pairs. Show a child process does not inherit `PI_LIFE`; an explicitly named worker can attach. The Hermes import and Beelink trial remain their existing separate issues.
 
 Questions of intent go to `session:hermes-concept-strategy`, the owner named in the parent.
+
+## drive evidence
+
+[Independent first-use packet](../attachments/life-session-attachment-and-run-context/index.md) at b23e2014f46e42592eb10d2032c83fba5eec393d: shared CLI and bb sessions, unfinished sibling read, overlap/catch_up, newer zoom/date, notes, model-ID change, resume/fork and detach held at their observed surfaces. Long-run prefix summaries mixed prior work and incorrect repetition counts; see [[projects/mlegls-pi/issues/life-long-run-prefix-summary-mixes-earlier-work]]. Full outcomes and remaining unobserved gates are in the packet. Ticket remains open for review and integration.

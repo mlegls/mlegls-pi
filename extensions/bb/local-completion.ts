@@ -9,8 +9,8 @@ const RESTORE = "bb-notice-model";
 const REPLY = "Worker completion noted.";
 type Selection = { provider: string; id: string; thinking: ReturnType<ExtensionAPI["getThinkingLevel"]> };
 
-/** Drop only pairs certified by our local assistant, not notices guessed from titles
- * or ownership that may have disappeared since the run finished. Works on replay too. */
+/** Strip certified local replies and core completion inputs on replay.
+ * Progress and run notices remain in context even after their provenance disappears. */
 export function withoutCompletions(messages: AgentMessage[]): AgentMessage[] {
 	const drop = new Set<number>();
 	for (let i = 1; i < messages.length; i++) {
@@ -18,8 +18,8 @@ export function withoutCompletions(messages: AgentMessage[]): AgentMessage[] {
 		const input = messages[i - 1];
 		if (reply.role !== "assistant" || reply.provider !== PROVIDER || reply.model !== MODEL || input.role !== "user") continue;
 		const text = typeof input.content === "string" ? input.content : input.content.filter(c => c.type === "text").map(c => c.text).join("\n");
-		if (!text.startsWith("[bb system]\n\n@thread:")) continue;
-		drop.add(i - 1);
+		// Keep progress/run notices as context; only core completion inputs are discarded.
+		if (text.startsWith("[bb system]\n\n@thread:")) drop.add(i - 1);
 		drop.add(i);
 	}
 	return messages.filter((_, i) => !drop.has(i));
@@ -29,6 +29,7 @@ export function withoutCompletions(messages: AgentMessage[]): AgentMessage[] {
  * Until fixed, run a normal local turn: no network, no tools, zero usage.
  * Once fixed, replace this stand-in with handled; retain replay filtering. */
 export function localCompletions(pi: ExtensionAPI) {
+	let reply = REPLY;
 	pi.registerProvider(PROVIDER, {
 		api: "bb-local-completion",
 		apiKey: "local",
@@ -43,7 +44,7 @@ export function localCompletions(pi: ExtensionAPI) {
 			const aborted = options?.signal?.aborted;
 			const message: AssistantMessage = {
 				role: "assistant", api: model.api, provider: model.provider, model: model.id,
-				content: aborted ? [] : [{ type: "text", text: REPLY }],
+				content: aborted || !reply ? [] : [{ type: "text", text: reply }],
 				stopReason: aborted ? "aborted" : "stop",
 				...(aborted ? { errorMessage: "Aborted" } : {}),
 				timestamp: Date.now(),
@@ -53,9 +54,11 @@ export function localCompletions(pi: ExtensionAPI) {
 			if (aborted) stream.push({ type: "error", reason: "aborted", error: message });
 			else {
 				stream.push({ type: "start", partial: message });
-				stream.push({ type: "text_start", contentIndex: 0, partial: message });
-				stream.push({ type: "text_delta", contentIndex: 0, delta: REPLY, partial: message });
-				stream.push({ type: "text_end", contentIndex: 0, content: REPLY, partial: message });
+				if (reply) {
+					stream.push({ type: "text_start", contentIndex: 0, partial: message });
+					stream.push({ type: "text_delta", contentIndex: 0, delta: reply, partial: message });
+					stream.push({ type: "text_end", contentIndex: 0, content: reply, partial: message });
+				}
 				stream.push({ type: "done", reason: "stop", message });
 			}
 			stream.end();
@@ -69,6 +72,7 @@ export function localCompletions(pi: ExtensionAPI) {
 		if (event.streamingBehavior || !ctx.model || !await reconcilerCompletion(event.text, ctx.cwd)) return;
 		const model = ctx.modelRegistry.find(PROVIDER, MODEL);
 		if (!model) return;
+		reply = event.text.startsWith("[bb system]\n\n@thread:") ? REPLY : "";
 		previous = { provider: ctx.model.provider, id: ctx.model.id, thinking: pi.getThinkingLevel() };
 		// Recovery if the process exits before agent_end restores the selection.
 		pi.appendEntry(RESTORE, previous);

@@ -4,7 +4,7 @@ assignee: "agent:technical"
 author: "session:01a1cd90-31ee-71eb-b6b4-d3031eb4ea79"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
-claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions/one-life-for-a-named-agent-across-simultaneous-sessions-refine-1"
+claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions"
 ---
 goal: A named life keeps the messages it lived after their source sessions disappear. Concurrent sessions append whole runs in one permanent order; revisiting a branch never removes or repeats what was already remembered. This owns the durable log in [[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]] (names, log and kinds); attachment and context assembly are the later session ticket.
 
