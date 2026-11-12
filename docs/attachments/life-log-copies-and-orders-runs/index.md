@@ -1,5 +1,7 @@
 # Life log: implementation first use
 
+Independent verification at 730a9df0: [drive-6 encounter](drive-6.md). All first-use claims held; library-only, no screenshots.
+
 Tested implementation: 0a729449, based on 99f57444. Library-only, local SQLite; no account or credentials.
 
 Two gated Bun processes appended seven-message runs at positions 0–6 and 7–13; both repeats added nothing. A pi fork retained the seven inherited source refs and appended only its two new messages. The log still read all 16 messages after the source session directory was removed, including from a new process.
