@@ -1,5 +1,7 @@
 # Shared life compactor first use
 
+Independent driver: [predictions, observed outcomes and replayable checks](drive.md), run at `eb4b58df4082299f409ea67d9a975ec382fb6cde`. All seven controlled first-use predictions held.
+
 Tested revision: `42602a196a50e187354d5d8ec8e0067c67624fbb`.
 
 Two separate compactors shared one temporary records store. A made one controlled model call; B made none and picked up A's node while blocked in `idle()`. A fresh loader kept the first record after a duplicate was appended. A waiting compactor recovered when an abandoned lease expired, and a late local result left a sibling's committed node intact.
