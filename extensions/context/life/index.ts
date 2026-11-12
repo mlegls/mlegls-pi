@@ -15,14 +15,14 @@
 // zoom(id, n) and date(id) navigate it; the prompt is ./prompt.md. On Anthropic the view's last
 // whole 4-line block carries a cache mark (./cache.ts).
 //
-// Settings: memory.schemas.optmem { fanout (2), view { high 128000, low 64000 }, compactorView
+// Settings: memory.schemas.life { fanout (2), view { high 128000, low 64000 }, compactorView
 // { high 32000, low 16000 }, concurrency (8), retries (5), waitSeconds (30), tailBytes (128000),
-// model { provider, id, thinking } (default OM's), systemPrompt ("auto" | "turn" | "own"),
+// model { provider, id, thinking } (default the turn's), systemPrompt ("auto" | "turn" | "own"),
 // cut ("due" | "scored", ./tree.ts), scorer { provider, id } (default Jev) }.
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { sessionEntryToContextMessages, type ExtensionAPI, type ExtensionContext, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import type { BranchSession } from "../../../lib/records/branch.ts";
+import { entryRef, type BranchSession } from "../../../lib/records/branch.ts";
 import { readCursor, writeCursor } from "../../../lib/records/cursor.ts";
 import type { Renderer } from "../../../lib/records/render.ts";
 import { activeTools } from "../journal.ts";
@@ -30,6 +30,8 @@ import { isActive, type CompactionView, type Mechanism } from "../mechanism.ts";
 import { chatParts, markView } from "./cache.ts";
 import { Chat, settings, type Env, type Settings } from "./build.ts";
 import { PROMPT } from "./prompt.ts";
+import { messagesOf } from "./log.ts";
+import type { LifeLog } from "./contracts.ts";
 import { advance, children, emptyView, line, lines, nodeAt, PLACEHOLDER, type View } from "./tree.ts";
 
 const NAME = "optmem";
@@ -60,6 +62,8 @@ const isResult = (e: SessionEntry | undefined) => e?.type === "message" && e.mes
 export default function optmem(pi: ExtensionAPI): Mechanism {
 	let chat: Chat | undefined;
 	let run: Run | undefined;
+	let previousBranch: string[] = [];
+	let branchId = "";
 	let stop = new AbortController();
 	const sm = (ctx: ExtensionContext) => ctx.sessionManager as unknown as BranchSession;
 	const branchOf = (ctx: ExtensionContext) => ctx.sessionManager.getBranch() as SessionEntry[];
@@ -67,7 +71,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 	const env = (ctx: ExtensionContext): Env => {
 		const notify = ctx.hasUI ? ctx.ui.notify.bind(ctx.ui) : (m: string) => console.error(m); // print mode: stderr
 		return {
-			session: ctx.sessionManager.getSessionId(), sm: sm(ctx), model: ctx.model, modelRegistry: ctx.modelRegistry, signal: stop.signal,
+			session: ctx.sessionManager.getSessionId(), model: ctx.model, modelRegistry: ctx.modelRegistry, signal: stop.signal,
 			turn: () => ({ systemPrompt: ctx.getSystemPrompt(), tools: activeTools(pi) }),
 			notify: (m, level) => { try { notify?.(m, level); } catch {} },
 		};
@@ -77,8 +81,21 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 	const synced = (ctx: ExtensionContext): Chat | undefined => {
 		if (!isActive(NAME, ctx)) return undefined;
 		const cfg = settings(ctx.cwd);
-		if (!chat || chat.b !== cfg.fanout || chat.cfg.cut !== cfg.cut) chat = new Chat(cfg.fanout, cfg);
-		chat.sync(branchOf(ctx), env(ctx));
+		const branch = branchOf(ctx);
+		// Transitional branch adapter; attachment/run context replaces this with lifeLog(id).
+		// A branch rewrite gets a new namespace because its positions are not permanent.
+		if (!chat || chat.b !== cfg.fanout || chat.cfg.cut !== cfg.cut || previousBranch.some((id, k) => branch[k]?.id !== id)) {
+			chat?.dispose();
+			chat = new Chat(cfg.fanout, cfg);
+			branchId = "branch:" + ctx.sessionManager.getSessionId() + "/" + (branch.at(-1)?.id ?? "empty");
+		}
+		previousBranch = branch.map((e) => e.id);
+		const model = ctx.model ? ctx.model.provider + "/" + ctx.model.id : "";
+		const messages = messagesOf(branch, { model, selfThreads: [] }).map((m, pos) => ({
+			...m, pos, place: ctx.sessionManager.getSessionId(), source: entryRef(ctx.sessionManager.getSessionId(), m.entry) + "#" + m.k,
+		}));
+		const log: LifeLog = { id: branchId, read: () => messages, append: () => { throw new Error("branch adapter is read-only"); } };
+		chat.sync(log, env(ctx));
 		return chat;
 	};
 
@@ -94,12 +111,12 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 
 	const viewMessage = (ls: string[]): AgentMessage => ({ role: "user", content: chatParts(ls), timestamp: 0 } as AgentMessage);
 	/** How many messages come from branch entries before index k. */
-	const before = (c: Chat, k: number) => { let lo = 0, hi = c.T; while (lo < hi) { const mid = (lo + hi) >> 1; if (c.msgs[mid]!.at < k) lo = mid + 1; else hi = mid; } return lo; };
+	const before = (branch: SessionEntry[], k: number) => messagesOf(branch).filter((m) => m.at < k).length;
 	const at = (ctx: ExtensionContext, c: Chat, cfg: Settings, T: number) => { const ls = viewAt(ctx, c, cfg, T); return { T, lines: ls, view: viewMessage(ls) }; };
 
 	pi.on("session_start", (_e, ctx) => {
 		if (stop.signal.aborted) stop = new AbortController();
-		chat = undefined; run = undefined;
+		chat?.dispose(); chat = undefined; run = undefined;
 		const c = synced(ctx);
 		if (c && c.pending() > 32) ctx.ui.notify("optmem: summarizing " + c.pending() + " messages of history in the background", "info");
 	});
@@ -127,7 +144,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 			if (typeof p === "string") throw new Error(p);
 			if (p[0] === 0) {
 				const m = c.msgs[params.id]!;
-				return { content: [{ type: "text", text: params.id + " " + m.kind + " " + m.date + "\n" + m.text }], details: { id: params.id, entry: m.entry } };
+				return { content: [{ type: "text", text: params.id + " " + m.kind + " " + m.date + "\n" + m.text }], details: { id: params.id, source: m.source } };
 			}
 			const out = children(c.b, p).map((q) => line(c.b, q, c.resolve(q) ?? PLACEHOLDER)).join("\n");
 			return { content: [{ type: "text", text: out }], details: { id: params.id, n: params.n } };
@@ -163,7 +180,7 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 			const branch = branchOf(ctx);
 			const start = runStart(branch);
 			if (!run || run.startId !== branch[start]?.id || run.start !== start) {
-				const T = before(c, start);
+				const T = before(branch, start);
 				await c.idle(T, cfg.waitSeconds * 1000);
 				run = { start, startId: branch[start]?.id ?? "", boundary: start, ...at(ctx, c, cfg, T) };
 			}
@@ -173,9 +190,9 @@ export default function optmem(pi: ExtensionAPI): Mechanism {
 				// the newest boundary with every message before it summarized, and no tool result right after it
 				const F = c.summarized();
 				let k = branch.length - 1;
-				for (; k > run.boundary; k--) if (!isResult(branch[k]) && before(c, k) <= F) break;
-				if (k > run.boundary && before(c, k) > run.T) {
-					run = { ...run, boundary: k, ...at(ctx, c, cfg, before(c, k)) };
+				for (; k > run.boundary; k--) if (!isResult(branch[k]) && before(branch, k) <= F) break;
+				if (k > run.boundary && before(branch, k) > run.T) {
+					run = { ...run, boundary: k, ...at(ctx, c, cfg, before(branch, k)) };
 					tail = raw(k);
 				}
 			}

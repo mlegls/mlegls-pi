@@ -5,11 +5,11 @@ import { join } from "node:path";
 import { chatParts, markView } from "./cache.ts";
 import { Chat, settings } from "./build.ts";
 import { runStart } from "./index.ts";
+import { lifeLog, lifeMessages } from "./log.ts";
 
-beforeAll(() => { process.env.PI_BOARD_DIR = mkdtempSync(join(tmpdir(), "optmem-")); });
+beforeAll(() => { process.env.PI_BOARD_DIR = mkdtempSync(join(tmpdir(), "life-build-")); });
 
 const entry = (id: string, message: any) => ({ type: "message", id, parentId: null, timestamp: "2026-10-08T00:00:00Z", message }) as any;
-const sm = (branch: any[]) => ({ getSessionId: () => "s1", getLeafId: () => branch.at(-1)?.id ?? null, getBranch: () => branch });
 const off = () => { const a = new AbortController(); a.abort(); return a.signal; };
 
 test("short messages are their own nodes and short siblings join without a call; long ones wait for the compactor", () => {
@@ -19,9 +19,11 @@ test("short messages are their own nodes and short siblings join without a call;
 		entry("c", { role: "user", content: "x".repeat(2000) }),
 	];
 	const c = new Chat(2, settings(tmpdir()));
-	c.sync(branch, { session: "s1", sm: sm(branch), model: undefined, modelRegistry: {}, signal: off(), turn: () => ({ systemPrompt: "", tools: [] }) });
-	expect(c.resolve([0, 0])).toBe("user: hi");
-	expect(c.resolve([1, 0])).toBe("user: hi\nagent: hello");
+	const log = lifeLog("/short-messages");
+	log.append(lifeMessages(branch, { session: "s1", place: "thread-one", model: "test/model", selfThreads: [] }));
+	c.sync(log, { session: "s1", model: undefined, modelRegistry: {}, signal: off(), turn: () => ({ systemPrompt: "", tools: [] }) });
+	expect(c.resolve([0, 0])).toBe("user@thread-one: hi");
+	expect(c.resolve([1, 0])).toBe("user@thread-one: hi\nagent@thread-one: hello");
 	expect(c.resolve([0, 2])).toBeUndefined();
 	expect(c.pending()).toBe(1);
 	expect(c.summarized()).toBe(2);
@@ -55,7 +57,7 @@ test("the view goes in 4-line blocks; the Anthropic mark sits on the last whole 
 
 test("scored: a reply's overlays are cut out of its line, named lines before it only", () => {
 	const c: any = new Chat(2, { ...settings(tmpdir()), cut: "scored" });
-	c.msgs = Array.from({ length: 10 }, (_, k) => ({ kind: "user", text: "m" + k, entry: "e" + k, k: 0, date: "", at: k }));
+	c.msgs = Array.from({ length: 10 }, (_, k) => ({ kind: "user", text: "m" + k, pos: k, place: "thread-one", source: "entry:s1/e" + k + "#0", model: "test/model", date: "" }));
 	const got = c.parse("user: did X. obsoletes: 0+1 2+2\nduplicates: 4+1, 9+1", 6);
 	expect(got.text).toBe("user: did X.");
 	expect(got.overlays).toEqual([[c.key([0, 0]), "obsoletes"], [c.key([1, 1]), "obsoletes"], [c.key([0, 4]), "duplicates"]]);

@@ -1,9 +1,6 @@
-// optmem's compactor (gist §4): builds each tree node once, in the background, on a cheap model,
-// and records it. A node is a record of schema "optmem" (body: its line), tagged with its key and
-// anchored (`at`) to its last message's entry, so it is visible exactly on branches holding
-// that message; `summarizes` edges name what it was made from. Its key is that entry, the
-// message's place in it, the level and (for merges) the fanout: on a tree path an entry's
-// ancestors never change, so the key fixes the content, and forks share nodes.
+// A life's shared compactor: permanent positions key nodes by life, fanout, level and index.
+// life.node records keep the writing model; the first committed record for a key wins.
+// life.lease records elect one builder for ten minutes, and polling picks up sibling builds.
 //
 // A source that fits in NODE_BYTES is its own node with no call and no record (a short message
 // word for word, or short lines joined by newlines). Otherwise a call compresses one message, or
@@ -22,22 +19,24 @@
 // (./score.ts; a loss record "scores" the merge), and overlays: a call may name earlier lines its
 // input obsoletes or repeats, recorded as obsoletes/duplicates edges from the node to them. A short
 // message needs no call of its own, so its overlays wait for the first merge over it that does.
-import { getAgentDir, type SessionEntry } from "@earendil-works/pi-coding-agent";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { chainRecords, entryRef, visible, type BranchSession } from "../../../lib/records/branch.ts";
-import { write } from "../../../lib/records/store.ts";
+import { edgesOf, fieldsOf, fieldTags, immediate, select, version, write } from "../../../lib/records/store.ts";
+import type { LifeLog, LifeMessage } from "./contracts.ts";
 import { DEFAULTS } from "../om/config.ts";
 import { Runtime } from "../om/runtime.ts";
 import { resolveWorkerStreamSimple } from "../om/agents/worker-stream.ts";
 import { chatParts, markView } from "./cache.ts";
-import { messagesOf, msgKey, source, type Msg } from "./log.ts";
+import { source } from "./log.ts";
 import { COMPACTOR_PROMPT } from "./prompt.ts";
 import { lossOf } from "./score.ts";
 import { advance, bytes, children, emptyView, line, NODE_BYTES, nodeAt, nodesAt, parent, PLACEHOLDER, span, type Cut, type Pair, type Texts, type View } from "./tree.ts";
 
-export const SCHEMA = "optmem";
-const VERSION = "v1";
+export const SCHEMA = "life.node";
+const LEASE = "life.lease";
+const LEASE_MS = 10 * 60_000;
+const POLL_MS = 250;
 
 export interface Settings {
 	enabled: boolean;
@@ -60,13 +59,13 @@ export interface Settings {
 }
 
 export function settings(cwd: string): Settings {
-	let j: Record<string, any> = {}, om: Record<string, any> = {};
+	let j: Record<string, any> = {};
 	for (const path of [join(getAgentDir(), "settings.json"), join(cwd, ".pi", "settings.json")]) {
 		if (!existsSync(path)) continue;
-		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.optmem }; om = { ...om, ...s?.om }; } catch {}
+		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.life }; } catch {}
 	}
 	return {
-		enabled: true, fanout: 2, cut: "due", concurrency: 8, retries: 5, waitSeconds: 30, tailBytes: 128_000, systemPrompt: "auto", model: om.model, ...j,
+		enabled: true, fanout: 2, cut: "due", concurrency: 8, retries: 5, waitSeconds: 30, tailBytes: 128_000, systemPrompt: "auto", ...j,
 		view: { high: 128_000, low: 64_000, ...j.view }, compactorView: { high: 32_000, low: 16_000, ...j.compactorView },
 	};
 }
@@ -74,7 +73,6 @@ export function settings(cwd: string): Settings {
 /** What background calls need from the session, captured while its ctx is live. */
 export interface Env {
 	session: string;
-	sm: BranchSession;
 	model: unknown;
 	modelRegistry: any;
 	signal: AbortSignal;
@@ -102,7 +100,14 @@ const STUB: Record<Rel, (by: string) => string> = { obsoletes: (by) => "(obsolet
 const oxford = (xs: string[]) => xs.length <= 2 ? xs.join(" and ") : xs.slice(0, -1).join(", ") + " and " + xs.at(-1);
 
 export class Chat {
-	msgs: (Msg & { at: number })[] = [];
+	msgs: LifeMessage[] = [];
+	private log?: LifeLog;
+	private loaded = 0;
+	private revision = "";
+	private poll?: ReturnType<typeof setInterval>;
+	private unlisten?: () => void;
+	private leases = new Map<string, { id: string; ts: string }>();
+	private waiting = new Map<string, { p: Pair; until: number }>();
 	private stored = new Map<string, string>();
 	private resolved = new Map<string, string>();
 	private queue: Pair[] = [];
@@ -131,9 +136,7 @@ export class Chat {
 	get T() { return this.msgs.length; }
 
 	key(p: Pair): string {
-		const [s, n] = span(this.b, p);
-		const last = this.msgs[s + n - 1]!;
-		return VERSION + ":" + msgKey(last) + ":" + p[0] + (p[0] ? ":" + this.b : "");
+		return JSON.stringify([this.log?.id, this.b, ...p]);
 	}
 
 	/** A node's text if built (or needing no call), else undefined. */
@@ -143,7 +146,8 @@ export class Chat {
 		const k = this.key(p);
 		const hit = this.resolved.get(k);
 		if (hit !== undefined) return hit;
-		let out: string | undefined;
+		let out = this.stored.get(k);
+		if (out !== undefined) { this.resolved.set(k, out); return out; }
 		if (p[0] === 0) {
 			const src = source(this.msgs[s]!);
 			out = bytes(src) <= NODE_BYTES ? src : this.stored.get(k);
@@ -173,35 +177,117 @@ export class Chat {
 
 	readonly texts: Texts;
 
-	/** Read the branch: load its recorded nodes when the path changed, then queue what its new messages need. */
-	sync(branch: readonly SessionEntry[], env: Env) {
-		this.env = env;
-		const old = this.msgs;
-		const next = messagesOf(branch);
-		const same = old.length <= next.length && old.every((m, k) => msgKey(m) === msgKey(next[k]!));
-		this.msgs = next;
-		const retry = this.failedRetry;
-		this.failed.clear(); this.failedRetry = [];
-		if (!same || !old.length) {
+	/** Read the permanent log and start watching for other writers, even before idle(). */
+	sync(log: LifeLog, env: Env) {
+		if (this.log?.id !== log.id) {
+			this.stopPolling();
 			this.gen++;
+			this.msgs = []; this.loaded = 0; this.revision = "";
 			this.stored.clear(); this.resolved.clear(); this.queue = []; this.queued.clear(); this.frontier = 0; this.cview = emptyView(this.b);
 			this.losses.clear(); this.overlays.clear(); this.scoreQueue = []; this.scoreQueued.clear();
-			for (const r of visible(env.sm, chainRecords(env.sm, SCHEMA), branch as unknown as { id: string }[])) {
-				const tag = (key: string) => r.record.tags.find((t) => t.key === key)?.value;
-				const k = tag("optmem.key"), scores = tag("optmem.scores"), l = tag("optmem.l"), i = tag("optmem.i");
-				if (typeof scores === "string") { this.losses.set(scores, Number(tag("optmem.loss"))); continue; }
-				if (typeof k === "string") this.stored.set(k, r.record.body);
-				for (const e of r.edges) if ((e.rel === "obsoletes" || e.rel === "duplicates") && typeof l === "number" && typeof i === "number")
-					this.overlays.set(e.dst.slice(SCHEMA.length + 1), { rel: e.rel, by: [l, i] });
-			}
+			this.leases.clear(); this.waiting.clear(); this.failedRetry = [];
 		}
-		else for (const p of retry) this.settle(p);
-		for (let j = same && old.length ? old.length : 0; j < this.T; j++) this.settle([0, j]);
+		if (this.env?.signal !== env.signal || !this.unlisten) {
+			this.stopPolling();
+			const stop = () => this.stopPolling();
+			env.signal.addEventListener("abort", stop, { once: true });
+			this.unlisten = () => env.signal.removeEventListener("abort", stop);
+		}
+		this.log = log;
+		this.env = env;
+		const retry = this.failedRetry;
+		this.failed.clear(); this.failedRetry = [];
+		this.refresh(true);
+		for (const p of retry) this.settle(p);
 		this.pump();
+		if (!this.poll && !env.signal.aborted) {
+			this.poll = setInterval(() => this.refresh(), POLL_MS);
+			this.poll.unref();
+		}
 	}
 	private failedRetry: Pair[] = [];
-	/** Bumped when the path changes: builds started before land nowhere. */
+	/** A different life invalidates local calls, but never the shared records. */
 	private gen = 0;
+
+	private stopPolling() {
+		clearInterval(this.poll); this.poll = undefined;
+		this.unlisten?.(); this.unlisten = undefined;
+		for (const w of this.waiters.splice(0)) w.done();
+	}
+
+	/** Stop watching a discarded chat. The caller's signal cancels its model requests. */
+	dispose() {
+		this.gen++; this.stopPolling(); this.env = undefined;
+		this.queue = []; this.queued.clear(); this.waiting.clear(); this.scoreQueue = [];
+	}
+
+	private records(schema: string, after = 0) {
+		return select(schema, { after, where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)", params: [this.log!.id] });
+	}
+
+	private recorded(field: "key" | "scores", key: string) {
+		return select(SCHEMA, { where: "r.seq IN (SELECT record FROM tags WHERE key = ? AND value = ?)", params: ["life." + field, key] }).length > 0;
+	}
+
+	private refresh(force = false) {
+		if (!this.log) return;
+		const revision = version();
+		if (force || revision !== this.revision) {
+			this.revision = revision;
+			const old = this.T;
+			this.msgs = this.log.read();
+			const records = this.records(SCHEMA, this.loaded);
+			const edges = edgesOf(records.map((r) => r.seq));
+			const arrived: Pair[] = [];
+			for (const r of records) {
+				this.loaded = r.seq;
+				const f = fieldsOf("life", r.tags);
+				if (typeof f.scores === "string") {
+					if (!this.losses.has(f.scores)) this.losses.set(f.scores, Number(f.loss));
+					continue;
+				}
+				if (typeof f.key !== "string" || typeof f.l !== "number" || typeof f.i !== "number" || f.b !== this.b || this.stored.has(f.key)) continue;
+				this.stored.set(f.key, r.body);
+				this.resolved.delete(f.key);
+				this.waiting.delete(f.key);
+				const p: Pair = [f.l, f.i];
+				for (const e of edges) if (e.record === r.seq && (e.rel === "obsoletes" || e.rel === "duplicates"))
+					this.overlays.set(e.dst.slice(SCHEMA.length + 1), { rel: e.rel, by: p });
+				arrived.push(p);
+			}
+			for (let j = old; j < this.T; j++) this.settle([0, j]);
+			for (const p of arrived) if (span(this.b, p).reduce((a, n) => a + n) <= this.T) this.settle(p);
+		}
+		for (const [k, w] of this.waiting) if (Date.now() >= w.until) {
+			this.waiting.delete(k);
+			this.enqueue(w.p);
+		}
+		this.waiters = this.waiters.filter((w) => { if (this.ready(w.upTo)) { w.done(); return false; } return true; });
+		this.pump();
+	}
+
+	private tags(p: Pair) {
+		return { id: this.log!.id, key: this.key(p), b: this.b, l: p[0], i: p[1] };
+	}
+
+	/** SQLite orders leases. Keep our losing lease so it can succeed when an older one expires. */
+	private claim(p: Pair): boolean {
+		const k = this.key(p), now = Date.now();
+		return immediate(() => {
+			let ours = this.leases.get(k);
+			if (!ours || Date.parse(ours.ts) + LEASE_MS <= now) {
+				ours = write({ schema: LEASE, tags: fieldTags("life", this.tags(p)) });
+				this.leases.set(k, ours);
+			}
+			const first = select(LEASE, {
+				where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.key' AND value = ?) AND r.ts > ?",
+				params: [k, new Date(now - LEASE_MS).toISOString()],
+			})[0]!;
+			if (first.id === ours.id) return true;
+			this.waiting.set(k, { p, until: Date.parse(first.ts) + LEASE_MS });
+			return false;
+		});
+	}
 
 	/** A node became available (or arrived): queue it if unbuilt, else see whether its parent is ready. */
 	private settle(p: Pair) {
@@ -217,7 +303,7 @@ export class Chat {
 
 	private enqueue(p: Pair) {
 		const k = this.key(p);
-		if (this.queued.has(k) || this.failed.has(k)) return;
+		if (this.queued.has(k) || this.failed.has(k) || this.waiting.has(k)) return;
 		this.queued.add(k);
 		this.queue.push(p);
 	}
@@ -237,15 +323,17 @@ export class Chat {
 			const parts = children(this.b, p).map((c) => line(this.b, c, this.resolve(c)!)), merged = line(this.b, p, this.resolve(p)!);
 			this.scoring++;
 			lossOf(env.modelRegistry, parts, merged, env.signal, this.cfg.scorer).then((loss) => {
-				const last = this.msgs[span(this.b, p).reduce((a, x) => a + x) - 1]!;
-				write({
-					schema: SCHEMA, body: "loss " + loss.toFixed(3),
-					tags: [{ key: "session", value: env.session }, { key: "optmem.scores", value: k }, { key: "optmem.loss", value: loss }],
-					edges: [{ rel: "at", dst: entryRef(env.session, last.entry) }, { rel: "scores", dst: SCHEMA + ":" + k }],
+				if (gen !== this.gen || env.signal.aborted) return;
+				immediate(() => {
+					if (this.recorded("scores", k)) return;
+					write({ schema: SCHEMA, body: "loss " + loss.toFixed(3),
+						tags: fieldTags("life", { id: this.log!.id, scores: k, loss }),
+						edges: [{ rel: "scores", dst: SCHEMA + ":" + k }],
+					});
 				});
-				if (gen === this.gen) this.losses.set(k, loss);
+				this.refresh(true);
 			}).catch((e) => {
-				if (!env.signal.aborted) env.notify?.("optmem: scoring failed: " + (e instanceof Error ? e.message : String(e)), "warning");
+				if (!env.signal.aborted) env.notify?.("life: scoring failed: " + (e instanceof Error ? e.message : String(e)), "warning");
 			}).finally(() => { this.scoring--; this.pumpScores(); });
 		}
 	}
@@ -261,33 +349,44 @@ export class Chat {
 
 	/** Resolves once every message before upTo is summarized, or after ms. */
 	idle(upTo: number, ms: number): Promise<void> {
-		if (this.ready(upTo)) return Promise.resolve();
+		this.refresh();
+		if (this.ready(upTo) || this.env?.signal.aborted) return Promise.resolve();
 		return new Promise((done) => {
-			const w = { upTo, done };
+			const w = { upTo, done: () => { clearTimeout(timer); done(); } };
+			const timer = setTimeout(() => { this.waiters = this.waiters.filter((x) => x !== w); done(); }, ms);
 			this.waiters.push(w);
-			setTimeout(() => { this.waiters = this.waiters.filter((x) => x !== w); done(); }, ms);
 		});
 	}
 
-	pending() { return this.queue.length + this.running; }
+	pending() { return this.queue.length + this.running + this.waiting.size; }
 
 	private pump() {
 		while (this.running < this.cfg.concurrency && this.queue.length && this.env && !this.env.signal.aborted) {
 			const p = this.queue.shift()!;
 			const env = this.env, gen = this.gen, k = this.key(p);
+			if (this.resolve(p) !== undefined) { this.queued.delete(k); this.settle(p); continue; }
+			if (!this.claim(p)) { this.queued.delete(k); continue; }
 			this.running++;
-			this.build(p, env).then(({ text, overlays }) => {
-				if (gen !== this.gen) return; // the path changed; the record is there for whoever returns
-				this.stored.set(k, text);
-				for (const [target, rel] of overlays) this.overlays.set(target, { rel, by: p });
-				this.settle(p);
-				this.waiters = this.waiters.filter((w) => { if (this.ready(w.upTo)) { w.done(); return false; } return true; });
+			this.build(p, env, gen).then((got) => {
+				if (gen !== this.gen || env.signal.aborted) return;
+				if (got) immediate(() => {
+					// A lease can expire during a call. A sibling's committed result always wins.
+					if (this.recorded("key", k)) return;
+					const [s] = span(this.b, p);
+					const summarizes = p[0] === 0 ? [this.msgs[s]!.source] : children(this.b, p).map((c) => SCHEMA + ":" + this.key(c));
+					write({ schema: SCHEMA, body: got.text,
+						tags: fieldTags("life", { ...this.tags(p), model: got.model }),
+						edges: [...summarizes.map((dst) => ({ rel: "summarizes", dst })),
+							...got.overlays.map(([target, rel]) => ({ rel, dst: SCHEMA + ":" + target }))],
+					});
+				});
+				this.refresh(true);
 			}).catch((e) => {
 				if (env.signal.aborted) return;
 				if (gen !== this.gen) return;
 				this.failed.add(k);
 				this.failedRetry.push(p);
-				env.notify?.("optmem: compaction failed: " + (e instanceof Error ? e.message : String(e)), "warning");
+				env.notify?.("life: compaction failed: " + (e instanceof Error ? e.message : String(e)), "warning");
 			}).finally(() => {
 				if (gen === this.gen) this.queued.delete(k);
 				this.running--;
@@ -320,7 +419,7 @@ export class Chat {
 		const [s, n] = span(this.b, p);
 		if (p[0] === 0) {
 			const m = this.msgs[s]!;
-			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\n<input>\n" + m.kind + ": " + m.text + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE("this message") : "");
+			return "Compaction: compress message " + s + " into one line of at most " + NODE_BYTES + "\nbytes (about 70 words), the length of this ruler:\n" + RULER + "\n<input>\n" + source(m) + "\n</input>" + (this.cfg.cut === "scored" ? OVERLAY_NOTE("this message") : "");
 		}
 		const kids = children(this.b, p);
 		const names = kids.map((c) => { const [cs, cn] = span(this.b, c); return cs + "+" + cn; });
@@ -344,13 +443,14 @@ export class Chat {
 		return { text: text.trim(), overlays };
 	}
 
-	private async build(p: Pair, env: Env): Promise<{ text: string; overlays: [string, Rel][] }> {
+	private async build(p: Pair, env: Env, gen: number): Promise<{ text: string; overlays: [string, Rel][]; model: string } | undefined> {
 		const [s, n] = span(this.b, p);
 		const rt = new Runtime();
 		rt.config = { ...DEFAULTS, model: this.cfg.model as any };
 		rt.configLoaded = true;
 		const r = await rt.resolveModel({ model: env.model, modelRegistry: env.modelRegistry, hasUI: false });
 		if (!r.ok) throw new Error(r.reason);
+		if (gen !== this.gen || env.signal.aborted) return;
 		const model = r.model as any, turnModel = env.model as any;
 		const same = model?.provider === turnModel?.provider && model?.id === turnModel?.id;
 		const useTurn = this.cfg.systemPrompt === "turn" || (this.cfg.systemPrompt === "auto" && same);
@@ -359,9 +459,13 @@ export class Chat {
 		const stream = resolveWorkerStreamSimple(model, env.modelRegistry);
 		let best: { text: string; overlays: [string, Rel][] } | undefined;
 		for (let attempt = 0; attempt < this.cfg.retries; attempt++) {
+			env.signal.throwIfAborted();
+			if (gen !== this.gen) return;
+			this.refresh();
+			if (this.stored.has(this.key(p)) || !this.claim(p)) return;
 			const msg: any = await stream(model, { systemPrompt: sys.systemPrompt, messages, tools: sys.tools as any }, {
 				// sse: a cached websocket per sessionId would outlive the session (and keep pi -p from exiting)
-				apiKey: r.apiKey, headers: r.headers, signal: env.signal, sessionId: "optmem-" + env.session, transport: "sse",
+				apiKey: r.apiKey, headers: r.headers, signal: env.signal, sessionId: "life-" + env.session, transport: "sse",
 				reasoning: (this.cfg.model?.thinking ?? "medium") as any, maxTokens: 4000, onPayload: (payload: unknown) => markView(payload),
 			} as any).result();
 			if (msg.stopReason === "error" || msg.stopReason === "aborted") throw new Error(msg.errorMessage ?? msg.stopReason);
@@ -373,15 +477,6 @@ export class Chat {
 			if (bytes(text) <= NODE_BYTES) break;
 			messages.push(msg, { role: "user", content: [{ type: "text", text: RETRIES_NOTE(bytes(text), headBytes(text, NODE_BYTES)) }], timestamp: Date.now() });
 		}
-		const last = this.msgs[s + n - 1]!;
-		const summarizes = p[0] === 0 ? [entryRef(env.session, last.entry)] : children(this.b, p).map((c) => SCHEMA + ":" + this.key(c));
-		write({
-			schema: SCHEMA, body: best!.text,
-			tags: [{ key: "session", value: env.session }, { key: "optmem.key", value: this.key(p) }, { key: "optmem.l", value: p[0] }, { key: "optmem.i", value: p[1] },
-				{ key: "optmem.b", value: this.b }, { key: "optmem.model", value: model.provider + "/" + model.id }],
-			edges: [{ rel: "at", dst: entryRef(env.session, last.entry) }, ...summarizes.map((dst) => ({ rel: "summarizes", dst })),
-				...best!.overlays.map(([target, rel]) => ({ rel, dst: SCHEMA + ":" + target }))],
-		});
-		return best!;
+		return { ...best!, model: model.provider + "/" + model.id };
 	}
 }
