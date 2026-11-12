@@ -5,8 +5,6 @@ priority: 2
 author: "session:01a1ce05-15a3-7191-b6d9-27abd097297f"
 part-of: "[[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life]]"
 claimed-by: "reconcile:a-name-is-an-agent-with-its-soul-skills-and-life"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/named-agent-runtime]]"
 ---
 goal: someone can try the named-agent story in two terminal sessions and a BB thread from an isolated fixture registry, beside the life's existing first-use entry point. This is the fixture first use in [[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life#shape]].
 
