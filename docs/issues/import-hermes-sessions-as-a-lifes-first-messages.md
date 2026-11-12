@@ -2,8 +2,6 @@
 stage: "spec"
 assignee: "agent"
 author: "session:hermes-concept-strategy-2026-11-11"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
 priority: 2
 ---
 idea: asked whether a Concept agent's "Hermes Bot Chat history becomes the life's first messages, or it starts empty with its soul and skills", the maintainer answered "import" (2026-11-11, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`). Earlier in that session: "i think the 4 concept agents especially value continuity".

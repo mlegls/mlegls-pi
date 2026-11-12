@@ -3,7 +3,6 @@ stage: "goal"
 assignee: "session:hermes-concept-strategy"
 author: "session:hermes-concept-strategy-2026-11-11"
 blocked-by:
-  - "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
   - "[[projects/mlegls-pi/issues/import-hermes-sessions-as-a-lifes-first-messages]]"
   - "[[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life]]"
 ---
