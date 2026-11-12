@@ -7,11 +7,12 @@ prompts for pi, Claude Code and Codex.
 
 **pi package** (entrypoints listed explicitly in `package.json` under `pi`):
 
+- `extensions/agents`: named agents with a soul, private skills and a machine-wide life; see [Named agents](#named-agents).
 - `extensions/system-prompt`: the short system prompt.
 - `extensions/fragment`: `read`/`grep`/`edit` over pi's built-ins, with outlines for large files and edits addressed by quoting. `extensions/hashline` is the anchor-addressed alternative; enable one of the two.
 - `extensions/workspace`: move a session to another workspace.
 - `extensions/bb`: pi's session commands and notices when bb runs pi in RPC mode.
-- `extensions/context`: observational memory (`om/`, vendored from pi-observational-memory), journal, recall and context policy.
+- `extensions/context`: shared lives and notes, observational memory (`om/`, vendored from pi-observational-memory), journal, recall and context policy.
 - `extensions/stances`: `stance/<agent>` virtual models, routed by each agent's model list and `allocation.json`.
 - `extensions/supervision`: the `dispatch`, `integrate`, `retire` tools and `/jump`.
 - `extensions/guard`: refuses host-wide pattern kills and git-hook bypasses.
@@ -92,6 +93,20 @@ See [Host doctor](docs/guide/host-doctor.md).
 - `bun test <file>`: one file.
 - `bun run typecheck`: `tsc --noEmit`.
 - Tracker CLI tests: `bun test --cwd skills/enabled/all/mlegls/conventions/tracker/scripts`.
+
+## Named agents
+
+`agents` in `~/.pi/agent/settings.json` (or the project's `.pi/settings.json`) lists registry directories,
+for example `"agents": ["~/dev/mmon/concept/agents"]`. Each `<registry>/<name>/SOUL.md` has
+`description` and `model` frontmatter and the soul as its body; private skills live in
+`<registry>/<name>/skills/<skill>/SKILL.md`. The first registry directory to name an agent wins.
+Keep these files in the repository the agent belongs to, independently of where its sessions work.
+
+Start with `pi --model agent/<name>`, or select `agent/<name>` in BB or an automation. Being the agent
+is attachment to `/life /<name>`: changing model keeps it, and `/life off` ends it. Selecting the
+agent model after a session has messages only suggests attaching with `/life /<name>`.
+The soul and skills are read each run; model-list changes need `/reload`.
+See the [two-session and BB first-use guide](extensions/context/life/README.md#named-agent-first-use).
 
 ## Agent model lists
 
