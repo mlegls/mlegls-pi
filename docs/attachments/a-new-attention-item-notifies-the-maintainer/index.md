@@ -39,3 +39,12 @@ The watching maintainer reported exactly two notifications arrived: the new/chan
 Do not repeat the three-add trial. After repair, one notification suffices to re-check click-through. Identify the actual delivering channel and verify its click action opens `thr_caanfj9khu` (or the live owner of that repair trial). The reviewer/implementer must own the repair; this driver changed no product code.
 
 No browser, server or external deployment was started. The fixture was removed. No product source, tests or diffs were read.
+
+## Review (a-new-attention-item-notifies-the-maintainer-review-3)
+
+Read the diff of `lib/desk.ts` against the ticket: the notification is sent after the desk write, only when the item is new or its body changed, titled `<main checkout name>: <title>`, with the first paragraph as body and `--thread <owner>`; a plugin failure or empty `channels` is one stderr line and exit 0. No defects found.
+
+Click-through. The call is correct: `bb push-notifications send --thread` resolves the thread and publishes `threadId` to web and desktop clients, and `{projectId, threadId}` in the Expo data to mobile, through the same `deliver` path bb's own thread notifications use (plugin bundle in `app-versions/0.48.1/.../push-notifications/dist/server.js`). The client (`dist/app.js`) shows a `Notification` tagged `bb-<threadId>` whose `onclick` focuses the window and calls `navigation.toThread(threadId)`. So nothing in this repository can change what the macOS click does; the Notification Center click never reached that handler or the notification was already closed. I can't drive the maintainer's Mac from here, and a second `send` would ping the maintainer again, so no repair was attempted or re-driven. Filed [[projects/mlegls-pi/issues/bb-notification-click-in-macos-notification-center-does-not-open-its-thread]] with the checks that discriminate (banner vs Notification Center entry; bb's own turn-finished notification vs this one).
+
+Outcomes: delivery and dedupe held; guide held; click-through to the owning thread **not held**, owner is bb.
+
