@@ -25,3 +25,18 @@ Removed both titles using this checkout's helper from the disposable checkout. W
 Run prepare.sh; expect two unanswered disposable requests. Click recommendation, select its question and Quote selection; expect the recommendation followed by a `> ` question, with the credential item's reply untouched. Fill only that item's password and click Send; expect one grouped owner message without the value, a matching dotenv assignment at mode 600, collapsed answered entries, and a badge decrease of two. Remove both titles through the helper; expect the project group to disappear without reload.
 
 English dark-theme desktop captures, 1280×720, live interactions. Selection was established programmatically; quote and send used real panel controls. Closed the owned desktop session/tab; started no server and changed no plugin installation. Parent-owned fixture remains with empty attention and the invented dotenv assignment; prepare.sh clears it on replay. No tests run or repairs made beyond the explicitly required merge resolution.
+
+## Review (2026-11-12)
+
+The maintainer's amendment (links in an item open where the Issues page opens them: an issue in the Issues page, a file in bb's file preview) was not in the plugin when driver 9 ran, and drive 9 didn't exercise it. Before the repair, an item's wikilinks and relative links rendered through bare `<Markdown>` and fell to bb's external opener.
+
+Repair, plugin commit `602606f` on branch `attention-panel` of `bb-plugins`: the Issues page's `linkify`, post-render file resolution and click routing moved to `tracker/doc-links.ts` (`useDocLinks`) and both pages use it. `resolveLinks` takes no `slug` when the base is the project's `desk/ATTENTION.md`; the project may be any bb project, with or without a vault. Issue wikilinks to a repository that has a tracker project open in the Issues panel for that project; any other wikilink is a file link.
+
+Re-drive on the signed-in desktop profile (plugin rebuilt and reloaded from the branch), disposable project, one item with `[[projects/mlegls-pi/issues/attention-inbox-in-the-bb-tracker]]`, `[[projects/mlegls-pi/stories/answer-what-agents-ask-of-me]]`, `[rel](../README.md)` and `[[projects/nonexistent/stories/nope]]`:
+
+- Issue link → URL became `/plugins/tracker/issues/proj_xzgxqiaesb/attention-inbox-in-the-bb-tracker`, ticket shown ([issue](review-links-issue.jpg)).
+- File link → bb's file preview opened `docs/stories/answer-what-agents-ask-of-me.md` beside the panel ([attention](review-links-attention.jpg), [preview](review-links-file-preview.jpg)).
+- The two dead links lost their `href` and carry the reason as title (`File does not exist: …/README.md`, `Unresolved file: …`), as on the Issues page.
+- Issues page after the refactor: its file link opened the preview and its issue links navigated, as before.
+
+Item removed afterwards with the helper; owned browser session closed. Replay: add an item whose body has the links above (`bin/desk attention add` in the disposable checkout), open Attention, click each.

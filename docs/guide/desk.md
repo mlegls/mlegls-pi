@@ -20,7 +20,7 @@ For credentials, pass `--secret NAME=DESCRIPTION` once per variable and `--write
 
 Open **Attention** on bb's navigation rail (`/plugins/tracker/attention`, provided by the tracker plugin). It lists the desk items across projects, including projects without a vault tracker; the badge counts unanswered items. Each owner chip opens its thread.
 
-Write a reply under each item. **Take the recommendation** fills its reply with the `Recommended:` line; it remains editable. Select a passage in the item, then **Quote selection** to insert it as `>` lines. Reply drafts persist until sent. Credential requests show a masked input for each variable, its description and the full destination path; credential values aren't saved as drafts.
+Write a reply under each item. **Take the recommendation** fills its reply with the `Recommended:` line; it remains editable. Wikilinks and relative links in an item open as on the Issues page: an issue in the Issues panel, a file in bb's file preview; relative links resolve from `desk/`. Select a passage in the item, then **Quote selection** to insert it as `>` lines. Reply drafts persist until sent. Credential requests show a masked input for each variable, its description and the full destination path; credential values aren't saved as drafts.
 
 **Send** sends all items with a reply or filled credential, grouped into one message per owner. Credentials go into their requested dotenv file; the owner receives only `Wrote NAME to PATH`. Answered items collapse with the sent text and leave the badge count. They remain in the desk until their owner runs `ab desk attention remove`; rewriting an item's body makes it unanswered again.
 
