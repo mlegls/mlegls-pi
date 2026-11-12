@@ -4,7 +4,7 @@ assignee: "agent:auto-routine"
 priority: 2
 author: "session:01a1ce05-15a3-7191-b6d9-27abd097297f"
 part-of: "[[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life]]"
-claimed-by: "reconcile:a-name-is-an-agent-with-its-soul-skills-and-life/a-name-is-an-agent-with-its-soul-skills-and-life-refine-1"
+claimed-by: "reconcile:a-name-is-an-agent-with-its-soul-skills-and-life"
 blocked-by:
   - "[[projects/mlegls-pi/issues/named-agent-runtime]]"
 ---
