@@ -1,6 +1,6 @@
 # Life session attachment: implementation first use
 
-Runtime revision: 3d726c47. Reproducible setup and guide: 6b1c9880,
+Runtime revision: 3d726c47; raw zoom provenance re-driven at 6866cfe3. Setup and guide:
 [scripts/life-playground.ts](../../../scripts/life-playground.ts) and
 [life/README.md](../../../extensions/context/life/README.md).
 This is the implementer's first-use log; independent driving follows.
@@ -43,7 +43,11 @@ retain the original view through several tool calls.
   records had strictly increasing upTo values. Those intermediate views were written before
   the runs' final appends. Tool calls completed without a provider call/result-pair error.
 - The note tool saved one project note while attached. /life off and /memory completed through
-  direct pi RPC.
+  direct pi RPC. The launcher now sets OM observe to active; the original never setting made
+  OM disabled, which was caught as a startup warning and removed from the setup. A fresh
+  unattached print run with the corrected configuration returned OM-SETUP-READY without that warning.
+- After the raw zoom output change, a real pi print run called zoom(0, 1) and returned source
+  entry:01a1cdbf-7858-7170-a8ab-35f703fe8698/88f18472#0 and model anthropic/claude-haiku-4-5.
 - Two actual BB Pi sessions attached using startup PI_LIFE. Their normal runs completed and
   subsequent actual hold calls wrote reading history and watching elsewhere. The shared present
   showed both titled threads open with those holds.
@@ -79,3 +83,8 @@ The independent driver should cover the full ticket journey, especially resume/f
 changes, explicit named delegation, newer-position zoom/date, summary waiting across processes
 and append-before-boundary with complete tool groups. The launcher and usage guide supply that
 starting surface. No browser or desktop surface was involved.
+
+All four disposable BB threads were stopped and archived, and the owned directory's saved
+trust was removed. Both terminal/RPC processes exited. No server or session process remains;
+the temporary fixture directories are retained as data only. Generate a new workspace from
+the checkout under test to avoid retaining an import path into a retired worktree.

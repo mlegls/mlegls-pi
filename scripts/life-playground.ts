@@ -28,7 +28,7 @@ export function prepare(startupLife = false) {
 		compaction: { enabled: false },
 		memory: {
 			systems: ["om", "elide", "notes"],
-			schemas: { om: { observe: "never" }, notes: { enabled: true },
+			schemas: { om: { observe: "active" }, notes: { enabled: true },
 				life: { tailBytes: 800, waitSeconds: 30, view: { high: 4000, low: 2000 } } },
 		},
 	}, null, 2));
