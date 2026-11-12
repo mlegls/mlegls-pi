@@ -1,6 +1,6 @@
 ---
-stage: "spec"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:hermes-concept-strategy-2026-11-11"
 priority: 2
 ---
@@ -12,7 +12,7 @@ The source is `~/.hermes/profiles/<name>/state.db` (SQLite, opened read-only): `
 
 ## shape
 
-`bun extensions/context/life/import-hermes.ts <profile> [--life /<name>] [--dry-run]` (life defaults to `/<profile>`, machine-wide, as the Concept agents' are). It writes the life's `life` message records directly, through the same append the life uses at a run's end, so the import has no pi session files and needs none: the log holds copies (the life's shape), and `zoom`, `date` and `recall` reach them as any other. `life.source` is `hermes:<profile>/<session id>/<message_uid>`, `life.place` is `Hermes <source>: <title>`. Nodes are built by the first manifestation, which already says "summarizing N messages of history in the background".
+`bun extensions/context/life/import-hermes.ts <profile> [--life /<name>] [--dry-run]` (life defaults to `/<profile>`, machine-wide, as the Concept agents' are). It writes the life's `life` message records directly, through the same append the life uses at a run's end, so the import has no pi session files and needs none: the log holds copies (the life's shape), and `zoom`, `date` and `recall` reach them as any other. `life.source` is `hermes:<profile>/<session id>/<message_uid>#<k>` (`k` is the stable zero-based component/page index within the original row, as for pi entries), `life.place` is `Hermes <source>: <title>`. Nodes are built by the first manifestation, which already says "summarizing N messages of history in the background".
 
 Which rows, from what the data showed (concept-strategy and concept-engineering, 2026-11-12):
 
@@ -24,6 +24,12 @@ Which rows, from what the data showed (concept-strategy and concept-engineering,
 - Runs: a session splits at each `user` row; runs from all sessions are appended in the order they ended (their last row's timestamp), as the life would have recorded them. The quizzes are in: they are its own answers, fourteen messages.
 
 Importing again appends only messages whose `life.source` isn't in the life yet, as runs at its end, so Hermes is then one more place the agent was. Into a life that already has pi messages it still appends at the end: positions never move. The trial ([[projects/mlegls-pi/issues/concept-engineering-runs-as-a-life-on-the-beelink]]) holds what Hermes's copy does meanwhile.
+
+## tasks
+
+Use [lifeLog(id).append](../../extensions/context/life/log.ts) for persistence and its `clip`/`pages` conventions for message conversion. The append deduplicates each component by its full source; a Hermes assistant row can yield text and several tool calls, so each needs its own stable `#k`.
+
+The existing [records store](../../lib/records/store.ts) supports an isolated destination with `PI_BOARD_DIR`, so the command can be driven against the real read-only Hermes profiles without importing into the actual life.
 
 decisions:
 - 2026-11-11: a Concept agent's Hermes past is imported (maintainer, quoted above).
