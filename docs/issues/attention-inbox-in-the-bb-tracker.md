@@ -1,6 +1,6 @@
 ---
-stage: "spec"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:01a1cdb9-2d1f-77a1-9159-fc3a2fecd605"
 priority: 2
 ---
@@ -29,3 +29,11 @@ First use: in a disposable project, an agent thread files one item with options 
 decisions:
 - 2026-11-12: a tracker panel, not a separate plugin; one inbox grouped by project; a reply box per item with `>` quotes for passages (maintainer, @thread:thr_ywttjvanqg).
 - 2026-11-12: the screen as mocked in @thread:thr_ywttjvanqg is approved ("nice, this looks good"), with secret inputs added: "for \"key expired\" i can just paste in the key" (maintainer).
+
+## tasks
+
+Implementation is partitioned into [[projects/mlegls-pi/issues/desk-attention-items-carry-secret-requests-and-recommendations]] and [[projects/mlegls-pi/issues/tracker-attention-panel-answers-project-desks]]. They can proceed independently against the item format above; the plugin child owns its backend/UI RPC interface together.
+
+After both children reach their target checkouts, carry out the combined first use above in a disposable bb project using the changed desk helper and built tracker plugin. Record the rendered panel, the single grouped owner message without the credential value, the dotenv assignment, answered badge changes and item removal. Update the [desk guide](../guide/desk.md) and [tracker README](../../../bb-plugins/tracker/README.md) with the verified entry points. The plugin child's handoff supplies its deployment and restore steps.
+
+The plugin child works in its own `bb-plugins` worktree from `main` and declares its foreign checkout and commits in the handoff. Supervisor @thread:thr_dfgkcug6jp owns merging those commits into `/home/mlegls/dev/bb-plugins` main when completion holds, then removing the foreign worktree; the unrelated modified `obsidian-at-home` submodule remains untouched (approved by that supervisor, 2026-11-12).
