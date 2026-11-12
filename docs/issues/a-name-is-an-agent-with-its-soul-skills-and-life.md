@@ -1,5 +1,4 @@
 ---
-stage: "spec"
 assignee: "agent"
 priority: 2
 author: "session:hermes-concept-strategy-2026-11-11"
