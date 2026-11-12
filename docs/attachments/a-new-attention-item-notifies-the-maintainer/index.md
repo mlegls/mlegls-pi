@@ -1,0 +1,31 @@
+# Attention notification first-user verification
+
+Tested revision: `1684a8e8257b26b28771846910a37127bf18c03d`.
+
+## Predictions before use
+
+From the ticket and [desk guide](../../guide/desk.md#safe-first-use-setup):
+
+- In a disposable main checkout and linked worker, the checked-out CLI will resolve the desk to the fixture's main checkout.
+- A new test attention item will send a notification naming `main` and the test title, with its first paragraph. Clicking will open my live owning thread.
+- An identical repeat will send nothing; a changed body will send one additional notification. Cleanup and handover will send nothing.
+- A failed or undelivered send will leave the item written, exit zero and emit one stderr line.
+- The guide will explain the notification behavior and the open-window requirement for web/desktop.
+
+## Preparation observations
+
+Persona: existing live thread `thr_caanfj9khu`; local CLI with the existing bb daemon, no credentials or new threads. Entry point: the guide's safe first-use setup. No fixture has been created and no attention add has been invoked in this verification pass yet.
+
+The plugin's public status command responds: enabled, mobile/web/desktop enabled, one registered subscription. This establishes plugin availability, not device receipt.
+
+The committed [implementation trial](implementation.md) says the required three-add sequence already ran once and produced two intended real pings. It explicitly warns subsequent verification against repeating real pings casually. That trial did not observe device banners or click-through; its global last-send status could not attribute sends individually.
+
+The guide expectation is met by reading its notification and safe-first-use sections. Device arrival, exact notification count and click-through remain unobserved. A fresh three-add trial would repeat the maintainer ping beyond the ticket's once-only request. Awaiting a decision before doing that.
+
+## Replayable checks
+
+1. With an authorized device observer, run the guide's disposable fixture and three-add sequence once. Accept exactly two received notifications: first body and changed body, both titled `main: TEST: desk attention notification`; no receipt for the identical repeat.
+2. Click a received notification. Accept navigation to the thread supplied by that run's live `BB_THREAD_ID`.
+3. Remove the test item and clean the fixture. Accept no additional notification.
+
+No browser, server, fixture or external deployment was started. No product source, tests or diffs were read.
