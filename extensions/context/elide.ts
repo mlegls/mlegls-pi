@@ -14,7 +14,7 @@
 // Azure 3660s ("5-10 minutes of inactivity, up to one hour"); anything unpublished or best-effort (DeepSeek "hours to
 // days", Z.ai, Gemini implicit, routers) a day. PI_CACHE_RETENTION=long (1h Anthropic, 24h OpenAI) moves them.
 //
-// A memory system owning "context" (./mechanism.ts): off while one that builds requests itself (optmem) is on.
+// A memory system owning "context" (./mechanism.ts): off while one that builds requests itself (life) is on.
 //
 // Settings: memory.elide { enabled, idleSeconds: number | { [provider]: seconds, default }, minTokens, keepTurns }.
 import { estimateTokens, getAgentDir, type ExtensionAPI, type SessionEntry } from "@earendil-works/pi-coding-agent";

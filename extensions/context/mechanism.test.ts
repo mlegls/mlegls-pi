@@ -14,20 +14,20 @@ test("same surface from different owners conflicts; different surfaces compose",
 
 const journal = { name: "journal", owns: ["compaction"] };
 const om = { name: "om", owns: ["compaction"] };
-const optmem = { name: "optmem", owns: ["compaction", "context"] };
+const life = { name: "life", owns: ["compaction", "context"] };
 const elide = { name: "elide", owns: ["context"] };
 const notes = { name: "notes", owns: [] };
-const all = [journal, om, optmem, elide, notes];
+const all = [journal, om, life, elide, notes];
 
 test("without a list: the chosen system, then everything overlapping none of those", () => {
-	expect(defaults(all, undefined).map((s) => s.name)).toEqual(["journal", "elide", "notes"]);
-	expect(defaults(all, "optmem").map((s) => s.name)).toEqual(["optmem", "notes"]);
+	expect(defaults(all, undefined).map((s) => s.name)).toEqual(["om", "elide", "notes"]);
+	expect(defaults(all, "life").map((s) => s.name)).toEqual(["life", "notes"]);
 });
 
 test("a list turns on exactly its systems; an overlap is an error and the later one stays off", () => {
 	expect(resolve(all, all, ["om", "elide", "notes"])).toEqual({ on: [om, elide, notes], errors: [] });
-	const r = resolve(all, all, ["optmem", "elide", "notes"]);
-	expect(r.on).toEqual([optmem, notes]);
-	expect(r.errors).toEqual(["elide and optmem both own context: elide is off"]);
+	const r = resolve(all, all, ["life", "elide", "notes"]);
+	expect(r.on).toEqual([life, notes]);
+	expect(r.errors).toEqual(["elide and life both own context: elide is off"]);
 	expect(resolve([journal], all, ["om", "nope"]).errors).toEqual(["om is disabled in settings", "no memory system named nope"]);
 });

@@ -1,6 +1,5 @@
 // A life's copied messages, independent of their source session files. Each append holds
 // SQLite's write lock while deduplicating sources and assigning contiguous permanent positions.
-// The branch parser also serves the moved compactor until it consumes the shared life log.
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { entryRef } from "../../../lib/records/branch.ts";
 import { db, fieldsOf, fieldTags, immediate, select, write } from "../../../lib/records/store.ts";
@@ -67,7 +66,7 @@ export function lifeLog(id: string): LifeLog {
 	};
 }
 
-/** Compatibility surface for the branch-facing build and index. */
+/** A parsed message before lifeMessages assigns its durable source. */
 export interface Msg {
 	kind: Kind;
 	text: string;
@@ -103,9 +102,6 @@ function incoming(text: string, fallback: Kind, selfThreads: readonly string[]):
 	const thread = /^\[bb message from thread:([^\]]+)\]/.exec(text)?.[1];
 	return thread ? selfThreads.includes(thread) ? "self" : "work" : fallback;
 }
-
-/** A message's key: its entry and position there. Stable on any branch through that entry. */
-export const msgKey = (m: Msg) => m.entry + "." + m.k;
 
 /** The branch's messages, oldest first, each with its entry index and historical model. */
 export function messagesOf(branch: readonly SessionEntry[], context?: Pick<AppendContext, "model" | "selfThreads">): (Msg & { at: number; model: string })[] {
@@ -168,5 +164,5 @@ export const lifeMessages: LifeMessages = (branch, context) => {
 	}));
 };
 
-/** The text a leaf compresses; the old branch log has no place yet. */
-export const source = (m: Msg | LifeInput) => m.kind + ("place" in m ? "@" + m.place : "") + ": " + m.text;
+/** The text a leaf compresses, credited to where it happened. */
+export const source = (m: LifeInput) => m.kind + "@" + m.place + ": " + m.text;

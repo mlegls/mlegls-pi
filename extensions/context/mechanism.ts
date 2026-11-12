@@ -1,15 +1,14 @@
 // Memory systems: disjoint, configurable systems for what a session remembers and how its context
 // is built. Several are on at once as long as they don't overlap: each declares the surfaces it
 // owns exclusively (`owns`: "compaction" is what a compaction is, "context" is how each request's
-// messages are built). OM, journal and optmem each own compaction, so they are alternatives;
-// optmem also owns context, as does elide (a policy over pi's own context); a system owning
+// messages are built). OM, journal and life each own compaction, so they are alternatives;
+// life also owns context, as does elide (a policy over pi's own context); a system owning
 // nothing (notes) composes with anything. Tools and prompt sections stack.
 //
 // Which systems are on is a list: settings `memory.systems`, overridden per session by `/memory`
 // (a `cursor` record, so it follows the branch and forks inherit it). Two listed systems that own
 // the same surface are an error: the later one stays off and the error is shown. `/memory <name>`
-// turns name on and every listed system overlapping it off (so `/memory om` and `/memory optmem`
-// swap whole harness behaviors); `+name` and `-name` turn one on or off. With no list, the on
+// turns name on and every listed system overlapping it off (life's attachment overrides this choice); `+name` and `-name` turn one on or off. With no list, the on
 // systems are `memory.default` (else the first enabled compaction owner) plus every enabled system
 // overlapping none of those. An on system's tools are declared (an off one's withdrawn), its
 // prompt section appended, its `context` builds each request and its `request` edits the provider
@@ -64,6 +63,8 @@ export interface Mechanism {
 	request?(payload: unknown, ctx: ExtensionContext): unknown;
 	/** Usable in this cwd (settings); a disabled system is neither active nor a fallback. */
 	enabled?(ctx: ExtensionContext): boolean;
+	/** An enabled system selected by external state (life attachment) takes its surfaces. */
+	required?(ctx: ExtensionContext): boolean;
 	/** Async work before rendering. Throwing falls through to the next system. */
 	prepare?(event: SessionBeforeCompactEvent, ctx: ExtensionContext): Promise<Prepared | undefined>;
 	/** false: this system is already compacting; the duplicate is cancelled. */
@@ -94,7 +95,7 @@ const shared = (a: Claims, b: Claims) => a.owns.find((o) => b.owns.includes(o));
 
 /** With no list: the chosen system (else the first compaction owner), then every one overlapping none already in. */
 export function defaults<S extends Claims>(available: S[], chosen: string | undefined): S[] {
-	const first = available.find((s) => s.name === chosen) ?? available.find((s) => s.owns.includes("compaction"));
+	const first = available.find((s) => s.name === (chosen ?? "om")) ?? available.find((s) => s.name === "om") ?? available.find((s) => s.owns.includes("compaction"));
 	const out: S[] = first ? [first] : [];
 	for (const s of available) if (!out.includes(s) && !out.some((a) => shared(a, s))) out.push(s);
 	return out;
@@ -122,7 +123,9 @@ function listed(ctx: ExtensionContext): string[] | undefined {
 
 function state(ctx: ExtensionContext) {
 	const chosen = readCursor<string>(ctx.sessionManager as unknown as BranchSession, MODE_KEY) ?? readSettings(ctx.cwd).memory?.default;
-	return resolve(enabled(ctx), registered, listed(ctx), chosen);
+	const available = enabled(ctx), required = available.filter((m) => m.required?.(ctx));
+	const result = resolve(available, registered, listed(ctx), chosen);
+	return { ...result, on: [...required, ...result.on.filter((s) => !required.includes(s) && !required.some((r) => shared(r, s)))] };
 }
 
 export const activeSystems = (ctx: ExtensionContext): System[] => state(ctx).on;
@@ -177,6 +180,7 @@ export function registerMechanisms(pi: ExtensionAPI, mechanisms: Mechanism[]): v
 		const next = [...current.filter((n) => !owned.has(n) || want.has(n)), ...[...want].filter((n) => !current.includes(n))];
 		if (next.length !== current.length || next.some((n, i) => n !== current[i])) pi.setActiveTools(next);
 	};
+	pi.events.on("memory:changed", (ctx) => syncTools(ctx as ExtensionContext));
 	pi.on("session_tree", (_event, ctx) => syncTools(ctx));
 	pi.on("before_agent_start", async (event, ctx) => {
 		syncTools(ctx);
@@ -226,6 +230,7 @@ export function registerMechanisms(pi: ExtensionAPI, mechanisms: Mechanism[]): v
 				const sign = /^[+-]/.test(arg) ? arg[0] : "", name = arg.slice(sign.length);
 				const s = systems.find((m) => m.name === name);
 				if (!s) { notice(pi, ctx, "Memory: no system named " + name + " (" + systems.map((m) => m.name).join(", ") + ")", "warning"); return; }
+				if (s.name === "life") { notice(pi, ctx, "Use /life <name> or /life off to change attachment", "info"); return; }
 				const current = state(ctx).on.map((m) => m.name);
 				let next: string[];
 				if (sign === "-") next = current.filter((n) => n !== name);

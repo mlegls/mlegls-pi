@@ -1,4 +1,4 @@
-// notes: memory that outlives sessions, as OptMem's log and merge tree (VictorTaelin/OptMem). A
+// notes: shared written memory that outlives sessions, using OptMem's log and merge tree. A
 // memory system owning nothing (./mechanism.ts), so it composes with whatever owns compaction and
 // context; on when listed in memory.systems, or by default when enabled in its settings.
 //
@@ -13,8 +13,8 @@
 // opens a block into its halves.
 //
 // Both render into the system prompt once per session and again after each compaction, so the
-// prefix stays cached in between. (Session-local memory belongs to whichever system owns
-// compaction; optmem is OptMem's own successor for it.)
+// prefix stays cached in between. Experiential history belongs to life when attached, or to
+// the session's chosen compaction system (OM by default).
 //
 // Differences from OptMem, because we own the harness: notes and summaries are records of schema
 // "memo" in the shared records store (so search/similar/SQL already reach them); naps run in the

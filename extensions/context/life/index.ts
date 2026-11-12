@@ -1,211 +1,286 @@
-// optmem: the session as UniiChat's one chat that never ends (VictorTaelin, gist 91837951). A
-// memory system owning compaction and context (../mechanism.ts): /memory optmem swaps it in.
-//
-// The log is the session transcript (./log.ts); a background compactor builds a tree of one-line
-// summaries over it (./build.ts); each request is [the view][this run's messages], the view being
-// the tree's kept cut (./tree.ts), saved as a cursor so it follows the branch and is never rebuilt.
-// A run is everything since the last assistant message that ended one (the user's message, and
-// the agent's work on it). Its first request waits (up to waitSeconds) for every message before it
-// to be summarized; the view stays fixed for the run, so the run's requests share one cached prefix.
-//
-// Long runs, which UniiChat's short turns never have: once the run's raw messages pass tailBytes,
-// its boundary moves up to the newest message summarized so far (never between a tool call and its
-// result), the view advances to it, and the user's message stays whole after the view.
-//
-// zoom(id, n) and date(id) navigate it; the prompt is ./prompt.md. On Anthropic the view's last
-// whole 4-line block carries a cache mark (./cache.ts).
-//
-// Settings: memory.schemas.life { fanout (2), view { high 128000, low 64000 }, compactorView
-// { high 32000, low 16000 }, concurrency (8), retries (5), waitSeconds (30), tailBytes (128000),
-// model { provider, id, thinking } (default the turn's), systemPrompt ("auto" | "turn" | "own"),
-// cut ("due" | "scored", ./tree.ts), scorer { provider, id } (default Jev) }.
+// A named life's context: [shared view][present][whole current run].
+// Completed runs append atomically. Long runs append a complete prefix before moving their
+// boundary; their user's message stays whole. Views only advance in the shared store.
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { sessionEntryToContextMessages, type ExtensionAPI, type ExtensionContext, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { entryRef, type BranchSession } from "../../../lib/records/branch.ts";
-import { readCursor, writeCursor } from "../../../lib/records/cursor.ts";
+import { sessionChain } from "../../../lib/records/branch.ts";
+import { fieldTags, immediate, select, stamp, write } from "../../../lib/records/store.ts";
 import type { Renderer } from "../../../lib/records/render.ts";
+import { notice, NOTICE } from "../../../lib/notice.ts";
 import { activeTools } from "../journal.ts";
 import { isActive, type CompactionView, type Mechanism } from "../mechanism.ts";
+import { ATTACHMENT, attachment } from "./attachment.ts";
 import { chatParts, markView } from "./cache.ts";
 import { Chat, settings, type Env, type Settings } from "./build.ts";
 import { PROMPT } from "./prompt.ts";
-import { messagesOf } from "./log.ts";
-import type { LifeLog } from "./contracts.ts";
-import { advance, children, emptyView, line, lines, nodeAt, PLACEHOLDER, type View } from "./tree.ts";
+import { lifeId, lifeLog, lifeMessages, source } from "./log.ts";
+import { present } from "./present.ts";
+import type { LifeRun } from "./contracts.ts";
+import { advance, children, emptyView, line, lines, nodeAt, nodesAt, PLACEHOLDER, span, type Pair, type View } from "./tree.ts";
 
-const NAME = "optmem";
-const VIEW_KEY = "optmem.view";
+const NAME = "life";
+const VIEW = "life.view";
 
 interface Run {
-	/** Branch index of the run's first entry, and the id there. */
+	record: LifeRun;
+	/** Branch indices: first entry of this run, and first entry still in the raw tail. */
 	start: number;
-	startId: string;
-	/** Branch index where the raw tail begins, and how many messages the view covers. */
 	boundary: number;
 	T: number;
-	lines: string[];
-	view: AgentMessage;
+	present: AgentMessage;
+	lines?: string[];
+	view?: AgentMessage;
 }
 
 /** Branch index after the last assistant message that ended a run. */
 export function runStart(branch: readonly SessionEntry[]): number {
 	for (let k = branch.length - 1; k >= 0; k--) {
 		const e = branch[k]!;
-		if (e.type === "message" && e.message.role === "assistant" && (e.message as { stopReason?: string }).stopReason !== "toolUse") return k + 1;
+		if (e.type === "message" && e.message.role === "assistant" && e.message.stopReason !== "toolUse") return k + 1;
 	}
 	return 0;
 }
 
-const isResult = (e: SessionEntry | undefined) => e?.type === "message" && e.message.role === "toolResult";
+const message = (text: string): AgentMessage => ({ role: "user", content: text, timestamp: 0 });
+const visible = (branch: readonly SessionEntry[]) => branch.filter((e) => !(e.type === "custom_message" && e.customType === NOTICE));
+const raw = (branch: readonly SessionEntry[]) => visible(branch).flatMap((e) => sessionEntryToContextMessages(e));
 
-export default function optmem(pi: ExtensionAPI): Mechanism {
-	let chat: Chat | undefined;
-	let run: Run | undefined;
-	let previousBranch: string[] = [];
-	let branchId = "";
-	let entryOf: number[] = [];
-	let stop = new AbortController();
-	const sm = (ctx: ExtensionContext) => ctx.sessionManager as unknown as BranchSession;
-	const branchOf = (ctx: ExtensionContext) => ctx.sessionManager.getBranch() as SessionEntry[];
-
-	const env = (ctx: ExtensionContext): Env => {
-		const notify = ctx.hasUI ? ctx.ui.notify.bind(ctx.ui) : (m: string) => console.error(m); // print mode: stderr
-		return {
-			session: ctx.sessionManager.getSessionId(), model: ctx.model, modelRegistry: ctx.modelRegistry, signal: stop.signal,
-			turn: () => ({ systemPrompt: ctx.getSystemPrompt(), tools: activeTools(pi) }),
-			notify: (m, level) => { try { notify?.(m, level); } catch {} },
-		};
+/** Project a newer saved cut back to a run's captured position, without changing the saved cut. */
+function before(view: View, T: number): View {
+	if (view.upTo <= T) return view;
+	const nodes: Pair[] = [];
+	const keep = (p: Pair) => {
+		const [s, n] = span(view.b, p);
+		if (s >= T) return;
+		if (s + n <= T) nodes.push(p);
+		else for (const q of children(view.b, p)) keep(q);
 	};
+	for (const p of view.nodes) keep(p);
+	return { ...view, nodes, upTo: T };
+}
 
-	/** The chat, synced to the branch; undefined while optmem is off. */
+/** Read/advance under the same lock: an older run can never overwrite a newer saved view. */
+function viewAt(id: string, c: Chat, cfg: Settings, T: number): string[] {
+	const r = immediate(() => {
+		const saved = select(VIEW, { where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)", params: [id] }).at(-1);
+		const v: View = saved ? JSON.parse(saved.body) : emptyView(c.b);
+		const local = v.b === c.b ? before(v, T) : emptyView(c.b);
+		const advanced = advance(local, T, c.texts, cfg.view.high, cfg.view.low, cfg.cut);
+		if (T > v.upTo) write({
+			schema: VIEW, body: JSON.stringify({ ...advanced.view, nodes: nodesAt(advanced.view, T), upTo: T }),
+			tags: fieldTags("life", { id, upTo: T }),
+		});
+		return advanced;
+	});
+	if (r.merged) c.rebase(r.view, T);
+	return lines(r.view, T, c.texts);
+}
+
+/** Latest boundary that leaves complete call/result groups on each side, and some work raw. */
+function safeBoundary(branch: readonly SessionEntry[], from: number): number {
+	const pending = new Set<string>();
+	let boundary = from;
+	for (let k = from; k < branch.length; k++) {
+		const e = branch[k]!;
+		if (!pending.size && !(e.type === "message" && e.message.role === "toolResult")) boundary = k;
+		if (e.type !== "message") continue;
+		if (e.message.role === "assistant") for (const part of e.message.content)
+			if (part.type === "toolCall") pending.add(part.id);
+		if (e.message.role === "toolResult") pending.delete(e.message.toolCallId);
+	}
+	return boundary;
+}
+
+export default function life(pi: ExtensionAPI): Mechanism {
+	let startupName = process.env.PI_LIFE;
+	delete process.env.PI_LIFE;
+	let chat: Chat | undefined;
+	let id: string | undefined;
+	let run: Run | undefined;
+	let stop = new AbortController();
+	const branchOf = (ctx: ExtensionContext) => ctx.sessionManager.getBranch();
+
+	const env = (ctx: ExtensionContext): Env => ({
+		session: ctx.sessionManager.getSessionId(), model: ctx.model, modelRegistry: ctx.modelRegistry, signal: stop.signal,
+		turn: () => ({ systemPrompt: ctx.getSystemPrompt(), tools: activeTools(pi) }),
+		notify: (m, level) => { if (ctx.hasUI) ctx.ui.notify(m, level); else console.error(m); },
+	});
+
+	const discard = () => {
+		stop.abort(); chat?.dispose(); chat = undefined; run = undefined; id = undefined;
+		stop = new AbortController();
+	};
 	const synced = (ctx: ExtensionContext): Chat | undefined => {
-		if (!isActive(NAME, ctx)) return undefined;
+		const attached = attachment(ctx);
+		if (!attached) return;
 		const cfg = settings(ctx.cwd);
-		const branch = branchOf(ctx);
-		// Transitional branch adapter; attachment/run context replaces this with lifeLog(id).
-		// A branch rewrite gets a new namespace because its positions are not permanent.
-		if (!chat || chat.b !== cfg.fanout || chat.cfg.cut !== cfg.cut || previousBranch.some((id, k) => branch[k]?.id !== id)) {
-			chat?.dispose();
-			chat = new Chat(cfg.fanout, cfg);
-			branchId = "branch:" + ctx.sessionManager.getSessionId() + "/" + (branch.at(-1)?.id ?? "empty");
+		if (id !== attached.id || chat?.b !== cfg.fanout || chat?.cfg.cut !== cfg.cut) {
+			discard(); id = attached.id; chat = new Chat(cfg.fanout, cfg);
 		}
-		previousBranch = branch.map((e) => e.id);
-		const model = ctx.model ? ctx.model.provider + "/" + ctx.model.id : "";
-		const messages = messagesOf(branch, { model, selfThreads: [] }).map((m, pos) => ({
-			...m, pos, place: ctx.sessionManager.getSessionId(), source: entryRef(ctx.sessionManager.getSessionId(), m.entry) + "#" + m.k,
-		}));
-		entryOf = messages.map((m) => m.at);
-		const log: LifeLog = { id: branchId, read: (from = 0) => messages.slice(from), append: () => { throw new Error("branch adapter is read-only"); } };
-		chat.sync(log, env(ctx));
+		chat!.sync(lifeLog(id!), env(ctx));
 		return chat;
 	};
-
-	/** The saved view advanced to T messages (saved again only when a batch merged). */
-	const viewAt = (ctx: ExtensionContext, c: Chat, cfg: Settings, T: number): string[] => {
-		let v = readCursor<View>(sm(ctx), VIEW_KEY);
-		if (!v || v.b !== c.b || v.upTo > T) v = emptyView(c.b);
-		const r = advance(v, T, c.texts, cfg.view.high, cfg.view.low, cfg.cut);
-		if (r.view !== v) writeCursor(sm(ctx), VIEW_KEY, r.view);
-		if (r.merged) c.rebase(r.view, T);
-		return lines(r.view, T, c.texts);
+	const append = (ctx: ExtensionContext, branch = branchOf(ctx)) => {
+		const a = attachment(ctx);
+		if (!a) return;
+		lifeLog(a.id).append(lifeMessages(visible(branch), {
+			session: ctx.sessionManager.getSessionId(), sessions: sessionChain(ctx.sessionManager),
+			place: process.env.BB_THREAD_ID ?? ctx.sessionManager.getSessionId(),
+			model: ctx.model ? ctx.model.provider + "/" + ctx.model.id : "",
+			selfThreads: present(a.id).threads(),
+		}));
 	};
-
-	const viewMessage = (ls: string[]): AgentMessage => ({ role: "user", content: chatParts(ls), timestamp: 0 } as AgentMessage);
-	/** How many messages come from branch entries before index k. */
-	const before = (k: number) => { let lo = 0, hi = entryOf.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (entryOf[mid]! < k) lo = mid + 1; else hi = mid; } return lo; };
-	const at = (ctx: ExtensionContext, c: Chat, cfg: Settings, T: number) => { const ls = viewAt(ctx, c, cfg, T); return { T, lines: ls, view: viewMessage(ls) }; };
-
-	pi.on("session_start", (_e, ctx) => {
-		if (stop.signal.aborted) stop = new AbortController();
-		chat?.dispose(); chat = undefined; run = undefined;
-		const c = synced(ctx);
-		if (c && c.pending() > 32) ctx.ui.notify("optmem: summarizing " + c.pending() + " messages of history in the background", "info");
+	const end = () => {
+		if (run && id) present(id).end(run.record.id);
+		run = undefined;
+	};
+	const record = (ctx: ExtensionContext): LifeRun => ({
+		id: stamp().id, time: new Date().toISOString(), session: ctx.sessionManager.getSessionId(),
+		sessionFile: ctx.sessionManager.getSessionFile() ?? "", pid: process.pid,
+		...(process.env.BB_THREAD_ID ? { thread: process.env.BB_THREAD_ID } : {}),
 	});
-	pi.on("session_shutdown", () => { stop.abort(); });
-	pi.on("session_tree", (_e, ctx) => { run = undefined; synced(ctx); });
-	pi.on("turn_end", (_e, ctx) => { synced(ctx); });
-	pi.on("agent_end", (_e, ctx) => { synced(ctx); });
+	const open = async (ctx: ExtensionContext, start: number) => {
+		const c = synced(ctx);
+		if (!c) return;
+		const T = c.T, p = present(id!), r = record(ctx);
+		p.start(r);
+		run = { record: r, start, boundary: start, T, present: message("<present>\n" + await p.snapshot() + "\n</present>") };
+	};
+	const idlePresence = (ctx: ExtensionContext) => {
+		const a = attachment(ctx);
+		if (a) { const p = present(a.id), r = record(ctx); p.start(r); p.end(r.id); }
+	};
+	const change = async (name: string, ctx: ExtensionContext) => {
+		const next = name === "off" ? undefined : lifeId(name, ctx.cwd);
+		if (name !== "off" && !next) throw new Error("Use /life <name> inside a git repository, or /life /<name> machine-wide");
+		const old = attachment(ctx);
+		if (old) { append(ctx); end(); present(old.id).detach(ctx.sessionManager.getSessionId()); }
+		pi.appendEntry(ATTACHMENT, next ? { name, id: next } : null);
+		discard();
+		if (next) { append(ctx); synced(ctx); idlePresence(ctx); }
+		pi.events.emit("memory:changed", ctx);
+	};
+	pi.registerCommand("life", {
+		description: "Attach to a named life: /life [name | /machine-wide-name | off]",
+		handler: async (args, ctx) => {
+			if (args.trim()) {
+				if (!ctx.isIdle()) { notice(pi, ctx, "Change life between runs", "warning"); return; }
+				await change(args.trim(), ctx);
+			}
+			const a = attachment(ctx);
+			notice(pi, ctx, a ? "Life: " + a.name + " (" + a.id + ")" : "Life: off", "info");
+		},
+	});
+	pi.on("session_start", async (_e, ctx) => {
+		discard();
+		const name = startupName; startupName = undefined;
+		if (name !== undefined) await change(name.trim(), ctx);
+		else { append(ctx); synced(ctx); idlePresence(ctx); }
+	});
+	pi.on("session_shutdown", () => { end(); discard(); });
+	pi.on("session_tree", (_e, ctx) => { end(); discard(); append(ctx); synced(ctx); });
+	pi.on("before_agent_start", async (_e, ctx) => {
+		if (!isActive(NAME, ctx)) return;
+		end();
+		await open(ctx, branchOf(ctx).length);
+	});
+	pi.on("turn_end", (e, ctx) => {
+		if (!attachment(ctx) || e.message.role !== "assistant" || e.message.stopReason === "toolUse") return;
+		append(ctx); end(); synced(ctx);
+	});
 
 	const renderer: Renderer<CompactionView, string[]> = {
-		name: NAME,
-		role: "memory",
-		query: () => [],
+		name: NAME, role: "memory", query: () => run?.lines ?? [],
 		cut: (ls) => ls.length ? { text: "<chat>\n" + ls.join("\n") + "\n</chat>" } : undefined,
 	};
-
 	pi.registerTool({
-		name: "zoom",
-		label: "zoom",
-		description: "Open the line id+n of the view into the lines under it; n = 1 gives message id whole.",
+		name: "hold", label: "hold",
+		description: "One line of what you are holding in this thread. Empty text clears it.",
+		parameters: Type.Object({ text: Type.String() }),
+		async execute(_id, { text }, _signal, _onUpdate, ctx) {
+			if (!synced(ctx)) throw new Error("life is off in this session");
+			present(id!).hold(ctx.sessionManager.getSessionId(), text);
+			return { content: [{ type: "text", text: text.trim() ? "Holding: " + text : "Hold cleared" }], details: {} };
+		},
+	});
+	pi.registerTool({
+		name: "catch_up", label: "catch up",
+		description: "Leaf lines committed since this run's view, with their places; with thread, your unfinished run there, whole.",
+		parameters: Type.Object({ thread: Type.Optional(Type.String()) }),
+		async execute(_id, { thread }, _signal, _onUpdate, ctx) {
+			const c = synced(ctx);
+			if (!c) throw new Error("life is off in this session");
+			const entries = thread ? await present(id!).readRun(thread) : undefined;
+			const text = entries ? JSON.stringify(raw(entries), null, 2) : c.msgs.slice(run?.T ?? c.T)
+				.map((m) => line(c.b, [0, m.pos], c.resolve([0, m.pos]) ?? source(m))).join("\n");
+			return { content: [{ type: "text", text: text || "(nothing new)" }], details: { upTo: c.T } };
+		},
+	});
+	pi.registerTool({
+		name: "zoom", label: "zoom",
+		description: "Open line id+n into the lines under it; n = 1 gives message id whole, anywhere in the committed life.",
 		parameters: Type.Object({ id: Type.Integer({ description: "First message of the line." }), n: Type.Integer({ description: "How many messages it covers." }) }),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
 			const c = synced(ctx);
-			if (!c) throw new Error("optmem is off in this session");
+			if (!c) throw new Error("life is off in this session");
 			const p = nodeAt(c.b, params.id, params.n, c.T);
 			if (typeof p === "string") throw new Error(p);
 			if (p[0] === 0) {
 				const m = c.msgs[params.id]!;
-				return { content: [{ type: "text", text: params.id + " " + m.kind + " " + m.date + "\n" + m.text }], details: { id: params.id, source: m.source } };
+				return { content: [{ type: "text", text: params.id + " " + m.kind + "@" + m.place + " " + m.date + "\n" + m.text }], details: { id: params.id, source: m.source, model: m.model } };
 			}
-			const out = children(c.b, p).map((q) => line(c.b, q, c.resolve(q) ?? PLACEHOLDER)).join("\n");
-			return { content: [{ type: "text", text: out }], details: { id: params.id, n: params.n } };
+			return { content: [{ type: "text", text: children(c.b, p).map((q) => line(c.b, q, c.resolve(q) ?? PLACEHOLDER)).join("\n") }], details: { id: params.id, n: params.n } };
 		},
 	});
 	pi.registerTool({
-		name: "date",
-		label: "date",
-		description: "The date and time of message id.",
+		name: "date", label: "date", description: "The date and time of message id, anywhere in the committed life.",
 		parameters: Type.Object({ id: Type.Integer() }),
-		async execute(_id, params, _signal, _onUpdate, ctx) {
+		async execute(_id, { id: pos }, _signal, _onUpdate, ctx) {
 			const c = synced(ctx);
-			if (!c) throw new Error("optmem is off in this session");
-			const m = c.msgs[params.id];
-			if (!m) throw new Error("the chat has " + c.T + " messages");
-			return { content: [{ type: "text", text: m.date }], details: { id: params.id } };
+			if (!c) throw new Error("life is off in this session");
+			const m = c.msgs[pos];
+			if (!m) throw new Error("the life has " + c.T + " messages");
+			return { content: [{ type: "text", text: m.date }], details: { id: pos } };
 		},
 	});
-
 	return {
-		name: NAME,
-		owns: ["compaction", "context"],
-		renderer: { ...renderer, query: () => run?.lines ?? [] },
-		budget: () => Infinity,
-		enabled: (ctx) => settings(ctx.cwd).enabled,
-		tools: ["zoom", "date"],
+		name: NAME, owns: ["compaction", "context"], renderer, budget: () => Infinity,
+		enabled: (ctx) => !!attachment(ctx), required: () => true,
+		tools: ["hold", "catch_up", "zoom", "date"],
 		prompt: (_e, ctx) => PROMPT(settings(ctx.cwd).fanout),
 		request: (payload) => markView(payload),
 		async context(_messages, ctx) {
 			const c = synced(ctx);
-			if (!c) return undefined;
-			const cfg = settings(ctx.cwd);
-			const branch = branchOf(ctx);
-			const start = runStart(branch);
-			if (!run || run.startId !== branch[start]?.id || run.start !== start) {
-				const T = before(start);
-				await c.idle(T, cfg.waitSeconds * 1000);
-				run = { start, startId: branch[start]?.id ?? "", boundary: start, ...at(ctx, c, cfg, T) };
-			}
-			const raw = (from: number) => branch.slice(from).flatMap((e) => sessionEntryToContextMessages(e));
-			let tail = raw(run.boundary);
+			if (!c) return;
+			const cfg = settings(ctx.cwd), branch = branchOf(ctx);
+			if (!run) await open(ctx, runStart(branch));
+			const current = run!;
+			const fixView = () => {
+				current.lines = viewAt(id!, c, cfg, current.T);
+				current.view = { role: "user", content: chatParts(current.lines), timestamp: 0 } as AgentMessage;
+			};
+			if (!current.view) { await c.idle(current.T, cfg.waitSeconds * 1000); fixView(); }
+			let tail = raw(branch.slice(current.boundary));
 			if (Buffer.byteLength(JSON.stringify(tail)) > cfg.tailBytes) {
-				// the newest boundary with every message before it summarized, and no tool result right after it
-				const F = c.summarized();
-				let k = branch.length - 1;
-				for (; k > run.boundary; k--) if (!isResult(branch[k]) && before(k) <= F) break;
-				if (k > run.boundary && before(k) > run.T) {
-					run = { ...run, boundary: k, ...at(ctx, c, cfg, before(k)) };
-					tail = raw(k);
+				const k = safeBoundary(branch, current.boundary);
+				if (k > current.boundary) {
+					// Commit first. Only then may these entries disappear from the raw tail.
+					append(ctx, branch.slice(0, k)); synced(ctx);
+					const T = c.T;
+					await c.idle(T, cfg.waitSeconds * 1000);
+					if (c.summarized() >= T) {
+						current.boundary = k; current.T = T; fixView();
+						tail = raw(branch.slice(k));
+					}
 				}
 			}
-			// the user's message (and whatever arrived with it) stays whole once the boundary has passed it
 			const pinned: AgentMessage[] = [];
-			if (run.boundary > run.start) for (let k = run.start; k < run.boundary; k++) {
-				const e = branch[k]!;
+			if (current.boundary > current.start) for (const e of branch.slice(current.start, current.boundary)) {
 				if (e.type === "message" && e.message.role === "assistant") break;
 				pinned.push(...sessionEntryToContextMessages(e));
 			}
-			return [run.view, ...pinned, ...tail];
+			return [current.view!, current.present, ...pinned, ...tail];
 		},
 	};
 }

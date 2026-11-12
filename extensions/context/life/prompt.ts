@@ -1,7 +1,4 @@
-// optmem's prompt (./prompt.md): UniiChat's (gist §5), one text for turns and compactions, with
-// Unii renamed, the paragraph on computers dropped, and the lines that conflict with this harness
-// softened: zoom navigates the chat, but recall and other sources stay allowed, and subagent
-// policy is left to the rest of the system prompt.
+// One subject across places and time; the same memory grammar for turns and compactions.
 import { readFileSync } from "node:fs";
 
 const TEXT = readFileSync(new URL("./prompt.md", import.meta.url), "utf8").trim();
@@ -10,9 +7,6 @@ export const PROMPT = (b: number) => TEXT
 	.replace("{groups}", b === 2 ? "adjacent lines are merged in pairs" : "every " + b + " adjacent lines are merged into one")
 	.replace("{opens}", b === 2 ? "the two lines" : "the " + b + " lines");
 
-/**
- * A compactor's own system prompt, when it can't share the turns' cache: without the section on
- * turns, which only invites a compactor to answer the chat instead of compressing it.
- */
-export const COMPACTOR_PROMPT = (b: number) => "You are not the agent: you write the memory of a coding agent, one line at a time.\n\n" +
+/** Own prompt for a compactor that can't share the turn's cache. */
+export const COMPACTOR_PROMPT = (b: number) => "You write this agent's memory, one line at a time.\n\n" +
 	PROMPT(b).replace(/\n## Turns\n[\s\S]*?(?=\n## )/, "\n");
