@@ -1,6 +1,6 @@
 ---
 stage: "ticket"
-assignee: "agent:technical"
+assignee: "agent:auto-routine"
 author: "session:01a1cd90-31ee-71eb-b6b4-d3031eb4ea79"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
