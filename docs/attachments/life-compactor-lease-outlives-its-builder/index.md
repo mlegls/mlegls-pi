@@ -1,5 +1,7 @@
 # Lease lifetime first use
 
+Independent CLI acceptance at `ce349347`: [drive-2 encounter, predictions and replayable checks](drive-2.md). All four ticket claims held through disposable real CLI sessions.
+
 Implementation starting ref: `4cced27f40471e19cbb2dcc9f72e9b63d319d7a1`. Nonvisual library and CLI encounters; all stores below are disposable playgrounds. The real `/concept-engineering` store was untouched.
 
 ## Setup for independent driving
