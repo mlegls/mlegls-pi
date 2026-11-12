@@ -29,6 +29,7 @@ import type { BranchSession } from "../../lib/records/branch.ts";
 import { readCursor, writeCursor } from "../../lib/records/cursor.ts";
 import { render, type Renderer } from "../../lib/records/render.ts";
 import { notice } from "../../lib/notice.ts";
+import { attachedAgent } from "../agents/identity.ts";
 
 export interface CompactionView {
 	session: BranchSession;
@@ -117,8 +118,11 @@ export function resolve<S extends Claims>(available: S[], all: Claims[], list: s
 
 /** The listed systems: this branch's `/memory` list, else settings. */
 function listed(ctx: ExtensionContext): string[] | undefined {
-	const list = readCursor<string[]>(ctx.sessionManager as unknown as BranchSession, LIST_KEY) ?? readSettings(ctx.cwd).memory?.systems;
-	return Array.isArray(list) ? list : undefined;
+	const session = readCursor<string[]>(ctx.sessionManager as unknown as BranchSession, LIST_KEY);
+	if (session !== undefined) return session;
+	const list = readSettings(ctx.cwd).memory?.systems;
+	if (!Array.isArray(list)) return undefined;
+	return attachedAgent(ctx) && !list.includes("notes") ? [...list, "notes"] : list;
 }
 
 function state(ctx: ExtensionContext) {

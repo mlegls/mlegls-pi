@@ -71,10 +71,14 @@ function toolCatalog(pi: ExtensionAPI): string | undefined {
 
 function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: string, catalog?: string): string {
 	const parts: string[] = [];
-	parts.push(options.customPrompt?.trim() || [
+	const soul = options.sections?.agent?.trim();
+	if (soul) parts.push(soul);
+	parts.push(options.customPrompt?.trim() || (soul
+		? "You are working in pi, a coding agent harness. Show file paths clearly when working with files."
+		: [
 		"You are an expert coding assistant operating inside pi, a coding agent harness.",
 		"Be concise and show file paths clearly when working with files.",
-	].join("\n\n"));
+	].join("\n\n")));
 
 	if (readsFiles(options)) parts.push(FILE_TOOLS);
 	if (options.selectedTools?.includes("codemode")) parts.push(CODEMODE_PAYLOADS);

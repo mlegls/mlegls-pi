@@ -19,6 +19,8 @@ import { present } from "./present.ts";
 import type { LifeRun } from "./contracts.ts";
 import { advance, children, emptyView, line, lines, nodeAt, nodesAt, PLACEHOLDER, span, type Pair, type View } from "./tree.ts";
 
+export { attachedLife } from "./attachment.ts";
+
 const NAME = "life";
 const VIEW = "life.view";
 
@@ -151,7 +153,7 @@ export default function life(pi: ExtensionAPI): Mechanism {
 		const a = attachment(ctx);
 		if (a) { const p = present(a.id), r = record(ctx); p.start(r); p.end(r.id); }
 	};
-	const change = async (name: string, ctx: ExtensionContext) => {
+	const change = (name: string, ctx: ExtensionContext) => {
 		const next = name === "off" ? undefined : lifeId(name, ctx.cwd);
 		if (name !== "off" && !next) throw new Error("Use /life <name> inside a git repository, or /life /<name> machine-wide");
 		const old = attachment(ctx);
@@ -161,6 +163,11 @@ export default function life(pi: ExtensionAPI): Mechanism {
 		if (next) { append(ctx); synced(ctx); idlePresence(ctx); }
 		pi.events.emit("memory:changed", ctx);
 	};
+	pi.events.on("life:attach", (data) => {
+		const { name, ctx } = data as { name: string; ctx: ExtensionContext };
+		// An explicit launcher attachment takes precedence over the startup model.
+		if (startupName === undefined && ctx.isIdle()) change(name, ctx);
+	});
 	pi.registerCommand("life", {
 		description: "Attach to a named life: /life [name | /machine-wide-name | off]",
 		handler: async (args, ctx) => {

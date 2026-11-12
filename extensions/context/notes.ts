@@ -26,6 +26,7 @@
 // wakeLines { global 24, project 48 }, model { provider, id, thinking } (naps; default OM's) }.
 import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { attachedAgent } from "../agents/identity.ts";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -363,6 +364,6 @@ export default function notes(pi: ExtensionAPI): Mechanism {
 			}
 			return frozen;
 		},
-		enabled: (ctx) => settings(ctx.cwd).enabled,
+		enabled: (ctx) => settings(ctx.cwd).enabled || !!attachedAgent(ctx),
 	};
 }
