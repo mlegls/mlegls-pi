@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { bbThreads } from "./thread/bb";
 import { git } from "./thread/git";
 import { delay } from "./thread/process";
@@ -114,14 +114,31 @@ export function clearWorking(thread: string, cwd = process.cwd()) {
 	});
 }
 const itemTitle = (item: string) => item.split("\n")[0]?.slice(3).trim();
-export function addAttention(thread: string, title: string, body: string, cwd = process.cwd()) {
+export interface AttentionCredentials {
+	writeEnv: string;
+	secrets: { name: string; description: string }[];
+}
+export function addAttention(thread: string, title: string, body: string, cwd = process.cwd(), credentials?: AttentionCredentials) {
 	thread = threadId(thread); title = line(title, "Title");
 	if (/^## /m.test(body)) throw new Error("An attention item has one ## heading; use ### within its body");
 	if (/^Owner:/m.test(body)) throw new Error("Owner is supplied by the helper");
+	const secretLines: string[] = [];
+	if (credentials) {
+		const path = line(credentials.writeEnv, "Write-env path");
+		if (!isAbsolute(path)) throw new Error("--write-env must be an absolute path");
+		if (!credentials.secrets.length) throw new Error("--write-env requires --secret NAME=DESCRIPTION");
+		const names = new Set<string>();
+		for (const { name, description } of credentials.secrets) {
+			if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error("Invalid secret variable name: " + name);
+			if (names.has(name)) throw new Error("Duplicate secret variable: " + name);
+			names.add(name);
+			secretLines.push("Secret: " + name + " → " + path + ": " + line(description, "Secret description"));
+		}
+	}
 	return writeDesk(cwd, (files, live) => {
 		requireLive(live, thread);
 		files.items = files.items.filter(item => !(owner(item) === thread && itemTitle(item) === title));
-		files.items.push("## " + title + "\n\nOwner: @thread:" + thread + "\n\n" + body.trim());
+		files.items.push("## " + title + "\n\n" + ["Owner: @thread:" + thread, ...secretLines].join("\n") + "\n\n" + body.trim());
 	});
 }
 export function removeAttention(thread: string, title: string, cwd = process.cwd()) {
@@ -160,7 +177,7 @@ const usage = [
 	"desk handover OLD NEW",
 	"desk role set|clear ROLE [--thread ID]",
 	"desk working set TEXT|clear [--thread ID]",
-	"desk attention add TITLE --file PATH|- [--thread ID]",
+	"desk attention add TITLE --file PATH|- [--secret NAME=DESCRIPTION ... --write-env /absolute/path] [--thread ID]",
 	"desk attention remove TITLE [--thread ID]",
 	"Thread defaults to BB_THREAD_ID. All writes clean both files.",
 ].join("\n");
@@ -174,7 +191,18 @@ async function main(argv: string[]) {
 	};
 	const thread = take("--thread") ?? process.env.BB_THREAD_ID;
 	const file = take("--file");
+	const writeEnv = take("--write-env");
+	const secrets: AttentionCredentials["secrets"] = [];
+	while (argv.includes("--secret")) {
+		const secret = take("--secret")!;
+		const at = secret.indexOf("=");
+		if (at < 1) throw new Error("--secret must be NAME=DESCRIPTION");
+		secrets.push({ name: secret.slice(0, at), description: secret.slice(at + 1) });
+	}
+	if (secrets.length && !writeEnv) throw new Error("--secret requires --write-env /absolute/path");
+	const credentials = writeEnv === undefined ? undefined : { writeEnv, secrets };
 	const [group, action, value, ...extra] = argv;
+	if (credentials && (group !== "attention" || action !== "add")) throw new Error("Secret options require attention add");
 	if (extra.length) throw new Error(usage);
 	if (group === "--help" || group === "-h" || !group) return console.log(usage);
 	if (group === "path" && !action) return console.log(deskPath());
@@ -190,7 +218,7 @@ async function main(argv: string[]) {
 	else if (group === "working" && value && action === "set") result = await setWorking(thread, value);
 	else if (group === "working" && !value && action === "clear") result = await clearWorking(thread);
 	else if (group === "attention" && value && action === "add" && file)
-		result = await addAttention(thread, value, file === "-" ? readFileSync(0, "utf8") : readFileSync(file, "utf8"));
+		result = await addAttention(thread, value, file === "-" ? readFileSync(0, "utf8") : readFileSync(file, "utf8"), process.cwd(), credentials);
 	else if (group === "attention" && value && action === "remove") result = await removeAttention(thread, value);
 	else throw new Error(usage);
 	console.log(result);

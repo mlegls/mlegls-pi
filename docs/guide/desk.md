@@ -12,7 +12,9 @@ ab desk working clear
 ab desk role clear supervisor
 ```
 
-Use `--thread thr_…` to override `BB_THREAD_ID`. An attention body can come from stdin with `--file -`; it contains the question, options/recommendation and what waits on it. The helper supplies the item's `##` heading and owner. Repeating an owner's title replaces that item. Roles have one holder; working lines and attention items belong to individual threads.
+Use `--thread thr_…` to override `BB_THREAD_ID`. An attention body can come from stdin with `--file -`; it contains the question, options and what waits on it. Put the pick on its own `Recommended:` line so the Attention panel can offer it as a reply. The helper supplies the item's `##` heading and owner. Repeating an owner's title replaces that item. Roles have one holder; working lines and attention items belong to individual threads.
+
+For credentials, pass `--secret NAME=DESCRIPTION` once per variable and `--write-env /absolute/path/to/.env`. The helper records each request directly below `Owner:` as `Secret: NAME → PATH: DESCRIPTION`; it doesn't write the dotenv file. The Attention panel takes the values, writes them to that path and tells the owning thread which variables were written. Use a desk request when the session needs to keep working, as a supervisor does. Use `bb secret request` when the session can wait in its turn for the credential form. Ask for credentials through these forms rather than in thread replies.
 
 Every write cleans **both** files using bb's live threads, including hidden threads. An archived or deleted owner loses its lines and attention items. Hand over still-needed work before archiving. A failed bb lookup leaves the files unchanged. `ab desk clean` just cleans; `STATUS.md` belongs to the reconciler.
 
@@ -41,6 +43,10 @@ import { setRole, clearRole, setWorking, clearWorking,
 await setRole("supervisor", threadId, cwd);
 await setWorking(threadId, "Supervising the ready tracker frontier", cwd);
 await addAttention(threadId, "Choose the deployment target", questionMarkdown, cwd);
+await addAttention(threadId, "Renew service access", questionMarkdown, cwd, {
+  writeEnv: "/absolute/path/to/.env",
+  secrets: [{ name: "SERVICE_TOKEN", description: "Token for the service" }],
+});
 await removeAttention(threadId, "Choose the deployment target", cwd);
 await clearWorking(threadId, cwd);
 await clearRole("supervisor", threadId, cwd);
@@ -61,7 +67,17 @@ git -C "$fixture/main" -c user.name=Desk -c user.email=desk@example.invalid comm
 git -C "$fixture/main" worktree add -b worker "$fixture/worker"
 cd "$fixture/worker"
 "$helper" working set "Trying the shared desk"
+printf '%s\n' 'Use staging or production?' 'Recommended: Use staging.' 'The deployment waits on this choice.' |
+  "$helper" attention add "Choose the deployment target" --file -
+printf '%s\n' 'Service access expired; the next sync needs these credentials.' |
+  "$helper" attention add "Renew service access" --file - \
+    --secret 'SERVICE_TOKEN=Token for the service' \
+    --secret 'SERVICE_ACCOUNT=Account identifier' \
+    --write-env "$fixture/main/credentials.env"
 "$helper" path
+# Inspect "$fixture/main/desk/ATTENTION.md" before removing the requests.
+"$helper" attention remove "Choose the deployment target"
+"$helper" attention remove "Renew service access"
 "$helper" working clear
 ```
 
