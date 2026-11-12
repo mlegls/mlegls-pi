@@ -28,4 +28,12 @@ The guide expectation is met by reading its notification and safe-first-use sect
 2. Click a received notification. Accept navigation to the thread supplied by that run's live `BB_THREAD_ID`.
 3. Remove the test item and clean the fixture. Accept no additional notification.
 
-No browser, server, fixture or external deployment was started. No product source, tests or diffs were read.
+## Authorized repeat trial
+
+The supervisor authorized one repeat because the maintainer missed the first trial and is now watching. Using the checked-out `bin/desk`, prepared disposable git main `/tmp/desk-attention-drive-vShbU1/main` and linked worker `/tmp/desk-attention-drive-vShbU1/worker`. Git initialization, empty commit and worktree creation finished before CLI use. The live owner was `thr_caanfj9khu`.
+
+Ran working set, path and working clear; each resolved `/tmp/desk-attention-drive-vShbU1/main/desk`, meeting the fixture-ownership prediction. Then ran the guide's exact three adds: first body, identical first body, changed body, all with title `TEST: desk attention notification`. Each returned that same desk path, with no stderr. The entire sequence exited zero. Removed the attention item using the CLI, then removed the disposable fixture through the shell exit trap. No shared desk was modified.
+
+Notification arrival count and click-through await the watching maintainer's report. CLI success is not taken as evidence of receipt.
+
+No browser, server or external deployment was started. The fixture was removed. No product source, tests or diffs were read.
