@@ -19,8 +19,6 @@ import { present } from "./present.ts";
 import type { LifeRun } from "./contracts.ts";
 import { advance, children, emptyView, line, lines, nodeAt, nodesAt, PLACEHOLDER, span, type Pair, type View } from "./tree.ts";
 
-export { attachedLife } from "./attachment.ts";
-
 const NAME = "life";
 const VIEW = "life.view";
 

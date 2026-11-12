@@ -31,3 +31,7 @@ For independent fixture use, prepare a fresh root from the [guide](../../../exte
 No tests were added or changed. This join changes documentation only; `git diff --check` passed. Full integration checks remain the integration gate.
 
 Visual: false; shots: [].
+
+## Join review
+
+Reviewed the combined runtime, fixture and Concept setup code against the parent's shape: soul-first prompt, registry read per use, notes on only for an attached agent, agent models routed by the stances' `register`. Typecheck and the affected existing tests pass (system-prompt, mechanism, notes, life: 26). Structural: removed the unused `attachedLife` re-export from `extensions/context/life/index.ts` (the only caller imports `attachment.ts`). The settings-file merge now exists in `lib/agents.ts` beside seven earlier copies with differing merge depth; consolidating those is filed as an idea.
