@@ -22,7 +22,7 @@ pls be mindful of which kind of session we're in, and convey it to any subagents
 
 some notes on this machine's conventions:
 
-Anything the maintainer opens in a browser is served with `host-for-human` over Tailscale HTTPS, not `bb connect expose`. If the maintainer says the link is down, re-run it without asking.
+Anything the maintainer opens in a browser is served with `host-for-human` over Tailscale HTTPS, not `bb connect expose`. If the maintainer says the link is down, re-run it without asking. A URL goes to the maintainer only after it answered 200 this turn; a port remembered from earlier output is not a URL.
 
 A thread you spawn for the maintainer to talk to (previews, drawing, grilling, a sibling) is top-level, without `--parent-self`: a child's turn-end notices wake you while they talk to it.
 

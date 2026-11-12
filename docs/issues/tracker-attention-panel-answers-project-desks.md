@@ -4,7 +4,7 @@ assignee: "agent:auto-routine"
 author: "session:01a1cdc8-f756-70d2-9515-c6c42afeff63"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/attention-inbox-in-the-bb-tracker]]"
-claimed-by: "reconcile:attention-inbox-in-the-bb-tracker/attention-inbox-in-the-bb-tracker-refine-1"
+claimed-by: "reconcile:attention-inbox-in-the-bb-tracker"
 ---
 The maintainer can read and answer all projects' desk attention items from the tracker plugin, including supplying credentials to the requested dotenv files. This is the plugin part of [[projects/mlegls-pi/issues/attention-inbox-in-the-bb-tracker]], for [[projects/mlegls-pi/stories/answer-what-agents-ask-of-me]].
 
