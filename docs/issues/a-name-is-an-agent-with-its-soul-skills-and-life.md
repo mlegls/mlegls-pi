@@ -2,6 +2,7 @@
 assignee: "agent"
 priority: 2
 author: "session:hermes-concept-strategy-2026-11-11"
+stage: "done"
 ---
 idea: "How would Hermes's kind of SOUL.md and per-profile skills relate to what we're building here? For persistent identities in BB, do we want to use one of BB's existing bots plugins, or build our own plugin, or neither?" Concept-strategy answered neither: a small pi extension that resolves a name to a soul, skills, a life and a default model, with the files in git. "ok, agreed. a bb plugin would just be a frontend to this then, like the relation between our tracker plugin and issues system." (maintainer, 2026-11-12, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`). Earlier there: "agent-scoped skills could also be implemented as a pi extension or bb plugin."
 
@@ -73,3 +74,44 @@ decisions:
 - 2026-11-12: being the agent is being attached to the life of its name, with no attachment of its own; the virtual model is how a session starts as one and attaches only a session with no messages; the soul file carries the model list; skills are loaded each run, not discovered at startup; the registry is a settings list; the Concept agents' files are `agents/<name>/` in the concept repository (shaping, @thread:thr_yjcz7iz6hb).
 - 2026-11-12: Concept Engineering's list is fable at medium: "medium is good as a default, and i'd switch to high when needed. i'd think most automated calls want medium"; `founder-persona-bots` stays in Hermes ("yes"); the soul replaces the harness's identity sentence, left to the shaper: "whichever is better towards orientation in the world, and sense of self" (answers in @thread:thr_yjcz7iz6hb).
 - 2026-11-12: the spec is read and accepted with two amendments: the soul and `engineering-taste` are copied and the Hermes profile is untouched while the trial runs, its cron job paused; notes are on only in a session that is an agent, since turning them on machine-wide "is his to decide, not the trial's". The soul says who and the harness line only where (concept-strategy, as owner, @thread:thr_yjcz7iz6hb).
+
+## Result
+
+done
+
+The runtime, fixture encounter and Concept Engineering setup fit together as the parent's shape describes. They pass typecheck, and the 26 affected existing tests pass. I found no seam failures and made no behavior changes.
+
+Two things to know about the checks:
+- **No `test:affected`:** this repo has no such task, so I ran `bun test` directly on the system-prompt, mechanism, notes and life tests.
+- **No retained tests:** the change adds none; the driver's fixture and setup checks stay as evidence in the packet.
+
+I checked these against the parent's shape:
+- The soul comes first in the prompt.
+- The registry is re-read on each use.
+- Notes are on only for an attached agent.
+- Agent models route through the stances' shared `register`.
+- The real Concept files exist: `~/dev/mmon/concept/agents/concept-engineering/` with `SOUL.md` and `engineering-taste`, registered in system-config's `settings.json`.
+
+I drove no new stories here. The children's contracts cover the parent's journeys, and the driver's packet already records that.
+
+What I changed or filed:
+- **`changes`:** removed the unused `attachedLife` re-export from `extensions/context/life/index.ts`. Its only caller imports `attachment.ts`.
+- **`filed`:** [[projects/mlegls-pi/issues/pi-settings-are-read-by-eight-copies-of-one-loop]] (stage idea, outside the execution tree). `lib/agents.ts` adds another copy of the settings-file merge loop beside seven that already exist, with differing merge depth. The issue also notes three `~/` expansions.
+
+```yaml
+commit: 191f950a
+stories: []
+evidence:
+  path: docs/attachments/a-name-is-an-agent-with-its-soul-skills-and-life/index.md
+  visual: false
+  shots: []
+tests: []
+changes:
+  - "dropped the unused attachedLife re-export from extensions/context/life/index.ts (dead export; the sole caller imports attachment.ts)"
+filed:
+  - "[[projects/mlegls-pi/issues/pi-settings-are-read-by-eight-copies-of-one-loop]]"
+caveats:
+  - "Cost: attachedAgent re-reads settings.json files and the SOUL.md on each call, and the notes check and mechanism listing call it. This follows the spec's 'read on each use' and I didn't measure it."
+```
+
+Evidence: [docs/attachments/a-name-is-an-agent-with-its-soul-skills-and-life/index.md](../attachments/a-name-is-an-agent-with-its-soul-skills-and-life/index.md)
