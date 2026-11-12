@@ -1,3 +1,4 @@
+/home/mlegls/dev/mlegls-pi__worktrees/life-compacts-one-shared-tree-review-a/docs/attachments/life-compacts-one-shared-tree/drive.md (44 lines)
 # Independent first-use drive
 
 Revision: `eb4b58df4082299f409ea67d9a975ec382fb6cde`.
@@ -42,3 +43,15 @@ Replay each check with the single entry command above and inspect the named even
 No unresolved user friction encountered on the supplied library entry point. An expectation formed during use was that `idle()` might also imply a zero pending count: the expiry and cancellation events return idle while pending is still 1, then explicitly show it settling to 0. This did not prevent completion or reuse; callers should distinguish visible summary availability from final bookkeeping in this encounter.
 
 The command exited cleanly; its documented cleanup owns child processes and the temporary store. No browser, server, tunnel or external deployment was started. Real attached-session behavior remains owned by `life-session-attachment-and-run-context`, as the ticket specifies. Scored-cut behavior and settings persistence were not separately exercised by this supplied first-use journey; this pass covers the ticket's explicit controlled-compactor first use.
+
+
+## Review
+
+Read the diff against the ticket and re-ran `first-use.ts` on the review head: all six events unchanged. Findings:
+
+- **Full-log reload on every store write.** `refresh()` called `LifeLog.read()` whenever `version()` changed, and the store is shared machine-wide, so any record from any session re-read the whole life. Measured on 5,000 messages of 2 kB: 57-64 ms per read, at up to 4 Hz per chat. Repaired: `LifeLog.read(from?)` returns positions at or after `from` (backward compatible); `Chat` reads only `read(T)`. Same log, nothing new: 1.2 ms; ten new: 23 ms. An ad hoc append-after-sync check (two messages, then three more, `idle(5)`) resolved all five positions in order.
+- **Branch adapter `before()`** re-ran `messagesOf` over the whole branch for every candidate boundary in the context loop (quadratic while summaries lag). Repaired: entry positions are computed once per `synced()` and searched by bisection, as before the change.
+- Held without change: lease election and `claim` (earliest lease under ten minutes, own lease kept so it wins on expiry), first-record-wins loading for nodes and scores, late-local-result guard, cancellation, turn-model default, `memory.schemas.life`, unchanged `tree.ts`/`cache.ts`/`score.ts`.
+- Not exercised by any packet: scored-cut across processes (loss and overlay edges load through the same first-wins path; the kept `scored` build test covers parsing against durable keys) and settings persistence. Loss scoring has no lease, so two attached compactors may both pay for a scorer call; only the first record is kept.
+
+Re-checked after the repairs: `bun test extensions/context` (35 pass), `bun run typecheck`, `first-use.ts`.
