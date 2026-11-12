@@ -1,8 +1,8 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { bbThreads } from "./thread/bb";
 import { git } from "./thread/git";
-import { delay } from "./thread/process";
+import { command, delay } from "./thread/process";
 
 /** Shared convention files belong to the main checkout, even when called from a worktree. */
 export function deskPath(cwd = process.cwd()): string {
@@ -114,15 +114,34 @@ export function clearWorking(thread: string, cwd = process.cwd()) {
 	});
 }
 const itemTitle = (item: string) => item.split("\n")[0]?.slice(3).trim();
-export function addAttention(thread: string, title: string, body: string, cwd = process.cwd()) {
+export async function addAttention(thread: string, title: string, body: string, cwd = process.cwd()) {
 	thread = threadId(thread); title = line(title, "Title");
 	if (/^## /m.test(body)) throw new Error("An attention item has one ## heading; use ### within its body");
 	if (/^Owner:/m.test(body)) throw new Error("Owner is supplied by the helper");
-	return writeDesk(cwd, (files, live) => {
+	const item = "## " + title + "\n\nOwner: @thread:" + thread + "\n\n" + body.trim();
+	let changed = false;
+	const dir = await writeDesk(cwd, (files, live) => {
 		requireLive(live, thread);
+		const previous = files.items.find(item => owner(item) === thread && itemTitle(item) === title);
+		changed = previous?.trim() !== item;
 		files.items = files.items.filter(item => !(owner(item) === thread && itemTitle(item) === title));
-		files.items.push("## " + title + "\n\nOwner: @thread:" + thread + "\n\n" + body.trim());
+		files.items.push(item);
 	});
+	if (changed) {
+		try {
+			const result = JSON.parse(await command(process.env.BB_CLI || "bb", [
+				"push-notifications", "send",
+				"--title", basename(dirname(dir)) + ": " + title,
+				"--body", body.trim().split(/\r?\n[ \t]*\r?\n/)[0]!.replace(/\r?\n/g, " "),
+				"--thread", thread, "--json",
+			], cwd));
+			if (result.ok === false || !result.channels?.length)
+				throw new Error(result.error?.message ?? "No notification channel reached");
+		} catch (error) {
+			console.error("Desk notification failed: " + String(error instanceof Error ? error.message : error).replace(/[\r\n]+/g, " "));
+		}
+	}
+	return dir;
 }
 export function removeAttention(thread: string, title: string, cwd = process.cwd()) {
 	thread = threadId(thread); title = line(title, "Title");

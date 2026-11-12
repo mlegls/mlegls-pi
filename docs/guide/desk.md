@@ -14,6 +14,8 @@ ab desk role clear supervisor
 
 Use `--thread thr_…` to override `BB_THREAD_ID`. An attention body can come from stdin with `--file -`; it contains the question, options/recommendation and what waits on it. The helper supplies the item's `##` heading and owner. Repeating an owner's title replaces that item. Roles have one holder; working lines and attention items belong to individual threads.
 
+Adding a new attention item or changing its body sends a system notification with the project and item title, plus the first paragraph. Clicking it opens the owning thread. Re-adding the same title and body, cleaning and handing over send nothing. A failed or undelivered notification prints one line on stderr; the desk write still succeeds. Web and desktop banners need an open bb tab or app window with notification permission; mobile notifications work while the app is closed.
+
 Every write cleans **both** files using bb's live threads, including hidden threads. An archived or deleted owner loses its lines and attention items. Hand over still-needed work before archiving. A failed bb lookup leaves the files unchanged. `ab desk clean` just cleans; `STATUS.md` belongs to the reconciler.
 
 The CLI ships in `bin/desk` and `ab desk`. Before integration, run `./bin/desk --help` or `./bin/ab desk --help` from the worker checkout; neither depends on installing a PATH link.
@@ -63,6 +65,15 @@ cd "$fixture/worker"
 "$helper" working set "Trying the shared desk"
 "$helper" path
 "$helper" working clear
+```
+
+To try attention notifications, run this **once** in that disposable worker. It sends two real notifications to the maintainer's enabled devices: one for the new item and one for its changed body. The identical middle add sends nothing.
+
+```sh
+printf '%s\n' 'Test attention notification: first body.' | "$helper" attention add "TEST: desk attention notification" --file -
+printf '%s\n' 'Test attention notification: first body.' | "$helper" attention add "TEST: desk attention notification" --file -
+printf '%s\n' 'Test attention notification: changed body.' | "$helper" attention add "TEST: desk attention notification" --file -
+"$helper" attention remove "TEST: desk attention notification"
 ```
 
 The files are under `$fixture/main/desk`, excluded via the main git directory. To supply an explicit persona, pass `--thread YOUR_LIVE_BB_THREAD_ID`.
