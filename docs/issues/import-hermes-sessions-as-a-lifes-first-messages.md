@@ -27,3 +27,4 @@ holes, for whoever shapes this beside the life's spec:
 
 decisions:
 - 2026-11-11: a Concept agent's Hermes past is imported (maintainer, quoted above).
+- 2026-11-12: concept-strategy (Hermes) owns this project ([[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]), and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
