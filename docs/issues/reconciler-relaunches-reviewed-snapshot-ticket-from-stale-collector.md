@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:thr_we6983izn2"
 priority: 2
@@ -38,3 +38,36 @@ Done when: replaying the 11-09 sequence launches no second implementation while 
 ## Verification evidence
 
 [Offline replay packet](../../docs/attachments/reconciler-relaunches-reviewed-snapshot-ticket-from-stale-collector/index.md), including the independent drive encounter.
+
+## Result
+
+done — no repairs were needed. The diff fixes the 11-09 path and adds the repeat guard. I reran `bun test lib/reconcile/` (52 pass, 0 fail, about 3 minutes) and `bun run typecheck` (clean) on the final head.
+
+I added a short review section to the driver's `index.md` and left the rest of the packet as it was.
+
+- **Cause and fix:** the cause is in the packet and the code agrees. `catchUp` skipped locally-frontier descendants that had already landed upstream. `tick` then deleted every new chain just because its slug was in the landing ledger. Catch-up now merges the delivery, and a chain that coexists with an old landing is kept and raised once to the owner.
+- **Repeat guard:** it keys on base plus prerequisites, persists before dispatch, and survives chain replacement and restart. The third identical launch raises one exception.
+- **Linked tracker issues:** `reconciler-relaunches-fixture-implementation-while-preparation-runs` and `notice-replay-setup-does-not-expose-recorded-followup-state` are already `done`. Nothing was left to settle or file.
+
+```yaml
+commit: 9f8bedf9
+stories:
+  - story: Reviewed delivery catches up the stale collector without reimplementation
+    outcome: held
+  - story: A waiting implementation retains ownership without a second launch
+    outcome: held
+  - story: A third identical launch produces one stable exception
+    outcome: held
+evidence:
+  path: docs/attachments/reconciler-relaunches-reviewed-snapshot-ticket-from-stale-collector/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/scheduling.test.ts
+filed: []
+caveats:
+  - "Outcomes come from the offline fake-bb replay, not a live Concept deployment."
+  - "Cost of the guard: an implementer that dies twice without committing (same base) now escalates to the owner instead of getting a third automatic relaunch. A predecessor's commits change the base and reset the count."
+```
+
+Evidence: [docs/attachments/reconciler-relaunches-reviewed-snapshot-ticket-from-stale-collector/index.md](../attachments/reconciler-relaunches-reviewed-snapshot-ticket-from-stale-collector/index.md)

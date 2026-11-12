@@ -99,6 +99,7 @@ const WAITING_VOID_MS = 2 * 60_000;
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3 } as const;
 /** The exception reason of a landing whose cleanup keeps failing. */
 const CLEANUP_FAILED = "landing cleanup failed";
+const DELIVERED_ACTIVE = "active chain after recorded landing";
 
 
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
@@ -167,6 +168,8 @@ export interface State extends GlobalRunState {
 	ownerHandover?: true;
 	collectors: Record<string, { path: string; branch: string; parentBranch: string }>;
 	chains: Record<string, Chain>;
+	/** Implementation admission survives chain replacement and restart; replaying a saved handle costs no new attempt. */
+	implementationLaunches?: Record<string, { base: string; prerequisites: string; handles: string[] }[]>;
 	/** Owner restrictions survive chain replacement and reconciler restarts. */
 	constraints?: Record<string, string[]>;
 	exceptions: Record<string, Exception>;
@@ -633,6 +636,27 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			note("saved " + h.handle + "'s uncommitted work as WIP commit " + git(h.path, "rev-parse", "--short", "HEAD") + " for its successor");
 		} catch (e) { note("saving " + h.handle + "'s uncommitted work failed (retirement retries it): " + e); }
 	}
+	/** A blocked/waiting report supplies no new prerequisite. Count identical implementation starts across chains,
+	 * not in c.retries (startPhase resets it, and redispatch deletes the chain). Persist before dispatch for crash replay. */
+	function admitImplementation(slug: string, c: Chain, issue: Issue, base: string, handle: string): boolean {
+		const current = view(c.into);
+		const prerequisites = JSON.stringify([
+			[...issue.blockedBy].sort().map(k => [k, s.landed[k]?.head ?? null, current.get(k)?.satisfied ?? false]),
+			[...issue.guards].sort(),
+			[...current.values()].filter(k => k.partOf === slug).map(k => [k.slug, s.landed[k.slug]?.head ?? null, k.satisfied]).sort(),
+		]);
+		const attempts = (s.implementationLaunches ??= {})[slug] ??= [];
+		let same = attempts.find(a => a.base === base && a.prerequisites === prerequisites);
+		if (same?.handles.includes(handle)) return true;
+		if (same && same.handles.length >= 2) {
+			raise(slug, "repeated implementation on unchanged prerequisites", "Two implementations already started from " + base
+				+ " with the same prerequisites: " + same.handles.join(", ") + ". A third needs changed code or prerequisites.\n\nPrerequisites: " + prerequisites, current, "owner");
+			return false;
+		}
+		if (!same) { same = { base, prerequisites, handles: [] }; attempts.push(same); }
+		same.handles.push(handle); save();
+		return true;
+	}
 	/** finished words the retirement notice. */
 	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false) {
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
@@ -658,6 +682,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.launching ??= resumeAttempt ?? nextHandle(slug, phase);
 		c.launchPhase = phase;
 		save();
+		if (phase === "implement" && !admitImplementation(slug, c, issue, base, c.launching)) return;
 		const registered = await findWorker({ run: s.root, handle: c.launching }, controlCwd);
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
 			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
@@ -865,6 +890,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** A report since the exception that shows the worker carrying on its assignment. A checkpoint doesn't: a worker held
 	 * for checkpointing too often (author-and-publish-the-language-learning-template, 2026-10-12) kept posting them. */
 	const resumedReport = (ex: Exception, c: Chain) => {
+		if (ex.reason === DELIVERED_ACTIVE) return undefined;
 		const m = c.handle && fresh(c.handle, ex.reportTs ?? c.handledTs, c.launchedAt);
 		return m && !m.tags.includes("error") && ["done", "blocked", "needs-input", "waiting"].includes(parse(m.body).status ?? "") ? m : undefined;
 	};
@@ -1033,7 +1059,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function cleanupLandings() {
 		for (const operation of Object.values(s.landingOps)) {
 			if (!s.landed[operation.slug] || !operation.landedHead || operation.cleanupDone) continue;
-			if (s.exceptions[operation.slug]?.reason === CLEANUP_FAILED) continue;
+			if ([CLEANUP_FAILED, DELIVERED_ACTIVE].includes(s.exceptions[operation.slug]?.reason ?? "")) continue;
 			try {
 				const threads = await bbThreads();
 				for (const worker of operation.workers) {
@@ -1313,16 +1339,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		return up;
 	}
-	/** A collector is cut from its parent once. A blocker that lands in an enclosing collector afterwards is recorded
-	 * into that collector, so it satisfies nothing here until this branch contains its head (view's inherited set).
-	 * When one holds open work under this collector and the parent branch contains it, merge the parent in; a conflict
+	/** A collector is cut from its parent once. A blocker or descendant that lands in an enclosing collector afterwards
+	 * satisfies nothing here until this branch contains its head (view's inherited set).
+	 * When the parent contains that delivery, merge it in before scheduling open work here; a conflict
 	 * goes to the owner. 2026-11-07 (concept, release-the-open-local-product): five dependents in two sub-collectors
 	 * waited on landings in the root collector until it was merged into them by hand. */
 	async function catchUp(slug: string, into: string, own: Map<string, Issue>): Promise<boolean> {
 		const col = s.collectors[slug], up = enclosing(slug), parent = pathOf(into), landed = new Set<string>();
 		for (const k of own.values()) {
-			if (finished(k) || k.frontier || !descends(k, slug, own)) continue;
-			for (const b of k.blockers) {
+			if (finished(k) || !descends(k, slug, own)) continue;
+			// A reviewed descendant can have landed in an enclosing collector after it was reparented here.
+			// It is frontier in this stale branch, but needs its delivered code, not another implementation.
+			for (const b of [k.slug, ...k.blockers]) {
 				const entry = s.landed[b];
 				if (entry && up.has(entry.into) && isAncestor(parent, entry.head) && !isAncestor(col.path, entry.head)) landed.add(b);
 			}
@@ -1429,6 +1457,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// also enforced by schedulingView for every destination.
 		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i));
 		if (kids.length && !s.chains[slug] && !refining) {
+			if (s.exceptions[slug]) return "active";
 			ensureCollector(slug, into);
 			const below = await Promise.all(kids.map(k => {
 				const current = view(slug), child = current.get(k.slug)!;
@@ -1480,6 +1509,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 		}
 		if (!c) {
+			if (s.landed[slug]) {
+				const entry = s.landed[slug];
+				raise(slug, "recorded landing missing from destination", "Reviewed code " + entry.head + " landed in " + entry.into
+					+ ", but is absent from " + into + ". Bring the existing delivery into this destination before continuing.", issues, "owner");
+				return "active";
+			}
 			if (s.collectors[slug]) issue = own.get(slug)!;
 			// Satisfied in its own collector but not landed: only the join remains, whatever its derived stage (a refinement
 			// that omitted the parent's stage, its last open child moved out). 2026-10-28 (arkhai-payments, mediation-cases):
@@ -1611,6 +1646,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.launching = nextHandle(slug, "implement");
 		c.launchPhase = "implement";
 		save();
+		if (!admitImplementation(slug, c, issue, c.base, c.launching)) return;
 		c.handle = await launch(c.launching, "implement", prompt, c.base, pathOf(c.into), issue, undefined, async () => [ticketText(issue), c.self ? "Its children are all satisfied in your base; implement its residual work and joins." : "", c.note ?? ""].filter(Boolean).join("\n\n"), undefined, c);
 		// Its only caller with a previous worker is a promoted refinement: the writer finished.
 		if (previous && !await retireHandle(previous, cwd, true)) c.workers.push(previous);
@@ -1673,6 +1709,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		await recoverRefinements(refinement);
 		// A bb spawn can precede the receipt save. Adopt only exact run/handle.
 		for (const [slug, c] of Object.entries(s.chains)) {
+			if (s.landed[slug] && c.phase !== "integrate") {
+				// An old landing is no completion receipt for a newly started worker. Keep its worktree/processes
+				// for the owner instead of deleting the chain every tick (Concept snapshot, 2026-11-09).
+				raise(slug, DELIVERED_ACTIVE, "Recorded delivery " + s.landed[slug].head + " in " + s.landed[slug].into
+					+ " coexists with " + c.phase + " worker " + (c.handle?.handle ?? c.launching ?? "(unreceipted)")
+					+ ". Its work is retained; reconcile the existing delivery and worker before continuing.\n\n"
+					+ (fresh(c.handle, undefined, c.launchedAt)?.body ?? ""), view(c.into), "owner");
+				continue;
+			}
 			if (s.landed[slug]) {
 				s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
 				receiptWorkers(slug, c);
@@ -1751,8 +1796,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// it: walk again before stopping.
 		const resolvedNow = result === "stuck" && Object.keys(s.exceptions).length < pending;
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
-		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug)) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
-		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
+		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug) && s.exceptions[slug]?.reason !== DELIVERED_ACTIVE) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
+		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING && ex.reason !== DELIVERED_ACTIVE) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
 		if (result !== "active" && !resolvedNow && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			closeAtTarget(completion);
 			if (Object.entries(s.results).some(([slug, result]) => s.landed[slug]?.into === s.cwd && !result.closedAt)) return false;

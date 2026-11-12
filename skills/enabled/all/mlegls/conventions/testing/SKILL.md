@@ -3,6 +3,8 @@ name: testing
 description: "Use when writing, editing, auditing or deleting tests."
 ---
 
+This is the policy for repositories the maintainer fully owns. In any other repository (a team's, a client's, an upstream), that repository's testing conventions replace everything below: read its contributor and testing docs, and write the tests it expects without asking.
+
 The baseline is no tests. A test earns its place only if it asserts an externally depended-on behavior of a nontrivial algorithm that could plausibly change in response to future demands.
 
 - Externally depended on: its consumers are outside a change's view (people, persisted data, published artifacts, network APIs, a package's public operations). Inside the view, the author, reviewer and typechecker see both sides.
