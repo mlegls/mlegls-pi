@@ -52,7 +52,7 @@ test("an owner resolution queued while the exception is below the owner applies 
 }, 30_000);
 
 // Approved stall contract: an active 50-minute call warns once, unless managed work is still running.
-test.each([false, true])("a 50-minute bash call with managed process=%s", async managed => {
+test.each([false, true])("a 50-minute bash call, managed process running: %p", async managed => {
 	let until = Infinity;
 	const command = "sleep 3000";
 	const { f, state } = await reconcile(async (f, r) => {

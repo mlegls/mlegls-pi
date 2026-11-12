@@ -32,3 +32,14 @@ Session metadata cases also passed. Their displayed names concern provenance and
 2. Reviewer: confirm the unmanaged variant checks one exception after repeated reconciliation, including tool and command; confirm the managed variant checks none. These are the precise required observations that compact runner output cannot show separately.
 
 No rendered journey; no screenshots. No services or external resources started. Only the completed fixture process was owned by this drive.
+
+## Review (2026-11-12)
+
+Read the diff against the ticket and replayed `bun test lib/reconcile/exceptions.test.ts lib/session-meta/index.test.ts` (18 pass).
+
+- Unmanaged variant asserts exactly one log line and one owner tell over a 2.5 s reconcile window (several ticks; `raise` returns early while the exception stands), `level: owner`, and that the text contains `Tool bash` and the command. Managed variant asserts zero of each. Both held.
+- Registry shape read (`version: 1`, `records[].info.status`) matches pi-processes `src/manager.ts` `SessionSnapshot`. `pi-processes` is the `process` tool's backend in this setup, and a `process wait` on a running process is skipped by the check.
+- `parentToolCallId` is in pi 1.5's `tool_execution_*` events; the innermost stalled call is named, so a bash inside codemode reports the bash command.
+- Live `since` now means the start of the current state instead of the last write; no reader of it outside the new check.
+- Repair: the managed-process cases printed literal `%s`; titles now read `managed process running: false|true`.
+- Not observed: a real 45-minute stall, and `tool_execution_start`/`end` telemetry from a live pi (fixture writes the live record directly).
