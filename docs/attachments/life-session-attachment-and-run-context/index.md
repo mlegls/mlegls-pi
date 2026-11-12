@@ -100,3 +100,31 @@ The sequential run took about 3m45 overall, including a substantial pause after 
 No source-level claims about monotonic saved-view replacement, concurrent builder waiting or exact append-before-boundary transaction order are established by this drive. Interrupted-history recovery was not separately driven. Repository-local bare-name isolation was not exercised; machine-wide naming was. These remain acceptance work of the active attachment ticket, not waived requirements. Hermes import and Beelink trial stayed out of scope.
 
 All driver-created CLI/RPC processes were terminated by their owning harness after each trial. Both bb threads were stopped and archived after successful completion; generated directory trust was removed with the documented untrust command. No servers, tunnels, containers, browser pages or applications were started. Disposable workspaces `/tmp/pi-life-hgWnTO` and `/tmp/pi-life-I7Y5TF` retain trial data for reviewer replay; no runtime remains intentionally active. No product repairs or tests were made by the driver.
+
+## Review pass
+
+Reviewer repaired the failed long-run coherence story and re-drove it on head `dcec893d`; the driver's section above is unchanged.
+
+### Cause of the failed summaries
+
+In the driver's store (`/tmp/pi-life-hgWnTO`) leaf 37 (a 901-byte result) never had a node record: its `life.lease` was won at 03:32:43 by a session that then exited, and every later session waited out the ten-minute lease. The compactor's context for a call stops at the first unbuilt line, so every later call (leaf 78 included) saw the view only through message 36 — none of its own run — and copied the nearest similar lines, the prior run's "150 times" and `WHOLE-USER-963`. Replaying the exact prompt for leaves 78/81 from that store (current run's context absent): 8/8 summaries said 150 or imported the prior marker. With context through message 77 present: 12/12 said 250.
+
+### Repairs
+
+- `build.ts` `contextLines`: past the first unbuilt line the nearest messages follow as leaves (an unbuilt one cut to its head), within the compactor view's low budget. Same replay with the stuck leaf still in place: 12/12 leaves (78, 81, 84) say 250 and name PRESERVE-612.
+- `index.ts` long-run path: the prefix is still appended, but a run no longer waits `waitSeconds` again at each request for history stuck before it. Driver's run was ~3m45; with the lease stuck, the same task now takes ~39 s (one 30 s wait at the first request).
+- `index.ts` `catch_up(thread)`: drops the sibling's system-prompt message (23.3 KB → 3.9 KB for a fresh session's first run) and says `(no unfinished run there)` for no run instead of `[]`.
+
+### Re-drive
+
+Fresh playground stores, real pi RPC, Haiku 4.5, tailBytes 800, prior run of six 150-repeat results with `WHOLE-USER-963`, then the driver's four-call 250 task with `PRESERVE-612`:
+
+| Store | Seed | Current-run result summaries | Saved views |
+| --- | --- | --- | --- |
+| `/tmp/pi-life-XKmWxG` | leaf 0 held by a live-looking lease (stuck frontier) | all four say 250, `PRESERVE-612` | one (15), boundary never advanced; run ~39 s |
+| `/tmp/pi-life-Bmfklq` | none | all four say 250, `PRESERVE-612` | 15,16,19,22,25: increasing, one per prefix advance |
+
+Story "Long-run summaries remain semantically coherent": held. Replay: `bun /tmp`-style driver in the repro described above is not committed; to replay, seed a life with a long first message and a `life.lease` for key `[name,2,0,0]` via `scripts/life-playground.ts prepare`, then run the four-call task.
+
+Still unobserved: interrupted-history recovery, concurrent-builder waiting beyond the above, and append-before-boundary transaction order as a whole (code read only: `context()` appends `branch.slice(0, k)` before moving `current.boundary`; `viewAt` reads and writes `life.view` under one immediate transaction and writes only when `T > saved.upTo`).
+
