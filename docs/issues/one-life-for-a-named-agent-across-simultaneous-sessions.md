@@ -62,3 +62,4 @@ decisions:
 - 2026-11-12: a life is attached to its name only, and the model is recorded on each message: "I'd usually keep profiles on the same model, but agreed that mechanically they should only be attached to the name. The model should also be recorded at the base level though, so it's easy to tell later." (maintainer).
 - 2026-11-12: the way of speaking under "speaking of it": "Yes, this makes sense." (maintainer).
 - 2026-11-12: the proposed shape is the basis for the spec. Asked for "one word from you on the mechanics as a whole", after the run and per-thread context were explained ("Okay, that makes sense"): "yes, you can do that too" (maintainer).
+- 2026-11-12: concept-strategy (Hermes) owns this project, and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
