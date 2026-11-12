@@ -71,18 +71,22 @@ export function install(pi: ExtensionAPI) {
 	let monitor: ReturnType<typeof setInterval> | undefined;
 	let ctx: ExtensionContext | undefined;
 	let thread: string | undefined;
+	const tools = new Map<string, NonNullable<Live["tools"]>[number]>();
+	let stateSince = new Date().toISOString(), lastState: Live["state"] | undefined;
 	const live = (state: "working" | "idle") => {
 		if (!ctx) return;
 		const sm = ctx.sessionManager;
+		if (state !== lastState) { stateSince = new Date().toISOString(); lastState = state; }
 		try {
 			writeLive({ pid: process.pid, sessionId: sm.getSessionId(), sessionFile: sm.getSessionFile(), cwd: sm.getCwd(), state,
-				since: new Date().toISOString(), mode: ctx.mode, parentSession, thread });
+				since: stateSince, mode: ctx.mode, parentSession, thread, tools: [...tools.values()] });
 		} catch {}
 	};
 	// Prepended after pi's own handler (installed at startup), so it runs before pi exits.
 	pi.on("agent_start", () => watchEpipe());
 	pi.on("session_start", async (_event, c) => {
 		ctx = c;
+		tools.clear(); lastState = undefined;
 		watchEpipe();
 		const saved = c.sessionManager.getBranch().filter((entry) => entry.type === "custom" && entry.customType === SPAWN_META).at(-1);
 		const provenance = saved?.type === "custom" ? saved.data as SpawnMeta : undefined;
@@ -106,8 +110,15 @@ export function install(pi: ExtensionAPI) {
 		if (!saved || provenance?.thread !== thread || (meta?.run && (provenance?.run !== meta.run || provenance?.handle !== meta.handle)))
 			pi.appendEntry(SPAWN_META, metadata);
 	});
-	pi.on("agent_start", () => live("working"));
-	pi.on("agent_end", () => live("idle"));
+	pi.on("agent_start", () => { tools.clear(); live("working"); });
+	pi.on("tool_execution_start", event => {
+		tools.set(event.toolCallId, { id: event.toolCallId, name: event.toolName,
+			command: typeof event.args?.command === "string" ? event.args.command : undefined,
+			since: new Date().toISOString(), parent: event.parentToolCallId });
+		live("working");
+	});
+	pi.on("tool_execution_end", event => { tools.delete(event.toolCallId); live("working"); });
+	pi.on("agent_end", () => { tools.clear(); live("idle"); });
 	pi.on("session_shutdown", () => { clearInterval(monitor); removeLive(); });
 	process.once("exit", () => removeLive());
 }

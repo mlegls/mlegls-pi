@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { protocolFixture } from "./protocol-fixture";
 import { excludeTracker } from "../thread/tracker-worktree";
+import { writeLive } from "../session-meta/live";
 
 // In-process reconciler on a local tracker, with no launches: budget 0 keeps it from starting handlers or workers, so
 // only what the owner and the worker did can resolve the exception.
@@ -47,6 +48,42 @@ test("an owner resolution queued while the exception is below the owner applies 
 		expect(state.chains.fixture).toMatchObject({ held: false, skipDrive: "the owner drove it", phase: "implement" });
 		expect(state.log.some(l => l.includes("owner resolution for fixture applies at root"))).toBe(true);
 		expect(state.log.some(l => l.includes("handler"))).toBe(false);
+	} finally { f.close(); }
+}, 30_000);
+
+// Approved stall contract: an active 50-minute call warns once, unless managed work is still running.
+test.each([false, true])("a 50-minute bash call with managed process=%s", async managed => {
+	let until = Infinity;
+	const command = "sleep 3000";
+	const { f, state } = await reconcile(async (f, r) => {
+		const worker = f.bare("root", "fixture-implement-1");
+		f.bb.setStatus(worker.path, "active");
+		const sessionFile = join(f.root, "worker.jsonl");
+		writeLive({ pid: process.pid, sessionId: "stall-worker", thread: worker.bb, sessionFile, cwd: worker.path,
+			state: "working", since: new Date(Date.now() - 50 * 60_000).toISOString(), tools: [
+				{ id: "outer", name: "codemode", since: new Date(Date.now() - 51 * 60_000).toISOString() },
+				{ id: "outer/1", parent: "outer", name: "bash", command, since: new Date(Date.now() - 50 * 60_000).toISOString() },
+			] });
+		if (managed) {
+			mkdirSync(sessionFile + ".processes");
+			writeFileSync(join(sessionFile + ".processes", "registry.json"), JSON.stringify({ version: 1, records: [{ info: { status: "running" } }] }));
+		}
+		const s = held(r, f);
+		s.exceptions = {};
+		s.chains.fixture = { ...s.chains.fixture, held: false, handle: worker };
+		r.saveState(s);
+		until = Date.now() + 2500;
+	}, () => Date.now() > until);
+	try {
+		const warnings = state.log.filter(l => l.includes("exception fixture: implement tool call stalled"));
+		const notices = f.bb.threads().find(t => t.id === "thr_owner")!.tells.filter(t => t.includes("tool call stalled"));
+		expect(warnings).toHaveLength(managed ? 0 : 1);
+		expect(notices).toHaveLength(managed ? 0 : 1);
+		if (!managed) {
+			expect(state.exceptions.fixture).toMatchObject({ reason: "implement tool call stalled", level: "owner" });
+			expect(state.exceptions.fixture.text).toContain("Tool bash");
+			expect(state.exceptions.fixture.text).toContain(command);
+		}
 	} finally { f.close(); }
 }, 30_000);
 
