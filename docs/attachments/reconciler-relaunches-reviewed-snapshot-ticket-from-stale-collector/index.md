@@ -40,3 +40,9 @@ Observed: **2 tests passed, 34 assertions**. The replay covers:
 Existing affected regressions: **16 tests passed** across `collector-catch-up`, `launch-recovery`, `exceptions`, `landing-cleanup`, `resume` and `retry`. `bun run typecheck` passed. No existing test assertions were weakened.
 
 These observations use the fake worker backend. No live Concept reconciler, preparation process, cache lock or collector was modified.
+
+## Review
+
+Read `db325286` against the ticket: the 11-09 path (stale-collector catch-up skipping frontier descendants; tick deleting a new chain solely for having a landing) is closed, and the repeat guard keys on base + prerequisites across chain replacement, persisted before dispatch. Reran `bun test lib/reconcile/` (52 pass, 0 fail, 176 s) and `bun run typecheck` (clean) on the final head. Linked tracker frictions (`reconciler-relaunches-fixture-implementation-while-preparation-runs`, `notice-replay-setup-does-not-expose-recorded-followup-state`) are already `done`. No repairs needed.
+
+Cost of the guard: an implementer that dies twice without committing (same base) now escalates to the owner instead of a third automatic relaunch; a predecessor's commits change the base and reset the count.
