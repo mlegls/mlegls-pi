@@ -1,5 +1,7 @@
 # Reviewed snapshot ticket relaunched from a stale collector
 
+Independent first-use verification: [drive-2 encounter](drive-2.md).
+
 The reviewed landing was recorded in the enclosing collector, while the ticket remained open in a stale sub-collector. Each tick discarded the new chain because a landing existed, then launched it again because that landing's code was absent locally. Its `waiting` report never reached normal report handling.
 
 ## Historical join
