@@ -1,6 +1,6 @@
 ---
 stage: "goal"
-assignee: "human"
+assignee: "session:hermes-concept-strategy"
 author: "session:hermes-concept-strategy-2026-11-11"
 blocked-by:
   - "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
@@ -19,8 +19,8 @@ Proposed checks (concept-strategy), each from something that went wrong in Herme
 
 The trial also answers the three holes the life issue leaves to it.
 
-holes:
+For the trial its soul and its Hermes memory file are the agent's prompt and its skill directory is added to the session (`SOUL.md`, `memories/` and `skills/` under `~/.hermes/profiles/concept-engineering/`): the least that works. The life issue leaves soul and skills out and nothing agent-scoped exists in pi or bb ("agent-scoped skills could also be implemented as a pi extension or bb plugin"), so the general mechanism is its own issue afterwards. While the trial runs Concept Engineering works only as the life, since two of it writing two memories diverge; its Hermes shaping routine is already paused. It runs for a week of mlegls's ordinary use.
 
-- how its soul and skills reach a pi session. The life issue leaves them out, and nothing agent-scoped exists in pi or bb: "agent-scoped skills could also be implemented as a pi extension or bb plugin". They are `SOUL.md`, `skills/` and `memories/` under `~/.hermes/profiles/concept-engineering/`. Recommended: the least that works for the trial (the soul and its memory file as the agent's prompt, its skill directory added to the session), and the general mechanism as its own issue afterwards.
-- what Concept Engineering in Hermes does meanwhile. Two of it writing two memories diverge. Recommended: for the trial it works only as the life; its Hermes shaping routine is already paused.
-- how long. Recommended: a week of his ordinary use.
+decisions:
+- 2026-11-12: concept-strategy (Hermes) owns this project, and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
+- 2026-11-12: soul and memory file as the prompt and the skill directory added to the session, for the trial only; Concept Engineering works only as the life while it runs; one week (concept-strategy, as owner).
