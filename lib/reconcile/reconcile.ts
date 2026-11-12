@@ -417,6 +417,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	};
 	const completion = { state: s, tracker, save, pathOf, locked,
 		holdEvidence: (slug: string, text: string) => raise(slug, EVIDENCE_MISSING, text, view(destination())),
+		holdForeignCommit: (slug: string, text: string) => raise(slug, "foreign implementation not installed", text, view(destination())),
 	};
 	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
 	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.

@@ -1,6 +1,50 @@
 import { expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult, type CompletionContext } from "./completion";
 import { protocolFixture } from "./protocol-fixture";
+
+test("foreign handoff commits hold closing until the configured loaded checkout contains them", async () => {
+	const f = protocolFixture();
+	try {
+		f.create("foreign");
+		const loaded = join(f.root, "loaded"), implementation = join(f.root, "implementation");
+		f.git(f.cwd, "clone", "-q", f.cwd, loaded);
+		f.git(loaded, "config", "user.name", "Fixture");
+		f.git(loaded, "config", "user.email", "fixture@example.invalid");
+		f.git(loaded, "worktree", "add", "-qb", "implementation", implementation);
+		const commit = f.commit(implementation, "foreign.txt", "foreign implementation\n");
+		const agent = process.env.PI_CODING_AGENT_DIR!;
+		mkdirSync(agent, { recursive: true });
+		// Resolve a relative object-form source exactly as pi does. The worker's
+		// branch has the object, but the source's HEAD still lacks it.
+		writeFileSync(join(agent, "settings.json"), JSON.stringify({ packages: [{ source: "../loaded" }] }));
+		const context: CompletionContext = {
+			state: f.state, tracker: f.tracker, pathOf: into => into,
+			locked: async work => work(), save: () => f.save(context.state),
+		};
+		const worker = await f.worker("foreign-record", f.cwd, "main");
+		const record = f.commit(worker.path, "record.md", "Foreign review record.\n");
+		expect((await landReviewed(context, { slug: "foreign", into: f.cwd, worker, workers: [worker],
+			result: reviewedResult(null, { commit: record, summary: "Foreign implementation reviewed" }, "done\n\ncommit: " + record + " # foreign fix " + commit),
+			tests: [] })).ok).toBe(true);
+		expect(() => closeAtTarget(context)).toThrow("not installed in loaded checkout " + loaded);
+		expect(f.tracker.fields("foreign").stage).toBe("ticket");
+		expect(context.state.results.foreign.closedAt).toBeUndefined();
+
+		// Runtime's exception callback holds without throwing and is retried on
+		// the next completion pass, including after a saved-state restart.
+		let held = "";
+		context.holdForeignCommit = (_slug, text) => { held = text; };
+		closeAtTarget(context);
+		expect(held).toContain(commit);
+		context.state = f.restore();
+		f.git(loaded, "merge", "-q", "--ff-only", commit);
+		closeAtTarget(context);
+		expect(f.tracker.fields("foreign").stage).toBe("done");
+		expect(context.state.results.foreign.closedAt).toBeTruthy();
+	} finally { f.close(); }
+}, 30_000);
 
 test("landings carry leaf results to the owner, replay merged code and incomplete child-first closes after retirement", async () => {
 	const f = protocolFixture();
