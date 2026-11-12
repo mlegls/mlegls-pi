@@ -1,6 +1,6 @@
 ---
 stage: "goal"
-assignee: "human"
+assignee: "agent"
 author: "session:hermes-concept-strategy-2026-11-11"
 ---
 idea: "I think we should change my optmem to have named profiles, rather than being per session. originally i intended to just keep optmem sessions around for a long time, but i think this would be a better ux. and then each concept agent could be an optmem profile. i don't see much point to using this kind of logarithmic memory system for a short session." Then, having worked out what kind of creature the mechanics imply: "If what we want is one 'creature' with the capacity for simultaneous manifestations, because simultaneous manifestations is advantageous in many ways over not being able to manifest simultaneously, so we see this as a 'capability' of the creature", and "let's start on revising my pi optmem to a realization of this, then. It seems to deserve a rename though. Maybe 'hydra'?" (maintainer, 2026-11-11, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`).
@@ -15,7 +15,7 @@ Out: the agent's soul and agent-scoped skills ("agent-scoped skills could also b
 
 ## proposed shape
 
-Proposed by concept-strategy in that session. What the maintainer ruled is under decisions; the rest of these mechanics he has not ruled on.
+Proposed by concept-strategy in that session and accepted by the maintainer as the basis for the spec (decisions).
 
 - **log.** A life's messages are numbered in one append-only sequence in the [records store](../../lib/records/store.ts), each a reference to its session entry (`entry:<session>/<entry>`, [branch.ts](../../lib/records/branch.ts)) that records the model its session was on. A node records the model that wrote it. A run is optmem's (`runStart` in `index.ts`): one message to the agent and its work on it, up to the reply that ends it. During a run a manifestation works from its own session file, as now. When the run ends, its messages get the next positions in the life together; when a long run's boundary moves (`tailBytes`), the part before the boundary gets them then. Positions are assigned inside the write, as upstream OptMem assigns ids inside its lock. So a run stays contiguous, a tool call stays with its result, and manifestations interleave by run, not by message. A run that never ended, because its session died, is appended when that session next starts. Nodes are keyed by life, level and index, and are shared.
 - **context.** Each request is the life's view as of this run's start, then this run's messages whole, as optmem builds it. A thread has no history of its own beyond the run in progress: its earlier runs are in the view with everything else's.
@@ -39,13 +39,13 @@ Checked against anticipated sentences in the session above, and agreed by the ma
 - Three verbs, three stores: it remembers (the life, no act needed), it notes (notes, shared with other agents), and "from now on" changes a skill or the soul. "Remember this" from the maintainer means don't let it fade, so the agent picks a note or a rule.
 - Not used: "live" (the tracker's word for an unarchived issue), "main", "instance", "copy", "head", and "subagent" for anything but a worker.
 
-Its own issue, before the trial: a Concept agent's Hermes sessions (`~/.hermes/profiles/<name>/state.db`) become its life's first messages. Recommended: every session on the profile in time order, interleaved by run as the life would have recorded them, not the Bot Chat alone.
+A Concept agent's Hermes past becomes its life's first messages in [[projects/mlegls-pi/issues/import-hermes-sessions-as-a-lifes-first-messages]], and the trial is [[projects/mlegls-pi/issues/concept-engineering-runs-as-a-life-on-the-beelink]].
 
 Later, each its own issue once this runs: a message addressed to the life lands in the manifestation holding its subject or opens one; a manifestation opens another of itself, and ending one says what the rest needs.
 
 ## holes
 
-For the trial to answer (Concept Engineering as a life on the Beelink):
+For the trial to answer ([[projects/mlegls-pi/issues/concept-engineering-runs-as-a-life-on-the-beelink]]):
 
 - whether working-now and open-and-idle are the right two states of being present.
 - how much of a manifestation's own recent past stays whole when siblings' runs crowd the fine end of the view. First thing to try: a thread's own last few runs stay whole after the view.
@@ -59,5 +59,6 @@ decisions:
 - 2026-11-11: per-session optmem is removed, nothing migrated: "agreed. i wasn't really using it" (maintainer). A session attaches to a name or uses OM.
 - 2026-11-11: the trial is on the Beelink only (maintainer).
 - 2026-11-11: a Concept agent's Hermes past is imported (maintainer).
-- 2026-11-11: a life is attached to its name only, and the model is recorded on each message: "I'd usually keep profiles on the same model, but agreed that mechanically they should only be attached to the name. The model should also be recorded at the base level though, so it's easy to tell later." (maintainer).
-- 2026-11-11: the way of speaking under "speaking of it": "Yes, this makes sense." (maintainer).
+- 2026-11-12: a life is attached to its name only, and the model is recorded on each message: "I'd usually keep profiles on the same model, but agreed that mechanically they should only be attached to the name. The model should also be recorded at the base level though, so it's easy to tell later." (maintainer).
+- 2026-11-12: the way of speaking under "speaking of it": "Yes, this makes sense." (maintainer).
+- 2026-11-12: the proposed shape is the basis for the spec. Asked for "one word from you on the mechanics as a whole", after the run and per-thread context were explained ("Okay, that makes sense"): "yes, you can do that too" (maintainer).
