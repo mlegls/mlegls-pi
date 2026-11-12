@@ -32,3 +32,17 @@ The complete changed desk-helper→panel journey remains assigned to the parent 
 ## Cleanup
 
 Restored the disposable desk directory. Reset removed the invented dotenv and left two unanswered items for the parent's combined drive. Closed the owned desktop session/tab; no server started, plugin install altered, or inherited service stopped. Disposable project and live deployment remain parent-owned.
+
+## Review (plugin revision `bb19629`)
+
+Read the plugin diff (`main..caa121d`) against the parent's contract: item format, key hash over project/owner/title/body, answered records dropped on read, secret name/path taken from the parsed file, values absent from drafts, answered record, message and errors, serialized batches, grouped per-owner message. All held; no contract defect found. `tsc --noEmit` passes. `updateDotenv` checked by hand: replaces the first assignment in place and drops duplicates, appends otherwise, picks a quote delimiter that preserves `$`, quotes and backslashes, and refuses a value containing all three delimiters.
+
+Repairs, committed as `bb19629` on branch `attention-panel`:
+- Desk recreation: the desk watcher followed the old directory's inode, so removing and recreating `desk/` between two reads left a watcher on the deleted directory (changes were then seen only by the 15 s poll). The root watcher now closes and reopens the desk watcher on a `desk` event.
+- Draft loss: the Attention page pruned stored drafts and password inputs for items missing from the response, including those of a project whose read failed. It now skips pruning while any project reports an error.
+- Consolidation: `attention.ts` carried a fourth copy of the git-common-dir main-checkout resolution; `tracker.ts` now exports `mainCheckout`, used by `trackerRoot` and the attention service.
+- `model.ts`: `ATTENTION_CHANGED` had been inserted under `CHANGED`'s doc comment; each constant has its own again.
+
+Re-drive after rebuild and `bb plugin reload tracker` (same live deployment, source `attention-panel/tracker`): reset the disposable fixture, then `rm -rf desk && mkdir desk` with the file restored; the `attention` RPC returned the disposable project's rollout and key items, and the plugin stayed running. The UI guard is a one-line condition covered by `tsc`; its failure path (project read error) was not exercised in a browser.
+
+Noted, not changed: a failed owner send after a successful dotenv write reports the send error while the file already holds the value, and the cleared password input needs retyping on retry; remote-only projects refresh by 15 s poll, not a watcher; the plugin commits include the SDK migration (`064e30e`, `8585df3`) needed to build.
