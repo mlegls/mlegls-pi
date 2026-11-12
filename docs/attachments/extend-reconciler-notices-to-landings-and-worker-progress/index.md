@@ -16,6 +16,8 @@ The emitted `inputs.jsonl` contains RPC prompt commands for landed, parked, with
 
 To exercise recorded follow-ups, add a result with `handoff.question`, `handoff.caveats`, or `handoff.followup` to the fixture state; nonempty values preserve a model turn. A nonempty `exceptions` map also preserves it. Empty collections/strings do not. Finished run state still certifies terminal notices, while worker tells require a live run receipt. Folded notices settle locally only when every included run notice qualifies.
 
+Independent first-use packet: [drive.md](drive.md).
+
 ## Implementation encounter
 
 Tested from base `a1d5902a` plus this change, using installed Pi 1.5.0. Prepared target `.wm/notice-progress-qKrJHf` reached its readiness marker before use; it belongs to this implementation checkout. The preparation process was stopped afterward.
