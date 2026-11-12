@@ -33,3 +33,8 @@ decisions:
 3. A test in [lib/reconcile/scheduling.test.ts](../../lib/reconcile/scheduling.test.ts) replaying this sequence.
 
 Done when: replaying the 11-09 sequence launches no second implementation while the first reports `waiting`, and a third identical launch becomes one exception.
+
+
+## Verification evidence
+
+[Offline replay packet](../../docs/attachments/reconciler-relaunches-reviewed-snapshot-ticket-from-stale-collector/index.md), including the independent drive encounter.
