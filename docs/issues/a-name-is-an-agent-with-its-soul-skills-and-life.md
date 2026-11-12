@@ -5,6 +5,7 @@ priority: 2
 author: "session:hermes-concept-strategy-2026-11-11"
 blocked-by:
   - "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
+claimed-by: "session:01a1cdae-77e4-70c7-a6cf-ffd1ed144599"
 ---
 idea: "How would Hermes's kind of SOUL.md and per-profile skills relate to what we're building here? For persistent identities in BB, do we want to use one of BB's existing bots plugins, or build our own plugin, or neither?" Concept-strategy answered neither: a small pi extension that resolves a name to a soul, skills, a life and a default model, with the files in git. "ok, agreed. a bb plugin would just be a frontend to this then, like the relation between our tracker plugin and issues system." (maintainer, 2026-11-12, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`). Earlier there: "agent-scoped skills could also be implemented as a pi extension or bb plugin."
 
