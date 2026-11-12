@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 author: "session:hermes-concept-strategy-2026-11-11"
 priority: 2
@@ -36,3 +36,68 @@ decisions:
 - 2026-11-12: concept-strategy (Hermes) owns this project ([[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]), and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
 - 2026-11-12: the import writes life records directly (the life's log holds copies), one per message_uid from its earliest row; runs in the order they ended; quizzes and cron sessions in, delegates out; re-import appends what's new (shaping, @thread:thr_zig6b69pjn).
 - 2026-11-12: re-import stays, though the agents are moving into bb and the import becomes a one-time migration (the supervisor asked, @thread:thr_dfgkcug6jp). Skipping a message whose `life.source` is already in the life is what makes the command safe to run twice, in a log where nothing is ever removed; and the other three agents keep working in Hermes until their own move, as Concept Engineering would again if the trial ends the other way (concept-strategy, as owner).
+
+## Result
+
+done
+
+The Hermes import holds on the final head; I made no repairs.
+
+I checked the importer against the source rows for all four profiles. I wrote a separate computation straight from each `state.db` and compared its message sources with what the import stores:
+
+| Profile | Messages |
+|---|---|
+| concept-engineering | 277/277 |
+| concept-strategy | 1030/1030 |
+| concept-design | 559/559 |
+| concept-gtm | 535/535 |
+
+Nothing was missing or extra in any profile, and re-import appended 0.
+
+- **Compaction text:** no stored message contains compaction wrapper text.
+- **Clipping:** the longest message is 30030 characters (the clip marker over 30000).
+- **Occupied life:** I imported Engineering into a life that already held two pi messages. The pi prefix stayed identical and positions stayed contiguous, which the driver couldn't cover.
+- **Retrieval and manifestation:** the life's builder consumes the mixed log in-process: the pi message and the short imported messages resolve to their own nodes, and 161 longer ones queue for the compactor. I did not run real-model summarization of the imported history, since it costs model calls. It uses the same builder as pi messages.
+- **Tests:** `bun test extensions/context/life` passes (14 tests) and `bun run typecheck` is clean. The project declares no `test:affected` task, so I ran those directly.
+
+I closed both of the driver's frictions through the tracker:
+- **`hermes-import-drive-needs-life-retrieval-entry-point`:** closed as a caller error. `extensions/context/life/README.md`, section "First use", documents the real-pi recipe.
+- **`tracker-outline-has-no-project-vault-note`:** closed as an accepted limitation. It reproduces from the main checkout too, because no vault note with this directory exists on the host, and `snapshot` and `tree` work in the meantime.
+
+Some imported messages carry a bare model id (for example `claude-fable-5-2[1m]` or `gpt-6.1-sol`), because sessions with no model-switch row keep the raw `sessions.model`. I left that as the data has it.
+
+```yaml
+commit: cc3345fc
+stories:
+  - story: Engineering history imports into an isolated life, including fourteen quiz messages
+    outcome: held
+  - story: Repeat import appends zero messages
+    outcome: held
+  - story: Import into an occupied life preserves existing positions and supports --life
+    outcome: held
+  - story: Strategy, Design and GTM import through the same command
+    outcome: held
+  - story: Imported messages are reachable through zoom/date/recall and initial manifestation summarizes history
+    outcome: held
+  - story: Detailed row selection, model transitions, clipping and run ordering match every source row
+    outcome: held
+evidence:
+  path: docs/attachments/import-hermes-sessions-as-a-lifes-first-messages/index.md
+  visual: false
+  shots: []
+tests:
+  - extensions/context/life/log.test.ts
+  - extensions/context/life/build.test.ts
+  - extensions/context/life/tree.test.ts
+filed: []
+settled:
+  - hermes-import-drive-needs-life-retrieval-entry-point (closed)
+  - tracker-outline-has-no-project-vault-note (closed)
+caveats:
+  - Real-model summarization of imported history was not run; the builder was checked in-process without a model.
+  - Run ordering by end time follows from the sort in `import-hermes.ts` and was not checked separately from the source-set comparison.
+  - Models without a model-switch row keep the raw `sessions.model`, so some ids lack a provider prefix.
+  - No test-wall-time trades are introduced by this change.
+```
+
+Evidence: [docs/attachments/import-hermes-sessions-as-a-lifes-first-messages/index.md](../attachments/import-hermes-sessions-as-a-lifes-first-messages/index.md)

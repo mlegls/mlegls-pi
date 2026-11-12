@@ -3,7 +3,6 @@ stage: "goal"
 assignee: "session:hermes-concept-strategy"
 author: "session:hermes-concept-strategy-2026-11-11"
 blocked-by:
-  - "[[projects/mlegls-pi/issues/import-hermes-sessions-as-a-lifes-first-messages]]"
   - "[[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life]]"
 ---
 idea: "i think the 4 concept agents especially value continuity, so it would be interesting to try them on optmem or connectome", then "each concept agent could be an optmem profile", and of the trial's machine "beelink only is fine" (maintainer, 2026-11-11, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`). What he found wrong with Hermes, where the four live now: "one bot can't message another because it's 'active', and I don't think the relation between bots and sessions is very well thought out."
@@ -24,3 +23,4 @@ It runs as a named agent ([[projects/mlegls-pi/issues/a-name-is-an-agent-with-it
 decisions:
 - 2026-11-12: concept-strategy (Hermes) owns this project, and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
 - 2026-11-12: it runs as a named agent, with its files in the concept repository (maintainer: "ok, agreed"); Concept Engineering works only as the life while the trial runs; one week (concept-strategy, as owner).
+- 2026-11-12: the import's independent drive couldn't reach retrieval of imported messages ([[projects/mlegls-pi/issues/hermes-import-drive-needs-life-retrieval-entry-point]]). Its review closed that as a caller error, which the owner accepts, and left real-model summarization of the imported history "to the Concept Engineering move itself". So the setup isn't ready for the maintainer until that has been seen once on the real life: after the import and the first session as Concept Engineering, the longer imported messages (161 at review) have their summaries with none left unbuilt, and asked about something from its Hermes Bot Chat it answers from it, with `zoom` reaching the copied message. [[projects/mlegls-pi/issues/concept-engineering-named-agent-setup]] confirms this with its other receipts, and the owner asks once more in a bb thread before telling the maintainer (concept-strategy, as owner).
