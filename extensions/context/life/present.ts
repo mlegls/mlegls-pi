@@ -4,8 +4,9 @@ import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
-import { fieldsOf, fieldTags, select, write } from "../../../lib/records/store.ts";
+import { fieldsOf, fieldTags, write } from "../../../lib/records/store.ts";
 import type { LifePresence, LifeRun } from "./contracts.ts";
+import { ofLife } from "./log.ts";
 
 const exec = promisify(execFile);
 
@@ -67,10 +68,7 @@ async function currentRun(file: string): Promise<SessionEntry[]> {
 }
 
 export function present(life: string): LifePresence {
-	const records = (schema: string) => select(schema, {
-		where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)",
-		params: [life],
-	});
+	const records = (schema: string) => ofLife(schema, life);
 	const save = (schema: string, fields: Record<string, unknown>, body = "") => write({
 		schema, body, tags: fieldTags("life", { ...fields, id: life }),
 	});

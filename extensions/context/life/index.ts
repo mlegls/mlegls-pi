@@ -5,7 +5,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { sessionEntryToContextMessages, type ExtensionAPI, type ExtensionContext, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { sessionChain } from "../../../lib/records/branch.ts";
-import { fieldTags, immediate, select, stamp, write } from "../../../lib/records/store.ts";
+import { fieldTags, immediate, stamp, write } from "../../../lib/records/store.ts";
 import type { Renderer } from "../../../lib/records/render.ts";
 import { notice, NOTICE } from "../../../lib/notice.ts";
 import { activeTools } from "../journal.ts";
@@ -14,7 +14,7 @@ import { ATTACHMENT, attachment } from "./attachment.ts";
 import { chatParts, markView } from "./cache.ts";
 import { Chat, settings, type Env, type Settings } from "./build.ts";
 import { PROMPT } from "./prompt.ts";
-import { lifeId, lifeLog, lifeMessages, source } from "./log.ts";
+import { lifeId, lifeLog, lifeMessages, ofLife, source } from "./log.ts";
 import { present } from "./present.ts";
 import type { LifeRun } from "./contracts.ts";
 import { advance, children, emptyView, line, lines, nodeAt, nodesAt, PLACEHOLDER, span, type Pair, type View } from "./tree.ts";
@@ -63,7 +63,7 @@ function before(view: View, T: number): View {
 /** Read/advance under the same lock: an older run can never overwrite a newer saved view. */
 function viewAt(id: string, c: Chat, cfg: Settings, T: number): string[] {
 	const r = immediate(() => {
-		const saved = select(VIEW, { where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)", params: [id] }).at(-1);
+		const saved = ofLife(VIEW, id).at(-1);
 		const v: View = saved ? JSON.parse(saved.body) : emptyView(c.b);
 		const local = v.b === c.b ? before(v, T) : emptyView(c.b);
 		const advanced = advance(local, T, c.texts, cfg.view.high, cfg.view.low, cfg.cut);

@@ -29,7 +29,7 @@ import { DEFAULTS } from "../om/config.ts";
 import { Runtime } from "../om/runtime.ts";
 import { resolveWorkerStreamSimple } from "../om/agents/worker-stream.ts";
 import { chatParts, markView } from "./cache.ts";
-import { source } from "./log.ts";
+import { ofLife, source } from "./log.ts";
 import { COMPACTOR_PROMPT } from "./prompt.ts";
 import { lossOf } from "./score.ts";
 import { advance, bytes, children, emptyView, line, NODE_BYTES, nodeAt, nodesAt, parent, PLACEHOLDER, span, type Cut, type Pair, type Texts, type View } from "./tree.ts";
@@ -40,7 +40,6 @@ const LEASE_MS = 10 * 60_000;
 const POLL_MS = 250;
 
 export interface Settings {
-	enabled: boolean;
 	fanout: number;
 	view: { high: number; low: number };
 	compactorView: { high: number; low: number };
@@ -66,7 +65,7 @@ export function settings(cwd: string): Settings {
 		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.life }; } catch {}
 	}
 	return {
-		enabled: true, fanout: 2, cut: "due", concurrency: 8, retries: 5, waitSeconds: 30, tailBytes: 128_000, systemPrompt: "auto", ...j,
+		fanout: 2, cut: "due", concurrency: 8, retries: 5, waitSeconds: 30, tailBytes: 128_000, systemPrompt: "auto", ...j,
 		view: { high: 128_000, low: 64_000, ...j.view }, compactorView: { high: 32_000, low: 16_000, ...j.compactorView },
 	};
 }
@@ -223,7 +222,7 @@ export class Chat {
 	}
 
 	private records(schema: string, after = 0) {
-		return select(schema, { after, where: "r.seq IN (SELECT record FROM tags WHERE key = 'life.id' AND value = ?)", params: [this.log!.id] });
+		return ofLife(schema, this.log!.id, { after });
 	}
 
 	private recorded(field: "key" | "scores", key: string) {
