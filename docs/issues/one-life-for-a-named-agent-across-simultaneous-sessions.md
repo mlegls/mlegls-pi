@@ -2,6 +2,7 @@
 assignee: "agent"
 author: "session:hermes-concept-strategy-2026-11-11"
 priority: 2
+stage: "done"
 ---
 idea: "I think we should change my optmem to have named profiles, rather than being per session. originally i intended to just keep optmem sessions around for a long time, but i think this would be a better ux. and then each concept agent could be an optmem profile. i don't see much point to using this kind of logarithmic memory system for a short session." Then, having worked out what kind of creature the mechanics imply: "If what we want is one 'creature' with the capacity for simultaneous manifestations, because simultaneous manifestations is advantageous in many ways over not being able to manifest simultaneously, so we see this as a 'capability' of the creature", and "let's start on revising my pi optmem to a realization of this, then. It seems to deserve a rename though. Maybe 'hydra'?" (maintainer, 2026-11-11, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`).
 
@@ -82,3 +83,43 @@ The refinement branch moves optmem's files unchanged into [life/](../../extensio
 
 All implementation and joins are delegated; the Hermes import and Beelink trial stay in their existing linked issues. Questions of intent go to `session:hermes-concept-strategy`.
 
+
+## Result
+
+done
+
+The parent adds no stories of its own, so `stories` is empty. I reviewed the join as a diff of the life files since `99f57444^`. That is wider than the `e6e7af99` base you gave, because the life code was already in that base. `bun test extensions/context lib/records` passes before and after my changes (37 tests). `mise run test:affected` doesn't exist in this repo.
+
+One real defect, fixed in `6aedc896`: `lifeLog.append` ran its per-message dedup check through a join that SQLite drove from the life's `life.id` tags. Every turn end re-offers the session's whole branch, so each turn paid branch length × life size while holding the write lock. At 8000 messages that was 12.7 s per turn end, and the first append took 15 s. Starting from the `life.source` tag brings those to 15 ms and 0.4 s. The replay script is in the packet.
+
+Two small tidyings, in `44dc580a`:
+- **Shared query:** the "records of this life" filter was written four times (log, presence, compactor, view). It is now one `ofLife` helper in `log.ts`.
+- **Dead setting:** `Settings.enabled` was set but never read. Optmem's `enabled()` read it; life's is the attachment. It is gone, so `memory.schemas.life.enabled: false` does nothing, which was already true.
+
+Nothing else structural was worth changing. I filed no issues; the two open ones (`life-compactor-lease-outlives-its-builder`, `life-first-use-compaction-empty-reply-warning`) already cover what the children met.
+
+```yaml
+commit: 4a2de806
+stories: []
+evidence:
+  path: docs/attachments/one-life-for-a-named-agent-across-simultaneous-sessions/independent-scope.md
+  visual: false
+  shots: []
+tests:
+  - extensions/context/life/build.test.ts
+  - extensions/context/life/log.test.ts
+  - extensions/context/life/tree.test.ts
+  - extensions/context/mechanism.test.ts
+fixed:
+  - "6aedc896: append dedup scanned the whole life per message"
+changes:
+  - "ofLife: one life-records query replaces four copies of the life.id filter"
+  - "removed the unread Settings.enabled"
+caveats:
+  - "mechanism.ts `defaults` now falls back to OM when no memory.default is set; before, the first compaction owner (journal) was used. mechanism.test.ts changed accordingly in an earlier child commit. The effect is on anyone without memory.default; the maintainer's `om` setting is unaffected."
+  - "Presence reads every life.run/end/hold/detach record of the life at each run start, and threads() reads all run records at each turn end. 3000 runs cost 20 ms for threads(), so it only matters at thousands of runs. Measured, not filed."
+  - "lifeMessages converts the whole branch on every turn end. Dedup now makes that cheap (15 ms at 8000 messages), but the conversion still grows with session length."
+  - "Costs the children already paid: a build waits up to a 10-minute lease behind a live holder. The compactor shares the turn's model and cache, so its price is unmeasured; that is the trial's hole."
+```
+
+Evidence: [docs/attachments/one-life-for-a-named-agent-across-simultaneous-sessions/independent-scope.md](../attachments/one-life-for-a-named-agent-across-simultaneous-sessions/independent-scope.md)
