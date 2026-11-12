@@ -34,6 +34,8 @@ The supervisor authorized one repeat because the maintainer missed the first tri
 
 Ran working set, path and working clear; each resolved `/tmp/desk-attention-drive-vShbU1/main/desk`, meeting the fixture-ownership prediction. Then ran the guide's exact three adds: first body, identical first body, changed body, all with title `TEST: desk attention notification`. Each returned that same desk path, with no stderr. The entire sequence exited zero. Removed the attention item using the CLI, then removed the disposable fixture through the shell exit trap. No shared desk was modified.
 
-Notification arrival count and click-through await the watching maintainer's report. CLI success is not taken as evidence of receipt.
+The watching maintainer reported exactly two notifications arrived: the new/changed delivery and identical-body deduplication expectation is met. Clicking a notification in macOS Notification Center merely dismissed it and opened nothing. The owning-thread click-through expectation FAILED. This is a human report of the real device encounter, relayed by supervisor `thr_dfgkcug6jp`; no screenshot was captured by this CLI driver. The delivering Mac channel (bb desktop, browser web push or other) remains unidentified.
+
+Do not repeat the three-add trial. After repair, one notification suffices to re-check click-through. Identify the actual delivering channel and verify its click action opens `thr_caanfj9khu` (or the live owner of that repair trial). The reviewer/implementer must own the repair; this driver changed no product code.
 
 No browser, server or external deployment was started. The fixture was removed. No product source, tests or diffs were read.
