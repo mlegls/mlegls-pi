@@ -48,3 +48,5 @@ Click-through. The call is correct: `bb push-notifications send --thread` resolv
 
 Outcomes: delivery and dedupe held; guide held; click-through to the owning thread **not held**, owner is bb.
 
+
+Owner ruling: the maintainer reports no bb notification, including bb own, opens anything when clicked from macOS Notification Center. The click-through story is **unobservable**: it is a bb desktop limitation owned by the filed issue, and this change passes --thread <owner> as bb own notifications do.
