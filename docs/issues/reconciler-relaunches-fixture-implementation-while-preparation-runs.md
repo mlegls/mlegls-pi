@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "done"
 assignee: "agent"
 author: "session:thr_sv764kn5dz"
 priority: 2
@@ -23,3 +23,7 @@ Implement-2l (@thread:thr_9phgkii36a) recovered the effect-writer-fingerprinted 
 Implement-2m (@thread:thr_vrfhyt3j9v) was also launched on `493b2c819`; `git worktree list` already includes implement-2n. At 16:49 +08, current-key cold owner PID 1966152 remained alive (683 seconds elapsed), while implement-2l already owned the queued restore at `f948b236c`. Both cache locks still existed; no current-key archive was published. Implement-2m did not create a deployment, duplicate the recovered commits, or queue another preparation/restore. Existing cold owner @thread:thr_3krhu59c3v and restore owner @thread:thr_9phgkii36a retain the executable continuation. No current-key verdict or scheduler repair is claimed; do not redispatch implementation while those owners run.
 
 Implement-2n (@thread:thr_sx6rhutx77) was also launched on `493b2c819`; `git worktree list` already includes implement-2o. Inspection again confirmed current-key cold owner PID 1966152 alive (13m05s elapsed), both shared cache locks present, and only the historical fd7d55c6 snapshot published. The current-key implementation/evidence and queued restore are already retained at `0e8433e8c` in implement-2l. This duplicate worker created no deployment, copied no duplicate implementation commits, started no preparation or publication wait, and changed no lock. Resume cold owner @thread:thr_3krhu59c3v and restore owner @thread:thr_9phgkii36a; the current-key verdict remains pending there.
+
+## Result
+
+Folded into reconciler-relaunches-reviewed-snapshot-ticket-from-stale-collector: same burst of relaunches, seen from implement-23's side.
