@@ -228,7 +228,7 @@ export default function life(pi: ExtensionAPI): Mechanism {
 			if (typeof p === "string") throw new Error(p);
 			if (p[0] === 0) {
 				const m = c.msgs[params.id]!;
-				return { content: [{ type: "text", text: params.id + " " + m.kind + "@" + m.place + " " + m.date + "\n" + m.text }], details: { id: params.id, source: m.source, model: m.model } };
+				return { content: [{ type: "text", text: params.id + " " + m.kind + "@" + m.place + " " + m.date + "\nsource: " + m.source + "\nmodel: " + m.model + "\n" + m.text }], details: { id: params.id, source: m.source, model: m.model } };
 			}
 			return { content: [{ type: "text", text: children(c.b, p).map((q) => line(c.b, q, c.resolve(q) ?? PLACEHOLDER)).join("\n") }], details: { id: params.id, n: params.n } };
 		},
