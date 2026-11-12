@@ -2,6 +2,7 @@
 stage: "goal"
 assignee: "agent"
 author: "session:hermes-concept-strategy-2026-11-11"
+claimed-by: "session:01a1cd86-1929-775b-b629-5bca581cb7d3"
 ---
 idea: "I think we should change my optmem to have named profiles, rather than being per session. originally i intended to just keep optmem sessions around for a long time, but i think this would be a better ux. and then each concept agent could be an optmem profile. i don't see much point to using this kind of logarithmic memory system for a short session." Then, having worked out what kind of creature the mechanics imply: "If what we want is one 'creature' with the capacity for simultaneous manifestations, because simultaneous manifestations is advantageous in many ways over not being able to manifest simultaneously, so we see this as a 'capability' of the creature", and "let's start on revising my pi optmem to a realization of this, then. It seems to deserve a rename though. Maybe 'hydra'?" (maintainer, 2026-11-11, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`).
 
