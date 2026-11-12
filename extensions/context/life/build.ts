@@ -7,7 +7,8 @@
 // merges b adjacent lines, given a ruler of NODE_BYTES dashes (models can't count bytes); a reply
 // over it is sent back ("Too long") up to RETRIES times and the shortest kept. Each call sees
 // the compaction view, the chat's view merged further (16–32 KB, same sawtooth), up to the node,
-// stopping at the first unbuilt line. Up to `concurrency` calls run at once; nodes ready to
+// then, past the first unbuilt line, the nearest messages as leaves (an unbuilt one cut to its head).
+// Up to `concurrency` calls run at once; nodes ready to
 // build wait in a queue (leaves as messages arrive, a merge once its children are built), never
 // found by scanning the tree. A failed call is tried again at the next sync.
 //
@@ -396,7 +397,11 @@ export class Chat {
 		this.pumpScores();
 	}
 
-	/** The compaction view's lines up to message limit, stopping at the first unbuilt line. */
+	/**
+	 * The compaction view's lines up to message limit. Past the first unbuilt line (a failed call, or a
+	 * sibling's lease still running) the nearest messages follow as leaves, unbuilt ones cut to their head,
+	 * so a stuck early line never leaves a later call without the work it belongs to.
+	 */
 	contextLines(limit: number): string[] {
 		this.ready(0);
 		this.cview = advance(this.cview, this.frontier, this.texts, this.cfg.compactorView.high, this.cfg.compactorView.low, this.cfg.cut).view;
@@ -404,10 +409,16 @@ export class Chat {
 		for (const p of nodesAt(this.cview, this.frontier)) {
 			const [s, n] = span(this.b, p);
 			const t = this.resolve(p);
-			if (s + n > limit || t === undefined) break;
+			if (s + n > limit || t === undefined) return out;
 			out.push(line(this.b, p, t));
 		}
-		return out;
+		const tail: string[] = [];
+		let used = 0;
+		for (let j = limit - 1; j >= this.frontier && used < this.cfg.compactorView.low; j--) {
+			const l = line(this.b, [0, j], this.resolve([0, j]) ?? headBytes(source(this.msgs[j]!), NODE_BYTES));
+			tail.unshift(l); used += bytes(l) + 1;
+		}
+		return [...out, ...tail];
 	}
 
 	/** The chat's view merged: the compaction view restarts from it, merged further. */
