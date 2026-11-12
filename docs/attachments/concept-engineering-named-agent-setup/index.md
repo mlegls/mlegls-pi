@@ -1,5 +1,7 @@
 # Concept Engineering: real named-agent setup
 
+Independent encounter: [driver predictions, fresh BB receipts and replayable checks](drive-b.md).
+
 Installed runtime: `0b11e6c3b4e67b7060901f0368e238f8dcd98433` in `/home/mlegls/dev/mlegls-pi`. Setup branch merged installed main as `58e7ebc1`. This is first-use setup on the Beelink, not the week-long trial or its acceptance by the founder.
 
 ## Owned files and landing
