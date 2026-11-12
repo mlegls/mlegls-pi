@@ -2,6 +2,10 @@
 stage: "idea"
 author: "session:thr_ajm92xfycx"
 ---
+---
+stage: "idea"
+author: "session:thr_ajm92xfycx"
+---
 A bb notification clicked in macOS Notification Center only dismisses; it doesn't open its thread. Seen on the maintainer's Mac with a notification sent by `bb push-notifications send --thread thr_caanfj9khu` ([[projects/mlegls-pi/issues/a-new-attention-item-notifies-the-maintainer]], first use, 2026-11-12): "Clicking a notification in macOS Notification Center merely dismissed it and opened nothing" (drive packet, relayed by @thread:thr_dfgkcug6jp). Owner: bb itself (desktop shell / push-notifications plugin, bb 0.48.1), not this repository.
 
 ## observations
@@ -15,3 +19,7 @@ A bb notification clicked in macOS Notification Center only dismisses; it doesn'
 1. On the Mac, click the banner while it is still showing, then an entry after it has moved into Notification Center, for a bb turn-finished notification and for a `send --thread` one.
 2. If only the Notification Center click fails for both, it is a bb desktop shell limitation (a renderer `Notification` loses its `onclick` once the banner expires, or the app is not activated); report to bb.
 
+
+## answer
+
+Maintainer, 2026-11-12 (via @thread:thr_dfgkcug6jp): no bb notification, including bb own, opens anything when clicked from macOS Notification Center. A bb desktop limitation, not specific to desk attention notifications.
