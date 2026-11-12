@@ -16,6 +16,6 @@ The log stores schema `life`, with the parent's exact tags and copied text. Add 
 
 Provide the project-scoped/machine-wide name resolution needed by `/life`, following [notes.ts](../../extensions/context/notes.ts)'s git-common-dir convention. Keep the branch-facing exports the moved build and index currently use until their dependent tickets replace those consumers; they must remain loadable at this intermediate landing.
 
-First use is the library surface with a temporary `PI_BOARD_DIR`: two separate processes append runs to one life, one repeats an already-appended source, and the committed messages are then read without their source files. Exercise a branch fork and model changes through `lifeMessages`. Update the existing moved [log.test.ts](../../extensions/context/life/log.test.ts) where its deliberate behavior changes.
+First use is the library surface with a temporary `PI_BOARD_DIR`: two separate processes append runs to one life, one repeats an already-appended source, and the committed messages are then read without their source files. Exercise a branch fork and model changes through `lifeMessages`. Forked branches carry their ancestors' entry ids; [branch.ts](../../lib/records/branch.ts)'s `sessionChain` supplies their session ancestry, so inherited messages already in the life can retain their original source refs. Update the existing moved [log.test.ts](../../extensions/context/life/log.test.ts) where its deliberate behavior changes.
 
 Questions of intent go to `session:hermes-concept-strategy`, the owner named in the parent.
