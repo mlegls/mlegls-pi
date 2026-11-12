@@ -211,9 +211,12 @@ export default function life(pi: ExtensionAPI): Mechanism {
 		async execute(_id, { thread }, _signal, _onUpdate, ctx) {
 			const c = synced(ctx);
 			if (!c) throw new Error("life is off in this session");
-			const entries = thread ? await present(id!).readRun(thread) : undefined;
-			const text = entries ? JSON.stringify(raw(entries), null, 2) : c.msgs.slice(run?.T ?? c.T)
-				.map((m) => line(c.b, [0, m.pos], c.resolve([0, m.pos]) ?? source(m))).join("\n");
+			if (thread) {
+				// The sibling's system prompt is not its work; a fresh session's first run would carry it whole.
+				const sibling = raw(await present(id!).readRun(thread)).filter((m) => (m as { role: string }).role !== "system");
+				return { content: [{ type: "text", text: sibling.length ? JSON.stringify(sibling, null, 2) : "(no unfinished run there)" }], details: { upTo: c.T } };
+			}
+			const text = c.msgs.slice(run?.T ?? c.T).map((m) => line(c.b, [0, m.pos], c.resolve([0, m.pos]) ?? source(m))).join("\n");
 			return { content: [{ type: "text", text: text || "(nothing new)" }], details: { upTo: c.T } };
 		},
 	});
@@ -268,10 +271,13 @@ export default function life(pi: ExtensionAPI): Mechanism {
 					// Commit first. Only then may these entries disappear from the raw tail.
 					append(ctx, branch.slice(0, k)); synced(ctx);
 					const T = c.T;
-					await c.idle(T, cfg.waitSeconds * 1000);
-					if (c.summarized() >= T) {
-						current.boundary = k; current.T = T; fixView();
-						tail = raw(branch.slice(k));
+					// Earlier history still unsummarized (a sibling's lease, say) was waited for at this run's start: don't wait again at every request.
+					if (c.summarized() >= current.T) {
+						await c.idle(T, cfg.waitSeconds * 1000);
+						if (c.summarized() >= T) {
+							current.boundary = k; current.T = T; fixView();
+							tail = raw(branch.slice(k));
+						}
 					}
 				}
 			}
