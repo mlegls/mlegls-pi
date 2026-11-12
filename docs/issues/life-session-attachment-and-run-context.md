@@ -7,7 +7,6 @@ part-of: "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultan
 claimed-by: "reconcile:one-life-for-a-named-agent-across-simultaneous-sessions"
 blocked-by:
   - "[[projects/mlegls-pi/issues/life-compacts-one-shared-tree]]"
-  - "[[projects/mlegls-pi/issues/life-present-working-threads-and-holds]]"
 ---
 goal: The named life is usable in pi: two bb sessions attach to it, know where else they are working, and remember each other's completed runs from their next run. A long run stays coherent as it is appended and summarized. An unattached session uses OM. This joins names and attachment, context, saved views, looking, prompt and delegation from [[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]].
 
