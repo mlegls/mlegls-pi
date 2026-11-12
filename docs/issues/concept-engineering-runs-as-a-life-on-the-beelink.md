@@ -3,7 +3,6 @@ stage: "goal"
 assignee: "session:hermes-concept-strategy"
 author: "session:hermes-concept-strategy-2026-11-11"
 blocked-by:
-  - "[[projects/mlegls-pi/issues/import-hermes-sessions-as-a-lifes-first-messages]]"
   - "[[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life]]"
 ---
 idea: "i think the 4 concept agents especially value continuity, so it would be interesting to try them on optmem or connectome", then "each concept agent could be an optmem profile", and of the trial's machine "beelink only is fine" (maintainer, 2026-11-11, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`). What he found wrong with Hermes, where the four live now: "one bot can't message another because it's 'active', and I don't think the relation between bots and sessions is very well thought out."
