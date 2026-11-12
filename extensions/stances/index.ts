@@ -26,15 +26,15 @@ export function stances(): { name: string; list: Execution[] }[] {
 }
 
 export default function (pi: ExtensionAPI) {
-	for (const { name, list } of stances()) {
-		pi.registerVirtualModel<State>({
-			provider: PROVIDER,
-			id: name,
-			name: `${name} (stance)`,
-			thinkingLevels: ["medium"],
-			route(request, ctx) { return route(name, list, request, ctx); },
-		});
-	}
+	register(pi, PROVIDER, stances());
+}
+
+/** Both stance and named-agent models use the same routing policy. */
+export function register(pi: ExtensionAPI, provider: string, models: { name: string; list: Execution[] }[]) {
+	for (const { name, list } of models) pi.registerVirtualModel<State>({
+		provider, id: name, name: `${name} (${provider})`, thinkingLevels: ["medium"],
+		route(request, ctx) { return route(name, list, request, ctx); },
+	});
 }
 
 function route(name: string, list: Execution[], request: ModelRouteRequest<State>, ctx: ExtensionContext): ModelRoute<State> {

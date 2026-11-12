@@ -2,7 +2,8 @@ import { parse as parseYaml } from "yaml";
 // Shared worker stances; execution defaults live in agent frontmatter.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 export const AGENTS_DIR = process.env.PI_AGENTS_DIR ?? join(homedir(), ".pi", "agent", "agents");
 
@@ -27,9 +28,8 @@ export interface Agent {
 	body: string;
 }
 
-/** Parse `AGENTS_DIR/<name>.md`: yaml frontmatter + body. */
-export function agent(name: string): Agent | undefined {
-	const file = join(AGENTS_DIR, `${name}.md`);
+/** Parse a supplied soul or the worker stance `AGENTS_DIR/<name>.md`. */
+export function agent(name: string, file = join(AGENTS_DIR, `${name}.md`)): Agent | undefined {
 	if (!existsSync(file)) return undefined;
 	const text = readFileSync(file, "utf8");
 	const m = /^---\n([\s\S]*?)\n---\n?/.exec(text);
@@ -37,6 +37,37 @@ export function agent(name: string): Agent | undefined {
 	const first = fm.model ? executions(fm.model)[0] : undefined;
 	if (fm.model && !first) throw new Error(`Agent ${name}: model list names no provider/model:effort`);
 	return { name, routing: fm.model, model: first?.model, effort: first?.effort, checkpoint: fm.checkpoint, roles: fm.role ? fm.role.split(",").map(r => r.trim()).filter(Boolean) : [], description: fm.description, body: (m ? text.slice(m[0].length) : text).trim() };
+}
+
+export interface NamedAgent extends Agent { dir: string; soul: string }
+
+/** Registry settings are re-read for every lookup, just as life's settings are. */
+function registry(cwd: string): string[] {
+	let settings: Record<string, unknown> = {};
+	for (const file of [join(getAgentDir(), "settings.json"), join(cwd, ".pi", "settings.json")]) {
+		try { settings = { ...settings, ...JSON.parse(readFileSync(file, "utf8")) }; } catch {}
+	}
+	return Array.isArray(settings.agents) ? settings.agents.filter((d): d is string => typeof d === "string").map((d) =>
+		resolve(cwd, d === "~" ? homedir() : d.startsWith("~/") ? join(homedir(), d.slice(2)) : d)) : [];
+}
+
+export function named(name: string, cwd: string): NamedAgent | undefined {
+	if (!name || name === "." || name === ".." || /[\/\\\\]/.test(name)) return;
+	for (const root of registry(cwd)) {
+		const dir = join(root, name), soul = join(dir, "SOUL.md");
+		const a = agent(name, soul);
+		if (a) return { ...a, dir, soul };
+	}
+}
+
+/** First registry directory to name an agent wins, including souls without a model. */
+export function namedAgents(cwd: string): NamedAgent[] {
+	const names = new Set<string>();
+	for (const root of registry(cwd)) {
+		try { for (const d of readdirSync(root, { withFileTypes: true })) if (d.isDirectory() || d.isSymbolicLink()) names.add(d.name); } catch {}
+	}
+	// A malformed soul skips its model; it must not stop every pi launch that loads the registry.
+	return [...names].flatMap((name) => { try { return named(name, cwd) ?? []; } catch (e) { console.error(`Agent ${name}: ${(e as Error).message}`); return []; } });
 }
 
 /** Agents that can fill a role: the candidate set a role's router chooses among. */

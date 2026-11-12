@@ -12,6 +12,7 @@
   },
   "pi": {
     "extensions": [
+      "./extensions/agents/index.ts",
       "./extensions/system-prompt/index.ts",
       "./extensions/fragment/index.ts",
       "./extensions/workspace/index.ts",
