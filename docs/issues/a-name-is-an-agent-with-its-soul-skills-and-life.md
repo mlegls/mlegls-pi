@@ -1,6 +1,6 @@
 ---
 stage: "spec"
-assignee: "session:hermes-concept-strategy"
+assignee: "agent"
 priority: 2
 author: "session:hermes-concept-strategy-2026-11-11"
 blocked-by:
@@ -32,7 +32,8 @@ Checked against [stances](../../extensions/stances/index.ts), [system-prompt](..
 
 extensions/agents/index.ts       new, listed before system-prompt in package.json
 extensions/agents/lesson.md      the lesson section
-lib/agents.ts                    agent() parses a given file, so a SOUL.md reads as a stance file does
+lib/agents.ts                    agent() parses a given file, so a SOUL.md reads as a stance file does; named(name, cwd) looks one up in the registry
+extensions/context/mechanism.ts  notes is on in a session that is an agent
 extensions/stances/index.ts      exports its registration, taking the provider
 extensions/context/life/index.ts exports attachedLife(branch); listens for life:attach
 extensions/system-prompt/index.ts  renders the agent section first
@@ -50,7 +51,7 @@ extensions/system-prompt/index.ts  renders the agent section first
   >
   > A lesson goes where it will be found, in the turn you learn it. What happened needs nothing: you remember it. What other agents should know is a note (`note`). "From now on" is an edit to one of your skills, or to your soul when it is about who you are, committed alone (`git -C <dir> commit -- <path>`): the maintainer reviews it there, and you have it everywhere from your next run. "Remember this" means don't let it fade, so pick a note or a rule.
 
-  The note sentence is there when the `note` tool is active.
+- **notes.** Notes are on in a session that is an agent, whatever `memory.schemas.notes.enabled` and `memory.systems` say, and nothing changes for a session that isn't. Not the per-session `/memory` list: it refuses a system disabled in settings ("is disabled in settings"), and enabling notes in settings puts them on by default in every session on the machine. So [notes](../../extensions/context/notes.ts)'s `enabled` is its setting or `named(attachedLife)`, and `state` in [mechanism.ts](../../extensions/context/mechanism.ts) adds notes to an agent's on systems beside the life. `/memory -notes` still turns them off in a session. First use shows `note` present in the fixture agent's session and absent in the other with notes disabled in settings.
 - **workers.** A worker the agent dispatches runs a stance model with no `PI_LIFE`, so it has neither soul nor skills; one whose launcher sets `PI_LIFE=/<name>` is the agent.
 
 First use: a fixture registry with one agent and one skill, beside the life's two-session entry point and guide, which this extends. `pi --model agent/<fixture>` answers in the soul's terms, lists the skill and shows in the life's present; a second session on another model lists neither; `/life /<fixture>` there makes it the agent, and `/life off` ends it; an edit to the skill's description in one shows in the other's next run; choosing the model in a session with messages attaches nothing. Then the same from a bb thread started with the model, which is the one path that sets it after start.
@@ -59,14 +60,14 @@ First use: a fixture registry with one agent and one skill, beside the life's tw
 
 `~/dev/mmon/concept/agents/<name>/`, a new top-level directory, registered in `~/.config/system-config/home/.pi/agent/settings.json`. Not `.agents/skills/`, which pi discovers for every session in the repository, and not `docs/`, whose commit hook checks links in files that are prompts here. The registry names the main checkout, so an agent working in a worktree or another repository edits and commits there.
 
-Moving Concept Engineering out of `~/.hermes/profiles/concept-engineering/`, as the trial's setup:
+Copying Concept Engineering out of `~/.hermes/profiles/concept-engineering/`, as the trial's setup. Nothing under the profile is edited or removed while the trial runs, so ending it either way is a choice and not a recovery:
 
-- `SOUL.md` → `agents/concept-engineering/SOUL.md`, the body as it is but for "(profile `concept-engineering`)", under frontmatter: `description` from `profile.yaml`, `model: anthropic/claude-fable-5-2:medium`, the model it has in Hermes, with no second entry, so a quota failure during the trial is an error and not another model answering. Medium is the default and what scheduled runs want; for a harder conversation the maintainer picks `anthropic/claude-fable-5-2` at high in the thread, which keeps the agent since it is attached by name. Its Character section repeats terms "the same in every character"; they become one shared file when a second agent moves.
-- `skills/software-development/engineering-taste/` (`SKILL.md`, `references/research.md`) → `agents/concept-engineering/skills/engineering-taste/`, less its sentence about a Hermes shell. This is the one skill that is its own.
+- `SOUL.md` is copied to `agents/concept-engineering/SOUL.md`, the body as it is but for "(profile `concept-engineering`)", under frontmatter: `description` from `profile.yaml`, `model: anthropic/claude-fable-5-2:medium`, the model it has in Hermes, with no second entry, so a quota failure during the trial is an error and not another model answering. Medium is the default and what scheduled runs want; for a harder conversation the maintainer picks `anthropic/claude-fable-5-2` at high in the thread, which keeps the agent since it is attached by name. Its Character section repeats terms "the same in every character"; they become one shared file when a second agent moves.
+- `skills/software-development/engineering-taste/` (`SKILL.md`, `references/research.md`) is copied to `agents/concept-engineering/skills/engineering-taste/`, the copy less its sentence about a Hermes shell. This is the one skill that is its own.
 - Left behind: the 59 skills named in `skills/.bundled_manifest`, which are Hermes's. `workos-composio`, a Hermes connector. `founder-persona-bots`, which builds Hermes bots and has diverged between the four profiles' copies; if pi agents need it, it is rewritten once as a shared skill. `~/.agents/skills`, which the profile reads through `external_dirs`, pi already discovers.
-- `memories/MEMORY.md` (four entries) and `USER.md` become notes, reworded to notes' 280 bytes a line: the user line global, the rest the concept project's. Notes are off on the Beelink (`memory.schemas` has only `om`), so the setup enables them.
-- Its Hermes cron job "Reconcile docs/principles with mlegls's answers" (Sundays 09:00) is still enabled. It becomes a bb automation on `agent/concept-engineering` in the concept project and is disabled in Hermes, since during the trial Concept Engineering works only as the life.
-- The profile stays where it is: `state.db` and `sessions/` are what [[projects/mlegls-pi/issues/import-hermes-sessions-as-a-lifes-first-messages]] reads.
+- `memories/MEMORY.md` (four entries) and `USER.md` are written as notes by a session that is Concept Engineering, reworded to notes' 280 bytes a line, all global: it works in several repositories and a project note shows only in its own. Notes are off in the Beelink's settings and stay off, so only agents read them.
+- Its Hermes cron job "Reconcile docs/principles with mlegls's answers" (Sundays 09:00) is still enabled. It becomes a bb automation on `agent/concept-engineering` in the concept project and is paused in Hermes, not removed, since during the trial Concept Engineering works only as the life.
+- `state.db` and `sessions/` there are what [[projects/mlegls-pi/issues/import-hermes-sessions-as-a-lifes-first-messages]] reads.
 
 decisions:
 - 2026-11-12: identity is resolved in pi and its files are in git; no bots plugin, and a bb plugin later is only a frontend (maintainer, quoted above).
@@ -74,3 +75,4 @@ decisions:
 - 2026-11-12: concept-strategy (Hermes) owns this project ([[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]), and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
 - 2026-11-12: being the agent is being attached to the life of its name, with no attachment of its own; the virtual model is how a session starts as one and attaches only a session with no messages; the soul file carries the model list; skills are loaded each run, not discovered at startup; the registry is a settings list; the Concept agents' files are `agents/<name>/` in the concept repository (shaping, @thread:thr_yjcz7iz6hb).
 - 2026-11-12: Concept Engineering's list is fable at medium: "medium is good as a default, and i'd switch to high when needed. i'd think most automated calls want medium"; `founder-persona-bots` stays in Hermes ("yes"); the soul replaces the harness's identity sentence, left to the shaper: "whichever is better towards orientation in the world, and sense of self" (answers in @thread:thr_yjcz7iz6hb).
+- 2026-11-12: the spec is read and accepted with two amendments: the soul and `engineering-taste` are copied and the Hermes profile is untouched while the trial runs, its cron job paused; notes are on only in a session that is an agent, since turning them on machine-wide "is his to decide, not the trial's". The soul says who and the harness line only where (concept-strategy, as owner, @thread:thr_yjcz7iz6hb).
