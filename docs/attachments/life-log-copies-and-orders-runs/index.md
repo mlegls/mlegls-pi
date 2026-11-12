@@ -30,3 +30,7 @@ Existing regression command: `bun test extensions/context/life/log.test.ts exten
 ## Consumer boundary
 
 `lifeId(name, cwd)` resolves the name. `lifeLog(id).append(lifeMessages(branch, context))` appends copied inputs. Supply `context.sessions = sessionChain(sm)` for a fork, alongside `session`, `place`, `model` and `selfThreads`; that optional field is the only addition to the shared contract. The session attachment/context ticket consumes this library later.
+
+## Review
+
+Read `log.ts`, the `store.ts` addition and `contracts.ts` against the ticket; no repairs needed. `bun test extensions/context lib/records` (37 pass) and `bunx tsc --noEmit` pass; the repository has no `test:affected` task. Beyond the driver's single schedule, I ran eight concurrent processes on a warm store, each appending forty runs of five own messages plus one source shared by all and a repeat of its own run: 1640 messages, positions exactly 0–1639, 1640 distinct sources, every run contiguous, 0.6 s. The same run with six processes started on a store file that did not yet exist lost two writers to `SQLITE_BUSY` in `db()` at `PRAGMA journal_mode = WAL` (the busy timeout does not cover the journal-mode switch); only the first-ever creation of the file is affected, and it predates this change. The `presence` files in the range arrive from the sibling presence ticket's merge and were not reviewed here.
