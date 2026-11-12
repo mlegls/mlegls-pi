@@ -107,3 +107,7 @@ Checks for replay:
 ## Cleanup
 
 All CLI processes exited. Browser automation session closed, releasing its lease and owned tab. BB trial thread stopped and archived. `untrust /tmp/pi-life-VUTkKn` completed successfully. Disposable root retained for replay; no inherited/shared services stopped, and no servers, tunnels or browser sessions left running. No product repairs or new tests were made.
+
+## Review
+
+Reviewed at d75ab2a1 against the diff since d99a4999 (guide, `scripts/life-playground.ts` loading stances and moving prompt after context, packet). No repairs needed. Re-ran `prepare-agent`: generated wrapper loads agents, stances, context, prompt in that order; project settings register only the disposable `agents` dir, notes omitted from `memory.systems` and `notes.enabled: false`. `bun test extensions/context extensions/system-prompt`: 42 pass, 0 fail (no `test:affected` task). Guide commands match launcher behavior (`--no-life-env`, `--fork`, explicit `--model` replacing the default provider). Friction triage: the compaction `empty reply` occurrence is attached to its owning idea (waits on capturing the failing call's stopReason); the BB slash-submission hang is owned by get-bb/bb#3792 and documented in the guide. Both screenshots are the driver's, unchanged.
