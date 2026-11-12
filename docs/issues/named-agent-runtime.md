@@ -15,3 +15,7 @@ goal: a session attached to a registered machine-wide life is the named agent, w
 3. Load soul and private skills each run; render the agent section first and use the parent's identity-neutral harness opening. Make [notes](../../extensions/context/notes.ts) available to agents and include them by default in [mechanism selection](../../extensions/context/mechanism.ts), while honoring a session's `/memory -notes` and preserving non-agent behavior.
 
 The parent's first-use story is acceptance: model startup (including BB's post-start model selection), life attach/off, model changes preserving identity, fresh skill edits, notes disabled globally but active for the agent, and private skills absent elsewhere. Prepare a runnable disposable fixture using the existing [life playground](../../scripts/life-playground.ts) or an equivalent small invocation for the driver; the durable guide and full two-session/BB encounter belong to [[projects/mlegls-pi/issues/named-agent-first-use-in-terminal-and-bb]].
+
+## Drive evidence
+
+[CLI and RPC encounter](../../docs/attachments/named-agent-runtime/index.md): attached startup, RPC post-start selection, life off/attach, model changes, live soul/skill edits, notes override and isolation observed. Explicit virtual-provider startup held; playground model shorthand friction is [[projects/mlegls-pi/issues/life-playground-model-override-keeps-anthropic-provider]]. Serialized prompt ordering/opening awaits reviewer inspection. Full BB encounter remains with [[projects/mlegls-pi/issues/named-agent-first-use-in-terminal-and-bb]].
