@@ -1,5 +1,7 @@
 # Life first-use drive
 
+The implementer's earlier encounter is retained separately as [previous drive](previous-drive.md). This independent encounter does not replace its historical observations.
+
 Tested revision: `b23e2014f46e42592eb10d2032c83fba5eec393d`. Independent driver; implementation, diffs, tests and fixtures were not read. Public surfaces: real pi CLI/RPC, life tools, and bb CLI thread operations. No rendered journey; visual false, screenshots none.
 
 ## Predictions recorded before first use
