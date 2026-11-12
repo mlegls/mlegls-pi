@@ -9,10 +9,14 @@ function hasFollowUp(value: unknown): boolean {
 	return typeof value === "string" ? !!value.trim() : !!value;
 }
 
+/** A run notice keeps its model turn when the run records something for the supervisor: a pending
+ * exception, or a result asking a question or naming a follow-up. Caveats don't count: nearly every
+ * handoff has them, and reconcile_status lists them. Worker notices never wait on this: an exception
+ * reaches the supervisor in its own "needs you" notice. */
 function needsOwner(state: State): boolean {
 	return Object.keys(state.exceptions ?? {}).length > 0
 		|| Object.values(state.results ?? {}).some(({ handoff }) =>
-			[handoff.question, handoff.caveats, handoff.followup].some(hasFollowUp));
+			[handoff.question, handoff.followup].some(hasFollowUp));
 }
 
 /** Provenance, not titles: only receipted workers and recorded runs may settle locally.
@@ -45,7 +49,7 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 			try { process.kill(state.pid!, 0); }
 			catch (error) { if ((error as NodeJS.ErrnoException).code !== "EPERM") continue; }
 			if (workerHandles(state).some(receipt => receipt.bb === (child ?? message?.[1]) && receipt.run === state.root))
-				return !needsOwner(state);
+				return true;
 		}
 		return false;
 	} catch {

@@ -37,3 +37,28 @@ The scratch RPC client initially used the unavailable `python` executable; `pyth
 
 The missing recorded-follow-up setup is the unresolved friction linked above. No browser journey, screenshots, repository tests or source inspection occurred. RPC subprocesses were terminated by the client; the preparation process was stopped after driving.
 
+
+## Review
+
+Read with the diff against the ticket. Two defects, both in `needsOwner` of [reconciler-notices.ts](../../../extensions/bb/reconciler-notices.ts), repaired:
+
+- `handoff.caveats` counted as a recorded follow-up. Every run state but one in this repository's `.git/reconcile` that holds a result has nonempty caveats, so landed/parked/stopped notices would have woken the model almost every time and the ticket's saving would not exist. Dropped; question and followup stay.
+- The worker path (child completion, worker `[bb message …]`) also waited on `needsOwner`, so any pending exception or any closed result with a question anywhere in the run turned back on model turns for worker completions that [drop-reconciler-worker-notices-in-a-bb-plugin](../../issues/drop-reconciler-worker-notices-in-a-bb-plugin.md) already absorbed unconditionally. Exceptions reach the supervisor in their own `needs you` notice, so worker notices now settle locally whenever the receipt is live, as before; a worker message with `?`, `needs-input` or `blocked` still reaches the model.
+
+Replay of `reconcilerCompletion` against a scratch repository with a fixture run state (the recorded-follow-up setup the driver could not reach; `true` = settled locally, no model call):
+
+| input | state | result |
+|---|---|---|
+| landed | result with caveats only | true |
+| landed | result with `question` | false |
+| landed | pending exception | false |
+| worker completion | result with caveats | true |
+| worker completion | exception elsewhere | true |
+| worker progress | none | true |
+| worker message with `?` | none | false |
+| parked, withdrew, stopped | none | true |
+| `needs you` | none | false |
+| `landed f at …, but a merge hook failed` | none | false |
+| landed folded with `needs you` | none | false |
+
+All 13 matched. Story 4 (recorded follow-up preserves a model turn): held, by this replay (the decision is `reconcilerCompletion`'s return; the earlier drive showed `false` reaches the original model). `bunx tsc --noEmit` clean.
