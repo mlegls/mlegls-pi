@@ -55,6 +55,8 @@ export interface LifeRun extends Manifestation {
 export interface LifePresence {
 	start(run: LifeRun): void;
 	end(run: string): void;
+	/** Stop showing this session as attached; a later start attaches it again. */
+	detach(session: string): void;
 	hold(session: string, text: string): void;
 	/** Threads belonging to this life, for recognizing messages from elsewhere in it. */
 	threads(): string[];
