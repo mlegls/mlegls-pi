@@ -17,6 +17,7 @@ export function prepare(startupLife = false, namedAgent = false) {
 	const name = "/" + basename(root);
 	writeFileSync(join(root, marker), JSON.stringify({ name, namedAgent }));
 	const agentsExtension = fileURLToPath(new URL("../extensions/agents/index.ts", import.meta.url));
+	const stancesExtension = fileURLToPath(new URL("../extensions/stances/index.ts", import.meta.url));
 	const promptExtension = fileURLToPath(new URL("../extensions/system-prompt/index.ts", import.meta.url));
 	if (namedAgent) {
 		const dir = join(root, "agents", name.slice(1));
@@ -29,9 +30,9 @@ export function prepare(startupLife = false, namedAgent = false) {
 	const installedPackage = dirname(common.stdout.toString().trim());
 	writeFileSync(join(root, ".pi", "extensions", "life-playground.ts"),
 		"import context from " + JSON.stringify(extension) + ";\n" +
-		(namedAgent ? "import agents from " + JSON.stringify(agentsExtension) + ";\nimport prompt from " + JSON.stringify(promptExtension) + ";\n" : "") +
+		(namedAgent ? "import agents from " + JSON.stringify(agentsExtension) + ";\nimport stances from " + JSON.stringify(stancesExtension) + ";\nimport prompt from " + JSON.stringify(promptExtension) + ";\n" : "") +
 		"export default function (pi) { process.env.PI_BOARD_DIR = " + JSON.stringify(join(root, "store")) + "; " +
-		(startupLife ? "process.env.PI_LIFE = " + JSON.stringify(name) + "; " : "") + (namedAgent ? "agents(pi); prompt(pi); " : "") + "context(pi); }\n");
+		(startupLife ? "process.env.PI_LIFE = " + JSON.stringify(name) + "; " : "") + (namedAgent ? "agents(pi); stances(pi); " : "") + "context(pi); " + (namedAgent ? "prompt(pi); " : "") + "}\n");
 	writeFileSync(join(root, ".pi", "settings.json"), JSON.stringify({
 		packages: [{ source: installedPackage, extensions: [], skills: [], prompts: [], themes: [] }],
 		...(namedAgent ? { agents: [join(root, "agents")] } : {}),

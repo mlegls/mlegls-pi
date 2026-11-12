@@ -67,6 +67,87 @@ unfinished sibling, switching model, resume/fork and detach. To observe catch_up
 of long-run view advancement, raise tailBytes first in the generated `.pi/settings.json`;
 restore 800 for the long-run trial. A few bash calls with output force a boundary change.
 
+## Named-agent first use
+
+```sh
+bun scripts/life-playground.ts prepare-agent
+bun scripts/life-playground.ts start <root> one --model agent/<fixture>
+bun scripts/life-playground.ts start <root> two --no-life-env --model anthropic/claude-haiku-4-5
+```
+
+`<root>` is the returned temporary directory; `<fixture>` is the returned name without its
+leading `/`. The first command creates one `agents/<fixture>/SOUL.md` and one private
+`skills/fixture-signal/SKILL.md`. Only this workspace registers that directory. Its store is
+`<root>/store`; global notes remain disabled (`notes.enabled: false`, notes omitted from
+`memory.systems`). The fixture routes to credentialed `anthropic/claude-haiku-4-5:off`, using
+installed pi authentication, independently of the Concept Engineering trial's model.
+The generated extension loads this checkout's agents, stances, context and system-prompt,
+with agents before prompt rendering. The ordinary life fixture above is unchanged.
+
+In **one**, ask: “What is your soul name and fixture signal? List private skills with their
+exact descriptions, and whether note is available.” Expect the fixture name, **copper
+telescope**, **fixture-signal**, and `note`. Ask it to read its private skill for the skill's
+**violet lantern** signal. While one is busy (ask it to run `sleep 8`), its session is in the
+life's Working present; an attached sibling sees it on its next run.
+
+In **two**, the current prompt has neither soul nor private skill nor `note`. Then:
+
+```text
+/life /<fixture>
+```
+
+The next run has the same soul, skill and notes as one. Ask one to edit the private skill's
+description and commit that file; ask two for the exact description on its next run without
+reading files. It sees the edit without restart. Select another ordinary model while attached:
+identity stays. `/memory -notes` removes `note`; `/life off` removes the soul and private skill.
+The conversation still contains earlier claims of identity, so model self-reports after detach
+can be stale: inspect current system sections/tool deltas in JSON/RPC output when checking this.
+
+After two has messages and is off, selecting `agent/<fixture>` changes its model only; the
+notice points to `/life /<fixture>` for intentional attachment. A fresh session selecting that
+model attaches automatically. An ordinary stance worker starts independently:
+
+```sh
+bun scripts/life-playground.ts start <root> worker --no-life-env --model stance/auto-routine
+```
+
+It has no agent soul, private skill or `note`. `--no-life-env` clears the launcher's life
+override; selecting an agent model in a fresh session still attaches by model.
+
+Exit one, then resume it with `start <root> one --no-life-env`; the launcher continues that
+slot and inherits attachment. Fork using the persisted file in `<root>/sessions/one/`:
+
+```sh
+bun scripts/life-playground.ts start <root> forked --no-life-env --fork <session-file>
+```
+
+The fork inherits the agent even on an ordinary model. Resuming an explicitly detached slot
+keeps it off.
+
+### BB startup
+
+Use `prepare-agent-bb` for a new BB encounter. It trusts only that disposable directory;
+there is no startup `PI_LIFE` override in this variant, so identity must come from the model
+BB selects after pi starts. With the existing project's ID and the returned fixture:
+
+```sh
+bb thread spawn --project <project-id> --environment <root> --provider pi \
+  --model agent/<fixture> --title 'Disposable named-agent first use' \
+  --prompt 'State your soul name and fixture signal, list private skills and whether note is available. Do not call tools.' --json
+bb thread show <thread-id> --json
+bb provider models pi --environment <environment-id-from-show> --json
+```
+
+Expect `<fixture> (agent)`, ID `agent/<fixture>`, in the environment's model catalog, and the
+same soul/signal/skill/notes in the reply. Use that exact model ID for automation selection.
+A fixture registered only in project settings appears in that environment's catalog, rather
+than the global catalog. For slash commands use the user composer and the stop-pending-submission
+workaround described above. Finish with `bb thread stop <thread-id>` and
+`bb thread archive <thread-id>`. The [recorded terminal and BB encounter](../../../docs/attachments/named-agent-first-use-in-terminal-and-bb/index.md)
+includes prompt/tool observations and resume/fork.
+
+## Cleanup
+
 Stop trial threads/processes afterwards. Remove only the generated workspace when finished.
 For a bb setup, clear its saved trust with:
 
