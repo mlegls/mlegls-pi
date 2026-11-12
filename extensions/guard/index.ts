@@ -25,7 +25,11 @@ export default function (pi: ExtensionAPI) {
 	const worker = !!process.env.PI_WM_HANDLE;
 	pi.on("tool_call", (event) => {
 		if (event.toolName !== "bash" && event.toolName !== "process") return;
-		const command = String((event.input as { command?: unknown }).command ?? "");
+		const input = event.input as { command?: unknown; timeout?: unknown };
+		// bash uses seconds; millisecond-shaped values have held workers for hours.
+		if (event.toolName === "bash" && typeof input.timeout === "number" && input.timeout > 1800)
+			return { block: true, reason: `bash timeout is in seconds: ${input.timeout} s is ${(input.timeout / 3600).toFixed(1)} h; the ceiling is 1800 s. Slow or streaming work goes through the process tool.` };
+		const command = String(input.command ?? "");
 		if (!command) return;
 		if (event.toolName === "bash" && KILL_BY_PATTERN.test(command))
 			return { block: true, reason: "pkill/killall match processes host-wide, including other sessions' workers. Stop processes you started by pid (kill <pid>), with the process tool, or with the checkout's own stop task." };
