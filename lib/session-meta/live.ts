@@ -17,6 +17,8 @@ export interface Live {
 	state: "working" | "idle";
 	since: string;
 	mode?: "tui" | "rpc" | "json" | "print";
+	/** Executing calls, including calls nested inside codemode. Removed at tool_execution_end. */
+	tools?: { id: string; name: string; command?: string; since: string; parent?: string }[];
 }
 
 export function liveDir(): string {
