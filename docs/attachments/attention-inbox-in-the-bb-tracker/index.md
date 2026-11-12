@@ -1,5 +1,7 @@
 # Combined desk → Attention first use
 
+Independent verification on the merged collector: [drive 9](drive-9.md). All combined claims held; three fresh rendered captures and replay checks are recorded there.
+
 ## Predictions before first use
 
 Using this checkout's desk helper to file a recommended decision and a secret request for the same disposable owner should render two unanswered items in Attention. Taking the recommendation and quoting the question should fill only the decision draft. Sending it with an invented password should deliver one message naming both items, containing the quote and write notice but no value; the dotenv should hold the assignment, both items should collapse and the badge should decrease by two. When the owner removes its requests with the helper, both should disappear without a page reload.
