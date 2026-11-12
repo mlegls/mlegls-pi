@@ -1,11 +1,10 @@
 ---
-stage: "goal"
-assignee: "agent"
+stage: "spec"
+assignee: "session:hermes-concept-strategy"
 priority: 2
 author: "session:hermes-concept-strategy-2026-11-11"
 blocked-by:
   - "[[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]"
-claimed-by: "session:01a1cdae-77e4-70c7-a6cf-ffd1ed144599"
 ---
 idea: "How would Hermes's kind of SOUL.md and per-profile skills relate to what we're building here? For persistent identities in BB, do we want to use one of BB's existing bots plugins, or build our own plugin, or neither?" Concept-strategy answered neither: a small pi extension that resolves a name to a soul, skills, a life and a default model, with the files in git. "ok, agreed. a bb plugin would just be a frontend to this then, like the relation between our tracker plugin and issues system." (maintainer, 2026-11-12, Hermes concept-strategy desktop session `20261111_184900_7d1d9e`). Earlier there: "agent-scoped skills could also be implemented as a pi extension or bb plugin."
 
@@ -20,21 +19,57 @@ goal: in pi a name is an agent: its soul, its own skills, its life ([[projects/m
 
 Out: a bb plugin. Later it is a frontend that stores nothing: threads grouped by agent, starting one as an agent, the life's present. Out: what Hermes has natively and pi doesn't (browser and desktop use, connectors, the login vault); an agent that needs those stays reachable in Hermes.
 
-## proposed shape
+## shape
 
-By concept-strategy, from the header of [stances](../../extensions/stances/index.ts) only. Where the code disagrees, the code wins.
+Checked against [stances](../../extensions/stances/index.ts), [system-prompt](../../extensions/system-prompt/index.ts), pi 1.5's extension API and the life's spec and landed code (@thread:thr_yjcz7iz6hb). What it changed from concept-strategy's proposal is in the decisions.
 
-- An agent is a directory: an agent file like a stance's ([technical.md](../../agents/technical.md): name, description, model list), `SOUL.md` and `skills/`.
-- It is exposed the way stances are, as a virtual model, so bb's model picker starts a thread as the agent and its model list picks the LLM. Not confirmed: that selecting a virtual model can also set the prompt and the skills.
-- Selecting it puts the soul and the lesson section in the prompt, adds its skill directory, and attaches the life of the same name.
+**The agent is its life's name.** A session is the agent `<name>` exactly when it is attached to the machine-wide life `/<name>` (`lifeId` in [log.ts](../../extensions/context/life/log.ts)) and the registry has that name. There is no second attachment to keep in step: `/life /<name>`, `PI_LIFE=/<name>`, resume and fork make a session the agent, and `/life off` ends it, as [[projects/mlegls-pi/issues/life-session-attachment-and-run-context]] builds them. Changing model keeps the agent, as it keeps the life. A project-scoped life, or a machine-wide one the registry doesn't name, is a life with no soul.
 
-holes, for shaping:
+```
+~/.pi/agent/settings.json        "agents": ["~/dev/mmon/concept/agents"]     the registry: directories of agents
+<dir>/<name>/SOUL.md             frontmatter description, model (a stance's list); body the soul
+<dir>/<name>/skills/<skill>/SKILL.md
 
-- how an agent is selected (virtual model, environment, command) and what a session not started as one can do to become one.
-- where the registry is.
-- which of a Hermes profile's `skills/` are the agent's own: `~/.hermes/profiles/concept-engineering/skills/` also holds Hermes's bundled ones.
+extensions/agents/index.ts       new, listed before system-prompt in package.json
+extensions/agents/lesson.md      the lesson section
+lib/agents.ts                    agent() parses a given file, so a SOUL.md reads as a stance file does
+extensions/stances/index.ts      exports its registration, taking the provider
+extensions/context/life/index.ts exports attachedLife(branch); listens for life:attach
+extensions/system-prompt/index.ts  renders the agent section first
+```
+
+- **registry.** `agents` in pi's settings, read as the life's `settings` reads its own (agent dir, then the project's `.pi/settings.json`): a list of directories, each subdirectory holding a `SOUL.md` an agent named for the subdirectory. The first directory to name an agent wins. Read on each use, so a new agent needs no restart for its prompt, and a reload for its model.
+- **the agent file is the soul.** `SOUL.md` is a stance file ([technical.md](../../agents/technical.md)): frontmatter `description` and `model`, body the prompt. One file, not an agent file beside a soul.
+- **starting as one.** Each agent with a `model` list is a virtual model `agent/<name>`, shown as "<name> (agent)", routed by the stances' `route` unchanged (first entry with credentials and capacity; the list sets effort). It is in bb's model picker and `bb provider models pi` as `stance/*` is, so a bb thread, `bb automation create --provider pi --model agent/<name>` and `pi --model agent/<name>` are the same start. `route` returns a model, a thinking level and router state and nothing else, so the model doesn't set the prompt: on `session_start` (bb sets the model over RPC after pi starts, so also on `model_select`), a session whose model is `agent/<name>`, that has no user or assistant message yet and no life, emits `life:attach` with `/<name>` on `pi.events`; the life's listener does what `/life /<name>` does. Extensions share `pi.events` and not module state, which is why this is an event.
+- **becoming one later.** `/life /<name>`. Choosing `agent/<name>` in a session that already has messages only changes the model and notifies that `/life /<name>` attaches: attaching appends the session's history to the life for good, which a slip in a model picker shouldn't do.
+- **prompt.** In `before_agent_start`, ahead of system-prompt's handler (handlers run in extension order and see earlier mutations of `systemPromptOptions`), a session whose branch says `attachedLife` is a registered agent gets `systemPromptOptions.sections.agent`: the soul's body, then the lesson section. system-prompt's `buildPrompt` ignores `sections` today; it puts `sections.agent` first, before the harness line, where Hermes puts a soul. The life's compactor runs on the turn's system prompt, so its lines are written with the soul.
+- **skills.** The same handler appends `loadSkillsFromDir({ dir: <dir>/<name>/skills, source })` (pi's export) to `systemPromptOptions.skills`, which `visibleSkills` lists. Not `resources_discover`: it fires only at startup and reload, before bb has set the model, and a handler can't reload. Loaded each run, so a skill the agent edited in one thread is what it has in every thread from its next run, and an unattached session never lists it. The cost is that the agent's own skills have no `/skill:<name>` command; it reads them by path as the prompt says.
+- **lesson section.** `lesson.md`, with the agent's directory filled in, in the life's way of speaking ("speaking of it" in the life's issue):
+
+  > You are <name>. Your soul is <dir>/<name>/SOUL.md and your own skills are in <dir>/<name>/skills; no other agent has them.
+  >
+  > A lesson goes where it will be found, in the turn you learn it. What happened needs nothing: you remember it. What other agents should know is a note (`note`). "From now on" is an edit to one of your skills, or to your soul when it is about who you are, committed alone (`git -C <dir> commit -- <path>`): the maintainer reviews it there, and you have it everywhere from your next run. "Remember this" means don't let it fade, so pick a note or a rule.
+
+  The note sentence is there when the `note` tool is active.
+- **workers.** A worker the agent dispatches runs a stance model with no `PI_LIFE`, so it has neither soul nor skills; one whose launcher sets `PI_LIFE=/<name>` is the agent.
+
+First use: a fixture registry with one agent and one skill, beside the life's two-session entry point and guide, which this extends. `pi --model agent/<fixture>` answers in the soul's terms, lists the skill and shows in the life's present; a second session on another model lists neither; `/life /<fixture>` there makes it the agent, and `/life off` ends it; an edit to the skill's description in one shows in the other's next run; choosing the model in a session with messages attaches nothing. Then the same from a bb thread started with the model, which is the one path that sets it after start.
+
+### the Concept agents' files
+
+`~/dev/mmon/concept/agents/<name>/`, a new top-level directory, registered in `~/.config/system-config/home/.pi/agent/settings.json`. Not `.agents/skills/`, which pi discovers for every session in the repository, and not `docs/`, whose commit hook checks links in files that are prompts here. The registry names the main checkout, so an agent working in a worktree or another repository edits and commits there.
+
+Moving Concept Engineering out of `~/.hermes/profiles/concept-engineering/`, as the trial's setup:
+
+- `SOUL.md` → `agents/concept-engineering/SOUL.md`, the body as it is but for "(profile `concept-engineering`)", under frontmatter: `description` from `profile.yaml`, `model: anthropic/claude-fable-5-2:<effort>`, the model it has in Hermes. Its Character section repeats terms "the same in every character"; they become one shared file when a second agent moves.
+- `skills/software-development/engineering-taste/` (`SKILL.md`, `references/research.md`) → `agents/concept-engineering/skills/engineering-taste/`, less its sentence about a Hermes shell. This is the one skill that is its own.
+- Left behind: the 59 skills named in `skills/.bundled_manifest`, which are Hermes's. `workos-composio`, a Hermes connector. `founder-persona-bots`, which builds Hermes bots and has diverged between the four profiles' copies; if pi agents need it, it is rewritten once as a shared skill. `~/.agents/skills`, which the profile reads through `external_dirs`, pi already discovers.
+- `memories/MEMORY.md` (four entries) and `USER.md` become notes, reworded to notes' 280 bytes a line: the user line global, the rest the concept project's. Notes are off on the Beelink (`memory.schemas` has only `om`), so the setup enables them.
+- Its Hermes cron job "Reconcile docs/principles with mlegls's answers" (Sundays 09:00) is still enabled. It becomes a bb automation on `agent/concept-engineering` in the concept project and is disabled in Hermes, since during the trial Concept Engineering works only as the life.
+- The profile stays where it is: `state.db` and `sessions/` are what [[projects/mlegls-pi/issues/import-hermes-sessions-as-a-lifes-first-messages]] reads.
 
 decisions:
 - 2026-11-12: identity is resolved in pi and its files are in git; no bots plugin, and a bb plugin later is only a frontend (maintainer, quoted above).
 - 2026-11-12: the Concept agents' souls and skills live in the concept repository (concept-strategy's recommendation; maintainer: "ok, agreed").
 - 2026-11-12: concept-strategy (Hermes) owns this project ([[projects/mlegls-pi/issues/one-life-for-a-named-agent-across-simultaneous-sessions]]), and its questions go there, not to the maintainer: "for this in particular, I think you can just own the project. I don't need to be concerned with the details." (maintainer)
+- 2026-11-12: being the agent is being attached to the life of its name, with no attachment of its own; the virtual model is how a session starts as one and attaches only a session with no messages; the soul file carries the model list; skills are loaded each run, not discovered at startup; the registry is a settings list; the Concept agents' files are `agents/<name>/` in the concept repository (shaping, @thread:thr_yjcz7iz6hb).
