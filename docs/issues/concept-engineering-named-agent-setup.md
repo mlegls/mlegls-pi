@@ -5,8 +5,6 @@ priority: 2
 author: "session:01a1ce05-15a3-7191-b6d9-27abd097297f"
 part-of: "[[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life]]"
 claimed-by: "reconcile:a-name-is-an-agent-with-its-soul-skills-and-life"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/named-agent-first-use-in-terminal-and-bb]]"
 ---
 goal: Concept Engineering's copied soul and private skill are versioned in the Concept repository and registered on the Beelink; its shared facts are global notes and its Sunday routine starts the same named agent through BB. This is the setup in [[projects/mlegls-pi/issues/a-name-is-an-agent-with-its-soul-skills-and-life#the Concept agents' files]], for [[projects/mlegls-pi/issues/concept-engineering-runs-as-a-life-on-the-beelink]]. The week of ordinary use and the maintainer's judgment remain that trial's work.
 
