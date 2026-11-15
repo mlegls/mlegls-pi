@@ -29,6 +29,13 @@ mkdirSync(join(vault, "projects"), { recursive: true });
 symlinkSync(join(cwd, "docs"), join(vault, "projects/fixture"));
 afterAll(() => { rmSync(cwd, { recursive: true, force: true }); rmSync(vault, { recursive: true, force: true }); });
 
+test("show aliases text for issue contents", () => {
+  const text = run("text blocker");
+  expect(text.code).toBe(0);
+  expect(text.out).toBe(readFileSync(join(issues, "blocker.md"), "utf8"));
+  expect(run("show blocker")).toEqual(text);
+});
+
 test("cross-project evidence links resolve through the vault, not a local namesake", () => {
   const other = join(vault, "projects/other");
   mkdirSync(other, { recursive: true });

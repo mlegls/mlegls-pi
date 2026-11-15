@@ -119,15 +119,24 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 		parameters,
 		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
 			const config = loadConfig(ctx.cwd);
-			const roots = (params.path ? words(params.path) : ["."]).map((p) => resolve(ctx.cwd, p));
-			const dirs: string[] = [];
-			for (const root of roots) {
-				const info = await stat(root).catch(() => null);
-				if (!info) throw new Error(`Path not found: ${root}`);
+			const paths = params.path ? words(params.path) : ["."];
+			const roots: string[] = [], dirs: string[] = [], missing: string[] = [];
+			for (const path of paths) {
+				const root = resolve(ctx.cwd, path);
+				const info = await stat(root).catch(error => {
+					if (error.code === "ENOENT" || error.code === "ENOTDIR") return null;
+					throw error;
+				});
+				if (!info) {
+					if (paths.length === 1) throw new Error(`not found: ${path}`);
+					missing.push(`not found: ${path}`);
+					continue;
+				}
+				roots.push(root);
 				if (info.isDirectory()) dirs.push(root);
 			}
 			// One root: paths relative to it, as before. Several: relative to cwd, so they're unambiguous.
-			const base = roots.length === 1 ? dirs[0] : ctx.cwd;
+			const base = paths.length === 1 ? dirs[0] : ctx.cwd;
 			const display = (file: string) => {
 				if (base) {
 					const rel = relative(base, file);
@@ -142,8 +151,8 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 			if (params.glob) args.push("--glob", params.glob);
 			args.push("--", params.pattern, ...roots);
 			const limit = Math.max(1, params.limit ?? DEFAULT_LIMIT);
-			const { matches, limited } = await search(args, limit, signal);
-			if (!matches.length) return { content: [{ type: "text" as const, text: "No matches found" }], details: undefined };
+			const { matches, limited } = roots.length ? await search(args, limit, signal) : { matches: [], limited: false };
+			if (!matches.length) return { content: [{ type: "text" as const, text: [...missing, "No matches found"].join("\n\n") }], details: undefined };
 
 			const byFile = new Map<string, number[]>();
 			for (const match of matches) {
@@ -154,7 +163,7 @@ export function registerGrepTool(pi: ExtensionAPI, deps: GrepDeps): void {
 			const context = Math.max(0, params.context ?? 0);
 			let linesTruncated = false;
 			let unanchored = 0;
-			const sections: string[] = [];
+			const sections: string[] = [...missing];
 			let anchoredFiles = 0;
 			for (const [file, matchLines] of byFile) {
 				const shown = display(file);
