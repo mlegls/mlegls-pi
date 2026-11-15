@@ -33,3 +33,7 @@ No execution friction. The single aggregate case gives less diagnostic visibilit
 ## Evidence limits
 
 Nonvisual, isolated fixture acceptance only. No live shared desk data was touched. No assertion-level inspection or additional tests were performed by the driver.
+
+## Review
+
+Read `lib/desk.test.ts` assertions: five scenarios (pickup owner live; pickup owner archived with live supervisor role; pickup disabled; no pickup state; neither live) each assert the item survives, the Owner line is the pickup owner, else the supervisor role holder, else `thr_old (owner gone)`, `Previous owner` is kept on reassignment, the archived `working` role row is dropped, a second clean is idempotent, and `removeAttention` removes it. This covers the driver's replayable check 2. `bun test lib/desk.test.ts` re-run at review head: 1 pass, 34 assertions. Repair: the `ab desk` usage text and the shape/supervise skills still said writes clean attention of archived owners; reworded (2977f60c).
