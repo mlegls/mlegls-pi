@@ -75,6 +75,10 @@ export interface RefinementAttempt {
 export interface GlobalRunState {
 	root: string;
 	cwd: string;
+	/** Owner restrictions survive chain replacement and reconciler restarts. */
+	constraints?: Record<string, string[]>;
+	/** Loaded checkout supplied while resolving a foreign-commit hold. */
+	foreignCheckouts?: Record<string, string[]>;
 	/** Missing on pre-PR states means local. Captured at start, retained on resume. */
 	land?: import("./pr-types.ts").LandingMode;
 	pr?: import("./pr-types.ts").PullRequestLanding;

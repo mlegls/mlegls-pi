@@ -1,4 +1,5 @@
 import { parseDocument } from "yaml";
+import { commitHandoffError } from "./commit-handoff.ts";
 
 export const HANDOFF_KEYS = ["commit", "setup", "stories", "evidence", "caveats", "question", "resolution"] as const;
 
@@ -83,7 +84,7 @@ function handoffBlock(text: string): HandoffBlock | null {
   return null;
 }
 
-export function parse(text: string): Report {
+export function parse(text: string, cwd?: string): Report {
   const result = handoffBlock(text);
   const block = result && "value" in result ? result : null;
   const body = block ? text.slice(0, block.start) + text.slice(block.end) : text;
@@ -94,7 +95,8 @@ export function parse(text: string): Report {
   return {
     status: parsedStatus.status,
     handoff: block?.value ?? null,
-    handoffError: result && "error" in result ? result.error : parsedStatus.error,
+    handoffError: result && "error" in result ? result.error : parsedStatus.error ??
+      (cwd && block ? commitHandoffError(cwd, block.value, text) ?? null : null),
     body,
   };
 }

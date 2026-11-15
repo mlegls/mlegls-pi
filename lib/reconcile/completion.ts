@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { integrate, MergeConflict, type Handle } from "../dispatch.ts";
+import { commitDeclarations, commitIds, commitNotes, containsCommit, expandCheckout, namedCheckouts } from "../commit-handoff.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
 import type { Tracker } from "../tracker.ts";
 import { commandFailure, declaredGates, evidencePacket, git, isAncestor, testCommands, testRun } from "./checks.ts";
@@ -19,6 +20,8 @@ export interface CompletionContext {
 	/** Runtime turns a held close into a node exception; protocol callers may let it throw. */
 	holdEvidence?: (slug: string, text: string) => void;
 	holdForeignCommit?: (slug: string, text: string) => void;
+	/** Handoffs of children whose chains have not landed yet. */
+	foreignContexts?: () => unknown;
 }
 export interface ReviewedLanding {
 	slug: string;
@@ -39,7 +42,7 @@ export function reviewedResult(parent: string | null, handoff: Record<string, un
 	const evidence = handoff.evidence as { path?: unknown } | undefined;
 	return {
 		parent,
-		commitNotes: report.split("\n").filter(line => /^\s*commits?:/.test(line)),
+		commitNotes: commitNotes(report),
 		summary: typeof handoff.summary === "string" && handoff.summary.trim() ? handoff.summary : report,
 		...(typeof evidence?.path === "string" ? { evidence: evidence.path } : {}),
 		handoff: structuredClone(handoff),
@@ -206,35 +209,22 @@ function syncOwner(context: CompletionContext): void {
 	persist(context, { pr: { ...pr, ownerSync } });
 }
 
-/** Commit declarations may be strings, lists, or repository-keyed maps. Keep
- * YAML commit-line comments too: older foreign-repository handoffs named the
- * implementation there while the parsed commit field named only this repo. */
-function commitDeclarations(result: ReviewedResult): string {
-	return [JSON.stringify(result.handoff.commit ?? ""), JSON.stringify(result.handoff.commits ?? ""),
-		JSON.stringify(result.handoff.fixed ?? ""), ...(result.commitNotes ?? result.summary.split("\n").filter(line => /^\s*commits?:/.test(line)))].join("\n");
-}
-
 /** A branch holding an object is not installation proof. Only the configured
  * package source's current HEAD (or an explicit project checkout) is proof. */
-function foreignCommitFailure(context: CompletionContext, result: ReviewedResult): string | undefined {
-	const declarations = commitDeclarations(result);
-	const commits = [...new Set(declarations.match(/\b[0-9a-f]{7,40}\b/g) ?? [])];
-	const contains = (cwd: string, commit: string) => {
-		try { git(cwd, "rev-parse", "--verify", commit + "^{commit}"); return true; }
-		catch { return false; }
-	};
-	const foreign = commits.filter(commit => !contains(context.state.cwd, commit) &&
-		!(context.state.pr && contains(context.state.pr.path, commit)));
+function foreignCommitFailure(context: CompletionContext, slug: string, result: ReviewedResult): string | undefined {
+	const declarations = commitDeclarations(result.handoff, result.commitNotes ?? commitNotes(result.summary));
+	const commits = commitIds(declarations);
+	const foreign = commits.filter(commit => !containsCommit(context.state.cwd, commit) &&
+		!(context.state.pr && containsCommit(context.state.pr.path, commit)));
 	if (!foreign.length) return;
 	const settings = join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi/agent"), "settings.json");
-	const expand = (path: string) => path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
 	const checkouts = new Set<string>();
 	try {
 		const data = existsSync(settings) ? JSON.parse(readFileSync(settings, "utf8")) : {};
 		for (const entry of Array.isArray(data.packages) ? data.packages : []) {
 			const source = typeof entry === "string" ? entry : entry?.source;
 			if (typeof source === "string" && !/^(npm:|git:|https?:|ssh:|git@)/.test(source))
-				checkouts.add(resolve(dirname(settings), expand(source)));
+				checkouts.add(resolve(dirname(settings), expandCheckout(source)));
 		}
 	} catch (error) { return "Cannot verify foreign commits: reading " + settings + " failed: " + String(error); }
 	// Non-pi projects declare the checkout they actually load in a commit entry:
@@ -243,18 +233,22 @@ function foreignCommitFailure(context: CompletionContext, result: ReviewedResult
 		if (Array.isArray(value)) value.forEach(declared);
 		else if (value && typeof value === "object") {
 			const entry = value as Record<string, unknown>;
-			if (typeof entry.checkout === "string" && isAbsolute(expand(entry.checkout)))
-				checkouts.add(expand(entry.checkout));
+			if (typeof entry.checkout === "string" && isAbsolute(expandCheckout(entry.checkout)))
+				checkouts.add(expandCheckout(entry.checkout));
 			Object.values(entry).forEach(declared);
 		}
 	};
 	declared(result.handoff.commit);
 	declared(result.handoff.commits);
+	declared(result.handoff.fixed);
+	for (const checkout of context.state.foreignCheckouts?.[slug] ?? []) checkouts.add(checkout);
+	const named = namedCheckouts([context.state.constraints, Object.values(context.state.results).map(r => r.handoff), context.foreignContexts?.()]);
 	for (const commit of foreign) {
-		const sources = [...checkouts].filter(path => contains(path, commit));
+		let sources = [...checkouts].filter(path => containsCommit(path, commit));
+		if (!sources.length) sources = named.filter(path => containsCommit(path, commit));
 		if (!sources.length)
 			return "Foreign implementation commit " + commit + " has no verifiable loaded checkout. Checked pi sources in " + settings +
-				"; for another project name its loaded checkout in the commit handoff.";
+				"; for another project name its loaded checkout in the commit handoff, or resolve with retry and checkout: /absolute/loaded/checkout.";
 		for (const path of sources) {
 			try {
 				if (isAncestor(path, commit)) continue;
@@ -295,7 +289,7 @@ export function closeAtTarget(context: CompletionContext): void {
 			held.add(slug);
 			continue;
 		}
-		const foreignFailure = foreignCommitFailure(context, result);
+		const foreignFailure = foreignCommitFailure(context, slug, result);
 		const failure = foreignFailure ?? targetEvidenceFailure(context.state, context.tracker, slug, snapshot.get(slug));
 		if (failure) {
 			const hold = foreignFailure ? context.holdForeignCommit : context.holdEvidence;
