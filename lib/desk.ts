@@ -212,7 +212,7 @@ const usage = [
 	"desk working set TEXT|clear [--thread ID]",
 	"desk attention add TITLE --file PATH|- [--secret NAME=DESCRIPTION ... --write-env /absolute/path] [--thread ID]",
 	"desk attention remove TITLE [--thread ID]",
-	"Thread defaults to BB_THREAD_ID. All writes clean both files.",
+	"Thread defaults to BB_THREAD_ID. Writes drop roles of archived owners; their attention items move to the live supervisor or are marked owner gone.",
 ].join("\n");
 
 async function main(argv: string[]) {
