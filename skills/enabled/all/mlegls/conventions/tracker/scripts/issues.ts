@@ -955,7 +955,7 @@ function outline(note: string, all: Map<string, Issue>): string[] {
 
 async function main() {
 const rawArgs = process.argv.slice(2);
-const verb = rawArgs[0];
+const verb = rawArgs[0] === "show" ? "text" : rawArgs[0];
 if (verb === "__persist") {
   // Detached persister spawned by persist(); reports through its result file, never a pipe its caller may close.
   const [result, root, message, ...paths] = rawArgs.slice(1);
@@ -1146,7 +1146,7 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues text <slug> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|-] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
+    console.log("usage: issues text|show <slug> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|-] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
     process.exitCode = 2;
 }
 }

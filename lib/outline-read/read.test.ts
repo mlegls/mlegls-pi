@@ -35,6 +35,9 @@ test("read exposes image blocks, text, and ordered multi-file results to codemod
 		expect(Buffer.from(image.structuredContent.data, "base64").length).toBeGreaterThan(0);
 		const other = await read("b.txt");
 		expect((await read("a.txt b.txt")).structuredContent).toBe(text.structuredContent + "\n\n" + other.structuredContent);
+		const partial = await read("a.txt missing.txt:2-4 b.txt");
+		expect(partial.structuredContent).toBe(text.structuredContent + "\n\nnot found: missing.txt\n\n" + other.structuredContent);
+		await expect(read("missing.txt")).rejects.toThrow();
 		const mixed = await read("a.txt x.png b.txt x.png");
 		expect(mixed.structuredContent).toEqual([text.structuredContent, image.structuredContent, other.structuredContent, image.structuredContent]);
 		expect(mixed.content.filter((c: any) => c.type === "image")).toHaveLength(2);

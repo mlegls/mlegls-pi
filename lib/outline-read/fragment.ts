@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { withFileMutationQueue, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createTwoFilesPatch } from "diff";
-import { Type } from "typebox";
+import { type Static, Type } from "typebox";
 import type { OutlineNode, OutlineSource } from "./outline/types";
 
 // Edit by quoting: a hunk names its file and the text it replaces. Exact text that occurs once in the file is
@@ -117,6 +117,18 @@ export function registerFragmentEditTool(pi: ExtensionAPI, deps: { sources: Outl
 			"Use edit for file changes; quote the shortest unique fragment as old, not whole functions. Put every change of a turn in one edit call.",
 		],
 		parameters,
+		prepareArguments(args) {
+			const input = args as { edits?: unknown } | null;
+			if (!input || !Array.isArray(input.edits)) return args as Static<typeof parameters>;
+			return {
+				...input,
+				edits: input.edits.map(edit => {
+					if (!edit || typeof edit !== "object" || Array.isArray(edit)) return edit;
+					const { oldText, newText, ...rest } = edit;
+					return { ...rest, old: rest.old === undefined ? oldText : rest.old, new: rest.new === undefined ? newText : rest.new };
+				}),
+			} as Static<typeof parameters>;
+		},
 		async execute(_id, params, _signal, _onUpdate, ctx) {
 			return applyFragmentEdits(ctx.cwd, params.edits as FragmentEdit[], deps.sources);
 		},
