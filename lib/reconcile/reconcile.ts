@@ -100,6 +100,7 @@ const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3
 /** The exception reason of a landing whose cleanup keeps failing. */
 const CLEANUP_FAILED = "landing cleanup failed";
 const DELIVERED_ACTIVE = "active chain after recorded landing";
+const FOREIGN_COMMIT = "foreign implementation not installed";
 
 
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
@@ -170,8 +171,6 @@ export interface State extends GlobalRunState {
 	chains: Record<string, Chain>;
 	/** Implementation admission survives chain replacement and restart; replaying a saved handle costs no new attempt. */
 	implementationLaunches?: Record<string, { base: string; prerequisites: string; handles: string[] }[]>;
-	/** Owner restrictions survive chain replacement and reconciler restarts. */
-	constraints?: Record<string, string[]>;
 	exceptions: Record<string, Exception>;
 	/** Test files each branch's integrations must keep passing. */
 	tests: Record<string, string[]>;
@@ -420,7 +419,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	};
 	const completion = { state: s, tracker, save, pathOf, locked,
 		holdEvidence: (slug: string, text: string) => raise(slug, EVIDENCE_MISSING, text, view(destination())),
-		holdForeignCommit: (slug: string, text: string) => raise(slug, "foreign implementation not installed", text, view(destination())),
+		holdForeignCommit: (slug: string, text: string) => raise(slug, FOREIGN_COMMIT, text, view(destination())),
+		foreignContexts: () => Object.values(s.chains).map(c => [c.setup, c.drive, c.evidence]),
 	};
 	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
 	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.
@@ -723,7 +723,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(controlCwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string; checkout?: string };
 	/** Bind an owner retry to its original attempt before any replacement writes.
 	 * Recovery can finish that replacement before replaying the resolution file. */
 	function readResolution(file: string, node: string): Resolution {
@@ -744,7 +744,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			else note("landing cleanup " + ex.node + " retried by the owner");
 			return save();
 		}
-		if (ex.reason === EVIDENCE_MISSING && r.action !== "escalate") {
+		if ((ex.reason === EVIDENCE_MISSING || ex.reason === FOREIGN_COMMIT) && r.action !== "escalate") {
+			if (ex.reason === FOREIGN_COMMIT && r.checkout) {
+				if (!isAbsolute(r.checkout)) {
+					dropResolution(ex.node);
+					tellOwner("Foreign commit checkout must be absolute: " + r.checkout + ". Its exception stays pending.");
+					return save();
+				}
+				s.foreignCheckouts ??= {};
+				s.foreignCheckouts[ex.node] = [...new Set([...(s.foreignCheckouts[ex.node] ?? []), r.checkout])];
+			}
 			// Repairs edit the global body or land the missing files; no new code
 			// chain and no acceptance override can waive the target-tree check.
 			(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action);
@@ -920,7 +929,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			dropResolution(node);
 		}
 		for (const ex of Object.values(s.exceptions)) {
-			if (ex.reason === EVIDENCE_MISSING && s.results[ex.node]?.closedAt) {
+			if ((ex.reason === EVIDENCE_MISSING || ex.reason === FOREIGN_COMMIT) && s.results[ex.node]?.closedAt) {
 				if (ex.handler) await retireHandle(ex.handler, controlCwd);
 				delete s.exceptions[ex.node]; dropResolution(ex.node); save();
 				continue;
@@ -938,7 +947,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
 				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
 				if (!ex.mailed) {
-					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
+					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, checkout?, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
@@ -1169,7 +1178,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const waitedSince = c.waitingSince, previousCursor = c.handledTs;
 		// Save the successful refinement/review transition before consuming its report.
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined;
-		const r = parse(m.body), text = m.body, h = c.handle!;
+		const h = c.handle!, r = parse(m.body, h.path), text = m.body;
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (m.tags.includes("error")) {
 			const kind = errorClass(text);
@@ -1773,7 +1782,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				if (s.pr.repair?.worker && !s.pr.repair.retiredAt) return false;
 				// Terminal remote landing supersedes a held owner exception without
 				// requiring the owner's session to be present.
-				if (s.exceptions[s.root] && s.exceptions[s.root].reason !== EVIDENCE_MISSING) { delete s.exceptions[s.root]; save(); }
+				if (s.exceptions[s.root] && ![EVIDENCE_MISSING, FOREIGN_COMMIT].includes(s.exceptions[s.root].reason)) { delete s.exceptions[s.root]; save(); }
 				closeAtTarget(completion);
 				if (!s.target || Object.values(s.results).some(result => !result.closedAt)) return false;
 				if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
@@ -1806,7 +1815,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const resolvedNow = result === "stuck" && Object.keys(s.exceptions).length < pending;
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug) && s.exceptions[slug]?.reason !== DELIVERED_ACTIVE) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
-		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING && ex.reason !== DELIVERED_ACTIVE) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
+		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING && ex.reason !== FOREIGN_COMMIT && ex.reason !== DELIVERED_ACTIVE) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
 		if (result !== "active" && !resolvedNow && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			closeAtTarget(completion);
 			if (Object.entries(s.results).some(([slug, result]) => s.landed[slug]?.into === s.cwd && !result.closedAt)) return false;

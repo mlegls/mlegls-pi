@@ -5,6 +5,7 @@
 // Workers also may not bypass a project's git hooks: drivers committed with `git -c core.hooksPath=/dev/null commit`, and the
 // commits escaped concept's pre-commit formatter (concept docs/attachments/worker-commits-escape-the-pre-commit-formatter).
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { parse } from "../../lib/report.ts";
 
 const KILL_BY_PATTERN = /(^|[\s;&|(`$])(pkill|killall)(\s|$)/;
 
@@ -23,6 +24,20 @@ export function hookBypass(command: string): string | undefined {
 
 export default function (pi: ExtensionAPI) {
 	const worker = !!process.env.PI_WM_HANDLE;
+	// Correct the report before bb publishes this turn's completion. One
+	// follow-up per input leaves repeated refusal to the reconciler's budget.
+	let repairedHandoff = false;
+	pi.on("input", () => { repairedHandoff = false; });
+	pi.on("agent_end", (event, ctx) => {
+		if (!worker || repairedHandoff) return;
+		const last = event.messages.at(-1);
+		if (last?.role !== "assistant") return;
+		const text = last.content.filter(part => part.type === "text").map(part => part.text).join("\n");
+		const report = parse(text, ctx.cwd);
+		if (report.status !== "done" || !report.handoffError?.startsWith("Foreign commits ")) return;
+		repairedHandoff = true;
+		pi.sendMessage({ customType: "commit-handoff", content: report.handoffError, display: false }, { deliverAs: "followUp" });
+	});
 	pi.on("tool_call", (event) => {
 		if (event.toolName !== "bash" && event.toolName !== "process") return;
 		const input = event.input as { command?: unknown; timeout?: unknown };
