@@ -1,6 +1,7 @@
 ---
-status: idea
-assignee: agent
+stage: "idea"
+assignee: "agent"
+author: "session:thr_ihbpyrp6s2"
 ---
 
 # Concurrent reconciler launches time out on the supervisor lock
