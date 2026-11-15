@@ -33,6 +33,12 @@ describe("grep", () => {
 		const anchor = text.match(/>\s+3 ([a-z2-9]{4})│/)![1];
 		await tools.edit.execute("e", { edits: `=${anchor}\n    return this.y;` }, undefined, undefined, ctx);
 		expect(readFileSync(file, "utf8")).toContain("  m() {\n    return this.y;\n  }");
+		const partial = await tools.grep.execute("g", { pattern: "this\\.y", path: "missing.ts f.ts" }, undefined, undefined, ctx);
+		expect(partial.content[0].text).toContain("not found: missing.ts\n\nf.ts\n");
+		expect(partial.content[0].text).toContain("return this.y;");
+		await expect(tools.grep.execute("g", { pattern: "this", path: "missing.ts" }, undefined, undefined, ctx)).rejects.toThrow("not found: missing.ts");
+		const partialNone = await tools.grep.execute("g", { pattern: "nothing-here", path: "f.ts missing.ts" }, undefined, undefined, ctx);
+		expect(partialNone.content[0].text).toBe("not found: missing.ts\n\nNo matches found");
 		const none = await tools.grep.execute("g", { pattern: "nothing-here" }, undefined, undefined, ctx);
 		expect(none.content[0].text).toBe("No matches found");
 	});

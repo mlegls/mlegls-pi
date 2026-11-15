@@ -146,8 +146,12 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 						ctx,
 					);
 
-				const info = await stat(absolutePath).catch(() => null);
-				if (!info?.isFile() || IMAGE_EXTENSIONS.has(extname(absolutePath).toLowerCase())) return builtin();
+				const info = await stat(absolutePath).catch(error => {
+					if (single.length > 1 && (error.code === "ENOENT" || error.code === "ENOTDIR")) return null;
+					throw error;
+				});
+				if (!info) return { content: [{ type: "text", text: `not found: ${shown}` }], details: undefined };
+				if (!info.isFile() || IMAGE_EXTENSIONS.has(extname(absolutePath).toLowerCase())) return builtin();
 				// Skill loaders post-process the read result (dynamic shell placeholders, refs); anchors would corrupt it.
 				if (basename(absolutePath) === "SKILL.md") return builtin();
 				const raw = await readFile(absolutePath, "utf8");
