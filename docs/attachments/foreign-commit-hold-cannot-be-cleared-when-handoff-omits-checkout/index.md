@@ -1,3 +1,4 @@
+/home/mlegls/dev/mlegls-pi__worktrees/foreign-commit-hold-cannot-be-cleared-when-handoff-omits-checkout-review-3/docs/attachments/foreign-commit-hold-cannot-be-cleared-when-handoff-omits-checkout/index.md (51 lines)
 # Independent first use
 
 Tested revision: 312b7362ca85b1a526ae4d5f313afd6cfb5bff8c.
@@ -49,3 +50,21 @@ Friction recorded outside the execution subtree: [[projects/mlegls-pi/issues/for
 ## Limits
 
 No rendered UI; no screenshots. Did not observe same-turn agent correction, constraint-only checkout discovery, or actual retry-queue handling. Historical fallback and ancestry sensitivity were directly observed through the supplied library entry point. Packet changes only; no repairs or tests.
+
+## Review
+
+Reviewed head 14d9aa16 (change 3ecce201 plus the driver's packet). Settled the explicit-retry story the driver could not observe.
+
+### Explicit retry resolution — held
+
+Drove the in-process reconciler (protocol fixture, budget 0, fake bb owner) with a scratch test, deleted afterwards. Saved root: landed at target, result `commit: [<sha>]` where the sha is a commit on a side branch of a disposable "loaded" repository whose HEAD lacks it, and an owner exception "foreign implementation not installed". Queued resolutions through the resolutions directory, as `reconcile_resolve` does:
+
+1. `{action: retry, checkout: "relative/path"}`: dropped; exception stays pending; `foreignCheckouts` unset; owner told the checkout must be absolute.
+2. `{action: retry, checkout: <loaded>}`: `foreignCheckouts.root` saved; completion re-held with "not installed in loaded checkout"; issue stayed `spec`.
+3. Fast-forwarded loaded HEAD to the commit: next pass closed the issue, exception removed.
+
+Run counter stayed 0 throughout: no worker launched, no `reconcile_stop`. The schema field `checkout` exists in `extensions/supervision/index.ts` at this head; the driver's friction was the inherited runtime predating it (closed in the tracker as a reload boundary).
+
+### Checks run
+
+`bun test lib/report.test.ts lib/reconcile/{completion,exceptions,constraints,retry,resume}.test.ts extensions`: pass on rerun. One earlier run failed `constraints.test.ts` ("a mid-implement constraint reaches drive and review first prompts"); it passed alone and in the rerun with the same files, so a load flake. No code repairs; no tests changed.
