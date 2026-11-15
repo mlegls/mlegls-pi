@@ -8,6 +8,7 @@ import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
 import { commonDir } from "./thread/git.ts";
 import { HANDOFF_KEYS } from "./report.ts";
 import { stopThreadProcesses } from "./thread/lifecycle-cleanup";
+import type { SpawnOptions } from "./wm";
 
 export interface Assignment {
   handle: string;
@@ -36,6 +37,8 @@ export interface Options {
   parent?: string;
   /** Explicit bb parent, independent of the process that happens to launch the worker. */
   parentThread?: string;
+  /** Library-only owner selection around bb creation; preparation remains outside. */
+  withOwner?: SpawnOptions["withOwner"];
   /** Parent-scoped budget, including active handles. */
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
@@ -100,7 +103,7 @@ function ledger(cwd: string, task: Assignment, run: string, handle: Handle, pare
 /** Submit a ready wave; no automatic wait or retry for assignments beyond capacity. */
 export async function dispatch(assignments: Assignment[], options: Options): Promise<Receipt> {
   const cwd = resolve(options.cwd ?? process.cwd());
-  const parent = options.parent ?? process.env.PI_SESSION_ID;
+  let parent = options.parent ?? process.env.PI_SESSION_ID;
   if (options.parent !== undefined && !options.parent.trim()) throw new Error("dispatch: parent must not be empty");
   if (typeof options.run !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_/-]*$/.test(options.run)) throw new Error("dispatch: invalid run");
   if (!Number.isSafeInteger(options.maxConcurrent) || options.maxConcurrent < 1)
@@ -138,7 +141,8 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     try {
       const wm = await import("./wm.ts");
       const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, parentThread: options.parentThread, session: options.session });
+        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, parentThread: options.parentThread, session: options.session,
+        withOwner: options.withOwner ? create => options.withOwner!(owner => { parent = owner.session; return create(owner); }) : undefined });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, bb: worker.bb });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
     } catch (error) {

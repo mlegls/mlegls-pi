@@ -47,7 +47,7 @@ import { advancePullRequest } from "./pull-request.ts";
 import { writeStatus } from "./status.ts";
 import { CodeMonitor, loadedCode, type CodeVersion } from "./code-version";
 import { spawnRun } from "./process";
-import { ownershipLock } from "./ownership";
+import { ownershipLock, OwnershipLockBusy } from "./ownership";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -610,11 +610,20 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
 		// frontier when agent-assigned; an explicit human or session assignee still refuses.
 		if (!tracker.githubIssue && issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
-		const r = await ownershipLock(controlCwd, async () => {
-			refreshOwner();
-			return await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
-			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], parent: s.ownerSession || undefined, parentThread: s.owner });
-		});
+		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
+			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], withOwner: async create => {
+				for (;;) {
+					try {
+						return await ownershipLock(controlCwd, async () => {
+							refreshOwner();
+							return create({ thread: s.owner, session: s.ownerSession });
+						});
+					} catch (e) {
+						if (!(e instanceof OwnershipLockBusy)) throw e;
+						note("launch " + handle + " pending behind a live supervisor lock, retrying: " + e.message);
+					}
+				}
+			} });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];

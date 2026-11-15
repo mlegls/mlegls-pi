@@ -26,6 +26,8 @@ export interface NewThreadOptions {
 	base?: string; // initial git ref; does not change the merge parent
 	prepare?: (checkout: WorkerCheckout) => Promise<void>; // after checkout creation, before setup/launch
 	parent?: string; // the bb thread it sits under; default BB_THREAD_ID
+	/** Wrap only bb creation, after checkout preparation and setup. */
+	createThread?: (create: (parent?: string) => Promise<string>) => Promise<string>;
 	launch?: AgentLaunch;
 	worker: WorkerIdentity;
 }

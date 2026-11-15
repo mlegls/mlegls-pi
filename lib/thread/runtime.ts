@@ -47,7 +47,8 @@ export async function newThread(options: NewThreadOptions): Promise<WorkerThread
 		const pending: WorkerCheckout = { cwd: location.cwd, project: location.project, worktree: location.worktree!, branch: name, worker: options.worker, launch: options.launch };
 		await options.prepare?.(pending);
 		await runSetup(pending);
-		return { ...pending, id: await spawnBb(pending, options.parent ?? process.env.BB_THREAD_ID) };
+		const create = (parent = options.parent ?? process.env.BB_THREAD_ID) => spawnBb(pending, parent);
+		return { ...pending, id: await (options.createThread ? options.createThread(create) : create()) };
 	} catch (error) {
 		const cleanup: string[] = [];
 		let failure = String(error);
