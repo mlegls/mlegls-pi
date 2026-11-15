@@ -35,3 +35,14 @@ Replay from the tested revision with `bun test lib/reconcile/ownership.test.ts`:
 ## Cleanup
 
 The runner exited normally; no long-running services were started. Fixture cleanup is provided by the supplied entry point. No shared deployment was modified. Parent links this packet when recording the ticket result; the ticket remains open.
+
+## Review
+
+Read the diff (ownership.ts, reconcile.ts, dispatch.ts, wm.ts, thread/runtime.ts) with the fixture test. `bun test lib/reconcile/ownership.test.ts`: 1 pass, 62 expectations, ~16 s. `bun test lib/reconcile` (53 pass) and dispatch/wm/handover/thread tests (36 pass) also pass. No repairs needed.
+
+1. Concurrent preparation: held. The lock directory is absent while ten prepares run; only thread creation sits under the lock.
+2. Live contention: held. The test advances the clock past the 10 minute wait with a live-pid holder; each launch logs "pending behind a live supervisor lock" and has no exception or owner tell. `OwnershipLockBusy` is thrown only when a pid is recorded, and `launchNow` retries it.
+3. Takeover: held. The test asserts the first created thread's parent is the current owner, that a takeover started inside the creation lock waits (`transferred` false, old owner unarchived) and that all ten launched threads end parented to the final owner.
+4. Dead holder: held. The test rewrites the holder pid to a dead one and the launches proceed through the unchanged reclaim path in `ownershipLock`. A holder with no pid keeps the generic error.
+
+Caveat: a launch behind a permanently live holder retries without bound, logging once per 10 minute wait.
