@@ -56,9 +56,22 @@ async function writeDesk(cwd: string, change: (files: Files, live: Set<string>) 
 		const files: Files = {
 			roles: (read(join(dir, "ROLES.md")) || "# Roles\n").split("\n").filter(alive),
 			intro: intro.trim() || "# Attention",
-			items: attention.filter(alive),
+			items: attention,
 		};
 		change(files, live);
+		// Questions remain open after their asking thread disappears. Only role rows expire.
+		const pickup = JSON.parse(read(join(common, "pickup", "state.json")) || "null") as { enabled: boolean; owner: string } | null;
+		const pickupOwner = pickup?.enabled && live.has(pickup.owner) ? pickup.owner : undefined;
+		const supervisor = pickupOwner ?? owner(files.roles.find(row => row.startsWith("- role: supervisor — ") && live.has(owner(row) ?? "")) ?? "");
+		files.items = files.items.map(item => {
+			if (alive(item)) return item;
+			const previous = owner(item)!;
+			const ownership = "Owner: @thread:" + (supervisor ?? previous) + (supervisor ? "" : " (owner gone)");
+			item = /^Owner:/m.test(item)
+				? item.replace(/^Owner:.*$/m, ownership)
+				: item.replace(/^(## .*\n)/, "$1\n" + ownership + "\n");
+			return supervisor ? item.trimEnd() + "\n\nPrevious owner: @thread:" + previous + "\n" : item;
+		});
 		mkdirSync(dir, { recursive: true });
 		const exclude = join(common, "info", "exclude");
 		mkdirSync(dirname(exclude), { recursive: true });
@@ -184,7 +197,8 @@ export async function handoverDesk(from: string, to: string, cwd = process.cwd()
 		files.items = files.items.map(item => {
 			if (owner(item) !== from) return item;
 			attention++;
-			return item.replace("@thread:" + from, "@thread:" + to);
+			return item.replace("@thread:" + from, "@thread:" + to)
+				.replace(/^(Owner: @thread:[A-Za-z0-9_-]+) \(owner gone\)$/m, "$1");
 		});
 	}, from);
 	return { roles, attention };
