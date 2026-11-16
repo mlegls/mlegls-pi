@@ -947,7 +947,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
 				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
 				if (!ex.mailed) {
-					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, checkout?, message?, note?, summary?}). A move-out you make in the tracker yourself; then resolve with move-out. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
+					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, checkout?, message?, note?, summary?}). For move-out, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
@@ -1259,7 +1259,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (!c.self && [...view(c.into).values()].some(i => i.partOf === slug && !finished(i)))
 				return repair(slug, c, "decompose", "Implementers don't decompose: drop the children you committed, and either implement the ticket whole or end `blocked` with `respec` in the handoff.", issues, text);
 			// Children landed earlier are satisfied in the collector, not at c.into: count only open ones there.
-			const filed = c.self && s.collectors[slug] ? [...view(slug).values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i)).map(i => i.slug) : [];
+			const filed = c.self && s.collectors[slug] ? [...view(slug).values()].filter(i => i.partOf === slug && !finished(i)).map(i => i.slug) : [];
 			if (filed.length) return joinFiledChildren(slug, c, filed, issues, text);
 			c.setup = r.handoff?.setup ?? null;
 			c.note = undefined;
@@ -1328,7 +1328,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function reopenJoin(slug: string, c: Chain | undefined, why?: string) {
 		if (!c || !c.self || c.phase === "refine") throw new Error("reopen applies to a join's running chain (a node whose children land in its collector); " + slug + " has " + (c ? "a " + c.phase + " chain that is not a join" : "no chain"));
 		await landJoinWork(slug, c);
-		const open = [...view(s.collectors[slug].path).values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i)).map(i => i.slug);
+		const open = [...view(s.collectors[slug].path).values()].filter(i => i.partOf === slug && !finished(i)).map(i => i.slug);
 		note("reopened " + slug + (open.length ? " for " + open.join(", ") : "") + "; its commits landed in " + s.collectors[slug].branch + ", and it starts again from there once they land");
 		delete s.chains[slug]; save();
 		await retireChain(c, true);
@@ -1429,7 +1429,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	};
 	/** Accidental ideas are global observations, not executable descendants. */
 	async function setAsideIdeas(slug: string, current: Map<string, Issue>): Promise<boolean> {
-		const ideas = [...current.values()].filter(i => i.ownStage === "idea" && !finished(i) && !i.provisional && descends(i, slug, current));
+		const ideas = [...current.values()].filter(i => i.ownStage === "idea" && !s.moved[i.slug] && !s.exceptions[i.slug] && !s.chains[i.slug] && !finished(i) && !i.provisional && descends(i, slug, current));
 		if (!ideas.length) return false;
 		for (const i of ideas) {
 			const body = tracker.text(i.slug).replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "").trimEnd();
@@ -1460,7 +1460,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function visit(slug: string, into: string, issues: Map<string, Issue>): Promise<"done" | "active" | "stuck"> {
 		visited.add(slug);
 		let issue = view(into).get(slug);
-		if (!issue || finished(issue) || isMoved(issue)) return "done";
+		if (!issue || finished(issue)) return "done";
+		if (isMoved(issue)) { holds.set(slug, "moved out for human work: " + s.moved[slug]); return "stuck"; }
 		// A restart with fresh state adopts the collector left on disk before reading its children:
 		// a kid can be frontier only there (its blockers landed in the collector, not the owner).
 		if (!s.collectors[slug] && existsSync(collectorPath(slug))) ensureCollector(slug, into);
@@ -1473,12 +1474,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const refining = s.chains[slug]?.phase === "refine";
 		// Visit the writer before its newly published children. Withholding is
 		// also enforced by schedulingView for every destination.
-		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i) && !isMoved(i));
+		const kids = [...own.values()].filter(i => i.partOf === slug && !finished(i));
 		if (kids.length && !s.chains[slug] && !refining) {
 			if (s.exceptions[slug]) return "active";
 			ensureCollector(slug, into);
 			const below = await Promise.all(kids.map(k => {
 				const current = view(slug), child = current.get(k.slug)!;
+				if (isMoved(child)) { holds.set(k.slug, "moved out for human work: " + s.moved[k.slug]); return "stuck"; }
 				return child.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, current)
 					: (holds.set(k.slug, why(child, current)), Promise.resolve("stuck" as const));
 			}));
@@ -1672,10 +1674,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		save();
 	}
 	const visited = new Set<string>();
-	// A moved-out node is assigned to a person; reassigned to an agent (and back under its parent), it's moved back in.
+	// Move-out retains the parent. Keep the park until the reassigned node is ready to run here.
 	function isMoved(i: Issue): boolean {
 		if (!s.moved[i.slug]) return false;
-		if (!/^(agent|model:)/.test(i.assignee?.trim() ?? "")) return true;
+		if (!/^(agent|model:)/.test(i.assignee?.trim() ?? "") || !i.frontier) return true;
 		note("moved back in: " + i.slug); delete s.moved[i.slug]; dropResolution(i.slug); save();
 		return false;
 	}
@@ -1816,6 +1818,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug) && s.exceptions[slug]?.reason !== DELIVERED_ACTIVE) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
 		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING && ex.reason !== FOREIGN_COMMIT && ex.reason !== DELIVERED_ACTIVE) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
+		// Human work remains part of this scope. Keep polling so reassignment resumes here, without pickup.
+		if (Object.keys(s.moved).some(slug => { const row = top.get(slug); return row && !finished(row) && (slug === s.root || under(row, top)); })) return false;
 		if (result !== "active" && !resolvedNow && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {
 			closeAtTarget(completion);
 			if (Object.entries(s.results).some(([slug, result]) => s.landed[slug]?.into === s.cwd && !result.closedAt)) return false;

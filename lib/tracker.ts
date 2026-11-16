@@ -46,8 +46,7 @@ export interface Tracker {
 	/** Optional backend capability. Vault omits it; GitHub returns the issue's native
 	 * identity regardless of its logical slug, for reconciled PR closing references. */
 	githubIssue?(slug: string): { repository: string; number: number; url: string };
-	/** Optional remote publication of a supervised move-out. Local trackers retain
-	 * their existing owner-edited move-out protocol. */
+	/** Park a supervised node for human work, retaining its execution parent. */
 	moveOut?(slug: string, reason: string): void;
 	snapshot(scope?: string): Map<string, Issue>;
 	/** Complete contract text, including metadata, suitable for a worker prompt. */
@@ -116,6 +115,7 @@ export function getTracker(cwd: string, options: TrackerOptions = {}): Tracker {
 		}
 	};
 	return {
+		moveOut: slug => { run(["update", slug, "--fields", JSON.stringify({ assignee: "human" })]); },
 		snapshot: scope => new Map((JSON.parse(read(["snapshot", ...(scope ? [scope] : []), "--json"])).issues as Issue[]).map(i => [i.slug, i])),
 		text: slug => read(["text", slug]),
 		fields: slug => JSON.parse(read(["fields", slug, "--json"])),

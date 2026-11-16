@@ -1104,11 +1104,11 @@ if (cmd !== "lint") switch (cmd) {
       // Contract and state belong in the body; dated records and evidence belong in attachments and git.
       if (!i.archived && !complete(i, all) && statSync(i.file).size > 32_000) say(`${i.slug}: body is ${Math.round(statSync(i.file).size / 1000)}KB; keep the contract and current state, move records to attachments`);
       if (claimLive(i) === false) say(`${i.slug}: claimed by ${i.claimedBy} without a worktree; verify ownership before clearing`);
-      // Refinement never lowers a spec or ticket: a child that needs shaping leaves the tree with its honest stage.
+      // Agent refinement stays monotone. A subtree parked for human shaping keeps its parent and honest stage.
       const effective = effectiveStage(i, all);
-      if (!i.archived && (i.stage === "spec" || i.stage === "ticket") && effective && STAGES.indexOf(effective) < STAGES.indexOf(i.stage)) {
+      if (!i.archived && (i.stage === "spec" || i.stage === "ticket") && effective && STAGES.indexOf(effective) < STAGES.indexOf(i.stage) && model(i, all).eligible) {
         const lowering = children(i, all).filter((c) => { const e = effectiveStage(c, all); return e && STAGES.indexOf(e) < STAGES.indexOf(i.stage!); });
-        say(`${i.slug}: own ${i.stage} but effective ${effective} through ${lowering.map((c) => c.slug).join(", ")}; move a child that needs shaping out of the tree (lifecycle)`);
+        say(`${i.slug}: own ${i.stage} but effective ${effective} through ${lowering.map((c) => c.slug).join(", ")}; park a child that needs shaping with assignee human, retaining part-of (lifecycle)`);
       }
       // Own stage done claims no residual work of its own; with open children that reads as finished to
       // loops that check it. A split parent omits stage instead (lifecycle).

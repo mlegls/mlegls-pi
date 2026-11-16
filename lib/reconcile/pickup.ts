@@ -168,15 +168,19 @@ const ancestors = (slug: string, rows: Map<string, Issue>) => {
 const ownClaims = (i: Issue) => i.claims.filter(c => c.slug === i.slug);
 
 /** Which frontier roots this pickup may start now, and why every other frontier row in scope is skipped. Pure: the
- * snapshot, the roots that have any reconciler state, and each subtree's last change are supplied. */
+ * snapshot, recorded roots and moved-out reservations, and each subtree's last change are supplied. */
 export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Map<string, Issue>, runs: Map<string, string>,
-	changedAt: (slugs: string[]) => number, now: number): { start: string[]; skipped: Record<string, string>; retryIn?: number } {
+	changedAt: (slugs: string[]) => number, now: number, moved: ReadonlyMap<string, string> = new Map()): { start: string[]; skipped: Record<string, string>; retryIn?: number } {
 	const start: string[] = [], skipped: Record<string, string> = {};
 	let retryIn: number | undefined;
 	const inScope = (i: Issue) => s.scope === "project" || s.scope.includes(i.slug) || ancestors(i.slug, rows).some(a => s.scope.includes(a.slug));
 	for (const row of rows.values()) {
 		if (!row.frontier || !inScope(row)) continue;
 		const up = ancestors(row.slug, rows);
+		const reserved = [row, ...up].find(i => moved.has(i.slug));
+		if (reserved) { skipped[row.slug] = "moved out of reconciler " + moved.get(reserved.slug) + "; resume its original tree"; continue; }
+		const reconciled = up.find(a => runs.has(a.slug) && !["done", "stopped"].includes(runs.get(a.slug)!));
+		if (reconciled) { skipped[row.slug] = "ancestor " + reconciled.slug + " has reconciler state (" + runs.get(reconciled.slug) + ")"; continue; }
 		const held = up.find(a => ownClaims(a).length);
 		if (held) { skipped[row.slug] = "ancestor " + held.slug + " claimed: " + ownClaims(held).map(c => c.claimedBy).join("; "); continue; }
 		const wider = up.find(a => a.frontier && inScope(a));
@@ -206,13 +210,15 @@ export function scan(cwd: string, deps: {
 		if (!s?.enabled) return { started: [], skipped: {} };
 		if (s.paused) return { started: [], skipped: { "*": "paused" } };
 		const rows = (deps.snapshot ?? (() => getTracker(s.cwd).snapshot()))();
-		const runs = new Map(campaigns(s.cwd).map(r => [r.root, r.running ? "running" : r.finished ?? (r.stopping ? "stopping" : "not running")]));
+		const recorded = campaigns(s.cwd);
+		const runs = new Map(recorded.map(r => [r.root, r.running ? "running" : r.finished ?? (r.stopping ? "stopping" : "not running")]));
+		const moved = new Map(recorded.flatMap(r => Object.keys(r.moved ?? {}).map(slug => [slug, r.root] as const)));
 		// Vault rows carry their absolute file; a backend without one (GitHub) has no local change time to wait out.
 		const changedAt = (slugs: string[]) => Math.max(0, ...slugs.map(slug => {
 			const file = rows.get(slug)?.file;
 			try { return file && isAbsolute(file) ? statSync(file).mtimeMs : 0; } catch { return 0; }
 		}));
-		const picked = select(s, rows, runs, changedAt, (deps.now ?? Date.now)());
+		const picked = select(s, rows, runs, changedAt, (deps.now ?? Date.now)(), moved);
 		const started: string[] = [];
 		for (const root of picked.start) {
 			try {
