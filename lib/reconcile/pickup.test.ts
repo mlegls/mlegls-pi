@@ -24,7 +24,7 @@ test("select takes maximal in-scope frontier roots and names why it skips the re
 		row("again"),
 	);
 	const scope = ["a", "p", "e", "ran", "fresh", "human", "again"];
-	const picked = select({ scope, settle: 60_000, started: { again: { at: "t", pid: 1 } } }, snapshot, new Map([["ran", "stopped"]]),
+	const picked = select({ scope, settle: 60_000, started: { again: { at: "t", pid: 1 } } }, snapshot, new Map([["ran", { status: "stopped" }]]),
 		slugs => slugs.includes("fresh") ? 1_000_000 - 10_000 : 0, 1_000_000);
 	expect(picked.start.sort()).toEqual(["a", "e"]);
 	expect(picked.skipped).toEqual({
@@ -36,6 +36,19 @@ test("select takes maximal in-scope frontier roots and names why it skips the re
 	});
 	expect(picked.retryIn).toBe(50_000);
 	expect(select({ scope: "project", settle: 0, started: {} }, snapshot, new Map(), () => 0, 0).start).toContain("outside");
+});
+
+test("select restarts done roots only after a later subtree change, even if pickup started them before", () => {
+	const snapshot = rows(row("again"), row("child", { partOf: "again", frontier: false }));
+	const pickup = { scope: "project" as const, settle: 60_000, started: { again: { at: "previous", pid: 1 } } };
+	const runs = new Map([["again", { status: "done", finishedAt: 100_000 }]]);
+	const pick = (changed: number) => select(pickup, snapshot, runs, slugs => slugs.includes("child") ? changed : 0, 200_000);
+	expect(pick(120_000).start).toEqual(["again"]);
+	expect(pick(100_000).skipped.again).toBe("has reconciler state (done); restart it by hand");
+	expect(pick(90_000).start).toEqual([]);
+	expect(pick(190_000).skipped.again).toBe("settling: changed 10s ago");
+	runs.set("again", { status: "stopped", finishedAt: 100_000 });
+	expect(pick(120_000).skipped.again).toBe("has reconciler state (stopped); restart it by hand");
 });
 
 const root = mkdtempSync(join(tmpdir(), "pickup-"));

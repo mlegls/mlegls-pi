@@ -16,6 +16,7 @@ import { git } from "../thread/git";
 import { pidAlive } from "../wm";
 import type { LandingMode } from "./pr-types";
 import { campaigns, start } from "./main";
+import { stateFile as runStateFile } from "./reconcile";
 import { CODE_CHECK_MS, CodeMonitor, codeStatus, loadedCode, type CodeVersion } from "./code-version";
 import { spawnDetached, waitForPredecessor } from "./process";
 
@@ -169,7 +170,7 @@ const ownClaims = (i: Issue) => i.claims.filter(c => c.slug === i.slug);
 
 /** Which frontier roots this pickup may start now, and why every other frontier row in scope is skipped. Pure: the
  * snapshot, recorded roots and moved-out reservations, and each subtree's last change are supplied. */
-export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Map<string, Issue>, runs: Map<string, string>,
+export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Map<string, Issue>, runs: Map<string, { status: string; finishedAt?: number }>,
 	changedAt: (slugs: string[]) => number, now: number, moved: ReadonlyMap<string, string> = new Map()): { start: string[]; skipped: Record<string, string>; retryIn?: number } {
 	const start: string[] = [], skipped: Record<string, string> = {};
 	let retryIn: number | undefined;
@@ -179,16 +180,19 @@ export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Ma
 		const up = ancestors(row.slug, rows);
 		const reserved = [row, ...up].find(i => moved.has(i.slug));
 		if (reserved) { skipped[row.slug] = "moved out of reconciler " + moved.get(reserved.slug) + "; resume its original tree"; continue; }
-		const reconciled = up.find(a => runs.has(a.slug) && !["done", "stopped"].includes(runs.get(a.slug)!));
-		if (reconciled) { skipped[row.slug] = "ancestor " + reconciled.slug + " has reconciler state (" + runs.get(reconciled.slug) + ")"; continue; }
+		const reconciled = up.find(a => runs.has(a.slug) && !["done", "stopped"].includes(runs.get(a.slug)!.status));
+		if (reconciled) { skipped[row.slug] = "ancestor " + reconciled.slug + " has reconciler state (" + runs.get(reconciled.slug)!.status + ")"; continue; }
 		const held = up.find(a => ownClaims(a).length);
 		if (held) { skipped[row.slug] = "ancestor " + held.slug + " claimed: " + ownClaims(held).map(c => c.claimedBy).join("; "); continue; }
 		const wider = up.find(a => a.frontier && inScope(a));
 		if (wider) { skipped[row.slug] = "inside frontier root " + wider.slug; continue; }
-		if (runs.has(row.slug)) { skipped[row.slug] = "has reconciler state (" + runs.get(row.slug) + "); restart it by hand"; continue; }
-		if (s.started[row.slug]) { skipped[row.slug] = "already started by pickup at " + s.started[row.slug].at; continue; }
+		const run = runs.get(row.slug);
 		const subtree = [...rows.values()].filter(i => i.slug === row.slug || ancestors(i.slug, rows).some(a => a.slug === row.slug)).map(i => i.slug);
-		const quiet = now - changedAt(subtree);
+		const changed = changedAt(subtree);
+		const reopened = run?.status === "done" && run.finishedAt !== undefined && changed > run.finishedAt;
+		if (run && !reopened) { skipped[row.slug] = "has reconciler state (" + run.status + "); restart it by hand"; continue; }
+		if (s.started[row.slug] && !reopened) { skipped[row.slug] = "already started by pickup at " + s.started[row.slug].at; continue; }
+		const quiet = now - changed;
 		if (quiet < s.settle) {
 			skipped[row.slug] = "settling: changed " + Math.round(quiet / 1000) + "s ago";
 			retryIn = Math.min(retryIn ?? Infinity, s.settle - quiet);
@@ -211,7 +215,11 @@ export function scan(cwd: string, deps: {
 		if (s.paused) return { started: [], skipped: { "*": "paused" } };
 		const rows = (deps.snapshot ?? (() => getTracker(s.cwd).snapshot()))();
 		const recorded = campaigns(s.cwd);
-		const runs = new Map(recorded.map(r => [r.root, r.running ? "running" : r.finished ?? (r.stopping ? "stopping" : "not running")]));
+		// The final state save records completion, including for runs predating pickup restarts.
+		const runs = new Map(recorded.map(r => [r.root, {
+			status: r.running ? "running" : r.finished ?? (r.stopping ? "stopping" : "not running"),
+			finishedAt: r.finished === "done" ? statSync(runStateFile(s.cwd, r.root)).mtimeMs : undefined,
+		}]));
 		const moved = new Map(recorded.flatMap(r => Object.keys(r.moved ?? {}).map(slug => [slug, r.root] as const)));
 		// Vault rows carry their absolute file; a backend without one (GitHub) has no local change time to wait out.
 		const changedAt = (slugs: string[]) => Math.max(0, ...slugs.map(slug => {
