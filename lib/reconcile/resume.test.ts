@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fakeBb } from "../thread/fake-bb";
 import { start, stop } from "./main";
@@ -59,6 +59,52 @@ test("a restarted node continues from its stopped worker's kept branch, and a re
 		expect(readFileSync(join(second.path, "draft.txt"), "utf8")).toBe("uncommitted\n");
 		expect(readFileSync(join(second.path, "work.txt"), "utf8")).toBe("earlier work\n");
 		expect(git(second.path, "log", "-1", "--format=%s", "HEAD")).toStartWith("WIP: uncommitted work of solo/" + first.handle);
+	} catch (error) {
+		console.error(JSON.stringify({ state: load(repo, "solo") }, null, 1));
+		throw error;
+	} finally {
+		if (running) await stop(repo, "solo");
+		process.env = saved;
+		rmSync(root, { recursive: true, force: true });
+	}
+}, 90_000);
+
+// 2026-11-16 (concept): a reopened root's start reported the old run's landing at once, and a fresh state collided with its branches.
+test("a reopened root whose run finished done starts over, archives the old state and numbers its worker past the old branches", async () => {
+	const root = realpathSync(mkdtempSync("/tmp/rc-reopened-")), saved = { ...process.env };
+	const repo = join(root, "repo");
+	const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
+	let running = false;
+	try {
+		for (const key of Object.keys(process.env)) if (/^(?:PI_WM_.*|PI_BOARD_.*|PI_SESSION_.*|AB_THREAD_ID|BB_.*|FAKE_BB_.*|TMUX.*|WORKER_.*)$/.test(key)) delete process.env[key];
+		Object.assign(process.env, { XDG_STATE_HOME: join(root, "state"),
+			PI_CODING_AGENT_DIR: join(root, "agent"), PI_AGENTS_DIR: join(root, "agents"), MISE_TRUSTED_CONFIG_PATHS: root,
+			PI_RECONCILE_TICK_MS: "100", PI_RECONCILE_ERROR_SETTLE_MS: "0",
+			TRACKER_CLI: join(packagePath, "skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts") });
+		const bb = fakeBb(root);
+		bb.addThread("thr_solo");
+		for (const dir of [repo, join(root, "agents/roles"), join(repo, "docs/issues")]) mkdirSync(dir, { recursive: true });
+		writeFileSync(join(root, "agents/shell.md"), "---\nrole: implement\n---\nShell fixture.\n");
+		writeFileSync(join(root, "agents/roles/implement.md"), "Shell fixture.\n");
+		git(repo, "init", "-qb", "main"); git(repo, "config", "user.name", "Fixture"); git(repo, "config", "user.email", "fixture@example.invalid");
+		writeFileSync(join(repo, "docs/issues/solo.md"), "---\nstage: ticket\nassignee: agent:shell\n---\n\nReopened fixture.\n");
+		git(repo, "add", "."); git(repo, "commit", "-qm", "fixture");
+		// What a finished run leaves: its state recording a landing, and its phase branches.
+		git(repo, "branch", "solo-implement-1"); git(repo, "branch", "solo-drive-2");
+		saveState({ backend: "threads", root: "solo", cwd: repo, owner: "thr_solo", budget: 1, finished: "done",
+			landed: { solo: { into: repo, head: "old", at: "2026-11-03T00:00:00.000Z" } }, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {},
+			counter: 2, log: ["old run"] });
+
+		start({ cwd: repo, root: "solo", owner: "thr_solo", budget: 1 });
+		running = true;
+		const first = await until(() => { const h = load(repo, "solo")?.chains.solo?.handle; return h && bb.threads().some(t => t.environment === h.path) && h; });
+		expect(first.handle).toBe("solo-implement-3");
+		const state = load(repo, "solo")!;
+		expect(state.finished).toBeUndefined();
+		expect(state.landed).toEqual({});
+		const dir = join(git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"), "reconcile");
+		const archive = readdirSync(dir).find(f => f.startsWith("superseded-"))!;
+		expect(JSON.parse(readFileSync(join(dir, archive, "solo.json"), "utf8")).landed.solo.head).toBe("old");
 	} catch (error) {
 		console.error(JSON.stringify({ state: load(repo, "solo") }, null, 1));
 		throw error;

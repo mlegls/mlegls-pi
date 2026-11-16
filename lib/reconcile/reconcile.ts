@@ -324,13 +324,35 @@ export interface StartOptions {
 	prHost?: PullRequestHost;
 }
 
+/** A run that finished `done` whose root has since been reopened starts over, rather than resuming a state that records
+ * its landing and reports done at once (2026-11-16, tag-chunk-refresh-can-exhaust-occ-retries-against-collector). The
+ * old state, log and resolutions move to <state dir>/superseded-<stamp>/. Identity and the handle counter carry over, so
+ * the new run's worker branches are numbered past the old run's. PR-mode runs keep their staging and resume as before. */
+function supersede(cwd: string, prior: State, o: StartOptions): State {
+	const root = reconcilerTracker(cwd, o.root).snapshot().get(o.root);
+	if (prior.finished !== "done" || prior.pr || !root || root.done || root.archived) return prior;
+	return updateState(cwd, o.root, current => {
+		if (current !== undefined && current.finished !== "done") return current;
+		const dir = join(stateDir(cwd), "superseded-" + new Date().toISOString().replace(/[:.]/g, "-"));
+		mkdirSync(dir, { recursive: true });
+		for (const name of [o.root + ".json", o.root + ".log", o.root + ".resolutions"])
+			if (existsSync(join(stateDir(cwd), name))) renameSync(join(stateDir(cwd), name), join(dir, name));
+		const old = current ?? prior;
+		return { backend: "threads", root: o.root, cwd: old.cwd, owner: old.owner, ownerSession: old.ownerSession, budget: o.budget,
+			land: old.land, githubRepository: old.githubRepository, landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {},
+			chains: {}, exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: old.counter,
+			log: [new Date().toISOString().slice(0, 19) + " restarted fresh: the root was reopened after finishing; old state in " + dir] };
+	});
+}
+
 /** Called before spawning/publication as well as by foreground run. */
 export function prepareStart(o: StartOptions): State {
-	const prior = load(resolve(o.cwd), o.root);
+	let prior = load(resolve(o.cwd), o.root);
 	assertThreadState(prior);
 	const cwd = prior?.cwd ?? resolve(o.cwd);
 	if (prior && !existsSync(cwd)) throw new Error(o.root + "'s reconciler lands in " + cwd + ", which is gone; its state (" + stateFile(resolve(o.cwd), o.root) + ") names that checkout as cwd");
 	if (prior?.stopping) throw new Error("cleanup in progress for " + o.root + ": retry stop to finish it");
+	if (prior) prior = supersede(cwd, prior, o);
 	const land = resolveLanding(cwd, o.land, prior);
 	if (prior && !prior.finished && prior.pid && prior.pid !== process.pid && pidAlive(prior.pid)) return prior;
 	const s: State = prior ?? { backend: "threads", root: o.root, cwd, owner: o.owner, budget: o.budget,
