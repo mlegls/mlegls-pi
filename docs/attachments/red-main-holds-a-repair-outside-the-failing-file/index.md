@@ -36,3 +36,7 @@ All admission predictions were met by the named replay scenarios. Normal integra
 ## Frictions and limits
 
 No operational friction: setup was self-contained and the replay completed on its first run. CLI-only journey: no rendered UI or screenshots. Runner assertions were treated as the supplied acceptance surface, without inspecting implementation or fixtures. No server, browser or external deployment was started.
+
+## Review
+
+Read the diff with the log. `land` now returns on a red hold instead of sleeping inside the call, so each tick re-reads owner resolutions and issue text; `integrateReview` treats the bare return as nothing to do and the chain stays in `integrate`. An owner `red-repair` binds to the exact red report (`redRepair === red`), so a newer red holds again. Admission only skips the hold; `landReviewed` still runs pre-integrate. Re-ran `bun test lib/reconcile/red-repair.test.ts lib/reconcile/checks.test.ts` on the head: 9 passed, 50 assertions. No repairs needed. `test:affected` isn't declared in this project. The one filed friction (`fake-bb-thread-list-intermittently-refuses-integration`, one unreproduced failure) stays an idea; its body names the capture it waits on.
