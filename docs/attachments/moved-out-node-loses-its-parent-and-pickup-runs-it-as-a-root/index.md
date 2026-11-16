@@ -2,6 +2,8 @@
 
 Implementation first use at 2eb3fc87f6f1d2d7bdf4db2d421007a4537b093e. Nonvisual; local Git/vault tracker, fake bb, no model calls or credentials. Independent driving and acceptance follow this implementation handoff.
 
+Independent CLI drive at d738d81a45b36409dac3436c0232dc6b5461cc7b: [predictions, encounter and replayable checks](drive.md). Both required claims held in a fresh isolated sandbox.
+
 ## Reproduce the starting surface
 
 From the checkout, start this as a managed process:
