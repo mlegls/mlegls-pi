@@ -36,3 +36,11 @@ Predictions 1–3 met. Prediction 4 remains unobservable: this setup reaches the
 - Pickup checks to replay: run the documented command; accept first start, unchanged done skipped, later-change done restarted with its recorded PID replaced, and later-change stopped skipped. All four observed outcomes held.
 
 No rendered surface; no screenshots. No credentials used, external services started or shared state modified by the documented replay. Temporary-repository removal is the entry point's documented behavior, not independently inspected.
+
+## Review
+
+Prediction 4 was unobservable through the replay, and the diff did not implement it: the implementation covered only pickup's `select`. The review added it in `lib/reconcile/reconcile.ts` (`supersede`, called from `prepareStart`, so pickup, `reconcile` and the foreground `run` share it): a run that finished `done` whose root issue is no longer done starts over. Its `<root>.json`, `.log` and `.resolutions` move to `<git-common-dir>/reconcile/superseded-<stamp>/`; the new state keeps owner, landing mode, budget (from the start) and the handle counter, so the new worker's branch is numbered past the old run's. PR-mode runs (recorded `pr`) resume as before.
+
+Observed through a real reconciler process on the fake bb CLI (`bun test lib/reconcile/resume.test.ts`, "a reopened root whose run finished done starts over…"): a `done` state recording a landing, counter 2, branches `solo-implement-1` and `solo-drive-2`, root ticket open. After `start`: no `finished`, empty `landed`, the archive holds the old state with its landing, and the launched worker is `solo-implement-3`, with no branch collision. The same test on the pre-repair `reconcile.ts` times out with no worker launched. All 55 tests under `lib/reconcile/` pass.
+
+Prediction 4 held. The `restart it by hand` wording stays: it is accurate for an unchanged done root, which still doesn't restart.

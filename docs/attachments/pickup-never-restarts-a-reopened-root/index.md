@@ -1,6 +1,6 @@
 # Reopened pickup root: first-use evidence
 
-[Independent drive](drive.md): pickup scan outcomes held; real reconciler restart, branch archival and collision-free worker launch remain unobservable through the supplied synthetic-start replay.
+[Independent drive](drive.md) and its Review section: pickup scan outcomes held; the real restart (fresh state, archived old state, worker numbered past old branches) is observed through a real reconciler process in `lib/reconcile/resume.test.ts`.
 
 Run from the checkout root:
 
