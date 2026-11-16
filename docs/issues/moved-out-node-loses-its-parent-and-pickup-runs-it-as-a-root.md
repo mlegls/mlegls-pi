@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_wm7jwxruyk"
 priority: 2
@@ -11,3 +11,43 @@ Observed in concept (2026-11-12 → 11-16): `shorten-fresh-practice-and-session-
 The move-out instructions in the escalation text ([reconcile.ts](../../lib/reconcile/reconcile.ts), "A move-out you make in the tracker yourself") and the [supervision](../../extensions/supervision/index.ts) `reconcile_resolve` description say nothing about keeping `part-of`, and the vault tracker has no `moveOut` (only [tracker-github-write.ts](../../lib/tracker-github-write.ts) implements it), so each handler edits the file by hand.
 
 Done when a moved-out node keeps its parent link and, once an agent can take it again, it runs in its original tree rather than as a pickup root. Possible shapes: a vault `moveOut` that changes assignee but keeps `part-of`; pickup skipping any node a recorded `s.moved` names (or whose parent is held by a live/stuck reconciler); or the parked reconciler waking when its moved node is reassigned to an agent.
+
+## Result
+
+done
+
+I found nothing to repair. The diff matches the ticket's contracts, and both stories hold as the driver ran them. A moved-out node keeps `part-of` and goes to `assignee: human`. Reassigned to an agent and promoted to ticket, it resumes in its original reconciler. Pickup skips any node a run's `s.moved` names, and any child of a running or stuck reconciler.
+
+I ran `bun test lib/tracker.test.ts lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts`: 87 pass, 0 fail. `bun run typecheck` passes too. The project has no `test:affected` task, so I ran those directly. I appended a short review section to the driver's packet in `index.md`.
+
+There was no structural pass to do beyond the change itself. This isn't a join, and I made no refactors.
+
+The driver's one friction, resolve returning before its mutation is visible, was seen once and has no linked issue, so I left it alone.
+
+```yaml
+commit: 58a1fac9
+stories:
+  - story: Moving a child out retains its parent and releases its claim
+    outcome: held
+  - story: Returning a ready child to an agent resumes implementation in its original tree
+    outcome: held
+evidence:
+  path: docs/attachments/moved-out-node-loses-its-parent-and-pickup-runs-it-as-a-root/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/tracker.test.ts
+  - lib/reconcile/pickup.test.ts
+  - lib/reconcile/exceptions.test.ts
+  - lib/reconcile/scheduling.test.ts
+  - lib/reconcile/refinement.test.ts
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts
+caveats:
+  - "Cost: a reconciler with a moved-out node no longer finishes. It polls until the node is reassigned or finished (reconcile.ts, 'Keep polling so reassignment resumes here'), so a long human shaping wait keeps one reconciler process alive."
+  - "Detached legacy nodes, like the concept case that triggered this, are only reserved against pickup. Their old parent isn't recorded, so someone still has to restore `part-of` by hand and restart the stopped run."
+  - "The pickup skip for detached legacy nodes was exercised only in a temporary experiment, not in a committed test."
+  - "The drive used a fake bb, so it shows dispatch routing, not real agent execution."
+  - "No processes or sandboxes were left running."
+```
+
+Evidence: [docs/attachments/moved-out-node-loses-its-parent-and-pickup-runs-it-as-a-root/index.md](../attachments/moved-out-node-loses-its-parent-and-pickup-runs-it-as-a-root/index.md)
