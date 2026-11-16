@@ -52,3 +52,7 @@ bun run typecheck
 ```
 
 The first selection passed 49 tests, 870 expectations. After the final readiness and idea-retention edits, the second selection passed 19 tests, 110 expectations; typecheck passed. No permanent acceptance tests were added.
+
+## Review
+
+Reviewed the diff against aea7d91ba with the driver's log. No repairs needed. `bun test lib/tracker.test.ts lib/reconcile skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts` passed (87 tests, 1176 expectations) and `bun run typecheck` passed on this head. Both stories hold as driven. The parked reconciler now stays alive polling while a moved node is unfinished (reconcile.ts, "Keep polling so reassignment resumes here"), so a long human shaping wait keeps one reconciler process running.
