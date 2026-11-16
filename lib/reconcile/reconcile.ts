@@ -143,6 +143,9 @@ interface Chain {
 	reopened?: string;
 	/** The owner's `accept`: why this node's review may report stories `unobservable` (by design) and still land. */
 	acceptUnobservable?: string;
+	/** Exact red report this landing waits on, and the one the owner designated it to repair. */
+	redHeld?: string;
+	redRepair?: string;
 }
 /** A chain's work when its run was stopped, so a restart continues it rather than starting over from its destination. */
 export interface Resume {
@@ -723,7 +726,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(controlCwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string; checkout?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept" | "red-repair"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string; checkout?: string };
 	/** Bind an owner retry to its original attempt before any replacement writes.
 	 * Recovery can finish that replacement before replaying the resolution file. */
 	function readResolution(file: string, node: string): Resolution {
@@ -737,6 +740,21 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		return r;
 	}
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
+		if (r.action === "red-repair") {
+			const c = s.chains[ex.node];
+			if (!c?.redHeld || c.phase !== "integrate" || ex.level !== "owner") {
+				tellOwner("red-repair for " + ex.node + " ignored: it must be an owner resolution for a landing held by red main.");
+				if (ex.reason === "owner red-repair") delete s.exceptions[ex.node];
+				return save();
+			} else {
+				c.redRepair = c.redHeld;
+				c.held = false;
+				(s.resolved[ex.node] ??= []).push("main is red → red-repair");
+				note("owner designated " + ex.node + " as repair for the current red main");
+			}
+			delete s.exceptions[ex.node];
+			return save();
+		}
 		if (ex.reason === CLEANUP_FAILED) {
 			(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + (r.message || r.note || r.summary ? ": " + (r.message ?? r.note ?? r.summary) : ""));
 			delete s.exceptions[ex.node];
@@ -1123,11 +1141,19 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
 		const into = pathOf(c.into), h = c.handle!;
-		for (let told = false; (s.land ?? "local") === "local" && c.into === cwd; told = true) {
+		if ((s.land ?? "local") === "local" && c.into === cwd) {
 			const red = mainRed(cwd);
-			if (!red || !heldByRed(red, git(h.path, "diff", "--name-only", git(into, "rev-parse", "HEAD") + "...HEAD").split("\n").filter(Boolean))) break;
-			if (!told) { note("landing " + slug + " waits for a green main"); tellOwner("landing " + slug + " waits: main is red.\n\n" + red); }
-			await Bun.sleep(60_000);
+			const text = tracker.text(issue.slug) + "\n" + JSON.stringify(s.results[slug]?.handoff ?? {});
+			if (red && heldByRed(red, git(h.path, "diff", "--name-only", git(into, "rev-parse", "HEAD") + "...HEAD").split("\n").filter(Boolean), { text, ownerRed: c.redRepair })) {
+				if (c.redHeld !== red) {
+					note("landing " + slug + " waits for a green main");
+					tellOwner("landing " + slug + " waits: main is red.\n\n" + red + "\n\nIf this landing repairs it, use reconcile_resolve with action: red-repair on " + slug + ".");
+				}
+				c.redHeld = red; save();
+				// Let the next tick read owner resolutions and refreshed issue text.
+				return;
+			}
+			c.redHeld = undefined;
 		}
 		const before = git(into, "rev-parse", "HEAD");
 		const result = s.results[slug];
