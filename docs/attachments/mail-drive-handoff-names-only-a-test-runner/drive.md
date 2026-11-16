@@ -32,3 +32,7 @@ Replay using the commands in [Operator setup](index.md#operator-setup), waiting 
 Scope: offline real reconciler lifecycle with idle fake BB workers, as supplied by the committed operator recipe. Live model dispatch and the payload entry commands themselves were not exercised; the changed claim is the routing gate.
 
 Cleanup: invoked the documented stop command for all three owned temporary targets; all three stop commands exited successfully, and subsequent filesystem checks confirmed all three targets absent.
+
+## Review
+
+Read the gate (`setupError` in `lib/reconcile/checks.ts`, call site in `lib/reconcile/reconcile.ts` implement phase) against the driver's log. One defect: prose setup such as "bun test a.ts; then open http://localhost:3000" was rejected as test-only because the URL was recognized only at the start of a shell fragment. Fixed (a URL anywhere in a non-test fragment counts as a surface) and committed; null, `bun test`, `bun run test`, `mise run test:x`, and CLI prose still classify as before. Re-ran `lib/reconcile` and `lib/dispatch.test.ts` (68 pass, including `setup.test.ts`, which re-drives the four stories offline). Stories unchanged: held.
