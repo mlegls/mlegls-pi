@@ -53,10 +53,18 @@ export function mainRed(cwd: string): string | undefined {
  * change no code, and verify-main inherits main's result for them. So does a landing that touches a failing
  * case's file (red lists cases as `[project] › <path>:<line> › title`, path relative to the test runner's
  * directory), or a lint/typecheck error's file (`<path>:<line>:<col>: error` or tsc's
- * `<path>(<line>,<col>): error`): it is probably the repair, and holding it would wait on itself. */
-export function heldByRed(red: string, changed: string[]): boolean {
+ * `<path>(<line>,<col>): error`). A reference to the red commit in the issue/handoff, or the owner's
+ * designation for this red report, also admits a repair whose cause lives elsewhere. Admission only
+ * releases this hold; the ordinary pre-integrate gate and subsequent main verification still run. */
+export function heldByRed(red: string, changed: string[], repair: { text?: string; ownerRed?: string } = {}): boolean {
   const code = changed.filter(f => !f.startsWith("docs/"));
   if (!code.length) return false;
+  if (repair.ownerRed === red) return false;
+  // verify-main names the failed commit before its landed range/diagnostics. Accept an
+  // abbreviated reference too, including the SHA at the end of its log path.
+  const commit = red.match(/\b[0-9a-f]{7,40}\b/i)?.[0].toLowerCase();
+  if (commit && [...(repair.text ?? "").matchAll(/\b[0-9a-f]{7,40}\b/gi)]
+    .some(([ref]) => commit.startsWith(ref.toLowerCase()) || ref.toLowerCase().startsWith(commit))) return false;
   const failing = [
     ...red.matchAll(/\] › ([\w./-]+):\d+/g),
     ...red.matchAll(/([\w./-]+)(?::\d+:\d+|\(\d+,\d+\)): error\b/g),
