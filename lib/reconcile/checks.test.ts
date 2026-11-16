@@ -82,3 +82,16 @@ test("red main admits a landing that touches a file its diagnostics name, and ho
 	}
 	expect(heldByRed("lint error", ["docs/issues/x.md"])).toBe(false);
 });
+
+// Admission is scoped to the current red, even when the repair changes another file.
+test("red main admits issue and handoff SHA references and owner designation, holding unrelated code", () => {
+	const sha = "9cc25e70c".padEnd(40, "0");
+	const red = "commit " + sha + "\nlog .git/verify-main/log/" + sha + "\n[chromium] › test/browser/shell-tips.spec.ts:52";
+	const changed = ["packages/web/src/ui/workspace/token.ts"];
+	expect(heldByRed(red, changed)).toBe(true);
+	for (const text of [sha, "repair 9cc25e70c", ".git/verify-main/log/" + sha, JSON.stringify({ summary: "repairs " + sha })])
+		expect(heldByRed(red, changed, { text })).toBe(false);
+	expect(heldByRed(red, changed, { ownerRed: red })).toBe(false);
+	expect(heldByRed(red, changed, { ownerRed: "previous red" })).toBe(true);
+	expect(heldByRed(red, changed, { text: "1234567890" })).toBe(true);
+});
