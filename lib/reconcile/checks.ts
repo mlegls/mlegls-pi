@@ -126,7 +126,7 @@ export function setupError(setup: unknown): string | null {
    const command = part.trim().replace(/^(?:[$>]\s*|-\s+)?(?:[\w]+=\S+\s+)*/, "");
    if (!command) continue;
    if (test.test(command)) tests = true;
-   else if (entry || explicitCommand || /^(?:https?:\/\/|\.?\/|bun\s|node\s|pi\s|ab\s|bb\s|mise\s)/.test(command)) surface = true;
+   else if (entry || explicitCommand || /https?:\/\//.test(command) || /^(?:\.?\/|bun\s|node\s|pi\s|ab\s|bb\s|mise\s)/.test(command)) surface = true;
   }
  }
  return tests && !surface ? "setup names only test-runner commands" : null;
