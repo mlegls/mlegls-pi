@@ -13,4 +13,5 @@ Observed: [[projects/concept/issues/tag-chunk-refresh-can-exhaust-occ-retries-ag
 ## tasks
 
 1. A root whose recorded reconciler finished `done` and whose subtree changed after that finish is restartable: pickup starts it as it would a new root and replaces its `started` entry. `stopped` stays skipped (someone stopped it on purpose), as does `done` with no later change, so a reconciler that finishes without closing can't loop.
-2. Done when: a `select` test with a `done` run finished before the row's last change starts it, and the same run with no later change, and a `stopped` run, are still skipped.
+2. The restarted run starts its phase numbering past the old run's branches: restarting by hand on 2026-11-16 first collided with the leftover `…-implement-1` and `…-drive-2` branches, and the supervisor had to rename them (@thread:thr_ihbpyrp6s2).
+3. Done when: a `select` test with a `done` run finished before the row's last change starts it, and the same run with no later change, and a `stopped` run, are still skipped, and a restart beside the old run's phase branches launches without a collision.
