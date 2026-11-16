@@ -1,9 +1,9 @@
 ---
-stage: idea
+stage: ticket
 assignee: agent
 author: session:01a0f2a8-43e1-74bf-8840-12dfc0b4587e
+priority: 3
 ---
-
 Owner: `mlegls-pi` supervision setup handoff, also tracked by [[projects/mlegls-pi/issues/supervised-study-drive-lacks-setup-handoff]].
 
 The first-use drive of [[projects/mlegls-pi/issues/archive/make-undeliverable-mail-status-visible-to-scripts]] received a complete-looking local fixture handoff whose sole entry point was `bun test lib/board/mail-drive.test.ts`. It passed (1 test, 30 assertions), then removed its fixture. This reached a test runner, not a retained board or a command the first-use persona could drive; the driver cannot read the fixture to extract setup.
@@ -19,3 +19,10 @@ The [joined CLI drive](../attachments/small-ab-cli-fixes/drive.md) received a re
 Another encounter, 2026-10-19: `bb-environments-follow-our-worktrees` supplied only `bun test lib/thread/runtime.test.ts lib/thread/lifecycle.test.ts lib/dispatch.test.ts` although its persona is the BB/wm operator, not a test-runner developer. The committed implementation packet supplied a read-only sweep command and concrete BB IDs, enabling partial independent observation. No public checkout-local spawn/retire recipe without launching another agent was supplied; the inherited supervisor's spawned driver had null merge-base metadata, and its just-retired implementer left a ready environment at a missing path. Those live observations cannot identify which runtime revision performed the lifecycle. Workaround: inspect BB's public environment/thread APIs, replay the read-only inventory and corroborate the sweep's 1,101 destroyed-row count. [Drive packet](../attachments/bb-environments-follow-our-worktrees/drive.md). Supply a retained checkout-local operator lifecycle recipe, not tests alone.
 
 The 2026-11-12 bash timeout guard drive again received only `bun test extensions/guard/index.test.ts`. The user surface is Pi tool dispatch. Workaround: explicitly load the checkout-owned extension with `pi --no-extensions -e ./extensions/guard/index.ts`, adding `-e builtin:codemode` for nested calls. Both real tool surfaces held. [Packet](../attachments/bash-timeout-read-as-milliseconds-blocks-a-worker-for-hours/index.md).
+
+Concept, the same period: one drive got `setup: null` for a migration retirement (@thread:thr_ihbpyrp6s2#msg=32346), another only a unit-test command for the notebook-reader repair (#msg=33861); each cost a drive session and a supervisor wake (about $0.5–0.6). The 2026-11-16 efficiency audit (@thread:thr_js85m2wmby) promoted this to a ticket; the maintainer approved. The `implement` skill's step 4 now says a unit-test command is not setup when the story's user meets a public surface.
+
+## tasks
+
+1. Before launching a drive, the reconciler checks the implement handoff's setup: null, or only test-runner commands (`bun test`, `bun run test`, `vitest`, `mise run test…`), goes back to the implementer as a repair round with the reason, instead of starting a driver that escalates. A ticket with `drive: none` skips the check.
+2. Done when: a reconciler test with a null setup and one with only `bun test …` re-prompt the implementer and launch no driver, and a handoff naming a CLI or browser entry launches the drive.
