@@ -1,4 +1,6 @@
-# Reopened pickup root: implementation first use
+# Reopened pickup root: first-use evidence
+
+[Independent drive](drive.md): pickup scan outcomes held; real reconciler restart, branch archival and collision-free worker launch remain unobservable through the supplied synthetic-start replay.
 
 Run from the checkout root:
 
