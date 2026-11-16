@@ -28,7 +28,7 @@ import { readLive } from "../session-meta/live";
 import { bbThreads, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
-import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands } from "./checks.ts";
+import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands, setupError } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
@@ -1265,6 +1265,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			c.note = undefined;
 			c.skipDrive ??= driveNone(issue);
 			if (c.skipDrive) { note("drive skipped for " + slug + ": " + c.skipDrive); return startPhase(slug, c, "review", issue, issues, skippedDrive(c.skipDrive), false, undefined, true); }
+			const setupProblem = setupError(c.setup);
+			if (setupProblem) return repair(slug, c, "setup", "Your " + setupProblem + ". Supply a runnable public CLI/browser/tool entry point with isolated setup, readiness and cleanup for the story persona. A unit-test command alone is not setup. Commit any needed setup recipe and report done again with the repaired setup handoff.", issues, text);
 			return startPhase(slug, c, "drive", issue, issues, "", false, undefined, true);
 		}
 		if (c.phase === "drive") {

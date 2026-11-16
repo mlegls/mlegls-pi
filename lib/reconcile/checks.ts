@@ -96,6 +96,33 @@ export function testRun(cwd: string, file: string): string[] | null {
  if (file.endsWith(".sh")) return ["sh", file];
  return null;
 }
+/** Setup remains free-form, but a test runner alone cannot give a driver a user surface.
+ * Inspect command/entry fields when supplied; otherwise recognize shell commands in prose too. */
+export function setupError(setup: unknown): string | null {
+ if (setup == null) return "setup is missing";
+ const strings: { text: string; entry: boolean; command: boolean }[] = [];
+ const collect = (value: unknown, entry = false, command = false) => {
+  if (typeof value === "string") strings.push({ text: value, entry, command });
+  else if (Array.isArray(value)) value.forEach(v => collect(v, entry, command));
+  else if (value && typeof value === "object")
+   Object.entries(value).forEach(([key, v]) => collect(v, entry || /entry|^url$/i.test(key), command || /command|^run$/i.test(key)));
+ };
+ collect(setup);
+ const test = /^(?:bun\s+(?:run\s+)?test\b|(?:bunx|npx)?\s*vitest\b|mise\s+run\s+test[\w:-]*\b)/;
+ let tests = false, surface = false;
+ const entries = strings.filter(s => s.entry), commands = strings.filter(s => s.command);
+ const candidates = entries.length ? entries : commands.length ? commands : strings;
+ for (const { text, entry, command: explicitCommand } of candidates) {
+  // Newlines, shell chains and inline-code spans all commonly separate handoff commands.
+  for (const part of text.split(/[\n\r\x60]|&&|;|\|\|/)) {
+   const command = part.trim().replace(/^(?:[$>]\s*|-\s+)?(?:[\w]+=\S+\s+)*/, "");
+   if (!command) continue;
+   if (test.test(command)) tests = true;
+   else if (entry || explicitCommand || /^(?:https?:\/\/|\.?\/|bun\s|node\s|pi\s|ab\s|bb\s|mise\s)/.test(command)) surface = true;
+  }
+ }
+ return tests && !surface ? "setup names only test-runner commands" : null;
+}
 // Unknown, empty, or prose-only outcomes are not acceptance.
 export const unheld = (h: Record<string, unknown> | null) => !Array.isArray(h?.stories) || !h.stories.length || h.stories.some(s => !s || typeof s.story !== "string" || !s.story.trim() || s.outcome !== "held");
 export const storyShapeError = (h: Record<string, unknown> | null, allowEmpty = false): string | null => {

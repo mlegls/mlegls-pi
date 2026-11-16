@@ -56,7 +56,7 @@ test("a worker's finish behind a log too large to return at once still advances 
 	// A long turn's work, one event of it over the limit alone, then the finish; a whole-log read is refused.
 	bb.padLog(first.path, [...Array(400).fill(200), 50_000, ...Array(50).fill(200)]);
 	bb.limitLog(first.path, 20_000);
-	bb.completeTurn(first.path, "done\n\nImplemented.");
+	bb.completeTurn(first.path, 'done\n\n```json\n{"setup":{"entry":"bun app.ts"}}\n```');
 	const drive = await driving(repo, bb);
 	expect(drive.handle).not.toBe(first.handle);
 	const s = load(repo, "solo")!;
@@ -77,7 +77,7 @@ test("a worker log that can't be read is raised to the owner, and withdrawn once
 	expect(load(repo, "solo")!.log.filter(l => l.includes("reading " + first.handle + " failed")).length).toBe(1);
 
 	bb.failLog(first.path, undefined);
-	bb.completeTurn(first.path, "done\n\nImplemented.");
+	bb.completeTurn(first.path, 'done\n\n```json\n{"setup":{"entry":"bun app.ts"}}\n```');
 	await driving(repo, bb);
 	expect(load(repo, "solo")!.exceptions).toEqual({});
 }), 90_000);
