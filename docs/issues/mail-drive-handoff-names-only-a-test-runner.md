@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent
 author: session:01a0f2a8-43e1-74bf-8840-12dfc0b4587e
 priority: 3
@@ -26,3 +26,36 @@ Concept, the same period: one drive got `setup: null` for a migration retirement
 
 1. Before launching a drive, the reconciler checks the implement handoff's setup: null, or only test-runner commands (`bun test`, `bun run test`, `vitest`, `mise run test…`), goes back to the implementer as a repair round with the reason, instead of starting a driver that escalates. A ticket with `drive: none` skips the check.
 2. Done when: a reconciler test with a null setup and one with only `bun test …` re-prompt the implementer and launch no driver, and a handoff naming a CLI or browser entry launches the drive.
+
+## Result
+
+done
+
+```yaml
+commit: b7dbe881
+stories:
+  - story: Null setup re-prompts the implementer without launching a driver
+    outcome: held
+  - story: Test-only setup re-prompts the same implementer without launching a driver
+    outcome: held
+  - story: CLI or browser entry launches a driver carrying the supplied setup
+    outcome: held
+  - story: "drive: none bypasses the setup gate and proceeds to review"
+    outcome: held
+evidence:
+  path: docs/attachments/mail-drive-handoff-names-only-a-test-runner/drive.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/setup.test.ts
+  - lib/reconcile/unreadable-log.test.ts
+fixed:
+  - "lib/reconcile/checks.ts: the gate rejected prose setup like `bun test a.ts; then open http://localhost:3000` as test-only, because a URL only counted at the start of a fragment. A URL anywhere in a non-test fragment now counts as a surface. Commit: the 'setup gate: a URL anywhere in prose setup counts as a user surface' commit just before b7dbe881."
+caveats:
+  - "lib/reconcile/unreadable-log.test.ts: the change edited its fake handoffs to include a setup entry, so the gate lets them reach the drive phase. No assertions changed."
+  - "I ran `bun test lib/reconcile lib/dispatch.test.ts`: 68 pass, 0 fail, 308 s. The `mise run test:affected` task wasn't run."
+  - "setup.test.ts costs about 17 s: it starts a real reconciler with fake BB and runs three fixture targets."
+  - "The gate is a heuristic over free-form setup text. A setup the heuristic misreads as test-only costs one repair round, and the repair prompt tells the implementer what to supply."
+```
+
+Evidence: [docs/attachments/mail-drive-handoff-names-only-a-test-runner/drive.md](../attachments/mail-drive-handoff-names-only-a-test-runner/drive.md)
