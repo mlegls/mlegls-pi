@@ -1,7 +1,7 @@
 ---
 name: manager
 description: Refines a spec too big for one session, splitting it by outcome so each child decides its own approach.
-model: openai/gpt-6.1-sol:high, anthropic/claude-opus-5-5:medium
+model: openai/gpt-6.2-sol:high, anthropic/claude-opus-5-5:medium
 role: refine
 ---
 
