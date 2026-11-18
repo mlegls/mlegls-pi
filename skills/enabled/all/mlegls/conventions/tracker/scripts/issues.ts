@@ -398,7 +398,11 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
 /** A provenance whose `<kind>:` prefix names no identity (`session:`). `check` names existing ones and queries still load them; writing a new one is refused. */
 const emptyIdentity = (author: unknown): boolean => typeof author === "string" && /^[^:]+:\s*$/.test(author);
 
-async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body?: string, summary?: string, evidence?: string): Promise<void> {
+function refuseBodyWipe(slug: string, current: string) {
+  if (contract(current).body.trim()) throw new Error(`${slug}: refusing to replace a non-empty body with a blank one; use --allow-empty-body to clear it`);
+}
+
+async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body: string | undefined, summary: string | undefined, evidence: string | undefined, checkForBodyWipe: boolean): Promise<void> {
   validSlug(slug);
   await persist(withVaultLock(dir, () => {
     const all = load(dir);
@@ -418,7 +422,9 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
         const existing = fieldsOf(i);
         if ("author" in fields && existing.author !== undefined && fields.author !== existing.author) throw new Error("author provenance is immutable");
         if (fields.author !== existing.author && emptyIdentity(fields.author)) throw new Error("author must be a nonempty provenance string");
-        changes.set(i.file, replaceContract(readFileSync(i.file, "utf8"), storageFields(fields, dir, all), body));
+        const current = readFileSync(i.file, "utf8");
+        if (checkForBodyWipe) refuseBodyWipe(slug, current);
+        changes.set(i.file, replaceContract(current, storageFields(fields, dir, all), body));
       } else if (cmd === "close") {
         if (i.archived) throw new Error("close requires a live issue");
         if (evidence !== undefined && (!evidence || evidence.startsWith("/") || evidence.includes("\\") || evidence.split("/").some(p => p === ".." || p === "." || !p)))
@@ -986,6 +992,10 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   for (let n = 2; n < rawArgs.length; n++) {
     const key = rawArgs[n];
     if (key === "--json" && verb === "fields") continue;
+    if (key === "--allow-empty-body" && verb === "update" && !opts.has(key)) {
+      opts.set(key, "");
+      continue;
+    }
     const allowed = verb === "create" || verb === "update" ? ["--fields", "--body-file"] : verb === "close" ? ["--summary", "--evidence"] : [];
     if (!allowed.includes(key) || opts.has(key) || n + 1 === rawArgs.length) throw new Error("invalid option " + key);
     opts.set(key, rawArgs[++n]);
@@ -1005,6 +1015,7 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
     return;
   }
   if (verb === "create" && (!opts.has("--fields") || !opts.has("--body-file"))) throw new Error("create requires --fields and --body-file");
+  if (opts.has("--allow-empty-body") && !opts.has("--body-file")) throw new Error("--allow-empty-body requires --body-file");
   if (verb === "update" && !opts.size) throw new Error("update requires --fields and/or --body-file");
   const fields = opts.has("--fields") ? JSON.parse(opts.get("--fields")!) : {};
   if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw new Error("fields must be a JSON object");
@@ -1012,13 +1023,17 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
     throw new Error(`${slug} is reserved by your parent. Report your handoff; the reconciler closes the issue and clears its claim after target landing.`);
   const bodyFile = opts.get("--body-file");
   const body = bodyFile === undefined ? undefined : readFileSync(bodyFile === "-" ? 0 : resolve(process.cwd(), bodyFile), "utf8");
+  const checkForBodyWipe = verb === "update" && body !== undefined && !body.trim() && !opts.has("--allow-empty-body");
   if (github) {
     if (verb === "create") console.log(github.create({ slug, fields, body: body! }));
-    else if (verb === "update") github.update(slug, fields, body);
+    else if (verb === "update") {
+      if (checkForBodyWipe) refuseBodyWipe(slug, github.text(slug));
+      github.update(slug, fields, body);
+    }
     else if (verb === "close") github.close(slug, { summary: opts.get("--summary"), evidence: opts.get("--evidence") });
     else github.remove(slug);
   } else {
-    await mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"));
+    await mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"), checkForBodyWipe);
     if (verb === "create") console.log(slug);
   }
   return;
@@ -1148,7 +1163,7 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues text|show <slug> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|-] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
+    console.log("usage: issues text|show <slug> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|- [--allow-empty-body]] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
     process.exitCode = 2;
 }
 }

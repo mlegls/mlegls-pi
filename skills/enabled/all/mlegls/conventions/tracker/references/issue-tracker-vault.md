@@ -101,12 +101,12 @@ Read contracts and metadata through the backend:
 bun "$PI_SKILL_DIR/scripts/issues.ts" text <slug>
 bun "$PI_SKILL_DIR/scripts/issues.ts" fields <slug> [--json]
 bun "$PI_SKILL_DIR/scripts/issues.ts" create <slug> --fields '<json>' --body-file <path|->
-bun "$PI_SKILL_DIR/scripts/issues.ts" update <slug> [--fields '<json>'] [--body-file <path|->]
+bun "$PI_SKILL_DIR/scripts/issues.ts" update <slug> [--fields '<json>'] [--body-file <path|-> [--allow-empty-body]]
 bun "$PI_SKILL_DIR/scripts/issues.ts" close <slug> [--summary <text>] [--evidence <repo-relative-path>]
 bun "$PI_SKILL_DIR/scripts/issues.ts" remove <slug>
 ```
 
-Fields use logical slugs for `part-of` and issue entries in `blocked-by`; guards stay opaque strings. The backend serializes vault links. Null in an update removes a key. Body input excludes YAML frontmatter and, when supplied (even empty), replaces the whole body; body-only update is allowed. Body paths resolve from the caller's cwd; `-` reads stdin. `text` returns the full contract; `fields` prints JSON with or without `--json`; `create` prints the resulting slug. Mutations succeed with exit 0, otherwise a diagnostic and nonzero exit.
+Fields use logical slugs for `part-of` and issue entries in `blocked-by`; guards stay opaque strings. The backend serializes vault links. Null in an update removes a key. Body input excludes YAML frontmatter and replaces the whole body when supplied. A blank file (empty or whitespace-only) can replace a non-empty body only with `--allow-empty-body`. Body paths resolve from the caller's cwd; `-` reads stdin. `text` returns the full contract; `fields` prints JSON with or without `--json`; `create` prints the resulting slug. Mutations succeed with exit 0, otherwise a diagnostic and nonzero exit.
 
 Copyable create/update for an existing `example-parent` (`PI_SKILL_DIR` names this tracker skill; `PI_SESSION_ID` is your session; the supplied `CLAIM_TOKEN` is `reconcile:<root>/<refine-handle>` during refinement):
 
