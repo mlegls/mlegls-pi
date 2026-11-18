@@ -182,6 +182,8 @@ export interface State extends GlobalRunState {
 	counter: number;
 	log: string[];
 	finished?: string;
+	/** Wall-clock milliseconds when the run reached done or got stuck. */
+	finishedAt?: number;
 	/** Explicit stop owns cleanup until it succeeds; session startup must not resume this run. */
 	stopping?: boolean;
 	/** Work of the chains a stop retired, by node; a restart starts each node from it (see Resume). */
@@ -384,7 +386,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	// A spawned run already has its owner published; a foreground invocation chooses it here.
 	if (s.pid !== process.pid) updateState(controlCwd, s.root, current => ({ ...current!, owner: o.owner,
 		ownerSession: o.ownerSession ?? (current!.owner === o.owner ? current!.ownerSession : undefined) }));
-	Object.assign(s, { budget: o.budget, pid: process.pid, codeVersion: loadedCode, ownerHandover: true, finished: undefined });
+	Object.assign(s, { budget: o.budget, pid: process.pid, codeVersion: loadedCode, ownerHandover: true, finished: undefined, finishedAt: undefined });
 	const save = () => saveState(s);
 	const refreshOwner = () => {
 		const current = load(controlCwd, s.root);
@@ -1814,7 +1816,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const thread = found && (await bbThreads()).get(found.bb);
 			if (thread && !thread.archivedAt) await retireHandle(attempt.worker, controlCwd, attempt.phase === "accepted");
 		}
-		const top = view(destination());
+		let top = view(destination());
 		if (s.pr && (s.landed[s.root] || s.pr.phase !== "preparing")) {
 			// Staging satisfies the tree, not the global target. PR waiting never
 			// revisits completed descendants, including on an opening restart.
@@ -1839,7 +1841,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				closeAtTarget(completion);
 				if (!s.target || Object.values(s.results).some(result => !result.closedAt)) return false;
 				if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
-				s.finished = "done"; save();
+				s.finished = "done"; s.finishedAt = Date.now(); save();
 				tellOwner("done: " + s.root + " landed in " + s.target + (s.pr.url ? "\n" + s.pr.url : ""));
 				return true;
 			}
@@ -1858,11 +1860,20 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				tracker.update(s.root, { "claimed-by": "reconcile:" + s.root });
 			}
 		}
-		visited.clear();
-		const result = await visit(s.root, destination(), top);
-		if (s.pr && s.landed[s.root]) return false;
-		const pending = Object.keys(s.exceptions).length;
-		await handleExceptions(top);
+		let result: Awaited<ReturnType<typeof visit>>, pending: number;
+		for (;;) {
+			const before = s.landed;
+			visited.clear();
+			result = await visit(s.root, destination(), top);
+			if (s.pr && s.landed[s.root]) return false;
+			pending = Object.keys(s.exceptions).length;
+			await handleExceptions(top);
+			// A child can have been checked before a sibling landed or an exception resolution integrated it.
+			// Completion replaces the ledger on every landing; rewalk with those receipts before stopping.
+			if (result !== "stuck" || s.landed === before) break;
+			holds.clear();
+			top = view(destination());
+		}
 		// A resolution applied after a walk that found work held (a retry after a hand merge into a collector) may release
 		// it: walk again before stopping.
 		const resolvedNow = result === "stuck" && Object.keys(s.exceptions).length < pending;
@@ -1881,6 +1892,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 			const open = [...all.values()].filter(i => !finished(i) && (i.slug === s.root || under(i, all)));
 			s.finished = result === "done" ? "done" : "stuck";
+			s.finishedAt = Date.now();
 			save();
 			tellOwner((result === "done" ? "done: " + s.root + " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", "HEAD") : "stopped with open work: " + (holds.size ? [...holds].map(([k, v]) => "\n- " + k + ": " + v).join("") : open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ")))
 				+ (Object.keys(s.moved).length ? "\nMoved out: " + Object.entries(s.moved).map(([k, v]) => k + ": " + v).join("; ") : ""));

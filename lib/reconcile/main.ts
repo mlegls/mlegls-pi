@@ -35,7 +35,7 @@ export function start(o: StartOptions): { pid: number; log: string } {
 		}
 		const s = current ?? prior;
 		spawned = spawnRun({ ...o, cwd: controlCwd, land: s.land, ownerSession: o.ownerSession ?? s.ownerSession }, stateDir(controlCwd));
-		return { ...s, owner: o.owner, ownerSession: o.ownerSession ?? (o.owner === s.owner ? s.ownerSession : undefined), pid: spawned.pid };
+		return { ...s, owner: o.owner, ownerSession: o.ownerSession ?? (o.owner === s.owner ? s.ownerSession : undefined), pid: spawned.pid, finished: undefined, finishedAt: undefined };
 	});
 	return spawned;
 }
@@ -93,7 +93,7 @@ export async function stop(cwd: string, root: string) {
 	// continues each node from there.
 	const resume = resumeRecords(s, cwd);
 	const stopped = updateState(cwd, root, prior => ({
-		...prior!, chains: {}, exceptions: {}, resume, pid: undefined, stopping: undefined, finished: "stopped",
+		...prior!, chains: {}, exceptions: {}, resume, pid: undefined, stopping: undefined, finished: "stopped", finishedAt: undefined,
 		log: [...prior!.log, new Date().toISOString().slice(0, 19) + " stopped; retired workers and handlers, kept collectors"].slice(-400),
 	}));
 	return { ...summary({ ...stopped, running: false }), retired };

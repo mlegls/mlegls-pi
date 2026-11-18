@@ -170,13 +170,17 @@ const ownClaims = (i: Issue) => i.claims.filter(c => c.slug === i.slug);
 
 /** Which frontier roots this pickup may start now, and why every other frontier row in scope is skipped. Pure: the
  * snapshot, recorded roots and moved-out reservations, and each subtree's last change are supplied. */
-export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Map<string, Issue>, runs: Map<string, { status: string; finishedAt?: number }>,
+export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Map<string, Issue>, runs: Map<string, { status: string; finishedAt?: number; collectorChangedAt?: number }>,
 	changedAt: (slugs: string[]) => number, now: number, moved: ReadonlyMap<string, string> = new Map()): { start: string[]; skipped: Record<string, string>; retryIn?: number } {
 	const start: string[] = [], skipped: Record<string, string> = {};
 	let retryIn: number | undefined;
 	const inScope = (i: Issue) => s.scope === "project" || s.scope.includes(i.slug) || ancestors(i.slug, rows).some(a => s.scope.includes(a.slug));
 	for (const row of rows.values()) {
-		if (!row.frontier || !inScope(row)) continue;
+		const run = runs.get(row.slug);
+		// A stuck run owns its tree even when only a child (or only its private collector view) is ready.
+		const resumable = run?.status === "stuck" && !row.done && !row.archived && row.assignee !== "human"
+			&& !ownClaims(row).some(c => c.claimedBy !== "reconcile:" + row.slug);
+		if ((!row.frontier && !resumable) || !inScope(row)) continue;
 		const up = ancestors(row.slug, rows);
 		const reserved = [row, ...up].find(i => moved.has(i.slug));
 		if (reserved) { skipped[row.slug] = "moved out of reconciler " + moved.get(reserved.slug) + "; resume its original tree"; continue; }
@@ -186,10 +190,10 @@ export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Ma
 		if (held) { skipped[row.slug] = "ancestor " + held.slug + " claimed: " + ownClaims(held).map(c => c.claimedBy).join("; "); continue; }
 		const wider = up.find(a => a.frontier && inScope(a));
 		if (wider) { skipped[row.slug] = "inside frontier root " + wider.slug; continue; }
-		const run = runs.get(row.slug);
 		const subtree = [...rows.values()].filter(i => i.slug === row.slug || ancestors(i.slug, rows).some(a => a.slug === row.slug)).map(i => i.slug);
-		const changed = changedAt(subtree);
-		const reopened = run?.status === "done" && run.finishedAt !== undefined && changed > run.finishedAt;
+		const changed = Math.max(changedAt(subtree), run?.collectorChangedAt ?? 0);
+		const reopened = (run?.status === "done" || resumable) && run?.finishedAt !== undefined && changed > run.finishedAt;
+		if (!row.frontier && !reopened) continue;
 		if (run && !reopened) { skipped[row.slug] = "has reconciler state (" + run.status + "); restart it by hand"; continue; }
 		if (s.started[row.slug] && !reopened) { skipped[row.slug] = "already started by pickup at " + s.started[row.slug].at; continue; }
 		const quiet = now - changed;
@@ -215,10 +219,14 @@ export function scan(cwd: string, deps: {
 		if (s.paused) return { started: [], skipped: { "*": "paused" } };
 		const rows = (deps.snapshot ?? (() => getTracker(s.cwd).snapshot()))();
 		const recorded = campaigns(s.cwd);
-		// The final state save records completion, including for runs predating pickup restarts.
 		const runs = new Map(recorded.map(r => [r.root, {
-			status: r.running ? "running" : r.finished ?? (r.stopping ? "stopping" : "not running"),
-			finishedAt: r.finished === "done" ? statSync(runStateFile(s.cwd, r.root)).mtimeMs : undefined,
+			status: r.stopping ? "stopping" : r.running ? "running" : r.finished ?? "not running",
+			// Older runs used the final state save's mtime. Keep the actual finish time across later state writes.
+			finishedAt: r.finished === "done" || r.finished === "stuck"
+				? r.finishedAt ?? statSync(runStateFile(s.cwd, r.root)).mtimeMs : undefined,
+			collectorChangedAt: r.finished === "stuck" ? Math.max(0, ...Object.values(r.landed ?? {})
+				.filter(entry => entry.into === r.root || r.collectors?.[entry.into])
+				.map(entry => Date.parse(entry.at) || 0)) : undefined,
 		}]));
 		const moved = new Map(recorded.flatMap(r => Object.keys(r.moved ?? {}).map(slug => [slug, r.root] as const)));
 		// Vault rows carry their absolute file; a backend without one (GitHub) has no local change time to wait out.
