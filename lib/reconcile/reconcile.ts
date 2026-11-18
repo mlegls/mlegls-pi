@@ -1870,7 +1870,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			await handleExceptions(top);
 			// A child can have been checked before a sibling landed or an exception resolution integrated it.
 			// Completion replaces the ledger on every landing; rewalk with those receipts before stopping.
-			if (result !== "stuck" || s.landed === before) break;
+			if (s.landed === before || (result !== "stuck" && !holds.size)) break;
 			holds.clear();
 			top = view(destination());
 		}
