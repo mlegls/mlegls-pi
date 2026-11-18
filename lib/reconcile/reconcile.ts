@@ -1410,13 +1410,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 	/** A collector is cut from its parent once. A blocker or descendant that lands in an enclosing collector afterwards
 	 * satisfies nothing here until this branch contains its head (view's inherited set).
-	 * When the parent contains that delivery, merge it in before scheduling open work here; a conflict
-	 * goes to the owner. 2026-11-07 (concept, release-the-open-local-product): five dependents in two sub-collectors
+	 * When the parent contains that delivery, merge it in before scheduling the node or its children;
+	 * a conflict goes to the owner. 2026-11-07 (concept, release-the-open-local-product): five dependents in two sub-collectors
 	 * waited on landings in the root collector until it was merged into them by hand. */
 	async function catchUp(slug: string, into: string, own: Map<string, Issue>): Promise<boolean> {
 		const col = s.collectors[slug], up = enclosing(slug), parent = pathOf(into), landed = new Set<string>();
 		for (const k of own.values()) {
-			if (finished(k) || !descends(k, slug, own)) continue;
+			if (finished(k) || (k.slug !== slug && !descends(k, slug, own))) continue;
 			// A reviewed descendant can have landed in an enclosing collector after it was reparented here.
 			// It is frontier in this stale branch, but needs its delivered code, not another implementation.
 			for (const b of [k.slug, ...k.blockers]) {
