@@ -51,7 +51,7 @@ function summary(description: string | undefined): string {
 	return first.length > 160 ? first.slice(0, 157) + "…" : first;
 }
 
-function toolCatalog(pi: ExtensionAPI, configured?: string): string | undefined {
+function toolCatalog(pi: ExtensionAPI): string | undefined {
 	const active = new Set(pi.getActiveTools());
 	if (!active.has("codemode")) return undefined;
 	const callable = pi.getAllTools().filter((tool) => tool.name !== "codemode" &&
@@ -66,20 +66,24 @@ function toolCatalog(pi: ExtensionAPI, configured?: string): string | undefined 
 		if (members.every((tool) => tool.exposure === "deferred")) lines.push(`- ${name} (${members.length} tools)${about ? ": " + about : ""}`);
 		else lines.push(`- ${name}${about ? ": " + about : ""}`, ...members.map((tool) => `  - ${signature(tool)}: ${summary(tool.description)}`));
 	}
-	// Pi lists configured servers before their tools have connected.
-	const available = (name: string) => namespaces.has(name) || configured?.split("\n").some(line => line.startsWith(`- ${name} (`));
-	const browser = available("mcp__chrome");
-	const desktop = available("mcp__cua");
-	if (browser || desktop) {
-		lines.push("", [
-			browser && "`mcp__chrome__*` drives a headless browser private to this session.",
-			desktop && "`mcp__cua__*` drives native apps.",
-			"Call the tools directly via `tools`; a script that names a server waits for it to connect. `ALL_TOOLS` holds objects, so filter on `.name`.",
-			browser && desktop ? "Close pages and apps you opened when finished." : browser ? "Close pages you opened when finished." : "Close apps you opened when finished.",
-			browser && "When the user has to see or act in the browser, use a visible one: `CHROME_DEVTOOLS_AXI_HEADED=1 CHROME_DEVTOOLS_AXI_SESSION=<handle> chrome-devtools-axi open <url>`, and `chrome-devtools-axi stop` (same session) when done.",
-		].filter(Boolean).join(" "));
-	}
 	return `Codemode tools, all on \`tools\` in scripts. Before first using one whose arguments or result you don't know, read it with \`await describeTool(name)\` (a namespace: \`describeNamespace(name)\`).\n${lines.join("\n")}`;
+}
+
+function browserGuidance(pi: ExtensionAPI, configured?: string): string | undefined {
+	const active = new Set(pi.getActiveTools());
+	const codemode = active.has("codemode");
+	const tools = pi.getAllTools();
+	const available = (ns: string) => configured?.split("\n").some(line => line.startsWith(`- ${ns} (`) && (codemode || active.has("tool_search") && line.startsWith(`- ${ns} (tool_search)`))) ||
+		tools.some(t => t.namespace?.name === ns && (active.has(t.name) || codemode && t.exposure === "codemode" ||
+			t.exposure === "deferred" && (codemode || active.has("tool_search"))));
+	const browser = available("mcp__chrome"), desktop = available("mcp__cua");
+	if (browser || desktop) return [
+		browser && "`mcp__chrome__*` drives a headless browser private to this session.",
+		desktop && "`mcp__cua__*` drives native apps.",
+		codemode && "Call the tools directly via `tools`; a script that names a server waits for it to connect. `ALL_TOOLS` holds objects, so filter on `.name`.",
+		browser && desktop ? "Close pages and apps you opened when finished." : browser ? "Close pages you opened when finished." : "Close apps you opened when finished.",
+		browser && "When the user has to see or act in the browser, use a visible one: `CHROME_DEVTOOLS_AXI_HEADED=1 CHROME_DEVTOOLS_AXI_SESSION=<handle> chrome-devtools-axi open <url>`, and `chrome-devtools-axi stop` (same session) when done.",
+	].filter(Boolean).join(" ");
 }
 
 function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: string, catalog?: string): string {
@@ -115,7 +119,17 @@ function buildPrompt(options: BuildSystemPromptOptions, sessionTimestamp?: strin
 }
 
 export default function (pi: ExtensionAPI) {
-	pi.on("before_agent_start", (event, ctx) => ({
-		systemPrompt: buildPrompt(event.systemPromptOptions, ctx.sessionManager.getHeader()?.timestamp, toolCatalog(pi, event.systemPromptOptions.sections?.mcp_servers)),
-	}));
+	pi.on("before_agent_start", ({ systemPromptOptions: options }, ctx) => {
+		let prompt = buildPrompt(options, ctx.sessionManager.getHeader()?.timestamp, toolCatalog(pi));
+		// Pi's built-in MCP handler can populate mcp_servers (and connect direct tools)
+		// after this handler. Read the finished catalog when Pi renders the prompt.
+		Object.defineProperty(options, "forceSystemPrompt", {
+			configurable: true, enumerable: true,
+			get() {
+				const guide = browserGuidance(pi, options.sections?.mcp_servers);
+				return guide && !prompt.includes(guide) ? prompt + "\n\n" + guide : prompt;
+			},
+			set(value: string) { prompt = value; }, // Other extensions can append to our prompt.
+		});
+	});
 }

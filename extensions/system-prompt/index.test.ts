@@ -7,7 +7,7 @@ type GetHeader = () => { timestamp: string } | null;
 type BeforeAgentStartHandler = (event: {
 	systemPrompt: string;
 	systemPromptOptions: BuildSystemPromptOptions;
-}, ctx: { sessionManager: { getHeader: GetHeader } }) => { systemPrompt: string };
+}, ctx: { sessionManager: { getHeader: GetHeader } }) => void;
 
 function promptBuilder(getHeader: GetHeader = () => null) {
 	let handler: BeforeAgentStartHandler | undefined;
@@ -23,10 +23,11 @@ function promptBuilder(getHeader: GetHeader = () => null) {
 	const registeredHandler = handler;
 	return (options: BuildSystemPromptOptions, systemPrompt = "") => {
 		selectedTools = options.selectedTools ?? [];
-		return registeredHandler(
+		registeredHandler(
 			{ systemPrompt, systemPromptOptions: options },
 			{ sessionManager: { getHeader } },
-		).systemPrompt;
+		);
+		return options.forceSystemPrompt!;
 	};
 }
 
