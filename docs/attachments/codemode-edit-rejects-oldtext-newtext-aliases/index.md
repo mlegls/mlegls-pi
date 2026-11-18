@@ -15,3 +15,7 @@ The supplied acceptance entry point ran to completion (exit 0). It reported `sam
 Replay check: run the command above. Accept exit 0, one reported edit, and final content `world\n`, with no missing-field error. The scripted call must use `oldText` and `newText` through codemode dispatch for this result to satisfy the ticket.
 
 No friction encountered while running the supplied entry point. No services started.
+
+## Review
+
+The fixture passes `oldText` and `newText` to `tools.edit` inside pi’s codemode dispatch. Replaying it against both `c984f3c1` and the reviewed implementation produced `world\n`: this spelling already worked on the base. The implementer traced the reported failure to `old_string` and `new_string`. Replaying that spelling on the reviewed implementation also produced `world\n`; omitting the replacement failed validation and left `hello\n` intact. The three tests in `lib/outline-read/fragment.test.ts` passed, including canonical-field precedence.
