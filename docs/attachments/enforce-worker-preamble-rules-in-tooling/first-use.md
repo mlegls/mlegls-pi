@@ -4,7 +4,7 @@ From the driver’s linked `mlegls-pi` worktree, run `mise run setup` if depende
 
 ```sh
 PI_WM_HANDLE="$(git branch --show-current)" PI_WM_ISSUE=launch-ticket \
-  pi --no-session --no-mcp -ne -e builtin:codemode \
+  pi --no-session --tools +grep --no-mcp -ne -e builtin:codemode \
   -e ./extensions/guard/index.ts -e ./extensions/system-prompt/index.ts
 ```
 
