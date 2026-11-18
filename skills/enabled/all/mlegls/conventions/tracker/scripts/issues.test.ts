@@ -508,6 +508,30 @@ test("check names the child that lowers a spec, and a side friction log", () => 
   p.done();
 }, 30_000);
 
+test("update requires explicit permission to clear a non-empty issue body", () => {
+  const metadata = frontmatter("stage: idea");
+  const original = metadata + "Keep this contract.\n";
+  const p = project({ "issues/contract.md": original });
+  const issue = join(p.root, "docs/issues/contract.md");
+  const file = join(p.root, "body.md");
+  const update = (body: string, ...flags: string[]) => {
+    writeFileSync(file, body);
+    return Bun.spawnSync([process.execPath, cli, "update", "contract", "--body-file", file, ...flags], { cwd: p.root });
+  };
+  try {
+    for (const blank of ["", " \t\n"]) {
+      const refused = update(blank);
+      expect(refused.exitCode).toBe(1);
+      expect(refused.stderr.toString()).toContain("contract: refusing");
+      expect(readFileSync(issue, "utf8")).toBe(original);
+    }
+    expect(update("Replacement contract.\n").exitCode).toBe(0);
+    expect(readFileSync(issue, "utf8")).toMatch(/\n---\nReplacement contract\.\n$/);
+    expect(update("", "--allow-empty-body").exitCode).toBe(0);
+    expect(readFileSync(issue, "utf8")).toMatch(/^---\n[\s\S]*?\n---\n$/);
+  } finally { p.done(); }
+});
+
 test("create rejects empty provenance identities before writing an issue", () => {
   const p = project({}, true);
   try {

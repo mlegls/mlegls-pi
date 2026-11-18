@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_ihbpyrp6s2"
 ---
@@ -11,3 +11,27 @@ The same window (2026-11-16 16:06Z–16:31Z) also emptied mlegls-pi's [[reconcil
 
 1. `issues.ts update` (`skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts`): refuse a `--body-file` that is empty or whitespace-only when the issue's current body is non-empty, with an error naming the slug; an explicit `--allow-empty-body` permits it.
 2. Done when: tests show an empty and a whitespace-only body file refused over a non-empty body, the flag allowing it, and a non-empty replacement still written.
+
+## Result
+
+done. All four stories held. The vault checks the current body under its write lock, before writing either fields or body. All 32 tests in `issues.test.ts` passed; no repairs were needed.
+
+```yaml
+commit: 7cb6953a
+stories:
+  - {story: "Zero-byte file is refused and the original body survives", outcome: held}
+  - {story: "Whitespace-only file is refused and the original body survives", outcome: held}
+  - {story: "Non-empty replacement is written", outcome: held}
+  - {story: "--allow-empty-body clears the body and preserves front matter", outcome: held}
+evidence:
+  path: docs/attachments/tracker-update-can-wipe-an-issue-body/index.md
+  visual: false
+  shots: []
+tests:
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts
+filed: []
+caveats:
+  - "The driver exercised the local vault. On GitHub, an unforced blank update reads one tracker snapshot to check the body; that read and the subsequent update are separate operations."
+```
+
+Evidence: [docs/attachments/tracker-update-can-wipe-an-issue-body/index.md](../attachments/tracker-update-can-wipe-an-issue-body/index.md)
