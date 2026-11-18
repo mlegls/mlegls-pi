@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_ihbpyrp6s2"
 priority: 2
@@ -11,3 +11,26 @@ Observed 2026-11-18 in concept: `shorten-compact-capture-and-first-bodies-in-fre
 The catch-up merge (`31f43978`) merges missing enclosing-prerequisite commits but deliberately ignores sibling landings; a waits-on edge to a sibling that landed in the parent is the case it misses.
 
 Done when: a nested collector whose waits-on prerequisite has landed in its parent collector is caught up (fast-forward, or merge under lock with conflicts escalated) and the walk continues without a manual merge or restart.
+
+## Result
+
+done — The nested collector fast-forwarded to the parent’s landing, then launched the dependent at that same commit in one run. The existing conflict-escalation and retry checks passed. No repair needed.
+
+```yaml
+commit: 9060caac
+stories:
+  - story: A nested collector catches up a sibling prerequisite landed in its parent and continues the walk.
+    outcome: held
+evidence:
+  path: docs/attachments/nested-collector-misses-a-sibling-prerequisite-landed-in-its-parent/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/collector-catch-up.test.ts
+  - lib/reconcile/scheduling.test.ts
+filed: []
+caveats:
+  - The direct sibling-prerequisite replay exercised fast-forward. The existing descendant-prerequisite test exercised conflict escalation and retry through the same merge path.
+```
+
+Evidence: [docs/attachments/nested-collector-misses-a-sibling-prerequisite-landed-in-its-parent/index.md](../attachments/nested-collector-misses-a-sibling-prerequisite-landed-in-its-parent/index.md)
