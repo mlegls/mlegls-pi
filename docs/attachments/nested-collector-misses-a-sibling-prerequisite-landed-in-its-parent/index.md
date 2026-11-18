@@ -27,3 +27,7 @@ The script runs the reconciler CLI as the supervisor `thr_owner` against an isol
 **After (`9939a599`):** `merged collector into tree/dependent: prerequisite landed there`, then `launched dependent-implement-1` in the same run. The parent, nested collector and worker were all at `e1d4631a`.
 
 `bun test lib/reconcile/collector-catch-up.test.ts lib/reconcile/scheduling.test.ts`: 5 passed. The existing cases also exercised conflict escalation and retry, and retained the hold when the ledger delivery was into a sibling collector rather than the shared parent. `bun run typecheck` passed.
+
+## Review
+
+Replayed `45059be8`: `tree/dependent` advanced from `5b1cb0a2` to the parent’s `72c9d217`, then `dependent-implement-1` launched at `72c9d217` in the same run. The existing catch-up and scheduling checks passed, including conflict escalation and retry, and the hold for a landing recorded in a sibling collector. No repair needed.
