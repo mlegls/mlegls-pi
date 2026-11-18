@@ -26,3 +26,27 @@ Tested `bdf78cd1` in the linked driver worktree with Pi 1.5.2, an authenticated 
 ## Frictions
 
 The documented minimal launch leaves grep off; the direct `--tools grep` replay resolved it. The MCP comparison needed explicit scratch registration to distinguish an absent tool catalog from absent guidance. The missing guidance on the confirmed Chrome catalog is the ticket's acceptance gap; review can repeat the scratch launch without opening a page.
+
+## Review and re-drive
+
+The built-in MCP handler runs after the package's `before_agent_start` handler. It fills `mcp_servers` for indirect tools and waits for direct-tool connections. The previous prompt captured neither on first use. The repaired prompt reads the catalog at render time. The probe observed the actual provider payload, then exited before sending it. It did not open a browser page or native app.
+
+| First-turn setup | Worker: Chrome / CUA guidance | Interactive: Chrome / CUA guidance |
+| --- | --- | --- |
+| `--no-mcp` | absent / absent | absent / absent |
+| `-e builtin:mcp`, both configured for codemode | present / present | present / present |
+| `-e builtin:mcp`, Chrome only, direct registration | present / absent | present / absent |
+
+To replay, add a temporary `-e ./observe.ts -p probe` to the first-use launch. For the interactive persona, unset `PI_WM_HANDLE` and `PI_WM_ISSUE`. For the direct registration case, use a scratch `PI_CODING_AGENT_DIR` with an available model and no `mcp.json` (file entries override extension registrations); load the Chrome registration from the encounter above. Its active tool list included `mcp__chrome__click` and `mcp__chrome__close_page`.
+
+```ts
+export default pi => pi.on('before_provider_request', event => {
+  const request = JSON.stringify(event.payload);
+  console.log({ chrome: request.includes('drives a headless browser'), cua: request.includes('drives native apps') });
+  process.exit(0);
+});
+```
+
+**Preambles:** With `PI_AGENTS_DIR="$PWD/agents"`, called `lib/wm.ts`'s exported `prompt({run:'probe', handle:'probe', role, prompt:''})` for implement, drive and review. Each included its role's opening sentence. None contained the moved tracker path, reservation, close, canonical merge or browser-tool instructions.
+
+All seven claims now hold. The replay command includes `--tools +grep`; Pi reported grep active alongside codemode. The seven affected test files passed (60 tests), and `tsc --noEmit` passed. In ten local guard calls, a protected push averaged 13 ms for Git checkout/config resolution; a tracker path refusal averaged 0.1 ms.
