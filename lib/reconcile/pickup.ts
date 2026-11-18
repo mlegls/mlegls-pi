@@ -178,7 +178,8 @@ export function select(s: Pick<Pickup, "scope" | "settle" | "started">, rows: Ma
 	for (const row of rows.values()) {
 		const run = runs.get(row.slug);
 		// A stuck run owns its tree even when only a child (or only its private collector view) is ready.
-		const resumable = run?.status === "stuck" && !row.done && !row.archived && row.assignee !== "human"
+		const resumable = run?.status === "stuck" && !row.done && !row.archived
+			&& (row.assignee === null && row.ownStage === null || /^(?:agent$|agent:|model:)/.test(row.assignee ?? ""))
 			&& !ownClaims(row).some(c => c.claimedBy !== "reconcile:" + row.slug);
 		if ((!row.frontier && !resumable) || !inScope(row)) continue;
 		const up = ancestors(row.slug, rows);
