@@ -124,8 +124,10 @@ export function registerFragmentEditTool(pi: ExtensionAPI, deps: { sources: Outl
 				...input,
 				edits: input.edits.map(edit => {
 					if (!edit || typeof edit !== "object" || Array.isArray(edit)) return edit;
-					const { oldText, newText, ...rest } = edit;
-					return { ...rest, old: rest.old === undefined ? oldText : rest.old, new: rest.new === undefined ? newText : rest.new };
+					const { oldText, newText, old_string, new_string, ...rest } = edit;
+					if (rest.old === undefined) rest.old = oldText === undefined ? old_string : oldText;
+					if (rest.new === undefined) rest.new = newText === undefined ? new_string : newText;
+					return rest;
 				}),
 			} as Static<typeof parameters>;
 		},
