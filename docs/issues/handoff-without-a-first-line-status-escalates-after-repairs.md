@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_ihbpyrp6s2"
 ---
@@ -12,3 +12,33 @@ These are the four escalations @thread:thr_ihbpyrp6s2#msg=37365, #msg=37920, #ms
 1. Reconciler handoff parsing (`lib/reconcile/`): when the first line carries no status word, accept a report whose YAML block has one unambiguous `status:` value as that status, including a report whose first line is the YAML fence.
 2. When a repair is still needed, the nudge quotes the rejected first line.
 3. Done when: tests cover a YAML-only status accepted, a fence-first report accepted, and a missing or conflicting status still repaired with the quoted line.
+
+## Result
+
+done — Conflicting statuses across YAML blocks now keep the worker in `implement`. The repair quotes the rejected first line and names both statuses. All five stories held; 21 affected tests passed, and all fixture targets were stopped.
+
+```yaml
+commit: 472f56db
+stories:
+  - {story: YAML-only status after prose is accepted, outcome: held}
+  - {story: Fence-first YAML status is accepted, outcome: held}
+  - {story: Missing status triggers a repair quoting the first line, outcome: held}
+  - {story: Conflicting keys within one YAML block trigger a repair quoting the first line, outcome: held}
+  - {story: Conflicting statuses across YAML blocks trigger a repair quoting the first line, outcome: held}
+evidence:
+  path: docs/attachments/handoff-without-a-first-line-status-escalates-after-repairs/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/report.test.ts
+  - lib/reconcile/setup.test.ts
+  - extensions/guard/index.test.ts
+fixed:
+  - Checked status agreement across all handoff blocks while retaining the first payload.
+  - Labeled the fixture CLI’s immediate snapshot so operators know to check status for the processed outcome.
+filed: []
+caveats:
+  - The retained reconciler check starts two isolated offline targets; together they took 7 seconds.
+```
+
+Evidence: [docs/attachments/handoff-without-a-first-line-status-escalates-after-repairs/index.md](../attachments/handoff-without-a-first-line-status-escalates-after-repairs/index.md)

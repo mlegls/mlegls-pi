@@ -1,32 +1,25 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Value } from "typebox/value";
-import { applyFragmentEdits, registerFragmentEditTool, resolveSpan } from "./fragment";
+import { applyFragmentEdits, resolveSpan } from "./fragment";
+import { tryEdit } from "./fragment.fixture";
 import { treeSitterSource } from "./outline/treesitter";
 
 const src = "function a() {\n\treturn 1;\n}\n\nfunction b() {\n\treturn 1;\n}\n";
 
-test("edit argument preparation accepts oldText/newText aliases without overriding canonical fields", async () => {
-	const dir = await mkdtemp(join(tmpdir(), "frag-alias-"));
-	try {
-		let tool: any;
-		registerFragmentEditTool({ registerTool: (definition: any) => { tool = definition; } } as any, { sources: [] });
-		for (const edit of [
-			{ oldText: "hello", new: "world" },
-			{ old: "hello", newText: "world" },
-			{ oldText: "hello", newText: "world" },
-			{ old: "hello", new: "", oldText: "wrong", newText: "wrong" },
-		]) {
-			await writeFile(join(dir, "a.txt"), "hello\n");
-			const params = tool.prepareArguments({ edits: [{ path: "a.txt", ...edit }] });
-			expect(Value.Check(tool.parameters, params)).toBe(true);
-			await tool.execute("edit", params, undefined, undefined, { cwd: dir });
-			expect(await readFile(join(dir, "a.txt"), "utf8")).toBe((edit.new ?? edit.newText) + "\n");
-		}
-	} finally {
-		await rm(dir, { recursive: true, force: true });
+test("codemode edit accepts field aliases without overriding canonical fields", async () => {
+	for (const edit of [
+		{ oldText: "hello", new: "world" },
+		{ old: "hello", newText: "world" },
+		{ oldText: "hello", newText: "world" },
+		{ old_string: "hello", new_string: "world" },
+		{ old: "hello", new: "", oldText: "wrong", newText: "wrong" },
+	]) {
+		const args = JSON.stringify({ edits: [{ path: "sample.txt", ...edit }] });
+		const result = await tryEdit(`text(await tools.edit(${args}));`);
+		expect(result.report).toContain("sample.txt: 1 edit at 1");
+		expect(result.contents).toBe((edit.new ?? edit.newText ?? edit.new_string) + "\n");
 	}
 });
 
