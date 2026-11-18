@@ -27,6 +27,7 @@ export type Outcome =
 export interface SpawnOptions {
 	run: string; // names the run the worker belongs to, e.g. orch/1726 or orch/rework-auth
 	handle: string;
+	issue?: string; // launched issue, reserved until target landing
 	prompt: string;
 	model?: string; // routed provider/model; required, with effort
 	effort?: string;
@@ -109,12 +110,13 @@ export function prompt(o: { run: string; handle: string; prompt: string; agent?:
 	return [common(o.run, o.handle), role && fill(roleBody(role), o.run, o.handle), o.agent && fill(o.agent.body, o.run, o.handle), o.prompt].filter(Boolean).join("\n\n---\n\n");
 }
 
-/** Env exported into the worker's agent command: identity, spawn provenance, and the fence's checkpoint ratio. */
-export function spawnEnv(o: { run: string; handle: string; agent?: string; parentSession?: string; checkpoint?: string }): string[] {
+/** Env exported into the worker's agent command. */
+export function spawnEnv(o: { run: string; handle: string; issue?: string; agent?: string; parentSession?: string; checkpoint?: string }): string[] {
 	return [
 		o.agent && `PI_WM_AGENT=${o.agent}`,
 		`PI_WM_RUN=${o.run}`,
 		`PI_WM_HANDLE=${o.handle}`,
+		o.issue && `PI_WM_ISSUE=${o.issue}`,
 		o.parentSession && `PI_WM_PARENT_SESSION=${o.parentSession}`,
 		o.checkpoint && `PI_CHECKPOINT=${o.checkpoint}`,
 		process.env.PI_CODING_AGENT_DIR && `PI_CODING_AGENT_DIR=${process.env.PI_CODING_AGENT_DIR}`,
@@ -438,7 +440,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		} else if (o.from) {
 			throw new Error(`from must be "summary"; bb threads cannot fork a session`);
 		}
-		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
+		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, issue: o.issue, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
 		const options = { cwd, parent: o.parentThread, worktree: o.handle, base: o.base,
 			createThread: o.withOwner ? (create: (parent?: string) => Promise<string>) => o.withOwner!(owner => {
 				if (owner.session) env.PI_WM_PARENT_SESSION = owner.session;

@@ -27,8 +27,6 @@ Name under `caveats` any choice the change makes that buys something (isolation,
 
 Stop drive servers you started when finished, including on failure. Do not leave them running until branch integration.
 
-Do not close the execution ticket on this report or a collector landing; the reconciler closes with the result after code reaches its owner's target.
-
 End `done` only when every required story holds on your final head; otherwise `blocked` or `needs-input`. Handoff (fenced yaml): `stories` (each has `story` and exact `outcome: held` for done; qualifications go in `caveats`), `evidence` (complete object: `path` to the committed Markdown index under `docs/attachments/`, `visual` boolean, `shots` listing committed image paths, nonempty for visual journeys and `[]` otherwise), `tests` (paths of the test files encoding the checks, plus earlier ones you changed), `filed` (issue links), `redrive: true` only if you changed behavior the tests don't cover and a fresh driver should use it again, `caveats`. Repeat the full evidence object even when reusing the driver's unchanged packet; `updated: true` is not a substitute.
 
 Without a driver's packet (a standalone review), review the diff against its intended behavior and report blockers with `path:line` evidence, optional improvements separate.

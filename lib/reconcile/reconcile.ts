@@ -636,7 +636,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// frontier when agent-assigned; an explicit human or session assignee still refuses.
 		if (!tracker.githubIssue && issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
 		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
-			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], withOwner: async create => {
+			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], protectedIssue: issue?.slug, withOwner: async create => {
 				for (;;) {
 					try {
 						return await ownershipLock(controlCwd, async () => {
@@ -1247,7 +1247,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return raise(slug, "provider error: " + kind, text, issues, "owner");
 		}
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
-		if (r.status === null) return repair(slug, c, "status", "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first line, then the handoff.", issues, text);
+		// The worker guard asks for the status before bb publishes turn completion.
+		if (r.status === null) return raise(slug, "worker ended without a status", text, issues);
 		if (c.phase === "implement" && !c.self && r.handoff?.respec) {
 			c.retries.respec = (c.retries.respec ?? 0) + 1;
 			if (c.retries.respec > 1) return raise(slug, "respec after refinement", text, issues);

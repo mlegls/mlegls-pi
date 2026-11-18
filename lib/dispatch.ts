@@ -39,6 +39,8 @@ export interface Options {
   parentThread?: string;
   /** Library-only owner selection around bb creation; preparation remains outside. */
   withOwner?: SpawnOptions["withOwner"];
+  /** Library-only issue reservation for auxiliary phases that do not claim the issue's assignment. */
+  protectedIssue?: string;
   /** Parent-scoped budget, including active handles. */
   maxConcurrent: number;
   /** All still-outstanding workers supervised by this parent, across waves. */
@@ -140,7 +142,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     }
     try {
       const wm = await import("./wm.ts");
-      const worker = await wm.spawn({ run: options.run, handle: task.handle, prompt: task.prompt,
+      const worker = await wm.spawn({ run: options.run, handle: task.handle, issue: task.issue ?? options.protectedIssue, prompt: task.prompt,
         agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, parentThread: options.parentThread, session: options.session,
         withOwner: options.withOwner ? create => options.withOwner!(owner => { parent = owner.session; return create(owner); }) : undefined });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, bb: worker.bb });

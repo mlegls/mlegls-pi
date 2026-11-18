@@ -5,9 +5,98 @@
 // Workers also may not bypass a project's git hooks: drivers committed with `git -c core.hooksPath=/dev/null commit`, and the
 // commits escaped concept's pre-commit formatter (concept docs/attachments/worker-commits-escape-the-pre-commit-formatter).
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { homedir } from "node:os";
+import { basename, resolve } from "node:path";
 import { parse } from "../../lib/report.ts";
+import { checkout, git } from "../../lib/thread/git.ts";
 
-const KILL_BY_PATTERN = /(^|[\s;&|(`$])(pkill|killall)(\s|$)/;
+const TRACKER = "Use the global tracker: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts text <slug>` (also `fields`, `tree`).";
+const INTEGRATION = "Commit on your worker branch and report your handoff; your parent integrates and publishes it.";
+const MISSING_STATUS = "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first line, then the handoff.";
+const KILL = "pkill/killall match processes host-wide, including other sessions' workers. Stop processes you started by pid (kill <pid>), with the process tool, or with the checkout's own stop task.";
+
+// Read literal shell words and command boundaries; quoted prose stays inside its argument.
+function* commands(source: string): Generator<string[]> {
+	let argv: string[] = [];
+	for (const [token] of source.matchAll(/#[^\n]*|[;&|()\n]|(?:"(?:\\.|[^"\\])*"|'[^']*'|\\[\s\S]|[^\s"'\\;&|()])+/g)) {
+		if (/^[;&|()\n]$/.test(token)) {
+			if (argv.length) yield argv;
+			argv = [];
+		} else if (!token.startsWith("#")) {
+			argv.push(token.replace(/"((?:\\.|[^"\\])*)"|'([^']*)'|\\([\s\S])/g, (_, double, single, escaped) => double?.replace(/\\(["\\$`])/g, "$1") ?? single ?? escaped));
+		}
+	}
+	if (argv.length) yield argv;
+}
+
+function shellPath(cwd: string, path: string): string {
+	return resolve(cwd, path.replace(/^~(?=\/|$)/, homedir()).replace(/^\$(?:PWD|\{PWD\})(?=\/|$)/, cwd));
+}
+
+function issuePath(word: string, cwd: string): boolean {
+	const path = word.replace(/^(?:--[\w-]+=|[\w/.^~@-]+:|[<>]+)/, "");
+	return /(?:^|\/)docs\/issues(?:\/|$)/.test(shellPath(cwd, path));
+}
+
+function gitConfig(cwd: string, key: string): string | undefined {
+	try { return git(cwd, "config", "--get", key); } catch { return undefined; }
+}
+
+function integration(name: string, args: string[], cwd: string, worker: string): string | undefined {
+	if (name === "git") {
+		while (args[0]?.startsWith("-")) {
+			const flag = args.shift()!;
+			if (flag === "-C" && args.length) cwd = shellPath(cwd, args.shift()!);
+			else if (["-c", "--config-env"].includes(flag)) args.shift();
+		}
+		if (args[0] !== "merge" && args[0] !== "push") return;
+	} else if (name !== "ab" || args[0] !== "task" || args[1] !== "finish") return;
+
+	try {
+		const here = checkout(cwd);
+		if (name === "git" && args[0] === "merge") return here.worktree ? undefined : INTEGRATION;
+		const canonical = checkout(here.project).branch;
+		const target = gitConfig(cwd, `branch.${worker}.ab-parent`);
+		if (name === "ab") {
+			const into = gitConfig(cwd, `branch.${here.branch}.ab-parent`) ?? (args.includes("--into") ? args[args.indexOf("--into") + 1] : undefined);
+			if (!here.worktree || here.branch === worker || (canonical && into === canonical)) return INTEGRATION;
+			return;
+		}
+		const protectedBranches = [canonical, target].filter(Boolean);
+		const isProtected = (ref: string | undefined) => !!ref && protectedBranches.includes(ref.replace(/^refs\/heads\//, ""));
+		if (!protectedBranches.length) return;
+		const flags = args.slice(1);
+		if (flags.some(flag => ["--all", "--branches", "--mirror"].includes(flag))) return INTEGRATION;
+		const positionals = flags.filter((arg, i) => !arg.startsWith("-") && !["-o", "--push-option", "--receive-pack", "--exec", "--repo"].includes(flags[i - 1] ?? ""));
+		const refspecs = positionals.slice(flags.some(arg => arg === "--repo" || arg.startsWith("--repo=")) ? 0 : 1);
+		if (!refspecs.length) {
+			if (isProtected(here.branch) || gitConfig(cwd, "push.default") === "matching") return INTEGRATION;
+		} else if (refspecs.some(ref => {
+			const into = ref.replace(/^\+/, "").split(":").at(-1);
+			return ref === ":" || ref === "+:" || isProtected(into) || (into === "HEAD" && isProtected(here.branch));
+		})) return INTEGRATION;
+	} catch { /* No checkout at the command's working directory. */ }
+}
+
+function shellRefusal(source: string, start: string, worker?: string): string | undefined {
+	let cwd = start;
+	for (const argv of commands(source)) {
+		while (argv[0] && (/^\w+=/.test(argv[0]) || /^(?:command|env|exec|sudo|nohup|time|!|if|then|elif|else|while|until|do|\{)$/.test(argv[0]))) argv.shift();
+		const [path = "", ...args] = argv;
+		const name = basename(path);
+		if (name === "pkill" || name === "killall") return KILL;
+		if (["bash", "sh"].includes(name) && /^-[a-z]*c[a-z]*$/.test(args[0] ?? "")) {
+			const refusal = shellRefusal(args[1] ?? "", cwd, worker);
+			if (refusal) return refusal;
+		}
+		if (worker) {
+			if (argv.some(word => issuePath(word, cwd))) return TRACKER;
+			const refusal = integration(name, args, cwd, worker);
+			if (refusal) return refusal;
+			if (name === "cd" && args[0]) cwd = shellPath(cwd, args[0]);
+		}
+	}
+}
 
 /** The git hook bypasses a worker reaches for, in a shell command; the reason, or undefined. */
 export function hookBypass(command: string): string | undefined {
@@ -23,31 +112,36 @@ export function hookBypass(command: string): string | undefined {
 }
 
 export default function (pi: ExtensionAPI) {
-	const worker = !!process.env.PI_WM_HANDLE;
+	const worker = process.env.PI_WM_HANDLE;
 	// Correct the report before bb publishes this turn's completion. One
-	// follow-up per input leaves repeated refusal to the reconciler's budget.
+	// follow-up per input leaves a repeated failure visible to the parent.
 	let repairedHandoff = false;
 	pi.on("input", () => { repairedHandoff = false; });
 	pi.on("agent_end", (event, ctx) => {
 		if (!worker || repairedHandoff) return;
 		const last = event.messages.at(-1);
-		if (last?.role !== "assistant") return;
+		if (last?.role !== "assistant" || last.stopReason === "error" || last.stopReason === "aborted") return;
 		const text = last.content.filter(part => part.type === "text").map(part => part.text).join("\n");
 		const report = parse(text, ctx.cwd);
-		if (report.status !== "done" || !report.handoffError?.startsWith("Foreign commits ")) return;
+		const missing = report.status === null;
+		const content = missing ? MISSING_STATUS : report.status === "done" && report.handoffError?.startsWith("Foreign commits ") ? report.handoffError : undefined;
+		if (!content) return;
 		repairedHandoff = true;
-		pi.sendMessage({ customType: "commit-handoff", content: report.handoffError, display: false }, { deliverAs: "followUp" });
+		pi.sendMessage({ customType: missing ? "status-handoff" : "commit-handoff", content, display: false }, { deliverAs: "followUp" });
 	});
-	pi.on("tool_call", (event) => {
+	pi.on("tool_call", (event, ctx) => {
+		const input = event.input as { path?: unknown; command?: unknown; timeout?: unknown };
+		const cwd = ctx?.cwd ?? process.cwd();
+		if (worker && ["read", "grep"].includes(event.toolName) && typeof input.path === "string" &&
+			[...commands(input.path)].flat().some(word => issuePath(word, cwd))) return { block: true, reason: TRACKER };
 		if (event.toolName !== "bash" && event.toolName !== "process") return;
-		const input = event.input as { command?: unknown; timeout?: unknown };
 		// bash uses seconds; millisecond-shaped values have held workers for hours.
 		if (event.toolName === "bash" && typeof input.timeout === "number" && input.timeout > 1800)
 			return { block: true, reason: `bash timeout is in seconds: ${input.timeout} s is ${(input.timeout / 3600).toFixed(1)} h; the ceiling is 1800 s. Slow or streaming work goes through the process tool.` };
 		const command = String(input.command ?? "");
 		if (!command) return;
-		if (KILL_BY_PATTERN.test(command))
-			return { block: true, reason: "pkill/killall match processes host-wide, including other sessions' workers. Stop processes you started by pid (kill <pid>), with the process tool, or with the checkout's own stop task." };
+		const reason = shellRefusal(command, cwd, worker);
+		if (reason) return { block: true, reason };
 		const bypass = worker ? hookBypass(command) : undefined;
 		if (bypass) return { block: true, reason: "Workers don't bypass git hooks (" + bypass + "): they are the project's own checks, and commits that skip them escaped its formatter. Commit normally. If a hook is slow, run the commit as a managed process and wait for it; if it fails for reasons outside your change, report blocked with its output." };
 	});

@@ -1008,6 +1008,8 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   if (verb === "update" && !opts.size) throw new Error("update requires --fields and/or --body-file");
   const fields = opts.has("--fields") ? JSON.parse(opts.get("--fields")!) : {};
   if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw new Error("fields must be a JSON object");
+  if (slug === process.env.PI_WM_ISSUE && (verb === "close" || Object.hasOwn(fields, "claimed-by")))
+    throw new Error(`${slug} is reserved by your parent. Report your handoff; the reconciler closes the issue and clears its claim after target landing.`);
   const bodyFile = opts.get("--body-file");
   const body = bodyFile === undefined ? undefined : readFileSync(bodyFile === "-" ? 0 : resolve(process.cwd(), bodyFile), "utf8");
   if (github) {
