@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 author: "session:thr_pgvjgcnn5h"
 ---
@@ -15,3 +15,41 @@ author: "session:thr_pgvjgcnn5h"
 - The pkill/killall pattern matches inside quoted text: a `git commit -m` whose message contains the word followed by a space is refused. Match command position only, as `hookBypass` does per segment.
 
 Done when: a worker that trips each rule gets a refusal or follow-up that states the alternative; `agents/_common.md` no longer states the `claimed-by`, close, merge, `docs/issues/` or browser-tool rules; `agents/roles/implement.md`, `drive.md` and `review.md` no longer repeat the close and merge rules.
+
+## Result
+
+done. All seven stories hold. The first-turn prompt now picks up MCP namespaces after Pi resolves them. I verified the actual provider payload in worker and interactive sessions with MCP disabled, both namespaces configured, and only Chrome connected. All 60 affected tests and the typecheck passed.
+
+```yaml
+commit: fc8c5958
+stories:
+  - {story: Worker access to docs/issues redirects to the tracker CLI, outcome: held}
+  - {story: Canonical merge and task finish and target-branch push redirect to parent handoff, outcome: held}
+  - {story: Launched-issue claim and close are refused while provisional child claim is allowed, outcome: held}
+  - {story: Process guard distinguishes command position from commit-message text, outcome: held}
+  - {story: Missing status triggers one follow-up, outcome: held}
+  - {story: Browser guidance follows MCP namespace availability, outcome: held}
+  - {story: Moved rules disappear from common and role preambles, outcome: held}
+evidence:
+  path: docs/attachments/enforce-worker-preamble-rules-in-tooling/index.md
+  visual: false
+  shots: []
+tests:
+  - extensions/system-prompt/index.test.ts
+  - extensions/guard/index.test.ts
+  - lib/wm.test.ts
+  - lib/dispatch.test.ts
+  - lib/reconcile/status.test.ts
+  - lib/reconcile/retry.test.ts
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts
+fixed:
+  - Render browser guidance after MCP configuration and direct tools become visible.
+  - Enable grep in the first-use replay command.
+  - Restore the tracker reference left dangling by the preamble cut.
+filed: []
+caveats:
+  - Checking a protected push averaged 13 ms locally across ten calls for Git checkout and config resolution.
+  - CUA was verified as a configured namespace in the provider payload; no native app was launched.
+```
+
+Evidence: [docs/attachments/enforce-worker-preamble-rules-in-tooling/index.md](../attachments/enforce-worker-preamble-rules-in-tooling/index.md)
