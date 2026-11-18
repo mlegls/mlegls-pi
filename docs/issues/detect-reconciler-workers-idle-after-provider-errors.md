@@ -2,7 +2,6 @@
 stage: idea
 author: session:b8c305ef-a0b0-41ad-9c26-1a43247c6129
 ---
-
 A live pi process is not proof that its worker is progressing. Surface or recover an assistant turn ending with `stopReason: error` after a grace period, without treating a healthy long turn or normal idle after a report as dead.
 
 Concept's root supervisor (`mail/2d15485e`) observed on 2026-10-01, on pre-0be483a reconcilers:
@@ -32,3 +31,5 @@ So "retry: continue from the branch's existing work" is a false promise whenever
 ## Owner load from transient provider errors — arkhai-payments 2026-10-05..08
 
 Eleven provider-error exceptions reached the owner across six reconciler runs (WebSocket 1000/1006/1012, socket closed, Codex "error occurred", Anthropic overloaded), on gpt-6-luna, gpt-6.1-sol and claude-sonnet-5-5. Every one was resolved with a plain `retry`, and none needed judgment. A bounded automatic retry (for example, two attempts with backoff per node before escalating) would have removed all of them from the owner's queue.
+
+On 2026-11-18, Concept's [[projects/concept/issues/drive-a-tutor-judged-lesson-close]] worker @thread:thr_zy3vnrmqi8#msg=1354 committed its checkpoint, then BB emitted `Pi run interrupted unexpectedly; no automatic resume was attempted` (`provider/error` at seq 1357, failed turn at 1358, compaction completed at 1362). The worker was idle and the reconciler surfaced `worker ended without a status` to a handler. Detection worked; an environment retry from the clean committed head `12621b08e` is sufficient for the interruption. The BB error did not identify its cause.
