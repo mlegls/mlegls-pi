@@ -19,7 +19,7 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dispatch, findWorker, integrate, retire, stop, tell, topic, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
-import { parse } from "../report.ts";
+import { parse, statusRepairMessage } from "../report.ts";
 import { roleThread } from "../desk.ts";
 import { readTurn, type TurnRead, type TurnReport } from "../thread/turn.ts";
 import { decide } from "../decide.ts";
@@ -1246,9 +1246,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, "provider error: " + kind, text, issues, "owner");
 		}
+		if (r.status === null) return repair(slug, c, "status", statusRepairMessage(text, r.handoffError), issues, text);
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
-		// The worker guard asks for the status before bb publishes turn completion.
-		if (r.status === null) return raise(slug, "worker ended without a status", text, issues);
 		if (c.phase === "implement" && !c.self && r.handoff?.respec) {
 			c.retries.respec = (c.retries.respec ?? 0) + 1;
 			if (c.retries.respec > 1) return raise(slug, "respec after refinement", text, issues);
