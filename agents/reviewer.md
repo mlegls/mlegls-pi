@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Review of a single change against its contract; the default review.
-model: anthropic/claude-sonnet-5-5:high, openai/gpt-6.2-sol:high
+model: openai/gpt-6.2-astra:medium, anthropic/claude-sonnet-5-5:high, openai/gpt-6.2-sol:high
 role: review
 ---
 
