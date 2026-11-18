@@ -125,8 +125,11 @@ export function registerFragmentEditTool(pi: ExtensionAPI, deps: { sources: Outl
 				edits: input.edits.map(edit => {
 					if (!edit || typeof edit !== "object" || Array.isArray(edit)) return edit;
 					const { oldText, newText, old_string, new_string, ...rest } = edit;
-					if (rest.old === undefined) rest.old = oldText === undefined ? old_string : oldText;
-					if (rest.new === undefined) rest.new = newText === undefined ? new_string : newText;
+					// Leave missing fields absent so validation cannot coerce undefined into a deletion.
+					const oldAlias = oldText === undefined ? old_string : oldText;
+					const newAlias = newText === undefined ? new_string : newText;
+					if (rest.old === undefined && oldAlias !== undefined) rest.old = oldAlias;
+					if (rest.new === undefined && newAlias !== undefined) rest.new = newAlias;
 					return rest;
 				}),
 			} as Static<typeof parameters>;
