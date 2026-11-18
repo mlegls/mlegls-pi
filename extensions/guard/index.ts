@@ -46,7 +46,7 @@ export default function (pi: ExtensionAPI) {
 			return { block: true, reason: `bash timeout is in seconds: ${input.timeout} s is ${(input.timeout / 3600).toFixed(1)} h; the ceiling is 1800 s. Slow or streaming work goes through the process tool.` };
 		const command = String(input.command ?? "");
 		if (!command) return;
-		if (event.toolName === "bash" && KILL_BY_PATTERN.test(command))
+		if (KILL_BY_PATTERN.test(command))
 			return { block: true, reason: "pkill/killall match processes host-wide, including other sessions' workers. Stop processes you started by pid (kill <pid>), with the process tool, or with the checkout's own stop task." };
 		const bypass = worker ? hookBypass(command) : undefined;
 		if (bypass) return { block: true, reason: "Workers don't bypass git hooks (" + bypass + "): they are the project's own checks, and commits that skip them escaped its formatter. Commit normally. If a hook is slow, run the commit as a managed process and wait for it; if it fails for reasons outside your change, report blocked with its output." };
