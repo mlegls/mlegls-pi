@@ -71,6 +71,7 @@ if (import.meta.main) {
   else {
    if (command === "report") f.report(JSON.parse(payload!));
    if (command === "turn") f.turn(payload!);
+   if (command !== "status") console.error("Turn submitted. This snapshot can precede processing; use status ROOT to see the resulting phase or repair.");
    console.log(JSON.stringify(f.status(), null, 2));
   }
  } else console.log("new [--no-drive] | status ROOT | report ROOT SETUP_JSON | turn ROOT BODY | stop ROOT");
