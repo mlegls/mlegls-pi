@@ -11,6 +11,14 @@ export interface Report {
   body: string;
 }
 
+export function statusRepairMessage(text: string, error: string | null): string {
+  const first = text.split(/\r?\n/).find(line => line.trim());
+  const quoted = first === undefined ? "(empty report)" : JSON.stringify(first.length > 200 ? first.slice(0, 200) + "…" : first);
+  return "Your report has no unambiguous status. First nonblank line: " + quoted +
+    (error ? "\n" + error : "") +
+    "\nRepost with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first word, followed by the handoff. If the handoff also has `status:`, it must agree.";
+}
+
 // Refiners and respec implementers may report only their phase-specific seam.
 const keySet = new Set<string>([...HANDOFF_KEYS, "status", "children", "respec"]);
 const fencePattern = /^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(json|yaml|yml)[ \t]*\r?\n([\s\S]*?)^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(?=\r?$)/gim;
