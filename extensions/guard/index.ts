@@ -7,12 +7,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { homedir } from "node:os";
 import { basename, resolve } from "node:path";
-import { parse } from "../../lib/report.ts";
+import { parse, statusRepairMessage } from "../../lib/report.ts";
 import { checkout, git } from "../../lib/thread/git.ts";
 
 const TRACKER = "Use the global tracker: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts text <slug>` (also `fields`, `tree`).";
 const INTEGRATION = "Commit on your worker branch and report your handoff; your parent integrates and publishes it.";
-const MISSING_STATUS = "Your turn ended without a status. Continue the assignment; end with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first line, then the handoff.";
 const KILL = "pkill/killall match processes host-wide, including other sessions' workers. Stop processes you started by pid (kill <pid>), with the process tool, or with the checkout's own stop task.";
 
 // Read literal shell words and command boundaries; quoted prose stays inside its argument.
@@ -124,7 +123,7 @@ export default function (pi: ExtensionAPI) {
 		const text = last.content.filter(part => part.type === "text").map(part => part.text).join("\n");
 		const report = parse(text, ctx.cwd);
 		const missing = report.status === null;
-		const content = missing ? MISSING_STATUS : report.status === "done" && report.handoffError?.startsWith("Foreign commits ") ? report.handoffError : undefined;
+		const content = missing ? statusRepairMessage(text, report.handoffError) : report.status === "done" && report.handoffError?.startsWith("Foreign commits ") ? report.handoffError : undefined;
 		if (!content) return;
 		repairedHandoff = true;
 		pi.sendMessage({ customType: missing ? "status-handoff" : "commit-handoff", content, display: false }, { deliverAs: "followUp" });

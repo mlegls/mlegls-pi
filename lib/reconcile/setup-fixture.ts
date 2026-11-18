@@ -25,12 +25,13 @@ export function open(root: string) {
  const state = () => load(repo, "solo");
  const status = () => ({ root, phase: state()?.chains.solo?.phase, retries: state()?.chains.solo?.retries,
   exceptions: state()?.exceptions, threads: bb.threads().map(t => ({ title: t.title, prompt: t.prompt, tells: t.tells })) });
- const report = (setup: unknown) => {
+ const turn = (body: string) => {
   const handle = state()?.chains.solo?.handle;
   if (!handle) throw new Error("no worker ready");
-  bb.completeTurn(handle.path, "done\n\n" + "\x60\x60\x60json\n" + JSON.stringify({ setup }) + "\n\x60\x60\x60");
+  bb.completeTurn(handle.path, body);
  };
- return { root, repo, bb, state, status, report,
+ const report = (setup: unknown) => turn("done\n\n```json\n" + JSON.stringify({ setup }) + "\n```");
+ return { root, repo, bb, state, status, report, turn,
   ready: () => until(() => { const h = state()?.chains.solo?.handle; return h && bb.threads().some(t => t.environment === h.path) && h; }),
   close: async () => { if (state()) await stop(repo, "solo"); rmSync(root, { recursive: true, force: true }); } };
 }
@@ -60,12 +61,18 @@ if (import.meta.main) {
   console.log(JSON.stringify(f.status(), null, 2));
   console.log("Ready. Retained target: " + f.root);
   console.log("Use: bun lib/reconcile/setup-fixture.ts report " + f.root + " 'null'");
+  console.log("Or submit a raw report: bun lib/reconcile/setup-fixture.ts turn " + f.root + " BODY");
   console.log("Then: status " + f.root + " | report " + f.root + " '\"bun app.ts\"' | stop " + f.root);
- } else if (target && ["status", "report", "stop"].includes(command)) {
+ } else if (target && ["status", "report", "turn", "stop"].includes(command)) {
   const root = realpathSync(resolve(target));
   if (!root.startsWith("/tmp/rc-setup-")) throw new Error("expected an owned /tmp/rc-setup-* target");
   const f = open(root);
   if (command === "stop") await f.close();
-  else { if (command === "report") f.report(JSON.parse(payload!)); console.log(JSON.stringify(f.status(), null, 2)); }
- } else console.log("new [--no-drive] | status ROOT | report ROOT SETUP_JSON | stop ROOT");
+  else {
+   if (command === "report") f.report(JSON.parse(payload!));
+   if (command === "turn") f.turn(payload!);
+   if (command !== "status") console.error("Turn submitted. This snapshot can precede processing; use status ROOT to see the resulting phase or repair.");
+   console.log(JSON.stringify(f.status(), null, 2));
+  }
+ } else console.log("new [--no-drive] | status ROOT | report ROOT SETUP_JSON | turn ROOT BODY | stop ROOT");
 }

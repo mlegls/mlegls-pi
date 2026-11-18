@@ -32,3 +32,29 @@ test("setup repairs keep the implementer; CLI/browser entries launch drive; driv
   } finally { await f.close(); }
  } finally { process.env = saved; }
 }, 120_000);
+
+// The reconciler consumes structured statuses and returns rejected status lines to the same worker.
+test("reconciler admits YAML statuses and quotes rejected first lines", async () => {
+ const saved = { ...process.env };
+ const handoff = (status?: string) => "```yaml\n" + (status ? `status: ${status}\n` : "") + "setup: { entry: bun app.ts }\n```";
+ try {
+  for (const [rejectedLine, rejectedStatus, acceptedPrefix] of [
+   ["Work is ready.", undefined, "Work is ready.\n\n"],
+   ["done — committed", "blocked", ""],
+  ] as const) {
+   const f = await prepare();
+   try {
+    const first = await f.ready();
+    f.turn(rejectedLine + "\n\n" + handoff(rejectedStatus));
+    await until(() => f.state()?.chains.solo.retries.status === 1);
+    expect(f.state()!.chains.solo.phase).toBe("implement");
+    expect(f.state()!.exceptions).toEqual({});
+    expect(f.bb.threads().find(t => t.id === first.bb)!.tells.at(-1)).toContain(`First nonblank line: ${JSON.stringify(rejectedLine)}`);
+
+    f.turn(acceptedPrefix + handoff("done"));
+    await until(() => f.state()?.chains.solo.phase === "drive" && f.bb.threads().some(t => t.title.includes("-drive-")));
+    expect(f.state()!.exceptions).toEqual({});
+   } finally { await f.close(); }
+  }
+ } finally { process.env = saved; }
+}, 120_000);

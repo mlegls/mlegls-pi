@@ -11,11 +11,19 @@ export interface Report {
   body: string;
 }
 
+export function statusRepairMessage(text: string, error: string | null): string {
+  const first = text.split(/\r?\n/).find(line => line.trim());
+  const quoted = first === undefined ? "(empty report)" : JSON.stringify(first.length > 200 ? first.slice(0, 200) + "…" : first);
+  return "Your report has no unambiguous status. First nonblank line: " + quoted +
+    (error ? "\n" + error : "") +
+    "\nRepost with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first word, followed by the handoff. If the handoff also has `status:`, it must agree.";
+}
+
 // Refiners and respec implementers may report only their phase-specific seam.
 const keySet = new Set<string>([...HANDOFF_KEYS, "status", "children", "respec"]);
 const fencePattern = /^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(json|yaml|yml)[ \t]*\r?\n([\s\S]*?)^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(?=\r?$)/gim;
 
-function firstStatus(text: string, handoff: Record<string, unknown> | null): { status: Status | null; error: string | null } {
+function firstStatus(text: string, structuredStatuses: unknown[]): { status: Status | null; error: string | null } {
   const lines = text.split(/\r?\n/);
   const statusAt = (line: string): Status | null => {
     const token = line.trim().replace(/^(?:(?:>+\s*)|(?:#{1,6}\s*)|(?:[-+*]\s+)|(?:\*\*|__|\*|_))*/, "");
@@ -41,9 +49,10 @@ function firstStatus(text: string, handoff: Record<string, unknown> | null): { s
       candidates.push(candidate);
     }
   }
-  const handedOff = handoff?.status;
-  if (typeof handedOff === "string" && ["done", "blocked", "needs-input", "checkpoint", "waiting"].includes(handedOff.toLowerCase())) {
-    candidates.push(handedOff.toLowerCase() as Status);
+  for (const handedOff of structuredStatuses) {
+    if (typeof handedOff === "string" && ["done", "blocked", "needs-input", "checkpoint", "waiting"].includes(handedOff.toLowerCase())) {
+      candidates.push(handedOff.toLowerCase() as Status);
+    }
   }
   const unique = [...new Set(candidates)];
   return unique.length > 1
@@ -53,7 +62,7 @@ function firstStatus(text: string, handoff: Record<string, unknown> | null): { s
 
 type HandoffBlock = { value: Record<string, unknown>; start: number; end: number } | { error: string };
 
-function handoffBlock(text: string): HandoffBlock | null {
+function* handoffBlocks(text: string): Generator<HandoffBlock> {
   fencePattern.lastIndex = 0;
   for (const match of text.matchAll(fencePattern)) {
     const fence = match[2];
@@ -65,11 +74,12 @@ function handoffBlock(text: string): HandoffBlock | null {
       if (match[3].toLowerCase() === "json") value = JSON.parse(match[4]);
       else {
         const document = parseDocument(match[4]);
-        if (document.errors.length) return { error: document.errors.map(error => error.message).join("; ") };
+        if (document.errors.length) throw document.errors[0];
         value = document.toJS();
       }
     } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
+      yield { error: error instanceof Error ? error.message : String(error) };
+      continue;
     }
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
     const record = value as Record<string, unknown>;
@@ -79,23 +89,27 @@ function handoffBlock(text: string): HandoffBlock | null {
     let end = start + match[0].length;
     if (text.slice(end).startsWith("\r\n")) end += 2;
     else if (text[end] === "\n") end++;
-    return { value: record, start, end };
+    yield { value: record, start, end };
   }
-  return null;
 }
 
 export function parse(text: string, cwd?: string): Report {
-  const result = handoffBlock(text);
-  const block = result && "value" in result ? result : null;
+  const results = [...handoffBlocks(text)];
+  const blocks = results.filter(result => "value" in result);
+  const block = blocks[0];
   const body = block ? text.slice(0, block.start) + text.slice(block.end) : text;
-  // Keep a non-status placeholder so removing a leading handoff cannot promote
-  // later prose to the message's first word; its scalar values aren't sentinels.
-  const statusText = block ? text.slice(0, block.start) + "```\n" + text.slice(block.end) : text;
-  const parsedStatus = firstStatus(statusText, block?.value ?? null);
+  // Keep the first payload, but check every handoff's status. Fence placeholders
+  // prevent a scalar or later prose from becoming a first-word sentinel.
+  let statusText = "", end = 0;
+  for (const block of blocks) {
+    statusText += text.slice(end, block.start) + "```\n";
+    end = block.end;
+  }
+  const parsedStatus = firstStatus(statusText + text.slice(end), blocks.map(block => block.value.status));
   return {
     status: parsedStatus.status,
     handoff: block?.value ?? null,
-    handoffError: result && "error" in result ? result.error : parsedStatus.error ??
+    handoffError: results.find(result => "error" in result)?.error ?? parsedStatus.error ??
       (cwd && block ? commitHandoffError(cwd, block.value, text) ?? null : null),
     body,
   };
