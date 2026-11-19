@@ -1,1 +1,1 @@
-Use curl or `exa-cli` for accessing web content.
+Use curl or `monid` (its skill) for web content and search.
