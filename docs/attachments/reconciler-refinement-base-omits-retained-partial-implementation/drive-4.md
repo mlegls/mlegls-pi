@@ -22,3 +22,9 @@ Tested revision: `7fd5ba32`. Surface: local reconciler replay as owner in fake B
 
 Friction: the startup-refinement output gives a cumulative `spawns` count next to `phase: refine`; the count alone does not distinguish the old implementer from the new refiner. The 5,000-card case stops before the separate browser checkpoint, as specified.
 
+## Review replay
+
+All four predictions held on `20beca54`. The replay now prints worker titles: strand tags spawned one implementer at `2108745e1`; startup refinement spawned `root/startup-refinement-implement-1` followed by `root/startup-refinement-refine-2`, ending at `6ad8b41d` with the checkpoint present. Both conflicts listed four paths and `spawnedWorkers: []`. The 5,000-card retry started at `3ede6f0a7`. An answer targeting the root instead of the Card-to-Problem node left its exception pending and spawned nothing; answering on the node then started its implementer at `022f159e4`. Both resolutions ended with `ownerExceptions: 1`.
+
+The three commands took 1m 28s. Existing launch-recovery, landing, resume, stop, retry, exceptions and refinement checks passed (20 tests total).
+

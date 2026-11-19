@@ -1,11 +1,11 @@
 // Drive the reconciler's phase start against Concept's historical commit objects.
 // The tracker, branches, ledger, BB threads and written Git objects are all scratch state.
-import { chmodSync, writeFileSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { git, isAncestor } from "../../../lib/reconcile/checks";
 import { resolveException, start, stop } from "../../../lib/reconcile/main";
 import { protocolFixture } from "../../../lib/reconcile/protocol-fixture";
-import { load, saveState, type State } from "../../../lib/reconcile/reconcile";
+import { load, resolutionsDir, saveState, type State } from "../../../lib/reconcile/reconcile";
 import { until } from "../../../lib/reconcile/setup-fixture";
 
 const cases = [
@@ -69,7 +69,8 @@ for (const row of cases.filter(row => !selector || row.name === selector)) {
 		}
 		const chain = () => state().chains[row.name];
 		const exception = () => state().exceptions[row.name];
-		const spawns = () => f.bb.calls().filter(call => call[0] === "thread" && call[1] === "spawn").length;
+		const spawnedWorkers = () => f.bb.calls().filter(call => call[0] === "thread" && call[1] === "spawn")
+			.map(call => call[call.indexOf("--title") + 1]);
 		if (row.respec) {
 			const initial = await wait(() => chain()?.handle ?? exception());
 			if (!("path" in initial)) throw new Error(initial.text);
@@ -78,15 +79,20 @@ for (const row of cases.filter(row => !selector || row.name === selector)) {
 		}
 		const observed = () => {
 			const ex = exception(), c = chain();
-			if (ex) return { phase: c.phase, spawns: spawns(), level: ex.level, reason: ex.reason, ...ex.baseConflict };
+			if (ex) return { phase: c.phase, spawnedWorkers: spawnedWorkers(), level: ex.level, reason: ex.reason, ...ex.baseConflict };
 			if (!c?.handle || c.launching || row.respec && c.phase !== "refine") return;
 			const head = f.git(c.handle.path, "rev-parse", "HEAD");
-			return { phase: c.phase, spawns: spawns(), head, containsRequirement: isAncestor(f.cwd, required, head) };
+			return { phase: c.phase, spawnedWorkers: spawnedWorkers(), head, containsRequirement: isAncestor(f.cwd, required, head) };
 		};
 		const first = await wait(observed);
 		console.log(JSON.stringify({ case: row.name, ...first }, null, 2));
 		if (resolution && exception()?.baseConflict) {
 			await wait(() => exception()?.mailed);
+			if (row.name === "card-to-problem" && resolution === "answer") {
+				resolveException(f.cwd, "root", row.name, { action: "answer", target: "root" });
+				await wait(() => !existsSync(join(resolutionsDir(f.cwd, "root"), row.name + ".json")));
+				console.log(JSON.stringify({ case: row.name, wrongTargetHeld: !!exception()?.baseConflict, spawnedWorkers: spawnedWorkers() }));
+			}
 			if (resolution === "retry" && !row.handMerge) throw new Error("No historical hand merge for this case; use answer.");
 			resolveException(f.cwd, "root", row.name, { action: resolution, ...(resolution === "retry" ? { commit: row.handMerge } : {}) });
 			const released = await wait(() => !exception() && observed());
