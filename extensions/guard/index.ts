@@ -10,7 +10,7 @@ import { basename, resolve } from "node:path";
 import { parse, statusRepairMessage } from "../../lib/report.ts";
 import { checkout, git } from "../../lib/thread/git.ts";
 
-const TRACKER = "Use the global tracker: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts text <slug>` (also `fields`, `tree`).";
+const TRACKER = "Use the global tracker: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts text <slug|attachments/file.md>` (also `update`, `fields`, `tree`).";
 const INTEGRATION = "Commit on your worker branch and report your handoff; your parent integrates and publishes it.";
 const KILL = "pkill/killall match processes host-wide, including other sessions' workers. Stop processes you started by pid (kill <pid>), with the process tool, or with the checkout's own stop task.";
 

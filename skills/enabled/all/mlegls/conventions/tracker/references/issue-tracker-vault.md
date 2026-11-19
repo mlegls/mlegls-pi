@@ -115,7 +115,9 @@ printf '%s\n' 'The child'\''s goal and shape.' | bun "$PI_SKILL_DIR/scripts/issu
 printf '%s\n' 'The parent'\''s goal and shape, with its tasks.' | bun "$PI_SKILL_DIR/scripts/issues.ts" update example-parent --fields '{"stage":"ticket","priority":null}' --body-file -
 ```
 
-Writes validate the resulting global tracker before publication and commit only touched canonical issue paths for persistence, never unrelated staged files. The commit runs in a detached persister outside the caller's process group: a write whose command timed out or was killed after the working-tree write still commits, so check `git log` on the issue before retrying. Persistence waits out an index lock a live Git holds and removes one only when it is over 30s old with no live holder, naming it on stderr. This is not permission to commit unrelated canonical files. `remove` is reserved for owned provisional children, not general triage. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.
+`check` prints tracker attachment locators as `issues/attachments/<file>.md`. Use `text <locator>` to read one or `update <locator> --body-file <path|->` to replace the entire Markdown file. The `issues/` prefix and `.md` extension are optional. Attachment updates are for existing files and use no issue fields.
+
+Writes validate the resulting global tracker before publication and commit only touched canonical tracker paths, never unrelated staged files. The commit runs in a detached persister outside the caller's process group: a write whose command timed out or was killed after the working-tree write still commits, so check `git log` on the issue before retrying. Persistence waits out an index lock a live Git holds and removes one only when it is over 30s old with no live holder, naming it on stderr. This is not permission to commit unrelated canonical files. `remove` is reserved for owned provisional children, not general triage. Archiving still uses the move and `check --fix` procedure above in the canonical vault; there is no archive verb.
 
 ## procedure
 

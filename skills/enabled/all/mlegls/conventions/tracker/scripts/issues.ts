@@ -158,6 +158,17 @@ function validSlug(slug: string): string {
   return slug;
 }
 
+function attachmentFile(dir: string, locator: string): string {
+  const parts = locator.split("/");
+  if (parts[0] !== "attachments" || parts.length < 2 || parts.slice(1).some(part => !part || part === "." || part === "..") || /[\\\x00-\x1f]/.test(locator))
+    throw new Error("invalid attachment locator: " + locator);
+  const file = join(dir, locator.endsWith(".md") ? locator : locator + ".md");
+  // Only existing Markdown files in the canonical vault, never aliases to other paths.
+  if (!existsSync(file) || realpathSync(file) !== file || !statSync(file).isFile())
+    throw new Error("not a tracker attachment: " + locator);
+  return file;
+}
+
 function issueFor(slug: string, all: Map<string, Issue>): Issue {
   validSlug(slug);
   const i = all.get(slug);
@@ -398,8 +409,17 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
 /** A provenance whose `<kind>:` prefix names no identity (`session:`). `check` names existing ones and queries still load them; writing a new one is refused. */
 const emptyIdentity = (author: unknown): boolean => typeof author === "string" && /^[^:]+:\s*$/.test(author);
 
-function refuseBodyWipe(slug: string, current: string) {
-  if (contract(current).body.trim()) throw new Error(`${slug}: refusing to replace a non-empty body with a blank one; use --allow-empty-body to clear it`);
+function refuseBodyWipe(locator: string, currentBody: string) {
+  if (currentBody.trim()) throw new Error(`${locator}: refusing to replace a non-empty body with a blank one; use --allow-empty-body to clear it`);
+}
+
+async function updateAttachment(dir: string, locator: string, body: string, checkForBodyWipe: boolean): Promise<void> {
+  await persist(withVaultLock(dir, () => {
+    const file = attachmentFile(dir, locator);
+    const current = readFileSync(file, "utf8");
+    if (checkForBodyWipe) refuseBodyWipe(locator, current);
+    if (body !== current) return publish(dir, new Map([[file, body]]), "tracker: update " + locator);
+  }));
 }
 
 async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body: string | undefined, summary: string | undefined, evidence: string | undefined, checkForBodyWipe: boolean): Promise<void> {
@@ -423,7 +443,7 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
         if ("author" in fields && existing.author !== undefined && fields.author !== existing.author) throw new Error("author provenance is immutable");
         if (fields.author !== existing.author && emptyIdentity(fields.author)) throw new Error("author must be a nonempty provenance string");
         const current = readFileSync(i.file, "utf8");
-        if (checkForBodyWipe) refuseBodyWipe(slug, current);
+        if (checkForBodyWipe) refuseBodyWipe(slug, contract(current).body);
         changes.set(i.file, replaceContract(current, storageFields(fields, dir, all), body));
       } else if (cmd === "close") {
         if (i.archived) throw new Error("close requires a live issue");
@@ -794,7 +814,8 @@ function checkLinks(docs: string, issuesDir: string, say: (s: string) => void, r
     const raw = changes.get(f) ?? readFileSync(f, "utf8");
     const text = maskMarkdownCode(raw);
     const edits = new Map<number, { end: number; replacement: string; message: string }>();
-    const rel = relative(docs, f);
+    const issuePath = relative(issuesDir, f).replaceAll(sep, "/");
+    const rel = issuePath.startsWith("attachments/") ? "issues/" + issuePath : relative(docs, f);
     const link = WIKILINK;
     for (const masked of text.matchAll(link)) {
       // Masking finds live links; their text comes from the source, so code spans inside a live anchor survive.
@@ -987,7 +1008,9 @@ if (verb === "__persist") {
 const github = findIssuesDir(process.cwd(), false) ? undefined : (await import("../../../../../../../lib/tracker-github.ts")).getGithubTracker(process.cwd());
 if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   const slug = rawArgs[1];
-  if (!slug || slug.startsWith("--")) throw new Error(verb + " requires an issue slug");
+  if (!slug || slug.startsWith("--")) throw new Error(verb + (verb === "text" || verb === "update" ? " requires an issue slug or attachment locator" : " requires an issue slug"));
+  const attachment = !github && (verb === "text" || verb === "update") && /^(?:issues\/)?attachments\//.test(slug)
+    ? slug.replace(/^issues\//, "") : undefined;
   const opts = new Map<string, string>();
   for (let n = 2; n < rawArgs.length; n++) {
     const key = rawArgs[n];
@@ -1009,14 +1032,14 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
     const dir = findIssuesDir(process.cwd());
     const all = load(dir);
     validateGraph(all);
-    const i = issueFor(slug, all);
-    if (verb === "text") process.stdout.write(readFileSync(i.file, "utf8"));
-    else console.log(JSON.stringify(fieldsOf(i), null, 2));
+    if (verb === "text") process.stdout.write(readFileSync(attachment ? attachmentFile(dir, attachment) : issueFor(slug, all).file, "utf8"));
+    else console.log(JSON.stringify(fieldsOf(issueFor(slug, all)), null, 2));
     return;
   }
   if (verb === "create" && (!opts.has("--fields") || !opts.has("--body-file"))) throw new Error("create requires --fields and --body-file");
   if (opts.has("--allow-empty-body") && !opts.has("--body-file")) throw new Error("--allow-empty-body requires --body-file");
   if (verb === "update" && !opts.size) throw new Error("update requires --fields and/or --body-file");
+  if (attachment && (opts.has("--fields") || !opts.has("--body-file"))) throw new Error("attachment updates require --body-file and do not accept --fields");
   const fields = opts.has("--fields") ? JSON.parse(opts.get("--fields")!) : {};
   if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw new Error("fields must be a JSON object");
   if (slug === process.env.PI_WM_ISSUE && (verb === "close" || Object.hasOwn(fields, "claimed-by")))
@@ -1027,11 +1050,13 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   if (github) {
     if (verb === "create") console.log(github.create({ slug, fields, body: body! }));
     else if (verb === "update") {
-      if (checkForBodyWipe) refuseBodyWipe(slug, github.text(slug));
+      if (checkForBodyWipe) refuseBodyWipe(slug, contract(github.text(slug)).body);
       github.update(slug, fields, body);
     }
     else if (verb === "close") github.close(slug, { summary: opts.get("--summary"), evidence: opts.get("--evidence") });
     else github.remove(slug);
+  } else if (attachment) {
+    await updateAttachment(findIssuesDir(process.cwd()), attachment, body!, checkForBodyWipe);
   } else {
     await mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"), checkForBodyWipe);
     if (verb === "create") console.log(slug);
@@ -1163,7 +1188,7 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues text|show <slug> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|- [--allow-empty-body]] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
+    console.log("usage: issues text|show <slug|attachments/file.md> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|- [--allow-empty-body]] | update attachments/file.md --body-file path|- [--allow-empty-body] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
     process.exitCode = 2;
 }
 }
