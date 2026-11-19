@@ -19,3 +19,7 @@ Tested revision: `ab55a16d`. From the checkout root, run `bash docs/attachments/
 | In a fresh disposable clone and linked worker with the same seed, run `update issues/attachments/browser-replay-rulings/study.md --fields '{"claimed-by":"session:attachment-drive-probe"}'`. | Met: exit 1, “attachment updates require --body-file and do not accept --fields.” Canonical HEAD stayed at the seed and both working trees remained clean. This checks that the attachment update route cannot set issue metadata. |
 
 No blocking friction in the CLI journey. The direct-open refusal uses the generic `<slug>` hint; the path emitted by `check` worked verbatim.
+
+## Review replay
+
+Replayed `drive.sh` at `f62eda91`: the nested locator worked unchanged, the canonical commit touched only `study.md`, the worker stayed clean, and the recheck counted zero findings for that packet. The guard hook loaded from this revision blocked a direct attachment read and suggested `text <slug|attachments/file.md>`; the slug-only hint seen in the first drive is already corrected. The 49 existing guard, tracker CLI, persistence, and GitHub adapter checks passed.
