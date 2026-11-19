@@ -92,8 +92,12 @@ export async function stop(cwd: string, root: string) {
 	// Retirement kept each unfinished worker's branch (with a WIP commit of what it left uncommitted): a restart
 	// continues each node from there.
 	const resume = resumeRecords(s, cwd);
+	for (const [node, ex] of Object.entries(s.exceptions)) if (ex.baseConflict) delete resume[node];
 	const stopped = updateState(cwd, root, prior => ({
-		...prior!, chains: {}, exceptions: {}, resume, pid: undefined, stopping: undefined, finished: "stopped", finishedAt: undefined,
+		...prior!, resume, pid: undefined, stopping: undefined, finished: "stopped", finishedAt: undefined,
+		// Stopping retires workers, but a conflict already sent to the owner still awaits their decision.
+		chains: Object.fromEntries(Object.entries(s.chains).filter(([node]) => s.exceptions[node]?.baseConflict)),
+		exceptions: Object.fromEntries(Object.entries(s.exceptions).filter(([, ex]) => ex.baseConflict)),
 		log: [...prior!.log, new Date().toISOString().slice(0, 19) + " stopped; retired workers and handlers, kept collectors"].slice(-400),
 	}));
 	return { ...summary({ ...stopped, running: false }), retired };

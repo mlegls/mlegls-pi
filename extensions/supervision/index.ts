@@ -90,6 +90,7 @@ export default function (pi: ExtensionAPI) {
 			action: Type.Union([Type.Literal("answer"), Type.Literal("retry"), Type.Literal("redispatch"), Type.Literal("move-out"), Type.Literal("skip-drive"), Type.Literal("reopen"), Type.Literal("accept"), Type.Literal("red-repair")]),
 			adopt: Type.Optional(Type.Boolean({ description: "Only retry: explicitly adopt owned provisional refinement children; checkpoint already adopts" })),
 			checkout: Type.Optional(Type.String({ description: "Absolute loaded checkout for a foreign-commit hold; retry reruns ancestry" })),
+			commit: Type.Optional(Type.String({ description: "Commit ID to adopt in the next launch (answer, retry or redispatch). For a launch conflict, retry with a merged commit containing the base and requirement, or answer without a commit to waive it." })),
 			target: Type.Optional(Type.String()), message: Type.Optional(Type.String()), note: Type.Optional(Type.String()), summary: Type.Optional(Type.String()),
 		}),
 		run: (p, ctx) => { const { issue, node, ...resolution } = p; resolveException(ctx.cwd, issue, node, resolution); return { queued: true }; },

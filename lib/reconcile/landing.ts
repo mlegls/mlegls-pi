@@ -2,12 +2,11 @@ import { execFileSync } from "node:child_process";
 import { basename } from "node:path";
 import { git } from "./checks";
 
-/** Probe without changing either checkout; the caller holds the integration lock. */
-export function landingConflict(cwd: string, target: string, head: string): string | undefined {
+/** Write a tree without changing refs, the index or either checkout. */
+export function mergeTree(cwd: string, target: string, head: string): { tree: string } | { files: string[] } {
 	let output: string;
 	try {
-		git(cwd, "merge-tree", "--write-tree", "--name-only", "-z", target, head);
-		return;
+		return { tree: git(cwd, "merge-tree", "--write-tree", "--name-only", "-z", target, head).split("\0")[0] };
 	} catch (e: any) {
 		// Exit 1 means conflicts; other failures (unsupported Git, missing refs) must not look like a clean probe.
 		if (e.status !== 1) throw e;
@@ -17,8 +16,13 @@ export function landingConflict(cwd: string, target: string, head: string): stri
 	const files = output.split("\0").slice(1);
 	const end = files.indexOf("");
 	if (end < 0) throw new Error("Invalid merge-tree conflict output");
-	const base = git(cwd, "merge-base", target, head);
-	return conflictDetails(cwd, target, base, files.slice(0, end));
+	return { files: files.slice(0, end) };
+}
+
+/** Probe without changing either checkout; the caller holds the integration lock. */
+export function landingConflict(cwd: string, target: string, head: string): string | undefined {
+	const merge = mergeTree(cwd, target, head);
+	if ("files" in merge) return conflictDetails(cwd, target, git(cwd, "merge-base", target, head), merge.files);
 }
 
 export function conflictDetails(cwd: string, target: string, base: string, files: string[]): string {

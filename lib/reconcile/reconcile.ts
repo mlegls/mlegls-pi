@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { dispatch, findWorker, integrate, retire, stop, tell, topic, type Handle } from "../dispatch.ts";
 import { agent as stance, byRole } from "../agents.ts";
 import { parse, statusRepairMessage } from "../report.ts";
+import { commitIds } from "../commit-handoff.ts";
 import { roleThread } from "../desk.ts";
 import { readTurn, type TurnRead, type TurnReport } from "../thread/turn.ts";
 import { decide } from "../decide.ts";
@@ -28,6 +29,7 @@ import { readLive } from "../session-meta/live";
 import { bbThreads, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
+import { advanceLaunchBase, commitRef, conflictKey, landedRequirements, type LaunchConflict } from "./launch-base.ts";
 import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands, setupError } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
@@ -101,9 +103,20 @@ const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3
 const CLEANUP_FAILED = "landing cleanup failed";
 const DELIVERED_ACTIVE = "active chain after recorded landing";
 const FOREIGN_COMMIT = "foreign implementation not installed";
+const LAUNCH_CONFLICT = "launch base conflicts with required work";
 
 
 type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
+interface PhaseLaunch {
+	phase: Phase;
+	extra: string;
+	adopt: boolean;
+	resumeAttempt?: string;
+	finished: boolean;
+	/** Collector base for a join or promoted refinement, rather than the previous worker's head. */
+	from?: string;
+	base?: string;
+}
 interface Chain {
 	/** Exact provisional attempt, independent of the report cursor. */
 	refinement?: string;
@@ -117,6 +130,8 @@ interface Chain {
 	launching?: string;
 	/** Phase the saved launch starts; c.phase stays the running worker's until its successor's handle is saved. */
 	launchPhase?: Phase;
+	/** Continue the intended transition after a prelaunch hold, including if the run restarts. */
+	pendingLaunch?: PhaseLaunch;
 	launchedAt?: number;
 	/** ts of the last report acted on. */
 	handledTs?: string;
@@ -161,6 +176,7 @@ interface Exception {
 	mailed?: boolean;
 	/** ts of the report that raised it: an answer consumes only up to here, so a report that arrived while held still counts. */
 	reportTs?: string;
+	baseConflict?: LaunchConflict;
 }
 export interface State extends GlobalRunState {
 	backend: "threads";
@@ -174,6 +190,11 @@ export interface State extends GlobalRunState {
 	chains: Record<string, Chain>;
 	/** Implementation admission survives chain replacement and restart; replaying a saved handle costs no new attempt. */
 	implementationLaunches?: Record<string, { base: string; prerequisites: string; handles: string[] }[]>;
+	/** Closing a blocker removes the global issue edge. Keep the edges this run saw. */
+	launchBlockers?: Record<string, string[]>;
+	/** Named checkpoint commits and their source refs, surviving supersession and stop. */
+	launchCheckpoints?: Record<string, Record<string, string>>;
+	launchWaivers?: Record<string, string[]>;
 	exceptions: Record<string, Exception>;
 	/** Test files each branch's integrations must keep passing. */
 	tests: Record<string, string[]>;
@@ -440,7 +461,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const inherited = new Set(Object.entries(s.landed)
 			.filter(([, entry]) => entry.into !== logicalInto && isAncestor(pathOf(logicalInto), entry.head))
 			.map(([slug]) => slug));
-		return schedulingView(snapshot(), { root: s.root, into: logicalInto, landed: s.landed, inherited,
+		const rows = snapshot();
+		let changed = false;
+		for (const row of rows.values()) {
+			if (!row.blockedBy.length || (row.slug !== s.root && !under(row, rows))) continue;
+			const before = s.launchBlockers?.[row.slug] ?? [];
+			const after = [...new Set([...before, ...row.blockedBy])];
+			if (before.length !== after.length) { (s.launchBlockers ??= {})[row.slug] = after; changed = true; }
+		}
+		if (changed) save();
+		return schedulingView(rows, { root: s.root, into: logicalInto, landed: s.landed, inherited,
 			attemptClaims: new Set([...attempts.map(a => a.claim), ...Object.keys(s.workerSessions ?? {}).map(id => "session:" + id)]),
 			withheld: new Set(attempts.flatMap(a => a.owned)), explicit: true });
 	};
@@ -693,17 +723,52 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		same.handles.push(handle); save();
 		return true;
 	}
+	function keepCheckpoint(slug: string, head: string, ref: string) {
+		((s.launchCheckpoints ??= {})[slug] ??= {})[head] = ref;
+	}
+	function keepReportedCheckpoints(slug: string, h: Handle, commit: unknown) {
+		const declared = commitIds(JSON.stringify(commit ?? ""));
+		if (!declared.length) return;
+		const ref = "refs/heads/" + h.handle;
+		const tip = commitRef(controlCwd, ref);
+		if (!tip) return;
+		for (const id of declared) {
+			const head = commitRef(controlCwd, id);
+			if (head && isAncestor(controlCwd, head, tip)) keepCheckpoint(slug, head, ref);
+		}
+	}
 	/** finished words the retirement notice. */
-	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false) {
+	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false, from?: string) {
+		const plan = c.pendingLaunch ?? { phase, extra, adopt, resumeAttempt, finished, from };
+		({ phase, extra, adopt, resumeAttempt, finished, from } = plan);
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
 		const prev = c.handle?.handle === c.launching ? undefined : c.handle;
 		if (prev && existsSync(prev.path)) { await stop(prev, { cwd: pathOf(c.into) }); saveWip(prev); }
 		// A retired worker (keepBranch) leaves no worktree but its branch still holds the chain's work so far.
 		const kept = (h: Handle) => { try { return git(pathOf(c.into), "rev-parse", "--verify", "-q", "refs/heads/" + h.handle); } catch { return ""; } };
-		const base = (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || c.resumeFrom || git(pathOf(c.into), "rev-parse", "HEAD");
+		// A registered worker already launched; adopt its receipt even if prerequisites have changed since dispatch.
+		const registered = c.launching ? await findWorker({ run: s.root, handle: c.launching }, controlCwd) : undefined;
+		let base = plan.base ?? (from ? git(from, "rev-parse", "HEAD")
+			: (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || c.resumeFrom || git(pathOf(c.into), "rev-parse", "HEAD"));
+		if (!registered) {
+			const requirements = landedRequirements(stateDir(controlCwd), s.root, s, s.launchBlockers?.[slug] ?? []);
+			for (const [head, ref] of Object.entries(s.launchCheckpoints?.[slug] ?? {})) requirements.push({ head, ref, name: "checkpoint " + head });
+			const advance = advanceLaunchBase(controlCwd, base, requirements, s.launchWaivers?.[slug]);
+			if ("requirement" in advance) {
+				c.pendingLaunch = plan;
+				const { requirement: r, sourceHead, files } = advance;
+				const source = (r.checkout ? r.checkout + " " : "") + r.ref;
+				raise(slug, LAUNCH_CONFLICT, "Required " + r.name + " (" + r.head + ") cannot merge into base " + advance.base
+					+ " from " + source + " (" + sourceHead + "). Conflicting files:\n" + files.join("\n")
+					+ "\n\nResolve with retry and `commit` naming a merged revision containing the base and requirement, or answer without `commit` to launch without this requirement.", issues, "owner", advance);
+				return;
+			}
+			if (base !== advance.base) note("advanced " + slug + " " + phase + " base from " + base + " to " + advance.base);
+			base = advance.base;
+		}
 		if (c.handle && !existsSync(c.handle.path) && phase !== "refine" && phase !== "implement" && base === git(pathOf(c.into), "rev-parse", "HEAD")) note("no worktree or branch for " + c.handle.handle + "; " + phase + " for " + slug + " starts from " + c.into + ", without the chain's earlier work");
-		if ((phase === "refine" || phase === "implement") && !c.base) c.base = git(pathOf(c.into), "rev-parse", "HEAD");
+		if (from || !c.base && (phase === "refine" || phase === "implement")) c.base = base;
 		const phasePrompt = () => {
 			const contract = ticketText(issue);
 			if (phase === "refine" || phase === "implement") return [contract,
@@ -717,10 +782,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const launchedAt = Date.now();
 		c.launching ??= resumeAttempt ?? nextHandle(slug, phase);
 		c.launchPhase = phase;
+		c.pendingLaunch = plan;
 		save();
-		if (phase === "implement" && !admitImplementation(slug, c, issue, base, c.launching)) return;
-		const registered = await findWorker({ run: s.root, handle: c.launching }, controlCwd);
+		if (!registered && phase === "implement" && !admitImplementation(slug, c, issue, base, c.launching)) return;
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
+			if (from) return phasePrompt();
 			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
 			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
 			const refreshed = refreshWorker(path, pathOf(c.into));
@@ -728,7 +794,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}, phase === "refine" ? { chain: c, adopt } : undefined, c);
 		if (phase === "refine" && c.refinement && registered) s.refinements[c.refinement].worker = handle;
 		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
-		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
+		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, pendingLaunch: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
 		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
 		save();
 	}
@@ -737,20 +803,20 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** Provider errors no handler can fix (credentials, quota) go to the owner, grouped by class. */
 	const errorClass = (body: string) => /invalid_grant|oauth|refresh token|unauthori[sz]ed|\b401\b|\b403\b|api key|authentication/i.test(body) ? "authentication"
 		: /\b429\b|rate.?limit|quota|usage limit|overloaded|\b529\b/i.test(body) ? "rate limit or quota" : body.replace(/^error:\s*/, "").split("\n")[0].slice(0, 80);
-	function raise(slug: string, reason: string, text: string, issues: Map<string, Issue>, at?: "owner") {
+	function raise(slug: string, reason: string, text: string, issues: Map<string, Issue>, at?: "owner", baseConflict?: LaunchConflict) {
 		const c = s.chains[slug];
 		if (c) c.held = true;
 		if (s.exceptions[slug]) return;
 		dropResolution(slug);
 		const parent = issues.get(slug)?.partOf;
 		const level = at ?? (slug === s.root || !parent ? "owner" : parent);
-		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: reason === EVIDENCE_MISSING ? text : text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs };
+		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: reason === EVIDENCE_MISSING || baseConflict ? text : text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs, baseConflict };
 		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(controlCwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept" | "red-repair"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; refinement?: string; checkout?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept" | "red-repair"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; commit?: string; refinement?: string; checkout?: string };
 	/** Bind an owner retry to its original attempt before any replacement writes.
 	 * Recovery can finish that replacement before replaying the resolution file. */
 	function readResolution(file: string, node: string): Resolution {
@@ -812,6 +878,36 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			// tick before resolutions; do not replace its successor a second time.
 			return save();
 		}
+		const adopted = typeof r.commit === "string" && /^[0-9a-f]{7,64}$/i.test(r.commit) ? commitRef(controlCwd, r.commit) : undefined;
+		if (r.commit !== undefined && (!adopted || !c || !["answer", "retry", "redispatch"].includes(r.action))) {
+			tellOwner("Adoption requires an existing commit ID and an answer, retry or redispatch for a running chain. The exception stays pending.");
+			return;
+		}
+		if (ex.baseConflict && c?.pendingLaunch && (r.action === "answer" || r.action === "retry")) {
+			const { base, requirement } = ex.baseConflict;
+			if (adopted ? !isAncestor(controlCwd, base, adopted) || !isAncestor(controlCwd, requirement.head, adopted) : r.action !== "answer") {
+				tellOwner("To release " + ex.node + ", provide a merged commit containing " + base + " and " + requirement.head + ", or answer without a commit. The exception stays pending.");
+				return;
+			}
+			if (adopted) {
+				keepCheckpoint(target, adopted, adopted);
+				c.pendingLaunch.base = adopted;
+			} else {
+				((s.launchWaivers ??= {})[target] ??= []).push(conflictKey(base, requirement.head));
+				c.pendingLaunch.base = base;
+			}
+			c.note = r.message ?? r.note ?? c.note;
+			c.held = false;
+			delete s.exceptions[ex.node];
+			(s.resolved[ex.node] ??= []).push(ex.reason + " → " + (adopted ? "adopt " + adopted : "launch without " + requirement.head));
+			note("resolved " + ex.node + ": " + r.action);
+			return save();
+		}
+		if (ex.baseConflict && r.action !== "move-out") {
+			tellOwner("Resolve the launch conflict on " + ex.node + " with retry and a merged commit, or answer to launch without the requirement.");
+			return;
+		}
+		if (adopted) keepCheckpoint(target, adopted, adopted);
 		const issue = view(c?.into ?? cwd).get(target);
 		(s.resolved[ex.node] ??= []).push(ex.reason + " → " + r.action + (r.message ? ": " + r.message : r.note ? ": " + r.note : r.summary ? ": " + r.summary : ""));
 		if (r.action === "escalate") {
@@ -846,7 +942,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c && spent) delete c.retries[spent];
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
-		if (r.action === "answer" && c?.handle && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
+		if (r.action === "answer" && !adopted && c?.handle && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in the global tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "", r.action === "retry" && r.adopt === true); } }
 		else if (r.action === "redispatch") {
 			// A redispatch starts over from the parent's head; the superseded chain's commits stay on its kept branch,
@@ -950,7 +1046,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** A report since the exception that shows the worker carrying on its assignment. A checkpoint doesn't: a worker held
 	 * for checkpointing too often (author-and-publish-the-language-learning-template, 2026-10-12) kept posting them. */
 	const resumedReport = (ex: Exception, c: Chain) => {
-		if (ex.reason === DELIVERED_ACTIVE) return undefined;
+		if (ex.reason === DELIVERED_ACTIVE || ex.baseConflict) return undefined;
 		const m = c.handle && fresh(c.handle, ex.reportTs ?? c.handledTs, c.launchedAt);
 		return m && !m.tags.includes("error") && ["done", "blocked", "needs-input", "waiting"].includes(parse(m.body).status ?? "") ? m : undefined;
 	};
@@ -989,7 +1085,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
 				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
 				if (!ex.mailed) {
-					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nResolve with tools.reconcile_resolve({root: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, checkout?, message?, note?, summary?}). For move-out, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
+					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + (ex.baseConflict ? clip(ex.text, 6000) : ex.text.slice(-3000)) + "\n\nResolve with tools.reconcile_resolve({issue: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, commit?, checkout?, message?, note?, summary?}). For move-out, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
@@ -1250,14 +1346,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		if (r.status === null) return repair(slug, c, "status", statusRepairMessage(text, r.handoffError), issues, text);
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
+		if (r.handoff?.respec || r.status === "blocked" || r.status === "needs-input" || r.status === "checkpoint")
+			keepReportedCheckpoints(slug, h, r.handoff?.commit);
 		if (c.phase === "implement" && !c.self && r.handoff?.respec) {
 			c.retries.respec = (c.retries.respec ?? 0) + 1;
 			if (c.retries.respec > 1) return raise(slug, "respec after refinement", text, issues);
 			note("respec " + slug + ": back to refinement");
-			await retireHandle(h, pathOf(c.into));
-			c.handle = undefined; c.base = undefined;
+			c.base = undefined;
+			c.pendingLaunch = { phase: "refine", extra: "An implementer found this bigger than one session:\n\n" + String(r.handoff.respec),
+				adopt: false, finished: false, base: git(pathOf(c.into), "rev-parse", "HEAD") };
+			save();
 			const kept = c.retries.respec;
-			await startPhase(slug, c, "refine", issue, issues, "An implementer found this bigger than one session:\n\n" + String(r.handoff.respec));
+			await startPhase(slug, c, "refine", issue, issues);
 			c.retries.respec = kept; return save();
 		}
 		// Idle until a process it started notifies it: nothing to do, and only a later report counts.
@@ -1612,10 +1712,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				} catch { usable = false; }
 				if (stale) {
 					usable = false;
-					chain.note = [chain.note, "This node's stopped run left " + resumed.phase + " work on branch " + resumed.branch + " at " + resumed.head + ", from before children landed in your base. Take what still holds of it (git log HEAD.." + resumed.head + ") or leave it."].filter(Boolean).join("\n\n");
-					note("resume record for " + slug + " dropped: " + resumed.branch + " lacks " + s.collectors[slug].branch + "'s head; starting from the collector");
+					keepCheckpoint(slug, resumed.head, "refs/heads/" + resumed.branch);
+					note("resume for " + slug + " returns to implementation: new children landed since " + resumed.branch + "; advancing from the collector");
 				}
-				else if (usable) Object.assign(chain, { phase: resumed.phase, base: resumed.base ?? chain.base, setup: resumed.setup, drive: resumed.drive, skipDrive: resumed.skipDrive, note: chain.note ?? resumed.note, resumeFrom: resumed.head });
+				else if (usable) {
+					keepCheckpoint(slug, resumed.head, "refs/heads/" + resumed.branch);
+					Object.assign(chain, { phase: resumed.phase, base: resumed.base ?? chain.base, setup: resumed.setup, drive: resumed.drive, skipDrive: resumed.skipDrive, note: chain.note ?? resumed.note, resumeFrom: resumed.head });
+				}
 				else note("resume record for " + slug + " dropped: " + resumed.head + " is gone or already in " + into);
 			}
 			s.chains[slug] = chain;
@@ -1634,6 +1737,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return "active";
 		}
 		if (c.held) return "active";
+		if (c.pendingLaunch) {
+			await startPhase(slug, c, c.pendingLaunch.phase, issue, issues);
+			return "active";
+		}
 		if (c.phase === "refine" && c.refinement && s.refinements[c.refinement].phase === "writing" && !s.refinements[c.refinement].worker) {
 			await startPhase(slug, c, "refine", issue, issues, "Resume the saved refinement attempt after an interrupted launch.", false, c.refinement);
 			return "active";
@@ -1710,20 +1817,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	}
 	// A node's own chain after its children: the implementer starts from the collector, so its branch carries them up.
 	async function startPhaseFrom(slug: string, c: Chain, issue: Issue, issues: Map<string, Issue>, from: string) {
-		const saved = c.into, previous = c.handle;
-		if (previous) await stop(previous, { cwd });
-		c.base = git(from, "rev-parse", "HEAD");
-		const prompt = [ticketText(issue), c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "", c.note ? "Note from the supervisor: " + c.note : ""].filter(Boolean).join("\n\n");
-		const launchedAt = Date.now();
-		c.launching = nextHandle(slug, "implement");
-		c.launchPhase = "implement";
-		save();
-		if (!admitImplementation(slug, c, issue, c.base, c.launching)) return;
-		c.handle = await launch(c.launching, "implement", prompt, c.base, pathOf(c.into), issue, undefined, async () => [ticketText(issue), c.self ? "Its children are all satisfied in your base; implement its residual work and joins." : "", c.note ?? ""].filter(Boolean).join("\n\n"), undefined, c);
-		// Its only caller with a previous worker is a promoted refinement: the writer finished.
-		if (previous && !await retireHandle(previous, cwd, true)) c.workers.push(previous);
-		Object.assign(c, { into: saved, phase: "implement", launching: undefined, launchPhase: undefined, launchedAt, handledTs: undefined });
-		save();
+		await startPhase(slug, c, "implement", issue, issues, "", false, undefined, !!c.handle, from);
 	}
 	const visited = new Set<string>();
 	// Move-out retains the parent. Keep the park until the reassigned node is ready to run here.
@@ -1899,5 +1993,5 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		return false;
 	}
-	function under(i: Issue, all: Map<string, Issue>): boolean { for (let p = i.partOf; p; p = all.get(p)?.partOf ?? null) if (p === s.root) return true; return false; }
+	function under(i: { partOf: string | null }, all: ReadonlyMap<string, { partOf: string | null }>): boolean { for (let p = i.partOf; p; p = all.get(p)?.partOf ?? null) if (p === s.root) return true; return false; }
 }
