@@ -1,5 +1,7 @@
 # Reconciler launch-base replay
 
+[Independent drive after the collector merge](drive-4.md)
+
 Run the reconciler against pinned Concept history:
 
 ```sh
