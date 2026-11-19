@@ -1,5 +1,5 @@
 ---
-stage: "idea"
+stage: "ticket"
 assignee: "agent"
 author: "session:01a1cccf-a7df-701e-87e3-244f9e676da7"
 priority: 2
@@ -20,3 +20,11 @@ The startup continuation refinement `shorten-fresh-practice-and-session-reading-
 
 
 Recurred three times between 2026-11-16 and 2026-11-19 as concept supervisor exceptions (@thread:thr_ihbpyrp6s2#msg=35277, #msg=36209, #msg=38871): the 5,000-card startup worker launched without 42 retained commits in a collector and a browser startup repair on an older branch, and workers on strand tagging and card-to-Problem storage launched without a prerequisite already on main. The 2026-11-19 efficiency audit (@thread:thr_ivvhpy2bsb) proposes: before spawning a phase, require `git merge-base --is-ancestor` against the proposed base for each landed prerequisite and explicitly adopted checkpoint; advance from the recorded source ref, and hand a merge conflict to the owner once. This body was emptied by `8ac9dcf6` ([[tracker-update-can-wipe-an-issue-body]]) and restored from `647161aa`.
+
+## tasks
+
+Decided 2026-11-19 (maintainer, from the efficiency audit @thread:thr_ivvhpy2bsb):
+
+1. Before spawning a phase, the reconciler requires `git merge-base --is-ancestor` against the proposed base for each landed prerequisite and each explicitly adopted checkpoint (a retained partial implementation the handoff names).
+2. When one is missing, it advances the base from the recorded source ref itself; a merge conflict goes to the owner once.
+3. Done when: replays of the three exceptions above launch on a base containing the prerequisite without an exception, and a conflicting advance escalates exactly once.
