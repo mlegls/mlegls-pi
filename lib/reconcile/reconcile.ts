@@ -1275,8 +1275,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const reviewShape = c.phase === "review"
 			? storyShapeError(r.handoff, c.self) ?? (c.self && r.handoff?.evidence === undefined ? null : evidenceShapeError(r.handoff))
 			: null;
-		const postLanding = c.phase === "review" && !reviewShape ? postLandingChecks(r.handoff!) : [];
-		if ((r.status === "blocked" || r.status === "needs-input") && !postLanding.length) {
+		const blocked = r.status === "blocked" || r.status === "needs-input";
+		const postLanding = blocked && c.phase === "review" && !reviewShape ? postLandingChecks(r.handoff!) : [];
+		if (blocked && !postLanding.length) {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, c.phase + " " + r.status, text, issues);
 		}
