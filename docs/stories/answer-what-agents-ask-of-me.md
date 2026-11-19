@@ -9,7 +9,7 @@ Sessions that wake while I'm away (supervisors, reconciler handlers, automations
 
 I hear about a new item when it's filed → Attention in bb lists every project's items, grouped by project, with a count on the rail → I read an item where it is and write my answer under it, quoting a passage with `>` when I'm answering part of it, or take its recommendation in one click → Send delivers my answers to the threads that asked, one message per thread, even across projects → an answered item stays marked as answered until its agent removes it. Links in an item open where the Issues page opens them: an issue in the Issues page, a file in bb's file preview.
 
-If one reply fails, the rest of that thread's batch waits with it so I can fix it and send them together. Reopening Attention shows the items already loaded for the badge while it checks for changes.
+If one reply fails, the rest of that thread's batch waits with it so I can fix it and send them together. Reopening Attention shows the items already loaded for the badge while it checks for changes. [Batch retry and load check](../attachments/attention-inbox-in-the-bb-tracker/batching-and-load.md).
 
 Roles and reconciler status stay where they already show: the Supervise dialog and Campaigns ([[projects/mlegls-pi/stories/steer-issues-from-bb]]).
 
