@@ -872,9 +872,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return save();
 		}
 		if (s.pr && s.landed[s.root] && ex.node === s.root && ex.reason !== EVIDENCE_MISSING) return resolvePr(ex, r);
+		if (ex.baseConflict && r.target && r.target !== ex.node) {
+			tellOwner("The launch conflict belongs to " + ex.node + "; resolve it on that node. The exception stays pending.");
+			return;
+		}
 		const target = r.target && s.chains[r.target] ? r.target : ex.node;
 		const c = s.chains[target];
-		if (r.action === "retry" && r.refinement && s.refinements[r.refinement]?.successor) {
+		if (!ex.baseConflict && r.action === "retry" && r.refinement && s.refinements[r.refinement]?.successor) {
 			delete s.exceptions[ex.node];
 			if (c) c.held = false;
 			// The saved replacement (including partial adoption) is recovered by
