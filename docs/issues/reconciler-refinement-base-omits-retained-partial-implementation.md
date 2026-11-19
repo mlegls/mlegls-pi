@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:technical"
 author: "session:01a1cccf-a7df-701e-87e3-244f9e676da7"
 priority: 2
@@ -37,3 +37,36 @@ Before spawning a phase, the reconciler requires `git merge-base --is-ancestor` 
 
 decisions:
 - 2026-11-19: the reconciler checks and advances the base itself, with conflicts to the owner once (maintainer, efficiency audit @thread:thr_ivvhpy2bsb).
+
+## Result
+
+done — All four historical replays held. Both conflicts stopped dispatch and raised one owner exception. I fixed a resolution path that could apply an answer to the wrong chain, and verified that a misdirected answer leaves the launch held. All 20 affected tests passed.
+
+```yaml
+commit: f50869b1
+stories:
+  - {story: "Strand tags launches with the landed prerequisite after edge removal", outcome: held}
+  - {story: "Startup refinement launches with the retained checkpoint", outcome: held}
+  - {story: "5,000-card startup holds on conflict and launches after adoption of the merged revision", outcome: held}
+  - {story: "Card-to-Problem holds on conflict and launches after the owner waives the prerequisite", outcome: held}
+evidence:
+  path: docs/attachments/reconciler-refinement-base-omits-retained-partial-implementation/index.md
+  visual: false
+  shots: []
+fixed:
+  - "20beca54: Bind a launch-conflict resolution to the held node."
+  - "f50869b1: Show spawned worker titles in the replay, distinguishing the superseded implementer from its refiner."
+tests:
+  - lib/reconcile/launch-recovery.test.ts
+  - lib/reconcile/landing.test.ts
+  - lib/reconcile/resume.test.ts
+  - lib/reconcile/stop.test.ts
+  - lib/reconcile/retry.test.ts
+  - lib/reconcile/exceptions.test.ts
+  - lib/reconcile/refinement.test.ts
+filed: []
+caveats:
+  - "Cross-run prerequisite lookup scans the ledgers on phase launch when a node has recorded blockers. One lookup across Concept’s 371 ledger files took 45 ms."
+```
+
+Evidence: [docs/attachments/reconciler-refinement-base-omits-retained-partial-implementation/index.md](../attachments/reconciler-refinement-base-omits-retained-partial-implementation/index.md)
