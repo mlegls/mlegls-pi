@@ -1,9 +1,10 @@
-// Offline operator target for the setup-handoff gate. Real reconciler, Git and tracker;
+// Offline operator target for worker handoff gates. Real reconciler, Git and tracker;
 // fake BB holds workers idle, so no model, live BB service or credentials are involved.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fakeBb } from "../thread/fake-bb";
+import { getTracker } from "../tracker.ts";
 import { start, stop } from "./main";
 import { load } from "./reconcile";
 
@@ -24,7 +25,8 @@ export function open(root: string) {
  const bb = fakeBb(root), repo = join(root, "repo");
  const state = () => load(repo, "solo");
  const status = () => ({ root, phase: state()?.chains.solo?.phase, retries: state()?.chains.solo?.retries,
-  exceptions: state()?.exceptions, threads: bb.threads().map(t => ({ title: t.title, prompt: t.prompt, tells: t.tells })) });
+  exceptions: state()?.exceptions,
+  landed: state()?.landed.solo, log: state()?.log, threads: bb.threads().map(t => ({ title: t.title, prompt: t.prompt, tells: t.tells })) });
  const turn = (body: string) => {
   const handle = state()?.chains.solo?.handle;
   if (!handle) throw new Error("no worker ready");
@@ -32,7 +34,10 @@ export function open(root: string) {
  };
  const report = (setup: unknown) => turn("done\n\n```json\n" + JSON.stringify({ setup }) + "\n```");
  return { root, repo, bb, state, status, report, turn,
-  ready: () => until(() => { const h = state()?.chains.solo?.handle; return h && bb.threads().some(t => t.environment === h.path) && h; }),
+  ready: (phase?: string) => until(() => {
+   const chain = state()?.chains.solo, h = chain?.handle;
+   return h && (!phase || chain?.phase === phase) && bb.threads().some(t => t.environment === h.path) && h;
+  }),
   close: async () => { if (state()) await stop(repo, "solo"); rmSync(root, { recursive: true, force: true }); } };
 }
 export async function prepare(skipDrive = false) {
@@ -57,22 +62,33 @@ export async function prepare(skipDrive = false) {
 if (import.meta.main) {
  const [command = "help", target, payload] = process.argv.slice(2);
  if (command === "new") {
-  const f = await prepare(target === "--no-drive");
+  const review = target === "--review", f = await prepare(review || target === "--no-drive");
+  if (review) {
+   try {
+    f.report(null);
+    const { path } = await f.ready("review");
+    mkdirSync(join(path, "docs/attachments"), { recursive: true });
+    writeFileSync(join(path, "docs/attachments/review.md"), "# Rehearsal\n\nFixture evidence for a simulated reviewer handoff.\n");
+    execFileSync("git", ["add", "docs/attachments/review.md"], { cwd: path });
+    execFileSync("git", ["commit", "-qm", "review packet"], { cwd: path });
+   } catch (error) { await f.close(); throw error; }
+  }
   console.log(JSON.stringify(f.status(), null, 2));
   console.log("Ready. Retained target: " + f.root);
-  console.log("Use: bun lib/reconcile/setup-fixture.ts report " + f.root + " 'null'");
+  if (!review) console.log("Use: bun lib/reconcile/setup-fixture.ts report " + f.root + " 'null'");
   console.log("Or submit a raw report: bun lib/reconcile/setup-fixture.ts turn " + f.root + " BODY");
-  console.log("Then: status " + f.root + " | report " + f.root + " '\"bun app.ts\"' | stop " + f.root);
- } else if (target && ["status", "report", "turn", "stop"].includes(command)) {
+  console.log("Then: status " + f.root + " | issue " + f.root + " | stop " + f.root);
+ } else if (target && ["status", "issue", "report", "turn", "stop"].includes(command)) {
   const root = realpathSync(resolve(target));
   if (!root.startsWith("/tmp/rc-setup-")) throw new Error("expected an owned /tmp/rc-setup-* target");
   const f = open(root);
   if (command === "stop") await f.close();
+  else if (command === "issue") console.log(getTracker(f.repo).text("solo"));
   else {
    if (command === "report") f.report(JSON.parse(payload!));
    if (command === "turn") f.turn(payload!);
    if (command !== "status") console.error("Turn submitted. This snapshot can precede processing; use status ROOT to see the resulting phase or repair.");
    console.log(JSON.stringify(f.status(), null, 2));
   }
- } else console.log("new [--no-drive] | status ROOT | report ROOT SETUP_JSON | turn ROOT BODY | stop ROOT");
+ } else console.log("new [--no-drive|--review] | status ROOT | issue ROOT | report ROOT SETUP_JSON | turn ROOT BODY | stop ROOT");
 }
