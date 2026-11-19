@@ -7,10 +7,14 @@ kind: process
 
 Sessions that wake while I'm away (supervisors, reconciler handlers, automations) leave what needs me in `desk/ATTENTION.md` ([[projects/mlegls-pi/guide/desk]]) and don't repeat it in chat. Today I find out by opening that file in each project, and I answer by going to the owning thread and retyping which item I mean.
 
-I hear about a new item when it's filed → Attention in bb lists every project's items, grouped by project, with a count on the rail → I read an item where it is and write my answer under it, quoting a passage with `>` when I'm answering part of it, or take its recommendation in one click → Send delivers my answers to the threads that asked, one message per thread → an answered item stays marked as answered until its agent removes it. Links in an item open where the Issues page opens them: an issue in the Issues page, a file in bb's file preview.
+I hear about a new item when it's filed → Attention in bb lists every project's items, grouped by project, with a count on the rail → I read an item where it is and write my answer under it, quoting a passage with `>` when I'm answering part of it, or take its recommendation in one click → Send delivers my answers to the threads that asked, one message per thread, even across projects → an answered item stays marked as answered until its agent removes it. Links in an item open where the Issues page opens them: an issue in the Issues page, a file in bb's file preview.
+
+If one reply fails, the rest of that thread's batch waits with it so I can fix it and send them together. Reopening Attention shows the items already loaded for the badge while it checks for changes.
 
 Roles and reconciler status stay where they already show: the Supervise dialog and Campaigns ([[projects/mlegls-pi/stories/steer-issues-from-bb]]).
 
 Source, 2026-11-12, @thread:thr_ywttjvanqg: "i'd like to make the desk and attention.md system into a dedicated bb plugin, so there's a convenient way to see it per project, annotate there and send to the relevant agents, and have system notifications"; on where it lives, "tracker panel is fine"; on a reply box over passage-level comments, "passage comments can just be \"> quotes\" in the reply box". On links, 2026-11-12: "issue links in the bb attention plugin open in the browser instead of locally in the desktop app".
+
+Source, 2026-11-19, @thread:thr_x7wafrrytq: "I noticed the bb attention.md side pane sometimes sends messages to the same agents together, and sometimes as separate messages. It should always be batched. Also, is there any way to improve its load time?"
 
 Issues: [[projects/mlegls-pi/issues/attention-inbox-in-the-bb-tracker]], [[projects/mlegls-pi/issues/a-new-attention-item-notifies-the-maintainer]].
