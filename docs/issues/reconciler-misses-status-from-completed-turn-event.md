@@ -1,5 +1,6 @@
 ---
-stage: "idea"
+stage: "ticket"
+priority: 1
 assignee: "agent"
 author: "session:thr_79y4adjv6d"
 ---
@@ -14,3 +15,5 @@ In the same day's `let-a-node-name-how-its-evidence-goes-stale` run, worker @thr
 On 2026-11-20 the Create Mission recording worker posted `waiting` with the live process named (@thread:thr_rc34md3zgu#msg=1339, BB completed turn seq 1342); the next request was an `(empty report)` repair nudge (seq 1343). Another empty-report nudge is at seq 1407. The reconciler held the worker with `status (after 2 repairs)` even though its capture checkout and progress reports were available. The handler recovered the latest handoff from BB and resumed the same checkout (@thread:thr_uvwj6yr59b).
 
 On 2026-11-20 the concept worker @thread:thr_hmrmry8wrb (notebook-projections-time-out-again-after-the-problem-release) posted first-line `waiting` twice and then `checkpoint`; each was followed by an `(empty report)` nudge and two `status (after 2 repairs)` escalations to the owner, who answered with the handoff recovered from `bb thread messages`.
+
+On 2026-11-20 two more held workers the same way within minutes under heavy host load: unsaved-quiz-problem-reference-fences-the-tutor-turn and materials-only-commits-run-the-full-typecheck-hook in concept, each after `waiting`. Priority raised to 1: every long wait now escalates to the owner.
