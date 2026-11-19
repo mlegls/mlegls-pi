@@ -116,6 +116,7 @@ interface PhaseLaunch {
 	/** Collector base for a join or promoted refinement, rather than the previous worker's head. */
 	from?: string;
 	base?: string;
+	waived?: string[];
 }
 interface Chain {
 	/** Exact provisional attempt, independent of the report cursor. */
@@ -135,6 +136,7 @@ interface Chain {
 	launchedAt?: number;
 	/** ts of the last report acted on. */
 	handledTs?: string;
+	/** Original diff boundary for review; the launch base may also carry resumed work. */
 	base?: string;
 	setup?: unknown;
 	drive?: Record<string, unknown>;
@@ -751,10 +753,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const registered = c.launching ? await findWorker({ run: s.root, handle: c.launching }, controlCwd) : undefined;
 		let base = plan.base ?? (from ? git(from, "rev-parse", "HEAD")
 			: (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || c.resumeFrom || git(pathOf(c.into), "rev-parse", "HEAD"));
+		if (from && !c.pendingLaunch || !c.base && (phase === "refine" || phase === "implement"))
+			c.base = git(from ?? pathOf(c.into), "rev-parse", "HEAD");
 		if (!registered) {
 			const requirements = landedRequirements(stateDir(controlCwd), s.root, s, s.launchBlockers?.[slug] ?? []);
 			for (const [head, ref] of Object.entries(s.launchCheckpoints?.[slug] ?? {})) requirements.push({ head, ref, name: "checkpoint " + head });
-			const advance = advanceLaunchBase(controlCwd, base, requirements, s.launchWaivers?.[slug]);
+			const advance = advanceLaunchBase(controlCwd, base, requirements.filter(r => !plan.waived?.includes(r.head)), s.launchWaivers?.[slug]);
 			if ("requirement" in advance) {
 				c.pendingLaunch = plan;
 				const { requirement: r, sourceHead, files } = advance;
@@ -768,12 +772,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			base = advance.base;
 		}
 		if (c.handle && !existsSync(c.handle.path) && phase !== "refine" && phase !== "implement" && base === git(pathOf(c.into), "rev-parse", "HEAD")) note("no worktree or branch for " + c.handle.handle + "; " + phase + " for " + slug + " starts from " + c.into + ", without the chain's earlier work");
-		if (from || !c.base && (phase === "refine" || phase === "implement")) c.base = base;
 		const phasePrompt = () => {
 			const contract = ticketText(issue);
 			if (phase === "refine" || phase === "implement") return [contract,
 				c.self ? "Its children are all satisfied and integrated in your base. What remains is its own stage: residual work and the joins between its children. Don't redo the children." : "",
-				phase === "implement" ? "Your base: " + c.base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
+				phase === "implement" ? "Your base: " + base : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 			if (phase === "drive") return [contract, "Setup handoff from the implementer:\n" + yaml(c.setup), c.self ? "Drive this node's own stories: journeys that cross its children. The children's own stories were driven already; if the node has none beyond theirs, report `stories: []`." : "", c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 			return [contract, "The change: git diff " + c.base + "..HEAD in your worktree.", "Driver's handoff:\n" + yaml(c.drive), c.note ? "Note from the supervisor: " + c.note : "", extra].filter(Boolean).join("\n\n");
 		};
@@ -894,6 +897,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				c.pendingLaunch.base = adopted;
 			} else {
 				((s.launchWaivers ??= {})[target] ??= []).push(conflictKey(base, requirement.head));
+				(c.pendingLaunch.waived ??= []).push(requirement.head);
 				c.pendingLaunch.base = base;
 			}
 			c.note = r.message ?? r.note ?? c.note;
@@ -947,7 +951,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		else if (r.action === "redispatch") {
 			// A redispatch starts over from the parent's head; the superseded chain's commits stay on its kept branch,
 			// which the new implementer is told about rather than silently missing (2026-10-12: it had to ask for them).
-			const kept = c?.handle ? keptWork(c) : undefined;
+			const kept = !adopted && c?.handle ? keptWork(c) : undefined;
 			if (c) { await retireChain(c); delete s.chains[target]; }
 			s.resolved[target] ??= [];
 			pendingNotes.set(target, [r.note ?? r.message, kept].filter(Boolean).join("\n\n") || undefined);
@@ -1641,7 +1645,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// A node that gained an open blocker (e.g. a reopened sibling) is parked: its chain is retired, and it starts
 		// fresh from the collector once the blocker has landed there.
 		const parkingBlockers = refining ? [...issue.blockedBy.filter(blocker => !issues.get(blocker)?.satisfied), ...issue.guards] : issue.blockers;
-		if (s.chains[slug] && slug !== s.root && parkingBlockers.length) {
+		if (s.chains[slug] && slug !== s.root && parkingBlockers.length && !s.exceptions[slug]?.baseConflict) {
 			const parked = s.chains[slug];
 			note("parked " + slug + " behind " + parkingBlockers.join(", "));
 			tellOwner("parked " + slug + " behind " + parkingBlockers.join(", ") + ": its workers are retired and it restarts once they land" + (s.exceptions[slug] ? "; its pending exception (" + s.exceptions[slug].reason + ") is dropped" : ""));
