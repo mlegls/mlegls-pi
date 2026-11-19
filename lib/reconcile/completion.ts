@@ -38,12 +38,14 @@ export type LandingOutcome = { ok: true; head: string; replayed: boolean; output
 
 /** Keep the leaf's result even after its chain/worktree is removed. If no explicit
  * handoff summary exists, preserve the reviewed report as summary. */
-export function reviewedResult(parent: string | null, handoff: Record<string, unknown>, report: string): ReviewedResult {
+export function reviewedResult(parent: string | null, handoff: Record<string, unknown>, report: string, postLanding: string[] = []): ReviewedResult {
+	const summary = typeof handoff.summary === "string" && handoff.summary.trim() ? handoff.summary : report;
 	const evidence = handoff.evidence as { path?: unknown } | undefined;
 	return {
 		parent,
 		commitNotes: commitNotes(report),
-		summary: typeof handoff.summary === "string" && handoff.summary.trim() ? handoff.summary : report,
+		summary: postLanding.length ? summary.trimEnd() + "\n\n**Pending post-landing checks**\n\n" +
+			postLanding.map(check => "- " + check.replace(/\r?\n/g, "\n  ")).join("\n") : summary,
 		...(typeof evidence?.path === "string" ? { evidence: evidence.path } : {}),
 		handoff: structuredClone(handoff),
 	};
