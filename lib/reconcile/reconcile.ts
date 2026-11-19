@@ -28,7 +28,7 @@ import { readLive } from "../session-meta/live";
 import { bbThreads, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
-import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands, setupError } from "./checks.ts";
+import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands, setupError, postLandingChecks } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
@@ -1272,7 +1272,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			await sendChild(h, "The GitHub API rate limit is a hold, not a blocker. Rerun the same tracker command now; if it still names a reset time, wait until then and rerun it. Continue the assignment and report on its real outcome.");
 			return save();
 		}
-		if (r.status === "blocked" || r.status === "needs-input") {
+		const reviewShape = c.phase === "review"
+			? storyShapeError(r.handoff, c.self) ?? (c.self && r.handoff?.evidence === undefined ? null : evidenceShapeError(r.handoff))
+			: null;
+		const postLanding = c.phase === "review" && !reviewShape ? postLandingChecks(r.handoff!) : [];
+		if ((r.status === "blocked" || r.status === "needs-input") && !postLanding.length) {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, c.phase + " " + r.status, text, issues);
 		}
@@ -1327,15 +1331,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return startPhase(slug, c, "review", issue, issues, "Driver's final message:\n\n" + text.slice(-4000) + "\n\nThe driver's worktree is retired as you start, discarding its ignored state (local deployment, .wm/ output): review from its branch and the evidence it committed.", false, undefined, true);
 		}
 		// review
-		const shape = storyShapeError(r.handoff, c.self) ?? (c.self && r.handoff?.evidence === undefined ? null : evidenceShapeError(r.handoff));
-		if (shape) return repair(slug, c, "review-shape", "Your handoff is malformed: " + shape + ". Repost it.", issues, text);
+		if (reviewShape) return repair(slug, c, "review-shape", "Your handoff is malformed: " + reviewShape + ". Repost it.", issues, text);
 		const stories = (r.handoff!.stories as { outcome: string }[]);
-		const notHeld = stories.findIndex(x => x.outcome !== "held" && !(c.acceptUnobservable && x.outcome === "unobservable"));
-		if (notHeld >= 0) return repair(slug, c, "unheld", "You reported done, but stories[" + notHeld + "] is not held. `done` needs every story held on your final head: repair it, or report `blocked`/`needs-input`. A story that can't be observed by design (not just in your environment) is `needs-input` naming it and why: the owner can accept it as unobservable.", issues, text);
+		const notHeld = stories.findIndex(x => x.outcome !== "held" && !((c.acceptUnobservable || postLanding.length) && x.outcome === "unobservable"));
+		if (notHeld >= 0) return repair(slug, c, "unheld", "You reported done, but stories[" + notHeld + "] is not held. `done` needs every story held on your final head: repair it, or report `blocked`/`needs-input`. If all remaining checks require the landed state, report `blocked` with the full handoff and list those checks in `postLanding`. For other stories unobservable by design, report `needs-input` naming them and why.", issues, text);
 		const accepted = c.acceptUnobservable && stories.some(x => x.outcome === "unobservable") ? { accepted: "unobservable stories accepted by the owner: " + c.acceptUnobservable } : {};
 		if (accepted.accepted) note(slug + " lands with unobservable stories the owner accepted");
 		c.evidence = { ...r.handoff!, ...accepted, tests: [...new Set([...testCommands(c.drive), ...testCommands(r.handoff)])] };
-		s.results[slug] = reviewedResult(issue.partOf, c.evidence, text);
+		s.results[slug] = reviewedResult(issue.partOf, c.evidence, text, postLanding);
+		for (const check of postLanding) note("post-landing check for " + slug + ": " + check.replace(/\s+/g, " "));
 		c.phase = "integrate"; save();
 		return integrateReview(slug, c, issue, issues);
 	}

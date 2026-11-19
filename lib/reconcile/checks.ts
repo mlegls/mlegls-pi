@@ -145,6 +145,14 @@ export const storyShapeError = (h: Record<string, unknown> | null, allowEmpty = 
  }
  return null;
 };
+/** On a shape-checked review, postLanding declares the complete list of remaining blockers. */
+export function postLandingChecks(handoff: Record<string, unknown>): string[] {
+ const stories = handoff.stories as { outcome: string }[];
+ if (!stories.some(s => s.outcome === "unobservable") || stories.some(s => s.outcome === "failed")) return [];
+ const checks = handoff.postLanding;
+ if (!Array.isArray(checks) || !checks.every((check): check is string => typeof check === "string" && !!check.trim())) return [];
+ return [...new Set(checks.map(check => check.trim()))];
+}
 export const evidenceShapeError = (h: Record<string, unknown> | null): string | null => {
  const evidence = h?.evidence;
  if (evidence === undefined) return "evidence is missing; expected {path, visual, shots}";
