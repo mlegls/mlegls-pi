@@ -4,6 +4,12 @@ priority: 1
 assignee: "agent"
 author: "session:thr_79y4adjv6d"
 ---
+---
+stage: "ticket"
+priority: 1
+assignee: "agent"
+author: "session:thr_79y4adjv6d"
+---
 A BB worker can post a valid first-line `done` and still get the reconciler no-status nudge. On 2026-11-18 @thread:thr_79y4adjv6d repeated the successful implement handoff three times. BB's event log has the `agentMessage` at seq 1200 with first line `done`, followed by `turn/completed` at 1203 with `status: completed`. Passing `.data.item.text` from seq 1200 through `lib/report.ts` returned `{"status":"done","hasHandoff":true,"handoffError":null}`. The supervisor accepted the handoff from the conversation, but reposting did not advance the reconciler. This differs from [[projects/mlegls-pi/issues/handoff-without-a-first-line-status-escalates-after-repairs]], where the worker omitted the sentinel.
 
 `lib/thread/turn.ts` pairs the completion event with a separate `bb thread output` call and drops message events. `bb thread output … --json` returned empty on the next active turn; that does not establish what it returned at the earlier poll. Check for a race in the latest-output projection. One repair candidate is to bind the final agent message to the completed turn in the event log and retain it across pages. Workaround: recover the handoff directly from the recorded message for the completed turn; repeating the report alone did not help.
@@ -17,3 +23,5 @@ On 2026-11-20 the Create Mission recording worker posted `waiting` with the live
 On 2026-11-20 the concept worker @thread:thr_hmrmry8wrb (notebook-projections-time-out-again-after-the-problem-release) posted first-line `waiting` twice and then `checkpoint`; each was followed by an `(empty report)` nudge and two `status (after 2 repairs)` escalations to the owner, who answered with the handoff recovered from `bb thread messages`.
 
 On 2026-11-20 two more held workers the same way within minutes under heavy host load: unsaved-quiz-problem-reference-fences-the-tutor-turn and materials-only-commits-run-the-full-typecheck-hook in concept, each after `waiting`. Priority raised to 1: every long wait now escalates to the owner.
+
+On 2026-11-20 the Concept roleplay-opening worker posted a valid `done` with commit and setup at @thread:thr_v5wtzb88yp#msg=1113 (BB completed turn seq 1116). Two `(empty report)` repairs (seq 1122 and 1176) led to `status (after 2 repairs)` with a blank report in the handler prompt. `bb thread log --message 1113` recovered the complete original handoff; `bb thread output` returned only the later repair report.
