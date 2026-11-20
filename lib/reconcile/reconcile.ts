@@ -1361,7 +1361,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (c.retries.respec > 1) return raise(slug, "respec after refinement", text, issues);
 			note("respec " + slug + ": back to refinement");
 			c.base = undefined;
-			c.pendingLaunch = { phase: "refine", extra: "An implementer found this bigger than one session:\n\n" + String(r.handoff.respec),
+			c.pendingLaunch = { phase: "refine", extra: "An implementer found this bigger than one session:\n\n" + text,
 				adopt: false, finished: false, base: git(pathOf(c.into), "rev-parse", "HEAD") };
 			save();
 			const kept = c.retries.respec;
