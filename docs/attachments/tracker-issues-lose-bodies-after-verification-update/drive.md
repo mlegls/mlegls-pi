@@ -1,3 +1,4 @@
+docs/attachments/tracker-issues-lose-bodies-after-verification-update/drive.md (24 lines)
 # Tracker verification drive
 
 ## Predictions (before use)
@@ -22,3 +23,7 @@ At `4a2665572e778dfb6ece4f376c192596253facc1`, confirmed Bun 1.4.5 and ran `bun 
 No unresolved friction. The blank-body error identified the rejected action and stated the explicit clear option; no intentional clear was needed for this encounter.
 
 Repeat the replay and require refusal, unchanged readback and unchanged HEAD after the historical call, then replacement text, unchanged frontmatter and a new update commit after the corrected call. Repeat both read-only Concept lookups and require bodies with the full-size opening criteria and verdicts. Those reads establish current availability; the [incident record](index.md) carries the historical write and restoration evidence.
+
+## Review
+
+Replayed at `96e71043` with Bun 1.4.5. The historical call exited 1; the original body, both frontmatter fields and HEAD `e7c55d1` survived. The corrected call preserved both fields and committed the revised body at `76310df`. Separate global tracker reads from the Concept checkout returned both completed contracts with their opening criteria and verdicts. Concept commit `46467165b7` records their restoration. No repair needed.
