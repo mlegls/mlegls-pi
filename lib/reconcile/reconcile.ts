@@ -26,7 +26,8 @@ import { readTurn, type TurnRead, type TurnReport } from "../thread/turn.ts";
 import { decide } from "../decide.ts";
 import { pidAlive } from "../wm.ts";
 import { readLive } from "../session-meta/live";
-import { bbThreads, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
+import { bbThreads, bbWorkerRoute, bbWorking, logBb, tellBbFolded, type BbThread } from "../thread/bb";
+import type { WorkerRoute } from "../thread/types";
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { advanceLaunchBase, commitRef, conflictKey, landedRequirements, type LaunchConflict } from "./launch-base.ts";
@@ -118,6 +119,7 @@ interface PhaseLaunch {
 	from?: string;
 	base?: string;
 	waived?: string[];
+	after?: WorkerRoute;
 }
 interface Chain {
 	/** Exact provisional attempt, independent of the report cursor. */
@@ -441,8 +443,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 
 	// --- observation -----------------------------------------------------------------------------------
 	const pathOf = (into: string) => into === cwd ? cwd : s.collectors[into]?.path ?? into;
-	// BB starts pi from its daemon environment, not ours. Export the same committed
-	// CLI into each worker's launch.env so native writes cannot fall back to an installed copy.
+	// Send the same committed tracker CLI through each worker's BB metadata.
 	const inheritedTrackerCli = process.env.TRACKER_CLI;
 	process.env.TRACKER_CLI ??= pinTracker();
 	const tracker = await untilReset(() => reconcilerTracker(controlCwd, s.root), { note, signal: o.signal });
@@ -608,7 +609,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain): Promise<Handle> {
+	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain, after?: WorkerRoute): Promise<Handle> {
 		launching++;
 		try {
 			if (tracker.githubIssue && issue && (role === "refine" || role === "implement")) {
@@ -642,7 +643,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const claimed = (text: string) => refining ? text + "\n\nCreate provisional children through the tracker with this exact claimed-by token, atomically with part-of: " + s.refinements[actual].claim : text;
 				try {
 					const worker = await launchNow(actual, role, claimed(prompt), base, into, issue, only,
-						async path => claimed(await prepare?.(path) ?? prompt));
+						async path => claimed(await prepare?.(path) ?? prompt), after);
 					if (refining) {
 						s.refinements[actual].worker = worker;
 						refining.chain.handle = worker;
@@ -665,14 +666,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 		} finally { launching--; }
 	}
-	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>): Promise<Handle> {
+	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, after?: WorkerRoute): Promise<Handle> {
 		const restrict = (text: string) => issue ? constrainedPrompt(controlCwd, s.root, issue.slug, text) : text;
-		const agentName = await pick(role, issue, restrict(prompt), only);
+		const agentName = after?.agent ?? await pick(role, issue, restrict(prompt), only);
 		// Starting a reconciler on a root delegates the root: a goal root rarely names an assignee, and its own stage
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
 		// frontier when agent-assigned; an explicit human or session assignee still refuses.
 		if (!tracker.githubIssue && issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
-		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
+		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, after, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], protectedIssue: issue?.slug, withOwner: async create => {
 				for (;;) {
 					try {
@@ -790,14 +791,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.launchPhase = phase;
 		c.pendingLaunch = plan;
 		save();
-		if (!registered && phase === "implement" && !admitImplementation(slug, c, issue, base, c.launching)) return;
+		if (!registered && phase === "implement" && !plan.after && !admitImplementation(slug, c, issue, base, c.launching)) return;
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
 			if (from) return phasePrompt();
 			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
 			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
 			const refreshed = refreshWorker(path, pathOf(c.into));
 			return [phasePrompt(), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve the collector's code and the previous worker's results, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
-		}, phase === "refine" ? { chain: c, adopt } : undefined, c);
+		}, phase === "refine" ? { chain: c, adopt } : undefined, c, plan.after);
 		if (phase === "refine" && c.refinement && registered) s.refinements[c.refinement].worker = handle;
 		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, pendingLaunch: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
@@ -1369,7 +1370,19 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const h = c.handle!, r = parse(m.body, h.path), text = m.body;
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (m.tags.includes("error")) {
-			const kind = errorClass(text);
+			const provider = bbThread(h)?.providerId;
+			const limited = m.errorCategory === "rate-limit";
+			const kind = limited ? "rate limit or quota" : errorClass(text);
+			if (limited && provider && provider !== "pi" && h.bb) {
+				const after = await bbWorkerRoute(h.bb);
+				if (after) {
+					c.retries.provider = (c.retries.provider ?? 0) + 1;
+					c.pendingLaunch = { phase: c.phase, extra: "", adopt: c.phase === "refine", finished: false, after };
+					note("provider rate limit on " + slug + "; replacing " + after.model + " in " + after.agent + "'s model list");
+					save();
+					return startPhase(slug, c, c.phase, issue, issues);
+				}
+			}
 			// An error turn-end is not the worker's end: the first one continues the same session and worktree (a fresh
 			// worker would retire them and what only they hold); a repeat, or a worker that is gone, gets a fresh worker once.
 			const tries = c.retries.provider ?? 0;
@@ -1805,7 +1818,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return "active";
 		}
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
-		if (m && m.tags.includes("error") && c.handle && (Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS || observedWorking(c.handle))) return "active";
+		if (m && m.tags.includes("error") && c.handle && (observedWorking(c.handle) || (!(m.errorCategory === "rate-limit" && bbThread(c.handle)?.providerId !== "pi") && Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS))) return "active";
 		if (!m && c.handle && bbErrored(c.handle)) { raise(slug, c.phase + " worker errored in bb", await bbError(c.handle), issues, "owner"); return "active"; }
 		// A log that can't be read hides the worker's reports: the chain would wait on it silently (14h, 2026-11-06, concept).
 		const unread = !m && c.handle ? unreadable.get(topic(c.handle)) : undefined;

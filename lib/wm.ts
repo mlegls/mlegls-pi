@@ -18,6 +18,8 @@ import { abandonThread, historyThread, integrateThread, newThread, workerOf, Thr
 import { bbThreads, bbWorkerThread, bbWorking, tellBb, type BbThread } from "./thread/bb";
 import { commonDir } from "./thread/git";
 import { readTurn, type TurnReport } from "./thread/turn";
+import { workerExecution } from "./worker-execution";
+import type { WorkerRoute } from "./thread/types";
 
 export type Outcome =
 	| { kind: "done" | "blocked" | "needs-input" | "checkpoint"; message: TurnReport } // checkpoint: fenced on context; paused for a follow-up like needs-input
@@ -29,7 +31,8 @@ export interface SpawnOptions {
 	handle: string;
 	issue?: string; // launched issue, reserved until target landing
 	prompt: string;
-	model?: string; // routed provider/model; required, with effort
+	model?: string; // exact provider/model; otherwise use the agent's list
+	after?: WorkerRoute; // fresh-worker fallback after this rate-limited entry
 	effort?: string;
 	agent?: string; // name of a stance file in AGENTS_DIR
 	role?: string; // which of the agent's roles this spawn fills (default: its first)
@@ -37,7 +40,7 @@ export interface SpawnOptions {
 	prepare?: (cwd: string) => Promise<string | void>; // before setup/launch; may replace the task prompt
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // legacy receipt field; never selects a transport
-	parentSession?: string; // pi session id that spawned the worker; default PI_SESSION_ID
+	parentSession?: string; // optional legacy Pi session ancestry, separate from BB ownership
 	parentThread?: string; // explicit bb parent; default BB_THREAD_ID
 	/** Choose ownership atomically with bb creation, after prepare/setup. */
 	withOwner?: (create: (owner: { thread: string; session?: string }) => Promise<string>) => Promise<string>;
@@ -426,9 +429,9 @@ export async function excludeWm(cwd: string) {
 export async function spawn(o: SpawnOptions): Promise<Worker> {
 	const a = o.agent ? agent(o.agent) : undefined;
 	if (o.agent && !a) throw new Error("Unknown agent stance: " + o.agent);
-	if ((o as { command?: unknown }).command !== undefined) throw new Error("wm.spawn runs pi as a bb thread; a worker command is not supported");
-	if (!o.model?.includes("/") || !o.effort) throw new Error("wm.spawn requires routed model (provider/model) and effort");
+	if ((o as { command?: unknown }).command !== undefined) throw new Error("wm.spawn runs a BB thread; a worker command is not supported");
 	const cwd = resolve(o.cwd ?? process.cwd());
+	const execution = await workerExecution({ agent: a, model: o.model, effort: o.effort, after: o.after, project: cwd });
 	await excludeWm(cwd);
 	const w = new Worker(o.run, o.handle, cwd, o.session);
 	w.launching = true;
@@ -440,7 +443,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		} else if (o.from) {
 			throw new Error(`from must be "summary"; bb threads cannot fork a session`);
 		}
-		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, issue: o.issue, agent: a?.name, parentSession: o.parentSession ?? process.env.PI_SESSION_ID, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
+		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, issue: o.issue, agent: a?.name, parentSession: o.parentSession, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
 		const options = { cwd, parent: o.parentThread, worktree: o.handle, base: o.base,
 			createThread: o.withOwner ? (create: (parent?: string) => Promise<string>) => o.withOwner!(owner => {
 				if (owner.session) env.PI_WM_PARENT_SESSION = owner.session;
@@ -450,7 +453,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			const prepared = await o.prepare!(thread.cwd);
 			if (prepared !== undefined) thread.launch!.prompt = prompt({ ...o, prompt: prepared, agent: a });
 		} : undefined, worker: { run: o.run, handle: o.handle },
-			launch: { args: ["--approve", "--model", o.model!, "--thinking", o.effort!], env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
+			launch: { execution, env, prompt: prompt({ ...o, prompt: text, agent: a }) } };
 		w.bind(await newThread(options));
 		w.turnCursor = 0;
 		w.launching = false;

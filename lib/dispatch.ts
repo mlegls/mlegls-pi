@@ -1,4 +1,4 @@
-// Launch a parent-planned ready wave as wm workers. No reading, routing, dependency graph, or retries.
+// Launch a parent-planned ready wave as wm workers. No dependency graph or retries.
 import { execFile, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -18,14 +18,16 @@ export interface Assignment {
   assignee?: string;
   /** Self-contained task, including relevant context and coordination constraints. */
   prompt: string;
-  /** Roster stance (agents/<agent>.md): its prompt, and its model list through the `stance/<agent>` virtual model. */
+  /** Roster stance (agents/<agent>.md): its prompt and ordered model list. */
   agent?: string;
   /** Which of the agent's roles this assignment fills (agents/roles/); default its first. */
   role?: string;
-  /** Exact provider/model and effort; default `stance/<agent>`, which routes by the agent's model list. */
+  /** Exact provider/model and effort; default to the agent's model list. */
   model?: string;
   effort?: string;
   base?: string;
+  /** Library-only retry cursor: choose an entry after the rate-limited route. */
+  after?: SpawnOptions["after"];
   /** Library-only preparation in the new checkout, before setup/launch; may replace the task prompt. */
   prepare?: (cwd: string) => Promise<string | void>;
 }
@@ -34,7 +36,7 @@ export interface Options {
   /** Parent topic/branch prefix. */
   run: string;
   cwd?: string;
-  /** Owning pi session (spawn provenance and the ledger); default PI_SESSION_ID. */
+  /** BB thread recorded as the caller in the dispatch ledger; default BB_THREAD_ID. */
   parent?: string;
   /** Explicit bb parent, independent of the process that happens to launch the worker. */
   parentThread?: string;
@@ -106,7 +108,7 @@ function ledger(cwd: string, task: Assignment, run: string, handle: Handle, pare
 /** Submit a ready wave; no automatic wait or retry for assignments beyond capacity. */
 export async function dispatch(assignments: Assignment[], options: Options): Promise<Receipt> {
   const cwd = resolve(options.cwd ?? process.cwd());
-  let parent = options.parent ?? process.env.PI_SESSION_ID;
+  const parent = options.parent ?? options.parentThread ?? process.env.BB_THREAD_ID;
   if (options.parent !== undefined && !options.parent.trim()) throw new Error("dispatch: parent must not be empty");
   if (typeof options.run !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_/-]*$/.test(options.run)) throw new Error("dispatch: invalid run");
   if (!Number.isSafeInteger(options.maxConcurrent) || options.maxConcurrent < 1)
@@ -131,26 +133,27 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
     assertAssignee(task);
     const stance = task.agent ? agent(task.agent) : undefined;
     if (task.agent && !stance) throw new Error("dispatch: unknown agent " + task.agent);
-    return { task, stance };
+    return task;
   });
   const receipt: Receipt = { submitted: [], pending: [] };
   if (!prepared.length) return receipt;
 
-  for (const [index, { task, stance }] of prepared.entries()) {
+  for (const [index, task] of prepared.entries()) {
     if (active.length + receipt.submitted.length >= options.maxConcurrent) {
-      receipt.pending = prepared.slice(index).map(item => item.task);
+      receipt.pending = prepared.slice(index);
       break;
     }
     try {
+      let ownerThread = parent;
       const wm = await import("./wm.ts");
       const worker = await wm.spawn({ run: options.run, handle: task.handle, issue: task.issue ?? options.protectedIssue, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, cwd, parentSession: parent, parentThread: options.parentThread, session: options.session,
-        withOwner: options.withOwner ? create => options.withOwner!(owner => { parent = owner.session; return create(owner); }) : undefined });
+        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, after: task.after, cwd, parentThread: options.parentThread, session: options.session,
+        withOwner: options.withOwner ? create => options.withOwner!(owner => { ownerThread = owner.thread; return create(owner); }) : undefined });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, bb: worker.bb });
-      ledger(cwd, task, options.run, receipt.submitted.at(-1)!, parent);
+      ledger(cwd, task, options.run, receipt.submitted.at(-1)!, ownerThread);
     } catch (error) {
       receipt.failed = { assignment: task, error: error instanceof Error ? error.message : String(error) };
-      receipt.pending = prepared.slice(index + 1).map(item => item.task);
+      receipt.pending = prepared.slice(index + 1);
       break;
     }
   }

@@ -1,17 +1,14 @@
-// bb (get-bb/bb) as the thread runtime: bb runs pi (its Pi provider) and shows the thread in its desktop, web and mobile
-// apps. The worktree, setup and integration stay ours.
-// bb gives every thread the same environment, so a worker's identity reaches pi through .wm/launch.env in its
-// worktree, which bin/bb-pi (bb's BB_PI_BRIDGE_COMMAND) sources before exec'ing pi.
+// BB owns the threads and runs their providers. The worktree, setup and integration stay here.
 import { Database } from "bun:sqlite";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
-import { command, delay, quote } from "./process";
+import { command, delay } from "./process";
 import { launchEnv } from "./launch";
 import { gitAttempt } from "./lifecycle-git";
 import { readLog } from "./turn";
-import type { WorkerCheckout } from "./types";
+import type { WorkerCheckout, WorkerRoute } from "./types";
 
 const cli = () => process.env.BB_CLI || "bb";
 async function bb<T = unknown>(args: string[], cwd?: string): Promise<T> {
@@ -44,6 +41,7 @@ export interface BbThread {
 	id: string; status: "pending" | "idle" | "starting" | "active" | "stopping" | "error"; archivedAt: number | null; parentThreadId: string | null;
 	/** A worker's is `<run>/<handle>` (spawnBb). */
 	title?: string | null;
+	providerId?: string;
 	/** The thread's environment checkout. */
 	environmentPath?: string | null;
 	createdAt?: number;
@@ -72,16 +70,23 @@ export function bbWorkerThread(threads: Map<string, BbThread>, handle: string, r
 	return matches[0];
 }
 
-// A bb thread gets its identity and, when the spawner set them, the
-// state locations that isolate a fixture (agent and roster dirs).
-const IDENTITY = /^(?:PI_WM_.*|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
-/** The worker's identity env, for bin/bb-pi to source. */
-export function writeLaunchEnv(thread: WorkerCheckout): void {
-	const env = launchEnv(thread);
-	const keys = new Set([...Object.keys(env).filter(k => IDENTITY.test(k)), ...Object.keys(thread.launch?.env ?? {})]);
-	mkdirSync(join(thread.cwd, ".wm"), { recursive: true });
-	writeFileSync(join(thread.cwd, ".wm", "launch.env"), [...keys].filter(k => env[k] !== undefined).map(k => k + "=" + quote(env[k]!)).join("\n") + "\n");
+// Provider contributions are visible in BB logs; copy only identity and local state paths.
+const IDENTITY = /^(?:PI_WM_(?:RUN|HANDLE|ISSUE|AGENT|PARENT_SESSION)|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
+
+export const bbProviders = () => bb<{ id: string; available: boolean; enabled?: boolean; pluginEnabled?: boolean }[]>(["provider", "list", "--all"]);
+export const bbModels = (provider: string, project: string, model: string) =>
+	bb<{ id: string; model: string }[]>(["provider", "models", provider, "--project", project, "--selected-model", model]);
+
+async function supervisionRpc<T>(method: string, request: object): Promise<T> {
+	const dir = mkdtempSync(join(tmpdir(), "bb-supervision-"));
+	const input = join(dir, "input.json");
+	try {
+		writeFileSync(input, JSON.stringify(request), { mode: 0o600 });
+		return await bb<T>(["plugin", "rpc", "call", "supervision", method, "--input-file", input]);
+	} finally { rmSync(dir, { recursive: true, force: true }); }
 }
+
+export const bbWorkerRoute = (threadId: string) => supervisionRpc<WorkerRoute | null>("workerRoute", { threadId });
 
 /** pi's --model and --thinking from the launch args; bb passes them as its model and reasoning level. */
 function modelOf(thread: WorkerCheckout): { model?: string; effort?: string } {
@@ -90,30 +95,27 @@ function modelOf(thread: WorkerCheckout): { model?: string; effort?: string } {
 	return { model: at("--model"), effort: at("--thinking") };
 }
 
-/** Start the thread's pi in bb under parent (a bb thread id), submitting its launch prompt. */
-export async function spawnBb(thread: WorkerCheckout, parent: string | undefined, o: { model?: string; effort?: string; prompt?: string } = {}): Promise<string> {
-	writeLaunchEnv(thread);
-	const { model, effort } = o.model ? o : modelOf(thread);
-	const dir = mkdtempSync(join(tmpdir(), "bb-prompt-"));
-	const prompt = join(dir, "prompt.md");
-	writeFileSync(prompt, o.prompt ?? (thread.launch?.prompt?.trim() || "Continue."), { mode: 0o600 });
+/** Seed the identity before BB can launch the provider's first turn. */
+export async function spawnBb(thread: WorkerCheckout, parent: string | undefined): Promise<string> {
+	const execution = thread.launch?.execution;
+	const { model, effort } = execution ?? modelOf(thread);
+	const env = Object.fromEntries(Object.entries(launchEnv(thread)).filter(([key, value]) => IDENTITY.test(key) && value !== undefined));
+	const created = await supervisionRpc<{ id: string; environmentId: string | null }>("workerSpawn", {
+		projectId: await bbProject(thread.project), path: thread.cwd, providerId: execution?.providerId ?? "pi",
+		model, reasoningLevel: effort, parentThreadId: parent, title: thread.worker.run + "/" + thread.worker.handle,
+		prompt: thread.launch?.prompt?.trim() || "Continue.", metadata: { env, route: execution?.route },
+	});
 	try {
-		const title = thread.worker.run + "/" + thread.worker.handle;
-		const created = await bb<{ id: string; environmentId: string | null }>(["thread", "spawn", "--project", await bbProject(thread.project), "--environment", thread.cwd,
-			"--provider", "pi", ...(model ? ["--model", model] : []), ...(effort ? ["--reasoning-level", effort] : []),
-			"--title", title, "--prompt-file", prompt, ...(parent ? ["--parent-thread", parent] : [])]);
-		try {
-			const parentBranch = await gitAttempt(thread.project, "config", "--get", "branch." + thread.branch + ".ab-parent");
-			if (parentBranch.code !== 0 && parentBranch.code !== 1) throw new Error("Cannot read ab-parent: " + parentBranch.err);
-			if (parentBranch.out) await bb(["environment", "update", await bbEnvironment(created.id, created.environmentId), "--merge-base-branch", parentBranch.out]);
-		} catch (error) {
-			await stopBb(created.id);
-			await archiveBb(created.id);
-			await deleteBbEnvironment(created.id);
-			throw error;
-		}
-		return created.id;
-	} finally { rmSync(dir, { recursive: true, force: true }); }
+		const parentBranch = await gitAttempt(thread.project, "config", "--get", "branch." + thread.branch + ".ab-parent");
+		if (parentBranch.code !== 0 && parentBranch.code !== 1) throw new Error("Cannot read ab-parent: " + parentBranch.err);
+		if (parentBranch.out) await bb(["environment", "update", await bbEnvironment(created.id, created.environmentId), "--merge-base-branch", parentBranch.out]);
+	} catch (error) {
+		await stopBb(created.id);
+		await archiveBb(created.id);
+		await deleteBbEnvironment(created.id);
+		throw error;
+	}
+	return created.id;
 }
 
 /** A fresh path's environment is created just after spawn returns, so spawn's environmentId is null until then. */

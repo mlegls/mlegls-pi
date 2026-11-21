@@ -11,6 +11,8 @@ export interface TurnReport {
 	/** The status the report starts with, else `turn-end`; `error` too when the provider ended the turn. */
 	tags: string[];
 	body: string;
+	/** BB's typed provider failure, from the same events as the turn.failed hook. */
+	errorCategory?: string;
 }
 
 export interface LogEvent {
@@ -18,7 +20,7 @@ export interface LogEvent {
 	type: string;
 	createdAt: number;
 	scope?: { kind: string; turnId?: string };
-	data?: { status?: string; message?: string; detail?: string; providerThreadId?: string; item?: { type: string; text?: string } };
+	data?: { status?: string; message?: string; detail?: string; providerThreadId?: string; reason?: string; errorInfo?: { category?: string }; item?: { type: string; text?: string } };
 }
 
 const cli = () => process.env.BB_CLI || "bb";
@@ -72,10 +74,16 @@ interface TurnItems { message?: LogEvent; error?: LogEvent; compacted?: LogEvent
 export async function readTurn(bb: string, after = 0, o: { onSkip?: (after: number) => void } = {}): Promise<TurnRead> {
 	const { events, seq } = await readLog(bb, after, { onSkip: o.onSkip, keep: e =>
 		e.type === "turn/completed" || e.type === "provider/error" || e.type === "thread/compacted" ||
+		(e.type === "client/turn/rejected" && e.data?.reason === "rate_limited") ||
 		(e.type === "item/completed" && e.data?.item?.type === "agentMessage" && typeof e.data.item.text === "string") });
 	const open = new Map<string, TurnItems>();
 	let latest: { done: LogEvent; items: TurnItems } | undefined;
 	for (const e of events) {
+		// A request rate-limited at the door has no provider turn to pair with its error.
+		if (e.type === "client/turn/rejected" || (e.type === "provider/error" && e.scope?.kind === "thread" && e.data?.errorInfo?.category === "rate-limit")) {
+			latest = { done: e, items: { error: e } };
+			continue;
+		}
 		const id = e.scope?.kind === "turn" && e.scope.turnId;
 		if (!id) continue;
 		const items = open.get(id) ?? {};
@@ -96,9 +104,11 @@ export async function readTurn(bb: string, after = 0, o: { onSkip?: (after: numb
 	if (!latest) return { seq: next };
 	const { done, items } = latest;
 	const base = { seq: done.seq, id: String(done.seq), ts: new Date(done.createdAt).toISOString() };
-	if (done.data?.status === "failed") {
+	if (done.data?.status === "failed" || done.type === "client/turn/rejected" || done.type === "provider/error") {
 		const why = items.error?.data;
-		return { seq: next, report: { ...base, tags: ["turn-end", "error"], body: "error: " + (why?.detail ?? why?.message ?? "the provider ended the turn with an error") } };
+		const errorCategory = done.type === "client/turn/rejected" ? "rate-limit" : why?.errorInfo?.category;
+		return { seq: next, report: { ...base, tags: ["turn-end", "error"], ...(errorCategory && { errorCategory }),
+			body: "error: " + (why?.detail ?? why?.message ?? "the provider ended the turn with an error") } };
 	}
 	if (done.data?.status && done.data.status !== "completed") return { seq: next, report: { ...base, tags: ["turn-end"], body: "(the turn was " + done.data.status + ")" } };
 	const body = items.message?.data?.item?.text ?? "";

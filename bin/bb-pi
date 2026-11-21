@@ -1,11 +1,8 @@
 #!/bin/sh
-# pi as bb's Pi provider runs it (BB_PI_BRIDGE_COMMAND). bb sets one environment for every thread, so a worker's
-# identity (run, handle, stance, checkpoint ratio) comes from .wm/launch.env in its worktree, written at launch.
-# bb also starts a sessionless pi (--no-session) in the same cwd beside each thread's own: it must not take the
-# worker's identity, or it runs as a second writer on the worker.
+# bb can start a sessionless Pi beside the worker on the same provider environment.
+# Only the session-carrying Pi may record the worker's identity.
 case " $* " in
-*" --no-session "*) ;;
-*) if [ -f .wm/launch.env ]; then set -a; . ./.wm/launch.env; set +a; fi ;;
+*" --no-session "*) unset PI_WM_RUN PI_WM_HANDLE PI_WM_ISSUE PI_WM_AGENT PI_WM_PARENT_SESSION PI_CHECKPOINT ;;
 esac
 # bb passes its own --append-system-prompt, and pi then skips discovering the personal APPEND_SYSTEM.md, so add it
 # after bb's: its conventions (host-for-human, not bb connect expose) override bb's generic guidance.

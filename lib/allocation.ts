@@ -1,4 +1,4 @@
-// Deterministic capacity gate for delegated (non-interactive) work. allocation.json gives each pi
+// Deterministic capacity gate for delegated (non-interactive) work. allocation.json gives each
 // provider its quota-axi provider and the share of each quota window delegated work may use; the
 // rest is held for interactive use over the time left in the window, not the whole window.
 import { execFileSync } from "node:child_process";
@@ -15,19 +15,20 @@ export function allocation(path = new URL("../allocation.json", import.meta.url)
 	return JSON.parse(readFileSync(path, "utf8"));
 }
 
-/** Current quota windows by pi provider, from quota-axi (readings reused up to a minute). Unreadable providers are absent. */
+/** Current quota windows by execution provider, from quota-axi (readings reused up to a minute). */
 export function windows(alloc = allocation()): Windows {
-	const byQuota = Object.fromEntries(Object.entries(alloc).map(([pi, a]) => [a.quota, pi]));
+	const quotas = [...new Set(Object.values(alloc).map(a => a.quota))];
 	let report: { providers?: { provider: string; windows?: { id: string; kind: string; percentRemaining?: number; pace?: { timeRemainingPercent?: number } }[] }[] };
 	try {
-		report = JSON.parse(execFileSync("quota-axi", ["--full", "--json", "--max-age", "60s", "--provider", Object.keys(byQuota).join(",")], { encoding: "utf8", timeout: 30_000 }));
+		report = JSON.parse(execFileSync("quota-axi", ["--full", "--json", "--max-age", "60s", "--provider", quotas.join(",")], { encoding: "utf8", timeout: 30_000 }));
 	} catch (error) {
 		console.error("allocation: quota-axi unreadable; treating capacity as unknown: " + (error as Error).message.split("\n")[0]);
 		return {};
 	}
-	return Object.fromEntries((report.providers ?? []).filter(p => byQuota[p.provider] && p.windows?.length).map(p => [byQuota[p.provider],
-		p.windows!.filter(w => w.kind !== "credits" && typeof w.percentRemaining === "number")
-			.map(w => ({ id: w.id, kind: w.kind, percentRemaining: w.percentRemaining!, timeRemainingPercent: w.pace?.timeRemainingPercent ?? null }))]));
+	const byQuota = new Map((report.providers ?? []).map(p => [p.provider, (p.windows ?? [])
+		.filter(w => w.kind !== "credits" && typeof w.percentRemaining === "number")
+		.map(w => ({ id: w.id, kind: w.kind, percentRemaining: w.percentRemaining!, timeRemainingPercent: w.pace?.timeRemainingPercent ?? null }))]));
+	return Object.fromEntries(Object.entries(alloc).flatMap(([provider, { quota }]) => byQuota.has(quota) ? [[provider, byQuota.get(quota)!]] : []));
 }
 
 export interface Gate { admits: boolean; live: boolean; banked: string[] }

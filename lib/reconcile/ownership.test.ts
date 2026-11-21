@@ -89,9 +89,9 @@ test("concurrent reconciler launches prepare outside ownership, retry live conte
 			expect(current.exceptions).toEqual({});
 			expect(current.counter).toBe(1);
 			expect(handle.handle).toBe(root + "-implement-1");
-			expect(readFileSync(join(handle.path, ".wm/launch.env"), "utf8")).not.toContain("PI_WM_PARENT_SESSION");
+			expect(launched.find(t => t.id === handle.bb)?.metadata?.env.PI_WM_PARENT_SESSION).toBeUndefined();
 			const receipt = JSON.parse(readFileSync(join(f.cwd, ".git/ab-dispatch", root + "-" + handle.handle + ".json"), "utf8"));
-			expect(receipt.parent).toBeNull();
+			expect(receipt.parent).toBe("thr_final");
 		}
 		expect(f.bb.threads().every(thread => thread.tells.length === 0)).toBe(true);
 	} finally {

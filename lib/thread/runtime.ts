@@ -24,7 +24,7 @@ export async function workerOf(id: string, expected?: WorkerIdentity): Promise<W
 	return { id, cwd, project, worktree, branch, worker };
 }
 
-/** Make a worker's worktree on a new branch off options.base, prepare and set it up, and start its pi in bb. */
+/** Make a worker's worktree on a new branch off options.base, prepare and set it up, and start its provider in BB. */
 export async function newThread(options: NewThreadOptions): Promise<WorkerThread> {
 	validateLaunch(options.launch);
 	await assertBb();

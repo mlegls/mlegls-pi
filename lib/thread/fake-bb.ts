@@ -4,9 +4,11 @@
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { LogEvent } from "./turn";
+import type { WorkerRoute } from "./types";
 
 export interface FakeBbThread { id: string; status: string; archivedAt: number | null; parentThreadId: string | null; environment: string; title: string; prompt: string; tells: string[]; tellAt?: number[];
 	/** While set, queued tells wait in `queue` as bb holds them behind a busy turn, instead of landing in `tells`. */
+	providerId?: string; model?: string; metadata?: { env: Record<string, string>; route?: WorkerRoute };
 	holding?: boolean; queue?: { id: string; text: string }[]; events?: (Omit<LogEvent, "data"> & { data: object })[]; output?: string;
 	/** bb's event-response limit (8 MiB) scaled down: a `thread log --json` response larger than this many bytes is refused with a 413. */
 	logLimit?: number;
@@ -108,14 +110,20 @@ function main(argv: string[]) {
 		return out(project);
 	}
 	if (group === "environment" && (action === "update" || action === "delete")) return out({ ok: true });
-	if (group !== "thread") return fail("unsupported: " + args.join(" "));
-	switch (action) {
-		case "spawn": {
-			const created: FakeBbThread = { id: "bbt-" + crypto.randomUUID().slice(0, 8), status: "active", archivedAt: null, parentThreadId: flag("parent-thread") ?? null,
-				environment: flag("environment")!, title: flag("title") ?? "", prompt: readFileSync(flag("prompt-file")!, "utf8"), tells: [] };
+	if (group === "provider" && action === "list") return out(["pi", "codex"].map(id => ({ id, available: true })));
+	if (group === "provider" && action === "models") return out([{ id: flag("selected-model") }]);
+	if (group === "plugin" && action === "rpc" && args[2] === "call" && args[3] === "supervision") {
+		const input = JSON.parse(readFileSync(flag("input-file")!, "utf8"));
+		if (args[4] === "workerRoute") return out(threads(dir()).find(t => t.id === input.threadId)?.metadata?.route ?? null);
+		if (args[4] === "workerSpawn") {
+			const created: FakeBbThread = { id: "bbt-" + crypto.randomUUID().slice(0, 8), status: "active", archivedAt: null, parentThreadId: input.parentThreadId ?? null,
+				environment: input.path, title: input.title, prompt: input.prompt, metadata: input.metadata, providerId: input.providerId, model: input.model, tells: [] };
 			save(created);
 			return out({ id: created.id, environmentId: created.environment });
 		}
+	}
+	if (group !== "thread") return fail("unsupported: " + args.join(" "));
+	switch (action) {
 		case "show": { const t = load(); return out({ thread: { ...t, environmentId: t.environment, canSpawnChild: !t.archivedAt } }); }
 		case "update": { const t = load(); save({ ...t, parentThreadId: flag("parent-thread") ?? (args.includes("--clear-parent-thread") ? null : t.parentThreadId) }); return out({ ok: true }); }
 		case "list": return out(threads(dir()).map(t => ({ ...t, environmentPath: t.environment })));

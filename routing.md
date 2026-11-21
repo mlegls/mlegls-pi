@@ -1,6 +1,6 @@
 ## Agent model lists
 
-Each agent file's `model:` is a list of `provider/model:effort`, most preferred first (e.g. `openai/gpt-6.2-sol:high, anthropic/claude-sonnet-5-5:high`). Routing takes the first entry whose provider has delegated capacity left (`allocation.json`, `lib/allocation.ts`); it doesn't choose models from this file. An `agent:<stance>` assignment keeps the stance's list, fallbacks included; `model:<provider>/<model>:<effort>` is exact and refuses unavailable execution. The reasoning behind the lists is in `docs/models.md`.
+Each agent file's `model:` is a list of `provider/model:effort`, most preferred first. A BB provider prefix names a native worker (`codex/gpt-6.2-sol:high`, `acp-antigravity/gemini-4-neon:high`); other entries are Pi models (`openai/gpt-6.2-sol:high`). A mixed list takes the first available model with delegated capacity left (`allocation.json`). A list of only Pi models still runs as `stance/<agent>`, with Pi selecting the model. A typed rate-limit from a non-Pi worker makes the reconciler replace it from the remainder of that stance's list. A `model:<provider>/<model>:<effort>` assignment is exact. The reasoning behind the lists is in `docs/models.md`.
 
 ## Assignment stances
 

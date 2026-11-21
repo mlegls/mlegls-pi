@@ -43,7 +43,7 @@ test("an interrupted chain launch adopts its titled worker or launches once unde
 			expect(chain.launchedAt).toBeGreaterThan(0);
 			if (worker) expect(chain.handle!.bb).toBe(worker.bb);
 			await Bun.sleep(300);
-			const spawns = f.bb.calls().filter(call => call[0] === "thread" && call[1] === "spawn");
+			const spawns = f.bb.calls().filter(call => call.slice(0, 5).join(" ") === "plugin rpc call supervision workerSpawn");
 			expect(spawns).toHaveLength(registered ? 0 : 1);
 			expect(load(f.cwd, "root")!.counter).toBe(1);
 			expect(f.bb.threads().filter(t => t.title === "root/" + launching && !t.archivedAt)).toHaveLength(1);

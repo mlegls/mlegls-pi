@@ -15,7 +15,7 @@ export function launchEnv(thread: Pick<WorkerCheckout, "worker" | "launch">): No
 
 /** bb owns the session; options that allocate/resume elsewhere cannot override it. */
 export function validateLaunch(launch?: AgentLaunch): void {
-	if ((launch as { cmd?: unknown } | undefined)?.cmd !== undefined) throw new Error("Threads run pi in bb; a launch command is not supported");
+	if ((launch as { cmd?: unknown } | undefined)?.cmd !== undefined) throw new Error("BB owns the worker's provider; a launch command is not supported");
 	const identity = /(?:^|\s)(?:--fork|--session|--session-id|--no-session|--continue|--resume|-c|-r)(?:\s|=|$)/;
 	if (launch?.args?.some(a => identity.test(a)))
 		throw new Error("Worker launches cannot carry session arguments; remove them");

@@ -20,7 +20,7 @@ const state = (f: ReturnType<typeof protocolFixture>): State => ({
 	landed: {}, results: {}, landingOps: {}, refinements: {}, collectors: {}, chains: {},
 	exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: 0, log: [],
 });
-const spawns = (f: ReturnType<typeof protocolFixture>) => f.bb.calls().filter(c => c[0] === "thread" && c[1] === "spawn");
+const spawns = (f: ReturnType<typeof protocolFixture>) => f.bb.calls().filter(c => c.slice(0, 5).join(" ") === "plugin rpc call supervision workerSpawn");
 
 test("collector-local landings release remaining work without releasing canonical outside blockers or foreign claims", () => {
 	const f = protocolFixture();

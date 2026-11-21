@@ -7,6 +7,18 @@
       "2026-10-05"
     ]
   },
+  "codex": {
+    "quota": "codex",
+    "noninteractive": 0.8
+  },
+  "acp-antigravity": {
+    "quota": "agy",
+    "noninteractive": 0.8
+  },
+  "claude-code": {
+    "quota": "claude",
+    "noninteractive": 0.5
+  },
   "anthropic": {
     "quota": "claude",
     "noninteractive": 0.5

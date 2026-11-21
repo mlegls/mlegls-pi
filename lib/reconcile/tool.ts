@@ -12,7 +12,7 @@ if (import.meta.main) {
 	const session = () => readLive().find(record => record.thread === owner && record.sessionFile)?.sessionId;
 	const handlers = {
 		dispatch: (p: { assignments: Assignment[]; run: string; maxConcurrent?: number; active?: Handle[] }) =>
-			dispatch(p.assignments, { cwd, parent: session(), parentThread: owner, run: p.run, maxConcurrent: p.maxConcurrent ?? 8, active: p.active ?? [] }),
+			dispatch(p.assignments, { cwd, parentThread: owner, run: p.run, maxConcurrent: p.maxConcurrent ?? 8, active: p.active ?? [] }),
 		async integrate(p: { worker: Handle | string; mode?: "rebase" | "merge"; keep?: boolean }) {
 			try { return await integrate(p.worker, { cwd, mode: p.mode, keep: p.keep }); }
 			catch (error) { if ((error as { files?: string[] }).files) return { conflict: true, ...(error as object), message: (error as Error).message }; throw error; }

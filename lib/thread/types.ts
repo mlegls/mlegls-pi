@@ -1,5 +1,9 @@
 export interface WorkerIdentity { run: string; handle: string }
+export interface WorkerRoute { agent: string; model: string; effort: string }
+export interface WorkerExecution { providerId: string; model?: string; effort?: string; route?: WorkerRoute }
+
 export interface AgentLaunch {
+	execution?: WorkerExecution;
 	/** Additional pi arguments (--model, --thinking). */
 	args?: string[];
 	env?: Record<string, string>;
