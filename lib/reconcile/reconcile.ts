@@ -43,7 +43,7 @@ import { beginEvidenceScope, EVIDENCE_MISSING } from "./evidence.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVerdict } from "./post-landing.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
-import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
+import type { GlobalRunState, RefinementAttempt, WorkerPhase } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
 import { prepareStaging, resolveLanding } from "./pr-config.ts";
 import { createPullRequestHost } from "./pr-host.ts";
@@ -109,9 +109,10 @@ const FOREIGN_COMMIT = "foreign implementation not installed";
 const LAUNCH_CONFLICT = "launch base conflicts with required work";
 
 
-type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
+type Phase = WorkerPhase | "integrate";
+type LaunchRole = WorkerPhase | "handle";
 interface PhaseLaunch {
-	phase: Phase;
+	phase: WorkerPhase;
 	extra: string;
 	adopt: boolean;
 	resumeAttempt?: string;
@@ -134,7 +135,7 @@ interface Chain {
 	/** Intended worker title, saved before spawn so restart can adopt an unreceipted thread. */
 	launching?: string;
 	/** Phase the saved launch starts; c.phase stays the running worker's until its successor's handle is saved. */
-	launchPhase?: Phase;
+	launchPhase?: WorkerPhase;
 	/** Continue the intended transition after a prelaunch hold, including if the run restarts. */
 	pendingLaunch?: PhaseLaunch;
 	launchedAt?: number;
@@ -335,9 +336,10 @@ export function saveState(s: State): void {
 }
 
 /** Read at launch, including after checkout preparation, rather than caching at the preceding phase. */
-export function constrainedPrompt(cwd: string, root: string, node: string, prompt: string): string {
-	const constraints = load(cwd, root)?.constraints?.[node] ?? [];
-	return constraints.length ? prompt + "\n\nConstraints from the supervisor (apply throughout this node's work):\n\n" + constraints.join("\n\n") : prompt;
+export function constrainedPrompt(cwd: string, root: string, node: string, prompt: string, phase?: WorkerPhase): string {
+	const constraints = (load(cwd, root)?.constraints?.[node] ?? []).flatMap(c =>
+		typeof c === "string" ? [c] : c.phase === phase ? [c.text] : []);
+	return constraints.length ? prompt + "\n\nConstraints from the supervisor:\n\n" + constraints.join("\n\n") : prompt;
 }
 
 const finished = (i: Issue) => i.satisfied;
@@ -611,7 +613,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain, after?: WorkerRoute): Promise<Handle> {
+	async function launch(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain, after?: WorkerRoute): Promise<Handle> {
 		launching++;
 		try {
 			if (tracker.githubIssue && issue && (role === "refine" || role === "implement")) {
@@ -668,8 +670,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 		} finally { launching--; }
 	}
-	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, after?: WorkerRoute): Promise<Handle> {
-		const restrict = (text: string) => issue ? constrainedPrompt(controlCwd, s.root, issue.slug, text) : text;
+	async function launchNow(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, after?: WorkerRoute, node = issue?.slug): Promise<Handle> {
+		const restrict = (text: string) => node && role !== "handle" ? constrainedPrompt(controlCwd, s.root, node, text, role) : text;
 		const agentName = after?.agent ?? await pick(role, issue, restrict(prompt), only);
 		// Starting a reconciler on a root delegates the root: a goal root rarely names an assignee, and its own stage
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
@@ -746,7 +748,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 	}
 	/** finished words the retirement notice. */
-	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false, from?: string) {
+	async function startPhase(slug: string, c: Chain, phase: WorkerPhase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false, from?: string) {
 		const plan = c.pendingLaunch ?? { phase, extra, adopt, resumeAttempt, finished, from };
 		({ phase, extra, adopt, resumeAttempt, finished, from } = plan);
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
@@ -1057,7 +1059,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
 		// a partial failure. Retry adopts its exact bb thread or raises to owner.
 		return launchNow(receipt.launchHandle, "review", prompt,
-			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"]);
+			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"], undefined, undefined, s.root);
 	}
 	const pendingNotes = new Map<string, string | undefined>();
 	/** The chain's committed work beyond its destination, as a note for a fresh start that doesn't take it as its base. */
@@ -1370,7 +1372,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Save the successful refinement/review transition before consuming its report.
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined;
 		const h = c.handle!, r = parse(m.body, h.path), text = m.body;
-		if (c.phase === "integrate") { c.phase = "review"; }
+		const phase = c.phase = c.phase === "integrate" ? "review" : c.phase;
 		if (m.tags.includes("error")) {
 			const kind = m.errorCategory === "rate-limit" ? "rate limit or quota" : errorClass(text);
 			if (nativeRateLimit(h, m) && h.bb) {
@@ -1444,7 +1446,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				await sendChild(h, "Continue from your checkpoint. This is the same session and worktree: everything you kept there (services' data, exports, local databases, ignored files) is as you left it. Re-read what remains in the ticket and carry on with the assignment.");
 			},
 			raise: reason => raise(slug, reason, text, issues),
-			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint. Its worker is gone; its commits are in your base. Ignored state its worktree held (local databases, exports) is not in your worktree: retirement moved any such state aside and told the owner where:\n\n" + text.slice(-6000), true),
+			restart: () => startPhase(slug, c, phase, issue, issues, "Continue from the previous worker's checkpoint. Its worker is gone; its commits are in your base. Ignored state its worktree held (local databases, exports) is not in your worktree: retirement moved any such state aside and told the owner where:\n\n" + text.slice(-6000), true),
 			save,
 		});
 		if (git(h.path, "status", "--porcelain")) return repair(slug, c, "dirty", "You reported done with uncommitted changes. Commit everything that belongs to the change, then report done again.", issues, text);
@@ -1797,7 +1799,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			try {
 				if (chain.resumeFrom) {
 					note(slug + " resumes " + chain.phase + " from the stopped run's branch " + resumed!.branch + " at " + chain.resumeFrom);
-					await startPhase(slug, chain, chain.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
+					await startPhase(slug, chain, resumed!.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
 				}
 				else if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
 				else await startPhase(slug, chain, issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
