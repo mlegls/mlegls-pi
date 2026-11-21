@@ -6,6 +6,14 @@ for: maintainer
 
 [Outreach records](../../skills/enabled/all/mlegls/conventions/outreach/SKILL.md) live in the main checkout's `docs/outreach/`. Run `check` to validate edits and `snapshot --json` to see the queue and sync status BB reads. `sync` imports messages into the Markdown; review and commit record changes as you would other project notes.
 
+## Work the queue in BB
+
+Open `/plugins/tracker/outreach` on your BB server, or go directly to `/plugins/tracker/outreach/<project-id>`. Pick a project with `docs/outreach/`. Queue shows replies and due follow-ups; **Mark handled** (`h`) clears the item from Queue and the Outreach badge without editing the record. Use **Show handled** to undo. Another synced reply or a changed due date can bring the person back.
+
+Candidates groups uncontacted people by hypothesis and shows the highest-priority leads first. Hypotheses shows reply and verdict counts and the decision bar. Select a person or several people and click **Discuss** (`d`); the new thread starts with their records and linked hypotheses. You can also mention a record with `~` in any composer.
+
+To try sync → Queue → Discuss without connecting accounts, use the [disposable BB project and mock Beeper recipe](../attachments/outreach-conversations-in-the-bb-tracker/index.md).
+
 ## Connect the sources
 
 1. On the Mac, open Beeper Desktop → Settings → Integrations. Enable the Desktop API, create an access token, then turn on **Remote Access** under Advanced. [Remote Access](https://developers.beeper.com/desktop-api/advanced/remote-access) listens on all interfaces; restrict port `23373` to the tailnet and leave Beeper running.
