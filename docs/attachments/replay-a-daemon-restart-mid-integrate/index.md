@@ -1,5 +1,7 @@
 # Restart during reconciler integration
 
+See the [independent first-use drive](drive.md) for the replay at `aeb68822`.
+
 Run from the checkout root with Bun and Git on `PATH`:
 
 ```sh
