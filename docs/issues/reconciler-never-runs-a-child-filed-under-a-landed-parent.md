@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 author: "session:thr_ts3gpc75tx"
 priority: 2
@@ -11,3 +11,28 @@ Observed in concept on 2026-11-10: [[projects/concept/issues/bound-resident-revi
 Same class as [[projects/mlegls-pi/issues/reconciler-never-reenters-a-reopened-landed-node]] (a reopened landed node) and [[projects/mlegls-pi/issues/reconciler-stalls-on-idea-children-filed-by-workers]] (idea children), but here the parent never reopened and the child was a ready ticket.
 
 Either option fits the existing fixes: treat a landed node that gains an open child as reopened (schedule the child, then re-join), or have the reconciler reparent such a child to the nearest unlanded ancestor itself, as the idea-children fix moves ideas out, and tell the owner.
+
+## Result
+
+done — Independent replay confirmed all three stories. The late child started from the original parent’s landing, the owner received the reparenting notice, and the sibling started from the late child’s landing. The original receipt stayed unchanged. Both existing scheduling tests passed; no code repair was needed.
+
+```yaml
+commit: 63816158
+stories:
+  - story: A late ready child under a landed parent is scheduled automatically.
+    outcome: held
+  - story: The owner is notified when the child is reparented.
+    outcome: held
+  - story: The blocked sibling starts after the late child lands.
+    outcome: held
+evidence:
+  path: docs/attachments/reconciler-never-runs-a-child-filed-under-a-landed-parent/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+caveats:
+  - The replay used simulated worker reports and stopped at sibling launch; it did not exercise final root completion.
+```
+
+Evidence: [docs/attachments/reconciler-never-runs-a-child-filed-under-a-landed-parent/index.md](../attachments/reconciler-never-runs-a-child-filed-under-a-landed-parent/index.md)
