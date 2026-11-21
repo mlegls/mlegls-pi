@@ -11,10 +11,9 @@ prompts for pi, Claude Code and Codex.
 - `extensions/system-prompt`: the short system prompt.
 - `extensions/fragment`: `read`/`grep`/`edit` over pi's built-ins, with outlines for large files and edits addressed by quoting. `extensions/hashline` is the anchor-addressed alternative; enable one of the two.
 - `extensions/workspace`: move a session to another workspace.
-- `extensions/bb`: pi's session commands and notices when bb runs pi in RPC mode.
+- `extensions/bb`: Pi's session commands (including `/jump`) and notices when BB runs Pi in RPC mode.
 - `extensions/context`: shared lives and notes, observational memory (`om/`, vendored from pi-observational-memory), journal, recall and context policy.
 - `extensions/stances`: `stance/<agent>` virtual models, routed by each agent's model list and `allocation.json`.
-- `lib/reconcile/tool.ts`: backend for the native [BB Supervision plugin](https://github.com/mlegls/bb-plugins/tree/main/supervision). Pi's `/jump` command lives in `extensions/bb`.
 - `extensions/guard`: refuses host-wide pattern kills and git-hook bypasses.
 - `extensions/error-images`: strips images from errored tool results.
 - `lib/session-meta/host.ts`: session metadata host extension.
@@ -22,8 +21,8 @@ prompts for pi, Claude Code and Codex.
 
 **Libraries** (`lib/`):
 
-- `dispatch.ts`, `wm.ts`, `thread/`: launch and track `wm` workers (bb threads: a worktree and a pi run by bb).
-- `reconcile/`: the execution-tree reconciler behind the `reconcile` tools.
+- `dispatch.ts`, `wm.ts`, `thread/`: launch and track workers, each a BB thread with a worktree and a selected provider.
+- `reconcile/`: the execution-tree reconciler and backend for the [BB Supervision plugin](docs/guide/bb-supervision.md).
 - `tracker*.ts`, `records/`, `outline-read/`, `allocation.ts`, `decide.ts` (Jev decisions outside pi), `desk.ts` and the rest.
 
 **User-level, linked into each harness**:
