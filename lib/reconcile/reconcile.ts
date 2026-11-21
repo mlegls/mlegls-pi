@@ -44,7 +44,7 @@ import { captureWorkerForeignWork } from "./foreign-work.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVerdict } from "./post-landing.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
-import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
+import type { GlobalRunState, RefinementAttempt, WorkerPhase } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
 import { prepareStaging, resolveLanding } from "./pr-config.ts";
 import { createPullRequestHost } from "./pr-host.ts";
@@ -98,7 +98,7 @@ const WAITING_MS = 3 * 60 * 60_000;
 const TOOL_CALL_MS = 45 * 60_000;
 /** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
 const WAITING_NUDGE_MS = 30 * 60_000;
-/** A waiting worker whose session runs no managed process this long after its report is told so (its notice raced, or nothing started). */
+/** Nudge early only when the idle worker's process registry confirms no managed work is running. */
 const WAITING_VOID_MS = 2 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3 } as const;
@@ -110,9 +110,10 @@ const FOREIGN_COMMIT = "foreign implementation not installed";
 const LAUNCH_CONFLICT = "launch base conflicts with required work";
 
 
-type Phase = "refine" | "implement" | "drive" | "review" | "integrate";
+type Phase = WorkerPhase | "integrate";
+type LaunchRole = WorkerPhase | "handle";
 interface PhaseLaunch {
-	phase: Phase;
+	phase: WorkerPhase;
 	extra: string;
 	adopt: boolean;
 	resumeAttempt?: string;
@@ -135,7 +136,7 @@ interface Chain {
 	/** Intended worker title, saved before spawn so restart can adopt an unreceipted thread. */
 	launching?: string;
 	/** Phase the saved launch starts; c.phase stays the running worker's until its successor's handle is saved. */
-	launchPhase?: Phase;
+	launchPhase?: WorkerPhase;
 	/** Continue the intended transition after a prelaunch hold, including if the run restarts. */
 	pendingLaunch?: PhaseLaunch;
 	launchedAt?: number;
@@ -336,9 +337,10 @@ export function saveState(s: State): void {
 }
 
 /** Read at launch, including after checkout preparation, rather than caching at the preceding phase. */
-export function constrainedPrompt(cwd: string, root: string, node: string, prompt: string): string {
-	const constraints = load(cwd, root)?.constraints?.[node] ?? [];
-	return constraints.length ? prompt + "\n\nConstraints from the supervisor (apply throughout this node's work):\n\n" + constraints.join("\n\n") : prompt;
+export function constrainedPrompt(cwd: string, root: string, node: string, prompt: string, phase?: WorkerPhase): string {
+	const constraints = (load(cwd, root)?.constraints?.[node] ?? []).flatMap(c =>
+		typeof c === "string" ? [c] : c.phase === phase ? [c.text] : []);
+	return constraints.length ? prompt + "\n\nConstraints from the supervisor:\n\n" + constraints.join("\n\n") : prompt;
 }
 
 const finished = (i: Issue) => i.satisfied;
@@ -572,26 +574,23 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const thread = bbThread(h);
 		return !!thread && !thread.archivedAt;
 	};
-	/** Whether an idle worker's pi still runs a managed process. The process tool starts each as a process-group leader
-	 * under pi with stdin closed (/dev/null); pi's MCP servers lead groups too but read a pipe, and an idle worker runs
-	 * no bash tool. Undefined when that can't be observed: only a definite false counts. */
-	const runsProcess = (h: Handle): boolean | undefined => {
-		const thread = bbThread(h), pi = h.bb ? readLive().find(l => l.thread === h.bb)?.pid : undefined;
-		if (!pi || !thread || thread.archivedAt || bbWorking(thread)) return undefined;
-		try {
-			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === pi && pid === pgid).map(([pid]) => pid);
-			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-w", "-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch { return true; } });
-		} catch { return undefined; }
-	};
-
-	/** pi-processes' versioned session receipts distinguish managed work from an active bash child.
-	 * The idle-only OS probe above cannot do that: both launch process-group leaders with stdin closed. */
-	const managedProcess = (sessionFile: string): boolean | undefined => {
+	/** Read pi-processes' session receipts. A process can change stdin or outlive its group leader;
+	 * neither changes whether the manager is still waiting on it. No registry is ambiguous for an
+	 * idle worker: older pi-processes managed work without writing one. */
+	const managedProcess = (sessionFile: string, missingMeansEmpty = false): boolean | undefined => {
 		try {
 			const registry = JSON.parse(readFileSync(join(sessionFile + ".processes", "registry.json"), "utf8"));
 			if (registry.version !== 1 || !Array.isArray(registry.records)) return undefined;
-			return registry.records.some((r: { info: { status: string } }) => ["running", "terminating", "terminate_timeout"].includes(r.info.status));
-		} catch (e) { return (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
+			const statuses: (string | undefined)[] = registry.records.map((r: { info?: { status?: string } }) => r?.info?.status);
+			if (statuses.some(status => status === "running" || status === "terminating" || status === "terminate_timeout")) return true;
+			return statuses.every(status => status === "exited" || status === "killed") ? false : undefined;
+		} catch (e) { return missingMeansEmpty && (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
+	};
+	const waitingWithoutProcess = (h: Handle): boolean => {
+		const thread = bbThread(h);
+		if (!thread || thread.archivedAt || thread.status !== "idle") return false;
+		const live = readLive().find(l => l.thread === h.bb);
+		return live?.state === "idle" && !!live.sessionFile && managedProcess(live.sessionFile) === false;
 	};
 
 	// --- launching -------------------------------------------------------------------------------------
@@ -612,7 +611,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain, after?: WorkerRoute): Promise<Handle> {
+	async function launch(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain, after?: WorkerRoute): Promise<Handle> {
 		launching++;
 		try {
 			if (tracker.githubIssue && issue && (role === "refine" || role === "implement")) {
@@ -669,8 +668,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 		} finally { launching--; }
 	}
-	async function launchNow(handle: string, role: string, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, after?: WorkerRoute): Promise<Handle> {
-		const restrict = (text: string) => issue ? constrainedPrompt(controlCwd, s.root, issue.slug, text) : text;
+	async function launchNow(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, after?: WorkerRoute, node = issue?.slug): Promise<Handle> {
+		const restrict = (text: string) => node && role !== "handle" ? constrainedPrompt(controlCwd, s.root, node, text, role) : text;
 		const agentName = after?.agent ?? await pick(role, issue, restrict(prompt), only);
 		// Starting a reconciler on a root delegates the root: a goal root rarely names an assignee, and its own stage
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
@@ -747,9 +746,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 	}
 	/** finished words the retirement notice. */
-	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false, from?: string) {
+	async function startPhase(slug: string, c: Chain, phase: WorkerPhase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false, from?: string) {
 		const plan = c.pendingLaunch ?? { phase, extra, adopt, resumeAttempt, finished, from };
 		({ phase, extra, adopt, resumeAttempt, finished, from } = plan);
+		// A first join launch starts in the node's collector even when a saved attempt lost its launch plan.
+		// c.into remains the enclosing collector: that's where the join will eventually land.
+		if (c.self && phase === "implement" && !c.handle && !c.resumeFrom) from ??= s.collectors[slug].path;
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
 		const prev = c.handle?.handle === c.launching ? undefined : c.handle;
@@ -1059,7 +1061,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
 		// a partial failure. Retry adopts its exact bb thread or raises to owner.
 		return launchNow(receipt.launchHandle, "review", prompt,
-			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"]);
+			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"], undefined, undefined, s.root);
 	}
 	const pendingNotes = new Map<string, string | undefined>();
 	/** The chain's committed work beyond its destination, as a note for a fresh start that doesn't take it as its base. */
@@ -1372,7 +1374,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Save the successful refinement/review transition before consuming its report.
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined;
 		const h = c.handle!, r = parse(m.body, h.path), text = m.body;
-		if (c.phase === "integrate") { c.phase = "review"; }
+		const phase = c.phase = c.phase === "integrate" ? "review" : c.phase;
 		if (m.tags.includes("error")) {
 			const kind = m.errorCategory === "rate-limit" ? "rate limit or quota" : errorClass(text);
 			if (nativeRateLimit(h, m) && h.bb) {
@@ -1446,7 +1448,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				await sendChild(h, "Continue from your checkpoint. This is the same session and worktree: everything you kept there (services' data, exports, local databases, ignored files) is as you left it. Re-read what remains in the ticket and carry on with the assignment.");
 			},
 			raise: reason => raise(slug, reason, text, issues),
-			restart: () => startPhase(slug, c, c.phase, issue, issues, "Continue from the previous worker's checkpoint. Its worker is gone; its commits are in your base. Ignored state its worktree held (local databases, exports) is not in your worktree: retirement moved any such state aside and told the owner where:\n\n" + text.slice(-6000), true),
+			restart: () => startPhase(slug, c, phase, issue, issues, "Continue from the previous worker's checkpoint. Its worker is gone; its commits are in your base. Ignored state its worktree held (local databases, exports) is not in your worktree: retirement moved any such state aside and told the owner where:\n\n" + text.slice(-6000), true),
 			save,
 		});
 		if (git(h.path, "status", "--porcelain")) return repair(slug, c, "dirty", "You reported done with uncommitted changes. Commit everything that belongs to the change, then report done again.", issues, text);
@@ -1656,6 +1658,25 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		return true;
 	}
+	/** A landing seals its collector. Route new work around sealed parents without replaying their landings. */
+	function liftLateChildren(current: Map<string, Issue>): boolean {
+		if (s.landed[s.root] || current.get(s.root)?.done || current.get(s.root)?.archived) return false;
+		let changed = false;
+		for (const child of current.values()) {
+			const parent = child.partOf;
+			if (!parent || !s.landed[parent] || s.landed[child.slug] || finished(child) || child.provisional
+				|| child.ownStage === "idea" || s.chains[child.slug] || !under(child, current)) continue;
+			let target = current.get(parent)?.partOf;
+			while (target && s.landed[target]) target = current.get(target)?.partOf;
+			if (!target) continue;
+			tracker.update(child.slug, { "part-of": target });
+			const message = "reparented " + child.slug + " from landed " + parent + " to " + target;
+			note(message);
+			tellOwner(message + "; it can now be scheduled in this tree");
+			changed = true;
+		}
+		return changed;
+	}
 	/** Deliver a saved accepted transition, even when the report cursor consumed it. */
 	async function finishRefinement(slug: string, c: Chain) {
 		const attempt = s.refinements[c.refinement!];
@@ -1800,10 +1821,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			try {
 				if (chain.resumeFrom) {
 					note(slug + " resumes " + chain.phase + " from the stopped run's branch " + resumed!.branch + " at " + chain.resumeFrom);
-					await startPhase(slug, chain, chain.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
+					await startPhase(slug, chain, resumed!.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
 				}
-				else if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
-				else await startPhase(slug, chain, issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
+				else await startPhase(slug, chain, !chain.self && issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
 			} catch (e) {
 				// Nothing launched: forget the chain so the post-reset tick starts it afresh.
 				if (e instanceof GithubRateLimited) { delete s.chains[slug]; if (resumed && chain.resumeFrom) (s.resume ??= {})[slug] = resumed; save(); throw e; }
@@ -1854,22 +1874,23 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Prefer a nested call to its enclosing codemode script, so the notice names the actual command.
 		const stalled = active?.tools?.filter(t => Date.now() - Date.parse(t.since) > TOOL_CALL_MS)
 			.findLast(t => !active.tools!.some(child => child.parent === t.id));
-		if (stalled && active?.sessionFile && managedProcess(active.sessionFile) === false) {
+		// Keep the stall check for sessions that never started managed work and have no registry.
+		if (stalled && active?.sessionFile && managedProcess(active.sessionFile, true) === false) {
 			raise(slug, c.phase + " tool call stalled", "Tool " + stalled.name + " has been running since " + stalled.since + " (over 45m) with no running managed process.\n\nCommand: " + (stalled.command ?? "(no command argument)") + "\n\nWorker: " + c.handle.handle + " (" + c.handle.bb + ")", issues, "owner");
 			return "active";
 		}
-		// A worker idle on a wait whose process has already gone (it never started, or ended without waking it) would idle until the nudge below.
-		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && runsProcess(c.handle) === false) {
+		// If the registry is unavailable, let the ordinary check-in below ask without asserting absence.
+		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && waitingWithoutProcess(c.handle)) {
 			c.waitingVoidNudged = true; c.waitingCheckedAt = new Date().toISOString(); save();
 			note(c.phase + " " + slug + " nudged: waiting with no running process");
-			await sendChild(c.handle, "You reported `waiting`, but your session runs no managed process: the one you are waiting on has ended without its notice reaching you, or never started. Check it (process list, process output): take its result if it finished, start it again if it didn't run, and continue.");
+			await sendChild(c.handle, "You reported `waiting`, and your session's process registry shows no running process. Check the named process with `process wait` and take its result if it finished.");
 			return "active";
 		}
 		// The completion notice never comes while a descendant the process left behind (an orphaned server or executor) holds its process group.
 		if (c.waitingSince && c.handle && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_NUDGE_MS && alive(c.handle) !== false) {
 			c.waitingCheckedAt = new Date().toISOString(); save();
 			note(c.phase + " " + slug + " nudged: waiting since " + c.waitingSince);
-			await sendChild(c.handle, "You reported `waiting` and no completion notice has reached you in " + WAITING_NUDGE_MS / 60_000 + "m. Check the process you are waiting on (process list, process output). If its output shows the command finished but it still shows as running, a descendant it left behind (an orphaned server or executor) is holding its process group, so its notice will not come: take the result from its output, kill it with the process tool (and anything it left behind), and continue. If it is genuinely still running, end your turn `waiting` again.");
+			await sendChild(c.handle, "You reported `waiting` and no completion notice has reached you in " + WAITING_NUDGE_MS / 60_000 + "m. Check the named process with `process wait`. If its output shows the command finished but it still shows as running, a descendant it left behind (an orphaned server or executor) is holding its process group, so its notice will not come: take the result from its output, kill it with the process tool (and anything it left behind), and continue. If it is genuinely still running, end your turn `waiting` again.");
 			return "active";
 		}
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
@@ -1910,7 +1931,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	let tickError = "";
 	const code = new CodeMonitor();
 	for (;;) {
-		if (o.signal?.aborted) return;
+		if (o.signal?.aborted) return await told;
 		try {
 			if (await untilReset(tick, { note, signal: o.signal })) return await told;
 			tickError = "";
@@ -2034,6 +2055,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		let result: Awaited<ReturnType<typeof visit>>, pending: number;
 		for (;;) {
 			const before = s.landed;
+			if (liftLateChildren(top)) top = view(destination());
 			visited.clear();
 			result = await visit(s.root, destination(), top);
 			if (s.pr && s.landed[s.root]) return false;

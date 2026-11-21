@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { basename, extname, resolve } from "node:path";
 import { createReadToolDefinition, type AgentToolResult, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { loadConfig, type OutlineReadConfig } from "./config";
+import { DEFAULT_CONFIG, loadConfig, type OutlineReadConfig } from "./config";
 import { renderOutline, type Elision } from "./outline/render";
 import type { OutlineNode, OutlineSource } from "./outline/types";
 import { formatRow } from "./anchors";
@@ -199,14 +199,24 @@ export function registerReadTool(pi: ExtensionAPI, deps: ReadDeps): void {
 						break;
 					}
 				}
-				if (!nodes && deps.fallback) {
-					nodes = await deps.fallback(absolutePath, text, config, signal);
-					if (nodes) sourceName = "model";
+				// The model receives the whole file with line numbers, before read applies its output caps.
+				if (!nodes && deps.fallback && Buffer.byteLength(raw) <= Math.min(config.maxBytes, DEFAULT_CONFIG.maxBytes)) {
+					try {
+						nodes = await deps.fallback(absolutePath, text, config, signal);
+						if (nodes) sourceName = "model";
+					} catch (error) {
+						if (signal?.aborted) throw error;
+						console.warn(`[outline-read] model outline failed on ${shown}: ${error instanceof Error ? error.message : error}`);
+					}
 				}
 				if (!nodes || !nodes.length) return emitRanges([{ start: 1, end: total }]);
 
 				const rendered = renderOutline(lines, nodes, { minBodyLines: config.minBodyLines, budgetTokens: config.budgetTokens }, row, formatElision);
-				if (!rendered.elisions.length) return emitRanges([{ start: 1, end: total }]);
+				// The outline's token budget is best-effort: even level 2 can retain large source lines.
+				if (!rendered.elisions.length || Buffer.byteLength(rendered.text) > config.maxBytes
+					|| total - rendered.elidedLines + rendered.elisions.length > config.maxLines) {
+					return emitRanges([{ start: 1, end: total }]);
+				}
 
 				const example = formatRanges(rendered.elisions.slice(0, 2).map((e) => ({ start: e.startLine, end: e.endLine })));
 				const footer = `[${rendered.elidedLines} lines elided (${sourceName} outline${rendered.level ? `, level ${rendered.level}` : ""}). Read what you need: ${shown}:${example}]`;

@@ -176,9 +176,11 @@ function issueFor(slug: string, all: Map<string, Issue>): Issue {
   return i;
 }
 
-function fieldsOf(i: Issue): Record<string, unknown> {
-  const fields = contract(readFileSync(i.file, "utf8")).doc.toJS({ maxAliasCount: 0 });
-  if ("part-of" in fields) fields["part-of"] = i.partOf;
+const revisionOf = (bytes: Buffer): string => createHash("sha256").update(bytes).digest("hex");
+
+function fieldsOf(text: string): Record<string, unknown> {
+  const fields = contract(text).doc.toJS({ maxAliasCount: 0 });
+  if ("part-of" in fields) fields["part-of"] = slugOf(fields["part-of"]);
   if ("blocked-by" in fields) fields["blocked-by"] = fields["blocked-by"].map((v: string) => v.startsWith("[[") ? slugOf(v) : v);
   return fields;
 }
@@ -390,7 +392,8 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
         if (recovered) notes.push(recovered);
         // --only also captures the working tree for the named paths, not the rest of the index.
         git(root, "add", "--", ...paths);
-        if (git(root, "diff", "--name-only", "HEAD", "--", ...paths))
+        // Without an explicit HEAD, --cached compares to the empty tree on an unborn branch.
+        if (git(root, "diff", "--cached", "--name-only", "--", ...paths))
           git(root, "commit", "--only", "-m", message, "--", ...paths);
         settleIndex(root, paths);
         return;
@@ -398,7 +401,8 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
         // An operation may have started between our check and Git taking its index lock.
         if (operationInProgress(root)) continue;
         // A concurrent writer of the same paths may already have committed these bytes.
-        if (!git(root, "diff", "--name-only", "HEAD", "--", ...paths)) { settleIndex(root, paths); return; }
+        const hasHead = spawnSync("git", ["-C", root, "rev-parse", "--verify", "HEAD"]).status === 0;
+        if (hasHead && !git(root, "diff", "--name-only", "HEAD", "--", ...paths)) { settleIndex(root, paths); return; }
         if (!/index\.lock.*File exists/s.test(String((error as { stderr?: unknown }).stderr ?? error)) || Date.now() > deadline) throw error;
         Bun.sleepSync(500);
       }
@@ -422,7 +426,7 @@ async function updateAttachment(dir: string, locator: string, body: string, chec
   }));
 }
 
-async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body: string | undefined, summary: string | undefined, evidence: string | undefined, checkForBodyWipe: boolean): Promise<void> {
+async function mutate(dir: string, cmd: string, slug: string, fields: Record<string, unknown>, body: string | undefined, summary: string | undefined, evidence: string | undefined, checkForBodyWipe: boolean, ifRevision?: string): Promise<void> {
   validSlug(slug);
   await persist(withVaultLock(dir, () => {
     const all = load(dir);
@@ -439,10 +443,14 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
       const i = issueFor(slug, all);
       if (cmd === "remove") changes.set(i.file, null);
       else if (cmd === "update") {
-        const existing = fieldsOf(i);
+        // Compare the same bytes we edit while holding the vault publication lock.
+        const bytes = readFileSync(i.file);
+        if (ifRevision !== undefined && revisionOf(bytes) !== ifRevision)
+          throw new Error(`${slug}: issue changed since the supplied revision; re-read it and reapply your changes`);
+        const current = bytes.toString("utf8");
+        const existing = fieldsOf(current);
         if ("author" in fields && existing.author !== undefined && fields.author !== existing.author) throw new Error("author provenance is immutable");
         if (fields.author !== existing.author && emptyIdentity(fields.author)) throw new Error("author must be a nonempty provenance string");
-        const current = readFileSync(i.file, "utf8");
         if (checkForBodyWipe) refuseBodyWipe(slug, contract(current).body);
         changes.set(i.file, replaceContract(current, storageFields(fields, dir, all), body));
       } else if (cmd === "close") {
@@ -464,10 +472,9 @@ async function mutate(dir: string, cmd: string, slug: string, fields: Record<str
         candidate.set(slug, { ...i, next: undefined, stage: "done", claimedBy: undefined });
         const resolved = new Set([...candidate.values()].filter(n => complete(n, candidate) && (n.slug === slug || !complete(all.get(n.slug)!, all))).map(n => n.slug));
         for (const dependent of all.values()) {
-          const fm = fieldsOf(dependent);
           if (!dependent.blockedBy.some(b => resolved.has(b))) continue;
-          const blockers = (fm["blocked-by"] as string[]).filter(b => !resolved.has(b));
           const text = changes.get(dependent.file) ?? readFileSync(dependent.file, "utf8");
+          const blockers = (fieldsOf(text)["blocked-by"] as string[]).filter(b => !resolved.has(b));
           changes.set(dependent.file, replaceContract(text, storageFields({ "blocked-by": blockers.length ? blockers : null }, dir, all)));
         }
       }
@@ -1011,15 +1018,18 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   if (!slug || slug.startsWith("--")) throw new Error(verb + (verb === "text" || verb === "update" ? " requires an issue slug or attachment locator" : " requires an issue slug"));
   const attachment = !github && (verb === "text" || verb === "update") && /^(?:issues\/)?attachments\//.test(slug)
     ? slug.replace(/^issues\//, "") : undefined;
+  const vaultIssue = !github && !attachment;
   const opts = new Map<string, string>();
+  const allowed = verb === "create" || verb === "update" ? ["--fields", "--body-file"] : verb === "close" ? ["--summary", "--evidence"] : [];
+  if (verb === "update" && vaultIssue) allowed.push("--if-revision");
   for (let n = 2; n < rawArgs.length; n++) {
     const key = rawArgs[n];
     if (key === "--json" && verb === "fields") continue;
-    if (key === "--allow-empty-body" && verb === "update" && !opts.has(key)) {
+    if (!opts.has(key) && ((key === "--allow-empty-body" && verb === "update") ||
+        (key === "--with-revision" && vaultIssue && (verb === "text" || verb === "fields")))) {
       opts.set(key, "");
       continue;
     }
-    const allowed = verb === "create" || verb === "update" ? ["--fields", "--body-file"] : verb === "close" ? ["--summary", "--evidence"] : [];
     if (!allowed.includes(key) || opts.has(key) || n + 1 === rawArgs.length) throw new Error("invalid option " + key);
     opts.set(key, rawArgs[++n]);
   }
@@ -1032,13 +1042,20 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
     const dir = findIssuesDir(process.cwd());
     const all = load(dir);
     validateGraph(all);
-    if (verb === "text") process.stdout.write(readFileSync(attachment ? attachmentFile(dir, attachment) : issueFor(slug, all).file, "utf8"));
-    else console.log(JSON.stringify(fieldsOf(issueFor(slug, all)), null, 2));
+    const bytes = readFileSync(attachment ? attachmentFile(dir, attachment) : issueFor(slug, all).file);
+    const text = bytes.toString("utf8");
+    if (opts.has("--with-revision")) {
+      const value = verb === "text" ? { text } : { fields: fieldsOf(text) };
+      console.log(JSON.stringify({ ...value, revision: revisionOf(bytes) }, null, 2));
+    } else if (verb === "text") process.stdout.write(text);
+    else console.log(JSON.stringify(fieldsOf(text), null, 2));
     return;
   }
   if (verb === "create" && (!opts.has("--fields") || !opts.has("--body-file"))) throw new Error("create requires --fields and --body-file");
   if (opts.has("--allow-empty-body") && !opts.has("--body-file")) throw new Error("--allow-empty-body requires --body-file");
-  if (verb === "update" && !opts.size) throw new Error("update requires --fields and/or --body-file");
+  if (verb === "update" && !opts.has("--fields") && !opts.has("--body-file")) throw new Error("update requires --fields and/or --body-file");
+  const ifRevision = opts.get("--if-revision");
+  if (ifRevision !== undefined && !/^[a-f0-9]{64}$/.test(ifRevision)) throw new Error("--if-revision requires a revision from text or fields --with-revision");
   if (attachment && (opts.has("--fields") || !opts.has("--body-file"))) throw new Error("attachment updates require --body-file and do not accept --fields");
   const fields = opts.has("--fields") ? JSON.parse(opts.get("--fields")!) : {};
   if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw new Error("fields must be a JSON object");
@@ -1058,7 +1075,7 @@ if (["create", "update", "close", "remove", "fields", "text"].includes(verb)) {
   } else if (attachment) {
     await updateAttachment(findIssuesDir(process.cwd()), attachment, body!, checkForBodyWipe);
   } else {
-    await mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"), checkForBodyWipe);
+    await mutate(findIssuesDir(process.cwd()), verb, slug, fields, body, opts.get("--summary"), opts.get("--evidence"), checkForBodyWipe, ifRevision);
     if (verb === "create") console.log(slug);
   }
   return;
@@ -1188,7 +1205,7 @@ if (cmd !== "lint") switch (cmd) {
     break;
   }
   default:
-    console.log("usage: issues text|show <slug|attachments/file.md> | fields <slug> [--json] | create <slug> --fields JSON --body-file path|- | update <slug> [--fields JSON] [--body-file path|- [--allow-empty-body]] | update attachments/file.md --body-file path|- [--allow-empty-body] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
+    console.log("usage: issues text|show <slug> [--with-revision] | text <attachments/file.md> | fields <slug> [--json] [--with-revision] | create <slug> --fields JSON --body-file path|- | update <slug> [--if-revision REVISION] [--fields JSON] [--body-file path|- [--allow-empty-body]] | update attachments/file.md --body-file path|- [--allow-empty-body] | close <slug> [--summary text] [--evidence repo-relative-path] | remove <slug> | frontier [slug] | mine [slug] | tree [slug] | done [slug] | snapshot [slug] | lint [slug] | check [--fix [moved issue paths...]] | outline [--json]");
     process.exitCode = 2;
 }
 }

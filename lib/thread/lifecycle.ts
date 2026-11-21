@@ -121,9 +121,16 @@ export async function integrateCheckout(thread: { cwd: string; project: string; 
 		// post-merge runs once the index is known to match HEAD for what landed: concept's refuses an index that doesn't
 		// (2026-10-17, after 2eb22adf and da7a071a landed, the index held their pre-landing entries).
 		let target = base;
-		for (let caughtUp = 0; ; caughtUp++) {
+		let lockDeadline: number | undefined;
+		for (let caughtUp = 0; ;) {
 			const ff = await gitAttempt(path, "-c", "core.hooksPath=/dev/null", "merge", "--ff-only", branch);
 			if (!ff.code) { printed.push(ff.out, ff.err); break; }
+			// A tracker commit may still hold the destination index, without advancing HEAD yet.
+			// Wait briefly for Git to release its own lock, then retry without rerunning preparation.
+			if (/index\.lock.*File exists/s.test(ff.err) && Date.now() < (lockDeadline ??= Date.now() + 30_000)) {
+				await new Promise(resolve => setTimeout(resolve, 250));
+				continue;
+			}
 			const now = await gitChecked(path, "rev-parse", "HEAD");
 			const behind = (await gitAttempt(thread.cwd, "merge-base", "--is-ancestor", now, "HEAD")).code === 1;
 			if (caughtUp >= 3 || now === target || !behind || !await trackerOnly(path, target, now))
@@ -138,6 +145,7 @@ export async function integrateCheckout(thread: { cwd: string; project: string; 
 			assertNoTrackerChanges(thread.cwd, now);
 			printed.push("integrate: merged tracker-only commits " + target.slice(0, 12) + ".." + now.slice(0, 12) + " from " + parentBranch + " into " + branch);
 			target = now;
+			caughtUp++;
 		}
 		const aligned = await alignIndex(path, target);
 		if (aligned.length) printed.push("integrate: reset the index to HEAD for " + aligned.join(", "));

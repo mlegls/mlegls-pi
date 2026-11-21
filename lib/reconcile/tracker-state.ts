@@ -72,13 +72,16 @@ export interface RefinementAttempt {
 	};
 }
 
+export const workerPhases = ["refine", "implement", "drive", "review"] as const;
+export type WorkerPhase = typeof workerPhases[number];
+
 /** The reconciler's State extends this. Missing landed is a manual rebuild,
  * not an empty ledger; the other maps are initialized with every new run. */
 export interface GlobalRunState {
 	root: string;
 	cwd: string;
 	/** Owner restrictions survive chain replacement and reconciler restarts. */
-	constraints?: Record<string, string[]>;
+	constraints?: Record<string, (string | { phase: WorkerPhase; text: string })[]>;
 	/** Loaded checkout supplied while resolving a foreign-commit hold. */
 	foreignCheckouts?: Record<string, string[]>;
 	/** Foreign commits observed in worker-owned worktrees before those workers were retired. */

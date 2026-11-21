@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 author: "session:thr_2m3ifztnfm"
 priority: 1
@@ -16,3 +16,29 @@ Both pairs are direct `tracker: update` commits on main, in the middle of one bu
 Which writer did it (a child, the parent replaying a child's edits, or integrate) isn't established; the run's thread logs don't show the tool calls. [reconciler-merges-appended-tracker-observations](reconciler-merges-appended-tracker-observations.md) covers conflicting appends at integrate, not this.
 
 Possible remedy: `update` takes the base it read (blob hash or the file's last commit) and refuses when the issue has changed since, the way `git push --force-with-lease` does; or `--fields` writes only the keys given, and callers stop passing back what they merely read. Reported by Concept Engineering for the maintainer (2026-11-09, @thread:thr_2m3ifztnfm).
+
+## Result
+
+done. Two simultaneous writers used the same revision from linked worktrees. Exactly one update committed; the other exited 1 with the stale-revision diagnostic. All 32 retained tracker checks passed. No code repair was needed.
+
+```yaml
+commit: 3eaae974
+stories:
+  - story: Read the seed and revision from a linked worktree
+    outcome: held
+  - story: Refuse a stale update without changing the issue or adding a commit
+    outcome: held
+  - story: Reread and apply the intended edit while preserving the reassignment and body
+    outcome: held
+evidence:
+  path: docs/attachments/concurrent-tracker-updates-revert-each-others-fields/index.md
+  visual: false
+  shots: []
+tests:
+  - skills/enabled/all/mlegls/conventions/tracker/scripts/issues.test.ts
+filed: []
+caveats:
+  - The revision guard is opt-in. A caller replaying fields from an earlier read must pass that read's revision.
+```
+
+Evidence: [docs/attachments/concurrent-tracker-updates-revert-each-others-fields/index.md](../attachments/concurrent-tracker-updates-revert-each-others-fields/index.md)
