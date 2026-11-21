@@ -1,7 +1,8 @@
 ---
-stage: "idea"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:thr_ts3gpc75tx"
+priority: 2
 ---
 A worker filed an open child under a parent that had already landed in its tree's collector, and the reconciler never scheduled it: it doesn't run children of a landed node. Siblings blocked on that child left nothing on the frontier, so the run stopped with open work.
 
