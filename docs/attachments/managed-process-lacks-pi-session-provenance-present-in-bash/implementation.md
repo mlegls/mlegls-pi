@@ -22,7 +22,7 @@ needed.
 ```sh
 cd /home/mlegls/dev/pi-processes__worktrees/managed-process-session-provenance-implement
 test -e node_modules || ln -s /home/mlegls/dev/pi-processes/node_modules node_modules
-pi --offline --no-session -p --mode json -ne -ns -np -nc --no-mcp -a -t bash,process -e ./src/index.ts 'Use exactly these tools in order to check session provenance; do not manually set or pass the value. First call bash with command: printf '\''PI_SESSION_ID=%s\n'\'' "$PI_SESSION_ID". Then call process start with name provenance and the identical command. Then call process wait for provenance. Report each tool'\''s PI_SESSION_ID and whether both values match and are nonempty.' \
+pi --offline --no-session -p --mode json -ne -ns -np -nc --no-mcp -a -t bash,process -e ./src/index.ts 'Use exactly these tools in order to check session provenance; do not manually set or pass the value. First call bash with the exact command between BEGIN and END (exclude delimiters and add no punctuation): BEGIN printf '\''PI_SESSION_ID=%s\n'\'' "$PI_SESSION_ID" END. Then call process start with name provenance and the identical command. Then call process wait for provenance. Report each tool'\''s PI_SESSION_ID and whether both values match and are nonempty.' \
   | jq -c 'select(.type == "tool_execution_end") | {toolName, content: .result.content}'
 ```
 

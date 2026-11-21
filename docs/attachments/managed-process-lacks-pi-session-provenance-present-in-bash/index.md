@@ -13,3 +13,7 @@ The first run printed matching values with a trailing period: Pi copied sentence
 ## Outcome and replay check
 
 **Held.** With the delimited prompt, `bash` printed a nonempty `PI_SESSION_ID`; `process start` ran the same `printf` and `process wait` showed exit success and the identical UUID (`01a1ff32-9c0a-740b-aca9-af85742ef50f`). Compare the two tool results directly; accept identical nonempty IDs, with only the shell expansion in each command and no appended punctuation. Both CLI runs exited and left no service running.
+
+## Review
+
+The setup handoff now uses the delimited prompt from the successful replay verbatim. In pi-processes `f133d8fc`, each start reads the ID from its calling session and overrides only that key in the spawned shell’s environment. Review reran all five affected test files: 130 passed. The loaded pi-processes checkout still needs the code commit; landing the evidence alone leaves the old behavior in place.
