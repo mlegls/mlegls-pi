@@ -1655,6 +1655,25 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		return true;
 	}
+	/** A landing seals its collector. Route new work around sealed parents without replaying their landings. */
+	function liftLateChildren(current: Map<string, Issue>): boolean {
+		if (s.landed[s.root] || current.get(s.root)?.done || current.get(s.root)?.archived) return false;
+		let changed = false;
+		for (const child of current.values()) {
+			const parent = child.partOf;
+			if (!parent || !s.landed[parent] || s.landed[child.slug] || finished(child) || child.provisional
+				|| child.ownStage === "idea" || s.chains[child.slug] || !under(child, current)) continue;
+			let target = current.get(parent)?.partOf;
+			while (target && s.landed[target]) target = current.get(target)?.partOf;
+			if (!target) continue;
+			tracker.update(child.slug, { "part-of": target });
+			const message = "reparented " + child.slug + " from landed " + parent + " to " + target;
+			note(message);
+			tellOwner(message + "; it can now be scheduled in this tree");
+			changed = true;
+		}
+		return changed;
+	}
 	/** Deliver a saved accepted transition, even when the report cursor consumed it. */
 	async function finishRefinement(slug: string, c: Chain) {
 		const attempt = s.refinements[c.refinement!];
@@ -2031,6 +2050,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		let result: Awaited<ReturnType<typeof visit>>, pending: number;
 		for (;;) {
 			const before = s.landed;
+			if (liftLateChildren(top)) top = view(destination());
 			visited.clear();
 			result = await visit(s.root, destination(), top);
 			if (s.pr && s.landed[s.root]) return false;
