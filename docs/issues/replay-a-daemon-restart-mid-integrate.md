@@ -1,5 +1,5 @@
 ---
-stage: ticket
+stage: done
 assignee: agent:auto-routine
 priority: 3
 author: session:01a0f324-32e8-732c-96ad-132d2d15485e
@@ -10,3 +10,27 @@ Carried to the reconciler 2026-10-01, with a suspected hole from reading `lib/re
 `lib/jobs/supervise.ts` re-enters integration on startup for a child whose `integrating` flag (or accepted head with no waiting exception) survived a daemon restart (the `integrate-resumed` trace). No replay covers this path. [[projects/mlegls-pi/issues/archive/supervise-status-shows-each-jobs-running-services]] now surfaces the flag in status but its implementer noted the restart-mid-integrate resume has no dedicated replay.
 
 Supervisors currently avoid the path by checking `*.events.jsonl` for an unfinished integrate-start before restarting the daemon. A replay would show whether that check is still needed: seed a job, kill the daemon between integrate-start and integrate-done (both the plain and the decompose branch), restart, and observe one integration with no duplicate merge or lost turn end.
+
+## Result
+
+done — Both restart replays passed, with one merge each. The suspected cleanup hole did not reproduce: after tracker close, the reconciler clears the landed chain and retires the reviewer before it skips the closed issue. No runtime repair was needed.
+
+```yaml
+commit: 9ab9b540
+stories:
+  - story: Plain landing survives restart, including a second kill after tracker close.
+    outcome: held
+  - story: Decomposition survives restart and launches one child from the landed collector head.
+    outcome: held
+evidence:
+  path: docs/attachments/replay-a-daemon-restart-mid-integrate/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+caveats:
+  - Both cases together took 25 seconds in review and 42 seconds in the independent drive.
+  - The replay kills the real reconciler with fake BB. It verifies preservation of the original turn result; it does not count live BB turn-end events or exercise the retired supervisor.
+```
+
+Evidence: [docs/attachments/replay-a-daemon-restart-mid-integrate/index.md](../attachments/replay-a-daemon-restart-mid-integrate/index.md)
