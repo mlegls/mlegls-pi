@@ -22,3 +22,9 @@ Tested `bb-plugins` `fb98bae` from the built `tracker-outreach-combined` checkou
 The shared tracker installation switched to the canonical checkout during the first pass. The sent chips were present but the header action was absent. Reinstalled the candidate, rechecked RPC readiness, and replayed from Candidates through Submit without a deployment change. The second pass produced the evidence above. The header shows a count until clicked; the record names appear in the panel.
 
 Closed the owned browser tab and restored the canonical tracker installation. The disposable project and its two threads remain for review; no dev server was started.
+
+## Review
+
+Reviewed `bb-plugins` `c4e1c1b..fb98bae` (`tracker/outreach-page.tsx`) against this log and both screenshots. `discussPeople` now attaches the selected people followed by the union of their linked hypotheses, deduplicated by slug, so Pat and Charlie share one **Busy operators** target. The heading counts mixed targets as records. `bunx tsc --noEmit` in `tracker/` passes at `fb98bae`. No repairs; all three checks hold as recorded.
+
+Nit left as is: the thread-header panel labels person records from their slug (`Charlie candidate · person`), while the chips use the person's name (`Charlie Candidate`). The label comes from `ThreadOutreachPanel` (from `c20a38b`), not from this fix.
