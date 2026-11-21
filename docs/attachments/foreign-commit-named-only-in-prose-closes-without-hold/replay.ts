@@ -28,7 +28,11 @@ try {
 	console.log("Worker committed", commit, "in", worktree);
 
 	// Neither report includes a commit declaration. Only the review's prose mentions the fix.
-	if (process.argv.includes("--remove-before-report")) git(loaded, "worktree", "remove", worktree);
+	if (process.argv.includes("--remove-before-report")) {
+		await until(() => f.state()?.foreignWork?.solo?.some(r => r.worker === implementer.handle && r.commit === commit));
+		git(loaded, "worktree", "remove", worktree);
+		console.log("Removed foreign worktree after live observation, before worker report");
+	}
 	f.turn("done");
 	const reviewer = await f.ready("review");
 	git(loaded, "worktree", "prune", "--expire", "now");

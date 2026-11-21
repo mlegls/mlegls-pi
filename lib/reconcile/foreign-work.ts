@@ -20,40 +20,33 @@ export function piPathPackages(settings = piPackageSettings()): string[] {
 	});
 }
 
-/** A registered worktree below a worker's checkout belongs to that worker.
- * Read its own HEAD reflog so merely checking out an existing branch doesn't
- * become an installation requirement. Save before retirement removes the path. */
-export async function captureWorkerForeignWork(context: { state: GlobalRunState; save: () => void }, slug: string, workers: Handle[]) {
-	const roots = workers.filter(w => existsSync(w.path)).map(w => realpathSync(w.path));
+/** Sample current HEADs while workers own the paths, before handoff or cleanup can remove them. */
+export async function captureWorkerForeignWork(context: { state: GlobalRunState; save: () => void }, groups: [string, Handle[]][]) {
+	const roots = groups.flatMap(([slug, workers]) => workers.filter(w => existsSync(w.path))
+		.map(w => ({ slug, worker: w.handle, root: realpathSync(w.path) })));
 	if (!roots.length) return;
-	const primary = commonDir(roots[0]);
+	const primary = commonDir(roots[0].root);
 	const loaded = new Set<string>();
 	for (const path of [...piPathPackages(), ...await bbPathPlugins()]) {
 		const repo = commonDir(path);
 		if (repo && repo !== primary) loaded.add(realpathSync(git(path, "rev-parse", "--show-toplevel")));
 	}
-	const previous = context.state.foreignWork;
-	const receipts = [...(previous?.[slug] ?? [])];
 	for (const checkout of loaded) {
 		const repository = commonDir(checkout);
 		for (const { path } of await worktrees(checkout)) {
-			const owned = roots.some(root => {
+			const owner = roots.find(({ root }) => {
 				const child = relative(root, path);
 				return child && !isAbsolute(child) && child !== ".." && !child.startsWith(".." + sep);
 			});
-			if (!owned || commonDir(path) !== repository) continue;
-			for (const line of git(path, "log", "-g", "--format=%H%x09%gs", "HEAD").split("\n")) {
-				const [commit, subject] = line.split("\t", 2);
-				if (!/^(commit(?: \([^)]+\))?:|cherry-pick:|revert:|merge .*: Merge made by|rebase \((?:pick|squash|fixup|continue)\):)/.test(subject ?? "")) continue;
-				if (receipts.some(r => r.checkout === checkout && r.commit === commit)) continue;
-				// Ignore abandoned or superseded commits, including the temporary heads of a rebase.
-				if (!isAncestor(path, commit) && !git(path, "for-each-ref", "--count=1", "--contains=" + commit, "refs/heads/")) continue;
-				receipts.push({ checkout, commit });
-			}
+			if (!owner || commonDir(path) !== repository) continue;
+			let commit: string;
+			try { commit = git(path, "rev-parse", "HEAD"); }
+			catch (error) { if (!existsSync(path)) continue; throw error; }
+			const { slug, worker } = owner, previous = context.state.foreignWork, receipts = previous?.[slug] ?? [];
+			if (receipts.some(r => r.worker === worker && r.checkout === checkout && r.commit === commit) || isAncestor(checkout, commit)) continue;
+			context.state.foreignWork = { ...previous, [slug]: [...receipts, { worker, checkout, commit }] };
+			try { context.save(); }
+			catch (error) { context.state.foreignWork = previous; throw error; }
 		}
 	}
-	if (receipts.length === (previous?.[slug]?.length ?? 0)) return;
-	context.state.foreignWork = { ...previous, [slug]: receipts };
-	try { context.save(); }
-	catch (error) { context.state.foreignWork = previous; throw error; }
 }

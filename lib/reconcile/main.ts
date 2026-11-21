@@ -89,7 +89,7 @@ export async function stop(cwd: string, root: string) {
 		for (const worker of workers) await stopWorker(worker, { cwd });
 		await captureWorkerForeignWork({ state: s, save: () => {
 			updateState(cwd, root, prior => ({ ...prior!, foreignWork: s.foreignWork }));
-		} }, slug, workers);
+		} }, [[slug, workers]]);
 	}
 	const retired = [];
 	for (const h of [...handles.values()].filter((h, i, all) => !all.some((o, j) => j < i && o.bb && o.bb === h.bb))) {

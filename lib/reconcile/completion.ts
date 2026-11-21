@@ -106,7 +106,7 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 			const destination = context.pathOf(input.into);
 			before = git(destination, "rev-parse", "HEAD");
 			workerHead = git(input.worker.path, "rev-parse", "HEAD");
-			await captureWorkerForeignWork(context, input.slug, [...input.workers, input.worker]);
+			await captureWorkerForeignWork(context, [[input.slug, [...input.workers, input.worker]]]);
 			assertNoTrackerChanges(input.worker.path, before);
 			const conflict = landingConflict(input.worker.path, before, workerHead);
 			if (conflict) return { ok: false, failure: conflict };
