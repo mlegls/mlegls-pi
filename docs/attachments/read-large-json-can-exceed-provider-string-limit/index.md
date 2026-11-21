@@ -25,3 +25,7 @@ Candidate `7ec168b5`, in this worker's checkout. From its root, run `bun docs/at
 
 1. Run the entry point above. Accept a successful mixed read with content from the two documents and three receipts, including metrics after the opening receipt, and a cap notice for the opening receipt.
 2. Inspect the follow-up. Accept a successful result beginning where the notice directs, with the returned range labeled and member content visible. No live provider or rendered UI is needed.
+
+## Review
+
+Replayed from `8c4ee082`: the mixed read returned 50,958 characters, including metrics after the cap notice, and the next read returned lines 87–89 starting with `member`. Both stories held. The existing read, fragment, and outline checks passed (23/23).
