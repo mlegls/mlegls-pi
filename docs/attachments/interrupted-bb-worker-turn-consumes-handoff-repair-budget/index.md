@@ -28,6 +28,24 @@ Check `fx status "$root"` after each action, waiting for its reply or exception 
 3. Submit `fx turn "$root" "$checkpoint"` again, wait for its acknowledgement, then repeat the interruption. The same worker should get a second recovery prompt. Acknowledge again with the checkpoint before injecting the third failure.
 4. The third failure should raise `worker turn interrupted: after 2 recovery attempts`. Read the owner tell and `exceptions.solo.text`: both should show the original BB error and preserved checkout and HEAD. The status retry count should still be `1`. Run `fx stop "$root"` to remove the fixture if not using the shell trap.
 
+## Independent drive: predictions before first use
+
+- A completed empty handoff asks for a status repair and consumes one status retry.
+- The first two failed turns ask the same worker to continue from its checkpoint; the checkout, commit and ignored work survive, and the status count stays at one.
+- The third failed turn holds for the owner with the actual BB error and the preserved checkout and HEAD. The status count still stays at one.
+
+## Independent drive: observations
+
+Tested `28e918b5` twice through the replay above as `thr_solo`, with the local fake BB fixture. Both launches reached `Ready. Retained target`; both were stopped and removed. No live BB interruption was induced.
+
+| Check | Observation | Verdict |
+| --- | --- | --- |
+| Complete an empty turn after the checkpoint. Wait for a status repair. | The worker received `First nonblank line: (empty report)`; `retries.status` became `1`. | Met |
+| Fail a turn, wait for the interruption prompt, and acknowledge with a checkpoint. Repeat once. Compare worker ID, checkout, HEAD, and ignored state after each failure. | The same `solo-implement-1` worker (`bbt-d41cc4cb` on the second run) received both prompts. Each named the checkout, HEAD and original error and asked it to continue from the last checkpoint. The status count stayed at `1`; the interruption count advanced from `1` to `2`. The checkpoint and ignored file survived both failures. | Met |
+| Fail a third turn. Wait for both the hold and the owner tell. | `exceptions.solo.reason` was `worker turn interrupted: after 2 recovery attempts`. The exception and the delivered `thr_solo` tell both named the same worker, checkout and HEAD and included `Pi run interrupted unexpectedly; no automatic resume was attempted`. The status count stayed at `1`; the worker, checkpoint and ignored file remained available. | Met |
+
+The immediate snapshot after submission can still show the prior turn. On the first run, the snapshot with the third-turn exception still showed only the startup tell for the owner. The second run waited separately for the exception and the new `thr_solo` tell via `fx status`; both arrived. When replaying, use the delivered tell as the check for owner notification, since the exception alone shows only the hold.
+
 ## Implementation encounter
 
 On `6a08bce0`, the new fixture reached `solo-implement-1` on fake BB worker `bbt-4ac06620`. The completed empty report produced the status nudge. Both interrupted turns continued the same worker at checkpoint `b7102539`, with ignored state intact, and neither changed the status count. The third interruption notified the owner with the original error, checkout path, and checkpoint SHA; the worker and ignored state were still present until fixture cleanup. No live BB interruption was induced.
