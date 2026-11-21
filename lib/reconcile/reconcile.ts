@@ -1004,7 +1004,21 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				if (c.phase === "drive") await startPhase(target, c, "review", issue!, issues, skippedDrive(c.skipDrive));
 			}
 		}
-		else if (r.action === "move-out") { if (c) { await retireChain(c); delete s.chains[target]; } tracker.moveOut?.(target, r.summary ?? r.note ?? ex.reason); releaseRefinementClaims(refinement, target); dropResolution(target); s.moved[target] = r.summary ?? r.note ?? ex.reason; tellOwner("moved out " + target + ": " + s.moved[target]); }
+		else if (r.action === "move-out") {
+			const closed = issue?.done || issue?.archived;
+			if (c) { await retireChain(c, { preserveTracker: closed }); delete s.chains[target]; }
+			if (closed) {
+				delete s.moved[target];
+				tellOwner("retired workers for " + target + "; the closed issue is unchanged");
+			} else {
+				const reason = r.summary ?? r.note ?? ex.reason;
+				tracker.moveOut?.(target, reason);
+				releaseRefinementClaims(refinement, target);
+				s.moved[target] = reason;
+				tellOwner("moved out " + target + ": " + reason);
+			}
+			dropResolution(target);
+		}
 		note("resolved " + ex.node + ": " + r.action + (target !== ex.node ? " on " + target : ""));
 		save();
 	}
@@ -1130,7 +1144,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 							+ (next.verdicts?.at(-1)?.outcome === "failed" ? "\n\nRepair the failed gate's cause and rerun it. The ticket remains open." : "\n\nRun the pending checks against the landed target.")
 							+ " Record each result separately: tools.reconcile_resolve({issue: " + JSON.stringify(s.root) + ", node: " + JSON.stringify(ex.node)
 							+ ', action: "post-landing", check: ' + JSON.stringify(next.id) + ', outcome: "passed" | "failed", evidence: "run URL or concrete observation"}).');
-					} else tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + (ex.baseConflict ? clip(ex.text, 6000) : ex.text.slice(-3000)) + "\n\nResolve with tools.reconcile_resolve({issue: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, commit?, checkout?, message?, note?, summary?}). For move-out, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
+					} else tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + (ex.baseConflict ? clip(ex.text, 6000) : ex.text.slice(-3000)) + "\n\nResolve with tools.reconcile_resolve({issue: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, commit?, checkout?, message?, note?, summary?}). Move-out retires the workers. For an open issue, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
@@ -1237,10 +1251,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		try { detail = (await logBb(h.bb!)).split("── Error").slice(1).at(-1)?.replace(/^[─\s]+/, "").trim() ?? ""; } catch (e) { detail = "(bb thread log failed: " + e + ")"; }
 		return "bb thread " + h.bb + " for " + h.handle + " is in error and its pi will not report:\n" + (detail || "(no error block in its log)");
 	};
-	async function retireChain(c: Chain, finished = false) {
-		if (c.refinement && !["accepted", "removed"].includes(s.refinements[c.refinement].phase))
-			await discardRefinement(refinement, c.refinement);
-		for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) await retireHandle(h, pathOf(c.into), finished);
+	async function retireChain(c: Chain, { finished = false, preserveTracker = false } = {}) {
+		const attempt = c.refinement ? s.refinements[c.refinement] : undefined;
+		const active = attempt && !["accepted", "removed"].includes(attempt.phase);
+		if (active && !preserveTracker) await discardRefinement(refinement, attempt.handle);
+		for (const h of [...c.workers, ...(c.handle ? [c.handle] : [])]) {
+			if (preserveTracker) await retireTelling(h, pathOf(c.into), finished);
+			else await retireHandle(h, pathOf(c.into), finished);
+		}
+		// The issue was closed outside this run: end the attempt without pruning its tracker drafts.
+		if (active && preserveTracker) attempt.phase = "removed";
 	}
 	/** A landed node's workers join its landing receipt, which outlives the chain: the receipt alone may predate them, when
 	 * the landing was recorded from an earlier integration attempt's receipt (2026-10-25, Concept: a receipt naming
@@ -1511,7 +1531,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		catch (e) { return raise(slug, "landing the join's commits in its collector failed", String(e) + "\n\n" + text, issues); }
 		note("join " + slug + " filed " + children.join(", ") + "; its commits landed in " + col.branch + ", and it starts again from there once they land");
 		delete s.chains[slug]; save();
-		await retireChain(c, true);
+		await retireChain(c, { finished: true });
 	}
 	/** Land a join's commits in its own collector. Open descendants' collectors that those commits already contain move
 	 * up to it too, so their children start from the join's work: 2026-10-18 (concept, bring-the-application-to-the-main-pages-design),
@@ -1545,7 +1565,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const open = [...view(s.collectors[slug].path).values()].filter(i => i.partOf === slug && !finished(i)).map(i => i.slug);
 		note("reopened " + slug + (open.length ? " for " + open.join(", ") : "") + "; its commits landed in " + s.collectors[slug].branch + ", and it starts again from there once they land");
 		delete s.chains[slug]; save();
-		await retireChain(c, true);
+		await retireChain(c, { finished: true });
 		if (why) pendingNotes.set(slug, why);
 		tellOwner("reopened " + slug + ": its " + c.phase + " commits are in " + s.collectors[slug].branch + (open.length ? "; the walk runs " + open.join(", ") + " next" : "; it has no open children, so the join starts again"));
 	}
@@ -1662,7 +1682,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (intent.children.length) {
 			note("decomposed " + slug + " into " + intent.children.join(", "));
 			delete s.chains[slug]; save();
-			await retireChain(c, true);
+			await retireChain(c, { finished: true });
 		} else {
 			note("promoted " + slug);
 			c.note = undefined; c.self = false;
