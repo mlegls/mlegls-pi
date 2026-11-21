@@ -97,7 +97,7 @@ const WAITING_MS = 3 * 60 * 60_000;
 const TOOL_CALL_MS = 45 * 60_000;
 /** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
 const WAITING_NUDGE_MS = 30 * 60_000;
-/** A waiting worker whose session runs no managed process this long after its report is told so (its notice raced, or nothing started). */
+/** Nudge early only when the idle worker's process registry confirms no managed work is running. */
 const WAITING_VOID_MS = 2 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3 } as const;
@@ -571,26 +571,23 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const thread = bbThread(h);
 		return !!thread && !thread.archivedAt;
 	};
-	/** Whether an idle worker's pi still runs a managed process. The process tool starts each as a process-group leader
-	 * under pi with stdin closed (/dev/null); pi's MCP servers lead groups too but read a pipe, and an idle worker runs
-	 * no bash tool. Undefined when that can't be observed: only a definite false counts. */
-	const runsProcess = (h: Handle): boolean | undefined => {
-		const thread = bbThread(h), pi = h.bb ? readLive().find(l => l.thread === h.bb)?.pid : undefined;
-		if (!pi || !thread || thread.archivedAt || bbWorking(thread)) return undefined;
-		try {
-			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === pi && pid === pgid).map(([pid]) => pid);
-			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-w", "-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch { return true; } });
-		} catch { return undefined; }
-	};
-
-	/** pi-processes' versioned session receipts distinguish managed work from an active bash child.
-	 * The idle-only OS probe above cannot do that: both launch process-group leaders with stdin closed. */
-	const managedProcess = (sessionFile: string): boolean | undefined => {
+	/** Read pi-processes' session receipts. A process can change stdin or outlive its group leader;
+	 * neither changes whether the manager is still waiting on it. No registry is ambiguous for an
+	 * idle worker: older pi-processes managed work without writing one. */
+	const managedProcess = (sessionFile: string, missingMeansEmpty = false): boolean | undefined => {
 		try {
 			const registry = JSON.parse(readFileSync(join(sessionFile + ".processes", "registry.json"), "utf8"));
 			if (registry.version !== 1 || !Array.isArray(registry.records)) return undefined;
-			return registry.records.some((r: { info: { status: string } }) => ["running", "terminating", "terminate_timeout"].includes(r.info.status));
-		} catch (e) { return (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
+			const statuses: (string | undefined)[] = registry.records.map((r: { info?: { status?: string } }) => r?.info?.status);
+			if (statuses.some(status => status === "running" || status === "terminating" || status === "terminate_timeout")) return true;
+			return statuses.every(status => status === "exited" || status === "killed") ? false : undefined;
+		} catch (e) { return missingMeansEmpty && (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
+	};
+	const waitingWithoutProcess = (h: Handle): boolean => {
+		const thread = bbThread(h);
+		if (!thread || thread.archivedAt || thread.status !== "idle") return false;
+		const live = readLive().find(l => l.thread === h.bb);
+		return live?.state === "idle" && !!live.sessionFile && managedProcess(live.sessionFile) === false;
 	};
 
 	// --- launching -------------------------------------------------------------------------------------
@@ -1851,15 +1848,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Prefer a nested call to its enclosing codemode script, so the notice names the actual command.
 		const stalled = active?.tools?.filter(t => Date.now() - Date.parse(t.since) > TOOL_CALL_MS)
 			.findLast(t => !active.tools!.some(child => child.parent === t.id));
-		if (stalled && active?.sessionFile && managedProcess(active.sessionFile) === false) {
+		// Keep the stall check for sessions that never started managed work and have no registry.
+		if (stalled && active?.sessionFile && managedProcess(active.sessionFile, true) === false) {
 			raise(slug, c.phase + " tool call stalled", "Tool " + stalled.name + " has been running since " + stalled.since + " (over 45m) with no running managed process.\n\nCommand: " + (stalled.command ?? "(no command argument)") + "\n\nWorker: " + c.handle.handle + " (" + c.handle.bb + ")", issues, "owner");
 			return "active";
 		}
-		// A worker idle on a wait whose process has already gone (it never started, or ended without waking it) would idle until the nudge below.
-		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && runsProcess(c.handle) === false) {
+		// If the registry is unavailable, let the ordinary check-in below ask without asserting absence.
+		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && waitingWithoutProcess(c.handle)) {
 			c.waitingVoidNudged = true; c.waitingCheckedAt = new Date().toISOString(); save();
 			note(c.phase + " " + slug + " nudged: waiting with no running process");
-			await sendChild(c.handle, "You reported `waiting`, but your session runs no managed process: the one you are waiting on has ended without its notice reaching you, or never started. Check it (process list, process output): take its result if it finished, start it again if it didn't run, and continue.");
+			await sendChild(c.handle, "You reported `waiting`, and your session's process registry shows no running process. Check the named process with `process wait` and take its result if it finished.");
 			return "active";
 		}
 		// The completion notice never comes while a descendant the process left behind (an orphaned server or executor) holds its process group.
