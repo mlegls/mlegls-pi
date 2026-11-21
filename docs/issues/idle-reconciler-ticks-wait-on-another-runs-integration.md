@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 priority: 1
 author: "session:01a1cdb0-4d22-72bc-8778-94e6b358a046"
@@ -15,3 +15,28 @@ Observed 2026-11-21 in Concept, which runs ~10 reconcilers at once: `chat-lesson
 - While a run in the same repository holds the integrate lock (fixture: hold `integrate.lock` with a live pid), a run with no pending landing op still launches its next worker, including a `resume` relaunch.
 - A run with a pending landing op still waits for the lock before recovering it.
 
+
+## Result
+
+done. Both workers launched under the held lock; only landing recovery waited for release. All 10 affected checks passed. The review changed only the evidence packet.
+
+```yaml
+commit: 2f7d6f53
+stories:
+  - story: A run without a pending landing launches its next worker while another run holds the lock.
+    outcome: held
+  - story: A stopped implementation relaunches from its saved head while another run holds the lock.
+    outcome: held
+  - story: A run with a pending landing waits for lock release before recovering it.
+    outcome: held
+evidence:
+  path: docs/attachments/idle-reconciler-ticks-wait-on-another-runs-integration/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+caveats:
+  - Post-landing PR publication still takes the integration lock to check whether a poll is due. Neither fresh nor resumed implementation launches enter that path.
+```
+
+Evidence: [docs/attachments/idle-reconciler-ticks-wait-on-another-runs-integration/index.md](../attachments/idle-reconciler-ticks-wait-on-another-runs-integration/index.md)
