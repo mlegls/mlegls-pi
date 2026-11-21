@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { isAbsolute } from "node:path";
+import { captureWorkerForeignWork, piPackageSettings, piPathPackages } from "./foreign-work.ts";
 import { integrate, MergeConflict, type Handle } from "../dispatch.ts";
 import { commitDeclarations, commitIds, commitNotes, containsCommit, expandCheckout, namedCheckouts } from "../commit-handoff.ts";
 import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
@@ -107,6 +106,7 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 			const destination = context.pathOf(input.into);
 			before = git(destination, "rev-parse", "HEAD");
 			workerHead = git(input.worker.path, "rev-parse", "HEAD");
+			await captureWorkerForeignWork(context, input.slug, [...input.workers, input.worker]);
 			assertNoTrackerChanges(input.worker.path, before);
 			const conflict = landingConflict(input.worker.path, before, workerHead);
 			if (conflict) return { ok: false, failure: conflict };
@@ -216,21 +216,19 @@ function syncOwner(context: CompletionContext): void {
 /** A branch holding an object is not installation proof. Only the configured
  * package source's current HEAD (or an explicit project checkout) is proof. */
 function foreignCommitFailure(context: CompletionContext, slug: string, result: ReviewedResult): string | undefined {
+	for (const { checkout, commit } of context.state.foreignWork?.[slug] ?? []) {
+		const failure = installationFailure(checkout, commit);
+		if (failure) return failure;
+	}
 	const declarations = commitDeclarations(result.handoff, result.commitNotes ?? commitNotes(result.summary));
 	const commits = commitIds(declarations);
 	const foreign = commits.filter(commit => !containsCommit(context.state.cwd, commit) &&
 		!(context.state.pr && containsCommit(context.state.pr.path, commit)));
 	if (!foreign.length) return;
-	const settings = join(process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi/agent"), "settings.json");
-	const checkouts = new Set<string>();
-	try {
-		const data = existsSync(settings) ? JSON.parse(readFileSync(settings, "utf8")) : {};
-		for (const entry of Array.isArray(data.packages) ? data.packages : []) {
-			const source = typeof entry === "string" ? entry : entry?.source;
-			if (typeof source === "string" && !/^(npm:|git:|https?:|ssh:|git@)/.test(source))
-				checkouts.add(resolve(dirname(settings), expandCheckout(source)));
-		}
-	} catch (error) { return "Cannot verify foreign commits: reading " + settings + " failed: " + String(error); }
+	const settings = piPackageSettings();
+	let checkouts: Set<string>;
+	try { checkouts = new Set(piPathPackages(settings)); }
+	catch (error) { return "Cannot verify foreign commits: reading " + settings + " failed: " + String(error); }
 	// Non-pi projects declare the checkout they actually load in a commit entry:
 	// commit: { checkout: /absolute/loaded/repo, commit: <sha> }.
 	const declared = (value: unknown) => {
@@ -254,13 +252,18 @@ function foreignCommitFailure(context: CompletionContext, slug: string, result: 
 			return "Foreign implementation commit " + commit + " has no verifiable loaded checkout. Checked pi sources in " + settings +
 				"; for another project name its loaded checkout in the commit handoff, or resolve with retry and checkout: /absolute/loaded/checkout.";
 		for (const path of sources) {
-			try {
-				if (isAncestor(path, commit)) continue;
-				return "Foreign implementation commit " + commit + " is not installed in loaded checkout " + path +
-					" (HEAD " + git(path, "rev-parse", "HEAD") + "). Land the reviewed commit there before closing.";
-			} catch (error) { return "Cannot verify foreign implementation commit " + commit + " in " + path + ": " + String(error); }
+			const failure = installationFailure(path, commit);
+			if (failure) return failure;
 		}
 	}
+}
+
+function installationFailure(checkout: string, commit: string): string | undefined {
+	try {
+		if (!isAncestor(checkout, commit))
+			return "Foreign implementation commit " + commit + " is not installed in loaded checkout " + checkout +
+				" (HEAD " + git(checkout, "rev-parse", "HEAD") + "). Land the reviewed commit there before closing.";
+	} catch (error) { return "Cannot verify foreign implementation commit " + commit + " in " + checkout + ": " + String(error); }
 }
 
 /** Exact replay of pending target-reaching results, child first. Record each

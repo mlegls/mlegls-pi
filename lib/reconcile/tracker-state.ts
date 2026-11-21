@@ -81,6 +81,8 @@ export interface GlobalRunState {
 	constraints?: Record<string, string[]>;
 	/** Loaded checkout supplied while resolving a foreign-commit hold. */
 	foreignCheckouts?: Record<string, string[]>;
+	/** Foreign commits observed in worker-owned worktrees before those workers were retired. */
+	foreignWork?: Record<string, { checkout: string; commit: string }[]>;
 	/** Missing on pre-PR states means local. Captured at start, retained on resume. */
 	land?: import("./pr-types.ts").LandingMode;
 	pr?: import("./pr-types.ts").PullRequestLanding;

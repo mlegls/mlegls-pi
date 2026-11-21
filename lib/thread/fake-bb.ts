@@ -112,6 +112,10 @@ function main(argv: string[]) {
 	if (group === "environment" && (action === "update" || action === "delete")) return out({ ok: true });
 	if (group === "provider" && action === "list") return out(["pi", "codex"].map(id => ({ id, available: true })));
 	if (group === "provider" && action === "models") return out([{ id: flag("selected-model") }]);
+	if (group === "plugin" && action === "list") {
+		const file = join(dir(), "plugins.json");
+		return out({ plugins: existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [] });
+	}
 	if (group === "plugin" && action === "rpc" && args[2] === "call" && args[3] === "supervision") {
 		const input = JSON.parse(readFileSync(flag("input-file")!, "utf8"));
 		if (args[4] === "workerRoute") return out(threads(dir()).find(t => t.id === input.threadId)?.metadata?.route ?? null);

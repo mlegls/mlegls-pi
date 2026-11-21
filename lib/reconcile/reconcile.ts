@@ -40,6 +40,7 @@ import { alignIndex } from "../thread/lifecycle.ts";
 import { worktrees } from "../thread/lifecycle-git.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
 import { beginEvidenceScope, EVIDENCE_MISSING } from "./evidence.ts";
+import { captureWorkerForeignWork } from "./foreign-work.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVerdict } from "./post-landing.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
@@ -792,6 +793,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.launching ??= resumeAttempt ?? nextHandle(slug, phase);
 		c.launchPhase = phase;
 		c.pendingLaunch = plan;
+		if (prev) await captureWorkerForeignWork(completion, slug, [prev]);
 		save();
 		if (!registered && phase === "implement" && !plan.after && !admitImplementation(slug, c, issue, base, c.launching)) return;
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
@@ -1520,6 +1522,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const h = c.handle, col = s.collectors[slug];
 		if (!h || !col) throw new Error(slug + "'s chain has no worker or no collector to land in");
 		await locked(async () => {
+			await captureWorkerForeignWork(completion, slug, [...c.workers, h]);
 			if (!isAncestor(col.path, git(h.path, "rev-parse", "HEAD"))) {
 				git(h.path, "config", "branch." + git(h.path, "branch", "--show-current") + ".ab-parent", col.branch);
 				await integrate(h, { cwd: controlCwd, keep: true });
