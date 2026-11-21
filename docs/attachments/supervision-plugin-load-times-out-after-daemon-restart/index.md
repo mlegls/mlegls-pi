@@ -66,6 +66,20 @@ jq -n --arg project "$project" --arg path "$PWD" --arg provider "$provider" \
 
 Stop the sandbox launcher with Ctrl-C when finished. Remove the detached plugin worktree with `git -C "$BB_PLUGINS_REPO" worktree remove "$PWD/.wm/supervision-restart-plugin"`.
 
+## Independent drive: predictions
+
+- A restart of the prepared sandbox leaves supervision `running`; the empty worker RPC returns `invalid_input`, with no reload.
+- A valid worker request on each of Pi, Codex, Claude Code, ACP Hermes and ACP Antigravity returns a thread ID. The first reply depends on each provider's local login and is separate from spawning.
+
+## Independent drive: results
+
+BB 0.50.1, Node 24.22.3, `mlegls-pi` `a8353052`, `bb-plugins` `c9c60ff`. Used the checkout-owned sandbox and the commands above, including the local `agy acp` entry. After stopping the first launcher and confirming both ports were free, I started it with the same data directory. I did not reload the plugin.
+
+- **Restart — met.** After `machine list` showed one host, `plugin list` returned `running`; the empty `workerSpawn` call returned `invalid_input` (HTTP 400).
+- **Worker spawning — met.** Using the disposable project, I sent one valid `workerSpawn` request per provider. All five returned a thread ID: Pi (`thr_my6m3jp99y`), Codex (`thr_sm8rp5j267`), Claude Code (`thr_i2qdqgxvpr`), ACP Hermes (`thr_ep9erk38u3`), and ACP Antigravity (`thr_ks68d8k7jc`). This checks spawning; first replies weren't measured in this drive.
+
+Replay checks are the restart and worker commands above: expect readiness before checking plugin status and the RPC, then one returned ID per provider. The initial `machine list` was empty briefly before the sandbox registered its host. The process supervisor's three-second stop wait timed out, but both launchers exited and freed their ports without a force kill. Removed the detached plugin worktree; the shared daemon was untouched.
+
 ## Implementation trial
 
 On BB 0.50.1, temporary log markers in the baseline (`bb-plugins` `35262d7`) printed `before providers.list`, then the startup factory timed out after 30,000 ms. It never reached the marker after `providers.list` or the one before `settings.get`. Installing the same instrumented code on the running sandbox reached all markers.
