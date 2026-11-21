@@ -90,9 +90,10 @@ export function beginRefinement(context: RefinementContext, node: string, handle
 /** Discover creates by exact attempt claim and original baseline, including a
  * create published before a crash but not yet observed by the running loop. */
 export function observeRefinements(context: RefinementContext): void {
+	const active = Object.values(context.state.refinements).filter(attempt => attempt.phase !== "accepted" && attempt.phase !== "removed");
+	if (!active.length) return;
 	const rows = context.tracker.snapshot();
-	for (const attempt of Object.values(context.state.refinements)) {
-		if (attempt.phase === "accepted" || attempt.phase === "removed") continue;
+	for (const attempt of active) {
 		remember(context, attempt.handle, stillOwned(context, attempt, rows).map(row => row.slug));
 	}
 }
@@ -341,6 +342,10 @@ export async function acceptRefinement(context: RefinementContext, handle: strin
 
 /** Resume interrupted cleanup/adoption/acceptance before scheduling descendants. */
 export async function recoverRefinements(context: RefinementContext): Promise<void> {
+	const replay = Object.values(context.state.refinements).some(attempt =>
+		attempt.phase === "stopping" || attempt.phase === "cleaning" || attempt.phase === "accepting" || (attempt.phase === "adopting" && attempt.successor));
+	// Observing claims only updates this run's ledger. Serialize mutation/landing replay.
+	if (!replay) return observeRefinements(context);
 	await context.locked(async () => {
 		observeRefinements(context);
 		for (const handle of Object.keys(context.state.refinements)) {

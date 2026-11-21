@@ -1931,7 +1931,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		await pollTurns();
 		releaseWorkerClaims();
 		for (const [slug, col] of Object.entries(s.collectors)) if (!sparseCollectors.has(slug)) ensureCollector(slug, col.parentBranch);
-		await locked(async () => recoverLandings(completion));
+		if (Object.values(s.landingOps).some(op => !s.landed[op.slug]))
+			await locked(async () => recoverLandings(completion));
 		closeAtTarget(completion);
 		await recoverRefinements(refinement);
 		// A bb spawn can precede the receipt save. Adopt only exact run/handle.
