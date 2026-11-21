@@ -2082,7 +2082,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			s.finished = result === "done" ? "done" : "stuck";
 			s.finishedAt = Date.now();
 			save();
-			tellOwner((result === "done" ? "done: " + s.root + " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", "HEAD") : "stopped with open work: " + (holds.size ? [...holds].map(([k, v]) => "\n- " + k + ": " + v).join("") : open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ")))
+			tellOwner((result === "done" ? "done: " + s.root + (s.landed[s.root] ? " landed in the owner's checkout at " + git(cwd, "rev-parse", "--short", s.landed[s.root].head) : " was closed outside this run") : "stopped with open work: " + (holds.size ? [...holds].map(([k, v]) => "\n- " + k + ": " + v).join("") : open.map(i => i.slug + " (" + i.effectiveStage + (i.frontier ? "" : ", not ready") + ")").join(", ")))
 				+ (Object.keys(s.moved).length ? "\nMoved out: " + Object.entries(s.moved).map(([k, v]) => k + ": " + v).join("; ") : ""));
 			return true;
 		}
