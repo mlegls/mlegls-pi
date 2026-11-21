@@ -59,3 +59,7 @@ The undeclared recipe read drew a repair without leaving review. The declared ID
 After the red `deploy` verdict, the owner's message contained `503`, the failing check and instructions to repair it and record the rerun. Status retained the failed verdict as `thr_solo`; the issue was still a ticket. Passing `deploy` alone left it a ticket until `smoke` passed. At close, the Result retained both `deploy` verdicts and the `smoke` verdict with their evidence and owner.
 
 An offline PR-body probe with a seeded native issue identity rendered `Refs #23` while the gates were pending and `Closes #23` for the ordinary review. No live PR was created.
+
+## Review replay
+
+At `f906ccfd`, the fixture printed `Verdict queued` with the status command. To check that two submissions in one polling interval cannot lose the red verdict, pause the disposable reconciler PID (`SIGSTOP`) after the owner receives both gates. Submit failed `deploy`, then passed `smoke`, before resuming (`SIGCONT`). The second call refused with `A verdict for solo is already queued`; it did not replace the first. After resuming, the owner received `Replay 503` and the repair instruction. Passing `deploy` left `smoke` pending. Resubmitting `smoke` closed the issue with all three observations attributed to `thr_solo`. The fixture was stopped and removed.
