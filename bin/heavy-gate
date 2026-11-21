@@ -2,7 +2,7 @@
 # heavy-gate: exit 0 when the host has room to start one more heavy job, 1 to
 # keep waiting. bin/heavy passes it to sem as --limit, so a free slot still
 # waits while the host is under pressure: Linux PSI (cpu and memory "some"
-# avg10 below HEAVY_MAX_CPU_PSI, default 25, and HEAVY_MAX_MEM_PSI, default 10)
+# avg10 below HEAVY_MAX_CPU_PSI, default 80, and HEAVY_MAX_MEM_PSI, default 10)
 # and MemAvailable above HEAVY_MIN_FREE_MB (default 32768: tsgolint alone grows past 29 GB after admission); macOS
 # memory_pressure free percentage at least HEAVY_MIN_FREE_PCT (default 20).
 # A host with neither probe always admits.
@@ -10,7 +10,7 @@ psi() { sed -n 's/^some avg10=\([0-9.]*\).*/\1/p' "/proc/pressure/$1"; }
 if [ -r /proc/pressure/cpu ]; then
 	avail=$(sed -n 's/^MemAvailable: *\([0-9]*\) kB/\1/p' /proc/meminfo)
 	awk -v c="$(psi cpu)" -v m="$(psi memory)" -v a="$avail" \
-		-v mc="${HEAVY_MAX_CPU_PSI:-25}" -v mm="${HEAVY_MAX_MEM_PSI:-10}" -v mf="${HEAVY_MIN_FREE_MB:-32768}" \
+		-v mc="${HEAVY_MAX_CPU_PSI:-80}" -v mm="${HEAVY_MAX_MEM_PSI:-10}" -v mf="${HEAVY_MIN_FREE_MB:-32768}" \
 		'BEGIN { exit !(c < mc && m < mm && a / 1024 > mf) }'
 elif command -v memory_pressure >/dev/null; then
 	free=$(memory_pressure | sed -n 's/.*free percentage: *\([0-9]*\)%.*/\1/p')
