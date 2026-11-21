@@ -40,3 +40,15 @@ AGY_TRACER_BB_DATA_DIR="$BB_DATA_DIR" AGY_TRACER_RECORD="$PWD/.wm/agy-tracer-new
 ```
 
 It checks target identity, the daemon, the private worker-spawn RPC and the model catalog, then seeds a scratch `hello-tracer` ticket and starts the actual reconciler. Look for implement on `acp-antigravity`, route `acp-antigravity/gemini-4-neon:high`, drive and review workers, and `Landed: Hello, visitor!`. It copies reports and events into the specified new private directory before deleting the disposable project and worktrees. `AGENTS.md` and `.agents/skills/hello-tracer/SKILL.md` have separate markers, so the implement report plus tool events can distinguish uptake of instructions from discovery and use of the skill. Stop the disposable BB after the run.
+
+## Implementation encounter
+
+BB 0.50.1, agy 1.5.13, companion `25e77ab`, disposable loopback project `proj_ktbwnvpw9z`, owner `thr_dkwj3mnky8`. BB showed `thr_bcmiyaad7f` as the owner's child on `acp-antigravity`. The plugin's `workerRoute` returned `auto-routine`, `acp-antigravity/gemini-4-neon`, `high`; BB's environment event attributed `PI_WM_AGENT` and `TRACKER_CLI` to supervision.
+
+Gemini followed the implement role: it opened the implement skill, made the one-line change, ran `bun hello.ts`, committed `82cdc8af`, and ended its first turn with `done` and a fenced YAML handoff. Before editing, it ran `bun "$TRACKER_CLI" text hello-tracer` as directed in the ticket; the tool event recorded exit 0. The reconciler consumed that handoff and launched drive without a format repair.
+
+The report contained both fixture markers. The file-read events show agy opened `.agents/skills/hello-tracer/SKILL.md` in the scratch project's main checkout; the ticket named the skill by relevance but supplied no file path. No tool event opened `AGENTS.md`, and its marker appeared in the report, evidence that its instruction reached the session without a manual read. This establishes discovery and use in this BB/agy setup; it does not distinguish which internal layer supplied the initial skill listing.
+
+Drive (`thr_pdpje2sakw`, Pi) and review (`thr_nf2rwqfxv9`, Pi) separately ran `bun hello.ts` and reported one `Hello, visitor!` line, empty stderr and exit 0. The reconciler landed `2b13c92` in the owner's scratch checkout and closed `hello-tracer` at `3aa3fef`. Its final state was `done` with no exceptions; all three workers were archived. The script took 5m01s, including readiness and evidence capture. The scratch project and worktrees were deleted, and both disposable BB ports were closed.
+
+The first attempt reached the pre-existing host installation of supervision, which was running but lacked `workerSpawn`. The tracer now probes schema validation on that private RPC before creating a project. The disposable server uses the companion build and passed the probe. `agents/auto-routine.md` was restored after landing.
