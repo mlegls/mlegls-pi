@@ -4,7 +4,6 @@ assignee: "agent:auto-routine"
 author: "session:thr_2hd2kf9r28"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/outreach-conversations-in-the-bb-tracker]]"
-claimed-by: "session:thr_2hd2kf9r28"
 ---
 The maintainer can process outreach replies and follow-ups, browse uncontacted candidates, and review hypothesis tallies inside the [tracker plugin](../../../bb-plugins/tracker/README.md). This is the plugin part of [[projects/mlegls-pi/issues/outreach-conversations-in-the-bb-tracker]], for [[projects/mlegls-pi/stories/manage-outreach-conversations]].
 
