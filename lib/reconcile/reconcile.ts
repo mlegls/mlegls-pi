@@ -40,6 +40,7 @@ import { alignIndex } from "../thread/lifecycle.ts";
 import { worktrees } from "../thread/lifecycle-git.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
 import { beginEvidenceScope, EVIDENCE_MISSING } from "./evidence.ts";
+import { captureWorkerForeignWork } from "./foreign-work.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
 import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVerdict } from "./post-landing.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
@@ -52,6 +53,7 @@ import { writeStatus } from "./status.ts";
 import { CodeMonitor, loadedCode, type CodeVersion } from "./code-version";
 import { spawnRun } from "./process";
 import { ownershipLock, OwnershipLockBusy } from "./ownership";
+import { reclaimSetup } from "./launch-recovery";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -97,7 +99,7 @@ const WAITING_MS = 3 * 60 * 60_000;
 const TOOL_CALL_MS = 45 * 60_000;
 /** A waiting worker is asked to check its process this long after its latest `waiting` report or nudge. */
 const WAITING_NUDGE_MS = 30 * 60_000;
-/** A waiting worker whose session runs no managed process this long after its report is told so (its notice raced, or nothing started). */
+/** Nudge early only when the idle worker's process registry confirms no managed work is running. */
 const WAITING_VOID_MS = 2 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
 const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3 } as const;
@@ -107,6 +109,7 @@ const DELIVERED_ACTIVE = "active chain after recorded landing";
 const CLOSED_ACTIVE = "closed outside the run while its chain runs";
 const FOREIGN_COMMIT = "foreign implementation not installed";
 const LAUNCH_CONFLICT = "launch base conflicts with required work";
+const LAUNCH_OCCUPIED = "saved launch worktree needs attention";
 
 
 type Phase = WorkerPhase | "integrate";
@@ -573,26 +576,23 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const thread = bbThread(h);
 		return !!thread && !thread.archivedAt;
 	};
-	/** Whether an idle worker's pi still runs a managed process. The process tool starts each as a process-group leader
-	 * under pi with stdin closed (/dev/null); pi's MCP servers lead groups too but read a pipe, and an idle worker runs
-	 * no bash tool. Undefined when that can't be observed: only a definite false counts. */
-	const runsProcess = (h: Handle): boolean | undefined => {
-		const thread = bbThread(h), pi = h.bb ? readLive().find(l => l.thread === h.bb)?.pid : undefined;
-		if (!pi || !thread || thread.archivedAt || bbWorking(thread)) return undefined;
-		try {
-			const leaders = execFileSync("ps", ["-axo", "pid=,ppid=,pgid="], { encoding: "utf8" }).split("\n").map(l => l.trim().split(/\s+/).map(Number)).filter(([pid, ppid, pgid]) => ppid === pi && pid === pgid).map(([pid]) => pid);
-			return leaders.some(pid => { try { return /^n\/dev\/null$/m.test(execFileSync("lsof", ["-w", "-a", "-p", String(pid), "-d", "0", "-Fn"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch { return true; } });
-		} catch { return undefined; }
-	};
-
-	/** pi-processes' versioned session receipts distinguish managed work from an active bash child.
-	 * The idle-only OS probe above cannot do that: both launch process-group leaders with stdin closed. */
-	const managedProcess = (sessionFile: string): boolean | undefined => {
+	/** Read pi-processes' session receipts. A process can change stdin or outlive its group leader;
+	 * neither changes whether the manager is still waiting on it. No registry is ambiguous for an
+	 * idle worker: older pi-processes managed work without writing one. */
+	const managedProcess = (sessionFile: string, missingMeansEmpty = false): boolean | undefined => {
 		try {
 			const registry = JSON.parse(readFileSync(join(sessionFile + ".processes", "registry.json"), "utf8"));
 			if (registry.version !== 1 || !Array.isArray(registry.records)) return undefined;
-			return registry.records.some((r: { info: { status: string } }) => ["running", "terminating", "terminate_timeout"].includes(r.info.status));
-		} catch (e) { return (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
+			const statuses: (string | undefined)[] = registry.records.map((r: { info?: { status?: string } }) => r?.info?.status);
+			if (statuses.some(status => status === "running" || status === "terminating" || status === "terminate_timeout")) return true;
+			return statuses.every(status => status === "exited" || status === "killed") ? false : undefined;
+		} catch (e) { return missingMeansEmpty && (e as NodeJS.ErrnoException).code === "ENOENT" ? false : undefined; }
+	};
+	const waitingWithoutProcess = (h: Handle): boolean => {
+		const thread = bbThread(h);
+		if (!thread || thread.archivedAt || thread.status !== "idle") return false;
+		const live = readLive().find(l => l.thread === h.bb);
+		return live?.state === "idle" && !!live.sessionFile && managedProcess(live.sessionFile) === false;
 	};
 
 	// --- launching -------------------------------------------------------------------------------------
@@ -695,7 +695,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
 	}
-	// Saved before the launch: a crash mid-launch must not hand the same name (and its leftover worktree) out again.
+	// Persist the counter before issuing a new name; a saved launch receipt can resume its own name.
 	const nextHandle = (slug: string, kind: string) => { const h = (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90); save(); return h; };
 	const ticketText = (i: Issue) => "Issue " + i.slug + ":\n\n" + tracker.text(i.slug);
 	/** Current global metadata, not a worker branch copy. */
@@ -751,14 +751,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function startPhase(slug: string, c: Chain, phase: WorkerPhase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false, from?: string) {
 		const plan = c.pendingLaunch ?? { phase, extra, adopt, resumeAttempt, finished, from };
 		({ phase, extra, adopt, resumeAttempt, finished, from } = plan);
+		// A first join launch starts in the node's collector even when a saved attempt lost its launch plan.
+		// c.into remains the enclosing collector: that's where the join will eventually land.
+		if (c.self && phase === "implement" && !c.handle && !c.resumeFrom) from ??= s.collectors[slug].path;
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
-		const prev = c.handle?.handle === c.launching ? undefined : c.handle;
+		const saved = c.launching ?? resumeAttempt;
+		const prev = c.handle?.handle === saved ? undefined : c.handle;
 		if (prev && existsSync(prev.path)) { await stop(prev, { cwd: pathOf(c.into) }); saveWip(prev); }
 		// A retired worker (keepBranch) leaves no worktree but its branch still holds the chain's work so far.
 		const kept = (h: Handle) => { try { return git(pathOf(c.into), "rev-parse", "--verify", "-q", "refs/heads/" + h.handle); } catch { return ""; } };
 		// A registered worker already launched; adopt its receipt even if prerequisites have changed since dispatch.
-		const registered = c.launching ? await findWorker({ run: s.root, handle: c.launching }, controlCwd) : undefined;
+		const registered = saved ? await findWorker({ run: s.root, handle: saved }, controlCwd) : undefined;
 		let base = plan.base ?? (from ? git(from, "rev-parse", "HEAD")
 			: (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || c.resumeFrom || git(pathOf(c.into), "rev-parse", "HEAD"));
 		if (from && !c.pendingLaunch || !c.base && (phase === "refine" || phase === "implement"))
@@ -791,10 +795,20 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
-		c.launching ??= resumeAttempt ?? nextHandle(slug, phase);
+		c.launching = saved ?? nextHandle(slug, phase);
 		c.launchPhase = phase;
 		c.pendingLaunch = plan;
+		if (prev) await captureWorkerForeignWork(completion, [[slug, [prev]]]);
 		save();
+		if (saved && !registered) {
+			try {
+				const path = await reclaimSetup(pathOf(c.into), saved, base);
+				if (path) note("reclaimed interrupted setup for " + saved + " at " + path);
+			} catch (error) {
+				raise(slug, LAUNCH_OCCUPIED, String(error) + "\n\nInspect the remaining worktree and branch, preserve any work, then resolve with retry once the name is free.", issues, "owner");
+				return;
+			}
+		}
 		if (!registered && phase === "implement" && !plan.after && !admitImplementation(slug, c, issue, base, c.launching)) return;
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
 			if (from) return phasePrompt();
@@ -1053,13 +1067,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			"For review requests, include threadReplies: {<thread id>: <what changed>} for EVERY requested thread. Do not resolve threads.",
 		].join("\n\n");
 		const receipt = pr.repair!;
+		const saved = receipt.launchHandle;
 		if (!receipt.launchHandle) { receipt.launchHandle = nextHandle(s.root, "pr-repair"); save(); }
 		const registered = await findWorker({ run: s.root, handle: receipt.launchHandle }, controlCwd);
 		if (registered) return { run: s.root, handle: receipt.launchHandle, path: registered.path, bb: registered.bb };
 		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
 		// a partial failure. Retry adopts its exact bb thread or raises to owner.
-		return launchNow(receipt.launchHandle, "review", prompt,
-			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"], undefined, undefined, s.root);
+		const base = git(pr.path, "rev-parse", "HEAD");
+		if (saved) {
+			const path = await reclaimSetup(pr.path, saved, base);
+			if (path) note("reclaimed interrupted setup for " + saved + " at " + path);
+		}
+		return launchNow(receipt.launchHandle, "review", prompt, base, pr.path, issue, ["technical"], undefined, undefined, s.root);
 	}
 	const pendingNotes = new Map<string, string | undefined>();
 	/** The chain's committed work beyond its destination, as a note for a fresh start that doesn't take it as its base. */
@@ -1522,6 +1541,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const h = c.handle, col = s.collectors[slug];
 		if (!h || !col) throw new Error(slug + "'s chain has no worker or no collector to land in");
 		await locked(async () => {
+			await captureWorkerForeignWork(completion, [[slug, [...c.workers, h]]]);
 			if (!isAncestor(col.path, git(h.path, "rev-parse", "HEAD"))) {
 				git(h.path, "config", "branch." + git(h.path, "branch", "--show-current") + ".ab-parent", col.branch);
 				await integrate(h, { cwd: controlCwd, keep: true });
@@ -1655,6 +1675,25 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 		return true;
 	}
+	/** A landing seals its collector. Route new work around sealed parents without replaying their landings. */
+	function liftLateChildren(current: Map<string, Issue>): boolean {
+		if (s.landed[s.root] || current.get(s.root)?.done || current.get(s.root)?.archived) return false;
+		let changed = false;
+		for (const child of current.values()) {
+			const parent = child.partOf;
+			if (!parent || !s.landed[parent] || s.landed[child.slug] || finished(child) || child.provisional
+				|| child.ownStage === "idea" || s.chains[child.slug] || !under(child, current)) continue;
+			let target = current.get(parent)?.partOf;
+			while (target && s.landed[target]) target = current.get(target)?.partOf;
+			if (!target) continue;
+			tracker.update(child.slug, { "part-of": target });
+			const message = "reparented " + child.slug + " from landed " + parent + " to " + target;
+			note(message);
+			tellOwner(message + "; it can now be scheduled in this tree");
+			changed = true;
+		}
+		return changed;
+	}
 	/** Deliver a saved accepted transition, even when the report cursor consumed it. */
 	async function finishRefinement(slug: string, c: Chain) {
 		const attempt = s.refinements[c.refinement!];
@@ -1704,13 +1743,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (kids.length && !s.chains[slug] && !refining) {
 			if (s.exceptions[slug]) return "active";
 			ensureCollector(slug, into);
-			const below = await Promise.all(kids.map(k => {
+			// Let in-flight siblings finish before retrying a failed tick or restarting on code change.
+			const below = await Promise.allSettled(kids.map(async k => {
 				const current = view(slug), child = current.get(k.slug)!;
 				if (isMoved(child)) { holds.set(k.slug, "moved out for human work: " + s.moved[k.slug]); return "stuck"; }
 				return child.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, current)
-					: (holds.set(k.slug, why(child, current)), Promise.resolve("stuck" as const));
+					: (holds.set(k.slug, why(child, current)), "stuck" as const);
 			}));
-			return below.includes("active") ? "active" : "stuck";
+			for (const child of below) if (child.status === "rejected") throw child.reason;
+			return below.some(child => child.status === "fulfilled" && child.value === "active") ? "active" : "stuck";
 		}
 		// A node that gained an open blocker (e.g. a reopened sibling) is parked: its chain is retired, and it starts
 		// fresh from the collector once the blocker has landed there.
@@ -1736,7 +1777,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// level (2026-10-16). A queued owner resolution is applied instead; a refinement's attempt was already discarded.
 		const ex = s.exceptions[slug], hc = s.chains[slug];
 		const recovers = !!ex && /^provider error: | errored in bb$| log unreadable$/.test(ex.reason);
-		if (ex && hc?.handle && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
+		if (ex && ex.reason !== LAUNCH_OCCUPIED && hc?.handle && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
 			const later = recovers ? fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt) : resumedReport(ex, hc);
 			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
 				? "its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution."
@@ -1801,8 +1842,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					note(slug + " resumes " + chain.phase + " from the stopped run's branch " + resumed!.branch + " at " + chain.resumeFrom);
 					await startPhase(slug, chain, resumed!.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
 				}
-				else if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
-				else await startPhase(slug, chain, issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
+				else await startPhase(slug, chain, !chain.self && issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
 			} catch (e) {
 				// Nothing launched: forget the chain so the post-reset tick starts it afresh.
 				if (e instanceof GithubRateLimited) { delete s.chains[slug]; if (resumed && chain.resumeFrom) (s.resume ??= {})[slug] = resumed; save(); throw e; }
@@ -1853,22 +1893,23 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Prefer a nested call to its enclosing codemode script, so the notice names the actual command.
 		const stalled = active?.tools?.filter(t => Date.now() - Date.parse(t.since) > TOOL_CALL_MS)
 			.findLast(t => !active.tools!.some(child => child.parent === t.id));
-		if (stalled && active?.sessionFile && managedProcess(active.sessionFile) === false) {
+		// Keep the stall check for sessions that never started managed work and have no registry.
+		if (stalled && active?.sessionFile && managedProcess(active.sessionFile, true) === false) {
 			raise(slug, c.phase + " tool call stalled", "Tool " + stalled.name + " has been running since " + stalled.since + " (over 45m) with no running managed process.\n\nCommand: " + (stalled.command ?? "(no command argument)") + "\n\nWorker: " + c.handle.handle + " (" + c.handle.bb + ")", issues, "owner");
 			return "active";
 		}
-		// A worker idle on a wait whose process has already gone (it never started, or ended without waking it) would idle until the nudge below.
-		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && runsProcess(c.handle) === false) {
+		// If the registry is unavailable, let the ordinary check-in below ask without asserting absence.
+		if (c.waitingSince && c.handle && !c.waitingVoidNudged && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_VOID_MS && waitingWithoutProcess(c.handle)) {
 			c.waitingVoidNudged = true; c.waitingCheckedAt = new Date().toISOString(); save();
 			note(c.phase + " " + slug + " nudged: waiting with no running process");
-			await sendChild(c.handle, "You reported `waiting`, but your session runs no managed process: the one you are waiting on has ended without its notice reaching you, or never started. Check it (process list, process output): take its result if it finished, start it again if it didn't run, and continue.");
+			await sendChild(c.handle, "You reported `waiting`, and your session's process registry shows no running process. Check the named process with `process wait` and take its result if it finished.");
 			return "active";
 		}
 		// The completion notice never comes while a descendant the process left behind (an orphaned server or executor) holds its process group.
 		if (c.waitingSince && c.handle && Date.now() - Date.parse(c.waitingCheckedAt ?? c.waitingSince) > WAITING_NUDGE_MS && alive(c.handle) !== false) {
 			c.waitingCheckedAt = new Date().toISOString(); save();
 			note(c.phase + " " + slug + " nudged: waiting since " + c.waitingSince);
-			await sendChild(c.handle, "You reported `waiting` and no completion notice has reached you in " + WAITING_NUDGE_MS / 60_000 + "m. Check the process you are waiting on (process list, process output). If its output shows the command finished but it still shows as running, a descendant it left behind (an orphaned server or executor) is holding its process group, so its notice will not come: take the result from its output, kill it with the process tool (and anything it left behind), and continue. If it is genuinely still running, end your turn `waiting` again.");
+			await sendChild(c.handle, "You reported `waiting` and no completion notice has reached you in " + WAITING_NUDGE_MS / 60_000 + "m. Check the named process with `process wait`. If its output shows the command finished but it still shows as running, a descendant it left behind (an orphaned server or executor) is holding its process group, so its notice will not come: take the result from its output, kill it with the process tool (and anything it left behind), and continue. If it is genuinely still running, end your turn `waiting` again.");
 			return "active";
 		}
 		if (c.handle && Date.now() - (c.launchedAt ?? 0) > START_GRACE_MS && alive(c.handle) === false) {
@@ -1909,7 +1950,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	let tickError = "";
 	const code = new CodeMonitor();
 	for (;;) {
-		if (o.signal?.aborted) return;
+		if (o.signal?.aborted) return await told;
 		try {
 			if (await untilReset(tick, { note, signal: o.signal })) return await told;
 			tickError = "";
@@ -1940,6 +1981,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	/** One reconciliation pass; true when the run is over. */
 	async function tick(): Promise<boolean> {
 		await observeHost();
+		await captureWorkerForeignWork(completion, Object.entries(s.chains).flatMap(([slug, chain]) =>
+			chain.handle ? [[slug, [chain.handle]] as [string, Handle[]]] : []));
 		noteWorkerSessions();
 		await pollTurns();
 		releaseWorkerClaims();
@@ -2031,6 +2074,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		let result: Awaited<ReturnType<typeof visit>>, pending: number;
 		for (;;) {
 			const before = s.landed;
+			if (liftLateChildren(top)) top = view(destination());
 			visited.clear();
 			result = await visit(s.root, destination(), top);
 			if (s.pr && s.landed[s.root]) return false;

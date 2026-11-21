@@ -24,6 +24,12 @@ export async function assertBb(): Promise<void> {
 	catch (error) { throw new Error("bb is not running: start the bb app (threads and workers run as bb threads). " + String(error).split("\n")[0]); }
 }
 
+/** Local sources are live paths, rather than copies installed from a remote or package. */
+export async function bbPathPlugins(): Promise<string[]> {
+	const { plugins } = await bb<{ plugins: { enabled: boolean; source?: string; rootDir: string }[] }>(["plugin", "list"]);
+	return plugins.filter(p => p.enabled && p.source?.startsWith("path:")).map(p => p.rootDir);
+}
+
 interface BbProject { id: string; sources: { path: string }[] }
 const projects = new Map<string, string>();
 /** The bb project whose source is this main checkout, created on first use. */

@@ -7,7 +7,7 @@
 //   bun lib/reconcile/main.ts resolve <issue> <node> <json> [--cwd DIR]
 //   bun lib/reconcile/main.ts constrain <issue> <node> TEXT [--phase all|refine|implement|drive|review] [--cwd DIR]
 import { execFileSync } from "node:child_process";
-import { retire, tell, topic, type Handle } from "../dispatch";
+import { retire, stop as stopWorker, tell, topic, type Handle } from "../dispatch";
 import { bbThreads } from "../thread/bb";
 import { commonDir } from "../thread/git";
 import { pidAlive as alive } from "../wm";
@@ -18,6 +18,7 @@ import { parseArgs } from "node:util";
 import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, stopRefinementWriter, updateState, workerHandles, type State } from "./reconcile.ts";
 
 import { codeStatus } from "./code-version";
+import { captureWorkerForeignWork } from "./foreign-work";
 import { POST_LANDING } from "./post-landing";
 import { workerPhases } from "./tracker-state";
 import { spawnRun, waitForPredecessor } from "./process";
@@ -83,6 +84,13 @@ export async function stop(cwd: string, root: string) {
 	for (const t of threads.values()) if (!t.archivedAt && t.environmentPath && t.title?.startsWith(root + "/") && !t.title.slice(root.length + 1).includes("/")) {
 		if (!repo || commonDir(t.environmentPath) !== repo) continue;
 		add({ run: root, handle: t.title.slice(root.length + 1), path: t.environmentPath, bb: t.id });
+	}
+	for (const [slug, chain] of Object.entries(s.chains)) {
+		const workers = [...chain.workers, ...(chain.handle ? [chain.handle] : [])].filter(h => existsSync(h.path));
+		for (const worker of workers) await stopWorker(worker, { cwd });
+		await captureWorkerForeignWork({ state: s, save: () => {
+			updateState(cwd, root, prior => ({ ...prior!, foreignWork: s.foreignWork }));
+		} }, [[slug, workers]]);
 	}
 	const retired = [];
 	for (const h of [...handles.values()].filter((h, i, all) => !all.some((o, j) => j < i && o.bb && o.bb === h.bb))) {
