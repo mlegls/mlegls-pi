@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 priority: 1
 author: "session:01a1cdb0-4d22-72bc-8778-94e6b358a046"
@@ -15,3 +15,29 @@ Likely shape: register tools and the RPC synchronously, and contribute per-provi
 - After `bb` host daemon restart, `bb plugin list` shows supervision `running` without a manual reload, and `bb plugin rpc call supervision workerSpawn --json` returns `invalid_input`.
 - Workers still spawn on every provider that existed before the change.
 
+
+## Result
+
+done — Both restart and worker-spawn stories held on the reviewed plugin. **Landing requires two repositories:** this branch carries the evidence; the runtime fix is `bb-plugins` commit `c9c60ff` on `supervision-restart-load`, still outside `bb-plugins/main`.
+
+```yaml
+commit: 59937242
+stories:
+  - story: Supervision loads and registers workerSpawn after daemon restart without a manual reload.
+    outcome: held
+  - story: Workers still spawn on every previously installed provider.
+    outcome: held
+evidence:
+  path: docs/attachments/supervision-plugin-load-times-out-after-daemon-restart/index.md
+  visual: false
+  shots: []
+fixed:
+  - Clarified the replay's readiness and shutdown checks after the driver observed an empty host list and a stop taking longer than three seconds.
+tests: []
+filed: []
+caveats:
+  - The companion plugin passed its TypeScript check. The driver observed a thread ID on all five providers; first replies were outside the spawn check.
+  - Restart verification used an isolated BB 0.50.1 daemon. The shared daemon was untouched.
+```
+
+Evidence: [docs/attachments/supervision-plugin-load-times-out-after-daemon-restart/index.md](../attachments/supervision-plugin-load-times-out-after-daemon-restart/index.md)
