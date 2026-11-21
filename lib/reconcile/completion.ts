@@ -8,6 +8,7 @@ import { assertNoTrackerChanges } from "../thread/tracker-worktree.ts";
 import type { Tracker } from "../tracker.ts";
 import { commandFailure, declaredGates, evidencePacket, git, isAncestor, testCommands, testRun } from "./checks.ts";
 import { targetEvidenceFailure } from "./evidence.ts";
+import { adoptLegacyPostLanding, outstandingChecks, postLandingSummary, type PostLandingCheck } from "./post-landing.ts";
 import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
 import type { CollectorRecord, GlobalRunState, LandingOperation, ReviewedResult } from "./tracker-state.ts";
 
@@ -20,6 +21,7 @@ export interface CompletionContext {
 	/** Runtime turns a held close into a node exception; protocol callers may let it throw. */
 	holdEvidence?: (slug: string, text: string) => void;
 	holdForeignCommit?: (slug: string, text: string) => void;
+	holdPostLanding?: (slug: string, text: string) => void;
 	/** Handoffs of children whose chains have not landed yet. */
 	foreignContexts?: () => unknown;
 }
@@ -38,14 +40,14 @@ export type LandingOutcome = { ok: true; head: string; replayed: boolean; output
 
 /** Keep the leaf's result even after its chain/worktree is removed. If no explicit
  * handoff summary exists, preserve the reviewed report as summary. */
-export function reviewedResult(parent: string | null, handoff: Record<string, unknown>, report: string, postLanding: string[] = []): ReviewedResult {
+export function reviewedResult(parent: string | null, handoff: Record<string, unknown>, report: string, postLanding: PostLandingCheck[] = []): ReviewedResult {
 	const summary = typeof handoff.summary === "string" && handoff.summary.trim() ? handoff.summary : report;
 	const evidence = handoff.evidence as { path?: unknown } | undefined;
 	return {
 		parent,
 		commitNotes: commitNotes(report),
-		summary: postLanding.length ? summary.trimEnd() + "\n\n**Pending post-landing checks**\n\n" +
-			postLanding.map(check => "- " + check.replace(/\r?\n/g, "\n  ")).join("\n") : summary,
+		summary,
+		...(postLanding.length ? { postLanding } : {}),
 		...(typeof evidence?.path === "string" ? { evidence: evidence.path } : {}),
 		handoff: structuredClone(handoff),
 	};
@@ -286,7 +288,9 @@ export function closeAtTarget(context: CompletionContext): void {
 	const snapshot = context.tracker.snapshot();
 	const held = new Set<string>();
 	for (const slug of order) {
-		const result = context.state.results[slug];
+		const saved = context.state.results[slug];
+		const result = adoptLegacyPostLanding(saved);
+		if (result !== saved) persist(context, { results: { ...context.state.results, [slug]: result } });
 		if ([...held].some(child => context.state.results[child].parent === slug || context.state.landingOps[slug]?.carried.includes(child))) {
 			held.add(slug);
 			continue;
@@ -300,9 +304,19 @@ export function closeAtTarget(context: CompletionContext): void {
 			held.add(slug);
 			continue;
 		}
+		const outstanding = outstandingChecks(result);
+		const landing = context.state.landed[slug];
+		if (outstanding.length) {
+			const text = `Landed in ${target} at ${landing.head}. The issue stays open.\n\n` + postLandingSummary(outstanding);
+			if (!context.holdPostLanding) throw new Error(text);
+			context.holdPostLanding(slug, text);
+			held.add(slug);
+			continue;
+		}
+		const summary = result.postLanding?.length ? result.summary.trimEnd() + "\n\n**Post-landing checks** (" + target + " @ " + landing.head + ")\n\n" + postLandingSummary(result.postLanding) : result.summary;
 		// Done is deliberately not a shortcut: a previous close may have written
 		// successfully and then thrown, or its receipt save may have failed.
-		if (!snapshot.get(slug)?.archived) context.tracker.close(slug, { summary: result.summary, evidence: result.evidence });
+		if (!snapshot.get(slug)?.archived) context.tracker.close(slug, { summary, evidence: result.evidence });
 		persist(context, { results: { ...context.state.results, [slug]: { ...result, closedAt: new Date().toISOString() } } });
 	}
 	if ((context.state.land ?? "local") !== "local") syncOwner(context);

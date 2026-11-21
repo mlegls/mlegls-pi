@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { join, resolve } from "node:path";
 import { fakeBb } from "../thread/fake-bb";
 import { getTracker } from "../tracker.ts";
-import { start, stop } from "./main";
+import { resolveException, start, stop } from "./main";
 import { load } from "./reconcile";
 
 const packagePath = realpathSync(join(import.meta.dir, "../.."));
@@ -25,6 +25,7 @@ export function open(root: string) {
  const bb = fakeBb(root), repo = join(root, "repo");
  const state = () => load(repo, "solo");
  const status = () => ({ root, phase: state()?.chains.solo?.phase, retries: state()?.chains.solo?.retries,
+  owner: state()?.owner, finished: state()?.finished, postLanding: state()?.results.solo?.postLanding,
   exceptions: state()?.exceptions,
   landed: state()?.landed.solo, log: state()?.log, threads: bb.threads().map(t => ({ title: t.title, prompt: t.prompt, tells: t.tells })) });
  const turn = (body: string) => {
@@ -40,7 +41,7 @@ export function open(root: string) {
   }),
   close: async () => { if (state()) await stop(repo, "solo"); rmSync(root, { recursive: true, force: true }); } };
 }
-export async function prepare(skipDrive = false) {
+export async function prepare(skipDrive = false, postLanding = false) {
  const root = realpathSync(mkdtempSync("/tmp/rc-setup-")), f = open(root);
  const git = (...args: string[]) => execFileSync("git", ["-C", f.repo, ...args], { encoding: "utf8", stdio: "pipe" }).trim();
  try {
@@ -52,6 +53,10 @@ export async function prepare(skipDrive = false) {
   git("init", "-qb", "main"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid");
   writeFileSync(join(f.repo, "docs/issues/solo.md"), "---\nstage: ticket\nassignee: agent:implementr\n" + (skipDrive ? "drive: none\n" : "") + "---\n\nSetup gate fixture.\n");
   git("add", "."); git("commit", "-qm", "fixture");
+  if (postLanding) getTracker(f.repo).update("solo", { "post-landing": [
+   { id: "deploy", story: "Main deploy serves the candidate.", trigger: "target-deploy", check: "Find the deploy triggered by the target update; GET /ready returns 200 for that deployment." },
+   { id: "smoke", story: "Main deploy serves the candidate.", trigger: "target-deploy", check: "Open that deployment's /about and verify the candidate version." },
+  ] }, "The run owner checks the target-triggered deployment after landing.\n");
   f.bb.addThread("thr_solo");
   start({ cwd: f.repo, root: "solo", owner: "thr_solo", budget: 1 });
   await f.ready();
@@ -62,7 +67,7 @@ export async function prepare(skipDrive = false) {
 if (import.meta.main) {
  const [command = "help", target, payload] = process.argv.slice(2);
  if (command === "new") {
-  const review = target === "--review", f = await prepare(review || target === "--no-drive");
+  const review = target === "--review" || target === "--post-landing", f = await prepare(review || target === "--no-drive", target === "--post-landing");
   if (review) {
    try {
     f.report(null);
@@ -78,17 +83,18 @@ if (import.meta.main) {
   if (!review) console.log("Use: bun lib/reconcile/setup-fixture.ts report " + f.root + " 'null'");
   console.log("Or submit a raw report: bun lib/reconcile/setup-fixture.ts turn " + f.root + " BODY");
   console.log("Then: status " + f.root + " | issue " + f.root + " | stop " + f.root);
- } else if (target && ["status", "issue", "report", "turn", "stop"].includes(command)) {
+ } else if (target && ["status", "issue", "report", "turn", "verdict", "stop"].includes(command)) {
   const root = realpathSync(resolve(target));
   if (!root.startsWith("/tmp/rc-setup-")) throw new Error("expected an owned /tmp/rc-setup-* target");
   const f = open(root);
   if (command === "stop") await f.close();
   else if (command === "issue") console.log(getTracker(f.repo).text("solo"));
+  else if (command === "verdict") resolveException(f.repo, "solo", "solo", { ...JSON.parse(payload!), action: "post-landing" }, "thr_solo");
   else {
    if (command === "report") f.report(JSON.parse(payload!));
    if (command === "turn") f.turn(payload!);
    if (command !== "status") console.error("Turn submitted. This snapshot can precede processing; use status ROOT to see the resulting phase or repair.");
    console.log(JSON.stringify(f.status(), null, 2));
   }
- } else console.log("new [--no-drive|--review] | status ROOT | issue ROOT | report ROOT SETUP_JSON | turn ROOT BODY | stop ROOT");
+ } else console.log("new [--no-drive|--review|--post-landing] | status ROOT | issue ROOT | report ROOT SETUP_JSON | turn ROOT BODY | verdict ROOT VERDICT_JSON | stop ROOT");
 }

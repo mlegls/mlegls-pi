@@ -18,6 +18,7 @@ import { parseArgs } from "node:util";
 import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTracker, resolutionsDir, resumeRecords, run, saveState, stateDir, stopRefinementWriter, updateState, workerHandles, type State } from "./reconcile.ts";
 
 import { codeStatus } from "./code-version";
+import { POST_LANDING } from "./post-landing";
 import { spawnRun, waitForPredecessor } from "./process";
 
 export function start(o: StartOptions): { pid: number; log: string } {
@@ -122,10 +123,15 @@ export function summary(s: State & { running: boolean }) {
 	};
 }
 
-export function resolveException(cwd: string, root: string, node: string, resolution: object) {
+export function resolveException(cwd: string, root: string, node: string, resolution: { action?: unknown; [key: string]: unknown }, caller = process.env.BB_THREAD_ID) {
 	const s = load(cwd, root);
 	if (!s || s.finished || s.stopping || !s.pid || !alive(s.pid)) throw new Error("no running reconciler for " + root + ": start it first (its state resumes)");
 	if (!s.exceptions[node] && !s.chains[node]) throw new Error(node + " has no exception or running chain in " + root + "'s reconciler");
+	if (resolution.action === "post-landing") {
+		if (!caller || caller !== s.owner) throw new Error("only the reconciler owner can record a post-landing verdict");
+		if (s.exceptions[node]?.reason !== POST_LANDING) throw new Error(node + " has no post-landing check pending at the target");
+		resolution = { ...resolution, reportedBy: caller };
+	}
 	mkdirSync(resolutionsDir(cwd, root), { recursive: true });
 	writeFileSync(join(resolutionsDir(cwd, root), node + ".json"), JSON.stringify(resolution));
 }

@@ -39,7 +39,23 @@ tests:
 caveats: []
 ```
 
-Use `held`, `failed` or `unobservable` exactly. For a nonvisual journey set `visual: false` and `shots: []`; still commit the evidence index. Any rendered UI journey is visual, even if the collector's checks use DOM assertions. Report every required claim, not just the ones that passed. An honest description of missing measurements is not the requested measurement: end `blocked`, or obtain an explicit contract change. Caveats do not waive acceptance requirements. When all remaining checks require the landed state, a reviewer can report `blocked` with `unobservable` stories and a nonempty `postLanding` list of the specific checks and expected results. Integration still runs its ordinary gates; the checks are recorded as pending on the issue and in the reconciler log.
+Use `held`, `failed` or `unobservable` exactly. For a nonvisual journey set `visual: false` and `shots: []`; still commit the evidence index. Any rendered UI journey is visual, even if the collector's checks use DOM assertions. Report every required claim, not just the ones that passed. An honest description of missing measurements is not the requested measurement: end `blocked`, or obtain an explicit contract change. Caveats do not waive acceptance requirements.
+
+### Post-landing gates
+
+Declare checks in the ticket's `post-landing` metadata when the target update itself triggers an external outcome. Name the run owner as the person who will verify the gate in the ticket body. A check runnable against the candidate (including reading a recipe or running its local equivalent) belongs in review.
+
+```yaml
+post-landing:
+  - id: live-docs
+    story: Main deploy serves the new docs.
+    trigger: target-deploy
+    check: Find the deploy triggered by the target update and fetch /docs.md from that deployment; expect 200 and the candidate content.
+```
+
+Triggers are `target-ci`, `target-deploy`, `target-publish`, and `target-mirror`. The reviewer reports `blocked` with the exact `story` as `unobservable` and `postLanding: [live-docs]`. Include all declared gate IDs for every unobservable story. A failed story or an undeclared check cannot take this path.
+
+Ordinary integration gates still run. The issue stays open after its code reaches the target. The reconciler gives its run owner the target, SHA, and pending checks. Record one verdict at a time with `reconcile_resolve({issue, node, action: "post-landing", check, outcome, evidence})`. Use `passed` or `failed` and a run URL or concrete observation on the target. For a failure, repair the cause and report the rerun. Status retains the verdict history while the issue is open; when every check passes, the reconciler copies the history into the issue Result and closes it.
 
 ## Review and recovery
 

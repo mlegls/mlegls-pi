@@ -30,7 +30,7 @@ import { bbThreads, bbWorking, logBb, tellBbFolded, type BbThread } from "../thr
 import { refreshWorker } from "./refresh.ts";
 import { checkpoint } from "./checkpoint.ts";
 import { advanceLaunchBase, commitRef, conflictKey, landedRequirements, type LaunchConflict } from "./launch-base.ts";
-import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands, setupError, postLandingChecks } from "./checks.ts";
+import { clip, heldByRed, mainRed, evidenceShapeError, git, isAncestor, storyShapeError, testCommands, setupError } from "./checks.ts";
 import { getTracker } from "../tracker.ts";
 import { GithubRateLimited, rateLimitMark } from "../tracker-github-snapshot.ts";
 import { untilReset } from "./rate-limit.ts";
@@ -40,6 +40,7 @@ import { worktrees } from "../thread/lifecycle-git.ts";
 import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
 import { beginEvidenceScope, EVIDENCE_MISSING } from "./evidence.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
+import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVerdict } from "./post-landing.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
 import type { GlobalRunState, RefinementAttempt } from "./tracker-state.ts";
 import type { LandingMode, PullRequestHost, PrRepairRequest } from "./pr-types.ts";
@@ -176,6 +177,7 @@ interface Exception {
 	level: string;
 	handler?: Handle; handlerLaunchedAt?: number; handlerHandledTs?: string;
 	mailed?: boolean;
+	postLandingOwnerNotified?: string;
 	/** ts of the report that raised it: an answer consumes only up to here, so a report that arrived while held still counts. */
 	reportTs?: string;
 	baseConflict?: LaunchConflict;
@@ -479,6 +481,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	const completion = { state: s, tracker, save, pathOf, locked,
 		holdEvidence: (slug: string, text: string) => raise(slug, EVIDENCE_MISSING, text, view(destination())),
 		holdForeignCommit: (slug: string, text: string) => raise(slug, FOREIGN_COMMIT, text, view(destination())),
+		holdPostLanding: (slug: string, text: string) => raise(slug, POST_LANDING, text, new Map(), "owner"),
 		foreignContexts: () => Object.values(s.chains).map(c => [c.setup, c.drive, c.evidence]),
 	};
 	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
@@ -813,13 +816,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		dropResolution(slug);
 		const parent = issues.get(slug)?.partOf;
 		const level = at ?? (slug === s.root || !parent ? "owner" : parent);
-		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: reason === EVIDENCE_MISSING || baseConflict ? text : text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs, baseConflict };
+		s.exceptions[slug] = { id: slug + "-" + Date.now().toString(36), node: slug, reason, text: reason === EVIDENCE_MISSING || reason === POST_LANDING || baseConflict ? text : text.slice(-6000), at: new Date().toISOString(), level, reportTs: c?.handledTs, baseConflict };
 		note("exception " + slug + ": " + reason + " → " + level + (reason === "reconciler error" ? "\n" + text.slice(0, 2000) : ""));
 		save();
 	}
 	/** A queued resolution answers the exception pending when it was queued, never a later one. */
 	const dropResolution = (node: string) => rmSync(join(resolutionsDir(controlCwd, s.root), node + ".json"), { force: true });
-	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept" | "red-repair"; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; commit?: string; refinement?: string; checkout?: string };
+	type Resolution = { action: "answer" | "retry" | "redispatch" | "move-out" | "escalate" | "skip-drive" | "reopen" | "accept" | "red-repair" | "post-landing"; check?: string; outcome?: PostLandingVerdict["outcome"]; evidence?: string; reportedBy?: string; target?: string; message?: string; note?: string; summary?: string; adopt?: boolean; commit?: string; refinement?: string; checkout?: string };
 	/** Bind an owner retry to its original attempt before any replacement writes.
 	 * Recovery can finish that replacement before replaying the resolution file. */
 	function readResolution(file: string, node: string): Resolution {
@@ -833,6 +836,28 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		return r;
 	}
 	async function applyResolution(ex: Exception, r: Resolution, issues: Map<string, Issue>) {
+		if (ex.reason === POST_LANDING || r.action === "post-landing") {
+			const result = s.results[ex.node];
+			const check = result?.postLanding?.find(gate => gate.id === r.check);
+			refreshOwner();
+			if (ex.reason !== POST_LANDING || r.action !== "post-landing" || r.reportedBy !== s.owner || !check
+				|| (r.outcome !== "passed" && r.outcome !== "failed") || typeof r.evidence !== "string" || !r.evidence.trim()) {
+				tellOwner("Verdict not applied for " + ex.node + ": only the run owner can report an outstanding post-landing check, with its check ID, passed or failed, and evidence.");
+				return;
+			}
+			const last = check.verdicts?.at(-1), evidence = r.evidence.trim();
+			if (last?.outcome !== r.outcome || last.evidence !== evidence || last.by !== r.reportedBy) {
+				if (last?.outcome === "passed") {
+					tellOwner("Verdict not applied for " + ex.node + ": " + check.id + " already passed.");
+					return;
+				}
+				(check.verdicts ??= []).push({ outcome: r.outcome, evidence, by: r.reportedBy, at: new Date().toISOString() });
+				note("post-landing check " + check.id + " for " + ex.node + ": " + r.outcome);
+			}
+			// Completion closes on all green, or raises a fresh owner exception with the remaining work.
+			delete s.exceptions[ex.node];
+			return save();
+		}
 		if (r.action === "red-repair") {
 			const c = s.chains[ex.node];
 			if (!c?.redHeld || c.phase !== "integrate" || ex.level !== "owner") {
@@ -1092,8 +1117,17 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				// One mail per class: later workers stopped by the same provider error join the first's exception.
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
 				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
-				if (!ex.mailed) {
-					tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + (ex.baseConflict ? clip(ex.text, 6000) : ex.text.slice(-3000)) + "\n\nResolve with tools.reconcile_resolve({issue: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, commit?, checkout?, message?, note?, summary?}). For move-out, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
+				if (ex.reason === POST_LANDING) refreshOwner();
+				if (!ex.mailed || (ex.reason === POST_LANDING && ex.postLandingOwnerNotified !== s.owner)) {
+					if (ex.reason === POST_LANDING) {
+						ex.postLandingOwnerNotified = s.owner;
+						const checks = outstandingChecks(s.results[ex.node]);
+						const next = checks.find(gate => gate.verdicts?.at(-1)?.outcome === "failed") ?? checks[0];
+						if (next) tellOwner("Post-landing gate assigned to you as run owner: " + ex.node + "\n\n" + clip(ex.text, 6000)
+							+ (next.verdicts?.at(-1)?.outcome === "failed" ? "\n\nRepair the failed gate's cause and rerun it. The ticket remains open." : "\n\nRun the pending checks against the landed target.")
+							+ " Record each result separately: tools.reconcile_resolve({issue: " + JSON.stringify(s.root) + ", node: " + JSON.stringify(ex.node)
+							+ ', action: "post-landing", check: ' + JSON.stringify(next.id) + ', outcome: "passed" | "failed", evidence: "run URL or concrete observation"}).');
+					} else tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + (ex.baseConflict ? clip(ex.text, 6000) : ex.text.slice(-3000)) + "\n\nResolve with tools.reconcile_resolve({issue: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, commit?, checkout?, message?, note?, summary?}). For move-out, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
 				const f = join(resolutionsDir(controlCwd, s.root), ex.node + ".json");
@@ -1384,7 +1418,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			? storyShapeError(r.handoff, c.self) ?? (c.self && r.handoff?.evidence === undefined ? null : evidenceShapeError(r.handoff))
 			: null;
 		const blocked = r.status === "blocked" || r.status === "needs-input";
-		const postLanding = blocked && c.phase === "review" && !reviewShape ? postLandingChecks(r.handoff!) : [];
+		const postLanding = blocked && c.phase === "review" && !reviewShape && r.handoff?.postLanding !== undefined
+			? selectPostLanding(r.handoff, issue.ownStage === "ticket" ? tracker.fields(slug)["post-landing"] : undefined) : [];
+		if (typeof postLanding === "string") return repair(slug, c, "post-landing", postLanding + " Repost your review.", issues, text);
 		if (blocked && !postLanding.length) {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
 			return raise(slug, c.phase + " " + r.status, text, issues);
@@ -1443,12 +1479,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (reviewShape) return repair(slug, c, "review-shape", "Your handoff is malformed: " + reviewShape + ". Repost it.", issues, text);
 		const stories = (r.handoff!.stories as { outcome: string }[]);
 		const notHeld = stories.findIndex(x => x.outcome !== "held" && !((c.acceptUnobservable || postLanding.length) && x.outcome === "unobservable"));
-		if (notHeld >= 0) return repair(slug, c, "unheld", "You reported done, but stories[" + notHeld + "] is not held. `done` needs every story held on your final head: repair it, or report `blocked`/`needs-input`. If all remaining checks require the landed state, report `blocked` with the full handoff and list those checks in `postLanding`. For other stories unobservable by design, report `needs-input` naming them and why.", issues, text);
+		if (notHeld >= 0) return repair(slug, c, "unheld", "You reported done, but stories[" + notHeld + "] is not held. `done` needs every story held on your final head: repair it, or report `blocked`/`needs-input`. If the ticket declares gates for all remaining checks, report `blocked` with the full handoff and their gate IDs in `postLanding`. For other stories unobservable by design, report `needs-input` naming them and why.", issues, text);
 		const accepted = c.acceptUnobservable && stories.some(x => x.outcome === "unobservable") ? { accepted: "unobservable stories accepted by the owner: " + c.acceptUnobservable } : {};
 		if (accepted.accepted) note(slug + " lands with unobservable stories the owner accepted");
 		c.evidence = { ...r.handoff!, ...accepted, tests: [...new Set([...testCommands(c.drive), ...testCommands(r.handoff)])] };
 		s.results[slug] = reviewedResult(issue.partOf, c.evidence, text, postLanding);
-		for (const check of postLanding) note("post-landing check for " + slug + ": " + check.replace(/\s+/g, " "));
+		for (const check of postLanding) note("post-landing check for " + slug + ": " + check.id + " (run owner after target landing)");
 		c.phase = "integrate"; save();
 		return integrateReview(slug, c, issue, issues);
 	}
@@ -1943,7 +1979,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				if (s.pr.repair?.worker && !s.pr.repair.retiredAt) return false;
 				// Terminal remote landing supersedes a held owner exception without
 				// requiring the owner's session to be present.
-				if (s.exceptions[s.root] && ![EVIDENCE_MISSING, FOREIGN_COMMIT].includes(s.exceptions[s.root].reason)) { delete s.exceptions[s.root]; save(); }
+				if (s.exceptions[s.root] && ![EVIDENCE_MISSING, FOREIGN_COMMIT, POST_LANDING].includes(s.exceptions[s.root].reason)) { delete s.exceptions[s.root]; save(); }
 				closeAtTarget(completion);
 				if (!s.target || Object.values(s.results).some(result => !result.closedAt)) return false;
 				if (Object.values(s.landingOps).some(op => s.landed[op.slug] && !op.cleanupDone)) return false;
@@ -1985,7 +2021,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const resolvedNow = result === "stuck" && Object.keys(s.exceptions).length < pending;
 		// Chains whose nodes left the tree (moved out, or edited out of it by anyone) are retired.
 		for (const [slug, c] of Object.entries(s.chains)) if (!visited.has(slug) && s.exceptions[slug]?.reason !== DELIVERED_ACTIVE) { note(slug + " left the tree; retiring its workers"); await retireChain(c); releaseRefinementClaims(refinement, slug); delete s.chains[slug]; save(); }
-		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING && ex.reason !== FOREIGN_COMMIT && ex.reason !== DELIVERED_ACTIVE) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
+		for (const [slug, ex] of Object.entries(s.exceptions)) if (!visited.has(slug) && ex.reason !== CLEANUP_FAILED && ex.reason !== EVIDENCE_MISSING && ex.reason !== FOREIGN_COMMIT && ex.reason !== POST_LANDING && ex.reason !== DELIVERED_ACTIVE) { if (ex.handler) await retireHandle(ex.handler, cwd); delete s.exceptions[slug]; dropResolution(slug); save(); }
 		// Human work remains part of this scope. Keep polling so reassignment resumes here, without pickup.
 		if (Object.keys(s.moved).some(slug => { const row = top.get(slug); return row && !finished(row) && (slug === s.root || under(row, top)); })) return false;
 		if (result !== "active" && !resolvedNow && !Object.keys(s.exceptions).length && !Object.values(s.chains).length) {

@@ -16,6 +16,8 @@ export interface ReviewedResult {
 	commitNotes?: string[];
 	evidence?: string;
 	handoff: Record<string, unknown>;
+	/** The reconciler owner runs these after the ledger reaches its target. */
+	postLanding?: import("./post-landing.ts").PostLandingCheck[];
 	closedAt?: string;
 }
 

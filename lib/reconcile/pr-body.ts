@@ -1,4 +1,5 @@
 import { git } from "./checks.ts";
+import { adoptLegacyPostLanding, outstandingChecks } from "./post-landing.ts";
 import type { Tracker } from "../tracker.ts";
 import type { GlobalRunState } from "./tracker-state.ts";
 
@@ -28,7 +29,9 @@ export function publication(state: GlobalRunState, tracker: Tracker): { title: s
 				throw new Error("PR closing reference is not in " + pr.repository + ": " + slug);
 			return issue.number;
 		};
-		for (const slug of nodes) references.push("Closes #" + native(slug));
+		// A merge must not close the gated issues or their enclosing issues.
+		const deferred = nodes.some(slug => outstandingChecks(adoptLegacyPostLanding(state.results[slug])).length);
+		for (const slug of nodes) references.push((deferred ? "Refs #" : "Closes #") + native(slug));
 		if (root.parent && !nodes.includes(root.parent) && !tracker.snapshot().get(root.parent)?.done)
 			references.push("Part of #" + native(root.parent));
 	}
