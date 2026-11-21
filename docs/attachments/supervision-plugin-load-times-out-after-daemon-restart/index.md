@@ -41,7 +41,7 @@ For an Antigravity worker, configure the sandbox's `provider-acp` `customAgents`
 
 ## Restart and reach the RPC
 
-Stop `sandbox_start` with Ctrl-C and start it again with the same data directory and ports. Do not reload supervision. Once `sandbox_bb machine list` answers:
+Stop `sandbox_start` with Ctrl-C and start it again with the same data directory and ports. Do not reload supervision. Wait until `sandbox_bb machine list --json | jq -e 'length == 1'` succeeds. An empty host list means the host is still starting. Then run:
 
 ```bash
 sandbox_bb plugin list --json | jq -e '.plugins[] | select(.id == "supervision" and .status == "running") | .status'
@@ -64,7 +64,7 @@ jq -n --arg project "$project" --arg path "$PWD" --arg provider "$provider" \
   sandbox_bb plugin rpc call supervision workerSpawn --input-file /dev/stdin --json
 ```
 
-Stop the sandbox launcher with Ctrl-C when finished. Remove the detached plugin worktree with `git -C "$BB_PLUGINS_REPO" worktree remove "$PWD/.wm/supervision-restart-plugin"`.
+Stop the sandbox launcher with Ctrl-C when finished and wait for it to exit. Shutdown can take longer than three seconds. Remove the detached plugin worktree with `git -C "$BB_PLUGINS_REPO" worktree remove "$PWD/.wm/supervision-restart-plugin"`.
 
 ## Independent drive: predictions
 
@@ -85,3 +85,7 @@ Replay checks are the restart and worker commands above: expect readiness before
 On BB 0.50.1, temporary log markers in the baseline (`bb-plugins` `35262d7`) printed `before providers.list`, then the startup factory timed out after 30,000 ms. It never reached the marker after `providers.list` or the one before `settings.get`. Installing the same instrumented code on the running sandbox reached all markers.
 
 After rebuilding from `c9c60ff` and restarting the same sandbox, supervision showed `running` and `workerSpawn` returned `invalid_input` without a reload. The worker RPC returned a thread ID on each of Beelink's five previously installed providers: Pi, Codex, Claude Code, ACP Hermes and ACP Antigravity. Four replied; Claude Code created the thread, then reported an expired OAuth session on the first turn. The live BB instance was left unchanged.
+
+## Review
+
+Checked `bb-plugins` `c9c60ff`: plugin load registers `workerSpawn` synchronously. Provider discovery runs in a background service; a spawn registers its requested provider before thread creation even if discovery is still pending. The plugin passed `tsc -p supervision` against its installed dependencies. Both independent drive outcomes stand. The replay instructions now distinguish an answering server from a registered host, and a slow shutdown from a failed one.
