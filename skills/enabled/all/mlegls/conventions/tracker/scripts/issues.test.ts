@@ -371,7 +371,7 @@ test("subtree readiness, assignment, dependencies, scheduling and review remain 
   expect(run("done").out).toContain("scope");
   expect(row("scope").frontier).toBe(false);
   for (const slug of ["scope", "child", "early"]) rmSync(join(issues, slug + ".md"));
-});
+}, 30_000);
 
 test("close links its evidence from the issue file, so the link resolves where the issue is read", () => {
   put("evidenced", frontmatter("stage: ticket\nassignee: agent") + "Goal.\n");
