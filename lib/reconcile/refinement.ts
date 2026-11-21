@@ -251,7 +251,9 @@ function validateAcceptance(context: RefinementContext, handle: string, children
 		const converted = replay && attempt.owned.includes(row.slug) && claim === stableClaim(context);
 		if (owned && (row.archived || row.done)) throw new Error("Non-executable provisional child: " + row.slug);
 		if (owned ? claim !== attempt.claim && !converted : claim !== undefined && claim !== stableClaim(context))
-			throw new Error("Foreign or missing refinement claim: " + row.slug);
+			throw new Error("Foreign or missing refinement claim: " + row.slug + (owned
+				? " needs the provisional claim " + attempt.claim
+				: " is in the baseline and needs no claim or stable claim " + stableClaim(context)));
 		if (!row.archived && !row.done) {
 			// Starting a run delegates an unassigned root, but never its children.
 			const delegatedRoot = row.slug === context.state.root && !row.assignee && row.selectors.every(selector =>

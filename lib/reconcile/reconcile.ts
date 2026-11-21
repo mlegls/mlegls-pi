@@ -492,6 +492,11 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		foreignContexts: () => Object.values(s.chains).map(c => [c.setup, c.drive, c.evidence]),
 	};
 	const refinement = { state: s, tracker, save, locked, stopWriter: (attempt: RefinementAttempt) => stopRefinementWriter(s, attempt) };
+	const removedRefinement = (c?: Chain) => {
+		const attempt = c?.phase === "refine" && c.refinement ? s.refinements[c.refinement] : undefined;
+		return attempt?.phase === "removed" ? attempt : undefined;
+	};
+	const refinementRecovery = (attempt: RefinementAttempt) => "Refinement " + attempt.handle + " was removed. Resolve with answer (include the ruling) or retry to start a fresh writer from the previous work. Reposting from the removed writer cannot work. Keep any retained contracts; if they still carry this run's removed provisional claims, reserve them through the tracker with claimed-by: reconcile:" + s.root + " before retrying.";
 	// Latest turn report per worker topic, read from each worker's bb thread after the last turn seen.
 	const reports = new Map<string, TurnReport>();
 	const seen = new Map<string, number>();
@@ -645,7 +650,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					refining.chain.refinement = actual;
 					save();
 				}
-				const claimed = (text: string) => refining ? text + "\n\nCreate provisional children through the tracker with this exact claimed-by token, atomically with part-of: " + s.refinements[actual].claim : text;
+				const claimed = (text: string) => {
+					if (!refining) return text;
+					const writer = s.refinements[actual];
+					return text + "\n\nRefinement baseline: " + writer.baseline.join(", ") + ". Keep these contracts unclaimed or reserved with stable claimed-by: reconcile:" + s.root
+						+ ". If one still carries a removed attempt's claim from this run, reserve it with the stable claim through the tracker. Leave foreign claims alone."
+						+ "\nCreate provisional children through the tracker with this exact claimed-by token, atomically with part-of: " + writer.claim
+						+ "\nChildren already transferred by live-attempt adoption keep that provisional token. Report all open direct children, including retained baseline children.";
+				};
 				try {
 					const worker = await launchNow(actual, role, claimed(prompt), base, into, issue, only,
 						async path => claimed(await prepare?.(path) ?? prompt), after);
@@ -995,7 +1007,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c && spent) delete c.retries[spent];
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
-		if (r.action === "answer" && !adopted && c?.handle && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
+		if (r.action === "answer" && !adopted && c?.handle && !removedRefinement(c) && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in the global tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "", r.action === "retry" && r.adopt === true); } }
 		else if (r.action === "redispatch") {
 			// A redispatch starts over from the parent's head; the superseded chain's commits stay on its kept branch,
@@ -1413,6 +1425,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined;
 		const h = c.handle!, r = parse(m.body, h.path), text = m.body;
 		const phase = c.phase = c.phase === "integrate" ? "review" : c.phase;
+		const removed = removedRefinement(c);
+		if (removed) return raise(slug, "report from removed refinement", text + "\n\n" + refinementRecovery(removed), issues, "owner");
 		if (m.tags.includes("error")) {
 			const kind = m.errorCategory === "rate-limit" ? "rate limit or quota" : errorClass(text);
 			if (nativeRateLimit(h, m) && h.bb) {
@@ -1439,7 +1453,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				return startPhase(slug, c, c.phase, issue, issues);
 			}
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
-			return raise(slug, "provider error: " + kind, text, issues, "owner");
+			const stopped = removedRefinement(c);
+			return raise(slug, "provider error: " + kind, stopped ? text + "\n\n" + refinementRecovery(stopped) : text, issues, "owner");
 		}
 		if (r.status === null) return repair(slug, c, "status", statusRepairMessage(text, r.handoffError), issues, text);
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
@@ -1478,7 +1493,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (typeof postLanding === "string") return repair(slug, c, "post-landing", postLanding + " Repost your review.", issues, text);
 		if (blocked && !postLanding.length) {
 			if (c.phase === "refine" && c.refinement) await discardRefinement(refinement, c.refinement);
-			return raise(slug, c.phase + " " + r.status, text, issues);
+			const stopped = removedRefinement(c);
+			return raise(slug, c.phase + " " + r.status, stopped ? text + "\n\n" + refinementRecovery(stopped) : text, issues);
 		}
 		if (r.status === "checkpoint") return checkpoint(c, alive(h), BUDGET.checkpoint, {
 			resume: async () => {
@@ -1798,7 +1814,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// level (2026-10-16). A queued owner resolution is applied instead; a refinement's attempt was already discarded.
 		const ex = s.exceptions[slug], hc = s.chains[slug];
 		const recovers = !!ex && /^provider error: | errored in bb$| log unreadable$/.test(ex.reason);
-		if (ex && ex.reason !== LAUNCH_OCCUPIED && hc?.handle && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
+		if (ex && ex.reason !== LAUNCH_OCCUPIED && hc?.handle && !removedRefinement(hc) && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
 			const later = recovers ? fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt) : resumedReport(ex, hc);
 			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
 				? "its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution."
