@@ -1,7 +1,8 @@
 ---
-stage: "idea"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:thr_ts3gpc75tx"
+priority: 2
 ---
 `reconcile_constrain` tells every current worker on the node, whatever its role, so a constraint written for one role reaches another whose brief forbids the work.
 
