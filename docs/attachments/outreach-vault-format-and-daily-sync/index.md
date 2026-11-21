@@ -1,4 +1,4 @@
-**First use for [the outreach vault](../../guide/outreach.md).** Local disposable Git main checkout; no accounts or credentials. The fixture starts a loopback Beeper API for each sync and closes it after the CLI exits.
+**First use for [the outreach vault](../../guide/outreach.md).** See the [independent drive](drive.md) for predictions, observations, and replay checks. Local disposable Git main checkout; no accounts or credentials. The fixture starts a loopback Beeper API for each sync and closes it after the CLI exits.
 
 From the mlegls-pi checkout:
 
