@@ -1,5 +1,5 @@
 ---
-stage: "spec"
+stage: "done"
 assignee: "agent"
 author: "session:01a1fc85-32d0-7768-9382-3e18c7628a80"
 priority: 2
@@ -32,3 +32,26 @@ Out:
 decisions:
 - 2026-11-21: workers run agy as a bb ACP provider, not through pi-antigravity-bridge (@thread:thr_4vfx7djduu).
 - 2026-11-21: worker rules are checked at integration, not by per-provider pre-tool hooks; the context fence is not ported (@thread:thr_4vfx7djduu).
+
+## Result
+
+done — The recorded native `reconcile` call covers the join: a Pi supervisor launched Antigravity implement, Pi drive and review followed, and the greeting landed. On the joined tree, 32 targeted tests and the reconciler hook-refusal-and-retry replay passed. No structural change was warranted.
+
+```yaml
+commit: 7f3338bd
+stories:
+  - story: A Pi supervisor reconciles a ticket through an Antigravity worker to landing.
+    outcome: held
+evidence:
+  path: docs/attachments/antigravity-workers-in-reconcile/index.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+changes: []
+caveats:
+  - The tested worker RPCs are in bb-plugins at 25e77ab and its successor 35262d7. Main at 92feb0c lacks them; rollout requires the companion and the documented loaded-plugin check.
+  - Review reused the 3m32s live provider recording. The hook replay ran locally; production integration pays each installed hook’s runtime per incoming commit.
+```
+
+Evidence: [docs/attachments/antigravity-workers-in-reconcile/index.md](../attachments/antigravity-workers-in-reconcile/index.md)
