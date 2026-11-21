@@ -27,3 +27,5 @@ Both workers were archived with their parent link intact. No friction in either 
 ## Review
 
 Both caller journeys held. Checked all eleven plugin tool declarations against the removed extension and traced the caller thread ID through the Bun entry point. The dispatch, campaigns and pickup tests passed (15 checks). Corrected the replay recipe to build from a disposable archive, as the driver did; verified the archive contains the companion source and lockfile without its installed dependencies.
+
+Rebased onto `c041c416`, which added owner-submitted post-landing verdicts to `reconcile_resolve`. Companion `92feb0c` carries that action and its fields into the native schema. Both `passed` and `failed` preserved all fields through schema parsing; an invalid outcome was rejected. In a temporary Git repository with a pending gate, the Bun entry point rejected a non-owner without writing a verdict, then queued the owner's verdict with the correct `reportedBy`, check, outcome, and evidence. The companion typecheck passed.
