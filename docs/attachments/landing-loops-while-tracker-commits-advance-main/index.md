@@ -26,3 +26,7 @@ The Concept expectation was met by replaying historical receipts. In Concept's G
 ## Concept history
 
 The existing tracker-only catch-up path can be seen on Concept main in `fdba2962ac` (`tutor-recording-cannot-bind-srs-identities-through-code-calls`, 2026-11-20 01:17:35 UTC). Its reconciler log records one review launch and no integration failure before landing, while other reconcilers were launching review and drive workers. The landing receipt records base `57852934be` and prepared head `dd6d18a3d1`. During preparation main advanced through `c2bea11043` and `a0a96e03be`, both under `docs/issues/`; those commits reached the landing through its second parent. The reviewed head remained its first parent. `2cf9b11027` (`record-the-posed-answer-apart-from-the-learners-question`) shows the same first-attempt catch-up with one intervening tracker commit. These are historical live landings; the held-index race was reproduced in the local fixture.
+
+## Review
+
+On `68a5acbd` the tracker-race replay completed with `order: ["gate"]`, `done: true`, the reviewed head as first parent and the concurrent issue present. The 14 existing lifecycle, landing and landing-cleanup checks passed. In Concept, the consecutive review-launch and landing log entries and both parents of `fdba2962ac` match the drive record.
