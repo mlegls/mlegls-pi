@@ -51,3 +51,7 @@ The immediate snapshot after submission can still show the prior turn. On the fi
 On `6a08bce0`, the new fixture reached `solo-implement-1` on fake BB worker `bbt-4ac06620`. The completed empty report produced the status nudge. Both interrupted turns continued the same worker at checkpoint `b7102539`, with ignored state intact, and neither changed the status count. The third interruption notified the owner with the original error, checkout path, and checkpoint SHA; the worker and ignored state were still present until fixture cleanup. No live BB interruption was induced.
 
 `bun test lib/thread/turn.test.ts lib/reconcile/resume.test.ts lib/reconcile/setup.test.ts`: 11 passed. `bun run typecheck` passed.
+
+## Review
+
+On `267f0f02`, the same 11 checks and typecheck passed. The turn reader pairs the error by turn ID even if a poll ends before completion. Only the failed completion carrying BB's lost-run detail takes the interruption path; it returns before parsing a handoff. The driver’s three outcomes stand. The exception is saved before the owner tell is sent, so the replay checks delivery separately. No behavior change was needed.
