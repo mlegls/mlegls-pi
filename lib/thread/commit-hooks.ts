@@ -33,7 +33,7 @@ export async function checkCommitHooks(cwd: string, branch: string, destination:
 	let detached = false;
 	try {
 		for (const line of commits.split("\n")) {
-			const [commit, parent] = line.split(" ");
+			const [commit, parent, ...merged] = line.split(" ");
 			if (!parent) throw new Error("integrate: cannot replay hooks on unrelated root commit " + commit);
 			await checkout("--detach", commit);
 			detached = true;
@@ -42,6 +42,9 @@ export async function checkCommitHooks(cwd: string, branch: string, destination:
 			writeFileSync(messageFile, message);
 			// Move only detached HEAD, leaving the checked-out commit staged against its parent.
 			await gitChecked(cwd, "update-ref", "--no-deref", "HEAD", parent, commit);
+			// A merge commit's hooks ran with MERGE_HEAD present; recreate it so hooks see a merge, not its whole diff.
+			const mergeHead = merged.length ? await gitChecked(cwd, "rev-parse", "--path-format=absolute", "--git-path", "MERGE_HEAD") : "";
+			if (mergeHead) writeFileSync(mergeHead, merged.join("\n") + "\n");
 			try {
 				for (const name of names) {
 					const args = name === "pre-commit" ? [] : name === "commit-msg" ? [messageFile] : [messageFile, "commit", commit];
@@ -53,6 +56,7 @@ export async function checkCommitHooks(cwd: string, branch: string, destination:
 						throw new CommitHookFailure(commit, name, 1, hook.out, [hook.err, "The hook rewrote the commit message."].filter(Boolean).join("\n"));
 				}
 			} finally {
+				if (mergeHead) rmSync(mergeHead, { force: true });
 				await gitChecked(cwd, "update-ref", "--no-deref", "HEAD", commit, parent);
 				await gitChecked(cwd, "read-tree", "--reset", "-u", commit);
 			}
