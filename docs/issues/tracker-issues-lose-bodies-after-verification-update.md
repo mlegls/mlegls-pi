@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 author: "session:01a1e536-4fbb-76a0-a863-0a919392dbbf"
 priority: 2
@@ -11,3 +11,24 @@ The preceding worker's handoff says it updated both bodies with the failed joine
 Tried: repeated global `text` reads; read the retained worker packet and related startup contracts; searched the Concept and mlegls-pi trackers for an existing body-loss report. `concurrent-tracker-updates-revert-each-others-fields` concerns stale concurrent field updates, whose cause is not established here. Recall retains acceptance summaries, but its cited source-entry reads returned not found.
 
 Workaround: preserve the failed product evidence and escalate contract recovery to the parent rather than reconstructing decisions from a handoff. The owning tool is the mlegls-pi tracker CLI and its publication path. Investigate the last two body updates and recover the contracts, then decide whether the caller, stdin handling or publication lost the text. There is no established fix yet.
+
+## Result
+
+done — The historical caller sent zero bytes. The existing tracker guard rejected the update without changing the issue or HEAD. Passing the body as spawn stdin persisted it with frontmatter intact. Both restored Concept contracts were readable through the global tracker. No code repair was needed.
+
+```yaml
+commit: c6e3b835
+stories:
+  - {story: Accidental blank replacement preserves the existing issue, outcome: held}
+  - {story: A body sent through stdin persists with frontmatter intact, outcome: held}
+  - {story: Both original Concept contracts are readable, outcome: held}
+evidence:
+  path: docs/attachments/tracker-issues-lose-bodies-after-verification-update/drive.md
+  visual: false
+  shots: []
+tests: []
+filed: []
+caveats: []
+```
+
+Evidence: [docs/attachments/tracker-issues-lose-bodies-after-verification-update/drive.md](../attachments/tracker-issues-lose-bodies-after-verification-update/drive.md)
