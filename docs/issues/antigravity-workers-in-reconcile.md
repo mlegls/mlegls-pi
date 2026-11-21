@@ -5,7 +5,6 @@ author: "session:01a1fc85-32d0-7768-9382-3e18c7628a80"
 part-of: "[[projects/mlegls-pi/issues/lift-supervision-into-a-bb-plugin]]"
 blocked-by:
   - "[[projects/mlegls-pi/issues/spawn-workers-on-any-bb-provider]]"
-  - "[[projects/mlegls-pi/issues/check-worker-rules-at-integration]]"
   - "human: agy signed in and acp-antigravity added on the Beelink"
 ---
 A reconciled ticket runs on Gemini 4 Neon through Antigravity's own `agy`, as a bb ACP worker. Tracer for [[projects/mlegls-pi/issues/lift-supervision-into-a-bb-plugin]].
