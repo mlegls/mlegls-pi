@@ -26,3 +26,11 @@ Tested `bb-plugins` revision `c4e1c1b23ed27053d455a158cf987435a741ead6`. Followe
 3. Seed different hypotheses to establish exclusion, and a contacted record whose follow-up is already due to establish Queue's other source. Mark the latter handled, change its due date to a different due date, and require it to return without reload.
 
 The desktop instance disappeared toward the end of the drive and close retries returned stale generation. [[projects/mlegls-pi/issues/bb-desktop-browser-disappears-before-session-cleanup]]. Stopped the synthetic thread, removed the disposable project/repo, and restored the prior tracker deployment.
+
+## Review replay
+
+All eight claims now hold. On `bb-plugins` `fb98bae`, with the built plugin running and the demo project present in the `outreach` RPC, Discuss 2 opened **Discuss 3 records** with Pat, Charlie and Busy operators. Sending a synthetic prompt produced three mention chips; the thread’s Outreach 3 menu listed two people and one hypothesis. [Replacement capture: sent message and return links](discuss.jpg). No change to the original hypothesis-only draft or person-to-thread navigation paths.
+
+Extended the disposable demo with a Solo hypothesis/candidate and a messaged Due Contact. Selecting Busy operators excluded Solo and retained Pat P1 then Charlie P3. Marking Due Contact handled reduced Queue 2 to Queue 1. Editing only `next_followup` from `2026-11-14` to `2026-11-15` restored Queue 2 and showed the new date without reloading. In the resulting thread composer, typed `~Pat`, waited for the matching candidate result, selected it and typed ` ~Busy`. The picker offered `busy-operators` labeled `hypothesis · active` for the same project. Search results took longer than the first snapshot to appear.
+
+`bb plugin build .` and `bunx tsc --noEmit` passed. Desktop cleanup across instance generations is tracked in [get-bb/bb#7534](https://github.com/get-bb/bb/issues/7534#issuecomment-7062553249).
