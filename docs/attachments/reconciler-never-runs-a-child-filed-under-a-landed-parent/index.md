@@ -22,3 +22,7 @@ No usage friction surfaced.
 
 1. Compare `Seeded` and `After scheduling`: expect `lateParent` to change from `parent` to `root`, the child worker's base to equal the seeded receipt head, a null sibling phase, and a notice naming both parents.
 2. Compare `Seeded` and `After simulated review`: expect the parent's receipt to match, the child's receipt to name `root`, and the sibling worker's base to equal the child's receipt head.
+
+## Review replay
+
+On `0c3d1ae4`, `late-implement-1` started at the original parent receipt `ac5dcd7` after `late` moved to `root`. The owner's notice named `late`, `parent`, and `root`; the sibling had no phase yet. After review, `sibling-implement-3` started at the late child's landing `9dfdad9`, with the original parent receipt unchanged. Both existing checks in `lib/reconcile/scheduling.test.ts` passed.
