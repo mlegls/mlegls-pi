@@ -53,6 +53,7 @@ import { writeStatus } from "./status.ts";
 import { CodeMonitor, loadedCode, type CodeVersion } from "./code-version";
 import { spawnRun } from "./process";
 import { ownershipLock, OwnershipLockBusy } from "./ownership";
+import { reclaimSetup } from "./launch-recovery";
 export type { ScheduledIssue as Issue } from "./scheduling.ts";
 /** The tracker CLI beside this reconciler's own code: the one getTracker runs by default. */
 const LIVE_TRACKER = fileURLToPath(new URL("../../skills/enabled/all/mlegls/conventions/tracker/scripts/issues.ts", import.meta.url));
@@ -108,6 +109,7 @@ const DELIVERED_ACTIVE = "active chain after recorded landing";
 const CLOSED_ACTIVE = "closed outside the run while its chain runs";
 const FOREIGN_COMMIT = "foreign implementation not installed";
 const LAUNCH_CONFLICT = "launch base conflicts with required work";
+const LAUNCH_OCCUPIED = "saved launch worktree needs attention";
 
 
 type Phase = WorkerPhase | "integrate";
@@ -693,7 +695,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
 		return r.submitted[0];
 	}
-	// Saved before the launch: a crash mid-launch must not hand the same name (and its leftover worktree) out again.
+	// Persist the counter before issuing a new name; a saved launch receipt can resume its own name.
 	const nextHandle = (slug: string, kind: string) => { const h = (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90); save(); return h; };
 	const ticketText = (i: Issue) => "Issue " + i.slug + ":\n\n" + tracker.text(i.slug);
 	/** Current global metadata, not a worker branch copy. */
@@ -754,12 +756,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c.self && phase === "implement" && !c.handle && !c.resumeFrom) from ??= s.collectors[slug].path;
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
-		const prev = c.handle?.handle === c.launching ? undefined : c.handle;
+		const saved = c.launching ?? resumeAttempt;
+		const prev = c.handle?.handle === saved ? undefined : c.handle;
 		if (prev && existsSync(prev.path)) { await stop(prev, { cwd: pathOf(c.into) }); saveWip(prev); }
 		// A retired worker (keepBranch) leaves no worktree but its branch still holds the chain's work so far.
 		const kept = (h: Handle) => { try { return git(pathOf(c.into), "rev-parse", "--verify", "-q", "refs/heads/" + h.handle); } catch { return ""; } };
 		// A registered worker already launched; adopt its receipt even if prerequisites have changed since dispatch.
-		const registered = c.launching ? await findWorker({ run: s.root, handle: c.launching }, controlCwd) : undefined;
+		const registered = saved ? await findWorker({ run: s.root, handle: saved }, controlCwd) : undefined;
 		let base = plan.base ?? (from ? git(from, "rev-parse", "HEAD")
 			: (c.handle && existsSync(c.handle.path) ? git(c.handle.path, "rev-parse", "HEAD") : c.handle && kept(c.handle)) || c.resumeFrom || git(pathOf(c.into), "rev-parse", "HEAD"));
 		if (from && !c.pendingLaunch || !c.base && (phase === "refine" || phase === "implement"))
@@ -792,11 +795,20 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// A join's review is tidy's: crossing stories at their seams, then structure across the children.
 		const only = phase === "review" && c.self ? ["tidy", ...((c.drive as any)?.evidence?.visual ? ["visual-reviewer"] : [])] : undefined;
 		const launchedAt = Date.now();
-		c.launching ??= resumeAttempt ?? nextHandle(slug, phase);
+		c.launching = saved ?? nextHandle(slug, phase);
 		c.launchPhase = phase;
 		c.pendingLaunch = plan;
 		if (prev) await captureWorkerForeignWork(completion, [[slug, [prev]]]);
 		save();
+		if (saved && !registered) {
+			try {
+				const path = await reclaimSetup(pathOf(c.into), saved, base);
+				if (path) note("reclaimed interrupted setup for " + saved + " at " + path);
+			} catch (error) {
+				raise(slug, LAUNCH_OCCUPIED, String(error) + "\n\nInspect the remaining worktree and branch, preserve any work, then resolve with retry once the name is free.", issues, "owner");
+				return;
+			}
+		}
 		if (!registered && phase === "implement" && !plan.after && !admitImplementation(slug, c, issue, base, c.launching)) return;
 		const handle = registered ? { run: s.root, handle: c.launching, path: registered.path, bb: registered.bb } : await launch(c.launching, phase, phasePrompt(), base, pathOf(c.into), issue, only, async path => {
 			if (from) return phasePrompt();
@@ -1055,13 +1067,18 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			"For review requests, include threadReplies: {<thread id>: <what changed>} for EVERY requested thread. Do not resolve threads.",
 		].join("\n\n");
 		const receipt = pr.repair!;
+		const saved = receipt.launchHandle;
 		if (!receipt.launchHandle) { receipt.launchHandle = nextHandle(s.root, "pr-repair"); save(); }
 		const registered = await findWorker({ run: s.root, handle: receipt.launchHandle }, controlCwd);
 		if (registered) return { run: s.root, handle: receipt.launchHandle, path: registered.path, bb: registered.bb };
 		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
 		// a partial failure. Retry adopts its exact bb thread or raises to owner.
-		return launchNow(receipt.launchHandle, "review", prompt,
-			git(pr.path, "rev-parse", "HEAD"), pr.path, issue, ["technical"], undefined, undefined, s.root);
+		const base = git(pr.path, "rev-parse", "HEAD");
+		if (saved) {
+			const path = await reclaimSetup(pr.path, saved, base);
+			if (path) note("reclaimed interrupted setup for " + saved + " at " + path);
+		}
+		return launchNow(receipt.launchHandle, "review", prompt, base, pr.path, issue, ["technical"], undefined, undefined, s.root);
 	}
 	const pendingNotes = new Map<string, string | undefined>();
 	/** The chain's committed work beyond its destination, as a note for a fresh start that doesn't take it as its base. */
@@ -1726,13 +1743,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (kids.length && !s.chains[slug] && !refining) {
 			if (s.exceptions[slug]) return "active";
 			ensureCollector(slug, into);
-			const below = await Promise.all(kids.map(k => {
+			// Let in-flight siblings finish before retrying a failed tick or restarting on code change.
+			const below = await Promise.allSettled(kids.map(async k => {
 				const current = view(slug), child = current.get(k.slug)!;
 				if (isMoved(child)) { holds.set(k.slug, "moved out for human work: " + s.moved[k.slug]); return "stuck"; }
 				return child.frontier || s.chains[k.slug] || s.collectors[k.slug] ? visit(k.slug, slug, current)
-					: (holds.set(k.slug, why(child, current)), Promise.resolve("stuck" as const));
+					: (holds.set(k.slug, why(child, current)), "stuck" as const);
 			}));
-			return below.includes("active") ? "active" : "stuck";
+			for (const child of below) if (child.status === "rejected") throw child.reason;
+			return below.some(child => child.status === "fulfilled" && child.value === "active") ? "active" : "stuck";
 		}
 		// A node that gained an open blocker (e.g. a reopened sibling) is parked: its chain is retired, and it starts
 		// fresh from the collector once the blocker has landed there.
@@ -1758,7 +1777,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// level (2026-10-16). A queued owner resolution is applied instead; a refinement's attempt was already discarded.
 		const ex = s.exceptions[slug], hc = s.chains[slug];
 		const recovers = !!ex && /^provider error: | errored in bb$| log unreadable$/.test(ex.reason);
-		if (ex && hc?.handle && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
+		if (ex && ex.reason !== LAUNCH_OCCUPIED && hc?.handle && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
 			const later = recovers ? fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt) : resumedReport(ex, hc);
 			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
 				? "its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution."
