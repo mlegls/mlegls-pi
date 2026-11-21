@@ -749,6 +749,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function startPhase(slug: string, c: Chain, phase: Phase, issue: Issue, issues: Map<string, Issue>, extra = "", adopt = false, resumeAttempt?: string, finished = false, from?: string) {
 		const plan = c.pendingLaunch ?? { phase, extra, adopt, resumeAttempt, finished, from };
 		({ phase, extra, adopt, resumeAttempt, finished, from } = plan);
+		// A first join launch starts in the node's collector even when a saved attempt lost its launch plan.
+		// c.into remains the enclosing collector: that's where the join will eventually land.
+		if (c.self && phase === "implement" && !c.handle && !c.resumeFrom) from ??= s.collectors[slug].path;
 		// The attempt being replaced stops first, so nothing it commits afterwards misses the new base; it's
 		// retired once its successor launched (its branch stays if it holds commits not yet integrated).
 		const prev = c.handle?.handle === c.launching ? undefined : c.handle;
@@ -1799,8 +1802,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 					note(slug + " resumes " + chain.phase + " from the stopped run's branch " + resumed!.branch + " at " + chain.resumeFrom);
 					await startPhase(slug, chain, chain.phase, issue, issues, "This node's previous run was stopped. Your base is its last " + chain.phase + " worker's branch " + resumed!.branch + " (" + chain.resumeFrom + "): its commits, including any WIP commit of uncommitted work, are yours to continue. Ignored state its worktree held was moved aside at retirement and the owner was told where.");
 				}
-				else if (chain.self) { chain.handle = undefined; await startPhaseFrom(slug, chain, issue, issues, s.collectors[slug].path); }
-				else await startPhase(slug, chain, issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
+				else await startPhase(slug, chain, !chain.self && issue.effectiveStage === "spec" ? "refine" : "implement", issue, issues);
 			} catch (e) {
 				// Nothing launched: forget the chain so the post-reset tick starts it afresh.
 				if (e instanceof GithubRateLimited) { delete s.chains[slug]; if (resumed && chain.resumeFrom) (s.resume ??= {})[slug] = resumed; save(); throw e; }
