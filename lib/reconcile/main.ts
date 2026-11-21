@@ -5,7 +5,7 @@
 //   bun lib/reconcile/main.ts status [--cwd DIR]
 //   bun lib/reconcile/main.ts stop <issue> [--cwd DIR]
 //   bun lib/reconcile/main.ts resolve <issue> <node> <json> [--cwd DIR]
-//   bun lib/reconcile/main.ts constrain <issue> <node> TEXT [--cwd DIR]
+//   bun lib/reconcile/main.ts constrain <issue> <node> TEXT [--phase all|refine|implement|drive|review] [--cwd DIR]
 import { execFileSync } from "node:child_process";
 import { retire, tell, topic, type Handle } from "../dispatch";
 import { bbThreads } from "../thread/bb";
@@ -19,6 +19,7 @@ import { prepareStart, type StartOptions, assertThreadState, load, reconcilerTra
 
 import { codeStatus } from "./code-version";
 import { POST_LANDING } from "./post-landing";
+import { workerPhases } from "./tracker-state";
 import { spawnRun, waitForPredecessor } from "./process";
 
 export function start(o: StartOptions): { pid: number; log: string } {
@@ -147,25 +148,30 @@ export function resolveException(cwd: string, root: string, node: string, resolu
 	writeFileSync(file, JSON.stringify(resolution));
 }
 
-export async function constrain(cwd: string, root: string, node: string, text: string) {
+export async function constrain(cwd: string, root: string, node: string, text: string, phase = "all") {
 	if (!text.trim()) throw new Error("constraint text must not be empty");
+	const scoped = workerPhases.find(p => p === phase);
+	if (!scoped && phase !== "all") throw new Error("constraint phase must be all or one of: " + workerPhases.join(", "));
 	const s = updateState(cwd, root, prior => {
 		if (!prior || prior.finished || prior.stopping) throw new Error("no active reconciler for " + root);
 		assertThreadState(prior);
 		if (!prior.chains[node] && !prior.exceptions[node] && !prior.collectors[node] && !(prior.pr && node === root)) throw new Error(node + " is not an active node in " + root);
 		(prior.constraints ??= {})[node] ??= [];
-		prior.constraints[node].push(text);
+		prior.constraints[node].push(scoped ? { phase: scoped, text } : text);
 		return prior;
 	});
-	const worker = s.chains[node]?.handle ?? (node === root ? s.pr?.repair?.worker : undefined);
-	if (worker) await tell(worker, "Constraint from the supervisor (applies throughout this node's work):\n\n" + text, { cwd });
+	const chain = s.chains[node];
+	// Integration keeps the review worker; PR repairs are also launched in the review role.
+	const currentPhase = !chain?.handle || chain.phase === "integrate" ? "review" : chain.phase;
+	const worker = !scoped || scoped === currentPhase ? chain?.handle ?? (node === root ? s.pr?.repair?.worker : undefined) : undefined;
+	if (worker) await tell(worker, "Constraint from the supervisor (" + (scoped ? "applies to " + scoped : "applies throughout this node's work") + "):\n\n" + text, { cwd });
 	return { recorded: true, told: !!worker };
 }
 
 if (import.meta.main) {
 	const { values, positionals } = parseArgs({ args: process.argv.slice(2), allowPositionals: true, options: {
-		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, quiet: { type: "boolean" }, predecessor: { type: "string" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
-	const usage = "usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT";
+		owner: { type: "string" }, "owner-session": { type: "string" }, budget: { type: "string", default: "6" }, land: { type: "string" }, quiet: { type: "boolean" }, predecessor: { type: "string" }, phase: { type: "string" }, cwd: { type: "string", default: process.cwd() }, help: { type: "boolean", short: "h" } } });
+	const usage = "usage: main.ts start|run <issue> --owner <thread> [--budget N] [--land local|pr-merge|pr-review] | stop <issue> | status | resolve <issue> <node> <json> | constrain <issue> <node> TEXT [--phase all|refine|implement|drive|review]";
 	if (values.help) { console.log(usage); process.exit(0); }
 	const [cmd, root, ...rest] = positionals;
 	const cwd = resolve(values.cwd!);
@@ -174,6 +180,6 @@ if (import.meta.main) {
 	else if (cmd === "stop" && root) console.log(JSON.stringify(await stop(cwd, root)));
 	else if (cmd === "status") console.log(JSON.stringify(campaigns(cwd).map(summary), null, 1));
 	else if (cmd === "resolve" && root && rest.length === 2) resolveException(cwd, root, rest[0], JSON.parse(rest[1]));
-	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(await constrain(cwd, root, rest[0], rest[1])));
+	else if (cmd === "constrain" && root && rest.length === 2) console.log(JSON.stringify(await constrain(cwd, root, rest[0], rest[1], values.phase)));
 	else { console.error(usage); process.exit(2); }
 }
