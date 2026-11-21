@@ -92,3 +92,11 @@ The final scratch branch contained both marker commits in order. The live comman
 
 - With the ready owned target and the documented auth, run the live command. Accept two submitted workers, no pending assignments, provider IDs `codex` and `pi`, and the same scheduled Pi caller as parent in both records. Accept matching identity in each `provider.env-resolved` event, then `done`, two fast-forwards leaving both markers in the scratch checkout, and a populated `archivedAt` on each worker.
 - Run the offline drill. Accept a different replacement thread ID, selection moving from `codex/first` to `pi/openai/second`, and exactly one provider retry.
+
+## Review replay
+
+Against the live BB catalog, `codex/gpt-6.2-sol:minimal, codex/gpt-6.2-sol:low` initially chose `minimal` even though the model advertises `low` and not `minimal`. A Pi-only stance with requested effort `high` returned `medium`. Repeating the same `workerExecution` calls on `10ec630d` returned Codex `low` and Pi `high`, respectively.
+
+On a fresh BB 0.50.1 with companion `25e77ab`, the replay checked the daemon and supervision plugin, printed the scratch-project and dispatch steps, and completed in 2m20s. Codex `thr_yrtb5r72nf` and Pi `thr_2er4gqte9m` both named `thr_ysukic9cdv` as parent, had the expected plugin-sourced identity, reported `done` and were archived. The two marker commits (`46e638e`, `1da2d26`) fast-forwarded into the clean scratch branch. Both live stories held. Stopped the server, confirmed the two ports closed and removed the fixture.
+
+The typed-rate-limit drill also held: `bbt-6833c7a1` (Codex) → `bbt-454f48dc` (Pi), `retries.provider=1`. Across the affected worker, turn, dispatch and reconciler files, 30 tests passed and one opt-in local test was skipped; `tsc --noEmit` passed.
