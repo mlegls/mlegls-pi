@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 priority: 1
 assignee: "agent"
 author: "session:thr_79y4adjv6d"
@@ -25,3 +25,28 @@ On 2026-11-20 the concept worker @thread:thr_hmrmry8wrb (notebook-projections-ti
 On 2026-11-20 two more held workers the same way within minutes under heavy host load: unsaved-quiz-problem-reference-fences-the-tutor-turn and materials-only-commits-run-the-full-typecheck-hook in concept, each after `waiting`. Priority raised to 1: every long wait now escalates to the owner.
 
 On 2026-11-20 the Concept roleplay-opening worker posted a valid `done` with commit and setup at @thread:thr_v5wtzb88yp#msg=1113 (BB completed turn seq 1116). Two `(empty report)` repairs (seq 1122 and 1176) led to `status (after 2 repairs)` with a blank report in the handler prompt. `bb thread log --message 1113` recovered the complete original handoff; `bb thread output` returned only the later repair report.
+
+## Result
+
+done — Replayed three recorded BB handoffs with empty thread output and a poll between message and completion. Each returned its original body and status: `done`, `waiting`, and `checkpoint`. All 11 affected checks passed. No code repair was needed.
+
+```yaml
+commit: 38302879
+stories:
+  - story: A completed implement handoff advances to drive after the output projection is cleared.
+    outcome: held
+evidence:
+  path: docs/attachments/reconciler-misses-status-from-completed-turn-event/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/thread/turn.test.ts
+  - lib/wm.local.test.ts
+  - lib/reconcile/setup.test.ts
+  - lib/reconcile/unreadable-log.test.ts
+filed: []
+caveats:
+  - Compaction timing was simulated; the split-poll replays used actual incident events.
+```
+
+Evidence: [docs/attachments/reconciler-misses-status-from-completed-turn-event/index.md](../attachments/reconciler-misses-status-from-completed-turn-event/index.md)
