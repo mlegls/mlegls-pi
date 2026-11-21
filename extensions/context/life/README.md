@@ -15,8 +15,8 @@ PI_LIFE=/concept-engineering pi --print 'Read the issue and report what is missi
 ```
 
 Attached sessions use life for compaction and context. Otherwise OM is the default; `/memory`
-still selects other systems. Notes compose with life when enabled through
-`memory.schemas.notes.enabled`.
+still selects other systems. Notes compose with life; they are on unless
+`memory.schemas.notes.enabled` is false.
 
 Each run sees a fixed shared view, the present, and its current work whole. Completed runs
 elsewhere enter the next run's view. Tools available while attached:

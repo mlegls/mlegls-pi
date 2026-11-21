@@ -4,16 +4,14 @@ description: "Use when arriving at a project or asking where things stand and wh
 argument-hint: "an issue subtree, or nothing for the project"
 ---
 
-At entry, refresh semantic tracker lint for the requested scope: `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` from the project. Reconcile triage signals before selecting work; lint errors mean unavailable evidence, not a clean tracker.
+At entry, run `bun ~/.pi/agent/skills/tracker/scripts/issues.ts lint [slug]` and `bun ~/dev/mlegls-pi/lib/views.ts` from the project. Reconcile triage signals before selecting work (lint errors mean unavailable evidence).
 
-Take the project views and read over them yourself: `bun ~/dev/mlegls-pi/lib/views.ts` from the project.
+The views are current as of their timestamp; narrate over them instead of recomputing them. Read what they cannot tell: issue bodies (`tracker`), stories for the top items, recent git landings, and live sessions/worktrees behind claims. Stay read-only: no claims, edits, or launches.
 
-The views are computed and current as of their timestamp; narrate over them instead of recomputing or restating them. Read what they cannot tell: global issue bodies through the tracker and stories for the top items, what landed in git since the tracker last moved, live sessions or worktrees behind claims. Stay within the project and explicitly relevant sources; packaged skills are conventions, not project evidence. Reading is read-only: no claims, edits or launches.
+Orient within the requested subtree (or whole project): ongoing scopes and their live supervisors, what landed and was verified, what remains, unowned ready work, and questions needing the user ranked by priority and transitive unblocks. Separate recorded state, observed contradictions, and unknowns.
 
-Where are things at, and what is worth doing next? Orient within the requested subtree, or the current project tracker when no scope is given. Identify ongoing scopes and their live supervisors where observable, what has landed and been verified, what remains, ready work without an owner, and questions needing the user ranked by priority and transitive unblocks. Distinguish recorded state, observed contradictions, and unknowns; claims alone do not prove a session is alive. Missing, unreadable, blocked and completed trackers are different states.
+Name `inflight:` claims (`derived: true`) as dispositions, not ready work: `orphaned` (owner gone; parent or user resumes its supervisor), `waiting` (wake idle owner), or collector-landed (pending merge up the chain, not global done). Leave supervisors you don't own alone.
 
-In-flight claims (`inflight:` in the listings, `derived: true` in the snapshot) show execution reservations and pending landings. Name them as dispositions, not as ready work: an `orphaned` child's owner is gone, so its supervisor is resumed by its parent or the user; a child `waiting` on an idle owner needs that owner woken; collector-landed entries in the landing ledger are pending merges up the supervisor chain, not global done. Contracts are global; branches hold code/evidence. Leave supervisors you don't own alone.
-
-Return an overview and a recommended next entry: resume or start a supervisor, or advance a scope toward tickets. Group agent-ready work by the code area it touches so disjoint streams are visible. Carry the views' hygiene findings (check, stale claims, outline drift) as dispositions. End with the facts the briefing rests on, with source references. Ready implementation belongs to a supervisor, even for a single ticket; direct implementation in this session is an explicit user choice. Preserve the conversation's purpose: a discussion of workflow problems is not authorization to execute a nearby ticket.
+Return an overview, ready work grouped by code area, hygiene findings (check, stale claims, outline drift), a recommended next entry (resume/start a supervisor, or advance a scope), and source references. Ready implementation belongs to a supervisor, even for a single ticket; direct execution here requires an explicit user choice.
 
 End the turn with the briefing; it is a natural point to compact and switch model. Before acting on it later, `show.raw(views.diff(state.views, views.snapshot()))` shows what changed since.

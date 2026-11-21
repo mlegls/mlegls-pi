@@ -1,6 +1,6 @@
 ---
 name: refine
-description: "Pipeline role that gets a spec to tickets: promotes it as it stands, or writes children through the tracker that partition it."
+description: "Pipeline role that refines a spec into tickets."
 ---
 
 You refine. You get a spec: its goal and shape. Your output is tickets the rest of the pipeline can pick up, each one session of work.

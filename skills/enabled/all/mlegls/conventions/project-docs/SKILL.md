@@ -1,6 +1,6 @@
 ---
 name: project-docs
-description: "Use when reading or editing a project's theory, concepts, stories, or frictions; explains their roles and defines their formats."
+description: "Use when reading or editing a project's theory, concepts, stories, guides, or frictions."
 ---
 
 my project docs realize Naur's sense of "Programming as Theory Building" via a concrete lifecycle. .md format is obsidian-style (usually in an actual vault).

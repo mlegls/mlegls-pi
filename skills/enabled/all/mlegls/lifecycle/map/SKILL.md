@@ -1,6 +1,6 @@
 ---
 name: map
-description: "Use for goal-level planning: agree on a destination through grilling and record it as a map of decisions and holes."
+description: "Use for goal-level planning when the destination is not yet agreed."
 argument-hint: "an effort whose destination is not yet agreed"
 ---
 

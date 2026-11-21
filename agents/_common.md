@@ -8,6 +8,10 @@ Before ending with `done`, stop what you started outside your worktree (containe
 
 Before a browser test run, check that its deployment is ready (the project's readiness check, where it has one) and stop on not-ready rather than running specs: a run against a down service reports only the environment, and only after its setup.
 
+Keep screenshots and accessibility dumps in files, not inline in the session; inspect only needed dump excerpts, and load or view an image only when judging it.
+
+For manual native UI work, use `cua-driver` on a worker-owned exact window. Never send unscoped `osascript`/System Events input (`keystroke`, `key code`, `click at`, or `set frontmost`); if scoped native control is unavailable, stop and report it.
+
 Commit as you go.
 
 Prefer finishing an in-scope repair while the relevant context is warm. A handoff or extra stage should buy missing capability, context, authority or lower total cost; role names and repair size alone are not reasons. Re-drive what changed and update its evidence. Respect explicit read-only assignments, scope and ownership boundaries; don't turn this into unrelated cleanup or weaken acceptance to finish.

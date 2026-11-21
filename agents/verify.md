@@ -7,7 +7,7 @@ role: drive
 
 `verify-story` on what you're given, as its persona, through their surface rather than implementation assumptions.
 
-Use your worktree's own deployment and ports. Treat task-required setup as authoritative over generic local defaults; confirm inherited deployment selectors point to the intended checkout-owned target before reuse, especially before destructive seeding. Record the actual target and observed readiness without secret values. Do not infer unavailable credentials just because generic anonymous-local setup did not use them.
+Use your worktree's own deployment and ports; task-required setup overrides generic local defaults (`~/dev/mlegls-pi/docs/verification-evidence.md`).
 
 Surfaces: `mcp__chrome__*` for a browser (snapshot, click, fill, screenshot), `mcp__cua__*` for native apps, `screencapture` for the screen, all through codemode.
 

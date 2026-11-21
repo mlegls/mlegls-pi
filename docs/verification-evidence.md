@@ -1,9 +1,11 @@
 # Verification evidence
 
-Supervision runs implement → drive → review → integration, each step an agent role (`agents/roles/`). The driver uses the changed product as its user would without reading the implementation, writes its predictions before first use, commits the packet below with its frictions, expectations and replayable checks, and repairs nothing. The reviewer reads that log together with the diff, repairs directly, encodes the checks as tests through the public surface, re-drives what it changed and appends to the packet. Integration uses the reviewer's handoff and runs its tests on the final head. Backend-only journeys use API, CLI or library evidence; rendered journeys route to a visual reviewer.
+Supervision runs implement → drive → review → integration, each step an agent role (`agents/roles/`). The driver uses the changed product as its user would without reading the implementation, writes its predictions before first use, commits the packet below with its frictions, expectations and replayable checks, and repairs nothing. The reviewer reads that log together with the diff, repairs directly, re-drives what it changed and appends to the packet. Integration uses the reviewer's handoff and runs its tests on the final head. Backend-only journeys use API, CLI or library evidence; rendered journeys route to a visual reviewer.
 
-Before driving, check the handoff's deployment kind and owned target, persona/authentication, seed or restored state, and runnable entry point. Do not substitute anonymous-local setup for a Cloud requirement. Wait for setup to finish. Resolve known, authorized preparation locally rather than handing it back by default. Never publish credentials or private account data in evidence; use test personas or redact before committing.
-The setup handoff distinguishes the task's required environment from what was actually prepared: deployment kind, non-secret target identifier and checkout ownership, persona/auth method, seed/state, launch command or entry URL, and observed readiness (or the still-running setup and what remains). The requirement wins over a generic setup default. Before reusing inherited selectors or credentials, confirm they address the intended checkout-owned target; before destructive seeding, establish ownership explicitly. Reuse the project's setup tooling rather than inventing another launcher. Unknown readiness is not a failed encounter: finish authorized setup and observe its result before driving.
+The setup handoff states the task-required environment beside what was actually prepared: deployment kind, non-secret target identifier and checkout ownership, persona/auth (env-var names only), seed/state, launch command or entry URL, and observed readiness. Task requirements override generic local defaults; reuse the project's setup tooling, confirm inherited selectors point to the intended checkout-owned target before reuse or destructive seeding, and finish authorized preparation rather than handing it back. Never commit credentials or private account data in evidence.
+
+> No: task asks for Cloud auth; worker runs anonymous-local default or seeds an inherited URL without verifying checkout ownership.
+> Yes: verify the selector belongs to this worktree's target, run the project's Cloud setup, record target ID and readiness (no secret values), and drive.
 
 ## Packet
 
@@ -20,7 +22,7 @@ The index records:
 
 A few well-chosen frames usually suffice. Keep broad device/locale matrices and hypothesis-driven audits separately scoped. Existing Playwright recording and `bun ~/dev/mlegls-pi/lib/cards.ts <shots-dir>` cover traces and labeled contact sheets; preserve the originals for close inspection.
 
-For supervised driving and review, use this handoff (paths are repository-relative files, not directories). The driver adds `frictions`, `expectations` and `checks`, omits `tests` and may report `failed` stories; the reviewer lists the test files encoding the checks and may set `redrive: true` once when its repairs changed behavior the tests don't cover:
+For supervised driving and review, use this handoff (paths are repository-relative files, not directories). The driver adds `frictions`, `expectations` and `checks`, omits `tests` and may report `failed` stories; the reviewer lists any kept or authorized test files changed and may set `redrive: true` once when its repairs changed behavior the tests don't cover:
 
 ```yaml
 stories:
