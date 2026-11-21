@@ -392,7 +392,8 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
         if (recovered) notes.push(recovered);
         // --only also captures the working tree for the named paths, not the rest of the index.
         git(root, "add", "--", ...paths);
-        if (git(root, "diff", "--name-only", "HEAD", "--", ...paths))
+        // Without an explicit HEAD, --cached compares to the empty tree on an unborn branch.
+        if (git(root, "diff", "--cached", "--name-only", "--", ...paths))
           git(root, "commit", "--only", "-m", message, "--", ...paths);
         settleIndex(root, paths);
         return;
@@ -400,7 +401,8 @@ function persistNow(root: string, paths: string[], message: string, notes: strin
         // An operation may have started between our check and Git taking its index lock.
         if (operationInProgress(root)) continue;
         // A concurrent writer of the same paths may already have committed these bytes.
-        if (!git(root, "diff", "--name-only", "HEAD", "--", ...paths)) { settleIndex(root, paths); return; }
+        const hasHead = spawnSync("git", ["-C", root, "rev-parse", "--verify", "HEAD"]).status === 0;
+        if (hasHead && !git(root, "diff", "--name-only", "HEAD", "--", ...paths)) { settleIndex(root, paths); return; }
         if (!/index\.lock.*File exists/s.test(String((error as { stderr?: unknown }).stderr ?? error)) || Date.now() > deadline) throw error;
         Bun.sleepSync(500);
       }
