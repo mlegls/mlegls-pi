@@ -76,3 +76,9 @@ The report contained both fixture markers. The file-read events show agy opened 
 Drive (`thr_pdpje2sakw`, Pi) and review (`thr_nf2rwqfxv9`, Pi) separately ran `bun hello.ts` and reported one `Hello, visitor!` line, empty stderr and exit 0. The reconciler landed `2b13c92` in the owner's scratch checkout and closed `hello-tracer` at `3aa3fef`. Its final state was `done` with no exceptions; all three workers were archived. The script took 5m01s, including readiness and evidence capture. The scratch project and worktrees were deleted, and both disposable BB ports were closed.
 
 The first attempt reached the pre-existing host installation of supervision, which was running but lacked `workerSpawn`. The tracer now probes schema validation on that private RPC before creating a project. The disposable server uses the companion build and passed the probe. `agents/auto-routine.md` was restored after landing.
+
+## Join review
+
+At `21b8eee8` the native-tool recording above covers the crossing story. Review did not start another paid provider run. `bash -n live-drive.sh` passed, as did 32 existing dispatch, campaigns, pickup, lifecycle, runtime and turn tests. The [reconciler hook replay](../check-worker-rules-at-integration/index.md#review-replay) also passed through refusal, rewrite and landing.
+
+The two-repository rollout matters: `bb-plugins` companion `35262d7` contains the tested `25e77ab` worker RPCs; `bb-plugins` main at `92feb0c` does not. Use the [loaded-plugin check](../../guide/bb-supervision.md#upgrade-the-two-checkouts-together) before dispatch.
