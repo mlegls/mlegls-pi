@@ -1,8 +1,8 @@
 ---
-stage: "idea"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:thr_2m3ifztnfm"
-priority: 2
+priority: 1
 ---
 Two concurrent writers of one global tracker issue lose an update: the later write puts back a field the earlier one changed, and nothing refuses it.
 
