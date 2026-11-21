@@ -33,8 +33,8 @@ export async function reclaimSetup(into: string, handle: string, base: string): 
 	if (git(path, "status", "--porcelain", "--untracked-files=all")) refuse("worktree has uncommitted changes");
 	const head = git(path, "rev-parse", "HEAD");
 	if (!isAncestor(path, head, base)) refuse("launch base " + base + " does not contain " + head);
-	// Setup can leave ignored dependencies and logs. The checks above protect authored work and live users.
-	git(parent.cwd, "worktree", "remove", "--force", path);
+	// Git removes ignored setup output but rechecks for local changes at removal time.
+	git(parent.cwd, "worktree", "remove", path);
 	git(parent.cwd, "branch", "-D", "--", handle);
 	return path;
 }

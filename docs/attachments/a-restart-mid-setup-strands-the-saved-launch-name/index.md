@@ -17,3 +17,7 @@ Run these commands from the repository root at the revision above. Each command 
 | Hold an occupied saved name for the owner when there are local changes | Run `bun docs/attachments/a-restart-mid-setup-strands-the-saved-launch-name/replay.ts dirty`. Expect unchanged dirty status, no spawns, and one owner exception with the checkout, branch, reason and a retry instruction. | **Held in the replay.** Status was `M code.txt` before and after, with zero spawns and one exception entry marked `mailed: true`. It named the checkout and branch, identified the uncommitted changes, and said to preserve any work and retry when the name is free. Exit 0. |
 
 Both predictions were met in the replay. No friction on the supplied CLI surface. This drive starts from the seeded restart aftermath; it does not interrupt a live setup or verify delivery through a live BB account or retry behavior beyond the replay.
+
+## Review
+
+Removed `--force` from `git worktree remove`: plain removal already handles the ignored setup log, and Git can refuse changes that arrive after the reconciler's status check. Replayed both rows with plain removal: reclaim preceded the single `root-implement-1` spawn; `M code.txt` remained with zero spawns and one mailed owner exception. Both outcomes held. The existing launch-recovery, PR review and refinement checks passed (5 cases).
