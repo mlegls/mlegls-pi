@@ -85,7 +85,9 @@ for phase in implement drive review; do
   "$cli" thread show "$id" --json | jq -e '.thread | {id, archivedAt} | select(.archivedAt != null)' > "$record/$phase-retired.json"
 done
 jq -e --arg root "$root" '.finished == "done" and .landed[$root] != null' "$state" >/dev/null
-test "$(bun hello.ts)" = 'Hello, visitor!'
+bun hello.ts > "$record/landed.stdout" 2> "$record/landed.stderr"
+cmp "$record/landed.stdout" <(printf 'Hello, visitor!\n')
+test ! -s "$record/landed.stderr"
 bun "$TRACKER_CLI" fields "$root" --json | tee "$record/issue.json" | jq -e '.stage == "done"' >/dev/null
 git log --oneline > "$record/landed-log.txt"
-printf 'Landed: %s (%s)\n' "$(bun hello.ts)" "$(git rev-parse --short HEAD)"
+printf 'Landed: %s (%s)\n' "$(< "$record/landed.stdout")" "$(git rev-parse --short HEAD)"

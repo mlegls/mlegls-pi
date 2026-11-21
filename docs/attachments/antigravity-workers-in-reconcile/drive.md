@@ -21,3 +21,7 @@ No unresolved friction. Before installation, wait for the disposable daemon to b
 1. Replay the [setup and entry point](index.md#setup); expect the identified disposable daemon, Antigravity route and implement worker, then drive, review, and a completed landing. Compare `implement-route.json`, `implement-worker.json`, `status.json`, and `landed-log.txt` in the private record. Accept only `done` with no exceptions and a landed greeting of `Hello, visitor!`.
 2. Compare `implement-report.json` and `implement-events.json`: expect a successful pre-edit tracker read, a skill file read, both markers, and a `done` YAML report followed by automatic drive dispatch.
 3. After exiting the tracer, check `git status --short` for no routing changes; stop the disposable server and confirm its ports are no longer listening.
+
+## Review
+
+The driver observed exact output, but the replay script's command substitution discarded trailing newlines and masked a nonzero exit from `bun hello.ts`. The final landing check now keeps stdout and stderr separately and checks the exit status and bytes from one invocation. Replayed that check against four scratch greetings: exact output passed; an extra newline, stderr output, and exit 2 each failed. `bash -n` passed. Worker dispatch and routing were unchanged; the independent chain recording above still applies.
