@@ -47,7 +47,7 @@ mlegls-pi `30ed8eb6`, tracker candidate `fb98bae`, signed-in BB Desktop on Mac, 
 | Seed and sync once, open Ada from Queue. | Met: one import, Ada in [Queue 1](drive-first.jpg) dated November 20. The rail displayed **2** because another project already contributed one; exact **1** on the rail requires the demo to be the only project with an unhandled item. |
 | Click Mark handled. | Met: immediate [Queue 0](drive-handled.jpg), “Queue is clear,” and rail **2 → 1**. Ada remained open in the record drawer. |
 | Inject and sync a second reply; leave the same page open. | Met: one import, Ada’s Markdown showed both `demo-reply-1` and `demo-reply-2` as inbound and `last_reply: 2026-11-21`. The first browser snapshot still showed Queue 0; the next showed [Queue 1](drive-resurface.jpg), rail **1 → 2**, and the new reply in the open drawer, without a refresh. |
-| Open Hypotheses and Candidates. | Met: [Hypotheses](drive-hypotheses.jpg) showed “Two organizers invite a trial” and **3 people · 1 replied · 0 confirm · 0 kill · 3 open**. [Candidates](drive-candidates.jpg) grouped Ren P1 before Tess P2 under Salon organizers. |
+| Open Hypotheses and Candidates. | Met: Hypotheses (see [reviewed capture](hypotheses.jpg)) showed “Two organizers invite a trial” and **3 people · 1 replied · 0 confirm · 0 kill · 3 open**. [Candidates](drive-candidates.jpg) grouped Ren P1 before Tess P2 under Salon organizers. |
 | Select Ren, Discuss, and submit on the Beelink project checkout. | Met: the composer contained Ren and Salon organizers. The [thread](drive-discuss.jpg) showed both mentions; the reply quoted “We publish a reading list after every salon” and “Two organizers invite a trial.” |
 
 ### Frictions and replay checks
@@ -67,3 +67,9 @@ The browser session, project and disposable checkout were removed, and the prior
 - Selecting Ren and clicking **Discuss** opened a composer with Ren and Salon organizers. The submitted thread showed both mentions; the agent quoted “We publish a reading list after every salon” and “Two organizers invite a trial.” The thread's Outreach panel linked both records. [Discuss handoff](discuss.jpg).
 
 Captures above are from the live BB desktop browser at 1280 × 720 (dark theme, English), cropped to the demo surface. The mock supplied the message content; BB, the Markdown update, and the Discuss thread were live. Live Beeper and Gmail account setup was outside this trial; see the [vault drive](../outreach-vault-format-and-daily-sync/index.md) and [panel drive](../tracker-outreach-panel-for-project-vaults/index.md) for the separate source and UI checks.
+
+## Join review
+
+All four stories held. Five independent-drive images show the reported states; the [sixth capture](drive-hypotheses.jpg) shows the panel unavailable during the plugin swap. The [implementer’s Hypotheses capture](hypotheses.jpg) shows the same candidate build and seeded rollup: 3 people, 1 replied, 3 open, and the decision bar. Use that capture for the rendered card.
+
+Replaying the CLI seam in a fresh disposable checkout produced one Ada import, no change on duplicate sync, then one import after `reply`. The first two snapshots had queue hash `a31e41ea…`; the second reply changed it to `01c17e5e…`. The guide now distinguishes the project Queue from the global badge and explains submitting Discuss on the current branch after sync.

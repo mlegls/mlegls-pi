@@ -8,9 +8,9 @@ for: maintainer
 
 ## Work the queue in BB
 
-Open `/plugins/tracker/outreach` on your BB server, or go directly to `/plugins/tracker/outreach/<project-id>`. Pick a project with `docs/outreach/`. Queue shows replies and due follow-ups; **Mark handled** (`h`) clears the item from Queue and the Outreach badge without editing the record. Use **Show handled** to undo. Another synced reply or a changed due date can bring the person back.
+Open `/plugins/tracker/outreach` on your BB server, or go directly to `/plugins/tracker/outreach/<project-id>`. Pick a project with `docs/outreach/`. Queue shows replies and due follow-ups; **Mark handled** (`h`) clears the item from Queue and the Outreach badge without editing the record. The badge counts unhandled items across all projects. Use **Show handled** to undo. Another synced reply or a changed due date can bring the person back.
 
-Candidates groups uncontacted people by hypothesis and shows the highest-priority leads first. Hypotheses shows reply and verdict counts and the decision bar. Select a person or several people and click **Discuss** (`d`); the new thread starts with their records and linked hypotheses. You can also mention a record with `~` in any composer.
+Candidates groups uncontacted people by hypothesis and shows the highest-priority leads first. Hypotheses shows reply and verdict counts and the decision bar. Select a person or several people and click **Discuss** (`d`); the new thread starts with their records and linked hypotheses. After a sync leaves uncommitted changes, keep **Current** in the composer to submit on that branch. You can also mention a record with `~` in any composer.
 
 To try sync → Queue → Discuss without connecting accounts, use the [disposable BB project and mock Beeper recipe](../attachments/outreach-conversations-in-the-bb-tracker/index.md).
 
