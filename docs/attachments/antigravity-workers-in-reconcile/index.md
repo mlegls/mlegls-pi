@@ -53,6 +53,14 @@ AGY_TRACER_BB_DATA_DIR="$BB_DATA_DIR" AGY_TRACER_RECORD="$PWD/.wm/agy-tracer-new
 
 It checks target identity, the daemon, the worker-spawn RPC and the model catalogs, then seeds a scratch `hello-tracer` ticket and asks a Pi owner to call BB's `reconcile` tool through codemode. Look for the call in `owner-events.json`, implement on `acp-antigravity`, route `acp-antigravity/gemini-4-neon:high`, drive and review workers, and `Landed: Hello, visitor!`. It copies reports and events into the specified new private directory before deleting the disposable project and worktrees. `AGENTS.md` and `.agents/skills/hello-tracer/SKILL.md` have separate markers, so the implement report plus tool events can distinguish uptake of instructions from discovery and use of the skill. Stop the disposable BB after the run. Keep the private record separately and remove `.wm/agy-bb` before starting a fresh instance.
 
+## Native-tool encounter
+
+At `ee33dc8a`, BB 0.50.1 loaded companion `25e77ab` in a disposable instance. The daemon and model catalogs were ready, and an empty `workerSpawn` request reached schema validation. In `proj_ppk8jvz84t`, Pi owner `thr_apbrmn4ecc` called `reconcile` through codemode. BB recorded it as a completed native tool call returning a reconciler PID.
+
+All three workers named that Pi thread as parent: Antigravity implement `thr_xdsph98khk` (`acp-antigravity/gemini-4-neon:high`), Pi drive `thr_tnugpg3aay`, and Pi review `thr_ps2zhzqyv2`. The run landed the greeting and review at `de1ba91`, closed the ticket at `ab2050f`, and finished with no exceptions. The replay accepted exactly `Hello, visitor!` and a newline on stdout, empty stderr, and exit 0. The fixture archived all three workers, deleted the scratch project and worktrees, and shut down both loopback ports. The live command took 3m32s.
+
+`bash -n` and 15 existing dispatch, campaigns and pickup tests passed. The shared Supervision install and live routing were unchanged.
+
 ## Independent drive
 
 The [independent CLI recording](drive.md) predates the Pi owner starting the run through the native tool. It records the same worker chain at `220be52c`.
