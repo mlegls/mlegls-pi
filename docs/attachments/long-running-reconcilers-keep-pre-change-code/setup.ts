@@ -22,7 +22,7 @@ if (action) {
 } else {
 	const root = realpathSync(mkdtempSync("/tmp/code-refresh-")), code = join(root, "package"), cwd = join(root, "repo");
 	// A real source copy, not a symlink: the driver can edit it without changing another run's package.
-	for (const dir of ["lib"]) cpSync(join(source, dir), join(code, dir), { recursive: true });
+	cpSync(join(source, "lib"), join(code, "lib"), { recursive: true });
 	for (const dir of ["node_modules", "skills"]) symlinkSync(join(source, dir), join(code, dir));
 	writeFileSync(join(code, "package.json"), '{"type":"module"}\n');
 	for (const dir of [join(cwd, "docs/issues"), join(root, "agents/roles")]) mkdirSync(dir, { recursive: true });
