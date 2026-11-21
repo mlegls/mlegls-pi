@@ -41,6 +41,10 @@ AGY_TRACER_BB_DATA_DIR="$BB_DATA_DIR" AGY_TRACER_RECORD="$PWD/.wm/agy-tracer-new
 
 It checks target identity, the daemon, the private worker-spawn RPC and the model catalog, then seeds a scratch `hello-tracer` ticket and starts the actual reconciler. Look for implement on `acp-antigravity`, route `acp-antigravity/gemini-4-neon:high`, drive and review workers, and `Landed: Hello, visitor!`. It copies reports and events into the specified new private directory before deleting the disposable project and worktrees. `AGENTS.md` and `.agents/skills/hello-tracer/SKILL.md` have separate markers, so the implement report plus tool events can distinguish uptake of instructions from discovery and use of the skill. Stop the disposable BB after the run.
 
+## Independent drive
+
+See the [independent CLI recording](drive.md) for predictions, observed landing, and replay checks.
+
 ## Implementation encounter
 
 BB 0.50.1, agy 1.5.13, companion `25e77ab`, disposable loopback project `proj_ktbwnvpw9z`, owner `thr_dkwj3mnky8`. BB showed `thr_bcmiyaad7f` as the owner's child on `acp-antigravity`. The plugin's `workerRoute` returned `auto-routine`, `acp-antigravity/gemini-4-neon`, `high`; BB's environment event attributed `PI_WM_AGENT` and `TRACKER_CLI` to supervision.
