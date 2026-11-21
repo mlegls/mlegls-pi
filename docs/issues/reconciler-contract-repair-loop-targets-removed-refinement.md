@@ -1,7 +1,8 @@
 ---
-stage: "idea"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:01a18299-b1f8-708a-974d-55c75ed3ef87"
+priority: 2
 ---
 In payments run `dispute-authority`, refiner `mediation-case-notices-refine-o` reported `needs-input` after its initial human setup child made the decomposition non-executable. The reconciler correctly cleaned its provisional children and persisted attempt phase `removed`. The owner approved moving live setup outside the execution subtree and told the same existing worker to recreate the three agent children and report done. Those tracker writes succeeded and the parent plus three children now show `ready: true`, `eligible: true`, with the exact original provisional token, but acceptance reports `Refinement is not the reported writer: mediation-case-notices-refine-o` and instructs the worker to repair contracts and repost. Reposting cannot fix the removed protocol attempt.
 

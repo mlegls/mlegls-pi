@@ -1,6 +1,6 @@
 ---
-stage: "idea"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:recording-replay-mistakes-skill-examples-for-tool-errors-handler-k"
 priority: 2
 ---

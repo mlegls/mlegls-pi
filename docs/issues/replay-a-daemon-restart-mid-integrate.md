@@ -1,6 +1,6 @@
 ---
-stage: idea
-assignee: agent
+stage: ticket
+assignee: agent:auto-routine
 priority: 3
 author: session:01a0f324-32e8-732c-96ad-132d2d15485e
 ---

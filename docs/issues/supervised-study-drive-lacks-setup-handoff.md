@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 author: "session:01a0e98c-8121-747b-a4b2-db117e3e5a98"
 blocked-by: []
@@ -22,3 +22,7 @@ Another encounter, 2026-09-30: the board fixture typecheck driver also received 
 2026-10-19, worker bb identity drive: literal `null` setup handoff again. Parent confirmed `mise run setup` finished, but no isolated recovery run, missing-state seed, library entry point or owned restart procedure was supplied. `docs/dispatch.md` describes launching workers; `bun lib/reconcile/main.ts --help` exposes start/stop/status, not an isolated crash/adoption scenario. Driver did not mutate the shared active reconciler or read implementation to invent a harness. No recovery claim observed. Workaround requires a runnable checkout-owned recovery scenario and metadata/graph entry point. [Packet](../attachments/key-workers-by-bb-thread-id/index.md).
 
 2026-10-19, delete-ab-thread-and-the-registry drive: another literal null handoff. Completed setup was supplied as an old shared ab-threads log; own `.wm/` contained only `launch.env`, with no setup.json/log. `bb thread show --self --json` identified the correct ready checkout. Checkout reconcile CLI help was reachable, but no disposable live lifecycle scenario/issue was supplied; driver did not restart the active parent reconciler or integrate its own worker. Ambient `ab --help` still advertised `ab thread`, but was not checkout-owned and cannot establish a regression on the tested head. Workaround: exercise bb identity and document the missing lifecycle observation for review. [Packet](../attachments/delete-ab-thread-and-the-registry/index.md).
+
+## Result
+
+Fixed by mail-drive-handoff-names-only-a-test-runner (landed c2a72017, 2026-11-17): a null or test-only implementer setup now re-prompts the implementer before any driver launches.

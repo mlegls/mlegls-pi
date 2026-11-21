@@ -1,5 +1,5 @@
 ---
-stage: idea
+stage: done
 assignee: agent
 priority: 2
 author: session:eb958496-f6ec-4ef0-9bdc-7ceea6a866bb
@@ -13,3 +13,7 @@ Evidence: [[projects/concept/attachments/hub-yours-empty-heading-says-published-
 2026-10-18 recurrence: `match-missions-map-and-phone-composition-to-the-approved-frames-drive-32` had no Chrome tools in ALL_TOOLS/searchTools. Cua tools were available, and a driver-owned isolated Chrome was launched and exactly bound. This permitted semantic reads/screenshots and explicit synthetic DOM clicks with readback, but not the required emulated viewport/dark preference or keyboard-focus acceptance: native geometry clamped requested 390px to 485px content and height to 862px. Trusted browser click/scroll refused `browser_input_trust_unavailable`; background native Escape left inspection unchanged. Legacy execute_javascript refused `unbounded_operation_requires_unrestricted`; no permission changes attempted. Thus partial functional observations are not the native-size acceptance matrix. Evidence: [[projects/concept/attachments/match-missions-map-and-phone-composition-to-the-approved-frames/drive]].
 
 2026-10-24 recurrence, concept `chinese-goal-input-is-truncated-in-mes-ask-strip` first use (thr_fevukyhkr4): `mcp__chrome__*` absent from ALL_TOOLS; direct call TypeError. Fallback chrome-devtools-axi 0.1.40's default bridge startup returned BRIDGE_NOT_READY after 30 s while invoking npx; selecting an already-cached chrome-devtools-mcp executable under ~/.npm/_npx with `CHROME_DEVTOOLS_AXI_MCP_PATH` avoided the download and worked. Ownership: BB tool registration / chrome-devtools-axi startup. Moved from concept `chrome-tools-absent-and-axi-default-startup-times-out`. Evidence: [[projects/concept/attachments/drive-plan-language-in-simplified-chinese-and-english/truncation-redrive]].
+
+## Result
+
+No longer reproduces: enforce-worker-preamble-rules-in-tooling (landed 9bfa9c9c, 2026-11-18) verified mcp__chrome__* tools and their guidance in actual worker provider payloads, and workers have used them since.

@@ -1,7 +1,7 @@
 ---
-stage: "idea"
-assignee: "agent"
-priority: 3
+stage: "ticket"
+assignee: "agent:auto-routine"
+priority: 2
 author: "session:thr_ihbpyrp6s2"
 ---
 
