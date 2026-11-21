@@ -24,3 +24,11 @@ Tested `52537436` from the drive worktree. Bun and the committed entry point wer
 No setup or interaction friction during replay. The commands exercise the integration entry point supplied for this ticket; they do not independently demonstrate reconciler landing, delivery through a live BB inbox, or provider-specific access restrictions.
 
 To replay, run the two commands above. Compare the refusal with the worker follow-up, check that the parent stays unchanged through refusal, and check both successful landing messages. For tracker exclusion, check materialization and Git visibility separately.
+
+## Review replay
+
+`bun docs/attachments/check-worker-rules-at-integration/integrate.ts --reconciler` drives the reconciler's `landReviewed` entry point. The bypassed commit returned the pre-commit diagnostic in the landing failure; the collector stayed put and the worker was back on `implementer`. The direct inbox stayed empty, leaving notification to the reconciler's repair loop. Rewriting the history landed `good final tree`; the next clean landing produced `clean follow-on`. Both direct integration replays also held. The repair loop and a live provider were not started.
+
+Each three-attempt replay took about one second with a shell hook that checks one file. A real installation pays the cost of its installed hooks on every incoming commit, even if the worker already ran them. Hooks see a detached historical checkout with the commit staged against its first parent, and dependencies from the prepared worker checkout. The replay checks the committed result; it cannot reconstruct the original branch-dependent hook environment or the inputs to a non-idempotent message rewrite.
+
+`newThread` in `lib/thread/runtime.ts` calls `excludeTracker` before setup or provider launch for every worker. Providers that can run Git can still read the tracked objects.

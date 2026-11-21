@@ -1,6 +1,7 @@
 // Local integration demo; exercises real Git and the dispatch entry point with a stand-in BB worker inbox.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { landReviewed, reviewedResult } from "../../../lib/reconcile/completion";
 import { integrate } from "../../../lib/dispatch";
 import { protocolFixture } from "../../../lib/reconcile/protocol-fixture";
 
@@ -25,7 +26,16 @@ fi
 		git(path, "add", "code.txt");
 		git(path, ...args);
 	};
-	const integrateWorker = () => integrate(worker, { cwd: collector, keep: true });
+	const reconciled = process.argv.includes("--reconciler");
+	let landing = 1;
+	const integrateWorker = async () => {
+		if (!reconciled) return integrate(worker, { cwd: collector, keep: true });
+		const result = await landReviewed({ state: fixture.state, tracker: fixture.tracker,
+			pathOf: () => collector, locked: work => work(), save: () => fixture.save(fixture.state) },
+			{ slug: "leaf-" + landing, into: "root", worker, workers: [worker], tests: [], result: reviewedResult("root", {}, "done") });
+		if (!result.ok) throw new Error(result.failure);
+		landing++;
+	};
 	const parent = git(collector, "rev-parse", "HEAD");
 	if (bypass) git(path, "config", "--worktree", "core.hooksPath", "/dev/null");
 	else git(path, "config", "--worktree", "core.hooksPath", join(collector, ".hooks"));
