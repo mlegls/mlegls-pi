@@ -44,3 +44,7 @@ Tested `b9c5d0c9` using the disposable two-worktree setup above. The entry comma
 Replay checks: compare main's fields and log immediately before and after the stale write; require exit 1 and unchanged state and history. Reread from triage, retry with the priority key alone, then require the three expected values in main's `text` output and one new commit. The ordered interleaving reproduces a stale read; simultaneous process execution was not exercised.
 
 No unresolved friction. The refusal said how to recover. The disposable vault was removed.
+
+## Review: simultaneous writers
+
+Using the same seed, main and triage each started an `update --if-revision` process with the seed revision, without waiting for the other to finish. Triage's priority edit succeeded; main's reassignment exited 1 with the stale-revision diagnostic. Main showed priority `3`, owner `agent`, and exactly two commits (seed and update). The disposable vault was removed. The retained `issues.test.ts` checks passed (32/32).
