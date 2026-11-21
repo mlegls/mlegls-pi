@@ -9,6 +9,12 @@ cli=${BB_CLI:-bb}
 [[ $("$cli" status --json | jq -er .dataDir) = "$expected" ]]
 machine=$("$cli" machine list --json | jq -er '[.[] | select(.machineProviderId == null and .status == "connected")] | if length == 1 then .[0].id else error("local BB host not uniquely ready") end')
 "$cli" plugin list --json | jq -e 'any(.plugins[]; .id == "supervision" and .enabled and .status == "running")' >/dev/null
+# A deliberately incomplete request verifies that the private RPC exists without launching a worker.
+rpc=$("$cli" plugin rpc call supervision workerSpawn --input-file <(printf '{}') --json 2>/dev/null || true)
+if ! jq -e '.error.code == "invalid_input"' <<< "$rpc" >/dev/null; then
+  printf 'Supervision workerSpawn RPC is missing; install the matching companion plugin.\n' >&2
+  exit 1
+fi
 "$cli" provider models acp-antigravity --machine "$machine" --json | jq -e 'any(.[]; .id == "gemini-4-neon" and any(.supportedReasoningEfforts[]; .reasoningEffort == "high"))' >/dev/null
 jq -e '."acp-antigravity".quota == "agy"' "$repo/allocation.json" >/dev/null
 [[ $(agy --version) == 1.5.13 ]]
@@ -61,8 +67,12 @@ for ((attempt=0; attempt<180; attempt++)); do
   id=$(jq -r --arg root "$root" '.chains[$root].handle.bb // empty' "$state")
   if [[ -n $id && $phase/$id != "$last" ]]; then
     last=$phase/$id
-    "$cli" thread show "$id" --json | jq -e '.thread | {id, parentThreadId, providerId, model, reasoningLevel}' | tee "$record/$phase-worker.json"
-    if [[ $phase == implement ]]; then jq -e --arg owner "$owner" '.providerId == "acp-antigravity" and .model == "gemini-4-neon" and .parentThreadId == $owner' "$record/$phase-worker.json" >/dev/null; fi
+    "$cli" thread show "$id" --json | jq -e '.thread | {id, parentThreadId, providerId}' | tee "$record/$phase-worker.json"
+    if [[ $phase == implement ]]; then
+      jq -e --arg owner "$owner" '.providerId == "acp-antigravity" and .parentThreadId == $owner' "$record/$phase-worker.json" >/dev/null
+      "$cli" plugin rpc call supervision workerRoute --input-file <(jq -cn --arg id "$id" '{threadId: $id}') --json | tee "$record/implement-route.json" |
+        jq -e '.model == "acp-antigravity/gemini-4-neon" and .effort == "high"' >/dev/null
+    fi
   fi
   if jq -e '.exceptions | length > 0' "$state" >/dev/null; then jq '.exceptions' "$state" >&2; exit 1; fi
   [[ $(jq -r '.finished // empty' "$state") = "" ]] || break
