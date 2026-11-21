@@ -45,10 +45,16 @@ try {
 
 	// Reproduce a late tracker write from a legacy continuation. No saved run state is edited.
 	f.create("retained", { "part-of": "root", "claimed-by": claim(first.handle) });
+	bb.completeTurn(first.path, report("done", { children: ["retained"], commit: stub }));
+	const late = await until("late report at owner", () => bb.threads().find(t => t.id === owner)?.tells.find(t => t.includes("Late report from " + first.handle)));
+	assert(late.includes("retained") && late.includes("Reposting from the removed writer cannot work"));
+	assert.equal(read()?.refinements[first.handle].phase, "removed");
+	console.log(late);
 	tracker.update("retained", { "claimed-by": "reconcile:root" });
-	resolveException(cwd, "root", "root", { action: "answer", message: "Keep live setup outside this run." }, owner);
+	resolveException(cwd, "root", "root", { action: process.argv.includes("--retry") ? "retry" : "answer", message: "Keep live setup outside this run." }, owner);
 	const second = await until("fresh writer", () => { const h = writer(); return h && h.handle !== first.handle && thread(h.path) && h; });
 	const prompt = thread(second.path)!.prompt;
+	console.log(prompt.slice(prompt.indexOf("Refinement baseline:")));
 	assert(prompt.includes("Keep live setup outside this run."));
 	assert(prompt.includes("Refinement baseline: root, retained."));
 	assert(prompt.includes("stable claimed-by: reconcile:root"));

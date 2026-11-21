@@ -1178,6 +1178,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 							+ (next.verdicts?.at(-1)?.outcome === "failed" ? "\n\nRepair the failed gate's cause and rerun it. The ticket remains open." : "\n\nRun the pending checks against the landed target.")
 							+ " Record each result separately: tools.reconcile_resolve({issue: " + JSON.stringify(s.root) + ", node: " + JSON.stringify(ex.node)
 							+ ', action: "post-landing", check: ' + JSON.stringify(next.id) + ', outcome: "passed" | "failed", evidence: "run URL or concrete observation"}).');
+					} else if (removedRefinement(s.chains[ex.node]) && /^(refine (blocked|needs-input)$|provider error: |report from removed refinement$)/.test(ex.reason)) {
+						tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + ex.text.slice(-3000) + "\n\nUse tools.reconcile_resolve({issue: " + JSON.stringify(s.root) + ", node: " + JSON.stringify(ex.node) + ", action: answer|retry, message?}).");
 					} else tellOwner("needs you: " + ex.node + " — " + ex.reason + "\n\n" + (ex.baseConflict ? clip(ex.text, 6000) : ex.text.slice(-3000)) + "\n\nResolve with tools.reconcile_resolve({issue: \"" + s.root + "\", node: \"" + ex.node + "\", action: answer|retry|redispatch|move-out|reopen|accept, commit?, checkout?, message?, note?, summary?}). Move-out retires the workers. For an open issue, record the honest stage and problem in the tracker, keeping part-of; the resolution assigns it to human and parks this tree until it returns to an agent. accept lands a review whose stories are unobservable by design, with `note` saying why. reopen ends a join whose children reopened: its commits land in its collector as the reopened children's base, and the walk runs them.");
 					ex.mailed = true; save();
 				}
@@ -1819,6 +1821,15 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
 				? "its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution."
 				: "its worker reported again (" + (parse(later.body).status ?? "no status") + "), so it carries on; its report is handled as usual. Don't resolve it.");
+		}
+		const stopped = removedRefinement(hc);
+		if (ex && stopped && hc) {
+			const late = resumedReport(ex, hc);
+			if (late) {
+				ex.reportTs = late.ts;
+				save();
+				tellOwner("Late report from " + stopped.handle + " on " + slug + ":\n\n" + late.body.slice(-2000) + "\n\n" + refinementRecovery(stopped));
+			}
 		}
 		if (s.exceptions[slug]) return "active";
 		const c = s.chains[slug];

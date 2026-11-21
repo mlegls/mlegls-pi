@@ -39,3 +39,14 @@ The focused recovery paragraph gave a clear next step. The generic list of resol
 - Run the command above; expect readiness on the first writer, then an owner notice naming that removed writer, `answer`/`retry`, and `reconcile:root`, without asking the writer to repair contracts.
 - On owner answer, expect a different writer with the root and retained child in baseline and the original stub commit. On acceptance expect both children and `stubsLanded: true`.
 - For the unobserved edges in a disposable run, submit a late `done` from the removed writer and look for owner recovery instead of acceptance or contract-repair mail. Open the successor's first prompt and check that retained baseline contracts use the stable run claim while newly created children use the successor token.
+
+## Review and re-drive
+
+Ran `replay.ts` with no argument (`answer`) and again with `--retry`. Each completed in 14 seconds. In both runs:
+
+- The initial owner notice named the removed writer and gave `action: answer|retry` with the issue and node; the unrelated resolution menu is gone.
+- While that exception was pending, `root-refine-1` submitted a separate `done` listing `retained`. The owner received the late report and fresh-writer instructions. The attempt stayed `removed`.
+- The successor's first prompt printed `Refinement baseline: root, retained. Keep these contracts unclaimed or reserved with stable claimed-by: reconcile:root.` Its new-child instruction supplied `reconcile:root/root-refine-2`.
+- `root-refine-2` submitted `[retained, fresh]`. The collector contained the original stub commit before the next child launched: `28e4c61c` on answer, `22d074c4` on retry. Both children had stable claims after acceptance.
+
+The four existing affected test files (`refinement`, `exceptions`, `retry`, and `stop` under `lib/reconcile/`) passed: 13 tests. No retained test changed.
