@@ -20,3 +20,9 @@ Ran the supplied entry point from the candidate checkout. It exited 0 in 25 seco
 2. In the same run, require a current-worker receipt for the unscoped restriction and `review prompt` showing `all: true, implementOnly: false, whileDriving: false`.
 
 No friction encountered on the supplied path. The replay exited; no dev server or live BB deployment was started.
+
+## Review
+
+Re-ran `bun test lib/reconcile/constraints.test.ts` and the disposable replay. Both passed; the review prompt contained only the node-wide constraint. No behavior or test assertions changed in review.
+
+The BB tool schema is a companion change in `bb-plugins` (`e9911ef`, branch `supervision-constraint-phase`). Land backend `4ddeb0fe` before enabling that schema: the old backend ignores `phase`, so it would deliver a scoped instruction node-wide.
