@@ -104,6 +104,7 @@ const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3
 /** The exception reason of a landing whose cleanup keeps failing. */
 const CLEANUP_FAILED = "landing cleanup failed";
 const DELIVERED_ACTIVE = "active chain after recorded landing";
+const CLOSED_ACTIVE = "closed outside the run while its chain runs";
 const FOREIGN_COMMIT = "foreign implementation not installed";
 const LAUNCH_CONFLICT = "launch base conflicts with required work";
 
@@ -1673,6 +1674,16 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	async function visit(slug: string, into: string, issues: Map<string, Issue>): Promise<"done" | "active" | "stuck"> {
 		visited.add(slug);
 		let issue = view(into).get(slug);
+		// Closed at its destination by someone else while its chain runs (superseded by the maintainer, 2026-11-21 Concept):
+		// returning done left the chain unvisited for good, its worker's `done` never read. Hold it for the owner instead.
+		const closedUnder = s.chains[slug] && !s.landed[slug] ? s.chains[slug] : undefined;
+		if (issue && finished(issue) && closedUnder) {
+			if (!s.exceptions[slug]) raise(slug, CLOSED_ACTIVE, slug + " is " + issue.effectiveStage + " in " + into + ", but this run never landed it: it was closed while its " + closedUnder.phase
+				+ " worker " + (closedUnder.handle?.handle ?? "(unreceipted)") + " still runs. Reopen it (stage back to ticket) to carry on: this exception withdraws itself and the worker's latest report is handled as usual. Or resolve move-out to retire its workers; their branches are kept.\n\n"
+				+ (fresh(closedUnder.handle, undefined, closedUnder.launchedAt)?.body ?? ""), new Map(), "owner");
+			return "active";
+		}
+		if (s.exceptions[slug]?.reason === CLOSED_ACTIVE && closedUnder && issue) await withdraw(s.exceptions[slug], closedUnder, "it was reopened.");
 		if (!issue || finished(issue)) return "done";
 		if (isMoved(issue)) { holds.set(slug, "moved out for human work: " + s.moved[slug]); return "stuck"; }
 		// A restart with fresh state adopts the collector left on disk before reading its children:
