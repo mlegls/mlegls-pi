@@ -1,7 +1,8 @@
 ---
-stage: "idea"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:thr_5u6ij4g8vc"
+priority: 3
 ---
 During Concept's native-effect consumer first use (@thread:thr_5u6ij4g8vc, [[projects/concept/issues/consume-native-selected-branch-effects]]), one `tools.read` call named two source documents plus three pretty-printed JSON receipts. The large opening receipt contains all 5,000 ordinary openings and original/member fingerprints. Instead of an outline or bounded result, the call failed after 62 seconds:
 
