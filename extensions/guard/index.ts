@@ -5,6 +5,7 @@
 // Workers also may not bypass a project's git hooks: drivers committed with `git -c core.hooksPath=/dev/null commit`, and the
 // commits escaped concept's pre-commit formatter (concept docs/attachments/worker-commits-escape-the-pre-commit-formatter).
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { accessSync, constants, lstatSync, readdirSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, resolve } from "node:path";
 import { parse, statusRepairMessage } from "../../lib/report.ts";
@@ -97,6 +98,36 @@ function shellRefusal(source: string, start: string, worker?: string): string | 
 	}
 }
 
+// Admit one standalone local setup command, with a literal path relative to the checkout root.
+// An existing setting or custom default hook needs a human to decide how to preserve it.
+function enablesShippedHooks(command: string, cwd: string): boolean {
+	const setup = /^git[ \t]+config[ \t]+--local[ \t]+([\w.]+)[ \t]+(\w[\w-]*(?:\/[\w-]+)*)$/.exec(command.trim());
+	if (setup?.[1].toLowerCase() !== "core.hookspath") return false;
+	const path = setup[2];
+	try {
+		git(cwd, "config", "--get", "core.hooksPath");
+		return false;
+	} catch (error) {
+		if ((error as { status?: number }).status !== 1) return false;
+	}
+	try {
+		const root = realpathSync(cwd);
+		if (root !== realpathSync(git(cwd, "rev-parse", "--show-toplevel"))) return false;
+		const defaults = git(cwd, "rev-parse", "--path-format=absolute", "--git-path", "hooks");
+		try {
+			if (readdirSync(defaults).some(name => !name.endsWith(".sample"))) return false;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
+		}
+		const hook = `${path}/pre-commit`;
+		if (!git(cwd, "ls-tree", "HEAD", "--", hook).startsWith("100755 blob ")) return false;
+		const file = resolve(root, hook);
+		if (realpathSync(file) !== file || !lstatSync(file).isFile()) return false;
+		accessSync(file, constants.X_OK);
+		return !git(cwd, "status", "--porcelain", "--", path);
+	} catch { return false; }
+}
+
 /** The git hook bypasses a worker reaches for, in a shell command; the reason, or undefined. */
 export function hookBypass(command: string): string | undefined {
 	for (const segment of command.split(/&&|\|\||[;|\n]/)) {
@@ -142,6 +173,7 @@ export default function (pi: ExtensionAPI) {
 		const reason = shellRefusal(command, cwd, worker);
 		if (reason) return { block: true, reason };
 		const bypass = worker ? hookBypass(command) : undefined;
+		if (bypass === "core.hooksPath" && enablesShippedHooks(command, cwd)) return;
 		if (bypass) return { block: true, reason: "Workers don't bypass git hooks (" + bypass + "): they are the project's own checks, and commits that skip them escaped its formatter. Commit normally. If a hook is slow, run the commit as a managed process and wait for it; if it fails for reasons outside your change, report blocked with its output." };
 	});
 }
