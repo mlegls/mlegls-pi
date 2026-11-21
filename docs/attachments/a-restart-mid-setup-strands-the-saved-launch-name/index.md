@@ -9,7 +9,7 @@ Revision: `9405c5eb945bf0e0c9dfeccebd6365233b9d7969`. Persona: run owner `thr_ow
 
 ## Encounter and replayable checks
 
-Run these commands from the repository root at the revision above. Each command sets up its own disposable target and exits; no server or credentials are needed.
+Run these commands from the repository root of the checkout containing this packet. Each command sets up its own disposable target and exits; no server or credentials are needed.
 
 | Story | Action and acceptance check | Observed |
 | --- | --- | --- |
@@ -21,3 +21,5 @@ Both predictions were met in the replay. No friction on the supplied CLI surface
 ## Review
 
 Removed `--force` from `git worktree remove`: plain removal already handles the ignored setup log, and Git can refuse changes that arrive after the reconciler's status check. Replayed both rows with plain removal: reclaim preceded the single `root-implement-1` spawn; `M code.txt` remained with zero spawns and one mailed owner exception. Both outcomes held. The existing launch-recovery, PR review and refinement checks passed (5 cases).
+
+After rebasing onto `8f137854`, PR repair still passes the root node to the phase-constraint lookup when relaunching. Both replays held again; the checks above plus `lib/reconcile/constraints.test.ts` passed (6 cases).
