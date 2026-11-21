@@ -22,7 +22,7 @@ function seed(path?: string) {
   for (const [slug, name, priority] of [["ren", "Ren", 1], ["tess", "Tess", 2]]) {
     note("people/" + slug,
       "---\nname: " + name + "\nhypothesis: salon-organizers\nstage: candidate\npriority: " + priority +
-      "\nchannels:\n  x: \"@" + slug + "-demo\"\n---\n\n## Evidence\n\n> We publish a reading list after every salon.\n\n[Salon announcement](https://example.org/" + slug + ")\n\n## Log\n");
+      "\nchannels:\n  x: \"@" + slug + "-demo\"\n" + (slug === "ren" ? "  email: ren@example.org\n" : "") + "---\n\n## Evidence\n\n> We publish a reading list after every salon.\n\n[Salon announcement](https://example.org/" + slug + ")\n\n## Log\n");
   }
   note("people/ada",
     "---\nname: Ada\nhypothesis: salon-organizers\nstage: messaged\npriority: 1\nchannels:\n  x: \"@ada-demo\"\nlast_contacted: 2026-11-19\n---\n\n## Evidence\n\n> We run a monthly reading salon.\n\n[Salon announcement](https://example.org/ada)\n\n## Log\n\n### 2026-11-19 10:00 · x · outbound\nid: demo-outbound\n\n> Do you share a reading list afterward?\n");
@@ -35,11 +35,13 @@ function seed(path?: string) {
 const [command, path, ...flags] = process.argv.slice(2);
 if (command === "seed") {
   seed(path);
-} else if (path && ["reply", "sync", "offline"].includes(command)) {
+} else if (path && ["reply", "sync", "offline", "outbound"].includes(command)) {
   const root = resolve(path);
   const marker = join(root, ".git/mock-beeper-replies");
   if (!existsSync(marker)) throw new Error("not an outreach fixture: " + root);
-  if (command === "reply") {
+  if (command === "outbound") {
+    writeFileSync(join(root, ".git/mock-beeper-outbound"), "1");
+  } else if (command === "reply") {
     if (!readFileSync(marker, "utf8").includes("demo-reply-2")) appendFileSync(marker, "demo-reply-2\n");
   } else {
     const token = "outreach-fixture";
@@ -57,6 +59,7 @@ if (command === "seed") {
         if (route === "/v1/chats/demo-chat/messages") {
           const replies = readFileSync(marker, "utf8").trim().split("\n");
           return Response.json({ items: [
+            ...(existsSync(join(root, ".git/mock-beeper-outbound")) ? [{ id: "demo-outbound-2", timestamp: "2026-11-22T10:00:00Z", isSender: true, text: "How about next week?" }] : []),
             ...replies.map((id, i) => ({
               id, timestamp: "2026-11-" + (20 + i) + "T14:00:00.000Z", isSender: false,
               text: i === 0 ? "Yes, we had been looking for a shared list." : "Can we try this at next month's salon?",
@@ -81,5 +84,5 @@ if (command === "seed") {
     }
   }
 } else {
-  throw new Error("usage: fixture.ts seed [empty-directory] | reply <repo> | sync <repo> [--dry-run] | offline <repo>");
+  throw new Error("usage: fixture.ts seed [empty-directory] | reply <repo> | outbound <repo> | sync <repo> [--dry-run] | offline <repo>");
 }

@@ -17,6 +17,22 @@ bun "$fixture" offline "$demo"
 (cd "$demo"; bun "$outreach" snapshot --json)
 ```
 
+To replay the direct Gmail and outbound Beeper checks on a **separate** seeded checkout:
+
+```sh
+mockbin=$(dirname "$fixture")/mock-bin
+other=$(bun "$fixture" seed)
+bun "$fixture" sync "$other"
+bun "$fixture" outbound "$other"
+(cd "$other"; for pass in 1 2; do
+  bun "$fixture" sync "$other"
+  PATH="$mockbin:$PATH" bun "$outreach" sync --gmail
+  sha256sum docs/outreach/people/{ada,ren}.md
+done)
+```
+
+The two pairs of digests should match. The [review replay](drive.md#review-replay) records the observed log IDs, dates, and the disposable BB schedule result.
+
 For the combined BB trial, use `$demo` as the project source. Open Outreach after the first sync; run `reply` and the next `sync` after marking Ada handled. Remove the disposable checkout after the trial.
 
 - Seeded: one hypothesis, two candidates, Ada `messaged`, no queued people. Dry run found one reply and left the worktree and sync status untouched.

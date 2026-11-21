@@ -20,3 +20,9 @@ Tested revision: `646215e1`. Maintainer persona, disposable Git checkout, loopba
 - **Automation guide — command flags met.** `bb automation create --help` advertised `--script`, `--cron`, `--timezone`, `--working-directory`, `--timeout` and `--interpreter`; the example uses those flags. No actual scheduled tick or live account was driven. To verify execution, create the schedule against a disposable project, trigger one tick, and look for the new reply and success timestamp in its own vault.
 
 The Beeper recipe reached the CLI with no setup repair. Disposable checkouts and the temporary Composio shim were removed; no services remain.
+
+## Review replay
+
+- **Direct Gmail — held.** The [Composio fixture](mock-bin/composio) supplied one SENT message to Ren and one INBOX message from Ren. The CLI imported both, logged `gmail:sent` and `gmail:received`, moved Ren to `replied` and set `last_contacted: 2026-11-19`, `last_reply: 2026-11-20`. Replay left the file byte-identical. The shim exercises the CLI boundary without mailbox access.
+- **Outbound Beeper — held.** The fixture introduced an unseen `demo-outbound-2` after the first import. Sync appended it once and advanced Ada's `last_contacted` to `2026-11-22`. Replay left the file byte-identical.
+- **Scheduled sync — held.** BB project `proj_gnixjq48iz` pointed at the seeded main checkout. Using the guide's bash/mise and working-directory settings with a one-minute cron and the loopback fixture command, `arun_fisbcdnc6uq` ran with trigger `schedule`, exit 0, and output `beeper imported 1 message(s) across 1 record(s)`. The project vault held `demo-reply-1`, stage `replied`, and a Beeper success timestamp. Deleted the automation and project after observing the tick.

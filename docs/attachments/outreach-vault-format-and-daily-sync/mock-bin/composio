@@ -1,0 +1,15 @@
+#!/usr/bin/env bun
+const [cmd, tool, flag, data] = process.argv.slice(2);
+if (cmd !== "execute" || tool !== "GMAIL_FETCH_EMAILS" || flag !== "-d") process.exit(2);
+const {query} = JSON.parse(data);
+const messages = [
+  ["sent", "2026-11-19", "fixture@example.org", "ren@example.org", "Hello Ren"],
+  ["received", "2026-11-20", "ren@example.org", "fixture@example.org", "Let's try it"],
+].map(([messageId, date, from, to, messageText]) => ({
+  messageId, messageTimestamp: date + "T15:00:00Z", messageText,
+  labelIds: [messageId === "sent" ? "SENT" : "INBOX"],
+  payload: { headers: [{ name: "From", value: from }, { name: "To", value: to }] },
+}));
+console.log(JSON.stringify({successful: true, data: {messages:
+  query.includes('from:"ren@example.org"') && query.includes('to:"ren@example.org"') ? messages : [],
+}}));
