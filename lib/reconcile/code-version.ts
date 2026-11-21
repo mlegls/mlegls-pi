@@ -17,7 +17,6 @@ export function fingerprint(root = packageRoot): string {
 		}
 	};
 	visit(join(root, "lib"));
-	visit(join(root, "extensions/supervision"));
 	const hash = createHash("sha256");
 	for (const file of files.sort()) {
 		const content = readFileSync(file);

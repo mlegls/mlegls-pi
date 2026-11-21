@@ -14,7 +14,7 @@ prompts for pi, Claude Code and Codex.
 - `extensions/bb`: pi's session commands and notices when bb runs pi in RPC mode.
 - `extensions/context`: shared lives and notes, observational memory (`om/`, vendored from pi-observational-memory), journal, recall and context policy.
 - `extensions/stances`: `stance/<agent>` virtual models, routed by each agent's model list and `allocation.json`.
-- `extensions/supervision`: the `dispatch`, `integrate`, `retire` tools and `/jump`.
+- `lib/reconcile/tool.ts`: backend for the native [BB Supervision plugin](https://github.com/mlegls/bb-plugins/tree/main/supervision). Pi's `/jump` command lives in `extensions/bb`.
 - `extensions/guard`: refuses host-wide pattern kills and git-hook bypasses.
 - `extensions/error-images`: strips images from errored tool results.
 - `lib/session-meta/host.ts`: session metadata host extension.

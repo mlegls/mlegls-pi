@@ -11,7 +11,7 @@ From this checkout:
 This creates an owned `/tmp/code-refresh-*` Git repository, a **copied** package, one reconciler with a live fake-bb implementer, and a paused pickup watcher. It waits for both processes' state to be ready and prints the direct status command. No credentials, real daemon or model calls; persona `thr_fixture`. Source edits in the printed `code` directory affect only this fixture. The package's dependencies and tracker scripts use the invoking checkout.
 
 - Inspect both public CLI statuses: `bun docs/attachments/long-running-reconcilers-keep-pre-change-code/setup.ts status <root>`
-- Change/add a TypeScript file under `<root>/package/lib/` or `extensions/supervision/`; wait up to one minute plus a tick.
+- Change/add a TypeScript file under `<root>/package/lib/`; wait up to one minute plus a tick.
 - State/log: `<root>/repo/.git/reconcile/solo.{json,log}`, pickup `state.json` and `watcher.log` under `.git/pickup/`.
 - Fake host calls and owner notices: `<root>/fake-bb/calls.log` and `thread-thr_fixture.json`.
 - Stop and remove the owned fixture: `bun docs/attachments/long-running-reconcilers-keep-pre-change-code/setup.ts stop <root>`
