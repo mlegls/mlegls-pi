@@ -70,9 +70,3 @@ Triage the tree before composing indexes, preserving candidate associations and 
 5. What in the body is stale, contradictory or insufficient? Stale implementation references alone do not make settled intent human decision work.
 
 Deterministic code handles structural facts and rollup. A calibrated classifier can propose document dispositions and flag contradictions; code/history reconciliation requires investigation. Whether a document states a contract and whether that contract remains needed are separate judgments.
-
-## Why next is insufficient
-
-The September 21 Concept orientation (session 2026-09-21T05-52-40-925Z_01a0c286-0fdd-701c-80dd-f1ddd6f1f041, JSONL line 61) found bound-convex-reads-over-retained-history marked implement while its body required grilling remaining seams, and a wait issue about capture.ts after that file had already been deleted. The same session successfully changed grill to implement when a concrete decision and shape were recorded. Readiness must reflect the contract rather than a guessed next activity.
-
-The September 21 harness friction triage distinguished actual defects from caller errors, already-fixed behavior, duplicates and accepted limitations; see mlegls-pi/docs/research/session-friction-triage-2026-09-21.md. The old rule that raw frictions receive next: simplify incorrectly admits untriaged observations to the execution frontier.

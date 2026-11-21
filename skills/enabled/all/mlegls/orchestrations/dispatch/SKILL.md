@@ -3,7 +3,7 @@ name: dispatch
 description: "Use to launch prepared worker assignments."
 ---
 
-`tools.dispatch` in codemode ([launch contract](../../../../../../docs/dispatch.md)). Serialize waves.
+Use `dispatch` ([launch contract](../../../../../../docs/dispatch.md)). Serialize waves.
 
 For taking work from intent to done, use `supervise`.
 
