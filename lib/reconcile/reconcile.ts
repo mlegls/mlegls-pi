@@ -563,6 +563,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}
 	};
 	const bbThread = (h: Handle) => h.bb ? host?.get(h.bb) : undefined;
+	const nativeRateLimit = (h: Handle, m: TurnReport) => m.errorCategory === "rate-limit" && (bbThread(h)?.providerId ?? "pi") !== "pi";
 	const alive = (h: Handle): boolean | undefined => {
 		if (!host) return undefined; // backend failure never establishes exit
 		// bb may release an idle worker's pi without ending it: only bb's state counts.
@@ -1370,10 +1371,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const h = c.handle!, r = parse(m.body, h.path), text = m.body;
 		if (c.phase === "integrate") { c.phase = "review"; }
 		if (m.tags.includes("error")) {
-			const provider = bbThread(h)?.providerId;
-			const limited = m.errorCategory === "rate-limit";
-			const kind = limited ? "rate limit or quota" : errorClass(text);
-			if (limited && provider && provider !== "pi" && h.bb) {
+			const kind = m.errorCategory === "rate-limit" ? "rate limit or quota" : errorClass(text);
+			if (nativeRateLimit(h, m) && h.bb) {
 				const after = await bbWorkerRoute(h.bb);
 				if (after) {
 					c.retries.provider = (c.retries.provider ?? 0) + 1;
@@ -1818,7 +1817,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return "active";
 		}
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
-		if (m && m.tags.includes("error") && c.handle && (observedWorking(c.handle) || (!(m.errorCategory === "rate-limit" && bbThread(c.handle)?.providerId !== "pi") && Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS))) return "active";
+		if (m && m.tags.includes("error") && c.handle && (observedWorking(c.handle) || (!nativeRateLimit(c.handle, m) && Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS))) return "active";
 		if (!m && c.handle && bbErrored(c.handle)) { raise(slug, c.phase + " worker errored in bb", await bbError(c.handle), issues, "owner"); return "active"; }
 		// A log that can't be read hides the worker's reports: the chain would wait on it silently (14h, 2026-11-06, concept).
 		const unread = !m && c.handle ? unreadable.get(topic(c.handle)) : undefined;

@@ -11,7 +11,9 @@ export async function workerExecution({ agent, model, effort, after, project }: 
 	agent?: Agent; model?: string; effort?: string; after?: WorkerRoute; project: string;
 }): Promise<WorkerExecution> {
 	const virtual = agent && (!model || model === "stance/" + agent.name);
-	const list = virtual && agent.routing ? executions(agent.routing) : [];
+	const entries = virtual && agent.routing ? executions(agent.routing) : [];
+	// A retry cursor names an execution; repeated copies of it cannot be separate fallbacks.
+	const list = entries.filter((e, i) => entries.findIndex(p => p.model === e.model && p.effort === e.effort) === i);
 	if (!list.length && !after && virtual) return { providerId: "pi", model: "stance/" + agent.name, effort: effort ?? "medium" };
 	if (!list.length && (!model?.includes("/") || !effort)) throw new Error("wm.spawn requires an agent, or a model (provider/model) and effort");
 	const providers = new Map((await bbProviders()).map(p => [p.id, p]));
