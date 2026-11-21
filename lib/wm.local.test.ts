@@ -36,6 +36,7 @@ test.skipIf(process.env.PI_TEST_LOCAL_WM !== "1")("concurrent thread workers pre
 		const rest = await wait(workers, { mode: "all", timeoutMs: 5000 });
 		expect([...rest.values()].map(o => "message" in o && o.message ? o.message.body : o.kind).sort()).toEqual(["done second", "done third"]);
 		await Promise.all(workers.map(w => w.close()));
+		workers = [];
 		expect((await command(["git", "worktree", "list", "--porcelain"], cwd)).match(/^worktree /gm)).toHaveLength(1);
 	} finally {
 		await Promise.all(workers.map(w => w.close()));
