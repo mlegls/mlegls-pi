@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 author: "session:01a18299-b1f8-708a-974d-55c75ed3ef87"
 priority: 2
@@ -35,3 +35,35 @@ Concept retained-tag repair recurrence, 2026-11-16, @thread:thr_3vvnfg7nw4, pare
 Concept hub-invites recurrence, 2026-11-20, @thread:thr_y33dhcmrj7, parent @thread:thr_ihbpyrp6s2: `hub-invites-retry-while-update-waits-for-dependent-refine-2` reported blocked on the stale-mask give-way decision; the owner answered (Option A) and the same worker promoted the issue to a ticket in place (tracker commit `29a8360036`), no children or stubs. Acceptance returned `Refinement is not the reported writer`. `reconcile_status` shows the attempt `removed`, owned `[]`, chain still on the same handle (log: `refine blocked → owner`, then `resolved …: answer`). No protocol state was edited. Recovery is an owner-controlled fresh attempt (or accepting the promotion directly); there is nothing to adopt.
 
 Concept benchmark recurrence, 2026-11-21, parent @thread:thr_ihbpyrp6s2: `benchmark-cost-per-turn-of-frontier-managed-models-refine-2` reported blocked on the corpus/route decision; the owner answered (story scripts `--live` on the account key under recordingBudget) and the same worker promoted the issue to a ticket in place (tracker commit `580a287383`), no children or stubs. Acceptance returned `Refinement is not the reported writer`. Saved `.git/reconcile/benchmark-cost-per-turn-of-frontier-managed-models.json` shows the attempt `removed`; log: `refine blocked → owner`, then `resolved …: answer`. No protocol state was edited. Recovery is an owner-controlled fresh attempt or accepting the promotion directly; nothing to adopt.
+
+## Result
+
+done. Rebased onto `a9145c9c` at `664ae708`. Both recovery replays passed on the rebased head. The full gate passed: 293 tests passed, 2 skipped, 0 failed.
+
+```yaml
+commit: 664ae708
+stories:
+  - story: The owner notice explains how to recover a removed attempt without asking the old writer to repair contracts.
+    outcome: held
+  - story: An owner answer starts a fresh writer that retains the baseline and stub.
+    outcome: held
+  - story: The successor can submit both retained and new children and land the stub.
+    outcome: held
+  - story: A separately submitted late report routes to owner recovery.
+    outcome: held
+  - story: The successor prompt distinguishes stable baseline claims from new provisional claims.
+    outcome: held
+evidence:
+  path: docs/attachments/reconciler-contract-repair-loop-targets-removed-refinement/index.md
+  visual: false
+  shots: []
+fixed:
+  - Routed late reports to the owner while the recovery exception is pending.
+  - Limited the removed-writer notice to the applicable answer and retry actions.
+tests: []
+filed: []
+caveats:
+  - The replay uses real Git, tracker, and reconciler operations with simulated BB turns. Answer and retry each took 14 seconds.
+```
+
+Evidence: [docs/attachments/reconciler-contract-repair-loop-targets-removed-refinement/index.md](../attachments/reconciler-contract-repair-loop-targets-removed-refinement/index.md)
