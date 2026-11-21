@@ -50,3 +50,5 @@ caveats:
 ```
 
 Evidence: [docs/attachments/reconciler-misses-status-from-completed-turn-event/index.md](../attachments/reconciler-misses-status-from-completed-turn-event/index.md)
+
+Recurrence 2026-11-22: Concept keep-development-versions-on-main-as-prereleases-implement-1 (thr_8ri6jb93up) reported done at ef7dea0356 about ten hours earlier; the reconciler last logged its 06:44 waiting status and stayed in implement through four restarts.
