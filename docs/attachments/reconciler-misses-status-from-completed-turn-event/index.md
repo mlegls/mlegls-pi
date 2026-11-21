@@ -1,28 +1,24 @@
-# Worker handoff across BB turns
+# Completed worker handoff
 
-In the Roleplay Opening incident, BB logged the `done` message (seq 1113) and its completion (1116) under turn `daea60f86b-t3`. A standalone compaction in turn `daea60f86b-t4` then completed at 1120, before the repair request at 1122. The historical value of `bb thread output` at the poll is unknown. The event log has the report and the identity of the turn that produced it.
+## Prediction before first use
 
-## First use
+As reconciler operator, launch a fresh local fixture as its fake implement worker (anonymous, disposable checkout). Expect `Ready` with the solo ticket in implement. Submit a first-line `done` using `--compact-after`. Expect the completed implement turn to advance to drive even after the output projection is cleared, without an empty-report nudge or status escalation.
 
-From this checkout, run `bun lib/reconcile/setup-fixture.ts new`. `Ready` means the real reconciler has launched the fake implement worker for the disposable `solo` ticket. No models, live BB mutation, or credentials are needed. Use the printed `/tmp/rc-setup-*` target as `ROOT` below.
+## Setup and replay
 
-````sh
-bun lib/reconcile/setup-fixture.ts turn "$ROOT" 'done
+Tested `c188c3e6` from the drive worktree. `new` finished successfully, printed `Ready`, and identified its fresh caller-owned target as `/tmp/rc-setup-z0xBQ5`. The initial snapshot showed the fake `solo-implement-1` worker with no exceptions. This was an offline CLI fixture, with no authentication or shared deployment.
 
-```json
-{"setup":{"entry":"bun app.ts"}}
-```' --compact-after
+```sh
+bun lib/reconcile/setup-fixture.ts new
+# Set ROOT to the retained target printed by new.
+BODY=$(printf '%s\n' 'done' '' '```yaml' 'setup: {entry: bun app.ts}' '```')
+bun lib/reconcile/setup-fixture.ts turn "$ROOT" "$BODY" --compact-after
 bun lib/reconcile/setup-fixture.ts status "$ROOT"
-````
+bun lib/reconcile/setup-fixture.ts stop "$ROOT"
+```
 
-The fixture logs the worker's report and completion, then a separate compaction turn, with thread-wide output set to empty. The immediate submission snapshot may still say `implement`. Once processed, the phase should be `drive`, the driver prompt should contain `bun app.ts`, and the implementer should have no status repair tell. The implementer observed all three on a fresh fixture.
+## Outcome and replay check
 
-When done, run `bun lib/reconcile/setup-fixture.ts stop "$ROOT"` to stop the reconciler and remove the disposable target.
+**Held.** The submission snapshot still showed implement; the subsequent `status` showed `phase: drive`, a launch log entry for `solo-drive-2`, and `entry: bun app.ts` in that worker's setup handoff. The implement worker's tells were empty and the reconciler reported `exceptions: {}` with no status retry. Both predictions were met. Cleanup exited successfully.
 
-The reader also recovered three recorded BB handoffs when the agent message was visible on one poll and completion on the next, with the second poll forced to read multiple pages. In each case it returned the original message text:
-
-| BB thread | Agent message → completion | Status |
-| --- | --- | --- |
-| `thr_v5wtzb88yp` | 1113 → 1116 | `done` |
-| `thr_579z45iect` | 315 → 318 | `waiting` |
-| `thr_53rigwq8up` | 1672 → 1675 | `checkpoint` |
+When replaying, judge the settled `status`, not the immediate submission snapshot. Require drive phase, the original setup entry in the new prompt, no implement-worker repair tell, and no status exception. The asynchronous snapshot is the only point that could be mistaken for a failure; existing fixture documentation describes the delay. This replay exercises the compacted-output case in the offline fixture, not live BB compaction timing.
