@@ -25,3 +25,7 @@ Both cases reached the post-merge SIGKILL checkpoint with only the prepared rece
 To replay separately, append `plain` or `decompose` to the command. For `plain`, require both kill checkpoints, the original review result, chain cleanup, reviewer retirement, owner completion and one hook invocation. For `decompose`, require the post-merge kill, the original turn accepted, collector-only stubs, one child launch from the landed head, refiner retirement and one hook invocation.
 
 No tooling friction encountered. The output reports recovery of the seeded turn through its original result; it does not count raw BB turn-end events. This drive covers reconciler restart with fake BB. The retired supervisor and live BB host daemon are outside the replay's surface.
+
+## Review replay
+
+Both cases passed again at `81ad8dc6` in 25 seconds, with one post-merge invocation each. After the tracker-close kill, the plain run retired the reviewer and finished: the reconciler processes the landed integrating chain and its cleanup receipt before `visit` can skip the closed issue. Decomposition preserved the refinement report and launched `part-implement-2` from the collector head. No runtime or fixture changes were needed.
