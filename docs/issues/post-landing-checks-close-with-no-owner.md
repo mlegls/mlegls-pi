@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_fc4rfkdz6s"
@@ -11,3 +11,37 @@ Seen in concept on 2026-11-20 (adversarial review, @thread:thr_mz2t3egh9x and @t
 ## Done when
 
 An auto-landed post-landing check has an owner and a recorded outcome: e.g. the issue stays open (or gets a child) until each check reports, a failed check reopens it, and checks a reviewer could run before landing are refused as post-landing. A replay with one red post-landing verdict shows the owner getting actionable work.
+
+## Result
+
+done. The replay held all three stories. Review found one lost-verdict case: a second submission before the reconciler’s next tick could overwrite the first. The second call now refuses with retry instructions; the red verdict reaches the owner and remains in the final issue Result. All 19 affected tests passed. The disposable target was removed.
+
+```yaml
+commit: f0af62d5
+stories:
+  - story: A checkout-runnable recipe read cannot be deferred as an undeclared post-landing gate.
+    outcome: held
+  - story: Landing assigns the declared checks to the run owner and keeps the ticket open.
+    outcome: held
+  - story: A red verdict gives the owner actionable work; closure retains verdict history after both checks pass.
+    outcome: held
+evidence:
+  path: docs/attachments/post-landing-checks-close-with-no-owner/index.md
+  visual: false
+  shots: []
+tests:
+  - lib/reconcile/checks.test.ts
+  - lib/reconcile/completion.test.ts
+  - lib/reconcile/exceptions.test.ts
+  - lib/reconcile/ownership.test.ts
+  - lib/reconcile/setup.test.ts
+fixed:
+  - "371aee38: Prevent overlapping submissions from replacing an unprocessed verdict."
+  - "f906ccfd: Make the fixture CLI acknowledge queued verdicts and give the status command."
+filed: []
+caveats:
+  - Target eligibility relies on the ticket author correctly declaring a target-triggered check. Review rejects undeclared checks by ID.
+  - Deployment verdicts were simulated. The replay exercised the reconciler, Git, and tracker without a live deployment.
+```
+
+Evidence: [docs/attachments/post-landing-checks-close-with-no-owner/index.md](../attachments/post-landing-checks-close-with-no-owner/index.md)
