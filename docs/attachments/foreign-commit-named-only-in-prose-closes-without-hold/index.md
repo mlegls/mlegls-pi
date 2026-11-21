@@ -15,3 +15,9 @@ At `a4077dca`, ran `bun docs/attachments/foreign-commit-named-only-in-prose-clos
 ## Frictions and replay check
 
 No friction observed through the supplied CLI entry point. To replay, run the command above and check for `ticket` with a hold naming the seeded SHA after local landing, followed by `done` only after fast-forwarding the loaded checkout. A successful exit alone does not describe those two observable states.
+
+## Review
+
+The baseline replay again held at `ticket` for `51e05c6b` until fast-forward. The completion, stop, and closed-chain checks passed (6/6).
+
+With `--remove-before-report`, the worker runs `git worktree remove` on its clean foreign worktree before reporting, leaving `plugin-fix` intact. With this single change, `91ffeac4` remained outside the loaded checkout, but the replay printed `After local landing: done — done`. The scanner in `lib/reconcile/foreign-work.ts` enumerates registered worktrees and reads their HEAD reflogs. Git removes both the registration and that log during normal worktree removal. The surviving branch identifies the commit but no longer identifies the worker that made it.

@@ -28,6 +28,7 @@ try {
 	console.log("Worker committed", commit, "in", worktree);
 
 	// Neither report includes a commit declaration. Only the review's prose mentions the fix.
+	if (process.argv.includes("--remove-before-report")) git(loaded, "worktree", "remove", worktree);
 	f.turn("done");
 	const reviewer = await f.ready("review");
 	git(loaded, "worktree", "prune", "--expire", "now");
