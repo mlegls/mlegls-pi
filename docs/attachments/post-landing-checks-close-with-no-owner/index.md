@@ -33,6 +33,25 @@ bun lib/reconcile/setup-fixture.ts verdict "$ROOT" '{"check":"smoke","outcome":"
 
 Stop the reconciler and remove the disposable target with `bun lib/reconcile/setup-fixture.ts stop "$ROOT"`.
 
+## Independent drive: predictions before use
+
+- Submit a recipe read as deferred work. I expect to stay in review and get a correction to make before landing.
+- Submit the two declared deployment gates. I expect the candidate on the target, the issue still open, and `thr_solo` told which target, revision and checks to verify.
+- Report a red `deploy` verdict. I expect the issue to remain actionable and the owner to get the failed check, evidence and next action. A passing rerun should leave `smoke` pending; passing `smoke` should close the issue with the full verdict history.
+
+## Independent drive: results
+
+Tested `c9783a70` after `mise run setup`. The CLI reached `Ready. Retained target: /tmp/rc-setup-8TAO1n`; `issue` showed the seeded gates. The fake run owner needed no credentials. `stop` cleaned up the disposable target after the replay.
+
+| Replay check | Observed |
+| --- | --- |
+| Submit the recipe read as a deferred check, then inspect `status`. Expect no landing and a direction to do candidate checks in review. | Met. Phase remained `review`; the reviewer was told to list declared IDs and keep checkout-runnable checks in review. |
+| Submit `deploy` and `smoke`, then inspect `status` and `issue`. Expect a landed revision, both checks assigned to `thr_solo`, and an open ticket. | Met. The owner received both checks, the target `/tmp/rc-setup-8TAO1n/repo`, landed SHA `617a58075508daf2df1a285a8f8be7f5824aa785`, and verdict instructions. `issue` still showed `stage: ticket`. |
+| Submit red `deploy`. Expect actionable repair and rerun instructions, durable failed evidence, and an open ticket. | Met. The owner's message named `deploy`, quoted the 503, and asked for a repair and rerun; status attributed the failed verdict to `thr_solo` and `issue` remained a ticket. |
+| Submit green `deploy`, inspect the issue, then submit green `smoke` and inspect it again. Expect closure only after both pass, with the failed verdict retained. | Met. After green `deploy`, only `smoke` remained pending and the issue was open. After green `smoke`, the issue reached `stage: done` with all three verdicts, evidence and owner attribution in the Result. |
+
+Friction: turns and verdicts apply asynchronously. `turn` prints an explicit warning; `verdict` exits silently, so `status` or `issue` is needed to confirm receipt. One fake-BB thread observation logged `ETXTBSY` and was deferred; landing followed and the replay needed no intervention.
+
 ## Implementation encounter
 
 The undeclared recipe read drew a repair without leaving review. The declared IDs let the reviewed commit reach the owner checkout. The owner got both checks and the target SHA; the vault issue remained `stage: ticket`.
