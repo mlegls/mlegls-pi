@@ -1905,7 +1905,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 	let tickError = "";
 	const code = new CodeMonitor();
 	for (;;) {
-		if (o.signal?.aborted) return;
+		if (o.signal?.aborted) return await told;
 		try {
 			if (await untilReset(tick, { note, signal: o.signal })) return await told;
 			tickError = "";
