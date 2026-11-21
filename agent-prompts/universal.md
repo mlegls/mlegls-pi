@@ -30,9 +30,11 @@ my system settings are in ~/.config/system-config. please check there before dir
 per-project deps/config go through mise (just use whatever already exists in public projects though, or gitignore mise.toml). nix shell or mise for missing one-off commands
 uv for python and bun for js/ts on my local machine. npm/pip are fine for public repos/github workflows. i just don't want duplicate package caches.
 if a project hardcodes `docker`, add `~/.config/podman-docker/bin` to that project's mise `_.path`
+for web content and search use curl or `monid` (its skill); for acting in third-party apps (gmail, slack, linear, notion, ...) use `composio` (the `composio-cli` skill). both come before a browser, which is for what neither covers or what i must see. direct computer use is a last resort.
+shared secrets live in Infisical: the `secret-management` project, reached with this host's machine identity in `~/.config/infisical/agent.env` (universal auth).
 axi tools are agent-ergonomic clis on PATH. running one with no args shows live state; `<tool> <cmd> --help` for details. don't run their `setup hooks`: this list is their ambient context.
 
-- `cargo-axi`, `bun-axi`, `chrome-devtools-axi`, `firecrawl-axi`, `gh-axi`, `obsidian-axi`: token-efficient variants of the corresponding. prefer jev-powered computer use to manual chrome where appropriate though.
+- `cargo-axi`, `bun-axi`, `chrome-devtools-axi`, `firecrawl-axi`, `gh-axi`, `obsidian-axi`: token-efficient variants of the corresponding.
 - `cyber-mux`: open/send/read/wait/close for tmux, herdr, wezterm, zellij and cmux, including worktree management.
 - `lavish-axi <file.html>`: opens an html artifact in my browser for me to annotate. run `poll` in the foreground with a long wait; if an earlier poll is still listening (e.g. i answered in chat instead), the next one needs `--takeover`.
 - `pypi-axi`: pypi package view/versions/deps/downloads (no search: pypi has no search api).
