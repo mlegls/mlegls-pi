@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent:auto-routine"
 author: "session:thr_2hd2kf9r28"
 priority: 2
@@ -88,3 +88,40 @@ Implementation is partitioned into [[projects/mlegls-pi/issues/outreach-vault-fo
 After both children reach their target checkouts, run the combined first use above in a disposable bb project using the new `outreach.ts` CLI and rebuilt tracker plugin. Record the rendered Queue/Candidates/Hypotheses views, Mark handled + resurface on re-sync, and Discuss mention handoff. Update `docs/guide/outreach.md` and [tracker README](../../../bb-plugins/tracker/README.md) with the verified entry points.
 
 The plugin child works in its own `bb-plugins` worktree from `main` and declares its foreign checkout and commits in the handoff; supervisor @thread:thr_dfgkcug6jp owns merging those commits into `/home/mlegls/dev/bb-plugins` main when completion holds and removing the foreign worktree, leaving the `obsidian-at-home` submodule untouched.
+
+## Result
+
+done. All four stories held. The independent Hypotheses screenshot caught the plugin swap; the corrected packet uses the implementer’s same-build capture, which shows the decision bar and the expected reply count.
+
+```yaml
+commit: 06ef5c80
+stories:
+  - {story: "Mock Beeper reply reaches Ada’s vault log and BB Queue", outcome: held}
+  - {story: "Mark handled clears Ada; a second synced reply resurfaces her without reload", outcome: held}
+  - {story: "Candidates are ordered by priority and Hypotheses counts the synced reply", outcome: held}
+  - {story: "Discuss carries Ren and the linked hypothesis into the thread", outcome: held}
+evidence:
+  path: docs/attachments/outreach-conversations-in-the-bb-tracker/index.md
+  visual: true
+  shots:
+    - docs/attachments/outreach-conversations-in-the-bb-tracker/drive-first.jpg
+    - docs/attachments/outreach-conversations-in-the-bb-tracker/drive-handled.jpg
+    - docs/attachments/outreach-conversations-in-the-bb-tracker/drive-resurface.jpg
+    - docs/attachments/outreach-conversations-in-the-bb-tracker/drive-candidates.jpg
+    - docs/attachments/outreach-conversations-in-the-bb-tracker/hypotheses.jpg
+    - docs/attachments/outreach-conversations-in-the-bb-tracker/drive-discuss.jpg
+fixed:
+  - Corrected the Hypotheses evidence link; preserved the unavailable-panel capture with its actual meaning.
+  - Clarified the global badge count and how to submit Discuss on the current branch after sync.
+checks:
+  - Replayed seed, check, first sync, duplicate sync and second reply. Duplicate sync preserved Ada’s queue hash; the second reply changed it.
+tests: []
+filed:
+  - "[Keep the BB plugin candidate stable during drive](docs/issues/keep-bb-plugin-candidate-stable-during-drive.md)"
+changes:
+  - No structural refactor. The combined journey uses the CLI snapshot; the plugin’s separate reader supports the explicitly required no-skill installation.
+caveats:
+  - The plugin invalidates the Outreach query every 30 seconds to discover new vaults, follow-up dates and sync metadata beyond the Markdown watcher.
+```
+
+Evidence: [docs/attachments/outreach-conversations-in-the-bb-tracker/index.md](../attachments/outreach-conversations-in-the-bb-tracker/index.md)
