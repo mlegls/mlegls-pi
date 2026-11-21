@@ -28,10 +28,10 @@ export function open(root: string) {
   owner: state()?.owner, finished: state()?.finished, postLanding: state()?.results.solo?.postLanding,
   exceptions: state()?.exceptions,
   landed: state()?.landed.solo, log: state()?.log, threads: bb.threads().map(t => ({ title: t.title, prompt: t.prompt, tells: t.tells })) });
- const turn = (body: string) => {
+ const turn = (body: string, compactAfter = false) => {
   const handle = state()?.chains.solo?.handle;
   if (!handle) throw new Error("no worker ready");
-  bb.completeTurn(handle.path, body);
+  bb.completeTurn(handle.path, body, "completed", compactAfter);
  };
  const report = (setup: unknown) => turn("done\n\n```json\n" + JSON.stringify({ setup }) + "\n```");
  return { root, repo, bb, state, status, report, turn,
@@ -65,7 +65,7 @@ export async function prepare(skipDrive = false, postLanding = false) {
 }
 
 if (import.meta.main) {
- const [command = "help", target, payload] = process.argv.slice(2);
+ const [command = "help", target, payload, option] = process.argv.slice(2);
  if (command === "new") {
   const review = target === "--review" || target === "--post-landing", f = await prepare(review || target === "--no-drive", target === "--post-landing");
   if (review) {
@@ -81,7 +81,7 @@ if (import.meta.main) {
   console.log(JSON.stringify(f.status(), null, 2));
   console.log("Ready. Retained target: " + f.root);
   if (!review) console.log("Use: bun lib/reconcile/setup-fixture.ts report " + f.root + " 'null'");
-  console.log("Or submit a raw report: bun lib/reconcile/setup-fixture.ts turn " + f.root + " BODY");
+  console.log("Or submit a raw report: bun lib/reconcile/setup-fixture.ts turn " + f.root + " BODY [--compact-after]");
   console.log("Then: status " + f.root + " | issue " + f.root + " | stop " + f.root);
  } else if (target && ["status", "issue", "report", "turn", "verdict", "stop"].includes(command)) {
   const root = realpathSync(resolve(target));
@@ -92,9 +92,9 @@ if (import.meta.main) {
   else if (command === "verdict") resolveException(f.repo, "solo", "solo", { ...JSON.parse(payload!), action: "post-landing" }, "thr_solo");
   else {
    if (command === "report") f.report(JSON.parse(payload!));
-   if (command === "turn") f.turn(payload!);
+   if (command === "turn") f.turn(payload!, option === "--compact-after");
    if (command !== "status") console.error("Turn submitted. This snapshot can precede processing; use status ROOT to see the resulting phase or repair.");
    console.log(JSON.stringify(f.status(), null, 2));
   }
- } else console.log("new [--no-drive|--review|--post-landing] | status ROOT | issue ROOT | report ROOT SETUP_JSON | turn ROOT BODY | verdict ROOT VERDICT_JSON | stop ROOT");
+ } else console.log("new [--no-drive|--review|--post-landing] | status ROOT | issue ROOT | report ROOT SETUP_JSON | turn ROOT BODY [--compact-after] | verdict ROOT VERDICT_JSON | stop ROOT");
 }

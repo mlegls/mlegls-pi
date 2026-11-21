@@ -1,6 +1,5 @@
-// A bb thread's turn completions: how a worker's report reaches whoever waits on it. bb logs a
-// `turn/completed` event per turn and keeps the final message as the thread's output; the report is that
-// message, its status the first word (lib/report.ts), `turn-end` when it has none.
+// A worker's report is the final agent message of its completed bb turn. The log binds both by
+// scope.turnId; the thread-wide output can already be empty or belong to another turn.
 import { parse } from "../report.ts";
 import { command } from "./process";
 
@@ -14,7 +13,13 @@ export interface TurnReport {
 	body: string;
 }
 
-export interface LogEvent { seq: number; type: string; createdAt: number; data?: { status?: string; message?: string; detail?: string; providerThreadId?: string } }
+export interface LogEvent {
+	seq: number;
+	type: string;
+	createdAt: number;
+	scope?: { kind: string; turnId?: string };
+	data?: { status?: string; message?: string; detail?: string; providerThreadId?: string; item?: { type: string; text?: string } };
+}
 
 const cli = () => process.env.BB_CLI || "bb";
 async function json<T>(args: string[]): Promise<T> {
@@ -55,32 +60,50 @@ export async function readLog(bb: string, after = 0, o: { keep?: (e: LogEvent) =
 }
 
 export interface TurnRead {
-	/** The newest turn completion read, if any. */
+	/** The newest reportable turn completion read, if any. */
 	report?: TurnReport;
-	/** Where the next read starts: what was read, short of a provider error whose turn hasn't completed yet. */
+	/** Where the next read starts, short of any report material for an unfinished turn. */
 	seq: number;
 }
 
-/** The newest turn completion of a bb thread after log sequence `after`, with the thread's final message as its body (a
- * provider error's text when the turn failed), and the log position to read from next. */
+interface TurnItems { message?: LogEvent; error?: LogEvent; compacted?: LogEvent }
+
+/** The newest reportable turn completion after `after`, paired with its own final message or provider error. */
 export async function readTurn(bb: string, after = 0, o: { onSkip?: (after: number) => void } = {}): Promise<TurnRead> {
-	const { events, seq } = await readLog(bb, after, { keep: e => e.type === "turn/completed" || e.type === "provider/error", onSkip: o.onSkip });
-	const done = events.filter(e => e.type === "turn/completed").at(-1);
-	// bb logs a provider error just before the failed completion: one read without it is read again with it.
-	const pending = events.find(e => e.type === "provider/error" && e.seq > (done?.seq ?? after));
-	const next = pending ? pending.seq - 1 : seq;
-	if (!done) return { seq: next };
+	const { events, seq } = await readLog(bb, after, { onSkip: o.onSkip, keep: e =>
+		e.type === "turn/completed" || e.type === "provider/error" || e.type === "thread/compacted" ||
+		(e.type === "item/completed" && e.data?.item?.type === "agentMessage" && typeof e.data.item.text === "string") });
+	const open = new Map<string, TurnItems>();
+	let latest: { done: LogEvent; items: TurnItems } | undefined;
+	for (const e of events) {
+		const id = e.scope?.kind === "turn" && e.scope.turnId;
+		if (!id) continue;
+		const items = open.get(id) ?? {};
+		if (e.type === "turn/completed") {
+			open.delete(id);
+			// bb can complete a standalone compaction turn right after a report. It is maintenance, not a worker turn.
+			if (items.compacted && !items.message && e.data?.status === "completed") continue;
+			latest = { done: e, items };
+		} else {
+			const key = e.type === "item/completed" ? "message" : e.type === "provider/error" ? "error" : "compacted";
+			items[key] = e;
+			open.set(id, items);
+		}
+	}
+	// A poll can end after the final message or provider error but before bb logs its completion. Re-read those items.
+	let next = seq;
+	for (const items of open.values()) for (const e of Object.values(items)) next = Math.min(next, e.seq - 1);
+	if (!latest) return { seq: next };
+	const { done, items } = latest;
 	const base = { seq: done.seq, id: String(done.seq), ts: new Date(done.createdAt).toISOString() };
-	// A turn the provider ended (auth, quota, retries exhausted) has no message; bb logs why just before it completes as failed.
 	if (done.data?.status === "failed") {
-		const why = events.filter(e => e.type === "provider/error" && e.seq < done.seq).at(-1)?.data;
+		const why = items.error?.data;
 		return { seq: next, report: { ...base, tags: ["turn-end", "error"], body: "error: " + (why?.detail ?? why?.message ?? "the provider ended the turn with an error") } };
 	}
-	// An interrupted turn's output is the turn before it.
 	if (done.data?.status && done.data.status !== "completed") return { seq: next, report: { ...base, tags: ["turn-end"], body: "(the turn was " + done.data.status + ")" } };
-	const body = (await json<{ output?: string }>(["thread", "output", bb])).output ?? "";
+	const body = items.message?.data?.item?.text ?? "";
 	return { seq: next, report: { ...base, tags: [parse(body).status ?? "turn-end"], body } };
 }
 
-/** The newest turn completion of a bb thread after log sequence `after`. */
+/** The newest reportable turn completion of a bb thread after log sequence `after`. */
 export const lastTurn = async (bb: string, after = 0): Promise<TurnReport | undefined> => (await readTurn(bb, after)).report;

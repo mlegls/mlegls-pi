@@ -3,10 +3,11 @@
 // under FAKE_BB_DIR and logs every call. A spawned thread stays "active" until stopped; no pi ever runs.
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { LogEvent } from "./turn";
 
 export interface FakeBbThread { id: string; status: string; archivedAt: number | null; parentThreadId: string | null; environment: string; title: string; prompt: string; tells: string[]; tellAt?: number[];
 	/** While set, queued tells wait in `queue` as bb holds them behind a busy turn, instead of landing in `tells`. */
-	holding?: boolean; queue?: { id: string; text: string }[]; events?: { seq: number; type: string; createdAt: number; data: object }[]; output?: string;
+	holding?: boolean; queue?: { id: string; text: string }[]; events?: (Omit<LogEvent, "data"> & { data: object })[]; output?: string;
 	/** bb's event-response limit (8 MiB) scaled down: a `thread log --json` response larger than this many bytes is refused with a 413. */
 	logLimit?: number;
 	/** While set, every `thread log --json` fails with this message. */
@@ -24,7 +25,7 @@ export function fakeBb(root: string) {
 	chmodSync(cli, 0o755);
 	Object.assign(process.env, { BB_CLI: cli, FAKE_BB_DIR: state });
 	return { dir: state, calls: () => calls(state), threads: () => threads(state), setStatus: (environment: string, status: string) => setStatus(state, environment, status),
-		completeTurn: (environment: string, text: string, status = "completed") => completeTurn(state, environment, text, status),
+		completeTurn: (environment: string, text: string, status = "completed", compactAfter = false) => completeTurn(state, environment, text, status, compactAfter),
 		addThread: (id: string, environment?: string, title?: string) => addThread(state, id, environment, title),
 		hold: (id: string, holding: boolean) => hold(state, id, holding),
 		limitLog: (environment: string, bytes: number | undefined) => patch(state, environment, { logLimit: bytes }),
@@ -41,15 +42,24 @@ export function setStatus(state: string, environment: string, status: string): v
 	for (const t of threads(state)) if (t.environment === environment) writeFileSync(join(state, "thread-" + t.id + ".json"), JSON.stringify({ ...t, status }));
 }
 
-/** A pi ending its turn with text: bb logs a turn/completed event, keeps the text as the thread's output, and the thread goes idle.
- * With status failed the text is the provider's error, logged before the completion as bb does. */
-export function completeTurn(state: string, environment: string, text: string, status = "completed"): void {
+/** bb logs the final message (or provider error) and completion under the same turn id. */
+export function completeTurn(state: string, environment: string, text: string, status = "completed", compactAfter = false): void {
 	for (const t of threads(state)) if (t.environment === environment) {
 		const events = t.events ?? [];
-		const seq = (events.at(-1)?.seq ?? 0) + 1;
-		const added = [...(status === "failed" ? [{ seq, type: "provider/error", createdAt: Date.now(), data: { message: "Provider error", detail: text } }] : []),
-			{ seq: seq + (status === "failed" ? 1 : 0), type: "turn/completed", createdAt: Date.now(), data: { status } }];
-		writeFileSync(join(state, "thread-" + t.id + ".json"), JSON.stringify({ ...t, status: "idle", ...(status === "failed" ? {} : { output: text }), events: [...events, ...added] }));
+		let seq = events.at(-1)?.seq ?? 0;
+		let turnId = "turn-" + (seq + 1);
+		const add = (type: string, data: object) => events.push({ seq: ++seq, type, createdAt: Date.now(), scope: { kind: "turn", turnId }, data });
+		if (status === "failed") add("provider/error", { message: "Provider error", detail: text });
+		else add("item/completed", { item: { type: "agentMessage", text } });
+		add("turn/completed", { status });
+		if (compactAfter) {
+			// A separate maintenance turn can complete before the reconciler polls, leaving the latest output blank.
+			turnId = "turn-" + (seq + 1);
+			add("thread/compacted", {});
+			add("turn/completed", { status: "completed" });
+		}
+		const output = compactAfter ? "" : status === "failed" ? t.output : text;
+		writeFileSync(join(state, "thread-" + t.id + ".json"), JSON.stringify({ ...t, status: "idle", output, events }));
 	}
 }
 
