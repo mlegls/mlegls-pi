@@ -89,7 +89,10 @@ if (import.meta.main) {
   const f = open(root);
   if (command === "stop") await f.close();
   else if (command === "issue") console.log(getTracker(f.repo).text("solo"));
-  else if (command === "verdict") resolveException(f.repo, "solo", "solo", { ...JSON.parse(payload!), action: "post-landing" }, "thr_solo");
+  else if (command === "verdict") {
+   resolveException(f.repo, "solo", "solo", { ...JSON.parse(payload!), action: "post-landing" }, "thr_solo");
+   console.log("Verdict queued. Use status " + root + " to confirm the recorded outcome before submitting another verdict.");
+  }
   else {
    if (command === "report") f.report(JSON.parse(payload!));
    if (command === "turn") f.turn(payload!, option === "--compact-after");
