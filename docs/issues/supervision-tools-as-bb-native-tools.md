@@ -1,0 +1,11 @@
+---
+stage: "ticket"
+assignee: "agent:auto-routine"
+author: "session:01a1fc85-32d0-7768-9382-3e18c7628a80"
+part-of: "[[projects/mlegls-pi/issues/lift-supervision-into-a-bb-plugin]]"
+---
+The supervision and reconcile tools are bb native tools, so they reach a thread whatever its provider. Shape: [[projects/mlegls-pi/issues/lift-supervision-into-a-bb-plugin]].
+
+A `supervision` plugin in `~/dev/bb-plugins` registers `dispatch`, `integrate`, `retire`, `reconcile`, `reconcile_stop`, `reconcile_status`, `reconcile_resolve`, `reconcile_constrain`, `pickup`, `pickup_status`, `pickup_stop` with the same parameters and descriptions as [extensions/supervision](../../extensions/supervision/index.ts). Each `execute` runs a `bun` entry point in this repository with the calling thread's id (from the tool context, replacing `BB_thr_4vfx7djduu_ID` from the environment) and returns its JSON; add an entry point beside [main.ts](../../lib/reconcile/main.ts)'s `import.meta.main` where one is missing. Find this checkout and `bun` as the tracker plugin's settings do ([server.ts](../../../bb-plugins/tracker/server.ts)). `extensions/supervision` is deleted in the same change, so pi sessions get the bb tools instead (check they reach codemode's `tools`).
+
+Done when: from a pi thread and from a codex or claude-code thread, `dispatch` starts a worker, `bb thread` shows it as the caller's child, and `integrate` lands it; `reconcile_status` answers from both.
