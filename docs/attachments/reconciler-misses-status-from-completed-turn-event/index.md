@@ -22,3 +22,13 @@ bun lib/reconcile/setup-fixture.ts stop "$ROOT"
 **Held.** The submission snapshot still showed implement; the subsequent `status` showed `phase: drive`, a launch log entry for `solo-drive-2`, and `entry: bun app.ts` in that worker's setup handoff. The implement worker's tells were empty and the reconciler reported `exceptions: {}` with no status retry. Both predictions were met. Cleanup exited successfully.
 
 When replaying, judge the settled `status`, not the immediate submission snapshot. Require drive phase, the original setup entry in the new prompt, no implement-worker repair tell, and no status exception. The asynchronous snapshot is the only point that could be mistaken for a failure; existing fixture documentation describes the delay. This replay exercises the compacted-output case in the offline fixture, not live BB compaction timing.
+
+## Review: historical handoffs across two polls
+
+Replayed the recorded `item/completed` and `turn/completed` pair from each incident below through `readTurn`, using a fake BB thread with empty output. The first poll saw only the message and returned no report. The second resumed from its returned cursor, saw the completion and returned exactly the original message text with the indicated status.
+
+| BB thread | Message → completion seq | Status |
+| --- | --- | --- |
+| `thr_v5wtzb88yp` | 1113 → 1116 | `done` |
+| `thr_rc34md3zgu` | 1339 → 1342 | `waiting` |
+| `thr_53rigwq8up` | 1672 → 1675 | `checkpoint` |
