@@ -11,7 +11,7 @@ import { retire, tell, topic, type Handle } from "../dispatch";
 import { bbThreads } from "../thread/bb";
 import { commonDir } from "../thread/git";
 import { pidAlive as alive } from "../wm";
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { discardRefinement, replaceRefinement } from "./refinement";
 import { parseArgs } from "node:util";
@@ -127,13 +127,24 @@ export function resolveException(cwd: string, root: string, node: string, resolu
 	const s = load(cwd, root);
 	if (!s || s.finished || s.stopping || !s.pid || !alive(s.pid)) throw new Error("no running reconciler for " + root + ": start it first (its state resumes)");
 	if (!s.exceptions[node] && !s.chains[node]) throw new Error(node + " has no exception or running chain in " + root + "'s reconciler");
-	if (resolution.action === "post-landing") {
+	const file = join(resolutionsDir(cwd, root), node + ".json");
+	mkdirSync(resolutionsDir(cwd, root), { recursive: true });
+	if (s.exceptions[node]?.reason === POST_LANDING || resolution.action === "post-landing") {
+		if (resolution.action !== "post-landing") throw new Error("record a post-landing verdict for " + node);
 		if (!caller || caller !== s.owner) throw new Error("only the reconciler owner can record a post-landing verdict");
 		if (s.exceptions[node]?.reason !== POST_LANDING) throw new Error(node + " has no post-landing check pending at the target");
-		resolution = { ...resolution, reportedBy: caller };
+		// Publish a complete verdict without replacing another check awaiting this tick.
+		const tmp = file + "." + crypto.randomUUID();
+		try {
+			writeFileSync(tmp, JSON.stringify({ ...resolution, reportedBy: caller }));
+			linkSync(tmp, file);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error("A verdict for " + node + " is already queued; wait for status to record it before submitting the next check.");
+			throw error;
+		} finally { rmSync(tmp, { force: true }); }
+		return;
 	}
-	mkdirSync(resolutionsDir(cwd, root), { recursive: true });
-	writeFileSync(join(resolutionsDir(cwd, root), node + ".json"), JSON.stringify(resolution));
+	writeFileSync(file, JSON.stringify(resolution));
 }
 
 export async function constrain(cwd: string, root: string, node: string, text: string) {
