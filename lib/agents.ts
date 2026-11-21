@@ -11,7 +11,7 @@ export interface Execution { model: string; effort: string }
 
 /** The `provider/model:effort` entries of an agent's `model:` list, most preferred first. */
 export function executions(line: string): Execution[] {
-	return [...line.matchAll(/([\w-]+\/[\w./-]+):(off|none|minimal|low|medium|high|xhigh|max)\b/g)].map(m => ({ model: m[1], effort: m[2] }));
+	return [...line.matchAll(/(?:^|[\s,])([^\s,:/]+\/[^\s,]+):(off|none|minimal|low|medium|high|xhigh|max)(?=$|[\s,])/g)].map(m => ({ model: m[1], effort: m[2] }));
 }
 
 export interface Agent {
