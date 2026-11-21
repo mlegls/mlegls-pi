@@ -55,3 +55,11 @@ Tested `54abd1df5956f502f2c6569e37fe2caf2d0eb35d` through the CLI as fixture run
 
 I expected the final owner message to describe how the run ended. **Not met.** After the accurate retirement notice, the owner received `done: solo landed in the owner's checkout at 8b117cd`, which was already HEAD before move-out. [Follow-up](../../issues/move-out-of-only-closed-node-announces-landing.md): replay steps 1–4 and check that the completion notice reports retirement without claiming a new landing.
 
+## Review replay
+
+**Final notice: met.** With `991e708c`, replaying the external close and move-out left the issue text and HEAD (`2d415ac`) unchanged, archived the implement thread, removed its checkout, and cleared the exception. The final owner message was `[reconcile solo] done: solo was closed outside this run`.
+
+**Stored worker claim: met after repair.** I used the same fixture with a recorded worker session and closed `solo` with `stage: done` and `claimed-by: session:replay`. Before `dded66ed`, the tick following retirement removed that claim (`af92ee0` → `a06e834`). Repeating the run after the fix preserved the exact issue text, including the claim, and left HEAD at `16257dc`.
+
+To repeat the claim variant in the fixture, use `writeLive` from `lib/session-meta/live.ts` to register an idle session named `replay` with the active worker's BB thread and checkout. Once `f.state().workerSessions.replay` records that thread, remove the live record, then run the setup recipe above with `session:replay` in place of `reconcile:solo`. Compare the issue and HEAD after the final owner notice. Both review fixtures were stopped.
+
