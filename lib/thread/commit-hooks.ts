@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { gitAttempt, gitChecked } from "./lifecycle-git";
 
 export class CommitHookFailure extends Error {
-	constructor(commit: string, hook: string, readonly status: number, readonly stdout: string, readonly stderr: string) {
+	constructor(commit: string, hook: string, status: number, readonly stdout: string, readonly stderr: string) {
 		super("integrate: " + hook + " refused commit " + commit + " (exit " + status + "). Amend or rewrite that commit, then retry."
 			+ [stdout, stderr].filter(Boolean).map(s => "\n" + s).join(""));
 		this.name = "CommitHookFailure";
