@@ -1,6 +1,6 @@
 ---
 name: advance
-description: "Use to make progress on an issue or scope by its status and the rest of the tracker: shape what isn't ready and leave what is to the project's pickup."
+description: "Use to make progress on an issue, subtree, or project."
 disable-model-invocation: true
 argument-hint: "issues or a subtree, or nothing for the project"
 ---

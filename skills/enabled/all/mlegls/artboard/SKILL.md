@@ -5,11 +5,6 @@ argument-hint: "[what to design]"
 disable-model-invocation: true
 ---
 
-<skill_context>
-  <skill_dir>/Users/mlegls/dev/mlegls-pi/skills/enabled/all/mlegls/artboard</skill_dir>
-  <workspace_dir>/Users/mlegls/dev/mmon/concept</workspace_dir>
-</skill_context>
-
 An artboard is a Lavish canvas of frames: pages of frames the user pans, zooms, rearranges and enters, annotating real elements inside them. Design happens here before implementation, so a non-trivial UI change is seen and corrected within the session.
 
 A frame is either:
@@ -20,7 +15,7 @@ A frame is either:
 1. Use the agreed direction, fidelity, content, and app or brand sources. Put the artboard in the project's design directory if it keeps one (concept: `docs/design/screens.md`), else under `.lavish/<name>/`.
 2. Write the frames and `layout.json` beside them.
 3. Build: `bun ~/.pi/agent/skills/artboard/scripts/canvas.ts <dir>/layout.json [--out dir]`, run from a directory whose `node_modules` has `@playwright/test` (or set `ARTBOARD_PLAYWRIGHT` to a `package.json` path there); Storybook must be running for story frames; captures run 6 at a time, set `ARTBOARD_CONCURRENCY` (positive integer) to change that, e.g. 3 on a loaded host. A failed capture names its frame. It writes `canvas.html`, `canvas.css` and `assets/`, in a few seconds.
-4. Open `lavish-axi <dir>/canvas.html`, then publish its server with `host-for-human <lavish-port> --name <name>` (Lavish defaults to 4387); share the Lavish session path on that HTTPS origin. Anything the maintainer opens in a browser is served with `host-for-human` over Tailscale HTTPS, not `bb connect expose`. If the maintainer says the link is down, re-run it without asking. Run `lavish-axi poll <dir>/canvas.html` for feedback. Answer an annotation by changing the frame or component and rebuilding; Lavish reloads the canvas. "Save arrangement" arrives as feedback with each frame's position: write them into `layout.json` as `at`.
+4. Open `lavish-axi <dir>/canvas.html`, then publish its server with `host-for-human <lavish-port> --name <name>` (Lavish defaults to 4387); share the Lavish session path on that HTTPS origin. Run `lavish-axi poll <dir>/canvas.html` for feedback. Answer an annotation by changing the frame or component and rebuilding; Lavish reloads the canvas. "Save arrangement" arrives as feedback with each frame's position: write them into `layout.json` as `at`.
 
 ## Layout
 

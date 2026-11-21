@@ -1,6 +1,6 @@
 ---
 name: mlegls-pi
-description: "Use when editing this package from any session: repo layout, testing and reloading."
+description: "Use when editing the mlegls-pi package."
 ---
 
 canonical checkout `~/dev/mlegls-pi`. worktrees under `~/dev/mlegls-pi__worktrees/`. pi-package: `extensions/`, `lib/` (host extensions are `lib/<name>/host.ts`), `skills/enabled/pi/{pi,mlegls-pi}`, `prompts/`, `themes/`. user skills `skills/enabled`, `agents/`, `agent-prompts/` (system-config symlinks these and runs agents-apply).

@@ -7,12 +7,6 @@ the model is smart enough to work from high-level instructions, but tell it abou
 
 commit each coherent change-set as you go instead of batching rounds of edits.
 
-if you're a fable-class model, please use gpt via my pi harness for executing large code changes once there's a plan — it's faster and saves tokens:
-`pi -p --name "<task-slug>" --model openai/gpt-6.2-sol:high "<task>"` (run_in_background for long jobs, review the diff and commit yourself after)
-leave pi extensions on (don't pass -ne) — they provide lsp/web-search that the model lacks natively. the named session makes progress tailable under ~/.pi/agent/sessions/; if a run sits at 0% cpu with no session writes, it's wedged — kill and relaunch.
-the model is smart enough to work from high-level instructions, but tell it about repo conventions it can't infer, like not running autoformatters.
-
-
 # General guidance moved from universal.md
 
 be willing to question the frame you're operating in, and to propose whole system subtractions or replacements when an additive patch seems difficult. infer intent beyond the stated instructions/path, and propose revisions to the path when it seems appropriate.
