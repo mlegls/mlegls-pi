@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# heavy-one NAME MAX CMD [ARG...]: run CMD one at a time host-wide among callers
+# of lane NAME (FIFO, GNU parallel's sem), even inside a heavy slot, with its
+# memory capped at MAX (systemd --user scope where available, e.g. 28G) so a job
+# that outgrows it fails instead of starving the host. For the few jobs whose
+# memory grows far past what heavy-gate saw at admission (type-aware lint).
+set -u
+[ $# -ge 3 ] || { echo "usage: heavy-one NAME MAX CMD [ARG...]" >&2; exit 2; }
+name=$1 max=$2
+shift 2
+if command -v systemd-run >/dev/null && systemd-run --user --scope --quiet true 2>/dev/null; then
+	set -- systemd-run --user --scope --quiet -p MemoryMax="$max" -p MemorySwapMax=0 -- "$@"
+fi
+# sem exports an empty XDG_CACHE_HOME, which Bun reads as a relative cache root.
+if [ -n "${XDG_CACHE_HOME:-}" ]; then
+	set -- env XDG_CACHE_HOME="$XDG_CACHE_HOME" "$@"
+else
+	set -- env -u XDG_CACHE_HOME "$@"
+fi
+# A waiting sem ignores SIGTERM; forward TERM as INT, as bin/heavy does.
+sem --id "heavy-$name" -j 1 --fg -u -q -- "$@" &
+pid=$!
+trap 'kill -INT "$pid" 2>/dev/null' TERM INT HUP
+while :; do
+	wait "$pid"
+	status=$?
+	kill -0 "$pid" 2>/dev/null || exit "$status"
+done
