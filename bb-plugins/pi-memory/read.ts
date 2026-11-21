@@ -7,7 +7,7 @@
 //   bun read.ts life <id>
 //   bun read.ts life-zoom <id> <first> <n>
 import { db, fieldsOf } from "../../lib/records/store.ts";
-import { blockName, cover, load, parseBlock, settings as notesSettings, type Block, type State } from "../../extensions/context/notes.ts";
+import { blockName, load, parseBlock, render, settings as notesSettings, zoomLines } from "../../extensions/context/notes.ts";
 import { lifeLog, ofLife, source } from "../../extensions/context/life/log.ts";
 import { children, emptyView, NODE_BYTES, nodeAt, nodesAt, span, bytes, type Pair, type View } from "../../extensions/context/life/tree.ts";
 import type { LifeMessage } from "../../extensions/context/life/contracts.ts";
@@ -28,34 +28,20 @@ function index() {
 	};
 }
 
-interface Line { lo: number; hi: number; text: string; ts?: string; summarized: boolean }
-
-/** A block as one line, or its halves while its summary isn't written yet (as notes.ts renders it). */
-function blockLines(s: State, [lo, hi]: Block): Line[] {
-	if (hi - lo === 1) { const n = s.notes[lo]!; return [{ lo, hi, text: n.text, ts: n.ts, summarized: false }]; }
-	const t = s.summary([lo, hi]);
-	if (t !== undefined) return [{ lo, hi, text: t, summarized: true }];
-	const mid = (lo + hi) / 2;
-	return [...blockLines(s, [lo, mid]), ...blockLines(s, [mid, hi])];
-}
-
 function notes(log: string) {
 	const s = load(log), w = notesSettings(process.cwd()).wakeLines;
 	const budget = log === "global" ? w.global : w.project;
 	return {
 		log, label: label(log), count: s.notes.length, budget,
-		wake: cover(s.notes.length, budget).flatMap((b) => blockLines(s, b)),
-		notes: s.notes.map((n) => ({ lo: n.i, hi: n.i + 1, text: n.text, ts: n.ts, summarized: false })),
+		wake: render(s, budget),
+		notes: s.notes.map((n) => ({ lo: n.i, hi: n.i + 1, text: n.text, ts: n.ts, summarized: false, ...(n.dropped ? { dropped: n.dropped } : {}) })),
 	};
 }
 
 function notesZoom(log: string, block: string) {
 	const b = parseBlock(block);
 	if (!b) throw new Error("not a block: " + block);
-	const s = load(log), [lo, hi] = b, mid = (lo + hi) / 2;
-	return { block: blockName(b), lines: ([[lo, mid], [mid, hi]] as Block[]).filter(([a]) => a < s.notes.length).map(([a, z]): Line =>
-		z - a === 1 ? { lo: a, hi: z, text: s.notes[a]!.text, ts: s.notes[a]!.ts, summarized: false }
-			: { lo: a, hi: z, text: s.summary([a, z]) ?? "(not compressed yet: open it)", summarized: s.summary([a, z]) !== undefined }) };
+	return { block: blockName(b), lines: zoomLines(load(log), b) };
 }
 
 /** A life's messages and node texts, resolved as life/build.ts's Chat does, without its compactor. */

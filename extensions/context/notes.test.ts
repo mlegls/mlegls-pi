@@ -47,3 +47,36 @@ test("notes, summaries, forgetting, wake and zoom", () => {
 	expect(m.parseBlock("4-5")).toEqual([4, 6]);
 	expect(m.parseBlock("5-6")).toBeUndefined();
 });
+
+test("replacing and removing notes", () => {
+	const log = "replace";
+	for (let i = 0; i < 8; i++) m.note(log, "fact " + i, "s", "/tmp");
+	let s = m.load(log);
+	for (const b of m.todo(s)) m.writeSummary(log, b, "sum " + m.blockName(b), "s");
+	expect(m.replace(log, [2], "fact 2, corrected", "s", "/tmp")).toBe(8);
+	expect(m.replace(log, [5], undefined, "s", "/tmp")).toBeUndefined();
+	expect(() => m.replace(log, [5], "again", "s", "/tmp")).toThrow(/already removed/);
+	expect(() => m.replace(log, [99], "x", "s", "/tmp")).toThrow(/No note #99/);
+	expect(m.load(log).notes.length).toBe(9); // the failed calls wrote nothing
+	s = m.load(log);
+	expect(s.notes[2]!.dropped).toEqual({ by: 8 });
+	expect(s.notes[5]!.dropped).toEqual({});
+	// summaries over a dropped note are forgotten; the others stay
+	expect(s.summary([0, 8])).toBeUndefined();
+	expect(s.summary([2, 4])).toBeUndefined();
+	expect(s.summary([0, 2])).toBe("sum 0-1");
+	const all = m.wake(s, 20).join("\n");
+	expect(all).not.toContain("fact 2 ");
+	expect(all).not.toContain("fact 5");
+	expect(all).toContain("fact 2, corrected");
+	expect(m.wake(s, 20).length).toBe(7);
+	// a block of only dropped notes needs no summary and renders nothing
+	m.replace(log, [4], undefined, "s", "/tmp");
+	s = m.load(log);
+	expect(m.todo(s)).toEqual([[2, 4], [0, 4], [4, 8], [0, 8]]);
+	expect(m.zoom(s, [4, 6])).toContain("(removed) fact 4");
+	expect(m.zoom(s, [0, 4])).toContain("#2-3 (not compressed");
+	// dropped notes free lines for finer blocks
+	for (const b of m.todo(s)) m.writeSummary(log, b, "sum " + m.blockName(b), "s");
+	expect(m.render(m.load(log), 3).length).toBeLessThanOrEqual(3);
+});

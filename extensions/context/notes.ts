@@ -22,6 +22,11 @@
 // written yet renders as its halves instead of blocking wake. Forgetting is a record too: a summary
 // is live unless a later "forget" names it or a block inside it.
 //
+// A note can be replaced or removed (note's `replaces`): a "drop" record on its leaf hides it from
+// wake and naps and forgets every summary over it, so those are rewritten without it. A revision is a
+// new note at the end (new knowledge, kept fine), the drop naming it (memo.by); numbers never shift.
+// zoom still shows dropped notes, marked, so the history stays reachable.
+//
 // Settings: memory.schemas.notes (memory.schemas.memo before it) { enabled (default true),
 // wakeLines { global 24, project 48 }, model { provider, id, thinking } (naps; default OM's) }.
 import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -109,8 +114,13 @@ export function parseBlock(s: string): Block | undefined {
 
 // ---------- the store ----------
 
-export interface Note { i: number; ts: string; text: string }
-export interface State { notes: Note[]; summary: (b: Block) => string | undefined }
+export interface Note { i: number; ts: string; text: string; dropped?: { by?: number } }
+export interface State {
+	notes: Note[];
+	summary: (b: Block) => string | undefined;
+	/** Whether the block holds any note not dropped. */
+	live: (b: Block) => boolean;
+}
 
 const num = (v: unknown) => Number(v);
 const logTags = (log: string, kind: string) => [{ key: "memo.log", value: log }, { key: "memo.kind", value: kind }];
@@ -118,22 +128,30 @@ const logTags = (log: string, kind: string) => [{ key: "memo.log", value: log },
 /** One log's notes and live summaries. Small: notes are ≤280 bytes, summaries fewer than notes. */
 export function load(log: string): State {
 	const rows = db().query(
-		"SELECT r.seq, r.ts, r.body, k.value AS kind, i.value AS i, lo.value AS lo, hi.value AS hi FROM records r " +
+		"SELECT r.seq, r.ts, r.body, k.value AS kind, i.value AS i, lo.value AS lo, hi.value AS hi, by.value AS by FROM records r " +
 		"JOIN tags g ON g.record = r.seq AND g.key = 'memo.log' AND g.value = ? " +
 		"JOIN tags k ON k.record = r.seq AND k.key = 'memo.kind' " +
 		"LEFT JOIN tags i ON i.record = r.seq AND i.key = 'memo.i' " +
 		"LEFT JOIN tags lo ON lo.record = r.seq AND lo.key = 'memo.lo' " +
 		"LEFT JOIN tags hi ON hi.record = r.seq AND hi.key = 'memo.hi' " +
+		"LEFT JOIN tags by ON by.record = r.seq AND by.key = 'memo.by' " +
 		"WHERE r.schema = 'memo' ORDER BY r.seq").all(log) as any[];
 	const notes: Note[] = [], sums = new Map<string, { seq: number; text: string }>(), forgets: { seq: number; lo: number; hi: number }[] = [];
+	const drops = new Map<number, { by?: number }>();
 	for (const r of rows) {
 		if (r.kind === "note") notes.push({ i: num(r.i), ts: r.ts, text: r.body });
 		else if (r.kind === "summary") sums.set(r.lo + "-" + r.hi, { seq: r.seq, text: r.body });
-		else if (r.kind === "forget") forgets.push({ seq: r.seq, lo: num(r.lo), hi: num(r.hi) });
+		else if (r.kind === "forget" || r.kind === "drop") forgets.push({ seq: r.seq, lo: num(r.lo), hi: num(r.hi) });
+		if (r.kind === "drop") drops.set(num(r.lo), r.by == null ? {} : { by: num(r.by) });
 	}
 	notes.sort((a, b) => a.i - b.i);
+	for (const [i, d] of drops) if (notes[i]) notes[i].dropped = d;
+	// prefix counts of live notes, so live(b) is O(1)
+	const alive = [0];
+	for (const n of notes) alive.push(alive.at(-1)! + (n.dropped ? 0 : 1));
 	return {
 		notes,
+		live: ([lo, hi]) => alive[Math.min(hi, notes.length)]! - alive[Math.min(lo, notes.length)]! > 0,
 		summary: ([lo, hi]) => {
 			const s = sums.get(lo + "-" + hi);
 			if (!s || forgets.some((f) => f.seq > s.seq && lo <= f.lo && f.hi <= hi)) return;
@@ -167,6 +185,28 @@ export function writeSummary(log: string, [lo, hi]: Block, text: string, session
 	write({ schema: SCHEMA, body: check(text), tags: [...logTags(log, "summary"), { key: "memo.lo", value: lo }, { key: "memo.hi", value: hi }, { key: "session", value: session }] });
 }
 
+/**
+ * Drop notes from a log, and with text, note what replaces them; one write transaction. Returns the
+ * new note's number, if any. Throws before writing when a target doesn't exist or is already dropped.
+ */
+export function replace(log: string, targets: number[], text: string | undefined, session: string, cwd: string): number | undefined {
+	const d = db(), t = text === undefined || !text.trim() ? undefined : check(text);
+	if (!targets.length) throw new Error("replaces names no notes.");
+	let i: number | undefined;
+	d.transaction(() => {
+		const s = load(log);
+		for (const n of targets) {
+			const old = s.notes[n];
+			if (!Number.isInteger(n) || !old) throw new Error("No note #" + n + " in this log: it holds " + s.notes.length + ".");
+			if (old.dropped) throw new Error("#" + n + " is already " + (old.dropped.by === undefined ? "removed" : "replaced by #" + old.dropped.by) + ".");
+		}
+		if (t !== undefined) i = note(log, t, session, cwd);
+		for (const n of new Set(targets)) write({ schema: SCHEMA, body: "", tags: [...logTags(log, "drop"), { key: "memo.lo", value: n }, { key: "memo.hi", value: n + 1 },
+			...(i === undefined ? [] : [{ key: "memo.by", value: i }]), { key: "session", value: session }] }, d);
+	}).immediate();
+	return i;
+}
+
 export function forget(log: string, [lo, hi]: Block, session: string) {
 	write({ schema: SCHEMA, body: "", tags: [...logTags(log, "forget"), { key: "memo.lo", value: lo }, { key: "memo.hi", value: hi }, { key: "session", value: session }] });
 }
@@ -191,29 +231,56 @@ export function logOf(scope: Scope, cwd: string): string | undefined {
 
 // ---------- rendering ----------
 
-const noteLine = (n: Note) => "#" + n.i + " " + n.ts.slice(0, 10) + " " + n.text;
+/** One rendered line: a note (hi = lo + 1) or a block's summary. */
+export interface Line { lo: number; hi: number; text: string; ts?: string; summarized: boolean; dropped?: { by?: number } }
 
-/** A block as one line, or as its halves (recursively) while its summary isn't written yet. */
-function lines(s: State, b: Block): string[] {
+const noteOf = (n: Note): Line => ({ lo: n.i, hi: n.i + 1, text: n.text, ts: n.ts, summarized: false, ...(n.dropped ? { dropped: n.dropped } : {}) });
+const droppedText = (d: { by?: number }) => d.by === undefined ? "(removed)" : "(replaced by #" + d.by + ")";
+export const lineText = (l: Line) => l.hi - l.lo === 1
+	? "#" + l.lo + " " + (l.ts ?? "").slice(0, 10) + " " + (l.dropped ? droppedText(l.dropped) + " " : "") + l.text
+	: "#" + blockName([l.lo, l.hi]) + " " + l.text;
+
+/** A block as one line, or as its halves (recursively) while its summary isn't written yet; nothing for dropped notes. */
+function lines(s: State, b: Block): Line[] {
 	const [lo, hi] = b;
-	if (hi - lo === 1) return [noteLine(s.notes[lo])];
+	if (!s.live(b)) return [];
+	if (hi - lo === 1) return [noteOf(s.notes[lo]!)];
 	const t = s.summary(b);
-	if (t !== undefined) return ["#" + blockName(b) + " " + t];
+	if (t !== undefined) return [{ lo, hi, text: t, summarized: true }];
 	const mid = (lo + hi) / 2;
 	return [...lines(s, [lo, mid]), ...lines(s, [mid, hi])];
 }
 
-export function wake(s: State, budget: number): string[] {
-	return cover(s.notes.length, budget).flatMap((b) => lines(s, b));
+/** What a session wakes to: at most budget lines when the summaries are written. Dropped notes free their lines for finer blocks. */
+export function render(s: State, budget: number): Line[] {
+	const T = s.notes.length, at = (k: number) => cover(T, k).flatMap((b) => lines(s, b));
+	let best = at(budget);
+	for (let k = budget + 1; k <= T && best.length < budget; k++) {
+		const next = at(k);
+		if (next.length > budget) break;
+		best = next;
+	}
+	return best;
 }
 
-/** A block opened into its two halves, each a summary or a note. */
+export function wake(s: State, budget: number): string[] {
+	return render(s, budget).map(lineText);
+}
+
+/** A block opened into its two halves, each a summary or a note; dropped notes show, marked. */
+export function zoomLines(s: State, b: Block): Line[] {
+	const [lo, hi] = b, T = s.notes.length, mid = (lo + hi) / 2;
+	return ([[lo, mid], [mid, hi]] as Block[]).filter(([a]) => a < T).map(([a, z]): Line => {
+		if (z - a === 1) return noteOf(s.notes[a]!);
+		const t = s.summary([a, z]);
+		return { lo: a, hi: z, summarized: t !== undefined, text: t ?? (s.live([a, z]) ? "(not compressed yet; zoom further)" : "(all removed; zoom further)") };
+	});
+}
+
 export function zoom(s: State, b: Block): string {
-	const [lo, hi] = b, T = s.notes.length;
-	if (lo >= T) return "#" + blockName(b) + " is beyond the log: it holds " + T + " notes.";
-	const mid = (lo + hi) / 2;
-	return ([[lo, mid], [mid, hi]] as Block[]).filter(([a]) => a < T).map(([a, z]) =>
-		z - a === 1 ? noteLine(s.notes[a]) : "#" + blockName([a, z]) + " " + (s.summary([a, z]) ?? "(not compressed yet; zoom further)")).join("\n");
+	const T = s.notes.length;
+	if (b[0] >= T) return "#" + blockName(b) + " is beyond the log: it holds " + T + " notes.";
+	return zoomLines(s, b).map(lineText).join("\n");
 }
 
 /** recall's zoom, for the calling session: args [scope, "lo-hi"]. */
@@ -236,7 +303,8 @@ const PROMPT = (worker: boolean, global: string[], project: string[] | undefined
 	"Call note({note, log}) whenever you learn something that holds beyond this session: a decision, a fact or insight the user teaches you, " +
 	"anything you learn about their life or preferences, a task worth real effort and how it went, any event of lasting effect. One line, at most " + ENTRY_BYTES + " bytes, standing alone. " +
 	"log is project (the default: true of this repository) or global (true of the user or your work in general)" +
-	(worker ? "; as a worker you can't write global" : "") + ". Don't note what is already below. Compression happens on its own.",
+	(worker ? "; as a worker you can't write global" : "") + ". Don't note what is already below. Compression happens on its own. " +
+	"When a note below is wrong or outdated, note the correction with replaces: [n] (or replaces alone to remove it), so the log shows only what holds.",
 	"",
 	"recall searches every note word for word (search with schema \"memo\"); recall q \"zoom\" args [log, \"lo-hi\"] opens a block into its halves, down to the notes.",
 	"",
@@ -252,10 +320,13 @@ const NAP_SYSTEM = "You compress an agent's memory log. Reply with exactly one l
 
 function napInput(s: State, b: Block): string {
 	const [lo, hi] = b;
-	if (hi - lo <= RAW_MAX) return s.notes.slice(lo, hi).map(noteLine).join("\n");
+	if (hi - lo <= RAW_MAX) return s.notes.slice(lo, hi).filter((n) => !n.dropped).map((n) => lineText(noteOf(n))).join("\n");
 	const mid = (lo + hi) / 2;
-	return ([[lo, mid], [mid, hi]] as Block[]).map((h) => "#" + blockName(h) + " " + s.summary(h)).join("\n");
+	return ([[lo, mid], [mid, hi]] as Block[]).filter((h) => s.live(h)).map((h) => "#" + blockName(h) + " " + s.summary(h)).join("\n");
 }
+
+/** Blocks still to compress: complete, with live notes, and no live summary. */
+export const todo = (s: State) => pending(s.notes.length, (b) => s.summary(b) !== undefined || !s.live(b));
 
 const trimBytes = (t: string) => { let s = t.replace(/\s+/g, " ").trim(); while (Buffer.byteLength(s) > ENTRY_BYTES) s = s.slice(0, -1); return s; };
 
@@ -292,7 +363,7 @@ export async function nap(env: NapEnv, cfg: Settings, logs: string[], session: s
 	try {
 		for (const log of logs) for (;;) {
 			const s = load(log);
-			const next = pending(s.notes.length, (b) => s.summary(b) !== undefined)[0];
+			const next = todo(s)[0];
 			if (env.signal.aborted) return done;
 			if (!next) break;
 			const line = await compress(env, cfg, napInput(s, next), next);
@@ -320,10 +391,12 @@ export default function notes(pi: ExtensionAPI): Mechanism {
 			try { notify?.("notes: compression failed: " + (e instanceof Error ? e.message : String(e)), "warning"); } catch {}
 		});
 	};
-	const remember = (ctx: ExtensionContext, text: string, scope: Scope = "project") => {
+	const remember = (ctx: ExtensionContext, text: string | undefined, scope: Scope = "project", replaces?: number[]) => {
 		if (scope === "global" && worker) throw new Error("A worker can't write the global log: note it in project, or report it.");
 		const log = logOf(scope, ctx.cwd);
 		if (!log) throw new Error("No " + scope + " log here (not in a git repository).");
+		if (replaces?.length) return { scope, i: replace(log, replaces, text, session(ctx), ctx.cwd), replaces };
+		if (text === undefined) throw new Error("note needs text, replaces, or both.");
 		return { scope, i: note(log, text, session(ctx), ctx.cwd) };
 	};
 
@@ -340,15 +413,19 @@ export default function notes(pi: ExtensionAPI): Mechanism {
 		name: "note",
 		label: "note",
 		description: "Record one note that outlives this session: one line, at most " + ENTRY_BYTES + " bytes, standing alone, in the project's log (default) or the global one. " +
-			"For anything learned or decided of lasting effect. Don't repeat what your notes already hold.",
+			"For anything learned or decided of lasting effect. Don't repeat what your notes already hold. " +
+			"When a note is wrong or outdated, replace it: replaces [n] with the corrected note, or replaces alone to remove it.",
 		parameters: Type.Object({
-			note: Type.String({ description: "One line, at most " + ENTRY_BYTES + " bytes." }),
+			note: Type.Optional(Type.String({ description: "One line, at most " + ENTRY_BYTES + " bytes. Omit only to remove the notes in replaces." })),
+			replaces: Type.Optional(Type.Array(Type.Integer(), { description: "Numbers (#n) of notes in the same log that this note replaces; they stop showing." })),
 			log: Type.Optional(Type.Union([Type.Literal("project"), Type.Literal("global")], { description: "project (default): true of this repository; global: the user or your work in general." })),
 		}),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
-			const r = remember(ctx, params.note, params.log);
+			const r = remember(ctx, params.note, params.log, params.replaces);
 			napLater(ctx);
-			return { content: [{ type: "text", text: "Saved to " + r.scope + " as #" + r.i + "." }], details: r };
+			const gone = r.replaces?.length ? (r.i === undefined ? "Removed " : "replacing ") + r.replaces.map((n) => "#" + n).join(", ") : "";
+			const text = r.i === undefined ? gone + " from " + r.scope + "." : "Saved to " + r.scope + " as #" + r.i + (gone ? ", " + gone : "") + ".";
+			return { content: [{ type: "text", text }], details: r };
 		},
 	});
 

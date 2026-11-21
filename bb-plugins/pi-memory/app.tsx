@@ -55,8 +55,9 @@ function NoteRow({ rpc, log, line }: { rpc: Rpc; log: string; line: NoteLine }) 
 		setOpen(!open);
 	};
 	return (
-		<Row label={block ? "#" + line.lo + "-" + (line.hi - 1) : "#" + line.lo} meta={day(line.ts)} text={line.text}
-			dim={block && !line.summarized} open={open} onToggle={block ? toggle : undefined}>
+		<Row label={block ? "#" + line.lo + "-" + (line.hi - 1) : "#" + line.lo} meta={day(line.ts)}
+			text={line.dropped ? (line.dropped.by === undefined ? "(removed) " : "(replaced by #" + line.dropped.by + ") ") + line.text : line.text}
+			dim={(block && !line.summarized) || !!line.dropped} open={open} onToggle={block ? toggle : undefined}>
 			{kids === undefined ? <li className="text-xs text-muted-foreground">loading…</li>
 				: typeof kids === "string" ? <li className="text-xs text-destructive">{kids}</li>
 				: kids.map((k) => <NoteRow key={k.lo + "-" + k.hi} rpc={rpc} log={log} line={k} />)}

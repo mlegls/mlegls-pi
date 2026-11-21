@@ -16,7 +16,7 @@ import { z } from "zod";
 
 const exec = promisify(execFile);
 
-const line = z.object({ lo: z.number(), hi: z.number(), text: z.string(), ts: z.string().optional(), summarized: z.boolean() });
+const line = z.object({ lo: z.number(), hi: z.number(), text: z.string(), ts: z.string().optional(), summarized: z.boolean(), dropped: z.object({ by: z.number().optional() }).optional() });
 export type NoteLine = z.infer<typeof line>;
 const node = z.object({ first: z.number(), n: z.number(), text: z.string(), built: z.boolean(), date: z.string().optional(), stub: z.boolean() });
 export type LifeLine = z.infer<typeof node>;
