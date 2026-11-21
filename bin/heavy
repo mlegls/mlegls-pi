@@ -19,6 +19,13 @@ if command -v taskpolicy >/dev/null; then
 else
 	set -- nice -n "${background:+19}${background:-10}" "$@"
 fi
+# sem exports an empty XDG_CACHE_HOME, which Bun reads as a relative cache
+# root and fills ./bun/@t@ in whatever directory CMD runs from.
+if [ -n "${XDG_CACHE_HOME:-}" ]; then
+	set -- env XDG_CACHE_HOME="$XDG_CACHE_HOME" "$@"
+else
+	set -- env -u XDG_CACHE_HOME "$@"
+fi
 export HEAVY_HELD=1
 # A waiting sem ignores SIGTERM and still runs CMD once a slot frees; it honours
 # SIGINT, so a stopped caller forwards TERM as INT.
