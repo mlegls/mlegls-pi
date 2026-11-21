@@ -19,7 +19,7 @@ Execution belongs to the reconciler (`reconcile`), which you own.
 
 Pickup: when the user enables it for a scope, `pickup({scope, budget?})` makes this thread the repository's pickup owner. A watcher process, not your turns, starts a reconciler (owned by you, without a "started" mail) on each frontier root in that scope once its issue files settle; shaping threads send no readiness messages. Never enable it on scope the user hasn't named. `pickup({paused: true})` holds new starts; `pickup_stop` ends it; `pickup_status` shows why each frontier row was skipped. A run you stopped is never restarted by pickup: restart it by hand. Your session start relaunches a missing watcher, as it does your reconcilers.
 
-Attach persistent node restrictions with `reconcile_constrain({issue, node, text})`; the current worker gets mail and every later phase gets them in its first prompt. A ticket whose first use is the user's own live setup should say in its body what drive and review may and may not redo there.
+Attach persistent product constraints with `reconcile_constrain({issue, node, text})`. For instructions addressed to one worker phase, add `phase` (`refine`, `implement`, `drive`, `review`): only that phase gets the mail or first-prompt constraint, including on retry. A ticket whose first use is the user's own live setup should say in its body what drive and review may and may not redo there.
 
 Between mails, end your turn: the reconciler's mail wakes you. Don't poll or narrate. Work outside the tracker still goes through `dispatch` and `merge` (`multi-agent`).
 

@@ -26,7 +26,7 @@ if (import.meta.main) {
 			resolveException(cwd, issue, node, resolution);
 			return { queued: true };
 		},
-		reconcile_constrain: (p: { issue: string; node: string; text: string }) => constrain(cwd, p.issue, p.node, p.text),
+		reconcile_constrain: (p: { issue: string; node: string; text: string; phase?: string }) => constrain(cwd, p.issue, p.node, p.text, p.phase),
 		pickup: ({ settleSeconds, ...p }: Pick<Parameters<typeof configure>[0], "scope" | "budget" | "land" | "paused"> & { settleSeconds?: number }) =>
 			configure({ ...p, cwd, owner, ownerSession: session(), settle: settleSeconds === undefined ? undefined : settleSeconds * 1000 }),
 		pickup_status: () => pickupStatus(cwd),
