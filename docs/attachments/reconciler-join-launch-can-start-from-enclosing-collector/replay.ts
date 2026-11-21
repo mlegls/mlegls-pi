@@ -41,7 +41,7 @@ try {
 		exceptions: {}, tests: {}, resolved: {}, moved: {}, counter: fresh ? 0 : 1, log: [],
 	});
 	const waitFor = async <T>(observe: () => T | undefined) => {
-		for (let i = 0; i < 150; i++) {
+		for (const deadline = Date.now() + 90_000; Date.now() < deadline;) {
 			const value = observe();
 			if (value !== undefined) return value;
 			if (run?.exitCode !== null) break;
