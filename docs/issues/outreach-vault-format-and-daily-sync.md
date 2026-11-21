@@ -4,7 +4,6 @@ assignee: "agent:auto-routine"
 author: "session:thr_2hd2kf9r28"
 priority: 2
 part-of: "[[projects/mlegls-pi/issues/outreach-conversations-in-the-bb-tracker]]"
-claimed-by: "session:thr_2hd2kf9r28"
 ---
 Projects can track outreach hypotheses and contacts under `docs/outreach/` with a validated snapshot/check CLI and a daily Beeper + Gmail sync script. This is the `mlegls-pi` part of [[projects/mlegls-pi/issues/outreach-conversations-in-the-bb-tracker]], for [[projects/mlegls-pi/stories/manage-outreach-conversations]].
 
