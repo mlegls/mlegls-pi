@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { agent } from "./agents.ts";
 import { integrateThread, workerOf, ThreadMergeConflict, type ThreadCleanup, type WorkerThread } from "./thread";
 import { bbThreads, bbWorkerThread, tellBb } from "./thread/bb.ts";
+import { CommitHookFailure } from "./thread/commit-hooks";
 import { commonDir } from "./thread/git.ts";
 import { HANDOFF_KEYS } from "./report.ts";
 import { stopThreadProcesses } from "./thread/lifecycle-cleanup";
@@ -157,7 +158,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
 }
 
 /** Merge a settled worker's branch into the parent checkout, then retire its host resources.
- * Uncommitted work and authored tracker changes refuse; ordinary conflicts abort. Optional prepare runs on the child after
+ * Uncommitted work, authored tracker changes and failed commit hooks refuse; ordinary conflicts abort. Optional prepare runs on the child after
  * rebase (or before a merge-mode merge), before touching the parent; it must leave clean commits.
  * keep leaves cleanup to the caller, e.g. after persisting supervision state. */
 export class MergeConflict extends Error {
@@ -204,7 +205,7 @@ export async function tell(given: Handle | string, text: string, options: { cwd?
 }
 
 export async function integrate(given: Handle | string,
-    options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean; prepare?: (worker: Handle) => Promise<void> } = {}): Promise<Integration> {
+    options: { cwd?: string; mode?: "rebase" | "merge"; keep?: boolean; prepare?: (worker: Handle) => Promise<void>; notifyHookFailure?: boolean } = {}): Promise<Integration> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const { worker, thread } = await recordOf(given, cwd);
   const mode = options.mode ?? "rebase";
@@ -213,7 +214,14 @@ export async function integrate(given: Handle | string,
     const integrated = await integrateThread(thread.id, { mode, prepare: options.prepare ? async () => options.prepare!(worker) : undefined });
     branch = integrated.branch;
     output = integrated.output;
-  } catch (error) { if (error instanceof ThreadMergeConflict) throw new MergeConflict(error.branch, error.files); throw error; }
+  } catch (error) {
+    if (error instanceof ThreadMergeConflict) throw new MergeConflict(error.branch, error.files);
+    if (error instanceof CommitHookFailure && options.notifyHookFailure !== false) {
+      try { await tellBb(thread.id, error.message); }
+      catch (delivery) { error.message += "\nCould not queue the follow-up: " + delivery; }
+    }
+    throw error;
+  }
   const result: Integration = { branch, mode, ...(output ? { output } : {}) };
   if (options.keep) return result;
   return Object.assign(result, await retire(worker, { cwd }));

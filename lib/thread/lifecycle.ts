@@ -1,3 +1,4 @@
+import { checkCommitHooks } from "./commit-hooks";
 import { gitAttempt, gitChecked, worktrees } from "./lifecycle-git";
 import { retireThread } from "./lifecycle-cleanup";
 import { assertNoTrackerChanges } from "./tracker-worktree";
@@ -51,7 +52,7 @@ export async function integrateThread(id: string, options: {
 } = {}): Promise<ThreadIntegration> {
 	const thread = await workerOf(id);
 	if (!thread) throw new Error("No active worker thread: " + id);
-	return integrateCheckout(thread, id, options);
+	return integrateCheckout(thread, id, { ...options, checkHooks: true });
 }
 
 /** A linked worktree's branch into its recorded ab-parent's checkout: rebase onto that HEAD and fast-forward (or merge),
@@ -59,6 +60,7 @@ export async function integrateThread(id: string, options: {
  * (lib/task.ts); `label` names the source in a conflict. */
 export async function integrateCheckout(thread: { cwd: string; project: string; branch: string }, label: string, options: {
 	mode?: "rebase" | "merge";
+	checkHooks?: boolean;
 	prepare?: () => Promise<void>;
 } = {}): Promise<ThreadIntegration> {
 	const id = label;
@@ -103,6 +105,10 @@ export async function integrateCheckout(thread: { cwd: string; project: string; 
 	await options.prepare?.();
 	assertNoTrackerChanges(thread.cwd, base);
 	await clean(thread.cwd, "preparation left ");
+	if (options.checkHooks) {
+		await checkCommitHooks(thread.cwd, branch, path, base);
+		await clean(thread.cwd, "commit hooks left ");
+	}
 	// The destination may be dirty (a thread working in place there): git itself refuses only when the merge would overwrite those files.
 	const printed: string[] = [];
 	if (mode === "merge") {

@@ -189,7 +189,7 @@ async function completeRepair(c: PullRequestContext, host: PullRequestHost, snap
 		const before = git(pr.path, "rev-parse", "HEAD");
 		// An integrate-before-save cut recovers exact prepared worker ancestry.
 		if (!receipt.preparedHead || !isAncestor(pr.path, receipt.preparedHead)) {
-			await integrate(receipt.worker!, { cwd: pr.path, mode: "merge", keep: true, prepare: async worker => {
+			await integrate(receipt.worker!, { cwd: pr.path, mode: "merge", keep: true, notifyHookFailure: false, prepare: async worker => {
 				const original = git(worker.path, "rev-parse", "HEAD");
 				for (const incoming of [before, fetched.head, fetched.base].filter(Boolean) as string[]) mergeHistory(worker.path, incoming);
 				gates(c, worker.path, original, receipt.handoff);

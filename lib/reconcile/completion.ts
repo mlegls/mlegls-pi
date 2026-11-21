@@ -120,7 +120,7 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 				...(input.collector ? { collector: structuredClone(input.collector) } : {}),
 			};
 			persist(context, { landingOps: { ...context.state.landingOps, [input.slug]: operation } });
-			const integration = await integrate(input.worker, { cwd: destination, keep: true, prepare: async worker => {
+			const integration = await integrate(input.worker, { cwd: destination, keep: true, notifyHookFailure: false, prepare: async worker => {
 				prepareLandingDependencies(worker.path, workerHead);
 				const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), {
 					cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout,
