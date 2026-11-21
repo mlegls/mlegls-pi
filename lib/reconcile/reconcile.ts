@@ -102,9 +102,10 @@ const WAITING_NUDGE_MS = 30 * 60_000;
 /** Nudge early only when the idle worker's process registry confirms no managed work is running. */
 const WAITING_VOID_MS = 2 * 60_000;
 /** Mechanical retries per chain before a failure becomes an exception. */
-const BUDGET = { repair: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3 } as const;
+const BUDGET = { repair: 2, interruption: 2, relaunch: 2, checkpoint: 3, integrate: 3, cleanup: 3 } as const;
 /** The exception reason of a landing whose cleanup keeps failing. */
 const CLEANUP_FAILED = "landing cleanup failed";
+const TURN_INTERRUPTED = "worker turn interrupted";
 const DELIVERED_ACTIVE = "active chain after recorded landing";
 const CLOSED_ACTIVE = "closed outside the run while its chain runs";
 const FOREIGN_COMMIT = "foreign implementation not installed";
@@ -1005,6 +1006,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// A repair budget the owner answered starts again: else the worker's next report re-raises it at once (2026-10-30, concept).
 		const spent = /^(.+) \(after \d+ repairs\)$/.exec(ex.reason)?.[1];
 		if (c && spent) delete c.retries[spent];
+		if (c && ex.reason.startsWith(TURN_INTERRUPTED)) delete c.retries.interruption;
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
 		if (r.action === "answer" && !adopted && c?.handle && !removedRefinement(c) && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
@@ -1425,10 +1427,29 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		const waitedSince = c.waitingSince, previousCursor = c.handledTs;
 		// Save the successful refinement/review transition before consuming its report.
 		c.handledTs = m.ts; c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined;
-		const h = c.handle!, r = parse(m.body, h.path), text = m.body;
+		const h = c.handle!, text = m.body;
 		const phase = c.phase = c.phase === "integrate" ? "review" : c.phase;
 		const removed = removedRefinement(c);
 		if (removed) return raise(slug, "report from removed refinement", text + "\n\n" + refinementRecovery(removed), issues, "owner");
+		if (m.tags.includes("interrupted")) {
+			const hasCheckout = existsSync(h.path);
+			const head = (hasCheckout ? commitRef(h.path, "HEAD") : undefined) ?? commitRef(controlCwd, "refs/heads/" + h.handle);
+			const context = "Worker: " + h.handle + " (" + h.bb + ")\nCheckout: " + h.path + "\nHEAD: " + (head ?? "unknown") + "\n\n" + text;
+			const tries = c.retries.interruption ?? 0;
+			const hold = (why: string) => raise(slug, TURN_INTERRUPTED + ": " + why, context, issues, "owner");
+			if (tries >= BUDGET.interruption) return hold("after " + tries + " recovery attempts");
+			if (alive(h) === false || !hasCheckout) return hold("worker or checkout unavailable");
+			// Keep the worker's session, checkout (including uncommitted and ignored state), and refinement attempt.
+			c.retries.interruption = tries + 1;
+			note("interrupted turn on " + slug + "; continuing the same " + c.phase + " worker (" + (tries + 1) + "/" + BUDGET.interruption + ")");
+			save();
+			try {
+				await sendChild(h, "Your last BB turn was interrupted:\n\n" + context + "\n\nContinue the assignment in this same session and checkout from your last checkpoint. Re-read the current ticket and inspect the work already in the checkout before continuing.");
+			} catch (e) {
+				return raise(slug, TURN_INTERRUPTED + ": could not resume worker", context + "\n\nResume failed: " + e, issues, "owner");
+			}
+			return;
+		}
 		if (m.tags.includes("error")) {
 			const kind = m.errorCategory === "rate-limit" ? "rate limit or quota" : errorClass(text);
 			if (nativeRateLimit(h, m) && h.bb) {
@@ -1458,6 +1479,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			const stopped = removedRefinement(c);
 			return raise(slug, "provider error: " + kind, stopped ? text + "\n\n" + refinementRecovery(stopped) : text, issues, "owner");
 		}
+		const r = parse(text, h.path);
 		if (r.status === null) return repair(slug, c, "status", statusRepairMessage(text, r.handoffError), issues, text);
 		if (r.handoffError) return repair(slug, c, "handoff", "Your handoff block did not parse (" + r.handoffError + "). Repost your report with valid fenced yaml.", issues, text);
 		if (r.handoff?.respec || r.status === "blocked" || r.status === "needs-input" || r.status === "checkpoint")
@@ -1815,7 +1837,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// told it to (the owner, directly): its handlers are retired, not left to escalate an answered question level by
 		// level (2026-10-16). A queued owner resolution is applied instead; a refinement's attempt was already discarded.
 		const ex = s.exceptions[slug], hc = s.chains[slug];
-		const recovers = !!ex && /^provider error: | errored in bb$| log unreadable$/.test(ex.reason);
+		const recovers = !!ex && (ex.reason.startsWith(TURN_INTERRUPTED) || /^provider error: | errored in bb$| log unreadable$/.test(ex.reason));
 		if (ex && ex.reason !== LAUNCH_OCCUPIED && hc?.handle && !removedRefinement(hc) && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
 			const later = recovers ? fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt) : resumedReport(ex, hc);
 			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
@@ -1918,7 +1940,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return "active";
 		}
 		const m = fresh(c.handle, c.handledTs, c.launchedAt);
-		if (m && m.tags.includes("error") && c.handle && (observedWorking(c.handle) || (!nativeRateLimit(c.handle, m) && Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS))) return "active";
+		if (m && m.tags.includes("error") && c.handle && (observedWorking(c.handle) || (!m.tags.includes("interrupted") && !nativeRateLimit(c.handle, m) && Date.now() - Date.parse(m.ts) < ERROR_SETTLE_MS))) return "active";
 		if (!m && c.handle && bbErrored(c.handle)) { raise(slug, c.phase + " worker errored in bb", await bbError(c.handle), issues, "owner"); return "active"; }
 		// A log that can't be read hides the worker's reports: the chain would wait on it silently (14h, 2026-11-06, concept).
 		const unread = !m && c.handle ? unreadable.get(topic(c.handle)) : undefined;

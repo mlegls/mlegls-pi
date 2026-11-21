@@ -107,8 +107,11 @@ export async function readTurn(bb: string, after = 0, o: { onSkip?: (after: numb
 	if (done.data?.status === "failed" || done.type === "client/turn/rejected" || done.type === "provider/error") {
 		const why = items.error?.data;
 		const errorCategory = done.type === "client/turn/rejected" ? "rate-limit" : why?.errorInfo?.category;
-		return { seq: next, report: { ...base, tags: ["turn-end", "error"], ...(errorCategory && { errorCategory }),
-			body: "error: " + (why?.detail ?? why?.message ?? "the provider ended the turn with an error") } };
+		const detail = why?.detail ?? why?.message ?? "the provider ended the turn with an error";
+		// BB's Pi bridge reports a lost run as an untyped provider error. It will not retry it itself.
+		const interrupted = done.data?.status === "failed" && detail === "Pi run interrupted unexpectedly; no automatic resume was attempted";
+		return { seq: next, report: { ...base, tags: ["turn-end", "error", ...(interrupted ? ["interrupted"] : [])],
+			...(errorCategory && { errorCategory }), body: "error: " + detail } };
 	}
 	if (done.data?.status && done.data.status !== "completed") return { seq: next, report: { ...base, tags: ["turn-end"], body: "(the turn was " + done.data.status + ")" } };
 	const body = items.message?.data?.item?.text ?? "";
