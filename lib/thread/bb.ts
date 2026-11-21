@@ -75,7 +75,7 @@ const IDENTITY = /^(?:PI_WM_(?:RUN|HANDLE|ISSUE|AGENT|PARENT_SESSION)|PI_CHECKPO
 
 export const bbProviders = () => bb<{ id: string; available: boolean; enabled?: boolean; pluginEnabled?: boolean }[]>(["provider", "list", "--all"]);
 export const bbModels = (provider: string, project: string, model: string) =>
-	bb<{ id: string; model: string }[]>(["provider", "models", provider, "--project", project, "--selected-model", model]);
+	bb<{ id: string; model: string; supportedReasoningEfforts?: { reasoningEffort: string }[] }[]>(["provider", "models", provider, "--project", project, "--selected-model", model]);
 
 async function supervisionRpc<T>(method: string, request: object): Promise<T> {
 	const dir = mkdtempSync(join(tmpdir(), "bb-supervision-"));

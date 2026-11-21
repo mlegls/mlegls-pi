@@ -24,7 +24,7 @@ export async function workerExecution({ agent, model, effort, after, project }: 
 		return p?.available && p.enabled !== false && p.pluginEnabled !== false;
 	};
 	if (!after && list.length && list.every(e => !native(prefix(e.model))))
-		return { providerId: "pi", model: "stance/" + agent!.name, effort: "medium" };
+		return { providerId: "pi", model: "stance/" + agent!.name, effort: effort ?? "medium" };
 	if (!after && !list.length) {
 		const target = split(model!);
 		if (target.providerId !== "pi" && !available(target.providerId)) throw new Error("BB provider unavailable: " + target.providerId);
@@ -39,7 +39,8 @@ export async function workerExecution({ agent, model, effort, after, project }: 
 		const g = gate(target.providerId === "pi" ? target.model : e.model, current, alloc);
 		if (!g.admits) continue;
 		const catalog = await bbModels(target.providerId, await bbProject(checkout(project).project), target.model).catch(() => []);
-		if (!catalog.some(m => m.id === target.model || m.model === target.model)) continue;
+		const match = catalog.find(m => m.id === target.model || m.model === target.model);
+		if (!match || (match.supportedReasoningEfforts?.length && !match.supportedReasoningEfforts.some(r => r.reasoningEffort === e.effort))) continue;
 		noticeBankedReset(prefix(target.providerId === "pi" ? target.model : e.model), g, current);
 		return { ...target, effort: e.effort, route: { agent: agent!.name, ...e } };
 	}
