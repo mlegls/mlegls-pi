@@ -558,6 +558,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return !t || !!t.archivedAt;
 		};
 		for (const row of snapshot().values()) {
+			if (row.done || row.archived) continue;
 			const stored = row.claims.filter(c => c.slug === row.slug && !c.derived);
 			if (!stored.length || !stored.every(c => retired(c.claimedBy))) continue;
 			try { tracker.update(row.slug, { "claimed-by": null }); }
