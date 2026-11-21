@@ -3,8 +3,6 @@ stage: "ticket"
 assignee: "agent:auto"
 author: "session:01a1fc85-32d0-7768-9382-3e18c7628a80"
 part-of: "[[projects/mlegls-pi/issues/lift-supervision-into-a-bb-plugin]]"
-blocked-by:
-  - "[[projects/mlegls-pi/issues/supervision-tools-as-bb-native-tools]]"
 ---
 A worker can be any bb provider. Shape: [[projects/mlegls-pi/issues/lift-supervision-into-a-bb-plugin]].
 
