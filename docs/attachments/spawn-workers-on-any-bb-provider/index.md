@@ -38,7 +38,7 @@ test "$("$BB_CLI" status --json | jq -er .dataDir)" = "$BB_DATA_DIR" &&
 "$BB_CLI" machine list --json | jq -e 'any(.[]; .machineProviderId == null and .status == "connected")' &&
 (cd "$FIXTURE/supervision" && npm ci && "$BB_CLI" plugin build . && "$BB_CLI" plugin install --yes .) &&
 "$BB_CLI" plugin config supervision set checkout "$REPO" &&
-"$BB_CLI" plugin enable supervision
+( "$BB_CLI" plugin enable supervision || "$BB_CLI" plugin list --json | jq -e 'any(.plugins[]; .id == "supervision" and .enabled and .status == "running")' )
 ```
 
 ## First use
