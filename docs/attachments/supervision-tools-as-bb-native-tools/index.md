@@ -23,3 +23,7 @@ Both workers were archived with their parent link intact. No friction in either 
 1. Run [First use](drive.md#first-use) on the prepared disposable instance. In `bb thread log <caller> --format verbose`, expect native status/dispatch/integrate events for Codex and codemode invocations for Pi, with status returning `[]` and dispatch submitting exactly one worker.
 2. Run `bb thread show <worker> --json` and compare `thread.parentThreadId` with the caller ID, including after integration archives the worker.
 3. In each caller checkout, run `git show HEAD:SUPERVISION_SMOKE` and `git status --short`: expect the provider-specific marker and no local changes.
+
+## Review
+
+Both caller journeys held. Checked all eleven plugin tool declarations against the removed extension and traced the caller thread ID through the Bun entry point. The dispatch, campaigns and pickup tests passed (15 checks). Corrected the replay recipe to build from a disposable archive, as the driver did; verified the archive contains the companion source and lockfile without its installed dependencies.

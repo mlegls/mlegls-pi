@@ -8,9 +8,11 @@ From the mlegls-pi change checkout, with `bun install --frozen-lockfile` done, a
 
 ```bash
 export REPO="$PWD"
-export PLUGIN="$HOME/dev/bb-plugins__worktrees/supervision-tools-as-bb-native-tools/supervision"
+export PLUGINS="$HOME/dev/bb-plugins__worktrees/supervision-tools-as-bb-native-tools" # or the landed bb-plugins checkout
 export BB_BIN="$HOME/.bb-machines/mlegls.getbb.app/app-versions/0.50.1/node_modules/.bin"
 export FIXTURE=$(mktemp -d /tmp/supervision-drive.XXXXXXXX)
+git -C "$PLUGINS" archive HEAD supervision | tar -x -C "$FIXTURE"
+export PLUGIN="$FIXTURE/supervision"
 mkdir "$FIXTURE/pi"
 # Use this host's existing Pi login and model settings; no credentials in the fixture repo.
 ln -s "$HOME/.pi/agent/auth.json" "$FIXTURE/pi/auth.json"
