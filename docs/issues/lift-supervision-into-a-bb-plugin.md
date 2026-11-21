@@ -2,7 +2,6 @@
 stage: "spec"
 assignee: "agent"
 author: "session:01a1fc85-32d0-7768-9382-3e18c7628a80"
-claimed-by: "session:01a1fc85-32d0-7768-9382-3e18c7628a80"
 priority: 2
 ---
 Supervision (dispatch, integrate, retire, reconcile, pickup) runs inside bb, so a worker can be any bb provider (pi, codex, claude-code, an ACP agent such as Google Antigravity's `agy`) and the supervisor's tools reach any thread.
