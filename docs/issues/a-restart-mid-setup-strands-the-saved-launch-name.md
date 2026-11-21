@@ -1,8 +1,8 @@
 ---
-stage: "idea"
-assignee: "agent"
+stage: "ticket"
+assignee: "agent:auto-routine"
 author: "session:thr_ihbpyrp6s2"
-priority: 2
+priority: 1
 ---
 
 A reconciler that restarts while a launch is inside `newThread`'s setup (worktree and branch made, `runSetup` still running, no bb thread yet) leaves that worktree and branch behind: the catch-block cleanup in [runtime.ts](../../lib/thread/runtime.ts) never runs because the process is gone. The run then relaunches under the same saved name ([[projects/mlegls-pi/issues/reconciler-orphans-chain-worker-spawned-before-receipt-save]] chose that), and `newThread` refuses it on every tick: "Worktree path already exists (not owned)", retrying every 5 s forever.
