@@ -22,7 +22,7 @@
 // written yet renders as its halves instead of blocking wake. Forgetting is a record too: a summary
 // is live unless a later "forget" names it or a block inside it.
 //
-// Settings: memory.schemas.notes (memory.schemas.memo before it) { enabled (default false),
+// Settings: memory.schemas.notes (memory.schemas.memo before it) { enabled (default true),
 // wakeLines { global 24, project 48 }, model { provider, id, thinking } (naps; default OM's) }.
 import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -52,7 +52,7 @@ export function settings(cwd: string): Settings {
 		if (!existsSync(path)) continue;
 		try { const s = JSON.parse(readFileSync(path, "utf8")).memory?.schemas; j = { ...j, ...s?.memo, ...s?.notes }; om = { ...om, ...s?.om }; } catch {}
 	}
-	return { enabled: false, model: om.model, ...j, wakeLines: { global: 24, project: 48, ...j.wakeLines } };
+	return { enabled: true, model: om.model, ...j, wakeLines: { global: 24, project: 48, ...j.wakeLines } };
 }
 
 // ---------- the tree (pure) ----------
