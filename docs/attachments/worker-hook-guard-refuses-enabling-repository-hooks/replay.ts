@@ -6,8 +6,8 @@ import { join } from "node:path";
 import guard from "../../../extensions/guard/index.ts";
 
 const mode = process.argv[2] ?? "fresh";
-if (!["fresh", "configured", "custom-default"].includes(mode)) {
-	throw new Error("Usage: bun replay.ts [fresh|configured|custom-default] ['shell command']");
+if (!["fresh", "configured", "custom-default", "ignored-file"].includes(mode)) {
+	throw new Error("Usage: bun replay.ts [fresh|configured|custom-default|ignored-file] ['shell command']");
 }
 const command = process.argv[3] ?? "git config --local core.hooksPath scripts/hooks";
 const cwd = mkdtempSync(join(tmpdir(), "hook-enablement-"));
@@ -31,7 +31,10 @@ try {
 	git("commit", "-qm", "Ship hook");
 	mkdirSync(join(cwd, ".git/hooks"), { recursive: true });
 	writeFileSync(join(cwd, ".git/hooks/pre-commit.sample"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
-	if (mode === "configured") {
+	if (mode === "ignored-file") {
+		writeFileSync(join(cwd, ".gitignore"), "/scripts/hooks/post-commit\n");
+		writeFileSync(join(cwd, "scripts/hooks/post-commit"), "#!/bin/sh\necho extra\n", { mode: 0o755 });
+	} else if (mode === "configured") {
 		hook("custom/hooks", "configured pre-commit ran");
 		git("config", "--local", "core.hooksPath", "custom/hooks");
 	} else if (mode === "custom-default") {
