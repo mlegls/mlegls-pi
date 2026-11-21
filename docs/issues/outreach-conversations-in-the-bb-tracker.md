@@ -3,7 +3,6 @@ stage: "ticket"
 assignee: "agent:auto-routine"
 author: "session:thr_2hd2kf9r28"
 priority: 2
-claimed-by: "session:thr_2hd2kf9r28"
 ---
 The maintainer manages outreach and GTM conversations per project in a fourth page of the [tracker plugin](../../../bb-plugins/tracker/README.md), backed by `docs/outreach/` alongside `docs/issues/`, with a daily bb automation syncing replies from Beeper Desktop (on the Mac) and Gmail. For [[projects/mlegls-pi/stories/manage-outreach-conversations]] (@thread:thr_2hd2kf9r28).
 
