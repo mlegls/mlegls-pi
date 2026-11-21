@@ -32,3 +32,7 @@ The entry command needed no extra setup. The ordinary check-in suggests `process
 Observed on `e8409a66`. The existing `bun test lib/reconcile/exceptions.test.ts` passed 7/7 and `bun run typecheck` passed. The first run exposed a fixture teardown race: abort returned before queued owner notices finished, so fake BB could be removed before delivery. `e8409a66` drains those notices before returning; the rerun completed without escaped tells.
 
 The original thread's `claim-current-full-startup` (`proc_27`) reported a log under `/tmp/pi-processes-jkNUZM/` and was still running when the worker called `process wait` after the early nudge. That log location is characteristic of a run without session-bound receipts. The record does not show why the old parent/leader/stdin probe missed the process. In the current worker, a disposable `sleep` started through `process` wrote a version-1 session registry with its exact PID and a `running` status; the same PID showed `/dev/null` on fd 0. The sleep was stopped after inspection.
+
+## Review replay
+
+Changed the ordinary check-in to request `process wait` on the named process, as the early nudge does. On replay, the running and missing 3m inboxes were empty; the exited 3m and missing 31m inboxes each received one message asking for `process wait`. Only the exited case reported no running process. `bun test lib/reconcile/exceptions.test.ts` passed 7/7, including both stalled-tool cases.
