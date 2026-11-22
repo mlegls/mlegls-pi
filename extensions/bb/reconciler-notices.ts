@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { git } from "../../lib/thread/git.ts";
-import { workerHandles, type State } from "../../lib/reconcile/reconcile.ts";
+import { unmailedStatusException, workerHandles, type State } from "../../lib/reconcile/reconcile.ts";
 
 function hasFollowUp(value: unknown): boolean {
 	if (Array.isArray(value)) return value.some(hasFollowUp);
@@ -14,7 +14,7 @@ function hasFollowUp(value: unknown): boolean {
  * handoff has them, and reconcile_status lists them. Worker notices never wait on this: an exception
  * reaches the supervisor in its own "needs you" notice. */
 function needsOwner(state: State): boolean {
-	return Object.keys(state.exceptions ?? {}).length > 0
+	return Object.values(state.exceptions ?? {}).some(ex => !unmailedStatusException(ex))
 		|| Object.values(state.results ?? {}).some(({ handoff }) =>
 			[handoff.question, handoff.followup].some(hasFollowUp));
 }

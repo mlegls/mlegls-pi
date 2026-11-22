@@ -93,6 +93,7 @@ const TICK_MS = Number.isFinite(tickMs) && tickMs >= 0 ? tickMs : 5_000;
  * provider) and carries on. Act on one only once it has stood this long and the worker is no longer working. */
 const ERROR_SETTLE_MS = Number(process.env.PI_RECONCILE_ERROR_SETTLE_MS ?? 90_000);
 const START_GRACE_MS = 120_000;
+const STATUS_EXCEPTION_GRACE_MS = 90_000;
 /** A worker whose bb log has failed every read this long is raised to the owner: its reports can't arrive. */
 const UNREADABLE_MS = Number(process.env.PI_RECONCILE_UNREADABLE_MS ?? 10 * 60_000);
 const WAITING_MS = 3 * 60 * 60_000;
@@ -189,6 +190,10 @@ interface Exception {
 	/** ts of the report that raised it: an answer consumes only up to here, so a report that arrived while held still counts. */
 	reportTs?: string;
 	baseConflict?: LaunchConflict;
+}
+/** A missing worker status can get corrected before the owner has anything to do. */
+export function unmailedStatusException(ex: Pick<Exception, "level" | "reason" | "mailed">): boolean {
+	return ex.level === "owner" && !ex.mailed && /^status \(after \d+ repairs\)$/.test(ex.reason);
 }
 export interface State extends GlobalRunState {
 	backend: "threads";
@@ -1139,7 +1144,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (s.exceptions[ex.node] === ex) delete s.exceptions[ex.node];
 		dropResolution(ex.node); c.held = false; save();
 		note("withdrew exception " + ex.node + " (" + ex.reason + "): " + why.split(".")[0] + (handler ? "; retired its handler " + handler.handle : ""));
-		if (ex.mailed || ex.level === "owner" || handler) tellOwner("withdrew the exception for " + ex.node + " (" + ex.reason + "): " + why);
+		if (!unmailedStatusException(ex) && (ex.mailed || ex.level === "owner" || handler)) tellOwner("withdrew the exception for " + ex.node + " (" + ex.reason + "): " + why);
 	}
 	/** A report since the exception that shows the worker carrying on its assignment. A checkpoint doesn't: a worker held
 	 * for checkpointing too often (author-and-publish-the-language-learning-template, 2026-10-12) kept posting them. */
@@ -1183,7 +1188,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				const twin = ex.reason.startsWith("provider error: ") ? Object.values(s.exceptions).find(o => o !== ex && o.level === "owner" && o.reason === ex.reason && o.mailed) : undefined;
 				if (!ex.mailed && twin) { ex.mailed = true; save(); tellOwner(ex.node + " also stopped on " + ex.reason + "; resolving " + twin.node + " resolves it too."); }
 				if (ex.reason === POST_LANDING) refreshOwner();
-				if (!ex.mailed || (ex.reason === POST_LANDING && ex.postLandingOwnerNotified !== s.owner)) {
+				const settling = unmailedStatusException(ex) && Date.now() - Date.parse(ex.at) < STATUS_EXCEPTION_GRACE_MS;
+				if (!settling && (!ex.mailed || (ex.reason === POST_LANDING && ex.postLandingOwnerNotified !== s.owner))) {
 					if (ex.reason === POST_LANDING) {
 						ex.postLandingOwnerNotified = s.owner;
 						const checks = outstandingChecks(s.results[ex.node]);
@@ -1850,7 +1856,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// level (2026-10-16). A queued owner resolution is applied instead; a refinement's attempt was already discarded.
 		const ex = s.exceptions[slug], hc = s.chains[slug];
 		const recovers = !!ex && (ex.reason.startsWith(TURN_INTERRUPTED) || /^provider error: | errored in bb$| log unreadable$/.test(ex.reason));
-		if (ex && ex.reason !== LAUNCH_OCCUPIED && hc?.handle && !removedRefinement(hc) && (recovers ? !ex.handler : hc.phase !== "refine") && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
+		if (ex && ex.reason !== LAUNCH_OCCUPIED && hc?.handle && !removedRefinement(hc) && (recovers ? !ex.handler : hc.phase !== "refine" || unmailedStatusException(ex)) && !existsSync(join(resolutionsDir(controlCwd, s.root), slug + ".json"))) {
 			const later = recovers ? fresh(hc.handle, ex.reportTs ?? hc.handledTs, hc.launchedAt) : resumedReport(ex, hc);
 			if (later && !later.tags.includes("error") && !bbErrored(hc.handle)) await withdraw(ex, hc, recovers
 				? "its worker recovered and reported again. Don't resolve it; others grouped with it still need their own resolution."
