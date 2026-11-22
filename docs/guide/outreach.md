@@ -16,17 +16,17 @@ To try sync → Queue → Discuss without connecting accounts, use the [disposab
 
 ## Connect the sources
 
-1. On the Mac, open Beeper Desktop → Settings → Integrations. Enable the Desktop API, create an access token, then turn on **Remote Access** under Advanced. [Remote Access](https://developers.beeper.com/desktop-api/advanced/remote-access) listens on all interfaces; restrict port `23373` to the tailnet and leave Beeper running.
-2. On the **BB server host**, save a private `~/.config/outreach/beeper.env` (mode `0600`):
+1. On the Mac, open Beeper Desktop → Settings → Integrations. Enable the Desktop API, create an access token and leave Beeper running. Remote Access can stay off: the API listens on the Mac's `127.0.0.1:23373`, and the server host reaches it through an SSH tunnel, `ssh -N -L 23373:localhost:23373 <mac-ssh-host>`.
+2. On the **BB server host**, save a private `~/.config/outreach/beeper.env` (mode `0600`). `bb secret request BEEPER_ACCESS_TOKEN --write-env ~/.config/outreach/beeper.env` writes the token without showing it to an agent:
 
    ```dotenv
-   BEEPER_API_URL=http://<mac-tailscale-host>:23373
+   BEEPER_API_URL=http://localhost:23373
    BEEPER_ACCESS_TOKEN=<access token>
    ```
 
-3. On that host, `composio link gmail` under the user that runs BB. If several Gmail connections are linked, set `OUTREACH_GMAIL_ACCOUNT` to the intended alias in the dotenv file. Gmail uses participant addresses and Reddit DM notification emails; Beeper matches DMs by network and handle or by `channels.beeper_chat_id`.
+3. On that host, `composio link gmail` under the user that runs BB. If several Gmail connections are linked, set `OUTREACH_GMAIL_ACCOUNT` to the intended alias in the dotenv file. Gmail uses participant addresses and Reddit DM notification emails; Beeper matches DMs by network and handle or by `channels.beeper_chat_id`. Bridged X chats carry no username, so sync reads each participant's Matrix profile for the handle; with a few hundred chats that adds about a minute.
 
-Install Bun and the mlegls-pi dependencies (`mise run setup` in the mlegls-pi checkout). From the outreach project on the server host, preview imports:
+Install Bun and the mlegls-pi dependencies (`mise run setup` in the mlegls-pi checkout). With the tunnel open, from the outreach project on the server host, preview imports:
 
 ```sh
 outreach="$HOME/dev/mlegls-pi/skills/enabled/all/mlegls/conventions/outreach/scripts/outreach.ts"
@@ -44,7 +44,12 @@ bb automation create --project "$project_id" --name 'Outreach sync' \
   --cron '0 9 * * *' --timezone Etc/UTC --timeout 15m \
   --working-directory "$(git rev-parse --show-toplevel)" --interpreter bash \
   --script 'export PATH="$HOME/.local/bin:$PATH"
-exec mise exec -- bun --env-file="$HOME/.config/outreach/beeper.env" "$HOME/dev/mlegls-pi/skills/enabled/all/mlegls/conventions/outreach/scripts/outreach.ts" sync'
+ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -L 23373:localhost:23373 <mac-ssh-host> & tunnel=$!
+trap "kill $tunnel 2>/dev/null" EXIT
+sleep 3
+mise exec -- bun --env-file="$HOME/.config/outreach/beeper.env" "$HOME/dev/mlegls-pi/skills/enabled/all/mlegls/conventions/outreach/scripts/outreach.ts" sync'
 ```
+
+The script opens the tunnel for the run and closes it after. If a tunnel is already open, the new one exits on the bound port and sync uses the existing one. With the Mac asleep or off, Beeper reports offline and Gmail still runs.
 
 Adjust the paths or Bun invocation to match the server host's installation. Use `bb automation run <automationId> --project "$project_id"` for the first tick. The automation imports messages; it does not send any.
