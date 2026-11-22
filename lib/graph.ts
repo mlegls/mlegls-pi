@@ -13,7 +13,7 @@ import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, rea
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { readLive, type Live } from "./session-meta/live";
-import { bbSessionDir, bbSessions, type BbSession } from "./thread/bb";
+import { bbSessionDirs, bbSessions, type BbSession } from "./thread/bb";
 
 /** working/idle: a pi with a live record;
  * resumable: no process, reopen with pi --session; gone: its directory was deleted. */
@@ -162,17 +162,21 @@ export async function graph(options: Options = {}): Promise<Map<string, Node>> {
 		bbBySession.set(s.provider, s); // an older bb named the provider thread for the pi session id
 		if ((bbLatest.get(s.thread)?.at ?? -1) < s.at) bbLatest.set(s.thread, s);
 	}
-	let bbNames: string[] = [];
-	try { bbNames = readdirSync(bbSessionDir()); } catch {}
-	for (const name of bbNames) {
-		if (!name.endsWith(".jsonl")) continue;
-		const path = join(bbSessionDir(), name);
-		const p = read(path);
-		if (!p) continue;
-		byId.set(p.id, path);
-		files.push(path);
-		const s = bbByFile.get(path);
-		if (s) bbBySession.set(p.id, s);
+	const bbSeen = new Set<string>();
+	for (const dir of bbSessionDirs()) {
+		let bbNames: string[] = [];
+		try { bbNames = readdirSync(dir); } catch {}
+		for (const name of bbNames) {
+			if (!name.endsWith(".jsonl") || bbSeen.has(name)) continue;
+			bbSeen.add(name);
+			const path = join(dir, name);
+			const p = read(path);
+			if (!p) continue;
+			byId.set(p.id, path);
+			files.push(path);
+			const s = bbByFile.get(path);
+			if (s) bbBySession.set(p.id, s);
+		}
 	}
 	for (const l of live) if (l.sessionFile) byId.set(l.sessionId, l.sessionFile);
 

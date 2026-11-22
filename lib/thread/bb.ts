@@ -134,7 +134,7 @@ async function bbEnvironment(id: string, known: string | null): Promise<string> 
 	return known;
 }
 
-/** The pi session bb keeps for a thread: ~/.bb/pi-bridge-sessions/<providerThreadId>.jsonl. */
+/** The pi session bb keeps for a thread: <dir>/<providerThreadId>.jsonl, in the first of bbSessionDirs that has it. */
 export async function bbSessionFile(id: string): Promise<string> {
 	// Paged: a long thread's whole log is more than bb returns at once.
 	const { events } = await readLog(id, 0, { keep: e => !!e.data?.providerThreadId });
@@ -142,8 +142,15 @@ export async function bbSessionFile(id: string): Promise<string> {
 	if (!provider) throw new Error("bb thread " + id + " has no pi session yet");
 	return providerFile(provider);
 }
-export const bbSessionDir = () => process.env.BB_PI_BRIDGE_SESSION_DIR || join(homedir(), ".bb", "pi-bridge-sessions");
-const providerFile = (provider: string) => join(bbSessionDir(), provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl");
+/** Where bb's pi provider keeps sessions, newest first: bb 0.50 moved them under its data dir's provider-pi plugin;
+ * earlier ones (still read for history) are in ~/.bb/pi-bridge-sessions. */
+let sessionDirs: string[] | undefined;
+export const bbSessionDirs = (): string[] => process.env.BB_PI_BRIDGE_SESSION_DIR ? [process.env.BB_PI_BRIDGE_SESSION_DIR]
+	: (sessionDirs ??= [join(bbDataDir(), "plugins", "provider-pi", "bridge-data", "sessions"), join(homedir(), ".bb", "pi-bridge-sessions")]);
+const providerFile = (provider: string) => {
+	const paths = bbSessionDirs().map(d => join(d, provider.replace(/[^A-Za-z0-9._-]/g, "_") + ".jsonl"));
+	return paths.find(p => existsSync(p)) ?? paths[0];
+};
 
 /** Resolve the installed bb runtime, including enrolled hosts, rather than assuming ~/.bb.
  * BB_DATA_DIR is bb's explicit override; BB_HOME remains supported for older callers/fixtures. */
