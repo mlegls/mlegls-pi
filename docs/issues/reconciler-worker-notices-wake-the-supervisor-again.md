@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_vrgtjptnu2"
@@ -21,3 +21,43 @@ The leaks, from the audit:
 3. Keep a terminal receipt per worker thread, so a completion after its run finished, stopped or retired the worker still settles locally, across restarts.
 4. Hold a status-class owner exception ~90 s and drop it if the worker reports in that window.
 5. Done when: replaying one day of this period's supervisor inputs through the filters leaves only the maintainer's prompts, real exceptions and landings; a test per form above.
+
+## Result
+
+done
+
+```yaml
+commit:
+  - checkout: /home/mlegls/dev/mlegls-pi__worktrees/reconciler-worker-notices-wake-the-supervisor-again-review-3
+    commits: [23afe519]
+  - checkout: /home/mlegls/dev/bb-plugins
+    commits: [f24662c]
+stories:
+  - {story: "Suppress idle child exits in the audit-day replay", outcome: held}
+  - {story: "Suppress working reconciler-owned exits while preserving ordinary working-child exits", outcome: held}
+  - {story: "Settle all-worker groups locally and route mixed groups to fallback", outcome: held}
+  - {story: "Settle completions after worker retirement and run finish", outcome: held}
+  - {story: "Settle completions after run stop and supervisor restart", outcome: held}
+  - {story: "Cancel status escalation on a timely report and escalate after the grace period otherwise", outcome: held}
+  - {story: "Replay one audit day without spurious supervisor wakes", outcome: held}
+evidence:
+  path: docs/attachments/reconciler-worker-notices-wake-the-supervisor-again/drive.md
+  visual: false
+  shots: []
+fixed:
+  - "f24662c: accepted reconciler provenance in workerSpawn. Built and reloaded the path plugin from /home/mlegls/dev/bb-plugins/supervision; verified the live RPC accepted the new field."
+  - "7a169dfe: saved recovered worker IDs through a surviving checkout during stop."
+  - "1874805a: routed completions for dotted run slugs and verified mixed-group fallback byte for byte."
+  - "1019def0: used BB-shaped IDs for workers spawned by the fake host."
+tests:
+  - extensions/bb/reconciler-notices.test.ts
+  - lib/session-meta/index.test.ts
+  - lib/reconcile/ownership.test.ts
+  - lib/reconcile/exceptions.test.ts
+filed: []
+caveats:
+  - "Other BB hosts need supervision f24662c or later loaded before the updated backend launches workers."
+  - "An unresolved status hold delays owner mail by 90 seconds plus the reconciliation tick. The expiry check used a persisted hold aged 91 seconds."
+```
+
+Evidence: [docs/attachments/reconciler-worker-notices-wake-the-supervisor-again/drive.md](../attachments/reconciler-worker-notices-wake-the-supervisor-again/drive.md)
