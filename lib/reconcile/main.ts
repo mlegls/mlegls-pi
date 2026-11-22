@@ -86,8 +86,8 @@ export async function stop(cwd: string, root: string) {
 		add({ run: root, handle: t.title.slice(root.length + 1), path: t.environmentPath, bb: t.id });
 	}
 	// Record recovered BB identities before cleanup can remove the only discoverable thread.
-	s.workerThreads = [...(s.workerThreads ?? []), ...[...handles.values()].flatMap(h => h.bb ? [h.bb] : [])];
-	if (s.workerThreads.length) saveState(s);
+	const recovered = [...handles.values()].flatMap(h => h.bb ? [h.bb] : []);
+	if (recovered.length) updateState(cwd, root, prior => ({ ...prior!, workerThreads: recovered }));
 	for (const [slug, chain] of Object.entries(s.chains)) {
 		const workers = [...chain.workers, ...(chain.handle ? [chain.handle] : [])].filter(h => existsSync(h.path));
 		for (const worker of workers) await stopWorker(worker, { cwd });
