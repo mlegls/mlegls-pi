@@ -87,6 +87,36 @@ test.each([false, true])("a 50-minute bash call, managed process running: %p", a
 	} finally { f.close(); }
 }, 30_000);
 
+// Seed the persisted clock, then drive the ordinary poll/mail loop without a 90-second sleep.
+test.each(["recovers", "expires"])("a missing-status owner exception %s during report settlement", async outcome => {
+	let releaseAt = Infinity;
+	let report = () => {};
+	const { f, state } = await reconcile(async (f, r) => {
+		const worker = f.bare("root", "fixture-implement-1", f.collector);
+		const s = held(r, f);
+		s.chains.fixture.handle = worker;
+		Object.assign(s.exceptions.fixture, { reason: "status (after 2 repairs)", level: "owner",
+			at: new Date(Date.now() - (outcome === "expires" ? 91_000 : 0)).toISOString() });
+		r.saveState(s);
+		releaseAt = Date.now() + 500;
+		report = () => f.bb.completeTurn(worker.path, "waiting\n\nThe managed import is still running.");
+	}, (r, cwd) => {
+		const s = r.load(cwd, "root");
+		if (outcome === "expires") return !!s?.exceptions.fixture?.mailed;
+		if (Date.now() > releaseAt) { report(); releaseAt = Infinity; }
+		return !!s?.chains.fixture?.waitingSince;
+	});
+	try {
+		const notices = f.bb.threads().find(t => t.id === "thr_owner")!.tells;
+		if (outcome === "recovers") {
+			expect(state.exceptions.fixture).toBeUndefined();
+			expect(notices.filter(t => /needs you: fixture|withdrew the exception for fixture/.test(t))).toEqual([]);
+		} else {
+			expect(notices.filter(t => t.includes("needs you: fixture — status (after 2 repairs)"))).toHaveLength(1);
+		}
+	} finally { f.close(); }
+}, 30_000);
+
 test("a checkpoint since the exception does not withdraw it", async () => {
 	const until = Date.now() + 1500;
 	const { f, state } = await reconcile(async (f, r) => {

@@ -3,7 +3,7 @@ import { SessionManager, type ExtensionAPI, type ExtensionContext } from "@earen
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { install as sessionMeta, spawnMeta } from "./host";
+import { install as sessionMeta, reportsChildExit, spawnMeta } from "./host";
 import { readLive } from "./live";
 
 // Registry and live state are isolated: membership must not depend on the developer's own threads.
@@ -138,6 +138,14 @@ describe("extension", () => {
 		});
 	});
 });
+test("a child-exit notice requires a working child outside the reconciler", () => {
+	const worker = spawnMeta({ PI_WM_RUN: "root", PI_WM_HANDLE: "impl", PI_WM_RECONCILER_RUN: "root" });
+	expect(worker?.reconcilerRun).toBe("root");
+	expect(reportsChildExit({ state: "working", mode: "rpc", reconcilerRun: worker?.reconcilerRun })).toBe(false);
+	expect(reportsChildExit({ state: "idle", mode: "rpc" })).toBe(false);
+	expect(reportsChildExit({ state: "working", mode: "rpc" })).toBe(true);
+});
+
 describe("invokedBy", () => {
 	test("records the calling session for headless children, not for wm workers", () => {
 		expect(spawnMeta({ PI_SESSION_ID: "parent" })).toEqual({ invokedBy: "parent" });

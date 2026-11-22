@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { git } from "../../lib/thread/git.ts";
-import { unmailedStatusException, workerHandles, type State } from "../../lib/reconcile/reconcile.ts";
+import { unmailedStatusException, workerHandles, workerNoticeThreads, type State } from "../../lib/reconcile/reconcile.ts";
 
 function hasFollowUp(value: unknown): boolean {
 	if (Array.isArray(value)) return value.some(hasFollowUp);
@@ -36,7 +36,7 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 	const message = /^\[bb message from thread:(thr_[a-z0-9]+)\]\n\n([\s\S]*)$/.exec(text);
 	const body = message?.[2] ?? text;
 	const notices = body.split(/(?=^\[reconcile )/m).filter(Boolean);
-	const runs = notices.map(notice => /^\[reconcile ([a-z0-9][a-z0-9._-]*)\] (?:done: [^\n]+ landed\b|parked\b|withdrew\b|stopped\b|started \(budget \d+\)$|moved out\b|retired [^\n]+ with uncommitted work in its worktree;)/.exec(notice)?.[1]);
+	const runs = notices.map(notice => /^\[reconcile ([a-z0-9][a-z0-9._-]*)\] (?:done: [^\n]+ landed\b|parked\b|withdrew\b|stopped\b|started \(budget \d+\)\s*$|moved out\b|retired [^\n]+ with uncommitted work in its worktree;)/.exec(notice)?.[1]);
 	const runNotice = runs.length > 0 && runs.every(Boolean);
 	if (!children.length && !message && !runNotice) return false;
 	try {
@@ -45,8 +45,10 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 		const states = new Map<string, State>();
 		// GitHub tracker journals share this directory, but aren't run states.
 		for (const file of readdirSync(dir).filter(f => /^[^.]+\.json$/.test(f))) {
-			const state = JSON.parse(readFileSync(join(dir, file), "utf8")) as State;
-			if (state.root === file.slice(0, -5) && state.backend === "threads") states.set(state.root, state);
+			try {
+				const state = JSON.parse(readFileSync(join(dir, file), "utf8")) as State;
+				if (state.root === file.slice(0, -5) && state.backend === "threads") states.set(state.root, state);
+			} catch { /* only this run's receipts are unavailable */ }
 		}
 		if (runNotice) return runs.every(root => {
 			const state = states.get(root!);
@@ -55,9 +57,7 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 		if (children.length) {
 			const pending = new Set(children);
 			for (const state of states.values()) {
-				for (const id of state.workerThreads ?? []) pending.delete(id);
-				for (const id of Object.values(state.workerSessions ?? {})) pending.delete(id);
-				for (const receipt of workerHandles(state)) if (receipt.bb && receipt.run === state.root) pending.delete(receipt.bb);
+				for (const id of workerNoticeThreads(state)) pending.delete(id);
 				if (!pending.size) return true;
 			}
 			return false;

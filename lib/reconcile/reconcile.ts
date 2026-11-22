@@ -296,6 +296,12 @@ export function workerHandles(s: State): Handle[] {
 	];
 }
 
+/** Completion receipts include pre-ledger workers whose Pi session or handle is still recorded. */
+export function workerNoticeThreads(s: State): string[] {
+	return [...(s.workerThreads ?? []), ...Object.values(s.workerSessions ?? {}),
+		...workerHandles(s).flatMap(h => h.bb && h.run === s.root ? [h.bb] : [])];
+}
+
 export const resolutionsDir = (cwd: string, root: string) => join(stateDir(cwd), root + ".resolutions");
 export function load(cwd: string, root: string): State | undefined {
 	const f = stateFile(cwd, root);
@@ -327,14 +333,10 @@ export function updateState(cwd: string, root: string, change: (prior: State | u
 		lock.exec("PRAGMA busy_timeout = 5000");
 		s = lock.transaction(() => {
 			const prior = load(cwd, root);
+			const previousWorkers = prior?.backend === "threads" ? workerNoticeThreads(prior) : [];
 			const s = change(prior);
-			if (s.backend === "threads") {
-				const recorded = [prior, s].flatMap(state => state?.backend === "threads" ? [
-					...(state.workerThreads ?? []), ...Object.values(state.workerSessions ?? {}),
-					...workerHandles(state).flatMap(h => h.bb && h.run === root ? [h.bb] : []),
-				] : []);
-				if (recorded.length) s.workerThreads = [...new Set(recorded)];
-			}
+			const recorded = [...previousWorkers, ...workerNoticeThreads(s)];
+			if (recorded.length) s.workerThreads = [...new Set(recorded)];
 			writeFileSync(file + ".tmp", JSON.stringify(s, null, 1));
 			renameSync(file + ".tmp", file);
 			return s;
