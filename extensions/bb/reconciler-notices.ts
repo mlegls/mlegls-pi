@@ -36,7 +36,7 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 	const message = /^\[bb message from thread:(thr_[a-z0-9]+)\]\n\n([\s\S]*)$/.exec(text);
 	const body = message?.[2] ?? text;
 	const notices = body.split(/(?=^\[reconcile )/m).filter(Boolean);
-	const runs = notices.map(notice => /^\[reconcile ([a-z0-9][a-z0-9._-]*)\] (?:done: [^\n]+ landed\b|parked\b|withdrew\b|stopped\b|started \(budget \d+\)\s*$|moved out\b|retired [^\n]+ with uncommitted work in its worktree;)/.exec(notice)?.[1]);
+	const runs = notices.map(notice => /^\[reconcile ([A-Za-z0-9][A-Za-z0-9._-]*)\] (?:done: [^\n]+ landed\b|parked\b|withdrew\b|stopped\b|started \(budget \d+\)\s*$|moved out\b|retired [^\n]+ with uncommitted work in its worktree;)/.exec(notice)?.[1]);
 	const runNotice = runs.length > 0 && runs.every(Boolean);
 	if (!children.length && !message && !runNotice) return false;
 	try {
@@ -44,7 +44,7 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 		if (!existsSync(dir)) return false;
 		const states = new Map<string, State>();
 		// GitHub tracker journals share this directory, but aren't run states.
-		for (const file of readdirSync(dir).filter(f => /^[^.]+\.json$/.test(f))) {
+		for (const file of readdirSync(dir).filter(f => f.endsWith(".json"))) {
 			try {
 				const state = JSON.parse(readFileSync(join(dir, file), "utf8")) as State;
 				if (state.root === file.slice(0, -5) && state.backend === "threads") states.set(state.root, state);

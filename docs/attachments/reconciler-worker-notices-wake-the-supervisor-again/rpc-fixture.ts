@@ -14,10 +14,13 @@ export default function fixtureProvider(pi: ExtensionAPI) {
 		api: "notice-fixture-api", baseUrl: "local://notice-fixture", apiKey: "fixture",
 		models: [{ id: "probe", name: "Fallback marker", reasoning: false, input: ["text"], contextWindow: 96000, maxTokens: 32,
 			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
-		streamSimple(model) {
+		streamSimple(model, context) {
+			const input = context.messages.at(-1);
+			const text = input?.role !== "user" ? "" : typeof input.content === "string" ? input.content
+				: input.content.filter(c => c.type === "text").map(c => c.text).join("");
 			const stream = createAssistantMessageEventStream();
 			const message: AssistantMessage = { role: "assistant", api: model.api, provider: model.provider, model: model.id,
-				content: [{ type: "text", text: "PASSED THROUGH" }], stopReason: "stop", timestamp: Date.now(),
+				content: [{ type: "text", text }], stopReason: "stop", timestamp: Date.now(),
 				usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
 					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
 			stream.push({ type: "done", reason: "stop", message });
@@ -48,7 +51,7 @@ if (import.meta.main) {
 	};
 	try {
 		execFileSync("git", ["init", "-q", cwd]);
-		const root = "notice-fixture";
+		const root = "notice.fixture";
 		const state: State = { backend: "threads", cwd, root, owner: "thr_owner", pid: process.pid,
 			chains: { fixture: { phase: "implement", into: cwd, self: false, retries: {},
 				handle: { run: root, handle: "fixture-implement", bb: "thr_current", path: cwd },
@@ -64,7 +67,7 @@ if (import.meta.main) {
 		const group = (id: string) => "[bb system]\n\nChild thread updates:\n\n- @thread:thr_current completed.\n- @thread:" + id + " completed.";
 		for (const [label, message] of [
 			["live single", single], ["retired single", single], ["owned group", group("thr_previous")],
-			["mixed group", group("thr_ordinary")], ["owner exception", "[reconcile notice-fixture] needs you: fixture — decision required"],
+			["mixed group", group("thr_ordinary")], ["owner exception", "[reconcile notice.fixture] needs you: fixture — decision required"],
 			["maintainer", "Check on the fixture."],
 		]) {
 			if (label === "retired single") saveState({ ...state, chains: {}, workerThreads: undefined, finished: "done", pid: undefined });
@@ -75,6 +78,7 @@ if (import.meta.main) {
 				return event.type === "agent_settled";
 			});
 			if (!assistant) throw new Error("No assistant settlement for " + label);
+			if (label === "mixed group" && (assistant.content[0]?.type !== "text" || assistant.content[0].text !== message)) throw new Error("Mixed group did not reach fallback intact");
 			console.log(label + ":", assistant.provider, assistant.content.length + " blocks,", assistant.usage.totalTokens + " tokens");
 		}
 	} finally {

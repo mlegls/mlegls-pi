@@ -17,7 +17,7 @@ const prompts = new Set(bbPrompts().filter(p => p.thread === owner && !p.sender 
 // Historic live records were not stored. Join the child-exit's Pi session ID to the run's workerSessions receipt.
 const workerSessions = new Map<string, string>();
 const dir = join(common, "reconcile");
-for (const file of readdirSync(dir).filter(f => /^[^.]+\.json$/.test(f))) {
+for (const file of readdirSync(dir).filter(f => f.endsWith(".json"))) {
 	const state: State = JSON.parse(readFileSync(join(dir, file), "utf8"));
 	if (state.backend === "threads" && state.root === file.slice(0, -5)) {
 		for (const id of Object.keys(state.workerSessions ?? {})) workerSessions.set(id, state.root);
