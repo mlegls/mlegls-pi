@@ -120,7 +120,7 @@ function main(argv: string[]) {
 		const input = JSON.parse(readFileSync(flag("input-file")!, "utf8"));
 		if (args[4] === "workerRoute") return out(threads(dir()).find(t => t.id === input.threadId)?.metadata?.route ?? null);
 		if (args[4] === "workerSpawn") {
-			const created: FakeBbThread = { id: "bbt-" + crypto.randomUUID().slice(0, 8), status: "active", archivedAt: null, parentThreadId: input.parentThreadId ?? null,
+			const created: FakeBbThread = { id: "thr_" + crypto.randomUUID().slice(0, 8), status: "active", archivedAt: null, parentThreadId: input.parentThreadId ?? null,
 				environment: input.path, title: input.title, prompt: input.prompt, metadata: input.metadata, providerId: input.providerId, model: input.model, tells: [] };
 			save(created);
 			return out({ id: created.id, environmentId: created.environment });
