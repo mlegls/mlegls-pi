@@ -110,7 +110,7 @@ function log(body: string) {
   const tail = body.slice(start);
   const next = /^##? [^\n]*/m.exec(tail);
   const section = tail.slice(0, next?.index ?? tail.length);
-  const entries = Array.from(section.matchAll(/^### (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) · [^\r\n]+ · (inbound|outbound)[ \t]*\r?$(?:\n[ \t]*\r?)*?(?:\n[ \t]*id:[ \t]*(\S+)[ \t]*\r?$)?/gm),
+  const entries = Array.from(section.matchAll(/^### (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) · [^\r\n]+ · (inbound|outbound)[ \t]*\r?$(?:(?:\n[ \t]*\r?$)*\n[ \t]*id:[ \t]*(\S+)[ \t]*\r?$)?/gm),
     ([, minute, direction, id]): LogEntry => ({ minute, direction: direction as Entry["direction"], id: id ?? null }));
   return { entries, end: start + section.length, exists: true };
 }
