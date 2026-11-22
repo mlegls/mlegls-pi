@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# heavy-record LANE CMD [ARG...]: run CMD, then append one JSON line about the run to
+# HEAVY_LOG (default ${XDG_STATE_HOME:-~/.local/state}/heavy/runs.jsonl): end time, lane, cwd, git HEAD,
+# command, exit status, wall seconds, and the peak memory and swap of this process's cgroup
+# (memory.peak counts page cache too). bin/heavy and bin/heavy-one start it as the first
+# process of a fresh systemd --user scope, so the cgroup holds CMD alone and the peak is CMD's;
+# these records are the per-command memory history admission can reserve against.
+# Exits with CMD's status.
+set -u
+lane=$1
+shift
+cg=/sys/fs/cgroup$(sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)
+start=$(date +%s.%N)
+"$@"
+status=$?
+end=$(date +%s.%N)
+mb() { [ -r "$cg/$1" ] && echo $(($(cat "$cg/$1") / 1048576)) || echo null; }
+esc() { local s=${1//\\/\\\\}; s=${s//\"/\\\"}; s=${s//$'\n'/\\n}; s=${s//$'\t'/\\t}; printf %s "${s:0:600}"; }
+log=${HEAVY_LOG:-${XDG_STATE_HOME:-$HOME/.local/state}/heavy/runs.jsonl}
+mkdir -p "$(dirname "$log")" 2>/dev/null
+head=$(git rev-parse --short HEAD 2>/dev/null)
+printf '{"at":"%s","lane":"%s","cwd":"%s","head":"%s","cmd":"%s","exit":%d,"wall_s":%s,"peak_mb":%s,"swap_peak_mb":%s}\n' \
+	"$(date -Is)" "$(esc "$lane")" "$(esc "$PWD")" "$head" "$(esc "$*")" "$status" \
+	"$(awk -v a="$start" -v b="$end" 'BEGIN { printf "%.1f", b - a }')" "$(mb memory.peak)" "$(mb memory.swap.peak)" >>"$log" 2>/dev/null
+exit "$status"

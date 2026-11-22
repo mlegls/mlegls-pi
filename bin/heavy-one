@@ -9,7 +9,7 @@ set -u
 name=$1 max=$2
 shift 2
 if command -v systemd-run >/dev/null && systemd-run --user --scope --quiet true 2>/dev/null; then
-	set -- systemd-run --user --scope --quiet -p MemoryMax="$max" -p MemorySwapMax=0 -- "$@"
+	set -- systemd-run --user --scope --quiet --collect -p MemoryMax="$max" -p MemorySwapMax=0 -p OOMPolicy=continue -- "$(cd "$(dirname "$0")" && pwd)/heavy-record" "one:$name" "$@"
 fi
 # sem exports an empty XDG_CACHE_HOME, which Bun reads as a relative cache root.
 if [ -n "${XDG_CACHE_HOME:-}" ]; then
