@@ -32,6 +32,23 @@ export async function fromBeeper(contacts: Contact[]): Promise<Import[]> {
   if (!base || !token) throw new Error("set BEEPER_API_URL and BEEPER_ACCESS_TOKEN");
   if (!/^https?:$/.test(new URL(base).protocol)) throw new Error("BEEPER_API_URL must use HTTP or HTTPS");
 
+  async function profileHandle(userID: string): Promise<string | undefined> {
+    let res: Response;
+    try {
+      res = await fetch(new URL("/_matrix/client/v3/profile/" + encodeURIComponent(userID), base), {
+        headers: { Authorization: "Bearer " + token },
+        signal: AbortSignal.timeout(8000), redirect: "error",
+      });
+    } catch {
+      throw new BeeperOffline("offline (Desktop API unreachable)");
+    }
+    if (!res.ok) return undefined;
+    const profile = await res.json() as { "com.beeper.bridge.identifiers"?: unknown };
+    const ids = profile["com.beeper.bridge.identifiers"];
+    const id = Array.isArray(ids) ? ids.find((s): s is string => typeof s === "string" && s.includes(":")) : undefined;
+    return id?.slice(id.indexOf(":") + 1);
+  }
+
   async function pages<T>(path: string): Promise<T[]> {
     const items: T[] = [];
     const seen = new Set<string>();
@@ -62,6 +79,19 @@ export async function fromBeeper(contacts: Contact[]): Promise<Import[]> {
   }
 
   const chats = await pages<Chat>("/v1/chats");
+  // Bridged chats (X at least) list participants by Matrix ID without a username;
+  // the participant's Matrix profile carries the network handle.
+  const wanted = new Set(contacts.flatMap(c => Object.keys(c.channels)));
+  // Sequential: Beeper resets connections under a burst of parallel profile reads.
+  const handles = new Map<string, string | undefined>();
+  for (const chat of chats) {
+    if (chat.type !== "single" || !wanted.has(chatChannel(chat))) continue;
+    for (const user of chat.participants?.items ?? []) {
+      if (user.isSelf || user.username || !user.id.startsWith("@")) continue;
+      if (!handles.has(user.id)) handles.set(user.id, await profileHandle(user.id));
+      user.username = handles.get(user.id);
+    }
+  }
   const pinned = new Set(contacts.flatMap(c => c.channels.beeper_chat_id || []));
   const assigned = new Map<string, string>();
   const imports: Import[] = [];
