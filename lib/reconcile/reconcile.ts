@@ -1146,12 +1146,14 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		note("withdrew exception " + ex.node + " (" + ex.reason + "): " + why.split(".")[0] + (handler ? "; retired its handler " + handler.handle : ""));
 		if (!unmailedStatusException(ex) && (ex.mailed || ex.level === "owner" || handler)) tellOwner("withdrew the exception for " + ex.node + " (" + ex.reason + "): " + why);
 	}
-	/** A report since the exception that shows the worker carrying on its assignment. A checkpoint doesn't: a worker held
+	/** A report since the exception that shows the worker carrying on its assignment. A checkpoint only clears a missing-status hold: a worker held
 	 * for checkpointing too often (author-and-publish-the-language-learning-template, 2026-10-12) kept posting them. */
 	const resumedReport = (ex: Exception, c: Chain) => {
 		if (ex.reason === DELIVERED_ACTIVE || ex.baseConflict) return undefined;
 		const m = c.handle && fresh(c.handle, ex.reportTs ?? c.handledTs, c.launchedAt);
-		return m && !m.tags.includes("error") && ["done", "blocked", "needs-input", "waiting"].includes(parse(m.body).status ?? "") ? m : undefined;
+		if (!m || m.tags.includes("error")) return undefined;
+		const status = parse(m.body, c.handle?.path).status;
+		return ["done", "blocked", "needs-input", "waiting"].includes(status ?? "") || status === "checkpoint" && unmailedStatusException(ex) ? m : undefined;
 	};
 	/** The exception's worker is working again, or reported since: someone (the owner, directly) set it going. */
 	const carriesOn = (ex: Exception, c: Chain | undefined) => !!c?.handle && c.phase !== "refine" && alive(c.handle) !== false

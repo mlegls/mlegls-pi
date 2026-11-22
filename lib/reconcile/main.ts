@@ -85,6 +85,9 @@ export async function stop(cwd: string, root: string) {
 		if (!repo || commonDir(t.environmentPath) !== repo) continue;
 		add({ run: root, handle: t.title.slice(root.length + 1), path: t.environmentPath, bb: t.id });
 	}
+	// Record recovered BB identities before cleanup can remove the only discoverable thread.
+	s.workerThreads = [...(s.workerThreads ?? []), ...[...handles.values()].flatMap(h => h.bb ? [h.bb] : [])];
+	if (s.workerThreads.length) saveState(s);
 	for (const [slug, chain] of Object.entries(s.chains)) {
 		const workers = [...chain.workers, ...(chain.handle ? [chain.handle] : [])].filter(h => existsSync(h.path));
 		for (const worker of workers) await stopWorker(worker, { cwd });
@@ -108,7 +111,6 @@ export async function stop(cwd: string, root: string) {
 		// Stopping retires workers, but a conflict already sent to the owner still awaits their decision.
 		chains: Object.fromEntries(Object.entries(s.chains).filter(([node]) => s.exceptions[node]?.baseConflict)),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).filter(([, ex]) => ex.baseConflict)),
-		workerThreads: [...(prior!.workerThreads ?? []), ...[...handles.values()].flatMap(h => h.bb ? [h.bb] : [])],
 		log: [...prior!.log, new Date().toISOString().slice(0, 19) + " stopped; retired workers and handlers, kept collectors"].slice(-400),
 	}));
 	return { ...summary({ ...stopped, running: false }), retired };

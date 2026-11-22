@@ -36,7 +36,7 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 	const message = /^\[bb message from thread:(thr_[a-z0-9]+)\]\n\n([\s\S]*)$/.exec(text);
 	const body = message?.[2] ?? text;
 	const notices = body.split(/(?=^\[reconcile )/m).filter(Boolean);
-	const runs = notices.map(notice => /^\[reconcile ([a-z0-9][a-z0-9._-]*)\] (?:done: [^\n]+ landed\b|parked\b|withdrew\b|stopped\b)/.exec(notice)?.[1]);
+	const runs = notices.map(notice => /^\[reconcile ([a-z0-9][a-z0-9._-]*)\] (?:done: [^\n]+ landed\b|parked\b|withdrew\b|stopped\b|started \(budget \d+\)$|moved out\b|retired [^\n]+ with uncommitted work in its worktree;)/.exec(notice)?.[1]);
 	const runNotice = runs.length > 0 && runs.every(Boolean);
 	if (!children.length && !message && !runNotice) return false;
 	try {
