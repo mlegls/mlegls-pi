@@ -34,7 +34,8 @@ export class CodeMonitor {
 	private disk = loadedCode.fingerprint;
 	changed(): boolean {
 		if (Date.now() - this.checked >= CODE_CHECK_MS) {
-			this.disk = fingerprint(loadedCode.root);
+			// A directory the loaded code walks may be gone (a refactor removed it): that is a code change, so restart.
+			try { this.disk = fingerprint(loadedCode.root); } catch { this.disk = "unreadable"; }
 			this.checked = Date.now();
 		}
 		return this.disk !== loadedCode.fingerprint;
