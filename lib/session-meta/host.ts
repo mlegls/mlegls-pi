@@ -46,6 +46,8 @@ export interface SpawnMeta {
 	thread?: string;
 	agent?: string;
 	run?: string;
+	/** Set by reconciler-owned launches, distinct from an ordinary dispatch run. */
+	reconcilerRun?: string;
 	handle?: string;
 	parentSession?: string;
 	/** Session whose tool call started this pi (PI_SESSION_ID from the bash tool's env): headless children. */
@@ -61,7 +63,12 @@ export function spawnMeta(env: Record<string, string | undefined> = process.env)
 	const wm = run && handle ? { run, handle, agent: env.PI_WM_AGENT, parentSession: env.PI_WM_PARENT_SESSION } : undefined;
 	const invokedBy = !wm && env.PI_SESSION_ID ? env.PI_SESSION_ID : undefined;
 	if (!wm && !invokedBy) return undefined;
-	return { ...wm, ...(invokedBy && { invokedBy }) };
+	return { ...wm, ...(wm && env.PI_WM_RECONCILER_RUN === wm.run && { reconcilerRun: wm.run }), ...(invokedBy && { invokedBy }) };
+}
+
+/** Idle runtimes can be reaped without ending their threads. Reconcilers observe their own workers. */
+export function reportsChildExit(child: Pick<Live, "state" | "reconcilerRun" | "mode">): boolean {
+	return child.state === "working" && !child.reconcilerRun && child.mode !== "print" && child.mode !== "json";
 }
 
 export function install(pi: ExtensionAPI) {
@@ -70,7 +77,7 @@ export function install(pi: ExtensionAPI) {
 	let children = new Map<number, Live>();
 	let monitor: ReturnType<typeof setInterval> | undefined;
 	let ctx: ExtensionContext | undefined;
-	let thread: string | undefined;
+	let thread: string | undefined, reconcilerRun: string | undefined;
 	const tools = new Map<string, NonNullable<Live["tools"]>[number]>();
 	let stateSince = new Date().toISOString(), lastState: Live["state"] | undefined;
 	const live = (state: "working" | "idle") => {
@@ -79,7 +86,7 @@ export function install(pi: ExtensionAPI) {
 		if (state !== lastState) { stateSince = new Date().toISOString(); lastState = state; }
 		try {
 			writeLive({ pid: process.pid, sessionId: sm.getSessionId(), sessionFile: sm.getSessionFile(), cwd: sm.getCwd(), state,
-				since: stateSince, mode: ctx.mode, parentSession, thread, tools: [...tools.values()] });
+				since: stateSince, mode: ctx.mode, parentSession, thread, reconcilerRun, tools: [...tools.values()] });
 		} catch {}
 	};
 	// Prepended after pi's own handler (installed at startup), so it runs before pi exits.
@@ -95,19 +102,20 @@ export function install(pi: ExtensionAPI) {
 		const metadata = { ...provenance, ...meta, thread, mode: c.mode };
 		if (!thread) delete metadata.thread;
 		parentSession = metadata.parentSession ?? metadata.invokedBy;
+		reconcilerRun = metadata.reconcilerRun;
 		clearInterval(monitor);
 		children.clear();
 		monitor = setInterval(() => {
 			const next = new Map(readLive().filter(child => child.parentSession === c.sessionManager.getSessionId()).map(child => [child.pid, child]));
 			// Print-mode children (pi -p) are one-shot runs whose caller reads their output; their exit is the expected end.
-			for (const [pid, child] of children) if (!next.has(pid) && !takeRetired(child) && child.mode !== "print" && child.mode !== "json") {
+			for (const [pid, child] of children) if (!next.has(pid) && !takeRetired(child) && reportsChildExit(child)) {
 				pi.sendMessage({ customType: "child-exit", display: true, content: `Child process exited: ${child.sessionId} (pid ${pid}, last state ${child.state}).\nWorkspace: ${child.cwd}\nInspect its report before resuming; process exit alone does not establish a crash.` }, { triggerTurn: true });
 			}
 			children = next;
 		}, 5000);
 		monitor.unref();
 		live("idle");
-		if (!saved || provenance?.thread !== thread || (meta?.run && (provenance?.run !== meta.run || provenance?.handle !== meta.handle)))
+		if (!saved || provenance?.thread !== thread || (meta?.run && (provenance?.run !== meta.run || provenance?.handle !== meta.handle || provenance?.reconcilerRun !== reconcilerRun)))
 			pi.appendEntry(SPAWN_META, metadata);
 	});
 	pi.on("agent_start", () => { tools.clear(); live("working"); });

@@ -446,6 +446,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, issue: o.issue, agent: a?.name, parentSession: o.parentSession, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
 		const options = { cwd, parent: o.parentThread, worktree: o.handle, base: o.base,
 			createThread: o.withOwner ? (create: (parent?: string) => Promise<string>) => o.withOwner!(owner => {
+				env.PI_WM_RECONCILER_RUN = o.run;
 				if (owner.session) env.PI_WM_PARENT_SESSION = owner.session;
 				else delete env.PI_WM_PARENT_SESSION;
 				return create(owner.thread);

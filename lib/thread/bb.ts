@@ -77,7 +77,7 @@ export function bbWorkerThread(threads: Map<string, BbThread>, handle: string, r
 }
 
 // Provider contributions are visible in BB logs; copy only identity and local state paths.
-const IDENTITY = /^(?:PI_WM_(?:RUN|HANDLE|ISSUE|AGENT|PARENT_SESSION)|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
+const IDENTITY = /^(?:PI_WM_(?:RUN|HANDLE|ISSUE|AGENT|PARENT_SESSION|RECONCILER_RUN)|PI_CHECKPOINT|PI_CODING_AGENT_DIR|PI_AGENTS_DIR|XDG_STATE_HOME|TRACKER_CLI)$/;
 
 export const bbProviders = () => bb<{ id: string; available: boolean; enabled?: boolean; pluginEnabled?: boolean }[]>(["provider", "list", "--all"]);
 export const bbModels = (provider: string, project: string, model: string) =>

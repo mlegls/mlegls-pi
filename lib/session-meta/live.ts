@@ -12,6 +12,7 @@ export interface Live {
 	sessionId: string;
 	thread?: string;
 	parentSession?: string;
+	reconcilerRun?: string;
 	sessionFile?: string;
 	cwd: string;
 	state: "working" | "idle";
