@@ -122,14 +122,17 @@ export function registerFragmentEditTool(pi: ExtensionAPI, deps: { sources: Outl
 			if (!input || !Array.isArray(input.edits)) return args as Static<typeof parameters>;
 			return {
 				...input,
-				edits: input.edits.map(edit => {
+				edits: input.edits.map((edit, i) => {
 					if (!edit || typeof edit !== "object" || Array.isArray(edit)) return edit;
-					const { oldText, newText, old_string, new_string, ...rest } = edit;
-					// Leave missing fields absent so validation cannot coerce undefined into a deletion.
-					const oldAlias = oldText === undefined ? old_string : oldText;
-					const newAlias = newText === undefined ? new_string : newText;
+					const { oldText, newText, old_string, new_string, old_text, new_text, ...rest } = edit;
+					const oldAlias = oldText !== undefined ? oldText : old_string !== undefined ? old_string : old_text;
+					const newAlias = newText !== undefined ? newText : new_string !== undefined ? new_string : new_text;
 					if (rest.old === undefined && oldAlias !== undefined) rest.old = oldAlias;
 					if (rest.new === undefined && newAlias !== undefined) rest.new = newAlias;
+					const wholeDefinition = typeof rest.near === "string" && rest.near.startsWith("@");
+					if (rest.new === undefined || (rest.old === undefined && !wholeDefinition)) {
+						throw new Error(`edits.${i} has {${Object.keys(edit).join(", ")}}; use {old, new} (or oldText/newText, old_string/new_string, old_text/new_text). For a whole definition, use {near: "@name", new}.`);
+					}
 					return rest;
 				}),
 			} as Static<typeof parameters>;
