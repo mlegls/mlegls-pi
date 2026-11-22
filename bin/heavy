@@ -35,7 +35,7 @@ else
 	set -- env -u XDG_CACHE_HOME "$@"
 fi
 [ -n "$scope" ] && set -- systemd-run --user --scope --quiet --collect -p OOMPolicy=continue -- "$@"
-export HEAVY_HELD=1
+export HEAVY_HELD=1 HEAVY_QUEUED_AT="$(date +%s.%N)"
 # A waiting sem ignores SIGTERM and still runs CMD once a slot frees; it honours
 # SIGINT, so a stopped caller forwards TERM as INT.
 # -u: sem otherwise buffers CMD's output until it exits.
