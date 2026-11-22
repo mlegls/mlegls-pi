@@ -53,6 +53,8 @@ export async function replay(mode: typeof scenarios[number]) {
 			writeFileSync(marker, "keep this checkout\n");
 		} else if (mode === "occupied") f.git(path, "branch", "-m", "foreign");
 
+		const occupant = () => ({ branch: f.git(path, "branch", "--show-current"), head: f.git(path, "rev-parse", "HEAD"), entries: readdirSync(path).sort() });
+		const before = mode === "occupied" ? occupant() : undefined;
 		const restarted = launch(false);
 		await until(() => restarted.exitCode !== null || state()?.chains.root.handle || state()?.exceptions.root?.mailed);
 		const result = state()!, worker = result.chains.root.handle;
@@ -73,7 +75,7 @@ export async function replay(mode: typeof scenarios[number]) {
 		}
 		assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n"), mode === "raw" ? [path, path] : [path]);
 		assert.equal(f.bb.threads().filter(t => t.title === "root/" + handle).length, mode === "occupied" ? 0 : 1);
-		return { interrupted: first.signalCode, handle, worker: worker?.handle, adoptedCommit: ahead, hold: result.exceptions.root?.reason, log: result.log };
+		return { interrupted: first.signalCode, handle, worker: worker?.handle, adoptedCommit: ahead, occupant: before && { before, after: occupant() }, hold: result.exceptions.root?.reason, log: result.log };
 	} catch (error) {
 		console.error(state()?.log.join("\n"));
 		throw error;
