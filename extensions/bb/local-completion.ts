@@ -1,12 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createAssistantMessageEventStream, type AssistantMessage } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { reconcilerCompletion } from "./reconciler-notices.ts";
+import { completionThreads, reconcilerCompletion } from "./reconciler-notices.ts";
 
 const PROVIDER = "bb-local";
 const MODEL = "worker-completion";
 const RESTORE = "bb-notice-model";
-const REPLY = "Worker completion noted.";
 type Selection = { provider: string; id: string; thinking: ReturnType<ExtensionAPI["getThinkingLevel"]> };
 
 /** Strip certified local replies and core completion inputs on replay.
@@ -19,7 +18,7 @@ export function withoutCompletions(messages: AgentMessage[]): AgentMessage[] {
 		if (reply.role !== "assistant" || reply.provider !== PROVIDER || reply.model !== MODEL || input.role !== "user") continue;
 		const text = typeof input.content === "string" ? input.content : input.content.filter(c => c.type === "text").map(c => c.text).join("\n");
 		// Keep progress/run notices as context; only core completion inputs are discarded.
-		if (text.startsWith("[bb system]\n\n@thread:")) drop.add(i - 1);
+		if (completionThreads(text).length) drop.add(i - 1);
 		drop.add(i);
 	}
 	return messages.filter((_, i) => !drop.has(i));
@@ -29,7 +28,6 @@ export function withoutCompletions(messages: AgentMessage[]): AgentMessage[] {
  * Until fixed, run a normal local turn: no network, no tools, zero usage.
  * Once fixed, replace this stand-in with handled; retain replay filtering. */
 export function localCompletions(pi: ExtensionAPI) {
-	let reply = REPLY;
 	pi.registerProvider(PROVIDER, {
 		api: "bb-local-completion",
 		apiKey: "local",
@@ -44,7 +42,7 @@ export function localCompletions(pi: ExtensionAPI) {
 			const aborted = options?.signal?.aborted;
 			const message: AssistantMessage = {
 				role: "assistant", api: model.api, provider: model.provider, model: model.id,
-				content: aborted || !reply ? [] : [{ type: "text", text: reply }],
+				content: [],
 				stopReason: aborted ? "aborted" : "stop",
 				...(aborted ? { errorMessage: "Aborted" } : {}),
 				timestamp: Date.now(),
@@ -54,11 +52,6 @@ export function localCompletions(pi: ExtensionAPI) {
 			if (aborted) stream.push({ type: "error", reason: "aborted", error: message });
 			else {
 				stream.push({ type: "start", partial: message });
-				if (reply) {
-					stream.push({ type: "text_start", contentIndex: 0, partial: message });
-					stream.push({ type: "text_delta", contentIndex: 0, delta: reply, partial: message });
-					stream.push({ type: "text_end", contentIndex: 0, content: reply, partial: message });
-				}
 				stream.push({ type: "done", reason: "stop", message });
 			}
 			stream.end();
@@ -72,7 +65,6 @@ export function localCompletions(pi: ExtensionAPI) {
 		if (event.streamingBehavior || !ctx.model || !await reconcilerCompletion(event.text, ctx.cwd)) return;
 		const model = ctx.modelRegistry.find(PROVIDER, MODEL);
 		if (!model) return;
-		reply = event.text.startsWith("[bb system]\n\n@thread:") ? REPLY : "";
 		previous = { provider: ctx.model.provider, id: ctx.model.id, thinking: pi.getThinkingLevel() };
 		// Recovery if the process exits before agent_end restores the selection.
 		pi.appendEntry(RESTORE, previous);

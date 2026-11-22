@@ -225,6 +225,8 @@ export interface State extends GlobalRunState {
 	 * wrote is this run's own, and is released once its thread is retired: 2026-10-28 (arkhai-payments), the
 	 * scheduled-stops implementer claimed its ticket, landed and was retired, and its claim stopped the run. */
 	workerSessions?: Record<string, string>;
+	/** BB launch receipts outlive their chains. Queued completion notices can arrive after retirement or stop. */
+	workerThreads?: string[];
 }
 
 /** A merge hook's failure in what the landing merge printed (git ignores a post-merge hook's exit status), else
@@ -319,7 +321,15 @@ export function updateState(cwd: string, root: string, change: (prior: State | u
 	try {
 		lock.exec("PRAGMA busy_timeout = 5000");
 		s = lock.transaction(() => {
-			const s = change(load(cwd, root));
+			const prior = load(cwd, root);
+			const s = change(prior);
+			if (s.backend === "threads") {
+				const recorded = [prior, s].flatMap(state => state?.backend === "threads" ? [
+					...(state.workerThreads ?? []), ...Object.values(state.workerSessions ?? {}),
+					...workerHandles(state).flatMap(h => h.bb && h.run === root ? [h.bb] : []),
+				] : []);
+				if (recorded.length) s.workerThreads = [...new Set(recorded)];
+			}
 			writeFileSync(file + ".tmp", JSON.stringify(s, null, 1));
 			renameSync(file + ".tmp", file);
 			return s;
@@ -706,8 +716,10 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				}
 			} });
 		if (!r.submitted[0]) throw new Error("launch " + handle + ": " + (r.failed?.error ?? "not submitted"));
+		const worker = r.submitted[0];
+		if (worker.bb) { (s.workerThreads ??= []).push(worker.bb); save(); }
 		note("launched " + handle + " (" + role + ", " + agentName + ")");
-		return r.submitted[0];
+		return worker;
 	}
 	// Persist the counter before issuing a new name; a saved launch receipt can resume its own name.
 	const nextHandle = (slug: string, kind: string) => { const h = (slug + "-" + kind + "-" + (++s.counter).toString(36)).slice(0, 90); save(); return h; };

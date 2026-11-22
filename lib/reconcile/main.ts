@@ -108,6 +108,7 @@ export async function stop(cwd: string, root: string) {
 		// Stopping retires workers, but a conflict already sent to the owner still awaits their decision.
 		chains: Object.fromEntries(Object.entries(s.chains).filter(([node]) => s.exceptions[node]?.baseConflict)),
 		exceptions: Object.fromEntries(Object.entries(s.exceptions).filter(([, ex]) => ex.baseConflict)),
+		workerThreads: [...(prior!.workerThreads ?? []), ...[...handles.values()].flatMap(h => h.bb ? [h.bb] : [])],
 		log: [...prior!.log, new Date().toISOString().slice(0, 19) + " stopped; retired workers and handlers, kept collectors"].slice(-400),
 	}));
 	return { ...summary({ ...stopped, running: false }), retired };

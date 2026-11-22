@@ -19,16 +19,26 @@ function needsOwner(state: State): boolean {
 			[handoff.question, handoff.followup].some(hasFollowUp));
 }
 
-/** Provenance, not titles: only receipted workers and recorded runs may settle locally.
- * Terminal run notices outlive their process; worker messages require a live run. */
+/** BB's grouped notice can include several terminal outcomes. A malformed or mixed group stays intact. */
+export function completionThreads(text: string): string[] {
+	const child = /^\[bb system\]\n\n@thread:(thr_[a-z0-9]+) completed(?:, with \d+ workflows? still running)?(?::\n|\.$)/.exec(text)?.[1];
+	if (child) return [child];
+	const group = "[bb system]\n\nChild thread updates:\n\n";
+	if (!text.startsWith(group)) return [];
+	const ids = text.slice(group.length).trimEnd().split("\n").map(line =>
+		/^- @thread:(thr_[a-z0-9]+) (?:completed|failed|was interrupted(?: because its host daemon restarted)?)\.$/.exec(line)?.[1]);
+	return ids.every((id): id is string => !!id) ? ids : [];
+}
+
+/** Core notices use durable worker receipts; an explicit worker tell still requires a live run. */
 export async function reconcilerCompletion(text: string, cwd: string): Promise<boolean> {
-	const child = /^\[bb system\]\n\n@thread:(thr_[a-z0-9]+) completed(?:, with \d+ workflows? still running)?:\n/.exec(text)?.[1];
+	const children = completionThreads(text);
 	const message = /^\[bb message from thread:(thr_[a-z0-9]+)\]\n\n([\s\S]*)$/.exec(text);
 	const body = message?.[2] ?? text;
 	const notices = body.split(/(?=^\[reconcile )/m).filter(Boolean);
 	const runs = notices.map(notice => /^\[reconcile ([a-z0-9][a-z0-9._-]*)\] (?:done: [^\n]+ landed\b|parked\b|withdrew\b|stopped\b)/.exec(notice)?.[1]);
 	const runNotice = runs.length > 0 && runs.every(Boolean);
-	if (!child && !message && !runNotice) return false;
+	if (!children.length && !message && !runNotice) return false;
 	try {
 		const dir = join(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), "reconcile");
 		if (!existsSync(dir)) return false;
@@ -42,13 +52,23 @@ export async function reconcilerCompletion(text: string, cwd: string): Promise<b
 			const state = states.get(root!);
 			return !!state && !needsOwner(state);
 		});
+		if (children.length) {
+			const pending = new Set(children);
+			for (const state of states.values()) {
+				for (const id of state.workerThreads ?? []) pending.delete(id);
+				for (const id of Object.values(state.workerSessions ?? {})) pending.delete(id);
+				for (const receipt of workerHandles(state)) if (receipt.bb && receipt.run === state.root) pending.delete(receipt.bb);
+				if (!pending.size) return true;
+			}
+			return false;
+		}
 		// Explicit worker questions still need an answer, even before the reconciler records an exception.
 		if (message && (/\?|\bneeds-input\b|\bblocked\b/i.test(body))) return false;
 		for (const state of states.values()) {
 			if (state.finished || state.stopping || !Number.isInteger(state.pid) || state.pid! <= 0) continue;
 			try { process.kill(state.pid!, 0); }
 			catch (error) { if ((error as NodeJS.ErrnoException).code !== "EPERM") continue; }
-			if (workerHandles(state).some(receipt => receipt.bb === (child ?? message?.[1]) && receipt.run === state.root))
+			if (workerHandles(state).some(receipt => receipt.bb === message?.[1] && receipt.run === state.root))
 				return true;
 		}
 		return false;
