@@ -17,3 +17,9 @@ Tested revision: `0464b93c`. Offline CLI in the verification worktree; no server
 ## Friction
 
 The header ends with `including owner`. On first reading I wasn't sure whether that applied to the span as well as active time and concurrency. The JSON bounds check resolved it. The separate cost lines were clear.
+
+## Review replay
+
+Compared `lib/profile-run.fixture.ts` with both JSON reports. `owner-first` supplied replies at seconds 20 ($8) and 35 ($4); `owner-fork` copied those and added replies at 45 ($5) and 70 ($7). `owner-latest` started at 90, outside both runs. Alpha (10–60) returned three owner model segments ending at 20, 35 and 45 and owner spend of $17. Beta (30–80) returned three ending at 35, 45 and 70 and $16. Every in-window reply occurred once, including those copied into the fork. All three predictions held.
+
+Replayed the text reports after relabeling the header: both say `span 50s`; `active (workers + owner)` scopes the inclusive figure to activity. The owner row now says `within worker span`. Worker-only totals remain $6 and $5.

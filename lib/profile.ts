@@ -351,8 +351,8 @@ export function render(root: Profile): string {
 	const byModel: Record<string, number> = {};
 	for (const p of all) for (const [m, c] of Object.entries(p.costByModel)) byModel[m] = (byModel[m] ?? 0) + c;
 	const out = [
-		(root.run ? "run " + root.run.slug + ": " + (all.length - 1) + " worker sessions" : "tree: " + all.length + " sessions") +
-			", span " + dur(span) + ", active " + dur(active) + " (concurrency " + (active / Math.max(1, span)).toFixed(2) + ")" + (root.run ? " including owner" : ", " + usd(cost)),
+		(root.run ? "run " + root.run.slug + ": " + (all.length - 1) + (all.length === 2 ? " worker session" : " worker sessions") : "tree: " + all.length + " sessions") +
+			", span " + dur(span) + (root.run ? ", active (workers + owner) " : ", active ") + dur(active) + " (concurrency " + (active / Math.max(1, span)).toFixed(2) + ")" + (root.run ? "" : ", " + usd(cost)),
 		...(root.run ? ["worker-only cost: " + usd(root.run.workerCost), "overlapping owner cost: " + usd(root.run.ownerCost)] : []),
 		(root.run ? "cost by model (including owner): " : "cost by model: ") + Object.entries(byModel).sort((a, b) => b[1] - a[1]).map(([m, c]) => m + " " + usd(c)).join(", "),
 		"tools: " + top(merge(all.map(p => p.tools)), 6),
@@ -366,7 +366,7 @@ export function render(root: Profile): string {
 		const t = p.time;
 		const label = p.run ? "owner" : p.id.slice(-8) + " " + (p.agent ? "[" + p.agent + "] " : "") + p.title.slice(0, 60).replace(/\n/g, " ");
 		out.push("  ".repeat(depth) + "- " + label);
-		out.push("  ".repeat(depth) + "  " + dur(p.end - p.start) + " = " + KINDS.filter(k => t[k] >= 1000).map(k => k + " " + dur(t[k])).join(" + ")
+		out.push("  ".repeat(depth) + "  " + (p.run ? "within worker span: " : dur(p.end - p.start) + " = ") + KINDS.filter(k => t[k] >= 1000).map(k => k + " " + dur(t[k])).join(" + ")
 			+ " | " + usd(p.cost) + " " + p.turns + " turns, ctx peak " + k(p.contextPeak) + ", cache read " + k(p.tokens.cacheRead) + ", out " + k(p.tokens.output)
 			+ (p.compactions ? ", " + p.compactions + " compactions" : "") + " | user " + p.user.turns + " turns/" + p.user.words + "w");
 		// Children by cost; the long tail collapses to one line.
