@@ -24,7 +24,7 @@ export async function workerOf(id: string, expected?: WorkerIdentity): Promise<W
 	return { id, cwd, project, worktree, branch, worker };
 }
 
-/** Make a worker's worktree on a new branch off options.base, prepare and set it up, and start its provider in BB. */
+/** Prepare a new or recovered worktree and start its provider in BB. */
 export async function newThread(options: NewThreadOptions): Promise<WorkerThread> {
 	validateLaunch(options.launch);
 	await assertBb();
@@ -33,17 +33,24 @@ export async function newThread(options: NewThreadOptions): Promise<WorkerThread
 	const name = options.worktree ?? options.worker.handle;
 	git(spawning.cwd, "check-ref-format", "--branch", name);
 	const path = resolve(spawning.project + "__worktrees", name);
-	if (existsSync(path)) throw new Error("Worktree path already exists (not owned): " + path);
-	if (git(spawning.cwd, "branch", "--list", name)) throw new Error("Worktree branch already exists (not owned): " + name);
+	if (options.adoptHead) {
+		const existing = checkout(path);
+		if (existing.project !== spawning.project || existing.worktree !== path || existing.branch !== name
+			|| git(path, "rev-parse", "HEAD") !== options.adoptHead || git(path, "status", "--porcelain", "--untracked-files=all"))
+			throw new Error("Saved launch worktree changed before adoption: " + path);
+	} else {
+		if (existsSync(path)) throw new Error("Worktree path already exists (not owned): " + path);
+		if (git(spawning.cwd, "branch", "--list", name)) throw new Error("Worktree branch already exists (not owned): " + name);
+	}
 	const inProject = (candidate: string) => { try { return checkout(candidate).project === spawning.project; } catch { return false; } };
 	if (bbWorkerThread(await bbThreads(), options.worker.handle, options.worker.run, inProject))
 		throw new Error("Active worker already exists: " + options.worker.run + "/" + options.worker.handle);
 	try {
 		// Own the attempt: git can create a branch/path and then fail during checkout.
-		git(spawning.cwd, "worktree", "add", "--no-checkout", "-b", name, path, options.base ?? "HEAD");
+		if (!options.adoptHead) git(spawning.cwd, "worktree", "add", "--no-checkout", "-b", name, path, options.base ?? "HEAD");
+		git(path, "config", "branch." + name + ".ab-parent", spawning.branch);
 		excludeTracker(path);
 		const location = checkout(path);
-		git(path, "config", "branch." + name + ".ab-parent", spawning.branch);
 		const pending: WorkerCheckout = { cwd: location.cwd, project: location.project, worktree: location.worktree!, branch: name, worker: options.worker, launch: options.launch };
 		await options.prepare?.(pending);
 		await runSetup(pending);
@@ -66,6 +73,7 @@ export async function newThread(options: NewThreadOptions): Promise<WorkerThread
 		} catch (e) {
 			throw new Error("Worker " + options.worker.run + "/" + options.worker.handle + " at " + path + " failed: " + failure + "\nPartial resources remain: could not retain setup log: " + String(e));
 		}
+		if (options.adoptHead) throw new Error("Worker " + options.worker.run + "/" + options.worker.handle + " failed: " + failure + "\nAdopted worktree retained: " + path);
 		// Failed setup/launch owns its partial path until cleanup succeeds.
 		try {
 			const registered = git(spawning.cwd, "worktree", "list", "--porcelain", "-z").split("\0").includes("worktree " + path);

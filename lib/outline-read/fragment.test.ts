@@ -14,13 +14,21 @@ test("codemode edit accepts field aliases without overriding canonical fields", 
 		{ old: "hello", newText: "world" },
 		{ oldText: "hello", newText: "world" },
 		{ old_string: "hello", new_string: "world" },
+		{ old_text: "hello", new_text: "world" },
 		{ old: "hello", new: "", oldText: "wrong", newText: "wrong" },
 	]) {
 		const args = JSON.stringify({ edits: [{ path: "sample.txt", ...edit }] });
 		const result = await tryEdit(`text(await tools.edit(${args}));`);
 		expect(result.report).toContain("sample.txt: 1 edit at 1");
-		expect(result.contents).toBe((edit.new ?? edit.newText ?? edit.new_string) + "\n");
+		expect(result.contents).toBe((edit.new ?? edit.newText ?? edit.new_string ?? edit.new_text) + "\n");
 	}
+});
+
+test("codemode edit names the supplied and accepted fields when an edit is incomplete", async () => {
+	const result = await tryEdit('text(await tools.edit({edits: [{path: "sample.txt", replace: "world", from: "hello"}]}));');
+	expect(result.isError).toBe(true);
+	expect(result.report).toContain("edits.0 has {path, replace, from}; use {old, new} (or oldText/newText, old_string/new_string, old_text/new_text)");
+	expect(result.contents).toBe("hello\n");
 });
 
 test("unique fragment, ambiguity, near line, @definition, until", async () => {

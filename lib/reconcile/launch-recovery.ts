@@ -1,14 +1,15 @@
-import { lstatSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { bbThreads } from "../thread/bb";
 import { checkout } from "../thread/git";
 import { worktrees } from "../thread/lifecycle-git";
 import { cwdProcesses } from "../thread/resources";
+import { excludeTracker } from "../thread/tracker-worktree";
 import { git, isAncestor } from "./checks";
 
-/** A saved launch may have died after checkout preparation but before BB registered a worker.
- * Only the reconciler that holds the launch receipt may reclaim that name. */
-export async function reclaimSetup(into: string, handle: string, base: string): Promise<string | undefined> {
+/** Only a reconciler holding the saved launch receipt may recover an unregistered worktree.
+ * Recreate a redundant checkout, but retain the path and branch if it holds work beyond the base. */
+export async function reclaimSetup(into: string, handle: string, base: string): Promise<{ path: string; adoptHead?: string } | undefined> {
 	const parent = checkout(into);
 	const path = resolve(parent.project + "__worktrees", handle);
 	const refuse = (reason: string): never => { throw new Error(path + " (branch " + handle + "): " + reason); };
@@ -27,14 +28,24 @@ export async function reclaimSetup(into: string, handle: string, base: string): 
 	const pids = await cwdProcesses(path);
 	if (pids.length) refuse("processes still use this worktree: " + pids.join(", "));
 	const worker = checkout(path);
+	const parentKey = "branch." + handle + ".ab-parent";
+	const recordedParent = git(path, "config", "--local", "--default", "", "--get", parentKey);
+	// `worktree add --no-checkout` can finish before the parent is set or the index is populated.
+	// This state looks like staged deletions to Git; populate it so ordinary removal can check for edits.
+	const unpopulated = !existsSync(git(path, "rev-parse", "--path-format=absolute", "--git-path", "index"))
+		&& readdirSync(path).join("\0") === ".git";
 	if (worker.project !== parent.project || worker.worktree !== path || worker.branch !== handle || !parent.branch
-		|| git(path, "config", "--local", "--default", "", "--get", "branch." + handle + ".ab-parent") !== parent.branch)
+		|| (recordedParent !== parent.branch && (recordedParent || !unpopulated)))
 		refuse("worktree does not belong to the expected launching checkout");
+	if (unpopulated) {
+		if (!recordedParent) git(path, "config", "--local", parentKey, parent.branch!);
+		excludeTracker(path);
+	}
 	if (git(path, "status", "--porcelain", "--untracked-files=all")) refuse("worktree has uncommitted changes");
 	const head = git(path, "rev-parse", "HEAD");
-	if (!isAncestor(path, head, base)) refuse("launch base " + base + " does not contain " + head);
+	if (!isAncestor(path, head, base)) return { path, adoptHead: head };
 	// Git removes ignored setup output but rechecks for local changes at removal time.
 	git(parent.cwd, "worktree", "remove", path);
 	git(parent.cwd, "branch", "-D", "--", handle);
-	return path;
+	return { path };
 }

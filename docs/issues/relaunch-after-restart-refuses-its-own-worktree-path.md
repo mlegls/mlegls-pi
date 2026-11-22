@@ -1,5 +1,5 @@
 ---
-stage: "ticket"
+stage: "done"
 assignee: "agent"
 priority: 2
 author: "session:thr_vrgtjptnu2"
@@ -13,3 +13,30 @@ After the 2026-11-21 bb daemon restarts, concept reconcilers logged 8 `tick fail
 1. On launch, a pre-existing worktree whose branch is this run's handle and which no live worker owns is adopted when its branch has commits beyond the base, else removed and recreated.
 2. Anything else at the path still refuses, as now.
 3. Done when: a test interrupts a launch after `git worktree add`, restarts the reconciler and gets a worker on that handle.
+
+## Result
+
+done — all three recovery stories held. The occupied-path replay now shows that the foreign branch, HEAD, and directory listing stayed unchanged. No runtime repair was needed.
+
+```yaml
+commit: d56f65c6
+stories:
+  - {story: Restart after worktree creation launches a worker on the same handle, outcome: held}
+  - {story: Recovery adopts a checkout with commits beyond the base, outcome: held}
+  - {story: Recovery refuses a conflicting path, outcome: held}
+evidence:
+  path: docs/attachments/relaunch-after-restart-refuses-its-own-worktree-path/index.md
+  visual: false
+  shots: []
+fixed:
+  - Added before/after checkout snapshots to the occupied-path receipt.
+tests:
+  - lib/reconcile/launch-recovery.test.ts
+checks:
+  - All 10 recovery, refresh, and thread-runtime checks passed.
+filed: []
+caveats:
+  - The three SIGKILL scenarios took 24.4 seconds combined. They restart real reconciler processes against disposable Git repositories and a BB stand-in; they do not restart a live BB daemon.
+```
+
+Evidence: [docs/attachments/relaunch-after-restart-refuses-its-own-worktree-path/index.md](../attachments/relaunch-after-restart-refuses-its-own-worktree-path/index.md)

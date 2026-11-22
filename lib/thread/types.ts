@@ -28,6 +28,7 @@ export interface NewThreadOptions {
 	cwd?: string; // spawning/integration checkout, default process.cwd()
 	worktree?: string; // requested branch/worktree name; default the worker's handle
 	base?: string; // initial git ref; does not change the merge parent
+	adoptHead?: string; // verified HEAD of a saved launch worktree with commits to preserve
 	prepare?: (checkout: WorkerCheckout) => Promise<void>; // after checkout creation, before setup/launch
 	parent?: string; // the bb thread it sits under; default BB_THREAD_ID
 	/** Wrap only bb creation, after checkout preparation and setup. */
