@@ -42,6 +42,8 @@ export interface Profile {
 	 * "sleep → <what followed>" (bash sleeps, the pre-process idiom), "board". */
 	waits: Record<string, { n: number; ms: number }>;
 	children: Profile[];
+	/** Run roots summarize the owner thread within the worker span. Only workerCost is additive across concurrent runs. */
+	run?: { slug: string; workerCost: number; ownerCost: number };
 }
 
 export type Kind = "model" | "tool" | "blocked" | "offered" | "idle" | "stall" | "parent" | "board" | "process" | "other";
@@ -129,7 +131,10 @@ export function profileFile(file: string, node: Pick<Node, "id" | "title" | "mod
 			const c = u?.cost?.total ?? 0; p.cost += c; p.costByModel[model] = (p.costByModel[model] ?? 0) + c;
 			for (const k of ["input", "output", "cacheRead", "cacheWrite"] as const) p.tokens[k] += u?.[k] ?? 0;
 		};
-		if (e.type === "usage") cost(e.usage, (e.kind ?? "usage") + ":" + e.model);
+		if (e.type === "usage") {
+			cost(e.usage, (e.kind ?? "usage") + ":" + e.model);
+			if (inside) p.end = Math.max(p.end, t);
+		}
 		if (e.type === "custom_message" && e.customType === "board" && prev) { seg("board", prev, t, textOf(e.content).slice(0, 160)); wait("board", prev, t); prev = t; }
 		if (e.type === "custom_message" && String(e.customType).startsWith("pi-processes:") && prev) {
 			const d = e.details ?? {};
@@ -250,30 +255,68 @@ export async function judgeWaits(all: Profile[]): Promise<void> {
 	}
 }
 
+async function classifyWaits(all: Profile[], judge?: boolean): Promise<void> {
+	if (judge !== false) await judgeWaits(all);
+	for (const p of all) { for (const s of p.segments) delete s.judge; if (p.ended) delete p.ended.judge; }
+}
+
+async function profileRun(owner: Node, nodes: Map<string, Node>, slug: string, options: ProfileOptions): Promise<Profile> {
+	const owners = owner.thread ? [...nodes.values()].filter(n => n.thread === owner.thread) : [owner];
+	const seen = new Set(owners.map(n => n.id));
+	const workers: Profile[] = [];
+	const visit = (id: string, siblings: Profile[]) => {
+		const n = nodes.get(id);
+		if (!n || seen.has(id)) return;
+		seen.add(id);
+		// Walk through nonmatching nodes, so a worker remains visible even if its immediate parent isn't part of this run.
+		if (n.title.startsWith(slug + "/")) {
+			const p: Profile = { ...profileFile(n.file, n, options), children: [] };
+			if (p.start) { siblings.push(p); workers.push(p); siblings = p.children; }
+		}
+		for (const child of n.children) visit(child, siblings);
+	};
+	const children: Profile[] = [];
+	for (const n of owners) for (const id of n.children) visit(id, children);
+	if (!workers.length) throw new Error("no worker of run " + slug + " under " + owner.id.slice(-8));
+	const start = Math.min(...workers.map(p => p.start)), end = Math.max(...workers.map(p => p.end));
+	const ownerProfiles = owners.map(n => ({ ...profileFile(n.file, n, { since: start, until: end }), children: [] }));
+	await classifyWaits([...ownerProfiles, ...workers], options.judge);
+	const root = ownerProfiles.find(p => p.id === owner.id)!;
+	for (const p of ownerProfiles) {
+		if (p === root) continue;
+		root.cost += p.cost;
+		root.turns += p.turns;
+		root.compactions += p.compactions;
+		root.contextPeak = Math.max(root.contextPeak, p.contextPeak);
+		for (const [m, c] of Object.entries(p.costByModel)) root.costByModel[m] = (root.costByModel[m] ?? 0) + c;
+		for (const k of KINDS) root.time[k] += p.time[k];
+		for (const k of Object.keys(root.tokens) as (keyof Profile["tokens"])[]) root.tokens[k] += p.tokens[k];
+		for (const k of Object.keys(root.user) as (keyof Profile["user"])[]) root.user[k] += p.user[k];
+		for (const [name, v] of Object.entries(p.tools)) {
+			const t = (root.tools[name] ??= { n: 0, ms: 0, errors: 0 });
+			t.n += v.n; t.ms += v.ms; t.errors += v.errors;
+		}
+		root.segments = root.segments.concat(p.segments);
+	}
+	root.segments.sort((a, b) => a.s - b.s);
+	delete root.ended;
+	return { ...root, start, end, children, inner: merge(ownerProfiles.map(p => p.inner)), waits: merge(ownerProfiles.map(p => p.waits)),
+		run: { slug, workerCost: workers.reduce((s, p) => s + p.cost, 0), ownerCost: root.cost } };
+}
+
 export async function profileWithGraph(ref?: string, days = 30, options: ProfileOptions = {}): Promise<{ profile: Profile; nodes: Map<string, Node> }> {
 	const nodes = await graph({ days });
 	let id: string;
 	try { id = findNode(nodes, ref ?? process.env.PI_SESSION_ID ?? "").id; }
 	catch (e) { throw new Error((e as Error).message + (days < 365 ? " (within --days " + days + ")" : "")); }
-	const win: Window = { since: options.since, until: options.until };
-	let keep = (_: Node) => true;
-	if (options.run) {
-		// A reconciler names its workers <root slug>/<handle>; the supervisor counts over their span.
-		const inRun = (n: Node) => n.title.startsWith(options.run + "/");
-		const under = (n: Node): Node[] => n.children.map(c => nodes.get(c)!).filter(Boolean).flatMap(c => [c, ...under(c)]);
-		const workers = under(nodes.get(id)!).filter(inRun).map(n => profileFile(n.file, n, win)).filter(p => p.start);
-		if (!workers.length) throw new Error("no worker of run " + options.run + " under " + id.slice(-8));
-		win.since = Math.min(...workers.map(p => p.start));
-		win.until = Math.max(...workers.map(p => p.end));
-		keep = inRun;
-	}
-	const build = (n: Node): Profile => ({ ...profileFile(n.file, n, win), children: n.children.map(c => nodes.get(c)!).filter(c => c && keep(c)).map(build).filter(p => p.start) });
-	const root = build(nodes.get(id)!);
+	const owner = nodes.get(id)!;
+	if (options.run) return { profile: await profileRun(owner, nodes, options.run, options), nodes };
+	const build = (n: Node): Profile => ({ ...profileFile(n.file, n, options), children: n.children.map(c => nodes.get(c)!).filter(Boolean).map(build).filter(p => p.start) });
+	const root = build(owner);
 	// An interactive session's last reply waits until your next turn anywhere: an overnight stall on a
 	// question shows up here, since nothing more is written to the session itself.
 	const all: Profile[] = []; const walk = (p: Profile) => { all.push(p); p.children.forEach(walk); }; walk(root);
-	if (options.judge !== false) await judgeWaits(all);
-	for (const p of all) { for (const s of p.segments) delete s.judge; if (p.ended) delete p.ended.judge; }
+	await classifyWaits(all, options.judge);
 	const open = all.filter(p => p.ended && nodes.get(p.id)?.interactive);
 	if (open.length) {
 		const turns = humanTurns(nodes, root.start, options.until ?? Date.now());
@@ -302,14 +345,16 @@ const TOP = 12;
 
 export function render(root: Profile): string {
 	const all = flat(root);
-	const span = Math.max(...all.map(p => p.end)) - root.start;
+	const span = (root.run ? root.end : Math.max(...all.map(p => p.end))) - root.start;
 	const active = all.reduce((s, p) => s + p.time.model + p.time.tool, 0);
 	const cost = all.reduce((s, p) => s + p.cost, 0);
 	const byModel: Record<string, number> = {};
 	for (const p of all) for (const [m, c] of Object.entries(p.costByModel)) byModel[m] = (byModel[m] ?? 0) + c;
 	const out = [
-		"tree: " + all.length + " sessions, span " + dur(span) + ", active " + dur(active) + " (concurrency " + (active / Math.max(1, span)).toFixed(2) + "), " + usd(cost),
-		"cost by model: " + Object.entries(byModel).sort((a, b) => b[1] - a[1]).map(([m, c]) => m + " " + usd(c)).join(", "),
+		(root.run ? "run " + root.run.slug + ": " + (all.length - 1) + (all.length === 2 ? " worker session" : " worker sessions") : "tree: " + all.length + " sessions") +
+			", span " + dur(span) + (root.run ? ", active (workers + owner) " : ", active ") + dur(active) + " (concurrency " + (active / Math.max(1, span)).toFixed(2) + ")" + (root.run ? "" : ", " + usd(cost)),
+		...(root.run ? ["worker-only cost: " + usd(root.run.workerCost), "overlapping owner cost: " + usd(root.run.ownerCost)] : []),
+		(root.run ? "cost by model (including owner): " : "cost by model: ") + Object.entries(byModel).sort((a, b) => b[1] - a[1]).map(([m, c]) => m + " " + usd(c)).join(", "),
 		"tools: " + top(merge(all.map(p => p.tools)), 6),
 		"inner: " + top(merge(all.map(p => p.inner)), 12),
 		"waits: " + top(merge(all.map(p => p.waits)), 10),
@@ -319,8 +364,9 @@ export function render(root: Profile): string {
 	];
 	const line = (p: Profile, depth: number) => {
 		const t = p.time;
-		out.push("  ".repeat(depth) + "- " + p.id.slice(-8) + " " + (p.agent ? "[" + p.agent + "] " : "") + p.title.slice(0, 60).replace(/\n/g, " "));
-		out.push("  ".repeat(depth) + "  " + dur(p.end - p.start) + " = " + KINDS.filter(k => t[k] >= 1000).map(k => k + " " + dur(t[k])).join(" + ")
+		const label = p.run ? "owner" : p.id.slice(-8) + " " + (p.agent ? "[" + p.agent + "] " : "") + p.title.slice(0, 60).replace(/\n/g, " ");
+		out.push("  ".repeat(depth) + "- " + label);
+		out.push("  ".repeat(depth) + "  " + (p.run ? "within worker span: " : dur(p.end - p.start) + " = ") + KINDS.filter(k => t[k] >= 1000).map(k => k + " " + dur(t[k])).join(" + ")
 			+ " | " + usd(p.cost) + " " + p.turns + " turns, ctx peak " + k(p.contextPeak) + ", cache read " + k(p.tokens.cacheRead) + ", out " + k(p.tokens.output)
 			+ (p.compactions ? ", " + p.compactions + " compactions" : "") + " | user " + p.user.turns + " turns/" + p.user.words + "w");
 		// Children by cost; the long tail collapses to one line.
