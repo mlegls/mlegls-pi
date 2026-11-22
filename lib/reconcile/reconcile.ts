@@ -620,7 +620,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			return d.agent.choice;
 		} catch (e) { note("stance decision unavailable, using " + names[0] + ": " + e); return names[0]; }
 	}
-	async function launch(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain, after?: WorkerRoute): Promise<Handle> {
+	async function launch(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, refining?: { chain: Chain; adopt: boolean }, chain?: Chain, after?: WorkerRoute, adoptHead?: string): Promise<Handle> {
 		launching++;
 		try {
 			if (tracker.githubIssue && issue && (role === "refine" || role === "implement")) {
@@ -661,7 +661,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 				};
 				try {
 					const worker = await launchNow(actual, role, claimed(prompt), base, into, issue, only,
-						async path => claimed(await prepare?.(path) ?? prompt), after);
+						async path => claimed(await prepare?.(path) ?? prompt), after, issue?.slug, adoptHead);
 					if (refining) {
 						s.refinements[actual].worker = worker;
 						refining.chain.handle = worker;
@@ -677,21 +677,29 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 						if (found) await retire({ run: s.root, handle: actual, path: found.path, bb: found.bb }, { cwd: controlCwd });
 					}
 					const lock = /could not lock config file|config\.lock|index\.lock|File exists/i.test(String(e));
-					if (!lock || attempt >= 3) throw e;
+					if (adoptHead || !lock || attempt >= 3) throw e;
 					note("launch " + handle + " hit a git lock, retrying: " + String(e).split("\n")[0]);
 					await Bun.sleep(2000 + Math.random() * 3000);
 				}
 			}
 		} finally { launching--; }
 	}
-	async function launchNow(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, after?: WorkerRoute, node = issue?.slug): Promise<Handle> {
+	const mergePrompt = (source: string, { head, conflicts }: ReturnType<typeof refreshWorker>) => conflicts.length
+		? "First resolve the pending merge of " + source + " " + head + ": " + conflicts.join(", ") + ". Preserve both histories, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it."
+		: "";
+	async function launchNow(handle: string, role: LaunchRole, prompt: string, base: string, into: string, issue?: Issue, only?: string[], prepare?: (cwd: string) => Promise<string | void>, after?: WorkerRoute, node = issue?.slug, adoptHead?: string): Promise<Handle> {
 		const restrict = (text: string) => node && role !== "handle" ? constrainedPrompt(controlCwd, s.root, node, text, role) : text;
 		const agentName = after?.agent ?? await pick(role, issue, restrict(prompt), only);
 		// Starting a reconciler on a root delegates the root: a goal root rarely names an assignee, and its own stage
 		// (the joins between its children) is the last step of the tree it was handed. A non-root node is only
 		// frontier when agent-assigned; an explicit human or session assignee still refuses.
 		if (!tracker.githubIssue && issue && issue.slug === s.root && !issue.assignee?.trim()) issue = { ...issue, assignee: "agent" };
-		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, after, prepare: async path => restrict(await prepare?.(path) ?? prompt), ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
+		const prepareLaunch = async (path: string) => {
+			// A stopped launch can hold commits of its own while the required base advances.
+			const pending = adoptHead ? mergePrompt("launch base", refreshWorker(path, into, base)) : "";
+			return restrict(pending ? prompt + "\n\n" + pending : await prepare?.(path) ?? prompt);
+		};
+		const r = await dispatch([{ handle, prompt: restrict(prompt), agent: agentName, role, base, adoptHead, after, prepare: prepareLaunch, ...((role === "implement" || role === "refine") && issue ? { issue: issue.slug, assignee: role === "refine" && pinned(issue.assignee) ? "agent" : issue.assignee ?? undefined } : {}) }],
 			{ run: s.root, cwd: into, maxConcurrent: 1, active: [], protectedIssue: issue?.slug, withOwner: async create => {
 				for (;;) {
 					try {
@@ -814,10 +822,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		c.pendingLaunch = plan;
 		if (prev) await captureWorkerForeignWork(completion, [[slug, [prev]]]);
 		save();
+		let adoptHead: string | undefined;
 		if (saved && !registered) {
 			try {
-				const path = await reclaimSetup(pathOf(c.into), saved, base);
-				if (path) note("reclaimed interrupted setup for " + saved + " at " + path);
+				const recovery = await reclaimSetup(pathOf(c.into), saved, base);
+				adoptHead = recovery?.adoptHead;
+				if (recovery) note((adoptHead ? "adopting" : "reclaimed") + " interrupted setup for " + saved + " at " + recovery.path);
 			} catch (error) {
 				raise(slug, LAUNCH_OCCUPIED, String(error) + "\n\nInspect the remaining worktree and branch, preserve any work, then resolve with retry once the name is free.", issues, "owner");
 				return;
@@ -828,9 +838,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			if (from) return phasePrompt();
 			// Handler rulings land in the collector, not the preceding worker. Merge before setup and before
 			// reading the successor's ticket; a rebase here could replay patch-equivalent ancestor work.
-			const refreshed = refreshWorker(path, pathOf(c.into));
-			return [phasePrompt(), refreshed.conflicts.length ? "First resolve the pending merge of collector " + refreshed.head + ": " + refreshed.conflicts.join(", ") + ". Preserve the collector's code and the previous worker's results, then commit the merge before continuing this phase. The ticket above is the current global contract. Do not abort the merge or rebase away either history. Setup was skipped because it can't run over conflict markers: after committing the merge, run the project's setup (mise run setup, where it declares one) before anything that needs it." : ""].filter(Boolean).join("\n\n");
-		}, phase === "refine" ? { chain: c, adopt } : undefined, c, plan.after);
+			return [phasePrompt(), mergePrompt("collector", refreshWorker(path, pathOf(c.into)))].filter(Boolean).join("\n\n");
+		}, phase === "refine" ? { chain: c, adopt } : undefined, c, plan.after, adoptHead);
 		if (phase === "refine" && c.refinement && registered) s.refinements[c.refinement].worker = handle;
 		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
 		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, pendingLaunch: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
@@ -1103,11 +1112,9 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		// Unlike tree dispatch, a PR launch never substitutes a fresh identity after
 		// a partial failure. Retry adopts its exact bb thread or raises to owner.
 		const base = git(pr.path, "rev-parse", "HEAD");
-		if (saved) {
-			const path = await reclaimSetup(pr.path, saved, base);
-			if (path) note("reclaimed interrupted setup for " + saved + " at " + path);
-		}
-		return launchNow(receipt.launchHandle, "review", prompt, base, pr.path, issue, ["technical"], undefined, undefined, s.root);
+		const recovery = saved ? await reclaimSetup(pr.path, saved, base) : undefined;
+		if (recovery) note((recovery.adoptHead ? "adopting" : "reclaimed") + " interrupted setup for " + saved + " at " + recovery.path);
+		return launchNow(receipt.launchHandle, "review", prompt, base, pr.path, issue, ["technical"], undefined, undefined, s.root, recovery?.adoptHead);
 	}
 	const pendingNotes = new Map<string, string | undefined>();
 	/** The chain's committed work beyond its destination, as a note for a fresh start that doesn't take it as its base. */

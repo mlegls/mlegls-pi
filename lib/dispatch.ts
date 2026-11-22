@@ -26,6 +26,8 @@ export interface Assignment {
   model?: string;
   effort?: string;
   base?: string;
+  /** Library-only HEAD of a saved launch worktree verified by the reconciler. */
+  adoptHead?: string;
   /** Library-only retry cursor: choose an entry after the rate-limited route. */
   after?: SpawnOptions["after"];
   /** Library-only preparation in the new checkout, before setup/launch; may replace the task prompt. */
@@ -147,7 +149,7 @@ export async function dispatch(assignments: Assignment[], options: Options): Pro
       let ownerThread = parent;
       const wm = await import("./wm.ts");
       const worker = await wm.spawn({ run: options.run, handle: task.handle, issue: task.issue ?? options.protectedIssue, prompt: task.prompt,
-        agent: task.agent, role: task.role, base: task.base, prepare: task.prepare, model: task.model, effort: task.effort, after: task.after, cwd, parentThread: options.parentThread, session: options.session,
+        agent: task.agent, role: task.role, base: task.base, adoptHead: task.adoptHead, prepare: task.prepare, model: task.model, effort: task.effort, after: task.after, cwd, parentThread: options.parentThread, session: options.session,
         withOwner: options.withOwner ? create => options.withOwner!(owner => { ownerThread = owner.thread; return create(owner); }) : undefined });
       receipt.submitted.push({ handle: task.handle, run: options.run, path: worker.dir, bb: worker.bb });
       ledger(cwd, task, options.run, receipt.submitted.at(-1)!, ownerThread);

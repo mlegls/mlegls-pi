@@ -37,6 +37,7 @@ export interface SpawnOptions {
 	agent?: string; // name of a stance file in AGENTS_DIR
 	role?: string; // which of the agent's roles this spawn fills (default: its first)
 	base?: string; // git ref to branch from
+	adoptHead?: string; // verified HEAD of a saved launch worktree
 	prepare?: (cwd: string) => Promise<string | void>; // before setup/launch; may replace the task prompt
 	cwd?: string; // repo; default process.cwd()
 	session?: string; // legacy receipt field; never selects a transport
@@ -444,7 +445,7 @@ export async function spawn(o: SpawnOptions): Promise<Worker> {
 			throw new Error(`from must be "summary"; bb threads cannot fork a session`);
 		}
 		const env = Object.fromEntries(spawnEnv({ run: o.run, handle: o.handle, issue: o.issue, agent: a?.name, parentSession: o.parentSession, checkpoint: a?.checkpoint }).map(s => { const i = s.indexOf("="); return [s.slice(0, i), s.slice(i + 1)]; }));
-		const options = { cwd, parent: o.parentThread, worktree: o.handle, base: o.base,
+		const options = { cwd, parent: o.parentThread, worktree: o.handle, base: o.base, adoptHead: o.adoptHead,
 			createThread: o.withOwner ? (create: (parent?: string) => Promise<string>) => o.withOwner!(owner => {
 				if (owner.session) env.PI_WM_PARENT_SESSION = owner.session;
 				else delete env.PI_WM_PARENT_SESSION;

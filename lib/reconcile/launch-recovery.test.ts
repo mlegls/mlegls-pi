@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { protocolFixture } from "./protocol-fixture";
 import { start, stop } from "./main";
 import { load, saveState } from "./reconcile";
+import { replay, scenarios } from "./launch-recovery-fixture";
 
 async function until<T>(read: () => T | undefined | false): Promise<T> {
 	for (let i = 0; i < 400; i++) {
@@ -55,4 +56,8 @@ test("an interrupted chain launch adopts its titled worker or launches once unde
 			f.close();
 		}
 	}
+}, 120_000);
+
+for (const scenario of scenarios) test(`restart after worktree add: ${scenario}`, async () => {
+	await replay(scenario);
 }, 120_000);
