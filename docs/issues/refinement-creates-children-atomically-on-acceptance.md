@@ -14,6 +14,15 @@ The refiner writes children into the live tracker while it works, each carrying 
 - Update [refine.md](../../agents/roles/refine.md) to the new contract.
 - Running reconcilers restart onto this code when it lands (code fingerprint). A refinement attempt saved under the old protocol, with provisional children already in the tracker, must still finish or be discarded correctly after that restart: keep a narrow legacy path for those attempts, or show none exist in Concept's and mlegls-pi's run state when this lands.
 
+## tasks
+
+At the join after [[projects/mlegls-pi/issues/github-tracker-atomic-refinement-create]] and [[projects/mlegls-pi/issues/atomic-proposal-refinement-engine]] land:
+
+1. Prune the deprecated optional legacy fields (`claim`, `baseline`, `parentFields`, `owned`, `successor`, `adoptedFrom`) and dead phases (`stopping`, `cleaning`, `adopting`) from `RefinementAttempt` in [tracker-state.ts](../../lib/reconcile/tracker-state.ts).
+2. Verify the cross-child seam end to end: run `acceptRefinement` against `getGithubTracker` (`fake-gh`) with two proposed siblings (the second `blocked-by` the first) and an interface commit, confirming stripped collector landing, topological `gh-N` creation with resolved `blocked-by`, and crash-replay idempotency.
+3. Re-run `docs/attachments/refinement-creates-children-atomically-on-acceptance/replay.ts`, `bun run typecheck`, and `bun test lib/reconcile lib/tracker-github.test.ts`.
+4. Recheck `.git/reconcile/*.json` in both Concept and mlegls-pi to confirm zero nonterminal legacy refinement attempts exist before landing on `main`.
+
 ## check
 
 An offline replay against a real vault tracker (pattern: other `docs/attachments/*/replay.ts`): a refine worker proposes two children and an interface commit; before acceptance the tracker has neither child; the reconciler is SIGKILLed after creating the first child and restarted; afterwards both children exist exactly once with `claimed-by: reconcile:<root>`, the interface commit is on the collector, and no proposal file landed. A stopped attempt leaves the tracker byte-identical. A promotion sets `decompose: false` and goes to implement as before. refinement.ts is substantially smaller.
