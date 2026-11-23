@@ -62,7 +62,7 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		const labels = new Set(native.labels.map(label => label.name));
 		const roles = triageRoles.filter(role => labels.has(project.roles[role]));
 		requireGithub(roles.length <= 1, slug + ": contradictory triage states: " + roles.join(", "));
-		const receipt = readGithubReceipt(project, snapshot, native);
+		const receipt = readGithubReceipt(project, native);
 		const metadata = { ...decoded.fields };
 		const role = roles[0];
 		const selector = metadata.assignee;
@@ -120,7 +120,6 @@ function graph(project: GithubProject, snapshot: GithubSnapshot, options: Tracke
 		}
 	}
 	for (const [slug, node] of all) {
-		if (!node.partOf && node.receipt?.removing?.parent) parent(node, node.receipt.removing.parent);
 		const fallback = fallbackHeaders(node.body);
 		if (!node.partOf && !node.native.parent && fallback.parent) parent(node, slugOf(fallback.parent));
 		for (const blocker of node.native.blockedBy) {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getGithubTracker } from "./tracker-github.ts";
@@ -8,7 +8,8 @@ import { decodeGithubBody, encodeGithubBody } from "./tracker-github-state.ts";
 import { GithubRateLimited, githubProject } from "./tracker-github-snapshot.ts";
 import { githubRest } from "./tracker-github-write.ts";
 import { untilReset } from "./reconcile/rate-limit.ts";
-import { ROLES, installFakeGh, issue, label, newState, type FakeState } from "./fixtures/fake-github.ts";
+import { setupCheckout, saveRun, accepting, proposed } from "./fixtures/github-acceptance.ts";
+import { installFakeGh, issue, type FakeState } from "./fixtures/fake-github.ts";
 
 // The adapter against a stateful fake of GitHub (lib/fixtures/fake-github.ts, serving reads through the committed
 // docs/attachments/read-github-tracker-snapshots/fake-gh.ts): no network, no live repository.
@@ -16,22 +17,7 @@ let dir: string, cwd: string, fake: ReturnType<typeof installFakeGh>;
 let savedRun: string | undefined;
 
 function setup(issues: Record<string, any>[]) {
-	cwd = join(dir, "checkout");
-	mkdirSync(join(cwd, "docs/agents"), { recursive: true });
-	execFileSync("git", ["init", "-q", cwd]);
-	execFileSync("git", ["-C", cwd, "remote", "add", "origin", "https://github.com/fixture/tracker.git"]);
-	writeFileSync(join(cwd, "docs/agents/issue-tracker.md"), "# Issue tracker: GitHub\nRepository: fixture/tracker\n");
-	writeFileSync(join(cwd, "docs/agents/triage-labels.md"), ["| Role | Label |", "| --- | --- |", ...ROLES.map(role => "| " + role + " | " + role + " |")].join("\n"));
-	fake = installFakeGh(join(dir, "bin"), newState(issues));
-}
-/** The saved run a reconciler leaves under <git-common-dir>/reconcile, with one writable refinement attempt. */
-function saveRun(root: string) {
-	const common = execFileSync("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim();
-	mkdirSync(join(common, "reconcile"), { recursive: true });
-	writeFileSync(join(common, "reconcile", root + ".json"), JSON.stringify({
-		backend: "threads", root, cwd, landed: {}, results: {}, landingOps: {},
-		refinements: { h1: { node: "gh-1", handle: "h1", claim: "reconcile:" + root + "/h1", baseline: ["gh-1", "gh-2"], parentFields: {}, owned: [], phase: "writing" } },
-	}));
+	({ cwd, fake } = setupCheckout(dir, issues));
 }
 const tracker = (run?: string) => getGithubTracker(cwd, { run })!;
 const edit = (change: (state: FakeState) => void) => {
@@ -93,15 +79,14 @@ describe("metadata envelope", () => {
 	}, 60_000);
 });
 
-describe("ownership and provisional cleanup", () => {
-	const token = "reconcile:r1/h1";
+describe("ownership and refinement acceptance", () => {
 	beforeEach(() => {
 		setup([
 			issue(1), issue(2, { parentId: "I-1" }),
 			issue(3, { assignees: [{ id: "U-viewer", login: "reader" }] }),
 			issue(4, { assignees: [{ id: "U-other", login: "someone" }] }),
 		]);
-		saveRun("r1"); saveRun("r2");
+		saveRun(cwd, "r1"); saveRun(cwd, "r2");
 	});
 
 	test("a stable reservation is an exact receipt that survives a restart, and never steals another's assignment", () => {
@@ -124,34 +109,35 @@ describe("ownership and provisional cleanup", () => {
 		expect(tracker("r1").fields("gh-1")["claimed-by"]).toBe("reconcile:r1");
 	}, 60_000);
 
-	test("a provisional child whose create or cleanup response is lost is replayed exactly once", () => {
-		const create = () => tracker("r1").create({ slug: "prov", fields: { title: "Prov", assignee: "agent", "part-of": "gh-1", "claimed-by": token, author: "session:test" }, body: "Provisional.\n" });
-		expect(() => tracker("r1").create({ slug: "x", fields: { title: "x", assignee: "agent", "part-of": "gh-1", "claimed-by": "reconcile:r1/nobody", author: "session:test" }, body: "x\n" }))
-			.toThrow(/exact attempt authority/);
+	test("only a landed proposal creates claimed children; replay correlates per parent", () => {
+		const claim = "reconcile:r1", first = proposed("base", "gh-1"), next = proposed("next", "gh-1", ["base"]);
+		const create = (child = first, fields = {}, body = child.body) => tracker("r1").create({ slug: child.alias,
+			fields: { ...child.fields, "claimed-by": claim, ...fields }, body });
+		const attempt = accepting(cwd, "gh-1", [first, next]);
+		const save = (patch = {}) => saveRun(cwd, "r1", { h1: { ...attempt, ...patch } });
+		expect(create).toThrow(/landed accepting proposal/);
+		for (const patch of [{ phase: "writing" }, { node: "gh-2" }, { acceptance: { ...attempt.acceptance, landedHead: undefined } }]) {
+			save(patch);
+			expect(create).toThrow(/landed accepting proposal/);
+		}
+		save();
+		expect(() => create(first, { "claimed-by": claim + "/h1" })).toThrow(/landed accepting proposal/);
+		expect(() => create(first, {}, "Changed body")).toThrow(/landed accepting proposal/);
 		edit(state => { state.faults.lose = ["createIssue"]; });
 		expect(create).toThrow();
-		expect(fake.read().issues).toHaveLength(5);
-		expect(create()).toBe("gh-5");
-		expect(create()).toBe("gh-5");
-		expect(fake.read().issues).toHaveLength(5);
+		expect(tracker().snapshot().get("gh-5")).toMatchObject({ partOf: "gh-1", claims: [{ slug: "gh-5", claimedBy: claim }] });
+		const id = create();
+		expect(id).toBe("gh-5");
 		expect(fake.calls("createIssue")).toHaveLength(1);
-		let row = tracker("r1").snapshot().get("gh-5")!;
-		expect(row).toMatchObject({ partOf: "gh-1", claims: [{ slug: "gh-5", claimedBy: token }] });
-
-		// A baseline node is not a provisional child.
-		expect(() => tracker("r1").remove("gh-2")).toThrow(/no exact owned native assignment|provisional/);
-
-		edit(state => { state.faults.lose = ["removeAssigneesFromAssignable"]; });
-		expect(() => tracker("r1").remove("gh-5")).toThrow(/replay the same operation/);
-		const half = fake.read().issues.find(i => i.number === 5)!;
-		expect(half).toMatchObject({ state: "CLOSED", stateReason: "NOT_PLANNED", assignees: [], parentId: null });
-		tracker("r1").remove("gh-5");
-		tracker("r1").remove("gh-5");
-		expect(tracker("r1").snapshot().has("gh-5")).toBe(false);
-		expect(tracker().snapshot().has("gh-5")).toBe(false);
-		expect(fake.calls("closeIssue")).toHaveLength(1);
-		expect(fake.read().issues).toHaveLength(5);
-		expect(tracker("r1").snapshot().get("gh-1")!.claims).toEqual([]);
+		attempt.acceptance.created.base = id;
+		save();
+		const dependent = create(next, { "blocked-by": [id] });
+		expect(tracker().snapshot().get(dependent)).toMatchObject({ partOf: "gh-1", blockedBy: [id] });
+		const other = proposed("base", "gh-2");
+		saveRun(cwd, "r1", { h1: attempt, h2: accepting(cwd, "gh-2", [other]) });
+		expect(create(other)).toBe("gh-7");
+		expect(create()).toBe(id);
+		expect(fake.calls("createIssue")).toHaveLength(3);
 	}, 60_000);
 });
 
