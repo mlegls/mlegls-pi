@@ -1,5 +1,5 @@
 ---
-stage: "spec"
+stage: "ticket"
 assignee: "agent"
 priority: 2
 author: "session:thr_vrgtjptnu2"

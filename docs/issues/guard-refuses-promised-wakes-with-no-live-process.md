@@ -3,7 +3,7 @@ stage: "ticket"
 assignee: "agent:auto-routine"
 author: "session:01a20621-fdb8-74d3-8ab0-6ecb91858267"
 part-of: "[[projects/mlegls-pi/issues/promised-wake-turns-end-with-nothing-to-wake-them]]"
-claimed-by: "reconcile:promised-wake-turns-end-with-nothing-to-wake-them/promised-wake-turns-end-with-nothing-to-wake-them-refine-2"
+claimed-by: "reconcile:promised-wake-turns-end-with-nothing-to-wake-them"
 priority: 2
 ---
 A turn whose final text promises to act on an event, with no live managed process to deliver that event, gets refused once before it ends. Part of [[projects/mlegls-pi/issues/promised-wake-turns-end-with-nothing-to-wake-them]]; the parent quotes the three threads that motivated it. This guard alone would not have caught them (their watchers were live at turn end); it catches the case where nothing was started at all.

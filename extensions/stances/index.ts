@@ -8,7 +8,7 @@
 import type { ExtensionAPI, ExtensionContext, ModelRoute, ModelRouteRequest } from "@earendil-works/pi-coding-agent";
 import { readdirSync } from "node:fs";
 import { agent, AGENTS_DIR, executions, type Execution } from "../../lib/agents";
-import { allocation, gate, noticeBankedReset, windows } from "../../lib/allocation";
+import { allocation, capacity, windows } from "../../lib/allocation";
 
 export const PROVIDER = "stance";
 const EXHAUSTED = /rate.?limit|overload|quota|usage.?limit|capacity|429|529|too many requests/i;
@@ -37,7 +37,7 @@ export function register(pi: ExtensionAPI, provider: string, models: { name: str
 	});
 }
 
-function route(name: string, list: Execution[], request: ModelRouteRequest<State>, ctx: ExtensionContext): ModelRoute<State> {
+async function route(name: string, list: Execution[], request: ModelRouteRequest<State>, ctx: ExtensionContext): Promise<ModelRoute<State>> {
 	const at = (index: number, state?: State): ModelRoute<State> => {
 		const e = list[index];
 		const [provider, id] = [e.model.slice(0, e.model.indexOf("/")), e.model.slice(e.model.indexOf("/") + 1)];
@@ -50,10 +50,19 @@ function route(name: string, list: Execution[], request: ModelRouteRequest<State
 		return !!model && ctx.modelRegistry.hasConfiguredAuth(model);
 	};
 	const current = request.state?.index;
+	const delegated = !!(process.env.PI_WM_RUN && process.env.PI_WM_HANDLE);
 	if (request.reason === "continuation" && current !== undefined) return at(current);
 	if (request.reason === "retry" && current !== undefined) {
 		const error = request.failed?.message.errorMessage ?? "";
 		if (!EXHAUSTED.test(error)) return at(current);
+		if (delegated) {
+			const alloc = allocation();
+			const model = list[current].model;
+			if (alloc[model.split("/")[0]]?.quota === "codex" && usable(current)) {
+				const room = await capacity(model, windows(alloc, true), alloc);
+				if (room.redeemed) return at(current);
+			}
+		}
 		for (let i = current + 1; i < list.length; i++) if (usable(i)) return at(i, { index: i });
 		throw new Error(`stance/${name}: ${list[current].model} failed (${error}) and no later entry is usable`);
 	}
@@ -67,14 +76,10 @@ function route(name: string, list: Execution[], request: ModelRouteRequest<State
 	// A new user turn: keep the current model while it still has capacity, else re-select.
 	const alloc = allocation();
 	const now = windows(alloc);
-	const admits = (i: number) => {
-		if (!usable(i)) return false;
-		const g = gate(list[i].model, now, alloc);
-		if (g.admits) noticeBankedReset(list[i].model.split("/")[0], g, now);
-		return g.admits;
-	};
-	if (current !== undefined && admits(current)) return at(current);
-	const i = list.findIndex((_, i) => admits(i));
-	if (i < 0) throw new Error(`stance/${name}: no model in the list has delegated capacity left`);
-	return at(i, { index: i });
+	const admits = async (i: number) => usable(i) && (await capacity(list[i].model, now, alloc, delegated)).admits;
+	if (current !== undefined && await admits(current)) return at(current);
+	for (let i = 0; i < list.length; i++) {
+		if (i !== current && await admits(i)) return at(i, { index: i });
+	}
+	throw new Error(`stance/${name}: no model in the list has delegated capacity left`);
 }

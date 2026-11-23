@@ -1,7 +1,7 @@
 ---
 name: prune
 description: Refactors and removals that mostly delete or reshape existing code rather than add to it.
-model: anthropic/claude-sonnet-5-5:high, openai/gpt-6.2-sol:high, zai/glm-5.3-flash:high
+model: openai/gpt-6.2-sol:medium, anthropic/claude-sonnet-5-5:high, zai/glm-5.3-flash:high
 role: implement
 ---
 
