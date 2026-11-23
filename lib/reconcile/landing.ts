@@ -64,12 +64,14 @@ export function gateRepair(cwd: string, target: string, reviewed: string, base: 
 		const paths = output.split("\n").map(line => line.trim().replace(/^\[warn\]\s+|^would reformat\s+/g, "").replace(/^\.\//, "").replace(/\s+\(\d+(?:\.\d+)?ms\)$/, ""));
 		const names = new Set(git(cwd, "ls-tree", "-r", "--name-only", "-z", base).split("\0").filter(Boolean));
 		const files = [...new Set(paths.filter(p => names.has(p)))];
+		// Only a file the node left alone is certainly wrong on the target; one it changed is formatted on its own branch.
 		const inherited = new Set(git(cwd, "ls-tree", "-r", "--name-only", "-z", target).split("\0"));
-		return { kind: "format", target, reviewed, base, files, targetFiles: files.filter(file => inherited.has(file)) };
+		const own = new Set(changedFiles(cwd, target, base));
+		return { kind: "format", target, reviewed, base, files, targetFiles: files.filter(file => inherited.has(file) && !own.has(file)) };
 	}
 	if (/(?:script|task) ["'\x60]?(?:[\w-]*lint)(?::[\w-]+)?["'\x60]?(?:\s+exited|\s+failed)|\bESLint\b.+(?:problems|errors)|\bFound \d+ warnings? and [1-9]\d* errors?\b/i.test(output))
 		return { kind: "lint", target, reviewed, base };
-	const diagnostics = [...output.matchAll(/^\s*(.+?)(?:\((\d+),\d+\)|:(\d+):\d+)\s*:\s*error TS\d+:/gm)];
+	const diagnostics = [...output.matchAll(/^\s*(.+?)(?:\((\d+),\d+\)|:(\d+):\d+)\s*(?::|-)\s*error TS\d+:/gm)];
 	if (!diagnostics.length) return;
 	const own = changedFiles(cwd, target, base);
 	const names = git(cwd, "ls-tree", "-r", "--name-only", "-z", base).split("\0");
