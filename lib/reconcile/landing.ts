@@ -107,7 +107,13 @@ export function repairNeedsReview(cwd: string, repair: LandingRepair, head: stri
 export function prepareLandingDependencies(cwd: string, before: string): void {
 	const changed = git(cwd, "diff", "--name-only", "-z", before, "HEAD").split("\0");
 	if (!changed.some(dependencyInput)) return;
-	const tasks = JSON.parse(execFileSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: "pipe" })) as { name: string }[];
+	let tasks: { name: string }[];
+	try { tasks = JSON.parse(execFileSync("mise", ["tasks", "ls", "--json"], { cwd, encoding: "utf8", stdio: "pipe" })); }
+	catch (error) {
+		// A repository on a host without mise has no mise tasks to refresh dependencies with.
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+		throw error;
+	}
 	const task = tasks.some(t => t.name === "deps") ? "deps" : tasks.some(t => t.name === "setup") ? "setup" : undefined;
 	if (task) execFileSync("mise", ["run", task], { cwd, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout: 30 * 60_000 });
 }

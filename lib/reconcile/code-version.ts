@@ -13,7 +13,8 @@ export function fingerprint(root = packageRoot): string {
 		for (const entry of readdirSync(dir, { withFileTypes: true })) {
 			const path = join(dir, entry.name);
 			if (entry.isDirectory()) visit(path);
-			else if (entry.isFile() && /\.(?:[cm]?[jt]sx?)$/.test(entry.name)) files.push(path);
+			// Tests and fixtures don't run in a daemon: editing one is not a code change.
+			else if (entry.isFile() && /\.(?:[cm]?[jt]sx?)$/.test(entry.name) && !/\.(?:test|fixture)\.[cm]?[jt]sx?$/.test(entry.name)) files.push(path);
 		}
 	};
 	visit(join(root, "lib"));

@@ -2,7 +2,7 @@
 # bb can start a sessionless Pi beside the worker on the same provider environment.
 # Only the session-carrying Pi may record the worker's identity.
 case " $* " in
-*" --no-session "*) unset PI_WM_RUN PI_WM_HANDLE PI_WM_ISSUE PI_WM_AGENT PI_WM_PARENT_SESSION PI_CHECKPOINT ;;
+*" --no-session "*) unset PI_WM_RUN PI_WM_HANDLE PI_WM_ISSUE PI_WM_AGENT PI_WM_PARENT_SESSION PI_WM_RECONCILER_RUN PI_CHECKPOINT ;;
 esac
 # bb passes its own --append-system-prompt, and pi then skips discovering the personal APPEND_SYSTEM.md, so add it
 # after bb's: its conventions (host-for-human, not bb connect expose) override bb's generic guidance.
