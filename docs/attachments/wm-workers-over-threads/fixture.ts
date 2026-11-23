@@ -1,4 +1,4 @@
-// Disposable first-use setup. Uses the public worker/supervisor surfaces, not a test suite.
+// Historical first-use setup: run from revision 3433b84e, which still has the zmx runtime and wm.wait.
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
