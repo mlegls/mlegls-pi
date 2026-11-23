@@ -1,5 +1,7 @@
 # Worker retirement first use
 
+[Independent drive](drive.md) records the observed receipts and the remaining explicit-retention check.
+
 From the package checkout, run `bun docs/attachments/delete-dead-wm-and-thread-code/first-use.ts` with Git, mise, and lsof on PATH. The script starts no daemon or provider. It creates a disposable repository, dispatches two workers through a fake BB CLI, commits an unmerged patch on one, and removes the fixture on exit.
 
 Observed both workers ready on their linked worktrees before retirement:
