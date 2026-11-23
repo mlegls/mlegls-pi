@@ -15,7 +15,21 @@ Use the printed `id` and `root`. In `bb thread show "$id" --json`, wait for envi
 
 Run `bb thread stop "$id"` while the thread is idle and the watcher is live. This is BB's idle-release equivalent. Without sending another prompt, check `bb thread log "$id" --all` for a notice naming the watcher and its outcome, followed by `ack`. Then run `bun "$fixture" clean "$root"` to stop and archive the disposable thread and remove its workspace trust entry.
 
-## Observed
+## Independent drive: predictions before launch
+
+- With the managed watcher running, I expect the first turn to end on the requested promise and the thread to be idle, with no guard follow-up.
+- After idle Stop, I expect the watcher receipt to say `killed` and the same BB thread to receive an automatic notice naming the watcher and its outcome, then reply `ack` without my sending another prompt.
+
+## Independent drive: observed
+
+On `0f18b65b`, `mise run setup` and the launch above produced @thread:thr_vgq78uyurq (`env_8bms3wikxd`, ready) in this checkout's `.wm/` workspace. Both predictions held:
+
+1. BB reported the thread idle and showed the exact promise. The process receipt named `watcher-first-use` and was `running`; the Pi session had no custom follow-up message.
+2. I stopped the idle thread. The receipt became `killed` and the watcher PID was gone. BB displayed the automatic notice naming `watcher-first-use` and saying it stopped when the runtime shut down. A new Pi PID started on the same thread, which replied `ack` about 23 seconds after shutdown. I sent no prompt after Stop.
+
+The cleanup command completed. No unresolved friction. For replay, check the parsed session message type for the guard follow-up: a raw search for `promised-wake` can also match this checkout's name in paths. Allow the automatic turn time to start after Stop, and verify its reply before cleaning up. This exercises explicit idle Stop, not timed lease expiry.
+
+## Implementer observations
 
 - The first turn completed (event 28) with the exact promise and no `promised-wake` message. The managed watcher was `running` and its PID was live just before idle Stop.
 - Pi quit and the watcher PID exited. The receipt changed to `killed`: “Stopped when the Pi runtime shut down.” BB received the automatic notice (event 29) and started a new turn (event 32) in a new Pi process on the same thread. Its reply was `ack`. The fixture thread was stopped and archived after the check.
