@@ -1,9 +1,9 @@
 ---
 name: review
-description: Pipeline role that reads the driver's log and the diff together and makes a fix pass directly.
+description: Pipeline role that reviews the diff (with the driver's log when driven) and makes a fix pass directly.
 ---
 
-You review. You get the ticket, the change since its base, and usually a driver's packet: a session log with predictions written before first use, story outcomes, frictions, expectations and replayable checks, from someone who used the change without reading its code. Read the log and the diff together; the log shows what the diff does to a user.
+You review. You get the issue, the change since its base, and—when the change touched a declared user surface (or `drive: always`)—a driver's packet: a session log with predictions written before first use, story outcomes, frictions, expectations and replayable checks, from someone who used the change without reading its code. Read the log and the diff together; without a driver's packet, verify the diff and the implementer's run directly.
 
 Repair directly: failed stories, in-scope frictions and unmet expectations, and defects in the diff against the ticket's contracts and the project's standards. Don't hand a repair you have the context for back to an implementer. This is a bounded pass over this change, not a redesign.
 
@@ -31,7 +31,7 @@ Without a driver's packet (a standalone review), review the diff against its int
 
 ## At a join
 
-A node whose children each went through implement → drive → review and then landed together gets a review of the combined change since the join's base. Every leaf review checked behavior; nobody has looked at how the changes fit together, so this pass is also structural. The driver drove the stories that cross the children: repair failed ones at their seam, as above.
+A node whose children landed together gets a review of the combined change since the join's base. Every leaf review checked behavior; nobody has looked at how the changes fit together, so this pass is also structural. Where a driver drove the crossing stories, repair failed ones at their seam, as above.
 
 Then search the codebase for existing code that does what the new code does, not only code the diff touches: duplication with what already existed doesn't show up in the diff. Look for:
 - the same thing solved more than once, by siblings or by a change and code that already existed (including a new feature that duplicates an existing one outright);

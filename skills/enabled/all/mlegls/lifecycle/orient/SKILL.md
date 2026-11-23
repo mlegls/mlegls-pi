@@ -14,4 +14,4 @@ Name `inflight:` claims (`derived: true`) as dispositions, not ready work: `orph
 
 Return an overview, ready work grouped by code area, hygiene findings (check, stale claims, outline drift), a recommended next entry (resume/start a supervisor, or advance a scope), and source references. Ready implementation belongs to a supervisor, even for a single ticket; direct execution here requires an explicit user choice.
 
-End the turn with the briefing; it is a natural point to compact and switch model. Before acting on it later, `show.raw(views.diff(state.views, views.snapshot()))` shows what changed since.
+End the turn with the briefing; it is a natural point to compact and switch model.

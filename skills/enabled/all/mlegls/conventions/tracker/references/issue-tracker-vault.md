@@ -124,7 +124,7 @@ Writes validate the resulting global tracker before publication and commit only 
 
 ## procedure
 
-claim: write `claimed-by` through the tracker before anything else; read the current global contract before updating it.
+claim: write `claimed-by` through the tracker before anything else (except reconciled workers, which inherit the run's claim and are refused direct claims); read the current global contract before updating it.
 
 A ticket's code, shared interface stubs, already-authorized tests and `docs/attachments/` evidence commit on its worker branch. Workers do not integrate or push the canonical checkout. Parent decisions, dependencies, child contracts and new friction go through the tracker immediately, not through the coordinator or a branch issue commit. A defect whose fix is evident and smaller than its issue would be is fixed in place (two-minute rule, [lifecycle](lifecycle.md)); other friction is filed outside the active execution subtree and linked from the report.
 
