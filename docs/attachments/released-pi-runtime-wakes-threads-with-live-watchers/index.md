@@ -33,3 +33,10 @@ Replay check: stop while the process tool is waiting and the turn has yet to fin
 - The setup command's success means the thread was created. Readiness and the boundary at which to stop it are separate; the procedure above records how to establish both.
 - The plain log displayed the automated loss notice under `User`, and the JSON classified the request as `source: tell`, `initiator: user`. The notice itself explains why the thread woke; the paired event log and absence of a manual tell establish which action caused the new turn.
 
+## Review
+
+Read against the diff at `264a4253`. One seam defect: retiring a worker (`lib/thread/lifecycle-cleanup.ts`) marks its Pi as retired, then sends BB's idle `thread stop` before killing what the worker ran and archiving it. The hook read that Stop as an idle release, so a worker retired with a dev server still running would spawn the helper, which tells the thread before `archiveBb` runs and starts a turn in a worktree being deleted. The hook now skips shutdowns whose pid/session carry the retirement mark (`isRetired` in `lib/session-meta/live.ts`, read-only so the parent's child-exit monitor still consumes it).
+
+Offline check (fake `pi.on` registry, a `running` receipt, `XDG_STATE_HOME` and `BB_CLI=/bin/false` sandboxed): before the fix both an unmarked and a retirement-marked idle shutdown spawned the helper (`release-wake.log` created: `{"unmarked":true,"retired":true}`); after it, `{"unmarked":true,"retired":false}`. The two BB stories above use unmarked threads, so their outcomes stand.
+
+Frictions: the setup command returning before the watcher is ready is a fixture property, and the procedure above covers it. BB labelling the automatic tell `initiator: user` is BB's tell semantics; the notice text names its cause.
