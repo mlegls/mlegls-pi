@@ -42,6 +42,7 @@ import { schedulingView, type ScheduledIssue as Issue } from "./scheduling.ts";
 import { beginEvidenceScope, EVIDENCE_MISSING } from "./evidence.ts";
 import { captureWorkerForeignWork } from "./foreign-work.ts";
 import { closeAtTarget, finishLandingCleanup, landReviewed, recoverLandings, reviewedResult } from "./completion.ts";
+import { changedFiles, repairNeedsReview, type LandingRepair } from "./landing.ts";
 import { outstandingChecks, POST_LANDING, selectPostLanding, type PostLandingVerdict } from "./post-landing.ts";
 import { acceptRefinement, beginRefinement, discardRefinement, recoverRefinements, releaseRefinementClaims, replaceRefinement } from "./refinement.ts";
 import type { GlobalRunState, RefinementAttempt, WorkerPhase } from "./tracker-state.ts";
@@ -173,6 +174,9 @@ interface Chain {
 	/** Exact red report this landing waits on, and the one the owner designated it to repair. */
 	redHeld?: string;
 	redRepair?: string;
+	landingRepair?: LandingRepair & { failure: string; launchHandle?: string; worker?: Handle; launchedAt?: number };
+	/** The current integration candidate is a handler's repair, not a review session. */
+	landingRepaired?: boolean;
 }
 /** A chain's work when its run was stopped, so a restart continues it rather than starting over from its destination. */
 export interface Resume {
@@ -861,8 +865,8 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		}, phase === "refine" ? { chain: c, adopt } : undefined, c, plan.after, adoptHead);
 		if (phase === "refine" && c.refinement && registered) s.refinements[c.refinement].worker = handle;
 		if (prev && !await retireHandle(prev, pathOf(c.into), finished)) c.workers.push(prev);
-		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, pendingLaunch: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined });
-		c.retries = { integrate: c.retries.integrate ?? 0, provider: c.retries.provider ?? 0 };
+		Object.assign(c, { phase, handle, launching: undefined, launchPhase: undefined, pendingLaunch: undefined, launchedAt, handledTs: undefined, resumeFrom: undefined, landingRepaired: undefined });
+		c.retries = { integrate: c.retries.integrate ?? 0, "landing repair": c.retries["landing repair"] ?? 0, provider: c.retries.provider ?? 0 };
 		save();
 	}
 
@@ -1037,7 +1041,13 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (c && ex.reason.startsWith(TURN_INTERRUPTED)) delete c.retries.interruption;
 		// A resolution restarts any wait: else a `waiting stalled` exception re-raises on the next tick.
 		if (c) { c.waitingSince = undefined; c.waitingCheckedAt = undefined; c.waitingVoidNudged = undefined; }
-		if (r.action === "answer" && !adopted && c?.handle && !removedRefinement(c) && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
+		if (c?.landingRepair && !adopted && (r.action === "retry" || r.action === "answer")) {
+			if (c.landingRepair.worker) await stop(c.landingRepair.worker, { cwd: pathOf(c.into) });
+			c.landingRepair = undefined;
+			c.held = false;
+			c.note = r.message ?? r.note;
+		}
+		else if (r.action === "answer" && !adopted && c?.handle && !removedRefinement(c) && alive(c.handle) !== false) { await sendChild(c.handle, r.message ?? r.note ?? ""); c.held = false; c.handledTs = ex.reportTs ?? c.handledTs; }
 		else if (r.action === "answer" || r.action === "retry") { if (c) { c.held = false; c.note = r.message ?? r.note; if (!issue) throw new Error("resolution target " + target + " is not in the global tracker"); await startPhase(target, c, c.phase === "integrate" ? "review" : c.phase, issue, issues, "", r.action === "retry" && r.adopt === true); } }
 		else if (r.action === "redispatch") {
 			// A redispatch starts over from the parent's head; the superseded chain's commits stay on its kept branch,
@@ -1391,7 +1401,7 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			}
 		}
 	}
-	async function land(slug: string, c: Chain, issue: Issue): Promise<string | undefined> {
+	async function land(slug: string, c: Chain, issue: Issue): Promise<{ failure: string; repair?: LandingRepair } | undefined> {
 		const into = pathOf(c.into), h = c.handle!;
 		if ((s.land ?? "local") === "local" && c.into === cwd) {
 			const red = mainRed(cwd);
@@ -1414,12 +1424,12 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 			workers: c.workers, collector: s.collectors[slug], result,
 			tests: [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])] });
 		if (!outcome.ok) {
-			if (!outcome.log) return outcome.failure;
+			if (!outcome.log) return outcome;
 			// The whole output stays on this host for the worker, whose message shows its tail.
 			const file = join(stateDir(controlCwd), s.root + ".integrate", slug + "-" + new Date().toISOString().replace(/[:.]/g, "-") + ".log");
 			try { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, outcome.log); }
-			catch (e) { return outcome.failure + "\n\n(saving the full output failed: " + e + ")"; }
-			return outcome.failure + "\n\nFull output: " + file;
+			catch (e) { return { ...outcome, failure: outcome.failure + "\n\n(saving the full output failed: " + e + ")" }; }
+			return { ...outcome, failure: outcome.failure + "\n\nFull output: " + file };
 		}
 		s.tests[c.into] = [...new Set([...(s.tests[c.into] ?? []), ...testCommands(c.evidence)])];
 		const landed = git(into, "diff", "--name-only", before, outcome.head).split("\n").filter(Boolean);
@@ -1661,14 +1671,127 @@ export async function run(o: StartOptions & { signal?: AbortSignal }) {
 		if (why) pendingNotes.set(slug, why);
 		tellOwner("reopened " + slug + ": its " + c.phase + " commits are in " + s.collectors[slug].branch + (open.length ? "; the walk runs " + open.join(", ") + " next" : "; it has no open children, so the join starts again"));
 	}
+	async function advanceLandingRepair(slug: string, c: Chain, issue: Issue, issues: Map<string, Issue>) {
+		const job = c.landingRepair!, into = pathOf(c.into);
+		const files = job.targetFiles ?? [];
+		const onTarget = files.length > 0;
+		const base = onTarget ? job.target : job.base;
+		const fail = (reason: string) => raise(slug, "landing repair needs attention", reason + "\n\n" + job.failure, issues, "owner");
+		try {
+			if (!job.worker) {
+				const saved = job.launchHandle;
+				if (!saved && onTarget) {
+					// Siblings waiting for the same target format fix must not repeat it in their own branches.
+					if (Object.values(s.chains).some(other => other !== c && other.into === c.into
+						&& other.landingRepair?.launchHandle && other.landingRepair.targetFiles?.length && !other.held)) return;
+					if (git(into, "rev-parse", "HEAD") !== job.target) { c.landingRepair = undefined; save(); return; }
+				}
+				if (!saved) {
+					const key = "landing repair";
+					if ((c.retries[key] ?? 0) >= BUDGET.repair) return raise(slug, key + " (after " + BUDGET.repair + " repairs)", job.failure, issues);
+					job.launchHandle = nextHandle(slug.slice(0, 64), "handler");
+					c.retries[key] = (c.retries[key] ?? 0) + 1;
+				}
+				job.launchedAt ??= Date.now();
+				save();
+				const found = saved ? await findWorker({ run: s.root, handle: saved }, controlCwd) : undefined;
+				const recovery = saved && !found ? await reclaimSetup(into, saved, base) : undefined;
+				const prompt = [ticketText(issue),
+					"Landing repair: " + job.kind + ". Reviewed head: " + job.reviewed + ". Target tip: " + job.target + ". Your base: " + base + ".",
+					clip(job.failure, 9000),
+					onTarget
+						? "Reproduce the format failure on this pinned target tip. Format only the listed files that fail there, using the project's formatter, in one commit: " + JSON.stringify(files) + ". If they already pass on this tip, report done with landingRepair: {targetFormatAbsent: true} and no commits. The reconciler will rebase the node."
+						: "Update onto the pinned target tip if needed, preserving the reviewed change, and fix only this failure. For conflicts keep the reviewed version of conflicting hunks where possible, preserving the cleanly merged target changes. Commit the result.",
+					"If the only repair beyond the update is the project's formatter's output, report landingRepair: {formatOnly: true} in your handoff. A code repair gets reviewed separately. Run the failed check before reporting; integration reruns the full gate.",
+					c.note,
+				].filter(Boolean).join("\n\n");
+				const name = job.launchHandle;
+				job.worker = found ? { run: s.root, handle: name!, path: found.path, bb: found.bb }
+					: await launchNow(name!, "handle", prompt, base, into, issue, ["handler"], undefined, undefined, slug, recovery?.adoptHead);
+				c.workers.push(job.worker);
+				save();
+				return;
+			}
+			const h = job.worker, m = fresh(h, undefined, job.launchedAt);
+			if (!m || m.tags.includes("error")) {
+				if (observedWorking(h)) return;
+				if (bbErrored(h)) return fail(await bbError(h));
+				if (m && (m.tags.includes("interrupted") || Date.now() - Date.parse(m.ts) >= ERROR_SETTLE_MS)) return fail(m.body);
+				if (Date.now() - (job.launchedAt ?? 0) > START_GRACE_MS && alive(h) === false) return fail("Handler exited: " + h.handle);
+				const unread = unreadable.get(topic(h));
+				if (unread && Date.now() - unread.since > UNREADABLE_MS) return fail("Handler log unreadable: " + unread.error);
+				return;
+			}
+			const report = parse(m.body);
+			if (report.status === "waiting") {
+				if (Date.now() - Date.parse(m.ts) > WAITING_MS) return fail("Handler stalled: " + m.body);
+				return;
+			}
+			if (report.status !== "done" || report.handoffError) return fail("Handler " + h.handle + " reported:\n\n" + m.body);
+			if (git(h.path, "status", "--porcelain")) return fail("Handler left uncommitted changes in " + h.path);
+			const head = git(h.path, "rev-parse", "HEAD");
+			const handoff = report.handoff?.landingRepair as { formatOnly?: boolean; targetFormatAbsent?: boolean } | undefined;
+			const formatOnly = handoff?.formatOnly === true;
+			if (onTarget) {
+				// A crash after the fast-forward can leave the handler receipt active.
+				if (head !== base && isAncestor(into, head)) { c.landingRepair = undefined; save(); return; }
+				if (head === base && handoff?.targetFormatAbsent === true) {
+					c.landingRepair = { ...job, targetFiles: [], launchHandle: undefined, worker: undefined, launchedAt: undefined };
+					save();
+					return;
+				}
+				const changes = changedFiles(h.path, base, head);
+				if (!formatOnly || !changes.length || changes.some(file => !files.includes(file))
+					|| git(h.path, "show", "-s", "--format=%P", head) !== base)
+					return fail("Target formatting must be a single formatter-only commit on " + base + " changing only the named files.");
+				await locked(async () => {
+					// Tracker writes can advance the tip without changing formatter inputs.
+					const tip = git(into, "rev-parse", "HEAD");
+					if (isAncestor(into, base, tip) && changedFiles(into, base, tip).every(p => p.startsWith("docs/issues/"))) {
+						const integrated = await integrate(h, { cwd: into, keep: true, notifyHookFailure: false });
+						note("landed target formatting for " + slug + " at " + head);
+						const hook = integrated.output && hookFailure(integrated.output);
+						if (hook) tellOwner("Target formatting landed at " + head + ", but a merge hook failed:\n\n" + hook);
+					}
+				});
+				c.landingRepair = undefined;
+				save();
+				return;
+			}
+			if (!isAncestor(h.path, job.target, head)) return fail("Handler head does not include the pinned target " + job.target);
+			const review = repairNeedsReview(h.path, job, head, formatOnly);
+			c.workers = [...c.workers.filter(w => w.handle !== h.handle), c.handle!];
+			c.handle = h;
+			c.landingRepaired = true;
+			c.handledTs = m.ts;
+			c.launchedAt = job.launchedAt;
+			c.landingRepair = undefined;
+			const extra = "The landing handler changed reviewed code while repairing " + job.kind
+				+ ". Review the repair against the accepted head " + job.reviewed + " and refresh affected evidence.\n\n" + clip(job.failure, 3000);
+			if (review) c.pendingLaunch = { phase: "review", extra, adopt: false, finished: true };
+			note("landing handler for " + slug + (review ? " changed reviewed code; returning to review" : " preserved the reviewed change; retrying integration"));
+			save();
+		} catch (error) { fail(String((error as Error)?.message ?? error)); }
+	}
+
 	async function integrateReview(slug: string, c: Chain, issue: Issue, issues: Map<string, Issue>) {
+		if (c.landingRepair) return advanceLandingRepair(slug, c, issue, issues);
 		const h = c.handle!;
-		const failure = await land(slug, c, issue);
-		if (failure) {
+		const outcome = await land(slug, c, issue);
+		if (outcome) {
+			const { failure, repair } = outcome;
+			if (repair) {
+				c.landingRepair = { ...repair, failure };
+				note("landing " + slug + " needs " + repair.kind + " repair; routing to handler");
+				save();
+				return advanceLandingRepair(slug, c, issue, issues);
+			}
 			c.phase = "review";
 			c.retries.integrate = (c.retries.integrate ?? 0) + 1;
 			if (c.retries.integrate > BUDGET.integrate) return raise(slug, "integration failed " + BUDGET.integrate + " times", failure, issues);
-			await sendChild(h, "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + clip(failure, 9000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.");
+			const message = "Integration into " + (c.into === cwd ? "the owner's checkout" : "the parent branch") + " failed:\n\n" + clip(failure, 9000) + "\n\nRebase onto " + git(pathOf(c.into), "rev-parse", "HEAD") + " (git rebase <that sha>), resolve, make the gate and tests pass, commit, and report done again with your full handoff.";
+			if (c.landingRepaired) return startPhase(slug, c, "review", issue, issues, message, false, undefined, true);
+			await sendChild(h, message);
 			note("integration of " + slug + " failed (" + c.retries.integrate + "), sent back: " + failure.split("\n")[0]);
 			save();
 		}

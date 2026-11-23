@@ -19,8 +19,8 @@ export function statusRepairMessage(text: string, error: string | null): string 
     "\nRepost with `done`, `blocked`, `needs-input`, `waiting` or `checkpoint` as the first word, followed by the handoff. If the handoff also has `status:`, it must agree.";
 }
 
-// Refiners and respec implementers may report only their phase-specific seam.
-const keySet = new Set<string>([...HANDOFF_KEYS, "status", "children", "respec"]);
+// Some roles report only their phase-specific handoff.
+const keySet = new Set<string>([...HANDOFF_KEYS, "status", "children", "respec", "landingRepair"]);
 const fencePattern = /^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(json|yaml|yml)[ \t]*\r?\n([\s\S]*?)^([ \t]{0,3})(`{3,}|~{3,})[ \t]*(?=\r?$)/gim;
 
 function firstStatus(text: string, structuredStatuses: unknown[]): { status: Status | null; error: string | null } {

@@ -8,7 +8,7 @@ import type { Tracker } from "../tracker.ts";
 import { commandFailure, declaredGates, evidencePacket, git, isAncestor, testCommands, testRun } from "./checks.ts";
 import { targetEvidenceFailure } from "./evidence.ts";
 import { adoptLegacyPostLanding, outstandingChecks, postLandingSummary, type PostLandingCheck } from "./post-landing.ts";
-import { conflictDetails, landingConflict, prepareLandingDependencies } from "./landing.ts";
+import { conflictDetails, gateRepair, landingConflict, prepareLandingDependencies, type LandingRepair } from "./landing.ts";
 import type { CollectorRecord, GlobalRunState, LandingOperation, ReviewedResult } from "./tracker-state.ts";
 
 export interface CompletionContext {
@@ -35,7 +35,7 @@ export interface ReviewedLanding {
 	tests: string[];
 }
 /** A failure's `log` is a failed gate's whole output, when it is longer than the failure shows. */
-export type LandingOutcome = { ok: true; head: string; replayed: boolean; output?: string } | { ok: false; failure: string; log?: string };
+export type LandingOutcome = { ok: true; head: string; replayed: boolean; output?: string } | { ok: false; failure: string; log?: string; repair?: LandingRepair };
 
 /** Keep the leaf's result even after its chain/worktree is removed. If no explicit
  * handoff summary exists, preserve the reviewed report as summary. */
@@ -102,6 +102,8 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 			}
 		}
 		let before = "", workerHead = "", merged = false;
+		let failedGate: LandingRepair | undefined;
+		const conflictRepair = (): LandingRepair => ({ kind: "conflict", target: before, reviewed: workerHead, base: workerHead });
 		try {
 			const destination = context.pathOf(input.into);
 			before = git(destination, "rev-parse", "HEAD");
@@ -109,7 +111,7 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 			await captureWorkerForeignWork(context, [[input.slug, [...input.workers, input.worker]]]);
 			assertNoTrackerChanges(input.worker.path, before);
 			const conflict = landingConflict(input.worker.path, before, workerHead);
-			if (conflict) return { ok: false, failure: conflict };
+			if (conflict) return { ok: false, failure: conflict, repair: conflictRepair() };
 			const workers = [...(pending?.workers ?? []), ...input.workers, input.worker]
 				.filter((worker, index, all) => all.findIndex(other =>
 					other.run === worker.run && other.handle === worker.handle && other.path === worker.path) === index);
@@ -127,7 +129,13 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 				const run = (cmd: string[], timeout = 30 * 60_000) => execFileSync(cmd[0], cmd.slice(1), {
 					cwd: worker.path, encoding: "utf8", stdio: "pipe", maxBuffer: 64 << 20, timeout,
 				});
-				for (const gate of declaredGates(worker.path)) run(["bash", "-lc", gate.cmd], gate.timeout);
+				for (const gate of declaredGates(worker.path)) {
+					try { run(["bash", "-lc", gate.cmd], gate.timeout); }
+					catch (error) {
+						failedGate = gateRepair(worker.path, before, workerHead, git(worker.path, "rev-parse", "HEAD"), commandFailure(error).log);
+						throw error;
+					}
+				}
 				for (const file of new Set([...input.tests, ...testCommands(operation.result.handoff)])) {
 					const cmd = testRun(worker.path, file);
 					if (cmd) run(cmd);
@@ -150,9 +158,9 @@ export async function landReviewed(context: CompletionContext, input: ReviewedLa
 			// error so the runtime retries recovery before finishing or cleanup.
 			if (merged) throw error;
 			if (error instanceof MergeConflict)
-				return { ok: false, failure: conflictDetails(input.worker.path, before, git(input.worker.path, "merge-base", before, workerHead), error.files) };
+				return { ok: false, failure: conflictDetails(input.worker.path, before, git(input.worker.path, "merge-base", before, workerHead), error.files), ...(error.files.length ? { repair: conflictRepair() } : {}) };
 			const { summary, log } = commandFailure(error);
-			return { ok: false, failure: summary, ...(log !== summary ? { log } : {}) };
+			return { ok: false, failure: summary, ...(log !== summary ? { log } : {}), ...(failedGate ? { repair: failedGate } : {}) };
 		}
 	});
 }

@@ -49,8 +49,8 @@ export function renderStatus(states: State[], o: StatusOptions = {}): string {
 		for (const slug of nodes) {
 			const c = s.chains[slug], ex = s.exceptions[slug];
 			const ev = lastEvent(slug, s.log ?? []);
-			const parts = ["**" + slug + "**", c ? c.phase : "exception"];
-			const w = worker(c?.handle);
+			const parts = ["**" + slug + "**", c?.landingRepair ? "repair " + c.landingRepair.kind : c ? c.phase : "exception"];
+			const w = worker(c?.landingRepair?.worker ?? c?.handle);
 			if (w) parts.push(w);
 			else if (c?.handle) parts.push(c.handle.handle);
 			if (ex) parts.push(ex.level === "owner" ? "waiting on the supervisor: " + oneLine(ex.reason) : "exception (" + oneLine(ex.reason) + ") with the handler for " + ex.level + (worker(ex.handler) ? " " + worker(ex.handler) : ""));
